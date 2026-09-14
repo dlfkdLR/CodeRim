@@ -4,6 +4,12 @@ All notable changes to CodexMeter will be documented in this file.
 
 ## [Unreleased]
 
+## [2.0.12] - 2026-09-14
+
+### Fixed
+
+- The hover notch no longer stays open after a click on its curved margin or tooltip. Plain clicks keep automatic dismissal; pinning is available through the explicit **Keep open** context-menu action.
+
 ## [2.0.11] - 2026-09-12
 
 ### Security

@@ -403,7 +403,7 @@ final class NotchAlwaysShowTests: XCTestCase {
         controller.apply(.alwaysShow)
         XCTAssertTrue(controller.model.staysOpen)
 
-        controller.togglePinned()   // a click on the bar
+        controller.togglePinned()   // the explicit Keep open action
         XCTAssertTrue(controller.model.staysOpen,
                       "a click downgraded Always show to hover")
         XCTAssertTrue(controller.model.isExpanded)
@@ -418,8 +418,7 @@ final class NotchAlwaysShowTests: XCTestCase {
         XCTAssertTrue(controller.model.staysOpen)
     }
 
-    /// The transient pin still works where it is the only thing holding the
-    /// notch open — that is what clicking is *for* in hover mode.
+    /// The explicit menu pin still works in hover mode.
     func testAPinInHoverModeIsStillATogggle() {
         let controller = NotchWindowController()
         controller.apply(.onHover)
@@ -468,11 +467,8 @@ final class NotchAlwaysShowTests: XCTestCase {
 /// target on a screen edge, which made it easy to trip by accident: reported
 /// as "hover mode sticks open after a stray click".
 ///
-/// Pinning stays exactly what a click on a notch that is *already* open does
-/// — that part is documented and unchanged. What changes is the other guard:
-/// a click that arrives before the notch has opened now just opens it, the
-/// same as the pointer arriving would, so it folds back on its own once the
-/// pointer leaves.
+/// Plain clicks open the notch without pinning, whether or not the cursor
+/// poll has already opened it. Panel-backed coverage is in NotchDismissalTests.
 @MainActor
 final class NotchStrayClickPinTests: XCTestCase {
     func testAClickOnAFoldedNotchOpensWithoutPinning() {
