@@ -4,56 +4,33 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodexMeter</title>
         <item>
-            <title>2.0.11</title>
-            <pubDate>Sat, 12 Sep 2026 15:10:12 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodexMeter/releases/tag/v2.0.11</link>
-            <sparkle:version>20011</sparkle:version>
-            <sparkle:shortVersionString>2.0.11</sparkle:shortVersionString>
+            <title>2.0.12</title>
+            <pubDate>Mon, 14 Sep 2026 14:17:53 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodexMeter/releases/tag/v2.0.12</link>
+            <sparkle:version>20012</sparkle:version>
+            <sparkle:shortVersionString>2.0.12</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodexMeter 2.0.11
+            <description sparkle:format="markdown"><![CDATA[# CodexMeter 2.0.12
 
-Two fixes from a security review of everything added since 2.0.8.
+Fixed the notch occasionally staying open in **Show on hover** mode.
 
-- **Provider responses are no longer written to the system log.** Three
-  providers logged the first few hundred bytes of a usage response with
-  `privacy: .public`, which overrides the redaction macOS applies by default.
-  That put plan, spend and account identifiers in the clear — readable by other
-  processes on the Mac, and captured verbatim by any sysdiagnose bundle. Only
-  response sizes are logged now, and a test fails the build if a payload is
-  ever marked public again.
-- **Provider responses have a ceiling.** The nine third-party endpoints the
-  notch polls had no size limit, so a vendor incident returning a very large
-  body could grow the app's memory until macOS killed it. An oversize response
-  now fails that one ring instead. Measured at 0.66 ms against 0.69 ms
-  unbounded — an ordinary reading costs nothing extra.
-
-Neither was reachable from outside the Mac, and no credential was exposed. Both
-were reported by the review rather than seen in the wild.
+Clicking the notch's curved margin or tooltip used to pin it silently. A quick
+click on the folded notch could do the same if the cursor monitor opened it
+before the click arrived. Plain clicks now keep hover behavior, so moving away
+folds the notch again. To hold it open, right-click and choose **Keep open**, or
+select **Always show** in Settings.
 
 ## Verification
 
-- 658 automated tests passed, 9 environment-specific checks skipped.
-- The response ceiling is exercised against a real loopback HTTP server: an
-  ordinary response, a declared oversize body, an oversize body that declares no
-  length at all, and a body exactly at the ceiling.
-- `swift build` with zero warnings and zero errors.
+- 662 automated tests completed with 9 environment-specific skips and no failures.
+- Regression coverage uses the native notch panel and cursor polling on all four
+  edges, including tooltip clicks, rapid re-entry, and explicit pinning.
 
 ## Installation
 
 - macOS 14 or later; Universal 2 for Apple Silicon and Intel.
-- Ad-hoc signed and not Apple-notarized. Verify the first download with
-  `SHA256SUMS.txt`; subsequent Sparkle updates are authenticated with Ed25519
-  signatures.
-- No usage database migration or automatic credential changes.
-
-Download the DMG and checksum list into the same folder, then verify before
-opening:
-
-```bash
-cd ~/Downloads
-grep ' CodexMeter-2.0.11.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
-open CodexMeter-2.0.11.dmg
-```
+- Ad-hoc signed. Sparkle updates use Ed25519 signatures.
+- No database or account migration.
 
 Homebrew users can update with:
 
@@ -61,21 +38,11 @@ Homebrew users can update with:
 brew update
 brew upgrade --cask --greedy dlfkdLR/tap/codexmeter
 ```
-
-```bash
-xattr -dr com.apple.quarantine /Applications/CodexMeter.app
-open /Applications/CodexMeter.app
-```
-
-## Recovery
-
-This release does not migrate any database. Published version tags are
-immutable; corrections ship as a new patch release.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodexMeter/releases/download/v2.0.11/CodexMeter-2.0.11.zip" length="5687390" type="application/octet-stream" sparkle:edSignature="PL/nmitAJqv7zmHST7QDzJPXpMDtfzOc6r6FBPPA+MKJA0NP+ha8Ih8Urn7vBhqOcyaEOVeQtoby4JV0GhogCw=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodexMeter/releases/download/v2.0.12/CodexMeter-2.0.12.zip" length="5688014" type="application/octet-stream" sparkle:edSignature="u3NwKIujui3IQuJHBwDwVg7zMJh/DqknNQrPceIUW9f7drY/KO+ORxYPFfUK2qh17HSziHKTGJ1d3brl7/w7AQ=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: zuRQu9UiyZ9kqMf+hfBisRsF5T8snHREqPzP+YSl8vxZ1HjbRurGCz8oHkrXBTQIKZuhemLPiixXEAnSRzftBg==
-length: 3506
+edSignature: xrP8MuEvDhs9qIbX22wYcIrWcWo/7NUphlZEyWcNwhhw6fBJPNOfuPH5xbmQav40Qg5JztcZmXlAsLZd7HbjDA==
+length: 2196
 -->
