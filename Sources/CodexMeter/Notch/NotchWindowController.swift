@@ -54,6 +54,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     private var clearHoverWork: DispatchWorkItem?
     private var clockTimer: Timer?
     private var cursorTimer: Timer?
+    private let mouseLocation: () -> CGPoint
 
     /// Hover in is quick; hover out waits, because the pointer has to cross the
     /// gap between the notch and the card without the card vanishing under it.
@@ -67,7 +68,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     private var peekWork: DispatchWorkItem?
     /// The session a peek is currently offering, and how long the offer lasts.
     ///
-    /// A click on the open notch normally pins it or refetches a ring; while
+    /// A click on the open notch normally refetches a ring; while
     /// this is set and unexpired it jumps to the session instead. The expiry is
     /// what keeps the two apart — without it, the *next* click on the notch,
     /// minutes later and about something else, would still be raising a
@@ -95,7 +96,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     /// rect comparison every 0.3s and needs no new machinery.
     private var lastVisibleFrame: CGRect?
 
-    override init() {
+    init(mouseLocation: @escaping () -> CGPoint = { NSEvent.mouseLocation }) {
+        self.mouseLocation = mouseLocation
         super.init()
         model.onOpenAccountMenu = { [weak self] in self?.showAccountMenu() }
     }
@@ -423,7 +425,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     }
 
     private func localCursor(in frame: CGRect) -> CGPoint {
-        let mouse = NSEvent.mouseLocation
+        let mouse = mouseLocation()
         return CGPoint(x: mouse.x - frame.minX, y: frame.maxY - mouse.y)
     }
 
@@ -534,8 +536,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         }
     }
 
-    /// A click on a ring refetches that provider; a click anywhere else on the
-    /// open notch pins it. The ring is the more specific target, so it wins.
+    /// A click on a ring refetches that provider. Other plain clicks retain
+    /// hover behavior; only the explicit "Keep open" menu action pins it.
     func handleClick() {
         guard let panel else {
             setExpanded(true)
@@ -555,8 +557,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             return
         }
         // A peek is a question — "this one just finished, do you want it?" —
-        // and the click that follows is the answer. It outranks pinning and
-        // refetching for as long as the offer stands, and for no longer.
+        // and the click that follows is the answer. It outranks refetching
+        // for as long as the offer stands, and for no longer.
         //
         // Tested before the folded case below, not after: the grace period
         // outlives the peek by a couple of seconds precisely so that a hand
@@ -579,10 +581,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             // also pin it. The pill's hot zone is deliberately generous, since
             // it is a small target on a screen edge, so a click aimed at
             // something else nearby can land here without the notch ever
-            // having been seen open. Pinning is what a click on a notch that
-            // is *already* open does; folding it back in later is exactly
-            // the ordinary hover behaviour, which a plain `setExpanded` leaves
-            // intact.
+            // having been seen open. Folding it back in later follows the
+            // ordinary hover behavior, which `setExpanded` leaves intact.
             setExpanded(true)
             return
         }
@@ -592,7 +592,10 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             onRefreshProvider?(model.snapshots[index].id)
             return
         }
-        togglePinned()
+        // The cursor monitor can unfold the notch before mouseDown arrives.
+        // Treating this fallback as a pin made a quick click on the pill,
+        // curved margin, or tooltip leave hover mode stuck open indefinitely.
+        setExpanded(true)
     }
 
     /// Move the notch to another screen edge.
@@ -800,7 +803,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         stop()
     }
 
-    /// Clicking the open notch pins it, so it stays put while you read it.
+    /// Explicitly choosing "Keep open" pins the notch while you read it.
     ///
     /// A no-op while Settings says Always show: there the notch is already
     /// held open by a standing choice, and letting a click release it meant
@@ -852,10 +855,10 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         )
         keepOpen.target = menuActions
         // Checked whichever way it is being held open, but only changeable
-        // when it is the click that is holding it — the setting is Settings'
+        // when it is a menu pin that is holding it — the setting is Settings'
         // to change, and a menu item that silently loses is worse than one
         // that says it is not yours to press.
-        keepOpen.state = model.staysOpen ? .on : .off
+        keepOpen.state = (model.isPinned || model.isAlwaysOn) ? .on : .off
         keepOpen.isEnabled = !model.isAlwaysOn
         keepOpen.toolTip = model.isAlwaysOn
             ? "CodexMeter is set to Always show. Change it in Settings."
