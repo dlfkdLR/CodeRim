@@ -45,3 +45,9 @@ The upstream library and provider scripts are included via Swift Package Manager
 Full license and dependency notices are included in the CodeRim resource bundle.
 Runtime dependencies: SweetCookieKit (MIT), Swift Crypto, Swift ASN.1 and
 Swift Log (Apache-2.0), QuickJS and Sucrase (MIT).
+
+Provider identification artwork
+The ProviderIcon-*.svg vendor marks in Sources/CodeRim/Resources/ProviderLogos
+are distributed with the pinned CodexBar source above under its MIT notice.
+These marks identify their respective third-party services; they are not CodeRim
+or CodexBar application branding. Trademarks remain with their respective owners.

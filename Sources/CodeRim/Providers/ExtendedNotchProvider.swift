@@ -25,7 +25,7 @@ final class ExtendedNotchProvider: NotchProvider {
 
     var id: String { ExtendedProviderCatalog.localID(descriptor.id) }
     var displayName: String { descriptor.metadata.displayName }
-    var glyph: ProviderGlyph { descriptor.id == .gemini ? .geminiSpark : .third }
+    var glyph: ProviderGlyph { NotchProviderCatalog.glyph(for: id) }
     var isVisibleWhenAbsent: Bool { true }
     var signInRoute: SignInRoute { .guidance("Configure \(displayName) in its provider settings. " + (ExtendedProviderCatalog.guide(for: id)?.summary ?? "")) }
     func account() -> ProviderAccount? { currentAccount }
@@ -235,7 +235,7 @@ final class ExtendedNotchProvider: NotchProvider {
         let id = ExtendedProviderCatalog.localID(descriptor.id)
         let headline = windows.first(where: { $0.usedFraction != nil })?.id ?? windows.first?.id
         return ProviderSnapshot(id: id, displayName: descriptor.metadata.displayName,
-            glyph: descriptor.id == .gemini ? .geminiSpark : .third,
+            glyph: NotchProviderCatalog.glyph(for: id),
             fidelity: usage.dataConfidence == .estimated ? .derived : .official,
             status: .ok,
             windows: windows, headlineID: headline, accountPlan: usage.loginMethod(for: descriptor.id))
