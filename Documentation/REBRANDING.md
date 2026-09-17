@@ -24,8 +24,9 @@ At launch, existing app-managed CLI links are repaired automatically.
 The legacy codexmeter command is retained only when it was an app-managed link;
 unrelated executables and links are never overwritten.
 
-The repositories are dlfkdLR/CodeRim and dlfkdLR/CodeRim-Releases.
+The repositories keep their existing names: dlfkdLR/CodexMeter and
+dlfkdLR/CodexMeter-Releases. The product name is CodeRim.
 The Homebrew tap keeps the dlfkdLR/homebrew-tap repository and changes its cask
 to coderim, with a codexmeter-to-coderim rename mapping.
-GitHub's repository redirects and the signed compatibility feed keep old links
+The unchanged repository URLs and signed compatibility feed keep old links
 and installed updaters working. Historical release notes keep their original names.

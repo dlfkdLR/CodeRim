@@ -8,7 +8,7 @@ final class UpdateServiceTests: XCTestCase {
             UpdateService.canStartUpdater(
                 bundleURL: URL(fileURLWithPath: "/Applications/CodeRim.app"),
                 infoDictionary: [
-                    "SUFeedURL": "https://raw.githubusercontent.com/dlfkdLR/CodeRim/update-feed/appcast.xml",
+                    "SUFeedURL": "https://raw.githubusercontent.com/dlfkdLR/CodexMeter/update-feed/appcast.xml",
                     "SUPublicEDKey": "public-key"
                 ]
             )

@@ -24,7 +24,7 @@ The verifier requires an ad-hoc signature, rejects an Apple certificate authorit
 
 ## macOS release
 
-The macOS app uses one immutable `vVERSION` tag and one public release in `dlfkdLR/CodeRim`.
+The macOS app uses one immutable `vVERSION` tag and one public release in `dlfkdLR/CodexMeter`.
 
 `BUILD_NUMBER` (→ `CFBundleVersion`) is what Sparkle compares to decide whether an update is newer. It must **only ever increase**. Through 1.x it was the version digits concatenated (`1.4.10` → `1410`); `2.0.0` would have been `200`, a regression, so 2.0.0 uses `20000` and later 2.x releases continue from there (`2.0.1` → `20001`, `2.1.0` → `20100`).
 
@@ -43,9 +43,9 @@ export CODERIM_UPDATE_FEED_BRANCH="update-feed"
 
 ### Legacy feed migration
 
-Versions through 1.0.3 have `HechoLP/CodeRim-Releases` embedded as their Sparkle feed. For the 1.0.4 bridge release only, publish the exact same signed `appcast.xml` to both repositories' `update-feed` branches after uploading the archive to `HechoLP/CodeRim`. The enclosure URL must point to the release in `HechoLP/CodeRim`.
+Versions through 1.0.3 have `HechoLP/CodexMeter-Releases` embedded as their Sparkle feed. For the 1.0.4 bridge release only, publish the exact same signed `appcast.xml` to both repositories' `update-feed` branches after uploading the archive to `HechoLP/CodexMeter`. The enclosure URL must point to the release in `HechoLP/CodexMeter`.
 
-After the dual feed is anonymously reachable and 1.0.4 is verified to read the source repository's feed, archive `HechoLP/CodeRim-Releases` as a public, read-only compatibility repository. Do not delete it or make it private: an older installation may still need its static 1.0.4 bridge feed. Releases after 1.0.4 are published only in `HechoLP/CodeRim` and only its `update-feed` branch is updated.
+After the dual feed is anonymously reachable and 1.0.4 is verified to read the source repository's feed, archive `HechoLP/CodexMeter-Releases` as a public, read-only compatibility repository. Do not delete it or make it private: an older installation may still need its static 1.0.4 bridge feed. Releases after 1.0.4 are published only in `HechoLP/CodexMeter` and only its `update-feed` branch is updated.
 
 ## First-install trust disclosure
 

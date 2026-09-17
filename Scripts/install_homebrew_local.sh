@@ -57,7 +57,7 @@ artifact_sha=$(shasum -a 256 "${artifact_path}" | awk '{print $1}')
   print "  url \"file://${artifact_path}\""
   print '  name "CodeRim"'
   print '  desc "Local Codex token usage in the menu bar"'
-  print '  homepage "https://github.com/dlfkdLR/CodeRim"'
+  print '  homepage "https://github.com/dlfkdLR/CodexMeter"'
   print
   print '  depends_on macos: :sonoma'
   print
