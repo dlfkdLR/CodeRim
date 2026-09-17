@@ -5,8 +5,8 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
         <title>CodeRim</title>
         <item>
             <title>2.1.1</title>
-            <pubDate>Thu, 17 Sep 2026 16:52:07 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodexMeter/releases/tag/v2.1.1</link>
+            <pubDate>Thu, 17 Sep 2026 17:06:30 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.1</link>
             <sparkle:version>20101</sparkle:version>
             <sparkle:shortVersionString>2.1.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
@@ -14,14 +14,15 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
 
 - Introduces the Open Rim logo: a simple C-shaped ring on a charcoal app icon.
 - Uses the same crisp, appearance-adaptive mark in the macOS menu bar and the Information pane fallback.
-- Keeps existing settings, accounts, usage history, CLI and widget compatibility.
+- Uses canonical CodeRim project, release and signed-update URLs in new builds.
+- Completes current design, changelog and diagnostic branding while keeping existing settings, accounts, usage history, CLI and widget compatibility.
 
 Update from CodeRim or CodexMeter using **Check for Updates…**, or download the ZIP/DMG. Homebrew users can run `brew update` followed by `brew upgrade --cask --greedy dlfkdLR/tap/coderim`.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodexMeter/releases/download/v2.1.1/CodeRim-2.1.1.zip" length="29218818" type="application/octet-stream" sparkle:edSignature="V17FZ1HNpI4tvlub0rnNliJ8rx962MbmN/xnYwqjH2EhwstSA2HNbogxgJVD0vWkTLjQz2xHIbSOTClc8yIcDA=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.1/CodeRim-2.1.1.zip" length="29218783" type="application/octet-stream" sparkle:edSignature="6nq5KWm8/etr3NaKiTj97mHBlOPkH/KSeeUenflWE2xthI86mIdENEKgR1bjRrNpqSh96koMv9cu+4OKN6enBA=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: Xzm+sdCuzAdydXTpF2CcxOTaq+6OzXiQ/zH6f0BEBI2w+y1GjeFL2JFxR+aC8vuq2JCrl0M91nYaEVUeyXIvAA==
-length: 1682
+edSignature: bBSh0CpcLtZYhpo6hkEgE0/kDIkICkTV63UlQ6eug33ftQBJF9oIutGl1mTo/nY2PfTPGGY6qXRAWO0UJS9nDw==
+length: 1824
 -->
