@@ -52,7 +52,7 @@ final class NotchUsageStore: ObservableObject {
             // row and the rings have to follow now; re-reading every credential
             // to answer a question about layout would spend Claude's
             // rate-limit budget on nothing.
-            snapshots = ProviderOrder.arrange(snapshots, by: order, id: \.id)
+            snapshots = ProviderOrder.arrange(snapshots, by: orderedProviders.map(\.id), id: \.id)
         }
     }
 
@@ -279,8 +279,11 @@ final class NotchUsageStore: ObservableObject {
     }
 
     private func apply(_ fresh: ProviderSnapshot?, providerID: String) {
-        snapshots.removeAll { $0.id == providerID }
-        if let fresh { snapshots = ProviderOrder.arrange(snapshots + [fresh], by: order, id: \.id) }
+        var updated = snapshots.filter { $0.id != providerID }
+        if let fresh { updated.append(fresh) }
+        // Include registration order for providers missing from the saved order.
+        // Publish once so a refresh never briefly removes or moves a visible ring.
+        snapshots = ProviderOrder.arrange(updated, by: orderedProviders.map(\.id), id: \.id)
     }
 
     private func finishRefresh(_ providerID: String) {

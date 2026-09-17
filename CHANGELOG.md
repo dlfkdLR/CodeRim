@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.2 — Provider artwork and activity reliability
+
+- Give all catalog providers their matching artwork in the picker, settings and notch, including cached readings.
+- Preserve ring order during manual and automatic refreshes without briefly removing a visible ring.
+- Track long Codex turns across large rollout files and incrementally consume completed records, with reset detection for replaced or rewritten files.
+- Split installation, provider and companion documentation into focused guides and keep the README status badges concise.
+
 ## 2.1.1 — Open Rim
 
 - Adopt the Open Rim app icon and adaptive menu-bar mark.

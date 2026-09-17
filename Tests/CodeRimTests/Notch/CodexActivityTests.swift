@@ -183,6 +183,132 @@ final class CodexActivityTests: XCTestCase {
                        .init(isRunning: false, since: now))
     }
 
+
+    private func append(_ text: String, to url: URL) throws {
+        let handle = try FileHandle(forWritingTo: url)
+        defer { try? handle.close() }
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(text.utf8))
+        try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: url.path)
+    }
+
+    private func largeOutput(megabytes: Int) -> String {
+        "{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"output\":\""
+            + String(repeating: "x", count: megabytes * 1_024 * 1_024) + "\"}}\n"
+    }
+
+    func testColdReaderRecoversTurnBeyondFormerTailLimit() async throws {
+        let began = now.addingTimeInterval(-1_200)
+        let url = try thread("long-running", body: event("task_started", at: began)
+            + largeOutput(megabytes: 24))
+        XCTAssertNil(CodexTurnActivity.read(url, maximumBytes: 8 * 1_024 * 1_024))
+        XCTAssertEqual(CodexTurnActivity.read(url), .init(isRunning: true, since: began))
+        let first = await CodexActivityReader().read(stateStore: store, desktopStore: desktop, now: now)
+        XCTAssertEqual(first.first?.state, .busy)
+        XCTAssertEqual(first.first?.since, began)
+    }
+
+    func testIncrementalReaderKeepsLongTurnAndConsumesPartialCompletion() async throws {
+        let began = now.addingTimeInterval(-600)
+        let url = try thread("append", body: event("task_started", at: began))
+        let reader = CodexActivityReader()
+        let initial = await reader.read(stateStore: store, desktopStore: desktop, now: now)
+        try append(largeOutput(megabytes: 12), to: url)
+        let grown = await reader.read(stateStore: store, desktopStore: desktop, now: now)
+        XCTAssertEqual(initial, grown)
+        try append(event("task_complete", at: now).trimmingCharacters(in: .newlines), to: url)
+        let partial = await reader.read(stateStore: store, desktopStore: desktop, now: now)
+        XCTAssertEqual(initial, partial)
+        try append("\n", to: url)
+        let ended = await reader.read(stateStore: store, desktopStore: desktop, now: now)
+        XCTAssertEqual(ended.first?.state, .idle)
+        XCTAssertEqual(ended.first?.since, now)
+        let expired = await reader.read(stateStore: store, desktopStore: desktop, now: now.addingTimeInterval(100))
+        XCTAssertTrue(expired.isEmpty)
+    }
+
+    func testLatestTerminalBeforeLargeOutputDoesNotResurrectOldStart() async throws {
+        for terminal in ["task_complete", "turn_aborted"] {
+            let url = try thread(terminal, body: event("task_started", at: now.addingTimeInterval(-60)))
+            var reader = CodexTurnActivity.Reader()
+            XCTAssertEqual(reader.read(url)?.isRunning, true)
+            try append(event(terminal, at: now) + largeOutput(megabytes: 9), to: url)
+            XCTAssertEqual(reader.read(url), .init(isRunning: false, since: now))
+            var restarted = CodexTurnActivity.Reader()
+            XCTAssertEqual(restarted.read(url), .init(isRunning: false, since: now))
+        }
+    }
+
+    func testReaderInvalidatesReplacedTruncatedAndRewrittenFiles() throws {
+        let started = event("task_started", at: now)
+        let url = try thread("rewrite", body: started + String(repeating: " ", count: 1_024) + "\n")
+        var reader = CodexTurnActivity.Reader()
+        XCTAssertEqual(reader.read(url)?.isRunning, true)
+        // Rewrite larger than the old file, without any activity boundary.
+        try Data(String(repeating: " \n", count: 1_024).utf8).write(to: url)
+        XCTAssertNil(reader.read(url))
+        try Data(started.utf8).write(to: url)
+        XCTAssertEqual(reader.read(url)?.isRunning, true)
+        try Data(event("turn_aborted", at: now).utf8).write(to: url, options: .atomic)
+        XCTAssertEqual(reader.read(url)?.isRunning, false)
+        try Data().write(to: url)
+        XCTAssertNil(reader.read(url))
+        try append(started, to: url)
+        XCTAssertEqual(reader.read(url)?.isRunning, true)
+        // Same byte count, different boundary; force an observable modification.
+        let other = event("turn_aborted", at: now)
+        XCTAssertEqual(started.utf8.count, other.utf8.count)
+        try Data(other.utf8).write(to: url)
+        try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(1)], ofItemAtPath: url.path)
+        XCTAssertEqual(reader.read(url)?.isRunning, false)
+    }
+
+
+    func testGrowingRewriteCannotKeepAnOverwrittenBoundary() throws {
+        let padding = String(repeating: " ", count: 512) + "\n"
+        let started = event("task_started", at: now)
+        let aborted = event("turn_aborted", at: now)
+        XCTAssertEqual(started.utf8.count, aborted.utf8.count)
+        let url = try thread("middle-rewrite", body: padding + started + padding)
+        var reader = CodexTurnActivity.Reader()
+        XCTAssertEqual(reader.read(url)?.isRunning, true)
+        // Keep both cached file-end samples unchanged while overwriting the boundary.
+        let handle = try FileHandle(forWritingTo: url)
+        try handle.seek(toOffset: UInt64(padding.utf8.count))
+        try handle.write(contentsOf: Data(aborted.utf8))
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data("\n".utf8))
+        try handle.close()
+        XCTAssertEqual(reader.read(url), .init(isRunning: false, since: now))
+    }
+
+    func testBoundaryMarkersSplitAcrossScanChunksRemainVisible() throws {
+        for type in ["task_started", "task_complete", "turn_aborted"] {
+            let line = event(type, at: now)
+            let marker = "\"\(type)\""
+            let range = try XCTUnwrap(line.range(of: marker))
+            let markerOffset = line[..<range.lowerBound].utf8.count
+            for split in 1..<marker.utf8.count {
+                // Align each interior byte of the marker with a reverse chunk edge.
+                let padding = 65_536 + markerOffset + split - line.utf8.count
+                let url = try thread("split-\(type)-\(split)", body: line + String(repeating: " ", count: padding - 1) + "\n")
+                XCTAssertEqual(CodexTurnActivity.read(url), .init(isRunning: type == "task_started", since: now),
+                               "type=\(type), split=\(split)")
+            }
+        }
+    }
+
+    func testInitialPartialRecordAndNonBoundaryAppendsStayInvisible() throws {
+        let started = event("task_started", at: now)
+        let url = try thread("partial-append", body: String(started.dropLast()))
+        var reader = CodexTurnActivity.Reader()
+        XCTAssertNil(reader.read(url))
+        try append("\n", to: url)
+        XCTAssertEqual(reader.read(url)?.isRunning, true)
+        try append("{\"type\":\"response_item\",\"payload\":{\"type\":\"task_complete\"}}\n", to: url)
+        XCTAssertEqual(reader.read(url)?.isRunning, true)
+    }
+
     func testRestartedTurnUsesItsOwnStartTime() throws {
         let url = try thread("restart", body: event("task_started", at: now.addingTimeInterval(-300))
                              + event("turn_aborted", at: now.addingTimeInterval(-200))
