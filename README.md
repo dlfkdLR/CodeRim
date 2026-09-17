@@ -22,10 +22,13 @@ CodeRim is a native macOS app that keeps usage limits, reset times, and session 
 [![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.3/CodeRim-2.1.3.dmg)
 
 ```sh
+brew tap dlfkdLR/tap &&
 brew install --cask dlfkdLR/tap/coderim
 ```
 
 The app is **ad-hoc signed, not Apple-notarized**. See [installation and first launch](docs/installation.md) for checksum verification, macOS approval, and CodexMeter migration.
+
+If Homebrew reports an unavailable cask or cannot find the old `CodexMeter.app`, follow the [installation repair](docs/troubleshooting.md#homebrew-cannot-find-the-coderim-cask).
 
 Open **Settings → Providers → Add Provider**, connect your tools, and hover a ring. [Get started](docs/getting-started.md).
 

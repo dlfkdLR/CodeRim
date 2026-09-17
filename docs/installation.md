@@ -9,8 +9,11 @@
 Or install with Homebrew:
 
 ```sh
+brew tap dlfkdLR/tap &&
 brew install --cask dlfkdLR/tap/coderim
 ```
+
+The explicit `brew tap` step also works when this Mac has never registered the CodeRim repository. If Homebrew still reports an unavailable cask, use the [recovery instructions](troubleshooting.md#homebrew-cannot-find-the-coderim-cask).
 
 The app is **ad-hoc signed, not Apple-notarized**. Homebrew verifies the download checksum. Automatic updates use Sparkle signatures.
 
@@ -37,15 +40,16 @@ This also applies after a verified Homebrew install.
 For an existing Homebrew installation:
 
 ```sh
-brew update
-brew migrate --cask dlfkdLR/tap/codexmeter
+brew update &&
+brew tap dlfkdLR/tap &&
 brew upgrade --cask --greedy dlfkdLR/tap/coderim
 ```
 
 If the upgrade reports `It seems the App source '/Applications/CodexMeter.app' is not there`, or says it is current while the app still has the old name, quit the running app and repair the installation:
 
 ```sh
-brew update
+brew update &&
+brew tap dlfkdLR/tap &&
 HOMEBREW_NO_INSTALL_CLEANUP=1 brew reinstall --cask --force dlfkdLR/tap/coderim
 ```
 

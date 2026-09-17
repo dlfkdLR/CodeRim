@@ -32,9 +32,31 @@ Older Sparkle updates kept the installed filename `CodexMeter.app`. On launch, C
 
 Homebrew installations keep their receipt-managed path until Homebrew upgrades them. For those installations run `brew update`, then `brew upgrade --cask --greedy dlfkdLR/tap/coderim`; Homebrew moves from the old `codexmeter` cask to `coderim` and installs `CodeRim.app`. If the upgrade fails or reports that the app is current while the old filename remains, use the repair below.
 
+Homebrew can replace the app on disk while an older process remains open. If the Information pane still shows the previous version, use **Quit CodeRim**, then open `CodeRim.app` from Applications. Closing the settings window alone does not quit the menu-bar app.
+
 The rename leaves custom filenames, other folders and an existing `CodeRim.app` untouched. If the folder is not writable, quit CodeRim and move the current app to `CodeRim.app` in Applications using Finder. If both apps exist, check their versions before removing an older copy.
 
 The new release also uses a distinct icon resource and refreshes this app's macOS registration. Quit and reopen System Settings if Notifications still displays a cached icon. macOS may retain that separate cache until the next login; do not reset notification permissions or delete system-wide caches to change the logo.
+
+## Homebrew cannot find the CodeRim cask
+
+If Homebrew reports `Cask 'dlfkdlr/tap/coderim' is unavailable` and `This command requires the tap dlfkdlr/tap`, this Mac has not registered the repository. Updating Homebrew alone does not add it.
+
+For a new install, use the `brew tap` and `brew install` commands in [Installation](installation.md). To repair or replace an existing installation, quit the running CodexMeter or CodeRim app and run:
+
+```sh
+brew update &&
+brew tap dlfkdLR/tap &&
+HOMEBREW_NO_INSTALL_CLEANUP=1 brew reinstall --cask --force dlfkdLR/tap/coderim &&
+xattr -dr com.apple.quarantine /Applications/CodeRim.app &&
+open /Applications/CodeRim.app
+```
+
+This registers the tap explicitly, reinstalls the current release, and launches `CodeRim.app` only after installation succeeds. Homebrew checks the archive's SHA-256; the quarantine command applies only to that installed app. If you use a custom `--appdir`, replace `/Applications` in the last two lines.
+
+The fully qualified install/reinstall command trusts the requested cask; there is no need to trust every package in the tap or disable Homebrew's trust checks. See [Homebrew's tap trust documentation](https://docs.brew.sh/Tap-Trust).
+
+Reinstalling with `--force` replaces any existing `CodeRim.app` at the configured location, so check that copy first. It retains settings, saved accounts and usage history; do not add `--zap`.
 
 ## Homebrew upgrade cannot find CodexMeter.app
 
@@ -43,7 +65,8 @@ The error `It seems the App source '/Applications/CodexMeter.app' is not there` 
 Quit the running CodexMeter or CodeRim app, then run:
 
 ```sh
-brew update
+brew update &&
+brew tap dlfkdLR/tap &&
 HOMEBREW_NO_INSTALL_CLEANUP=1 brew reinstall --cask --force dlfkdLR/tap/coderim
 ```
 
