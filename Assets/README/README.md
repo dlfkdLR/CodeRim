@@ -11,3 +11,7 @@ The source captures were taken from the installed CodexMeter 2.0.9 (build 20009)
 The capture used the existing Right / Medium / Blue / Remaining choices. Always show was enabled only for the expanded capture, then restored to Show on hover. No account identifier, session title, terminal, or unrelated app content is included in the product crop. The original capture files remain unmodified. The banner's AI-assisted revision does not use Codenotch's screenshots.
 
 The older `codexmeter-hero.png` and `codexmeter-screenshot.png` are retained for historical links but are no longer the README's product image.
+
+## Quick controls animation
+
+`codexmeter-controls.gif` shows native SwiftUI renders of the actual notch controls opening below and above the same notch. Captured on 2026-09-17 with illustrative Codex and Claude Code readings (32% and 66% remaining), without personal accounts or desktop content. The 400 × 1000 pixel GIF contains 250 frames at 25 fps, loops for 10 seconds, and was encoded with FFmpeg. No explanatory text is drawn into the animation.

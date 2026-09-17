@@ -55,8 +55,12 @@ This also applies after a verified Homebrew install. Later automatic updates are
 - **Used or remaining.** Choose what the percentage and ring mean in **Settings → Notch → Readings**. Warning colours continue to track consumption.
 - **Account and plan.** Hover for the account plan, including Codex Pro 5x/20x and Claude Max 5x/20x when the account reports the tier.
 - **Working, waiting, finished.** Session activity animates the rings. Optional completion peeks and sounds let you know when to return to a task.
-- **Quick controls.** Hover the arc below the notch to reveal Settings, followed by account switching. The account popover shows provider logos, current accounts, and plans.
+- **Quick controls.** Hover the arc to reveal Settings and account switching above or below the notch. The account popover shows provider logos, current accounts, and plans.
 - **Your layout.** Use any screen edge, choose the size and ring colour, and Option-drag to reposition. The notch starts enabled and remembers your choices.
+
+<p align="center">
+  <img src="Assets/README/codexmeter-controls.gif" alt="Animated notch controls opening below, then above: Settings and account switching appear and retract smoothly." width="176" />
+</p>
 
 The small menu-bar item opens Usage, Settings, updates, or the notch when hidden.
 
