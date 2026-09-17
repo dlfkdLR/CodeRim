@@ -4,33 +4,24 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.0</title>
-            <pubDate>Thu, 17 Sep 2026 15:54:52 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodexMeter/releases/tag/v2.1.0</link>
-            <sparkle:version>20100</sparkle:version>
-            <sparkle:shortVersionString>2.1.0</sparkle:shortVersionString>
+            <title>2.1.1</title>
+            <pubDate>Thu, 17 Sep 2026 16:52:07 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodexMeter/releases/tag/v2.1.1</link>
+            <sparkle:version>20101</sparkle:version>
+            <sparkle:shortVersionString>2.1.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.0
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.1
 
-CodexMeter is now CodeRim. Existing usage history, settings, saved accounts and
-signed automatic updates continue without a data migration.
+- Introduces the Open Rim logo: a simple C-shaped ring on a charcoal app icon.
+- Uses the same crisp, appearance-adaptive mark in the macOS menu bar and the Information pane fallback.
+- Keeps existing settings, accounts, usage history, CLI and widget compatibility.
 
-- CodeRim branding across the app, source modules, CLI, widgets and downloads.
-- 70 provider integrations with explicit connection, freshness and error states.
-- CLI usage, tokens, limits, provider listing and JSON output from local snapshots.
-- Native Usage, Overview, History and Metric widgets.
-- Unified token and estimated-cost analytics with labelled priced subtotals.
-- Improved Codex activity tracking, project/task labels and notch controls.
-- Retained credential privacy checks and hover-dismiss fixes.
-
-Install with `brew install --cask dlfkdLR/tap/coderim`, or download CodeRim-2.1.0.dmg.
-Existing in-app upgrades can retain the CodexMeter.app disk filename; displayed
-branding changes to CodeRim. The app remains ad-hoc signed, without Apple notarization.
+Update from CodeRim or CodexMeter using **Check for Updates…**, or download the ZIP/DMG. Homebrew users can run `brew update` followed by `brew upgrade --cask --greedy dlfkdLR/tap/coderim`.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodexMeter/releases/download/v2.1.0/CodeRim-2.1.0.zip" length="29199491" type="application/octet-stream" sparkle:edSignature="C2R4/e7wwFzy3XLvHYo25GDyAvajQTlwrKWJOY/AOOrDRhHKSkgx6FtvW4l7RwFYtDotjTiQtzdevGwwWR8ZAg=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodexMeter/releases/download/v2.1.1/CodeRim-2.1.1.zip" length="29218818" type="application/octet-stream" sparkle:edSignature="V17FZ1HNpI4tvlub0rnNliJ8rx962MbmN/xnYwqjH2EhwstSA2HNbogxgJVD0vWkTLjQz2xHIbSOTClc8yIcDA=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: F0q8zEmu/56x/xSW7svlfhCW7SFHhX/amWEoGadtYVYSoJs0Tiuw/5seHk5iajwncVfNhOrZMkIuHy3f13fECw==
-length: 2133
+edSignature: Xzm+sdCuzAdydXTpF2CcxOTaq+6OzXiQ/zH6f0BEBI2w+y1GjeFL2JFxR+aC8vuq2JCrl0M91nYaEVUeyXIvAA==
+length: 1682
 -->
