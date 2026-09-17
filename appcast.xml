@@ -4,31 +4,28 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.3</title>
-            <pubDate>Thu, 17 Sep 2026 18:49:07 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.3</link>
-            <sparkle:version>20103</sparkle:version>
-            <sparkle:shortVersionString>2.1.3</sparkle:shortVersionString>
+            <title>2.1.4</title>
+            <pubDate>Fri, 18 Sep 2026 08:34:50 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.4</link>
+            <sparkle:version>20104</sparkle:version>
+            <sparkle:shortVersionString>2.1.4</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.3
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.4
 
-Fix the legacy app name after updating from CodexMeter, and refresh the Open Rim icon registration.
+Restore token totals in the notch for Claude and preserve reported token usage across providers.
 
 ## Changes
 
-- A manually installed `CodexMeter.app` in Applications is safely renamed to `CodeRim.app` at launch, followed by one restart. Existing destinations and custom names are preserved.
-- Homebrew-managed installations defer the filename change to Homebrew so their receipts and future upgrades remain valid. Run `brew update` and `brew upgrade --cask --greedy dlfkdLR/tap/coderim` to migrate the old cask.
-- The Open Rim logo uses a distinct bundled icon resource. Each new build refreshes its own Launch Services entry without clearing system-wide caches or resetting notification permissions.
-- Existing settings, accounts, local history, update trust and installed CLI links are preserved.
+- Claude and Codex show **Today · This Mac** token totals independently of account-limit refreshes. Local changes update the notch even when quota data is old or a quota request fails.
+- Loading, unavailable, measured zero, partial and stale local usage remain distinct. Switching accounts clears the old quota while keeping the correctly scoped local total; daily recalculation updates today's value.
+- Provider-reported token history, session totals and token quota details retain their original period and units, including OpenAI, Mistral, LLM Proxy, Bedrock, LongCat and GLM data. Providers that do not report token counts keep their existing allowance or cost readings.
 
-If System Settings was open during the update, quit and reopen it. macOS can retain a separate Notifications icon cache until the next login. See [troubleshooting](https://github.com/dlfkdLR/CodeRim/blob/main/docs/troubleshooting.md#the-app-still-says-codexmeter-or-shows-the-old-icon).
-
-macOS 14 or later; Universal 2 for Apple silicon and Intel. Includes the CLI and native widget extension. The app is ad-hoc signed and is not Apple-notarized. Download the DMG or ZIP with its matching SHA-256 file from this release. Published tags are immutable.
+macOS 14 or later; Universal 2 for Apple silicon and Intel. Includes the CLI and native widget extension. The app is ad-hoc signed and is not Apple-notarized. Download the DMG or ZIP with its matching SHA-256 file and verify the checksum before installing or removing quarantine. See the [installation guide](https://github.com/dlfkdLR/CodeRim/blob/main/docs/installation.md). Published tags are immutable.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.3/CodeRim-2.1.3.zip" length="29337184" type="application/octet-stream" sparkle:edSignature="KajkjKpBPI+N6PN8vrsAkPRjuZzz4KlNjyARIPEDZb34gNtisRp0N7YLZCb6usFwry4c51G4lAZQnhjOyg8xDg=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.4/CodeRim-2.1.4.zip" length="29335395" type="application/octet-stream" sparkle:edSignature="GNVLUJ2NGfHK5/rxtIS+XCWNCZX1bfmGqB2F0RlLzWOFOtoS8D+CYghfHkii33EeybkQirgGoIANC7xC+fn2Aw=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: SXj/rzQn3Vvai/eEFA9DhfgT2NXPCYkpfBSLlT1v+PYa0/0F08dcA/YIFIuGo1W5J/1T/OayeoPHb+FsIFd3AQ==
-length: 2571
+edSignature: gX3pxxOZv2ELSGrJxLixB6Uxj3dwg8pgbkwzEf7S53mCwtM7cyPQt+oa3QwSjzT4Tovbnb7I67d3iqbknkkqBw==
+length: 2411
 -->
