@@ -2,47 +2,35 @@
 IMPORTANT: This file was signed by Sparkle. Any modifications to this file requires re-signing this file with generate_appcast or sign_update! The signed signature will be embedded at the end of this file.
 --><rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
     <channel>
-        <title>CodexMeter</title>
+        <title>CodeRim</title>
         <item>
-            <title>2.0.12</title>
-            <pubDate>Mon, 14 Sep 2026 14:17:53 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodexMeter/releases/tag/v2.0.12</link>
-            <sparkle:version>20012</sparkle:version>
-            <sparkle:shortVersionString>2.0.12</sparkle:shortVersionString>
+            <title>2.1.0</title>
+            <pubDate>Thu, 17 Sep 2026 15:54:52 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodexMeter/releases/tag/v2.1.0</link>
+            <sparkle:version>20100</sparkle:version>
+            <sparkle:shortVersionString>2.1.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodexMeter 2.0.12
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.0
 
-Fixed the notch occasionally staying open in **Show on hover** mode.
+CodexMeter is now CodeRim. Existing usage history, settings, saved accounts and
+signed automatic updates continue without a data migration.
 
-Clicking the notch's curved margin or tooltip used to pin it silently. A quick
-click on the folded notch could do the same if the cursor monitor opened it
-before the click arrived. Plain clicks now keep hover behavior, so moving away
-folds the notch again. To hold it open, right-click and choose **Keep open**, or
-select **Always show** in Settings.
+- CodeRim branding across the app, source modules, CLI, widgets and downloads.
+- 70 provider integrations with explicit connection, freshness and error states.
+- CLI usage, tokens, limits, provider listing and JSON output from local snapshots.
+- Native Usage, Overview, History and Metric widgets.
+- Unified token and estimated-cost analytics with labelled priced subtotals.
+- Improved Codex activity tracking, project/task labels and notch controls.
+- Retained credential privacy checks and hover-dismiss fixes.
 
-## Verification
-
-- 662 automated tests completed with 9 environment-specific skips and no failures.
-- Regression coverage uses the native notch panel and cursor polling on all four
-  edges, including tooltip clicks, rapid re-entry, and explicit pinning.
-
-## Installation
-
-- macOS 14 or later; Universal 2 for Apple Silicon and Intel.
-- Ad-hoc signed. Sparkle updates use Ed25519 signatures.
-- No database or account migration.
-
-Homebrew users can update with:
-
-```bash
-brew update
-brew upgrade --cask --greedy dlfkdLR/tap/codexmeter
-```
+Install with `brew install --cask dlfkdLR/tap/coderim`, or download CodeRim-2.1.0.dmg.
+Existing in-app upgrades can retain the CodexMeter.app disk filename; displayed
+branding changes to CodeRim. The app remains ad-hoc signed, without Apple notarization.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodexMeter/releases/download/v2.0.12/CodexMeter-2.0.12.zip" length="5688014" type="application/octet-stream" sparkle:edSignature="u3NwKIujui3IQuJHBwDwVg7zMJh/DqknNQrPceIUW9f7drY/KO+ORxYPFfUK2qh17HSziHKTGJ1d3brl7/w7AQ=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodexMeter/releases/download/v2.1.0/CodeRim-2.1.0.zip" length="29199491" type="application/octet-stream" sparkle:edSignature="C2R4/e7wwFzy3XLvHYo25GDyAvajQTlwrKWJOY/AOOrDRhHKSkgx6FtvW4l7RwFYtDotjTiQtzdevGwwWR8ZAg=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: xrP8MuEvDhs9qIbX22wYcIrWcWo/7NUphlZEyWcNwhhw6fBJPNOfuPH5xbmQav40Qg5JztcZmXlAsLZd7HbjDA==
-length: 2196
+edSignature: F0q8zEmu/56x/xSW7svlfhCW7SFHhX/amWEoGadtYVYSoJs0Tiuw/5seHk5iajwncVfNhOrZMkIuHy3f13fECw==
+length: 2133
 -->
