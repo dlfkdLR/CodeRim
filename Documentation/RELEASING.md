@@ -24,7 +24,7 @@ The verifier requires an ad-hoc signature, rejects an Apple certificate authorit
 
 ## macOS release
 
-The macOS app uses one immutable `vVERSION` tag and one public release in `dlfkdLR/CodexMeter`.
+The macOS app uses one immutable `vVERSION` tag and one public release in `dlfkdLR/CodeRim`.
 
 `BUILD_NUMBER` (→ `CFBundleVersion`) is what Sparkle compares to decide whether an update is newer. It must **only ever increase**. Through 1.x it was the version digits concatenated (`1.4.10` → `1410`); `2.0.0` would have been `200`, a regression, so 2.0.0 uses `20000` and later 2.x releases continue from there (`2.0.1` → `20001`, `2.1.0` → `20100`).
 
@@ -90,3 +90,12 @@ That optional path additionally enforces Developer ID signing, Hardened Runtime,
 ## Rollback
 
 Withdraw the affected public release, restore the previous signed appcast, and document any local-database compatibility implications. Never rebuild an old version or rewrite a published tag; issue a new patch version instead.
+
+## Repository rename compatibility
+
+The repositories are now `dlfkdLR/CodeRim` and `dlfkdLR/CodeRim-Releases`.
+Existing embedded URLs and `RELEASE_REPOSITORY=dlfkdLR/CodexMeter` remain
+intentional compatibility aliases. GitHub redirects them to CodeRim, including
+release assets and the raw update feed. Verify both old and new feed URLs after
+publishing. Keep the legacy repository public and archived, with its original
+signed 1.0.4 bridge for the oldest installations.

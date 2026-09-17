@@ -2,7 +2,7 @@
 
 <img src="Assets/README/coderim-notch.png" alt="CodeRim for macOS supports 70 providers, including Codex, Claude Code, GitHub Copilot, and Cursor. Example edge-notch rings show 32% and 66% remaining." width="100%" />
 
-[![CI](https://github.com/dlfkdLR/CodexMeter/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodexMeter/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/dlfkdLR/CodexMeter?color=181a1e)](https://github.com/dlfkdLR/CodexMeter/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-181a1e)
+[![CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/dlfkdLR/CodeRim?color=181a1e)](https://github.com/dlfkdLR/CodeRim/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-181a1e)
 
 **Coding-assistant limits at the edge of your screen. Local token history one click away.**
 
@@ -14,9 +14,9 @@ CodeRim is a native macOS app that puts your coding assistants' usage limits in 
 
 ## Download
 
-[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodexMeter/releases/download/v2.1.0/CodeRim-2.1.0.dmg)
+[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.0/CodeRim-2.1.0.dmg)
 
-**macOS 14 or later · Apple silicon and Intel.** [Release notes and all downloads](https://github.com/dlfkdLR/CodexMeter/releases/latest).
+**macOS 14 or later · Apple silicon and Intel.** [Release notes and all downloads](https://github.com/dlfkdLR/CodeRim/releases/latest).
 
 ### Homebrew
 
@@ -43,7 +43,7 @@ Settings, usage history and saved accounts are retained. [Name transition detail
 
 ### First launch
 
-The app is **ad-hoc signed, not Apple-notarized**. Homebrew verifies the ZIP checksum. For a direct download, save the DMG and [SHA256SUMS.txt](https://github.com/dlfkdLR/CodexMeter/releases/download/v2.1.0/SHA256SUMS.txt) in the same folder and verify before opening:
+The app is **ad-hoc signed, not Apple-notarized**. Homebrew verifies the ZIP checksum. For a direct download, save the DMG and [SHA256SUMS.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.0/SHA256SUMS.txt) in the same folder and verify before opening:
 
 ```sh
 cd ~/Downloads
@@ -137,7 +137,7 @@ Provider limit requests go to their respective services; optional ChatGPT accoun
 Use Xcode with Swift 6.2 or later:
 
 ```sh
-git clone https://github.com/dlfkdLR/CodexMeter.git CodeRim
+git clone https://github.com/dlfkdLR/CodeRim.git CodeRim
 cd CodeRim
 swift test
 swift run CodeRim
