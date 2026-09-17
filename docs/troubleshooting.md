@@ -26,6 +26,16 @@ Follow the checksum verification and first-launch steps in [Installation](instal
 
 Install the helper from **Settings → Diagnostics → Install CLI** and confirm that `~/.local/bin` is on PATH. Keep CodeRim running for fresh snapshots. Widgets also follow macOS refresh scheduling. See [CLI](cli.md) and [widgets](widgets.md).
 
+## The app still says CodexMeter or shows the old icon
+
+Older Sparkle updates kept the installed filename `CodexMeter.app`. On launch, CodeRim now renames this legacy bundle to `CodeRim.app` in `/Applications` or your home Applications folder, then restarts once. It keeps the same app identifier, settings, accounts and notification permissions. Existing CLI links are repaired on the next launch.
+
+Homebrew installations keep their receipt-managed path until Homebrew upgrades them. For those installations run `brew update`, then `brew upgrade --cask --greedy dlfkdLR/tap/coderim`; Homebrew moves from the old `codexmeter` cask to `coderim` and installs `CodeRim.app`.
+
+The rename leaves custom filenames, other folders and an existing `CodeRim.app` untouched. If the folder is not writable, quit CodeRim and move the current app to `CodeRim.app` in Applications using Finder. If both apps exist, check their versions before removing an older copy.
+
+The new release also uses a distinct icon resource and refreshes this app's macOS registration. Quit and reopen System Settings if Notifications still displays a cached icon. macOS may retain that separate cache until the next login; do not reset notification permissions or delete system-wide caches to change the logo.
+
 ## Update or database problems
 
 Use the [detailed troubleshooting reference](../Documentation/TROUBLESHOOTING.md) for installer restart issues, login items, rebuilds, and local storage maintenance. Clearing or rebuilding statistics affects CodeRim's derived data; review the selected action before proceeding.

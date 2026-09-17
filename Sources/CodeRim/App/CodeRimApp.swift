@@ -24,6 +24,7 @@ struct CodeRimApp: App {
     private let companionPublisher: CompanionSnapshotPublisher
 
     init() {
+        AppIdentityMigration.prepareForLaunch()
         AppPreferences.registerDefaults()
         try? CLIInstaller.repairExistingInstallation()
         let store = UsageStore()
