@@ -42,6 +42,15 @@ brew migrate --cask dlfkdLR/tap/codexmeter
 brew upgrade --cask --greedy dlfkdLR/tap/coderim
 ```
 
-Settings, usage history, and saved accounts are retained. [Migration details](../Documentation/REBRANDING.md).
+If the upgrade reports `It seems the App source '/Applications/CodexMeter.app' is not there`, or says it is current while the app still has the old name, quit the running app and repair the installation:
+
+```sh
+brew update
+HOMEBREW_NO_INSTALL_CLEANUP=1 brew reinstall --cask --force dlfkdLR/tap/coderim
+```
+
+This reinstalls the current release as `CodeRim.app` and refreshes Homebrew's installation record even when the old app is missing. `--force` also replaces an existing `CodeRim.app` at Homebrew's configured app location; check that copy before running the repair. If you set a custom `--appdir`, use that location instead of `/Applications` in the launch commands above.
+
+Settings, usage history, and saved accounts are retained: do not add `--zap` or delete the CodexMeter Application Support folder. Relaunch `CodeRim.app` after installation completes, following the verified first-launch instructions above if needed. [Migration details](../Documentation/REBRANDING.md) · [Homebrew troubleshooting](troubleshooting.md#homebrew-upgrade-cannot-find-codexmeterapp).
 
 [Next: get started](getting-started.md) · [Docs](README.md)
