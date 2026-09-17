@@ -6,30 +6,154 @@ enum CodexTurnActivity {
         let since: Date
     }
 
-    /// Read a bounded tail once and visit each newline once, even when one
-    /// tool result spans most of the tail. Ignore unfinished final records.
-    static func read(_ url: URL, maximumBytes: Int = 8 * 1_024 * 1_024) -> Event? {
-        guard maximumBytes > 0,
+    /// Keep the last boundary while consuming only newly completed records.
+    /// A fresh reader searches back to the boundary, however long the turn is.
+    struct Reader {
+        private struct Snapshot {
+            let identity: String
+            let modified: Date
+            let size: UInt64
+            let offset: UInt64
+            let prefix: Data
+            let anchor: Data
+            let event: Event?
+            let boundary: Range<UInt64>?
+        }
+        private var snapshot: Snapshot?
+
+        mutating func read(_ url: URL) -> Event? {
+            guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+                  let modified = attributes[.modificationDate] as? Date,
+                  let size = (attributes[.size] as? NSNumber)?.uint64Value,
+                  let device = attributes[.systemNumber] as? NSNumber,
+                  let inode = attributes[.systemFileNumber] as? NSNumber,
+                  let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+            defer { try? handle.close() }
+            let identity = "\(device):\(inode)"
+            do {
+                var previous = snapshot
+                if let saved = previous {
+                    if saved.identity != identity || size < saved.size {
+                        previous = nil
+                    } else if size == saved.size {
+                        if modified == saved.modified { return saved.event }
+                        // Same-size rewrites are not appends.
+                        previous = nil
+                    } else if try bytes(handle, at: 0, count: saved.prefix.count) != saved.prefix
+                                || bytes(handle, at: saved.offset - UInt64(saved.anchor.count),
+                                         count: saved.anchor.count) != saved.anchor
+                                || !boundaryMatches(saved, in: handle) {
+                        // Validate the prior boundary as well as the ends when
+                        // recovering from common in-place rewrites between polls.
+                        previous = nil
+                    }
+                }
+                let result = try scan(handle, from: previous?.offset ?? 0, through: size,
+                                      includesFirstRecord: true)
+                let offset = result.offset ?? previous?.offset ?? 0
+                let event = result.event ?? previous?.event
+                let prefix = try bytes(handle, at: 0, count: Int(min(size, 256)))
+                let anchorSize = Int(min(offset, 256))
+                let anchor = try bytes(handle, at: offset - UInt64(anchorSize), count: anchorSize)
+                snapshot = Snapshot(identity: identity, modified: modified, size: size,
+                                    offset: offset, prefix: prefix, anchor: anchor, event: event,
+                                    boundary: result.boundary ?? previous?.boundary)
+                return event
+            } catch {
+                // Leave the cursor untouched so a transient read failure is retried.
+                return nil
+            }
+        }
+
+        private func boundaryMatches(_ saved: Snapshot, in handle: FileHandle) throws -> Bool {
+            guard let range = saved.boundary else { return true }
+            return try CodexTurnActivity.event(in: bytes(handle, at: range.lowerBound,
+                count: Int(range.count))) == saved.event
+        }
+
+    }
+
+    /// Explicit limits are useful for diagnostics. Normal reads have no history
+    /// cutoff: chunks bound scanning memory, not how long a turn remains visible.
+    static func read(_ url: URL, maximumBytes: Int? = nil) -> Event? {
+        guard maximumBytes.map({ $0 > 0 }) ?? true,
               let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
-        guard let end = try? handle.seekToEnd() else { return nil }
-        let count = min(end, UInt64(maximumBytes))
-        let start = end - count
-        guard (try? handle.seek(toOffset: start)) != nil,
-              let data = try? handle.read(upToCount: Int(count)),
-              var lineEnd = data.lastIndex(of: 10) else { return nil }
-        while let previousNewline = data[..<lineEnd].lastIndex(of: 10) {
-            let line = data[data.index(after: previousNewline)..<lineEnd]
-            if let event = event(in: line) { return event }
-            lineEnd = previousNewline
+        do {
+            let end = try handle.seekToEnd()
+            let start = maximumBytes.map { end - min(end, UInt64($0)) } ?? 0
+            return try scan(handle, from: start, through: end,
+                            includesFirstRecord: start == 0).event
+        } catch { return nil }
+    }
+
+    private static let markers = ["\"task_started\"", "\"task_complete\"", "\"turn_aborted\""]
+        .map { Data($0.utf8) }
+    private static let chunkSize = 65_536
+
+    private static func bytes(_ handle: FileHandle, at offset: UInt64, count: Int) throws -> Data {
+        try handle.seek(toOffset: offset)
+        let data = try handle.read(upToCount: count) ?? Data()
+        guard data.count == count else { throw CocoaError(.fileReadUnknown) }
+        return data
+    }
+
+    /// Walk newline positions backwards without buffering enormous tool results.
+    /// Only records containing a boundary marker need JSON decoding. `prefix`
+    /// joins markers split across chunks; unfinished final records are ignored.
+    private static func scan(_ handle: FileHandle, from lowerBound: UInt64, through end: UInt64,
+                             includesFirstRecord: Bool) throws -> (event: Event?, offset: UInt64?, boundary: Range<UInt64>?) {
+        var position = end
+        var lineEnd: UInt64?
+        var completedOffset: UInt64?
+        var candidate = false
+        var prefix = Data()
+        func inspect(_ segment: Data.SubSequence) {
+            let overlap = 15
+            if !candidate {
+                candidate = markers.contains { segment.range(of: $0) != nil }
+                if !candidate, !prefix.isEmpty {
+                    let boundary = Data(segment.suffix(overlap)) + prefix
+                    candidate = markers.contains { boundary.range(of: $0) != nil }
+                }
+            }
+            prefix = Data((Data(segment.prefix(overlap)) + prefix).prefix(overlap))
         }
-        // A tail starting inside a record cannot establish that record's event.
-        return start == 0 ? event(in: data[..<lineEnd]) : nil
+        func decode(from start: UInt64, to finish: UInt64) throws -> Event? {
+            guard candidate else { return nil }
+            return event(in: try bytes(handle, at: start, count: Int(finish - start)))
+        }
+        while position > lowerBound {
+            let start = position - min(position - lowerBound, UInt64(chunkSize))
+            let data = try bytes(handle, at: start, count: Int(position - start))
+            var upper = data.endIndex
+            while let newline = data[..<upper].lastIndex(of: 10) {
+                let absolute = start + UInt64(newline)
+                if let finish = lineEnd {
+                    inspect(data[data.index(after: newline)..<upper])
+                    if let event = try decode(from: absolute + 1, to: finish) {
+                        return (event, completedOffset, (absolute + 1)..<finish)
+                    }
+                } else {
+                    completedOffset = absolute + 1
+                }
+                lineEnd = absolute
+                candidate = false
+                prefix.removeAll(keepingCapacity: true)
+                upper = newline
+            }
+            if lineEnd != nil { inspect(data[..<upper]) }
+            position = start
+        }
+        if includesFirstRecord, let finish = lineEnd,
+           let event = try decode(from: lowerBound, to: finish) {
+            return (event, completedOffset, lowerBound..<finish)
+        }
+        return (nil, completedOffset, nil)
     }
 
     static func event(in line: Data) -> Event? {
-        guard ["\"task_started\"", "\"task_complete\"", "\"turn_aborted\""]
-            .contains(where: { line.range(of: Data($0.utf8)) != nil }),
+        guard markers.contains(where: { line.range(of: $0) != nil }),
               let json = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
               json["type"] as? String == "event_msg",
               let payload = json["payload"] as? [String: Any],
