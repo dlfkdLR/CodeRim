@@ -58,7 +58,7 @@ struct AboutSettingsView: View {
                 if let icon = NSApp.applicationIconImage {
                     Image(nsImage: icon).resizable()
                 } else {
-                    Image(systemName: "diamond.fill")
+                    Image(nsImage: CodeRimMark.image(size: 64)).resizable()
                 }
             }
             .scaledToFit()

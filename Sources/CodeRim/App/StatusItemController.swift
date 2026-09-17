@@ -33,14 +33,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             return
         }
 
-        if let image = NSImage(systemSymbolName: "diamond", accessibilityDescription: "CodeRim") {
-            image.isTemplate = true
-            button.image = image
-        } else {
-            // No SF Symbol (older macOS, a stripped symbol table) — the mark
-            // itself still reads.
-            button.title = "◈"
-        }
+        button.image = CodeRimMark.image()
+        button.setAccessibilityLabel("CodeRim")
         button.imagePosition = .imageOnly
         button.toolTip = "CodeRim"
 
