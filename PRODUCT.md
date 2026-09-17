@@ -30,7 +30,7 @@ The app runs quietly on macOS 14 or later as a native menu bar utility. It disco
 
 - Show input, cached input, output, and total tokens for Today, This Week, This Month, and locally observable history.
 - Switch the visible provider directly from the menu. Keep each provider's database, history cutoff, settings data target, and live totals separate. Claude Code is opt-in and requires explicit official CLI account setup; never expose Codex account data as Claude usage.
-- Preserve input, cached input, and output as separate auditable local components. Keep account totals out of the local database and display them separately. Local history has no account ownership metadata and must never supplement account totals, even after a server date cutoff or an account switch.
+- Preserve input, cached input, and output as separate auditable local components. Keep delayed account totals out of the local database and the live usage interface. Local history has no account ownership metadata and must never supplement account totals, even after a server date cutoff or an account switch.
 - Persist normalized usage and parser checkpoints in owner-only SQLite.
 - Avoid prompts, responses, source code, and terminal output. Authentication data never enters usage storage or logs; explicitly saved account logins use a separate local Keychain vault.
 - Keep optional account retrieval opt-in, fixed-destination, aggregate-only, and memory-only.

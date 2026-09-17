@@ -33,7 +33,7 @@ idle for 90 seconds so completion transitions can be observed. A six-hour
 silence limit expires orphaned turns whose client exited without an end event.
 The local thread catalogue supplies project and task names for the notch.
 
-Optional profile totals follow a separate boundary:
+The retained profile client follows a separate boundary, but the live app disables its fetches and displays local history only:
 
 ```text
 ~/.codex/auth.json credential projection

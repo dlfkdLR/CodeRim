@@ -14,7 +14,7 @@ CodexMeter is a native macOS app that puts your coding assistants' usage limits 
 
 ## Download
 
-[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodexMeter/releases/download/v2.0.9/CodexMeter-2.0.9.dmg)
+[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodexMeter/releases/download/v2.0.13/CodexMeter-2.0.13.dmg)
 
 **macOS 14 or later · Apple silicon and Intel.** [Release notes and all downloads](https://github.com/dlfkdLR/CodexMeter/releases/latest).
 
@@ -33,12 +33,12 @@ brew upgrade --cask --greedy dlfkdLR/tap/codexmeter
 
 ### First launch
 
-The app is **ad-hoc signed, not Apple-notarized**. Homebrew verifies the ZIP checksum. For a direct download, save the DMG and [SHA256SUMS.txt](https://github.com/dlfkdLR/CodexMeter/releases/download/v2.0.9/SHA256SUMS.txt) in the same folder and verify before opening:
+The app is **ad-hoc signed, not Apple-notarized**. Homebrew verifies the ZIP checksum. For a direct download, save the DMG and [SHA256SUMS.txt](https://github.com/dlfkdLR/CodexMeter/releases/download/v2.0.13/SHA256SUMS.txt) in the same folder and verify before opening:
 
 ```sh
 cd ~/Downloads
-grep ' CodexMeter-2.0.9.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
-open CodexMeter-2.0.9.dmg
+grep ' CodexMeter-2.0.13.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
+open CodexMeter-2.0.13.dmg
 ```
 
 After the checksum reports `OK`, drag CodexMeter to Applications. If macOS blocks the verified app, remove quarantine from **CodexMeter only**, then launch it:
@@ -52,11 +52,11 @@ This also applies after a verified Homebrew install. Later automatic updates are
 
 ## At the edge
 
-- **Used or remaining.** Choose what the percentage and ring mean in **Settings → Notch → Readings**. Warning colours continue to track consumption.
+- **Used or remaining.** Choose what the percentage and ring mean in **Settings → Notch → Readings**. Usage colours track consumption; Fixed colour and Gradient retain the selected palette.
 - **Account and plan.** Hover for the account plan, including Codex Pro 5x/20x and Claude Max 5x/20x when the account reports the tier.
 - **Working, waiting, finished.** Session activity animates the rings. Optional completion peeks and sounds let you know when to return to a task.
 - **Quick controls.** Hover the arc to reveal Settings and account switching above or below the notch. The account popover shows provider logos, current accounts, and plans.
-- **Your layout.** Use any screen edge, choose the size and ring colour, and Option-drag to reposition. The notch starts enabled and remembers your choices.
+- **Your layout.** Use any screen edge, choose the size, fixed colour or animated gradient, and Option-drag to reposition. The notch starts enabled and remembers your choices.
 
 <p align="center">
   <img src="Assets/README/codexmeter-controls.gif" alt="Animated notch controls opening below, then above: Settings and account switching appear and retract smoothly." width="176" />
@@ -70,7 +70,7 @@ Open **Settings → Providers → Add Provider** to browse the searchable catalo
 
 | Provider | What CodexMeter reads |
 | --- | --- |
-| **Codex** | Local session token history and read-only limits from the signed Codex app-server. Optional ChatGPT account history is shown separately with its server snapshot date. |
+| **Codex** | Local session token history and read-only limits from the signed Codex app-server. Live local history spans accounts on this Mac. |
 | **Claude Code** | Local session token history. After account setup, Claude Code's status-line integration supplies five-hour and weekly limits. |
 | **GitHub Copilot** | Copilot quotas using the GitHub CLI's existing sign-in. |
 | **Cursor** | Usage limits from the Cursor editor or Cursor Agent sign-in. |
