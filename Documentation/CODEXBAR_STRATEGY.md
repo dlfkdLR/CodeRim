@@ -1,14 +1,14 @@
 # CodexBar Feature Strategy
 
-CodexMeter uses [CodexBar](https://github.com/steipete/CodexBar) as a feature reference, not as a visual or code template. This comparison was refreshed against upstream commit [`41c53c3`](https://github.com/steipete/CodexBar/commit/41c53c3) on 2026-08-29.
+CodeRim uses [CodexBar](https://github.com/steipete/CodexBar) as a feature reference, not as a visual or code template. This comparison was refreshed against upstream commit [`41c53c3`](https://github.com/steipete/CodexBar/commit/41c53c3) on 2026-08-29.
 
-The goal is feature-family parity where the data can be obtained reliably, while keeping CodexMeter's independent interface, accurate local accounting, and smaller privacy boundary.
+The goal is feature-family parity where the data can be obtained reliably, while keeping CodeRim's independent interface, accurate local accounting, and smaller privacy boundary.
 
 ## User experience direction
 
-CodexBar's multi-provider switcher works because it already has many active providers. CodexMeter currently has one reliable provider, so empty Claude, Gemini, or Ollama tabs would add navigation without adding value.
+CodexBar's multi-provider switcher works because it already has many active providers. CodeRim currently has one reliable provider, so empty Claude, Gemini, or Ollama tabs would add navigation without adding value.
 
-CodexMeter therefore uses progressive disclosure:
+CodeRim therefore uses progressive disclosure:
 
 1. The first screen shows this Mac's live total and component breakdown.
 2. The most relevant Codex limit windows, reset countdowns, and even-use pace appear immediately below it.
@@ -19,7 +19,7 @@ CodexMeter therefore uses progressive disclosure:
 
 ## Feature-family comparison
 
-| CodexBar feature family | CodexMeter direction | Status |
+| CodexBar feature family | CodeRim direction | Status |
 | --- | --- | --- |
 | Provider quota windows and reset countdowns | Read only from a verified signed Codex app-server; show the nearest windows on the first screen and every window in Limits | Available on the Phase 2 branch |
 | Pace and run-out guidance | Compare current usage with an even-use schedule; label run-out as a current-window estimate | Available on the Phase 2 branch |
@@ -36,7 +36,7 @@ CodexMeter therefore uses progressive disclosure:
 | CLI and local JSON output | Reuse the same provider and accounting core after the multi-provider boundary is stable | Deferred |
 | Widgets | Add after a stable provider-neutral snapshot format exists | Deferred |
 | Localization and RTL | Introduce a string catalog before the first non-English release | Deferred |
-| Quota notifications and celebration effects | Keep CodexMeter quiet by default; any future warning must be explicit opt-in and respect Focus and Reduce Motion | Intentionally different |
+| Quota notifications and celebration effects | Keep CodeRim quiet by default; any future warning must be explicit opt-in and respect Focus and Reduce Motion | Intentionally different |
 | Provider storage scanning | Avoid broad background scanning; consider only known, provider-owned paths with explicit opt-in | Intentionally conservative |
 
 ## Multi-service implementation order

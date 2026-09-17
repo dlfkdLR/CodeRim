@@ -12,15 +12,15 @@ The app uses Swift, SwiftUI, AppKit, Foundation, Swift Concurrency, SQLite, OSLo
 
 ## Users
 
-People who use Codex or Claude Code on macOS and want to see the input, cached input, output, and total tokens visible in their local history. Both support local model/project/session analytics. Codex also supports API-equivalent cost estimates, read-only account limits, and an explicitly enabled account-wide profile view.
+People who use Codex or Claude Code on macOS and want to see the input, cached input, output, and total tokens visible in their local history. Both support local model/project/session analytics. Codex also supports API-equivalent cost estimates, read-only account limits, and live local token history.
 
 ## Product Purpose
 
-CodexMeter turns local Codex and Claude Code session token events into independent, durable usage snapshots. Success means the menu bar item appears immediately, values remain accurate across restarts and duplicate file events, and normal operation has negligible CPU, memory, disk, and network impact. Optional Codex account totals stay isolated from local accounting and are labeled with the server snapshot date.
+CodeRim turns local Codex and Claude Code session token events into independent, durable usage snapshots. Success means the menu bar item appears immediately, values remain accurate across restarts and duplicate file events, and normal operation has negligible CPU, memory, disk, and network impact. Today and History show a single set of live local totals across accounts on this Mac. Delayed ChatGPT profile statistics never replace or supplement those numbers.
 
 ## Positioning
 
-CodexMeter measures locally observable token consumption and can optionally display aggregate ChatGPT profile statistics and read-only Codex account-limit windows. It keeps quota percentages separate from token totals, does not claim to be an official OpenAI usage or billing dashboard, and does not copy CodexBar's branding or assets.
+CodeRim measures locally observable token consumption and can display read-only Codex account-limit windows. It keeps quota percentages separate from token totals, does not claim to be an official OpenAI usage or billing dashboard, and does not copy CodexBar's branding or assets.
 
 ## Operating Context
 
@@ -30,7 +30,7 @@ The app runs quietly on macOS 14 or later as a native menu bar utility. It disco
 
 - Show input, cached input, output, and total tokens for Today, This Week, This Month, and locally observable history.
 - Switch the visible provider directly from the menu. Keep each provider's database, history cutoff, settings data target, and live totals separate. Claude Code is opt-in and requires explicit official CLI account setup; never expose Codex account data as Claude usage.
-- Preserve input, cached input, and output as separate auditable local components, and never add optional account totals to local values.
+- Preserve input, cached input, and output as separate auditable local components. Keep account totals out of the local database and display them separately. Local history has no account ownership metadata and must never supplement account totals, even after a server date cutoff or an account switch.
 - Persist normalized usage and parser checkpoints in owner-only SQLite.
 - Avoid prompts, responses, source code, and terminal output. Authentication data never enters usage storage or logs; explicitly saved account logins use a separate local Keychain vault.
 - Keep optional account retrieval opt-in, fixed-destination, aggregate-only, and memory-only.
@@ -44,7 +44,7 @@ The app runs quietly on macOS 14 or later as a native menu bar utility. It disco
 
 ## Brand Commitments
 
-The product name is CodexMeter. Its interface is compact, quiet, precise, and native to each platform. A small diamond-meter mark may identify the product, but purple/blue AI gradients, neon, decorative glass, giant cards, and dashboard-like chrome are out of scope.
+The product name is CodeRim. Its interface is compact, quiet, precise, and native to each platform. A small diamond-meter mark may identify the product, but purple/blue AI gradients, neon, decorative glass, giant cards, and dashboard-like chrome are out of scope.
 
 ## Evidence on Hand
 

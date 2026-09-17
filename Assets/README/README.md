@@ -14,4 +14,8 @@ The older `codexmeter-hero.png` and `codexmeter-screenshot.png` are retained for
 
 ## Quick controls animation
 
-`codexmeter-controls.gif` shows native SwiftUI renders of the actual notch controls opening below and above the same notch. Captured on 2026-09-17 with illustrative Codex and Claude Code readings (32% and 66% remaining), without personal accounts or desktop content. The 400 × 1000 pixel GIF contains 250 frames at 25 fps, loops for 10 seconds, and was encoded with FFmpeg. No explanatory text is drawn into the animation.
+`coderim-controls.gif` shows native SwiftUI renders of the actual notch controls opening below and above the same notch. Captured on 2026-09-17 with illustrative Codex and Claude Code readings (32% and 66% remaining), without personal accounts or desktop content. The 400 × 1000 pixel GIF contains 250 frames at 25 fps, loops for 10 seconds, and was encoded with FFmpeg. No explanatory text is drawn into the animation.
+
+## CodeRim 2.1.0 branding
+
+`coderim-notch.png` is the 2026-09-17 AI-assisted edit of the historical banner using the built-in imagegen tool. It changes the product heading to “CodeRim” and the provider count to “70 providers. One place.” The remaining composition and illustrative 32%/66% readings are retained. It is a marketing graphic, not a current quota report. Original CodexMeter imagery remains available under its historical filenames.

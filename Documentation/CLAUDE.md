@@ -10,9 +10,9 @@ Open **Settings → Providers**, open **Claude Code** details, enable it, and ad
 - Automatic file-event refresh with the existing polling fallback, manual refresh, restart-safe imports, and separate history maintenance.
 - Read-only five-hour and weekly limit percentages and reset times after Claude Code completes a response.
 
-Claude Code supplies these limits only while producing status-line updates. CodexMeter labels a snapshot as last known after 15 minutes, after its reset time, or when the CLI cannot be checked temporarily. Run Claude Code once and refresh to update it; CodexMeter never presents an old percentage as current.
+Claude Code supplies these limits only while producing status-line updates. CodeRim labels a snapshot as last known after 15 minutes, after its reset time, or when the CLI cannot be checked temporarily. Run Claude Code once and refresh to update it; CodeRim never presents an old percentage as current.
 
-The default source is `~/.claude/projects/**/*.jsonl`. `CLAUDE_CONFIG_DIR` is honored when present as an absolute path in **CodexMeter's process environment**, with `/projects` appended. A shell-only environment setting does not automatically reach apps launched from Finder. Logs outside this root, deleted transcripts, Claude web/mobile chats, remote devices, and sessions with persistence disabled are not observable here.
+The default source is `~/.claude/projects/**/*.jsonl`. `CLAUDE_CONFIG_DIR` is honored when present as an absolute path in **CodeRim's process environment**, with `/projects` appended. A shell-only environment setting does not automatically reach apps launched from Finder. Logs outside this root, deleted transcripts, Claude web/mobile chats, remote devices, and sessions with persistence disabled are not observable here.
 
 ## Presentation
 
@@ -24,7 +24,7 @@ The Usage pane inherits the 1.x popover's layout (372pt, semantic colors, system
 
 ## Accounting
 
-Claude reports uncached `input_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, and `output_tokens` separately. CodexMeter normalizes them as:
+Claude reports uncached `input_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`, and `output_tokens` separately. CodeRim normalizes them as:
 
 ```text
 Input        = input_tokens + cache_read_input_tokens + cache_creation_input_tokens
@@ -44,7 +44,7 @@ Clearing Claude history retains only the hashed identities of excluded responses
 
 Claude web/mobile account-wide token totals, attachment counts, and API-equivalent cost estimates are **not supported in this version**. An unknown price is unavailable, never a zero-cost claim.
 
-Normal usage monitoring invokes the official read-only `claude auth status` command to identify the signed-in account. The separate, explicit **Claude Accounts** feature can save the current subscription login to Keychain, add another login through an isolated official CLI browser flow, and switch after confirmation with existing Claude sessions closed. See [account handling](ACCOUNTS.md#claude-accounts). If the active Claude CLI account changes outside Claude Accounts, add that account explicitly before its data appears. A confirmed switch in Claude Accounts reconnects the selected account automatically. For limits, CodexMeter installs an owner-only helper as Claude Code's documented status-line command. The helper accepts status-line JSON on standard input, discards all prompt/session/path fields, and saves only five-hour/weekly percentages, reset times, and a fetch timestamp. Existing status-line configuration is restored on disable or disconnect; disconnecting CodexMeter does not sign the user out of Claude Code.
+Normal usage monitoring invokes the official read-only `claude auth status` command to identify the signed-in account. The separate, explicit **Claude Accounts** feature can save the current subscription login to Keychain, add another login through an isolated official CLI browser flow, and switch after confirmation with existing Claude sessions closed. See [account handling](ACCOUNTS.md#claude-accounts). If the active Claude CLI account changes outside Claude Accounts, add that account explicitly before its data appears. A confirmed switch in Claude Accounts reconnects the selected account automatically. For limits, CodeRim installs an owner-only helper as Claude Code's documented status-line command. The helper accepts status-line JSON on standard input, discards all prompt/session/path fields, and saves only five-hour/weekly percentages, reset times, and a fetch timestamp. Existing status-line configuration is restored on disable or disconnect; disconnecting CodeRim does not sign the user out of Claude Code.
 
 ## Verification
 

@@ -12,14 +12,14 @@ permissions:
 jobs:
   build-and-test:
     runs-on: macos-26
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1f # v7
       - name: Swift version
         run: swift --version
       - name: Unit and integration tests
         env:
-          CODEXMETER_ACCOUNT_CAPTURE_DIR: ${{ github.workspace }}/.impeccable/review/accounts
+          CODERIM_ACCOUNT_CAPTURE_DIR: ${{ github.workspace }}/.impeccable/review/accounts
         run: swift test
       - name: Upload synthetic account layout captures on failure
         if: failure()
@@ -30,6 +30,10 @@ jobs:
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7
+      - name: Companion CLI integration tests
+        run: |
+          python3 Tests/Scripts/companion_cli_tests.py .build/debug/CodeRimCLI
+          python3 Tests/Scripts/rebrand_cli_tests.py
       - name: Validate release scripts
         run: |
           zsh -n Scripts/*.sh Tests/Scripts/*.zsh
@@ -38,11 +42,11 @@ jobs:
           done
       - name: Universal release build
         env:
-          CODEXMETER_SWIFT_SCRATCH_PATH: ${{ github.workspace }}/.build
+          CODERIM_SWIFT_SCRATCH_PATH: ${{ github.workspace }}/.build
         run: Scripts/build_release.sh
       - name: Verify architectures
         run: |
-          architectures=$(lipo -archs .build/apple/Products/Release/CodexMeter)
+          architectures=$(lipo -archs .build/apple/Products/Release/CodeRim)
           echo "$architectures"
           grep -q arm64 <<< "$architectures"
           grep -q x86_64 <<< "$architectures"

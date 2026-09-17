@@ -1,6 +1,6 @@
 # Architecture
 
-CodexMeter is a native SwiftUI accessory app for macOS. Through 1.x it was a `MenuBarExtra` popover with a diamond meter; 2.0 replaced that with a floating **edge notch** (a usage ring per provider, ported from the MIT-licensed [Codenotch](https://github.com/vinzdg/codenotch); see `Sources/CodexMeter/Notch/` and `NOTICE`) plus a Settings window, with a minimal `NSStatusItem` (`StatusItemController`) as the always-present entry point. Local usage accounting has no network dependency. The app also offers an explicitly enabled, memory-only account-total overlay. Sparkle 2.9.6 is bundled for signed application updates.
+CodeRim is a native SwiftUI accessory app for macOS. Through 1.x it was a `MenuBarExtra` popover with a diamond meter; 2.0 replaced that with a floating **edge notch** (a usage ring per provider, ported from the MIT-licensed [Codenotch](https://github.com/vinzdg/codenotch); see `Sources/CodeRim/Notch/` and `NOTICE`) plus a Settings window, with a minimal `NSStatusItem` (`StatusItemController`) as the always-present entry point. Local usage accounting has no network dependency. The app also offers an explicitly enabled, memory-only account-total overlay. Sparkle 2.9.6 is bundled for signed application updates.
 
 ```text
 Codex session JSONL
@@ -23,6 +23,15 @@ owning CLI or editor already holds and appear only when it is present. Session
 monitors (`ClaudeSessionMonitor`, `CodexActivityMonitor`) light the activity
 arcs and drive the completion peek; `ThresholdNotifier` fires the 80% / 100%
 notifications.
+
+Codex activity reads `task_started`, `task_complete`, and `turn_aborted` from
+local rollouts. A background actor scans up to 64 recent unarchived threads,
+caches unchanged files, and searches at most 8 MiB backwards per changed file.
+Silent reasoning and long tools retain the turn's original start time; file or
+catalogue modification alone never creates activity. Finished sessions remain
+idle for 90 seconds so completion transitions can be observed. A six-hour
+silence limit expires orphaned turns whose client exited without an end event.
+The local thread catalogue supplies project and task names for the notch.
 
 Optional profile totals follow a separate boundary:
 
@@ -54,6 +63,12 @@ The `usageProvider` selection scopes the Usage pane's readings and analytics des
 
 Canonical model IDs are retained for pricing. Full working directories are immediately projected to a keyed HMAC plus their final folder name; raw paths never enter SQLite. Parent-session IDs are hashed with the existing storage identifier. Image attachment records contribute only a timestamped numeric count when the local schema is unambiguous; the retained whole-session count respects the local-history cutoff and attachment payloads are never copied. Inherited parent replay remains excluded before events reach aggregation, so parent and sub-agent rows are not added twice.
 
+`CodexAnalyticsNames` joins hashed session IDs to the local Codex catalogue in
+memory when returning analytics. Sessions show their task titles, and generic
+project labels such as `Codex` use the available project/task names. Existing
+project IDs, session counts, token events, costs, and stored metadata are not
+rewritten; unavailable catalogue entries retain their stored labels.
+
 Schema version 15 preserves every Phase 1 accounting event while replaying available JSONL sources once to enrich model, project, cache-write, pricing-context, and session metadata. Replay checkpoints start above each source's historical generation and update semantic duplicates instead of adding token deltas twice. Missing legacy sources remain represented by their preserved totals, with unresolved backfill or legacy partial quality kept conservative rather than reported as exact.
 
 Only the production bundle identifier opens `~/Library/Application Support/CodexMeter`. Preview, test-host, and command-line development builds use `~/Library/Application Support/CodexMeter-Development`, so unreleased schema migrations cannot make an installed older app reject its production database.
@@ -68,7 +83,7 @@ signed Codex app-server
   -> Limits view
 ```
 
-CodexMeter verifies the local vendor binary signature before launch, never runs it through a shell, bounds output and execution time, and polls at a low frequency. A failed refresh retains the last in-memory limit snapshot and cannot change local token analytics. Reset credits are displayed only; no consume or account mutation RPC exists in the app.
+CodeRim verifies the local vendor binary signature before launch, never runs it through a shell, bounds output and execution time, and polls at a low frequency. A failed refresh retains the last in-memory limit snapshot and cannot change local token analytics. Reset credits are displayed only; no consume or account mutation RPC exists in the app.
 
 The UI derives an optional pace indicator from each fresh, realistically bounded reported limit window. It compares the observed used percentage with an even-use schedule between the inferred window start and reported reset time. A run-out time uses only the current window's average consumption rate. Neither value is persisted, both are hidden for stale snapshots, and both are labeled as estimates rather than quota guarantees.
 

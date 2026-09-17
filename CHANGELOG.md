@@ -1,8 +1,34 @@
 # Changelog
 
+## 2.1.0 — CodeRim
+
+- Rename the app, source modules and distribution to CodeRim while preserving existing data and update trust.
+- Include expanded providers, CLI and native widgets alongside usage and notch improvements.
+- See [migration details](Documentation/REBRANDING.md) and [release notes](Documentation/ReleaseNotes/2.1.0.md).
+
 All notable changes to CodexMeter will be documented in this file.
 
 ## [Unreleased]
+
+## [2.0.13] - 2026-09-17
+
+### Added
+
+- Notch controls can open above or below the notch, with hover regions and account popovers following the selected position.
+- Ring appearance supports usage colours, a fixed colour, and four gradient palettes with optional animation that respects Reduce Motion.
+- GPT-6 Astra API-equivalent cost estimates include cached input, cache writes, and long-context pricing.
+
+### Changed
+
+- Usage analytics combines token totals and estimated costs under one period selector, with matching chart dates and model details.
+- Today and History use the same live local session totals across accounts on this Mac. Delayed ChatGPT profile totals no longer replace or supplement live usage.
+- Codex projects and sessions use available local catalogue names, and sub-agent activity identifies its parent task.
+
+### Fixed
+
+- Codex activity follows start, completion, and abort events, remaining active during silent reasoning and long-running tools.
+- Partially priced usage retains a labelled cost subtotal and identifies excluded models; cost charts use the same pricing coverage.
+- Credential-file privacy checks evaluate effective ACL access without rejecting owner-only files solely because of broad mode bits.
 
 ## [2.0.12] - 2026-09-14
 

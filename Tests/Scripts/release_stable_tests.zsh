@@ -13,8 +13,8 @@ cp "${project_root}/Scripts/release_stable.sh" \
 {
   print '#!/bin/zsh'
   print 'set -euo pipefail'
-  print '[[ "${CODEXMETER_REQUIRE_RELEASE_TAG:-}" == "1" ]]'
-  print '[[ "${CODEXMETER_REQUIRE_PUBLIC_REPOSITORY:-}" == "1" ]]'
+  print '[[ "${CODERIM_REQUIRE_RELEASE_TAG:-}" == "1" ]]'
+  print '[[ "${CODERIM_REQUIRE_PUBLIC_REPOSITORY:-}" == "1" ]]'
   print 'print context >> "${TRACE_PATH}"'
 } > "${fixture_root}/Scripts/verify_release_context.sh"
 {

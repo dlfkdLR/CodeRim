@@ -5,10 +5,10 @@ script_dir=${0:A:h}
 project_root=${script_dir:h}
 source "${project_root}/Config/Release.env"
 
-release_version=${CODEXMETER_VERSION:-${MARKETING_VERSION}}
-release_tag=${CODEXMETER_RELEASE_TAG:-"v${release_version}"}
-sparkle_account=${CODEXMETER_SPARKLE_ACCOUNT:-${SPARKLE_ACCOUNT}}
-release_repository=${CODEXMETER_RELEASE_REPOSITORY:-${RELEASE_REPOSITORY}}
+release_version=${CODERIM_VERSION:-${MARKETING_VERSION}}
+release_tag=${CODERIM_RELEASE_TAG:-"v${release_version}"}
+sparkle_account=${CODERIM_SPARKLE_ACCOUNT:-${SPARKLE_ACCOUNT}}
+release_repository=${CODERIM_RELEASE_REPOSITORY:-${RELEASE_REPOSITORY}}
 artifact_root="${project_root}/Artifacts"
 archive_path="${artifact_root}/${PRODUCT_NAME}-${release_version}.zip"
 appcast_path="${artifact_root}/appcast.xml"

@@ -5,18 +5,18 @@ script_dir=${0:A:h}
 project_root=${script_dir:h}
 source "${project_root}/Config/Release.env"
 
-release_version=${CODEXMETER_VERSION:-${MARKETING_VERSION}}
-release_build=${CODEXMETER_BUILD_NUMBER:-${BUILD_NUMBER}}
-release_bundle_id=${CODEXMETER_BUNDLE_ID:-${BUNDLE_IDENTIFIER}}
-release_repository=${CODEXMETER_RELEASE_REPOSITORY:-${RELEASE_REPOSITORY}}
-update_feed_branch=${CODEXMETER_UPDATE_FEED_BRANCH:-${UPDATE_FEED_BRANCH}}
+release_version=${CODERIM_VERSION:-${MARKETING_VERSION}}
+release_build=${CODERIM_BUILD_NUMBER:-${BUILD_NUMBER}}
+release_bundle_id=${CODERIM_BUNDLE_ID:-${BUNDLE_IDENTIFIER}}
+release_repository=${CODERIM_RELEASE_REPOSITORY:-${RELEASE_REPOSITORY}}
+update_feed_branch=${CODERIM_UPDATE_FEED_BRANCH:-${UPDATE_FEED_BRANCH}}
 expected_sparkle_feed_url="https://raw.githubusercontent.com/${release_repository}/${update_feed_branch}/appcast.xml"
-require_public_release=${CODEXMETER_REQUIRE_PUBLIC_RELEASE:-0}
-require_signed_release=${CODEXMETER_REQUIRE_SIGNED_RELEASE:-0}
-require_unsigned_release=${CODEXMETER_REQUIRE_UNSIGNED_RELEASE:-0}
+require_public_release=${CODERIM_REQUIRE_PUBLIC_RELEASE:-0}
+require_signed_release=${CODERIM_REQUIRE_SIGNED_RELEASE:-0}
+require_unsigned_release=${CODERIM_REQUIRE_UNSIGNED_RELEASE:-0}
 expected_team_id=${CODE_SIGN_TEAM_ID:-}
-cache_root=${CODEXMETER_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.codexmeter.release"}
-app_path=${1:-"${CODEXMETER_APP_PATH:-${cache_root}/${PRODUCT_NAME}.app}"}
+cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.codexmeter.release"}
+app_path=${1:-"${CODERIM_APP_PATH:-${cache_root}/${PRODUCT_NAME}.app}"}
 artifact_root="${project_root}/Artifacts"
 zip_path="${artifact_root}/${PRODUCT_NAME}-${release_version}.zip"
 dmg_path="${artifact_root}/${PRODUCT_NAME}-${release_version}.dmg"
@@ -46,7 +46,7 @@ verify_app() {
   local info_plist="${candidate}/Contents/Info.plist"
   local sparkle_framework="${candidate}/Contents/Frameworks/Sparkle.framework"
   local sparkle_binary="${sparkle_framework}/Versions/Current/Sparkle"
-  local claude_bridge="${candidate}/Contents/Helpers/CodexMeterClaudeBridge"
+  local claude_bridge="${candidate}/Contents/Helpers/CodeRimClaudeBridge"
 
   plutil -lint "${info_plist}"
   codesign --verify --deep --strict --verbose=2 "${candidate}"
@@ -91,6 +91,31 @@ verify_app() {
     exit 1
   fi
   codesign --verify --strict --verbose=2 "${claude_bridge}"
+  local cli_helper="${candidate}/Contents/Helpers/CodeRimCLI"
+  local widget="${candidate}/Contents/PlugIns/CodeRimWidget.appex"
+  local widget_info="${widget}/Contents/Info.plist"
+  local widget_binary="${widget}/Contents/MacOS/CodeRimWidget"
+  local companion companion_architectures
+  for companion in "${cli_helper}" "${widget_binary}"; do
+    if [[ ! -x "${companion}" ]]; then
+      print -u2 "Missing companion executable: ${companion}"
+      exit 1
+    fi
+    companion_architectures=$(lipo -archs "${companion}")
+    if [[ "${companion_architectures}" != *arm64* || "${companion_architectures}" != *x86_64* ]]; then
+      print -u2 "Expected a Universal 2 companion: ${companion}"
+      exit 1
+    fi
+  done
+  codesign --verify --strict --verbose=2 "${cli_helper}"
+  codesign --verify --strict --verbose=2 "${widget}"
+  if [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${widget_info}")" != "${release_bundle_id}.widget" ||
+        "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "${widget_info}")" != "${release_version}" ||
+        "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "${widget_info}")" != "${release_build}" ]]; then
+    print -u2 "Widget identity or version differs from its host."
+    exit 1
+  fi
+  "${cli_helper}" --version
   local provider_logo
   for provider_logo in OpenAI Claude; do
     if [[ ! -s "${candidate}/Contents/Resources/ProviderLogos/${provider_logo}.svg" ]]; then
@@ -151,13 +176,41 @@ verify_app() {
     exit 1
   fi
 
-  local entitlement_json
-  entitlement_json=$(codesign -d --entitlements :- "${candidate}" 2>/dev/null \
-    | plutil -convert json -o - -)
-  if [[ "${entitlement_json}" != "{}" ]]; then
-    print -u2 "Unexpected release entitlements: ${candidate}"
-    exit 1
-  fi
+  # Newer codesign emits no plist for an unentitled ad-hoc host.
+  # Validate the exact host/widget transport policy instead of parsing empty stdin.
+  python3 - "${candidate}" "${expected_team_id}" "${CODERIM_APP_GROUP_ID:-}" <<'PY_ENTITLEMENTS'
+from pathlib import Path
+import plistlib, subprocess, sys
+app = Path(sys.argv[1])
+widget = app / "Contents/PlugIns/CodeRimWidget.appex"
+def entitlements(path):
+    value = subprocess.run(["codesign", "-d", "--entitlements", ":-", str(path)],
+                           check=True, capture_output=True).stdout
+    return plistlib.loads(value) if value.strip() else {}
+host_info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
+widget_info = plistlib.loads((widget / "Contents/Info.plist").read_bytes())
+transport = host_info.get("CodexMeterSnapshotTransport")
+assert widget_info.get("CodexMeterSnapshotTransport") == transport, "Companion transport differs"
+if transport == "local-file":
+    expected_host = {}
+    expected_widget = {
+        "com.apple.security.app-sandbox": True,
+        "com.apple.security.temporary-exception.files.home-relative-path.read-only":
+            ["/Library/Application Support/CodexMeter/Companion/snapshot.json"],
+    }
+elif transport == "app-group":
+    team = sys.argv[2]
+    group = sys.argv[3] or team + "." + host_info["CFBundleIdentifier"]
+    assert team and group.startswith(team + "."), "An authorized team App Group is required"
+    assert host_info.get("CodexMeterAppGroup") == widget_info.get("CodexMeterAppGroup") == group
+    expected_host = {"com.apple.security.application-groups": [group]}
+    expected_widget = {"com.apple.security.app-sandbox": True, **expected_host}
+else:
+    raise AssertionError("Unknown companion transport")
+assert entitlements(app) == expected_host, "Unexpected host entitlements"
+assert entitlements(widget) == expected_widget, "Unexpected widget entitlements"
+print("Verified sealed companion access policy (" + transport + ")")
+PY_ENTITLEMENTS
 
   if [[ "${require_signed_release}" == "1" || "${require_public_release}" == "1" ]]; then
     if [[ -z "${expected_team_id}" ]]; then
@@ -174,6 +227,8 @@ verify_app() {
     local nested_code nested_signature_details
     local sparkle_version_root="${sparkle_framework}/Versions/Current"
     local signed_nested_code=(
+      "${cli_helper}"
+      "${widget}"
       "${sparkle_version_root}/XPCServices/Downloader.xpc"
       "${sparkle_version_root}/XPCServices/Installer.xpc"
       "${sparkle_version_root}/Updater.app"
