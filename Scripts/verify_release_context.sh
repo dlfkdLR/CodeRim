@@ -5,13 +5,13 @@ script_dir=${0:A:h}
 project_root=${script_dir:h}
 source "${project_root}/Config/Release.env"
 
-release_version=${CODEXMETER_VERSION:-${MARKETING_VERSION}}
-release_build=${CODEXMETER_BUILD_NUMBER:-${BUILD_NUMBER}}
-release_tag=${CODEXMETER_RELEASE_TAG:-"v${release_version}"}
-release_repository=${CODEXMETER_RELEASE_REPOSITORY:-${RELEASE_REPOSITORY}}
-update_feed_branch=${CODEXMETER_UPDATE_FEED_BRANCH:-${UPDATE_FEED_BRANCH}}
-require_release_tag=${CODEXMETER_REQUIRE_RELEASE_TAG:-0}
-require_public_repository=${CODEXMETER_REQUIRE_PUBLIC_REPOSITORY:-0}
+release_version=${CODERIM_VERSION:-${MARKETING_VERSION}}
+release_build=${CODERIM_BUILD_NUMBER:-${BUILD_NUMBER}}
+release_tag=${CODERIM_RELEASE_TAG:-"v${release_version}"}
+release_repository=${CODERIM_RELEASE_REPOSITORY:-${RELEASE_REPOSITORY}}
+update_feed_branch=${CODERIM_UPDATE_FEED_BRANCH:-${UPDATE_FEED_BRANCH}}
+require_release_tag=${CODERIM_REQUIRE_RELEASE_TAG:-0}
+require_public_repository=${CODERIM_REQUIRE_PUBLIC_REPOSITORY:-0}
 release_notes_path="${project_root}/Documentation/ReleaseNotes/${release_version}.md"
 
 fail() {

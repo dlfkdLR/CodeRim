@@ -1,8 +1,8 @@
-# Releasing CodexMeter
+# Releasing CodeRim
 
 ## Certificate-free stable release
 
-CodexMeter can publish a stable release without an Apple Developer ID. “Stable” describes the tested application and immutable release process; it does not mean the package is trusted by Apple Gatekeeper.
+CodeRim can publish a stable release without an Apple Developer ID. “Stable” describes the tested application and immutable release process; it does not mean the package is trusted by Apple Gatekeeper.
 
 Required maintainer access:
 
@@ -24,7 +24,7 @@ The verifier requires an ad-hoc signature, rejects an Apple certificate authorit
 
 ## macOS release
 
-The macOS app uses one immutable `vVERSION` tag and one public release in `dlfkdLR/CodexMeter`.
+The macOS app uses one immutable `vVERSION` tag and one public release in `dlfkdLR/CodeRim`.
 
 `BUILD_NUMBER` (→ `CFBundleVersion`) is what Sparkle compares to decide whether an update is newer. It must **only ever increase**. Through 1.x it was the version digits concatenated (`1.4.10` → `1410`); `2.0.0` would have been `200`, a regression, so 2.0.0 uses `20000` and later 2.x releases continue from there (`2.0.1` → `20001`, `2.1.0` → `20100`).
 
@@ -37,15 +37,15 @@ The macOS app uses one immutable `vVERSION` tag and one public release in `dlfkd
 The configured release repository and feed branch can be overridden only when both are intentionally supplied:
 
 ```bash
-export CODEXMETER_RELEASE_REPOSITORY="OWNER/PUBLIC-RELEASE-REPOSITORY"
-export CODEXMETER_UPDATE_FEED_BRANCH="update-feed"
+export CODERIM_RELEASE_REPOSITORY="OWNER/PUBLIC-RELEASE-REPOSITORY"
+export CODERIM_UPDATE_FEED_BRANCH="update-feed"
 ```
 
 ### Legacy feed migration
 
-Versions through 1.0.3 have `HechoLP/CodexMeter-Releases` embedded as their Sparkle feed. For the 1.0.4 bridge release only, publish the exact same signed `appcast.xml` to both repositories' `update-feed` branches after uploading the archive to `HechoLP/CodexMeter`. The enclosure URL must point to the release in `HechoLP/CodexMeter`.
+Versions through 1.0.3 have `HechoLP/CodeRim-Releases` embedded as their Sparkle feed. For the 1.0.4 bridge release only, publish the exact same signed `appcast.xml` to both repositories' `update-feed` branches after uploading the archive to `HechoLP/CodeRim`. The enclosure URL must point to the release in `HechoLP/CodeRim`.
 
-After the dual feed is anonymously reachable and 1.0.4 is verified to read the source repository's feed, archive `HechoLP/CodexMeter-Releases` as a public, read-only compatibility repository. Do not delete it or make it private: an older installation may still need its static 1.0.4 bridge feed. Releases after 1.0.4 are published only in `HechoLP/CodexMeter` and only its `update-feed` branch is updated.
+After the dual feed is anonymously reachable and 1.0.4 is verified to read the source repository's feed, archive `HechoLP/CodeRim-Releases` as a public, read-only compatibility repository. Do not delete it or make it private: an older installation may still need its static 1.0.4 bridge feed. Releases after 1.0.4 are published only in `HechoLP/CodeRim` and only its `update-feed` branch is updated.
 
 ## First-install trust disclosure
 
@@ -54,8 +54,8 @@ The macOS build is ad-hoc signed and not Apple-notarized. Release notes and inst
 For macOS, document only this app-scoped command after the verified app is copied to Applications:
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/CodexMeter.app
-open /Applications/CodexMeter.app
+xattr -dr com.apple.quarantine /Applications/CodeRim.app
+open /Applications/CodeRim.app
 ```
 
 Do not advertise the package as Apple-trusted. SHA-256 verifies the first download; Sparkle Ed25519 signatures authenticate later updates. Homebrew installation also verifies the exact published ZIP checksum.
@@ -65,9 +65,9 @@ Do not advertise the package as Apple-trusted. SHA-256 verifies the first downlo
 The public Cask lives in `dlfkdLR/homebrew-tap`.
 
 1. Publish the exact verified macOS ZIP at `vVERSION` before changing the Cask.
-2. Update `Casks/codexmeter.rb` with the published URL, version, and exact ZIP SHA-256.
+2. Update `Casks/coderim.rb` with the published URL, version, and exact ZIP SHA-256.
 3. Keep `auto_updates true`, the macOS 14 requirement, and the certificate/notarization caveat.
-4. Run `brew style`, `brew audit --cask --online dlfkdLR/tap/codexmeter`, and a clean install/uninstall cycle.
+4. Run `brew style`, `brew audit --cask --online dlfkdLR/tap/coderim`, and a clean install/uninstall cycle.
 5. Verify the installed app version, build number, architecture, updater metadata, the status-bar item and its menu, the Settings window, the notch (enable it, check a ring renders), and live totals.
 
 The personal Tap provides convenient installation and checksum-based artifact integrity; it does not make the app Apple-trusted. Homebrew 6 does not provide the former `--no-quarantine` option.
@@ -81,7 +81,7 @@ If a Developer ID Application certificate, Team ID, and notarytool Keychain prof
 ```bash
 export CODE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export CODE_SIGN_TEAM_ID="TEAMID"
-export NOTARY_PROFILE="codexmeter-notary"
+export NOTARY_PROFILE="coderim-notary"
 Scripts/release_public.sh
 ```
 

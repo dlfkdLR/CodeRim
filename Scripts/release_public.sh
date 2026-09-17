@@ -9,8 +9,8 @@ identity=${CODE_SIGN_IDENTITY:-}
 team_id=${CODE_SIGN_TEAM_ID:-}
 profile=${NOTARY_PROFILE:-}
 
-CODEXMETER_REQUIRE_RELEASE_TAG=1 \
-  CODEXMETER_REQUIRE_PUBLIC_REPOSITORY=1 \
+CODERIM_REQUIRE_RELEASE_TAG=1 \
+  CODERIM_REQUIRE_PUBLIC_REPOSITORY=1 \
   "${script_dir}/verify_release_context.sh"
 
 if [[ -z "${identity}" || -z "${team_id}" || -z "${profile}" ]]; then
@@ -22,14 +22,14 @@ if [[ "${identity}" != "Developer ID Application:"* ]]; then
   exit 2
 fi
 
-cache_root=${CODEXMETER_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.codexmeter.release"}
-app_path=${CODEXMETER_APP_PATH:-"${cache_root}/${PRODUCT_NAME}.app"}
+cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.codexmeter.release"}
+app_path=${CODERIM_APP_PATH:-"${cache_root}/${PRODUCT_NAME}.app"}
 
 "${script_dir}/build_release.sh"
 "${script_dir}/sign_app.sh" "${app_path}"
 "${script_dir}/notarize.sh" "${app_path}"
 "${script_dir}/package_release.sh"
 "${script_dir}/generate_appcast.sh"
-CODEXMETER_REQUIRE_PUBLIC_RELEASE=1 \
+CODERIM_REQUIRE_PUBLIC_RELEASE=1 \
   CODE_SIGN_TEAM_ID="${team_id}" \
   "${script_dir}/verify_release.sh" "${app_path}"

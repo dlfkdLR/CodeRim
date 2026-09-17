@@ -6,8 +6,8 @@ project_root=${script_dir:h}
 source "${project_root}/Config/Release.env"
 
 profile=${NOTARY_PROFILE:-}
-cache_root=${CODEXMETER_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.codexmeter.release"}
-app_path=${1:-"${CODEXMETER_APP_PATH:-${cache_root}/${PRODUCT_NAME}.app}"}
+cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.codexmeter.release"}
+app_path=${1:-"${CODERIM_APP_PATH:-${cache_root}/${PRODUCT_NAME}.app}"}
 
 if [[ -z "${profile}" ]]; then
   print -u2 "Set NOTARY_PROFILE to an xcrun notarytool Keychain profile."

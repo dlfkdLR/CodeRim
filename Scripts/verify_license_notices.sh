@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_dir=${0:A:h}
 project_root=${script_dir:h}
-app_path=${1:?Usage: verify_license_notices.sh /path/to/CodexMeter.app}
+app_path=${1:?Usage: verify_license_notices.sh /path/to/CodeRim.app}
 
 # NOTICE is the canonical upstream attribution and full MIT grant. Compare
 # exact bytes so an empty, truncated, or outdated bundled notice cannot ship.

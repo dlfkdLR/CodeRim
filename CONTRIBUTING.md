@@ -1,6 +1,6 @@
 # Contributing
 
-CodexMeter favors small, reviewable changes that preserve token-accounting correctness and local privacy.
+CodeRim favors small, reviewable changes that preserve token-accounting correctness and local privacy.
 
 Before opening a pull request:
 

@@ -1,4 +1,4 @@
-CodexMeter
+CodeRim
 Copyright (c) 2026 dlfkdLR
 
 This product includes software and adapted design material from the Codenotch project
@@ -27,7 +27,7 @@ This product includes software and adapted design material from the Codenotch pr
     SOFTWARE.
 
 The edge-notch interface, provider integrations, and supporting code in
-Sources/CodexMeter/Notch/ are ported and adapted from Codenotch. CodexMeter
+Sources/CodeRim/Notch/ are ported and adapted from Codenotch. CodeRim
 modifications integrate them with its own usage stores, account management,
 settings, and distribution. The original Codenotch copyright and MIT license
 above apply to the incorporated portions.
@@ -36,3 +36,12 @@ Keep this notice, including the full copyright, permission, and warranty text,
 with source and binary distributions containing those portions. Release apps
 include this file as Contents/Resources/NOTICE.txt, accessible from
 Settings > Information > Codenotch - MIT License.
+
+CodexBarCore provider integrations
+CodexBar, Copyright (c) 2025 Peter Steinberger, MIT License.
+https://github.com/steipete/CodexBar
+Pinned source: 51ed16bdd3abe35ec53af99818e1b5f0d2a631d3
+The upstream library and provider scripts are included via Swift Package Manager.
+Full license and dependency notices are included in the CodeRim resource bundle.
+Runtime dependencies: SweetCookieKit (MIT), Swift Crypto, Swift ASN.1 and
+Swift Log (Apache-2.0), QuickJS and Sucrase (MIT).

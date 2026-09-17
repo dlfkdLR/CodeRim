@@ -1,6 +1,6 @@
 # Architecture
 
-CodexMeter is a native SwiftUI accessory app for macOS. Through 1.x it was a `MenuBarExtra` popover with a diamond meter; 2.0 replaced that with a floating **edge notch** (a usage ring per provider, ported from the MIT-licensed [Codenotch](https://github.com/vinzdg/codenotch); see `Sources/CodexMeter/Notch/` and `NOTICE`) plus a Settings window, with a minimal `NSStatusItem` (`StatusItemController`) as the always-present entry point. Local usage accounting has no network dependency. The app also offers an explicitly enabled, memory-only account-total overlay. Sparkle 2.9.6 is bundled for signed application updates.
+CodeRim is a native SwiftUI accessory app for macOS. Through 1.x it was a `MenuBarExtra` popover with a diamond meter; 2.0 replaced that with a floating **edge notch** (a usage ring per provider, ported from the MIT-licensed [Codenotch](https://github.com/vinzdg/codenotch); see `Sources/CodeRim/Notch/` and `NOTICE`) plus a Settings window, with a minimal `NSStatusItem` (`StatusItemController`) as the always-present entry point. Local usage accounting has no network dependency. The app also offers an explicitly enabled, memory-only account-total overlay. Sparkle 2.9.6 is bundled for signed application updates.
 
 ```text
 Codex session JSONL
@@ -33,7 +33,7 @@ idle for 90 seconds so completion transitions can be observed. A six-hour
 silence limit expires orphaned turns whose client exited without an end event.
 The local thread catalogue supplies project and task names for the notch.
 
-The retained profile client follows a separate boundary, but the live app disables its fetches and displays local history only:
+Optional profile totals follow a separate boundary:
 
 ```text
 ~/.codex/auth.json credential projection
@@ -83,7 +83,7 @@ signed Codex app-server
   -> Limits view
 ```
 
-CodexMeter verifies the local vendor binary signature before launch, never runs it through a shell, bounds output and execution time, and polls at a low frequency. A failed refresh retains the last in-memory limit snapshot and cannot change local token analytics. Reset credits are displayed only; no consume or account mutation RPC exists in the app.
+CodeRim verifies the local vendor binary signature before launch, never runs it through a shell, bounds output and execution time, and polls at a low frequency. A failed refresh retains the last in-memory limit snapshot and cannot change local token analytics. Reset credits are displayed only; no consume or account mutation RPC exists in the app.
 
 The UI derives an optional pace indicator from each fresh, realistically bounded reported limit window. It compares the observed used percentage with an even-use schedule between the inferred window start and reported reset time. A run-out time uses only the current window's average consumption rate. Neither value is persisted, both are hidden for stale snapshots, and both are labeled as estimates rather than quota guarantees.
 

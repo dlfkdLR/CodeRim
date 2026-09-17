@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.0 — CodeRim
+
+- Rename the app, source modules and distribution to CodeRim while preserving existing data and update trust.
+- Include expanded providers, CLI and native widgets alongside usage and notch improvements.
+- See [migration details](Documentation/REBRANDING.md) and [release notes](Documentation/ReleaseNotes/2.1.0.md).
+
 All notable changes to CodexMeter will be documented in this file.
 
 ## [Unreleased]

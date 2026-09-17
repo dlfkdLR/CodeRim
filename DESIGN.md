@@ -1,5 +1,5 @@
 ---
-name: CodexMeter
+name: CodeRim
 description: A quiet native instrument for Codex usage and account limits.
 typography:
   primary-metric:
@@ -34,13 +34,13 @@ components:
     width: "28px"
 ---
 
-# Design System: CodexMeter
+# Design System: CodeRim
 
 ## Overview
 
 **Creative North Star: "The Quiet Instrument"**
 
-CodexMeter should feel like a compact macOS instrument that is ready when opened and disappears when the user returns to work. It is precise, calm, and native: the first screen answers the immediate questions, while charts, projects, sessions, and full limit details remain one click deeper.
+CodeRim should feel like a compact macOS instrument that is ready when opened and disappears when the user returns to work. It is precise, calm, and native: the first screen answers the immediate questions, while charts, projects, sessions, and full limit details remain one click deeper.
 
 The product uses system materials, semantic labels, SF Symbols, hairline separators, and tabular numerals instead of decorative dashboard chrome. Density is intentional, but every section must have one clear purpose and retain enough spacing to scan quickly.
 
@@ -63,7 +63,7 @@ purpose:
   It keeps Codenotch's design language, which is not this one: a pure-black
   ground (`NotchPalette.notch`), its own green/amber/red usage bands, its own
   motion vocab (`NotchMotion`), sampled from Codenotch's design frames rather
-  than macOS materials. It lives in `Sources/CodexMeter/Notch/` and is
+  than macOS materials. It lives in `Sources/CodeRim/Notch/` and is
   deliberately sealed off from the tokens below — see `NotchDesign.swift`. "똑같이"
   (make it the same as Codenotch) was the brief, and it won.
 - **The Settings window** — General, Usage, Notch, Diagnostics, Information, and
@@ -162,7 +162,7 @@ The shared spacing rhythm remains 4px for tightly related icon-label pairs, 8px 
 
 ## Elevation & Depth
 
-CodexMeter is flat by default. Depth comes from the native Settings window, semantic tonal fills in detail cards, dividers, and selection state—not decorative shadows, gradients, or glass effects added by the app.
+CodeRim is flat by default. Depth comes from the native Settings window, semantic tonal fills in detail cards, dividers, and selection state—not decorative shadows, gradients, or glass effects added by the app.
 
 **The Flat-By-Default Rule.** Use tonal grouping and system materials before introducing custom elevation.
 
@@ -273,7 +273,7 @@ The diamond meter mark (`◈`) was the menu-bar and app identity through 1.x and
 
 ### Don't:
 
-- **Don't** copy CodexBar branding or assets; reuse only mode separation and information-architecture ideas that improve scanning for CodexMeter's real features.
+- **Don't** copy CodexBar branding or assets; reuse only mode separation and information-architecture ideas that improve scanning for CodeRim's real features.
 - **Don't** place charts, projects, sessions, credits, every provider, and every limit on the overview.
 - **Don't** show empty or speculative provider tabs.
 - **Don't** use purple/blue AI gradients, neon, decorative glass, giant cards, or custom dashboard chrome.
