@@ -38,6 +38,16 @@ final class NotchDismissalTests: XCTestCase {
         RunLoop.current.run(until: Date().addingTimeInterval(seconds))
     }
 
+    private func waitForFold(_ controller: NotchWindowController) {
+        // Leaving is observed by the 0.3s cursor poll before the 0.45s fold
+        // grace begins. Loaded CI hosts can schedule either callback late.
+        // Wait for the observed state with a bound; keep the assertions below.
+        let deadline = Date().addingTimeInterval(2)
+        while controller.model.isExpanded && Date() < deadline {
+            pump(0.05)
+        }
+    }
+
     private func enter(_ cursor: Cursor, controller: NotchWindowController) throws {
         // Wait for the real cursor timer rather than assuming an idle CI host.
         // Placement can settle during the first poll, so keep the pointer on it.
@@ -60,7 +70,7 @@ final class NotchDismissalTests: XCTestCase {
             controller.handleClick()
             XCTAssertFalse(controller.model.isPinned, "A plain click pinned the \(edge) notch")
             cursor.leave()
-            pump(0.9)
+            waitForFold(controller)
             XCTAssertFalse(controller.model.isExpanded, "The \(edge) notch stayed open after leaving")
         }
     }
@@ -84,7 +94,7 @@ final class NotchDismissalTests: XCTestCase {
         XCTAssertTrue(controller.model.isExpanded, "Reading a tooltip must keep the notch open")
         XCTAssertFalse(controller.model.isPinned, "Clicking tooltip copy must not pin the notch")
         cursor.leave()
-        pump(0.9)
+        waitForFold(controller)
         XCTAssertFalse(controller.model.isExpanded)
         XCTAssertNil(controller.model.hoveredIndex)
     }
@@ -99,7 +109,7 @@ final class NotchDismissalTests: XCTestCase {
         pump(0.6)
         XCTAssertTrue(controller.model.isExpanded)
         cursor.leave()
-        pump(0.9)
+        waitForFold(controller)
         XCTAssertFalse(controller.model.isExpanded)
     }
 
@@ -111,7 +121,7 @@ final class NotchDismissalTests: XCTestCase {
         pump(0.9)
         XCTAssertTrue(controller.model.isExpanded)
         controller.togglePinned()
-        pump(0.9)
+        waitForFold(controller)
         XCTAssertFalse(controller.model.isExpanded)
 
         controller.apply(.alwaysShow)
