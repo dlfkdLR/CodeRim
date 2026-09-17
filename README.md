@@ -2,7 +2,7 @@
 
 <img src="Assets/README/codexmeter-notch.png" alt="CodexMeter for macOS supports 11 providers, including Codex, Claude Code, GitHub Copilot, and Cursor. Example edge-notch rings show 32% and 66% remaining." width="100%" />
 
-[![CI](https://github.com/dlfkdLR/CodexMeter/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodexMeter/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/dlfkdLR/CodexMeter?color=181a1e)](https://github.com/dlfkdLR/CodexMeter/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-181a1e) ![Universal](https://img.shields.io/badge/Apple_silicon_%2B_Intel-Universal-181a1e) [![MIT](https://img.shields.io/badge/license-MIT-181a1e)](LICENSE)
+[![CI](https://github.com/dlfkdLR/CodexMeter/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodexMeter/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/dlfkdLR/CodexMeter?color=181a1e)](https://github.com/dlfkdLR/CodexMeter/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-181a1e)
 
 **Coding-assistant limits at the edge of your screen. Local token history one click away.**
 
