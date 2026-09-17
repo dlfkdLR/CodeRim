@@ -22,15 +22,15 @@ final class NotchViewModel: ObservableObject {
 
     /// Whether the notch is open or folded away to its pill.
     @Published var isExpanded = false
-    /// Clicked open, so it stays open until clicked shut again. A gesture,
-    /// not a setting: it lasts as long as this session of looking at it.
+    /// Explicitly pinned through "Keep open" in the context menu. Plain
+    /// clicks never change the visibility policy.
     @Published var isPinned = false
 
     /// The standing choice from Settings — "Always show".
     ///
     /// Separate from `isPinned` because the two are not the same claim, and
-    /// sharing one flag is what let a click on the bar undo a setting. Clicking
-    /// toggles a pin; only Settings moves this.
+    /// sharing one flag let a temporary pin undo a setting. Only Settings
+    /// changes the standing visibility choice.
     @Published var isAlwaysOn = false
 
     /// Held open, by either route. What the folding logic actually asks.
