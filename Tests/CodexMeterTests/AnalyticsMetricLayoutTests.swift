@@ -113,7 +113,7 @@ final class AnalyticsMetricLayoutTests: XCTestCase {
     private func recognizedText(_ host: NSView, name: String) throws -> String {
         let size = host.bounds.size
         let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil,
-            pixelsWide: Int(size.width * 2), pixelsHigh: Int(size.height * 2),
+            pixelsWide: Int(size.width * 3), pixelsHigh: Int(size.height * 3),
             bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
             colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
         bitmap.size = size
@@ -126,7 +126,11 @@ final class AnalyticsMetricLayoutTests: XCTestCase {
         }
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = false
+        // Keep exact assertions, but give Vision the vocabulary used by this UI.
+        // macOS runners can confuse "unavailable" and model IDs at small sizes.
+        request.usesLanguageCorrection = true
+        request.customWords = ["Pricing unavailable", "Estimate unavailable",
+                               "gpt-6-astra", "gpt-5.6-sol", "gpt-5.3-codex-spark"]
         request.recognitionLanguages = ["en-US"]
         try VNImageRequestHandler(cgImage: XCTUnwrap(bitmap.cgImage), options: [:]).perform([request])
         return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")

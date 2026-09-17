@@ -39,9 +39,14 @@ final class NotchDismissalTests: XCTestCase {
     }
 
     private func enter(_ cursor: Cursor, controller: NotchWindowController) throws {
-        try move(cursor, to: controller, along: controller.model.shapeLength / 2, across: 1)
-        pump(0.4) // Let the actual 0.3s cursor poll notice the parked pointer.
-        XCTAssertTrue(controller.model.isExpanded)
+        // Wait for the real cursor timer rather than assuming an idle CI host.
+        // Placement can settle during the first poll, so keep the pointer on it.
+        let deadline = Date().addingTimeInterval(2)
+        repeat {
+            try move(cursor, to: controller, along: controller.model.shapeLength / 2, across: 1)
+            pump(0.05)
+        } while !controller.model.isExpanded && Date() < deadline
+        XCTAssertTrue(controller.model.isExpanded, "The \(controller.model.edge) notch did not open on hover")
     }
 
     func testClickingAnOpenNotchMarginStillFoldsOnEveryEdge() throws {
