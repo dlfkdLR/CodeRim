@@ -481,7 +481,6 @@ private struct SessionRow: View {
     let now: Date
     var depth = 0
     var isContextOnly = false
-    var isParent = false
     var inlineParent: AgentSession.ParentThread? = nil
     @Environment(\.notchAccentColor) private var accentColor
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -507,7 +506,7 @@ private struct SessionRow: View {
     private var title: String {
         if let inlineParent { return inlineParent.title }
         if depth > 0 { return "↳ \(session.detail)" }
-        return isParent || isContextOnly ? session.detail : session.name
+        return session.codexThreadID != nil ? session.detail : session.name
     }
 
     /// While blocked, what it is blocked on matters more than where it lives.
@@ -516,9 +515,7 @@ private struct SessionRow: View {
         if session.state == .waiting, let waitingFor = session.waitingFor, !waitingFor.isEmpty {
             return waitingFor
         }
-        if isContextOnly { return "Parent chat · \(session.name)" }
-        if depth > 0 { return "Sub-agent" }
-        return isParent ? session.name : session.detail
+        return session.codexThreadID != nil ? session.name : session.detail
     }
 
     private var openLabel: String {
@@ -606,7 +603,7 @@ private struct SessionList: View {
             // so anything past the budget silently pushes the title off the top.
             ForEach(presentation.rows) { row in
                 SessionRow(session: row.session, now: now, depth: row.depth,
-                           isContextOnly: row.isContextOnly, isParent: row.isParent,
+                           isContextOnly: row.isContextOnly,
                            inlineParent: row.inlineParent)
                     .padding(.top, NotchLayout.blockSpacing)
             }

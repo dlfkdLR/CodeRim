@@ -67,7 +67,19 @@ final class SessionFocusTests: XCTestCase {
             }
         }
         if let path = ProcessInfo.processInfo.environment["PARENT_GROUP_RENDER_PATH"] {
-            let renderer = ImageRenderer(content: TooltipCard(snapshot: snapshot, activity: activity, now: now,
+            // Show a standalone chat beside a parent group so their title and
+            // project hierarchy can be compared in the rendered evidence.
+            let parent = AgentSession(id: "codex.\(parentID)", name: "CodexMeter", detail: "전체 변경사항 릴리즈",
+                state: .busy, waitingFor: nil, since: now.addingTimeInterval(-240), codexThreadID: parentID)
+            let standalone = AgentSession(id: "codex.standalone", name: "CodexMeter", detail: "브랜치 접두사 규칙 확인",
+                state: .busy, waitingFor: nil, since: now.addingTimeInterval(-60),
+                codexThreadID: "44444444-4444-4444-4444-444444444444")
+            let preview = ActivitySummary(sessions: [standalone, parent] + agents.map { agent in
+                AgentSession(id: agent.id, name: agent.name, detail: agent.detail, state: agent.state,
+                    waitingFor: agent.waitingFor, since: agent.since, codexThreadID: agent.codexThreadID,
+                    parentThread: .init(id: parentID, title: parent.detail))
+            })
+            let renderer = ImageRenderer(content: TooltipCard(snapshot: snapshot, activity: preview, now: now,
                                                                sessionCap: 4).padding(20).background(Color.black))
             renderer.scale = 3
             let image = try XCTUnwrap(renderer.nsImage)
