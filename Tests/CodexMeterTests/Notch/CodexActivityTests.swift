@@ -161,12 +161,26 @@ final class CodexActivityTests: XCTestCase {
         let began = now.addingTimeInterval(-600)
         let body = event("task_started", at: began)
             + "{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\",\"output\":\""
-            + String(repeating: "x", count: 250_000) + "\"}}\n"
+            + String(repeating: "x", count: 7 * 1_024 * 1_024) + "\"}}\n"
             + event("task_complete", at: now).trimmingCharacters(in: .newlines)
         let url = try thread("large", body: body)
         XCTAssertEqual(CodexTurnActivity.read(url), .init(isRunning: true, since: began))
         try Data((body + "\n").utf8).write(to: url)
         XCTAssertEqual(CodexTurnActivity.read(url)?.isRunning, false)
+    }
+
+    func testBoundedTailIgnoresTruncatedRecordAndRejectsNonpositiveLimits() throws {
+        let started = event("task_started", at: now)
+        let url = try thread("bounded", body: started)
+        XCTAssertNil(CodexTurnActivity.read(url, maximumBytes: 0))
+        XCTAssertNil(CodexTurnActivity.read(url, maximumBytes: -1))
+        XCTAssertNil(CodexTurnActivity.read(url, maximumBytes: started.utf8.count - 1))
+        XCTAssertEqual(CodexTurnActivity.read(url, maximumBytes: started.utf8.count),
+                       .init(isRunning: true, since: now))
+        let complete = event("task_complete", at: now)
+        try Data((String(repeating: "x", count: 1_024) + "\n" + complete).utf8).write(to: url)
+        XCTAssertEqual(CodexTurnActivity.read(url, maximumBytes: complete.utf8.count + 1),
+                       .init(isRunning: false, since: now))
     }
 
     func testRestartedTurnUsesItsOwnStartTime() throws {

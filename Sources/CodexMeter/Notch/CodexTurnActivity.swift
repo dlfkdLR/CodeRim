@@ -6,38 +6,25 @@ enum CodexTurnActivity {
         let since: Date
     }
 
-    /// Scan backwards in bounded chunks, including past large tool results.
+    /// Read a bounded tail once and visit each newline once, even when one
+    /// tool result spans most of the tail. Ignore unfinished final records.
     static func read(_ url: URL, maximumBytes: Int = 8 * 1_024 * 1_024) -> Event? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        guard maximumBytes > 0,
+              let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
         guard let end = try? handle.seekToEnd() else { return nil }
-        var offset = end
-        var remainder = Data()
-        var discardingPartialEnd = true
-        let lowerBound = end > UInt64(maximumBytes) ? end - UInt64(maximumBytes) : 0
-        while offset > lowerBound {
-            let start = max(lowerBound, offset > 65_536 ? offset - 65_536 : 0)
-            guard (try? handle.seek(toOffset: start)) != nil,
-                  let chunk = try? handle.read(upToCount: Int(offset - start)) else { return nil }
-            var data = chunk
-            data.append(remainder)
-            if discardingPartialEnd {
-                guard let newline = data.lastIndex(of: 10) else {
-                    remainder = data
-                    offset = start
-                    continue
-                }
-                data = Data(data[..<newline])
-                discardingPartialEnd = false
-            }
-            let lines = data.split(separator: 10, omittingEmptySubsequences: false)
-            for line in lines.dropFirst().reversed() {
-                if let event = event(in: Data(line)) { return event }
-            }
-            remainder = lines.first.map { Data($0) } ?? Data()
-            offset = start
+        let count = min(end, UInt64(maximumBytes))
+        let start = end - count
+        guard (try? handle.seek(toOffset: start)) != nil,
+              let data = try? handle.read(upToCount: Int(count)),
+              var lineEnd = data.lastIndex(of: 10) else { return nil }
+        while let previousNewline = data[..<lineEnd].lastIndex(of: 10) {
+            let line = data[data.index(after: previousNewline)..<lineEnd]
+            if let event = event(in: line) { return event }
+            lineEnd = previousNewline
         }
-        return lowerBound == 0 && !discardingPartialEnd ? event(in: remainder) : nil
+        // A tail starting inside a record cannot establish that record's event.
+        return start == 0 ? event(in: data[..<lineEnd]) : nil
     }
 
     static func event(in line: Data) -> Event? {
