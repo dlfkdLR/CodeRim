@@ -1,12 +1,18 @@
 # Changelog
 
+## 2.1.1 — Open Rim
+
+- Adopt the Open Rim app icon and adaptive menu-bar mark.
+- Use CodeRim for current project links, release/feed defaults, design metadata and diagnostic labels.
+- Preserve existing account, storage, widget and old-update compatibility identifiers.
+
 ## 2.1.0 — CodeRim
 
 - Rename the app, source modules and distribution to CodeRim while preserving existing data and update trust.
 - Include expanded providers, CLI and native widgets alongside usage and notch improvements.
 - See [migration details](Documentation/REBRANDING.md) and [release notes](Documentation/ReleaseNotes/2.1.0.md).
 
-All notable changes to CodexMeter will be documented in this file.
+All notable changes to CodeRim are documented here. Entries predating 2.1.0 retain their historical product names.
 
 ## [Unreleased]
 

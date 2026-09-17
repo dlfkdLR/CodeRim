@@ -17,7 +17,7 @@ update_feed_branch=${CODERIM_UPDATE_FEED_BRANCH:-${UPDATE_FEED_BRANCH}}
 adhoc_hardened_runtime=${CODERIM_ADHOC_HARDENED_RUNTIME:-0}
 sparkle_feed_url="https://raw.githubusercontent.com/${release_repository}/${update_feed_branch}/appcast.xml"
 artifact_root="${project_root}/Artifacts"
-cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.codexmeter.release"}
+cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.coderim.release"}
 app_path=${CODERIM_APP_PATH:-"${cache_root}/${PRODUCT_NAME}.app"}
 mkdir -p "${cache_root}"
 if [[ -n "${CODERIM_SWIFT_SCRATCH_PATH:-}" ]]; then

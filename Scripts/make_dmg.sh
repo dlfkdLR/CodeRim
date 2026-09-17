@@ -6,7 +6,7 @@ project_root=${script_dir:h}
 source "${project_root}/Config/Release.env"
 
 release_version=${CODERIM_VERSION:-${MARKETING_VERSION}}
-cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.codexmeter.release"}
+cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.coderim.release"}
 app_path=${1:-"${CODERIM_APP_PATH:-${cache_root}/${PRODUCT_NAME}.app}"}
 dmg_path=${2:-"${project_root}/Artifacts/${PRODUCT_NAME}-${release_version}.dmg"}
 

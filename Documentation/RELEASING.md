@@ -45,7 +45,7 @@ export CODERIM_UPDATE_FEED_BRANCH="update-feed"
 
 Versions through 1.0.3 have `HechoLP/CodexMeter-Releases` embedded as their Sparkle feed. For the 1.0.4 bridge release only, publish the exact same signed `appcast.xml` to both repositories' `update-feed` branches after uploading the archive to `HechoLP/CodexMeter`. The enclosure URL must point to the release in `HechoLP/CodexMeter`.
 
-After the dual feed is anonymously reachable and 1.0.4 is verified to read the source repository's feed, archive `HechoLP/CodexMeter-Releases` as a public, read-only compatibility repository. Do not delete it or make it private: an older installation may still need its static 1.0.4 bridge feed. Releases after 1.0.4 are published only in `HechoLP/CodexMeter` and only its `update-feed` branch is updated.
+After the dual feed is anonymously reachable and 1.0.4 is verified to read the source repository's feed, archive `HechoLP/CodexMeter-Releases` as a public, read-only compatibility repository. Do not delete it or make it private: an older installation may still need its static 1.0.4 bridge feed. Current releases are published only in `dlfkdLR/CodeRim`, and only its `update-feed` branch is updated. The historical owner/repository addresses remain compatibility redirects.
 
 ## First-install trust disclosure
 
@@ -94,8 +94,9 @@ Withdraw the affected public release, restore the previous signed appcast, and d
 ## Repository rename compatibility
 
 The repositories are now `dlfkdLR/CodeRim` and `dlfkdLR/CodeRim-Releases`.
-Existing embedded URLs and `RELEASE_REPOSITORY=dlfkdLR/CodexMeter` remain
-intentional compatibility aliases. GitHub redirects them to CodeRim, including
-release assets and the raw update feed. Verify both old and new feed URLs after
-publishing. Keep the legacy repository public and archived, with its original
-signed 1.0.4 bridge for the oldest installations.
+New builds use `RELEASE_REPOSITORY=dlfkdLR/CodeRim` and the canonical CodeRim
+raw update feed. Previously released apps retain their embedded CodexMeter URLs;
+GitHub redirects those addresses to the same repository, assets and signed feed.
+Verify both old and new feed URLs after publishing. Do not create repositories
+with the old names. Keep the legacy repository public and archived, with its
+original signed 1.0.4 bridge for the oldest installations.

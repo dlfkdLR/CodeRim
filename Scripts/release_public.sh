@@ -22,7 +22,7 @@ if [[ "${identity}" != "Developer ID Application:"* ]]; then
   exit 2
 fi
 
-cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.codexmeter.release"}
+cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.coderim.release"}
 app_path=${CODERIM_APP_PATH:-"${cache_root}/${PRODUCT_NAME}.app"}
 
 "${script_dir}/build_release.sh"

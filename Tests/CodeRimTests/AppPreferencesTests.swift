@@ -87,7 +87,7 @@ final class AppPreferencesTests: XCTestCase {
         XCTAssertEqual(
             AppPaths.applicationSupportDirectory(
                 baseDirectory: base,
-                bundleIdentifier: "dev.codexmeter.CodexMeterPreview"
+                bundleIdentifier: "dev.coderim.CodeRimPreview"
             ).lastPathComponent,
             "CodexMeter-Development"
         )

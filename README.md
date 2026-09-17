@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="Assets/AppIcon-1024.png" alt="CodeRim open-ring app icon" width="80" />
+
 <img src="Assets/README/coderim-notch.png" alt="CodeRim for macOS supports 70 providers, including Codex, Claude Code, GitHub Copilot, and Cursor. Example edge-notch rings show 32% and 66% remaining." width="100%" />
 
 [![CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/dlfkdLR/CodeRim?color=181a1e)](https://github.com/dlfkdLR/CodeRim/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-181a1e)
@@ -14,7 +16,7 @@ CodeRim is a native macOS app that puts your coding assistants' usage limits in 
 
 ## Download
 
-[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.0/CodeRim-2.1.0.dmg)
+[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.1/CodeRim-2.1.1.dmg)
 
 **macOS 14 or later · Apple silicon and Intel.** [Release notes and all downloads](https://github.com/dlfkdLR/CodeRim/releases/latest).
 
@@ -43,12 +45,12 @@ Settings, usage history and saved accounts are retained. [Name transition detail
 
 ### First launch
 
-The app is **ad-hoc signed, not Apple-notarized**. Homebrew verifies the ZIP checksum. For a direct download, save the DMG and [SHA256SUMS.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.0/SHA256SUMS.txt) in the same folder and verify before opening:
+The app is **ad-hoc signed, not Apple-notarized**. Homebrew verifies the ZIP checksum. For a direct download, save the DMG and [SHA256SUMS.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.1/SHA256SUMS.txt) in the same folder and verify before opening:
 
 ```sh
 cd ~/Downloads
-grep ' CodeRim-2.1.0.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
-open CodeRim-2.1.0.dmg
+grep ' CodeRim-2.1.1.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
+open CodeRim-2.1.1.dmg
 ```
 
 After the checksum reports `OK`, drag CodeRim to Applications. If macOS blocks the verified app, remove quarantine from **CodeRim only**, then launch it:

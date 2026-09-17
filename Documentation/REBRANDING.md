@@ -28,9 +28,13 @@ The source repository is dlfkdLR/CodeRim and the archived compatibility reposito
 is dlfkdLR/CodeRim-Releases. The Homebrew tap keeps the dlfkdLR/homebrew-tap
 repository and changes its cask to coderim, with a codexmeter-to-coderim rename map.
 
-Existing embedded feed and project URLs, and the release repository setting,
-retain their CodexMeter compatibility aliases. GitHub redirects those addresses
-to the renamed repositories, so installed clients continue using their existing
-update configuration. Current README and Homebrew links use the CodeRim address.
-Keep the old repository names reserved so these redirects continue to work.
+Starting with 2.1.1, new builds use the canonical CodeRim project, release and
+update-feed URLs. Previously installed versions still use their embedded
+CodexMeter URLs; GitHub redirects those aliases to the same repository and signed
+feed. Both address families must remain reachable. Do not create new repositories
+under the old names, because that would replace the redirects.
 Historical release notes keep their original names.
+
+Runtime diagnostic labels and temporary release-build caches use CodeRim.
+Persistent keys, managed-helper paths, widget kinds and saved window-frame keys
+retain their established values. [Full branding audit](BRANDING_AUDIT.md).

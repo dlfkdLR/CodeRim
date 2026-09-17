@@ -159,7 +159,7 @@ final class NotchOllamaLocalTests: XCTestCase {
 }
 
 final class NotchKeychainTests: XCTestCase {
-    private let service = "dev.codexmeter.test-\(UUID().uuidString)"
+    private let service = "dev.coderim.test-\(UUID().uuidString)"
     private let account = "coderim"
 
     /// Opt-in, like `CodexAccountSwitchingTests`' keychain round-trip: a test

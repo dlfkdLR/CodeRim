@@ -13,7 +13,7 @@ import os
 final class StatusItemController: NSObject, NSMenuDelegate {
     static let shared = StatusItemController()
 
-    private static let log = Logger(subsystem: "dev.codexmeter.CodexMeter", category: "statusitem")
+    private static let log = Logger(subsystem: "dev.coderim.CodeRim", category: "statusitem")
     private var statusItem: NSStatusItem?
 
     private override init() { super.init() }
@@ -33,14 +33,8 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             return
         }
 
-        if let image = NSImage(systemSymbolName: "diamond", accessibilityDescription: "CodeRim") {
-            image.isTemplate = true
-            button.image = image
-        } else {
-            // No SF Symbol (older macOS, a stripped symbol table) — the mark
-            // itself still reads.
-            button.title = "◈"
-        }
+        button.image = CodeRimMark.image()
+        button.setAccessibilityLabel("CodeRim")
         button.imagePosition = .imageOnly
         button.toolTip = "CodeRim"
 

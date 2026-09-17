@@ -168,7 +168,9 @@ CodeRim is flat by default. Depth comes from the native Settings window, semanti
 
 ## Shapes
 
-The diamond meter mark (`◈`) was the menu-bar and app identity through 1.x and is retained only as a wordmark accent — the menu bar it filled was removed in 2.0, and the live reading is now the notch's ring. The `StatusItemController` icon is a plain SF Symbol `diamond`, a nod to it. Detail selections use gently rounded 8px containers, while information cards use 10px corners. Standard buttons, progress views, menus, and navigation controls retain native macOS shapes.
+CodeRim's identity is the **Open Rim**: a bold C-shaped ring with a detached short arc on the right. The C names the app, while the rim echoes its usage rings. App icons use an off-white (`#F4F3EF`) mark on a charcoal (`#181A1E`) rounded square, without gradients or shadows. The native menu-bar item uses the same geometry as a template image, so macOS supplies the correct light, dark, and selected appearance. This is a static brand mark; actual usage remains in the notch. `CodeRimMark` is the shared geometry source, and `Scripts/generate_brand_assets.swift` regenerates the SVG and iconset. The earlier diamond mark is historical only.
+
+Detail selections use gently rounded 8px containers, while information cards use 10px corners. Standard buttons, progress views, menus, and navigation controls retain native macOS shapes.
 
 **The Native Control Rule.** In the Settings window, do not redraw a platform control solely to mimic another app. (The notch is the deliberate exception — it is Codenotch's language, not this one.)
 

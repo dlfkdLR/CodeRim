@@ -7,7 +7,7 @@ source "${project_root}/Config/Release.env"
 
 release_version=${CODERIM_VERSION:-${MARKETING_VERSION}}
 artifact_root="${project_root}/Artifacts"
-cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.codexmeter.release"}
+cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.coderim.release"}
 app_path=${CODERIM_APP_PATH:-"${cache_root}/${PRODUCT_NAME}.app"}
 zip_path="${artifact_root}/${PRODUCT_NAME}-${release_version}.zip"
 dmg_path="${artifact_root}/${PRODUCT_NAME}-${release_version}.dmg"
