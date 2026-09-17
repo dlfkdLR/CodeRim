@@ -3,6 +3,72 @@ import XCTest
 @testable import CodexMeter
 
 final class AnalyticsConsistencyTests: XCTestCase {
+    func testAstraAndSolCostsAgreeAcrossTotalsAndChartBuckets() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let database = try SQLiteDatabase(url: directory.appendingPathComponent("db.sqlite"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Asia/Seoul"))
+        let through = try XCTUnwrap(
+            calendar.date(from: DateComponents(year: 2026, month: 9, day: 14, hour: 15))
+        )
+
+        for (index, model) in ["gpt-6-astra", "gpt-5.6-sol"].enumerated() {
+            try await insert(
+                database,
+                sessionID: "session-\(index)",
+                parentID: nil,
+                source: "/source-\(index).jsonl",
+                projectID: "project",
+                projectName: "Project",
+                model: model,
+                usage: usage(input: 100_000, cached: 50_000, output: 10_000),
+                at: through.addingTimeInterval(TimeInterval(-3_600 * (index + 1))),
+                images: 0
+            )
+        }
+
+        let expected = try XCTUnwrap(Decimal(string: "1.47"))
+        for range in [AnalyticsRange.today, .sevenDays, .thirtyDays] {
+            let snapshot = try await database.analyticsSnapshot(
+                range: range,
+                through: through,
+                calendar: calendar
+            )
+            XCTAssertEqual(snapshot.quality, .exact)
+            XCTAssertEqual(cost(snapshot.models, at: through), expected)
+            let bucketCosts = try snapshot.buckets.map {
+                try XCTUnwrap(cost($0.models, at: $0.end))
+            }
+            XCTAssertEqual(bucketCosts.reduce(0, +), expected)
+            XCTAssertEqual(cost(try XCTUnwrap(snapshot.projects.first).models, at: through), expected)
+        }
+
+        try await insert(
+            database,
+            sessionID: "spark",
+            parentID: nil,
+            source: "/spark.jsonl",
+            projectID: "project",
+            projectName: "Project",
+            model: "gpt-5.3-codex-spark",
+            usage: usage(input: 100_000, cached: 50_000, output: 10_000),
+            at: through.addingTimeInterval(-10_800),
+            images: 0
+        )
+        for range in [AnalyticsRange.today, .sevenDays, .thirtyDays] {
+            let snapshot = try await database.analyticsSnapshot(range: range, through: through, calendar: calendar)
+            let chart = CostChartSummary(snapshot: snapshot)
+            XCTAssertEqual(snapshot.usage.totalTokens, 330_000)
+            XCTAssertEqual(chart.total.amountUSD, expected)
+            XCTAssertEqual(chart.total.excludedModelIDs, ["gpt-5.3-codex-spark"])
+            XCTAssertEqual(chart.total.excludedTokens, 110_000)
+            XCTAssertFalse(chart.isUnavailable)
+            XCTAssertEqual(chart.buckets.compactMap(\.cost.amountUSD).reduce(0, +), expected)
+        }
+    }
+
     func testUsageProjectSessionAndAgentTotalsShareOneDataset() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

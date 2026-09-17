@@ -35,11 +35,16 @@ enum SQLiteStore {
     /// Every column of every row, as text. Needed where one row carries more
     /// than one fact — a thread's title *and* when it was last touched — and
     /// two queries would be two chances for them to disagree.
-    static func rows(in db: OpaquePointer?, sql: String, columns: Int) -> [[String]] {
+    static func rows(in db: OpaquePointer?, sql: String, columns: Int,
+                     bindings: [String] = []) -> [[String]] {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &statement, nil) == SQLITE_OK else { return [] }
         defer { sqlite3_finalize(statement) }
 
+        for (index, value) in bindings.enumerated() {
+            sqlite3_bind_text(statement, Int32(index + 1), value, -1,
+                              unsafeBitCast(-1, to: sqlite3_destructor_type.self))
+        }
         var out: [[String]] = []
         while sqlite3_step(statement) == SQLITE_ROW {
             var row: [String] = []

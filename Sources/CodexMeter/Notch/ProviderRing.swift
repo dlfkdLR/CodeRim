@@ -25,12 +25,31 @@ struct ProviderRing: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.notchReduceTransparency) private var reduceTransparency
     @Environment(\.notchAccentColor) private var accentColor
+    @Environment(\.notchRingAppearance) private var ringAppearance
+    @Environment(\.notchRingAnimationEnabled) private var ringAnimationEnabled
     @State private var spin: Double = 0
 
     private var band: UsageBand {
         isBlocked ? .exhausted : UsageBand.band(for: usedFraction ?? 0)
     }
     private var sweep: CGFloat { CGFloat(min(percentageMode.fraction(for: usedFraction) ?? 0, 1)) }
+
+    @ViewBuilder
+    private var progressArc: some View {
+        if ringAppearance.shouldAnimate(reduceMotion: reduceMotion, isVisible: ringAnimationEnabled) {
+            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                arc(rotation: NotchRingAppearance.gradientRotation(at: context.date))
+            }
+        } else {
+            arc(rotation: .zero)
+        }
+    }
+
+    private func arc(rotation: Angle) -> some View {
+        ProviderRingProgressArc(sweep: sweep,
+                                style: ringAppearance.strokeStyle(band: band, accent: accentColor),
+                                rotation: rotation)
+    }
 
     var body: some View {
         ZStack {
@@ -42,13 +61,7 @@ struct ProviderRing: View {
                     .strokeBorder(NotchPalette.ringTrack, lineWidth: NotchLayout.trackStroke)
 
                 if usedFraction != nil {
-                    Circle()
-                        .inset(by: NotchLayout.trackStroke / 2)
-                        .trim(from: 0, to: sweep)
-                        .stroke(
-                            band.color(accent: accentColor),
-                            style: StrokeStyle(lineWidth: NotchLayout.progressStroke, lineCap: .round)
-                        )
+                    progressArc
                         // Refreshing spins the reading itself rather than
                         // overlaying a separate spinner: the thing being
                         // refetched is the thing that should move, and a second
@@ -95,6 +108,26 @@ struct ProviderRing: View {
                 spin += 360
             }
         }
+    }
+}
+
+/// Move the complete colour field behind a stationary usage mask. This keeps
+/// every palette colour flowing through the arc, including across the loop seam.
+struct ProviderRingProgressArc: View {
+    let sweep: CGFloat
+    let style: AnyShapeStyle
+    var rotation: Angle = .zero
+
+    var body: some View {
+        Rectangle()
+            .fill(style)
+            .rotationEffect(rotation)
+            .mask {
+                Circle()
+                    .inset(by: NotchLayout.trackStroke / 2)
+                    .trim(from: 0, to: sweep)
+                    .stroke(.white, style: StrokeStyle(lineWidth: NotchLayout.progressStroke, lineCap: .round))
+            }
     }
 }
 

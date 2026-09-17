@@ -6,6 +6,7 @@ final class PricingCatalogTests: XCTestCase {
     func testCurrentCatalogContainsOfficialPerMillionPrices() throws {
         let catalog = PricingCatalog.current
 
+        try assertPrice(catalog, "gpt-6-astra", input: "10", cached: "1", output: "50")
         try assertPrice(catalog, "gpt-5.6-sol", input: "4", cached: "0.4", output: "20")
         try assertPrice(catalog, "gpt-5.6-terra", input: "2", cached: "0.2", output: "12")
         try assertPrice(catalog, "gpt-5.6-luna", input: "0.2", cached: "0.02", output: "1.2")
@@ -19,8 +20,14 @@ final class PricingCatalogTests: XCTestCase {
         XCTAssertEqual(sol.highContextInputMultiplier, try decimal("2"))
         XCTAssertEqual(sol.highContextOutputMultiplier, try decimal("1.5"))
 
-        XCTAssertEqual(catalog.metadata.version, "2026-08-28")
-        XCTAssertEqual(catalog.metadata.retrievedAt, Date(timeIntervalSince1970: 1_787_875_200))
+        let astra = try XCTUnwrap(catalog.pricing(for: "gpt-6-astra"))
+        XCTAssertEqual(astra.cacheWriteInputMultiplier, try decimal("1.25"))
+        XCTAssertEqual(astra.highContextInputMultiplier, try decimal("2"))
+        XCTAssertEqual(astra.highContextOutputMultiplier, try decimal("1.5"))
+        XCTAssertEqual(astra.sourceURL?.absoluteString, "https://developers.openai.com/api/docs/models/gpt-6-astra")
+
+        XCTAssertEqual(catalog.metadata.version, "2026-09-14")
+        XCTAssertEqual(catalog.metadata.retrievedAt, Date(timeIntervalSince1970: 1_789_344_000))
     }
 
     func testLookupCanonicalizesOnlyCaseAndSurroundingWhitespace() throws {

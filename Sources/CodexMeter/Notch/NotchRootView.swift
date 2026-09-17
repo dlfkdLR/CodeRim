@@ -20,64 +20,12 @@ struct NotchRootView: View {
                 // the end of the shape, tucked into the corner the far flare
                 // makes.
                 if !model.snapshots.isEmpty {
-                    controlRail(place)
-                    Button { model.onOpenSettings?() } label: {
-                        SettingsOrb(isHovered: model.isHoveringSettings, drawsDisc: false, edge: model.edge,
-                                    convex: model.orbHugsCorner,
-                                    arcRadius: model.orbArcRadius,
-                                    arcOffset: model.orbArcOffset)
+                    ZStack(alignment: .topLeading) {
+                        controls(place)
+                            .id(model.controlsAtStart)
+                            .transition(controlTransition)
                     }
-                        .buttonStyle(.plain)
-                        .contentShape(Circle())
-                        .accessibilityLabel("Open Settings")
-                        .accessibilityIdentifier("notch.settings")
-                        // Before `position`, not after. `position` hands back a
-                        // view the size of the whole panel with the orb placed
-                        // inside it, so a scale applied after this one scales
-                        // *that* layer about the panel's centre — which moves
-                        // the orb away from the notch by a share of the panel,
-                        // and left the arc floating off the corner it is drawn
-                        // to hug. Here it scales the orb about its own centre,
-                        // which is what `orbCentre` then places.
-                        .scaleEffect(model.sizeScale)
-                        .position(orbCentre(place))
-                        // Outward, into the black — not inward to nothing.
-                        .scaleEffect(model.isExpanded ? 1 : model.orbMergeScale)
-                        // Full strength the whole way in. The arc is buried in
-                        // the notch before this reaches zero, so the fade is
-                        // only there to guarantee nothing is left on screen
-                        // once the notch has folded — it is never what the eye
-                        // sees the arc leave by.
-                        .opacity(model.isExpanded ? 1 : 0)
-                        .animation(motion(orbMotion), value: model.isExpanded)
-
-                    Button { model.onOpenAccountMenu?() } label: {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: NotchLayout.orbGlyph * 0.7, weight: .regular))
-                            .foregroundStyle(NotchPalette.textPrimary)
-                            .frame(width: NotchLayout.controlDiameter, height: NotchLayout.controlDiameter)
-                            .background(Color.white.opacity(model.isHoveringAccountSwitch ? 0.1 : 0),
-                                        in: RoundedRectangle(cornerRadius: 12))
-                    }
-                    .buttonStyle(.plain)
-                    .contentShape(Circle())
-                    .accessibilityLabel("Switch account")
-                    .accessibilityIdentifier("notch.switchAccount")
-                    .accessibilityHidden(!model.showsAccountControl)
-                    .help("Switch account")
-                    .scaleEffect(model.sizeScale * (model.showsAccountControl ? 1 : 0.65))
-                    .offset(
-                        x: !model.edge.isVertical && !model.showsAccountControl ? -NotchDesign.px(24) : 0,
-                        y: model.edge.isVertical && !model.showsAccountControl ? -NotchDesign.px(24) : 0
-                    )
-                    .position(place.point(
-                        along: model.slack + model.accountOrbAlong * model.sizeScale,
-                        across: model.orbInset * model.sizeScale
-                    ))
-                    .opacity(model.showsAccountControl ? 1 : 0)
-                    .allowsHitTesting(model.showsAccountControl)
-                    .animation(motion(.spring(response: 0.3, dampingFraction: 0.82)
-                        .delay(model.showsAccountControl ? 0.08 : 0)), value: model.showsAccountControl)
+                    .animation(motion(NotchMotion.controlRelocation), value: model.controlsAtStart)
                 }
 
                 if let snapshot = model.hoveredSnapshot, let index = model.hoveredIndex,
@@ -110,6 +58,88 @@ struct NotchRootView: View {
         .animation(motion(NotchMotion.unfold), value: model.isExpanded)
         .tint(model.accentColor.color)
         .environment(\.notchAccentColor, model.accentColor.color)
+        .environment(\.notchRingAppearance, model.ringAppearance)
+        .environment(\.notchRingAnimationEnabled, model.isExpanded)
+    }
+
+    /// Keep each end's controls together while crossfading between them;
+    /// travelling across the bar would cover the readings and cross the glyphs.
+    private func controls(_ place: NotchPlacement) -> some View {
+        ZStack(alignment: .topLeading) {
+            controlRail(place)
+            Button { model.onOpenSettings?() } label: {
+                SettingsOrb(isHovered: model.isHoveringSettings, drawsDisc: false, edge: model.edge,
+                            convex: model.orbHugsCorner,
+                            atStart: model.controlsAtStart,
+                            arcRadius: model.orbArcRadius,
+                            arcOffset: model.orbArcOffset)
+            }
+                .buttonStyle(.plain)
+                .contentShape(Circle())
+                .accessibilityLabel("Open Settings")
+                .accessibilityIdentifier("notch.settings")
+                // Before `position`, not after. `position` hands back a
+                // view the size of the whole panel with the orb placed
+                // inside it, so a scale applied after this one scales
+                // *that* layer about the panel's centre — which moves
+                // the orb away from the notch by a share of the panel,
+                // and left the arc floating off the corner it is drawn
+                // to hug. Here it scales the orb about its own centre,
+                // which is what `orbCentre` then places.
+                .scaleEffect(model.sizeScale)
+                .position(orbCentre(place))
+                // Outward, into the black — not inward to nothing.
+                .scaleEffect(model.isExpanded ? 1 : model.orbMergeScale)
+                // Full strength the whole way in. The arc is buried in
+                // the notch before this reaches zero, so the fade is
+                // only there to guarantee nothing is left on screen
+                // once the notch has folded — it is never what the eye
+                // sees the arc leave by.
+                .opacity(model.isExpanded ? 1 : 0)
+                .animation(motion(orbMotion), value: model.isExpanded)
+
+            Button { model.onOpenAccountMenu?() } label: {
+                Image(systemName: "arrow.triangle.2.circlepath")
+                    .font(.system(size: NotchLayout.orbGlyph * 0.7, weight: .regular))
+                    .foregroundStyle(NotchPalette.textPrimary)
+                    .frame(width: NotchLayout.controlDiameter, height: NotchLayout.controlDiameter)
+                    .background(Color.white.opacity(model.isHoveringAccountSwitch ? 0.1 : 0),
+                                in: RoundedRectangle(cornerRadius: 12))
+            }
+            .buttonStyle(.plain)
+            .contentShape(Circle())
+            .accessibilityLabel("Switch account")
+            .accessibilityIdentifier("notch.switchAccount")
+            .accessibilityHidden(!model.showsAccountControl)
+            .help("Switch account")
+            .scaleEffect(model.sizeScale * (model.showsAccountControl ? 1 : 0.65))
+            .offset(
+                x: !model.edge.isVertical && !model.showsAccountControl ? -NotchDesign.px(24) : 0,
+                y: model.edge.isVertical && !model.showsAccountControl
+                    ? -NotchDesign.px(24) * model.controlDirection : 0
+            )
+            .position(place.point(
+                along: model.slack + model.accountOrbAlong * model.sizeScale,
+                across: model.orbInset * model.sizeScale
+            ))
+            .opacity(model.showsAccountControl ? 1 : 0)
+            .allowsHitTesting(model.showsAccountControl)
+            .animation(motion(.spring(response: 0.3, dampingFraction: 0.82)
+                .delay(model.showsAccountControl ? 0.08 : 0)), value: model.showsAccountControl)
+        }
+        .frame(width: place.panelSize.width, height: place.panelSize.height)
+    }
+
+    private var controlTransition: AnyTransition {
+        guard !reduceMotion else { return .opacity }
+        return .asymmetric(
+            insertion: .opacity.combined(with: .offset(
+                x: -model.edge.outward.x * NotchDesign.px(24),
+                y: -model.edge.outward.y * NotchDesign.px(24))),
+            removal: .opacity.combined(with: .offset(
+                x: model.edge.outward.x * NotchDesign.px(16),
+                y: model.edge.outward.y * NotchDesign.px(16)))
+        )
     }
 
     private func controlRail(_ place: NotchPlacement) -> some View {
@@ -117,8 +147,8 @@ struct NotchRootView: View {
         let distance = model.showsAccountControl ? model.accountOrbAlong - model.orbAlong : 0
         return Capsule()
             .fill(NotchPalette.notch)
-            .frame(width: model.edge.isVertical ? diameter : diameter + distance,
-                   height: model.edge.isVertical ? diameter + distance : diameter)
+            .frame(width: model.edge.isVertical ? diameter : diameter + abs(distance),
+                   height: model.edge.isVertical ? diameter + abs(distance) : diameter)
             .scaleEffect(model.sizeScale)
             .position(place.point(along: model.slack + (model.orbAlong + distance / 2) * model.sizeScale,
                                   across: model.orbInset * model.sizeScale))
@@ -264,7 +294,7 @@ struct NotchRootView: View {
         let card = model.edge.isVertical
             ? NotchLayout.cardWidth
             : NotchLayout.cardHeight(for: snapshot,
-                sessionCount: model.activity(for: snapshot.id)?.sessions.count ?? 0,
+                sessionCount: model.activity(for: snapshot.id)?.displayRows.count ?? 0,
                 sessionCap: model.sessionCap,
                 now: model.now, showsAccountAction: model.onSwitchAccount != nil
             )

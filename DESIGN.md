@@ -85,7 +85,15 @@ Its hit area participates in the panel's
 screen bounds and hover region. A native account popover opens the corresponding saved Codex or Claude Accounts
 window without changing accounts on a single click.
 Settings ▸ Notch ▸ Readings offers Used / Remaining: the percent and ring sweep
-change together, while warning colours continue to reflect actual consumption.
+change together. Settings ▸ Notch ▸ Appearance offers Usage colours (the default),
+Fixed colour, or Gradient. Usage colours follow actual consumption; Fixed colour
+and Gradient retain their selected palette at every level. Gradient presets are
+Aurora, Ocean, Sunset, and Spectrum. A preview uses the real ring at 25%, 60%, and
+90%. Animate gradient smoothly circulates the selected gradient's colours in a
+three-second loop through a stationary usage arc, without an added white highlight.
+The full colour field moves while the usage sweep stays still. Animation pauses while the notch is folded or macOS
+Reduce Motion is enabled. These appearance choices do not change limit alerts
+or tooltip warning colours.
 
 Provider additions use a native searchable sheet with service marks,
 descriptions, connection status, and inline Add / Added feedback. Available

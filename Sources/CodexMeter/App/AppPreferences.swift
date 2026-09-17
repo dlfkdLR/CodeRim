@@ -22,6 +22,9 @@ enum AppPreferences {
     static let defaultNotchVisibility = NotchVisibility.onHover.rawValue
     static let defaultNotchSize = NotchSize.medium.rawValue
     static let defaultNotchAccent = NotchAccentChoice.system.rawValue
+    static let defaultNotchRingColorMode = NotchRingColorMode.usage.rawValue
+    static let defaultNotchRingGradient = NotchRingGradient.aurora.rawValue
+    static let defaultNotchAnimateGradient = false
     static let defaultNotchResetTimeFormat = ResetTimeFormat.automatic.rawValue
     static let defaultNotchPercentageMode = NotchPercentageMode.used.rawValue
     static let defaultNotchShowUsagePace = false
@@ -75,6 +78,9 @@ enum AppPreferences {
                 "notchVisibility": defaultNotchVisibility,
                 "notchSize": defaultNotchSize,
                 "notchAccent": defaultNotchAccent,
+                "notchRingColorMode": defaultNotchRingColorMode,
+                "notchRingGradient": defaultNotchRingGradient,
+                "notchAnimateGradient": defaultNotchAnimateGradient,
                 "notchResetTimeFormat": defaultNotchResetTimeFormat,
                 "notchPercentageMode": defaultNotchPercentageMode,
                 "notchShowUsagePace": defaultNotchShowUsagePace

@@ -79,13 +79,11 @@ struct MenuPopoverView: View {
     private let accounts: CodexAccountStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var store: UsageStore
-    @EnvironmentObject private var profileStore: ProfileUsageStore
     @EnvironmentObject private var limitStore: AccountLimitStore
     @EnvironmentObject private var claude: ClaudeIntegrationStore
     @AppStorage("numberStyle") private var numberStyleRawValue = TokenNumberStyle.compact.rawValue
     @AppStorage("showCachedInput") private var showCachedInput = true
     @AppStorage("showLastUpdated") private var showLastUpdated = true
-    @AppStorage("weekStart") private var weekStartRawValue = WeekStart.monday.rawValue
     @AppStorage("analyticsEnabled") private var analyticsEnabled = AppPreferences.defaultAnalyticsEnabled
     @AppStorage("costEstimatesEnabled") private var costEstimatesEnabled = AppPreferences.defaultCostEstimatesEnabled
     @AppStorage("accountLimitsEnabled") private var accountLimitsEnabled = AppPreferences.defaultAccountLimitsEnabled
@@ -216,7 +214,7 @@ struct MenuPopoverView: View {
             .accessibilityLabel("Back")
             .accessibilityIdentifier("menu.navigation.back")
             .help("Back")
-            Text(destination.title(usesProfileTotals: usesProfileTotals))
+            Text(destination.title(usesProfileTotals: false))
                 .font(.subheadline.weight(.semibold))
                 .lineLimit(1)
                 .accessibilityAddTraits(.isHeader)
@@ -256,7 +254,7 @@ struct MenuPopoverView: View {
         case .usage: UsageAnalyticsView()
         case .projects: ProjectsAnalyticsView()
         case .sessions: SessionsAnalyticsView()
-        case let .period(period): PeriodDetailView(period: period)
+        case let .period(period, scope): PeriodDetailView(period: period, scope: scope)
         case let .project(id, range): ProjectDetailView(id: id, range: range)
         case let .session(id, range): SessionDetailView(id: id, range: range)
         case let .model(id, range): ModelDetailView(id: id, range: range)
@@ -484,15 +482,14 @@ struct MenuPopoverView: View {
     private var localUsageSection: some View {
         VStack(spacing: 0) {
             categoryHeader(.localUsage, context: "This Mac")
+                .help(UsageDisplayPolicy.localHistoryHelp)
             localUsageSummary
             if store.provider == .codex || store.snapshot.updatedAt != nil {
                 Divider().padding(.leading, 18)
-                categoryHeader(.tokenHistory, context: historyContext)
-                if usesProfileTotals {
-                    profilePeriodLinks
-                } else {
-                    localPeriodLinks
-                }
+                categoryHeader(.tokenHistory, context: "This Mac")
+                    .help(UsageDisplayPolicy.localHistoryHelp)
+                localPeriodLinks
+
             }
         }
     }
@@ -563,22 +560,10 @@ struct MenuPopoverView: View {
     }
 
     private var localPeriodLinks: some View {
-        VStack(spacing: 0) {
-            periodRowLink("This Week", period: .week, value: displayedTotal(for: .week))
-            periodRowLink("This Month", period: .month, value: displayedTotal(for: .month))
-            periodRowLink("Local History", period: .allTime, value: displayedTotal(for: .allTime))
-        }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
-    }
-
-    private var profilePeriodLinks: some View {
-        VStack(spacing: 0) {
-            if let snapshot = profileStore.snapshot {
-                periodRowLink("This Week", period: .week, value: snapshot.week)
-                periodRowLink("This Month", period: .month, value: snapshot.month)
-                periodRowLink("Lifetime", period: .allTime, value: snapshot.lifetime)
-            }
+        HStack(spacing: 8) {
+            periodRowLink("This Week", period: .week)
+            periodRowLink("This Month", period: .month)
+            periodRowLink("Local History", period: .allTime)
         }
         .padding(.horizontal, 12)
         .padding(.bottom, 12)
@@ -608,9 +593,7 @@ struct MenuPopoverView: View {
             if shouldShowStatus {
                 HStack {
                     Label {
-                        // "Updated <relative>" is the shared freshness line for both
-                        // providers. The ChatGPT snapshot date already appears in the
-                        // Token History header, so it is not repeated here.
+                        // Token totals and freshness always describe the same local scan.
                         if selectedSection == .codex {
                             if let snapshot = currentLimitSnapshot {
                                 TimelineView(.periodic(from: .now, by: 30)) { context in
@@ -625,14 +608,6 @@ struct MenuPopoverView: View {
                                 Text("Updated")
                                 Text(lastSourceRefreshAt, style: .relative)
                             }
-                        } else if profileEnabled, let profileSnapshot = profileStore.snapshot {
-                            if profileStore.status == .ready {
-                                Text("Account totals through \(profileDate(profileSnapshot.statsAsOf))")
-                            } else {
-                                Text("Through \(profileDate(profileSnapshot.statsAsOf)) · \(profileStore.statusMessage)")
-                            }
-                        } else if profileEnabled {
-                            Text("\(profileStore.statusMessage) · showing This Mac")
                         } else {
                             Text(store.statusMessage)
                         }
@@ -662,11 +637,8 @@ struct MenuPopoverView: View {
                             return
                         }
                         async let localRefresh: Void = store.refresh()
-                        async let profileRefresh: Void = profileStore.refresh(
-                            weekStart: WeekStart(rawValue: weekStartRawValue) ?? .monday
-                        )
                         async let limitsRefresh: Void = limitStore.refresh()
-                        _ = await (localRefresh, profileRefresh, limitsRefresh)
+                        _ = await (localRefresh, limitsRefresh)
                     }
                 } label: {
                     Label {
@@ -743,7 +715,7 @@ struct MenuPopoverView: View {
         case .stale, .unavailable, .error: true
         case .exact, .partial: false
         }
-        return profileEnabled || showLastUpdated || isRefreshing || store.isImportingHistory || qualityNeedsStatus
+        return showLastUpdated || isRefreshing || store.isImportingHistory || qualityNeedsStatus
     }
 
     private var statusSymbol: String {
@@ -759,9 +731,6 @@ struct MenuPopoverView: View {
         }
         // Match the footer: the "Updated <relative>" line owns the icon when it shows.
         if showsRelativeUpdate { return store.operationAwareStatusSymbol }
-        if profileEnabled {
-            return profileStore.status == .ready ? "checkmark.circle" : "exclamationmark.triangle"
-        }
         return store.operationAwareStatusSymbol
     }
 
@@ -776,37 +745,8 @@ struct MenuPopoverView: View {
             && store.snapshot.quality != .error
     }
 
-    private var usesProfileTotals: Bool {
-        profileEnabled && profileStore.snapshot != nil
-    }
-
-    private var profileEnabled: Bool {
-        store.provider.supportsAccountTotals && profileStore.isEnabled
-    }
-
-    private var historyContext: String {
-        guard usesProfileTotals, let snapshot = profileStore.snapshot else {
-            return "This Mac"
-        }
-        return "ChatGPT · Through \(profileDate(snapshot.statsAsOf))"
-    }
-
     private var isRefreshing: Bool {
-        store.isRefreshing
-            || (store.provider == .codex && (profileStore.isRefreshing || limitStore.isRefreshing))
-            || (store.provider == .claude && claude.isRefreshing)
-    }
-
-    private func displayedTotal(for period: UsagePeriod) -> Int64 {
-        UsageDisplayPolicy.displayedTotal(
-            for: period,
-            localUsage: store.snapshot.totals(for: period),
-            profileSnapshot: usesProfileTotals ? profileStore.snapshot : nil
-        )
-    }
-
-    private func profileDate(_ date: Date) -> String {
-        date.formatted(.dateTime.month(.abbreviated).day())
+        selectedSection == .overview ? store.isRefreshing : currentLimitsRefreshing
     }
 
     private func categoryHeader(
@@ -869,32 +809,38 @@ struct MenuPopoverView: View {
         .accessibilityLabel("\(title), \(formatted(value)) tokens")
     }
 
-    private func periodRowLink(_ title: String, period: UsagePeriod, value: Int64) -> some View {
-        MenuLink(destination: .period(period)) {
-            HStack(spacing: 10) {
-                Text(title)
-                    .font(.subheadline)
-                    .lineLimit(1)
-                Spacer(minLength: 12)
-                Text(formatted(value))
+    private func periodRowLink(_ title: String, period: UsagePeriod) -> some View {
+        let value = store.snapshot.totals(for: period).totalTokens
+        let text = formatted(value)
+        return MenuLink(destination: .period(period)) {
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 4) {
+                    Text(title)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .accessibilityHidden(true)
+                }
+                Text(text)
                     .font(.subheadline.weight(.medium))
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: value)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.tertiary)
-                    .accessibilityHidden(true)
             }
             .padding(.horizontal, 6)
-            .frame(maxWidth: .infinity, minHeight: 38, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
             .contentShape(Rectangle())
         }
-        .disabled(!usesProfileTotals && store.snapshot.updatedAt == nil)
-        .accessibilityLabel("\(title), \(formatted(value)) tokens")
+        .disabled(store.snapshot.updatedAt == nil)
+        .accessibilityLabel("This Mac \(title), \(text) tokens")
         .accessibilityHint("Open \(title.lowercased()) details")
+        .accessibilityIdentifier("menu.usage.local.\(period.rawValue)")
     }
 
     private func formatted(_ value: Int64) -> String {

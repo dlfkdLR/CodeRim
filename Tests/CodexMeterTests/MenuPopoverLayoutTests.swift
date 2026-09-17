@@ -230,10 +230,10 @@ final class MenuPopoverLayoutTests: XCTestCase {
                 XCTAssertLessThanOrEqual(host.fittingSize.height, 580)
                 XCTAssertEqual(scrollViewCount(in: host), 1)
                 if destination == .usage {
-                    // Claude has no cost data, so the token/cost metric picker must not appear.
+                    // Unified usage analytics has one period picker for every provider.
                     XCTAssertLessThanOrEqual(
                         descendants(of: NSSegmentedControl.self, in: host).count, 1,
-                        "Claude usage analytics should show only the range picker, no cost metric picker"
+                        "Usage analytics should show only the range picker"
                     )
                 }
                 try captureIfRequested(host, name: "claude-\(destination.title(usesProfileTotals: false))-\(dark ? "dark" : "light")")
@@ -320,25 +320,16 @@ final class MenuPopoverLayoutTests: XCTestCase {
         let navigation = MenuNavigation()
         navigation.push(.usage)
         navigation.usageRange = .thirtyDays
-        navigation.chartMetric = .cost
+        navigation.selectedBucketDate = Date(timeIntervalSince1970: 1_789_344_000)
         navigation.push(.model(id: "model", range: .thirtyDays))
         navigation.back()
         XCTAssertEqual(navigation.destination, .usage)
         XCTAssertEqual(navigation.usageRange, .thirtyDays)
-        XCTAssertEqual(navigation.chartMetric, .cost)
+        XCTAssertEqual(navigation.selectedBucketDate, Date(timeIntervalSince1970: 1_789_344_000))
         navigation.back()
         XCTAssertNil(navigation.destination)
         navigation.back()
         XCTAssertTrue(navigation.path.isEmpty)
-    }
-
-    func testDisablingCostEstimatesRestoresTokenChartWithoutLosingSelection() {
-        let navigation = MenuNavigation(path: [.usage])
-        navigation.chartMetric = .cost
-        XCTAssertEqual(navigation.chartMetric.resolved(costEstimatesEnabled: false), .tokens)
-        XCTAssertEqual(navigation.chartMetric, .cost)
-        XCTAssertEqual(navigation.chartMetric.resolved(costEstimatesEnabled: true), .cost)
-        XCTAssertEqual(AnalyticsChartMetric.tokens.resolved(costEstimatesEnabled: true), .tokens)
     }
 
     func testEveryDestinationKeepsThePopoverWidthAndBoundedHeight() {
@@ -349,6 +340,7 @@ final class MenuPopoverLayoutTests: XCTestCase {
             .session(id: "session-0", range: .sevenDays),
             .model(id: "test-model", range: .sevenDays)
         ] + UsagePeriod.allCases.map { .period($0) }
+          + [UsagePeriod.week, .month, .allTime].map { .period($0, scope: .account) }
         for destination in destinations {
             let hostingView = NSHostingView(rootView:
                 popover(destination: destination, snapshots: analyticsFixtures)

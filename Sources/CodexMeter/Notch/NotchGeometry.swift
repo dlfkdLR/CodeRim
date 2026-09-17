@@ -93,7 +93,9 @@ enum NotchGeometry {
         slack: CGFloat = 0,
         // The settings handle hangs past the body's trailing end. That part
         // of the padding must stay on screen even when the hover card may not.
-        trailingExtent: CGFloat = 0
+        trailingExtent: CGFloat = 0,
+        // Controls may instead hang off the leading end near the screen bottom.
+        leadingExtent: CGFloat = 0
     ) -> CGRect {
         let full = screen.frameValue
         let usable = screen.visibleFrameValue
@@ -104,11 +106,11 @@ enum NotchGeometry {
         switch edge {
         case .right:
             let y = clamp(full.midY - height / 2 - alongOffset,
-                          min: full.minY - slack + trailingExtent, max: full.maxY - height + slack)
+                          min: full.minY - slack + trailingExtent, max: full.maxY - height + slack - leadingExtent)
             origin = CGPoint(x: usable.maxX - width, y: y)
         case .left:
             let y = clamp(full.midY - height / 2 - alongOffset,
-                          min: full.minY - slack + trailingExtent, max: full.maxY - height + slack)
+                          min: full.minY - slack + trailingExtent, max: full.maxY - height + slack - leadingExtent)
             origin = CGPoint(x: usable.minX, y: y)
         case .top:
             // AppKit's y grows upward, so the top edge is `maxY`.
@@ -120,11 +122,11 @@ enum NotchGeometry {
             // it stays below it.
             let top = screen.hardwareNotch == nil ? usable.maxY : full.maxY
             let x = clamp(full.midX - width / 2 + alongOffset,
-                          min: full.minX - slack, max: full.maxX - width + slack - trailingExtent)
+                          min: full.minX - slack + leadingExtent, max: full.maxX - width + slack - trailingExtent)
             origin = CGPoint(x: x, y: top - height)
         case .bottom:
             let x = clamp(full.midX - width / 2 + alongOffset,
-                          min: full.minX - slack, max: full.maxX - width + slack - trailingExtent)
+                          min: full.minX - slack + leadingExtent, max: full.maxX - width + slack - trailingExtent)
             origin = CGPoint(x: x, y: usable.minY)
         }
 

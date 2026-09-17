@@ -23,11 +23,13 @@ final class ProfileUsageStore: ObservableObject {
     private var calendarBoundaryTask: Task<Void, Never>?
     private var inFlightFetchTask: Task<ProfileUsageSnapshot, any Error>?
     private var inFlightRefreshID: UUID?
+    private let allowsAccountTotals: Bool
     private var enabledGeneration = 0
     private var observedWeekStartRawValue: Int
 
     init(
         defaults: UserDefaults = .standard,
+        allowsAccountTotals: Bool = true,
         fetcher: @escaping ProfileUsageFetching = { now, calendar, weekStart in
             try await ChatGPTProfileClient().fetch(
                 now: now,
@@ -37,11 +39,15 @@ final class ProfileUsageStore: ObservableObject {
         }
     ) {
         self.defaults = defaults
+        self.allowsAccountTotals = allowsAccountTotals
         self.fetcher = fetcher
-        let enabled = defaults.object(forKey: Self.enabledPreferenceKey) as? Bool ?? false
+        let enabled = allowsAccountTotals && (defaults.object(forKey: Self.enabledPreferenceKey) as? Bool ?? false)
         isEnabled = enabled
         status = enabled ? .idle : .disabled
         observedWeekStartRawValue = Self.storedWeekStartRawValue(in: defaults)
+        // The live usage interface never fetches delayed profile totals, even
+        // when a previous version left profile sync enabled in saved preferences.
+        guard allowsAccountTotals else { return }
         defaultsTask = Task { [weak self] in
             let notifications = NotificationCenter.default.notifications(
                 named: UserDefaults.didChangeNotification,
@@ -98,7 +104,7 @@ final class ProfileUsageStore: ObservableObject {
     }
 
     func synchronizeEnabledPreference() {
-        let enabled = defaults.object(forKey: Self.enabledPreferenceKey) as? Bool ?? false
+        let enabled = allowsAccountTotals && (defaults.object(forKey: Self.enabledPreferenceKey) as? Bool ?? false)
         let wasEnabled = isEnabled
         let weekStartRawValue = Self.storedWeekStartRawValue(in: defaults)
         let weekStartChanged = weekStartRawValue != observedWeekStartRawValue

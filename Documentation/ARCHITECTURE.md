@@ -24,6 +24,15 @@ monitors (`ClaudeSessionMonitor`, `CodexActivityMonitor`) light the activity
 arcs and drive the completion peek; `ThresholdNotifier` fires the 80% / 100%
 notifications.
 
+Codex activity reads `task_started`, `task_complete`, and `turn_aborted` from
+local rollouts. A background actor scans up to 64 recent unarchived threads,
+caches unchanged files, and searches at most 8 MiB backwards per changed file.
+Silent reasoning and long tools retain the turn's original start time; file or
+catalogue modification alone never creates activity. Finished sessions remain
+idle for 90 seconds so completion transitions can be observed. A six-hour
+silence limit expires orphaned turns whose client exited without an end event.
+The local thread catalogue supplies project and task names for the notch.
+
 Optional profile totals follow a separate boundary:
 
 ```text
@@ -53,6 +62,12 @@ The `usageProvider` selection scopes the Usage pane's readings and analytics des
 `UsageStore` refreshes every requested analytics range after an import or calendar recalculation. Maintenance invalidates the analytics cache before starting; revision/request identifiers discard older in-flight results. Claude's optional `claude_message_exclusions` table retains only hashed response identities across clear/rebuild to reject later copies of pre-cutoff messages, without changing the Codex schema or retaining cleared usage values.
 
 Canonical model IDs are retained for pricing. Full working directories are immediately projected to a keyed HMAC plus their final folder name; raw paths never enter SQLite. Parent-session IDs are hashed with the existing storage identifier. Image attachment records contribute only a timestamped numeric count when the local schema is unambiguous; the retained whole-session count respects the local-history cutoff and attachment payloads are never copied. Inherited parent replay remains excluded before events reach aggregation, so parent and sub-agent rows are not added twice.
+
+`CodexAnalyticsNames` joins hashed session IDs to the local Codex catalogue in
+memory when returning analytics. Sessions show their task titles, and generic
+project labels such as `Codex` use the available project/task names. Existing
+project IDs, session counts, token events, costs, and stored metadata are not
+rewritten; unavailable catalogue entries retain their stored labels.
 
 Schema version 15 preserves every Phase 1 accounting event while replaying available JSONL sources once to enrich model, project, cache-write, pricing-context, and session metadata. Replay checkpoints start above each source's historical generation and update semantic duplicates instead of adding token deltas twice. Missing legacy sources remain represented by their preserved totals, with unresolved backfill or legacy partial quality kept conservative rather than reported as exact.
 

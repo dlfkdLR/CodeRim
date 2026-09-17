@@ -804,6 +804,30 @@ actor SQLiteDatabase {
         }
     }
 
+    /// Opaque associations for display-name enrichment, including a session
+    /// that used more than one working directory in the selected range.
+    func projectSessionIDs(from start: Date, through end: Date) throws -> [String: Set<String>] {
+        let statement = try prepare("""
+            SELECT DISTINCT project_path, session_id FROM usage_events
+            WHERE occurred_at >= ?1 AND occurred_at <= ?2
+            AND project_path IS NOT NULL AND session_id IS NOT NULL
+            """)
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_double(statement, 1, start.timeIntervalSince1970)
+        sqlite3_bind_double(statement, 2, end.timeIntervalSince1970)
+        var result: [String: Set<String>] = [:]
+        while true {
+            switch sqlite3_step(statement) {
+            case SQLITE_ROW:
+                if let project = text(statement, column: 0), let session = text(statement, column: 1) {
+                    result[project, default: []].insert(session)
+                }
+            case SQLITE_DONE: return result
+            default: throw SQLiteDatabaseError.step(errorMessage)
+            }
+        }
+    }
+
     private func projectSessionCounts(from start: Date, through end: Date) throws -> [String: Int] {
         let statement = try prepare(
             """

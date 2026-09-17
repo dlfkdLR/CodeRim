@@ -25,7 +25,6 @@ private struct ProviderSettingsContent: View {
     @ObservedObject var claude: ClaudeIntegrationStore
     @ObservedObject var codexAccounts: CodexAccountStore
 
-    @AppStorage("profileSyncEnabled") private var profileSyncEnabled = AppPreferences.defaultProfileSyncEnabled
     @AppStorage("accountLimitsEnabled") private var accountLimitsEnabled = AppPreferences.defaultAccountLimitsEnabled
     @AppStorage("analyticsEnabled") private var analyticsEnabled = AppPreferences.defaultAnalyticsEnabled
     @AppStorage("costEstimatesEnabled") private var costEstimatesEnabled = AppPreferences.defaultCostEstimatesEnabled
@@ -47,7 +46,7 @@ private struct ProviderSettingsContent: View {
             accountSection
             if isCodex { limitsSection }
             analyticsSection
-            if isCodex { accountTotalsSection } else { claudeNoteSection }
+            if !isCodex { claudeNoteSection }
             localDataSection
             sourcesSection
             manageDataSection
@@ -193,16 +192,7 @@ private struct ProviderSettingsContent: View {
         }
     }
 
-    // MARK: Account totals / Claude note
-
-    private var accountTotalsSection: some View {
-        Group {
-            SettingsSection(title: "ChatGPT Account Totals") {
-                SettingsToggleRow("Use ChatGPT account totals", isOn: $profileSyncEnabled)
-            }
-            SettingsNote("Uses your Codex sign-in only to fetch aggregate totals from chatgpt.com; credentials and responses stay in memory and are never stored. Totals can lag and are shown separately from this Mac's live Today value.")
-        }
-    }
+    // MARK: Claude note
 
     private var claudeNoteSection: some View {
         SettingsNote("Comes from Claude Code session logs on this Mac. Five-hour and weekly limits appear after a connected account completes a response; cost estimates aren't available yet.")

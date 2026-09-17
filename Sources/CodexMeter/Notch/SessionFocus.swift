@@ -2,9 +2,9 @@ import AppKit
 import Darwin
 import Foundation
 
-/// Brings the window an agent is running in to the front.
+/// Opens a Codex conversation or brings the application hosting an agent forward.
 ///
-/// A session knows its own pid and nothing else — Claude Code publishes no
+/// For process-based sessions, Claude Code publishes no
 /// window, tab or tty. What it does have is a parent: the shell that launched
 /// it, whose parent is the terminal application. So the app is found by walking
 /// up the process tree until something turns up that macOS considers an
@@ -17,6 +17,34 @@ import Foundation
 /// silently do nothing in a third, the app is raised for everybody and the
 /// tooltip names the session so the last hop is one keystroke.
 enum SessionFocus {
+    enum Target: Equatable {
+        case codexThread(URL)
+        case application(pid_t)
+    }
+
+    static func target(for session: AgentSession) -> Target? {
+        // The desktop app accepts UUID thread IDs at codex://threads/<id>.
+        // Validate the raw ID so malformed metadata cannot change the route.
+        if let id = session.codexThreadID, UUID(uuidString: id) != nil,
+           let url = URL(string: "codex://threads/\(id)") {
+            return .codexThread(url)
+        }
+        if let pid = session.processID, pid > 1 {
+            return .application(pid)
+        }
+        return nil
+    }
+
+    @MainActor
+    @discardableResult
+    static func activate(_ session: AgentSession) -> Bool {
+        switch target(for: session) {
+        case .codexThread(let url): return NSWorkspace.shared.open(url)
+        case .application(let pid): return activateApp(owning: pid)
+        case nil: return false
+        }
+    }
+
     /// Raise whichever application owns this process.
     ///
     /// Returns false when the chain runs out before an application appears,

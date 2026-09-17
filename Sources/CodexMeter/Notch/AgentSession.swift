@@ -7,12 +7,17 @@ import Foundation
 /// format: Claude Code publishes a session registry, Cursor keeps composer rows
 /// in SQLite, and neither shape belongs in the notch. Each monitor does its own
 /// parsing and hands back this.
-struct AgentSession: Identifiable, Equatable {
+struct AgentSession: Identifiable, Equatable, Sendable {
     /// What the session is doing right now.
-    enum State: Equatable {
+    enum State: Equatable, Sendable {
         case busy
         case waiting
         case idle
+    }
+
+    struct ParentThread: Equatable, Sendable {
+        let id: String
+        let title: String
     }
 
     let id: String
@@ -29,13 +34,13 @@ struct AgentSession: Identifiable, Equatable {
     ///
     /// Only used to find the window it is running in — see `SessionFocus`.
     /// Nil for the tools that report activity from a database or a log file
-    /// rather than from a process, and a nil here costs nothing but the ability
-    /// to jump to that session.
+    /// rather than from a process. Codex uses its thread ID instead.
     let processID: pid_t?
+    /// The original Codex thread ID, without the display model's profile prefix.
+    let codexThreadID: String?
+    let parentThread: ParentThread?
 
-    /// Written out rather than synthesised so `processID` can default to nil:
-    /// four of the five monitors have no pid to give, and a memberwise
-    /// initialiser would have made every one of them say so.
+    /// Navigation metadata is optional for providers without a destination.
     init(
         id: String,
         name: String,
@@ -43,7 +48,9 @@ struct AgentSession: Identifiable, Equatable {
         state: State,
         waitingFor: String?,
         since: Date,
-        processID: pid_t? = nil
+        processID: pid_t? = nil,
+        codexThreadID: String? = nil,
+        parentThread: ParentThread? = nil
     ) {
         self.id = id
         self.name = name
@@ -52,5 +59,7 @@ struct AgentSession: Identifiable, Equatable {
         self.waitingFor = waitingFor
         self.since = since
         self.processID = processID
+        self.codexThreadID = codexThreadID
+        self.parentThread = parentThread
     }
 }

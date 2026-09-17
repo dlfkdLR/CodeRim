@@ -205,7 +205,16 @@ actor CodexUsageCollector {
         through end: Date = Date(),
         calendar: Calendar = .current
     ) async throws -> AnalyticsSnapshot {
-        try await database.analyticsSnapshot(range: range, through: end, calendar: calendar)
+        let snapshot = try await database.analyticsSnapshot(range: range, through: end, calendar: calendar)
+        guard provider == .codex else { return snapshot }
+        let directories = Set(roots.map { $0.deletingLastPathComponent() })
+        let threads = directories.flatMap { directory in
+            CodexStore.threads(in: directory.appendingPathComponent("state_5.sqlite"),
+                               desktopStore: directory.appendingPathComponent("sqlite/codex-dev.db"),
+                               includeArchived: true)
+        }
+        let projectSessions = try await database.projectSessionIDs(from: snapshot.interval.start, through: end)
+        return CodexAnalyticsNames.applying(threads, to: snapshot, projectSessions: projectSessions)
     }
 
     func refresh(now: Date = Date(), calendar: Calendar = .current, weekStart: WeekStart) async throws -> CollectorRefreshResult {

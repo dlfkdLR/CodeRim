@@ -19,7 +19,7 @@ final class SettingsEnvironment: ObservableObject {
         claudeStore: UsageStore = UsageStore(provider: .claude, automaticallyRefresh: false),
         limitStore: AccountLimitStore = AccountLimitStore(pollingInterval: nil),
         claude: ClaudeIntegrationStore = ClaudeIntegrationStore(automaticallyRefresh: false),
-        profileStore: ProfileUsageStore = ProfileUsageStore(),
+        profileStore: ProfileUsageStore = ProfileUsageStore(allowsAccountTotals: false),
         // Defaults to an empty in-memory vault, never the real Keychain: this
         // default is what layout tests construct, and a test must never read or
         // prompt for the developer's actual saved Codex logins. The app wires

@@ -65,6 +65,7 @@ final class NotchViewModel: ObservableObject {
     /// Which screen edge the notch is welded to. Everything geometric reads
     /// this through `placement` rather than assuming an axis.
     @Published var edge: NotchEdge = .right
+    @Published var controlsPosition: NotchControlsPosition = .automatic
     /// A user-chosen nudge along that edge, in screen points from the centred
     /// default — set live while ⌥-dragging the pill, and by
     /// `NotchGeometry.panelFrame` from there. Reset to whatever was stored for
@@ -84,6 +85,7 @@ final class NotchViewModel: ObservableObject {
     /// Mirrors the persisted Appearance choice so the separate notch window
     /// redraws immediately when Settings changes it.
     @Published var accentColor: NotchAccentChoice = .system
+    @Published var ringAppearance = NotchRingAppearance()
     /// The display's own notch, when this edge has to share the bezel with one.
     ///
     /// Set by the window controller from the screen the panel is on, because
@@ -202,13 +204,41 @@ final class NotchViewModel: ObservableObject {
     /// bar's flat edge.
     var orbHugsCorner: Bool { isFlushWithHardware }
 
-    var orbAlong: CGFloat {
-        guard orbHugsCorner else { return shapeLength }
-        return cornerCentreAlong + NotchLayout.orbCornerOffset(corner: drawnCornerRadius)
+    /// Use the requested body position, before panel clamping, so changing the
+    /// control end cannot feed back into the decision and make it oscillate.
+    var controlsAtStart: Bool { controlsAtStart(cellCount: snapshots.count) }
+
+    func controlsAtStart(cellCount: Int) -> Bool {
+        guard edge.isVertical else { return false }
+        switch controlsPosition {
+        case .above: return true
+        case .below: return false
+        case .automatic: break
+        }
+        guard screenSize.height > 0, alongOffset > 0 else { return false }
+        let roomBelow = (screenSize.height - shapeLength(cellCount: cellCount) * sizeScale) / 2 - alongOffset
+        return roomBelow < controlExtent(cellCount: cellCount) * sizeScale + 8
     }
 
-    /// The account switch is the next control after Settings along every edge.
-    var accountOrbAlong: CGFloat { orbAlong + (NotchLayout.orbHotZone + NotchLayout.controlDiameter) / 2 + 1 }
+    var controlDirection: CGFloat { controlsAtStart ? -1 : 1 }
+
+    private var controlSpacing: CGFloat {
+        (NotchLayout.orbHotZone + NotchLayout.controlDiameter) / 2 + 1
+    }
+
+    private func trailingOrbAlong(cellCount: Int) -> CGFloat {
+        let length = shapeLength(cellCount: cellCount)
+        guard orbHugsCorner else { return length }
+        return length - flare - drawnCornerRadius + NotchLayout.orbCornerOffset(corner: drawnCornerRadius)
+    }
+
+    var orbAlong: CGFloat {
+        let trailing = trailingOrbAlong(cellCount: snapshots.count)
+        return controlsAtStart ? shapeLength - trailing : trailing
+    }
+
+    /// The account switch follows Settings outward from the chosen end.
+    var accountOrbAlong: CGFloat { orbAlong + controlDirection * controlSpacing }
 
     var accountOrbRect: CGRect {
         let centre = placement.point(along: slack + accountOrbAlong * sizeScale,
@@ -218,8 +248,21 @@ final class NotchViewModel: ObservableObject {
     }
 
     /// Keep both controls and their full hit areas on screen while dragging.
-    var trailingExtent: CGFloat {
-        max(0, accountOrbAlong - shapeLength + NotchLayout.controlDiameter / 2).rounded(.up)
+    /// These extents are design points; the panel boundary applies sizeScale.
+    private func controlExtent(cellCount: Int) -> CGFloat {
+        max(0, trailingOrbAlong(cellCount: cellCount) - shapeLength(cellCount: cellCount)
+            + controlSpacing + NotchLayout.controlDiameter / 2).rounded(.up)
+    }
+
+    var leadingExtent: CGFloat { leadingExtent(cellCount: snapshots.count) }
+    var trailingExtent: CGFloat { trailingExtent(cellCount: snapshots.count) }
+
+    func leadingExtent(cellCount: Int) -> CGFloat {
+        controlsAtStart(cellCount: cellCount) ? controlExtent(cellCount: cellCount) : 0
+    }
+
+    func trailingExtent(cellCount: Int) -> CGFloat {
+        controlsAtStart(cellCount: cellCount) ? 0 : controlExtent(cellCount: cellCount)
     }
 
     /// Where the bar's far corner actually turns, along the stack.

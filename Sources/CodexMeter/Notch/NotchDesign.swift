@@ -66,8 +66,8 @@ extension Color {
 
 // MARK: - Environment: accent colour + reduce transparency
 
-/// The ample-band colour the user has chosen for the rings. Warning bands stay
-/// fixed regardless — their job is to interrupt.
+/// The selected ring colour: used below the warning bands in Usage colours
+/// mode, or at every usage level in Fixed colour mode.
 enum NotchAccentChoice: String, CaseIterable, Codable, Sendable {
     case system, green, blue, purple, pink, orange
 

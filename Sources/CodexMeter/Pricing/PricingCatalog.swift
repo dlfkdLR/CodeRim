@@ -115,10 +115,20 @@ struct PricingCatalog: Equatable, Sendable {
 
     private static func makeCurrentCatalog() -> PricingCatalog {
         let metadata = PricingCatalogMetadata(
-            version: "2026-08-28",
-            retrievedAt: Date(timeIntervalSince1970: 1_787_875_200)
+            version: "2026-09-14",
+            retrievedAt: Date(timeIntervalSince1970: 1_789_344_000)
         )
         let prices = [
+            ModelPricing(
+                modelID: "gpt-6-astra",
+                inputUSDPerMillionTokens: decimal(10),
+                cachedInputUSDPerMillionTokens: decimal(1),
+                outputUSDPerMillionTokens: decimal(50),
+                cacheWriteInputMultiplier: decimal(125, scale: 2),
+                highContextInputMultiplier: decimal(2),
+                highContextOutputMultiplier: decimal(15, scale: 1),
+                sourceURL: modelURL("gpt-6-astra")
+            ),
             ModelPricing(
                 modelID: "gpt-5.6-sol",
                 inputUSDPerMillionTokens: decimal(4),

@@ -8,19 +8,18 @@ struct PeriodDetailView: View {
     @AppStorage("showCachedInput") private var showCachedInput = true
 
     let period: UsagePeriod
+    var scope: UsageHistoryScope = .local
     private let formatter = TokenFormatter()
 
     var body: some View {
         let usage = store.snapshot.totals(for: period)
-        let total = displayedTotal(localUsage: usage)
+        let total = displayedTotal
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
-                if usesProfileTotalForPeriod {
-                    Text("ChatGPT account")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-                Text(formatted(total))
+                Text(scope.title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text(total.map(formatted) ?? "—")
                     .font(.system(size: 30, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .contentTransition(.numericText())
@@ -29,11 +28,11 @@ struct PeriodDetailView: View {
                     .foregroundStyle(.secondary)
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(usesProfileTotalForPeriod ? "ChatGPT account" : "This Mac") \(title) total tokens, \(formatted(total))")
+            .accessibilityLabel("\(scope.title) \(title) total tokens, \(total.map(formatted) ?? "unavailable")")
             .help(
                 usesProfileTotalForPeriod
-                    ? "Aggregate ChatGPT account statistic; can lag behind live local activity."
-                    : "Cached input is already included in Input. Total equals Input plus Output."
+                    ? UsageDisplayPolicy.accountHistoryHelp
+                    : UsageDisplayPolicy.localHistoryHelp + " Cached input is already included in Input. Total equals Input plus Output."
             )
 
             Divider()
@@ -67,6 +66,7 @@ struct PeriodDetailView: View {
                             .font(.subheadline)
                             .monospacedDigit()
                     }
+                    .help(UsageDisplayPolicy.localHistoryHelp)
                 }
                 detailRow("Input", usage.inputTokens)
                 if showCachedInput {
@@ -90,11 +90,7 @@ struct PeriodDetailView: View {
 
     @ViewBuilder
     private var statusLabel: some View {
-        if !store.isRefreshing,
-           !profileStore.isRefreshing,
-           !store.isImportingHistory,
-           usesProfileTotalForPeriod,
-           let profileSnapshot = profileStore.snapshot {
+        if usesProfileTotalForPeriod, let profileSnapshot {
             Label(
                 profileStore.status == .ready
                     ? "Profile through \(profileDate(profileSnapshot.statsAsOf))"
@@ -105,6 +101,10 @@ struct PeriodDetailView: View {
             )
             .font(.caption)
             .foregroundStyle(.secondary)
+        } else if usesProfileTotalForPeriod {
+            Label(profileStore.statusMessage, systemImage: "person.crop.circle.badge.questionmark")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         } else if !store.isRefreshing,
                   !store.isImportingHistory,
                   let lastSourceRefreshAt = store.lastSourceRefreshAt,
@@ -145,24 +145,25 @@ struct PeriodDetailView: View {
         }
     }
 
-    private var usesProfileTotals: Bool {
-        store.provider.supportsAccountTotals && profileStore.isEnabled && profileStore.snapshot != nil
+    private var profileSnapshot: ProfileUsageSnapshot? {
+        store.provider.supportsAccountTotals && profileStore.isEnabled ? profileStore.snapshot : nil
     }
 
     private var usesProfileTotalForPeriod: Bool {
-        usesProfileTotals && period != .today
+        scope == .account
     }
 
     private var profileTotalLabel: String {
-        guard let snapshot = profileStore.snapshot else { return "Profile total tokens" }
+        guard let snapshot = profileSnapshot else { return "Account totals unavailable" }
         return "Profile total through \(profileDate(snapshot.statsAsOf))"
     }
 
-    private func displayedTotal(localUsage: TokenUsage) -> Int64 {
+    private var displayedTotal: Int64? {
         UsageDisplayPolicy.displayedTotal(
             for: period,
-            localUsage: localUsage,
-            profileSnapshot: usesProfileTotals ? profileStore.snapshot : nil
+            scope: scope,
+            localSnapshot: store.snapshot,
+            profileSnapshot: profileSnapshot
         )
     }
 

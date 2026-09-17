@@ -209,11 +209,13 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     func relocate(cellCount: Int? = nil) {
         guard let screen = currentScreen() else { return }
         model.adopt(screen: screen)
-        let size = model.panelSize(cellCount: cellCount ?? model.snapshots.count)
+        let count = cellCount ?? model.snapshots.count
+        let size = model.panelSize(cellCount: count)
         let frame = NotchGeometry.panelFrame(
             for: screen, panelSize: size, edge: model.edge,
-            alongOffset: model.alongOffset, slack: model.slack,
-            trailingExtent: model.trailingExtent
+            alongOffset: model.alongOffset, slack: model.slack(cellCount: count),
+            trailingExtent: model.trailingExtent(cellCount: count) * model.sizeScale,
+            leadingExtent: model.leadingExtent(cellCount: count) * model.sizeScale
         )
         lastVisibleFrame = screen.visibleFrame
 
@@ -355,7 +357,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         guard model.snapshots.indices.contains(index) else { return nil }
         let snapshot = model.snapshots[index]
         let cardHeight = NotchLayout.cardHeight(for: snapshot,
-            sessionCount: model.activity(for: snapshot.id)?.sessions.count ?? 0,
+            sessionCount: model.activity(for: snapshot.id)?.displayRows.count ?? 0,
             sessionCap: model.sessionCap,
             now: model.now, showsAccountAction: model.onSwitchAccount != nil
         )

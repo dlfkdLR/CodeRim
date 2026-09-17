@@ -5,12 +5,12 @@ enum MenuDestination: Hashable {
     case usage
     case projects
     case sessions
-    case period(UsagePeriod)
+    case period(UsagePeriod, scope: UsageHistoryScope = .local)
     case project(id: String, range: AnalyticsRange)
     case session(id: String, range: AnalyticsRange)
     case model(id: String, range: AnalyticsRange)
 
-    func title(usesProfileTotals: Bool) -> String {
+    func title(usesProfileTotals _: Bool) -> String {
         switch self {
         case .limits: "Limits"
         case .usage: "Usage"
@@ -19,10 +19,11 @@ enum MenuDestination: Hashable {
         case .project: "Project"
         case .session: "Session"
         case .model: "Model"
-        case .period(.today): "Today"
-        case .period(.week): "This Week"
-        case .period(.month): "This Month"
-        case .period(.allTime): usesProfileTotals ? "Lifetime" : "Local History"
+        case .period(.today, _): "Today"
+        case .period(.week, _): "This Week"
+        case .period(.month, _): "This Month"
+        case .period(.allTime, .local): "Local History"
+        case .period(.allTime, .account): "Lifetime"
         }
     }
 }
@@ -35,7 +36,6 @@ final class MenuNavigation: ObservableObject {
     @Published var usageRange = AnalyticsRange.sevenDays
     @Published var projectsRange = AnalyticsRange.thirtyDays
     @Published var sessionsRange = AnalyticsRange.sevenDays
-    @Published var chartMetric = AnalyticsChartMetric.tokens
     @Published var selectedBucketDate: Date?
 
     init(path: [MenuDestination] = []) {

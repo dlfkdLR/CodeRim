@@ -177,7 +177,9 @@ final class NotchController: ObservableObject {
         }
         // Appearance that lives on the model rather than the panel is safe to
         // set now, before the panel exists.
+        window.model.controlsPosition = .stored()
         window.model.accentColor = storedAccent()
+        window.model.ringAppearance = .stored()
         window.model.resetTimeFormat = storedResetTimeFormat()
         window.model.percentageMode = NotchPercentageMode(
             rawValue: UserDefaults.standard.string(forKey: "notchPercentageMode") ?? ""
@@ -242,9 +244,20 @@ final class NotchController: ObservableObject {
         window.apply(size: size)
     }
 
+    func apply(controlsPosition: NotchControlsPosition) {
+        guard configured else { return }
+        window.model.controlsPosition = controlsPosition
+        window.relocate()
+    }
+
     func apply(accent: NotchAccentChoice) {
         guard configured else { return }
         window.model.accentColor = accent
+    }
+
+    func apply(ringAppearance: NotchRingAppearance) {
+        guard configured else { return }
+        window.model.ringAppearance = ringAppearance
     }
 
     func apply(resetTimeFormat: ResetTimeFormat) {

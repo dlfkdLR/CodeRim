@@ -20,6 +20,9 @@ enum NotchMotion {
     /// feels crisp on a 10pt pill feels abrupt on a 226pt card.
     static let glide = Animation.spring(response: 0.5, dampingFraction: 0.86)
 
+    /// Fade and settle at the other end without travelling over usage readings.
+    static let controlRelocation = Animation.easeInOut(duration: 0.24)
+
     /// Contents changing inside something that is already moving. Short, and an
     /// ease rather than a spring — a spring on a crossfade has nothing to
     /// overshoot and just arrives late.

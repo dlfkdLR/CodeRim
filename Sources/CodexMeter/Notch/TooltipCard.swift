@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// The speech-bubble tail, its point aimed at the hovered cell.
@@ -478,7 +479,14 @@ private struct BlockedRow: View {
 private struct SessionRow: View {
     let session: AgentSession
     let now: Date
+    var depth = 0
+    var isContextOnly = false
+    var isParent = false
+    var inlineParent: AgentSession.ParentThread? = nil
     @Environment(\.notchAccentColor) private var accentColor
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorSchemeContrast) private var contrast
+    @State private var isHovered = false
 
     private var stateColor: Color {
         switch session.state {
@@ -496,27 +504,81 @@ private struct SessionRow: View {
         }
     }
 
+    private var title: String {
+        if let inlineParent { return inlineParent.title }
+        if depth > 0 { return "↳ \(session.detail)" }
+        return isParent || isContextOnly ? session.detail : session.name
+    }
+
     /// While blocked, what it is blocked on matters more than where it lives.
     private var detail: String {
+        if inlineParent != nil { return "↳ \(session.detail)" }
         if session.state == .waiting, let waitingFor = session.waitingFor, !waitingFor.isEmpty {
             return waitingFor
         }
-        return session.detail
+        if isContextOnly { return "Parent chat · \(session.name)" }
+        if depth > 0 { return "Sub-agent" }
+        return isParent ? session.name : session.detail
+    }
+
+    private var openLabel: String {
+        if let parent = session.parentThread {
+            return "Open sub-agent \(session.detail) of \(parent.title) in Codex"
+        }
+        return session.codexThreadID != nil
+            ? "Open \(session.name): \(session.detail) in Codex"
+            : "Open \(session.name)"
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SplitRow(leading: session.name, trailing: stateWord,
-                     trailingColor: stateColor) {
-                StatusRing(state: session.state, color: stateColor)
+        if SessionFocus.target(for: session) != nil {
+            Button {
+                if !SessionFocus.activate(session) { NSSound.beep() }
+            } label: {
+                content
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
             }
+            .buttonStyle(.plain)
+            .background {
+                RoundedRectangle(cornerRadius: NotchDesign.px(20), style: .continuous)
+                    .fill(NotchPalette.textPrimary.opacity(
+                        isHovered ? (contrast == .increased ? 0.1 : 0.045) : 0
+                    ))
+                    .padding(.horizontal, -NotchDesign.px(10))
+                    .padding(.vertical, -NotchDesign.px(7))
+                    .allowsHitTesting(false)
+                    .animation(NotchMotion.respectingReduceMotion(NotchMotion.crossfade, reduceMotion),
+                               value: isHovered)
+            }
+            .onHover { isHovered = $0 }
+            .help(openLabel)
+            .accessibilityLabel(openLabel)
+            .accessibilityValue(isContextOnly ? "Parent chat" : "\(stateWord), \(ElapsedCopy.text(since: session.since, now: now))")
+            .accessibilityIdentifier("notch.session.\(session.id)")
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            SplitRow(leading: title, trailing: isContextOnly ? "" : stateWord,
+                     trailingColor: stateColor) {
+                if !isContextOnly { StatusRing(state: session.state, color: stateColor) }
+            }
+            // Stable line boxes also accommodate fallback glyphs (Korean, ↳)
+            // without letting font substitution change the shared card budget.
+            .frame(height: NotchLayout.cardBodyLineHeight)
             SplitRow(
                 leading: detail,
-                trailing: ElapsedCopy.text(since: session.since, now: now),
+                trailing: isContextOnly ? "" : ElapsedCopy.text(since: session.since, now: now),
                 leadingColor: NotchPalette.textSecondary
             )
+            .frame(height: NotchLayout.cardBodyLineHeight)
             .padding(.top, NotchLayout.sessionRowGap)
         }
+        .padding(.leading, NotchDesign.px(14) * CGFloat(min(depth, 2)))
     }
 }
 
@@ -528,18 +590,9 @@ private struct SessionList: View {
     /// How many rows this screen has room for; the rest are counted.
     let cap: Int
 
-    /// Busy sessions first, so what is hidden is what matters least.
-    private var ordered: [AgentSession] {
-        summary.sessions.sorted { a, b in
-            let rank: (AgentSession) -> Int = {
-                switch $0.state { case .waiting: 0; case .busy: 1; case .idle: 2 }
-            }
-            return rank(a) == rank(b) ? a.since > b.since : rank(a) < rank(b)
-        }
+    private var presentation: (rows: [ActivitySummary.Row], hidden: Int) {
+        summary.presentation(cap: cap)
     }
-
-    private var shown: [AgentSession] { Array(ordered.prefix(max(0, cap))) }
-    private var hidden: Int { max(0, summary.sessions.count - shown.count) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -551,13 +604,15 @@ private struct SessionList: View {
             // Only as many as the card's budgeted height can hold. The rest
             // are counted rather than drawn: the card is clipped, not scrolled,
             // so anything past the budget silently pushes the title off the top.
-            ForEach(Array(shown.enumerated()), id: \.element.id) { index, session in
-                SessionRow(session: session, now: now)
+            ForEach(presentation.rows) { row in
+                SessionRow(session: row.session, now: now, depth: row.depth,
+                           isContextOnly: row.isContextOnly, isParent: row.isParent,
+                           inlineParent: row.inlineParent)
                     .padding(.top, NotchLayout.blockSpacing)
             }
 
-            if hidden > 0 {
-                Text("and \(hidden) more")
+            if presentation.hidden > 0 {
+                Text("and \(presentation.hidden) more")
                     .font(NotchType.cardBody)
                     .foregroundStyle(NotchPalette.textSecondary)
                     .padding(.top, NotchLayout.blockSpacing)
@@ -585,7 +640,7 @@ struct TooltipCard: View {
     /// reachable can never drift apart.
     private var height: CGFloat {
         NotchLayout.cardHeight(for: snapshot,
-            sessionCount: activity?.sessions.count ?? 0,
+            sessionCount: activity?.displayRows.count ?? 0,
             sessionCap: sessionCap,
             now: now,
             showsAccountAction: onSwitchAccount != nil

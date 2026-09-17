@@ -4,11 +4,16 @@ import SwiftUI
 /// the MIT-licensed Codenotch. Everything that shapes it lives here rather than
 /// in the Menu Bar pane — the two are separate surfaces.
 struct NotchSettingsView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("showEdgeNotch") private var showEdgeNotch = AppPreferences.defaultShowEdgeNotch
     @AppStorage("notchVisibility") private var visibility = AppPreferences.defaultNotchVisibility
     @AppStorage("notchEdge") private var notchEdge = AppPreferences.defaultNotchEdge
     @AppStorage("notchSize") private var notchSize = AppPreferences.defaultNotchSize
+    @AppStorage(NotchControlsPosition.preferenceKey) private var controlsPosition = NotchControlsPosition.automatic.rawValue
     @AppStorage("notchAccent") private var notchAccent = AppPreferences.defaultNotchAccent
+    @AppStorage("notchRingColorMode") private var ringColorMode = AppPreferences.defaultNotchRingColorMode
+    @AppStorage("notchRingGradient") private var ringGradient = AppPreferences.defaultNotchRingGradient
+    @AppStorage("notchAnimateGradient") private var animateGradient = AppPreferences.defaultNotchAnimateGradient
     @AppStorage("notchResetTimeFormat") private var resetTimeFormat = AppPreferences.defaultNotchResetTimeFormat
     @AppStorage("notchPercentageMode") private var percentageMode = AppPreferences.defaultNotchPercentageMode
     @AppStorage("notchShowUsagePace") private var showUsagePace = AppPreferences.defaultNotchShowUsagePace
@@ -74,27 +79,84 @@ struct NotchSettingsView: View {
                 )) {
                     ForEach(NotchSize.allCases) { Text($0.title).tag($0.rawValue) }
                 }
+                SettingsPickerRow(title: "Controls position", selection: Binding(
+                    get: { controlsPosition },
+                    set: { newValue in
+                        controlsPosition = newValue
+                        NotchController.shared.apply(controlsPosition:
+                            NotchControlsPosition(rawValue: newValue) ?? .automatic)
+                    }
+                )) {
+                    ForEach(NotchControlsPosition.allCases) { Text($0.title).tag($0.rawValue) }
+                }
+                .disabled(!(NotchEdge(rawValue: notchEdge)?.isVertical ?? true))
+                .accessibilityIdentifier("notch.controlsPosition")
                 SettingsButtonRow(title: "Recentre", systemImage: "arrow.up.and.down.and.arrow.left.and.right") {
                     NotchController.shared.recentre()
                 }
             }
             .disabled(!showEdgeNotch)
 
+            SettingsNote("Controls position applies to the left and right edges. Auto moves Settings and account controls above the notch when space below runs out.")
+
             SettingsSection(title: "Appearance") {
-                SettingsPickerRow(title: "Ring colour", selection: Binding(
-                    get: { notchAccent },
+                SettingsPickerRow(title: "Ring style", selection: Binding(
+                    get: { ringAppearance.mode.rawValue },
                     set: { newValue in
-                        notchAccent = newValue
-                        if let accent = NotchAccentChoice(rawValue: newValue) {
-                            NotchController.shared.apply(accent: accent)
-                        }
+                        ringColorMode = newValue
+                        NotchController.shared.apply(ringAppearance: ringAppearance)
                     }
                 )) {
-                    ForEach(NotchAccentChoice.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                    ForEach(NotchRingColorMode.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
                 }
+                .accessibilityIdentifier("notch.ringStyle")
+                if ringAppearance.mode == .gradient {
+                    SettingsPickerRow(title: "Gradient", selection: Binding(
+                        get: { ringAppearance.gradient.rawValue },
+                        set: { newValue in
+                            ringGradient = newValue
+                            NotchController.shared.apply(ringAppearance: ringAppearance)
+                        }
+                    )) {
+                        ForEach(NotchRingGradient.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                    }
+                    .accessibilityIdentifier("notch.ringGradient")
+                    SettingsToggleRow(
+                        "Animate gradient",
+                        caption: reduceMotion
+                            ? "Paused while Reduce Motion is enabled in macOS Accessibility settings."
+                            : "The gradient colours flow smoothly around the ring.",
+                        get: { animateGradient },
+                        set: { newValue in
+                            animateGradient = newValue
+                            NotchController.shared.apply(ringAppearance: ringAppearance)
+                        }
+                    )
+                    .accessibilityIdentifier("notch.animateGradient")
+                } else {
+                    SettingsPickerRow(title: "Ring colour", selection: Binding(
+                        get: { notchAccent },
+                        set: { newValue in
+                            notchAccent = newValue
+                            if let accent = NotchAccentChoice(rawValue: newValue) {
+                                NotchController.shared.apply(accent: accent)
+                            }
+                        }
+                    )) {
+                        ForEach(NotchAccentChoice.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                    }
+                }
+                HStack(spacing: 12) {
+                    Text("Preview")
+                    Spacer(minLength: 8)
+                    NotchRingAppearancePreview(appearance: ringAppearance,
+                                               accent: NotchAccentChoice(rawValue: notchAccent) ?? .system)
+                }
+                .padding(.horizontal, SettingsMetrics.rowInset)
+                .padding(.vertical, 9)
             }
             .disabled(!showEdgeNotch)
-            SettingsNote("Only the healthy end of the scale takes this colour — the 80% and 100% warning bands stay fixed, since their job is to interrupt.")
+            SettingsNote(ringAppearance.mode.explanation)
 
             SettingsSection(title: "Readings") {
                 SettingsPickerRow(title: "Percentage", selection: Binding(
@@ -126,7 +188,7 @@ struct NotchSettingsView: View {
             }
             .disabled(!showEdgeNotch)
 
-            SettingsNote("The percentage and ring show the selected amount. Warning colours always reflect how much of the limit has been used.")
+            SettingsNote("The percentage and ring show the selected amount. In Usage colours mode, ring colours reflect how much of the limit has been used.")
 
             SettingsSection(title: "When a Session Ends") {
                 SettingsToggleRow(
@@ -193,6 +255,12 @@ struct NotchSettingsView: View {
             ollamaKeyStored = OllamaCredentials.hasStoredKey
             ollamaEnvActive = ProcessInfo.processInfo.environment["OLLAMA_API_KEY"]?.isEmpty == false
         }
+    }
+
+    private var ringAppearance: NotchRingAppearance {
+        NotchRingAppearance(mode: NotchRingColorMode(rawValue: ringColorMode) ?? .usage,
+                            gradient: NotchRingGradient(rawValue: ringGradient) ?? .aurora,
+                            animatesGradient: animateGradient)
     }
 
     private func saveOllamaKey() {

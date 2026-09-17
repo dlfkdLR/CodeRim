@@ -1,12 +1,12 @@
 <div align="center">
 
-<img src="Assets/README/codexmeter-notch.png" alt="CodexMeter running on macOS: the real edge notch shows Codex at 32% remaining and Claude Code at 66% remaining" width="100%" />
+<img src="Assets/README/codexmeter-notch.png" alt="CodexMeter for macOS supports 11 providers, including Codex, Claude Code, GitHub Copilot, and Cursor. Example edge-notch rings show 32% and 66% remaining." width="100%" />
 
 [![CI](https://github.com/dlfkdLR/CodexMeter/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodexMeter/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/dlfkdLR/CodexMeter?color=181a1e)](https://github.com/dlfkdLR/CodexMeter/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-181a1e) ![Universal](https://img.shields.io/badge/Apple_silicon_%2B_Intel-Universal-181a1e) [![MIT](https://img.shields.io/badge/license-MIT-181a1e)](LICENSE)
 
 **Coding-assistant limits at the edge of your screen. Local token history one click away.**
 
-<sub>Captured from the actual CodexMeter 2.0.9 app. The rings above are set to Remaining.</sub>
+<sub>11 supported providers, including Codex, Claude Code, GitHub Copilot, and Cursor. The example rings show remaining usage.</sub>
 
 </div>
 
@@ -55,8 +55,12 @@ This also applies after a verified Homebrew install. Later automatic updates are
 - **Used or remaining.** Choose what the percentage and ring mean in **Settings → Notch → Readings**. Warning colours continue to track consumption.
 - **Account and plan.** Hover for the account plan, including Codex Pro 5x/20x and Claude Max 5x/20x when the account reports the tier.
 - **Working, waiting, finished.** Session activity animates the rings. Optional completion peeks and sounds let you know when to return to a task.
-- **Quick controls.** Hover the arc below the notch to reveal Settings, followed by account switching. The account popover shows provider logos, current accounts, and plans.
+- **Quick controls.** Hover the arc to reveal Settings and account switching above or below the notch. The account popover shows provider logos, current accounts, and plans.
 - **Your layout.** Use any screen edge, choose the size and ring colour, and Option-drag to reposition. The notch starts enabled and remembers your choices.
+
+<p align="center">
+  <img src="Assets/README/codexmeter-controls.gif" alt="Animated notch controls opening below, then above: Settings and account switching appear and retract smoothly." width="176" />
+</p>
 
 The small menu-bar item opens Usage, Settings, updates, or the notch when hidden.
 
@@ -66,7 +70,7 @@ Open **Settings → Providers → Add Provider** to browse the searchable catalo
 
 | Provider | What CodexMeter reads |
 | --- | --- |
-| **Codex** | Local session token history and read-only limits from the signed Codex app-server. Optional ChatGPT account totals stay separate from local history. |
+| **Codex** | Local session token history and read-only limits from the signed Codex app-server. Optional ChatGPT account history is shown separately with its server snapshot date. |
 | **Claude Code** | Local session token history. After account setup, Claude Code's status-line integration supplies five-hour and weekly limits. |
 | **GitHub Copilot** | Copilot quotas using the GitHub CLI's existing sign-in. |
 | **Cursor** | Usage limits from the Cursor editor or Cursor Agent sign-in. |
@@ -86,7 +90,7 @@ For Claude Code, sign in through `claude`, then open **Settings → Providers �
 
 **Settings → Usage** keeps Codex and Claude Code histories separate. See today's input, cached input, and output; explore daily charts, models, projects, sessions, and supported cost estimates.
 
-**General → Number format** applies Compact or Detailed formatting to Usage and the notch's token/count readings. Optional ChatGPT account totals are labelled with their snapshot date; this Mac's live Today total remains separate.
+**General → Number format** applies Compact or Detailed formatting to Usage and the notch's token/count readings. **Today** and **History · This Mac** show one set of live local totals: this week, this month, and Local History. New session records update these totals together. Local history spans accounts on this Mac; switching accounts does not reset it or add a server account total. Delayed ChatGPT profile statistics are not displayed or fetched by the live usage interface.
 
 For Codex, cached input is already part of input: **Total = Input + Output**. [How accounting and data sources work](Documentation/USAGE.md).
 

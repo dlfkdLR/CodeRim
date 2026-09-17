@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The settings control, below the notch.
+/// The settings control at the available end of the notch.
 ///
 /// At rest it is a single arc — a segment of a circle's edge, tucked into the
 /// corner the notch's bottom flare makes. On hover that same circle fills in and
@@ -19,6 +19,7 @@ struct SettingsOrb: View {
     /// True when the arc traces the bar's own rounded corner from outside
     /// rather than a flare from inside — a flush bar has no flare to tuck into.
     var convex: Bool = false
+    var atStart: Bool = false
     /// The circle the resting arc follows.
     var arcRadius: CGFloat = NotchLayout.orbArcRadius
     /// How far the arc sits from the button. Zero inside a flare's pocket,
@@ -41,8 +42,12 @@ struct SettingsOrb: View {
     /// y growing downward.
     /// Hugging a corner from outside is the same relationship as hugging a
     /// flare from inside, turned through half a circle.
-    static func restingTrim(for edge: NotchEdge, convex: Bool) -> ClosedRange<CGFloat> {
-        let concave = restingTrim(for: edge)
+    static func restingTrim(for edge: NotchEdge, convex: Bool, atStart: Bool = false) -> ClosedRange<CGFloat> {
+        let trailing = restingTrim(for: edge)
+        // Mirror just the arc along a side edge; the gear stays upright.
+        let concave = atStart && edge.isVertical
+            ? (1 - trailing.upperBound)...(1 - trailing.lowerBound)
+            : trailing
         guard convex else { return concave }
         let turned = (concave.lowerBound + 0.5).truncatingRemainder(dividingBy: 1)
         return turned...(turned + 0.25)
@@ -57,7 +62,7 @@ struct SettingsOrb: View {
         }
     }
 
-    private var restingTrim: ClosedRange<CGFloat> { Self.restingTrim(for: edge, convex: convex) }
+    private var restingTrim: ClosedRange<CGFloat> { Self.restingTrim(for: edge, convex: convex, atStart: atStart) }
 
 
 

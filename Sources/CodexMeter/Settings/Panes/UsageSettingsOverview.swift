@@ -1,10 +1,9 @@
 import SwiftUI
 
 /// A window-sized summary. Totals use the same display policy as the compact
-/// menu: today belongs to this Mac, while history can come from ChatGPT.
+/// menu: every token total uses the live local session history.
 struct UsageSettingsOverview: View {
     @EnvironmentObject private var store: UsageStore
-    @EnvironmentObject private var profileStore: ProfileUsageStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("numberStyle") private var numberStyle = TokenNumberStyle.compact.rawValue
     @AppStorage("showCachedInput") private var showCachedInput = true
@@ -12,10 +11,6 @@ struct UsageSettingsOverview: View {
     @AppStorage("costEstimatesEnabled") private var costEstimatesEnabled = AppPreferences.defaultCostEstimatesEnabled
     @AppStorage("projectsEnabled") private var projectsEnabled = AppPreferences.defaultProjectsEnabled
     @AppStorage("sessionsEnabled") private var sessionsEnabled = AppPreferences.defaultSessionsEnabled
-
-    private var profile: ProfileUsageSnapshot? {
-        store.provider.supportsAccountTotals && profileStore.isEnabled ? profileStore.snapshot : nil
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
@@ -46,6 +41,7 @@ struct UsageSettingsOverview: View {
     private var today: some View {
         VStack(alignment: .leading, spacing: 18) {
             sectionHeading("Today", context: "This Mac")
+                .help(UsageDisplayPolicy.localHistoryHelp)
             if store.snapshot.updatedAt != nil {
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .center, spacing: 32) {
@@ -123,29 +119,28 @@ struct UsageSettingsOverview: View {
 
     private var history: some View {
         VStack(alignment: .leading, spacing: 14) {
-            sectionHeading("History", context: profile.map {
-                "ChatGPT · Through \($0.statsAsOf.formatted(.dateTime.month(.abbreviated).day()))"
-            } ?? "This Mac")
+            sectionHeading("History", context: "This Mac")
+                .help(UsageDisplayPolicy.localHistoryHelp)
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 16) {
                     periodLink("This Week", period: .week)
                     Divider().frame(height: 64)
                     periodLink("This Month", period: .month)
                     Divider().frame(height: 64)
-                    periodLink(profile == nil ? "Local History" : "Lifetime", period: .allTime)
+                    periodLink("Local History", period: .allTime)
                 }
                 VStack(alignment: .leading, spacing: 12) {
                     periodLink("This Week", period: .week)
                     periodLink("This Month", period: .month)
-                    periodLink(profile == nil ? "Local History" : "Lifetime", period: .allTime)
+                    periodLink("Local History", period: .allTime)
                 }
             }
         }
     }
 
     private func periodLink(_ title: String, period: UsagePeriod) -> some View {
-        let total = UsageDisplayPolicy.displayedTotal(for: period,
-            localUsage: store.snapshot.totals(for: period), profileSnapshot: profile)
+        let total = store.snapshot.totals(for: period).totalTokens
+        let text = formatted(total)
         return MenuLink(destination: .period(period)) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
@@ -156,7 +151,7 @@ struct UsageSettingsOverview: View {
                         .foregroundStyle(.secondary)
                         .accessibilityHidden(true)
                 }
-                Text(formatted(total))
+                Text(text)
                     .font(.system(size: 20, weight: .semibold, design: .rounded))
                     .monospacedDigit()
                     .lineLimit(1)
@@ -165,9 +160,10 @@ struct UsageSettingsOverview: View {
             .padding(.vertical, 6)
             .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
         }
-        .accessibilityLabel("\(title), \(formatted(total)) tokens")
+        .disabled(store.snapshot.updatedAt == nil)
+        .accessibilityLabel("This Mac \(title), \(text) tokens")
         .accessibilityHint("Open \(title.lowercased()) details")
-        .accessibilityIdentifier("settings.usage.period.\(period.rawValue)")
+        .accessibilityIdentifier("settings.usage.local.\(period.rawValue)")
     }
 
     private func sectionHeading(_ title: String, context: String) -> some View {

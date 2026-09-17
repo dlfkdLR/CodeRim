@@ -6,6 +6,86 @@ final class CostEstimatorTests: XCTestCase {
     private let estimator = CostEstimator()
     private let now = Date(timeIntervalSince1970: 1_800_000_000)
 
+    func testAstraAndSolUsageProducesACompleteEstimate() throws {
+        let estimate = estimator.estimate([
+            ModelTokenUsageSample(
+                modelID: "gpt-6-astra",
+                usage: TokenUsage(
+                    inputTokens: 1_000_000,
+                    cachedInputTokens: 750_000,
+                    cacheWriteInputTokens: 50_000,
+                    outputTokens: 100_000
+                ),
+                occurredAt: now
+            ),
+            sample(modelID: "gpt-5.6-sol", input: 100_000)
+        ])
+
+        XCTAssertTrue(estimate.isAvailable)
+        XCTAssertEqual(estimate.coverage, .complete)
+        XCTAssertEqual(estimate.breakdown?.uncachedInputUSD, try decimal("2.4"))
+        XCTAssertEqual(estimate.breakdown?.cachedInputUSD, try decimal("0.75"))
+        XCTAssertEqual(estimate.breakdown?.cacheWriteInputUSD, try decimal("0.625"))
+        XCTAssertEqual(estimate.breakdown?.outputUSD, try decimal("5"))
+        XCTAssertEqual(estimate.amountUSD, try decimal("8.775"))
+    }
+
+    func testAstraHighContextMultipliersApplyOnlyToQualifyingUsage() throws {
+        let highContext = TokenUsage(
+            inputTokens: 400_000,
+            cachedInputTokens: 200_000,
+            cacheWriteInputTokens: 100_000,
+            outputTokens: 20_000
+        )
+        let standard = TokenUsage(
+            inputTokens: 100_000,
+            cachedInputTokens: 50_000,
+            cacheWriteInputTokens: 0,
+            outputTokens: 10_000
+        )
+        let estimate = estimator.estimate([
+            ModelTokenUsageSample(
+                modelID: "gpt-6-astra",
+                usage: highContext.adding(standard),
+                highContextUsage: highContext,
+                occurredAt: now
+            )
+        ])
+
+        XCTAssertEqual(estimate.coverage, .complete)
+        XCTAssertEqual(estimate.breakdown?.uncachedInputUSD, try decimal("2.5"))
+        XCTAssertEqual(estimate.breakdown?.cachedInputUSD, try decimal("0.45"))
+        XCTAssertEqual(estimate.breakdown?.cacheWriteInputUSD, try decimal("2.5"))
+        XCTAssertEqual(estimate.breakdown?.outputUSD, try decimal("2"))
+        XCTAssertEqual(estimate.amountUSD, try decimal("7.45"))
+    }
+
+    func testAstraStillRequiresMetadataThatChangesItsPrice() {
+        let missingCacheWrite = estimator.estimate(
+            modelID: "gpt-6-astra",
+            usage: TokenUsage(inputTokens: 10, cachedInputTokens: 2, outputTokens: 1),
+            occurredAt: now
+        )
+        let unknownContext = estimator.estimate([
+            ModelTokenUsageSample(
+                modelID: "gpt-6-astra",
+                usage: TokenUsage(
+                    inputTokens: 300_000,
+                    cachedInputTokens: 0,
+                    cacheWriteInputTokens: 0,
+                    outputTokens: 1
+                ),
+                hasUnknownPricingContext: true,
+                occurredAt: now
+            )
+        ])
+
+        for estimate in [missingCacheWrite, unknownContext] {
+            XCTAssertEqual(estimate.coverage, .incompleteMetadata(modelIDs: ["gpt-6-astra"]))
+            XCTAssertNil(estimate.amountUSD)
+        }
+    }
+
     func testZeroTokensProduceAnAvailableZeroEstimate() throws {
         let estimate = estimator.estimate(modelID: "gpt-5.6-sol", usage: .zero, occurredAt: now)
 
@@ -240,10 +320,10 @@ final class CostEstimatorTests: XCTestCase {
 
         XCTAssertEqual(estimate.amountUSD, try decimal("2.5"))
         XCTAssertTrue(estimate.pricingBasis.isCurrentPricingEstimate)
-        XCTAssertEqual(estimate.pricingBasis.catalogVersion, "2026-08-28")
+        XCTAssertEqual(estimate.pricingBasis.catalogVersion, "2026-09-14")
         XCTAssertEqual(
             estimate.pricingBasis.catalogRetrievedAt,
-            Date(timeIntervalSince1970: 1_787_875_200)
+            Date(timeIntervalSince1970: 1_789_344_000)
         )
     }
 

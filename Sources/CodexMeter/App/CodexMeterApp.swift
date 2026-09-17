@@ -25,7 +25,7 @@ struct CodexMeterApp: App {
         AppPreferences.registerDefaults()
         let store = UsageStore()
         let claudeStore = UsageStore(provider: .claude, automaticallyRefresh: false)
-        let profileStore = ProfileUsageStore()
+        let profileStore = ProfileUsageStore(allowsAccountTotals: false)
         let accountLimitStore = AccountLimitStore()
         let claudeIntegrationStore = ClaudeIntegrationStore(automaticallyRefresh: false)
         _store = StateObject(wrappedValue: store)

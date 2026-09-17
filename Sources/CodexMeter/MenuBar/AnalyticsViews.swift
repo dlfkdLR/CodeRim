@@ -140,16 +140,9 @@ struct AccountLimitsView: View {
 
 }
 
-enum AnalyticsChartMetric: String, CaseIterable, Identifiable {
-    case tokens
-    case cost
-
-    var id: Self { self }
+private enum AnalyticsChartMetric: String {
+    case tokens, cost
     var title: String { self == .tokens ? "Tokens" : "Cost" }
-
-    func resolved(costEstimatesEnabled: Bool) -> Self {
-        costEstimatesEnabled ? self : .tokens
-    }
 }
 
 /// One compact header followed by a content-fitting, height-limited viewport.
@@ -199,24 +192,11 @@ struct UsageAnalyticsView: View {
 
     private var range: AnalyticsRange { navigation.usageRange }
     private var showsCost: Bool { costEstimatesEnabled && store.provider.supportsCostEstimates }
-    private var chartMetric: AnalyticsChartMetric {
-        navigation.chartMetric.resolved(costEstimatesEnabled: showsCost)
-    }
     private var selectedBucketDate: Date? { navigation.selectedBucketDate }
 
     var body: some View {
         AnalyticsDetailLayout {
-            VStack(alignment: .leading, spacing: 10) {
-                AnalyticsRangePicker(range: $navigation.usageRange)
-                if showsCost {
-                    Picker("Chart metric", selection: $navigation.chartMetric) {
-                        ForEach(AnalyticsChartMetric.allCases) { Text($0.title).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .fixedSize(horizontal: false, vertical: true)
-                }
-            }
+            AnalyticsRangePicker(range: $navigation.usageRange)
         } content: {
             if let snapshot = store.analyticsSnapshots[range] {
                 VStack(alignment: .leading, spacing: 16) {
@@ -234,66 +214,65 @@ struct UsageAnalyticsView: View {
         }
         .task(id: range) { await store.refreshAnalytics(range: range) }
         .onChange(of: range) { _, _ in navigation.selectedBucketDate = nil }
-        .onChange(of: chartMetric) { _, _ in navigation.selectedBucketDate = nil }
     }
 
     private func totalCard(_ snapshot: AnalyticsSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
-            Text(snapshot.usage.totalTokens.formatted())
-                .font(.system(size: 28, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-            Text("tokens")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if showsCost {
-                EstimatedCostLabel(snapshot: snapshot)
-            }
-        }
+        UsageMetricSummary(usage: snapshot.usage, models: snapshot.models, through: snapshot.through,
+                           quality: snapshot.quality, showsCost: showsCost)
     }
 
     private func usageChart(_ snapshot: AnalyticsSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(chartMetric == .tokens ? "Token activity" : "Estimated API-equivalent cost")
-                .font(.subheadline.weight(.semibold))
-            if chartMetric == .cost, hasUnavailableCostBucket(snapshot) {
-                Text("Cost unavailable for one or more intervals in this range.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 112)
-            } else {
-                Chart(snapshot.buckets) { bucket in
-                    BarMark(
-                        x: .value("Time", bucket.start),
-                        y: .value(chartMetric.title, chartValue(bucket, quality: snapshot.quality))
-                    )
-                    .foregroundStyle(Color.accentColor)
-                    .cornerRadius(3)
-                }
-                .chartYAxis(.hidden)
-                .chartXSelection(value: $navigation.selectedBucketDate)
-                .frame(height: 112)
-                .accessibilityLabel("\(chartMetric.title) chart for \(range.title)")
+        let costChart = CostChartSummary(snapshot: snapshot)
+        return VStack(alignment: .leading, spacing: 12) {
+            metricChart(snapshot, costs: costChart, metric: .tokens)
+            if showsCost {
+                metricChart(snapshot, costs: costChart, metric: .cost)
             }
             if let bucket = selectedBucket(in: snapshot) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(bucket.start.formatted(date: range == .today ? .omitted : .abbreviated, time: range == .today ? .shortened : .omitted))
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(bucket.start.formatted(date: range == .today ? .omitted : .abbreviated,
+                                                time: range == .today ? .shortened : .omitted))
                         .font(.caption.weight(.semibold))
-                    Text("\(bucket.usage.totalTokens.formatted()) tokens")
-                        .font(.caption).foregroundStyle(.secondary)
-                    if showsCost {
-                        EstimatedCostText(
-                            models: bucket.models,
-                            through: bucket.end,
-                            quality: snapshot.quality,
-                            compact: true
-                        )
-                    }
+                    UsageMetricSummary(usage: bucket.usage, models: bucket.models, through: bucket.end,
+                                       quality: snapshot.quality, showsCost: showsCost,
+                                       excludingModelIDs: costChart.total.excludedModelIDs, compact: true)
                     usageBreakdown(bucket.usage)
                 }
                 .padding(10)
                 .background(.quaternary.opacity(0.3), in: RoundedRectangle(cornerRadius: 8))
+            }
+        }
+    }
+
+    private func metricChart(_ snapshot: AnalyticsSnapshot, costs: CostChartSummary,
+                             metric: AnalyticsChartMetric) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(metric == .tokens ? "Token activity"
+                 : costs.total.isPartial ? "Estimated cost of priced usage" : "Estimated API cost")
+                .font(.subheadline.weight(.semibold))
+            if metric == .cost, costs.isUnavailable {
+                Text("No cost estimate is available for the recorded usage in this range.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Chart(costs.buckets) { item in
+                    if let value = chartValue(item, metric: metric) {
+                        BarMark(x: .value("Time", item.bucket.start), y: .value(metric.title, value))
+                            .foregroundStyle(metric == .tokens ? Color.accentColor : Color.green)
+                            .cornerRadius(3)
+                            .accessibilityValue(metric == .tokens
+                                ? "\(item.bucket.usage.totalTokens.formatted()) tokens"
+                                : item.cost.amountUSD.map { "Estimated \(currency($0))" } ?? "Unavailable")
+                    }
+                }
+                .chartXScale(domain: snapshot.interval.start...snapshot.interval.end)
+                .chartYAxis(.hidden)
+                .chartXSelection(value: $navigation.selectedBucketDate)
+                .frame(height: showsCost ? 80 : 112)
+                .accessibilityLabel("\(metric.title) chart for \(range.title)")
+                if metric == .cost, costs.hasUnavailableIntervals {
+                    Text("Gaps indicate intervals without a cost estimate.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
             }
         }
     }
@@ -313,7 +292,8 @@ struct UsageAnalyticsView: View {
                             models: [model],
                             through: snapshot.through,
                             quality: snapshot.quality,
-                            horizontalPadding: 8
+                            horizontalPadding: 8,
+                            showsCost: showsCost
                         )
                     }
                 }
@@ -326,18 +306,10 @@ struct UsageAnalyticsView: View {
         analyticsPlaceholder(store: store, title: "Usage Unavailable", minimumHeight: 180)
     }
 
-    private func chartValue(_ bucket: UsageBucket, quality: DataQuality) -> Double {
-        switch chartMetric {
-        case .tokens: Double(bucket.usage.totalTokens)
-        case .cost: estimatedCost(for: bucket.models, through: bucket.end, quality: quality)
-            .map { NSDecimalNumber(decimal: $0).doubleValue } ?? 0
-        }
-    }
-
-    private func hasUnavailableCostBucket(_ snapshot: AnalyticsSnapshot) -> Bool {
-        snapshot.quality != .exact || snapshot.buckets.contains {
-            $0.usage.totalTokens > 0
-                && estimatedCost(for: $0.models, through: $0.end, quality: snapshot.quality) == nil
+    private func chartValue(_ item: CostChartBucket, metric: AnalyticsChartMetric) -> Double? {
+        switch metric {
+        case .tokens: Double(item.bucket.usage.totalTokens)
+        case .cost: item.cost.amountUSD.map { NSDecimalNumber(decimal: $0).doubleValue }
         }
     }
 
@@ -537,6 +509,7 @@ struct SessionDetailView: View {
 
 struct ModelDetailView: View {
     @EnvironmentObject private var store: UsageStore
+    @AppStorage("costEstimatesEnabled") private var costEstimatesEnabled = AppPreferences.defaultCostEstimatesEnabled
     let id: String
     let range: AnalyticsRange
 
@@ -545,29 +518,71 @@ struct ModelDetailView: View {
             if let snapshot = store.analyticsSnapshots[range],
                let model = snapshot.models.first(where: { $0.id == id }) {
                 VStack(alignment: .leading, spacing: 14) {
-                    analyticsHeader(model.displayName, tokens: model.usage.totalTokens)
-                    if store.provider.supportsCostEstimates {
-                        EstimatedCostText(
-                            models: [model],
-                            through: snapshot.through,
-                            quality: snapshot.quality,
-                            compact: false
-                        )
-                    }
+                    Text(model.displayName).font(.headline)
+                    UsageMetricSummary(usage: model.usage, models: [model], through: snapshot.through,
+                                       quality: snapshot.quality,
+                                       showsCost: costEstimatesEnabled && store.provider.supportsCostEstimates)
                     usageBreakdown(model.usage)
-                    LabeledContent(
-                        "Projects",
-                        value: snapshot.projects.filter { $0.models.contains(where: { $0.id == id }) }.count.formatted()
-                    )
-                    LabeledContent(
-                        "Sessions",
-                        value: snapshot.sessions.filter { $0.models.contains(where: { $0.id == id }) }.count.formatted()
-                    )
+                    LabeledContent("Projects", value: snapshot.projects.filter {
+                        $0.models.contains(where: { $0.id == id })
+                    }.count.formatted())
+                    LabeledContent("Sessions", value: snapshot.sessions.filter {
+                        $0.models.contains(where: { $0.id == id })
+                    }.count.formatted())
                 }
                 .padding(16)
             }
         }
         .modifier(UsageDetailWidth())
+    }
+}
+
+/// The same two metrics and pricing coverage appear in the range, interval and model detail.
+struct UsageMetricSummary: View {
+    let usage: TokenUsage
+    let models: [ModelUsageSummary]
+    let through: Date
+    let quality: DataQuality
+    let showsCost: Bool
+    var excludingModelIDs: Set<String> = []
+    var compact = false
+
+    var body: some View {
+        let cost = CostDisplaySummary(models: models, through: through, quality: quality,
+                                      excludingModelIDs: excludingModelIDs)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 20) {
+                value(usage.totalTokens.formatted(), label: "tokens")
+                    .accessibilityIdentifier("analytics.summary.tokens")
+                if showsCost {
+                    value(cost.amountUSD.map { "~\(currency($0))" } ?? "—",
+                          label: cost.amountUSD == nil ? "Estimate unavailable"
+                              : cost.isPartial ? "Estimated API cost subtotal" : "Estimated API cost")
+                        .help("API-equivalent estimate for recorded usage, not a bill or subscription charge. Unpriced models are excluded.")
+                        .accessibilityIdentifier("analytics.summary.cost")
+                }
+            }
+            if quality == .partial {
+                Text("Partial local history").font(.caption).foregroundStyle(.secondary)
+            }
+            if showsCost, cost.isPartial {
+                Text("Pricing unavailable: \(cost.excludedModels.map(\.displayName).sorted().joined(separator: ", "))")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func value(_ amount: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(amount)
+                .font(.system(size: compact ? 18 : 28, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+            Text(label).font(.caption).foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -598,36 +613,48 @@ struct EstimatedCostText: View {
     let quality: DataQuality
     let compact: Bool
     let showsUnavailable: Bool
+    let excludingModelIDs: Set<String>
 
     nonisolated init(
         models: [ModelUsageSummary],
         through: Date,
         quality: DataQuality,
         compact: Bool,
-        showsUnavailable: Bool = true
+        showsUnavailable: Bool = true,
+        excludingModelIDs: Set<String> = []
     ) {
         self.models = models
         self.through = through
         self.quality = quality
         self.compact = compact
         self.showsUnavailable = showsUnavailable
+        self.excludingModelIDs = excludingModelIDs
     }
 
     var body: some View {
         if costEstimatesEnabled {
-            if let amount = estimatedCost(for: models, through: through, quality: quality) {
-                Text(compact ? "~\(currency(amount))" : "Estimated API cost · ~\(currency(amount))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .help("Current official API pricing estimate. This is not a bill or subscription charge.")
+            let summary = CostDisplaySummary(models: models, through: through, quality: quality, excludingModelIDs: excludingModelIDs)
+            if let amount = summary.amountUSD {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(compact
+                        ? "~\(currency(amount))\(summary.isPartial ? " · subtotal" : "")"
+                        : "\(summary.isPartial ? "Estimated API cost subtotal" : "Estimated API cost") · ~\(currency(amount))\(quality == .partial ? " · partial history" : "")")
+                    if summary.isPartial, !compact {
+                        Text(summary.exclusionDescription)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .help("Current official API pricing estimate for recorded tokens. Local history may be incomplete. Models without pricing or required metadata are excluded. This is not a bill or subscription charge.\(summary.isPartial ? " " + summary.exclusionDescription : "")")
             } else if showsUnavailable {
                 Text("Estimated cost unavailable")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .help(
-                        quality == .exact
-                            ? "Some records have unknown models or incomplete pricing metadata."
-                            : "Local usage is incomplete, so a complete cost estimate cannot be shown."
+                        quality == .unavailable
+                            ? "Local usage is unavailable, so a cost estimate cannot be shown."
+                            : "Some records have unknown models or incomplete pricing metadata."
                     )
             }
         }
@@ -642,7 +669,8 @@ func analyticsRow(
     models: [ModelUsageSummary],
     through: Date,
     quality: DataQuality,
-    horizontalPadding: CGFloat = 16
+    horizontalPadding: CGFloat = 16,
+    showsCost: Bool = true
 ) -> some View {
     HStack(spacing: 10) {
         VStack(alignment: .leading, spacing: 4) {
@@ -657,18 +685,22 @@ func analyticsRow(
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
             }
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                if let detail {
-                    Text(detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .help(detail)
+            if detail != nil || showsCost {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    if let detail {
+                        Text(detail)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .help(detail)
+                    }
+                    Spacer(minLength: 0)
+                    // Unknown costs belong in the item's detail, not on every list row.
+                    if showsCost {
+                        EstimatedCostText(models: models, through: through, quality: quality, compact: true, showsUnavailable: false)
+                            .lineLimit(1)
+                    }
                 }
-                Spacer(minLength: 0)
-                // Unknown costs belong in the item's detail, not on every list row.
-                EstimatedCostText(models: models, through: through, quality: quality, compact: true, showsUnavailable: false)
-                    .lineLimit(1)
             }
         }
         Image(systemName: "chevron.right")
@@ -719,12 +751,15 @@ private func modelRows(_ models: [ModelUsageSummary]) -> some View {
     }
 }
 
-private func estimatedCost(
+func estimatedCost(
     for models: [ModelUsageSummary],
     through: Date,
     quality: DataQuality
 ) -> Decimal? {
-    guard quality == .exact else { return nil }
+    // History completeness does not change the price of the tokens we have.
+    // Partial history is disclosed by the label/chart; the estimator still
+    // rejects unknown models and missing metadata that would change the cost.
+    guard quality != .unavailable else { return nil }
     let samples = models.map {
         ModelTokenUsageSample(
             modelID: $0.modelID ?? "unknown",
