@@ -10,6 +10,7 @@ import SwiftUI
 struct NotchProviderSettingsView: View {
     let providerID: String
 
+    @State private var accountActionMessage: String?
     @ObservedObject private var notch = NotchController.shared
     @AppStorage("notchThresholdAlerts") private var thresholdAlerts = AppPreferences.defaultNotchThresholdAlerts
     @AppStorage(AppPreferences.mutedAlertProvidersKey) private var mutedAlerts = ""
@@ -43,6 +44,12 @@ struct NotchProviderSettingsView: View {
             accountSection
             if ExtendedProviderCatalog.isExtended(providerID),
                let descriptor = ExtendedProviderCatalog.descriptor(for: providerID) {
+                SettingsNote("To use another account, save its credentials below, or switch the imported browser session and refresh.")
+                SettingsSection(title: "Switch account") {
+                    SettingsButtonRow(title: "Refresh account", systemImage: "arrow.clockwise") {
+                        notch.providerConfigurationDidChange(providerID)
+                    }
+                }
                 ExtendedProviderSettingsView(descriptor: descriptor)
             } else {
                 connectionSection
@@ -160,10 +167,18 @@ struct NotchProviderSettingsView: View {
                 }
             }
             SettingsNote("macOS refused \(name)'s saved login. Choose Always Allow when it asks again and it will stop prompting.")
-        } else if !isConnected, let route {
-            SettingsSection(title: "Connection") {
+        } else if let route, providerID != "ollama-local" {
+            SettingsSection(title: isConnected || account != nil ? "Switch account" : "Connection") {
                 routeControl(route)
+                SettingsButtonRow(title: "Refresh account", systemImage: "arrow.clockwise") {
+                    notch.providerConfigurationDidChange(providerID)
+                }
             }
+            SettingsNote(route.switchHint)
+            if case .guidance = route { SettingsNote(route.explanation) }
+            if let accountActionMessage { SettingsNote(accountActionMessage) }
+        } else if !isConnected, let route {
+            SettingsSection(title: "Connection") { routeControl(route) }
             SettingsNote(route.explanation)
         }
     }
@@ -189,15 +204,15 @@ struct NotchProviderSettingsView: View {
     @ViewBuilder
     private func routeControl(_ route: SignInRoute) -> some View {
         switch route {
-        case let .openApp(bundleID, appName):
+        case let .openApp(_, appName):
             SettingsButtonRow(title: "Open \(appName)", systemImage: "arrow.up.forward.app") {
-                if let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
-                    NSWorkspace.shared.open(url)
-                }
+                accountActionMessage = notch.openAccountSource(providerID: providerID)
+                    ? nil : "Install or open \(appName) to change its account, then choose Refresh account."
             }
         case let .modal(appName):
             SettingsButtonRow(title: "Sign in to \(appName)", systemImage: "person.badge.key") {
-                notch.refresh(providerID: providerID)
+                accountActionMessage = notch.openAccountSource(providerID: providerID)
+                    ? nil : "The sign-in window could not be opened. Try again."
             }
         case .guidance:
             EmptyView()
