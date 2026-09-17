@@ -97,6 +97,8 @@ final class NotchController: ObservableObject {
         let store = NotchUsageStore(providers: providers,
             disconnected: Set(providers.map(\.id)).subtracting(selectedProviderIDs), order: Self.storedProviderOrder())
         self.store = store
+        if let codexUsage { store.bindLocalUsage(codexUsage, providerID: "codex") }
+        if let claudeUsage { store.bindLocalUsage(claudeUsage, providerID: "claude") }
 
         ClaudeAccountStore.shared.onWillSwitch = { [weak claudeIntegration, weak store] in
             claudeIntegration?.beginAccountSwitch()

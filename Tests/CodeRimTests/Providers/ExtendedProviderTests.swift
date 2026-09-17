@@ -54,6 +54,115 @@ final class ExtendedProviderTests: XCTestCase {
         }
     }
 
+    func testAllExtendedAdaptersPreserveReportedTokenHistoryWithoutInventingDailyUsage() {
+        for descriptor in ExtendedProviderCatalog.additions {
+            let history = CostUsageTokenSnapshot(sessionTokens: 12, sessionCostUSD: nil,
+                last30DaysTokens: 123456, last30DaysCostUSD: nil, historyDays: 14,
+                historyLabel: "This billing period", daily: [], updatedAt: Date())
+            let usage = CodexBarCore.UsageSnapshot(primary: nil, secondary: nil,
+                costUsage: history, updatedAt: Date())
+            let snapshot = ExtendedNotchProvider.snapshot(result(usage), descriptor: descriptor)
+            let row = snapshot.windows.first { $0.id == "reported-tokens" }
+            XCTAssertEqual(row?.used, 123456, descriptor.id.rawValue)
+            XCTAssertEqual(row?.label, "Tokens · This billing period", descriptor.id.rawValue)
+            XCTAssertNil(row?.usedFraction, descriptor.id.rawValue)
+            XCTAssertNil(snapshot.todaysTokens, descriptor.id.rawValue)
+        }
+    }
+
+    func testTokenWindowDescriptionsSurviveWithoutBecomingFakeQuotas() {
+        for detail in ["123,456 tokens", "4 req · 12,345 tok", "1.2 MTok used"] {
+            let usage = CodexBarCore.UsageSnapshot(primary: .init(usedPercent: 0, windowMinutes: nil,
+                resetsAt: nil, resetDescription: detail), secondary: nil, updatedAt: Date())
+            let snapshot = ExtendedNotchProvider.snapshot(result(usage), descriptor: descriptor(.llmproxy))
+            XCTAssertEqual(snapshot.windows.first?.displayValue, detail)
+        }
+    }
+
+    func testOpenAIAdminPayloadProjectsReportedTokens() throws {
+        let iso = ISO8601DateFormatter()
+        let start = try XCTUnwrap(iso.date(from: "2026-09-17T00:00:00Z"))
+        let end = try XCTUnwrap(iso.date(from: "2026-09-18T00:00:00Z"))
+        let now = try XCTUnwrap(iso.date(from: "2026-09-17T12:00:00Z"))
+        let api = OpenAIAPIUsageSnapshot(daily: [.init(day: "2026-09-17", startTime: start, endTime: end,
+            costUSD: 0.01, requests: 1, inputTokens: 100, cachedInputTokens: 30,
+            outputTokens: 20, totalTokens: 120, lineItems: [], models: [])], updatedAt: now, historyDays: 14)
+        let snapshot = ExtendedNotchProvider.snapshot(result(api.toUsageSnapshot()), descriptor: descriptor(.openai))
+        XCTAssertEqual(snapshot.windows.first { $0.id == "reported-tokens" }?.used, 120)
+        XCTAssertNil(snapshot.todaysTokens)
+    }
+
+    func testMistralPayloadPreservesMonthPeriodAndHistoricalCoverage() throws {
+        let iso = ISO8601DateFormatter()
+        let start = try XCTUnwrap(iso.date(from: "2026-09-01T00:00:00Z"))
+        let now = try XCTUnwrap(iso.date(from: "2026-09-17T12:00:00Z"))
+        let past = try XCTUnwrap(iso.date(from: "2026-09-10T12:00:00Z"))
+        for end in [now, past] {
+            let api = MistralUsageSnapshot(totalCost: 0.01, currency: "USD", currencySymbol: "$",
+                totalInputTokens: 100, totalOutputTokens: 20, totalCachedTokens: 30, modelCount: 0,
+                daily: [.init(day: "2026-09-10", cost: 0.01, inputTokens: 100, cachedTokens: 30,
+                              outputTokens: 20, models: [])], startDate: start, endDate: end, updatedAt: now)
+            let snapshot = ExtendedNotchProvider.snapshot(result(api.toUsageSnapshot()), descriptor: descriptor(.mistral))
+            let row = snapshot.windows.first { $0.id == "reported-tokens" }
+            XCTAssertEqual(row?.used, 150, "Mistral reports cached tokens as a separate lane")
+            XCTAssertEqual(row?.label, end == now ? "Tokens · This month" : "Tokens · Reported 10-day period")
+            XCTAssertNil(snapshot.todaysTokens)
+        }
+    }
+
+    func testTokenHistoryWithUnknownCoverageDoesNotInventAPeriod() {
+        let history = CostUsageTokenSnapshot(sessionTokens: nil, sessionCostUSD: nil,
+            last30DaysTokens: 150, last30DaysCostUSD: nil, historyDays: 1,
+            historyCoverageIsEstablished: false, daily: [], updatedAt: Date())
+        let snapshot = ExtendedNotchProvider.snapshot(result(.init(primary: nil, secondary: nil,
+            costUsage: history, updatedAt: Date())), descriptor: descriptor(.synthetic))
+        let row = snapshot.windows.first { $0.id == "reported-tokens" }
+        XCTAssertEqual(row?.used, 150)
+        XCTAssertEqual(row?.label, "Tokens · Period unavailable")
+    }
+
+    func testBedrockTokenDetailKeepsItsReportedPeriod() {
+        let usage = CodexBarCore.UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date(),
+            identity: .init(providerID: .bedrock, accountEmail: nil, accountOrganization: nil,
+                            loginMethod: "AWS - Claude 14d: 123,456 tokens"))
+        let snapshot = ExtendedNotchProvider.snapshot(result(usage), descriptor: descriptor(.bedrock))
+        XCTAssertEqual(snapshot.windows.first { $0.id == "reported-token-detail" }?.displayValue,
+                       "Claude 14d: 123,456 tokens")
+        XCTAssertNil(snapshot.todaysTokens)
+    }
+
+    func testLLMProxyCountsAndProviderBreakdownsKeepUnitsWithoutPercentages() {
+        func textWindow(_ text: String) -> RateWindow {
+            .init(usedPercent: 0, windowMinutes: nil, resetsAt: nil, resetDescription: text)
+        }
+        let usage = CodexBarCore.UsageSnapshot(primary: nil, secondary: textWindow("4 requests"),
+            tertiary: textWindow("123,456 tokens"),
+            extraRateWindows: [.init(id: "model", title: "Model A", window: textWindow("4 req · 123,456 tok"))],
+            updatedAt: Date())
+        let snapshot = ExtendedNotchProvider.snapshot(result(usage), descriptor: descriptor(.llmproxy))
+        XCTAssertEqual(snapshot.windows.map(\.label), ["Requests", "Tokens", "Model A"])
+        XCTAssertEqual(snapshot.windows.map(\.displayValue), ["4 requests", "123,456 tokens", "4 req · 123,456 tok"])
+        XCTAssertTrue(snapshot.windows.allSatisfy { $0.usedFraction == nil })
+    }
+
+    func testLongCatKeepsExactTokenQuotaCounts() {
+        let usage = CodexBarCore.UsageSnapshot(primary: .init(usedPercent: 25, windowMinutes: nil,
+            resetsAt: nil, resetDescription: "2500/10000"), secondary: nil, updatedAt: Date())
+        let snapshot = ExtendedNotchProvider.snapshot(result(usage), descriptor: descriptor(.longcat))
+        XCTAssertEqual(snapshot.windows.first?.displayValue, "2500/10000")
+        XCTAssertEqual(snapshot.windows.first?.usedFraction, 0.25)
+    }
+
+    func testUnknownTokenHistoryDoesNotBecomeZeroAndReportedZeroIsKept() {
+        for total: Int? in [nil, 0, -1] {
+            let history = CostUsageTokenSnapshot(sessionTokens: nil, sessionCostUSD: nil,
+                last30DaysTokens: total, last30DaysCostUSD: nil, daily: [], updatedAt: Date())
+            let snapshot = ExtendedNotchProvider.snapshot(result(.init(primary: nil, secondary: nil,
+                costUsage: history, updatedAt: Date())), descriptor: descriptor(.synthetic))
+            XCTAssertEqual(snapshot.windows.first { $0.id == "reported-tokens" }?.used, total == 0 ? 0 : nil)
+        }
+    }
+
     func testEveryAddedProviderRunsThroughFetchAdapter() async throws {
         for descriptor in ExtendedProviderCatalog.additions {
             var config = ExtendedProviderConfiguration(providerID: descriptor.id)

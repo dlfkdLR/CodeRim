@@ -99,14 +99,18 @@ enum GLMUsage {
     }
 
     private static func window(for limit: Response.Limit) -> LimitWindow? {
-        // Without a percentage there is nothing to draw: a bare count from an
-        // unnamed allowance would be a reading we invented a scale for.
-        guard let percentage = limit.percentage else { return nil }
+        let tokenCount = limit.type == "TOKENS_LIMIT" ? limit.currentValue.flatMap { value -> Int? in
+            guard value.isFinite, value >= 0 else { return nil }
+            return Int(exactly: value)
+        } : nil
+        // A reported token count needs no ceiling; keep it even without a bar.
+        guard limit.percentage != nil || tokenCount != nil else { return nil }
+        let tokenDetail = tokenCount.map { "\(NotchNumberFormatting.count($0, style: .detailed)) token quota used" }
 
         return LimitWindow(
             id: Self.id(for: limit),
             label: Self.label(for: limit),
-            usedFraction: percentage / 100,
+            usedFraction: limit.percentage.flatMap { $0.isFinite && $0 >= 0 && $0 < Double(Int.max) / 2 ? $0 / 100 : nil },
             resetsAt: limit.nextResetTime.map { Date(timeIntervalSince1970: $0 / 1000) },
             duration: limit.number.flatMap { number in
                 switch limit.unit {
@@ -114,7 +118,8 @@ enum GLMUsage {
                 case 6: return Double(number) * 7 * 86400
                 default: return nil
                 }
-            }
+            },
+            displayValue: tokenDetail
         )
     }
 
