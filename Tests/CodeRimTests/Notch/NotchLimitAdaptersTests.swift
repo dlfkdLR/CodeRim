@@ -1,4 +1,5 @@
 import AppKit
+import CodexBarCore
 import Foundation
 import SwiftUI
 import XCTest
@@ -117,6 +118,103 @@ final class NotchLimitAdaptersTests: XCTestCase {
         XCTAssertEqual(ps.headlineID, "primary")
         XCTAssertEqual(ps.headline?.usedFraction ?? -1, 0.40, accuracy: 0.0001)
         XCTAssertEqual(ps.status, .ok)
+    }
+
+    func testExplicitCodexRefreshReplacesPreResetQuotaAndResetDate() async throws {
+        let before = resetSnapshot(usedPercent: 99, resetsAt: Date().addingTimeInterval(3600))
+        let after = resetSnapshot(usedPercent: 0, resetsAt: Date().addingTimeInterval(7 * 86400))
+        let source = ResetSequenceLimitProvider([.success(before), .success(after)])
+        let limits = AccountLimitStore(provider: source, defaults: try makeDefaults(), pollingInterval: nil)
+        await limits.refresh()
+        let adapter = CodexNotchProvider(limits: limits, accounts: isolatedAccounts())
+        let notch = NotchUsageStore(providers: [adapter], archive: UsageArchive(defaults: try makeDefaults()))
+
+        await notch.refresh()
+        XCTAssertEqual(notch.snapshots.first?.headline?.usedFraction, 0.99)
+        ProviderInteractionContext.$current.withValue(.userInitiated) {
+            notch.refresh(providerID: "codex")
+        }
+        try await waitForCodexRefresh(notch)
+
+        let refreshed = try XCTUnwrap(notch.snapshots.first)
+        XCTAssertEqual(refreshed.headline?.usedFraction, 0)
+        XCTAssertEqual(refreshed.headline?.resetsAt, after.windows.first?.resetsAt)
+        XCTAssertEqual(refreshed.status, .ok)
+        let reads = await source.callCount
+        XCTAssertEqual(reads, 2, "Explicit refresh must fetch the server even when the cached reading is recent")
+
+        await notch.refresh()
+        let afterBridge = await source.callCount
+        XCTAssertEqual(afterBridge, 2, "Publishing the new quota must not trigger another server read")
+    }
+
+    func testRefreshAllCarriesExplicitContextIntoScheduledTask() async throws {
+        let before = resetSnapshot(usedPercent: 99, resetsAt: Date().addingTimeInterval(3600))
+        let after = resetSnapshot(usedPercent: 0, resetsAt: Date().addingTimeInterval(7 * 86400))
+        let source = ResetSequenceLimitProvider([.success(before), .success(after)])
+        let limits = AccountLimitStore(provider: source, defaults: try makeDefaults(), pollingInterval: nil)
+        await limits.refresh()
+        let adapter = CodexNotchProvider(limits: limits, accounts: isolatedAccounts())
+        let notch = NotchUsageStore(providers: [adapter], archive: UsageArchive(defaults: try makeDefaults()))
+        await notch.refresh()
+
+        ProviderInteractionContext.$current.withValue(.userInitiated) {
+            notch.refreshNow()
+        }
+        // refreshNow schedules work; wait for its new quota rather than assuming
+        // the TaskLocal remains set after the initiating closure returns.
+        for _ in 0..<100 {
+            if notch.snapshots.first?.headline?.usedFraction == 0 { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertEqual(notch.snapshots.first?.headline?.usedFraction, 0)
+        let reads = await source.callCount
+        XCTAssertEqual(reads, 2)
+    }
+
+    private func waitForCodexRefresh(_ notch: NotchUsageStore) async throws {
+        for _ in 0..<100 {
+            if !notch.refreshing.contains("codex") { break }
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertFalse(notch.refreshing.contains("codex"), "Explicit refresh should finish")
+    }
+
+    func testFailedExplicitCodexRefreshKeepsQuotaMarkedStale() async throws {
+        let before = resetSnapshot(usedPercent: 99, resetsAt: Date().addingTimeInterval(3600))
+        let source = ResetSequenceLimitProvider([.success(before), .failure(AccountLimitError.timedOut)])
+        let limits = AccountLimitStore(provider: source, defaults: try makeDefaults(), pollingInterval: nil)
+        await limits.refresh()
+        let adapter = CodexNotchProvider(limits: limits, accounts: isolatedAccounts())
+
+        let refreshed = try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+            try await adapter.fetchSnapshot()
+        }
+        XCTAssertEqual(refreshed.headline?.usedFraction, 0.99)
+        XCTAssertEqual(refreshed.status, .stale(since: before.fetchedAt))
+        let reads = await source.callCount
+        XCTAssertEqual(reads, 2)
+    }
+
+    func testDisabledCodexLimitsIgnoreExplicitRefresh() async throws {
+        let defaults = try makeDefaults()
+        defaults.set(false, forKey: "accountLimitsEnabled")
+        let source = ResetSequenceLimitProvider([])
+        let limits = AccountLimitStore(provider: source, defaults: defaults, pollingInterval: nil)
+        let adapter = CodexNotchProvider(limits: limits, accounts: isolatedAccounts())
+        let refreshed = try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+            try await adapter.fetchSnapshot()
+        }
+        XCTAssertEqual(refreshed.status, .needsAuth)
+        let reads = await source.callCount
+        XCTAssertEqual(reads, 0)
+    }
+
+    private func resetSnapshot(usedPercent: Double, resetsAt: Date) -> AccountLimitsSnapshot {
+        AccountLimitsSnapshot(windows: [AccountLimitWindow(
+            id: "codex-weekly", limitID: "codex", displayName: "Codex",
+            windowDurationMinutes: 10080, usedPercent: usedPercent, resetsAt: resetsAt
+        )], resetCredits: nil, fetchedAt: Date())
     }
 
     func testCodexAdapterReportsNeedsAuthWhenLimitsDisabled() async throws {
@@ -328,4 +426,17 @@ private struct StubLogin: CodexLoginStoring {
     }
 
     func replace(with data: Data, expecting original: Data?) throws {}
+}
+
+private actor ResetSequenceLimitProvider: AccountLimitProviding {
+    private var outcomes: [Result<AccountLimitsSnapshot, Error>]
+    private(set) var callCount = 0
+
+    init(_ outcomes: [Result<AccountLimitsSnapshot, Error>]) { self.outcomes = outcomes }
+
+    func readLimits() async throws -> AccountLimitsSnapshot {
+        callCount += 1
+        guard !outcomes.isEmpty else { throw AccountLimitError.malformedResponse }
+        return try outcomes.removeFirst().get()
+    }
 }

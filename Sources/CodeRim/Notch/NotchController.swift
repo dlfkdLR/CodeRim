@@ -108,8 +108,12 @@ final class NotchController: ObservableObject {
             store?.refresh(providerID: "claude")
         }
 
-        window.onRefresh = { [weak store] in store?.refreshNow() }
-        window.onRefreshProvider = { [weak store] id in store?.refresh(providerID: id) }
+        window.onRefresh = { [weak store] in
+            ProviderInteractionContext.$current.withValue(.userInitiated) {
+                store?.refreshNow()
+            }
+        }
+        window.onRefreshProvider = { [weak self] id in self?.refresh(providerID: id) }
         window.onOpenSettings = { SettingsWindowController.shared.present() }
         window.accountOptions = { [weak codexAccounts, weak claudeIntegration] in
             [NotchAccountOption(id: "codex", title: "Codex", glyph: .openai,
