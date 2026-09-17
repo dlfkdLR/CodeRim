@@ -127,11 +127,11 @@ enum CodexPlanLimits {
 }
 
 extension NotchLimitMapping {
-    /// Today's local token total, or nil when there is nothing to show.
+    /// Today's known local total, including a measured zero; nil while unavailable.
     @MainActor
     static func todaysTokens(_ usage: UsageStore?) -> Int? {
-        guard let total = usage?.snapshot.today.totalTokens, total > 0 else { return nil }
-        return Int(total)
+        guard let usage else { return nil }
+        return LocalTokenUsage(snapshot: usage.snapshot, hasLoaded: usage.hasLoadedSnapshot).total
     }
 }
 

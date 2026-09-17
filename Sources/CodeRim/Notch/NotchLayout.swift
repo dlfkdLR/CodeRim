@@ -361,7 +361,7 @@ enum NotchLayout {
         cardHeight(windowCount: snapshot.windows.count, groupCount: snapshot.namedWindowGroupCount,
             sessionCount: sessionCount, sessionCap: sessionCap,
             statusMessage: snapshot.statusMessage, blockMessage: snapshot.block?.summary(now: now),
-            hasTodaysTokens: snapshot.todaysTokens != nil,
+            hasTodaysTokens: snapshot.showsLocalTokens,
             hasAccountRow: snapshot.accountPlanLabel != nil || showsAccountAction,
             compactRowCount: snapshot.compactRowCount)
     }

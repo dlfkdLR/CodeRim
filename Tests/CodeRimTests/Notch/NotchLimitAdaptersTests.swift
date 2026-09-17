@@ -82,7 +82,7 @@ final class NotchLimitAdaptersTests: XCTestCase {
     }
 
     /// The tooltip's "Today" line — CodeRim's local token count, which the
-    /// ring's percentage never gives. Nil for no store and for a zero total.
+    /// ring's percentage never gives. Nil before the local store has loaded.
     func testTodaysTokensReflectsLocalAccounting() {
         XCTAssertNil(NotchLimitMapping.todaysTokens(nil))
         XCTAssertNil(NotchLimitMapping.todaysTokens(UsageStore(automaticallyRefresh: false)),
@@ -90,6 +90,7 @@ final class NotchLimitAdaptersTests: XCTestCase {
 
         var snapshot = UsageSnapshot.empty
         snapshot.today = TokenUsage(inputTokens: 1000, cachedInputTokens: 100, outputTokens: 350)
+        snapshot.quality = .exact
         let store = UsageStore(initialSnapshot: snapshot, automaticallyRefresh: false)
         XCTAssertEqual(NotchLimitMapping.todaysTokens(store), 1350)
     }

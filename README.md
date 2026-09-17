@@ -19,7 +19,7 @@ CodeRim is a native macOS app that keeps usage limits, reset times, and session 
 
 **macOS 14 or later · Apple silicon and Intel.**
 
-[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.3/CodeRim-2.1.3.dmg)
+[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.4/CodeRim-2.1.4.dmg)
 
 ```sh
 brew tap dlfkdLR/tap &&
