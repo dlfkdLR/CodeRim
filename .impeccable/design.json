@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-09-11T10:16:45+09:00",
-  "title": "Design System: CodexMeter",
+  "title": "Design System: CodeRim",
   "extensions": {
     "typographyMeta": {
       "primary-metric": {
@@ -34,7 +34,7 @@
   "components": [],
   "narrative": {
     "northStar": "The Quiet Instrument",
-    "overview": "CodexMeter should feel like a compact macOS instrument that is ready when opened and disappears when the user returns to work. It is precise, calm, and native: the first screen answers the immediate questions, while charts, projects, sessions, and full limit details remain one click deeper. The product uses system materials, semantic labels, SF Symbols, hairline separators, and tabular numerals instead of decorative dashboard chrome. Density is intentional, but every section must have one clear purpose and retain enough spacing to scan quickly.",
+    "overview": "CodeRim should feel like a compact macOS instrument that is ready when opened and disappears when the user returns to work. It is precise, calm, and native: the first screen answers the immediate questions, while charts, projects, sessions, and full limit details remain one click deeper. The product uses system materials, semantic labels, SF Symbols, hairline separators, and tabular numerals instead of decorative dashboard chrome. Density is intentional, but every section must have one clear purpose and retain enough spacing to scan quickly.",
     "keyCharacteristics": [
       "Native macOS controls and semantic system styling.",
       "Token totals remain the strongest visual signal.",
@@ -97,7 +97,7 @@
       "Do add Claude, Gemini, or another provider behind a shared provider boundary before exposing it in navigation."
     ],
     "donts": [
-      "Don't copy CodexBar branding or assets; reuse only mode separation and information-architecture ideas that improve scanning for CodexMeter's real features.",
+      "Don't copy CodexBar branding or assets; reuse only mode separation and information-architecture ideas that improve scanning for CodeRim's real features.",
       "Don't place charts, projects, sessions, credits, every provider, and every limit on the overview.",
       "Don't show empty or speculative provider tabs.",
       "Don't use purple/blue AI gradients, neon, decorative glass, giant cards, or custom dashboard chrome.",

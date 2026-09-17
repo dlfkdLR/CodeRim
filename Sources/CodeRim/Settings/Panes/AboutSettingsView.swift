@@ -32,9 +32,9 @@ struct AboutSettingsView: View {
 
             SettingsSection(title: "Project") {
                 SettingsLinkRow(title: "Open Source on GitHub", systemImage: "chevron.left.forwardslash.chevron.right",
-                                destination: URL(string: "https://github.com/dlfkdLR/CodexMeter")!)
+                                destination: URL(string: "https://github.com/dlfkdLR/CodeRim")!)
                 SettingsLinkRow(title: "View Releases", systemImage: "shippingbox",
-                                destination: URL(string: "https://github.com/dlfkdLR/CodexMeter/releases")!)
+                                destination: URL(string: "https://github.com/dlfkdLR/CodeRim/releases")!)
                 SettingsLinkRow(title: "Read MIT License", systemImage: "doc.text",
                                 destination: bundledNotice("LICENSE"))
                 SettingsLinkRow(title: "Codenotch - MIT License", systemImage: "doc.text",
@@ -49,7 +49,7 @@ struct AboutSettingsView: View {
 
     private func bundledNotice(_ name: String) -> URL {
         Bundle.main.url(forResource: name, withExtension: "txt")
-            ?? URL(string: "https://github.com/dlfkdLR/CodexMeter/blob/main/\(name)")!
+            ?? URL(string: "https://github.com/dlfkdLR/CodeRim/blob/main/\(name)")!
     }
 
     private var appHeader: some View {

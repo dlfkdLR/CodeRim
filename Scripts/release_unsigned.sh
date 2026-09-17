@@ -5,7 +5,7 @@ script_dir=${0:A:h}
 project_root=${script_dir:h}
 source "${project_root}/Config/Release.env"
 
-cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.codexmeter.release"}
+cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.coderim.release"}
 app_path=${CODERIM_APP_PATH:-"${cache_root}/${PRODUCT_NAME}.app"}
 
 # A certificate-free release must not accidentally inherit a signing identity

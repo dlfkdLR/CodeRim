@@ -7,11 +7,11 @@ import os
 /// One sanitized snapshot for all installed providers, independent of notch visibility.
 @MainActor
 final class CompanionSnapshotPublisher {
-    private static let log = Logger(subsystem: "dev.codexmeter.CodexMeter", category: "companion")
+    private static let log = Logger(subsystem: "dev.coderim.CodeRim", category: "companion")
     private var subscriptions: Set<AnyCancellable> = []
     private var lastWidgetReload: Date?
     private var lastWidgetPublished: CompanionSnapshot?
-    private lazy var cliWriter = CompanionSnapshotWriter(label: "dev.codexmeter.companion.cli", write: { snapshot in
+    private lazy var cliWriter = CompanionSnapshotWriter(label: "dev.coderim.companion.cli", write: { snapshot in
         try CompanionSnapshotFile.write(snapshot, to: CompanionSnapshotFile.cliURL)
     }, completion: { [weak self] snapshot, success in
         Task { @MainActor in
@@ -19,7 +19,7 @@ final class CompanionSnapshotPublisher {
             if CompanionSnapshotFile.usesLocalFile { self?.didPublishWidget(snapshot, success: success) }
         }
     })
-    private lazy var widgetWriter = CompanionSnapshotWriter(label: "dev.codexmeter.companion.widget", write: { snapshot in
+    private lazy var widgetWriter = CompanionSnapshotWriter(label: "dev.coderim.companion.widget", write: { snapshot in
         // Resolving an App Group URL may itself require filesystem/permission work.
         guard let url = CompanionSnapshotFile.widgetURL else { throw CompanionSnapshotFile.SnapshotError.invalidFile }
         try CompanionSnapshotFile.write(snapshot, to: url)

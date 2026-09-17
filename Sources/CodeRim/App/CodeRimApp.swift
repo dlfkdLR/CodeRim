@@ -122,7 +122,7 @@ struct CodeRimApp: App {
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private static let log = Logger(subsystem: "dev.codexmeter.CodexMeter", category: "lifecycle")
+    private static let log = Logger(subsystem: "dev.coderim.CodeRim", category: "lifecycle")
 
     /// A SwiftUI `App` whose only scene is `Settings` does not reliably deliver
     /// `applicationDidFinishLaunching` — the status item has to go up here, the

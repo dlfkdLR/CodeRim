@@ -127,7 +127,7 @@ final class UsageStoreLifecycleTests: XCTestCase {
             try FileManager.default.createDirectory(at: sources, withIntermediateDirectories: true)
             let database = try SQLiteDatabase(url: root.appendingPathComponent("Claude.sqlite"))
             collector = CodexUsageCollector(database: database, roots: [sources], provider: .claude)
-            defaultsDomain = "dev.codexmeter.lifecycle-test.\(UUID())"
+            defaultsDomain = "dev.coderim.lifecycle-test.\(UUID())"
             defaults = try XCTUnwrap(UserDefaults(suiteName: defaultsDomain))
             defaults.set(RefreshMode.manual.rawValue, forKey: "refreshMode")
             store = UsageStore(provider: .claude, automaticallyRefresh: false,

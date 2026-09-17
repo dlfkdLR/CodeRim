@@ -531,7 +531,7 @@ final class CodexAccountSwitchingTests: XCTestCase {
     func testIsolatedKeychainRoundTripIntegration() throws {
         try XCTSkipUnless(ProcessInfo.processInfo.environment["CODERIM_ACCOUNT_KEYCHAIN_INTEGRATION"] == "1",
                           "Opt-in only: exercise a unique test Keychain item containing synthetic credentials.")
-        let vault = KeychainAccountVault(service: "com.hecholp.codexmeter.synthetic-test.\(UUID().uuidString)")
+        let vault = KeychainAccountVault(service: "dev.coderim.synthetic-test.\(UUID().uuidString)")
         XCTAssertTrue(try vault.load().isEmpty)
         let first = try account(email: "fixture@example.test")
         try vault.save([first])

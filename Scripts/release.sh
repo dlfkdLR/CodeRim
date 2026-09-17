@@ -13,7 +13,7 @@ if [[ -z "${identity}" || -z "${team_id}" ]]; then
   exit 2
 fi
 
-cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.codexmeter.release"}
+cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.coderim.release"}
 app_path=${CODERIM_APP_PATH:-"${cache_root}/${PRODUCT_NAME}.app"}
 "${script_dir}/build_release.sh"
 CODE_SIGN_IDENTITY="${identity}" "${script_dir}/sign_app.sh" "${app_path}"

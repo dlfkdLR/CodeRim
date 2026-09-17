@@ -13,7 +13,7 @@ import os
 final class StatusItemController: NSObject, NSMenuDelegate {
     static let shared = StatusItemController()
 
-    private static let log = Logger(subsystem: "dev.codexmeter.CodexMeter", category: "statusitem")
+    private static let log = Logger(subsystem: "dev.coderim.CodeRim", category: "statusitem")
     private var statusItem: NSStatusItem?
 
     private override init() { super.init() }

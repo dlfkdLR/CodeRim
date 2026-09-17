@@ -677,7 +677,7 @@ struct MenuPopoverView: View {
                         }
                     }
                     Button("Open CodeRim on GitHub") {
-                        open("https://github.com/dlfkdLR/CodexMeter")
+                        open("https://github.com/dlfkdLR/CodeRim")
                     }
                     Button("Check for Updates…") {
                         UpdateService.shared.checkForUpdates()

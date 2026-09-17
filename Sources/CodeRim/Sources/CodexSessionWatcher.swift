@@ -3,7 +3,7 @@ import Foundation
 
 final class CodexSessionWatcher: @unchecked Sendable {
     private let roots: [URL]
-    private let queue = DispatchQueue(label: "dev.codexmeter.session-watcher", qos: .utility)
+    private let queue = DispatchQueue(label: "dev.coderim.session-watcher", qos: .utility)
     private let lock = NSLock()
     private var stream: FSEventStreamRef?
     private let continuation: AsyncStream<Void>.Continuation
