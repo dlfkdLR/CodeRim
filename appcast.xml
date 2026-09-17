@@ -4,25 +4,55 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.1</title>
-            <pubDate>Thu, 17 Sep 2026 17:06:30 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.1</link>
-            <sparkle:version>20101</sparkle:version>
-            <sparkle:shortVersionString>2.1.1</sparkle:shortVersionString>
+            <title>2.1.2</title>
+            <pubDate>Thu, 17 Sep 2026 18:26:03 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.2</link>
+            <sparkle:version>20102</sparkle:version>
+            <sparkle:shortVersionString>2.1.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.1
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.2
 
-- Introduces the Open Rim logo: a simple C-shaped ring on a charcoal app icon.
-- Uses the same crisp, appearance-adaptive mark in the macOS menu bar and the Information pane fallback.
-- Uses canonical CodeRim project, release and signed-update URLs in new builds.
-- Completes current design, changelog and diagnostic branding while keeping existing settings, accounts, usage history, CLI and widget compatibility.
+Provider artwork and Codex activity tracking are more reliable, and refreshing a usage ring preserves its position.
 
-Update from CodeRim or CodexMeter using **Check for Updates…**, or download the ZIP/DMG. Homebrew users can run `brew update` followed by `brew upgrade --cask --greedy dlfkdLR/tap/coderim`.
+## Changes
+
+- All 70 catalog providers use their matching native or bundled vendor artwork in the picker, settings and notch. Existing cached readings resolve older placeholder icons by provider ID.
+- Manual and automatic refreshes keep the configured provider order, including providers without a saved position. A refresh no longer briefly removes a visible ring.
+- Codex activity remains visible during long turns whose start is far back in a large rollout. The reader consumes newly completed records and resets when files are replaced, truncated or rewritten.
+- User documentation now has focused installation, provider, CLI and widget guides. The README retains CI, release and macOS requirement badges.
+
+## Installation and updates
+
+macOS 14 or later; Universal 2 for Apple silicon and Intel. The app includes the CLI and native widget extension.
+
+Use **Check for Updates…**, or download the DMG and `SHA256SUMS.txt` to the same folder and verify:
+
+```sh
+cd ~/Downloads
+grep ' CodeRim-2.1.2.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
+open CodeRim-2.1.2.dmg
+```
+
+The app is ad-hoc signed and not Apple-notarized. After checksum verification and copying it to Applications, the one-time app-scoped first-launch procedure is:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/CodeRim.app
+open /Applications/CodeRim.app
+```
+
+Homebrew users can run:
+
+```sh
+brew update
+brew upgrade --cask --greedy dlfkdLR/tap/coderim
+```
+
+Existing settings, accounts, local usage history and update trust are preserved. This release adds no database schema migration. Published tags are immutable; corrections ship in a new version.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.1/CodeRim-2.1.1.zip" length="29218783" type="application/octet-stream" sparkle:edSignature="6nq5KWm8/etr3NaKiTj97mHBlOPkH/KSeeUenflWE2xthI86mIdENEKgR1bjRrNpqSh96koMv9cu+4OKN6enBA=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.2/CodeRim-2.1.2.zip" length="29327282" type="application/octet-stream" sparkle:edSignature="uvegrSXhN6aNUhAQ3ua9rgX5sb77dGQp+J5y8sq32ENDzbStHzaBC0oWcEpoTBp32D11GeyDQD6zUkEZJRyXAg=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: bBSh0CpcLtZYhpo6hkEgE0/kDIkICkTV63UlQ6eug33ftQBJF9oIutGl1mTo/nY2PfTPGGY6qXRAWO0UJS9nDw==
-length: 1824
+edSignature: 1Z5H+JJsQxKYPMVgpiwrBnkL28GdwqhLEodo/3t/xrdyfrBxgXwptuSh9e0BohLfmr+PH46MYDeDmtvsT+mzAQ==
+length: 2956
 -->
