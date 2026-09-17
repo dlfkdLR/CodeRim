@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.3 — Installed app identity
+
+- Finish the legacy CodexMeter filename migration on launch for manual installations, with a safe restart and no overwrites.
+- Preserve Homebrew-managed paths for the cask migration and repair existing CLI links after a rename.
+- Use a distinct Open Rim icon resource and refresh this app's macOS registration without changing its data or notification permissions.
+
 ## 2.1.2 — Provider artwork and activity reliability
 
 - Give all catalog providers their matching artwork in the picker, settings and notch, including cached readings.
