@@ -4,20 +4,31 @@
 
 > 화면 가장자리에서 확인하는 코딩 도우미 사용 한도.
 
-[![CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml) [![릴리스](https://img.shields.io/github/v/release/dlfkdLR/CodeRim?color=181a1e)](https://github.com/dlfkdLR/CodeRim/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-181a1e)
+[![macOS CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml) [![릴리스](https://img.shields.io/github/v/release/dlfkdLR/CodeRim?color=181a1e)](https://github.com/dlfkdLR/CodeRim/releases/latest) [![Windows CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/windows.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/windows.yml) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-181a1e) ![Windows 11 preview](https://img.shields.io/badge/Windows-11_preview-181a1e)
 
 <img src="Assets/README/coderim-notch.png" alt="macOS 화면 가장자리에 사용량 링 예시를 표시한 CodeRim" width="100%" />
 
-CodeRim은 화면 가장자리의 작은 노치에 사용 한도, 초기화 시간, 세션 활동을 표시하는 macOS 네이티브 앱입니다. **70개 제공업체** 중에서 선택할 수 있으며, Codex와 Claude Code의 로컬 토큰 사용 기록도 확인할 수 있습니다.
+CodeRim은 화면 가장자리의 작은 노치에 코딩 도우미의 사용 한도, 초기화 시간, 세션 활동을 표시합니다. **macOS 네이티브 앱**과 **Windows 11 구현 프리뷰**를 제공하며, Codex와 Claude Code의 로컬 토큰 사용 기록도 확인할 수 있습니다. Windows 프리뷰는 아직 macOS의 모든 기능을 지원하지는 않습니다.
 
-## 주요 기능
+## 플랫폼별 기능
 
-- 초기화 시간, 계정 요금제, 세션 활동을 함께 보여주는 사용량 링.
-- Codex와 Claude Code의 로컬 토큰 사용 기록, 차트, 예상 비용.
-- 수동 계정 전환, 노치 위치 설정, 알림.
-- 터미널 CLI와 macOS 위젯.
+| 기능 | macOS | Windows 프리뷰 |
+| --- | --- | --- |
+| 제공업체 연결 | 70개 제공업체 | 23개 구현, 47개 대기 |
+| 데스크톱 화면 | 메뉴 막대와 화면 가장자리 노치 | 트레이, 대시보드, 화면 가장자리 노치 |
+| Codex / Claude 로컬 기록 | 토큰 사용 기록, 차트, 예상 비용 | 토큰 사용 기록, 차트, 예상 비용 |
+| 터미널 CLI | 포함 | 포함 |
+| 저장된 계정 전환 | Codex와 Claude Code | 미지원 |
+| 위젯 | macOS 위젯 | 미지원 |
+| 자동 업데이트 | 서명된 Sparkle 업데이트 | ZIP을 직접 내려받아 업데이트 |
+
+로컬 토큰 기록은 계정 구분 없이 이 컴퓨터에서 사용한 기록입니다. 제공업체별 Windows 지원 상태와 남은 작업은 [기능 현황표](Documentation/WINDOWS.md#remaining-parity-work)를 참고하세요.
 
 ## 설치
+
+**현재 릴리스: [2.1.5](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.5)** · [릴리스 노트](Documentation/ReleaseNotes/2.1.5.md)
+
+### macOS
 
 **macOS 14 이상 · Apple Silicon 및 Intel 지원.**
 
@@ -34,11 +45,23 @@ Homebrew에서 cask를 사용할 수 없다는 메시지가 표시되거나 이�
 
 **Settings → Providers → Add Provider**를 열어 사용하는 도구를 연결한 뒤, 링 위에 마우스 포인터를 올려보세요. [시작하기](docs/getting-started.md).
 
-Windows 11 x64·ARM64용 [구현 프리뷰](Documentation/WINDOWS.md)도 제공합니다. 아직 macOS의 모든 기능을 지원하지는 않습니다.
+### Windows 프리뷰
 
-## 지원 제공업체
+**Windows 11 · x64 및 ARM64 · .NET 포함.**
 
-**70개 제공업체**를 지원하며, 각각의 설정 안내를 제공합니다. [전체 목록 및 연결 방법](docs/providers.md).
+[x64 ZIP 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.5/CodeRim-Windows-2.1.5-x64.zip) · [ARM64 ZIP 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.5/CodeRim-Windows-2.1.5-arm64.zip) · [SHA-256 체크섬](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.5/SHA256SUMS-windows.txt)
+
+Windows 실행 파일은 **서명되지 않았습니다**. 압축을 풀기 전에 ZIP의 체크섬을 확인하세요. 계속 사용할 폴더에 압축을 풀고 `CodeRim.exe`를 실행하거나, CodeRim을 종료한 뒤 압축을 푼 폴더의 PowerShell에서 다음 명령으로 현재 사용자용 설치를 진행하세요.
+
+```powershell
+./install.ps1 -AddCliToPath -Launch
+```
+
+설치기는 관리자 권한 없이 시작 메뉴 바로가기를 만들고 `coderim` CLI를 사용자 PATH에 추가합니다. 설치 후 새 터미널을 여세요. 제공업체는 **Settings → Providers**에서 연결하며, Codex·Claude Code 연결 방법과 남은 제한 사항은 [Windows 설치 및 기능 안내](Documentation/WINDOWS.md)를 참고하세요.
+
+## macOS 지원 제공업체
+
+macOS 목록에는 **70개 제공업체**가 있으며, 각각의 설정 안내를 제공합니다. Windows에서 실제로 연결할 수 있는 제공업체는 별도의 [기능 현황표](Documentation/WINDOWS.md#remaining-parity-work)에서 확인하세요. [전체 목록 및 연결 방법](docs/providers.md).
 
 - [Codex](docs/providers/codex.md) — 계정 사용 한도와 로컬 토큰 사용 기록.
 - [OpenAI](docs/providers/openai.md) — API 사용량, 지출, 사용 가능한 크레딧.
@@ -113,7 +136,7 @@ Windows 11 x64·ARM64용 [구현 프리뷰](Documentation/WINDOWS.md)도 제공�
 
 ## 문서
 
-[설치](docs/installation.md) · [시작하기](docs/getting-started.md) · [제공업체](docs/providers.md) · [토큰 사용 기록](docs/usage.md) · [계정](docs/accounts.md) · [CLI](docs/cli.md) · [위젯](docs/widgets.md) · [개인정보 보호](docs/privacy.md) · [문제 해결](docs/troubleshooting.md)
+[macOS 설치](docs/installation.md) · [Windows 설치](Documentation/WINDOWS.md) · [시작하기](docs/getting-started.md) · [제공업체](docs/providers.md) · [토큰 사용 기록](docs/usage.md) · [계정](docs/accounts.md) · [CLI](docs/cli.md) · [위젯](docs/widgets.md) · [개인정보 보호](docs/privacy.md) · [문제 해결](docs/troubleshooting.md)
 
 [전체 문서](docs/README.md) · [변경 이력](CHANGELOG.md) · [보안](SECURITY.md)
 
