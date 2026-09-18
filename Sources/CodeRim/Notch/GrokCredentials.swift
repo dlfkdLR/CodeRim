@@ -29,9 +29,7 @@ struct GrokCredentials {
     }
 
     static func load(from url: URL = authURL) throws -> GrokCredentials {
-        guard FileManager.default.fileExists(atPath: url.path),
-              let data = try? Data(contentsOf: url),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let root = CredentialFileReader.jsonObject(at: url),
               let entry = pick(from: root)
         else { throw NotchProviderError.needsAuth }
 

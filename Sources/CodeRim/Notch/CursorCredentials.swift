@@ -115,8 +115,7 @@ struct CursorCredentials {
     }
 
     private static func agentAuthInfo(from url: URL) -> AgentAuthInfo? {
-        guard let data = try? Data(contentsOf: url),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let root = CredentialFileReader.jsonObject(at: url),
               let info = root["authInfo"] as? [String: Any]
         else { return nil }
 

@@ -18,7 +18,7 @@ final class CopilotNotchProvider: NotchProvider {
     private let session: URLSession
     private let loadCredentials: @Sendable () throws -> GitHubCopilotCredentials
 
-    init(session: URLSession = .shared,
+    init(session: URLSession = ProviderSession.shared,
          loadCredentials: (@Sendable () throws -> GitHubCopilotCredentials)? = nil) {
         self.session = session
         self.loadCredentials = loadCredentials ?? { try GitHubCopilotCredentials.load() }
@@ -82,7 +82,7 @@ struct GitHubCopilotCredentials: Sendable {
 
     static func load() throws -> GitHubCopilotCredentials {
         let environment = ProcessInfo.processInfo.environment
-        let hosts = try? String(contentsOf: hostsURL, encoding: .utf8)
+        let hosts = CredentialFileReader.text(at: hostsURL)
         return try load(environment: environment, hosts: hosts, command: ghToken)
     }
 
@@ -108,7 +108,7 @@ struct GitHubCopilotCredentials: Sendable {
     }
 
     static func account() -> ProviderAccount? {
-        guard let hosts = try? String(contentsOf: hostsURL, encoding: .utf8),
+        guard let hosts = CredentialFileReader.text(at: hostsURL),
               let username = parseHosts(hosts).username
         else { return nil }
         return ProviderAccount(
@@ -129,17 +129,22 @@ struct GitHubCopilotCredentials: Sendable {
             FileManager.default.isExecutableFile(atPath: $0)
         }) else { return nil }
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = ["auth", "token", "--hostname", "github.com"]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-        do { try process.run() } catch { return nil }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else { return nil }
-        return String(data: data, encoding: .utf8).flatMap(nonEmpty)
+        // Bounded: `gh` can block on a locked Keychain, and this runs on every
+        // poll. A token is a few dozen bytes, so the ceiling only trips on a
+        // `gh` that has gone wrong.
+        let inherited = ProcessInfo.processInfo.environment
+        let allowed = ["HOME", "TMPDIR", "USER", "LOGNAME", "LANG", "LC_ALL", "LC_CTYPE",
+                       "__CF_USER_TEXT_ENCODING", "XDG_CONFIG_HOME", "GH_CONFIG_DIR",
+                       "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY",
+                       "http_proxy", "https_proxy", "no_proxy"]
+        var environment = allowed.reduce(into: [String: String]()) { $0[$1] = inherited[$1] }
+        environment["PATH"] = "/usr/bin:/bin:/usr/sbin:/sbin"
+        guard let result = try? BoundedProcess.runSynchronously(
+            executable: URL(fileURLWithPath: executable),
+            arguments: ["auth", "token", "--hostname", "github.com"],
+            environment: environment, timeout: .seconds(10), maximumOutputBytes: 65_536
+        ), result.status == 0 else { return nil }
+        return String(data: result.output, encoding: .utf8).flatMap(nonEmpty)
     }
 
     private static func parseHosts(_ text: String?) -> (username: String?, token: String?) {
