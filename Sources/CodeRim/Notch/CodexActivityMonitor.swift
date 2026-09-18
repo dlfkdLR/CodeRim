@@ -59,12 +59,7 @@ final class CodexActivityMonitor: ObservableObject, AgentActivityMonitor {
 }
 
 actor CodexActivityReader {
-    private struct Cached {
-        let modified: Date
-        let size: UInt64
-        let event: CodexTurnActivity.Event?
-    }
-    private var cache: [String: Cached] = [:]
+    private var cache: [String: CodexTurnActivity.Reader] = [:]
 
     func read(stateStore: URL, desktopStore: URL, profile: CodexProfile = .default(),
               now: Date = Date()) -> [AgentSession] {
@@ -76,14 +71,9 @@ actor CodexActivityReader {
                   let modified = attributes[.modificationDate] as? Date,
                   // Bound orphaned turns after a client crash with no end event.
                   now.timeIntervalSince(modified) < 6 * 60 * 60 else { return nil }
-            let size = (attributes[.size] as? NSNumber)?.uint64Value ?? 0
-            let event: CodexTurnActivity.Event?
-            if let saved = cache[thread.rollout.path], saved.modified == modified, saved.size == size {
-                event = saved.event
-            } else {
-                event = CodexTurnActivity.read(thread.rollout)
-                cache[thread.rollout.path] = Cached(modified: modified, size: size, event: event)
-            }
+            var reader = cache[thread.rollout.path] ?? CodexTurnActivity.Reader()
+            let event = reader.read(thread.rollout)
+            cache[thread.rollout.path] = reader
             guard let event else { return nil }
             // Keep ended sessions briefly so completion detection can observe busy -> idle.
             guard event.isRunning || now.timeIntervalSince(event.since) < 90 else { return nil }
