@@ -4,28 +4,38 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.4</title>
-            <pubDate>Fri, 18 Sep 2026 08:34:50 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.4</link>
-            <sparkle:version>20104</sparkle:version>
-            <sparkle:shortVersionString>2.1.4</sparkle:shortVersionString>
+            <title>2.1.5</title>
+            <pubDate>Fri, 18 Sep 2026 23:10:08 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.5</link>
+            <sparkle:version>20105</sparkle:version>
+            <sparkle:shortVersionString>2.1.5</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.4
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.5
 
-Restore token totals in the notch for Claude and preserve reported token usage across providers.
+Improve account and usage reliability on macOS, and publish the first Windows implementation preview.
 
-## Changes
+## macOS fixes
 
-- Claude and Codex show **Today · This Mac** token totals independently of account-limit refreshes. Local changes update the notch even when quota data is old or a quota request fails.
-- Loading, unavailable, measured zero, partial and stale local usage remain distinct. Switching accounts clears the old quota while keeping the correctly scoped local total; daily recalculation updates today's value.
-- Provider-reported token history, session totals and token quota details retain their original period and units, including OpenAI, Mistral, LLM Proxy, Bedrock, LongCat and GLM data. Providers that do not report token counts keep their existing allowance or cost readings.
+- External Codex sign-ins and sign-outs invalidate the previous account's limits and in-flight responses. Account switching also verifies the shared CLI identity before reporting success.
+- Large active Codex logs advance through a stable APFS snapshot without blocking other sessions. Prefix rewrites, append-only growth, and exact read-budget boundaries retain consistent checkpoints. Logs on filesystems without clone support retain the strict live-file verification path.
+- Missing optional cache-write counters no longer freeze or duplicate token totals. Provider HTTP responses are bounded while receiving, including responses without Content-Length.
+- Preserve the latest installation-name migration, Homebrew recovery, local token display, provider artwork, and long-turn activity fixes. Provider reads, subprocesses and credential borrowing retain their bounded, origin-scoped behavior.
 
-macOS 14 or later; Universal 2 for Apple silicon and Intel. Includes the CLI and native widget extension. The app is ad-hoc signed and is not Apple-notarized. Download the DMG or ZIP with its matching SHA-256 file and verify the checksum before installing or removing quarantine. See the [installation guide](https://github.com/dlfkdLR/CodeRim/blob/main/docs/installation.md). Published tags are immutable.
+## Windows preview
+
+- Windows 11 x64 and ARM64 self-contained ZIPs include the native WPF dashboard, tray/notch, local Codex/Claude history, CLI, and per-user installer.
+- OpenRouter Activity retains its reported period, units and cost history; estimated portions remain clearly labelled. Optional cache-write enrichment updates existing events without adding tokens.
+- The installed coderim command resolves to the CLI, partial/stale local readings remain visible, and the hover notch reschedules folding after losing keyboard focus.
+- This preview has 23 implemented provider connections and 47 pending catalog entries. Saved account switching, automatic updates, browser-cookie import, Widgets, and full macOS parity remain unfinished. See the [Windows capability matrix](https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/WINDOWS.md).
+
+## Installation
+
+macOS 14 or later; Universal 2 for Apple silicon and Intel. Includes the CLI and native widget extension. The macOS app is ad-hoc signed and is not Apple-notarized; Windows preview binaries are unsigned. Verify downloads against the matching SHA-256 manifest before installing. Follow the [macOS first-launch guide](https://github.com/dlfkdLR/CodeRim/blob/main/docs/installation.md) or [Windows setup guide](https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/WINDOWS.md). Published tags are immutable.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.4/CodeRim-2.1.4.zip" length="29335395" type="application/octet-stream" sparkle:edSignature="GNVLUJ2NGfHK5/rxtIS+XCWNCZX1bfmGqB2F0RlLzWOFOtoS8D+CYghfHkii33EeybkQirgGoIANC7xC+fn2Aw=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.5/CodeRim-2.1.5.zip" length="29424154" type="application/octet-stream" sparkle:edSignature="/RaFNqKSMyAqL24YxVmhg+i9yDN/wGJmO7LjMyGFlL1F9q00G4BwgM+2zbwoIP+o8TLJooNYx1M2kiihZC9UDA=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: gX3pxxOZv2ELSGrJxLixB6Uxj3dwg8pgbkwzEf7S53mCwtM7cyPQt+oa3QwSjzT4Tovbnb7I67d3iqbknkkqBw==
-length: 2411
+edSignature: e1hVeGGZC56IykuKBIsMnyzWgBEFEsA+g3yCHWWDYxbMZ0HAb/GiwyTw+D2+WG74+odfYfXj4o2yNnLgkPnEDg==
+length: 3608
 -->
