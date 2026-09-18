@@ -185,6 +185,18 @@ struct ProviderSnapshot: Identifiable, Equatable {
     /// I used" the ring's percentage does not give. `nil` for the borrowed-
     /// credential providers, which CodeRim does not meter locally.
     var todaysTokens: Int?
+    /// Live local state, updated without fetching or replacing account quotas.
+    var localTokenUsage: LocalTokenUsage?
+
+    var showsLocalTokens: Bool {
+        localTokenUsage != nil || todaysTokens != nil || id == "codex" || id == "claude"
+    }
+
+    func localTokenText(style: TokenNumberStyle) -> String {
+        if let localTokenUsage { return localTokenUsage.text(style: style) }
+        if let todaysTokens { return NotchNumberFormatting.count(todaysTokens, style: style) + " tokens" }
+        return "Loading…"
+    }
     /// Provider-reported plan only; absence is never inferred from usage.
     var accountPlan: String?
 

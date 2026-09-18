@@ -1,10 +1,12 @@
 import Foundation
+import CodexBarCore
 
 // The bridge: CodeRim already polls Codex limits (`AccountLimitStore`, via the
 // signed app-server RPC) and Claude limits (`ClaudeIntegrationStore`, via the
 // status-line helper), both publishing `AccountLimitsSnapshot?`. These adapters
 // reflect that published state into the notch's `ProviderSnapshot` shape — they
-// add no keychain or network traffic of their own.
+// reuse those stores. Explicit Codex refreshes ask its store for a new reading;
+// background bridge updates only map the published state.
 
 // MARK: - Shared mapping
 
@@ -74,6 +76,12 @@ final class CodexNotchProvider: NotchProvider {
     }
 
     func fetchSnapshot() async throws -> ProviderSnapshot {
+        // A reset credit changes the server quota immediately. A user refresh
+        // must read it instead of re-rendering the pre-reset cached snapshot.
+        // Keep background bridge updates read-only to avoid a polling loop.
+        if ProviderInteractionContext.current == .userInitiated {
+            await limits.refresh()
+        }
         // From the live login, not the saved vault: most people never save an
         // account into CodeRim, and reading the plan from an empty vault
         // would silently draw Pro's phantom five-hour window anyway.
@@ -127,11 +135,11 @@ enum CodexPlanLimits {
 }
 
 extension NotchLimitMapping {
-    /// Today's local token total, or nil when there is nothing to show.
+    /// Today's known local total, including a measured zero; nil while unavailable.
     @MainActor
     static func todaysTokens(_ usage: UsageStore?) -> Int? {
-        guard let total = usage?.snapshot.today.totalTokens, total > 0 else { return nil }
-        return Int(total)
+        guard let usage else { return nil }
+        return LocalTokenUsage(snapshot: usage.snapshot, hasLoaded: usage.hasLoadedSnapshot).total
     }
 }
 

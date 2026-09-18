@@ -395,12 +395,13 @@ private struct ProviderTooltip: View {
                 .padding(.top, NotchLayout.headerToBlock)
             }
 
-            if let today = snapshot.todaysTokens {
-                (Text("Today  ").foregroundColor(NotchPalette.textSecondary)
-                 + Text("\(NotchNumberFormatting.count(today, style: TokenNumberStyle(rawValue: numberStyle) ?? .compact)) tokens").foregroundColor(NotchPalette.textPrimary))
+            if snapshot.showsLocalTokens {
+                (Text("Today · This Mac  ").foregroundColor(NotchPalette.textSecondary)
+                 + Text(snapshot.localTokenText(style: TokenNumberStyle(rawValue: numberStyle) ?? .compact)).foregroundColor(NotchPalette.textPrimary))
                     .font(NotchType.cardBody)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
+                    .accessibilityIdentifier("notch.tokens.\(snapshot.id)")
                     .padding(.top, NotchLayout.headerToBlock)
             }
 

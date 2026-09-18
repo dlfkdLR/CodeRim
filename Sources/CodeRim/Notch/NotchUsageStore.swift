@@ -52,7 +52,7 @@ final class NotchUsageStore: ObservableObject {
             // row and the rings have to follow now; re-reading every credential
             // to answer a question about layout would spend Claude's
             // rate-limit budget on nothing.
-            snapshots = ProviderOrder.arrange(snapshots, by: order, id: \.id)
+            snapshots = ProviderOrder.arrange(snapshots, by: orderedProviders.map(\.id), id: \.id)
         }
     }
 
@@ -84,6 +84,8 @@ final class NotchUsageStore: ObservableObject {
 
     private let archive: UsageArchive
     private var lastGood: [String: (snapshot: ProviderSnapshot, fetchedAt: Date)] = [:]
+    private var localTokenReadings: [String: LocalTokenUsage] = [:]
+    private var localTokenSubscriptions: [String: AnyCancellable] = [:]
     private var timer: Timer?
     private var refreshTask: Task<Void, Never>?
     /// Set synchronously before the task exists, so "is one already running"
@@ -157,7 +159,7 @@ final class NotchUsageStore: ObservableObject {
         }
     }
 
-    /// An account boundary must discard both current and archived readings.
+    /// An account boundary must discard both current and archived account readings.
     /// Connection versions also reject a result already in flight for the old account.
     func invalidateAccount(providerID: String) {
         connectionVersions[providerID] = UUID()
@@ -166,7 +168,13 @@ final class NotchUsageStore: ObservableObject {
         refusedAccess.remove(providerID)
         if let provider = providers.first(where: { $0.id == providerID }),
            let index = snapshots.firstIndex(where: { $0.id == providerID }) {
-            snapshots[index] = Self.placeholder(provider)
+            var placeholder = Self.placeholder(provider)
+            // This Mac spans accounts; only the account quota is invalidated.
+            if let reading = localTokenReadings[providerID] {
+                placeholder.localTokenUsage = reading
+                placeholder.todaysTokens = reading.total
+            }
+            snapshots[index] = placeholder
         }
     }
 
@@ -278,9 +286,43 @@ final class NotchUsageStore: ObservableObject {
         }
     }
 
+    /// Quota fetches can be stale, slow, or offline while transcripts keep growing.
+    /// Publish local totals directly, including the initial load and midnight rollover.
+    func bindLocalUsage(_ usage: UsageStore, providerID: String) {
+        guard usage.provider.rawValue == providerID else { return }
+        updateLocalUsage(LocalTokenUsage(snapshot: usage.snapshot, hasLoaded: usage.hasLoadedSnapshot),
+                         providerID: providerID)
+        localTokenSubscriptions[providerID] = usage.$snapshot
+            .combineLatest(usage.$hasLoadedSnapshot)
+            .map { LocalTokenUsage(snapshot: $0.0, hasLoaded: $0.1) }
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] reading in
+                self?.updateLocalUsage(reading, providerID: providerID)
+            }
+    }
+
+    private func updateLocalUsage(_ reading: LocalTokenUsage, providerID: String) {
+        localTokenReadings[providerID] = reading
+        guard let index = snapshots.firstIndex(where: { $0.id == providerID }),
+              snapshots[index].localTokenUsage != reading else { return }
+        var updated = snapshots[index]
+        updated.localTokenUsage = reading
+        updated.todaysTokens = reading.total
+        snapshots[index] = updated
+    }
+
     private func apply(_ fresh: ProviderSnapshot?, providerID: String) {
-        snapshots.removeAll { $0.id == providerID }
-        if let fresh { snapshots = ProviderOrder.arrange(snapshots + [fresh], by: order, id: \.id) }
+        var fresh = fresh
+        if let reading = localTokenReadings[providerID] {
+            fresh?.localTokenUsage = reading
+            fresh?.todaysTokens = reading.total
+        }
+        var updated = snapshots.filter { $0.id != providerID }
+        if let fresh { updated.append(fresh) }
+        // Include registration order for providers missing from the saved order.
+        // Publish once so a refresh never briefly removes or moves a visible ring.
+        snapshots = ProviderOrder.arrange(updated, by: orderedProviders.map(\.id), id: \.id)
     }
 
     private func finishRefresh(_ providerID: String) {
