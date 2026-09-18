@@ -51,6 +51,10 @@ internal sealed class DashboardWindow : Window
     }
     public void Navigate(string? id)
     {
+        if (id?.StartsWith("sessions:", StringComparison.Ordinal) == true)
+        {
+            localProvider = id[9..]; page = "usage"; Render(); usagePane?.ShowSessions(); Show(); Activate(); return;
+        }
         page = id ?? "general";
         if (ProviderCatalog.Find(page) is { } provider && !settings.Current.EnabledProviders.Contains(provider.Id, StringComparer.Ordinal)) page = "providers";
         refreshingSidebar = true;
@@ -87,6 +91,8 @@ internal sealed class DashboardWindow : Window
             case "providers": Providers(); break;
             case "diagnostics": Diagnostics(); break;
             case "about": About(); break;
+            case "codex-accounts": body.Children.Add(new AccountsPane("codex", vault, store, settings)); break;
+            case "claude-accounts": body.Children.Add(new AccountsPane("claude", vault, store, settings)); break;
             default: Provider(page); break;
         }
     }
@@ -164,7 +170,7 @@ internal sealed class DashboardWindow : Window
         }
         search.TextChanged += (_, _) => Populate(); Populate();
     }
-    private static bool HasConnector(string id) => id is "codex" or "claude" || HttpProviders.Supported.Contains(id) || ScriptProviders.Catalog.ContainsKey(id);
+    private static bool HasConnector(string id) => id is "codex" or "claude" || NativeProviders.Supported.Contains(id) || HttpProviders.Supported.Contains(id) || ScriptProviders.Catalog.ContainsKey(id);
     private void Provider(string id)
     {
         var provider = ProviderCatalog.Find(id); if (provider is null) { Navigate("providers"); return; }
@@ -172,6 +178,7 @@ internal sealed class DashboardWindow : Window
         body.Children.Add(providerReading); UpdateProviderReading(id);
         var actions = new WrapPanel(); actions.Children.Add(Ui.AsyncButton("Refresh", () => store.RefreshProviderAsync(id)));
         actions.Children.Add(Ui.Button("Setup guide", () => OpenUrl(provider.GuideUrl))); body.Children.Add(actions);
+        if (id is "codex" or "claude") body.Children.Add(Ui.Button("Manage accounts…", () => Navigate(id + "-accounts")));
         Ui.Section(body, "Connection");
         if (id == "codex")
         {
@@ -186,7 +193,18 @@ internal sealed class DashboardWindow : Window
         else if (id == "claude")
         {
             body.Children.Add(Ui.Text("Local history is read from Claude Code. Plan limits arrive through its status-line integration."));
-            body.Children.Add(Ui.Text("Run coderim claude-status from Claude's statusLine command. The helper stores only rate-limit fields.", 12, "#B7B8BD"));
+            body.Children.Add(Ui.Text("Connect the SessionStart and status-line hooks, then start a new Claude session. Only rate-limit fields are stored.", 12, "#B7B8BD"));
+            body.Children.Add(Ui.Button("Connect Claude status line", () =>
+            {
+                try
+                {
+                    if (ClaudeIntegration.HasOtherStatusLine() && MessageBox.Show(this, "Replace your current status line? CodeRim will keep a backup of settings.json.", "Connect Claude", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+                    ClaudeIntegration.Install();
+                    MessageBox.Show(this, "Connected. Start a new Claude Code session to read limits.", "CodeRim");
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException)
+                { MessageBox.Show(this, "Unable to update Claude settings safely. Check the Windows setup instructions.", "CodeRim"); }
+            }));
             body.Children.Add(Ui.Button("Open Windows setup instructions", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/WINDOWS.md")));
         }
         else if (ScriptProviders.Catalog.TryGetValue(id, out var script))
@@ -195,7 +213,7 @@ internal sealed class DashboardWindow : Window
             {
                 var vaultKey = "setting:" + id + ":" + field.Key;
                 body.Children.Add(Ui.Text(field.Title + " · " + field.Key, 12));
-                AddSecretField(vaultKey, id, field.Type == "secure" ? "Save credential" : "Save setting");
+                if (field.Type == "secure") AddSecretField(vaultKey, id, "Save credential"); else AddSettingField(vaultKey, id);
             }
             if (script.CookieDomains.Length > 0)
             {
@@ -206,6 +224,9 @@ internal sealed class DashboardWindow : Window
         }
         else if (HasConnector(id) && id != "ollama-local")
         {
+            if (id is "cursor" or "grok" or "opencode" or "commandcode") body.Children.Add(Ui.Text("Reads the provider’s existing local sign-in automatically. A saved credential overrides local discovery.", 12, "#A6A6AA"));
+            if (id == "cursor") body.Children.Add(Ui.Text("Manual value: WorkosCursorSessionToken cookie header", 12));
+            if (id == "fireworks") { body.Children.Add(Ui.Text("Fireworks account slug")); AddSettingField("setting:fireworks:FIREWORKS_ACCOUNT_SLUG", id); }
             body.Children.Add(Ui.Text("Provider key or access token"));
             AddSecretField("provider:" + id, id, "Save credential");
         }
@@ -228,6 +249,17 @@ internal sealed class DashboardWindow : Window
         providerReading.Children.Clear(); var reading = store.Readings.GetValueOrDefault(id);
         providerReading.Children.Add(Ui.Text(reading?.Message ?? reading?.State.ToString() ?? "Waiting for the first reading", color: "#B7B8BD"));
         foreach (var window in reading?.Windows ?? []) providerReading.Children.Add(Ui.Row(window.Name, window.UsedPercent is { } p ? $"{p:0.#}% used" + (window.DisplayValue is { } description ? " · " + description : "") : window.DisplayValue ?? "—"));
+    }
+    private void AddSettingField(string key, string id)
+    {
+        var input = new TextBox { Text = vault.Load(key) ?? "", MaxLength = 4096, Margin = new Thickness(0, 4, 0, 8) };
+        body.Children.Add(input);
+        System.Windows.Automation.AutomationProperties.SetName(input, key.Split(':').Last());
+        body.Children.Add(Ui.Button("Save setting", () =>
+        {
+            try { vault.Save(key, input.Text.Trim()); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { MessageBox.Show(this, "Could not save this setting.", "CodeRim"); }
+        }));
     }
     private void AddSecretField(string key, string id, string label)
     {

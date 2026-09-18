@@ -67,7 +67,7 @@ internal static class NotchPopover
                 content.Children.Add(Row(session.Name, state, session.State == "busy" ? Ui.Brush("#00FF88") : Secondary));
                 content.Children.Add(Text(Age(session.Since), 9.5, Secondary));
             }
-            if (sessions.Length > 6) content.Children.Add(PlainButton("View all " + sessions.Length + " sessions", () => navigate("usage")));
+            if (sessions.Length > 6) content.Children.Add(PlainButton("View all " + sessions.Length + " sessions", () => navigate("sessions:" + id)));
         }
         if (reading?.UpdatedAt is { } updated) content.Children.Add(Text("Updated " + Age(updated), 9.5, Secondary));
         var scroll = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,

@@ -8,6 +8,9 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using CodeRim.Core.Domain;
+using CodeRim.Core.Services;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using CodeRim.Windows.Services;
 using CodeRim.Windows.ViewModels;
 
@@ -22,6 +25,42 @@ internal static class NativeSmoke
         var directory = Path.GetDirectoryName(Path.GetFullPath(output))!;
         Directory.CreateDirectory(directory);
         var checks = new List<string>();
+        Require(store.Synthetic, "Smoke must use synthetic data");
+        var privateFile = Path.Combine(CompanionFile.DataDirectory, "acl-fixture.txt");
+        GuardedFile.WritePrivate(privateFile, "fixture-before");
+        using (var identity = WindowsIdentity.GetCurrent())
+        {
+            var security = new FileInfo(privateFile).GetAccessControl();
+            Require(security.AreAccessRulesProtected, "Credential file inherits permissions");
+            var rules = security.GetAccessRules(true, true, typeof(SecurityIdentifier)).Cast<FileSystemAccessRule>();
+            Require(rules.All(x => x.AccessControlType != AccessControlType.Allow || x.IdentityReference == identity.User), "Credential file grants another user access");
+            GuardedFile.Replace(privateFile, "fixture-before", "fixture-after");
+            Require(GuardedFile.Read(privateFile) == "fixture-after" && new FileInfo(privateFile).GetAccessControl().AreAccessRulesProtected, "Credential replacement lost protected permissions");
+        }
+        File.Delete(privateFile);
+        var vault = new CredentialVault(); vault.Save("smoke.fixture", "synthetic-secret");
+        Require(vault.Load("smoke.fixture") == "synthetic-secret", "DPAPI round trip failed");
+        vault.Delete("smoke.fixture"); Require(vault.Load("smoke.fixture") is null, "Credential removal failed");
+        checks.Add("Windows private-file ACL, atomic replacement, and user DPAPI round trip");
+        var previousClaudeConfig = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
+        var fixtureConfig = Path.Combine(CompanionFile.DataDirectory, "claude-fixture"); Directory.CreateDirectory(fixtureConfig);
+        try
+        {
+            Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", fixtureConfig);
+            File.WriteAllText(Path.Combine(fixtureConfig, "settings.json"), """{"unrelated":true,"hooks":{"Stop":[{"hooks":[{"type":"command","command":"fixture-existing"}]}]}}""");
+            ClaudeIntegration.Install(); ClaudeIntegration.Install();
+            using var installed = JsonDocument.Parse(File.ReadAllText(ClaudeIntegration.SettingsPath));
+            Require(installed.RootElement.GetProperty("unrelated").GetBoolean(), "Claude setup discarded unrelated settings");
+            var hooks = installed.RootElement.GetProperty("hooks");
+            Require(hooks.GetProperty("Stop").GetArrayLength() == 1 && hooks.GetProperty("SessionStart").GetArrayLength() == 1, "Claude setup duplicated or discarded hooks");
+            var command = ClaudeIntegration.Command("claude-status").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var result = await BoundedProcess.RunAsync(Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"),
+                command.Skip(1), """{"session_id":"synthetic-unregistered","rate_limits":{"five_hour":{"used_percentage":53}}}""");
+            Require(result.Contains("53%", StringComparison.Ordinal), "Installed Claude command did not read stdin");
+            checks.Add("Claude installation preserves settings, is idempotent, and executes its Windows command with stdin");
+        }
+        finally { Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", previousClaudeConfig); }
+
         await Idle(); Capture(dashboard, output); checks.Add("Usage window renders");
         var selector = Descendants<System.Windows.Controls.ComboBox>(dashboard).First();
         selector.Focus(); var original = selector;
@@ -78,7 +117,9 @@ internal static class NativeSmoke
         var width = (int)Math.Ceiling(view.ActualWidth); var height = (int)Math.Ceiling(view.ActualHeight);
         Require(width > 0 && height > 0, "Empty capture");
         var image = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
-        image.Render(view); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
+        var background = new DrawingVisual();
+        using (var context = background.RenderOpen()) { context.DrawRectangle(Ui.Brush("#292929"), null, new Rect(0, 0, width, height)); context.DrawRectangle(new VisualBrush(view), null, new Rect(0, 0, width, height)); }
+        image.Render(background); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
         using var file = File.Create(output); encoder.Save(file);
     }
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }

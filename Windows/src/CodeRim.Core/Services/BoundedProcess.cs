@@ -58,7 +58,7 @@ public static class AppServerClient
 {
     public static async Task<JsonElement> ReadAsync(string executable, string method, CancellationToken cancellationToken = default)
     {
-        if (method is not ("account/rateLimits/read" or "account/read")) throw new ArgumentException("Only read-only account RPCs are supported.", nameof(method));
+        if (method is not ("account/rateLimits/read" or "account/read" or "config/read")) throw new ArgumentException("Only read-only account RPCs are supported.", nameof(method));
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds(15));
         using var process = BoundedProcess.Start(executable, ["app-server"]);
@@ -91,7 +91,8 @@ public static class AppServerClient
                     if (number == 1)
                     {
                         await process.StandardInput.WriteLineAsync("""{"method":"initialized","params":{}}""").ConfigureAwait(false);
-                        await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { id = 2, method })).ConfigureAwait(false);
+                        if (method == "config/read") await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { id = 2, method, @params = new { includeLayers = false } })).ConfigureAwait(false);
+                        else await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { id = 2, method })).ConfigureAwait(false);
                     }
                     else if (number == 2 && root.TryGetProperty("result", out var result)) return result.Clone();
                 }

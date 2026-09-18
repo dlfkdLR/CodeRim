@@ -41,6 +41,7 @@ internal sealed class UsagePane : StackPanel
         header.Children.Add(select); Children.Add(header);
         Children.Add(controls); Children.Add(readings); BuildControls(); Update();
     }
+    internal void ShowSessions() { destination = "sessions"; period = "all-time"; BuildControls(); Update(); }
     private void BuildControls()
     {
         controls.Children.Clear();
@@ -100,6 +101,7 @@ internal sealed class UsagePane : StackPanel
             panel.Children.Add(Ui.Text(value.Item1, 11, "#A6A6AA"));
             panel.Children.Add(Ui.Text(TokenFormatter.Format(value.Item3.TotalTokens, settings.Current.NumberStyle), 21, weight: FontWeights.SemiBold));
             var button = Ui.Button("", () => { period = value.Item2; destination = "activity"; BuildControls(); Update(); });
+            System.Windows.Automation.AutomationProperties.SetName(button, value.Item1 + ": " + value.Item3.TotalTokens.ToString(CultureInfo.CurrentCulture) + " tokens");
             button.Content = panel; button.HorizontalContentAlignment = HorizontalAlignment.Left; Grid.SetColumn(button, i); history.Children.Add(button);
         }
         readings.Children.Add(history);
@@ -162,6 +164,7 @@ internal sealed class UsagePane : StackPanel
             foreach (var group in groups.Take(visibleRows))
             {
                 var button = Ui.Button("", () => { if (destination == "projects") project = group.Id; else session = group.Id; BuildControls(); Update(); });
+                System.Windows.Automation.AutomationProperties.SetName(button, group.Name + ": " + group.Total.ToString(CultureInfo.CurrentCulture) + " tokens");
                 button.Content = Ui.Row(group.Name, TokenFormatter.Format(group.Total, settings.Current.NumberStyle) + "  ›");
                 button.HorizontalContentAlignment = HorizontalAlignment.Stretch; readings.Children.Add(button);
             }

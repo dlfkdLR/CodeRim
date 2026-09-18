@@ -115,7 +115,26 @@ internal sealed class ProviderMark : FrameworkElement
                     "ellipse" => new EllipseGeometry(new Point(Number("cx"), Number("cy")), Number("rx"), Number("ry")),
                     _ => null
                 };
-                if (geometry is not null) group.Children.Add(geometry);
+                if (geometry is not null)
+                {
+                    var transforms = new TransformGroup();
+                    foreach (var node in element.AncestorsAndSelf().Reverse())
+                    foreach (System.Text.RegularExpressions.Match match in System.Text.RegularExpressions.Regex.Matches(node.Attribute("transform")?.Value ?? "", @"(translate|scale|matrix|rotate)\s*\(([^)]*)\)"))
+                    {
+                        var values = System.Text.RegularExpressions.Regex.Matches(match.Groups[2].Value, @"[-+]?(?:\d*\.)?\d+(?:[eE][-+]?\d+)?").Select(m => double.Parse(m.Value, CultureInfo.InvariantCulture)).ToArray();
+                        Transform? transform = match.Groups[1].Value switch
+                        {
+                            "translate" when values.Length >= 1 => new TranslateTransform(values[0], values.Length > 1 ? values[1] : 0),
+                            "scale" when values.Length >= 1 => new ScaleTransform(values[0], values.Length > 1 ? values[1] : values[0]),
+                            "matrix" when values.Length == 6 => new MatrixTransform(values[0], values[1], values[2], values[3], values[4], values[5]),
+                            "rotate" when values.Length == 1 => new RotateTransform(values[0]),
+                            "rotate" when values.Length == 3 => new RotateTransform(values[0], values[1], values[2]),
+                            _ => null
+                        };
+                        if (transform is not null) transforms.Children.Insert(0, transform);
+                    }
+                    geometry.Transform = transforms; group.Children.Add(geometry);
+                }
             }
             group.Freeze(); return Glyphs[id] = group.Children.Count > 0 ? group : null;
         }

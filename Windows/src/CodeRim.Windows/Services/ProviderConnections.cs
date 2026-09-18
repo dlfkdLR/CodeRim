@@ -11,8 +11,9 @@ internal sealed class ProviderConnections : IDisposable
     private readonly CredentialVault vault;
     private readonly HttpProviders http = new();
     private readonly ScriptProviders scripts = new();
+    private readonly NativeProviders native = new();
     public ProviderConnections(CredentialVault vault) { this.vault = vault; }
-    public void Dispose() { http.Dispose(); scripts.Dispose(); }
+    public void Dispose() { http.Dispose(); scripts.Dispose(); native.Dispose(); }
     public async Task<ProviderReading> FetchAsync(string id, AppSettings settings, CancellationToken token)
     {
         try
@@ -33,6 +34,9 @@ internal sealed class ProviderConnections : IDisposable
                 if (new FileInfo(path).Length > 1_048_576) throw new InvalidDataException();
                 using var document = JsonDocument.Parse(await File.ReadAllTextAsync(path, token).ConfigureAwait(false));
                 var root = document.RootElement;
+                var scope = LoginIdentity.CurrentClaudeScope();
+                if (scope is null || ProviderParsers.Text(root, "accountScope") != scope)
+                    return new(id, ReadingState.NeedsAuth, [], Message: "Reconnect the Claude status line and run a new session for the current account.");
                 var updated = ProviderParsers.Date(ProviderParsers.Get(root, "updatedAt"));
                 var windows = ProviderParsers.Claude(root);
                 return new ProviderReading(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, updated).Evaluated(DateTimeOffset.Now);
@@ -51,6 +55,8 @@ internal sealed class ProviderConnections : IDisposable
                 foreach (var key in keys.Where(k => k.EndsWith("KEY", StringComparison.Ordinal) || k.EndsWith("TOKEN", StringComparison.Ordinal)))
                     if (Environment.GetEnvironmentVariable(key) is { Length: > 0 } value) { secret = value; break; }
             }
+            if (NativeProviders.Supported.Contains(id))
+                return await native.FetchAsync(id, secret ?? NativeCredentials.Read(id), key => vault.Load("setting:" + id + ":" + key) ?? Environment.GetEnvironmentVariable(key), token).ConfigureAwait(false);
             return await http.FetchAsync(id, secret, token).ConfigureAwait(false);
         }
         catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or System.Security.Cryptography.CryptographicException
@@ -60,14 +66,37 @@ internal sealed class ProviderConnections : IDisposable
             return new(id, ReadingState.Error, [], Message: "Unable to read the provider. Check its connection and refresh.");
         }
     }
-    public static string? ResolveCodex()
+    internal string? Scope(string id)
     {
-        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
+        try
+        {
+            if (id is "codex" or "claude") return SavedAccounts.Current(id).Identity.Id;
+            var definition = ProviderCatalog.Find(id);
+            var values = new List<string?> { vault.Load("provider:" + id), vault.Load("cookie:" + id), NativeCredentials.Read(id) };
+            if (definition is not null) values.AddRange(definition.EnvironmentKeys.Select(Environment.GetEnvironmentVariable));
+            if (ScriptProviders.Catalog.TryGetValue(id, out var script))
+                values.AddRange(script.Settings.Select(x => vault.Load("setting:" + id + ":" + x.Key) ?? Environment.GetEnvironmentVariable(x.Key)));
+            return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(values))));
+        }
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or FormatException or System.Security.Cryptography.CryptographicException)
+        { return null; }
+    }
+    public static string? ResolveExecutable(string name)
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var directories = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator)
+            .Concat([Path.Combine(home, ".local", "bin"), Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "npm")]);
+        foreach (var directory in directories)
         {
             if (string.IsNullOrWhiteSpace(directory) || !Path.IsPathFullyQualified(directory.Trim('"'))) continue;
-            var executable = Path.Combine(directory.Trim('"'), "codex.exe");
+            var executable = Path.Combine(directory.Trim('"'), name);
             if (File.Exists(executable)) return executable;
         }
+        return null;
+    }
+    public static string? ResolveCodex()
+    {
+        if (ResolveExecutable("codex.exe") is { } path) return path;
         var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenAI", "Codex", "bin");
         if (!Directory.Exists(root)) return null;
         return Directory.EnumerateFiles(root, "codex.exe", new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 3,

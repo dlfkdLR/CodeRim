@@ -1,6 +1,7 @@
 """Process-level checks using synthetic snapshots; no provider requests."""
 import datetime
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -30,3 +31,42 @@ with tempfile.TemporaryDirectory(prefix="coderim-cli-review-") as directory:
                                                capture_output=True, text=True, timeout=10).stdout)
         assert structured["providers"][0]["localUsage"]["state"] == "partial"
 print("PASS: CLI preserves partial quality in fresh/stale text and JSON (4 process checks)")
+
+# Account fixtures are confined to the temporary directory and contain no real credentials.
+with tempfile.TemporaryDirectory(prefix="coderim-claude-review-") as directory:
+    root = pathlib.Path(directory).resolve()
+    config = root / "claude"
+    config.mkdir()
+    output = root / "data"
+    env = {**os.environ, "CLAUDE_CONFIG_DIR": str(config), "CODERIM_DATA_DIR": str(output)}
+    def login(name):
+        (config / ".credentials.json").write_text(json.dumps({"claudeAiOauth": {
+            "accessToken": "synthetic-access", "refreshToken": "synthetic-refresh",
+            "expiresAt": 2000000000000, "scopes": ["user:inference"], "subscriptionType": "pro"}}), encoding="utf-8")
+        (config / ".claude.json").write_text(json.dumps({"oauthAccount": {
+            "emailAddress": name + "@example.invalid", "organizationUuid": "org-" + name,
+            "accountUuid": "account-" + name}}), encoding="utf-8")
+    def invoke(command, session):
+        payload = json.dumps({"session_id": session, "rate_limits": {"five_hour": {"used_percentage": 53}}})
+        result = subprocess.run(runner + [command], input=payload, capture_output=True, text=True,
+                                timeout=15, env=env, check=True)
+        return result.stdout
+    snapshot = output / "claude-limits.json"
+    login("A")
+    invoke("claude-status", "A-session")
+    assert not snapshot.exists(), "Unregistered session was attributed"
+    invoke("claude-session-start", "A-session")
+    invoke("claude-status", "A-session")
+    original = snapshot.read_bytes()
+    login("B")
+    invoke("claude-session-start", "A-session")
+    invoke("claude-status", "A-session")
+    assert snapshot.read_bytes() == original, "Old session was relabeled to B"
+    invoke("claude-session-start", "B-session")
+    invoke("claude-status", "B-session")
+    current = snapshot.read_bytes()
+    assert current != original
+    (config / ".credentials.json").unlink()
+    invoke("claude-status", "B-session")
+    assert snapshot.read_bytes() == current, "Unknown login replaced account quota"
+print("PASS: CLI session bindings reject cross-account and unknown-account writes")

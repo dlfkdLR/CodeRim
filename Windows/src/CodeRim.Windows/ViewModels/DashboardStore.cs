@@ -21,6 +21,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     private bool pendingRefresh;
     private bool localRefreshing;
     private bool disposed;
+    private readonly Dictionary<string, string?> scopes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> generations = new(StringComparer.Ordinal);
     private int Generation(string id) => generations.GetValueOrDefault(id);
     public Dictionary<string, UsageSnapshot> Usage { get; } = new(StringComparer.Ordinal);
@@ -42,14 +43,27 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         if (!File.Exists(keyPath)) File.WriteAllBytes(keyPath, System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
         var projectKey = File.ReadAllBytes(keyPath);
         if (projectKey.Length != 32) throw new InvalidDataException("Project identity key is invalid.");
-        foreach (var id in new[] { "codex", "claude" }) scanners[id] = new UsageScanner(id, projectKey: projectKey);
+        foreach (var id in new[] { "codex", "claude" })
+        {
+            scanners[id] = new UsageScanner(id, projectKey: projectKey);
+            if (!synthetic)
+            {
+                var history = repository.Read(id);
+                Events[id] = history;
+                Usage[id] = UsageScanner.Aggregate(history, DateTimeOffset.Now, settings.Current.WeekStart, true);
+            }
+        }
         try
         {
             if (File.Exists(CompanionFile.SnapshotPath))
                 foreach (var provider in CompanionFile.Read().Providers)
-                    Readings[provider.Id] = provider.Limits with { State = provider.Limits.Windows.Count > 0 ? ReadingState.Stale : provider.Limits.State };
+                {
+                    var scope = connections.Scope(provider.Id); scopes[provider.Id] = scope;
+                    if (scope is not null && provider.AccountScope == scope)
+                        Readings[provider.Id] = provider.Limits with { State = provider.Limits.Windows.Count > 0 ? ReadingState.Stale : provider.Limits.State };
+                }
         }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException) { }
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException) { }
     }
     public void Invalidate(IReadOnlyCollection<string>? paths)
     {
@@ -63,6 +77,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     {
         if (disposed) return;
         // Local scans never wait for provider network requests.
+        foreach (var id in settings.Current.EnabledProviders) EnsureScope(id);
         var local = RefreshLocalAsync();
         var remote = settings.Current.EnabledProviders.Where(id => userInitiated
             || DateTimeOffset.Now - lastRefresh.GetValueOrDefault(id) >= TimeSpan.FromSeconds(60))
@@ -113,6 +128,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     public Task RefreshProviderAsync(string id)
     {
         if (disposed || !settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return Task.CompletedTask;
+        EnsureScope(id);
         if (remoteTasks.TryGetValue(id, out var running)) return running;
         var task = FetchProviderAsync(id);
         remoteTasks[id] = task;
@@ -125,14 +141,17 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         RefreshingProviders.Add(id); Changed();
         var entered = false;
         var generation = Generation(id);
+        string? requestScope = null;
         try
         {
             await remoteSlots.WaitAsync(lifetime.Token).ConfigureAwait(true); entered = true;
+            EnsureScope(id); generation = Generation(id); requestScope = scopes.GetValueOrDefault(id);
             lastRefresh[id] = DateTimeOffset.Now;
             if (Synthetic) { SeedPreview(); return; }
             var reading = await connections.FetchAsync(id, settings.Current, lifetime.Token).ConfigureAwait(true);
-            if (generation != Generation(id) || !settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return;
-            Readings[id] = ReadingRetention.Merge(reading, Readings.GetValueOrDefault(id));
+            EnsureScope(id);
+            if (generation != Generation(id) || requestScope != scopes.GetValueOrDefault(id) || !settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return;
+            Readings[id] = ReadingRetention.Merge(reading, requestScope is null ? null : Readings.GetValueOrDefault(id));
             ReadingUpdated?.Invoke(Readings[id]);
             Persist();
         }
@@ -143,6 +162,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         {
             if (entered) remoteSlots.Release();
             RefreshingProviders.Remove(id); remoteTasks.Remove(id); Changed();
+            if (!disposed && generation != Generation(id)) _ = RefreshProviderAsync(id);
         }
     }
     private void Persist()
@@ -151,7 +171,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         var now = DateTimeOffset.Now;
         CompanionFile.Write(new CompanionSnapshot(1, now, settings.Current.EnabledProviders.Select(id => new CompanionProvider(id,
             ProviderCatalog.Find(id)!.Name, true, Usage.TryGetValue(id, out var usage) ? CompanionFile.Local(usage, now) : null,
-            Readings.GetValueOrDefault(id) ?? new(id, ReadingState.Loading, []))).ToArray()));
+            Readings.GetValueOrDefault(id) ?? new(id, ReadingState.Loading, []), scopes.GetValueOrDefault(id))).ToArray()));
     }
     private void SeedPreview()
     {
@@ -175,9 +195,17 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     public void Clear(string id)
     {
         if (!scanners.TryGetValue(id, out var scanner)) return;
-        generations[id] = Generation(id) + 1; repository.Clear(id, DateTimeOffset.Now); scanner.InvalidateCachedSources(); Usage.Remove(id); Events.Remove(id); Changed();
+        generations[id] = Generation(id) + 1; repository.Clear(id, DateTimeOffset.Now); scanner.InvalidateCachedSources(); Usage.Remove(id); Events.Remove(id); Persist(); Changed();
     }
-    public void InvalidateAccount(string id) { generations[id] = Generation(id) + 1; Readings.Remove(id); lastRefresh.Remove(id); Changed(); }
+    private void EnsureScope(string id)
+    {
+        if (Synthetic) return;
+        var scope = connections.Scope(id);
+        if (scopes.TryGetValue(id, out var previous) && previous != scope) InvalidateAccount(id);
+        scopes[id] = scope;
+        if (scope is null) Readings.Remove(id);
+    }
+    public void InvalidateAccount(string id) { generations[id] = Generation(id) + 1; Readings.Remove(id); lastRefresh.Remove(id); Persist(); Changed(); }
     private void Changed() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
     public void Dispose() { disposed = true; lifetime.Cancel(); connections.Dispose(); }
 }
