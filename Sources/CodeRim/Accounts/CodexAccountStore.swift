@@ -46,6 +46,9 @@ final class CodexAccountStore: ObservableObject {
     private var loginTask: Task<Void, Never>?
     /// The login's modification date at the last plan read.
     private var lastPlanStamp: Date?
+    /// Whether a plan read has happened at all, so a login with no plan claim
+    /// is read once rather than on every poll.
+    private var hasReadPlan = false
 
     init(vault: any AccountVault = KeychainAccountVault(),
          login: any CodexLoginStoring = CodexLoginFile(directory: CodexLoginFile.defaultDirectory),
@@ -75,8 +78,13 @@ final class CodexAccountStore: ObservableObject {
     func refreshCurrentPlanType() {
         guard !isBusy else { return }
         let stamp = login.lastModified
-        guard stamp != lastPlanStamp || currentPlanType == nil else { return }
+        // Re-read when the login changed, or when nothing has been read yet.
+        // Keyed on having read at all rather than on `currentPlanType`, which
+        // is legitimately nil for a login whose token carries no plan claim —
+        // asking again every poll would never produce a different answer.
+        guard stamp != lastPlanStamp || !hasReadPlan else { return }
         lastPlanStamp = stamp
+        hasReadPlan = true
         updateCurrentMetadata(try? readCurrentAccount())
     }
 
