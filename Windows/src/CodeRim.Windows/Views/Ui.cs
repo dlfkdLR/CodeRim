@@ -31,8 +31,15 @@ internal static class Ui
     public static ComboBox Combo<T>(IEnumerable<T> values, T selected, Action<T> changed)
     {
         var box = new ComboBox { ItemsSource = values, SelectedItem = selected, MinWidth = 150, Margin = new Thickness(0, 5, 0, 10),
-            HorizontalAlignment = HorizontalAlignment.Left };
-        var textStyle = new Style(typeof(TextBlock)); textStyle.Setters.Add(new Setter(TextBlock.ForegroundProperty, Brushes.Black)); box.Resources[typeof(TextBlock)] = textStyle;
+            HorizontalAlignment = HorizontalAlignment.Left, Foreground = SystemColors.ControlTextBrush };
+        // The app's implicit TextBlock style is light for dark panels. Native
+        // ComboBox chrome stays light, so bind generated item text explicitly
+        // to its nearest control (ComboBox or popup ComboBoxItem).
+        var text = new FrameworkElementFactory(typeof(TextBlock));
+        text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding());
+        text.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding(nameof(Control.Foreground))
+        { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(Control), 1) });
+        box.ItemTemplate = new DataTemplate { VisualTree = text };
         box.SelectionChanged += (_, _) => { if (box.SelectedItem is T value) changed(value); }; return box;
     }
     public static CheckBox Toggle(string label, bool value, Action<bool> changed)
