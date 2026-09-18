@@ -25,6 +25,7 @@ public partial class App : System.Windows.Application
     private DashboardWindow? dashboard;
     private SessionWatcher? watcher;
     private readonly DispatcherTimer timer = new();
+    private readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(1) };
     private readonly ThresholdTracker thresholds = new();
     private bool smokeTest;
     protected override void OnStartup(StartupEventArgs e)
@@ -49,6 +50,7 @@ public partial class App : System.Windows.Application
         settings.SettingsChanged += (_, _) => ConfigureTimer();
         timer.Tick += (_, _) => { watcher?.Rebuild(); _ = store.RefreshAsync(); };
         ConfigureTimer(); notch.ApplyVisibility();
+        if (!smokeTest) { updateTimer.Tick += async (_, _) => await CheckUpdatesAsync(); updateTimer.Start(); _ = CheckUpdatesAsync(); }
         _ = StartAsync(e.Args);
     }
     private async Task StartAsync(string[] args)
@@ -73,6 +75,11 @@ public partial class App : System.Windows.Application
             ShutdownApplication();
         }
     }
+    private async Task CheckUpdatesAsync()
+    {
+        if (settings?.Current.CheckForUpdates != true) return;
+        if (await UpdateNotifications.CheckAsync().ConfigureAwait(true) is { } version && settings.Current.CheckForUpdates) tray?.Notify("CodeRim update", "Version " + version + " is available. Open Information to download it.");
+    }
     private void ConfigureTimer()
     {
         timer.Stop();
@@ -88,7 +95,7 @@ public partial class App : System.Windows.Application
     private void ShutdownApplication() { dashboard?.Close(); notch?.Close(); Shutdown(); }
     protected override void OnExit(ExitEventArgs e)
     {
-        timer.Stop(); watcher?.Dispose(); store?.Dispose(); tray?.Dispose(); instance?.Dispose();
+        timer.Stop(); updateTimer.Stop(); watcher?.Dispose(); store?.Dispose(); tray?.Dispose(); instance?.Dispose();
         base.OnExit(e);
     }
 }

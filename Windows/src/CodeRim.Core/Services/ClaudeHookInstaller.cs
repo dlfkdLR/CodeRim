@@ -2,11 +2,11 @@ using System.IO;
 using System.Text.Json.Nodes;
 using CodeRim.Core.Services;
 
-namespace CodeRim.Windows.Services;
+namespace CodeRim.Core.Services;
 
-internal static class ClaudeIntegration
+public static class ClaudeHookInstaller
 {
-    internal static string SettingsPath
+    public static string SettingsPath
     {
         get
         {
@@ -14,14 +14,14 @@ internal static class ClaudeIntegration
             return Path.Combine(Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR") ?? Path.Combine(home, ".claude"), "settings.json");
         }
     }
-    internal static bool HasOtherStatusLine()
+    public static bool HasOtherStatusLine()
     {
         if (!File.Exists(SettingsPath)) return false;
         var json = JsonNode.Parse(GuardedFile.Read(SettingsPath));
         var command = json?["statusLine"]?["command"]?.GetValue<string>();
         return !string.IsNullOrEmpty(command) && command != Command("claude-status");
     }
-    internal static string Command(string operation)
+    public static string Command(string operation)
     {
         // Encoded PowerShell has no shell-sensitive path interpolation, under Git Bash or PowerShell.
         var executable = Path.Combine(AppContext.BaseDirectory, "CodeRimCLI.exe").Replace("'", "''");
@@ -30,8 +30,10 @@ internal static class ClaudeIntegration
             + "[String]::new($buffer,0,$count) | & '" + executable + "' " + operation + "; exit $LASTEXITCODE";
         return "powershell.exe -NoProfile -NonInteractive -EncodedCommand " + Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
     }
-    internal static void Install()
+    public static void Install(bool replaceExisting = false)
     {
+        if (!OperatingSystem.IsWindows()) throw new InvalidOperationException("This installer requires Windows.");
+        if (HasOtherStatusLine() && !replaceExisting) throw new InvalidOperationException("An existing status line needs explicit replacement approval.");
         var executable = Path.Combine(AppContext.BaseDirectory, "CodeRimCLI.exe");
         if (!File.Exists(executable)) throw new FileNotFoundException("Install the complete CodeRim Windows package first.");
         var path = SettingsPath; Directory.CreateDirectory(Path.GetDirectoryName(path)!);

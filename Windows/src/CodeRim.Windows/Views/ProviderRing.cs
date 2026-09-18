@@ -88,6 +88,7 @@ internal sealed class ProviderMark : FrameworkElement
         dc.PushTransform(new ScaleTransform(scale, scale)); dc.PushTransform(new TranslateTransform(-bounds.X, -bounds.Y));
         dc.DrawGeometry(Brushes.White, null, glyph); dc.Pop(); dc.Pop(); dc.Pop();
     }
+    internal static bool HasGlyph(string id) => Glyph(id) is not null;
     private static Geometry? Glyph(string id)
     {
         if (Glyphs.TryGetValue(id, out var found)) return found;
@@ -133,11 +134,12 @@ internal sealed class ProviderMark : FrameworkElement
                         };
                         if (transform is not null) transforms.Children.Insert(0, transform);
                     }
+                    if (geometry.IsFrozen) geometry = geometry.Clone();
                     geometry.Transform = transforms; group.Children.Add(geometry);
                 }
             }
             group.Freeze(); return Glyphs[id] = group.Children.Count > 0 ? group : null;
         }
-        catch (Exception e) when (e is System.IO.IOException or FormatException or System.Xml.XmlException) { return Glyphs[id] = null; }
+        catch (Exception e) when (e is System.IO.IOException or FormatException or System.Xml.XmlException or InvalidOperationException or ArgumentException) { return Glyphs[id] = null; }
     }
 }

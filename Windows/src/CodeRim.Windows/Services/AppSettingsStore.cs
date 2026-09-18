@@ -25,6 +25,8 @@ public sealed record AppSettings(
     public bool ShowUsagePace { get; init; }
     public bool PeekOnCompletion { get; init; } = true;
     public bool ReduceMotion { get; init; }
+    public bool CheckForUpdates { get; init; } = true;
+    public bool ShowLastUpdated { get; init; } = true;
     public bool AlertsEnabled { get; init; } = true;
     public bool CompletionSound { get; init; }
     public double Scale { get; init; } = 1;

@@ -114,6 +114,9 @@ internal sealed class DashboardWindow : Window
         body.Children.Add(Ui.Text("Week starts on")); body.Children.Add(Ui.Combo(Enum.GetValues<WeekStart>(), settings.Current.WeekStart, x => { Save(settings.Current with { WeekStart = x }); _ = store.RefreshAsync(); }));
         body.Children.Add(Ui.Text("Background refresh (seconds; 0 turns off periodic refresh)")); body.Children.Add(Ui.Combo(RefreshOptions, settings.Current.RefreshIntervalSeconds, x => Save(settings.Current with { RefreshIntervalSeconds = x })));
         body.Children.Add(Ui.Toggle("Show cached input breakdown", settings.Current.ShowCachedInput, x => Save(settings.Current with { ShowCachedInput = x })));
+        body.Children.Add(Ui.Toggle("Show last updated", settings.Current.ShowLastUpdated, x => Save(settings.Current with { ShowLastUpdated = x })));
+        Ui.Section(body, "Updates"); body.Children.Add(Ui.Toggle("Automatically check for updates", settings.Current.CheckForUpdates, x => Save(settings.Current with { CheckForUpdates = x })));
+        body.Children.Add(Ui.Text("Checks GitHub once per day. Downloads open only when you choose them.", 11, "#A6A6AA"));
         Ui.Section(body, "Alerts"); body.Children.Add(Ui.Toggle("Notify at 80% and 100% usage", settings.Current.AlertsEnabled, x => Save(settings.Current with { AlertsEnabled = x })));
         body.Children.Add(Ui.Toggle("Play a sound when a session finishes", settings.Current.CompletionSound, x => Save(settings.Current with { CompletionSound = x })));
         body.Children.Add(Ui.Toggle("Reduce motion", settings.Current.ReduceMotion, x => Save(settings.Current with { ReduceMotion = x })));
@@ -198,8 +201,8 @@ internal sealed class DashboardWindow : Window
             {
                 try
                 {
-                    if (ClaudeIntegration.HasOtherStatusLine() && MessageBox.Show(this, "Replace your current status line? CodeRim will keep a backup of settings.json.", "Connect Claude", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-                    ClaudeIntegration.Install();
+                    if (ClaudeHookInstaller.HasOtherStatusLine() && MessageBox.Show(this, "Replace your current status line? CodeRim will keep a backup of settings.json.", "Connect Claude", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+                    ClaudeHookInstaller.Install(replaceExisting: true);
                     MessageBox.Show(this, "Connected. Start a new Claude Code session to read limits.", "CodeRim");
                 }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException)
@@ -297,8 +300,22 @@ internal sealed class DashboardWindow : Window
     private void About()
     {
         Heading("CodeRim", "Coding-assistant limits at the edge of your screen.");
-        body.Children.Add(Ui.Text("Windows · 2.1.5", 18)); body.Children.Add(Ui.Text("Native WPF app · .NET 10 · MIT license"));
-        body.Children.Add(Ui.Button("Check releases", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/releases")));
+        body.Children.Add(Ui.Text("Windows · " + ReleaseUpdates.CurrentVersion, 18)); body.Children.Add(Ui.Text("Native WPF app · .NET 10 · MIT license"));
+        var updateStatus = Ui.Text("", 12, "#A6A6AA");
+        body.Children.Add(Ui.AsyncButton("Check for updates", async () =>
+        {
+            updateStatus.Text = "Checking…";
+            try
+            {
+                var update = await ReleaseUpdates.CheckAsync(UpdateNotifications.Architecture).ConfigureAwait(true);
+                updateStatus.Text = update.IsNewer ? "CodeRim " + update.Version + " is available." : "You are using the latest Windows release.";
+                if (update.IsNewer && MessageBox.Show(this, "Download CodeRim " + update.Version + " for Windows?", "CodeRim update", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+                    OpenUrl(update.Download.AbsoluteUri);
+            }
+            catch (Exception error) when (error is not OutOfMemoryException) { updateStatus.Text = "Could not check Windows updates. Try again or open the releases page."; }
+        }));
+        body.Children.Add(updateStatus);
+        body.Children.Add(Ui.Button("Open releases", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/releases")));
         body.Children.Add(Ui.Button("Windows documentation", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/WINDOWS.md")));
         Ui.Section(body, "Credits"); body.Children.Add(Ui.Text("Notch design and supporting code: Codenotch, MIT © 2026 Vinz. Provider reference integrations: CodexBar. Provider logos belong to their respective owners. See the bundled LICENSE and NOTICE."));
     }

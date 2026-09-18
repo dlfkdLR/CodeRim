@@ -42,7 +42,7 @@ public static class JetBrainsQuota
         if (used is not >= 0 || maximum is not > 0) return new("jetbrains", ReadingState.Unavailable, []);
         DateTimeOffset? reset = null;
         if (Option("nextRefill") is { Length: > 0 } refill)
-        { using var value = JsonDocument.Parse(refill); reset = Date(Get(value.RootElement, "next")); }
+        { try { using var value = JsonDocument.Parse(refill); reset = Date(Get(value.RootElement, "next")); } catch (JsonException) { } }
         return new("jetbrains", ReadingState.Ready, [new("quota", "AI Assistant credits", used / maximum * 100, reset,
             Unit: "credits", DisplayValue: $"{used:N2} / {maximum:N2} credits")], updatedAt, Plan: Text(root, "type"));
     }

@@ -96,7 +96,7 @@ public sealed partial class NativeProviders : IDisposable
             if (id == "codebuff")
             {
                 try { documents["subscription"] = await GetJson("https://www.codebuff.com/api/user/subscription").ConfigureAwait(false); }
-                catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or JsonException or OperationCanceledException) { token.ThrowIfCancellationRequested(); partial = true; }
+                catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException) { token.ThrowIfCancellationRequested(); partial = true; }
             }
             var reading = Parse(id, documents);
             return partial && reading.Windows.Count > 0 ? reading with { State = ReadingState.Partial, Message = "Credit balance is current. Subscription details could not be refreshed." } : reading;

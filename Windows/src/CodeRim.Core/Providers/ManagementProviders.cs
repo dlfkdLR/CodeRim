@@ -9,9 +9,9 @@ public sealed partial class NativeProviders
 {
     public static IReadOnlyList<(string Key, string Label)> Settings(string id) => id switch
     {
-        "wayfinder" => [("WAYFINDER_BASE_URL", "Gateway URL (default http://127.0.0.1:8088)")],
+        "wayfinder" => [("WAYFINDER_GATEWAY_URL", "Gateway URL (default http://127.0.0.1:8088)")],
         "fireworks" => [("FIREWORKS_ACCOUNT_SLUG", "Account slug")],
-        "llmproxy" => [("LLMPROXY_BASE_URL", "Proxy base URL (HTTPS, or HTTP on this PC)")],
+        "llmproxy" => [("LLM_PROXY_BASE_URL", "Proxy base URL (HTTPS, or HTTP on this PC)")],
         "litellm" => [("LITELLM_BASE_URL", "Proxy base URL (HTTPS, or HTTP on this PC)")],
         _ => []
     };
@@ -28,7 +28,7 @@ public sealed partial class NativeProviders
         var documents = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         if (id == "wayfinder")
         {
-            var baseUrl = ManagementBase(setting("WAYFINDER_BASE_URL") is { Length: > 0 } configured ? configured : "http://127.0.0.1:8088");
+            var baseUrl = ManagementBase(setting("WAYFINDER_GATEWAY_URL") is { Length: > 0 } configured ? configured : "http://127.0.0.1:8088");
             documents["main"] = await get(baseUrl + "/healthz").ConfigureAwait(false);
             documents["models"] = await get(baseUrl + "/router/models").ConfigureAwait(false);
             documents["savings"] = await get(baseUrl + "/v1/savings?period=30d").ConfigureAwait(false);
@@ -39,7 +39,7 @@ public sealed partial class NativeProviders
             documents["main"] = await get("https://app.warp.dev/graphql/v2?op=GetRequestLimitInfo").ConfigureAwait(false);
         else
         {
-            var key = id == "litellm" ? "LITELLM_BASE_URL" : "LLMPROXY_BASE_URL";
+            var key = id == "litellm" ? "LITELLM_BASE_URL" : "LLM_PROXY_BASE_URL";
             var baseUrl = ManagementBase(setting(key) ?? "");
             if (baseUrl.EndsWith("/v1", StringComparison.Ordinal)) baseUrl = baseUrl[..^3];
             if (id == "llmproxy") documents["main"] = await get(baseUrl + "/v1/quota-stats").ConfigureAwait(false);

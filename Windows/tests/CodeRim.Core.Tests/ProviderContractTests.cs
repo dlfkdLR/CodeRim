@@ -104,6 +104,28 @@ public sealed class ProviderContractTests
         Assert.Empty(JetBrainsQuota.Parse(xml.Replace("&quot;10&quot;", "&quot;0&quot;", StringComparison.Ordinal), DateTimeOffset.UtcNow).Windows);
         Assert.Throws<XmlException>(() => JetBrainsQuota.Parse("""<!DOCTYPE doc [<!ENTITY x SYSTEM "file:///secret">]><application>&x;</application>""", DateTimeOffset.UtcNow));
     }
+    [Fact]
+    public async Task StandardEnvironmentNamesSelectConfiguredEndpoints()
+    {
+        foreach (var (id, key, url) in new[] { ("llmproxy", "LLM_PROXY_BASE_URL", "https://proxy.example.invalid"), ("wayfinder", "WAYFINDER_GATEWAY_URL", "http://127.0.0.1:9000") })
+        {
+            Assert.Contains(NativeProviders.Settings(id), x => x.Key == key);
+            using var handler = new MockHandler(request =>
+            {
+                Assert.StartsWith(url, request.RequestUri!.AbsoluteUri);
+                return Task.FromResult(id == "llmproxy" ? """{"providers":{}}""" : request.RequestUri.AbsolutePath == "/healthz" ? """{"status":"ok"}""" : "{}");
+            });
+            using var provider = new NativeProviders(handler);
+            var result = await provider.FetchAsync(id, "fixture", field => field == key ? url : null, TestContext.Current.CancellationToken);
+            Assert.Equal(ReadingState.Ready, result.State); Assert.True(handler.Requests > 0);
+        }
+    }
+    [Fact]
+    public void JetbrainsKeepsQuotaWhenOptionalRefillIsMalformed()
+    {
+        var value = JetBrainsQuota.Parse("""<application><component name="AIAssistantQuotaManager2"><option name="quotaInfo" value="{&quot;current&quot;:&quot;2.5&quot;,&quot;maximum&quot;:&quot;10&quot;}"/><option name="nextRefill" value="not JSON"/></component></application>""", DateTimeOffset.UtcNow);
+        Assert.Equal(25, value.Headline!.UsedPercent); Assert.Null(value.Headline.ResetsAt);
+    }
     private sealed class MockHandler(Func<HttpRequestMessage, Task<string>> body) : HttpMessageHandler
     {
         internal int Requests;

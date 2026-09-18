@@ -48,12 +48,12 @@ internal static class NativeSmoke
         {
             Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", fixtureConfig);
             File.WriteAllText(Path.Combine(fixtureConfig, "settings.json"), """{"unrelated":true,"hooks":{"Stop":[{"hooks":[{"type":"command","command":"fixture-existing"}]}]}}""");
-            ClaudeIntegration.Install(); ClaudeIntegration.Install();
-            using var installed = JsonDocument.Parse(File.ReadAllText(ClaudeIntegration.SettingsPath));
+            ClaudeHookInstaller.Install(); ClaudeHookInstaller.Install();
+            using var installed = JsonDocument.Parse(File.ReadAllText(ClaudeHookInstaller.SettingsPath));
             Require(installed.RootElement.GetProperty("unrelated").GetBoolean(), "Claude setup discarded unrelated settings");
             var hooks = installed.RootElement.GetProperty("hooks");
             Require(hooks.GetProperty("Stop").GetArrayLength() == 1 && hooks.GetProperty("SessionStart").GetArrayLength() == 1, "Claude setup duplicated or discarded hooks");
-            var command = ClaudeIntegration.Command("claude-status").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var command = ClaudeHookInstaller.Command("claude-status").Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var result = await BoundedProcess.RunAsync(Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"),
                 command.Skip(1), """{"session_id":"synthetic-unregistered","rate_limits":{"five_hour":{"used_percentage":53}}}""");
             Require(result.Contains("53%", StringComparison.Ordinal), "Installed Claude command did not read stdin");
@@ -61,6 +61,16 @@ internal static class NativeSmoke
         }
         finally { Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", previousClaudeConfig); }
 
+        var glyphGrid = new WrapPanel { Width = 720, Background = Ui.Brush("#202020") };
+        foreach (var provider in ProviderCatalog.All)
+        {
+            Require(ProviderMark.HasGlyph(provider.Id), "Provider logo is missing: " + provider.Id);
+            var tile = new StackPanel { Width = 120, Height = 70, HorizontalAlignment = HorizontalAlignment.Center };
+            tile.Children.Add(new ProviderMark { ProviderId = provider.Id, Width = 28, Height = 28, Margin = new Thickness(0, 6, 0, 4) });
+            tile.Children.Add(Ui.Text(provider.Name, 10)); glyphGrid.Children.Add(tile);
+        }
+        glyphGrid.Measure(new Size(720, double.PositiveInfinity)); glyphGrid.Arrange(new Rect(glyphGrid.DesiredSize));
+        Capture(glyphGrid, Path.Combine(directory, "windows-provider-logos.png")); checks.Add("Every provider logo loads and renders");
         await Idle(); Capture(dashboard, output); checks.Add("Usage window renders");
         var selector = Descendants<System.Windows.Controls.ComboBox>(dashboard).First();
         selector.Focus(); var original = selector;

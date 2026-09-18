@@ -10,7 +10,7 @@ static async Task<int> RunAsync(string[] arguments)
 {
     string command = "usage", period = "today", format = "text";
     string? provider = null, path = null;
-    var watch = 0;
+    var watch = 0; var replaceStatusLine = false;
     try
     {
         var start = 0;
@@ -19,6 +19,7 @@ static async Task<int> RunAsync(string[] arguments)
         {
             switch (arguments[i])
             {
+                case "--replace-statusline": replaceStatusLine = true; break;
                 case "--provider": provider = Value(arguments, ref i); break;
                 case "--period": period = Value(arguments, ref i); break;
                 case "--snapshot": path = Value(arguments, ref i); break;
@@ -33,7 +34,7 @@ static async Task<int> RunAsync(string[] arguments)
         if (provider is not null && ProviderCatalog.Find(provider) is null) throw new ArgumentException("Unknown provider.");
         if (period is not ("today" or "week" or "month" or "all-time")) throw new ArgumentException("Unknown period.");
         if (format is not ("text" or "json")) throw new ArgumentException("Format must be text or json.");
-        if (command == "version") { Console.WriteLine("CodeRim CLI 2.1.5 (Windows companion)"); return 0; }
+        if (command == "version") { Console.WriteLine("CodeRim CLI " + ReleaseUpdates.CurrentVersion + " (Windows companion)"); return 0; }
         if (command == "help")
         {
             Console.WriteLine("""
@@ -41,6 +42,7 @@ static async Task<int> RunAsync(string[] arguments)
                   coderim [usage|tokens|limits] [--provider ID] [--period today|week|month|all-time]
                          [--format text|json] [--pretty] [--watch SECONDS] [--snapshot PATH] [--no-color]
                   coderim path | version | help
+                  coderim claude-connect [--replace-statusline]
                   coderim claude-status  (reads Claude status-line JSON from stdin)
                   coderim claude-session-start  (binds a Claude SessionStart hook to the current login)
 
@@ -49,6 +51,13 @@ static async Task<int> RunAsync(string[] arguments)
                 """); return 0;
         }
         if (command == "path") { Console.WriteLine(path ?? CompanionFile.SnapshotPath); return 0; }
+        if (command == "claude-connect")
+        {
+            try { ClaudeHookInstaller.Install(replaceStatusLine); }
+            catch (InvalidOperationException)
+            { Console.Error.WriteLine("Connect from a Windows package. If another status line exists, keep it or use --replace-statusline to replace it with a backup."); return 1; }
+            Console.WriteLine("Connected CodeRim. Start a new Claude Code session to read limits."); return 0;
+        }
         if (command == "claude-session-start") { await RegisterClaudeSessionAsync().ConfigureAwait(false); return 0; }
         if (command == "claude-status") { await CaptureClaudeAsync().ConfigureAwait(false); return 0; }
         if (command is not ("usage" or "tokens" or "limits")) throw new ArgumentException("Unknown command.");
