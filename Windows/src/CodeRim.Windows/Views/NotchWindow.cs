@@ -9,7 +9,6 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CodeRim.Core.Domain;
-using CodeRim.Core.Services;
 using CodeRim.Windows.Services;
 using CodeRim.Windows.ViewModels;
 using Button = System.Windows.Controls.Button;
@@ -22,145 +21,302 @@ internal sealed class NotchWindow : Window
     private readonly DashboardStore store;
     private readonly AppSettingsStore settings;
     private readonly Action<string?> openSettings;
-    private readonly DispatcherTimer foldTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    private readonly DispatcherTimer foldTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
     private readonly DispatcherTimer animation = new() { Interval = TimeSpan.FromMilliseconds(40) };
-    private bool expanded;
+    private readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromSeconds(10) };
+    private readonly Popup popup = new() { AllowsTransparency = true, StaysOpen = true, Placement = PlacementMode.Custom };
     private readonly List<ProviderRing> rings = [];
+    private readonly Dictionary<string, Button> buttons = new(StringComparer.Ordinal);
+    private bool expanded, pinned, trackingMenu, dragging, closed;
+    private NotchVisibility? lastVisibility;
+    private string? hovered;
+    private Point dragStart;
+    private double dragOffset;
+    private ScrollViewer? viewport;
+    private double bodyLength, bodyDepth, bodyStart;
+    private bool Vertical => settings.Current.Edge is NotchEdge.Left or NotchEdge.Right;
+    internal bool Expanded => expanded || pinned || settings.Current.Visibility == NotchVisibility.AlwaysShow;
+    internal FrameworkElement? PopupContent => popup.Child as FrameworkElement;
+
     public NotchWindow(DashboardStore store, AppSettingsStore settings, Action<string?> openSettings)
     {
         this.store = store; this.settings = settings; this.openSettings = openSettings;
         Title = "CodeRim notch"; WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
         ShowInTaskbar = false; Topmost = true; ResizeMode = ResizeMode.NoResize; ShowActivated = false;
+        UseLayoutRounding = true; SnapsToDevicePixels = true;
         AutomationProperties.SetName(this, "CodeRim provider usage notch");
+        popup.PlacementTarget = this;
+        popup.CustomPopupPlacementCallback = PlacePopup;
         store.PropertyChanged += Update; settings.SettingsChanged += SettingsChanged;
-        MouseEnter += (_, _) => { foldTimer.Stop(); if (!expanded) { expanded = true; Render(); } };
+        MouseEnter += (_, _) => { foldTimer.Stop(); if (!Expanded) { expanded = true; Render(); } };
         MouseLeave += (_, _) => foldTimer.Start();
-        // A focused button can postpone folding. Recheck after focus leaves,
-        // including activation moving to another application.
         LostKeyboardFocus += (_, _) => foldTimer.Start();
         Deactivated += (_, _) => foldTimer.Start();
-        foldTimer.Tick += (_, _) => { foldTimer.Stop(); if (!IsMouseOver && !IsKeyboardFocusWithin) { expanded = false; Render(); } };
+        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { popup.IsOpen = false; hovered = null; Keyboard.ClearFocus(); foldTimer.Start(); e.Handled = true; } };
+        foldTimer.Tick += (_, _) => TryFold();
         animation.Tick += (_, _) => { foreach (var ring in rings) { ring.Phase = DateTimeOffset.Now.ToUnixTimeMilliseconds() % 3000 / 3000d; ring.InvalidateVisual(); } };
-        SourceInitialized += (_, _) => Render();
-        Closed += (_, _) => { foldTimer.Stop(); animation.Stop(); store.PropertyChanged -= Update; settings.SettingsChanged -= SettingsChanged; };
+        clock.Tick += (_, _) => { if (popup.IsOpen && popup.Child is UIElement child && !child.IsKeyboardFocusWithin) RefreshPopup(); };
+        PreviewMouseLeftButtonDown += (_, e) =>
+        {
+            if ((Keyboard.Modifiers & ModifierKeys.Alt) == 0) return;
+            dragging = true; dragStart = System.Windows.Forms.Control.MousePosition.ToPoint(); dragOffset = settings.Current.Offset;
+            CaptureMouse(); e.Handled = true;
+        };
+        PreviewMouseMove += (_, e) =>
+        {
+            if (!dragging) return;
+            var point = System.Windows.Forms.Control.MousePosition.ToPoint();
+            Position(dragOffset + (Vertical ? point.Y - dragStart.Y : point.X - dragStart.X) / ScreenScale(SelectedScreen()));
+            e.Handled = true;
+        };
+        PreviewMouseLeftButtonUp += (_, e) =>
+        {
+            if (!dragging) return;
+            var point = System.Windows.Forms.Control.MousePosition.ToPoint(); dragging = false; ReleaseMouseCapture();
+            settings.Save(settings.Current with { Offset = dragOffset + (Vertical ? point.Y - dragStart.Y : point.X - dragStart.X) / ScreenScale(SelectedScreen()) });
+            e.Handled = true;
+        };
+        SourceInitialized += (_, _) =>
+        {
+            HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowMessage);
+            Render();
+        };
+        Closed += (_, _) =>
+        {
+            closed = true; popup.IsOpen = false; foldTimer.Stop(); animation.Stop(); clock.Stop();
+            store.PropertyChanged -= Update; settings.SettingsChanged -= SettingsChanged;
+            SystemParameters.StaticPropertyChanged -= DisplayChanged;
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= DisplaysChanged;
+        };
         SystemParameters.StaticPropertyChanged += DisplayChanged;
-        Closed += (_, _) => SystemParameters.StaticPropertyChanged -= DisplayChanged;
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += DisplaysChanged;
+        clock.Start();
+    }
+    private IntPtr WindowMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (message == 0x0021) { handled = true; return new IntPtr(3); } // MA_NOACTIVATE: refresh does not steal the active editor.
+        if (message == 0x02E0) Dispatcher.BeginInvoke(Render);
+        return IntPtr.Zero;
+    }
+    public void Peek()
+    {
+        if (settings.Current.Visibility == NotchVisibility.Hidden) return;
+        expanded = true; Render();
+        foldTimer.Interval = TimeSpan.FromSeconds(5); foldTimer.Start();
     }
     public void ApplyVisibility()
     {
-        if (settings.Current.Visibility == NotchVisibility.Hidden) { animation.Stop(); Hide(); }
+        if (lastVisibility != settings.Current.Visibility)
+        {
+            lastVisibility = settings.Current.Visibility; pinned = false; expanded = false; hovered = null; popup.IsOpen = false;
+        }
+        if (settings.Current.Visibility == NotchVisibility.Hidden) { popup.IsOpen = false; animation.Stop(); Hide(); }
         else { if (!IsVisible) Show(); Render(); }
     }
     private void SettingsChanged(object? sender, EventArgs e) => ApplyVisibility();
-    private void DisplayChanged(object? sender, PropertyChangedEventArgs e) => Dispatcher.BeginInvoke(Render);
+    private void DisplayChanged(object? sender, PropertyChangedEventArgs e) { if (!closed) Dispatcher.BeginInvoke(Render); }
+    private void DisplaysChanged(object? sender, EventArgs e) { if (!closed) Dispatcher.BeginInvoke(Render); }
+    internal void TryFold()
+    {
+        if (IsMouseOver || dragging || trackingMenu || IsKeyboardFocusWithin ||
+            popup.Child is UIElement child && (child.IsMouseOver || child.IsKeyboardFocusWithin)) return;
+        foldTimer.Stop(); foldTimer.Interval = TimeSpan.FromMilliseconds(450); popup.IsOpen = false; hovered = null;
+        if (!pinned && settings.Current.Visibility != NotchVisibility.AlwaysShow) { expanded = false; Render(); }
+    }
     private void Update(object? sender, PropertyChangedEventArgs e)
     {
         foreach (var ring in rings)
         {
-            ring.Reading = store.Readings.GetValueOrDefault(ring.ProviderId);
+            ring.Reading = store.Readings.GetValueOrDefault(ring.ProviderId)?.Evaluated(DateTimeOffset.Now);
             ring.Active = store.Sessions.Any(x => x.Provider == ring.ProviderId && x.State == "busy");
+            ring.Waiting = store.Sessions.Any(x => x.Provider == ring.ProviderId && x.State == "waiting");
+            ring.Refreshing = store.RefreshingProviders.Contains(ring.ProviderId);
             ring.InvalidateVisual();
         }
+        if (popup.IsOpen && popup.Child is UIElement child && !child.IsKeyboardFocusWithin) RefreshPopup();
+        ConfigureAnimation();
     }
-    private void Render()
+    private void ConfigureAnimation()
     {
-        rings.Clear(); animation.Stop();
         var config = settings.Current;
-        var open = expanded || config.Visibility == NotchVisibility.AlwaysShow;
-        var vertical = config.Edge is NotchEdge.Left or NotchEdge.Right;
-        var scale = config.Scale;
-        if (!open)
+        if (Expanded && IsVisible && !config.ReduceMotion && SystemParameters.ClientAreaAnimation &&
+            (rings.Any(x => x.Active || x.Refreshing) || config.RingColor == RingColorMode.Gradient && config.AnimateGradient)) animation.Start();
+        else animation.Stop();
+    }
+    internal void Render()
+    {
+        if (closed) return;
+        rings.Clear(); buttons.Clear(); animation.Stop(); popup.IsOpen = false;
+        var config = settings.Current; var scale = config.Scale;
+        if (!Expanded)
         {
-            Width = vertical ? 12 : 80; Height = vertical ? 80 : 12;
-            Content = new NotchShape { Edge = config.Edge, Fill = Brushes.Black, ToolTip = "CodeRim — hover to see usage" };
-            Position(); return;
+            Width = Vertical ? NotchMetrics.PillDepth : NotchMetrics.PillLength;
+            Height = Vertical ? NotchMetrics.PillLength : NotchMetrics.PillDepth;
+            Content = new NotchShape { Edge = config.Edge, Fill = Brushes.Black }; Position(); return;
         }
-        var panel = new StackPanel { Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal, Margin = new Thickness(8) };
+        var screen = SelectedScreen(); var dpi = ScreenScale(screen);
+        var available = (Vertical ? screen.WorkingArea.Height : screen.WorkingArea.Width) / dpi - 16;
+        var fit = NotchMetrics.Fit(config.Edge, config.EnabledProviders.Length, scale, available);
+        bodyLength = fit.Length; bodyDepth = fit.Depth;
+        var controlsFirst = config.ControlsPosition == "Start" || config.ControlsPosition == "Auto" && config.Offset > available / 4;
+        bodyStart = controlsFirst ? NotchMetrics.ControlExtent * scale : 0;
+        var canvas = new Canvas { Background = null };
+        Width = Vertical ? bodyDepth : bodyLength + NotchMetrics.ControlExtent * scale;
+        Height = Vertical ? bodyLength + NotchMetrics.ControlExtent * scale : bodyDepth;
+        var body = new Grid { Width = Vertical ? bodyDepth : bodyLength, Height = Vertical ? bodyLength : bodyDepth };
+        var shape = new NotchShape { Edge = config.Edge, Fill = Brushes.Black };
+        body.Children.Add(shape);
+        var cells = new StackPanel { Orientation = Vertical ? Orientation.Vertical : Orientation.Horizontal };
         foreach (var id in config.EnabledProviders)
         {
             var ring = new ProviderRing { ProviderId = id, Settings = config, Reading = store.Readings.GetValueOrDefault(id),
-                Active = store.Sessions.Any(x => x.Provider == id && x.State == "busy") };
+                Active = store.Sessions.Any(x => x.Provider == id && x.State == "busy"),
+                Waiting = store.Sessions.Any(x => x.Provider == id && x.State == "waiting") };
             rings.Add(ring);
-            var button = new Button { Content = ring, Background = Brushes.Transparent, BorderThickness = new Thickness(0), Padding = new Thickness(0),
-                Cursor = Cursors.Hand };
-            AutomationProperties.SetName(button, (ProviderCatalog.Find(id)?.Name ?? id) + " usage; open provider settings");
-            button.Click += (_, _) => openSettings(id);
-            button.ToolTipOpening += (_, _) => button.ToolTip = Tooltip(id);
-            button.ToolTip = "Usage"; ToolTipService.SetInitialShowDelay(button, 120); ToolTipService.SetShowDuration(button, 120000);
-            ToolTipService.SetPlacement(button, config.Edge switch { NotchEdge.Right => PlacementMode.Left, NotchEdge.Left => PlacementMode.Right, NotchEdge.Top => PlacementMode.Bottom, _ => PlacementMode.Top });
-            panel.Children.Add(button);
+            var button = new Button { Content = ring, Style = (Style)FindResource("NotchButton"),
+                Width = Vertical ? NotchMetrics.SideDepth : NotchMetrics.Ring,
+                Height = Vertical ? NotchMetrics.CellHeight : NotchMetrics.SideDepth - NotchMetrics.Ring + NotchMetrics.CellHeight,
+                Margin = Vertical ? new Thickness(0, 0, 0, NotchMetrics.CellGap) : new Thickness(0, 0, NotchMetrics.CellGap, 0) };
+            buttons[id] = button;
+            AutomationProperties.SetName(button, (ProviderCatalog.Find(id)?.Name ?? id) + " usage; refresh");
+            AutomationProperties.SetAutomationId(button, "notch.provider." + id);
+            button.Click += async (_, _) => await store.RefreshProviderAsync(id).ConfigureAwait(true);
+            button.MouseEnter += (_, _) => OpenProvider(id);
+            button.GotKeyboardFocus += (_, _) => OpenProvider(id);
+            cells.Children.Add(button);
         }
-        var controls = new StackPanel { Orientation = vertical ? Orientation.Vertical : Orientation.Horizontal };
-        controls.Children.Add(Ui.Button("⚙", () => openSettings(null)));
-        controls.Children.Add(Ui.AsyncButton("↻", () => store.RefreshAsync(true)));
-        panel.Children.Add(controls);
-        if (config.EnabledProviders.Length == 0) panel.Children.Insert(0, Ui.Button("+", () => openSettings("providers")));
-        var screen = SelectedScreen(); var maxAlong = (vertical ? screen.WorkingArea.Height : screen.WorkingArea.Width) * 0.8 / ScreenScale(screen);
-        var scroll = new ScrollViewer { Content = panel, VerticalScrollBarVisibility = vertical ? ScrollBarVisibility.Auto : ScrollBarVisibility.Disabled,
-            HorizontalScrollBarVisibility = vertical ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Auto };
-        var shell = new Grid { LayoutTransform = new ScaleTransform(scale, scale) };
-        shell.Children.Add(new NotchShape { Edge = config.Edge, Fill = Brushes.Black });
-        scroll.Margin = vertical ? new Thickness(0, 14, 0, 14) : new Thickness(14, 0, 14, 0); shell.Children.Add(scroll);
-        Width = vertical ? 82 * scale : Math.Min(maxAlong, (config.EnabledProviders.Length * 64 + 116) * scale);
-        Height = vertical ? Math.Min(maxAlong, (config.EnabledProviders.Length * 76 + 100) * scale) : 92 * scale;
-        var context = new ContextMenu();
-        var hide = new MenuItem { Header = "Hide notch" }; hide.Click += (_, _) => settings.Save(config with { Visibility = NotchVisibility.Hidden }); context.Items.Add(hide);
-        shell.ContextMenu = context; Content = shell; Position();
-        if (config.RingColor == RingColorMode.Gradient && config.AnimateGradient && !config.ReduceMotion && SystemParameters.ClientAreaAnimation) animation.Start();
-    }
-    private Border Tooltip(string id)
-    {
-        var content = Ui.Stack(16); content.MinWidth = 250; content.MaxWidth = 350;
-        content.Children.Add(Ui.Text(ProviderCatalog.Find(id)?.Name ?? id, 17, weight: FontWeights.SemiBold));
-        if (store.Readings.TryGetValue(id, out var reading))
+        if (cells.Children.Count > 0) ((FrameworkElement)cells.Children[^1]).Margin = new Thickness(0);
+        else
         {
-            if (reading.Plan is { } plan) content.Children.Add(Ui.Text(plan, color: "#BBBBBB"));
-            foreach (var window in reading.Windows)
-            {
-                content.Children.Add(Ui.Text(window.Name, 12));
-                if (window.UsedPercent is { } percent)
-                {
-                    content.Children.Add(new ProgressBar { Value = Math.Clamp(percent, 0, 100), Height = 4, Foreground = Ui.Brush(NotchGeometry.BandColor(percent)), Background = Ui.Brush("#303030"), Margin = new Thickness(0, 3, 0, 6) });
-                    content.Children.Add(Ui.Text($"{percent:0.#}% used · {Math.Max(0, 100 - percent):0.#}% remaining", 12, "#C7C7CC"));
-                }
-                if (window.DisplayValue is { } display) content.Children.Add(Ui.Text(display, 12));
-                if (window.UsedCount is { } count) content.Children.Add(Ui.Text($"{count:N0} {window.Unit ?? "units"} used", 12));
-                if (window.RemainingCount is { } remaining) content.Children.Add(Ui.Text($"{remaining:N0} {window.Unit ?? "units"} left", 12));
-                if (window.ResetsAt is { } reset) content.Children.Add(Ui.Text("Resets " + reset.ToLocalTime().ToString("g", System.Globalization.CultureInfo.CurrentCulture), 11, "#A0A0A6"));
-            }
-            if (reading.State != ReadingState.Ready) content.Children.Add(Ui.Text(reading.Message ?? reading.State.ToString(), 12, "#F2C66D"));
+            var add = Control("\uE710", "Add provider", () => openSettings("providers"));
+            add.Width = NotchMetrics.Ring; add.Height = NotchMetrics.CellHeight; cells.Children.Add(add);
         }
-        if (store.Usage.TryGetValue(id, out var local)) content.Children.Add(Ui.Text($"Today · This PC     {TokenFormatter.Format(local.Today.TotalTokens, settings.Current.NumberStyle)} tokens", 12));
-        foreach (var session in store.Sessions.Where(x => x.Provider == id).Take(8)) content.Children.Add(Ui.Text($"{session.Name} · {session.State} · {DateTimeOffset.Now - session.Since:h\\:mm\\:ss}", 12));
-        return new Border { Child = content, Background = Brushes.Black, CornerRadius = new CornerRadius(16) };
+        viewport = new ScrollViewer { Content = cells, VerticalScrollBarVisibility = Vertical ? ScrollBarVisibility.Hidden : ScrollBarVisibility.Disabled,
+            HorizontalScrollBarVisibility = Vertical ? ScrollBarVisibility.Disabled : ScrollBarVisibility.Hidden,
+            CanContentScroll = false, Focusable = false, PanningMode = PanningMode.None,
+            LayoutTransform = new ScaleTransform(scale, scale),
+            Margin = Vertical ? new Thickness(0, (NotchMetrics.Curl + NotchMetrics.PadStart) * scale, 0, (NotchMetrics.Curl + NotchMetrics.PadEnd) * scale)
+                : new Thickness((NotchMetrics.Curl + NotchMetrics.PadStart) * scale, 0, (NotchMetrics.Curl + NotchMetrics.PadEnd) * scale, 0) };
+        viewport.PreviewMouseWheel += (_, e) =>
+        {
+            if (Vertical) viewport.ScrollToVerticalOffset(viewport.VerticalOffset - e.Delta / 2d);
+            else viewport.ScrollToHorizontalOffset(viewport.HorizontalOffset - e.Delta / 2d);
+            popup.IsOpen = false; e.Handled = true;
+        };
+        body.Children.Add(viewport); canvas.Children.Add(body);
+        if (Vertical) Canvas.SetTop(body, bodyStart); else Canvas.SetLeft(body, bodyStart);
+        var controls = new StackPanel { Orientation = Vertical ? Orientation.Vertical : Orientation.Horizontal };
+        var gear = Control("\uE713", "Open Settings", () => openSettings(null));
+        var accounts = Control("\uE77B", "Switch account", OpenAccounts);
+        controls.Children.Add(gear); controls.Children.Add(accounts);
+        controls.LayoutTransform = new ScaleTransform(scale, scale);
+        canvas.Children.Add(controls);
+        var controlAlong = controlsFirst ? 4 * scale : bodyLength - 6 * scale;
+        var controlAcross = (bodyDepth - NotchMetrics.Control * scale) / 2;
+        Canvas.SetLeft(controls, Vertical ? controlAcross : controlAlong);
+        Canvas.SetTop(controls, Vertical ? controlAlong : controlAcross);
+        var menu = new ContextMenu();
+        menu.Opened += (_, _) => { trackingMenu = true; foldTimer.Stop(); };
+        menu.Closed += (_, _) => { trackingMenu = false; foldTimer.Start(); };
+        var keep = new MenuItem { Header = "Keep open", IsCheckable = true, IsChecked = pinned };
+        keep.Click += (_, _) => { pinned = keep.IsChecked; foldTimer.Start(); }; menu.Items.Add(keep);
+        AddMenu(menu, "Refresh", () => _ = store.RefreshAsync(true));
+        AddMenu(menu, "Recentre", () => settings.Save(config with { Offset = 0 }));
+        AddMenu(menu, "Settings…", () => openSettings(null));
+        AddMenu(menu, "Hide notch", () => settings.Save(config with { Visibility = NotchVisibility.Hidden }));
+        canvas.ContextMenu = menu; Content = canvas; Position(); ConfigureAnimation();
+    }
+    private Button Control(string glyph, string label, Action action)
+    {
+        var button = new Button { Style = (Style)FindResource("IconButton"), Content = new TextBlock { Text = glyph,
+            FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = 20, Foreground = Brushes.White },
+            Margin = new Thickness(0, 2, 0, 2), ToolTip = label };
+        AutomationProperties.SetName(button, label); button.Click += (_, _) => action(); return button;
+    }
+    private static void AddMenu(ContextMenu menu, string label, Action action)
+    {
+        var item = new MenuItem { Header = label }; item.Click += (_, _) => action(); menu.Items.Add(item);
+    }
+    internal void OpenProvider(string id)
+    {
+        if (!buttons.ContainsKey(id)) return;
+        hovered = id; RefreshPopup(); popup.IsOpen = true; foldTimer.Stop();
+    }
+    private void RefreshPopup()
+    {
+        if (hovered is null || !buttons.ContainsKey(hovered)) return;
+        var scrollOffset = FindScroll(popup.Child)?.VerticalOffset ?? 0;
+        var card = NotchPopover.Create(hovered, store, settings.Current, page => { popup.IsOpen = false; openSettings(page); });
+        AttachPopup(card); popup.Child = card;
+        card.Loaded += (_, _) => FindScroll(card)?.ScrollToVerticalOffset(scrollOffset);
+    }
+    private static ScrollViewer? FindScroll(DependencyObject? root)
+    {
+        if (root is null) return null;
+        if (root is ScrollViewer scroll) return scroll;
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            if (FindScroll(VisualTreeHelper.GetChild(root, i)) is { } found) return found;
+        return null;
+    }
+    private void AttachPopup(FrameworkElement child)
+    {
+        child.PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { popup.IsOpen = false; hovered = null; Keyboard.ClearFocus(); foldTimer.Start(); e.Handled = true; } };
+        child.MouseEnter += (_, _) => foldTimer.Stop();
+        child.MouseLeave += (_, _) => foldTimer.Start();
+        child.LostKeyboardFocus += (_, _) => foldTimer.Start();
+    }
+    private void OpenAccounts()
+    {
+        hovered = null; var list = new StackPanel { Margin = new Thickness(12) };
+        list.Children.Add(NotchPopover.Text("Accounts", 14, Brushes.White, FontWeights.SemiBold));
+        foreach (var id in settings.Current.EnabledProviders.Where(x => x != "ollama-local"))
+            list.Children.Add(Ui.Button(ProviderCatalog.Find(id)?.Name ?? id, () => { popup.IsOpen = false; openSettings(id is "codex" or "claude" ? id + "-accounts" : id); }));
+        if (list.Children.Count == 1) list.Children.Add(Ui.Button("Manage Providers", () => { popup.IsOpen = false; openSettings("providers"); }));
+        var frame = new Border { Background = Brushes.Black, CornerRadius = new CornerRadius(16), Width = 230,
+            Child = new ScrollViewer { Content = list, MaxHeight = 360, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } };
+        AttachPopup(frame); popup.Child = frame; popup.IsOpen = true;
+    }
+    private CustomPopupPlacement[] PlacePopup(Size popupSize, Size targetSize, Point offset)
+    {
+        var center = Vertical ? new Point(bodyDepth / 2, bodyStart + bodyLength / 2) : new Point(bodyStart + bodyLength / 2, bodyDepth / 2);
+        if (hovered is not null && buttons.TryGetValue(hovered, out var button) && button.IsLoaded)
+            center = button.TranslatePoint(new Point(button.ActualWidth / 2, NotchMetrics.Ring / 2), this);
+        var gap = NotchMetrics.TailGap;
+        var point = settings.Current.Edge switch
+        {
+            NotchEdge.Right => new Point(-popupSize.Width - gap, center.Y - popupSize.Height / 2),
+            NotchEdge.Left => new Point(Width + gap, center.Y - popupSize.Height / 2),
+            NotchEdge.Top => new Point(center.X - popupSize.Width / 2, Height + gap),
+            _ => new Point(center.X - popupSize.Width / 2, -popupSize.Height - gap)
+        };
+        return [new CustomPopupPlacement(point, Vertical ? PopupPrimaryAxis.Vertical : PopupPrimaryAxis.Horizontal)];
     }
     private Screen SelectedScreen() => Screen.AllScreens.FirstOrDefault(x => x.DeviceName == settings.Current.Display) ?? Screen.PrimaryScreen ?? Screen.AllScreens[0];
-    private void Position()
+    private void Position(double? temporaryOffset = null)
     {
         var screen = SelectedScreen(); var area = screen.WorkingArea; var dpi = ScreenScale(screen);
         var position = NotchGeometry.Place(new ScreenArea(area.X, area.Y, area.Width, area.Height), Width * dpi, Height * dpi,
-            settings.Current.Edge, settings.Current.Offset * dpi);
+            settings.Current.Edge, (temporaryOffset ?? settings.Current.Offset) * dpi);
         var handle = new WindowInteropHelper(this).Handle;
         if (handle != IntPtr.Zero) SetWindowPos(handle, new IntPtr(-1), (int)position.X, (int)position.Y, (int)Math.Ceiling(Width * dpi), (int)Math.Ceiling(Height * dpi), 0x10);
     }
     private static double ScreenScale(Screen screen)
     {
         var point = new NativePoint { X = screen.Bounds.X + screen.Bounds.Width / 2, Y = screen.Bounds.Y + screen.Bounds.Height / 2 };
-        var monitor = MonitorFromPoint(point, 2);
-        return GetDpiForMonitor(monitor, 0, out var x, out _) == 0 ? Math.Max(96, x) / 96d : 1;
+        return GetDpiForMonitor(MonitorFromPoint(point, 2), 0, out var x, out _) == 0 ? Math.Max(96, x) / 96d : 1;
     }
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NativePoint { public int X; public int Y; }
+    [StructLayout(LayoutKind.Sequential)] private struct NativePoint { public int X; public int Y; }
 #pragma warning disable SYSLIB1054
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [DllImport("user32.dll")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [DllImport("user32.dll")]
     private static extern IntPtr MonitorFromPoint(NativePoint point, uint flags);
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [DllImport("shcore.dll")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [DllImport("shcore.dll")]
     private static extern int GetDpiForMonitor(IntPtr monitor, int type, out uint x, out uint y);
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [DllImport("user32.dll", SetLastError = true)]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)] [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowPos(IntPtr window, IntPtr after, int x, int y, int width, int height, uint flags);
 #pragma warning restore SYSLIB1054
+}
+internal static class DrawingPointExtensions
+{
+    internal static Point ToPoint(this System.Drawing.Point point) => new(point.X, point.Y);
 }

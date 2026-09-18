@@ -20,6 +20,10 @@ public sealed record AppSettings(
     public string Gradient { get; init; } = "Aurora";
     public bool AnimateGradient { get; init; }
     public bool ShowRemaining { get; init; }
+    public string ResetTime { get; init; } = "Relative";
+    public string ControlsPosition { get; init; } = "Auto";
+    public bool ShowUsagePace { get; init; }
+    public bool PeekOnCompletion { get; init; } = true;
     public bool ReduceMotion { get; init; }
     public bool AlertsEnabled { get; init; } = true;
     public bool CompletionSound { get; init; }
@@ -74,7 +78,7 @@ public sealed class AppSettingsStore
             File.WriteAllText(temporaryPath, json);
             File.Move(temporaryPath, settingsPath, true);
             Current = settings;
-            SettingsChanged?.Invoke(this, EventArgs.Empty);
+
         }
         catch
         {
@@ -102,6 +106,7 @@ public sealed class AppSettingsStore
                 // A stale temporary file is harmless and will be replaced on the next save.
             }
         }
+        SettingsChanged?.Invoke(this, EventArgs.Empty);
     }
 
     private AppSettings Load()
@@ -138,6 +143,8 @@ public sealed class AppSettingsStore
             : AppSettings.Default.RefreshIntervalSeconds;
         return settings with
         {
+            ResetTime = settings.ResetTime is "Relative" or "Absolute" ? settings.ResetTime : "Relative",
+            ControlsPosition = settings.ControlsPosition is "Auto" or "Start" or "End" ? settings.ControlsPosition : "Auto",
             NumberStyle = numberStyle,
             WeekStart = weekStart,
             RefreshIntervalSeconds = refreshInterval,

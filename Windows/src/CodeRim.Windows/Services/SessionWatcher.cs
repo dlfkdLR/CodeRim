@@ -117,8 +117,8 @@ internal sealed class SessionWatcher : IDisposable
             {
                 pendingChangedPaths.Add(Path.GetFullPath(changedPath));
             }
-            debounceTimer?.Dispose();
-            debounceTimer = new System.Threading.Timer(
+            if (pendingChangedPaths.Count > 4096) { requiresFullRefresh = true; pendingChangedPaths.Clear(); }
+            debounceTimer ??= new System.Threading.Timer(
                 _ => NotifyChangeIfActive(),
                 null,
                 TimeSpan.FromSeconds(2),
@@ -136,6 +136,8 @@ internal sealed class SessionWatcher : IDisposable
                 return;
             }
 
+            debounceTimer?.Dispose();
+            debounceTimer = null;
             changedPaths = requiresFullRefresh ? null : pendingChangedPaths.ToArray();
             requiresFullRefresh = false;
             pendingChangedPaths.Clear();

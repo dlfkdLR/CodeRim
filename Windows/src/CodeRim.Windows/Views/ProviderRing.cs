@@ -10,53 +10,49 @@ namespace CodeRim.Windows.Views;
 
 internal sealed class ProviderRing : FrameworkElement
 {
-    private static readonly Dictionary<string, Geometry?> Glyphs = new(StringComparer.Ordinal);
     public string ProviderId { get; set; } = "codex";
     public ProviderReading? Reading { get; set; }
     public AppSettings Settings { get; set; } = AppSettings.Default;
     public bool Active { get; set; }
+    public bool Waiting { get; set; }
+    public bool Refreshing { get; set; }
     public double Phase { get; set; }
-    public ProviderRing() { Width = 60; Height = 74; }
+    public ProviderRing() { Width = NotchMetrics.Ring; Height = NotchMetrics.CellHeight; }
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
-        var center = new Point(30, 25);
-        dc.DrawEllipse(null, new Pen(Ui.Brush("#303030"), 4), center, 20, 20);
-        var percent = Reading?.Headline?.UsedPercent;
+        var center = new Point(22, 22); const double radius = 19;
+        var reading = Reading?.Evaluated(DateTimeOffset.Now);
+        var stale = reading?.State is ReadingState.Stale or ReadingState.Error;
+        dc.PushOpacity(stale ? 0.6 : 1);
+        dc.DrawEllipse(null, new Pen(Ui.Brush("#303030"), 5.8), center, radius, radius);
+        var percent = reading?.Headline?.UsedPercent;
         var fraction = percent.HasValue ? Math.Clamp((Settings.ShowRemaining ? 100 - percent.Value : percent.Value) / 100, 0, 1) : 0;
         var color = Settings.RingColor == RingColorMode.Usage ? NotchGeometry.BandColor(percent) : Settings.Accent;
-        var segments = Math.Max(0, (int)Math.Ceiling(fraction * 100));
-        for (var i = 0; i < segments; i++)
+        for (var i = 0; i < Math.Ceiling(fraction * 120); i++)
         {
-            var start = -Math.PI / 2 + i / 100d * Math.PI * 2;
-            var end = -Math.PI / 2 + Math.Min(fraction, (i + 1) / 100d) * Math.PI * 2;
-            var brush = Settings.RingColor == RingColorMode.Gradient ? Gradient(i / 100d + Phase) : Ui.Brush(color);
-            dc.DrawLine(new Pen(brush, 4) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round },
-                new Point(center.X + Math.Cos(start) * 20, center.Y + Math.Sin(start) * 20), new Point(center.X + Math.Cos(end) * 20, center.Y + Math.Sin(end) * 20));
+            var start = -Math.PI / 2 + i / 120d * Math.PI * 2;
+            var end = -Math.PI / 2 + Math.Min(fraction, (i + 1) / 120d) * Math.PI * 2;
+            var brush = Settings.RingColor == RingColorMode.Gradient ? Gradient(i / 120d + Phase) : Ui.Brush(color);
+            dc.DrawLine(new Pen(brush, 3) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round },
+                new Point(center.X + Math.Cos(start) * radius, center.Y + Math.Sin(start) * radius), new Point(center.X + Math.Cos(end) * radius, center.Y + Math.Sin(end) * radius));
         }
-        if (Active) dc.DrawEllipse(Ui.Brush("#00FF88"), null, new Point(48, 8), 3, 3);
-        if (Glyph(ProviderId) is { } glyph)
+        ProviderMark.Draw(dc, ProviderId, new Rect(13.35, 13.35, 17.3, 17.3));
+        if (Active || Refreshing)
         {
-            var bounds = glyph.Bounds;
-            var scale = 20 / Math.Max(bounds.Width, bounds.Height);
-            dc.PushTransform(new TranslateTransform(center.X - bounds.Width * scale / 2, center.Y - bounds.Height * scale / 2));
-            dc.PushTransform(new ScaleTransform(scale, scale)); dc.PushTransform(new TranslateTransform(-bounds.X, -bounds.Y));
-            dc.DrawGeometry(Brushes.White, null, glyph); dc.Pop(); dc.Pop(); dc.Pop();
+            var angle = Phase * Math.PI * 2;
+            dc.DrawEllipse(Brushes.White, null, new Point(22 + Math.Sin(angle) * 13, 22 - Math.Cos(angle) * 13), 1.5, 1.5);
         }
-        else DrawText(dc, ProviderCatalog.Find(ProviderId)?.Name[..1] ?? "?", 18, new Point(30, 13));
+        if (Waiting) dc.DrawEllipse(Ui.Brush("#F2FF00"), null, new Point(39, 4), 3, 3);
         var label = percent is { } used ? Percent(Settings.ShowRemaining ? Math.Clamp(100 - used, 0, 100) : used) + "%"
-            : Reading?.Headline?.UsedCount is { } count ? TokenFormatter.Format(count, Settings.NumberStyle)
-            : Reading?.Headline?.RemainingCount is { } remaining ? TokenFormatter.Format(remaining, Settings.NumberStyle) : "—";
-        DrawText(dc, label, 13, new Point(30, 52));
-        Opacity = Reading?.State is ReadingState.Stale or ReadingState.Error ? 0.6 : 1;
+            : reading?.Headline?.UsedCount is { } count ? TokenFormatter.Format(count, Settings.NumberStyle)
+            : reading?.Headline?.RemainingCount is { } remaining ? TokenFormatter.Format(remaining, Settings.NumberStyle) : "—";
+        var formatted = new FormattedText(label, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
+            new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal), 14, Brushes.White, VisualTreeHelper.GetDpi(this).PixelsPerDip);
+        dc.DrawText(formatted, new Point(22 - formatted.Width / 2, 54));
+        dc.Pop();
     }
     private static string Percent(double value) => value is > 0 and < 0.1 ? "<0.1" : value is > 0 and < 1 ? value.ToString("0.0", CultureInfo.InvariantCulture) : Math.Round(value, MidpointRounding.AwayFromZero).ToString(CultureInfo.InvariantCulture);
-    private void DrawText(DrawingContext dc, string text, double size, Point center)
-    {
-        var formatted = new FormattedText(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
-            new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal), size, Brushes.White, VisualTreeHelper.GetDpi(this).PixelsPerDip);
-        dc.DrawText(formatted, new Point(center.X - formatted.Width / 2, center.Y));
-    }
     private SolidColorBrush Gradient(double position)
     {
         string[] colors = Settings.Gradient switch
@@ -70,18 +66,57 @@ internal sealed class ProviderRing : FrameworkElement
         var a = Ui.Brush(colors[i]).Color; var b = Ui.Brush(colors[i + 1]).Color;
         return new SolidColorBrush(Color.FromRgb((byte)(a.R + (b.R - a.R) * mix), (byte)(a.G + (b.G - a.G) * mix), (byte)(a.B + (b.B - a.B) * mix)));
     }
+}
+
+internal sealed class ProviderMark : FrameworkElement
+{
+    private static readonly Dictionary<string, Geometry?> Glyphs = new(StringComparer.Ordinal);
+    public string ProviderId { get; set; } = "codex";
+    protected override void OnRender(DrawingContext dc) => Draw(dc, ProviderId, new Rect(0, 0, ActualWidth, ActualHeight));
+    internal static void Draw(DrawingContext dc, string id, Rect target)
+    {
+        if (Glyph(id) is not { } glyph)
+        {
+            var name = ProviderCatalog.Find(id)?.Name ?? "?";
+            var text = new FormattedText(name[..1], CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), target.Height, Brushes.White, 1);
+            dc.DrawText(text, new Point(target.X + (target.Width - text.Width) / 2, target.Y)); return;
+        }
+        var bounds = glyph.Bounds;
+        if (bounds.IsEmpty || bounds.Width <= 0 || bounds.Height <= 0) return;
+        var scale = Math.Min(target.Width / bounds.Width, target.Height / bounds.Height);
+        dc.PushTransform(new TranslateTransform(target.X + (target.Width - bounds.Width * scale) / 2, target.Y + (target.Height - bounds.Height * scale) / 2));
+        dc.PushTransform(new ScaleTransform(scale, scale)); dc.PushTransform(new TranslateTransform(-bounds.X, -bounds.Y));
+        dc.DrawGeometry(Brushes.White, null, glyph); dc.Pop(); dc.Pop(); dc.Pop();
+    }
     private static Geometry? Glyph(string id)
     {
         if (Glyphs.TryGetValue(id, out var found)) return found;
         try
         {
-            var file = id switch { "codex" => "OpenAI.svg", "claude" => "Claude.svg", _ => "ProviderIcon-" + id + ".svg" };
+            var file = id switch {
+                "codex" or "openai" or "azureopenai" => "OpenAI.svg", "claude" => "Claude.svg",
+                "copilot" or "cursor" or "grok" or "commandcode" or "glm" => "Glyph-" + id + ".svg",
+                "gemini" => "Glyph-antigravity.svg", "gemini-cli" => "Glyph-gemini.svg",
+                "ollama" or "ollama-local" => "Glyph-ollama.svg", "opencode-zen" => "ProviderIcon-opencode.svg",
+                "alibabatokenplan" => "ProviderIcon-alibaba.svg", "moonshot" => "ProviderIcon-kimi.svg",
+                _ => "ProviderIcon-" + id + ".svg" };
             var resource = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/Assets/ProviderLogos/" + file));
             if (resource is null) return Glyphs[id] = null;
             using var stream = resource.Stream;
-            var xml = XDocument.Load(stream); var group = new GeometryGroup();
-            foreach (var path in xml.Descendants().Where(x => x.Name.LocalName == "path"))
-                if (path.Attribute("d")?.Value is { } data) group.Children.Add(Geometry.Parse(data));
+            var xml = XDocument.Load(stream); var group = new GeometryGroup { FillRule = FillRule.Nonzero };
+            foreach (var element in xml.Descendants())
+            {
+                double Number(string name) => double.TryParse(element.Attribute(name)?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var n) ? n : 0;
+                Geometry? geometry = element.Name.LocalName switch
+                {
+                    "path" when element.Attribute("d")?.Value is { } data => Geometry.Parse((element.Attribute("fill-rule")?.Value == "evenodd" ? "F0 " : "F1 ") + data),
+                    "rect" => new RectangleGeometry(new Rect(Number("x"), Number("y"), Number("width"), Number("height")), Number("rx"), Number("ry") == 0 ? Number("rx") : Number("ry")),
+                    "circle" => new EllipseGeometry(new Point(Number("cx"), Number("cy")), Number("r"), Number("r")),
+                    "ellipse" => new EllipseGeometry(new Point(Number("cx"), Number("cy")), Number("rx"), Number("ry")),
+                    _ => null
+                };
+                if (geometry is not null) group.Children.Add(geometry);
+            }
             group.Freeze(); return Glyphs[id] = group.Children.Count > 0 ? group : null;
         }
         catch (Exception e) when (e is System.IO.IOException or FormatException or System.Xml.XmlException) { return Glyphs[id] = null; }

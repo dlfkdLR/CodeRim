@@ -62,6 +62,12 @@ internal sealed class ProviderConnections : IDisposable
     }
     public static string? ResolveCodex()
     {
+        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator))
+        {
+            if (string.IsNullOrWhiteSpace(directory) || !Path.IsPathFullyQualified(directory.Trim('"'))) continue;
+            var executable = Path.Combine(directory.Trim('"'), "codex.exe");
+            if (File.Exists(executable)) return executable;
+        }
         var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenAI", "Codex", "bin");
         if (!Directory.Exists(root)) return null;
         return Directory.EnumerateFiles(root, "codex.exe", new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 3,

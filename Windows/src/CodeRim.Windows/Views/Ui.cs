@@ -25,16 +25,13 @@ internal static class Ui
     public static Button AsyncButton(string label, Func<Task> action)
     {
         var button = Button(label, () => { });
-        button.Click += async (_, _) => { button.IsEnabled = false; try { await action().ConfigureAwait(true); } finally { button.IsEnabled = true; } };
+        button.Click += async (_, _) => { button.IsEnabled = false; try { await action().ConfigureAwait(true); } catch (Exception e) when (e is not OutOfMemoryException) { System.Windows.MessageBox.Show("The action could not be completed. Your saved data has been retained. Please retry.", "CodeRim", MessageBoxButton.OK, MessageBoxImage.Error); } finally { button.IsEnabled = true; } };
         return button;
     }
     public static ComboBox Combo<T>(IEnumerable<T> values, T selected, Action<T> changed)
     {
         var box = new ComboBox { ItemsSource = values, SelectedItem = selected, MinWidth = 150, Margin = new Thickness(0, 5, 0, 10),
-            HorizontalAlignment = HorizontalAlignment.Left, Foreground = SystemColors.ControlTextBrush };
-        // The app's implicit TextBlock style is light for dark panels. Native
-        // ComboBox chrome stays light, so bind generated item text explicitly
-        // to its nearest control (ComboBox or popup ComboBoxItem).
+            HorizontalAlignment = HorizontalAlignment.Left, Foreground = Brushes.White };
         var text = new FrameworkElementFactory(typeof(TextBlock));
         text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding());
         text.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding(nameof(Control.Foreground))

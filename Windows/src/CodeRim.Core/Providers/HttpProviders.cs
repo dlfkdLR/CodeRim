@@ -10,7 +10,7 @@ namespace CodeRim.Core.Providers;
 public sealed class HttpProviders : IDisposable
 {
     private readonly HttpClient client;
-    private readonly Dictionary<string, DateTimeOffset> retryAfter = new(StringComparer.Ordinal);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeOffset> retryAfter = new(StringComparer.Ordinal);
     public static IReadOnlySet<string> Supported { get; } = new HashSet<string>(StringComparer.Ordinal)
         { "copilot", "glm", "ollama-local", "deepseek", "openrouter", "elevenlabs", "moonshot", "synthetic" };
     public HttpProviders(HttpMessageHandler? handler = null)
