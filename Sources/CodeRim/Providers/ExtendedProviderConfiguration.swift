@@ -103,7 +103,27 @@ struct ExtendedProviderConfiguration: Codable, Sendable {
 
 /// A separate, exact Keychain item per provider. No secrets in UserDefaults, logs or CodexBar's config.
 enum ExtendedProviderConfigurationStore {
-    static var service: String { (Bundle.main.bundleIdentifier ?? "dev.codexmeter") + ".extended-providers" }
+    /// The shipping bundle identifier, pinned rather than read.
+    ///
+    /// A Keychain service name is an address, not a version stamp: every saved
+    /// provider credential lives under it, and a service name derived from
+    /// `Bundle.main.bundleIdentifier` moves the moment the identifier does —
+    /// silently, taking every configured provider with it, with no error and
+    /// nothing to migrate back from. The rename to CodeRim already kept this
+    /// identifier for exactly that reason; pinning it here means a *future*
+    /// rename cannot undo that decision by accident.
+    ///
+    /// `KeychainAccountVault` has always pinned its service string
+    /// (`com.hecholp.codexmeter.saved-codex-accounts.v1`), which is why saved
+    /// accounts survived the rename while these would not have. This is the
+    /// same rule applied to the same kind of data.
+    ///
+    /// Unconditional, deliberately: a build with a different identifier is
+    /// still this app on this Mac for this user, and letting it read the
+    /// providers the user configured is not a boundary worth drawing. macOS
+    /// draws the real one — the Keychain item's own ACL prompts when a
+    /// differently-signed binary asks for it.
+    static let service = "dev.codexmeter.CodexMeter.extended-providers"
 
     private static func query(_ id: String) -> [String: Any] {
         [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service,
