@@ -2,6 +2,77 @@ import Foundation
 import XCTest
 @testable import CodeRim
 
+/// These rows come out of a `Dictionary` and are ordered with an unstable
+/// sort, so a comparator that stops at the token total leaves tied rows in an
+/// order that varies between runs of the same process and between launches.
+/// It surfaced as an intermittent test failure; what the user would see is an
+/// analytics list that reshuffles on refresh for no reason.
+final class AnalyticsOrderingTests: XCTestCase {
+    private func project(_ id: String, name: String, tokens: Int64) -> ProjectUsageSummary {
+        ProjectUsageSummary(
+            id: id, name: name,
+            usage: TokenUsage(inputTokens: tokens, cachedInputTokens: 0, outputTokens: 0),
+            models: [], sessionCount: 1
+        )
+    }
+
+    func testProjectsTiedOnTokensAreOrderedByNameThenIdentifier() {
+        let tied = [project("z-id", name: "Codex", tokens: 100),
+                    project("a-id", name: "Codex", tokens: 100),
+                    project("m-id", name: "Alpha", tokens: 100),
+                    project("big", name: "Zeta", tokens: 500)]
+
+        let ordered = tied.sorted(by: ProjectUsageSummary.byUsageThenName)
+        XCTAssertEqual(ordered.map(\.id), ["big", "m-id", "a-id", "z-id"])
+
+        // Same set, any input order, same answer — that is the whole point.
+        XCTAssertEqual(tied.reversed().sorted(by: ProjectUsageSummary.byUsageThenName).map(\.id),
+                       ordered.map(\.id))
+        XCTAssertEqual(tied.shuffled().sorted(by: ProjectUsageSummary.byUsageThenName).map(\.id),
+                       ordered.map(\.id))
+    }
+
+    func testModelsTiedOnTokensAreOrderedByIdentifier() {
+        let models = ["gpt-6-astra", "claude-opus-5", "unknown"].map {
+            ModelUsageSummary(modelID: $0 == "unknown" ? nil : $0,
+                              usage: TokenUsage(inputTokens: 10, cachedInputTokens: 0, outputTokens: 0))
+        }
+
+        let ordered = models.sorted(by: ModelUsageSummary.byUsageThenName).map(\.id)
+        XCTAssertEqual(ordered, ["claude-opus-5", "gpt-6-astra", "unknown-model"])
+        XCTAssertEqual(models.reversed().sorted(by: ModelUsageSummary.byUsageThenName).map(\.id),
+                       ordered)
+    }
+
+    func testSessionsSharingATimestampAreOrderedByIdentifier() {
+        let moment = Date(timeIntervalSince1970: 1_700_000_000)
+        let sessions = ["c", "a", "b"].map {
+            SessionUsageSummary(id: $0, projectID: nil, projectName: nil, startedAt: nil,
+                                lastActivityAt: moment, usage: .zero, models: [],
+                                directSubagentCount: 0, imageAttachmentCount: 0,
+                                parentSessionID: nil)
+        }
+
+        XCTAssertEqual(sessions.sorted(by: SessionUsageSummary.byActivityThenID).map(\.id),
+                       ["a", "b", "c"])
+    }
+
+    /// The newest session still comes first; the tiebreaker only settles ties.
+    func testANewerSessionStillWinsRegardlessOfIdentifier() {
+        let older = SessionUsageSummary(id: "a", projectID: nil, projectName: nil, startedAt: nil,
+                                        lastActivityAt: Date(timeIntervalSince1970: 1_000),
+                                        usage: .zero, models: [], directSubagentCount: 0,
+                                        imageAttachmentCount: 0, parentSessionID: nil)
+        let newer = SessionUsageSummary(id: "z", projectID: nil, projectName: nil, startedAt: nil,
+                                        lastActivityAt: Date(timeIntervalSince1970: 2_000),
+                                        usage: .zero, models: [], directSubagentCount: 0,
+                                        imageAttachmentCount: 0, parentSessionID: nil)
+
+        XCTAssertEqual([older, newer].sorted(by: SessionUsageSummary.byActivityThenID).map(\.id),
+                       ["z", "a"])
+    }
+}
+
 final class AggregationServiceTests: XCTestCase {
     func testTotalCountsCachedInputOnlyAsPartOfInput() {
         let usage = TokenUsage(inputTokens: 1_200, cachedInputTokens: 800, outputTokens: 300)

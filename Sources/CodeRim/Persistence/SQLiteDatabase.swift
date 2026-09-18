@@ -656,7 +656,7 @@ actor SQLiteDatabase {
                 rows[key] = row
             case SQLITE_DONE:
                 return rows.values.map { $0.accumulator.summary(modelID: $0.modelID) }
-                    .sorted { $0.usage.totalTokens > $1.usage.totalTokens }
+                    .sorted(by: ModelUsageSummary.byUsageThenName)
             default:
                 throw SQLiteDatabaseError.step(errorMessage)
             }
@@ -731,7 +731,7 @@ actor SQLiteDatabase {
                         end: interval.end,
                         models: grouped[index].values
                             .map { $0.accumulator.summary(modelID: $0.modelID) }
-                            .sorted { $0.usage.totalTokens > $1.usage.totalTokens }
+                            .sorted(by: ModelUsageSummary.byUsageThenName)
                     )
                 }
             default:
@@ -788,7 +788,7 @@ actor SQLiteDatabase {
                 return projects.map { projectID, accumulator in
                     let models = accumulator.models.values
                         .map { $0.accumulator.summary(modelID: $0.modelID) }
-                        .sorted { $0.usage.totalTokens > $1.usage.totalTokens }
+                        .sorted(by: ModelUsageSummary.byUsageThenName)
                     let usage = models.reduce(TokenUsage.zero) { $0.adding($1.usage) }
                     return ProjectUsageSummary(
                         id: projectID,
@@ -797,7 +797,7 @@ actor SQLiteDatabase {
                         models: models,
                         sessionCount: counts[projectID] ?? 0
                     )
-                }.sorted { $0.usage.totalTokens > $1.usage.totalTokens }
+                }.sorted(by: ProjectUsageSummary.byUsageThenName)
             default:
                 throw SQLiteDatabaseError.step(errorMessage)
             }
@@ -929,7 +929,7 @@ actor SQLiteDatabase {
                 return sessions.map { sessionID, accumulator in
                     let models = accumulator.models.values
                         .map { $0.accumulator.summary(modelID: $0.modelID) }
-                        .sorted { $0.usage.totalTokens > $1.usage.totalTokens }
+                        .sorted(by: ModelUsageSummary.byUsageThenName)
                     return SessionUsageSummary(
                         id: sessionID,
                         projectID: accumulator.projectID,
@@ -942,7 +942,7 @@ actor SQLiteDatabase {
                         imageAttachmentCount: accumulator.imageAttachmentCount,
                         parentSessionID: accumulator.parentSessionID
                     )
-                }.sorted { $0.lastActivityAt > $1.lastActivityAt }
+                }.sorted(by: SessionUsageSummary.byActivityThenID)
             default:
                 throw SQLiteDatabaseError.step(errorMessage)
             }

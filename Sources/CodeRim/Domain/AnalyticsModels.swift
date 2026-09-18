@@ -64,6 +64,24 @@ struct ModelUsageSummary: Equatable, Sendable, Identifiable {
 
     var id: String { modelID ?? "unknown-model" }
     var displayName: String { modelID ?? "Unknown Model" }
+
+    /// Ordering for the analytics lists.
+    ///
+    /// Every one of these rows is built by mapping a `Dictionary`, whose order is
+    /// arbitrary and reseeded per process, and `sorted(by:)` is not stable — so a
+    /// comparator that only looks at the token total leaves rows that *tie* in
+    /// whatever order the sort happened to land them. Two projects with the same
+    /// total would swap places between refreshes, and again after a relaunch, for
+    /// no reason the user can see.
+    ///
+    /// Each comparator therefore ends in a total order: a tiebreaker on identity,
+    /// which never ties, so the same data always produces the same list.
+    static func byUsageThenName(_ lhs: Self, _ rhs: Self) -> Bool {
+        guard lhs.usage.totalTokens == rhs.usage.totalTokens else {
+            return lhs.usage.totalTokens > rhs.usage.totalTokens
+        }
+        return lhs.id < rhs.id
+    }
 }
 
 struct UsageBucket: Equatable, Sendable, Identifiable {
@@ -83,6 +101,17 @@ struct ProjectUsageSummary: Equatable, Sendable, Identifiable {
     let usage: TokenUsage
     let models: [ModelUsageSummary]
     let sessionCount: Int
+
+    /// See `ModelUsageSummary.byUsageThenName`. Name first so a tie reads
+    /// alphabetically rather than by an opaque identifier, then the id, which
+    /// is unique and settles two projects that share a name.
+    static func byUsageThenName(_ lhs: Self, _ rhs: Self) -> Bool {
+        guard lhs.usage.totalTokens == rhs.usage.totalTokens else {
+            return lhs.usage.totalTokens > rhs.usage.totalTokens
+        }
+        guard lhs.name == rhs.name else { return lhs.name < rhs.name }
+        return lhs.id < rhs.id
+    }
 }
 
 struct SessionUsageSummary: Equatable, Sendable, Identifiable {
@@ -100,6 +129,15 @@ struct SessionUsageSummary: Equatable, Sendable, Identifiable {
     var displayName: String {
         if let projectName, !projectName.isEmpty { return projectName }
         return "Session \(id.prefix(8))"
+    }
+
+    /// See `ModelUsageSummary.byUsageThenName`. Sessions recorded in the same
+    /// second are common — a batch import gives a whole run one timestamp.
+    static func byActivityThenID(_ lhs: Self, _ rhs: Self) -> Bool {
+        guard lhs.lastActivityAt == rhs.lastActivityAt else {
+            return lhs.lastActivityAt > rhs.lastActivityAt
+        }
+        return lhs.id < rhs.id
     }
 }
 
