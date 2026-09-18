@@ -184,6 +184,35 @@ final class CodexActivityTests: XCTestCase {
     }
 
 
+    /// A tool result that quotes a boundary marker — reviewing this very file
+    /// would do it — makes the record a decoding candidate. Chunked scanning
+    /// dropped the old 8 MB tail ceiling, so nothing else stops that record
+    /// from being read into memory whole, on a timer, only to fail the JSON
+    /// parse. The real start event behind it still has to be found.
+    func testAnEnormousRecordQuotingAMarkerIsNotMaterialized() throws {
+        let began = now.addingTimeInterval(-600)
+        let quoted = "{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\","
+            + "\"output\":\"reviewing \\\"task_complete\\\" handling: "
+            + String(repeating: "x", count: CodexTurnActivity.maximumRecordBytes + 4_096)
+            + "\"}}\n"
+        let url = try thread("oversized-record", body: event("task_started", at: began) + quoted)
+
+        XCTAssertEqual(CodexTurnActivity.read(url), .init(isRunning: true, since: began))
+    }
+
+    /// The ceiling is on one record, not on the file: a real boundary event
+    /// sitting after a record over the ceiling is still found.
+    func testARealBoundaryAfterAnOversizedRecordIsStillRead() throws {
+        let quoted = "{\"type\":\"response_item\",\"payload\":{\"type\":\"function_call_output\","
+            + "\"output\":\"\\\"task_started\\\" "
+            + String(repeating: "x", count: CodexTurnActivity.maximumRecordBytes + 4_096)
+            + "\"}}\n"
+        let url = try thread("oversized-then-real",
+                             body: quoted + event("task_complete", at: now))
+
+        XCTAssertEqual(CodexTurnActivity.read(url), .init(isRunning: false, since: now))
+    }
+
     private func append(_ text: String, to url: URL) throws {
         let handle = try FileHandle(forWritingTo: url)
         defer { try? handle.close() }
