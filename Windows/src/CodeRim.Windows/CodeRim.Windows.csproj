@@ -30,6 +30,5 @@
     <ProjectReference Include="..\CodeRim.Core\CodeRim.Core.csproj" />
     <Resource Include="Assets\CodeRim.ico" />
     <Resource Include="Assets\ProviderLogos\*.svg" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
   </ItemGroup>
 </Project>
