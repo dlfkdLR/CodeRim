@@ -25,3 +25,8 @@ xcuserdata/
 *.jks
 *.keystore
 .vscode/
+
+# Finder / iCloud duplication artifacts ("File 2.swift"), which SwiftPM would
+# compile as a second copy of every type the original declares.
+* [0-9].*
+* [0-9][0-9].*
