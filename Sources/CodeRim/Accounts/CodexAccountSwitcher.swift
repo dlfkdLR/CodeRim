@@ -146,7 +146,7 @@ struct CodexAccountSwitchConfirmation: ViewModifier {
             }
             .disabled(accounts.isBusy)
         } message: { account in
-            Text("Codex will quit and reopen as \(account.menuTitle(in: accounts.accounts)). Finish any running tasks and save your work first. Other Codex processes must also be closed.")
+            Text("Codex will quit and reopen as \(account.menuTitle(in: accounts.accounts)). The same login applies to the CLI. Finish your work and close CLI or editor sessions before switching, then start new sessions afterward.")
         }
     }
 }

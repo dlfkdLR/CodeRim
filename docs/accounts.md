@@ -4,11 +4,11 @@ Use the notch's account control to open Codex Accounts or Claude Accounts. Add, 
 
 ## Codex
 
-Saved logins are stored in this Mac's Keychain. Switching asks for confirmation and may restart Codex. Close active Codex clients when prompted so credentials can be replaced safely. An expired or revoked login may require official sign-in again.
+Saved logins are stored in this Mac's Keychain. Switching asks for confirmation and may restart Codex. Close active Codex clients when prompted so credentials can be replaced safely. The selected account also applies to new `codex` CLI sessions through the shared login. Restart existing CLI sessions after switching. CodeRim checks the official CLI's local account status before reporting success; an unavailable or mismatched result is shown as an unverified switch. An expired or revoked login may require official sign-in again.
 
 ## Claude Code
 
-Sign in through the official Claude CLI, then add the account in CodeRim. **Add Account** opens an isolated official CLI browser flow. Close Claude Code sessions before switching and confirm the change. Custom configuration homes, API-key setups, and managed authentication must be handled through Claude Code itself.
+Sign in through the official Claude CLI, then add the account in CodeRim. **Add Account** opens an isolated official CLI browser flow. Close Claude Code sessions before switching and confirm the change. The shared CLI credentials and profile are updated together, and `claude auth status` is checked against the selected email and organization. Start a new CLI session to use the selected account. Custom configuration homes, API-key setups, and managed authentication must be handled through Claude Code itself.
 
 ## History and credentials
 

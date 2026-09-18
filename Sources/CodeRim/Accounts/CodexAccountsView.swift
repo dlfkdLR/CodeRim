@@ -18,7 +18,7 @@ struct CodexAccountsView: View {
                 }
             }
             .padding(.bottom, 8)
-            Text("Select an account to use in Codex.")
+            Text("Select an account for Codex and its CLI.")
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 20)
 

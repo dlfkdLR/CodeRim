@@ -166,6 +166,7 @@ final class CodexAccountStore: ObservableObject {
         }
         var committed = false
         var didQuit = false
+        var didReopen = false
         do {
             let lease = try acquireLock()
             defer { withExtendedLifetime(lease) {} }
@@ -177,7 +178,12 @@ final class CodexAccountStore: ObservableObject {
             guard selected.id == id else { throw AccountSwitchError.invalidLogin }
             try await runtime.checkPolicy(for: selected.workspaceID)
             let beforeQuit = try readCurrentAccount()
-            if beforeQuit?.id == id { updateCurrentMetadata(beforeQuit); succeed("This account is already active."); return }
+            if beforeQuit?.id == id {
+                updateCurrentMetadata(beforeQuit)
+                try await verifyCLIAccount(selected)
+                succeed("This account is already active for Codex and new CLI sessions.")
+                return
+            }
             // Do not refresh a copied credential in a disposable process. Official
             // Codex owns renewal after restart, in its canonical auth.json; a failed
             // preflight RPC must never discard the only rotated refresh token.
@@ -195,16 +201,31 @@ final class CodexAccountStore: ObservableObject {
             committed = true
             updateCurrentMetadata(selected)
             try await runtime.openCodex()
-            succeed("Saved login applied and Codex reopened. If the login has expired, sign in again in Codex.")
+            didReopen = true
+            try await verifyCLIAccount(selected)
+            succeed("Account switched for Codex and new CLI sessions. Restart existing CLI sessions to use it.")
         } catch {
             if committed {
+                updateCurrentMetadata(try? readCurrentAccount())
                 isError = true
-                message = "The login was changed, but Codex could not reopen. Open Codex from Applications."
+                message = didReopen ? AccountSwitchError.cliVerificationFailed.errorDescription
+                    : "The shared Codex login was changed, but Codex could not reopen. Open Codex from Applications and restart your CLI sessions."
             } else {
                 if didQuit { try? await runtime.openCodex() }
                 fail(error)
             }
         }
+    }
+
+    private func verifyCLIAccount(_ account: SavedCodexAccount) async throws {
+        let verified: Bool
+        do { try await runtime.verifyCLIAccount(account); verified = true }
+        catch { verified = false }
+        // A failed probe can also race an external sign-in. Refresh the badge
+        // even when this operation did not write (the account was already active).
+        let current = try? readCurrentAccount()
+        updateCurrentMetadata(current)
+        guard verified, current?.id == account.id else { throw AccountSwitchError.cliVerificationFailed }
     }
 
     private func upsert(_ account: SavedCodexAccount) throws {

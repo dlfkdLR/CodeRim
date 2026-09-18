@@ -455,6 +455,7 @@ final class AccountLayoutLogin: CodexLoginStoring {
 
 @MainActor
 final class AccountLayoutRuntime: CodexAccountRuntime {
+    func verifyCLIAccount(_ account: SavedCodexAccount) async throws { applicationActionCount += 1 }
     var policyError: AccountSwitchError?
     private(set) var applicationActionCount = 0
     private var signInContinuation: CheckedContinuation<SavedCodexAccount, Error>?

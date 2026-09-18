@@ -142,6 +142,66 @@ final class ClaudeAccountStoreTests: XCTestCase {
         XCTAssertFalse(fixture.store.isError)
     }
 
+    func testCLIProbeRunsAfterSharedLoginCommit() async throws {
+        let fixture = try ClaudeAccountFixture()
+        let destination = try ClaudeAccountFixture.saved("two")
+        fixture.vault.accounts = [destination]
+        fixture.runtime.onVerify = { XCTAssertEqual(try? fixture.login.value.account()?.id, destination.id) }
+        await fixture.store.switchAccount(to: destination.id)
+        XCTAssertEqual(fixture.runtime.verifiedIDs, [destination.id])
+        XCTAssertFalse(fixture.store.isError)
+    }
+
+    func testCLIVerificationFailureKeepsNewLoginAndFinishesInvalidation() async throws {
+        let fixture = try ClaudeAccountFixture()
+        let destination = try ClaudeAccountFixture.saved("two")
+        fixture.vault.accounts = [destination]
+        fixture.runtime.verificationFails = true
+        var finished = 0
+        fixture.store.onDidSwitch = { finished += 1 }
+        await fixture.store.switchAccount(to: destination.id)
+        XCTAssertEqual(try fixture.login.value.account()?.id, destination.id)
+        XCTAssertEqual(fixture.login.writes, 1)
+        XCTAssertEqual(fixture.store.currentID, destination.id)
+        XCTAssertEqual(finished, 1)
+        XCTAssertTrue(fixture.store.isError)
+        XCTAssertEqual(fixture.store.message, ClaudeAccountError.cliVerificationFailed.errorDescription)
+    }
+
+    func testCLIProbeDetectsConcurrentAccountChangeWithoutRestoringOldTokens() async throws {
+        let fixture = try ClaudeAccountFixture()
+        let destination = try ClaudeAccountFixture.saved("two")
+        let concurrent = try ClaudeAccountFixture.snapshot("three")
+        fixture.vault.accounts = [destination]
+        fixture.runtime.onVerify = { fixture.login.value = concurrent }
+        await fixture.store.switchAccount(to: destination.id)
+        XCTAssertEqual(fixture.login.value, concurrent)
+        XCTAssertEqual(fixture.store.currentID, try concurrent.account()?.id)
+        XCTAssertTrue(fixture.store.isError)
+    }
+
+    func testFailedAlreadyActiveProbeClearsBadgeAfterExternalSignOut() async throws {
+        let fixture = try ClaudeAccountFixture()
+        let current = try ClaudeAccountFixture.saved("one")
+        fixture.vault.accounts = [current]
+        fixture.runtime.onVerify = { fixture.login.value = ClaudeLoginSnapshot(credentials: nil, configuration: nil) }
+        fixture.runtime.verificationFails = true
+        await fixture.store.switchAccount(to: current.id)
+        XCTAssertNil(fixture.store.currentID)
+        XCTAssertEqual(fixture.login.writes, 0)
+        XCTAssertTrue(fixture.store.isError)
+    }
+
+    func testAlreadySelectedClaudeAccountStillChecksCLIWithoutWriting() async throws {
+        let fixture = try ClaudeAccountFixture()
+        let current = try ClaudeAccountFixture.saved("one")
+        fixture.vault.accounts = [current]
+        await fixture.store.switchAccount(to: current.id)
+        XCTAssertEqual(fixture.runtime.verifiedIDs, [current.id])
+        XCTAssertEqual(fixture.login.writes, 0)
+        XCTAssertFalse(fixture.store.isError)
+    }
+
     func testRunningClaudeBlocksSwitchWithoutStoppingSessions() async throws {
         let fixture = try ClaudeAccountFixture()
         let destination = try ClaudeAccountFixture.saved("two")
@@ -266,6 +326,14 @@ final class TestClaudeAccountRuntime: ClaudeAccountRuntime {
     var holdSignIn = false
     var running = false
     var policyBlocked = false
+    var verificationFails = false
+    var verifiedIDs: [String] = []
+    var onVerify: () -> Void = {}
+    func verifyCLIAccount(_ account: SavedClaudeAccount) async throws {
+        verifiedIDs.append(account.id)
+        onVerify()
+        if verificationFails { throw ClaudeAccountError.cliVerificationFailed }
+    }
     func checkPolicy() throws { if policyBlocked { throw ClaudeAccountError.policy } }
     func requireStopped() throws { if running { throw ClaudeAccountError.running } }
     func signIn() async throws -> SavedClaudeAccount {
