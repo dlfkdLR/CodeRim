@@ -21,15 +21,20 @@ CodeRim은 화면 가장자리의 작은 노치에 사용 한도, 초기화 시�
 
 **macOS 14 이상 · Apple Silicon 및 Intel 지원.**
 
-[![macOS용 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.1/CodeRim-2.1.1.dmg)
+[![macOS용 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.5/CodeRim-2.1.5.dmg)
 
 ```sh
+brew tap dlfkdLR/tap &&
 brew install --cask dlfkdLR/tap/coderim
 ```
 
 이 앱은 **임시 서명(ad-hoc)되어 있으며, Apple 공증은 받지 않았습니다**. 체크섬 검증, macOS 실행 허용, CodexMeter에서의 이전 방법은 [설치 및 첫 실행 안내](docs/installation.md)를 참고하세요.
 
+Homebrew에서 cask를 사용할 수 없다는 메시지가 표시되거나 이전 `CodexMeter.app`을 찾지 못하면 [설치 문제 해결 안내](docs/troubleshooting.md#homebrew-cannot-find-the-coderim-cask)를 따르세요.
+
 **Settings → Providers → Add Provider**를 열어 사용하는 도구를 연결한 뒤, 링 위에 마우스 포인터를 올려보세요. [시작하기](docs/getting-started.md).
+
+Windows 11 x64·ARM64용 [구현 프리뷰](Documentation/WINDOWS.md)도 제공합니다. 아직 macOS의 모든 기능을 지원하지는 않습니다.
 
 ## 지원 제공업체
 

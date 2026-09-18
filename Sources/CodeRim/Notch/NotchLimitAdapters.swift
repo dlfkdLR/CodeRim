@@ -79,6 +79,7 @@ final class CodexNotchProvider: NotchProvider {
         // A reset credit changes the server quota immediately. A user refresh
         // must read it instead of re-rendering the pre-reset cached snapshot.
         // Keep background bridge updates read-only to avoid a polling loop.
+        accounts.refreshCurrentPlanType()
         if ProviderInteractionContext.current == .userInitiated {
             await limits.refresh()
         }

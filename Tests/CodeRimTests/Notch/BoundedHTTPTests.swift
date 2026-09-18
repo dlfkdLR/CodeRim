@@ -56,6 +56,29 @@ final class BoundedHTTPTests: XCTestCase {
         }
     }
 
+    func testUndeclaredOversizeBodyIsCancelledBeforeEOF() async throws {
+        server.respond(with: Data(repeating: 0x61, count: 65_536), declaringLength: false, holdOpen: true)
+        let start = ContinuousClock.now
+        do {
+            _ = try await BoundedHTTP.data(for: URLRequest(url: server.url), on: .shared, maximumBytes: 4_096)
+            XCTFail("oversize body was accepted")
+        } catch NotchProviderError.responseTooLarge {}
+        XCTAssertLessThan(start.duration(to: .now), .seconds(2), "Must reject before the server's delayed EOF")
+    }
+
+    func testCallerCancellationDoesNotWaitForEOF() async throws {
+        server.respond(with: Data([0x61]), declaringLength: false, holdOpen: true)
+        let url = server.url
+        let task = Task { try await BoundedHTTP.data(for: URLRequest(url: url), on: .shared) }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while server.requests.isEmpty, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
+        let start = ContinuousClock.now
+        task.cancel()
+        do { _ = try await task.value; XCTFail("cancelled request succeeded") }
+        catch { XCTAssertTrue(error is CancellationError || (error as? URLError)?.code == .cancelled) }
+        XCTAssertLessThan(start.duration(to: .now), .seconds(2))
+    }
+
     /// A body exactly at the ceiling is legitimate and must not be refused.
     func testABodyAtTheCeilingIsAccepted() async throws {
         let payload = Data(repeating: 0x61, count: 4_096)
@@ -165,6 +188,8 @@ private final class LocalHTTPServer: @unchecked Sendable {
     private let port: UInt16
     private var payload = Data()
     private var declaresLength = true
+    private var holdOpen = false
+    private let finishBody = DispatchSemaphore(value: 0)
     private var running = true
     private let lock = NSLock()
     private var pendingRedirect: String?
@@ -212,12 +237,14 @@ private final class LocalHTTPServer: @unchecked Sendable {
         accept(on: socketDescriptor)
     }
 
-    func respond(with payload: Data, declaringLength: Bool) {
+    func respond(with payload: Data, declaringLength: Bool, holdOpen: Bool = false) {
+        self.holdOpen = holdOpen
         self.payload = payload
         declaresLength = declaringLength
     }
 
     func stop() {
+        finishBody.signal()
         running = false
         try? listener.close()
     }
@@ -264,6 +291,7 @@ private final class LocalHTTPServer: @unchecked Sendable {
                         sent += wrote
                     }
                 }
+                if holdOpen { _ = finishBody.wait(timeout: .now() + 5) }
                 close(client)
             }
         }

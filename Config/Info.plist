@@ -9,7 +9,7 @@
 	<key>CFBundleExecutable</key>
 	<string>CodeRim</string>
 	<key>CFBundleIconFile</key>
-	<string>AppIcon</string>
+	<string>CodeRimOpenRim</string>
 	<key>CFBundleIdentifier</key>
 	<string>dev.codexmeter.CodexMeter</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -19,9 +19,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.1.1</string>
+	<string>2.1.5</string>
 	<key>CFBundleVersion</key>
-	<string>20101</string>
+	<string>20105</string>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.utilities</string>
 	<key>LSMinimumSystemVersion</key>

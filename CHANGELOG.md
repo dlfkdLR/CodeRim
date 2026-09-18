@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.1.5 — Account and usage reliability; Windows preview
+
+- Fix external account invalidation, growing-log progress, optional cache-write accounting, and streaming HTTP limits.
+- Publish the Windows x64/ARM64 implementation preview with local usage history, provider connections, tray/notch, CLI, and installer fixes.
+- Preserve OpenRouter activity history and partial/stale readings; disclose remaining Windows parity work.
+- See [release notes](Documentation/ReleaseNotes/2.1.5.md).
+
+## 2.1.3 — Installed app identity
+
+- Finish the legacy CodexMeter filename migration on launch for manual installations, with a safe restart and no overwrites.
+- Preserve Homebrew-managed paths for the cask migration and repair existing CLI links after a rename.
+- Use a distinct Open Rim icon resource and refresh this app's macOS registration without changing its data or notification permissions.
+
+## 2.1.2 — Provider artwork and activity reliability
+
+- Give all catalog providers their matching artwork in the picker, settings and notch, including cached readings.
+- Preserve ring order during manual and automatic refreshes without briefly removing a visible ring.
+- Track long Codex turns across large rollout files and incrementally consume completed records, with reset detection for replaced or rewritten files.
+- Split installation, provider and companion documentation into focused guides and keep the README status badges concise.
+
 ## 2.1.1 — Open Rim
 
 - Adopt the Open Rim app icon and adaptive menu-bar mark.

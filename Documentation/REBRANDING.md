@@ -17,8 +17,13 @@ Both coderim://usage and codexmeter://usage open the usage window.
 ## Installation and updates
 
 New downloads install CodeRim.app and the coderim command. In-app updates replace
-the existing app at its current path. An installation originally named
-CodexMeter.app can retain that filename while showing CodeRim in its UI.
+the existing app at its current path. Starting with 2.1.3, a manually installed
+CodexMeter.app in an Applications folder is renamed to CodeRim.app at launch,
+then restarted once. Homebrew-managed paths are preserved until Homebrew
+migrates the installation; custom filenames and existing destinations remain
+untouched. If Homebrew cannot find the old app or an upgrade leaves the old
+filename in place, follow the [installation repair](../docs/troubleshooting.md#homebrew-upgrade-cannot-find-codexmeterapp)
+to reinstall CodeRim and refresh its receipt without deleting user data.
 Use Settings → Diagnostics → Install CLI to point the command at the actual app.
 At launch, existing app-managed CLI links are repaired automatically.
 The legacy codexmeter command is retained only when it was an app-managed link;

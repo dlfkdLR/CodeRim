@@ -1,0 +1,54 @@
+name: Windows
+on:
+  push:
+    paths: ['Windows/**', '.github/workflows/windows.yml']
+  pull_request:
+    paths: ['Windows/**', '.github/workflows/windows.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test-and-package:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Test numeric history, scripts, and contracts
+        run: dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
+      - name: Build WPF application and CLI
+        run: dotnet build Windows/CodeRim.Windows.sln --configuration Release
+      - name: Package x64
+        run: ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-x64 -ResetManifest
+      - name: Package ARM64
+        run: ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-arm64
+      - name: Native x64 smoke test
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'Windows/artifacts/publish/win-x64/CodeRim.exe'
+          $capture = Join-Path $PWD 'Artifacts/windows-dashboard.png'
+          $process = Start-Process $exe -ArgumentList '--smoke-test', '--capture', $capture -PassThru
+          if (-not $process.WaitForExit(45000)) { $process.Kill(); throw 'Native smoke test timed out.' }
+          if ($process.ExitCode -ne 0 -or -not (Test-Path $capture)) { throw 'Native smoke test failed.' }
+          & './Windows/artifacts/publish/win-x64/CodeRimCLI.exe' version
+          if ($LASTEXITCODE -ne 0) { throw 'CLI startup failed.' }
+          python Windows/tests/cli_regression_tests.py './Windows/artifacts/publish/win-x64/CodeRimCLI.exe'
+          if ($LASTEXITCODE -ne 0) { throw 'CLI regression checks failed.' }
+          & './Windows/artifacts/publish/win-x64/install.ps1' -AddCliToPath
+          $cliBin = Join-Path $env:LOCALAPPDATA 'Programs\CodeRim\bin'
+          $env:PATH = $cliBin + ';' + $env:PATH
+          if ((Get-Command coderim).Source -ne (Join-Path $cliBin 'coderim.cmd')) { throw 'CLI is shadowed.' }
+          $text = cmd /d /c 'coderim version'
+          if ($LASTEXITCODE -ne 0 -or $text -notmatch 'CodeRim CLI') { throw 'Installed CLI failed.' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CodeRim-Windows
+          path: |
+            Artifacts/CodeRim-Windows-*.zip
+            Artifacts/*.sha256
+            Artifacts/SHA256SUMS-windows.txt
+            Artifacts/windows-dashboard.png
+            Windows/tests/**/TestResults/**

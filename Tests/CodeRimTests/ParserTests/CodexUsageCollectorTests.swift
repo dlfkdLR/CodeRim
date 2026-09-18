@@ -1287,6 +1287,118 @@ final class CodexUsageCollectorTests: XCTestCase {
         XCTAssertEqual(afterRewrite.fingerprintBytesRead, verificationBudget)
     }
 
+    func testLargeGrowingSourceMakesProgressWithoutStarvingOtherSources() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let sessions = root.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+        let source = sessions.appendingPathComponent("a.jsonl")
+        let metadata = #"{"timestamp":"2026-08-27T00:00:00Z","type":"session_meta","payload":{"id":"growing"}}"#
+        var data = Data((metadata + "\n" + tokenLine(input: 100, cached: 0, output: 0, lastInput: 100, lastCached: 0, lastOutput: 0, ordinal: 1) + "\n").utf8)
+        for _ in 0..<3500 { data.append(Data((String(repeating: "x", count: 1000) + "\n").utf8)) }
+        try data.write(to: source)
+        let database = try SQLiteDatabase(url: root.appendingPathComponent("usage.sqlite"))
+        let initial = CodexUsageCollector(database: database, roots: [sessions], maximumRefreshDuration: .seconds(30))
+        let now = try Date.ISO8601FormatStyle().parse("2026-08-27T01:00:00Z")
+        _ = try await initial.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        let small = sessions.appendingPathComponent("z.jsonl")
+        try Data((metadata.replacingOccurrences(of: "growing", with: "small") + "\n"
+            + tokenLine(input: 777, cached: 0, output: 0, lastInput: 777, lastCached: 0, lastOutput: 0, ordinal: 1) + "\n").utf8).write(to: small)
+        let resumed = CodexUsageCollector(database: database, roots: [sessions],
+            maximumBytesPerRefresh: Int64((CodexJSONLParser.maximumLineBytes + 1) * 2), maximumRefreshDuration: .seconds(30))
+        var result: CollectorRefreshResult?
+        for index in 2...13 {
+            let file = try FileHandle(forWritingTo: source)
+            try file.seekToEnd()
+            try file.write(contentsOf: Data((tokenLine(input: Int64(index * 100), cached: 0, output: 0,
+                lastInput: 100, lastCached: 0, lastOutput: 0, ordinal: Int64(index)) + "\n").utf8))
+            try file.close()
+            result = try await resumed.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+            if index == 3 { XCTAssertGreaterThanOrEqual(result!.snapshot.allTime.totalTokens, 877, "Small source must not starve") }
+        }
+        XCTAssertGreaterThan(result!.snapshot.allTime.totalTokens, 877, "Growing source must advance before writes stop")
+        for _ in 0..<30 where result!.hasMoreWork {
+            result = try await resumed.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        }
+        XCTAssertEqual(result!.snapshot.allTime.totalTokens, 2077)
+        XCTAssertFalse(result!.hasMoreWork)
+        let key = storageIdentifier(source.standardizedFileURL.path)
+        let before = try await database.checkpoint(for: key)
+        // Start another frozen pass, then modify an already hashed prefix and append.
+        let writer = try FileHandle(forWritingTo: source)
+        try writer.seekToEnd()
+        try writer.write(contentsOf: Data((tokenLine(input: 1400, cached: 0, output: 0,
+            lastInput: 100, lastCached: 0, lastOutput: 0, ordinal: 14) + "\n").utf8))
+        result = try await resumed.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        try writer.seek(toOffset: 2000)
+        try writer.write(contentsOf: Data("y".utf8))
+        try writer.seekToEnd()
+        try writer.write(contentsOf: Data((tokenLine(input: 1500, cached: 0, output: 0,
+            lastInput: 100, lastCached: 0, lastOutput: 0, ordinal: 15) + "\n").utf8))
+        try writer.close()
+        for _ in 0..<40 where result!.hasMoreWork {
+            result = try await resumed.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        }
+        let after = try await database.checkpoint(for: key)
+        XCTAssertGreaterThan(after!.generation, before!.generation)
+        XCTAssertEqual(result!.snapshot.allTime.totalTokens, 2277)
+        XCTAssertFalse(result!.hasMoreWork)
+    }
+
+    func testFrozenEOFKeepsRefreshingWhenLiveTailGrew() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let sessions = root.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+        let source = sessions.appendingPathComponent("source.jsonl")
+        func padded(_ line: String) -> Data {
+            Data((line + String(repeating: " ", count: CodexJSONLParser.maximumLineBytes - line.utf8.count) + "\n").utf8)
+        }
+        func token(_ index: Int) -> String {
+            tokenLine(input: Int64(index * 100), cached: 0, output: 0, lastInput: 100, lastCached: 0, lastOutput: 0, ordinal: Int64(index))
+        }
+        var data = padded(#"{"type":"session_meta","payload":{"id":"exact-eof"}}"#)
+        data.append(padded(token(1))); data.append(padded(#"{"type":"ignored"}"#))
+        try data.write(to: source)
+        let database = try SQLiteDatabase(url: root.appendingPathComponent("usage.sqlite"))
+        let collector = CodexUsageCollector(database: database, roots: [sessions],
+            maximumBytesPerRefresh: Int64((CodexJSONLParser.maximumLineBytes + 1) * 2), maximumRefreshDuration: .seconds(30))
+        let now = try Date.ISO8601FormatStyle().parse("2026-08-27T01:00:00Z")
+        var result: CollectorRefreshResult?
+        for pass in 1...4 {
+            if pass > 1 {
+                let writer = try FileHandle(forWritingTo: source)
+                try writer.seekToEnd(); try writer.write(contentsOf: Data((token(pass) + "\n").utf8)); try writer.close()
+            }
+            result = try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+            XCTAssertTrue(result!.hasMoreWork, "Frozen EOF must not hide the unprocessed live tail")
+        }
+        for _ in 0..<30 where result!.hasMoreWork {
+            result = try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        }
+        XCTAssertEqual(result!.snapshot.allTime.totalTokens, 400)
+        XCTAssertFalse(result!.hasMoreWork)
+    }
+
+    func testFrozenSourceDoesNotMixRewrittenPrefixWithLiveTail() throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: url) }
+        try Data("original\n".utf8).write(to: url)
+        let original = try FileHandle(forReadingFrom: url)
+        defer { try? original.close() }
+        var metadata = stat()
+        XCTAssertEqual(fstat(original.fileDescriptor, &metadata), 0)
+        let snapshot = try XCTUnwrap(SourceReadSnapshot.capture(descriptor: original.fileDescriptor, metadata: metadata))
+        let writer = try FileHandle(forWritingTo: url)
+        try writer.write(contentsOf: Data("rewritten\nnew-tail\n".utf8))
+        try writer.close()
+        XCTAssertEqual(try snapshot.handle.readToEnd(), Data("original\n".utf8))
+        var changed = stat()
+        XCTAssertEqual(fstat(original.fileDescriptor, &changed), 0)
+        let next = try XCTUnwrap(SourceReadSnapshot.capture(descriptor: original.fileDescriptor, metadata: changed))
+        XCTAssertEqual(try next.handle.readToEnd(), Data("rewritten\nnew-tail\n".utf8))
+    }
+
     private var utcCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!

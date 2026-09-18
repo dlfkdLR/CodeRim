@@ -83,7 +83,7 @@ install -m 755 "${claude_bridge_path}" "${app_path}/Contents/Helpers/CodeRimClau
 install -m 755 "${cli_path}" "${app_path}/Contents/Helpers/CodeRimCLI"
 mkdir -p "${app_path}/Contents/PlugIns"
 ditto --norsrc --noextattr "${widget_path}" "${app_path}/Contents/PlugIns/CodeRimWidget.appex"
-install -m 644 "${project_root}/Assets/AppIcon.icns" "${app_path}/Contents/Resources/AppIcon.icns"
+install -m 644 "${project_root}/Assets/AppIcon.icns" "${app_path}/Contents/Resources/CodeRimOpenRim.icns"
 install -m 644 "${project_root}/Config/Info.plist" "${app_path}/Contents/Info.plist"
 for notice in LICENSE NOTICE; do
   install -m 644 "${project_root}/${notice}" "${app_path}/Contents/Resources/${notice}.txt"

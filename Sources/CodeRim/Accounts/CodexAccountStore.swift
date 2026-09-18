@@ -49,6 +49,7 @@ final class CodexAccountStore: ObservableObject {
     /// Whether a plan read has happened at all, so a login with no plan claim
     /// is read once rather than on every poll.
     private var hasReadPlan = false
+    private var hasReadIdentity = false
 
     init(vault: any AccountVault = KeychainAccountVault(),
          login: any CodexLoginStoring = CodexLoginFile(directory: CodexLoginFile.defaultDirectory),
@@ -89,9 +90,17 @@ final class CodexAccountStore: ObservableObject {
     }
 
     private func updateCurrentMetadata(_ account: SavedCodexAccount?) {
+        let externalChange = hasReadIdentity && currentID != account?.id
+            && !AccountSwitchActivity.isSwitching
+        if externalChange {
+            AccountSwitchActivity.generation &+= 1
+            onAccountWillChange()
+        }
+        hasReadIdentity = true
         currentID = account?.id
         currentAccountEmail = account?.email
         currentPlanType = account?.planType
+        if externalChange { onAccountOperationFinished() }
     }
 
     func saveCurrent() async {

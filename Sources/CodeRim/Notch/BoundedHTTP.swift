@@ -1,26 +1,8 @@
 import Foundation
 import os
 
-/// `URLSession.data(for:)` with a ceiling on the response body.
-///
-/// `data(for:)` will happily hold whatever a server sends, and the notch's
-/// providers read nine third-party endpoints on a timer. A vendor incident that
-/// returns a very large body should fail that one ring, not grow the app's
-/// memory until macOS kills it — the subprocess and file paths are already
-/// bounded this way (`BoundedProcess`, `ClaudeProfileFile`), and this closes the
-/// same gap on the network side.
-///
-/// Two checks, because either alone leaves a hole:
-///
-/// - A per-task delegate refuses the body as soon as the headers declare a
-///   length over the ceiling, so nothing large is ever downloaded.
-/// - A size check on what actually arrived catches a response that declared no
-///   length, or lied about it.
-///
-/// Deliberately *not* built on `URLSession.bytes(for:)`. Its `AsyncSequence` is
-/// per-byte, and measured against a local server it cost 367 ms for a 32 KB
-/// body where `data(for:)` cost 3.8 ms — a 96× regression on every poll, which
-/// is a far worse outcome than the case it guards against.
+/// A chunk-based response reader that cancels before buffering beyond the ceiling.
+/// Uses the caller's session so its TLS policy, ephemeral storage and timeouts apply.
 enum BoundedHTTP {
     /// Generous by design: the largest of these responses is a few kilobytes,
     /// so this only ever trips on something that has gone wrong.
@@ -31,18 +13,15 @@ enum BoundedHTTP {
         on session: URLSession,
         maximumBytes: Int = defaultMaximumBytes
     ) async throws -> (Data, URLResponse) {
-        let limit = ResponseSizeLimit(maximumBytes: maximumBytes)
-        let (data, response): (Data, URLResponse)
-        do {
-            (data, response) = try await session.data(for: request, delegate: limit)
-        } catch {
-            // The delegate cancels by refusing the body, which surfaces here as
-            // a cancellation. Report why rather than as a generic failure.
-            if limit.didRefuse { throw NotchProviderError.responseTooLarge }
-            throw error
-        }
-        guard data.count <= maximumBytes else { throw NotchProviderError.responseTooLarge }
-        return (data, response)
+        guard maximumBytes >= 0 else { throw NotchProviderError.responseTooLarge }
+        let reader = ResponseSizeLimit(maximumBytes: maximumBytes)
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                let task = session.dataTask(with: request)
+                task.delegate = reader
+                reader.start(task, continuation: continuation)
+            }
+        } onCancel: { reader.cancel() }
     }
 
     /// Headers a caller sets by hand, which URLSession copies onto a redirect
@@ -72,47 +51,83 @@ enum BoundedHTTP {
     }
 }
 
-/// Refuses a response whose declared length is over the ceiling, and keeps
-/// borrowed credentials on the host they were borrowed for.
-///
-/// A per-task delegate rather than a session-wide one: it needs no session of
-/// its own to own and invalidate, and no continuation to bridge, so it cannot
-/// leak a session or strand a caller. The redirect rule lives here too,
-/// because a task delegate passed to `data(for:delegate:)` is the one
-/// URLSession consults — a session-wide delegate would not reliably see these
-/// tasks at all.
+/// Per-task delegate; it never creates or invalidates the caller's session.
 private final class ResponseSizeLimit: NSObject, URLSessionDataDelegate, @unchecked Sendable {
+    private struct State {
+        var task: URLSessionDataTask?
+        var continuation: CheckedContinuation<(Data, URLResponse), Error>?
+        var response: URLResponse?
+        var data = Data()
+        var cancelled = false
+    }
     private let maximumBytes: Int
-    /// Set on URLSession's delegate queue, read by the caller once the task has
-    /// finished. `OSAllocatedUnfairLock` rather than `NSLock` because the
-    /// delegate method is `async`, where `NSLock` is unavailable.
-    private let refused = OSAllocatedUnfairLock(initialState: false)
+    private let state = OSAllocatedUnfairLock(initialState: State())
 
-    init(maximumBytes: Int) {
-        self.maximumBytes = maximumBytes
+    init(maximumBytes: Int) { self.maximumBytes = maximumBytes }
+
+    func start(_ task: URLSessionDataTask,
+               continuation: CheckedContinuation<(Data, URLResponse), Error>) {
+        let cancelled = state.withLock { value in
+            guard !value.cancelled else { return true }
+            value.task = task
+            value.continuation = continuation
+            return false
+        }
+        if cancelled {
+            task.cancel()
+            continuation.resume(throwing: CancellationError())
+        } else { task.resume() }
     }
 
-    var didRefuse: Bool { refused.withLock { $0 } }
+    func cancel() {
+        state.withLock { $0.cancelled = true }
+        finish(error: CancellationError(), cancelTask: true)
+    }
 
-    func urlSession(
-        _ session: URLSession,
-        task: URLSessionTask,
-        willPerformHTTPRedirection response: HTTPURLResponse,
-        newRequest request: URLRequest
-    ) async -> URLRequest? {
+    private func finish(error: Error? = nil, cancelTask: Bool = false) {
+        let result = state.withLock { value -> (URLSessionDataTask?, CheckedContinuation<(Data, URLResponse), Error>?, Data, URLResponse?) in
+            let result = (value.task, value.continuation, value.data, value.response)
+            value.task = nil; value.continuation = nil; value.data = Data(); value.response = nil
+            return result
+        }
+        if cancelTask { result.0?.cancel() }
+        guard let continuation = result.1 else { return }
+        if let error { continuation.resume(throwing: error) }
+        else if let response = result.3 { continuation.resume(returning: (result.2, response)) }
+        else { continuation.resume(throwing: URLError(.badServerResponse)) }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest) async -> URLRequest? {
         guard let original = task.originalRequest else { return request }
         return BoundedHTTP.redirect(from: original, to: request)
     }
 
-    func urlSession(
-        _ session: URLSession,
-        dataTask: URLSessionDataTask,
-        didReceive response: URLResponse
-    ) async -> URLSession.ResponseDisposition {
-        // `expectedContentLength` is `NSURLResponseUnknownLength` (-1) when the
-        // server declares none, which must not read as "enormous" or as "fine".
-        guard response.expectedContentLength > Int64(maximumBytes) else { return .allow }
-        refused.withLock { $0 = true }
-        return .cancel
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask,
+                    didReceive response: URLResponse) async -> URLSession.ResponseDisposition {
+        guard response.expectedContentLength <= Int64(maximumBytes) else {
+            finish(error: NotchProviderError.responseTooLarge, cancelTask: true)
+            return .cancel
+        }
+        return state.withLock { value in
+            guard value.continuation != nil else { return .cancel }
+            value.response = response
+            return .allow
+        }
+    }
+
+    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
+        let oversized = state.withLock { value in
+            guard value.continuation != nil else { return false }
+            guard data.count <= maximumBytes - value.data.count else { return true }
+            value.data.append(data)
+            return false
+        }
+        if oversized { finish(error: NotchProviderError.responseTooLarge, cancelTask: true) }
+    }
+
+    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
+        finish(error: error)
     }
 }

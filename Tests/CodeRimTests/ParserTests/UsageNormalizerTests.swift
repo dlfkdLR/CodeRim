@@ -6,6 +6,26 @@ final class UsageNormalizerTests: XCTestCase {
     private let normalizer = UsageNormalizer()
     private let timestamp = Date(timeIntervalSince1970: 1_800_000_000)
 
+    func testOptionalCacheWriteLossDoesNotDropOrRepeatUsage() {
+        let known = TokenUsage(inputTokens: 100, cachedInputTokens: 0, cacheWriteInputTokens: 40, outputTokens: 20)
+        let missing = TokenUsage(inputTokens: 100, cachedInputTokens: 0, outputTokens: 20)
+        let first = normalizer.normalize(observation(cumulative: known), metadata: nil, state: .empty)
+        let repeated = normalizer.normalize(observation(cumulative: missing), metadata: nil, state: first.state)
+        XCTAssertNil(repeated.delta)
+        var state = first.state
+        var total = first.delta!.totalTokens
+        for index in 2...3 {
+            let cumulative = TokenUsage(inputTokens: Int64(index * 100), cachedInputTokens: 0, outputTokens: Int64(index * 20))
+            let result = normalizer.normalize(CodexTokenObservation(occurredAt: timestamp.addingTimeInterval(Double(index)),
+                ordinal: Int64(index), lastUsage: missing, cumulativeUsage: cumulative), metadata: nil, state: state)
+            total += result.delta?.totalTokens ?? 0
+            XCTAssertNil(result.delta?.cacheWriteInputTokens)
+            XCTAssertEqual(result.state.quality, .exact)
+            state = result.state
+        }
+        XCTAssertEqual(total, 360)
+    }
+
     func testUsesCumulativeIncreaseAndIgnoresRepeatedSnapshot() {
         let first = normalizer.normalize(
             observation(cumulative: usage(100, cached: 60, output: 20)),
