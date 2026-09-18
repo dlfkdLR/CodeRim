@@ -44,13 +44,43 @@ enum BoundedHTTP {
         guard data.count <= maximumBytes else { throw NotchProviderError.responseTooLarge }
         return (data, response)
     }
+
+    /// Headers a caller sets by hand, which URLSession copies onto a redirect
+    /// target. A hand-set `Cookie` demonstrably survives a cross-host redirect
+    /// — `testARealCrossHostRedirectArrivesWithoutTheCredential` fails without
+    /// this list — and the vendor-specific token headers are not special-cased
+    /// by anything. `Authorization` is included regardless of what Foundation
+    /// may already do with it: this is the layer that knows these are borrowed
+    /// credentials, so it is the layer that should not rely on a guess.
+    static let credentialHeaders = ["Authorization", "Cookie", "X-XAI-Token-Auth",
+                                    "x-codeium-csrf-token"]
+
+    /// Follow a redirect, but never carry a borrowed credential to a host the
+    /// caller did not choose. Same-host redirects (an added trailing slash, an
+    /// http→https upgrade) keep the headers and behave exactly as before;
+    /// anything that changes host travels without them, so a redirect cannot
+    /// turn into credential exfiltration. Stripping rather than refusing keeps
+    /// a provider that legitimately redirects working — and no provider here
+    /// currently redirects across hosts, so nothing that works today changes.
+    static func redirect(from original: URLRequest, to proposed: URLRequest) -> URLRequest {
+        guard original.url?.host?.lowercased() != proposed.url?.host?.lowercased() else {
+            return proposed
+        }
+        var stripped = proposed
+        for header in credentialHeaders { stripped.setValue(nil, forHTTPHeaderField: header) }
+        return stripped
+    }
 }
 
-/// Refuses a response whose declared length is over the ceiling.
+/// Refuses a response whose declared length is over the ceiling, and keeps
+/// borrowed credentials on the host they were borrowed for.
 ///
 /// A per-task delegate rather than a session-wide one: it needs no session of
 /// its own to own and invalidate, and no continuation to bridge, so it cannot
-/// leak a session or strand a caller.
+/// leak a session or strand a caller. The redirect rule lives here too,
+/// because a task delegate passed to `data(for:delegate:)` is the one
+/// URLSession consults — a session-wide delegate would not reliably see these
+/// tasks at all.
 private final class ResponseSizeLimit: NSObject, URLSessionDataDelegate, @unchecked Sendable {
     private let maximumBytes: Int
     /// Set on URLSession's delegate queue, read by the caller once the task has
@@ -63,6 +93,16 @@ private final class ResponseSizeLimit: NSObject, URLSessionDataDelegate, @unchec
     }
 
     var didRefuse: Bool { refused.withLock { $0 } }
+
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest
+    ) async -> URLRequest? {
+        guard let original = task.originalRequest else { return request }
+        return BoundedHTTP.redirect(from: original, to: request)
+    }
 
     func urlSession(
         _ session: URLSession,

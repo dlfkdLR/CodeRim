@@ -19,7 +19,7 @@ final class CommandCodeNotchProvider: NotchProvider {
     private var lastKnownPlan: String?
     private var lastKnownUser: String?
 
-    init(session: URLSession = .shared,
+    init(session: URLSession = ProviderSession.shared,
          archive: UsageArchive = UsageArchive(),
          authURL: URL = CommandCodeCredentials.authURL) {
         self.session = session

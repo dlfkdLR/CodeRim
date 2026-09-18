@@ -22,7 +22,7 @@ final class OpenCodeNotchProvider: NotchProvider {
     private var retryNoEarlierThan: Date?
     private var consecutiveRateLimits = 0
 
-    init(session: URLSession = .shared, archive: UsageArchive = UsageArchive()) {
+    init(session: URLSession = ProviderSession.shared, archive: UsageArchive = UsageArchive()) {
         self.session = session
         self.archive = archive
         self.retryNoEarlierThan = archive.loadBackoffUntil(providerID: "opencode")

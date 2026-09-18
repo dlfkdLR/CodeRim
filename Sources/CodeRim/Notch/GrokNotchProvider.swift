@@ -16,7 +16,7 @@ final class GrokNotchProvider: NotchProvider {
     private let session: URLSession
     private let authURL: URL
 
-    init(session: URLSession = .shared, authURL: URL = GrokCredentials.authURL) {
+    init(session: URLSession = ProviderSession.shared, authURL: URL = GrokCredentials.authURL) {
         self.session = session
         self.authURL = authURL
     }

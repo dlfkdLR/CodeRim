@@ -18,7 +18,7 @@ final class CursorNotchProvider: NotchProvider {
     private let endpoint = URL(string: "https://cursor.com/api/usage-summary")!
     private let session: URLSession
 
-    init(session: URLSession = .shared) {
+    init(session: URLSession = ProviderSession.shared) {
         self.session = session
     }
 
