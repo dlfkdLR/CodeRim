@@ -25,7 +25,7 @@ final class ExtendedNotchProvider: NotchProvider {
 
     var id: String { ExtendedProviderCatalog.localID(descriptor.id) }
     var displayName: String { descriptor.metadata.displayName }
-    var glyph: ProviderGlyph { descriptor.id == .gemini ? .geminiSpark : .third }
+    var glyph: ProviderGlyph { NotchProviderCatalog.glyph(for: id) }
     var isVisibleWhenAbsent: Bool { true }
     var signInRoute: SignInRoute { .guidance("Configure \(displayName) in its provider settings. " + (ExtendedProviderCatalog.guide(for: id)?.summary ?? "")) }
     func account() -> ProviderAccount? { currentAccount }
@@ -172,9 +172,17 @@ final class ExtendedNotchProvider: NotchProvider {
         func append(_ window: RateWindow?, id: String, label: String, known: Bool = true) {
             guard let window, !window.isSyntheticPlaceholder else { return }
             let fraction = known && window.usedPercent.isFinite && window.usedPercent >= 0 && window.usedPercent < Double(Int.max) / 2 ? window.usedPercent / 100 : nil
-            guard fraction != nil || window.resetsAt != nil else { return }
+            // Several token plans supply exact counts only in the window detail.
+            // Keep those words as reported; a percentage cannot reconstruct tokens.
+            let tokenDetail = window.resetDescription.flatMap { text in
+                if descriptor.id == .longcat { return text }
+                return text.range(of: #"(?i)\b(?:tokens?|[mk]?tok)\b"#, options: .regularExpression) != nil
+                    && text.rangeOfCharacter(from: .decimalDigits) != nil ? text : nil
+            }
+            guard fraction != nil || window.resetsAt != nil || tokenDetail != nil else { return }
             windows.append(LimitWindow(id: id, label: label, usedFraction: fraction,
-                resetsAt: window.resetsAt, duration: window.windowMinutes.map { Double($0) * 60 }))
+                resetsAt: window.resetsAt, duration: window.windowMinutes.map { Double($0) * 60 },
+                displayValue: tokenDetail))
         }
         let labels = descriptor.presentation.rateWindowLabels(metadata: descriptor.metadata, snapshot: usage)
         // Balance-only providers sometimes synthesize a full/empty primary lane. Never turn that into a quota.
@@ -197,6 +205,13 @@ final class ExtendedNotchProvider: NotchProvider {
                         displayValue: zoomUnknownLimit && text == "Credits" ? "Quota not reported" : text))
                 }
             }
+        } else if descriptor.id == .llmproxy {
+            append(usage.primary, id: "primary", label: labels.primary)
+            for (id, label, window) in [("secondary", "Requests", usage.secondary), ("tertiary", "Tokens", usage.tertiary)] {
+                if let detail = window?.resetDescription, !detail.isEmpty {
+                    windows.append(LimitWindow(id: id, label: label, displayValue: detail))
+                }
+            }
         } else {
             append(usage.primary, id: "primary", label: labels.primary)
             if descriptor.id == .crof, let text = usage.secondary?.resetDescription {
@@ -206,8 +221,11 @@ final class ExtendedNotchProvider: NotchProvider {
             }
             append(usage.tertiary, id: "tertiary", label: labels.tertiary)
         }
-        for (index, extra) in descriptor.presentation.extraRateWindows(snapshot: usage).enumerated() {
-            append(extra.window, id: "extra-\(index)-\(extra.id)", label: extra.title, known: extra.usageKnown)
+        let extraWindows = descriptor.id == .llmproxy ? (usage.extraRateWindows ?? [])
+            : descriptor.presentation.extraRateWindows(snapshot: usage)
+        for (index, extra) in extraWindows.enumerated() {
+            append(extra.window, id: "extra-\(index)-\(extra.id)", label: extra.title,
+                   known: descriptor.id != .llmproxy && extra.usageKnown)
         }
         if let cost = usage.providerCost, cost.used.isFinite, cost.limit.isFinite {
             let fraction = cost.limit > 0 ? Self.displayableFraction(cost.used / cost.limit) : nil
@@ -232,10 +250,29 @@ final class ExtendedNotchProvider: NotchProvider {
                     displayValue: [row.value, row.secondaryValue].compactMap { $0 }.joined(separator: " · ")))
             }
         }
+        // Ask the provider's projection for its own period and token semantics.
+        // OpenAI Admin and Mistral keep their history in dedicated snapshots.
+        let tokenHistory = usage.costUsage ?? descriptor.presentation.menuCard.primaryCostHistory(
+            snapshot: usage, tokenSnapshot: nil)
+        if let history = tokenHistory {
+            if let total = history.last30DaysTokens, total >= 0 {
+                let period = history.historyCoverageIsEstablished
+                    ? (history.historyLabel ?? "Reported \(history.historyDays)-day period")
+                    : "Period unavailable"
+                windows.append(LimitWindow(id: "reported-tokens", label: "Tokens · \(period)", used: total))
+            } else if let total = history.sessionTokens, total >= 0 {
+                let period = descriptor.tokenCost.primaryValue == .latestDaily ? "Latest day" : "Session"
+                windows.append(LimitWindow(id: "reported-tokens", label: "Tokens · \(period)", used: total))
+            }
+        }
+        if descriptor.id == .bedrock, let detail = usage.loginMethod(for: descriptor.id)?
+            .components(separatedBy: " - ").first(where: { $0.contains("tokens") }) {
+            windows.append(LimitWindow(id: "reported-token-detail", label: "Reported tokens", displayValue: detail))
+        }
         let id = ExtendedProviderCatalog.localID(descriptor.id)
         let headline = windows.first(where: { $0.usedFraction != nil })?.id ?? windows.first?.id
         return ProviderSnapshot(id: id, displayName: descriptor.metadata.displayName,
-            glyph: descriptor.id == .gemini ? .geminiSpark : .third,
+            glyph: NotchProviderCatalog.glyph(for: id),
             fidelity: usage.dataConfidence == .estimated ? .derived : .official,
             status: .ok,
             windows: windows, headlineID: headline, accountPlan: usage.loginMethod(for: descriptor.id))

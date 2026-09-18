@@ -24,6 +24,24 @@ final class NotchGLMQuotaResponseTests: XCTestCase {
             "currentValue": 40, "usage": 1000 } ] } }
     """
 
+    func testReportedTokenQuotaCountsAreNotDroppedOrAppliedToCreditPlans() throws {
+        let windows = try parse(live).windows
+        XCTAssertTrue(windows[0].displayValue?.contains("1,250,000") == true)
+        XCTAssertTrue(windows[0].displayValue?.contains("token quota") == true)
+        XCTAssertNil(windows[1].displayValue)
+        XCTAssertNil(windows[2].displayValue)
+        for type in ["TOKENS_LIMIT", "CREDIT_LIMIT"] {
+            let json = """
+            {"data":{"limits":[{"type":"\(type)","unit":3,"number":5,"currentValue":42}]}}
+            """
+            let result = try parse(json).windows
+            if type == "TOKENS_LIMIT" {
+                XCTAssertEqual(result.first?.displayValue, "42 token quota used")
+                XCTAssertNil(result.first?.usedFraction)
+            } else { XCTAssertTrue(result.isEmpty) }
+        }
+    }
+
     func testDecodesTheLiveShape() throws {
         let payload = try parse(live)
         XCTAssertEqual(payload.windows.map(\.duration), [18000, 604800, nil])
