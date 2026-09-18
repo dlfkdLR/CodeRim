@@ -9,10 +9,10 @@ using static CodeRim.Core.Providers.ProviderParsers;
 namespace CodeRim.Core.Providers;
 
 /// <summary>Read-only ports of the macOS native adapters and pinned CodexBar billing readers.</summary>
-public sealed class NativeProviders : IDisposable
+public sealed partial class NativeProviders : IDisposable
 {
     public static IReadOnlySet<string> Supported { get; } = new HashSet<string>(StringComparer.Ordinal)
-        { "cursor", "grok", "opencode", "commandcode", "ollama", "fireworks", "deepinfra", "codebuff", "neuralwatt" };
+        { "cursor", "grok", "opencode", "commandcode", "ollama", "fireworks", "deepinfra", "codebuff", "neuralwatt", "llmproxy", "litellm", "zenmux", "warp", "wayfinder", "ibmbob" };
     private readonly HttpClient client;
     private readonly ConcurrentDictionary<string, DateTimeOffset> retryAfter = new(StringComparer.Ordinal);
     public NativeProviders(HttpMessageHandler? handler = null) => client = new(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(15) };
@@ -21,17 +21,28 @@ public sealed class NativeProviders : IDisposable
     {
         ArgumentNullException.ThrowIfNull(setting);
         if (!Supported.Contains(id)) return new(id, ReadingState.Unsupported, []);
-        if (string.IsNullOrWhiteSpace(credential) || credential.Any(char.IsControl)) return new(id, ReadingState.NeedsAuth, [], Message: "Connect this provider in Settings or sign in to its CLI.");
+        if (id != "wayfinder" && (string.IsNullOrWhiteSpace(credential) || credential.Any(char.IsControl))) return new(id, ReadingState.NeedsAuth, [], Message: "Connect this provider in Settings or sign in to its CLI.");
         if (retryAfter.TryGetValue(id, out var retry) && retry > DateTimeOffset.Now) return new(id, ReadingState.Unavailable, [], Message: "Provider rate limit reached. Waiting before retrying.");
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(45));
         var documents = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
-        async Task<JsonElement> GetJson(string url)
+        async Task<JsonElement> GetJson(string url, IReadOnlyDictionary<string, string>? extraHeaders = null)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.UserAgent.ParseAdd(id == "commandcode" ? "command-code-desktop" : "CodeRim/2.1.5");
+            if (id == "codebuff" && new Uri(url).AbsolutePath == "/api/v1/usage")
+            {
+                request.Method = HttpMethod.Post; request.Content = new StringContent("""{"fingerprintId":"codexbar-usage"}""", System.Text.Encoding.UTF8, "application/json");
+            }
+            if (id == "warp")
+            {
+                request.Method = HttpMethod.Post; request.Content = new StringContent(WarpBody(), System.Text.Encoding.UTF8, "application/json");
+                request.Headers.Add("x-warp-client-id", "warp-app"); request.Headers.Add("x-warp-os-category", "Windows");
+                request.Headers.Add("x-warp-os-name", "Windows"); request.Headers.Add("x-warp-os-version", Environment.OSVersion.Version.ToString());
+            }
+            request.Headers.UserAgent.ParseAdd(id == "commandcode" ? "command-code-desktop" : id == "warp" ? "Warp/1.0" : "CodeRim/2.1.5");
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             if (id == "cursor") request.Headers.TryAddWithoutValidation("Cookie", credential);
-            else request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", credential);
+            else if (id != "wayfinder") request.Headers.Authorization = new AuthenticationHeaderValue(id == "ibmbob" ? BobAuthorization(credential!) : "Bearer", credential);
+            if (extraHeaders is not null) foreach (var pair in extraHeaders) request.Headers.Add(pair.Key, pair.Value);
             if (id == "grok") request.Headers.Add("X-XAI-Token-Auth", "xai-grok-cli");
             if (id == "commandcode") request.Headers.Add("x-command-code-version", "desktop");
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
@@ -50,6 +61,8 @@ public sealed class NativeProviders : IDisposable
         }
         try
         {
+            if (id == "ibmbob") return await FetchBob(GetJson).ConfigureAwait(false);
+            if (ManagementIds.Contains(id)) return Parse(id, await ManagementPayloads(id, setting, url => GetJson(url)).ConfigureAwait(false));
             var endpoint = id switch
             {
                 "cursor" => "https://cursor.com/api/usage-summary", "grok" => "https://cli-chat-proxy.grok.com/v1/billing?format=credits",
@@ -61,7 +74,7 @@ public sealed class NativeProviders : IDisposable
             if (id == "fireworks")
             {
                 var slug = setting("FIREWORKS_ACCOUNT_SLUG");
-                if (string.IsNullOrWhiteSpace(slug) || slug.Length > 128 || slug.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-'))
+                if (string.IsNullOrWhiteSpace(slug) || slug.Length > 128 || slug.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not ('-' or '_' or '.')))
                     return new(id, ReadingState.NeedsAuth, [], Message: "Set the Fireworks account slug in Settings.");
                 var now = DateTimeOffset.UtcNow;
                 endpoint = "https://api.fireworks.ai/v1/accounts/" + slug + "/billing/summary?startTime=" + Uri.EscapeDataString(now.AddDays(-30).ToString("O", CultureInfo.InvariantCulture)) + "&endTime=" + Uri.EscapeDataString(now.ToString("O", CultureInfo.InvariantCulture));
@@ -83,7 +96,7 @@ public sealed class NativeProviders : IDisposable
             if (id == "codebuff")
             {
                 try { documents["subscription"] = await GetJson("https://www.codebuff.com/api/user/subscription").ConfigureAwait(false); }
-                catch (Exception error) when (error is ProviderRequestException or HttpRequestException or OperationCanceledException) { token.ThrowIfCancellationRequested(); partial = true; }
+                catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or JsonException or OperationCanceledException) { token.ThrowIfCancellationRequested(); partial = true; }
             }
             var reading = Parse(id, documents);
             return partial && reading.Windows.Count > 0 ? reading with { State = ReadingState.Partial, Message = "Credit balance is current. Subscription details could not be refreshed." } : reading;
@@ -100,6 +113,7 @@ public sealed class NativeProviders : IDisposable
     public static ProviderReading Parse(string id, IReadOnlyDictionary<string, JsonElement> payloads)
     {
         ArgumentNullException.ThrowIfNull(payloads);
+        if (ManagementIds.Contains(id)) return ParseManagement(id, payloads);
         var root = payloads.GetValueOrDefault("main");
         var windows = new List<LimitWindow>(); string? plan = null;
         void Percent(string key, string name, double? used, DateTimeOffset? reset = null, int minutes = 0)
@@ -184,26 +198,42 @@ public sealed class NativeProviders : IDisposable
                 if (months.ValueKind == JsonValueKind.Array && months.GetArrayLength() > 0) Amount("month", "Current month spend", Number(months.EnumerateArray().Last(), "total_cost") / 100);
                 break;
             case "codebuff":
-                var consumed = Number(root, "usage") ?? Number(root, "used"); var ceiling = Number(root, "quota") ?? Number(root, "limit");
-                var left = Number(root, "remainingBalance") ?? Number(root, "remaining");
+                var consumed = Numeric(root, "usage") ?? Numeric(root, "used"); var ceiling = Numeric(root, "quota") ?? Numeric(root, "limit");
+                var left = Numeric(root, "remainingBalance") ?? Numeric(root, "remaining");
                 if (ceiling is > 0) Percent("credits", "Credits", consumed / ceiling * 100, FlexibleDate(Get(root, "next_quota_reset")));
                 Amount("remaining", "Credits remaining", left, "credits");
                 var subRoot = payloads.GetValueOrDefault("subscription"); var quota = Get(subRoot, "rateLimit");
-                if ((Number(quota, "weeklyLimit") ?? Number(quota, "limit")) is > 0 and var weeklyLimit)
-                    Percent("weekly", "Weekly limit", (Number(quota, "weeklyUsed") ?? Number(quota, "used")) / weeklyLimit * 100, FlexibleDate(Get(quota, "weeklyResetsAt")), 10080);
+                if ((Numeric(quota, "weeklyLimit") ?? Numeric(quota, "limit")) is > 0 and var weeklyLimit)
+                    Percent("weekly", "Weekly limit", (Numeric(quota, "weeklyUsed") ?? Numeric(quota, "used")) / weeklyLimit * 100, FlexibleDate(Get(quota, "weeklyResetsAt")), 10080);
                 plan = Text(Get(subRoot, "subscription"), "displayName") ?? Text(subRoot, "displayName"); break;
             case "neuralwatt":
-                var pool = Get(root, "balance"); var totalCredits = Number(pool, "total_credits_usd"); var usedCredits = Number(pool, "credits_used_usd");
-                var remainingCredits = Number(pool, "credits_remaining_usd");
-                if (totalCredits is > 0) Percent("credits", "Credit usage", (usedCredits ?? totalCredits - remainingCredits) / totalCredits * 100);
-                Amount("balance", "Credits remaining", remainingCredits); Amount("month", "Current month cost", Number(Get(Get(root, "usage"), "current_month"), "cost_usd"));
+                var subscriptionQuota = Get(root, "subscription");
+                var includedKwh = Number(subscriptionQuota, "kwh_included");
+                var usedKwh = Number(subscriptionQuota, "kwh_used"); var remainingKwh = Number(subscriptionQuota, "kwh_remaining");
+                var totalKwh = includedKwh is > 0 ? includedKwh : usedKwh is >= 0 && remainingKwh is >= 0 ? usedKwh + remainingKwh : null;
+                if (usedKwh is null && totalKwh is > 0 && remainingKwh is >= 0) usedKwh = Math.Max(0, totalKwh.Value - remainingKwh.Value);
+                if (totalKwh is > 0 && usedKwh is >= 0)
+                {
+                    var startAt = Date(Get(subscriptionQuota, "current_period_start")); var endsAt = Date(Get(subscriptionQuota, "current_period_end"));
+                    windows.Add(new("subscription", "Subscription energy", usedKwh / totalKwh * 100, endsAt,
+                        startAt.HasValue && endsAt > startAt ? (int)(endsAt.Value - startAt.Value).TotalMinutes : 0,
+                        Unit: "kWh", DisplayValue: $"{usedKwh:N2} / {totalKwh:N2} kWh"));
+                }
                 var allowance = Get(Get(root, "key"), "allowance");
-                if (Number(allowance, "limit_usd") is > 0 and var allowanceLimit) Percent("key", "Key allowance", Number(allowance, "spent_usd") / allowanceLimit * 100);
-                plan = Text(Get(root, "subscription"), "plan"); break;
+                if (Get(allowance, "blocked").ValueKind == JsonValueKind.True) Percent("key", "Key allowance", 100);
+                else if (Number(allowance, "limit_usd") is > 0 and var allowanceLimit)
+                    Percent("key", "Key allowance", Number(allowance, "spent_usd") / allowanceLimit * 100);
+                var pool = Get(root, "balance"); var remainingCredits = Number(pool, "credits_remaining_usd");
+                if (remainingCredits is null && Number(pool, "total_credits_usd") is >= 0 and var totalCredits && Number(pool, "credits_used_usd") is >= 0 and var usedCredits)
+                    remainingCredits = Math.Max(0, totalCredits - usedCredits);
+                Amount("balance", "Prepaid balance", remainingCredits); Amount("month", "Current month cost", Number(Get(Get(root, "usage"), "current_month"), "cost_usd"));
+                plan = Text(subscriptionQuota, "plan"); break;
         }
         return new(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows.DistinctBy(x => x.Id).ToArray(), DateTimeOffset.Now,
             windows.Count > 0 ? null : "No metered usage was returned for this account.", plan);
     }
+    private static double? Numeric(JsonElement root, string key) => Number(root, key) ??
+        (double.TryParse(Text(root, key), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number) ? number : null);
     private static DateTimeOffset? FlexibleDate(JsonElement value) => value.ValueKind == JsonValueKind.Number && value.TryGetDouble(out var number)
         ? number <= 0 ? null : Date(value, number > 1e12) : Date(value);
     private sealed class ProviderRequestException(HttpStatusCode status) : Exception { internal HttpStatusCode Status { get; } = status; }

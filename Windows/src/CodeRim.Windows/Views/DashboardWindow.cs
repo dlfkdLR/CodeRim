@@ -170,7 +170,7 @@ internal sealed class DashboardWindow : Window
         }
         search.TextChanged += (_, _) => Populate(); Populate();
     }
-    private static bool HasConnector(string id) => id is "codex" or "claude" || NativeProviders.Supported.Contains(id) || HttpProviders.Supported.Contains(id) || ScriptProviders.Catalog.ContainsKey(id);
+    private static bool HasConnector(string id) => id is "codex" or "claude" or "jetbrains" || NativeProviders.Supported.Contains(id) || HttpProviders.Supported.Contains(id) || ScriptProviders.Catalog.ContainsKey(id);
     private void Provider(string id)
     {
         var provider = ProviderCatalog.Find(id); if (provider is null) { Navigate("providers"); return; }
@@ -207,6 +207,7 @@ internal sealed class DashboardWindow : Window
             }));
             body.Children.Add(Ui.Button("Open Windows setup instructions", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/WINDOWS.md")));
         }
+        else if (id == "jetbrains") body.Children.Add(Ui.Text("Reads the latest AI Assistant quota from your JetBrains IDE settings. Enable AI Assistant and refresh its usage in the IDE."));
         else if (ScriptProviders.Catalog.TryGetValue(id, out var script))
         {
             foreach (var field in script.Settings)
@@ -226,9 +227,8 @@ internal sealed class DashboardWindow : Window
         {
             if (id is "cursor" or "grok" or "opencode" or "commandcode") body.Children.Add(Ui.Text("Reads the provider’s existing local sign-in automatically. A saved credential overrides local discovery.", 12, "#A6A6AA"));
             if (id == "cursor") body.Children.Add(Ui.Text("Manual value: WorkosCursorSessionToken cookie header", 12));
-            if (id == "fireworks") { body.Children.Add(Ui.Text("Fireworks account slug")); AddSettingField("setting:fireworks:FIREWORKS_ACCOUNT_SLUG", id); }
-            body.Children.Add(Ui.Text("Provider key or access token"));
-            AddSecretField("provider:" + id, id, "Save credential");
+            foreach (var field in NativeProviders.Settings(id)) { body.Children.Add(Ui.Text(field.Label)); AddSettingField("setting:" + id + ":" + field.Key, id); }
+            if (id != "wayfinder") { body.Children.Add(Ui.Text("Provider key or access token")); AddSecretField("provider:" + id, id, "Save credential"); }
         }
         else if (!HasConnector(id)) body.Children.Add(Ui.Text("This provider's Windows integration is still pending. Adding it does not create a live connection.", color: "#F2C66D"));
         Ui.Section(body, "Notch order");
@@ -269,12 +269,12 @@ internal sealed class DashboardWindow : Window
         body.Children.Add(Ui.Button(label, () =>
         {
             if (string.IsNullOrWhiteSpace(password.Password)) return;
-            try { vault.Save(key, password.Password.Trim()); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshAsync(true); }
+            try { vault.Save(key, password.Password.Trim()); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { result.Text = "Could not save the setting."; }
         }));
         body.Children.Add(Ui.Button("Remove saved value", () =>
         {
-            try { vault.Delete(key); store.InvalidateAccount(id); result.Text = "Removed."; _ = store.RefreshAsync(true); }
+            try { vault.Delete(key); store.InvalidateAccount(id); result.Text = "Removed."; _ = store.RefreshProviderAsync(id); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { result.Text = "Could not remove the setting."; }
         })); body.Children.Add(result);
     }

@@ -31,7 +31,7 @@ jobs:
           $capture = Join-Path $PWD 'Artifacts/windows-dashboard.png'
           $process = Start-Process $exe -ArgumentList '--smoke-test', '--capture', $capture -PassThru
           if (-not $process.WaitForExit(180000)) { $process.Kill(); throw 'Native smoke test timed out.' }
-          if ($process.ExitCode -ne 0 -or -not (Test-Path $capture)) { throw 'Native smoke test failed.' }
+          if ($process.ExitCode -ne 0 -or -not (Test-Path $capture)) { Get-Content (Join-Path $PWD 'Artifacts/windows-dashboard.error.txt') -ErrorAction SilentlyContinue; throw 'Native smoke test failed.' }
           & './Windows/artifacts/publish/win-x64/CodeRimCLI.exe' version
           if ($LASTEXITCODE -ne 0) { throw 'CLI startup failed.' }
           python Windows/tests/cli_regression_tests.py './Windows/artifacts/publish/win-x64/CodeRimCLI.exe'

@@ -67,7 +67,7 @@ public sealed class NativeProviderTests
     public void NeuralwattReportsAccountBalanceAndKeyAllowanceSeparately()
     {
         var reading = Parse("neuralwatt", """{"balance":{"credits_remaining_usd":75,"total_credits_usd":100},"key":{"allowance":{"limit_usd":10,"spent_usd":5}}}""");
-        Assert.Equal(25, reading.Headline!.UsedPercent); Assert.Equal(50, reading.Windows.Single(x => x.Id == "key").UsedPercent);
+        Assert.Equal(50, reading.Headline!.UsedPercent); Assert.Equal("balance", reading.Windows[1].Id); Assert.Null(reading.Windows[1].UsedPercent);
     }
     [Fact]
     public async Task GrokCredentialIsSentOnlyToFixedVendorEndpoint()

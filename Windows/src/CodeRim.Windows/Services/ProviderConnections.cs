@@ -18,6 +18,7 @@ internal sealed class ProviderConnections : IDisposable
     {
         try
         {
+            if (id == "jetbrains") return JetBrainsQuota.Read(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "JetBrains"));
             if (id == "codex")
             {
                 var executable = settings.CodexExecutable ?? ResolveCodex();
@@ -70,12 +71,14 @@ internal sealed class ProviderConnections : IDisposable
     {
         try
         {
+            if (id == "jetbrains") return null;
             if (id is "codex" or "claude") return SavedAccounts.Current(id).Identity.Id;
             var definition = ProviderCatalog.Find(id);
             var values = new List<string?> { vault.Load("provider:" + id), vault.Load("cookie:" + id), NativeCredentials.Read(id) };
             if (definition is not null) values.AddRange(definition.EnvironmentKeys.Select(Environment.GetEnvironmentVariable));
             if (ScriptProviders.Catalog.TryGetValue(id, out var script))
                 values.AddRange(script.Settings.Select(x => vault.Load("setting:" + id + ":" + x.Key) ?? Environment.GetEnvironmentVariable(x.Key)));
+            values.AddRange(NativeProviders.Settings(id).Select(x => vault.Load("setting:" + id + ":" + x.Key) ?? Environment.GetEnvironmentVariable(x.Key)));
             return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(values))));
         }
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or FormatException or System.Security.Cryptography.CryptographicException)

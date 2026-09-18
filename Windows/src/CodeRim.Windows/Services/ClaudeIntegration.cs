@@ -25,7 +25,9 @@ internal static class ClaudeIntegration
     {
         // Encoded PowerShell has no shell-sensitive path interpolation, under Git Bash or PowerShell.
         var executable = Path.Combine(AppContext.BaseDirectory, "CodeRimCLI.exe").Replace("'", "''");
-        var script = "& '" + executable + "' " + operation + "; exit $LASTEXITCODE";
+        var script = "[Console]::InputEncoding=[Text.UTF8Encoding]::new($false); $OutputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
+            + "$buffer=New-Object char[] 524289; $count=[Console]::In.ReadBlock($buffer,0,$buffer.Length); if($count -gt 524288){exit 1}; if($count -eq 0){exit 0}; "
+            + "[String]::new($buffer,0,$count) | & '" + executable + "' " + operation + "; exit $LASTEXITCODE";
         return "powershell.exe -NoProfile -NonInteractive -EncodedCommand " + Convert.ToBase64String(System.Text.Encoding.Unicode.GetBytes(script));
     }
     internal static void Install()
