@@ -1,0 +1,124 @@
+using System.Globalization;
+using System.Text.Json;
+using CodeRim.Core.Domain;
+using CodeRim.Core.Providers;
+using CodeRim.Core.Services;
+
+return await RunAsync(args).ConfigureAwait(false);
+
+static async Task<int> RunAsync(string[] arguments)
+{
+    string command = "usage", period = "today", format = "text";
+    string? provider = null, path = null;
+    var watch = 0;
+    try
+    {
+        var start = 0;
+        if (arguments.Length > 0 && !arguments[0].StartsWith("--", StringComparison.Ordinal)) { command = arguments[0]; start = 1; }
+        for (var i = start; i < arguments.Length; i++)
+        {
+            switch (arguments[i])
+            {
+                case "--provider": provider = Value(arguments, ref i); break;
+                case "--period": period = Value(arguments, ref i); break;
+                case "--snapshot": path = Value(arguments, ref i); break;
+                case "--format": format = Value(arguments, ref i); break;
+                case "--watch": watch = int.Parse(Value(arguments, ref i), CultureInfo.InvariantCulture); if (watch is < 1 or > 3600) throw new ArgumentException("--watch requires 1–3600 seconds."); break;
+                case "--pretty": case "--no-color": break;
+                case "--help": command = "help"; break;
+                case "--version": command = "version"; break;
+                default: throw new ArgumentException("Unknown option: " + arguments[i]);
+            }
+        }
+        if (provider is not null && ProviderCatalog.Find(provider) is null) throw new ArgumentException("Unknown provider.");
+        if (period is not ("today" or "week" or "month" or "all-time")) throw new ArgumentException("Unknown period.");
+        if (format is not ("text" or "json")) throw new ArgumentException("Format must be text or json.");
+        if (command == "version") { Console.WriteLine("CodeRim CLI 2.1.5 (Windows companion)"); return 0; }
+        if (command == "help")
+        {
+            Console.WriteLine("""
+                CodeRim CLI
+                  coderim [usage|tokens|limits] [--provider ID] [--period today|week|month|all-time]
+                         [--format text|json] [--pretty] [--watch SECONDS] [--snapshot PATH] [--no-color]
+                  coderim path | version | help
+                  coderim claude-status  (reads Claude status-line JSON from stdin)
+
+                Usage is local to This PC, across accounts. Limits retain the provider's original units.
+                Start CodeRim.exe to keep the companion snapshot up to date.
+                """); return 0;
+        }
+        if (command == "path") { Console.WriteLine(path ?? CompanionFile.SnapshotPath); return 0; }
+        if (command == "claude-status") { await CaptureClaudeAsync().ConfigureAwait(false); return 0; }
+        if (command is not ("usage" or "tokens" or "limits")) throw new ArgumentException("Unknown command.");
+        using var cancellation = new CancellationTokenSource();
+        Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
+        do
+        {
+            var snapshot = CompanionFile.Read(path);
+            var providers = snapshot.Providers.Where(x => x.Enabled && (provider is null || x.Id == provider)).ToArray();
+            if (provider is not null && providers.Length == 0) throw new InvalidDataException("This provider is not enabled in the snapshot.");
+            if (format == "json")
+            {
+                Console.WriteLine(JsonSerializer.Serialize(new { snapshot.SchemaVersion, snapshot.GeneratedAt, command, period,
+                    providers = providers.Select(item => new { item.Id, item.Name, item.Enabled,
+                        localUsage = command == "limits" ? null : item.LocalUsage is { } local ? local with { Totals = local.Totals.Where(pair => pair.Key == period).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal) } : null,
+                        limits = command == "tokens" ? null : item.Limits }) }, CompanionFile.JsonOptions));
+            }
+            else
+            {
+                Console.WriteLine("CodeRim · " + snapshot.GeneratedAt.ToLocalTime().ToString("g", CultureInfo.CurrentCulture));
+                foreach (var item in providers)
+                {
+                    Console.WriteLine(item.Name);
+                    if (command != "limits" && item.LocalUsage is { } local && local.Totals.TryGetValue(period, out var tokens))
+                    {
+                        var stale = DateTimeOffset.Now - local.PeriodsAsOf > TimeSpan.FromMinutes(5)
+                            || local.PeriodsAsOf.LocalDateTime.Date != DateTime.Today || local.TimeZoneIdentifier != TimeZoneInfo.Local.Id;
+                        Console.WriteLine($"  {period} · This PC{(local.State == "partial" ? " · partial" : "")}{(stale ? " · stale" : "")}  {tokens.TotalTokens:N0} tokens");
+                        Console.WriteLine($"  Input {tokens.InputTokens:N0} · Cached {tokens.CachedInputTokens:N0} (in Input) · Output {tokens.OutputTokens:N0}");
+                    }
+                    if (command == "tokens") continue;
+                    Console.WriteLine("  Limits · " + item.Limits.State);
+                    foreach (var window in item.Limits.Windows)
+                    {
+                        var value = window.UsedPercent is { } percent ? $"{percent:0.#}% used · {window.RemainingPercent:0.#}% left" : window.DisplayValue
+                            ?? (window.UsedCount is { } used ? $"{used:N0} {window.Unit} used" : window.RemainingCount is { } left ? $"{left:N0} {window.Unit} left" : "unavailable");
+                        Console.WriteLine($"  {window.Name}: {value}" + (window.ResetsAt is { } reset ? " · resets " + reset.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) : ""));
+                    }
+                }
+            }
+            if (watch > 0) await Task.Delay(TimeSpan.FromSeconds(watch), cancellation.Token).ConfigureAwait(false);
+        } while (watch > 0 && !cancellation.IsCancellationRequested);
+        return 0;
+    }
+    catch (OperationCanceledException) { return 0; }
+    catch (Exception e) when (e is ArgumentException or IOException or InvalidDataException or UnauthorizedAccessException or JsonException or FormatException or OverflowException)
+    {
+        Console.Error.WriteLine(e is FileNotFoundException ? "No CodeRim snapshot found. Start CodeRim.exe first." : e is ArgumentException ? e.Message : "Unable to read valid CodeRim data.");
+        return 1;
+    }
+}
+static string Value(string[] args, ref int index)
+{
+    if (++index >= args.Length) throw new ArgumentException("An option value is missing.");
+    return args[index];
+}
+static async Task CaptureClaudeAsync()
+{
+    var buffer = new char[8192]; var text = new System.Text.StringBuilder(); int count;
+    while ((count = await Console.In.ReadAsync(buffer).ConfigureAwait(false)) > 0)
+    {
+        if (text.Length + count > 524288) throw new InvalidDataException("Status input is too large.");
+        text.Append(buffer, 0, count);
+    }
+    using var document = JsonDocument.Parse(text.ToString());
+    var windows = ProviderParsers.Claude(document.RootElement);
+    if (windows.Count == 0) return;
+    var quotas = windows.ToDictionary(x => x.Id, x => new { used_percentage = x.UsedPercent, resets_at = x.ResetsAt?.ToUnixTimeSeconds() }, StringComparer.Ordinal);
+    var snapshot = JsonSerializer.Serialize(new { updatedAt = DateTimeOffset.UtcNow, rate_limits = quotas }, CompanionFile.JsonOptions);
+    Directory.CreateDirectory(CompanionFile.DataDirectory);
+    var path = Path.Combine(CompanionFile.DataDirectory, "claude-limits.json"); var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+    try { await File.WriteAllTextAsync(temporary, snapshot).ConfigureAwait(false); File.Move(temporary, path, true); }
+    finally { File.Delete(temporary); }
+    Console.WriteLine(string.Join(" · ", windows.Select(x => $"{x.Name} {x.UsedPercent:0}%")));
+}

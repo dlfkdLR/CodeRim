@@ -79,7 +79,7 @@ struct UsageNormalizer: Sendable {
             )
         }
 
-        guard cumulative.isComponentWiseAtLeast(previous) else {
+        guard !cumulative.hasCounterDecrease(comparedTo: previous) else {
             if observation.lastUsage == cumulative {
                 return UsageNormalizationResult(
                     delta: cumulative.isZero ? nil : cumulative,

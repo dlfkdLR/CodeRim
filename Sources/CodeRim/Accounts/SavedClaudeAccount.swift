@@ -3,10 +3,11 @@ import Foundation
 import Security
 
 enum ClaudeAccountError: Error, LocalizedError, Equatable {
-    case invalidLogin, keychain, unsafeFile, changedLogin, running, policy, loginFailed, cancelled, full, rollback
+    case invalidLogin, keychain, unsafeFile, changedLogin, running, policy, loginFailed, cancelled, full, rollback, cliVerificationFailed
 
     var errorDescription: String? {
         switch self {
+        case .cliVerificationFailed: "The selected Claude Code CLI account could not be verified. Run claude auth status before starting a new session."
         case .invalidLogin: "A complete Claude subscription login was not found. Sign in to Claude Code, then save it again."
         case .keychain: "Claude accounts could not be accessed. Unlock your macOS login Keychain and try again."
         case .unsafeFile: "Claude’s account configuration could not be updated safely. Check its file permissions and try again."

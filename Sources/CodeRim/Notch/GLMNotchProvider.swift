@@ -22,7 +22,7 @@ final class GLMNotchProvider: NotchProvider {
     private var consecutiveRateLimits = 0
     private var lastKnownPlan: String?
 
-    init(session: URLSession = .shared, archive: UsageArchive = UsageArchive()) {
+    init(session: URLSession = ProviderSession.shared, archive: UsageArchive = UsageArchive()) {
         self.session = session
         self.archive = archive
         self.retryNoEarlierThan = archive.loadBackoffUntil(providerID: "glm")

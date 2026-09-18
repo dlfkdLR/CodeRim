@@ -4,10 +4,11 @@ import Security
 enum AccountSwitchError: Error, LocalizedError, Equatable {
     case invalidLogin, unsafeFile, changedLogin, keychain, unsupportedStorage, managedAccount
     case codexRunning, quitCancelled, loginFailed, loginCancelled, tooManyAccounts, vaultFull, unavailable, busy, openCodexFirst
-    case processInspectionFailed
+    case processInspectionFailed, cliVerificationFailed
 
     var errorDescription: String? {
         switch self {
+        case .cliVerificationFailed: "The selected Codex CLI account could not be verified. Check codex login status before continuing, and restart existing CLI sessions."
         case .invalidLogin: "A complete ChatGPT login was not found. Sign in to Codex, then save the account again."
         case .unsafeFile: "The Codex login file is not a private, user-owned regular file. It was not changed."
         case .changedLogin: "Codex changed its login during the switch. Nothing was overwritten. Try again."

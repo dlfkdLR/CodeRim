@@ -20,8 +20,7 @@ enum OpenCodeCredentials {
     }
 
     static func load(from url: URL = authURL) -> Credential? {
-        guard let data = try? Data(contentsOf: url),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let root = CredentialFileReader.jsonObject(at: url),
               let entry = root["opencode-go"]
         else { return nil }
         // The entry is either the key itself or an object carrying it — both

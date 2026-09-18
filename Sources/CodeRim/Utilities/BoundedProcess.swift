@@ -82,6 +82,56 @@ enum BoundedProcess {
         }
     }
 
+    /// The same bounds for a caller that cannot be `async`.
+    ///
+    /// Credential discovery (`gh auth token`) and the Antigravity probe run
+    /// inside a detached task whose signature is synchronous all the way down,
+    /// and both previously used `readDataToEndOfFile()` — which has no
+    /// deadline and no ceiling, so a child that never exits (a `gh` waiting on
+    /// a Keychain prompt) blocks that thread for the life of the process and
+    /// leaves the child behind. This keeps the call shape and adds the
+    /// deadline, the output ceiling and the environment the async path has.
+    ///
+    /// stdin is `/dev/null`: a child that reads it sees EOF instead of waiting
+    /// for input that is never coming.
+    static func runSynchronously(
+        executable: URL, arguments: [String], environment: [String: String],
+        timeout: Duration, maximumOutputBytes: Int
+    ) throws -> Result {
+        let child = Child()
+        child.process.executableURL = executable
+        child.process.arguments = arguments
+        child.process.environment = environment
+        child.process.standardInput = FileHandle.nullDevice
+        child.process.standardOutput = child.output
+        child.process.standardError = child.error
+        child.process.terminationHandler = { _ in }
+        defer { child.stop(); child.close() }
+        for fd in [child.output.fileHandleForReading.fileDescriptor,
+                   child.error.fileHandleForReading.fileDescriptor] {
+            let flags = fcntl(fd, F_GETFL)
+            guard flags >= 0, fcntl(fd, F_SETFL, flags | O_NONBLOCK) == 0 else { throw BoundedProcessError.io }
+        }
+        do { try child.process.run() } catch { throw BoundedProcessError.launch }
+        try? child.output.fileHandleForWriting.close()
+        try? child.error.fileHandleForWriting.close()
+
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        var output = Data(), error = Data()
+        while true {
+            guard ContinuousClock.now < deadline else { throw BoundedProcessError.timedOut }
+            try drain(child.output.fileHandleForReading, into: &output, maximum: maximumOutputBytes)
+            try drain(child.error.fileHandleForReading, into: &error, maximum: maximumOutputBytes)
+            if !child.process.isRunning {
+                // Drain available bytes, not EOF: a descendant can inherit a pipe.
+                try drain(child.output.fileHandleForReading, into: &output, maximum: maximumOutputBytes, untilEmpty: true)
+                try drain(child.error.fileHandleForReading, into: &error, maximum: maximumOutputBytes, untilEmpty: true)
+                return Result(output: output, error: error, status: child.process.terminationStatus)
+            }
+            usleep(10_000)
+        }
+    }
+
     private static func drain(_ handle: FileHandle, into data: inout Data, maximum: Int, untilEmpty: Bool = false) throws {
         var buffer = [UInt8](repeating: 0, count: 16_384)
         // Normal iterations yield even if a producer writes continuously.

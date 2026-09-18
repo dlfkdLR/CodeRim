@@ -17,7 +17,7 @@ struct ClaudeAccountsView: View {
                 }
             }
             .padding(.bottom, 8)
-            Text("Select an account to use in Claude Code.")
+            Text("Select an account for the Claude Code CLI.")
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 20)
 
@@ -94,7 +94,7 @@ struct ClaudeAccountsView: View {
                 Task { await accounts.switchAccount(to: account.id) }
             }
         } message: { account in
-            Text("Use \(account.email) in Claude Code? Close existing Claude Code sessions first, then start Claude Code after switching.")
+            Text("Use \(account.email) in the Claude Code CLI? Close existing Claude Code sessions first, then start a new session after switching.")
         }
         .alert("Remove saved account?", isPresented: Binding(
             get: { pendingRemoval != nil }, set: { if !$0 { pendingRemoval = nil } }

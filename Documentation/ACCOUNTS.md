@@ -23,6 +23,14 @@ Removing an entry removes its saved Keychain copy; it does not sign out of Codex
 
 If the selected login has expired or been revoked, Codex may ask you to sign in again. **Switch** also works when the desktop is signed out and its login file is absent, so an existing saved account can be restored. A malformed or unsafe file is never treated as an absent file.
 
+## CLI synchronization
+
+Codex desktop and the default `codex` CLI share `~/.codex/auth.json`. A saved-account switch atomically updates that login, reopens the desktop, and checks `account/read` through the official bundled CLI with `refreshToken: false`. The returned ChatGPT email and the shared file's full workspace/subject identity must match the selection. Existing CLI sessions may retain credentials in memory: restart them to use the selected account. They are never killed by CodeRim.
+
+Claude switching updates the official CLI's default Keychain OAuth record and `~/.claude.json` account profile, preserving unrelated settings. After writing, CodeRim runs `claude auth status` and checks the authentication method, email and organization, then rechecks the full saved account identity. Existing Claude Code sessions must be closed first.
+
+If a local CLI check fails after writing, the UI reports that CLI verification did not complete. CodeRim re-reads the current account and does not roll back or overwrite the shared login, preserving any concurrent sign-in or vendor token refresh. Check `codex login status` or `claude auth status` in the terminal before continuing. These are local identity checks, not proof of server-side authentication or a paid model request. Independently configured `CODEX_HOME`/`CLAUDE_CONFIG_DIR` profiles, API keys, shell aliases, and remote machines keep their own authentication.
+
 ## Credential handling
 
 Saved logins use a dedicated, non-synchronizing macOS login Keychain item. Keychain’s access controls remain intact. Because CodeRim releases are ad-hoc signed, a new build can cause macOS to ask permission to access an entry created by an earlier build. Do not disable Keychain protection to suppress the prompt.

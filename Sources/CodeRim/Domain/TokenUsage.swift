@@ -84,6 +84,14 @@ struct TokenUsage: Codable, Equatable, Sendable {
             && outputTokens >= other.outputTokens
     }
 
+    func hasCounterDecrease(comparedTo previous: TokenUsage) -> Bool {
+        inputTokens < previous.inputTokens || cachedInputTokens < previous.cachedInputTokens
+            || outputTokens < previous.outputTokens
+            || (cacheWriteInputTokens.flatMap { current in
+                previous.cacheWriteInputTokens.map { current < $0 }
+            } ?? false)
+    }
+
     private func optionalSaturatedAdd(_ lhs: Int64?, _ rhs: Int64?) -> Int64? {
         guard let lhs, let rhs else { return nil }
         return lhs.saturatedAdding(rhs)

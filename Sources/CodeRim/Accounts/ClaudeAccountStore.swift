@@ -91,6 +91,7 @@ final class ClaudeAccountStore: ObservableObject {
         isBusy = true
         defer { isBusy = false }
         var notified = false
+        var committed = false
         do {
             let lease = try acquireLock()
             defer { withExtendedLifetime(lease) {} }
@@ -98,17 +99,38 @@ final class ClaudeAccountStore: ObservableObject {
             guard let selected = try vault.load().first(where: { $0.id == id }) else { throw ClaudeAccountError.invalidLogin }
             let original = try login.read()
             let current = try original.account()
-            if current?.id == id { currentID = id; succeed("This account is already active."); return }
+            if current?.id == id {
+                currentID = id
+                try await verifyCLIAccount(selected)
+                succeed("This account is already active for new Claude Code CLI sessions.")
+                return
+            }
             try runtime.requireStopped()
             // Preserve any refresh-token rotation before leaving the account.
             if let current { try upsert(current) }
             onWillSwitch(); notified = true
             try runtime.requireStopped()
             try login.replace(with: selected, expecting: original)
+            committed = true
             currentID = selected.id
-            succeed("Account switched. Start Claude Code to use it.")
-        } catch { fail(error) }
+            try await verifyCLIAccount(selected)
+            succeed("Account switched for the Claude Code CLI. Start a new session to use it.")
+        } catch {
+            if committed {
+                currentID = try? login.read().account()?.id
+                fail(ClaudeAccountError.cliVerificationFailed)
+            } else { fail(error) }
+        }
         if notified { await onDidSwitch() }
+    }
+
+    private func verifyCLIAccount(_ account: SavedClaudeAccount) async throws {
+        let verified: Bool
+        do { try await runtime.verifyCLIAccount(account); verified = true }
+        catch { verified = false }
+        // Refresh identity on failed probes too, including already-active checks.
+        currentID = try? login.read().account()?.id
+        guard verified, currentID == account.id else { throw ClaudeAccountError.cliVerificationFailed }
     }
 
     private func upsert(_ account: SavedClaudeAccount) throws {

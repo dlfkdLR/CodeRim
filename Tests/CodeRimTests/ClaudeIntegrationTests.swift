@@ -153,6 +153,50 @@ final class ClaudeRateLimitCodecTests: XCTestCase {
         )
         XCTAssertEqual(resolved, claude.standardizedFileURL)
     }
+
+    /// CodeRim runs the resolved binary with `auth login`. A `claude` sitting
+    /// in a directory anyone can write to is anyone's code, so it is not a
+    /// candidate — resolution passes over it rather than executing it.
+    func testAWorldWritablePathEntryIsNotAResolutionCandidate() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let home = root.appendingPathComponent("home", isDirectory: true)
+        let shared = root.appendingPathComponent("shared/bin", isDirectory: true)
+        let safe = root.appendingPathComponent("safe/bin", isDirectory: true)
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: shared, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o777])
+        try FileManager.default.createDirectory(at: safe, withIntermediateDirectories: true)
+
+        for directory in [shared, safe] {
+            FileManager.default.createFile(atPath: directory.appendingPathComponent("claude").path,
+                                           contents: Data("#!/bin/sh\n".utf8),
+                                           attributes: [.posixPermissions: 0o755])
+        }
+        let resolved = try ClaudeExecutable.resolve(
+            home: home, environment: ["PATH": "\(shared.path):\(safe.path)"]
+        )
+        XCTAssertEqual(resolved, safe.appendingPathComponent("claude").standardizedFileURL)
+
+        // With only the writable one on PATH there is no usable CLI at all.
+        XCTAssertThrowsError(try ClaudeExecutable.resolve(home: home, environment: ["PATH": shared.path]))
+    }
+
+    /// A binary that is itself group- or world-writable is the same problem
+    /// one level down, even in a directory nobody else can write.
+    func testAGroupWritableBinaryIsNotAResolutionCandidate() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let home = root.appendingPathComponent("home", isDirectory: true)
+        let bin = root.appendingPathComponent("bin", isDirectory: true)
+        try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: bin.appendingPathComponent("claude").path,
+                                       contents: Data("#!/bin/sh\n".utf8),
+                                       attributes: [.posixPermissions: 0o775])
+
+        XCTAssertThrowsError(try ClaudeExecutable.resolve(home: home, environment: ["PATH": bin.path]))
+    }
 }
 
 @MainActor
@@ -496,6 +540,79 @@ final class ClaudeStatusLineInstallerTests: XCTestCase {
             try JSONSerialization.jsonObject(with: Data(contentsOf: settings)) as? [String: Any]
         )
         XCTAssertEqual((restored["statusLine"] as? [String: Any])?["command"] as? String, "original-bar")
+    }
+
+    /// A `~/.claude/settings.json` kept in a dotfile repo is a symlink. An
+    /// atomic write to the link's own path replaces the link with a regular
+    /// file, which silently detaches the file from the repo — the user's next
+    /// `git status` shows nothing and their next machine gets the old copy.
+    /// Install and uninstall both have to write through the link instead.
+    func testWritingSettingsKeepsASymlinkedFileLinked() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repository = root.appendingPathComponent("dotfiles", isDirectory: true)
+        let target = repository.appendingPathComponent("claude-settings.json")
+        let settings = root.appendingPathComponent(".claude/settings.json")
+        let managed = root.appendingPathComponent("managed", isDirectory: true)
+        let helper = root.appendingPathComponent("CodexMeterClaudeBridge")
+        try FileManager.default.createDirectory(at: repository, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: settings.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(#"{"theme":"dark"}"#.utf8).write(to: target)
+        try FileManager.default.createSymbolicLink(at: settings, withDestinationURL: target)
+        FileManager.default.createFile(atPath: helper.path, contents: Data("helper".utf8), attributes: [.posixPermissions: 0o700])
+        let installer = ClaudeStatusLineInstaller(
+            settingsURL: settings, managedDirectory: managed, bridgeSource: { helper }
+        )
+
+        try installer.install()
+
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: settings.path),
+                       target.path)
+        let throughLink = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(contentsOf: target)) as? [String: Any]
+        )
+        XCTAssertEqual(throughLink["theme"] as? String, "dark")
+        XCTAssertTrue(
+            try XCTUnwrap((throughLink["statusLine"] as? [String: Any])?["command"] as? String)
+                .contains("CodexMeterClaudeBridge")
+        )
+
+        try installer.uninstall()
+        XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: settings.path),
+                       target.path)
+        let after = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(contentsOf: target)) as? [String: Any]
+        )
+        XCTAssertNil(after["statusLine"])
+        XCTAssertEqual(after["theme"] as? String, "dark")
+    }
+
+    /// Uninstall removes CodeRim's command and nothing else. A status line the
+    /// user set after the install is theirs, and the rest of the file belongs
+    /// to Claude Code.
+    func testUninstallLeavesAStatusLineTheUserSetAfterwardsAlone() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let settings = root.appendingPathComponent(".claude/settings.json")
+        let managed = root.appendingPathComponent("managed", isDirectory: true)
+        let helper = root.appendingPathComponent("CodexMeterClaudeBridge")
+        try FileManager.default.createDirectory(at: settings.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: settings)
+        FileManager.default.createFile(atPath: helper.path, contents: Data("helper".utf8), attributes: [.posixPermissions: 0o700])
+        let installer = ClaudeStatusLineInstaller(
+            settingsURL: settings, managedDirectory: managed, bridgeSource: { helper }
+        )
+
+        try installer.install()
+        try Data(#"{"statusLine":{"type":"command","command":"mine"},"model":"opus"}"#.utf8)
+            .write(to: settings)
+        try installer.uninstall()
+
+        let after = try XCTUnwrap(
+            try JSONSerialization.jsonObject(with: Data(contentsOf: settings)) as? [String: Any]
+        )
+        XCTAssertEqual((after["statusLine"] as? [String: Any])?["command"] as? String, "mine")
+        XCTAssertEqual(after["model"] as? String, "opus")
     }
 }
 

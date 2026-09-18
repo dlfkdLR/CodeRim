@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.5 — Account and usage reliability; Windows preview
+
+- Fix external account invalidation, growing-log progress, optional cache-write accounting, and streaming HTTP limits.
+- Publish the Windows x64/ARM64 implementation preview with local usage history, provider connections, tray/notch, CLI, and installer fixes.
+- Preserve OpenRouter activity history and partial/stale readings; disclose remaining Windows parity work.
+- See [release notes](Documentation/ReleaseNotes/2.1.5.md).
+
 ## 2.1.3 — Installed app identity
 
 - Finish the legacy CodexMeter filename migration on launch for manual installations, with a safe restart and no overwrites.

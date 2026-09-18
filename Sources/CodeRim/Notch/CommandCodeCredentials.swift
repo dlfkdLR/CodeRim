@@ -35,9 +35,7 @@ struct CommandCodeCredentials {
             return CommandCodeCredentials(apiKey: env, userName: nil)
         }
 
-        guard FileManager.default.fileExists(atPath: url.path),
-              let data = try? Data(contentsOf: url),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+        guard let root = CredentialFileReader.jsonObject(at: url),
               let key = nonEmpty(root["apiKey"] as? String)
         else { throw NotchProviderError.needsAuth }
 

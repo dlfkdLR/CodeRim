@@ -10,6 +10,7 @@ protocol CodexAccountRuntime {
     func waitForStopped() async throws
     func requireStopped() throws
     func openCodex() async throws
+    func verifyCLIAccount(_ account: SavedCodexAccount) async throws
 }
 
 extension CodexAccountRuntime {
@@ -125,6 +126,13 @@ final class LocalCodexAccountRuntime: CodexAccountRuntime {
         let session = CodexDesktopSession(bundle: url, executable: url.appendingPathComponent("Contents/Resources/codex"))
         try await Task.detached { try session.verifySignature() }.value
         _ = try await NSWorkspace.shared.openApplication(at: url, configuration: .init())
+    }
+
+    func verifyCLIAccount(_ account: SavedCodexAccount) async throws {
+        // Use the official bundled CLI against the shared home. This is a local
+        // identity check; never force token renewal or send a model request.
+        let response = try await request("account/read", params: ["refreshToken": false])
+        try CLIAccountVerification.requireCodex(response, account: account)
     }
 
     private func applicationURL() throws -> URL {

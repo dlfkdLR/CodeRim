@@ -7,6 +7,7 @@ protocol ClaudeAccountRuntime {
     func checkPolicy() throws
     func requireStopped() throws
     func signIn() async throws -> SavedClaudeAccount
+    func verifyCLIAccount(_ account: SavedClaudeAccount) async throws
 }
 
 @MainActor
@@ -60,6 +61,13 @@ struct LocalClaudeAccountRuntime: ClaudeAccountRuntime {
         // those clients without reading their arguments or environment.
         let directory = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/sessions")
         guard ClaudeSessionMonitor.read(directory: directory).isEmpty else { throw ClaudeAccountError.running }
+    }
+
+    func verifyCLIAccount(_ account: SavedClaudeAccount) async throws {
+        let status = try await ClaudeCommandRunner.run(executable: ClaudeExecutable.resolve(),
+            arguments: ["auth", "status"], timeout: .seconds(10), maximumOutputBytes: 131_072,
+            acceptsNonzeroExit: true)
+        try CLIAccountVerification.requireClaude(status, account: account)
     }
 
     nonisolated static func requireSignedOutProbe(_ data: Data) throws {

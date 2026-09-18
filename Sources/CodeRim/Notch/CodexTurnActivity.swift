@@ -90,6 +90,11 @@ enum CodexTurnActivity {
     private static let markers = ["\"task_started\"", "\"task_complete\"", "\"turn_aborted\""]
         .map { Data($0.utf8) }
     private static let chunkSize = 65_536
+    /// The ceiling on a single JSONL record this reader will materialize. A
+    /// real `task_started` / `task_complete` / `turn_aborted` line is well
+    /// under a kilobyte; this is four orders of magnitude of headroom and only
+    /// ever trips on a record that is not one of them.
+    static let maximumRecordBytes = 4 * 1_024 * 1_024
 
     private static func bytes(_ handle: FileHandle, at offset: UInt64, count: Int) throws -> Data {
         try handle.seek(toOffset: offset)
@@ -121,6 +126,14 @@ enum CodexTurnActivity {
         }
         func decode(from start: UInt64, to finish: UInt64) throws -> Event? {
             guard candidate else { return nil }
+            // A boundary record is a timestamp and a small payload. A record
+            // far larger than that is a tool result that happens to quote one
+            // of the markers — reviewing this very file would do it — and it
+            // must not be read into memory whole just to be rejected by the
+            // JSON parse. The old tail-based reader was capped at 8 MB for the
+            // whole read; chunked scanning removed that ceiling, so the cap
+            // belongs here, on the one place that still materializes a record.
+            guard finish - start <= UInt64(maximumRecordBytes) else { return nil }
             return event(in: try bytes(handle, at: start, count: Int(finish - start)))
         }
         while position > lowerBound {

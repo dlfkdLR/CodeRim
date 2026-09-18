@@ -5,6 +5,46 @@ import XCTest
 
 @MainActor
 final class CodexAccountSwitchingTests: XCTestCase {
+    func testExternalIdentityChangeDiscardsAnInFlightLimitResponse() async throws {
+        let harness = try makeHarness()
+        harness.store.refreshCurrentPlanType()
+        let provider = AccountSwitchPausedLimitProvider()
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "ExternalAccountTest.\(UUID().uuidString)"))
+        let limits = AccountLimitStore(provider: provider, defaults: defaults, pollingInterval: nil)
+        harness.store.onAccountWillChange = { limits.clearForAccountSwitch() }
+        let refresh = Task { await limits.refresh() }
+        let requested = await provider.waitUntilRequested()
+        let generation = AccountSwitchActivity.generation
+        harness.login.data = harness.target.loginData
+        harness.login.lastModified = Date()
+        harness.store.refreshCurrentPlanType()
+        await provider.finish(.success(AccountLimitsSnapshot(windows: [], resetCredits: nil, fetchedAt: Date())))
+        await refresh.value
+        XCTAssertTrue(requested)
+        XCTAssertEqual(harness.store.currentID, harness.target.id)
+        XCTAssertEqual(AccountSwitchActivity.generation, generation + 1)
+        XCTAssertNil(limits.snapshot)
+        XCTAssertEqual(limits.status, .loading)
+        XCTAssertTrue(harness.trace.events.contains("did-finish"))
+    }
+
+    func testCredentialRefreshForSameIdentityDoesNotClearQuota() throws {
+        let harness = try makeHarness()
+        harness.store.refreshCurrentPlanType()
+        harness.trace.events.removeAll()
+        let generation = AccountSwitchActivity.generation
+        harness.login.data = try account(revision: "refreshed").loginData
+        harness.login.lastModified = Date()
+        harness.store.refreshCurrentPlanType()
+        XCTAssertEqual(AccountSwitchActivity.generation, generation)
+        XCTAssertFalse(harness.trace.events.contains("will-change"))
+        harness.login.data = nil
+        harness.login.lastModified = Date().addingTimeInterval(1)
+        harness.store.refreshCurrentPlanType()
+        XCTAssertNil(harness.store.currentID)
+        XCTAssertTrue(harness.trace.events.contains("will-change"))
+    }
+
     func testAccountIdentityUsesWorkspaceAndSubjectNotEmail() throws {
         let first = try account(workspace: "workspace-a", subject: "subject-a", email: "first@example.test")
         let renamed = try account(workspace: "workspace-a", subject: "subject-a", email: "renamed@example.test")
@@ -553,7 +593,7 @@ final class CodexAccountSwitchingTests: XCTestCase {
 
         XCTAssertEqual(harness.trace.events, [
             "will-change", "vault.load", "policy:workspace-b", "login.read", "quit", "login.read",
-            "vault.load", "vault.save", "stopped", "login.replace", "open", "did-finish"
+            "vault.load", "vault.save", "stopped", "login.replace", "open", "verify-cli", "login.read", "did-finish"
         ])
         XCTAssertEqual(harness.login.data, harness.target.loginData)
         XCTAssertEqual(harness.login.expectedOriginal, harness.departing.loginData)
@@ -563,6 +603,60 @@ final class CodexAccountSwitchingTests: XCTestCase {
         XCTAssertFalse(harness.store.isError)
         XCTAssertFalse(AccountSwitchActivity.isSwitching)
         XCTAssertEqual(AccountSwitchActivity.generation, generation &+ 2)
+    }
+
+    func testCLIVerificationFailureKeepsCommittedLoginAndReopenedDesktop() async throws {
+        let harness = try makeHarness()
+        harness.runtime.verificationError = .unavailable
+        await harness.store.switchAccount(to: harness.target.id)
+        XCTAssertEqual(harness.login.data, harness.target.loginData)
+        XCTAssertEqual(harness.login.replaceCount, 1)
+        XCTAssertEqual(harness.runtime.openCount, 1)
+        XCTAssertEqual(harness.store.currentID, harness.target.id)
+        XCTAssertEqual(harness.store.message, AccountSwitchError.cliVerificationFailed.errorDescription)
+        XCTAssertTrue(harness.store.isError)
+        XCTAssertEqual(harness.trace.events.last, "did-finish")
+    }
+
+    func testCLIProbeCannotHideAConcurrentWorkspaceChangeWithTheSameEmail() async throws {
+        let harness = try makeHarness()
+        let concurrent = try account(workspace: "different-workspace", email: harness.target.email)
+        harness.runtime.onVerify = { harness.login.data = concurrent.loginData }
+        await harness.store.switchAccount(to: harness.target.id)
+        XCTAssertEqual(harness.login.data, concurrent.loginData)
+        XCTAssertEqual(harness.store.currentID, concurrent.id)
+        XCTAssertEqual(harness.store.message, AccountSwitchError.cliVerificationFailed.errorDescription)
+        XCTAssertTrue(harness.store.isError)
+    }
+
+    func testCLIProbeAllowsSameAccountTokenRotationWithoutOverwritingIt() async throws {
+        let harness = try makeHarness()
+        let rotated = try account(workspace: "workspace-b", subject: "subject-b", revision: "rotated")
+        harness.runtime.onVerify = { harness.login.data = rotated.loginData }
+        await harness.store.switchAccount(to: harness.target.id)
+        XCTAssertEqual(harness.login.data, rotated.loginData)
+        XCTAssertFalse(harness.store.isError)
+    }
+
+    func testFailedAlreadyActiveProbeRefreshesBadgeAfterExternalSignIn() async throws {
+        let harness = try makeHarness()
+        harness.runtime.onVerify = { harness.login.data = harness.target.loginData }
+        harness.runtime.verificationError = .unavailable
+        await harness.store.switchAccount(to: harness.departing.id)
+        XCTAssertEqual(harness.store.currentID, harness.target.id)
+        XCTAssertEqual(harness.login.replaceCount, 0)
+        XCTAssertEqual(harness.runtime.quitCount, 0)
+        XCTAssertTrue(harness.store.isError)
+    }
+
+    func testAlreadySelectedAccountStillChecksCLIWithoutRestartOrWrite() async throws {
+        let harness = try makeHarness()
+        await harness.store.switchAccount(to: harness.departing.id)
+        XCTAssertTrue(harness.trace.events.contains("verify-cli"))
+        XCTAssertEqual(harness.login.replaceCount, 0)
+        XCTAssertEqual(harness.runtime.quitCount, 0)
+        XCTAssertEqual(harness.runtime.openCount, 0)
+        XCTAssertFalse(harness.store.isError)
     }
 
     func testSwitchPreservesDepartingCredentialRefreshedDuringGracefulQuit() async throws {
@@ -609,7 +703,7 @@ final class CodexAccountSwitchingTests: XCTestCase {
         XCTAssertEqual(harness.vault.saveCount, 0)
         XCTAssertEqual(harness.trace.events, [
             "will-change", "vault.load", "policy:workspace-b", "login.read", "quit", "login.read",
-            "stopped", "login.replace", "open", "did-finish"
+            "stopped", "login.replace", "open", "verify-cli", "login.read", "did-finish"
         ])
         XCTAssertFalse(harness.store.isError)
     }
@@ -1098,6 +1192,7 @@ private final class AccountSwitchMemoryVault: AccountVault {
 
 private final class AccountSwitchMemoryLogin: CodexLoginStoring {
     var data: Data?
+    var lastModified: Date?
     private(set) var replaceCount = 0
     private(set) var expectedOriginal: Data?
     private let trace: AccountSwitchTrace
@@ -1128,6 +1223,8 @@ private final class AccountSwitchMemoryRuntime: CodexAccountRuntime {
     var quitError: AccountSwitchError?
     var stoppedError: AccountSwitchError?
     var openError: AccountSwitchError?
+    var verificationError: AccountSwitchError?
+    var onVerify: () -> Void = {}
     var onQuit: () -> Void = {}
     var onRequireStopped: () -> Void = {}
     var onWaitForStopped: (@MainActor () async throws -> Void)?
@@ -1166,6 +1263,12 @@ private final class AccountSwitchMemoryRuntime: CodexAccountRuntime {
     func waitForStopped() async throws {
         if let onWaitForStopped { try await onWaitForStopped() }
         else { try requireStopped() }
+    }
+
+    func verifyCLIAccount(_ account: SavedCodexAccount) async throws {
+        trace.record("verify-cli")
+        onVerify()
+        if let verificationError { throw verificationError }
     }
 
     func openCodex() async throws {

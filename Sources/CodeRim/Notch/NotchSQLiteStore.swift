@@ -20,9 +20,10 @@ import CSQLite
 enum SQLiteStore {
     static func open(_ url: URL) -> OpaquePointer? {
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        let path = uriPath(url.path)
         for query in ["mode=ro", "immutable=1"] {
             var db: OpaquePointer?
-            if sqlite3_open_v2("file:\(url.path)?\(query)", &db,
+            if sqlite3_open_v2("file:\(path)?\(query)", &db,
                                SQLITE_OPEN_READONLY | SQLITE_OPEN_URI, nil) == SQLITE_OK,
                let db {
                 return db
@@ -30,6 +31,30 @@ enum SQLiteStore {
             sqlite3_close(db)
         }
         return nil
+    }
+
+    /// A URI filename is not a path: SQLite reads everything after the first
+    /// `?` as query parameters and decodes `%` escapes in what is left. A home
+    /// directory containing either character — both legal on macOS — would
+    /// otherwise open the wrong file or none at all. `#` is included because
+    /// SQLite documents it as a fragment separator in this position.
+    static func uriPath(_ path: String) -> String {
+        // Escaping happens on UTF-8 bytes and the result is decoded back as
+        // UTF-8, so a non-ASCII path (a Korean or accented home directory)
+        // passes through byte-for-byte rather than being re-encoded per scalar.
+        let hex = Array("0123456789ABCDEF".utf8)
+        var bytes: [UInt8] = []
+        for byte in Array(path.utf8) {
+            switch byte {
+            case UInt8(ascii: "?"), UInt8(ascii: "#"), UInt8(ascii: "%"):
+                bytes.append(UInt8(ascii: "%"))
+                bytes.append(hex[Int(byte >> 4)])
+                bytes.append(hex[Int(byte & 0x0F)])
+            default:
+                bytes.append(byte)
+            }
+        }
+        return String(decoding: bytes, as: UTF8.self)
     }
 
     /// Every column of every row, as text. Needed where one row carries more

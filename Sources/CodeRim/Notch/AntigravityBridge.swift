@@ -34,7 +34,14 @@ enum AntigravityBridge {
 
     static func discover(processTable: String? = nil,
                          listeningPorts: ((Int) -> [Int])? = nil) -> Endpoint? {
-        let table = processTable ?? run("/bin/ps", ["-Ao", "pid,command"])
+        // Only this user's processes. The line below reads another process's
+        // command line to lift its `--csrf_token`, which is the one thing that
+        // makes this RPC answer — so the search has to stop at the boundary
+        // where that stops being our own credential. `-A` crossed it: on a
+        // shared Mac it would find a second account's language server and read
+        // that person's quota. `-x` keeps processes with no controlling
+        // terminal, which is every GUI-launched one.
+        let table = processTable ?? run("/bin/ps", ["-xo", "pid,command", "-U", "\(getuid())"])
         let lines = table.split(separator: "\n")
 
         // The IDE's language server carries a token.
@@ -189,16 +196,20 @@ enum AntigravityBridge {
 
     // MARK: - Plumbing
 
+    /// `ps` and `lsof` both normally answer in milliseconds, but `lsof` can
+    /// block indefinitely on a stale network mount, and this runs on a timer.
+    /// A deadline and an output ceiling turn that into one empty reading — no
+    /// cell for this poll — instead of a wedged thread and an orphaned child.
     private static func run(_ path: String, _ arguments: [String]) -> String {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: path)
-        process.arguments = arguments
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = FileHandle.nullDevice
-        guard (try? process.run()) != nil else { return "" }
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        return String(decoding: data, as: UTF8.self)
+        let inherited = ProcessInfo.processInfo.environment
+        let environment = ["PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
+                           "LANG": inherited["LANG"] ?? "en_US.UTF-8"]
+        // Exit status is deliberately ignored, as it was before: `lsof` exits
+        // non-zero when nothing matches, which is an ordinary answer here.
+        guard let result = try? BoundedProcess.runSynchronously(
+            executable: URL(fileURLWithPath: path), arguments: arguments,
+            environment: environment, timeout: .seconds(5), maximumOutputBytes: 4 * 1_024 * 1_024
+        ) else { return "" }
+        return String(decoding: result.output, as: UTF8.self)
     }
 }

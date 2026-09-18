@@ -20,7 +20,7 @@ final class OllamaNotchProvider: NotchProvider {
     private let session: URLSession
     private let key: @Sendable () -> String?
 
-    init(session: URLSession = .shared,
+    init(session: URLSession = ProviderSession.shared,
          key: (@Sendable () -> String?)? = nil) {
         self.session = session
         self.key = key ?? { OllamaCredentials.load() }

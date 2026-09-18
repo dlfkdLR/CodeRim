@@ -46,6 +46,10 @@ final class CodexAccountStore: ObservableObject {
     private var loginTask: Task<Void, Never>?
     /// The login's modification date at the last plan read.
     private var lastPlanStamp: Date?
+    /// Whether a plan read has happened at all, so a login with no plan claim
+    /// is read once rather than on every poll.
+    private var hasReadPlan = false
+    private var hasReadIdentity = false
 
     init(vault: any AccountVault = KeychainAccountVault(),
          login: any CodexLoginStoring = CodexLoginFile(directory: CodexLoginFile.defaultDirectory),
@@ -75,15 +79,28 @@ final class CodexAccountStore: ObservableObject {
     func refreshCurrentPlanType() {
         guard !isBusy else { return }
         let stamp = login.lastModified
-        guard stamp != lastPlanStamp || currentPlanType == nil else { return }
+        // Re-read when the login changed, or when nothing has been read yet.
+        // Keyed on having read at all rather than on `currentPlanType`, which
+        // is legitimately nil for a login whose token carries no plan claim —
+        // asking again every poll would never produce a different answer.
+        guard stamp != lastPlanStamp || !hasReadPlan else { return }
         lastPlanStamp = stamp
+        hasReadPlan = true
         updateCurrentMetadata(try? readCurrentAccount())
     }
 
     private func updateCurrentMetadata(_ account: SavedCodexAccount?) {
+        let externalChange = hasReadIdentity && currentID != account?.id
+            && !AccountSwitchActivity.isSwitching
+        if externalChange {
+            AccountSwitchActivity.generation &+= 1
+            onAccountWillChange()
+        }
+        hasReadIdentity = true
         currentID = account?.id
         currentAccountEmail = account?.email
         currentPlanType = account?.planType
+        if externalChange { onAccountOperationFinished() }
     }
 
     func saveCurrent() async {
@@ -158,6 +175,7 @@ final class CodexAccountStore: ObservableObject {
         }
         var committed = false
         var didQuit = false
+        var didReopen = false
         do {
             let lease = try acquireLock()
             defer { withExtendedLifetime(lease) {} }
@@ -169,7 +187,12 @@ final class CodexAccountStore: ObservableObject {
             guard selected.id == id else { throw AccountSwitchError.invalidLogin }
             try await runtime.checkPolicy(for: selected.workspaceID)
             let beforeQuit = try readCurrentAccount()
-            if beforeQuit?.id == id { updateCurrentMetadata(beforeQuit); succeed("This account is already active."); return }
+            if beforeQuit?.id == id {
+                updateCurrentMetadata(beforeQuit)
+                try await verifyCLIAccount(selected)
+                succeed("This account is already active for Codex and new CLI sessions.")
+                return
+            }
             // Do not refresh a copied credential in a disposable process. Official
             // Codex owns renewal after restart, in its canonical auth.json; a failed
             // preflight RPC must never discard the only rotated refresh token.
@@ -187,16 +210,31 @@ final class CodexAccountStore: ObservableObject {
             committed = true
             updateCurrentMetadata(selected)
             try await runtime.openCodex()
-            succeed("Saved login applied and Codex reopened. If the login has expired, sign in again in Codex.")
+            didReopen = true
+            try await verifyCLIAccount(selected)
+            succeed("Account switched for Codex and new CLI sessions. Restart existing CLI sessions to use it.")
         } catch {
             if committed {
+                updateCurrentMetadata(try? readCurrentAccount())
                 isError = true
-                message = "The login was changed, but Codex could not reopen. Open Codex from Applications."
+                message = didReopen ? AccountSwitchError.cliVerificationFailed.errorDescription
+                    : "The shared Codex login was changed, but Codex could not reopen. Open Codex from Applications and restart your CLI sessions."
             } else {
                 if didQuit { try? await runtime.openCodex() }
                 fail(error)
             }
         }
+    }
+
+    private func verifyCLIAccount(_ account: SavedCodexAccount) async throws {
+        let verified: Bool
+        do { try await runtime.verifyCLIAccount(account); verified = true }
+        catch { verified = false }
+        // A failed probe can also race an external sign-in. Refresh the badge
+        // even when this operation did not write (the account was already active).
+        let current = try? readCurrentAccount()
+        updateCurrentMetadata(current)
+        guard verified, current?.id == account.id else { throw AccountSwitchError.cliVerificationFailed }
     }
 
     private func upsert(_ account: SavedCodexAccount) throws {
