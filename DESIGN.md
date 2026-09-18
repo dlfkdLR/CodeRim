@@ -82,8 +82,11 @@ The notch's account-switch control follows its Settings control along the edge
 first and the account control 80ms later; both remain visible across the gap
 and during menu tracking, then hide on exit. Reduce Motion removes the animation.
 Its hit area participates in the panel's
-screen bounds and hover region. A native account popover opens the corresponding saved Codex or Claude Accounts
-window without changing accounts on a single click.
+screen bounds and hover region. A native account popover lists only added account providers in the same order as
+Settings. Codex and Claude open their saved Accounts windows; other providers open
+their account settings with the owning app, sign-in guidance, or credential controls.
+Account-free local daemons are omitted. An empty list offers Manage Providers, and
+long lists scroll within the popover. Opening a row does not change accounts.
 Settings ▸ Notch ▸ Readings offers Used / Remaining: the percent and ring sweep
 change together. Settings ▸ Notch ▸ Appearance offers Usage colours (the default),
 Fixed colour, or Gradient. Usage colours follow actual consumption; Fixed colour
