@@ -38,6 +38,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     var onReposition: ((CGFloat) -> Void)?
 
     var accountOptions: (() -> [NotchAccountOption])?
+    var onManageAccountProviders: (() -> Void)?
     private var accountPopover: NSPopover?
 #if DEBUG
     var accountPopoverForTesting: NSPopover? { accountPopover }
@@ -107,7 +108,6 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     private func showAccountMenu() {
         guard let panel, let hostingView, !model.isPresentingAccountMenu else { return }
         let options = accountOptions?() ?? []
-        guard !options.isEmpty else { return }
         foldWork?.cancel()
         foldWork = nil
         model.isPresentingAccountMenu = true
@@ -123,7 +123,11 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
                 self?.accountPopover?.close()
                 DispatchQueue.main.async { [weak self] in self?.onSwitchAccount?(id) }
             },
-            onClose: { [weak self] in self?.accountPopover?.close() }
+            onClose: { [weak self] in self?.accountPopover?.close() },
+            onManageProviders: { [weak self] in
+                self?.accountPopover?.close()
+                DispatchQueue.main.async { [weak self] in self?.onManageAccountProviders?() }
+            }
         ))
         accountPopover = popover
         let rect = model.accountOrbRect

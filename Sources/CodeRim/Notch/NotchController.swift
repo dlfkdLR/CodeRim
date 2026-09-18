@@ -97,6 +97,8 @@ final class NotchController: ObservableObject {
         let store = NotchUsageStore(providers: providers,
             disconnected: Set(providers.map(\.id)).subtracting(selectedProviderIDs), order: Self.storedProviderOrder())
         self.store = store
+        if let codexUsage { store.bindLocalUsage(codexUsage, providerID: "codex") }
+        if let claudeUsage { store.bindLocalUsage(claudeUsage, providerID: "claude") }
 
         ClaudeAccountStore.shared.onWillSwitch = { [weak claudeIntegration, weak store] in
             claudeIntegration?.beginAccountSwitch()
@@ -108,22 +110,33 @@ final class NotchController: ObservableObject {
             store?.refresh(providerID: "claude")
         }
 
-        window.onRefresh = { [weak store] in store?.refreshNow() }
-        window.onRefreshProvider = { [weak store] id in store?.refresh(providerID: id) }
+        window.onRefresh = { [weak store] in
+            ProviderInteractionContext.$current.withValue(.userInitiated) {
+                store?.refreshNow()
+            }
+        }
+        window.onRefreshProvider = { [weak self] id in self?.refresh(providerID: id) }
         window.onOpenSettings = { SettingsWindowController.shared.present() }
-        window.accountOptions = { [weak codexAccounts, weak claudeIntegration] in
-            [NotchAccountOption(id: "codex", title: "Codex", glyph: .openai,
-                account: codexAccounts?.currentAccountDisplayName, plan: codexAccounts?.currentPlanName),
-             NotchAccountOption(id: "claude", title: "Claude Code", glyph: .claude,
-                account: claudeIntegration?.account?.email, plan: claudeIntegration?.account?.planName)]
+        window.accountOptions = { [weak self, weak codexAccounts] in
+            guard let self else { return [] }
+            return NotchAccountOption.addedProviders(
+                selectedIDs: self.selectedProviderIDs,
+                summaries: self.store?.providerSummaries ?? self.providerSummaries,
+                order: self.providerOrder,
+                accountDisplayNames: ["codex": codexAccounts?.currentAccountDisplayName].compactMapValues { $0 }
+            )
+        }
+        window.onManageAccountProviders = {
+            SettingsWindowController.shared.present(selecting: .category(.providers))
         }
         window.onSwitchAccount = { id in
-            if id == "codex" {
+            switch NotchAccountDestination(providerID: id) {
+            case .codex:
                 CodexAccountsWindowController.shared.show()
-            } else if id == "claude" {
+            case .claude:
                 ClaudeAccountsWindowController.shared.show()
-            } else {
-                SettingsWindowController.shared.present(selecting: .notchProvider(id: id))
+            case .providerSettings(let providerID):
+                SettingsWindowController.shared.present(selecting: .notchProvider(id: providerID))
             }
         }
         window.onOpenUsage = {
@@ -313,6 +326,12 @@ final class NotchController: ObservableObject {
         ProviderInteractionContext.$current.withValue(.userInitiated) {
             BrowserCookieAccessGate.withExplicitRetry { store?.refresh(providerID: providerID) }
         }
+    }
+
+    /// Switching must open the account source even while already signed in.
+    @discardableResult
+    func openAccountSource(providerID: String) -> Bool {
+        store?.openAccountSource(providerID: providerID) ?? false
     }
 
     func providerConfigurationDidChange(_ id: String) {
