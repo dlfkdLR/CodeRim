@@ -34,7 +34,7 @@ enum NotchProviderCatalog {
         case "ollama-local": return .ollamaLocal
         case "gemini":      return .antigravity
         case "gemini-api", "gemini-cli":  return .geminiSpark
-        default:            return .third
+        default:            return ProviderGlyph(rawValue: "provider:\(id)") ?? .third
         }
     }
 }

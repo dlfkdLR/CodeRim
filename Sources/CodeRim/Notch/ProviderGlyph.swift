@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Which mark a provider cell draws.
-enum ProviderGlyph: String, Codable, Equatable {
+enum ProviderGlyph: String, Codable, Equatable, Hashable {
     case claude
     case openai
     case third
@@ -24,6 +24,72 @@ enum ProviderGlyph: String, Codable, Equatable {
     case copilot
     case ollama
     case ollamaLocal = "ollama-local"
+
+    // Dedicated identities keep vendor artwork separate from the generic fallback.
+    case providerAbacus = "provider:abacus"
+    case providerAiand = "provider:aiand"
+    case providerAlibaba = "provider:alibaba"
+    case providerAlibabatokenplan = "provider:alibabatokenplan"
+    case providerAmp = "provider:amp"
+    case providerAugment = "provider:augment"
+    case providerAzureopenai = "provider:azureopenai"
+    case providerBedrock = "provider:bedrock"
+    case providerChutes = "provider:chutes"
+    case providerClawrouter = "provider:clawrouter"
+    case providerClinepass = "provider:clinepass"
+    case providerCodebuff = "provider:codebuff"
+    case providerCrof = "provider:crof"
+    case providerDeepgram = "provider:deepgram"
+    case providerDeepinfra = "provider:deepinfra"
+    case providerDeepseek = "provider:deepseek"
+    case providerDevin = "provider:devin"
+    case providerDoubao = "provider:doubao"
+    case providerElevenlabs = "provider:elevenlabs"
+    case providerFactory = "provider:factory"
+    case providerFireworks = "provider:fireworks"
+    case providerGroq = "provider:groq"
+    case providerIbmbob = "provider:ibmbob"
+    case providerJetbrains = "provider:jetbrains"
+    case providerKilo = "provider:kilo"
+    case providerKimi = "provider:kimi"
+    case providerKiro = "provider:kiro"
+    case providerLitellm = "provider:litellm"
+    case providerLlmproxy = "provider:llmproxy"
+    case providerLongcat = "provider:longcat"
+    case providerManus = "provider:manus"
+    case providerMimo = "provider:mimo"
+    case providerMinimax = "provider:minimax"
+    case providerMistral = "provider:mistral"
+    case providerMoonshot = "provider:moonshot"
+    case providerNeuralwatt = "provider:neuralwatt"
+    case providerNotion = "provider:notion"
+    case providerOpenai = "provider:openai"
+    case providerOpencodezen = "provider:opencode-zen"
+    case providerOpenrouter = "provider:openrouter"
+    case providerPerplexity = "provider:perplexity"
+    case providerPoe = "provider:poe"
+    case providerQoder = "provider:qoder"
+    case providerQwencloud = "provider:qwencloud"
+    case providerSakana = "provider:sakana"
+    case providerStepfun = "provider:stepfun"
+    case providerSub2api = "provider:sub2api"
+    case providerSynthetic = "provider:synthetic"
+    case providerT3chat = "provider:t3chat"
+    case providerVenice = "provider:venice"
+    case providerVertexai = "provider:vertexai"
+    case providerWarp = "provider:warp"
+    case providerWayfinder = "provider:wayfinder"
+    case providerWindsurf = "provider:windsurf"
+    case providerXai = "provider:xai"
+    case providerZed = "provider:zed"
+    case providerZenmux = "provider:zenmux"
+    case providerZoommate = "provider:zoommate"
+
+    var logoResourceName: String? {
+        guard rawValue.hasPrefix("provider:") else { return nil }
+        let id = String(rawValue.dropFirst("provider:".count))
+        return ExtendedProviderCatalog.descriptor(for: id)?.branding.iconResourceName
+    }
 
     /// If an asset with this name is in the bundle it wins over the traced
     /// outline — drop a PDF/SVG export from Figma in and it is picked up.
@@ -55,6 +121,7 @@ enum ProviderGlyph: String, Codable, Equatable {
         case .ollama: return 0.95
         case .third:  return 1.0
         case .ollamaLocal: return 0.98
+        default: return 1.0
         }
     }
 
@@ -62,7 +129,7 @@ enum ProviderGlyph: String, Codable, Equatable {
         switch self {
         case .claude: return GlyphOutline.claude
         case .openai: return GlyphOutline.openai
-        case .third:  return GlyphOutline.third
+        case .third:  return []
         case .cursor: return GlyphOutline.cursor
         case .antigravity: return GlyphOutline.antigravity
         case .geminiSpark: return GlyphOutline.gemini
@@ -72,6 +139,7 @@ enum ProviderGlyph: String, Codable, Equatable {
         case .commandcode: return GlyphOutline.commandcode
         case .copilot: return GlyphOutline.copilot
         case .ollama, .ollamaLocal: return GlyphOutline.ollama
+        default: return []
         }
     }
 }
@@ -97,15 +165,38 @@ struct GlyphShape: Shape {
     }
 }
 
+/// SwiftPM flattens processed resources; packaged releases preserve its resource bundle.
+@MainActor
+enum ProviderGlyphAsset {
+    private static var images: [ProviderGlyph: NSImage] = [:]
+
+    static func image(for glyph: ProviderGlyph) -> NSImage? {
+        if let image = images[glyph] { return image }
+        guard let name = glyph.logoResourceName,
+              let url = Bundle.module.url(forResource: name, withExtension: "svg", subdirectory: "ProviderLogos")
+                ?? Bundle.module.url(forResource: name, withExtension: "svg"),
+              let image = NSImage(contentsOf: url) else { return nil }
+        // SVGs with CSS em dimensions otherwise rasterize into a one-pixel mark.
+        image.size = NSSize(width: 64, height: 64)
+        image.isTemplate = true
+        images[glyph] = image
+        return image
+    }
+}
+
 struct ProviderGlyphView: View {
     let glyph: ProviderGlyph
     var size: CGFloat = NotchDesign.px(46)
 
     var body: some View {
         Group {
-            if let image = NSImage(named: glyph.assetName) {
+            if let image = ProviderGlyphAsset.image(for: glyph) ?? NSImage(named: glyph.assetName) {
                 Image(nsImage: image)
                     .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+            } else if glyph.outline.isEmpty {
+                Image(systemName: "square.dashed")
                     .resizable()
                     .scaledToFit()
             } else {

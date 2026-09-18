@@ -59,7 +59,8 @@ struct UsageArchive {
             let snapshot = ProviderSnapshot(
                 id: entry.id,
                 displayName: entry.displayName,
-                glyph: entry.glyph,
+                // Early extended-provider archives used the shared placeholder.
+                glyph: entry.glyph == .third ? NotchProviderCatalog.glyph(for: entry.id) : entry.glyph,
                 fidelity: entry.fidelity,
                 status: .stale(since: entry.fetchedAt),
                 windows: entry.windows,
