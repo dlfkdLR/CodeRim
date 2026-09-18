@@ -62,6 +62,7 @@ enum ClaudeIntegrationError: Error, LocalizedError, Equatable {
     case noSignedInAccount
     case bridgeNotFound
     case invalidSettings
+    case settingsChanged
 
     var errorDescription: String? {
         switch self {
@@ -72,6 +73,7 @@ enum ClaudeIntegrationError: Error, LocalizedError, Equatable {
         case .noSignedInAccount: "Sign in to Claude Code, then add the account again."
         case .bridgeNotFound: "The Claude limits helper is missing. Reinstall CodeRim."
         case .invalidSettings: "Claude settings could not be updated safely."
+        case .settingsChanged: "Claude Code kept changing its settings file. Nothing was overwritten. Try again."
         }
     }
 }
@@ -188,10 +190,37 @@ enum ClaudeExecutable {
             candidates.append(URL(fileURLWithPath: String(directory), isDirectory: true)
                 .appendingPathComponent("claude"))
         }
-        guard let executable = candidates.first(where: { fileManager.isExecutableFile(atPath: $0.path) }) else {
+        guard let executable = candidates.first(where: {
+            fileManager.isExecutableFile(atPath: $0.path) && isPrivatelyOwned($0)
+        }) else {
             throw ClaudeIntegrationError.cliNotFound
         }
         return executable.standardizedFileURL
+    }
+
+    /// Claude Code is an npm install with no code signature, so it cannot be
+    /// pinned the way `TrustedCodexExecutable` pins Codex. What can still be
+    /// established is that nobody *else* can rewrite it: CodeRim runs this
+    /// binary with `auth login`, and a `claude` that any user on the machine
+    /// could replace is a way to run their code under this account.
+    ///
+    /// So: neither the binary nor the directory holding it may be writable by
+    /// group or other. That accepts every ordinary install — `~/.local/bin`,
+    /// `~/.claude/local`, Homebrew, `/usr/local/bin`, a Node version manager's
+    /// shim — including one another admin installed, whose write access is
+    /// already equivalent to ours. What it rejects is a world-writable
+    /// directory slipped onto `PATH`, which is the case that turns "run the
+    /// user's CLI" into "run anyone's code as the user".
+    ///
+    /// Ownership is deliberately not part of the test: a shared Homebrew
+    /// prefix belongs to whichever admin installed it, and refusing that would
+    /// disable the integration for a setup that is not actually less safe.
+    static func isPrivatelyOwned(_ url: URL, fileManager: FileManager = .default) -> Bool {
+        var info = stat()
+        for path in [url.path, url.deletingLastPathComponent().path] {
+            guard stat(path, &info) == 0, info.st_mode & 0o022 == 0 else { return false }
+        }
+        return true
     }
 }
 
@@ -221,7 +250,7 @@ struct ClaudeStatusLineInstaller: ClaudeStatusLineInstalling, @unchecked Sendabl
         let output = managedDirectory.appendingPathComponent("ClaudeLimits.json")
         let command = "\(shellQuote(installedBridge.path)) --output \(shellQuote(output.path))"
 
-        var settings = try readJSONObject(at: settingsURL) ?? [:]
+        let settings = try readJSONObject(at: settingsURL) ?? [:]
         let stateURL = managedDirectory.appendingPathComponent("StatusLineState.json")
         guard statusLineCommand(settings["statusLine"]) != command else { return }
 
@@ -250,25 +279,31 @@ struct ClaudeStatusLineInstaller: ClaudeStatusLineInstalling, @unchecked Sendabl
             ]
         }
         try writeJSONObject(state, to: stateURL, permissions: 0o600)
-        settings["statusLine"] = ["type": "command", "command": command]
-        try writeJSONObject(settings, to: settingsURL, permissions: 0o600)
+        try updateSettings { settings in
+            guard statusLineCommand(settings["statusLine"]) != command else { return false }
+            settings["statusLine"] = ["type": "command", "command": command]
+            return true
+        }
     }
 
     func uninstall() throws {
         let stateURL = managedDirectory.appendingPathComponent("StatusLineState.json")
         guard let state = try readJSONObject(at: stateURL),
               let installedCommand = state["installedCommand"] as? String,
-              var settings = try readJSONObject(at: settingsURL)
+              try readJSONObject(at: settingsURL) != nil
         else { return }
 
-        if statusLineCommand(settings["statusLine"]) == installedCommand {
+        try updateSettings { settings in
+            // Only ever removes CodeRim's own command. A status line the user
+            // set since the install stays exactly as they left it.
+            guard statusLineCommand(settings["statusLine"]) == installedCommand else { return false }
             if state["hadOriginal"] as? Bool == true,
                let original = state["originalStatusLine"], !(original is NSNull) {
                 settings["statusLine"] = original
             } else {
                 settings.removeValue(forKey: "statusLine")
             }
-            try writeJSONObject(settings, to: settingsURL, permissions: 0o600)
+            return true
         }
         try? fileManager.removeItem(at: stateURL)
     }
@@ -352,24 +387,73 @@ struct ClaudeStatusLineInstaller: ClaudeStatusLineInstalling, @unchecked Sendabl
     }
 
     private func readJSONObject(at url: URL) throws -> [String: Any]? {
-        guard fileManager.fileExists(atPath: url.path) else { return nil }
-        let data = try Data(contentsOf: url, options: .mappedIfSafe)
+        try readJSON(at: url).object
+    }
+
+    /// The bytes as well as the decoded object, so a writer can prove nothing
+    /// changed underneath it before replacing them.
+    private func readJSON(at url: URL) throws -> (data: Data?, object: [String: Any]?) {
+        guard fileManager.fileExists(atPath: url.path) else { return (nil, nil) }
+        let data = try Data(contentsOf: url)
         guard data.count <= 1_048_576,
               let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { throw ClaudeIntegrationError.invalidSettings }
-        return object
+        return (data, object)
     }
 
-    private func writeJSONObject(_ object: [String: Any], to url: URL, permissions: Int) throws {
+    /// Read `settings.json`, apply `change`, and write it back only if nobody
+    /// else wrote to it in between.
+    ///
+    /// This file belongs to Claude Code, which edits it while running. A plain
+    /// read-modify-write drops whatever the CLI saved during the gap — a model
+    /// preference, an MCP server, a permission the user just granted — and the
+    /// loss is silent. So the write carries the bytes the decision was made
+    /// from and is refused if they no longer match, and the whole thing is
+    /// retried against the newer file. `change` returns false when the newer
+    /// file needs no edit at all, which is how a retry stops.
+    ///
+    /// The same compare-and-swap the account code uses on `auth.json`, for the
+    /// same reason: the other writer's copy is the one that must survive.
+    private func updateSettings(_ change: (inout [String: Any]) -> Bool) throws {
+        for _ in 0..<4 {
+            let current = try readJSON(at: settingsURL)
+            var settings = current.object ?? [:]
+            guard change(&settings) else { return }
+            do {
+                return try writeJSONObject(settings, to: settingsURL, permissions: 0o600,
+                                           expecting: current.data)
+            } catch ClaudeIntegrationError.settingsChanged {
+                continue
+            }
+        }
+        throw ClaudeIntegrationError.settingsChanged
+    }
+
+    /// `expecting` is the file's contents when the caller last read it. Nil
+    /// means it expects no file at all. Pass `.some(nil)`-style "don't care"
+    /// only for files CodeRim owns outright, like the state file.
+    private func writeJSONObject(_ object: [String: Any], to url: URL, permissions: Int,
+                                 expecting original: Data?? = nil) throws {
         guard JSONSerialization.isValidJSONObject(object) else { throw ClaudeIntegrationError.invalidSettings }
+        // A settings file kept in a dotfile repo is commonly a symlink. Writing
+        // atomically to the link's own path replaces the link with a regular
+        // file and quietly detaches it from the repo, so resolve first and
+        // write through to whatever it points at.
+        let destination = fileManager.fileExists(atPath: url.path)
+            ? url.resolvingSymlinksInPath() : url
         try fileManager.createDirectory(
-            at: url.deletingLastPathComponent(),
+            at: destination.deletingLastPathComponent(),
             withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o700]
         )
+        if let original {
+            guard try readJSON(at: destination).data == original else {
+                throw ClaudeIntegrationError.settingsChanged
+            }
+        }
         let data = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
-        try data.write(to: url, options: .atomic)
-        try fileManager.setAttributes([.posixPermissions: permissions], ofItemAtPath: url.path)
+        try data.write(to: destination, options: .atomic)
+        try fileManager.setAttributes([.posixPermissions: permissions], ofItemAtPath: destination.path)
     }
 
     private func statusLineCommand(_ value: Any?) -> String? {
