@@ -297,6 +297,30 @@ final class NotchGLMCredentialsTests: XCTestCase {
         XCTAssertNil(credential)
     }
 
+    /// The same rule the Claude Code source follows. A plan-shaped entry
+    /// aimed at another vendor holds that vendor's key, and defaulting it to
+    /// the Z.ai console would send the key to a third party.
+    func testDoesNotClaimAPlanKeyAimedAtAnotherVendor() throws {
+        let credential = try load(zcodeConfig: """
+        { "provider": { "builtin:anthropic-coding-plan": {
+            "enabled": true,
+            "options": { "apiKey": "sk-ant-abc123",
+                         "baseURL": "https://api.anthropic.com" } } } }
+        """)
+        XCTAssertNil(credential)
+    }
+
+    /// A plan entry naming no console at all names no *other* console either,
+    /// so the global one stays the default it has always been.
+    func testAPlanKeyWithNoBaseURLKeepsTheGlobalConsole() throws {
+        let credential = try load(zcodeConfig: """
+        { "provider": { "builtin:zai-coding-plan": {
+            "enabled": true, "options": { "apiKey": "zai-plan-key" } } } }
+        """)
+        XCTAssertEqual(credential?.token, "zai-plan-key")
+        XCTAssertEqual(credential?.baseURL.host, "api.z.ai")
+    }
+
     /// A plain API provider is pay-as-you-go, not the plan — the monitor
     /// reports plan quota, so an entry without `coding-plan` in its name is
     /// none of ours.

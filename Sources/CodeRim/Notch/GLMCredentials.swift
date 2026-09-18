@@ -112,11 +112,16 @@ enum GLMCredentials {
             // Explicitly disabled entries are not keys being used; claiming
             // one would read an account the user switched off.
             if let enabled = provider["enabled"] as? Bool, !enabled { continue }
-            let console = (string(options["baseURL"]))
-                .flatMap { URL(string: $0) }
-                .flatMap { $0.host }
-                .map(consoleBase(from:)) ?? URL(string: "https://api.z.ai")!
-            return Credential(token: key, baseURL: console, source: "ZCode")
+            // The same rule the Claude Code source follows: a key beside a
+            // base URL pointing somewhere other than a Z.ai console is not
+            // ours, and sending it to api.z.ai would hand a third party a
+            // credential that belongs to a different vendor. An entry with no
+            // base URL at all names no other console, so it keeps the default.
+            guard let host = string(options["baseURL"]).flatMap({ URL(string: $0) })?.host else {
+                return Credential(token: key, baseURL: URL(string: "https://api.z.ai")!, source: "ZCode")
+            }
+            guard isZaiHost(host) else { continue }
+            return Credential(token: key, baseURL: consoleBase(from: host), source: "ZCode")
         }
         return nil
     }
@@ -181,10 +186,7 @@ enum GLMCredentials {
     }
 
     private static func dictionary(at url: URL) -> [String: Any]? {
-        guard let data = try? Data(contentsOf: url),
-              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-        else { return nil }
-        return root
+        CredentialFileReader.jsonObject(at: url)
     }
 
     /// Non-empty strings only: an empty key is worse than a missing one, it is
