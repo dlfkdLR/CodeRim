@@ -4,20 +4,31 @@
 
 > Coding-assistant limits at the edge of your screen.
 
-[![CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/dlfkdLR/CodeRim?color=181a1e)](https://github.com/dlfkdLR/CodeRim/releases/latest) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-181a1e)
+[![macOS CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/dlfkdLR/CodeRim?color=181a1e)](https://github.com/dlfkdLR/CodeRim/releases/latest) [![Windows CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/windows.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/windows.yml) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-181a1e) ![Windows 11 preview](https://img.shields.io/badge/Windows-11_preview-181a1e)
 
 <img src="Assets/README/coderim-notch.png" alt="CodeRim with illustrative usage rings at the edge of a macOS screen" width="100%" />
 
-CodeRim is a native macOS app that keeps usage limits, reset times, and session activity visible in a small edge notch. Choose from **70 providers**, with local token history for Codex and Claude Code.
+CodeRim keeps coding-assistant usage limits, reset times, and session activity visible in a small edge notch. It is available as a **native macOS app** and a **Windows 11 implementation preview**, with local token history for Codex and Claude Code. The Windows preview does not yet have full macOS feature parity.
 
-## Features
+## Features by platform
 
-- Usage rings with reset times, account plans, and session activity.
-- Local Codex and Claude Code token history, charts, and cost estimates.
-- Manual account switching, configurable notch placement, and alerts.
-- A terminal CLI and macOS widgets.
+| Feature | macOS | Windows preview |
+| --- | --- | --- |
+| Provider connections | 70 providers | 23 implemented; 47 pending |
+| Desktop interface | Menu bar and edge notch | Tray, dashboard, and edge notch |
+| Local Codex / Claude history | Token history, charts, and cost estimates | Token history, charts, and cost estimates |
+| Terminal CLI | Included | Included |
+| Saved account switching | Codex and Claude Code | Not yet available |
+| Widgets | macOS widgets | Not yet available |
+| Automatic updates | Signed Sparkle updates | Manual ZIP download |
+
+Local token history is scoped to this computer across accounts. See the [Windows capability matrix](Documentation/WINDOWS.md#remaining-parity-work) for individual provider status and remaining work.
 
 ## Install
+
+**Current release: [2.1.5](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.5)** · [Release notes](Documentation/ReleaseNotes/2.1.5.md)
+
+### macOS
 
 **macOS 14 or later · Apple silicon and Intel.**
 
@@ -34,11 +45,23 @@ If Homebrew reports an unavailable cask or cannot find the old `CodexMeter.app`,
 
 Open **Settings → Providers → Add Provider**, connect your tools, and hover a ring. [Get started](docs/getting-started.md).
 
-A [Windows 11 implementation preview](Documentation/WINDOWS.md) is available for x64 and ARM64. It does not yet have full macOS feature parity.
+### Windows preview
 
-## Providers
+**Windows 11 · x64 and ARM64 · .NET included.**
 
-**70 providers**, each with its own setup guide. [Full catalogue and connection details](docs/providers.md).
+[Download x64 ZIP](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.5/CodeRim-Windows-2.1.5-x64.zip) · [Download ARM64 ZIP](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.5/CodeRim-Windows-2.1.5-arm64.zip) · [SHA-256 checksums](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.5/SHA256SUMS-windows.txt)
+
+Windows binaries are **unsigned**. Verify your ZIP against the matching checksum before extracting it. Extract it into a permanent folder and open `CodeRim.exe`, or close CodeRim and run this from the extracted folder in PowerShell for a per-user installation:
+
+```powershell
+./install.ps1 -AddCliToPath -Launch
+```
+
+The installer creates a Start menu shortcut and adds the `coderim` CLI to your user PATH without administrator access. Open a new terminal afterwards. Use **Settings → Providers** to connect providers; see [Windows setup and feature status](Documentation/WINDOWS.md) for Codex, Claude Code, and the remaining limitations.
+
+## macOS providers
+
+**70 providers** in the macOS catalogue, each with its own setup guide. Windows connection availability is listed separately in the [capability matrix](Documentation/WINDOWS.md#remaining-parity-work). [Full catalogue and connection details](docs/providers.md).
 
 - [Codex](docs/providers/codex.md) — Account limits and local token history.
 - [OpenAI](docs/providers/openai.md) — API usage, spending, and available credits.
@@ -113,7 +136,7 @@ A [Windows 11 implementation preview](Documentation/WINDOWS.md) is available for
 
 ## Docs
 
-[Installation](docs/installation.md) · [Getting started](docs/getting-started.md) · [Providers](docs/providers.md) · [Token history](docs/usage.md) · [Accounts](docs/accounts.md) · [CLI](docs/cli.md) · [Widgets](docs/widgets.md) · [Privacy](docs/privacy.md) · [Troubleshooting](docs/troubleshooting.md)
+[macOS installation](docs/installation.md) · [Windows setup](Documentation/WINDOWS.md) · [Getting started](docs/getting-started.md) · [Providers](docs/providers.md) · [Token history](docs/usage.md) · [Accounts](docs/accounts.md) · [CLI](docs/cli.md) · [Widgets](docs/widgets.md) · [Privacy](docs/privacy.md) · [Troubleshooting](docs/troubleshooting.md)
 
 [All documentation](docs/README.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
 
