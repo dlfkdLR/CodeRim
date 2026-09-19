@@ -285,7 +285,7 @@ internal sealed class NotchWindow : Window
             DockPanel.SetDock(logo, Dock.Left); row.Children.Add(logo);
             var labels = new StackPanel();
             labels.Children.Add(NotchPopover.Text(name + (reading?.Plan is { Length: > 0 } plan ? " · " + plan : ""), 12, Brushes.White, FontWeights.SemiBold));
-            var identity = NotchPopover.Text(account ?? state, 10.5, NotchPopover.Secondary); identity.TextWrapping = TextWrapping.NoWrap; identity.TextTrimming = TextTrimming.CharacterEllipsis;
+            var identity = NotchPopover.Text(account ?? state, 10.5, Ui.Brush("#D4D4D4")); identity.TextWrapping = TextWrapping.NoWrap; identity.TextTrimming = TextTrimming.CharacterEllipsis;
             identity.ToolTip = account is null ? state : "CLI login file · " + account;
             labels.Children.Add(identity); row.Children.Add(labels); button.Content = row; list.Children.Add(button);
         }

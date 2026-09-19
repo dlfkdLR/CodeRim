@@ -12,7 +12,7 @@ namespace CodeRim.Core.Providers;
 public sealed partial class NativeProviders : IDisposable
 {
     public static IReadOnlySet<string> Supported { get; } = new HashSet<string>(StringComparer.Ordinal)
-        { "cursor", "grok", "opencode", "commandcode", "ollama", "fireworks", "deepinfra", "codebuff", "neuralwatt", "llmproxy", "litellm", "zenmux", "warp", "wayfinder", "ibmbob", "kimi", "amp", "mimo", "abacus", "stepfun", "sakana", "kilo", "devin", "minimax", "aiand", "longcat", "factory", "chutes" };
+        { "cursor", "grok", "opencode", "commandcode", "ollama", "fireworks", "deepinfra", "codebuff", "neuralwatt", "llmproxy", "litellm", "zenmux", "warp", "wayfinder", "ibmbob", "kimi", "amp", "mimo", "abacus", "stepfun", "sakana", "kilo", "devin", "minimax", "aiand", "longcat", "factory", "chutes", "groq", "zed", "mistral", "zoommate", "notion", "alibaba" };
     private readonly HttpClient client;
     private readonly ConcurrentDictionary<string, DateTimeOffset> retryAfter = new(StringComparer.Ordinal);
     public NativeProviders(HttpMessageHandler? handler = null) => client = new(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(15) };
@@ -25,12 +25,29 @@ public sealed partial class NativeProviders : IDisposable
         if (retryAfter.TryGetValue(id, out var retry) && retry > DateTimeOffset.Now) return new(id, ReadingState.Unavailable, [], Message: "Provider rate limit reached. Waiting before retrying.");
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(45));
         var documents = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        string? notionSpace = null; string? notionUser = null;
+        string? zoomBearer = id == "zoommate" && !credential!.StartsWith("Cookie:", StringComparison.OrdinalIgnoreCase)
+            ? credential.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? credential[7..].Trim() : credential : null;
         async Task<JsonElement> GetJson(string url, IReadOnlyDictionary<string, string>? extraHeaders = null)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             if (id == "codebuff" && new Uri(url).AbsolutePath == "/api/v1/usage")
             {
                 request.Method = HttpMethod.Post; request.Content = new StringContent("""{"fingerprintId":"codexbar-usage"}""", System.Text.Encoding.UTF8, "application/json");
+            }
+            if (id == "alibaba")
+            {
+                var region = AlibabaRegion(setting); request.Method = HttpMethod.Post;
+                request.Content = new StringContent(JsonSerializer.Serialize(new { queryCodingPlanInstanceInfoRequest = new { commodityCode = region.Commodity } }), System.Text.Encoding.UTF8, "application/json");
+                request.Headers.Add("x-api-key", credential); request.Headers.Add("X-DashScope-API-Key", credential);
+                request.Headers.Add("Origin", region.Host); request.Headers.Referrer = new Uri(region.Host + "/" + region.Region + "/");
+            }
+            if (id == "notion")
+            {
+                request.Method = HttpMethod.Post;
+                request.Content = new StringContent(notionSpace is null ? "{}" : JsonSerializer.Serialize(new { spaceId = notionSpace }), System.Text.Encoding.UTF8, "application/json");
+                request.Headers.Add("Origin", "https://app.notion.com"); request.Headers.Referrer = new Uri("https://app.notion.com/");
+                if (notionUser is not null) request.Headers.Add("x-notion-active-user-header", notionUser);
             }
             if (id == "amp")
             {
@@ -64,6 +81,18 @@ public sealed partial class NativeProviders : IDisposable
                     request.Headers.Add("oasis-appid", "10300"); request.Headers.Add("oasis-platform", "web"); request.Headers.Add("oasis-webid", webid);
                     normalized = "Oasis-Token=" + normalized + "; Oasis-Webid=" + webid;
                 }
+                if (id == "mistral")
+                {
+                    var csrf = MistralCsrf(normalized);
+                    if (csrf is not null) request.Headers.Add("X-CSRFToken", csrf);
+                    if (new Uri(url).Host == "console.mistral.ai")
+                        normalized = string.Join("; ", normalized.Split(';').Select(x => x.Trim()).Where(x => x.StartsWith("ory_session_", StringComparison.Ordinal) || x.StartsWith("csrftoken=", StringComparison.Ordinal)));
+                    else
+                    {
+                        request.Headers.Add("Origin", "https://admin.mistral.ai");
+                        request.Headers.Referrer = new Uri("https://admin.mistral.ai/organization/usage");
+                    }
+                }
                 request.Headers.TryAddWithoutValidation("Cookie", normalized);
                 if (id == "longcat")
                 {
@@ -74,6 +103,18 @@ public sealed partial class NativeProviders : IDisposable
                     request.Headers.Add("x-timeZone", "UTC+00:00"); request.Headers.Add("Origin", "https://platform.xiaomimimo.com");
                     request.Headers.Referrer = new Uri("https://platform.xiaomimimo.com/#/console/balance");
                 }
+            }
+            else if (id == "zoommate")
+            {
+                if (credential!.StartsWith("Cookie:", StringComparison.OrdinalIgnoreCase)) request.Headers.TryAddWithoutValidation("Cookie", credential[7..].Trim());
+                if (zoomBearer is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", zoomBearer);
+                request.Headers.Add("Origin", "https://zoommate.zoom.us"); request.Headers.Referrer = new Uri("https://zoommate.zoom.us/");
+            }
+            else if (id == "zed")
+            {
+                var userId = setting("ZED_USER_ID")?.Trim();
+                if (userId is not { Length: > 0 and <= 128 } || !userId.All(char.IsAsciiDigit)) throw new InvalidDataException("Set the Zed user ID.");
+                request.Headers.TryAddWithoutValidation("Authorization", userId + " " + credential);
             }
             else if (id == "cursor") request.Headers.TryAddWithoutValidation("Cookie", credential);
             else if (id != "wayfinder") request.Headers.Authorization = new AuthenticationHeaderValue(id == "ibmbob" ? BobAuthorization(credential!) : "Bearer", credential);
@@ -102,6 +143,29 @@ public sealed partial class NativeProviders : IDisposable
             {
                 if (credential!.StartsWith("Authorization:", StringComparison.OrdinalIgnoreCase)) credential = credential[14..].Trim();
                 if (credential.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) credential = credential[7..].Trim();
+            }
+            if (id == "alibaba")
+            {
+                var region = AlibabaRegion(setting);
+                return ParseAlibaba(await GetJson(region.Host + "/data/api.json?action=zeldaEasy.broadscope-bailian.codingPlan.queryCodingPlanInstanceInfoV2&product=broadscope-bailian&api=queryCodingPlanInstanceInfoV2&currentRegionId=" + region.Region).ConfigureAwait(false));
+            }
+            if (id == "notion")
+            {
+                var account = await GetJson("https://app.notion.com/api/v3/getSpaces").ConfigureAwait(false);
+                var selected = NotionWorkspace(account, setting("NOTION_SPACE_ID"));
+                notionSpace = selected.Id; notionUser = selected.User;
+                var notionReading = ParseNotion(await GetJson("https://app.notion.com/api/v3/getCreditRateLimitStatus").ConfigureAwait(false));
+                return notionReading with { Plan = selected.Plan };
+            }
+            if (id == "zoommate") return await FetchZoomMate(zoomBearer is null, value => zoomBearer = value, url => GetJson(url), token).ConfigureAwait(false);
+            if (id == "mistral") return await FetchMistral(credential!, url => GetJson(url), token).ConfigureAwait(false);
+            if (id == "groq") return await FetchGroq(setting, url => GetJson(url)).ConfigureAwait(false);
+            if (id == "zed")
+            {
+                var response = await GetJson("https://cloud.zed.dev/client/users/me").ConfigureAwait(false);
+                var expected = setting("ZED_USER_ID")?.Trim();
+                if (Numeric(Get(response, "user"), "id")?.ToString("0", CultureInfo.InvariantCulture) != expected) throw new InvalidDataException("Zed returned another user.");
+                return ParseZed(response);
             }
             if (id == "chutes") return await FetchChutes(setting, url => GetJson(url), token).ConfigureAwait(false);
             if (id == "factory") return await FetchFactory(credential!, url => GetJson(url), token).ConfigureAwait(false);
@@ -170,12 +234,18 @@ public sealed partial class NativeProviders : IDisposable
                 : error.Status == HttpStatusCode.TooManyRequests ? ReadingState.Unavailable : ReadingState.Error;
             return new(id, state, [], Message: state == ReadingState.NeedsAuth ? "Sign in again or update the provider credential." : "Unable to refresh provider usage. The last reading is retained.");
         }
-        catch (Exception error) when (error is HttpRequestException or IOException or InvalidDataException or JsonException or System.Text.RegularExpressions.RegexMatchTimeoutException or OperationCanceledException)
+        catch (Exception error) when (error is HttpRequestException or IOException or InvalidDataException or JsonException or System.Text.RegularExpressions.RegexMatchTimeoutException or OverflowException or OperationCanceledException)
         { token.ThrowIfCancellationRequested(); return new(id, ReadingState.Error, [], Message: "Unable to refresh provider usage. Check the connection."); }
     }
     public static ProviderReading Parse(string id, IReadOnlyDictionary<string, JsonElement> payloads)
     {
         ArgumentNullException.ThrowIfNull(payloads);
+        if (id == "alibaba") return ParseAlibaba(payloads.GetValueOrDefault("main"));
+        if (id == "notion") return ParseNotion(payloads.GetValueOrDefault("main"));
+        if (id == "zoommate") return ParseZoomMate(payloads.GetValueOrDefault("main"));
+        if (id == "mistral") return ParseMistral(payloads);
+        if (id == "groq") return ParseGroq(payloads);
+        if (id == "zed") return ParseZed(payloads.GetValueOrDefault("main"));
         if (ManagementIds.Contains(id)) return ParseManagement(id, payloads);
         if (id == "chutes") return ParseChutes(payloads);
         if (id == "factory") return ParseFactory(payloads);

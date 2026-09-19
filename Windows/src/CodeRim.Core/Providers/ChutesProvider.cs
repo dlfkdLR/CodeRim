@@ -85,9 +85,14 @@ public sealed partial class NativeProviders
     {
         var root = documents.GetValueOrDefault("main"); var data = ChuteData(root); var windows = new List<LimitWindow>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
+        var explicitPayloads = new HashSet<string>(StringComparer.Ordinal);
         void Add(JsonElement quota, string? defaultName = null, int defaultMinutes = 0, string? explicitId = null)
         {
-            if (quota.ValueKind != JsonValueKind.Object || !seen.Add(quota.GetRawText())) return;
+            if (quota.ValueKind != JsonValueKind.Object) return;
+            var raw = quota.GetRawText();
+            if (explicitId is null && explicitPayloads.Contains(raw)) return;
+            if (!seen.Add((explicitId ?? "quota") + ":" + raw)) return;
+            if (explicitId is not null) explicitPayloads.Add(raw);
             var used = ChuteNumber(quota, ChuteUsedKeys); var limit = ChuteNumber(quota, ChuteLimitKeys); var remaining = ChuteNumber(quota, ChuteRemainingKeys);
             var percent = ChuteNumber(quota, ChutePercentUsedKeys); if (percent.HasValue && Math.Abs(percent.Value) < 1) percent *= 100;
             if (!percent.HasValue && ChuteNumber(quota, ChutePercentRemainingKeys) is { } fraction) percent = 100 - (Math.Abs(fraction) < 1 ? fraction * 100 : fraction);
@@ -110,7 +115,7 @@ public sealed partial class NativeProviders
             var normalized = label.ToLowerInvariant(); var id = explicitId;
             id ??= length == 240 || normalized.Contains("rolling", StringComparison.Ordinal) || normalized.Contains("4h", StringComparison.Ordinal) || normalized.Contains("4-hour", StringComparison.Ordinal) ? "rolling"
                 : length >= 40320 || normalized.Contains("month", StringComparison.Ordinal) || normalized.Contains("billing", StringComparison.Ordinal) || normalized.Contains("subscription", StringComparison.Ordinal) ? "monthly" : "quota." + windows.Count;
-            if (windows.Any(x => x.Id == id)) return;
+            if (windows.Any(x => x.Id == id)) id += "." + windows.Count;
             DateTimeOffset? reset = null;
             foreach (var key in ChuteResetKeys)
             {
@@ -122,11 +127,10 @@ public sealed partial class NativeProviders
             windows.Add(new(id, label, Math.Clamp(percent.Value, 0, 100), reset, length,
                 Unit: unit, DisplayValue: used.HasValue && limit.HasValue ? $"{used:N2} / {limit:N2} {unit}" : null));
         }
-        foreach (var (keys, name, minutes, id) in new[] { (ChuteRollingPayloadKeys, "4-hour quota", 240, "rolling"), (ChuteMonthlyPayloadKeys, "Monthly quota", 43200, "monthly") })
-        {
-            var quota = ChuteValue(root, keys); if (quota.ValueKind != JsonValueKind.Object) quota = ChuteValue(data, keys);
-            Add(quota, name, minutes, id);
-        }
+        foreach (var source in new[] { root, documents.GetValueOrDefault("quotas") })
+            foreach (var context in Contexts(source))
+                foreach (var (keys, name, minutes, id) in new[] { (ChuteRollingPayloadKeys, "4-hour quota", 240, "rolling"), (ChuteMonthlyPayloadKeys, "Monthly quota", 43200, "monthly") })
+                    Add(ChuteValue(context, keys), name, minutes, id);
         foreach (var context in Contexts(root)) Add(context);
         foreach (var context in Contexts(documents.GetValueOrDefault("quotas"))) Add(context);
         var plan = ChuteText(root, ChutePlanKeys) ?? ChuteText(data, ChutePlanKeys)

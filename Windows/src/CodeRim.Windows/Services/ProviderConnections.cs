@@ -76,6 +76,7 @@ internal sealed class ProviderConnections : IDisposable
             var definition = ProviderCatalog.Find(id);
             var values = new List<string?> { vault.Load("provider:" + id), vault.Load("cookie:" + id), NativeCredentials.Read(id) };
             if (definition is not null) values.AddRange(definition.EnvironmentKeys.Select(Environment.GetEnvironmentVariable));
+            if (NativeProviders.CredentialKeys(id) is { } credentialKeys) values.AddRange(credentialKeys.Select(Environment.GetEnvironmentVariable));
             if (ScriptProviders.Catalog.TryGetValue(id, out var script))
                 values.AddRange(script.Settings.Select(x => vault.Load("setting:" + id + ":" + x.Key) ?? Environment.GetEnvironmentVariable(x.Key)));
             values.AddRange(NativeProviders.Settings(id).Select(x => vault.Load("setting:" + id + ":" + x.Key) ?? Environment.GetEnvironmentVariable(x.Key)));

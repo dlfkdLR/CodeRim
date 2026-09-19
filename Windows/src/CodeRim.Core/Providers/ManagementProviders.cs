@@ -9,6 +9,10 @@ public sealed partial class NativeProviders
 {
     public static IReadOnlyList<(string Key, string Label)> Settings(string id) => id switch
     {
+        "alibaba" => [("ALIBABA_CODING_PLAN_REGION", "Region: intl or cn")],
+        "notion" => [("NOTION_SPACE_ID", "Workspace ID (leave empty to select a paid workspace)")],
+        "zed" => [("ZED_USER_ID", "Zed user ID")],
+        "groq" => [("GROQ_API_URL", "Groq API URL (HTTPS; default https://api.groq.com/v1)")],
         "chutes" => [("CHUTES_API_URL", "Chutes API URL (HTTPS; default https://api.chutes.ai)")],
         "devin" => [("DEVIN_ORGANIZATION", "Organization ID or slug")],
         "kilo" => [("KILO_ORG_ID", "Organization ID (leave empty for personal usage)")],

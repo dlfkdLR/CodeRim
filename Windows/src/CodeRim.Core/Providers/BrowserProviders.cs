@@ -10,19 +10,29 @@ namespace CodeRim.Core.Providers;
 
 public sealed partial class NativeProviders
 {
-    private static readonly HashSet<string> BrowserIds = new(StringComparer.Ordinal) { "mimo", "abacus", "stepfun", "sakana", "longcat" };
+    private static readonly HashSet<string> BrowserIds = new(StringComparer.Ordinal) { "mimo", "abacus", "stepfun", "sakana", "longcat", "mistral", "notion" };
     public static string CredentialLabel(string id) => id switch
     {
         "mimo" => "Cookie header (api-platform_serviceToken and userId)",
-        "abacus" or "sakana" or "longcat" => "Cookie header from the signed-in provider page",
+        "abacus" or "sakana" or "longcat" or "mistral" => "Cookie header from the signed-in provider page",
         "stepfun" => "Oasis-Token (or Cookie header containing Oasis-Token)",
         "kimi" => "Kimi Code API key",
+        "alibaba" => "Alibaba Coding Plan API key",
+        "notion" => "Notion web cookie header (token_v2), or token_v2 value",
+        "zed" => "Zed access token",
+        "zoommate" => "Bearer token, or Cookie: followed by the ZoomMate cookie header",
+        "groq" => "Enterprise API key with Prometheus metrics access",
         _ => "Provider key or access token"
     };
     private static string NormalizeBrowserCredential(string id, string credential)
     {
         if (credential.StartsWith("Cookie:", StringComparison.OrdinalIgnoreCase)) credential = credential[7..].Trim();
         var pairs = credential.Split(';').Select(x => x.Trim().Split('=', 2)).Where(x => x.Length == 2 && x[1].Length > 0).ToArray();
+        if (id == "notion")
+        {
+            if (pairs.Length == 0) return "token_v2=" + credential;
+            if (!pairs.Any(x => x[0] == "token_v2")) throw new ProviderRequestException(HttpStatusCode.Unauthorized);
+        }
         if (id == "stepfun") return pairs.LastOrDefault(x => x[0] == "Oasis-Token")?[1] ?? credential;
         if (id != "mimo") return credential;
         var allowed = new[] { "api-platform_serviceToken", "userId", "api-platform_ph", "api-platform_slh" };

@@ -52,6 +52,28 @@ public sealed class ChutesProviderTests
         var reading = await provider.FetchAsync("chutes", "fixture", _ => null, TestContext.Current.CancellationToken);
         Assert.Equal(ReadingState.Partial, reading.State); Assert.Equal(25, reading.Headline!.UsedPercent);
     }
+
+    [Fact]
+    public void EqualAmountsInDifferentPeriodsRemainSeparate()
+    {
+        var reading = Parse("""{"rolling":{"used":0,"limit":100},"monthly":{"used":0,"limit":100}}""");
+        Assert.Equal(2, reading.Windows.Count); Assert.Equal(240, reading.Windows[0].DurationMinutes); Assert.Equal(43200, reading.Windows[1].DurationMinutes);
+    }
+    [Fact]
+    public void DifferentQuotasWithSameDurationRemainSeparate()
+    {
+        var reading = Parse("""{"quotas":[{"name":"A","window_hours":4,"used":10,"limit":100},{"name":"B","window_hours":4,"used":90,"limit":100}]}""");
+        Assert.Equal(2, reading.Windows.Count); Assert.Contains(reading.Windows, x => x.UsedPercent == 90);
+        Assert.Equal(2, reading.Windows.Select(x => x.Id).Distinct().Count());
+    }
+    [Fact]
+    public async Task FallbackRetainsExplicitRollingPeriodBeforeMonthly()
+    {
+        using var provider = new NativeProviders(new Handler(request => request.RequestUri!.AbsolutePath.EndsWith("subscription_usage", StringComparison.Ordinal)
+            ? Ok("""{"monthly":{"used":10,"limit":100}}""") : Ok("""{"rolling_window":{"used":90,"limit":100}}""")));
+        var reading = await provider.FetchAsync("chutes", "fixture", _ => null, TestContext.Current.CancellationToken);
+        Assert.Equal(2, reading.Windows.Count); Assert.Equal(90, reading.Headline!.UsedPercent); Assert.Equal(240, reading.Headline.DurationMinutes);
+    }
     private static HttpResponseMessage Ok(string json) => new(HttpStatusCode.OK) { Content = new StringContent(json) };
     private sealed class Handler(Func<HttpRequestMessage, HttpResponseMessage> reply) : HttpMessageHandler
     { protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) => Task.FromResult(reply(request)); }
