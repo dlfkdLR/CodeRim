@@ -70,7 +70,7 @@ internal sealed class ProviderRing : FrameworkElement
 
 internal sealed class ProviderMark : FrameworkElement
 {
-    private static readonly Dictionary<string, Geometry?> Glyphs = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, DrawingGroup?> Glyphs = new(StringComparer.Ordinal);
     public string ProviderId { get; set; } = "codex";
     protected override void OnRender(DrawingContext dc) => Draw(dc, ProviderId, new Rect(0, 0, ActualWidth, ActualHeight));
     internal static void Draw(DrawingContext dc, string id, Rect target)
@@ -86,10 +86,10 @@ internal sealed class ProviderMark : FrameworkElement
         var scale = Math.Min(target.Width / bounds.Width, target.Height / bounds.Height);
         dc.PushTransform(new TranslateTransform(target.X + (target.Width - bounds.Width * scale) / 2, target.Y + (target.Height - bounds.Height * scale) / 2));
         dc.PushTransform(new ScaleTransform(scale, scale)); dc.PushTransform(new TranslateTransform(-bounds.X, -bounds.Y));
-        dc.DrawGeometry(Brushes.White, null, glyph); dc.Pop(); dc.Pop(); dc.Pop();
+        dc.DrawDrawing(glyph); dc.Pop(); dc.Pop(); dc.Pop();
     }
-    internal static bool HasGlyph(string id) => Glyph(id) is not null;
-    private static Geometry? Glyph(string id)
+    internal static bool HasGlyph(string id) => Glyph(id) is { Bounds.IsEmpty: false } glyph && glyph.Bounds.Width > 0 && glyph.Bounds.Height > 0;
+    private static DrawingGroup? Glyph(string id)
     {
         if (Glyphs.TryGetValue(id, out var found)) return found;
         try
@@ -104,15 +104,28 @@ internal sealed class ProviderMark : FrameworkElement
             var resource = System.Windows.Application.GetResourceStream(new Uri("pack://application:,,,/Assets/ProviderLogos/" + file));
             if (resource is null) return Glyphs[id] = null;
             using var stream = resource.Stream;
-            var xml = XDocument.Load(stream); var group = new GeometryGroup { FillRule = FillRule.Nonzero };
+            var xml = XDocument.Load(stream); var group = new DrawingGroup();
             foreach (var element in xml.Descendants())
             {
+                if (element.Ancestors().Any(x => x.Name.LocalName is "defs" or "clipPath" or "mask" or "symbol")) continue;
+                string? Style(string name)
+                {
+                    foreach (var node in element.AncestorsAndSelf())
+                    {
+                        var pair = (node.Attribute("style")?.Value ?? "").Split(';').Select(x => x.Split(':', 2)).FirstOrDefault(x => x.Length == 2 && x[0].Trim() == name);
+                        if (pair is not null) return pair[1].Trim();
+                        if (node.Attribute(name)?.Value is { } value) return value;
+                    }
+                    return null;
+                }
                 double Number(string name) => double.TryParse(element.Attribute(name)?.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var n) ? n : 0;
                 Geometry? geometry = element.Name.LocalName switch
                 {
-                    "path" when element.Attribute("d")?.Value is { } data => Geometry.Parse((element.Attribute("fill-rule")?.Value == "evenodd" ? "F0 " : "F1 ") + data),
+                    "path" when element.Attribute("d")?.Value is { } data => Geometry.Parse((Style("fill-rule") == "evenodd" ? "F0 " : "F1 ") + data),
                     "rect" => new RectangleGeometry(new Rect(Number("x"), Number("y"), Number("width"), Number("height")), Number("rx"), Number("ry") == 0 ? Number("rx") : Number("ry")),
                     "circle" => new EllipseGeometry(new Point(Number("cx"), Number("cy")), Number("r"), Number("r")),
+                    "line" => new LineGeometry(new Point(Number("x1"), Number("y1")), new Point(Number("x2"), Number("y2"))),
+                    "polygon" or "polyline" when element.Attribute("points")?.Value is { } points => Geometry.Parse("M " + points + (element.Name.LocalName == "polygon" ? " Z" : "")),
                     "ellipse" => new EllipseGeometry(new Point(Number("cx"), Number("cy")), Number("rx"), Number("ry")),
                     _ => null
                 };
@@ -134,8 +147,20 @@ internal sealed class ProviderMark : FrameworkElement
                         };
                         if (transform is not null) transforms.Children.Insert(0, transform);
                     }
-                    if (geometry.IsFrozen) geometry = geometry.Clone();
-                    geometry.Transform = transforms; group.Children.Add(geometry);
+                    var fill = Style("fill") == "none" || element.Name.LocalName is "line" or "polyline" ? null : Brushes.White;
+                    Pen? pen = null;
+                    if (Style("stroke") is { } stroke && stroke != "none")
+                    {
+                        var strokeWidth = double.TryParse(Style("stroke-width"), NumberStyles.Float, CultureInfo.InvariantCulture, out var width) ? width : 1;
+                        pen = new Pen(Brushes.White, strokeWidth)
+                        {
+                            StartLineCap = Style("stroke-linecap") == "round" ? PenLineCap.Round : Style("stroke-linecap") == "square" ? PenLineCap.Square : PenLineCap.Flat,
+                            EndLineCap = Style("stroke-linecap") == "round" ? PenLineCap.Round : Style("stroke-linecap") == "square" ? PenLineCap.Square : PenLineCap.Flat,
+                            LineJoin = Style("stroke-linejoin") == "round" ? PenLineJoin.Round : Style("stroke-linejoin") == "bevel" ? PenLineJoin.Bevel : PenLineJoin.Miter
+                        };
+                    }
+                    var drawing = new DrawingGroup { Transform = transforms };
+                    drawing.Children.Add(new GeometryDrawing(fill, pen, geometry)); group.Children.Add(drawing);
                 }
             }
             group.Freeze(); return Glyphs[id] = group.Children.Count > 0 ? group : null;

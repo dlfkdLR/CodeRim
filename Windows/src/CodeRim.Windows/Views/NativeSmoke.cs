@@ -65,6 +65,15 @@ internal static class NativeSmoke
         foreach (var provider in ProviderCatalog.All)
         {
             Require(ProviderMark.HasGlyph(provider.Id), "Provider logo is missing: " + provider.Id);
+            var mark = new ProviderMark { ProviderId = provider.Id, Width = 32, Height = 32 };
+            mark.Measure(new Size(32, 32)); mark.Arrange(new Rect(0, 0, 32, 32));
+            var bitmap = new RenderTargetBitmap(32, 32, 96, 96, PixelFormats.Pbgra32); bitmap.Render(mark);
+            var pixels = new byte[32 * 32 * 4]; bitmap.CopyPixels(pixels, 32 * 4, 0);
+            Require(Enumerable.Range(0, 32 * 32).Count(i => pixels[i * 4 + 3] > 32) > 8, "Provider logo is blank: " + provider.Id);
+            if (provider.Id is "opencode" or "opencode-zen")
+                Require(pixels[(16 * 32 + 16) * 4 + 3] < 32, "OpenCode logo lost its center cutout");
+            if (provider.Id == "openrouter")
+                Require(pixels[(1 * 32 + 1) * 4 + 3] < 32, "OpenRouter rendered its clipping rectangle");
             var tile = new StackPanel { Width = 120, Height = 70, HorizontalAlignment = HorizontalAlignment.Center };
             tile.Children.Add(new ProviderMark { ProviderId = provider.Id, Width = 28, Height = 28, Margin = new Thickness(0, 6, 0, 4) });
             tile.Children.Add(Ui.Text(provider.Name, 10)); glyphGrid.Children.Add(tile);
