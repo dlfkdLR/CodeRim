@@ -57,6 +57,17 @@ public sealed class SessionMetadataTests
     }
 
     [Theory]
+    [InlineData("codex", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "codex://threads/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")]
+    [InlineData("codex", "../settings", null)]
+    [InlineData("codex", "https://example.invalid", null)]
+    [InlineData("claude", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", null)]
+    public void OnlyCodexUuidSessionsCreateDeepLinks(string provider, string id, string? expected)
+    {
+        var session = new SessionActivity("fixture", provider, "Fixture", "idle", DateTimeOffset.UnixEpoch) { CodexThreadId = id };
+        Assert.Equal(expected, session.CodexThreadUri?.AbsoluteUri);
+    }
+
+    [Theory]
     [InlineData("""{"rateLimitResetCredits":{"availableCount":0}}""", 0L, null)]
     [InlineData("""{"rateLimitResetCredits":{"count":3}}""", 3L, null)]
     [InlineData("""{"rateLimitResetCredits":{"unlimited":true}}""", null, "Unlimited resets")]

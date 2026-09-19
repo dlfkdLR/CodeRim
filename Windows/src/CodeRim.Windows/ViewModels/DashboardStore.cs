@@ -34,7 +34,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     public string Status { get; private set; } = "Reading local usage…";
     public event PropertyChangedEventHandler? PropertyChanged;
     public event Action<ProviderReading>? ReadingUpdated;
-    public event Action? SessionAttentionRequested;
+    public event Action<SessionActivity>? SessionAttentionRequested;
     public bool Synthetic { get; }
     public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false)
     {
@@ -209,7 +209,10 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
             if (finished) SessionChime.Play(settings.Current.FinishedSound);
             else if (blocked) SessionChime.Play(settings.Current.BlockedSound);
         }
-        if (finished || blocked) SessionAttentionRequested?.Invoke();
+        if (finished || blocked)
+            SessionAttentionRequested?.Invoke(current.Where(x => x.State is "idle" or "waiting"
+                && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"))
+                .OrderByDescending(x => x.Since).First());
     }
 
     private static List<SessionActivity> ReadSessions(string[] enabled)

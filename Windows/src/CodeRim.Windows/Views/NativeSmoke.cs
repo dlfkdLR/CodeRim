@@ -299,7 +299,7 @@ internal static class NativeSmoke
         Require(!notch.Expanded, "Notch did not fold"); Record("Hover notch folds");
         settings.Save(settings.Current with { CompletionSound = false, PeekOnCompletion = true });
         var attentionEvents = 0;
-        void Attention() => attentionEvents++;
+        void Attention(SessionActivity _) => attentionEvents++;
         store.SessionAttentionRequested += Attention;
         var activity = new SessionActivity("preview-transition", "claude", "Preview", "busy", DateTimeOffset.Now);
         store.UpdateSessionActivity([activity]);
@@ -311,6 +311,16 @@ internal static class NativeSmoke
         store.UpdateSessionActivity([activity with { State = "idle" }]);
         Require(attentionEvents == 2, "Finished session did not request attention");
         store.SessionAttentionRequested -= Attention;
+        using var ownProcess = System.Diagnostics.Process.GetCurrentProcess();
+        var ownSession = activity with { ProcessId = ownProcess.Id, ProcessStartedAt = new DateTimeOffset(ownProcess.StartTime.ToUniversalTime()) };
+        Require(SessionFocus.FindOwningWindow(ownSession) != IntPtr.Zero, "Session window lookup failed for the synthetic app");
+        Require(SessionFocus.FindOwningWindow(ownSession with { ProcessStartedAt = ownSession.ProcessStartedAt.GetValueOrDefault().AddMinutes(-1) }) == IntPtr.Zero, "Reused process identity was accepted");
+        var attentionButton = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.provider.codex");
+        notch.Peek(activity with { Provider = "codex" }); await Idle();
+        attentionButton = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.provider.codex");
+        attentionButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        Require(Descendants<ListBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Settings sections").SelectedItem is ListBoxItem { Tag: "usage" }, "Unavailable session target did not open local sessions");
+        Record("Session window discovery, process-reuse rejection, and unavailable-target fallback");
         Record("Blocked and finished sessions peek independently of sound, without duplicate alerts");
         File.WriteAllText(Path.Combine(directory, "windows-ui-checks.json"), JsonSerializer.Serialize(new { kind = "Native WPF synthetic integration", checks }, JsonOptions));
     }
