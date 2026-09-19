@@ -9,6 +9,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CodeRim.Core.Domain;
+using CodeRim.Core.Services;
 using CodeRim.Windows.Services;
 using CodeRim.Windows.ViewModels;
 using Button = System.Windows.Controls.Button;
@@ -22,6 +23,8 @@ internal sealed class NotchWindow : Window
     private readonly AppSettingsStore settings;
     private readonly Action<string?> openSettings;
     private readonly DispatcherTimer foldTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
+    private readonly DispatcherTimer hoverClear = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private bool accountMenu;
     private readonly DispatcherTimer animation = new() { Interval = TimeSpan.FromMilliseconds(40) };
     private readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromSeconds(10) };
     private readonly Popup popup = new() { AllowsTransparency = true, StaysOpen = true, Placement = PlacementMode.Custom };
@@ -36,6 +39,8 @@ internal sealed class NotchWindow : Window
     private double bodyLength, bodyDepth, bodyStart;
     private bool Vertical => settings.Current.Edge is NotchEdge.Left or NotchEdge.Right;
     internal bool Expanded => expanded || pinned || settings.Current.Visibility == NotchVisibility.AlwaysShow;
+    internal bool PopupIsOpen => popup.IsOpen;
+    internal bool AccountMenuIsOpen => accountMenu && popup.IsOpen;
     internal FrameworkElement? PopupContent => popup.Child as FrameworkElement;
 
     public NotchWindow(DashboardStore store, AppSettingsStore settings, Action<string?> openSettings)
@@ -53,6 +58,8 @@ internal sealed class NotchWindow : Window
         LostKeyboardFocus += (_, _) => foldTimer.Start();
         Deactivated += (_, _) => foldTimer.Start();
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { popup.IsOpen = false; hovered = null; Keyboard.ClearFocus(); foldTimer.Start(); e.Handled = true; } };
+        hoverClear.Tick += (_, _) => DismissProviderCard();
+        popup.Closed += (_, _) => { accountMenu = false; if (!closed) foldTimer.Start(); };
         foldTimer.Tick += (_, _) => TryFold();
         animation.Tick += (_, _) => { foreach (var ring in rings) { ring.Phase = DateTimeOffset.Now.ToUnixTimeMilliseconds() % 3000 / 3000d; ring.InvalidateVisual(); } };
         clock.Tick += (_, _) => { if (popup.IsOpen && popup.Child is UIElement child && !child.IsKeyboardFocusWithin) RefreshPopup(); };
@@ -83,7 +90,7 @@ internal sealed class NotchWindow : Window
         };
         Closed += (_, _) =>
         {
-            closed = true; popup.IsOpen = false; foldTimer.Stop(); animation.Stop(); clock.Stop();
+            closed = true; popup.IsOpen = false; foldTimer.Stop(); hoverClear.Stop(); animation.Stop(); clock.Stop();
             store.PropertyChanged -= Update; settings.SettingsChanged -= SettingsChanged;
             SystemParameters.StaticPropertyChanged -= DisplayChanged;
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= DisplaysChanged;
@@ -98,9 +105,12 @@ internal sealed class NotchWindow : Window
         if (message == 0x02E0) Dispatcher.BeginInvoke(Render);
         return IntPtr.Zero;
     }
-    public void Peek()
+    private SessionActivity? attentionSession;
+    private DateTimeOffset attentionUntil;
+    public void Peek(SessionActivity? session = null)
     {
         if (settings.Current.Visibility == NotchVisibility.Hidden) return;
+        attentionSession = session; attentionUntil = DateTimeOffset.Now.AddSeconds(5);
         expanded = true; Render();
         foldTimer.Interval = TimeSpan.FromSeconds(5); foldTimer.Start();
     }
@@ -118,6 +128,7 @@ internal sealed class NotchWindow : Window
     private void DisplaysChanged(object? sender, EventArgs e) { if (!closed) Dispatcher.BeginInvoke(Render); }
     internal void TryFold()
     {
+        if (accountMenu && popup.IsOpen) return;
         if (IsMouseOver || dragging || trackingMenu || IsKeyboardFocusWithin ||
             popup.Child is UIElement child && (child.IsMouseOver || child.IsKeyboardFocusWithin)) return;
         foldTimer.Stop(); foldTimer.Interval = TimeSpan.FromMilliseconds(450); popup.IsOpen = false; hovered = null;
@@ -127,7 +138,7 @@ internal sealed class NotchWindow : Window
     {
         foreach (var ring in rings)
         {
-            ring.Reading = store.Readings.GetValueOrDefault(ring.ProviderId)?.Evaluated(DateTimeOffset.Now);
+            ring.Reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(ring.ProviderId)?.Evaluated(DateTimeOffset.Now), settings.Current);
             ring.Active = store.Sessions.Any(x => x.Provider == ring.ProviderId && x.State == "busy");
             ring.Waiting = store.Sessions.Any(x => x.Provider == ring.ProviderId && x.State == "waiting");
             ring.Refreshing = store.RefreshingProviders.Contains(ring.ProviderId);
@@ -169,7 +180,7 @@ internal sealed class NotchWindow : Window
         var cells = new StackPanel { Orientation = Vertical ? Orientation.Vertical : Orientation.Horizontal };
         foreach (var id in config.EnabledProviders)
         {
-            var ring = new ProviderRing { ProviderId = id, Settings = config, Reading = store.Readings.GetValueOrDefault(id),
+            var ring = new ProviderRing { ProviderId = id, Settings = config, Reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(id), config),
                 Active = store.Sessions.Any(x => x.Provider == id && x.State == "busy"),
                 Waiting = store.Sessions.Any(x => x.Provider == id && x.State == "waiting") };
             rings.Add(ring);
@@ -180,8 +191,18 @@ internal sealed class NotchWindow : Window
             buttons[id] = button;
             AutomationProperties.SetName(button, (ProviderCatalog.Find(id)?.Name ?? id) + " usage; refresh");
             AutomationProperties.SetAutomationId(button, "notch.provider." + id);
-            button.Click += async (_, _) => await store.RefreshProviderAsync(id).ConfigureAwait(true);
+            button.Click += async (_, _) =>
+            {
+                if (attentionSession is { } session && session.Provider == id && DateTimeOffset.Now <= attentionUntil)
+                {
+                    attentionSession = null; popup.IsOpen = false;
+                    if (!SessionFocus.Activate(session)) openSettings("sessions:" + id);
+                }
+                else await store.RefreshProviderAsync(id).ConfigureAwait(true);
+            };
             button.MouseEnter += (_, _) => OpenProvider(id);
+            button.MouseLeave += (_, _) => hoverClear.Start();
+            button.LostKeyboardFocus += (_, _) => hoverClear.Start();
             button.GotKeyboardFocus += (_, _) => OpenProvider(id);
             cells.Children.Add(button);
         }
@@ -233,7 +254,9 @@ internal sealed class NotchWindow : Window
         var button = new Button { Style = (Style)FindResource("IconButton"), Content = new TextBlock { Text = glyph,
             FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = 20, Foreground = Brushes.White },
             Margin = new Thickness(0, 2, 0, 2), ToolTip = label };
-        AutomationProperties.SetName(button, label); button.Click += (_, _) => action(); return button;
+        AutomationProperties.SetName(button, label);
+        button.MouseEnter += (_, _) => { if (!accountMenu) { hoverClear.Stop(); popup.IsOpen = false; hovered = null; } };
+        button.Click += (_, _) => action(); return button;
     }
     private static void AddMenu(ContextMenu menu, string label, Action action)
     {
@@ -241,8 +264,15 @@ internal sealed class NotchWindow : Window
     }
     internal void OpenProvider(string id)
     {
-        if (!buttons.ContainsKey(id)) return;
-        hovered = id; RefreshPopup(); popup.IsOpen = true; foldTimer.Stop();
+        if (accountMenu && popup.IsOpen || !buttons.ContainsKey(id)) return;
+        hoverClear.Stop(); popup.StaysOpen = true; hovered = id; RefreshPopup(); popup.IsOpen = true; foldTimer.Stop();
+    }
+    internal void DismissProviderCard()
+    {
+        if (accountMenu) { hoverClear.Stop(); return; }
+        if (hovered is not null && buttons.TryGetValue(hovered, out var target) && (target.IsMouseOver || target.IsKeyboardFocusWithin)) return;
+        if (popup.IsOpen && popup.Child is UIElement child && (child.IsMouseOver || child.IsKeyboardFocusWithin)) return;
+        hoverClear.Stop(); popup.IsOpen = false; hovered = null;
     }
     private void RefreshPopup()
     {
@@ -263,12 +293,13 @@ internal sealed class NotchWindow : Window
     private void AttachPopup(FrameworkElement child)
     {
         child.PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { popup.IsOpen = false; hovered = null; Keyboard.ClearFocus(); foldTimer.Start(); e.Handled = true; } };
-        child.MouseEnter += (_, _) => foldTimer.Stop();
-        child.MouseLeave += (_, _) => foldTimer.Start();
+        child.MouseEnter += (_, _) => { foldTimer.Stop(); hoverClear.Stop(); };
+        child.MouseLeave += (_, _) => { foldTimer.Start(); if (!accountMenu) hoverClear.Start(); };
         child.LostKeyboardFocus += (_, _) => foldTimer.Start();
     }
     internal void OpenAccounts()
     {
+        popup.IsOpen = false; accountMenu = true; popup.StaysOpen = false; hoverClear.Stop(); foldTimer.Stop();
         hovered = null; var list = new StackPanel { Margin = new Thickness(12) };
         list.Children.Add(NotchPopover.Text("Accounts", 14, Brushes.White, FontWeights.SemiBold));
         foreach (var id in settings.Current.EnabledProviders.Where(x => x != "ollama-local"))
@@ -292,6 +323,12 @@ internal sealed class NotchWindow : Window
         if (list.Children.Count == 1) list.Children.Add(Ui.Button("Manage Providers", () => { popup.IsOpen = false; openSettings("providers"); }));
         var frame = new Border { Background = Brushes.Black, CornerRadius = new CornerRadius(16), Width = 280,
             Child = new ScrollViewer { Content = list, MaxHeight = 360, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } };
+        // The notch remains black independently of the system Settings theme.
+        frame.Resources["PrimaryText"] = Brushes.White;
+        frame.Resources["SecondaryText"] = Ui.Brush("#D4D4D4");
+        frame.Resources["ControlHover"] = Ui.Brush("#343434");
+        frame.Resources["ControlBackground"] = Ui.Brush("#202020");
+        frame.Resources["DividerBrush"] = Ui.Brush("#404040");
         AttachPopup(frame); popup.Child = frame; popup.IsOpen = true;
     }
     private CustomPopupPlacement[] PlacePopup(Size popupSize, Size targetSize, Point offset)

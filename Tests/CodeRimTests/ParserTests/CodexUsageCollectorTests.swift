@@ -974,6 +974,43 @@ final class CodexUsageCollectorTests: XCTestCase {
         XCTAssertEqual(checkpoint?.historyReplayComplete, true)
     }
 
+    func testInheritedImageBeforeFirstTokenAndVersion15Backfill() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let sessions = root.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+        let source = sessions.appendingPathComponent("child.jsonl")
+        let lines = [
+            #"{"timestamp":"2026-08-27T00:00:10Z","type":"session_meta","ordinal":0,"payload":{"id":"dddddddd-dddd-dddd-dddd-dddddddddddd","parent_thread_id":"cccccccc-cccc-cccc-cccc-cccccccccccc","subagent_history_start_ordinal":4}}"#,
+            #"{"timestamp":"2026-08-27T00:00:01Z","type":"response_item","ordinal":3,"payload":{"type":"message","role":"user","content":[{"type":"input_image","image_url":"private-inherited"}]}}"#,
+            #"{"timestamp":"2026-08-27T00:00:11Z","type":"response_item","ordinal":5,"payload":{"type":"message","role":"user","content":[{"type":"input_image","image_url":"private-new"}]}}"#,
+            tokenLine(input: 100, cached: 50, output: 20, lastInput: 100, lastCached: 50, lastOutput: 20, ordinal: 6)
+        ]
+        try Data((lines.joined(separator: "\n") + "\n").utf8).write(to: source)
+        let databaseURL = root.appendingPathComponent("usage.sqlite")
+        let now = try Date.ISO8601FormatStyle().parse("2026-08-27T01:00:00Z")
+        do {
+            let database = try SQLiteDatabase(url: databaseURL)
+            let collector = CodexUsageCollector(database: database, roots: [sessions])
+            _ = try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+            let snapshot = try await database.analyticsSnapshot(range: .today, through: now, calendar: utcCalendar)
+            XCTAssertEqual(snapshot.usage.totalTokens, 120)
+            XCTAssertEqual(try XCTUnwrap(snapshot.sessions.first).imageAttachmentCount, 1)
+            try await database.prepareVersion15ImageFixtureForTesting()
+        }
+        let migrated = try SQLiteDatabase(url: databaseURL)
+        let collector = CodexUsageCollector(database: migrated, roots: [sessions])
+        var result = try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        while result.hasMoreWork {
+            result = try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        }
+        let snapshot = try await migrated.analyticsSnapshot(range: .today, through: now, calendar: utcCalendar)
+        XCTAssertEqual(snapshot.usage.totalTokens, 120)
+        XCTAssertEqual(try XCTUnwrap(snapshot.sessions.first).imageAttachmentCount, 1)
+        let count = try await migrated.eventCount()
+        XCTAssertEqual(count, 1)
+    }
+
     func testHistoryStartOrdinalExcludesCopiedPrefix() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

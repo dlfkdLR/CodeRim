@@ -913,6 +913,11 @@ actor CodexUsageCollector {
             }
 
         case let .imageAttachments(attachment):
+            if checkpoint.inheritsHistory, !checkpoint.historyReplayComplete,
+               let boundary = checkpoint.inheritedHistoryEndOrdinal,
+               let ordinal = attachment.ordinal, ordinal > boundary {
+                checkpoint.historyReplayComplete = true
+            }
             guard !checkpoint.inheritsHistory || checkpoint.historyReplayComplete else { return }
             if let importCutoff, attachment.occurredAt <= importCutoff { return }
             let result = checkpoint.imageAttachmentCount.addingReportingOverflow(Int64(attachment.count))

@@ -32,6 +32,13 @@ struct TaskStartedMetadata: Equatable, Sendable {
 struct ImageAttachmentMetadata: Equatable, Sendable {
     let occurredAt: Date
     let count: Int
+    let ordinal: Int64?
+
+    init(occurredAt: Date, count: Int, ordinal: Int64? = nil) {
+        self.occurredAt = occurredAt
+        self.count = count
+        self.ordinal = ordinal
+    }
 }
 
 struct CodexJSONLParser: Sendable {
@@ -89,7 +96,7 @@ struct CodexJSONLParser: Sendable {
               let occurredAt = parseTimestamp(timestamp) else {
             return .malformed("image metadata is missing a valid timestamp")
         }
-        return .imageAttachments(ImageAttachmentMetadata(occurredAt: occurredAt, count: imageCount))
+        return .imageAttachments(ImageAttachmentMetadata(occurredAt: occurredAt, count: imageCount, ordinal: integer(root["ordinal"])))
     }
 
     private func parseTurnContext(_ root: [String: Any]) -> CodexParsedLine {

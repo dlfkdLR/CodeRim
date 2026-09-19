@@ -33,6 +33,7 @@ public sealed class UsageScanner
     private readonly long maximumBytesPerScan;
     private readonly long maximumTotalSourceBytes;
     private readonly TimeSpan maximumScanDuration;
+    private readonly Action<string>? sourceParsed;
     private int invalidationGeneration;
     private int appliedInvalidationGeneration;
 
@@ -64,9 +65,11 @@ public sealed class UsageScanner
         long maximumSourceBytes,
         long maximumBytesPerScan,
         TimeSpan maximumScanDuration,
-        long maximumTotalSourceBytes = MaximumTotalSourceBytes)
+        long maximumTotalSourceBytes = MaximumTotalSourceBytes,
+        Action<string>? sourceParsed = null)
     {
         this.roots = (roots ?? DefaultRoots()).Select(Path.GetFullPath).ToArray();
+        this.sourceParsed = sourceParsed;
         this.maximumSourceCount = Math.Max(1, maximumSourceCount);
         this.maximumEventCount = Math.Max(1, maximumEventCount);
         this.maximumEventsPerSource = Math.Max(1, maximumEventsPerSource);
@@ -144,7 +147,7 @@ public sealed class UsageScanner
         {
             cache.Remove(stale);
         }
-        var cachedEventCount = cache.Values.Sum(value => value.Events.Count);
+        var cachedEventCount = cache.Values.Sum(value => value.Events.Count + (value.Details?.Attachments.Count ?? 0));
 
         foreach (var source in sources)
         {
@@ -158,7 +161,7 @@ public sealed class UsageScanner
                     continue;
                 }
 
-                var previousEventCount = cached?.Events.Count ?? 0;
+                var previousEventCount = (cached?.Events.Count ?? 0) + (cached?.Details?.Attachments.Count ?? 0);
                 var retainedEventCount = cachedEventCount - previousEventCount;
                 if (before.Length > maximumSourceBytes)
                 {
@@ -191,15 +194,6 @@ public sealed class UsageScanner
                     before.Length,
                     cancellationToken, provider, projectKey);
                 scannedBytes += before.Length;
-                var after = FileStamp.Read(source);
-                if (before != after)
-                {
-                    cache.Remove(source);
-                    cachedEventCount = retainedEventCount;
-                    partial = true;
-                    continue;
-                }
-
                 if (parsed.ResourceLimitReached)
                 {
                     cache.Remove(source);
@@ -209,8 +203,38 @@ public sealed class UsageScanner
                     break;
                 }
 
-                cache[source] = new CachedFile(after, parsed.Events, parsed.Partial);
-                cachedEventCount = retainedEventCount + parsed.Events.Count;
+                sourceParsed?.Invoke(source);
+                var after = FileStamp.Read(source);
+                var changed = before != after;
+                var sameFile = parsed.Identity == FileIdentity.TryRead(source);
+                if (changed)
+                {
+                    // A writer may append while we parse a frozen prefix. Keep a
+                    // verified prefix useful, and retry its tail on the next scan.
+                    hasMoreWork = true;
+                    partial = true;
+                    var canVerify = after.Length >= before.Length
+                        && after.CreationTimeTicks == before.CreationTimeTicks
+                        && scannedBytes + before.Length <= maximumBytesPerScan;
+                    if (canVerify && sameFile)
+                    {
+                        scannedBytes += before.Length;
+                        sameFile = VerifyPrefix(source, before.Length, parsed, cancellationToken);
+                    }
+                    else sameFile = false;
+                }
+                if (!sameFile)
+                {
+                    cache.Remove(source);
+                    cachedEventCount = retainedEventCount;
+                    partial = true;
+                    hasMoreWork = true;
+                    continue;
+                }
+
+
+                cache[source] = new CachedFile(before, parsed.Events, parsed.Partial, parsed.Details);
+                cachedEventCount = retainedEventCount + parsed.Events.Count + (parsed.Details?.Attachments.Count ?? 0);
                 partial |= parsed.Partial;
             }
             catch (Exception error) when (error is IOException
@@ -218,7 +242,7 @@ public sealed class UsageScanner
                                           or System.Security.SecurityException)
             {
                 cache.Remove(source);
-                cachedEventCount = cache.Values.Sum(value => value.Events.Count);
+                cachedEventCount = cache.Values.Sum(value => value.Events.Count + (value.Details?.Attachments.Count ?? 0));
                 partial = true;
             }
         }
@@ -272,7 +296,9 @@ public sealed class UsageScanner
                     DataQuality.Unavailable => sources.Count == 0 ? "Codex sessions not found" : "No Codex usage found",
                     _ => "Unable to read local usage"
                 };
-        return new ScanResult(snapshot, sources.Count, status.Replace("Codex", provider == "claude" ? "Claude Code" : "Codex", StringComparison.Ordinal), hasMoreWork) { Events = events };
+        return new ScanResult(snapshot, sources.Count, status.Replace("Codex", provider == "claude" ? "Claude Code" : "Codex", StringComparison.Ordinal), hasMoreWork) { Events = events,
+            Sessions = cache.Values.Where(x => x.Details is not null).Select(x => x.Details! with {
+                Attachments = x.Details!.Attachments.Where(a => a.OccurredAt <= now).ToArray() }).ToArray() };
     }
 
     private DiscoveryResult DiscoverSources(CancellationToken cancellationToken)
@@ -350,6 +376,8 @@ public sealed class UsageScanner
         CancellationToken cancellationToken, string provider = "codex", byte[]? projectKey = null)
     {
         var events = new List<UsageEvent>();
+        var attachments = new List<AttachmentObservation>();
+        string? parentSession = null;
         var partial = false;
         var sessionId = HashIdentifier(SessionIdentifierFromFilename(path) ?? path);
         var state = UsageNormalizationState.Empty;
@@ -370,7 +398,9 @@ public sealed class UsageScanner
             bufferSize: 64 * 1024,
             FileOptions.SequentialScan);
 
-        foreach (var boundedLine in BoundedLineReader.Read(stream, maximumBytes, cancellationToken))
+        var identity = FileIdentity.TryRead(stream.SafeFileHandle);
+        using var prefixHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var boundedLine in BoundedLineReader.Read(stream, maximumBytes, cancellationToken, prefixHash))
         {
             if (boundedLine.Oversized)
             {
@@ -383,10 +413,49 @@ public sealed class UsageScanner
             {
                 if (ClaudeJsonlParser.Parse(line, projectKey) is { } claudeEvent)
                 {
-                    if (events.Count >= maximumEvents) return new ParsedFile([], true, true);
+                    if (events.Count + attachments.Count >= maximumEvents) return new ParsedFile([], true, true);
                     events.Add(claudeEvent);
                 }
                 continue;
+            }
+            if (line.AsSpan().IndexOf("\"input_image\""u8) >= 0)
+            {
+                try
+                {
+                    using var document = System.Text.Json.JsonDocument.Parse(line);
+                    var root = document.RootElement; var payload = JsonFields.Object(root, "payload");
+                    if (JsonFields.Text(root, "type") == "response_item" && JsonFields.Text(payload, "type") == "message"
+                        && JsonFields.Text(payload, "role") == "user" && payload.TryGetProperty("content", out var content)
+                        && content.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        var images = content.EnumerateArray().Where(x => JsonFields.Text(x, "type") == "input_image").ToArray();
+                        if (images.Length > 0 && DateTimeOffset.TryParse(JsonFields.Text(root, "timestamp"), CultureInfo.InvariantCulture,
+                            DateTimeStyles.AssumeUniversal, out var timestamp))
+                        {
+                            long? ordinal = root.TryGetProperty("ordinal", out var ordinalValue)
+                                && ordinalValue.ValueKind == System.Text.Json.JsonValueKind.Number
+                                && ordinalValue.TryGetInt64(out var number) ? number : null;
+                            if (inheritsHistory && !historyReplayComplete)
+                            {
+                                if (inheritedHistoryEndOrdinal is not null && ordinal > inheritedHistoryEndOrdinal
+                                    || inheritedHistoryEndOrdinal is null && sessionStartedAt is not null && timestamp >= sessionStartedAt)
+                                    historyReplayComplete = true;
+                            }
+                            if (!inheritsHistory || historyReplayComplete)
+                            {
+                                if (events.Count + attachments.Count >= maximumEvents) return new ParsedFile([], true, true);
+                                // Stable across copied/reformatted logs. The fallback keeps
+                                // only a digest of image observations, never image/text data.
+                                var identityKey = ordinal?.ToString(CultureInfo.InvariantCulture)
+                                    ?? HashIdentifier(string.Join("|", images.Select(x =>
+                                        ImageIdentity(x))));
+                                attachments.Add(new AttachmentObservation(HashIdentifier($"images|{sessionId}|{timestamp:O}|{identityKey}"), timestamp, images.Length));
+                            }
+                        }
+                        else if (images.Length > 0) partial = true;
+                    }
+                }
+                catch (System.Text.Json.JsonException) { partial = true; }
             }
             if (line.AsSpan().IndexOf("\"turn_context\""u8) >= 0 || line.AsSpan().IndexOf("\"session_meta\""u8) >= 0)
             {
@@ -424,6 +493,7 @@ public sealed class UsageScanner
                         sessionId = HashIdentifier(metadata.Id);
                     }
 
+                    parentSession = metadata.ParentThreadId is null ? null : HashIdentifier(metadata.ParentThreadId);
                     inheritsHistory = metadata.InheritsHistory;
                     sessionStartedAt = metadata.OccurredAt;
                     inheritedHistoryEndOrdinal = metadata.SubagentHistoryStartOrdinal;
@@ -492,7 +562,7 @@ public sealed class UsageScanner
                         break;
                     }
 
-                    if (events.Count >= maximumEvents)
+                    if (events.Count + attachments.Count >= maximumEvents)
                     {
                         return new ParsedFile([], true, true);
                     }
@@ -509,7 +579,33 @@ public sealed class UsageScanner
             }
         }
 
-        return new ParsedFile(events, partial, false);
+        return new ParsedFile(events, partial, false, prefixHash.GetHashAndReset(), identity,
+            provider == "codex" ? new SessionDetails(sessionId, parentSession, attachments) : null);
+    }
+
+    private static bool VerifyPrefix(string path, long length, ParsedFile parsed, CancellationToken cancellationToken)
+    {
+        if (parsed.PrefixHash is null) return false;
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.SequentialScan);
+        if (FileIdentity.TryRead(stream.SafeFileHandle) != parsed.Identity || stream.Length < length) return false;
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
+        try
+        {
+            var remaining = length;
+            while (remaining > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var read = stream.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
+                if (read == 0) return false;
+                hash.AppendData(buffer, 0, read);
+                remaining -= read;
+            }
+            return CryptographicOperations.FixedTimeEquals(hash.GetHashAndReset(), parsed.PrefixHash)
+                && FileIdentity.TryRead(path) == parsed.Identity;
+        }
+        finally { ArrayPool<byte>.Shared.Return(buffer); }
     }
 
     public static UsageSnapshot Aggregate(
@@ -620,15 +716,51 @@ public sealed class UsageScanner
             : null;
     }
 
+    private static string ImageIdentity(System.Text.Json.JsonElement image)
+    {
+        foreach (var name in new[] { "image_url", "url" })
+            if (image.TryGetProperty(name, out var value))
+            {
+                if (value.ValueKind == System.Text.Json.JsonValueKind.String) return value.GetString()!;
+                if (value.ValueKind == System.Text.Json.JsonValueKind.Object
+                    && value.TryGetProperty("url", out var nested)
+                    && nested.ValueKind == System.Text.Json.JsonValueKind.String) return nested.GetString()!;
+            }
+        using var stream = new MemoryStream();
+        using (var writer = new System.Text.Json.Utf8JsonWriter(stream)) WriteCanonical(image, writer);
+        return System.Text.Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static void WriteCanonical(System.Text.Json.JsonElement value, System.Text.Json.Utf8JsonWriter writer)
+    {
+        if (value.ValueKind == System.Text.Json.JsonValueKind.Object)
+        {
+            writer.WriteStartObject();
+            foreach (var property in value.EnumerateObject().OrderBy(x => x.Name, StringComparer.Ordinal))
+            { writer.WritePropertyName(property.Name); WriteCanonical(property.Value, writer); }
+            writer.WriteEndObject();
+        }
+        else if (value.ValueKind == System.Text.Json.JsonValueKind.Array)
+        {
+            writer.WriteStartArray();
+            foreach (var item in value.EnumerateArray()) WriteCanonical(item, writer);
+            writer.WriteEndArray();
+        }
+        else value.WriteTo(writer);
+    }
+
     private static string HashIdentifier(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
 
     private sealed record ParsedFile(
         IReadOnlyList<UsageEvent> Events,
         bool Partial,
-        bool ResourceLimitReached);
+        bool ResourceLimitReached,
+        byte[]? PrefixHash = null,
+        FileIdentity? Identity = null,
+        SessionDetails? Details = null);
     private sealed record DiscoveryResult(List<string> Sources, bool ResourceLimitReached);
-    private sealed record CachedFile(FileStamp Stamp, IReadOnlyList<UsageEvent> Events, bool Partial);
+    private sealed record CachedFile(FileStamp Stamp, IReadOnlyList<UsageEvent> Events, bool Partial, SessionDetails? Details);
     private readonly record struct FileStamp(long Length, long LastWriteTicks, long CreationTimeTicks)
     {
         public static FileStamp Read(string path)
@@ -640,6 +772,14 @@ public sealed class UsageScanner
 
     private readonly record struct FileIdentity(uint VolumeSerialNumber, ulong FileIndex)
     {
+        public static FileIdentity? TryRead(SafeFileHandle handle)
+        {
+            if (!OperatingSystem.IsWindows() || !GetFileInformationByHandle(handle, out var information))
+                return null;
+            return new FileIdentity(information.VolumeSerialNumber,
+                ((ulong)information.FileIndexHigh << 32) | information.FileIndexLow);
+        }
+
         public static FileIdentity? TryRead(string path)
         {
             if (!OperatingSystem.IsWindows())
@@ -655,14 +795,7 @@ public sealed class UsageScanner
                     FileAccess.Read,
                     FileShare.ReadWrite | FileShare.Delete,
                     FileOptions.None);
-                if (!GetFileInformationByHandle(handle, out var information))
-                {
-                    return null;
-                }
-
-                return new FileIdentity(
-                    information.VolumeSerialNumber,
-                    ((ulong)information.FileIndexHigh << 32) | information.FileIndexLow);
+                return TryRead(handle);
             }
             catch (Exception error) when (error is IOException
                                           or UnauthorizedAccessException
@@ -705,7 +838,8 @@ internal static class BoundedLineReader
     public static IEnumerable<BoundedLine> Read(
         Stream stream,
         long maximumBytes,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IncrementalHash? prefixHash = null)
     {
         var readBuffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
         var lineBuffer = new ArrayBufferWriter<byte>(64 * 1024);
@@ -738,6 +872,7 @@ internal static class BoundedLineReader
                     yield break;
                 }
                 totalBytesRead += read;
+                prefixHash?.AppendData(readBuffer, 0, read);
 
                 for (var index = 0; index < read; index++)
                 {

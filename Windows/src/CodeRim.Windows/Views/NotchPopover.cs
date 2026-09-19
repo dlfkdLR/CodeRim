@@ -21,7 +21,7 @@ internal static class NotchPopover
         header.Children.Add(mark);
         header.Children.Add(Text(ProviderCatalog.Find(id)?.Name ?? id, 13.7, Brushes.White, FontWeights.SemiBold));
         content.Children.Add(header);
-        var reading = store.Readings.GetValueOrDefault(id)?.Evaluated(DateTimeOffset.Now);
+        var reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(id)?.Evaluated(DateTimeOffset.Now), settings);
         var account = new DockPanel { Margin = new Thickness(0, 0, 0, 8), LastChildFill = true };
         var switcher = PlainButton("Switch account", () => navigate(id is "codex" or "claude" ? id + "-accounts" : id));
         switcher.HorizontalAlignment = HorizontalAlignment.Right; DockPanel.SetDock(switcher, Dock.Right);
@@ -54,7 +54,7 @@ internal static class NotchPopover
                     content.Children.Add(Text(percent > elapsed + 5 ? "Above even pace" : "Within even pace", 10.5, Secondary));
                 }
             }
-            if (window.DisplayValue is { } display) content.Children.Add(Text(display, 10.5));
+            if ((window.Id != "rate-limit-reset-credits" || !window.RemainingCount.HasValue) && window.DisplayValue is { } display) content.Children.Add(Text(display, 10.5));
             if (window.UsedCount is { } count) content.Children.Add(Text(TokenFormatter.Format(count, settings.NumberStyle) + " " + (window.Unit ?? "units") + " used", 10.5));
             if (window.RemainingCount is { } remaining) content.Children.Add(Text(TokenFormatter.Format(remaining, settings.NumberStyle) + " " + (window.Unit ?? "units") + " left", 10.5));
         }
@@ -71,7 +71,13 @@ internal static class NotchPopover
             foreach (var session in sessions.Take(6))
             {
                 var state = session.State switch { "busy" => "working", "waiting" => "waiting", _ => "idle" };
-                content.Children.Add(Row(session.Name, state, session.State == "busy" ? Ui.Brush("#00FF88") : Secondary));
+                var open = PlainButton("Open " + session.Name, () =>
+                {
+                    if (!SessionFocus.Activate(session)) navigate("sessions:" + id);
+                });
+                open.Content = Row(session.Name, state, session.State == "busy" ? Ui.Brush("#00FF88") : Secondary);
+                System.Windows.Automation.AutomationProperties.SetName(open, "Open " + session.Name);
+                content.Children.Add(open);
                 content.Children.Add(Text(Age(session.Since), 9.5, Secondary));
             }
             if (sessions.Length > 6) content.Children.Add(PlainButton("View all " + sessions.Length + " sessions", () => navigate("sessions:" + id)));
@@ -134,18 +140,7 @@ internal static class NotchPopover
         System.Windows.Automation.AutomationProperties.SetName(button, label);
         button.Click += (_, _) => action(); return button;
     }
-    private static string Reset(DateTimeOffset? reset, string format)
-    {
-        if (reset is null) return "";
-        if (reset <= DateTimeOffset.Now) return "Reset pending";
-        if (format == "Relative")
-        {
-            var remaining = reset.Value - DateTimeOffset.Now;
-            return "Resets in " + (remaining.TotalDays >= 1 ? (int)remaining.TotalDays + "d " + remaining.Hours + "h" :
-                remaining.TotalHours >= 1 ? (int)remaining.TotalHours + "h " + remaining.Minutes + "m" : Math.Max(1, remaining.Minutes) + "m");
-        }
-        return "Resets " + reset.Value.ToLocalTime().ToString("ddd h:mm tt", CultureInfo.CurrentCulture);
-    }
+    private static string Reset(DateTimeOffset? reset, string format) => ResetCopy.Text(reset, format, DateTimeOffset.Now);
     private static string Age(DateTimeOffset date)
     {
         var age = DateTimeOffset.Now - date;

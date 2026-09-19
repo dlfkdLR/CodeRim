@@ -42,6 +42,15 @@ jobs:
           if ((Get-Command coderim).Source -ne (Join-Path $cliBin 'coderim.cmd')) { throw 'CLI is shadowed.' }
           $text = cmd /d /c 'coderim version'
           if ($LASTEXITCODE -ne 0 -or $text -notmatch 'CodeRim CLI') { throw 'Installed CLI failed.' }
+      - name: Upload native UI evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CodeRim-Windows-UI
+          path: |
+            Artifacts/windows-*.png
+            Artifacts/windows-*.json
+            Artifacts/windows-*.txt
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -37,7 +37,9 @@ internal static class ClaudeSessions
                 else if (activity is { State: "idle" } && activity.Since > updated) { state = "idle"; updated = activity.Since; }
                 var cwd = ProviderParsers.Text(root, "cwd") ?? "Claude session";
                 var name = Path.GetFileName(cwd.TrimEnd('\\', '/'));
-                results[id] = new(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(id))), "claude", name, state, updated);
+                results[id] = new(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(id))), "claude", name, state, updated)
+                    { ProcessId = started.HasValue ? (int)pid : null,
+                        ProcessStartedAt = started.HasValue ? new DateTimeOffset(process.StartTime.ToUniversalTime()) : null };
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }
         }

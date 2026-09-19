@@ -8,8 +8,11 @@ using CodeRim.Windows.ViewModels;
 
 namespace CodeRim.Windows.Views;
 
-internal sealed class AccountsPane : StackPanel
+internal sealed class AccountsPane : DockPanel
 {
+    private Process? signInProcess;
+    private readonly System.Windows.Threading.DispatcherTimer signInTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private readonly System.Windows.Controls.Button cancel;
     private readonly string provider;
     private readonly SavedAccounts accounts;
     private readonly DashboardStore store;
@@ -19,8 +22,10 @@ internal sealed class AccountsPane : StackPanel
     internal AccountsPane(string provider, CredentialVault vault, DashboardStore store, AppSettingsStore settings)
     {
         this.provider = provider; this.store = store; this.settings = settings; accounts = new SavedAccounts(vault);
-        Children.Add(Ui.Text((provider == "codex" ? "Codex" : "Claude") + " accounts", 24, weight: FontWeights.SemiBold));
-        Children.Add(Ui.Text("Save the CLI's current sign-in, then switch between saved accounts.", color: "#A6A6AA"));
+        Margin = new Thickness(18); LastChildFill = true;
+        var header = new StackPanel(); DockPanel.SetDock(header, Dock.Top); Children.Add(header);
+        header.Children.Add(Ui.Text((provider == "codex" ? "Codex" : "Claude") + " Accounts", 17, weight: FontWeights.SemiBold));
+        header.Children.Add(Ui.Text("Save the CLI's current sign-in, then switch between saved accounts.", color: "#A6A6AA"));
         var actions = new WrapPanel();
         actions.Children.Add(Ui.AsyncButton("Save current account", async () =>
         {
@@ -29,8 +34,19 @@ internal sealed class AccountsPane : StackPanel
         }));
         actions.Children.Add(Ui.Button("Sign in…", () => Run(SignIn)));
         actions.Children.Add(Ui.Button("Refresh accounts", Populate));
-        Children.Add(actions); Children.Add(feedback); Children.Add(list); Populate();
-        Children.Add(Ui.Text("Switching verifies the account through the official CLI. Close its running sessions before switching. Removing a saved account does not sign out or erase local usage.", 11, "#A6A6AA"));
+        cancel = Ui.Button("Cancel sign-in", CancelSignIn); cancel.Visibility = Visibility.Collapsed; actions.Children.Add(cancel);
+        header.Children.Add(actions); header.Children.Add(feedback);
+        var note = Ui.Text("Close running provider sessions before switching. Removing a saved account preserves the current CLI login and local history.", 11, "#A6A6AA");
+        note.Margin = new Thickness(0, 10, 0, 0); DockPanel.SetDock(note, Dock.Bottom); Children.Add(note);
+        Children.Add(new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
+        signInTimer.Tick += (_, _) =>
+        {
+            if (signInProcess is null || !signInProcess.HasExited) return;
+            signInProcess.Dispose(); signInProcess = null; signInTimer.Stop(); cancel.Visibility = Visibility.Collapsed;
+            feedback.Text = "Sign-in process finished. Save Current Account to verify and keep this login."; Populate();
+        };
+        Unloaded += (_, _) => { signInTimer.Stop(); signInProcess?.Dispose(); signInProcess = null; };
+        Populate();
     }
     private string Executable() => provider == "codex" ? settings.Current.CodexExecutable ?? ProviderConnections.ResolveCodex() ?? throw new FileNotFoundException()
         : ProviderConnections.ResolveExecutable("claude.exe") ?? throw new FileNotFoundException();
@@ -40,8 +56,17 @@ internal sealed class AccountsPane : StackPanel
         var executable = Executable();
         var start = new ProcessStartInfo(executable) { UseShellExecute = true };
         foreach (var argument in provider == "codex" ? new[] { "login" } : new[] { "auth", "login" }) start.ArgumentList.Add(argument);
-        Process.Start(start)?.Dispose();
+        if (signInProcess is { HasExited: false }) { feedback.Text = "Sign-in is already in progress."; return; }
+        signInProcess?.Dispose(); signInProcess = Process.Start(start);
+        cancel.Visibility = signInProcess is null ? Visibility.Collapsed : Visibility.Visible; signInTimer.Start();
         feedback.Text = "Finish sign-in in the official CLI, then choose Save current account.";
+    }
+    private void CancelSignIn()
+    {
+        try { if (signInProcess is { HasExited: false }) signInProcess.Kill(); }
+        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { }
+        signInProcess?.Dispose(); signInProcess = null; signInTimer.Stop(); cancel.Visibility = Visibility.Collapsed;
+        feedback.Text = "Sign-in cancelled. Previously saved accounts are preserved.";
     }
     private void Populate()
     {
@@ -50,7 +75,7 @@ internal sealed class AccountsPane : StackPanel
         {
             var saved = accounts.Read(provider);
             string? current = null;
-            try { current = SavedAccounts.Current(provider).Identity.Id; } catch (Exception e) when (e is IOException or System.Text.Json.JsonException or FormatException) { }
+            try { if (!store.Synthetic) current = SavedAccounts.Current(provider).Identity.Id; } catch (Exception e) when (e is IOException or System.Text.Json.JsonException or FormatException) { }
             if (saved.Count == 0) list.Children.Add(Ui.Text("No saved accounts yet.", color: "#A6A6AA"));
             foreach (var account in saved)
             {
@@ -76,8 +101,11 @@ internal sealed class AccountsPane : StackPanel
                         feedback.Text = "The switch could not be verified. Close running provider sessions, sign in through the official CLI, and retry.";
                     }
                 });
+                System.Windows.Automation.AutomationProperties.SetName(select, "Switch to " + account.Identity.Email);
                 actions.Children.Add(select);
-                actions.Children.Add(Ui.Button("Remove saved account", () => Run(() => { if (MessageBox.Show(Window.GetWindow(this), "Remove the saved login for " + account.Identity.Email + "? Its current CLI session and usage history are preserved.", "Remove saved account", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) { accounts.Remove(provider, account.Identity.Id); Populate(); } })));
+                var remove = Ui.Button("Remove", () => Run(() => { if (MessageBox.Show(Window.GetWindow(this), "Remove the saved login for " + account.Identity.Email + "? Its current CLI session and usage history are preserved.", "Remove saved account", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) { accounts.Remove(provider, account.Identity.Id); Populate(); } }));
+                System.Windows.Automation.AutomationProperties.SetName(remove, "Remove saved account " + account.Identity.Email);
+                actions.Children.Add(remove);
                 panel.Children.Add(actions); list.Children.Add(panel);
             }
         }

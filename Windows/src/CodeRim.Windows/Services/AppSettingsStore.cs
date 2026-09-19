@@ -12,9 +12,24 @@ public sealed record AppSettings(
     bool ShowCachedInput,
     bool LaunchAtLogin)
 {
+    public string UsageProvider { get; init; } = "codex";
+    public bool DebugLogging { get; init; }
+    public string FinishedSound { get; init; } = "Asterisk";
+    public string BlockedSound { get; init; } = "Exclamation";
+    public bool AccountLimitsEnabled { get; init; } = true;
+    public bool AdditionalLimitsEnabled { get; init; } = true;
+    public bool ResetCreditsEnabled { get; init; } = true;
+    public bool AgentDetailsEnabled { get; init; } = true;
+    public bool AttachmentMetadataEnabled { get; init; } = true;
+    public bool AnalyticsEnabled { get; init; } = true;
+    public bool CostEstimatesEnabled { get; init; }
+    public bool ProjectsEnabled { get; init; } = true;
+    public bool SessionsEnabled { get; init; } = true;
+    public string[] MutedAlertProviders { get; init; } = [];
     public string[] EnabledProviders { get; init; } = ["codex"];
     public NotchEdge Edge { get; init; } = NotchEdge.Right;
     public NotchVisibility Visibility { get; init; } = NotchVisibility.OnHover;
+    public NotchVisibility LastVisibleNotchMode { get; init; } = NotchVisibility.OnHover;
     public RingColorMode RingColor { get; init; } = RingColorMode.Usage;
     public string Accent { get; init; } = "#00FF88";
     public string Gradient { get; init; } = "Aurora";
@@ -145,6 +160,8 @@ public sealed class AppSettingsStore
             : AppSettings.Default.RefreshIntervalSeconds;
         return settings with
         {
+            UsageProvider = ProviderCatalog.Find(settings.UsageProvider) is not null ? settings.UsageProvider : "codex",
+            MutedAlertProviders = (settings.MutedAlertProviders ?? []).Where(id => ProviderCatalog.Find(id) is not null).Distinct(StringComparer.Ordinal).ToArray(),
             ResetTime = settings.ResetTime is "Relative" or "Absolute" ? settings.ResetTime : "Relative",
             ControlsPosition = settings.ControlsPosition is "Auto" or "Start" or "End" ? settings.ControlsPosition : "Auto",
             NumberStyle = numberStyle,
@@ -156,6 +173,9 @@ public sealed class AppSettingsStore
             Accent = settings.Accent is { Length: 7 } accent && accent[0] == '#' && uint.TryParse(accent.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _) ? accent : "#00FF88",
             Gradient = settings.Gradient is "Aurora" or "Ocean" or "Sunset" or "Spectrum" ? settings.Gradient : "Aurora",
             Visibility = Enum.IsDefined(settings.Visibility) ? settings.Visibility : NotchVisibility.OnHover,
+            LastVisibleNotchMode = settings.LastVisibleNotchMode == NotchVisibility.AlwaysShow ? NotchVisibility.AlwaysShow : NotchVisibility.OnHover,
+            FinishedSound = SessionChime.Names.Contains(settings.FinishedSound, StringComparer.Ordinal) ? settings.FinishedSound : "Asterisk",
+            BlockedSound = SessionChime.Names.Contains(settings.BlockedSound, StringComparer.Ordinal) ? settings.BlockedSound : "Exclamation",
             Scale = settings.Scale is >= 0.8 and <= 1.25 ? settings.Scale : 1,
             Offset = double.IsFinite(settings.Offset) ? settings.Offset : 0
         };

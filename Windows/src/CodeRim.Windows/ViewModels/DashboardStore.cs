@@ -26,6 +26,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     private int Generation(string id) => generations.GetValueOrDefault(id);
     public Dictionary<string, UsageSnapshot> Usage { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, IReadOnlyList<UsageEvent>> Events { get; } = new(StringComparer.Ordinal);
+    public Dictionary<string, IReadOnlyList<SessionDetails>> SessionDetails { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, ProviderReading> Readings { get; } = new(StringComparer.Ordinal);
     public HashSet<string> RefreshingProviders { get; } = new(StringComparer.Ordinal);
     public IReadOnlyList<SessionActivity> Sessions { get; private set; } = [];
@@ -33,7 +34,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     public string Status { get; private set; } = "Reading local usage…";
     public event PropertyChangedEventHandler? PropertyChanged;
     public event Action<ProviderReading>? ReadingUpdated;
-    public event Action? SessionCompleted;
+    public event Action<SessionActivity>? SessionAttentionRequested;
     public bool Synthetic { get; }
     public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false)
     {
@@ -49,7 +50,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
             if (!synthetic)
             {
                 var history = repository.Read(id);
-                Events[id] = history;
+                Events[id] = history; SessionDetails[id] = repository.ReadSessionDetails(id);
                 Usage[id] = UsageScanner.Aggregate(history, DateTimeOffset.Now, settings.Current.WeekStart, true);
             }
         }
@@ -76,6 +77,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     public async Task RefreshAsync(bool userInitiated = false)
     {
         if (disposed) return;
+        if (userInitiated) foreach (var scanner in scanners.Values) scanner.InvalidateCachedSources();
         // Local scans never wait for provider network requests.
         foreach (var id in settings.Current.EnabledProviders) EnsureScope(id);
         var local = RefreshLocalAsync();
@@ -90,34 +92,33 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         try
         {
             localRefreshing = true; Changed();
+            var passes = 0;
             do
             {
                 pendingRefresh = false;
                 var enabled = settings.Current.EnabledProviders.ToArray();
                 if (Synthetic) { SeedPreview(); return; }
-                var previousSessions = Sessions;
-                Sessions = await Task.Run(() => ReadSessions(enabled), lifetime.Token).ConfigureAwait(true);
-                if (Sessions.Any(x => x.State == "idle" && previousSessions.Any(old => old.Id == x.Id && old.State == "busy")))
-                {
-                    if (settings.Current.CompletionSound) System.Media.SystemSounds.Asterisk.Play();
-                    SessionCompleted?.Invoke();
-                }
+                UpdateSessionActivity(await Task.Run(() => ReadSessions(enabled), lifetime.Token).ConfigureAwait(true));
                 Changed();
                 foreach (var id in enabled.Where(scanners.ContainsKey))
                 {
                     var generation = Generation(id);
                     var scan = await scanners[id].ScanAsync(settings.Current.WeekStart, lifetime.Token).ConfigureAwait(true);
                     if (generation != Generation(id)) continue;
-                    var events = await Task.Run(() => repository.Merge(id, scan.Events), lifetime.Token).ConfigureAwait(true);
+                    var events = await Task.Run(() => repository.Merge(id, scan.Events, scan.Sessions), lifetime.Token).ConfigureAwait(true);
                     if (generation != Generation(id)) continue;
                     pendingRefresh |= scan.HasMoreWork;
-                    Events[id] = events;
+                    Events[id] = events; SessionDetails[id] = repository.ReadSessionDetails(id);
                     Usage[id] = UsageScanner.Aggregate(events, DateTimeOffset.Now, settings.Current.WeekStart, scan.Snapshot.Quality == DataQuality.Partial || scan.HasMoreWork);
                     Status = scan.StatusMessage;
+                    if (settings.Current.DebugLogging) AppDiagnostics.Record(id, scan.Snapshot.Quality.ToString(), events.Count);
                     Changed();
                 }
                 Persist();
-                if (pendingRefresh) await Task.Yield();
+                // A continuously appended source must not keep a refresh alive
+                // forever. Watcher/timer/manual refresh will collect the next tail.
+                if (++passes >= 2) break;
+                if (pendingRefresh) await Task.Delay(250, lifetime.Token).ConfigureAwait(true);
             } while (pendingRefresh && !disposed);
         }
         catch (OperationCanceledException) { }
@@ -155,6 +156,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
             EnsureScope(id);
             if (generation != Generation(id) || requestScope != scopes.GetValueOrDefault(id) || !settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return;
             Readings[id] = ReadingRetention.Merge(reading, requestScope is null || !connections.CanCache(id) ? null : Readings.GetValueOrDefault(id));
+            if (settings.Current.DebugLogging) AppDiagnostics.Record(id, Readings[id].State.ToString(), Readings[id].Windows.Count);
             ReadingUpdated?.Invoke(Readings[id]);
             Persist();
         }
@@ -178,11 +180,41 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     }
     private void SeedPreview()
     {
+        Events["codex"] = [new("preview-event", DateTimeOffset.Now.AddMinutes(-2), new(123456, 24000, 56000),
+            "gpt-5.6-sol", "CodeRim", "preview-session", "codex", "preview-project"),
+            new("preview-child-event", DateTimeOffset.Now.AddDays(-1), new(100, 0, 20),
+                "gpt-5.6-sol", "CodeRim", "preview-child", "codex", "preview-project")];
+        SessionDetails["codex"] = [new("preview-session", null, [new("preview-image", DateTimeOffset.Now.AddMinutes(-3), 2)]),
+            new("preview-child", "preview-session", [])];
+        Events["claude"] = [new("preview-claude", DateTimeOffset.Now.AddMinutes(-2), new(12000, 3000, 4000),
+            "claude-sonnet-4-6", "CodeRim", "preview-claude-session", "claude", "preview-project")];
+        Usage["claude"] = UsageScanner.Aggregate(Events["claude"], DateTimeOffset.Now, settings.Current.WeekStart, false);
         Usage["codex"] = new(new(123456, 24000, 56000), new(340000, 70000, 120000), new(1100000, 250000, 700000), new(4800000, 1000000, 1200000), DataQuality.Exact, DateTimeOffset.Now);
         foreach (var id in settings.Current.EnabledProviders)
             Readings[id] = new(id, ReadingState.Ready, [new("session", "5 hours", 32, DateTimeOffset.Now.AddHours(2), 300), new("weekly", "Weekly", 66, DateTimeOffset.Now.AddDays(3), 10080)], DateTimeOffset.Now, Plan: "Preview account");
+        if (Readings.TryGetValue("codex", out var codex))
+            Readings["codex"] = codex with { Windows = [..codex.Windows,
+                new("review", "Code review", 14, DateTimeOffset.Now.AddDays(2)),
+                new("rate-limit-reset-credits", "Reset credits", null, RemainingCount: 2, Unit: "resets", DisplayValue: "2 resets remaining")] };
         Status = "Synthetic Windows UI verification";
     }
+    internal void UpdateSessionActivity(IReadOnlyList<SessionActivity> current)
+    {
+        var previous = Sessions;
+        Sessions = current;
+        var finished = current.Any(x => x.State == "idle" && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"));
+        var blocked = current.Any(x => x.State == "waiting" && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"));
+        if (settings.Current.CompletionSound)
+        {
+            if (finished) SessionChime.Play(settings.Current.FinishedSound);
+            else if (blocked) SessionChime.Play(settings.Current.BlockedSound);
+        }
+        if (finished || blocked)
+            SessionAttentionRequested?.Invoke(current.Where(x => x.State is "idle" or "waiting"
+                && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"))
+                .OrderByDescending(x => x.Since).First());
+    }
+
     private static List<SessionActivity> ReadSessions(string[] enabled)
     {
         var sessions = new List<SessionActivity>();
@@ -198,7 +230,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     public void Clear(string id)
     {
         if (!scanners.TryGetValue(id, out var scanner)) return;
-        generations[id] = Generation(id) + 1; repository.Clear(id, DateTimeOffset.Now); scanner.InvalidateCachedSources(); Usage.Remove(id); Events.Remove(id); Persist(); Changed();
+        generations[id] = Generation(id) + 1; repository.Clear(id, DateTimeOffset.Now); scanner.InvalidateCachedSources(); Usage.Remove(id); Events.Remove(id); SessionDetails.Remove(id); Persist(); Changed();
     }
     private void EnsureScope(string id)
     {

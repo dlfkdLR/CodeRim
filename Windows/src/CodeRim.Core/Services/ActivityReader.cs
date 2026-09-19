@@ -3,7 +3,14 @@ using CodeRim.Core.Parsing;
 
 namespace CodeRim.Core.Services;
 
-public sealed record SessionActivity(string Id, string Provider, string Name, string State, DateTimeOffset Since);
+public sealed record SessionActivity(string Id, string Provider, string Name, string State, DateTimeOffset Since)
+{
+    public string? CodexThreadId { get; init; }
+    public int? ProcessId { get; init; }
+    public DateTimeOffset? ProcessStartedAt { get; init; }
+    public Uri? CodexThreadUri => Provider == "codex" && Guid.TryParseExact(CodexThreadId, "D", out var id)
+        ? new Uri("codex://threads/" + id.ToString("D")) : null;
+}
 public static class ActivityReader
 {
     public const int MaximumTailBytes = 8 * 1024 * 1024;
@@ -29,7 +36,8 @@ public static class ActivityReader
                 if (end - offset <= CodexJsonlParser.MaximumLineBytes && (claude ? TryClaude(bytes.AsMemory(offset, end - offset), out running, out time) : TryCodex(bytes.AsMemory(offset, end - offset), out running, out time)))
                 {
                     if (time > now.AddMinutes(1) || now - time > (running ? TimeSpan.FromHours(6) : TimeSpan.FromSeconds(90))) return null;
-                    return new SessionActivity(ClaudeJsonlParser.Hash(Path.GetFileName(path)), claude ? "claude" : "codex", claude ? "Claude session" : "Codex task", running ? "busy" : "idle", time);
+                    return new SessionActivity(ClaudeJsonlParser.Hash(Path.GetFileName(path)), claude ? "claude" : "codex", claude ? "Claude session" : "Codex task", running ? "busy" : "idle", time)
+                    { CodexThreadId = !claude && Path.GetFileNameWithoutExtension(path) is { Length: >= 36 } name ? name[^36..] : null };
                 }
                 end = previous;
             }

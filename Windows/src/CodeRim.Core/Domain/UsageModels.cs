@@ -65,6 +65,9 @@ public sealed record UsageEvent(
     string Provider = "codex",
     string ProjectId = "unknown");
 
+public sealed record AttachmentObservation(string Id, DateTimeOffset OccurredAt, int Count);
+public sealed record SessionDetails(string Id, string? ParentId, IReadOnlyList<AttachmentObservation> Attachments);
+
 public sealed record ScanResult(
     UsageSnapshot Snapshot,
     int SourceCount,
@@ -72,4 +75,5 @@ public sealed record ScanResult(
     bool HasMoreWork)
 {
     public IReadOnlyList<UsageEvent> Events { get; init; } = [];
+    public IReadOnlyList<SessionDetails> Sessions { get; init; } = [];
 }
