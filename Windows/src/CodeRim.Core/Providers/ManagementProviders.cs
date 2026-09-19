@@ -9,6 +9,8 @@ public sealed partial class NativeProviders
 {
     public static IReadOnlyList<(string Key, string Label)> Settings(string id) => id switch
     {
+        "mimo" => [("MIMO_API_URL", "MiMo API base URL (default https://platform.xiaomimimo.com/api/v1)")],
+        "kimi" => [("KIMI_CODE_BASE_URL", "Kimi Code API base URL (default https://api.kimi.com)")],
         "wayfinder" => [("WAYFINDER_GATEWAY_URL", "Gateway URL (default http://127.0.0.1:8088)")],
         "fireworks" => [("FIREWORKS_ACCOUNT_SLUG", "Account slug")],
         "llmproxy" => [("LLM_PROXY_BASE_URL", "Proxy base URL (HTTPS, or HTTP on this PC)")],

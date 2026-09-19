@@ -229,9 +229,10 @@ internal sealed class DashboardWindow : Window
         else if (HasConnector(id) && id != "ollama-local")
         {
             if (id is "cursor" or "grok" or "opencode" or "commandcode") body.Children.Add(Ui.Text("Reads the provider’s existing local sign-in automatically. A saved credential overrides local discovery.", 12, "#A6A6AA"));
+            if (id == "kimi") body.Children.Add(Ui.Text("Use a Kimi Code API key (KIMI_CODE_API_KEY), not a Kimi web session token.", 12));
             if (id == "cursor") body.Children.Add(Ui.Text("Manual value: WorkosCursorSessionToken cookie header", 12));
             foreach (var field in NativeProviders.Settings(id)) { body.Children.Add(Ui.Text(field.Label)); AddSettingField("setting:" + id + ":" + field.Key, id); }
-            if (id != "wayfinder") { body.Children.Add(Ui.Text("Provider key or access token")); AddSecretField("provider:" + id, id, "Save credential"); }
+            if (id != "wayfinder") { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
         }
         else if (!HasConnector(id)) body.Children.Add(Ui.Text("This provider's Windows integration is still pending. Adding it does not create a live connection.", color: "#F2C66D"));
         Ui.Section(body, "Notch order");

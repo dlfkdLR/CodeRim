@@ -12,7 +12,7 @@ namespace CodeRim.Core.Providers;
 public sealed partial class NativeProviders : IDisposable
 {
     public static IReadOnlySet<string> Supported { get; } = new HashSet<string>(StringComparer.Ordinal)
-        { "cursor", "grok", "opencode", "commandcode", "ollama", "fireworks", "deepinfra", "codebuff", "neuralwatt", "llmproxy", "litellm", "zenmux", "warp", "wayfinder", "ibmbob" };
+        { "cursor", "grok", "opencode", "commandcode", "ollama", "fireworks", "deepinfra", "codebuff", "neuralwatt", "llmproxy", "litellm", "zenmux", "warp", "wayfinder", "ibmbob", "kimi", "amp", "mimo", "abacus", "stepfun", "sakana" };
     private readonly HttpClient client;
     private readonly ConcurrentDictionary<string, DateTimeOffset> retryAfter = new(StringComparer.Ordinal);
     public NativeProviders(HttpMessageHandler? handler = null) => client = new(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(15) };
@@ -32,6 +32,12 @@ public sealed partial class NativeProviders : IDisposable
             {
                 request.Method = HttpMethod.Post; request.Content = new StringContent("""{"fingerprintId":"codexbar-usage"}""", System.Text.Encoding.UTF8, "application/json");
             }
+            if (id == "amp")
+            {
+                request.Method = HttpMethod.Post; request.Content = new StringContent("""{"method":"userDisplayBalanceInfo","params":{}}""", System.Text.Encoding.UTF8, "application/json");
+            }
+            if (id == "stepfun" || id == "abacus" && new Uri(url).AbsolutePath.EndsWith("_getBillingInfo", StringComparison.Ordinal))
+            { request.Method = HttpMethod.Post; request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json"); }
             if (id == "warp")
             {
                 request.Method = HttpMethod.Post; request.Content = new StringContent(WarpBody(), System.Text.Encoding.UTF8, "application/json");
@@ -40,7 +46,23 @@ public sealed partial class NativeProviders : IDisposable
             }
             request.Headers.UserAgent.ParseAdd(id == "commandcode" ? "command-code-desktop" : id == "warp" ? "Warp/1.0" : "CodeRim/2.1.5");
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            if (id == "cursor") request.Headers.TryAddWithoutValidation("Cookie", credential);
+            if (BrowserIds.Contains(id))
+            {
+                var normalized = NormalizeBrowserCredential(id, credential!);
+                if (id == "stepfun")
+                {
+                    var webid = StepFunWebId(normalized);
+                    request.Headers.Add("oasis-appid", "10300"); request.Headers.Add("oasis-platform", "web"); request.Headers.Add("oasis-webid", webid);
+                    normalized = "Oasis-Token=" + normalized + "; Oasis-Webid=" + webid;
+                }
+                request.Headers.TryAddWithoutValidation("Cookie", normalized);
+                if (id == "mimo")
+                {
+                    request.Headers.Add("x-timeZone", "UTC+00:00"); request.Headers.Add("Origin", "https://platform.xiaomimimo.com");
+                    request.Headers.Referrer = new Uri("https://platform.xiaomimimo.com/#/console/balance");
+                }
+            }
+            else if (id == "cursor") request.Headers.TryAddWithoutValidation("Cookie", credential);
             else if (id != "wayfinder") request.Headers.Authorization = new AuthenticationHeaderValue(id == "ibmbob" ? BobAuthorization(credential!) : "Bearer", credential);
             if (extraHeaders is not null) foreach (var pair in extraHeaders) request.Headers.Add(pair.Key, pair.Value);
             if (id == "grok") request.Headers.Add("X-XAI-Token-Auth", "xai-grok-cli");
@@ -48,6 +70,7 @@ public sealed partial class NativeProviders : IDisposable
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 retryAfter[id] = response.Headers.RetryAfter?.Date ?? DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(1));
+            if (BrowserIds.Contains(id) && (int)response.StatusCode is >= 300 and < 400) throw new ProviderRequestException(HttpStatusCode.Unauthorized);
             if (!response.IsSuccessStatusCode) throw new ProviderRequestException(response.StatusCode);
             if (response.Content.Headers.ContentLength > 2 * 1024 * 1024) throw new InvalidDataException();
             using var input = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
@@ -57,7 +80,8 @@ public sealed partial class NativeProviders : IDisposable
                 if (output.Length + count > 2 * 1024 * 1024) throw new InvalidDataException();
                 output.Write(buffer, 0, count);
             }
-            using var json = JsonDocument.Parse(output.ToArray()); return json.RootElement.Clone();
+            using var json = id == "sakana" ? JsonDocument.Parse(JsonSerializer.Serialize(new { html = System.Text.Encoding.UTF8.GetString(output.ToArray()) })) : JsonDocument.Parse(output.ToArray());
+            return json.RootElement.Clone();
         }
         try
         {
@@ -69,7 +93,10 @@ public sealed partial class NativeProviders : IDisposable
                 "opencode" => "https://opencode.ai/zen/go/v1/usage", "ollama" => "https://ollama.com/api/usage",
                 "deepinfra" => "https://api.deepinfra.com/payment/checklist?compute_owed=true",
                 "codebuff" => "https://www.codebuff.com/api/v1/usage", "neuralwatt" => "https://api.neuralwatt.com/v1/quota",
-                "commandcode" => "https://api.commandcode.ai/alpha/whoami", _ => ""
+                "commandcode" => "https://api.commandcode.ai/alpha/whoami",
+                "mimo" => MiMoBase(setting) + "/balance", "abacus" => "https://apps.abacus.ai/api/_getOrganizationComputePoints",
+                "stepfun" => "https://platform.stepfun.com/api/step.openapi.devcenter.Dashboard/QueryStepPlanRateLimit", "sakana" => "https://console.sakana.ai/billing",
+                "kimi" => KimiEndpoint(setting), "amp" => "https://ampcode.com/api/internal?userDisplayBalanceInfo", _ => ""
             };
             if (id == "fireworks")
             {
@@ -98,8 +125,22 @@ public sealed partial class NativeProviders : IDisposable
                 try { documents["subscription"] = await GetJson("https://www.codebuff.com/api/user/subscription").ConfigureAwait(false); }
                 catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException) { token.ThrowIfCancellationRequested(); partial = true; }
             }
+            var optional = id switch
+            {
+                "mimo" => new[] { ("detail", MiMoBase(setting) + "/tokenPlan/detail"), ("usage", MiMoBase(setting) + "/tokenPlan/usage") },
+                "abacus" => [("billing", "https://apps.abacus.ai/api/_getBillingInfo")],
+                "stepfun" => [("status", "https://platform.stepfun.com/api/step.openapi.devcenter.Dashboard/GetStepPlanStatus")],
+                "sakana" => [("payg", "https://console.sakana.ai/billing?tab=payAsYouGo")],
+                _ => Array.Empty<(string, string)>()
+            };
+            foreach (var (key, url) in optional)
+            {
+                try { documents[key] = await GetJson(url).ConfigureAwait(false); }
+                catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException)
+                { token.ThrowIfCancellationRequested(); partial = true; }
+            }
             var reading = Parse(id, documents);
-            return partial && reading.Windows.Count > 0 ? reading with { State = ReadingState.Partial, Message = "Credit balance is current. Subscription details could not be refreshed." } : reading;
+            return partial && reading.Windows.Count > 0 ? reading with { State = ReadingState.Partial, Message = "Primary usage is current. Additional billing details could not be refreshed." } : reading;
         }
         catch (ProviderRequestException error)
         {
@@ -107,14 +148,17 @@ public sealed partial class NativeProviders : IDisposable
                 : error.Status == HttpStatusCode.TooManyRequests ? ReadingState.Unavailable : ReadingState.Error;
             return new(id, state, [], Message: state == ReadingState.NeedsAuth ? "Sign in again or update the provider credential." : "Unable to refresh provider usage. The last reading is retained.");
         }
-        catch (Exception error) when (error is HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException)
+        catch (Exception error) when (error is HttpRequestException or IOException or InvalidDataException or JsonException or System.Text.RegularExpressions.RegexMatchTimeoutException or OperationCanceledException)
         { token.ThrowIfCancellationRequested(); return new(id, ReadingState.Error, [], Message: "Unable to refresh provider usage. Check the connection."); }
     }
     public static ProviderReading Parse(string id, IReadOnlyDictionary<string, JsonElement> payloads)
     {
         ArgumentNullException.ThrowIfNull(payloads);
         if (ManagementIds.Contains(id)) return ParseManagement(id, payloads);
+        if (BrowserIds.Contains(id)) return ParseBrowser(id, payloads);
         var root = payloads.GetValueOrDefault("main");
+        if (id == "kimi") return ParseKimi(root);
+        if (id == "amp") return ParseAmp(root);
         var windows = new List<LimitWindow>(); string? plan = null;
         void Percent(string key, string name, double? used, DateTimeOffset? reset = null, int minutes = 0)
         { if (used is >= 0 && double.IsFinite(used.Value)) windows.Add(new(key, name, used, reset, minutes)); }
