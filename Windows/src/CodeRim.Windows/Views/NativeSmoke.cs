@@ -312,6 +312,20 @@ internal static class NativeSmoke
         Require(attentionEvents == 2, "Finished session did not request attention");
         store.SessionAttentionRequested -= Attention;
         using var ownProcess = System.Diagnostics.Process.GetCurrentProcess();
+        var previousFocusConfig = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
+        var focusConfig = Path.Combine(CompanionFile.DataDirectory, "focus-fixture");
+        var focusSessions = Path.Combine(focusConfig, "sessions"); Directory.CreateDirectory(focusSessions);
+        try
+        {
+            Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", focusConfig);
+            var record = Path.Combine(focusSessions, "fixture.json");
+            File.WriteAllText(record, JsonSerializer.Serialize(new { pid = ownProcess.Id, sessionId = "focus-fixture", status = "busy" }));
+            Require(ClaudeSessions.Read().Single() is { ProcessId: null, ProcessStartedAt: null }, "Missing original start time granted process activation");
+            File.WriteAllText(record, JsonSerializer.Serialize(new { pid = ownProcess.Id, sessionId = "focus-fixture", status = "busy",
+                startedAt = new DateTimeOffset(ownProcess.StartTime.ToUniversalTime()).ToUnixTimeMilliseconds() }));
+            Require(ClaudeSessions.Read().Single().ProcessId == ownProcess.Id, "Verified session process identity was lost");
+        }
+        finally { Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", previousFocusConfig); }
         var ownSession = activity with { ProcessId = ownProcess.Id, ProcessStartedAt = new DateTimeOffset(ownProcess.StartTime.ToUniversalTime()) };
         Require(SessionFocus.FindOwningWindow(ownSession) != IntPtr.Zero, "Session window lookup failed for the synthetic app");
         Require(SessionFocus.FindOwningWindow(ownSession with { ProcessStartedAt = ownSession.ProcessStartedAt.GetValueOrDefault().AddMinutes(-1) }) == IntPtr.Zero, "Reused process identity was accepted");
