@@ -4,7 +4,7 @@ This Windows port uses WPF on .NET 10 and targets Windows 11 x64 and ARM64. It i
 
 ## Run or install
 
-Extract the matching `CodeRim-Windows-2.1.6-x64.zip` or `CodeRim-Windows-2.1.6-arm64.zip` into a permanent folder and open `CodeRim.exe`. .NET is included. The tray icon opens the Usage dashboard and Settings. Hover the screen-edge notch to see provider rings. Add your providers in Settings → Providers.
+Extract the matching `CodeRim-Windows-2.1.7-x64.zip` or `CodeRim-Windows-2.1.7-arm64.zip` into a permanent folder and open `CodeRim.exe`. .NET is included. The tray icon opens the Usage dashboard and Settings. Hover the screen-edge notch to see provider rings. Add your providers in Settings → Providers.
 
 For a per-user installation, run this from the extracted folder in PowerShell:
 
