@@ -84,7 +84,10 @@ internal sealed partial class DashboardWindow : Window
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal };
             row.Children.Add(SettingsUi.Icon(id));
-            var text = Ui.Text(title); text.Margin = new Thickness(8, 0, 0, 0); text.VerticalAlignment = VerticalAlignment.Center; row.Children.Add(text);
+            var text = Ui.Text(title); text.Margin = new Thickness(8, 0, 0, 0); text.VerticalAlignment = VerticalAlignment.Center;
+            text.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding(nameof(Control.Foreground))
+                { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(ListBoxItem), 1) });
+            row.Children.Add(text);
             var item = new ListBoxItem { Content = row, Tag = id, Padding = new Thickness(8, 6, 8, 6), Margin = new Thickness(0, 2, 0, 2) };
             System.Windows.Automation.AutomationProperties.SetName(item, title);
             sidebar.Items.Add(item);
@@ -99,8 +102,38 @@ internal sealed partial class DashboardWindow : Window
         if (page == "usage") usagePane?.RefreshReadings();
         else if (ProviderCatalog.Find(page) is not null) UpdateProviderReading(page);
     }
+    private string? renderedPage;
+    private bool waitingForPicker;
+    private static IEnumerable<T> VisualChildren<T>(DependencyObject root) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is T item) yield return item;
+            foreach (var descendant in VisualChildren<T>(child)) yield return descendant;
+        }
+    }
+    private void RenderAfterPicker()
+    {
+        var open = VisualChildren<System.Windows.Controls.ComboBox>(body).FirstOrDefault(x => x.IsDropDownOpen);
+        if (open is null) { Render(); return; }
+        if (waitingForPicker) return;
+        waitingForPicker = true;
+        EventHandler? closed = null;
+        closed = (_, _) =>
+        {
+            open.DropDownClosed -= closed; waitingForPicker = false;
+            if (page == "notch") Render();
+        };
+        open.DropDownClosed += closed;
+    }
     private void Render()
     {
+        var focusName = renderedPage == page
+            ? VisualChildren<Control>(body).Where(x => x.IsKeyboardFocusWithin)
+                .Select(System.Windows.Automation.AutomationProperties.GetName).FirstOrDefault(x => !string.IsNullOrEmpty(x))
+            : null;
+        renderedPage = page;
         body.Children.Clear();
         body.Margin = page == "usage" ? new Thickness(0) : new Thickness(0, 6, 0, 28);
         switch (page)
@@ -115,6 +148,9 @@ internal sealed partial class DashboardWindow : Window
             case "claude-accounts": body.Children.Add(new AccountsPane("claude", vault, store, settings)); break;
             default: Provider(page); break;
         }
+        if (focusName is not null)
+            Dispatcher.BeginInvoke(new Action(() =>
+                VisualChildren<Control>(body).FirstOrDefault(x => System.Windows.Automation.AutomationProperties.GetName(x) == focusName)?.Focus()));
     }
     private void Heading(string title, string subtitle)
     {
@@ -152,24 +188,26 @@ internal sealed partial class DashboardWindow : Window
     private void Notch()
     {
         var shown = settings.Current.Visibility != NotchVisibility.Hidden;
-        body.Children.Add(SettingsUi.Section("Edge Notch", SettingsUi.Toggle("Show edge notch", shown, x => { Save(settings.Current with { Visibility = x ? NotchVisibility.OnHover : NotchVisibility.Hidden }); Render(); })));
+        body.Children.Add(SettingsUi.Section("Edge Notch", SettingsUi.Toggle("Show edge notch", shown, x => { Save(settings.Current with {
+            LastVisibleNotchMode = x ? settings.Current.LastVisibleNotchMode : settings.Current.Visibility,
+            Visibility = x ? (settings.Current.LastVisibleNotchMode == NotchVisibility.AlwaysShow ? NotchVisibility.AlwaysShow : NotchVisibility.OnHover) : NotchVisibility.Hidden }); Render(); })));
         body.Children.Add(SettingsUi.Note("A floating usage ring welded to a screen edge. Alt-drag the pill to slide it along the edge; Recentre puts it back."));
         var controls = SettingsUi.Picker("Controls position", ControlOptions, settings.Current.ControlsPosition, x => Save(settings.Current with { ControlsPosition = x }));
         controls.IsEnabled = settings.Current.Edge is NotchEdge.Left or NotchEdge.Right;
         var placement = SettingsUi.Section("Placement",
             SettingsUi.Picker("Behaviour", new[] { NotchVisibility.OnHover, NotchVisibility.AlwaysShow }, shown ? settings.Current.Visibility : NotchVisibility.OnHover, x => Save(settings.Current with { Visibility = x })),
-            SettingsUi.Picker("Edge", Enum.GetValues<NotchEdge>(), settings.Current.Edge, x => { Save(settings.Current with { Edge = x }); Render(); }),
+            SettingsUi.Picker("Edge", Enum.GetValues<NotchEdge>(), settings.Current.Edge, x => { Save(settings.Current with { Edge = x }); RenderAfterPicker(); }),
             SettingsUi.Picker("Size", ScaleOptions, settings.Current.Scale, x => Save(settings.Current with { Scale = x })),
             controls, SettingsUi.Action("Recentre", () => Save(settings.Current with { Offset = 0 })));
         placement.IsEnabled = shown; body.Children.Add(placement);
         body.Children.Add(SettingsUi.Note("Controls position applies to the left and right edges. Auto moves Settings and account controls above the notch when space below runs out."));
-        var rows = new List<UIElement> { SettingsUi.Picker("Ring style", Enum.GetValues<RingColorMode>(), settings.Current.RingColor, x => { Save(settings.Current with { RingColor = x }); Render(); }) };
+        var rows = new List<UIElement> { SettingsUi.Picker("Ring style", Enum.GetValues<RingColorMode>(), settings.Current.RingColor, x => { Save(settings.Current with { RingColor = x }); RenderAfterPicker(); }) };
         if (settings.Current.RingColor == RingColorMode.Gradient)
         {
-            rows.Add(SettingsUi.Picker("Gradient", GradientOptions, settings.Current.Gradient, x => { Save(settings.Current with { Gradient = x }); Render(); }));
+            rows.Add(SettingsUi.Picker("Gradient", GradientOptions, settings.Current.Gradient, x => { Save(settings.Current with { Gradient = x }); RenderAfterPicker(); }));
             rows.Add(SettingsUi.Toggle("Animate gradient", settings.Current.AnimateGradient, x => Save(settings.Current with { AnimateGradient = x })));
         }
-        else rows.Add(SettingsUi.Picker("Ring colour", AccentOptions, settings.Current.Accent, x => { Save(settings.Current with { Accent = x }); Render(); }));
+        else rows.Add(SettingsUi.Picker("Ring colour", AccentOptions, settings.Current.Accent, x => { Save(settings.Current with { Accent = x }); RenderAfterPicker(); }));
         var previews = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8) };
         foreach (var percent in new[] { 25d, 60d, 90d })
             previews.Children.Add(new ProviderRing { Settings = settings.Current, Reading = new ProviderReading("codex", ReadingState.Ready, [new LimitWindow("preview", "Preview", percent)], DateTimeOffset.Now), Margin = new Thickness(6) });

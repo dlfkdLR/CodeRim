@@ -21,6 +21,7 @@ public sealed record AppSettings(
     public string[] EnabledProviders { get; init; } = ["codex"];
     public NotchEdge Edge { get; init; } = NotchEdge.Right;
     public NotchVisibility Visibility { get; init; } = NotchVisibility.OnHover;
+    public NotchVisibility LastVisibleNotchMode { get; init; } = NotchVisibility.OnHover;
     public RingColorMode RingColor { get; init; } = RingColorMode.Usage;
     public string Accent { get; init; } = "#00FF88";
     public string Gradient { get; init; } = "Aurora";

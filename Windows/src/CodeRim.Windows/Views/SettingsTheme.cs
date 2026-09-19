@@ -25,16 +25,19 @@ internal static class SettingsTheme
             ["ControlHover"] = Color(IsDark ? "#414141" : "#E5E5E5"),
             ["SelectedControl"] = Color(IsDark ? "#4D4D4D" : "#FFFFFF"),
             ["PrimaryText"] = Color(IsDark ? "#E6E6E6" : "#262626"),
-            ["SecondaryText"] = Color(IsDark ? "#9E9E9E" : "#777777"),
+            ["SecondaryText"] = Color(IsDark ? "#9E9E9E" : "#707070"),
             ["DividerBrush"] = Color(IsDark ? "#383838" : "#E3E3E3"),
-            ["AccentBrush"] = Color(IsDark ? "#0A84FF" : "#007AFF")
+            ["AccentBrush"] = Color(IsDark ? "#0A84FF" : "#007AFF"),
+            ["AccentText"] = Colors.White
         };
         if (contrast)
         {
             foreach (var name in new[] { "WindowBackground", "PanelBackground", "CardBackground", "ControlBackground", "SelectedControl" }) colors[name] = SystemColors.WindowColor;
             colors["PrimaryText"] = colors["SecondaryText"] = SystemColors.WindowTextColor;
             colors["DividerBrush"] = SystemColors.WindowTextColor;
-            colors["AccentBrush"] = colors["ControlHover"] = SystemColors.HighlightColor;
+            colors["AccentBrush"] = SystemColors.HighlightColor;
+            colors["AccentText"] = SystemColors.HighlightTextColor;
+            colors["ControlHover"] = SystemColors.WindowColor;
         }
         foreach (var (key, color) in colors) Application.Current.Resources[key] = new SolidColorBrush(color);
     }

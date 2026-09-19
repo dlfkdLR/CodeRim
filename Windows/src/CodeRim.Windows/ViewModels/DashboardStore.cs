@@ -76,6 +76,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     public async Task RefreshAsync(bool userInitiated = false)
     {
         if (disposed) return;
+        if (userInitiated) foreach (var scanner in scanners.Values) scanner.InvalidateCachedSources();
         // Local scans never wait for provider network requests.
         foreach (var id in settings.Current.EnabledProviders) EnsureScope(id);
         var local = RefreshLocalAsync();

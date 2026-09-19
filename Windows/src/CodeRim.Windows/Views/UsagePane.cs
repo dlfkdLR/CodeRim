@@ -71,7 +71,14 @@ internal sealed class UsagePane : StackPanel
         {
             updatingChoices = true;
             selector.ItemsSource = choices;
-            provider = choices.Any(x => x.Id == provider) ? provider : choices.FirstOrDefault()?.Id ?? "codex";
+            var nextProvider = choices.Any(x => x.Id == provider) ? provider : choices.FirstOrDefault()?.Id ?? "codex";
+            if (provider != nextProvider)
+            {
+                provider = nextProvider; destination = "overview"; project = session = null;
+                period = "today"; search = ""; visibleRows = 40; history.Clear(); BuildControls();
+                try { settings.Save(settings.Current with { UsageProvider = provider }); }
+                catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException) { }
+            }
             selector.SelectedValue = provider;
             updatingChoices = false;
         }
@@ -92,7 +99,7 @@ internal sealed class UsagePane : StackPanel
         {
             if (!updatingChoices && selector.SelectedValue is string id)
             {
-                this.provider = id; destination = "overview"; project = session = null; history.Clear();
+                this.provider = id; destination = "overview"; project = session = null; search = ""; period = "today"; visibleRows = 40; history.Clear();
                 try { settings.Save(settings.Current with { UsageProvider = id }); }
                 catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException) { }
                 BuildControls(); Update();

@@ -25,6 +25,11 @@ internal static class NativeSmoke
         var directory = Path.GetDirectoryName(Path.GetFullPath(output))!;
         Directory.CreateDirectory(directory);
         var checks = new List<string>();
+        void Record(string message)
+        {
+            checks.Add(message);
+            File.WriteAllText(Path.Combine(directory, "windows-ui-progress.json"), JsonSerializer.Serialize(checks, JsonOptions));
+        }
         Require(store.Synthetic, "Smoke must use synthetic data");
         settings.Save(settings.Current with { EnabledProviders = ["codex", "claude"] });
         await store.RefreshAsync(true); dashboard.Navigate("usage");
@@ -43,7 +48,7 @@ internal static class NativeSmoke
         var vault = new CredentialVault(); vault.Save("smoke.fixture", "synthetic-secret");
         Require(vault.Load("smoke.fixture") == "synthetic-secret", "DPAPI round trip failed");
         vault.Delete("smoke.fixture"); Require(vault.Load("smoke.fixture") is null, "Credential removal failed");
-        checks.Add("Windows private-file ACL, atomic replacement, and user DPAPI round trip");
+        Record("Windows private-file ACL, atomic replacement, and user DPAPI round trip");
         var previousClaudeConfig = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
         var fixtureConfig = Path.Combine(CompanionFile.DataDirectory, "claude-fixture"); Directory.CreateDirectory(fixtureConfig);
         try
@@ -59,7 +64,7 @@ internal static class NativeSmoke
             var result = await BoundedProcess.RunAsync(Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"),
                 command.Skip(1), """{"session_id":"synthetic-unregistered","rate_limits":{"five_hour":{"used_percentage":53}}}""");
             Require(result.Contains("53%", StringComparison.Ordinal), "Installed Claude command did not read stdin");
-            checks.Add("Claude installation preserves settings, is idempotent, and executes its Windows command with stdin");
+            Record("Claude installation preserves settings, is idempotent, and executes its Windows command with stdin");
         }
         finally { Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", previousClaudeConfig); }
 
@@ -81,9 +86,9 @@ internal static class NativeSmoke
             tile.Children.Add(Ui.Text(provider.Name, 10)); glyphGrid.Children.Add(tile);
         }
         glyphGrid.Measure(new Size(720, double.PositiveInfinity)); glyphGrid.Arrange(new Rect(glyphGrid.DesiredSize));
-        Capture(glyphGrid, Path.Combine(directory, "windows-provider-logos.png")); checks.Add("Every provider logo loads and renders");
+        Capture(glyphGrid, Path.Combine(directory, "windows-provider-logos.png")); Record("Every provider logo loads and renders");
         SettingsTheme.Apply(dark: true, highContrast: false);
-        await Idle(); Capture(dashboard, output); checks.Add("Usage window renders");
+        await Idle(); Capture(dashboard, output); Record("Usage window renders");
         var shortcuts = Descendants<System.Windows.Controls.Button>(dashboard).Where(x => (AutomationProperties.GetAutomationId(x) ?? "").StartsWith("usage.destination.", StringComparison.Ordinal)).ToArray();
         Require(shortcuts.Length == 3, "Usage analytics shortcuts are missing");
         var positions = shortcuts.Select(x => x.TransformToAncestor(dashboard).Transform(new Point())).ToArray();
@@ -93,7 +98,7 @@ internal static class NativeSmoke
         selector.Focus(); var original = selector;
         await store.RefreshAsync(true).ConfigureAwait(true); await Idle();
         Require(Descendants<System.Windows.Controls.ComboBox>(dashboard).Contains(original), "Refresh replaced usage selector");
-        Require(original.IsKeyboardFocusWithin, "Refresh stole usage keyboard focus"); checks.Add("Refresh preserves usage selector and keyboard focus");
+        Require(original.IsKeyboardFocusWithin, "Refresh stole usage keyboard focus"); Record("Refresh preserves usage selector and keyboard focus");
         original.SelectedValue = "claude"; await Idle();
         dashboard.Navigate("general"); dashboard.Navigate("usage"); await Idle();
         Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).First().SelectedValue == "claude", "Sidebar navigation lost selected usage provider");
@@ -101,7 +106,7 @@ internal static class NativeSmoke
         original.SelectedValue = "codex"; await Idle();
         var mode = Descendants<RadioButton>(dashboard).First();
         Require(mode.IsChecked == true && new System.Windows.Automation.Peers.RadioButtonAutomationPeer(mode).GetPattern(System.Windows.Automation.Peers.PatternInterface.SelectionItem) is not null, "Usage mode has no accessible selection state");
-        checks.Add("Selected provider survives sidebar navigation and mode exposes selected state");
+        Record("Selected provider survives sidebar navigation and mode exposes selected state");
 
         var projects = Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.projects");
         projects.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
@@ -115,7 +120,18 @@ internal static class NativeSmoke
         Require(Descendants<System.Windows.Controls.TextBox>(dashboard).Single().Text == "CodeRim", "Back lost project search");
         Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period").SelectedValue == "month", "Back lost selected period");
         Descendants<System.Windows.Controls.Button>(dashboard).Single(x => Equals(x.Content, "‹ Back")).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
-        checks.Add("Project detail Back restores list search and period");
+        Record("Project detail Back restores list search and period");
+
+        dashboard.Navigate("sessions:codex"); await Idle();
+        settings.Save(settings.Current with { EnabledProviders = ["claude"] });
+        dashboard.Navigate("providers"); dashboard.Navigate("usage"); await Idle();
+        Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).First().SelectedValue == "claude", "Removed provider did not select an available provider");
+        Require(Descendants<RadioButton>(dashboard).Any(), "Removed provider retained its detail navigation");
+        Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Today"), "Removed provider did not return to available provider overview");
+        settings.Save(settings.Current with { EnabledProviders = ["codex", "claude"] });
+        dashboard.Navigate("usage"); Descendants<System.Windows.Controls.ComboBox>(dashboard).First().SelectedValue = "codex"; await Idle();
+        Record("Removing a provider clears its navigation and filters");
+
 
         dashboard.Navigate("codex-accounts"); await Idle();
         var accountsWindow = System.Windows.Application.Current.Windows.OfType<Window>().Single(x => x != dashboard && x.Content is AccountsPane);
@@ -123,7 +139,7 @@ internal static class NativeSmoke
         var saveAccount = Descendants<System.Windows.Controls.Button>(accountsWindow).Single(x => Equals(x.Content, "Save current account"));
         Require(saveAccount.TransformToAncestor(accountsWindow).Transform(new Point()).Y + saveAccount.ActualHeight < accountsWindow.ActualHeight, "Account actions clipped at minimum window size");
         Capture(accountsWindow, Path.Combine(directory, "windows-accounts-min.png")); accountsWindow.Close();
-        checks.Add("Account utility keeps actions visible at 500 by 300");
+        Record("Account utility keeps actions visible at 500 by 300");
 
         foreach (var theme in new[] { "dark", "light", "high-contrast" })
         {
@@ -139,7 +155,7 @@ internal static class NativeSmoke
             }
         }
         SettingsTheme.Apply(dark: true, highContrast: false); dashboard.Width = 980; dashboard.Height = 680;
-        checks.Add("Dark, light and high contrast settings fit minimum size with labelled controls");
+        Record("Dark, light and high contrast settings fit minimum size with labelled controls");
 
         foreach (var page in new[] { "general", "notch", "providers", "codex", "diagnostics", "about" })
         {
@@ -149,7 +165,19 @@ internal static class NativeSmoke
         var combo = Descendants<System.Windows.Controls.ComboBox>(dashboard).First(); combo.IsDropDownOpen = true; await Idle();
         Require(combo.IsDropDownOpen, "Settings dropdown did not open");
         if (combo.Template.FindName("PART_Popup", combo) is Popup { Child: FrameworkElement dropdown }) Capture(dropdown, Path.Combine(directory, "windows-dropdown.png"));
-        combo.IsDropDownOpen = false; checks.Add("Settings dropdown opens");
+        combo.IsDropDownOpen = false; Record("Settings dropdown opens");
+        var edgePicker = Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Edge");
+        edgePicker.Focus(); edgePicker.IsDropDownOpen = true; await Idle();
+        edgePicker.SelectedIndex = (edgePicker.SelectedIndex + 1) % edgePicker.Items.Count; await Idle();
+        Require(Descendants<System.Windows.Controls.ComboBox>(dashboard).Contains(edgePicker) && edgePicker.IsDropDownOpen, "Selecting a notch edge destroyed the open picker");
+        edgePicker.IsDropDownOpen = false; await Idle();
+        Require(Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Edge").IsKeyboardFocusWithin, "Changing a notch edge lost keyboard focus");
+        settings.Save(settings.Current with { Visibility = NotchVisibility.AlwaysShow }); dashboard.Navigate("notch"); await Idle();
+        var visible = Descendants<System.Windows.Controls.CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Show edge notch");
+        visible.IsChecked = false; await Idle();
+        Descendants<System.Windows.Controls.CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Show edge notch").IsChecked = true; await Idle();
+        Require(settings.Current.Visibility == NotchVisibility.AlwaysShow, "Hide and show lost the saved notch behavior");
+        Record("Picker selection preserves keyboard focus and hiding preserves Always show");
         foreach (var edge in Enum.GetValues<NotchEdge>())
         foreach (var scale in new[] { 0.8, 1d, 1.25 })
         {
@@ -165,7 +193,7 @@ internal static class NativeSmoke
             notch.OpenProvider("codex"); await Idle();
             Require(notch.PopupContent is { ActualWidth: > 0, ActualHeight: > 0 }, "Provider popup did not open");
             if (scale == 1) Capture(notch.PopupContent!, Path.Combine(directory, "windows-popup-" + edge + ".png"));
-            checks.Add($"{edge} at {scale:0.00}: no clipped single provider or native scroll chrome");
+            Record($"{edge} at {scale:0.00}: no clipped single provider or native scroll chrome");
         }
         System.Windows.Input.Keyboard.ClearFocus();
         var gear = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetName(x) == "Settings");
@@ -175,7 +203,7 @@ internal static class NativeSmoke
         notch.DismissProviderCard(); await Idle();
         Require(!notch.PopupIsOpen, "Provider card remains open over notch controls");
         Require(notch.Expanded, "Clearing provider hover unexpectedly folded always-visible notch");
-        checks.Add("Leaving provider ring for controls clears card independently of notch visibility");
+        Record("Leaving provider ring for controls clears card independently of notch visibility");
         notch.OpenAccounts(); await Idle();
         Require(notch.PopupContent is not null && Descendants<TextBlock>(notch.PopupContent).Any(x => x.Text.Contains("preview@example.invalid", StringComparison.Ordinal)), "Account popup omits current CLI identity");
         Capture(notch.PopupContent!, Path.Combine(directory, "windows-account-popup.png"));
@@ -185,23 +213,23 @@ internal static class NativeSmoke
         notch.PopupContent!.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, popupSource!, 0, System.Windows.Input.Key.Escape)
             { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent });
         await Idle(); Require(!notch.PopupIsOpen, "Escape did not dismiss account menu");
-        checks.Add("Account menu persists until explicit dismissal and Escape closes it");
-        checks.Add("Account popup shows provider logo, plan and isolated current identity");
+        Record("Account menu persists until explicit dismissal and Escape closes it");
+        Record("Account popup shows provider logo, plan and isolated current identity");
         settings.Save(settings.Current with { Edge = NotchEdge.Right, Scale = 1.25, EnabledProviders = ProviderCatalog.All.Select(x => x.Id).ToArray() });
         await store.RefreshAsync(true).ConfigureAwait(true); await Idle();
         var many = Descendants<ScrollViewer>(notch).Single();
         Require(many.ScrollableHeight > 0, "Many-provider notch cannot scroll");
         many.ScrollToEnd(); await Idle();
         Require(many.VerticalOffset > 0, "Cannot reach last provider");
-        Capture(notch, Path.Combine(directory, "windows-notch-many.png")); checks.Add("All providers reachable with hidden scroll chrome");
+        Capture(notch, Path.Combine(directory, "windows-notch-many.png")); Record("All providers reachable with hidden scroll chrome");
         settings.Save(settings.Current with { EnabledProviders = [], Scale = 1 });
         await Idle(); Capture(notch, Path.Combine(directory, "windows-notch-empty.png"));
         settings.Save(settings.Current with { EnabledProviders = ["codex"], Visibility = NotchVisibility.Hidden });
-        Require(!notch.IsVisible, "Hidden notch is visible"); checks.Add("Hide notch hides native window");
+        Require(!notch.IsVisible, "Hidden notch is visible"); Record("Hide notch hides native window");
         settings.Save(settings.Current with { Visibility = NotchVisibility.OnHover });
         notch.TryFold(); await Idle();
         Capture(notch, Path.Combine(directory, "windows-notch-folded.png"));
-        Require(!notch.Expanded, "Notch did not fold"); checks.Add("Hover notch folds");
+        Require(!notch.Expanded, "Notch did not fold"); Record("Hover notch folds");
         File.WriteAllText(Path.Combine(directory, "windows-ui-checks.json"), JsonSerializer.Serialize(new { kind = "Native WPF synthetic integration", checks }, JsonOptions));
     }
     private static async Task Idle() => await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
