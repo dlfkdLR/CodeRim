@@ -253,12 +253,12 @@ internal sealed class UsagePane : StackPanel
         parent.Children.Add(Ui.Row("Output", TokenFormatter.Format(tokens.OutputTokens, settings.Current.NumberStyle)));
         parent.ToolTip = "Cached input is already included in Input. Total equals Input plus Output.";
     }
-    private IEnumerable<UsageEvent> Filter()
+    private IEnumerable<UsageEvent> Filter(bool includeSelection = true)
     {
         var now = DateTimeOffset.Now; var day = DateTime.Today;
         var since = period switch { "today" => day, "week" => day.AddDays(-(((int)day.DayOfWeek + (settings.Current.WeekStart == WeekStart.Monday ? 6 : 0)) % 7)), "month" => new DateTime(day.Year, day.Month, 1), _ => DateTime.MinValue };
         return (store.Events.GetValueOrDefault(provider) ?? []).Where(x => x.OccurredAt <= now && x.OccurredAt.LocalDateTime >= since
-            && (project is null || x.ProjectId == project) && (session is null || x.SessionId == session));
+            && (!includeSelection || (project is null || x.ProjectId == project) && (session is null || x.SessionId == session)));
     }
     private void Detail()
     {
@@ -284,7 +284,7 @@ internal sealed class UsagePane : StackPanel
             var detail = store.SessionDetails.GetValueOrDefault(provider)?.FirstOrDefault(x => x.Id == session);
             if (settings.Current.AgentDetailsEnabled)
             {
-                var visibleSessions = (store.Events.GetValueOrDefault(provider) ?? []).Select(x => x.SessionId).ToHashSet(StringComparer.Ordinal);
+                var visibleSessions = Filter(includeSelection: false).Select(x => x.SessionId).ToHashSet(StringComparer.Ordinal);
                 var children = (store.SessionDetails.GetValueOrDefault(provider) ?? []).Where(x => x.ParentId == session && visibleSessions.Contains(x.Id)).ToArray();
                 readings.Children.Add(Ui.Row("Direct sub-agents", children.Length.ToString(CultureInfo.CurrentCulture)));
                 foreach (var child in children)

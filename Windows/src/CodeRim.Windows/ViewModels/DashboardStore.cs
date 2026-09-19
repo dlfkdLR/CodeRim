@@ -191,7 +191,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     {
         Events["codex"] = [new("preview-event", DateTimeOffset.Now.AddMinutes(-2), new(123456, 24000, 56000),
             "gpt-5.6-sol", "CodeRim", "preview-session", "codex", "preview-project"),
-            new("preview-child-event", DateTimeOffset.Now.AddMinutes(-1), new(100, 0, 20),
+            new("preview-child-event", DateTimeOffset.Now.AddDays(-1), new(100, 0, 20),
                 "gpt-5.6-sol", "CodeRim", "preview-child", "codex", "preview-project")];
         SessionDetails["codex"] = [new("preview-session", null, [new("preview-image", DateTimeOffset.Now.AddMinutes(-3), 2)]),
             new("preview-child", "preview-session", [])];

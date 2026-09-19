@@ -165,6 +165,10 @@ internal static class NativeSmoke
         Descendants<System.Windows.Controls.Button>(dashboard).Single(x => (AutomationProperties.GetName(x) ?? "").StartsWith("preview-session:", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
         await Idle();
         Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Whole-session images"), "Session image metadata is absent");
+        var sessionPeriod = Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period");
+        sessionPeriod.SelectedValue = "today"; await Idle();
+        Require(!Descendants<System.Windows.Controls.Button>(dashboard).Any(x => (x.Content as string ?? "").StartsWith("Sub-agent preview-", StringComparison.Ordinal)), "Out-of-period child links lead to empty detail");
+        sessionPeriod.SelectedValue = "all-time"; await Idle();
         var childButton = Descendants<System.Windows.Controls.Button>(dashboard).Single(x => (x.Content as string ?? "").StartsWith("Sub-agent preview-", StringComparison.Ordinal));
         Capture(dashboard, Path.Combine(directory, "windows-session-details.png"));
         childButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
