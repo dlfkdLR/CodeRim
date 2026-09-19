@@ -247,6 +247,20 @@ internal static class NativeSmoke
             if (scale == 1) Capture(notch.PopupContent!, Path.Combine(directory, "windows-popup-" + edge + ".png"));
             Record($"{edge} at {scale:0.00}: no clipped single provider or native scroll chrome");
         }
+        var originalCreditReading = store.Readings["codex"];
+        try
+        {
+            foreach (var creditText in new[] { "Unlimited resets", "Reset count unavailable" })
+            {
+                store.Readings["codex"] = originalCreditReading with { Windows =
+                    [new("rate-limit-reset-credits", "Reset credits", Unit: "resets", DisplayValue: creditText)] };
+                notch.OpenProvider("codex"); await Idle();
+                Require(Descendants<TextBlock>(notch.PopupContent!).Any(x => x.Text == creditText), "Non-numeric reset credit status disappeared");
+            }
+        }
+        finally { store.Readings["codex"] = originalCreditReading; }
+        notch.OpenProvider("codex"); await Idle();
+        Record("Reset credit balance is shown once and unlimited/unavailable states remain visible");
         System.Windows.Input.Keyboard.ClearFocus();
         if (notch.PopupContent is { } priorPopup)
             priorPopup.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, PresentationSource.FromVisual(priorPopup)!, 0, System.Windows.Input.Key.Escape)

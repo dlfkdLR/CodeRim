@@ -54,7 +54,7 @@ internal static class NotchPopover
                     content.Children.Add(Text(percent > elapsed + 5 ? "Above even pace" : "Within even pace", 10.5, Secondary));
                 }
             }
-            if (window.Id != "rate-limit-reset-credits" && window.DisplayValue is { } display) content.Children.Add(Text(display, 10.5));
+            if ((window.Id != "rate-limit-reset-credits" || !window.RemainingCount.HasValue) && window.DisplayValue is { } display) content.Children.Add(Text(display, 10.5));
             if (window.UsedCount is { } count) content.Children.Add(Text(TokenFormatter.Format(count, settings.NumberStyle) + " " + (window.Unit ?? "units") + " used", 10.5));
             if (window.RemainingCount is { } remaining) content.Children.Add(Text(TokenFormatter.Format(remaining, settings.NumberStyle) + " " + (window.Unit ?? "units") + " left", 10.5));
         }

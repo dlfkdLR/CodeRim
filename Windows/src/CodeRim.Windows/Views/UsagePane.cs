@@ -234,7 +234,7 @@ internal sealed class UsagePane : StackPanel
                 readings.Children.Add(Ui.Row("Used", used.ToString("0.#", CultureInfo.CurrentCulture) + "%"));
                 readings.Children.Add(NotchPopover.UsageBar(used));
             }
-            if (window.Id != "rate-limit-reset-credits" && window.DisplayValue is { } value) readings.Children.Add(Ui.Text(value));
+            if ((window.Id != "rate-limit-reset-credits" || !window.RemainingCount.HasValue) && window.DisplayValue is { } value) readings.Children.Add(Ui.Text(value));
             if (window.UsedCount is { } count) readings.Children.Add(Ui.Row("Used", count.ToString("N0", CultureInfo.CurrentCulture) + " " + window.Unit));
             if (window.RemainingCount is { } remaining) readings.Children.Add(Ui.Row("Remaining", remaining.ToString("N0", CultureInfo.CurrentCulture) + " " + window.Unit));
             if (window.ResetsAt is { } reset) readings.Children.Add(Ui.Row("Resets", reset.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)));
