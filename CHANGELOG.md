@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.7 — Settings parity and session history
+
+- Align Windows Settings categories, themes, account/usage navigation, diagnostics and session controls with macOS.
+- Preserve active-log totals, deduplicate image metadata and repair inherited-session images without changing token history.
+- Reject late Cursor readings after account changes; preserve focus, manual-refresh behavior and blocked-session attention.
+- See [release notes](Documentation/ReleaseNotes/2.1.7.md).
+
 ## 2.1.5 — Account and usage reliability; Windows preview
 
 - Fix external account invalidation, growing-log progress, optional cache-write accounting, and streaming HTTP limits.

@@ -28,13 +28,13 @@ Both apps use the same six Settings sections and the same Usage, Projects, Sessi
 
 ## Install
 
-**macOS:** [2.1.5](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.5) · **Windows:** [2.1.6](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.6)
+**macOS:** [2.1.7](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.7) · **Windows:** [2.1.7](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.7)
 
 ### macOS
 
 **macOS 14 or later · Apple silicon and Intel.**
 
-[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.5/CodeRim-2.1.5.dmg)
+[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/CodeRim-2.1.7.dmg)
 
 ```sh
 brew tap dlfkdLR/tap &&
@@ -51,7 +51,7 @@ Open **Settings → Providers → Add Provider**, connect your tools, and hover 
 
 **Windows 11 · x64 and ARM64 · .NET included.**
 
-[Download x64 ZIP](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.6/CodeRim-Windows-2.1.6-x64.zip) · [Download ARM64 ZIP](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.6/CodeRim-Windows-2.1.6-arm64.zip) · [SHA-256 checksums](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.6/SHA256SUMS-windows.txt)
+[Download x64 ZIP](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/CodeRim-Windows-2.1.7-x64.zip) · [Download ARM64 ZIP](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/CodeRim-Windows-2.1.7-arm64.zip) · [SHA-256 checksums](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/SHA256SUMS-windows.txt)
 
 Windows binaries are **unsigned**. Verify your ZIP against the matching checksum before extracting it. Extract it into a permanent folder and open `CodeRim.exe`, or close CodeRim and run this from the extracted folder in PowerShell for a per-user installation:
 
