@@ -13,6 +13,10 @@ public sealed partial class NativeProviders
             ("AZURE_OPENAI_API_VERSION", "API version (default 2024-10-21; or v1)"), ("AZURE_OPENAI_ALLOW_BILLABLE_REQUESTS", "Allow paid validation on refresh")],
         "alibabatokenplan" => [("ALIBABA_TOKEN_PLAN_REGION", "Region: intl, cn, intl-personal, or cn-personal"), ("ALIBABA_TOKEN_PLAN_SEC_TOKEN", "Console sec_token (optional if detected)")],
         "qwencloud" => [("QWEN_CLOUD_SEC_TOKEN", "Console sec_token (optional if detected)")],
+        "gemini" => [("ANTIGRAVITY_PROJECT_ID", "Project ID (optional if detected)"), ("ANTIGRAVITY_OAUTH_CLIENT_ID", "OAuth client ID (for refresh)"), ("ANTIGRAVITY_OAUTH_CLIENT_SECRET", "OAuth client secret (for refresh)")],
+        "doubao" => [("VOLCENGINE_ACCESS_KEY_ID", "Volcengine access key ID"), ("VOLCENGINE_REGION", "Region (default cn-beijing)")],
+        "opencode-zen" => [("OPENCODE_WORKSPACE_ID", "OpenCode workspace ID or URL (optional)")],
+        "bedrock" => [("CODEXBAR_BEDROCK_AUTH_MODE", "Authentication: profile or keys (empty = automatic)"), ("AWS_PROFILE", "AWS CLI profile (default if empty)"), ("AWS_ACCESS_KEY_ID", "AWS access key ID"), ("AWS_SESSION_TOKEN", "AWS session token (optional)"), ("AWS_REGION", "AWS region"), ("CODEXBAR_BEDROCK_BUDGET", "Monthly budget (optional)")],
         "kiro" => [("KIRO_PROFILE_ARN", "Kiro profile ARN (optional when detected from CLI)")],
         "vertexai" => [("GOOGLE_CLOUD_PROJECT", "Google Cloud project ID")],
         "gemini-cli" => [("GOOGLE_CLOUD_PROJECT", "Google Cloud project (optional if detected from Code Assist)")],
@@ -30,6 +34,12 @@ public sealed partial class NativeProviders
         "fireworks" => [("FIREWORKS_ACCOUNT_SLUG", "Account slug")],
         "llmproxy" => [("LLM_PROXY_BASE_URL", "Proxy base URL (HTTPS, or HTTP on this PC)")],
         "litellm" => [("LITELLM_BASE_URL", "Proxy base URL (HTTPS, or HTTP on this PC)")],
+        _ => []
+    };
+    public static IReadOnlyList<string> ScopeAliases(string id) => id switch
+    {
+        "bedrock" => ["AWS_DEFAULT_PROFILE", "AWS_DEFAULT_REGION", "AWS_CONFIG_FILE", "AWS_SHARED_CREDENTIALS_FILE", "CODERIM_BEDROCK_BUDGET"],
+        "opencode-zen" => ["CODEXBAR_OPENCODE_WORKSPACE_ID", "OPENCODE_ZEN_WORKSPACE_ID"],
         _ => []
     };
     private static readonly HashSet<string> ManagementIds = new(StringComparer.Ordinal) { "llmproxy", "litellm", "zenmux", "warp", "wayfinder" };

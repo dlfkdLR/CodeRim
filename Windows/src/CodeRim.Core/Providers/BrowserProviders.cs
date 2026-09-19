@@ -10,13 +10,18 @@ namespace CodeRim.Core.Providers;
 
 public sealed partial class NativeProviders
 {
-    private static readonly HashSet<string> BrowserIds = new(StringComparer.Ordinal) { "mimo", "abacus", "stepfun", "sakana", "longcat", "mistral", "notion", "augment", "alibabatokenplan", "qwencloud" };
+    private static readonly HashSet<string> BrowserIds = new(StringComparer.Ordinal) { "mimo", "abacus", "stepfun", "sakana", "longcat", "mistral", "notion", "augment", "alibabatokenplan", "qwencloud", "opencode-zen" };
     public static string CredentialLabel(string id) => id switch
     {
+        "opencode-zen" => "OpenCode web Cookie header containing auth or __Host-auth",
         "mimo" => "Cookie header (api-platform_serviceToken and userId)",
         "alibabatokenplan" or "qwencloud" or "augment" or "abacus" or "sakana" or "longcat" or "mistral" => "Cookie header from the signed-in provider page",
         "stepfun" => "Oasis-Token (or Cookie header containing Oasis-Token)",
         "kimi" => "Kimi Code API key",
+        "windsurf" => "Session JSON: devin_session_token, devin_auth1_token, devin_account_id, devin_primary_org_id",
+        "gemini" => "Antigravity OAuth access token or OAuth credentials JSON",
+        "doubao" => "Volcengine secret access key (Coding Plan and Agent Plan usage)",
+        "bedrock" => "AWS secret access key or exported credential JSON",
         "kiro" => "Kiro access token (normally detected from CLI)",
         "vertexai" => "OAuth access token (normally detected from gcloud ADC)",
         "gemini-cli" => "OAuth access token (normally detected from Gemini CLI sign-in)",
@@ -32,6 +37,12 @@ public sealed partial class NativeProviders
         if (credential.StartsWith("Cookie:", StringComparison.OrdinalIgnoreCase)) credential = credential[7..].Trim();
         if (id == "notion" && credential.Length >= 2 && (credential[0] == (char)39 && credential[^1] == (char)39 || credential[0] == (char)34 && credential[^1] == (char)34)) credential = credential[1..^1].Trim();
         var pairs = credential.Split(';').Select(x => x.Trim().Split('=', 2)).Where(x => x.Length == 2 && x[1].Length > 0).ToArray();
+        if (id == "opencode-zen")
+        {
+            var selected = pairs.Where(x => x[0] is "auth" or "__Host-auth").ToArray();
+            if (selected.Length == 0) throw new ProviderRequestException(HttpStatusCode.Unauthorized);
+            return string.Join("; ", selected.Select(x => x[0] + "=" + x[1]));
+        }
         if (id == "notion")
         {
             if (pairs.Length == 0) return "token_v2=" + credential;

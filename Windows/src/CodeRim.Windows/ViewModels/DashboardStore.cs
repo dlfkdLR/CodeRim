@@ -59,7 +59,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
                 foreach (var provider in CompanionFile.Read().Providers)
                 {
                     var scope = connections.Scope(provider.Id); scopes[provider.Id] = scope;
-                    if (scope is not null && provider.AccountScope == scope)
+                    if (scope is not null && connections.CanCache(provider.Id) && provider.AccountScope == scope)
                         Readings[provider.Id] = provider.Limits with { State = provider.Limits.Windows.Count > 0 ? ReadingState.Stale : provider.Limits.State };
                 }
         }
@@ -151,7 +151,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
             var reading = await connections.FetchAsync(id, settings.Current, lifetime.Token).ConfigureAwait(true);
             EnsureScope(id);
             if (generation != Generation(id) || requestScope != scopes.GetValueOrDefault(id) || !settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return;
-            Readings[id] = ReadingRetention.Merge(reading, requestScope is null ? null : Readings.GetValueOrDefault(id));
+            Readings[id] = ReadingRetention.Merge(reading, requestScope is null || !connections.CanCache(id) ? null : Readings.GetValueOrDefault(id));
             ReadingUpdated?.Invoke(Readings[id]);
             Persist();
         }

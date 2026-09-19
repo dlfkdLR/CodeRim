@@ -229,6 +229,7 @@ internal sealed class DashboardWindow : Window
         else if (HasConnector(id) && id != "ollama-local")
         {
             if (id is "cursor" or "grok" or "opencode" or "commandcode" or "kilo" or "gemini-cli" or "vertexai" or "kiro") body.Children.Add(Ui.Text("Reads the provider’s existing local sign-in automatically. A saved credential overrides local discovery.", 12, "#A6A6AA"));
+            if (id == "bedrock") body.Children.Add(Ui.Text("Uses your AWS CLI v2 profile, including SSO and assume-role sessions. Sign in with aws sso login first. Cost Explorer and CloudWatch permissions are required; AWS may charge for these queries.", 12, "#A6A6AA"));
             if (id == "kimi") body.Children.Add(Ui.Text("Use a Kimi Code API key (KIMI_CODE_API_KEY), not a Kimi web session token.", 12));
             if (id == "cursor") body.Children.Add(Ui.Text("Manual value: WorkosCursorSessionToken cookie header", 12));
             foreach (var field in NativeProviders.Settings(id))
@@ -243,7 +244,7 @@ internal sealed class DashboardWindow : Window
                         catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { MessageBox.Show(this, "Could not save this setting.", "CodeRim"); }
                     }));
                 }
-                else { body.Children.Add(Ui.Text(field.Label)); if (field.Key.EndsWith("_SEC_TOKEN", StringComparison.Ordinal)) AddSecretField(key, id, "Save token"); else AddSettingField(key, id); }
+                else { body.Children.Add(Ui.Text(field.Label)); if (field.Key.EndsWith("_TOKEN", StringComparison.Ordinal) || field.Key.EndsWith("_SECRET", StringComparison.Ordinal)) AddSecretField(key, id, "Save token"); else AddSettingField(key, id); }
             }
             if (id != "wayfinder") { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
         }

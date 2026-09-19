@@ -12,7 +12,7 @@ namespace CodeRim.Core.Providers;
 public sealed partial class NativeProviders : IDisposable
 {
     public static IReadOnlySet<string> Supported { get; } = new HashSet<string>(StringComparer.Ordinal)
-        { "cursor", "grok", "opencode", "commandcode", "ollama", "fireworks", "deepinfra", "codebuff", "neuralwatt", "llmproxy", "litellm", "zenmux", "warp", "wayfinder", "ibmbob", "kimi", "amp", "mimo", "abacus", "stepfun", "sakana", "kilo", "devin", "minimax", "aiand", "longcat", "factory", "chutes", "groq", "zed", "mistral", "zoommate", "notion", "alibaba", "gemini-cli", "vertexai", "azureopenai", "kiro", "augment", "alibabatokenplan", "qwencloud" };
+        { "cursor", "grok", "opencode", "commandcode", "ollama", "fireworks", "deepinfra", "codebuff", "neuralwatt", "llmproxy", "litellm", "zenmux", "warp", "wayfinder", "ibmbob", "kimi", "amp", "mimo", "abacus", "stepfun", "sakana", "kilo", "devin", "minimax", "aiand", "longcat", "factory", "chutes", "groq", "zed", "mistral", "zoommate", "notion", "alibaba", "gemini-cli", "vertexai", "azureopenai", "kiro", "augment", "alibabatokenplan", "qwencloud", "windsurf", "gemini", "doubao", "bedrock", "opencode-zen" };
     private readonly HttpClient client;
     private readonly ConcurrentDictionary<string, DateTimeOffset> retryAfter = new(StringComparer.Ordinal);
     public NativeProviders(HttpMessageHandler? handler = null) => client = new(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(15) };
@@ -20,20 +20,36 @@ public sealed partial class NativeProviders : IDisposable
     public async Task<ProviderReading> FetchAsync(string id, string? credential, Func<string, string?> setting, CancellationToken token = default)
     {
         ArgumentNullException.ThrowIfNull(setting);
+        var rawSetting = setting;
+        setting = key => rawSetting(key)?.Trim() is { Length: > 0 } value ? value : null;
+        credential = credential?.Trim();
         if (!Supported.Contains(id)) return new(id, ReadingState.Unsupported, []);
+        if (id is "windsurf" or "gemini" or "gemini-cli" or "vertexai" or "kiro" or "bedrock" && credential?.TrimStart().StartsWith('{') == true)
+        {
+            if (credential.Length > 262144) return new(id, ReadingState.NeedsAuth, [], Message: "The credential profile is too large.");
+            try { using var profile = JsonDocument.Parse(credential); credential = JsonSerializer.Serialize(profile.RootElement); }
+            catch (JsonException) { return new(id, ReadingState.NeedsAuth, [], Message: "The credential profile is not valid JSON."); }
+        }
         if (id != "wayfinder" && (string.IsNullOrWhiteSpace(credential) || credential.Any(char.IsControl))) return new(id, ReadingState.NeedsAuth, [], Message: "Connect this provider in Settings or sign in to its CLI.");
         if (retryAfter.TryGetValue(id, out var retry) && retry > DateTimeOffset.Now) return new(id, ReadingState.Unavailable, [], Message: "Provider rate limit reached. Waiting before retrying.");
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(45));
         var documents = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         string? tokenPlanSec = setting(id == "qwencloud" ? "QWEN_CLOUD_SEC_TOKEN" : "ALIBABA_TOKEN_PLAN_SEC_TOKEN");
-        JsonElement googleAuth = default; string? googleProject = null;
+        JsonElement googleAuth = default; string? googleProject = null; string? googleOnboardTier = null;
         string? kiroProfile = setting("KIRO_PROFILE_ARN");
         string? notionSpace = null; string? notionUser = null;
         string? zoomBearer = id == "zoommate" && !credential!.StartsWith("Cookie:", StringComparison.OrdinalIgnoreCase)
             ? credential.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? credential[7..].Trim() : credential : null;
-        async Task<JsonElement> GetJson(string url, IReadOnlyDictionary<string, string>? extraHeaders = null)
+        async Task<JsonElement> GetJson(string url, IReadOnlyDictionary<string, string>? extraHeaders = null, string? requestBody = null)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            if (id == "opencode-zen" && requestBody is not null)
+            {
+                request.Method = HttpMethod.Post; request.Content = new StringContent(requestBody, System.Text.Encoding.UTF8, "application/json");
+            }
+            if (id == "bedrock") ConfigureBedrock(request, credential!, setting, requestBody ?? "{}");
+            if (id == "doubao") ConfigureDoubao(request, credential!, setting);
+            if (id == "windsurf") ConfigureWindsurf(request, credential!);
             if (id is "alibabatokenplan" or "qwencloud") ConfigureTokenPlan(request, id, credential!, setting, tokenPlanSec);
             if (id == "codebuff" && new Uri(url).AbsolutePath == "/api/v1/usage")
             {
@@ -50,12 +66,13 @@ public sealed partial class NativeProviders : IDisposable
                 request.Method = HttpMethod.Post; request.Headers.Add("api-key", credential);
                 request.Content = new StringContent(AzureBody(setting), System.Text.Encoding.UTF8, "application/json");
             }
-            if (id is "gemini-cli" or "vertexai" && new Uri(url).Host is "oauth2.googleapis.com" or "cloudcode-pa.googleapis.com")
+            if (id is "gemini-cli" or "vertexai" or "gemini" && new Uri(url).Host is "oauth2.googleapis.com" or "cloudcode-pa.googleapis.com")
             {
                 request.Method = HttpMethod.Post;
                 request.Content = new Uri(url).Host == "oauth2.googleapis.com"
                     ? new FormUrlEncodedContent(GoogleTokenForm(googleAuth))
-                    : new StringContent(url.EndsWith(":loadCodeAssist", StringComparison.Ordinal) ? """{"metadata":{"ideType":"GEMINI_CLI","pluginType":"GEMINI"}}"""
+                    : new StringContent(url.EndsWith(":loadCodeAssist", StringComparison.Ordinal) ? JsonSerializer.Serialize(new { metadata = new { ideType = id == "gemini" ? "ANTIGRAVITY" : "GEMINI_CLI", pluginType = "GEMINI", platform = "PLATFORM_UNSPECIFIED" } })
+                        : url.EndsWith(":onboardUser", StringComparison.Ordinal) ? JsonSerializer.Serialize(new { tierId = googleOnboardTier, metadata = new { ideType = "ANTIGRAVITY", platform = "PLATFORM_UNSPECIFIED", pluginType = "GEMINI" } })
                         : googleProject is null ? "{}" : JsonSerializer.Serialize(new { project = googleProject }), System.Text.Encoding.UTF8, "application/json");
             }
             if (id == "alibaba")
@@ -84,7 +101,7 @@ public sealed partial class NativeProviders : IDisposable
                 request.Headers.Add("x-warp-client-id", "warp-app"); request.Headers.Add("x-warp-os-category", "Windows");
                 request.Headers.Add("x-warp-os-name", "Windows"); request.Headers.Add("x-warp-os-version", Environment.OSVersion.Version.ToString());
             }
-            request.Headers.UserAgent.ParseAdd(id == "commandcode" ? "command-code-desktop" : id == "warp" ? "Warp/1.0" : "CodeRim/2.1.5");
+            request.Headers.UserAgent.ParseAdd(id == "commandcode" ? "command-code-desktop" : id == "warp" ? "Warp/1.0" : id == "gemini" ? "antigravity" : "CodeRim/2.1.5");
             if (id == "kilo" && setting("KILO_ORG_ID") is { Length: > 0 } kiloOrg && !kiloOrg.Any(char.IsControl))
                 request.Headers.Add("X-KILOCODE-ORGANIZATIONID", kiloOrg);
             if (id == "devin" && DevinPaths(setting).InternalId is { } devinOrg) request.Headers.Add("x-cog-org-id", devinOrg);
@@ -95,6 +112,12 @@ public sealed partial class NativeProviders : IDisposable
             }
             if (id == "minimax") request.Headers.Add("MM-API-Source", "CodexBar");
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            if (id == "opencode-zen")
+            {
+                request.Headers.UserAgent.Clear(); request.Headers.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/132.0.0.0 Safari/537.36");
+                request.Headers.Accept.Clear(); request.Headers.Accept.ParseAdd("text/javascript, application/json;q=0.9, */*;q=0.8");
+            }
+            if (id is "alibabatokenplan" or "qwencloud") TokenPlanNavigation(request);
             if (BrowserIds.Contains(id))
             {
                 var normalized = NormalizeBrowserCredential(id, credential!);
@@ -140,7 +163,7 @@ public sealed partial class NativeProviders : IDisposable
                 request.Headers.TryAddWithoutValidation("Authorization", userId + " " + credential);
             }
             else if (id == "cursor") request.Headers.TryAddWithoutValidation("Cookie", credential);
-            else if (id is not "wayfinder" and not "azureopenai" && !((id is "gemini-cli" or "vertexai") && new Uri(url).Host == "oauth2.googleapis.com")) request.Headers.Authorization = new AuthenticationHeaderValue(id == "ibmbob" ? BobAuthorization(credential!) : "Bearer", credential);
+            else if (id is not "wayfinder" and not "azureopenai" and not "windsurf" and not "doubao" and not "bedrock" && !((id is "gemini-cli" or "vertexai" or "gemini") && new Uri(url).Host == "oauth2.googleapis.com")) request.Headers.Authorization = new AuthenticationHeaderValue(id == "ibmbob" ? BobAuthorization(credential!) : "Bearer", credential);
             if (extraHeaders is not null) foreach (var pair in extraHeaders) request.Headers.Add(pair.Key, pair.Value);
             if (id == "grok") request.Headers.Add("X-XAI-Token-Auth", "xai-grok-cli");
             if (id == "commandcode") request.Headers.Add("x-command-code-version", "desktop");
@@ -148,9 +171,10 @@ public sealed partial class NativeProviders : IDisposable
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 retryAfter[id] = response.Headers.RetryAfter?.Date ?? DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(1));
             if (BrowserIds.Contains(id) && (int)response.StatusCode is >= 300 and < 400) throw new ProviderRequestException(HttpStatusCode.Unauthorized);
-            var googleTokenError = (id is "gemini-cli" or "vertexai") && request.RequestUri!.Host == "oauth2.googleapis.com"
+            var googleTokenError = (id is "gemini-cli" or "vertexai" or "gemini") && request.RequestUri!.Host == "oauth2.googleapis.com"
                 && response.StatusCode == HttpStatusCode.BadRequest;
-            if (!response.IsSuccessStatusCode && !googleTokenError && id != "gemini-cli") throw new ProviderRequestException(response.StatusCode);
+            var bedrockPending = id == "bedrock" && request.RequestUri!.Host == "ce.us-east-1.amazonaws.com" && response.StatusCode == HttpStatusCode.BadRequest;
+            if (!response.IsSuccessStatusCode && !googleTokenError && !bedrockPending && id is not "gemini-cli" and not "opencode-zen") throw new ProviderRequestException(response.StatusCode);
             if (response.Content.Headers.ContentLength > 2 * 1024 * 1024) throw new InvalidDataException();
             using var input = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
             using var output = new MemoryStream(); var buffer = new byte[16384]; int count;
@@ -160,10 +184,23 @@ public sealed partial class NativeProviders : IDisposable
                 output.Write(buffer, 0, count);
             }
             var bytes = output.ToArray();
+            if (!response.IsSuccessStatusCode && id == "opencode-zen" && ZenSignedOut(System.Text.Encoding.UTF8.GetString(bytes)))
+                throw new ProviderRequestException(HttpStatusCode.Unauthorized);
             if (!response.IsSuccessStatusCode && id == "gemini-cli" && GeminiMigrationSignal(System.Text.Encoding.UTF8.GetString(bytes)))
                 throw new GeminiMigrationException();
             if (!response.IsSuccessStatusCode)
             {
+                if (bedrockPending)
+                {
+                    try
+                    {
+                        using var pending = JsonDocument.Parse(bytes);
+                        var kind = Text(pending.RootElement, "__type") ?? Text(pending.RootElement, "code") ?? "";
+                        if (kind.Split('#').Last() == "DataUnavailableException")
+                            return JsonSerializer.SerializeToElement(new { ResultsByTime = Array.Empty<object>() });
+                    }
+                    catch (JsonException) { }
+                }
                 if (googleTokenError)
                 {
                     try
@@ -177,6 +214,8 @@ public sealed partial class NativeProviders : IDisposable
                 }
                 throw new ProviderRequestException(response.StatusCode);
             }
+            if (id == "opencode-zen") return JsonSerializer.SerializeToElement(new { text = new System.Text.UTF8Encoding(false, true).GetString(bytes) });
+            if (id == "windsurf") return JsonSerializer.SerializeToElement(new { protobuf = Convert.ToBase64String(bytes) });
             using var json = id == "sakana" || id is "alibabatokenplan" or "qwencloud" && request.RequestUri!.AbsolutePath is not "/data/api.json" and not "/tool/user/info.json" ? JsonDocument.Parse(JsonSerializer.Serialize(new { html = System.Text.Encoding.UTF8.GetString(bytes) })) : JsonDocument.Parse(bytes);
             return json.RootElement.Clone();
         }
@@ -187,7 +226,11 @@ public sealed partial class NativeProviders : IDisposable
                 if (credential!.StartsWith("Authorization:", StringComparison.OrdinalIgnoreCase)) credential = credential[14..].Trim();
                 if (credential.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) credential = credential[7..].Trim();
             }
-            if (id is "alibabatokenplan" or "qwencloud") return await FetchTokenPlan(id, setting, value => tokenPlanSec = value, url => GetJson(url), token).ConfigureAwait(false);
+            if (id == "opencode-zen") return await FetchOpenCodeZen(setting, (url, headers, body) => GetJson(url, headers, body)).ConfigureAwait(false);
+            if (id == "bedrock") return await FetchBedrock(setting, (url, body) => GetJson(url, requestBody: body), token).ConfigureAwait(false);
+            if (id == "doubao") return await FetchDoubao(url => GetJson(url), token).ConfigureAwait(false);
+            if (id == "windsurf") return ParseWindsurf(await GetJson("https://windsurf.com/_backend/exa.seat_management_pb.SeatManagementService/GetPlanStatus").ConfigureAwait(false));
+            if (id is "alibabatokenplan" or "qwencloud") return await FetchTokenPlan(id, credential!, setting, value => tokenPlanSec = value, url => GetJson(url), token).ConfigureAwait(false);
             if (id == "augment")
             {
                 var credits = await GetJson("https://app.augmentcode.com/api/credits").ConfigureAwait(false);
@@ -212,6 +255,41 @@ public sealed partial class NativeProviders : IDisposable
                 if (!string.Equals(setting("AZURE_OPENAI_ALLOW_BILLABLE_REQUESTS"), "true", StringComparison.OrdinalIgnoreCase))
                     return new(id, ReadingState.Disabled, [], Message: "Enable paid validation in this provider's settings to verify the deployment. This does not measure quota.");
                 return ParseAzure(await GetJson(AzureEndpoint(setting)).ConfigureAwait(false), AzureDeployment(setting));
+            }
+            if (id == "gemini")
+            {
+                if (credential!.TrimStart().StartsWith('{'))
+                {
+                    googleAuth = AntigravityAuth(credential, setting);
+                    credential = await ResolveGoogleToken(googleAuth, () => GetJson("https://oauth2.googleapis.com/token"), allowUndatedAccess: true).ConfigureAwait(false);
+                }
+                var assist = await GetJson("https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist").ConfigureAwait(false);
+                googleProject = setting("ANTIGRAVITY_PROJECT_ID") ?? Text(googleAuth, "project_id") ?? Text(assist, "cloudaicompanionProject")
+                    ?? Text(Get(assist, "cloudaicompanionProject"), "id") ?? Text(Get(assist, "cloudaicompanionProject"), "projectId");
+                if (string.IsNullOrWhiteSpace(googleProject))
+                {
+                    var tiers = Get(assist, "allowedTiers");
+                    var allowed = tiers.ValueKind == JsonValueKind.Array ? tiers.EnumerateArray().Where(x => !string.IsNullOrWhiteSpace(Text(x, "id"))).ToArray() : [];
+                    googleOnboardTier = Text(allowed.FirstOrDefault(x => Get(x, "isDefault").ValueKind == JsonValueKind.True), "id")
+                        ?? allowed.Select(x => Text(x, "id")).FirstOrDefault() ?? Text(Get(assist, "paidTier"), "id") ?? Text(Get(assist, "currentTier"), "id");
+                    if (googleOnboardTier is not null)
+                    {
+                        try
+                        {
+                            var onboard = Get(await GetJson("https://cloudcode-pa.googleapis.com/v1internal:onboardUser").ConfigureAwait(false), "response");
+                            googleProject = Text(onboard, "cloudaicompanionProject") ?? Text(Get(onboard, "cloudaicompanionProject"), "id") ?? Text(Get(onboard, "cloudaicompanionProject"), "projectId");
+                        }
+                        catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException) { }
+                        for (var attempt = 0; attempt < 5 && string.IsNullOrWhiteSpace(googleProject); attempt++)
+                        {
+                            await Task.Delay(2000, deadline.Token).ConfigureAwait(false);
+                            var refreshed = await GetJson("https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist").ConfigureAwait(false);
+                            googleProject = Text(refreshed, "cloudaicompanionProject") ?? Text(Get(refreshed, "cloudaicompanionProject"), "id") ?? Text(Get(refreshed, "cloudaicompanionProject"), "projectId");
+                        }
+                    }
+                }
+                var antigravityReading = await FetchAntigravity(url => GetJson(url)).ConfigureAwait(false);
+                return antigravityReading with { Plan = Text(Get(assist, "paidTier"), "name") ?? Text(Get(assist, "currentTier"), "name") ?? Text(Get(assist, "planInfo"), "planType") };
             }
             if (id == "vertexai")
             {
@@ -275,7 +353,7 @@ public sealed partial class NativeProviders : IDisposable
             if (id == "factory") return await FetchFactory(credential!, url => GetJson(url), token).ConfigureAwait(false);
             if (LedgerIds.Contains(id)) return await FetchLedger(id, url => GetJson(url), token).ConfigureAwait(false);
             if (SubscriptionIds.Contains(id)) return await FetchSubscription(id, setting, url => GetJson(url)).ConfigureAwait(false);
-            if (id == "ibmbob") return await FetchBob(GetJson).ConfigureAwait(false);
+            if (id == "ibmbob") return await FetchBob((url, headers) => GetJson(url, headers)).ConfigureAwait(false);
             if (ManagementIds.Contains(id)) return Parse(id, await ManagementPayloads(id, setting, url => GetJson(url)).ConfigureAwait(false));
             var endpoint = id switch
             {
@@ -343,12 +421,15 @@ public sealed partial class NativeProviders : IDisposable
                 : error.Status == HttpStatusCode.TooManyRequests ? ReadingState.Unavailable : ReadingState.Error;
             return new(id, state, [], Message: state == ReadingState.NeedsAuth ? "Sign in again or update the provider credential." : "Unable to refresh provider usage. The last reading is retained.");
         }
-        catch (Exception error) when (error is HttpRequestException or IOException or InvalidDataException or JsonException or System.Text.RegularExpressions.RegexMatchTimeoutException or OverflowException or FormatException or System.Security.Cryptography.CryptographicException or OperationCanceledException)
+        catch (Exception error) when (error is System.Text.DecoderFallbackException or HttpRequestException or IOException or InvalidDataException or JsonException or System.Text.RegularExpressions.RegexMatchTimeoutException or OverflowException or FormatException or System.Security.Cryptography.CryptographicException or OperationCanceledException)
         { token.ThrowIfCancellationRequested(); return new(id, ReadingState.Error, [], Message: "Unable to refresh provider usage. Check the connection."); }
     }
     public static ProviderReading Parse(string id, IReadOnlyDictionary<string, JsonElement> payloads)
     {
         ArgumentNullException.ThrowIfNull(payloads);
+        if (id == "gemini") return ParseAntigravity(payloads.GetValueOrDefault("main"));
+        if (id == "doubao") return ParseDoubao(payloads);
+        if (id == "windsurf") return ParseWindsurf(payloads.GetValueOrDefault("main"));
         if (id is "alibabatokenplan" or "qwencloud") return ParseTokenPlan(id, payloads);
         if (id == "augment") return ParseAugment(payloads.GetValueOrDefault("main"), payloads.GetValueOrDefault("subscription"));
         if (id == "kiro") return ParseKiro(payloads.GetValueOrDefault("main"));

@@ -53,26 +53,27 @@ public sealed partial class NativeProviders
         if (!string.IsNullOrWhiteSpace(sec)) fields["sec_token"] = sec;
         request.Content = new FormUrlEncodedContent(fields);
     }
-    private static async Task<ProviderReading> FetchTokenPlan(string id, Func<string, string?> setting, Action<string> setSec, Func<string, Task<JsonElement>> get, CancellationToken token)
+    private static async Task<ProviderReading> FetchTokenPlan(string id, string credential, Func<string, string?> setting, Action<string> setSec, Func<string, Task<JsonElement>> get, CancellationToken token)
     {
         var config = TokenPlanConfig(id, setting);
         if (string.IsNullOrWhiteSpace(setting(id == "qwencloud" ? "QWEN_CLOUD_SEC_TOKEN" : "ALIBABA_TOKEN_PLAN_SEC_TOKEN")))
         {
-            string? sec = null;
+            string? sec = null; var transient = false;
             try
             {
                 var html = Text(await get(config.Dashboard).ConfigureAwait(false), "html") ?? "";
-                var match = Regex.Match(html, """(?:secToken|sec_token|SEC_TOKEN)['"]?\s*[:=]\s*['"]([^'"]+)['"]""", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
+                var match = Regex.Match(html, """(?:secToken|sec_token|SEC_TOKEN|csrfToken)['"]?\s*[:=]\s*['"]([^'"]+)['"]""", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(250));
                 if (match.Success) sec = match.Groups[1].Value;
             }
-            catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException) { token.ThrowIfCancellationRequested(); }
+            catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException) { token.ThrowIfCancellationRequested(); transient |= error is HttpRequestException or IOException or OperationCanceledException || error is ProviderRequestException http && (int)http.Status >= 500; }
             if (sec is null)
             {
-                try { sec = ExpandedContexts(await get(config.Origin + "/tool/user/info.json").ConfigureAwait(false)).Select(x => Text(x, "secToken") ?? Text(x, "sec_token") ?? Text(x, "SEC_TOKEN")).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)); }
-                catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException) { token.ThrowIfCancellationRequested(); }
+                try { sec = ExpandedContexts(await get(config.Origin + "/tool/user/info.json").ConfigureAwait(false)).Select(x => Text(x, "secToken") ?? Text(x, "sec_token") ?? Text(x, "SEC_TOKEN") ?? Text(x, "csrfToken") ?? Text(x, "token")).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)); }
+                catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException) { token.ThrowIfCancellationRequested(); transient |= error is HttpRequestException or IOException or OperationCanceledException || error is ProviderRequestException http && (int)http.Status >= 500; }
             }
+            sec ??= TokenPlanCookie(NormalizeBrowserCredential(id, credential), "sec_token");
             if (sec is not null) setSec(sec);
-            else if (id == "qwencloud") throw new ProviderRequestException(HttpStatusCode.Unauthorized);
+            else if (id == "qwencloud") { if (transient) throw new IOException("The console is temporarily unavailable."); throw new ProviderRequestException(HttpStatusCode.Unauthorized); }
         }
         string Url(string kind) => config.Gateway + "/data/api.json?" + (config.Personal
             ? "action=" + config.Action + "&product=sfm_bailian&api=" + Uri.EscapeDataString(PersonalApiPrefix + kind) + "&_v=undefined"
@@ -92,6 +93,19 @@ public sealed partial class NativeProviders
             }
         return ParseTokenPlan(id, docs);
     }
+
+    private static void TokenPlanNavigation(HttpRequestMessage request)
+    {
+        if (request.RequestUri!.AbsolutePath is "/data/api.json" or "/tool/user/info.json") return;
+        request.Headers.Remove("X-Requested-With"); request.Headers.Accept.Clear();
+        request.Headers.TryAddWithoutValidation("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+        request.Headers.UserAgent.Clear();
+        request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36");
+        request.Headers.Add("Sec-Fetch-Site", "same-origin"); request.Headers.Add("Sec-Fetch-Mode", "navigate"); request.Headers.Add("Sec-Fetch-Dest", "document");
+        request.Headers.TryAddWithoutValidation("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8");
+        request.Headers.Referrer = new Uri(request.RequestUri.GetLeftPart(UriPartial.Authority) + "/");
+    }
+
     private static readonly string[] PlanSuccessKeys = ["successResponse", "Success", "success"];
     private static void TokenPlanValidate(JsonElement root)
     {
@@ -135,7 +149,10 @@ public sealed partial class NativeProviders
             var total = PlanTotalKeys.Select(x => Numeric(summary, x)).FirstOrDefault(x => x.HasValue);
             var remaining = PlanRemainingKeys.Select(x => Numeric(summary, x)).FirstOrDefault(x => x.HasValue);
             var used = PlanUsedKeys.Select(x => Numeric(summary, x)).FirstOrDefault(x => x.HasValue) ?? (total.HasValue && remaining.HasValue ? Math.Max(0, total.Value - remaining.Value) : null);
-            var reset = PlanResetKeys.Select(x => EpochDate(summary, x)).FirstOrDefault(x => x.HasValue);
+            var reset = PlanResetKeys.Select(x => EpochDate(summary, x)).FirstOrDefault(x => x.HasValue)
+                ?? frames.SelectMany(frame => PlanResetKeys.Select(x => EpochDate(frame, x))).FirstOrDefault(x => x.HasValue);
+            if (total == 0 && frames.Any(x => Numeric(x, "TotalCount") == 0 || Numeric(x, "totalCount") == 0))
+                return new(id, ReadingState.Ready, [], DateTimeOffset.UtcNow, "No active Token Plan subscription.", plan);
             if (used is >= 0 && total is > 0) windows.Add(new("quota", "Token Plan allowance", Math.Clamp(used.Value / total.Value * 100, 0, 100), reset, Unit: "credits", DisplayValue: $"{used:N2} / {total:N2} credits"));
         }
         return Metered(id, windows, plan);

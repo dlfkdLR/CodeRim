@@ -56,8 +56,28 @@ internal sealed class ProviderConnections : IDisposable
                 foreach (var key in keys)
                     if (Environment.GetEnvironmentVariable(key) is { Length: > 0 } value) { secret = value; break; }
             }
+            string? NativeSetting(string key) => vault.Load("setting:" + id + ":" + key)?.Trim() is { Length: > 0 } configured ? configured : Environment.GetEnvironmentVariable(key);
+            if (id == "bedrock" && BedrockAuthentication.UseProfile(secret, NativeSetting))
+            {
+                var aws = ResolveExecutable("aws.exe");
+                if (aws is null)
+                {
+                    var installed = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Amazon", "AWSCLIV2", "aws.exe");
+                    if (File.Exists(installed)) aws = installed;
+                }
+                if (aws is null) return new(id, ReadingState.NeedsAuth, [], Message: "Install AWS CLI v2 and sign in to your profile, or enter an AWS key.");
+                try
+                {
+                    var profile = await BedrockAuthentication.ResolveAsync(NativeSetting, arguments => BoundedProcess.RunAsync(aws, arguments,
+                        timeout: TimeSpan.FromSeconds(20), maximumBytes: 262144, cancellationToken: token,
+                        environment: new Dictionary<string, string?> { ["AWS_PROFILE"] = null, ["AWS_DEFAULT_PROFILE"] = null, ["AWS_PAGER"] = "", ["AWS_CLI_AUTO_PROMPT"] = "off" })).ConfigureAwait(false);
+                    return await native.FetchAsync(id, profile.Credential, key => key == "AWS_REGION" ? profile.Region : NativeSetting(key), token).ConfigureAwait(false);
+                }
+                catch (Exception error) when (error is IOException or InvalidDataException or JsonException or System.ComponentModel.Win32Exception)
+                { return new(id, ReadingState.NeedsAuth, [], Message: "AWS profile could not be loaded. Check the profile name and sign in to AWS CLI again."); }
+            }
             if (NativeProviders.Supported.Contains(id))
-                return await native.FetchAsync(id, secret ?? NativeCredentials.Read(id), key => vault.Load("setting:" + id + ":" + key) ?? Environment.GetEnvironmentVariable(key), token).ConfigureAwait(false);
+                return await native.FetchAsync(id, secret ?? NativeCredentials.Read(id), NativeSetting, token).ConfigureAwait(false);
             return await http.FetchAsync(id, secret, token).ConfigureAwait(false);
         }
         catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or System.Security.Cryptography.CryptographicException
@@ -67,6 +87,12 @@ internal sealed class ProviderConnections : IDisposable
             return new(id, ReadingState.Error, [], Message: "Unable to read the provider. Check its connection and refresh.");
         }
     }
+    internal bool CanCache(string id)
+    {
+        if (id != "bedrock") return true;
+        var secret = vault.Load("provider:" + id) ?? Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
+        return !BedrockAuthentication.UseProfile(secret, key => vault.Load("setting:" + id + ":" + key)?.Trim() is { Length: > 0 } value ? value : Environment.GetEnvironmentVariable(key));
+    }
     internal string? Scope(string id)
     {
         try
@@ -75,10 +101,21 @@ internal sealed class ProviderConnections : IDisposable
             if (id is "codex" or "claude") return SavedAccounts.Current(id).Identity.Id;
             var definition = ProviderCatalog.Find(id);
             var values = new List<string?> { vault.Load("provider:" + id), vault.Load("cookie:" + id), NativeCredentials.Read(id) };
+            if (id == "bedrock" && !CanCache(id))
+            {
+                var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                foreach (var path in new[] { Environment.GetEnvironmentVariable("AWS_CONFIG_FILE") ?? Path.Combine(home, ".aws", "config"),
+                    Environment.GetEnvironmentVariable("AWS_SHARED_CREDENTIALS_FILE") ?? Path.Combine(home, ".aws", "credentials") })
+                {
+                    try { values.Add(GuardedFile.Read(path)); }
+                    catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException) { values.Add("profile-file-unavailable"); }
+                }
+            }
             if (definition is not null) values.AddRange(definition.EnvironmentKeys.Select(Environment.GetEnvironmentVariable));
             if (NativeProviders.CredentialKeys(id) is { } credentialKeys) values.AddRange(credentialKeys.Select(Environment.GetEnvironmentVariable));
             if (ScriptProviders.Catalog.TryGetValue(id, out var script))
                 values.AddRange(script.Settings.Select(x => vault.Load("setting:" + id + ":" + x.Key) ?? Environment.GetEnvironmentVariable(x.Key)));
+            values.AddRange(NativeProviders.ScopeAliases(id).Select(x => vault.Load("setting:" + id + ":" + x) ?? Environment.GetEnvironmentVariable(x)));
             values.AddRange(NativeProviders.Settings(id).Select(x => vault.Load("setting:" + id + ":" + x.Key) ?? Environment.GetEnvironmentVariable(x.Key)));
             return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(values))));
         }

@@ -42,12 +42,13 @@ public sealed partial class NativeProviders
 
     private static readonly string[] GoogleRefreshKeys = ["refresh_token", "client_id", "client_secret"];
     private readonly ConcurrentDictionary<string, (string Token, DateTimeOffset Expires)> googleTokens = new(StringComparer.Ordinal);
-    private async Task<string> ResolveGoogleToken(JsonElement auth, Func<Task<JsonElement>> refresh)
+    private async Task<string> ResolveGoogleToken(JsonElement auth, Func<Task<JsonElement>> refresh, bool allowUndatedAccess = false)
     {
         var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(auth.GetRawText())));
         if (googleTokens.TryGetValue(key, out var cached) && cached.Expires > DateTimeOffset.UtcNow.AddMinutes(1)) return cached.Token;
         var access = Text(auth, "access_token");
-        if (access is { Length: > 0 } && EpochDate(auth, "expiry_date") > DateTimeOffset.UtcNow.AddMinutes(1)) return access;
+        if (access is { Length: > 0 and <= 32768 } && !access.Any(char.IsControl)
+            && (EpochDate(auth, "expiry_date") > DateTimeOffset.UtcNow.AddMinutes(1) || allowUndatedAccess && Get(auth, "expiry_date").ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)) return access;
         if (Text(auth, "type") != "service_account" && GoogleRefreshKeys.Any(x => Text(auth, x) is not { Length: > 0 })) throw new ProviderRequestException(HttpStatusCode.Unauthorized);
         var response = await refresh().ConfigureAwait(false); access = Text(response, "access_token");
         if (access is not { Length: > 0 and <= 32768 } || access.Any(char.IsControl)) throw new ProviderRequestException(HttpStatusCode.Unauthorized);

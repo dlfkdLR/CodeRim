@@ -7,11 +7,11 @@ namespace CodeRim.Core.Services;
 public static class BoundedProcess
 {
     public static async Task<string> RunAsync(string executable, IEnumerable<string> arguments, string? input = null,
-        TimeSpan? timeout = null, int maximumBytes = 2 * 1024 * 1024, CancellationToken cancellationToken = default)
+        TimeSpan? timeout = null, int maximumBytes = 2 * 1024 * 1024, IReadOnlyDictionary<string, string?>? environment = null, CancellationToken cancellationToken = default)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(timeout ?? TimeSpan.FromSeconds(15));
-        using var process = Start(executable, arguments);
+        using var process = Start(executable, arguments, environment);
         try
         {
             var output = ReadBoundedAsync(process.StandardOutput, maximumBytes, deadline.Token);
@@ -25,12 +25,14 @@ public static class BoundedProcess
         finally { Kill(process); }
     }
 
-    internal static Process Start(string executable, IEnumerable<string> arguments)
+    internal static Process Start(string executable, IEnumerable<string> arguments, IReadOnlyDictionary<string, string?>? environment = null)
     {
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable)) throw new FileNotFoundException("Select an installed provider executable.");
         var start = new ProcessStartInfo(executable) { UseShellExecute = false, RedirectStandardOutput = true,
             RedirectStandardError = true, RedirectStandardInput = true, CreateNoWindow = true,
             WorkingDirectory = Path.GetDirectoryName(executable)! };
+        if (environment is not null) foreach (var pair in environment)
+            { if (pair.Value is null) start.Environment.Remove(pair.Key); else start.Environment[pair.Key] = pair.Value; }
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         return Process.Start(start) ?? throw new IOException("The provider command could not start.");
     }

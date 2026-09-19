@@ -15,7 +15,12 @@ public sealed class TokenPlanTests
         {
             Assert.Null(request.Headers.Authorization);
             Assert.Equal("session=fixture; csrf=csrf-fixture", request.Headers.GetValues("Cookie").Single());
-            if (request.RequestUri!.AbsolutePath != "/data/api.json") return Ok("""<script>window.CONFIG={SEC_TOKEN: "fixture-sec"}</script>""");
+            if (request.RequestUri!.AbsolutePath != "/data/api.json")
+            {
+                Assert.Equal("navigate", request.Headers.GetValues("Sec-Fetch-Mode").Single());
+                Assert.Contains("text/html", request.Headers.Accept.ToString());
+                return Ok("""<script>window.CONFIG={SEC_TOKEN: "fixture-sec"}</script>""");
+            }
             Assert.Equal(gateway, request.RequestUri.Host);
             var form = (await request.Content!.ReadAsStringAsync()).Split('&').Select(x => x.Split('=', 2)).ToDictionary(x => x[0], x => Uri.UnescapeDataString(x[1].Replace('+', ' ')));
             Assert.Equal("fixture-sec", form["sec_token"]); Assert.Contains(site, form["params"]); Assert.DoesNotContain("switchAgent", form["params"]);
@@ -61,6 +66,31 @@ public sealed class TokenPlanTests
         var reading = NativeProviders.Parse("augment", new Dictionary<string, JsonElement> { ["main"] = document.RootElement });
         Assert.Equal(20, reading.Headline!.UsedPercent);
     }
+
+    [Theory]
+    [InlineData("cookie")]
+    [InlineData("userinfo")]
+    [InlineData("transient")]
+    public async Task QwenDiscoveryPreservesFallbacksAndTransientFailures(string mode)
+    {
+        using var provider = new NativeProviders(new Handler(request =>
+        {
+            if (request.RequestUri!.AbsolutePath == "/data/api.json") return Task.FromResult(Ok("""{"per5HourPercentage":0.2}"""));
+            if (request.RequestUri.AbsolutePath == "/tool/user/info.json" && mode == "userinfo") return Task.FromResult(Ok("""{"csrfToken":"from-user"}"""));
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));
+        }));
+        var reading = await provider.FetchAsync("qwencloud", "session=fixture" + (mode == "cookie" ? "; sec_token=cookie-sec" : ""), _ => null, TestContext.Current.CancellationToken);
+        Assert.Equal(mode == "transient" ? ReadingState.Error : ReadingState.Ready, reading.State);
+    }
+    [Fact]
+    public void ExplicitEmptySubscriptionClearsOldQuota()
+    {
+        using var doc = JsonDocument.Parse("""{"data":{"TotalValue":"0","TotalSurplusValue":"0","TotalCount":0}}""");
+        var reading = NativeProviders.Parse("qwencloud", new Dictionary<string, JsonElement> { ["main"] = doc.RootElement });
+        Assert.Equal(ReadingState.Ready, reading.State);
+        Assert.Empty(CodeRim.Core.Services.ReadingRetention.Merge(reading, new("qwencloud", ReadingState.Ready, [new("quota", "Old", 50)])).Windows);
+    }
+
     private static HttpResponseMessage Ok(string value) => new(HttpStatusCode.OK) { Content = new StringContent(value) };
     private sealed class Handler(Func<HttpRequestMessage, Task<HttpResponseMessage>> reply) : HttpMessageHandler
     { protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) => reply(request); }
