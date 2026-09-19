@@ -10,13 +10,16 @@ namespace CodeRim.Core.Providers;
 
 public sealed partial class NativeProviders
 {
-    private static readonly HashSet<string> BrowserIds = new(StringComparer.Ordinal) { "mimo", "abacus", "stepfun", "sakana", "longcat", "mistral", "notion" };
+    private static readonly HashSet<string> BrowserIds = new(StringComparer.Ordinal) { "mimo", "abacus", "stepfun", "sakana", "longcat", "mistral", "notion", "augment", "alibabatokenplan", "qwencloud" };
     public static string CredentialLabel(string id) => id switch
     {
         "mimo" => "Cookie header (api-platform_serviceToken and userId)",
-        "abacus" or "sakana" or "longcat" or "mistral" => "Cookie header from the signed-in provider page",
+        "alibabatokenplan" or "qwencloud" or "augment" or "abacus" or "sakana" or "longcat" or "mistral" => "Cookie header from the signed-in provider page",
         "stepfun" => "Oasis-Token (or Cookie header containing Oasis-Token)",
         "kimi" => "Kimi Code API key",
+        "kiro" => "Kiro access token (normally detected from CLI)",
+        "vertexai" => "OAuth access token (normally detected from gcloud ADC)",
+        "gemini-cli" => "OAuth access token (normally detected from Gemini CLI sign-in)",
         "alibaba" => "Alibaba Coding Plan API key",
         "notion" => "Notion web cookie header (token_v2), or token_v2 value",
         "zed" => "Zed access token",
@@ -27,6 +30,7 @@ public sealed partial class NativeProviders
     private static string NormalizeBrowserCredential(string id, string credential)
     {
         if (credential.StartsWith("Cookie:", StringComparison.OrdinalIgnoreCase)) credential = credential[7..].Trim();
+        if (id == "notion" && credential.Length >= 2 && (credential[0] == (char)39 && credential[^1] == (char)39 || credential[0] == (char)34 && credential[^1] == (char)34)) credential = credential[1..^1].Trim();
         var pairs = credential.Split(';').Select(x => x.Trim().Split('=', 2)).Where(x => x.Length == 2 && x[1].Length > 0).ToArray();
         if (id == "notion")
         {

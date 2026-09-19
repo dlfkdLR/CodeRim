@@ -36,6 +36,27 @@ public sealed class NotionProviderTests
         Assert.Equal(ReadingState.Error, (await provider.FetchAsync("notion", "fixture", _ => "missing", TestContext.Current.CancellationToken)).State);
         Assert.Equal(2, calls);
     }
+
+    [Fact]
+    public void NoAllowanceClearsPreviouslyKnownQuota()
+    {
+        using var document = System.Text.Json.JsonDocument.Parse("""{"status":"not_applicable"}""");
+        var reading = NativeProviders.Parse("notion", new Dictionary<string, System.Text.Json.JsonElement> { ["main"] = document.RootElement.Clone() });
+        var prior = new ProviderReading("notion", ReadingState.Ready, [new("rolling", "6h", 42.5)]);
+        Assert.Empty(CodeRim.Core.Services.ReadingRetention.Merge(reading, prior).Windows);
+        Assert.Contains("no AI allowance", reading.Message);
+    }
+    [Fact]
+    public async Task MalformedUserIsIsolatedAndQuotedCookiesAreNormalized()
+    {
+        using var provider = new NativeProviders(new Handler(request =>
+        {
+            Assert.Equal("token_v2=fixture; device=id", request.Headers.GetValues("Cookie").Single());
+            return Task.FromResult(Ok(System.Text.Json.JsonSerializer.Serialize(new Dictionary<string, object> { ["bad" + (char)13 + (char)10 + "user"] = new { space = new { } } })));
+        }));
+        var reading = await provider.FetchAsync("notion", "Cookie: 'token_v2=fixture; device=id'", _ => null, TestContext.Current.CancellationToken);
+        Assert.Equal(ReadingState.Error, reading.State); Assert.Empty(reading.Windows);
+    }
     private static HttpResponseMessage Ok(string value) => new(HttpStatusCode.OK) { Content = new StringContent(value) };
     private sealed class Handler(Func<HttpRequestMessage, Task<HttpResponseMessage>> reply) : HttpMessageHandler
     { protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) => reply(request); }

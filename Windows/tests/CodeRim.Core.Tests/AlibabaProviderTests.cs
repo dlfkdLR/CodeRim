@@ -32,6 +32,38 @@ public sealed class AlibabaProviderTests
         }));
         Assert.Equal(0, (await provider.FetchAsync("alibaba", "fixture", _ => "cn", TestContext.Current.CancellationToken)).Headline!.UsedPercent);
     }
+
+    [Theory]
+    [InlineData("\"true\"")]
+    [InlineData("1")]
+    public void NonBooleanActiveSignalSelectsCorrectPlan(string signal)
+    {
+        var reading = Parse("""{"codingPlanInstanceInfos":[{"status":"UNKNOWN","per5HourUsedQuota":90,"per5HourTotalQuota":100},{"isActive":SIGNAL,"per5HourUsedQuota":25,"per5HourTotalQuota":100}]}""".Replace("SIGNAL", signal, StringComparison.Ordinal));
+        Assert.Equal(25, reading.Headline!.UsedPercent);
+    }
+    [Fact]
+    public void EncodedInstanceArrayStillSelectsActivePlan()
+    {
+        var instances = """[{"status":"EXPIRED","per5HourUsedQuota":90,"per5HourTotalQuota":100},{"status":"ACTIVE","per5HourUsedQuota":25,"per5HourTotalQuota":100}]""";
+        Assert.Equal(25, Parse(JsonSerializer.Serialize(new { codingPlanInstanceInfos = instances })).Headline!.UsedPercent);
+    }
+    [Fact]
+    public async Task DefaultRegionCanRecoverOnChinaAndBodyAuthErrorsNeedReconnect()
+    {
+        var calls = 0; var failBoth = false;
+        using var provider = new NativeProviders(new Handler(request =>
+        {
+            calls++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(request.RequestUri!.Host.StartsWith("modelstudio", StringComparison.Ordinal) || failBoth
+                ? """{"status_code":1001,"status_msg":"Invalid API key"}"""
+                : """{"per5HourUsedQuota":25,"per5HourTotalQuota":100}""") });
+        }));
+        var reading = await provider.FetchAsync("alibaba", "fixture", _ => null, TestContext.Current.CancellationToken);
+        Assert.Equal(25, reading.Headline!.UsedPercent); Assert.Equal(2, calls);
+        failBoth = true;
+        Assert.Equal(ReadingState.NeedsAuth, (await provider.FetchAsync("alibaba", "fixture", _ => "intl", TestContext.Current.CancellationToken)).State);
+        Assert.Equal(3, calls);
+    }
     private sealed class Handler(Func<HttpRequestMessage, Task<HttpResponseMessage>> reply) : HttpMessageHandler
     { protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) => reply(request); }
 }

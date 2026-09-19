@@ -12,7 +12,7 @@ namespace CodeRim.Core.Providers;
 public sealed partial class NativeProviders : IDisposable
 {
     public static IReadOnlySet<string> Supported { get; } = new HashSet<string>(StringComparer.Ordinal)
-        { "cursor", "grok", "opencode", "commandcode", "ollama", "fireworks", "deepinfra", "codebuff", "neuralwatt", "llmproxy", "litellm", "zenmux", "warp", "wayfinder", "ibmbob", "kimi", "amp", "mimo", "abacus", "stepfun", "sakana", "kilo", "devin", "minimax", "aiand", "longcat", "factory", "chutes", "groq", "zed", "mistral", "zoommate", "notion", "alibaba" };
+        { "cursor", "grok", "opencode", "commandcode", "ollama", "fireworks", "deepinfra", "codebuff", "neuralwatt", "llmproxy", "litellm", "zenmux", "warp", "wayfinder", "ibmbob", "kimi", "amp", "mimo", "abacus", "stepfun", "sakana", "kilo", "devin", "minimax", "aiand", "longcat", "factory", "chutes", "groq", "zed", "mistral", "zoommate", "notion", "alibaba", "gemini-cli", "vertexai", "azureopenai", "kiro", "augment", "alibabatokenplan", "qwencloud" };
     private readonly HttpClient client;
     private readonly ConcurrentDictionary<string, DateTimeOffset> retryAfter = new(StringComparer.Ordinal);
     public NativeProviders(HttpMessageHandler? handler = null) => client = new(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(15) };
@@ -25,19 +25,42 @@ public sealed partial class NativeProviders : IDisposable
         if (retryAfter.TryGetValue(id, out var retry) && retry > DateTimeOffset.Now) return new(id, ReadingState.Unavailable, [], Message: "Provider rate limit reached. Waiting before retrying.");
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(45));
         var documents = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        string? tokenPlanSec = setting(id == "qwencloud" ? "QWEN_CLOUD_SEC_TOKEN" : "ALIBABA_TOKEN_PLAN_SEC_TOKEN");
+        JsonElement googleAuth = default; string? googleProject = null;
+        string? kiroProfile = setting("KIRO_PROFILE_ARN");
         string? notionSpace = null; string? notionUser = null;
         string? zoomBearer = id == "zoommate" && !credential!.StartsWith("Cookie:", StringComparison.OrdinalIgnoreCase)
             ? credential.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? credential[7..].Trim() : credential : null;
         async Task<JsonElement> GetJson(string url, IReadOnlyDictionary<string, string>? extraHeaders = null)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            if (id is "alibabatokenplan" or "qwencloud") ConfigureTokenPlan(request, id, credential!, setting, tokenPlanSec);
             if (id == "codebuff" && new Uri(url).AbsolutePath == "/api/v1/usage")
             {
                 request.Method = HttpMethod.Post; request.Content = new StringContent("""{"fingerprintId":"codexbar-usage"}""", System.Text.Encoding.UTF8, "application/json");
             }
+            if (id == "kiro")
+            {
+                request.Method = HttpMethod.Post;
+                request.Headers.Add("X-Amz-Target", "AmazonCodeWhispererService.GetUsageLimits");
+                request.Content = new StringContent(JsonSerializer.Serialize(new { profileArn = kiroProfile }), System.Text.Encoding.UTF8, "application/x-amz-json-1.0");
+            }
+            if (id == "azureopenai")
+            {
+                request.Method = HttpMethod.Post; request.Headers.Add("api-key", credential);
+                request.Content = new StringContent(AzureBody(setting), System.Text.Encoding.UTF8, "application/json");
+            }
+            if (id is "gemini-cli" or "vertexai" && new Uri(url).Host is "oauth2.googleapis.com" or "cloudcode-pa.googleapis.com")
+            {
+                request.Method = HttpMethod.Post;
+                request.Content = new Uri(url).Host == "oauth2.googleapis.com"
+                    ? new FormUrlEncodedContent(GoogleTokenForm(googleAuth))
+                    : new StringContent(url.EndsWith(":loadCodeAssist", StringComparison.Ordinal) ? """{"metadata":{"ideType":"GEMINI_CLI","pluginType":"GEMINI"}}"""
+                        : googleProject is null ? "{}" : JsonSerializer.Serialize(new { project = googleProject }), System.Text.Encoding.UTF8, "application/json");
+            }
             if (id == "alibaba")
             {
-                var region = AlibabaRegion(setting); request.Method = HttpMethod.Post;
+                var region = AlibabaRegion(_ => new Uri(url).Host == "bailian.console.aliyun.com" ? "cn" : "intl"); request.Method = HttpMethod.Post;
                 request.Content = new StringContent(JsonSerializer.Serialize(new { queryCodingPlanInstanceInfoRequest = new { commodityCode = region.Commodity } }), System.Text.Encoding.UTF8, "application/json");
                 request.Headers.Add("x-api-key", credential); request.Headers.Add("X-DashScope-API-Key", credential);
                 request.Headers.Add("Origin", region.Host); request.Headers.Referrer = new Uri(region.Host + "/" + region.Region + "/");
@@ -117,7 +140,7 @@ public sealed partial class NativeProviders : IDisposable
                 request.Headers.TryAddWithoutValidation("Authorization", userId + " " + credential);
             }
             else if (id == "cursor") request.Headers.TryAddWithoutValidation("Cookie", credential);
-            else if (id != "wayfinder") request.Headers.Authorization = new AuthenticationHeaderValue(id == "ibmbob" ? BobAuthorization(credential!) : "Bearer", credential);
+            else if (id is not "wayfinder" and not "azureopenai" && !((id is "gemini-cli" or "vertexai") && new Uri(url).Host == "oauth2.googleapis.com")) request.Headers.Authorization = new AuthenticationHeaderValue(id == "ibmbob" ? BobAuthorization(credential!) : "Bearer", credential);
             if (extraHeaders is not null) foreach (var pair in extraHeaders) request.Headers.Add(pair.Key, pair.Value);
             if (id == "grok") request.Headers.Add("X-XAI-Token-Auth", "xai-grok-cli");
             if (id == "commandcode") request.Headers.Add("x-command-code-version", "desktop");
@@ -125,7 +148,9 @@ public sealed partial class NativeProviders : IDisposable
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 retryAfter[id] = response.Headers.RetryAfter?.Date ?? DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(1));
             if (BrowserIds.Contains(id) && (int)response.StatusCode is >= 300 and < 400) throw new ProviderRequestException(HttpStatusCode.Unauthorized);
-            if (!response.IsSuccessStatusCode) throw new ProviderRequestException(response.StatusCode);
+            var googleTokenError = (id is "gemini-cli" or "vertexai") && request.RequestUri!.Host == "oauth2.googleapis.com"
+                && response.StatusCode == HttpStatusCode.BadRequest;
+            if (!response.IsSuccessStatusCode && !googleTokenError && id != "gemini-cli") throw new ProviderRequestException(response.StatusCode);
             if (response.Content.Headers.ContentLength > 2 * 1024 * 1024) throw new InvalidDataException();
             using var input = await response.Content.ReadAsStreamAsync(deadline.Token).ConfigureAwait(false);
             using var output = new MemoryStream(); var buffer = new byte[16384]; int count;
@@ -134,7 +159,25 @@ public sealed partial class NativeProviders : IDisposable
                 if (output.Length + count > 2 * 1024 * 1024) throw new InvalidDataException();
                 output.Write(buffer, 0, count);
             }
-            using var json = id == "sakana" ? JsonDocument.Parse(JsonSerializer.Serialize(new { html = System.Text.Encoding.UTF8.GetString(output.ToArray()) })) : JsonDocument.Parse(output.ToArray());
+            var bytes = output.ToArray();
+            if (!response.IsSuccessStatusCode && id == "gemini-cli" && GeminiMigrationSignal(System.Text.Encoding.UTF8.GetString(bytes)))
+                throw new GeminiMigrationException();
+            if (!response.IsSuccessStatusCode)
+            {
+                if (googleTokenError)
+                {
+                    try
+                    {
+                        using var errorJson = JsonDocument.Parse(bytes);
+                        var code = Text(errorJson.RootElement, "error");
+                        if (code is "invalid_grant" or "invalid_client" or "unauthorized_client" or "invalid_token" or "access_denied")
+                            throw new ProviderRequestException(HttpStatusCode.Unauthorized);
+                    }
+                    catch (JsonException) { }
+                }
+                throw new ProviderRequestException(response.StatusCode);
+            }
+            using var json = id == "sakana" || id is "alibabatokenplan" or "qwencloud" && request.RequestUri!.AbsolutePath is not "/data/api.json" and not "/tool/user/info.json" ? JsonDocument.Parse(JsonSerializer.Serialize(new { html = System.Text.Encoding.UTF8.GetString(bytes) })) : JsonDocument.Parse(bytes);
             return json.RootElement.Clone();
         }
         try
@@ -144,11 +187,72 @@ public sealed partial class NativeProviders : IDisposable
                 if (credential!.StartsWith("Authorization:", StringComparison.OrdinalIgnoreCase)) credential = credential[14..].Trim();
                 if (credential.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) credential = credential[7..].Trim();
             }
-            if (id == "alibaba")
+            if (id is "alibabatokenplan" or "qwencloud") return await FetchTokenPlan(id, setting, value => tokenPlanSec = value, url => GetJson(url), token).ConfigureAwait(false);
+            if (id == "augment")
             {
-                var region = AlibabaRegion(setting);
-                return ParseAlibaba(await GetJson(region.Host + "/data/api.json?action=zeldaEasy.broadscope-bailian.codingPlan.queryCodingPlanInstanceInfoV2&product=broadscope-bailian&api=queryCodingPlanInstanceInfoV2&currentRegionId=" + region.Region).ConfigureAwait(false));
+                var credits = await GetJson("https://app.augmentcode.com/api/credits").ConfigureAwait(false);
+                JsonElement subscription = default;
+                try { subscription = await GetJson("https://app.augmentcode.com/api/subscription").ConfigureAwait(false); }
+                catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException) { token.ThrowIfCancellationRequested(); }
+                return ParseAugment(credits, subscription);
             }
+            if (id == "kiro")
+            {
+                if (credential!.TrimStart().StartsWith('{'))
+                {
+                    using var auth = JsonDocument.Parse(credential);
+                    credential = Text(auth.RootElement, "access_token");
+                    kiroProfile ??= Text(auth.RootElement, "profileArn");
+                    if (credential is not { Length: > 0 } || credential.Any(char.IsControl)) throw new ProviderRequestException(HttpStatusCode.Unauthorized);
+                }
+                return ParseKiro(await GetJson(KiroEndpoint(kiroProfile)).ConfigureAwait(false));
+            }
+            if (id == "azureopenai")
+            {
+                if (!string.Equals(setting("AZURE_OPENAI_ALLOW_BILLABLE_REQUESTS"), "true", StringComparison.OrdinalIgnoreCase))
+                    return new(id, ReadingState.Disabled, [], Message: "Enable paid validation in this provider's settings to verify the deployment. This does not measure quota.");
+                return ParseAzure(await GetJson(AzureEndpoint(setting)).ConfigureAwait(false), AzureDeployment(setting));
+            }
+            if (id == "vertexai")
+            {
+                if (credential!.TrimStart().StartsWith('{'))
+                {
+                    using var parsed = JsonDocument.Parse(credential); googleAuth = parsed.RootElement.Clone();
+                    credential = await ResolveGoogleToken(googleAuth, () => GetJson("https://oauth2.googleapis.com/token")).ConfigureAwait(false);
+                }
+                var project = setting("GOOGLE_CLOUD_PROJECT") ?? setting("GCLOUD_PROJECT") ?? setting("CLOUDSDK_CORE_PROJECT") ?? Text(googleAuth, "coderim_project") ?? Text(googleAuth, "project_id") ?? Text(googleAuth, "quota_project_id");
+                return await FetchVertex(project, url => GetJson(url)).ConfigureAwait(false);
+            }
+            if (id == "gemini-cli")
+            {
+                if (credential!.TrimStart().StartsWith('{'))
+                {
+                    using var parsed = JsonDocument.Parse(credential); googleAuth = parsed.RootElement.Clone();
+                    credential = await ResolveGoogleToken(googleAuth, () => GetJson("https://oauth2.googleapis.com/token")).ConfigureAwait(false);
+                }
+                JsonElement assist = default;
+                try { assist = await GetJson("https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist").ConfigureAwait(false); }
+                catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException) { token.ThrowIfCancellationRequested(); }
+                var unsupportedConsumer = GeminiConsumerUnsupported(assist, googleAuth);
+                if (unsupportedConsumer && Text(Get(assist, "currentTier"), "id") is null) throw new GeminiMigrationException();
+                googleProject = Text(assist, "cloudaicompanionProject") ?? Text(Get(assist, "cloudaicompanionProject"), "id") ?? Text(Get(assist, "cloudaicompanionProject"), "projectId") ?? setting("GOOGLE_CLOUD_PROJECT");
+                if (string.IsNullOrWhiteSpace(googleProject))
+                {
+                    try
+                    {
+                        var projects = Get(await GetJson("https://cloudresourcemanager.googleapis.com/v1/projects").ConfigureAwait(false), "projects");
+                        if (projects.ValueKind == JsonValueKind.Array)
+                            googleProject = projects.EnumerateArray().Where(x => Text(x, "projectId")?.StartsWith("gen-lang-client", StringComparison.Ordinal) == true || Get(Get(x, "labels"), "generative-language").ValueKind != JsonValueKind.Undefined).Select(x => Text(x, "projectId")).FirstOrDefault();
+                    }
+                    catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException) { token.ThrowIfCancellationRequested(); }
+                }
+                ProviderReading geminiReading;
+                try { geminiReading = ParseGemini(await GetJson("https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota").ConfigureAwait(false)); }
+                catch (ProviderRequestException error) when (error.Status == HttpStatusCode.Forbidden && unsupportedConsumer && Text(Get(assist, "currentTier"), "id") != "standard-tier")
+                { throw new GeminiMigrationException(); }
+                return geminiReading with { Plan = Text(Get(assist, "paidTier"), "name") ?? Text(Get(assist, "currentTier"), "name") ?? Text(Get(assist, "currentTier"), "id") };
+            }
+            if (id == "alibaba") return await FetchAlibaba(setting, url => GetJson(url)).ConfigureAwait(false);
             if (id == "notion")
             {
                 var account = await GetJson("https://app.notion.com/api/v3/getSpaces").ConfigureAwait(false);
@@ -228,18 +332,28 @@ public sealed partial class NativeProviders : IDisposable
             var reading = Parse(id, documents);
             return partial && reading.Windows.Count > 0 ? reading with { State = ReadingState.Partial, Message = "Primary usage is current. Additional billing details could not be refreshed." } : reading;
         }
+        catch (GeminiMigrationException)
+        {
+            return new(id, ReadingState.Unsupported, [], DateTimeOffset.UtcNow,
+                "Google no longer supports this consumer account in Gemini CLI. Use a supported Workspace, education, or Code Assist account.");
+        }
         catch (ProviderRequestException error)
         {
             var state = error.Status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden ? ReadingState.NeedsAuth
                 : error.Status == HttpStatusCode.TooManyRequests ? ReadingState.Unavailable : ReadingState.Error;
             return new(id, state, [], Message: state == ReadingState.NeedsAuth ? "Sign in again or update the provider credential." : "Unable to refresh provider usage. The last reading is retained.");
         }
-        catch (Exception error) when (error is HttpRequestException or IOException or InvalidDataException or JsonException or System.Text.RegularExpressions.RegexMatchTimeoutException or OverflowException or OperationCanceledException)
+        catch (Exception error) when (error is HttpRequestException or IOException or InvalidDataException or JsonException or System.Text.RegularExpressions.RegexMatchTimeoutException or OverflowException or FormatException or System.Security.Cryptography.CryptographicException or OperationCanceledException)
         { token.ThrowIfCancellationRequested(); return new(id, ReadingState.Error, [], Message: "Unable to refresh provider usage. Check the connection."); }
     }
     public static ProviderReading Parse(string id, IReadOnlyDictionary<string, JsonElement> payloads)
     {
         ArgumentNullException.ThrowIfNull(payloads);
+        if (id is "alibabatokenplan" or "qwencloud") return ParseTokenPlan(id, payloads);
+        if (id == "augment") return ParseAugment(payloads.GetValueOrDefault("main"), payloads.GetValueOrDefault("subscription"));
+        if (id == "kiro") return ParseKiro(payloads.GetValueOrDefault("main"));
+        if (id == "vertexai") return ParseVertex(payloads);
+        if (id == "gemini-cli") return ParseGemini(payloads.GetValueOrDefault("main"));
         if (id == "alibaba") return ParseAlibaba(payloads.GetValueOrDefault("main"));
         if (id == "notion") return ParseNotion(payloads.GetValueOrDefault("main"));
         if (id == "zoommate") return ParseZoomMate(payloads.GetValueOrDefault("main"));

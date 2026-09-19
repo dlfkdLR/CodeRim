@@ -16,6 +16,21 @@ internal static class NativeCredentials
         {
             switch (id)
             {
+                case "kiro":
+                    var kiroDirectory = Environment.GetEnvironmentVariable("KIRO_DATA_DIR");
+                    if (kiroDirectory is { Length: > 0 }) return KiroAuthentication.Read(Path.Combine(kiroDirectory, "data.sqlite3"));
+                    foreach (var kiroRoot in new[] { Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "kiro-cli"),
+                        Path.Combine(Environment.GetEnvironmentVariable("XDG_DATA_HOME") ?? Path.Combine(home, ".local", "share"), "kiro-cli") })
+                        if (KiroAuthentication.Read(Path.Combine(kiroRoot, "data.sqlite3")) is { } kiroAuth) return kiroAuth;
+                    return null;
+                case "vertexai":
+                    var googleConfig = Environment.GetEnvironmentVariable("CLOUDSDK_CONFIG") ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "gcloud");
+                    var googlePath = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS") ?? Path.Combine(googleConfig, "application_default_credentials.json");
+                    return GoogleAuthentication.Read(googlePath, googleConfig, Environment.GetEnvironmentVariable("CLOUDSDK_ACTIVE_CONFIG_NAME"));
+                case "gemini-cli":
+                    var npmRoots = new[] { Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "npm"), Environment.GetEnvironmentVariable("NPM_CONFIG_PREFIX") ?? "" }
+                        .Concat((Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim('"')));
+                    return GeminiAuthentication.Read(home, npmRoots);
                 case "grok":
                     using (var document = JsonDocument.Parse(GuardedFile.Read(Path.Combine(home, ".grok", "auth.json"))))
                     {
@@ -70,6 +85,6 @@ internal static class NativeCredentials
                 default: return null;
             }
         }
-        catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or SqliteException) { return null; }
+        catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or System.Text.RegularExpressions.RegexMatchTimeoutException or SqliteException) { return null; }
     }
 }

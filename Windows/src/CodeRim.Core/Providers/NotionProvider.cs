@@ -16,6 +16,7 @@ public sealed partial class NativeProviders
         var identified = root.EnumerateObject().Where(x => Text(NotionRecord(Get(Get(x.Value, "notion_user"), x.Name)), "id") == x.Name).ToArray();
         var all = root.EnumerateObject().ToArray();
         var account = identified.Length == 1 ? identified[0] : identified.Length == 0 && all.Length == 1 ? all[0] : throw new InvalidDataException("Notion account is ambiguous.");
+        if (account.Name.Length > 256 || account.Name.Any(char.IsControl)) throw new InvalidDataException("Invalid Notion user ID.");
         var spaces = Get(account.Value, "space"); if (spaces.ValueKind != JsonValueKind.Object) throw new InvalidDataException("Missing Notion workspace.");
         var options = spaces.EnumerateObject().OrderBy(x => x.Name, StringComparer.Ordinal).Select(x => (Id: Text(NotionRecord(x.Value), "id") ?? x.Name, Record: NotionRecord(x.Value))).ToArray();
         if (options.Length == 0) throw new InvalidDataException("No Notion workspace is available.");
@@ -31,7 +32,7 @@ public sealed partial class NativeProviders
     private static ProviderReading ParseNotion(JsonElement root)
     {
         if (Text(root, "status")?.Equals("not_applicable", StringComparison.OrdinalIgnoreCase) == true)
-            return new("notion", ReadingState.Unavailable, [], Message: "This workspace plan has no AI allowance to report.");
+            return new("notion", ReadingState.Ready, [], DateTimeOffset.UtcNow, Message: "This workspace plan has no AI allowance to report.");
         var windows = new List<LimitWindow>(); var rolling = Get(root, "window"); var billing = Get(root, "billingPeriodWindow");
         void Add(JsonElement value, string key, string label, DateTimeOffset? reset, int duration)
         {

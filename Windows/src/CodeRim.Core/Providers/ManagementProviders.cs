@@ -9,6 +9,13 @@ public sealed partial class NativeProviders
 {
     public static IReadOnlyList<(string Key, string Label)> Settings(string id) => id switch
     {
+        "azureopenai" => [("AZURE_OPENAI_ENDPOINT", "Azure endpoint (HTTPS)"), ("AZURE_OPENAI_DEPLOYMENT_NAME", "Deployment name"),
+            ("AZURE_OPENAI_API_VERSION", "API version (default 2024-10-21; or v1)"), ("AZURE_OPENAI_ALLOW_BILLABLE_REQUESTS", "Allow paid validation on refresh")],
+        "alibabatokenplan" => [("ALIBABA_TOKEN_PLAN_REGION", "Region: intl, cn, intl-personal, or cn-personal"), ("ALIBABA_TOKEN_PLAN_SEC_TOKEN", "Console sec_token (optional if detected)")],
+        "qwencloud" => [("QWEN_CLOUD_SEC_TOKEN", "Console sec_token (optional if detected)")],
+        "kiro" => [("KIRO_PROFILE_ARN", "Kiro profile ARN (optional when detected from CLI)")],
+        "vertexai" => [("GOOGLE_CLOUD_PROJECT", "Google Cloud project ID")],
+        "gemini-cli" => [("GOOGLE_CLOUD_PROJECT", "Google Cloud project (optional if detected from Code Assist)")],
         "alibaba" => [("ALIBABA_CODING_PLAN_REGION", "Region: intl or cn")],
         "notion" => [("NOTION_SPACE_ID", "Workspace ID (leave empty to select a paid workspace)")],
         "zed" => [("ZED_USER_ID", "Zed user ID")],

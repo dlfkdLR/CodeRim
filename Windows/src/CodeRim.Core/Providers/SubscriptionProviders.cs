@@ -15,7 +15,7 @@ public sealed partial class NativeProviders
         "kimi" => ["KIMI_CODE_API_KEY"], "minimax" => ["MINIMAX_CODING_API_KEY", "MINIMAX_API_KEY"],
         "devin" => ["DEVIN_BEARER_TOKEN", "DEVIN_AUTHORIZATION"],
         "longcat" => ["LONGCAT_MANUAL_COOKIE", "longcat_manual_cookie"],
-        "factory" => ["FACTORY_API_KEY"], "zed" => ["ZED_ACCESS_TOKEN"], "groq" => ["GROQ_API_KEY"], "mistral" => ["MISTRAL_COOKIE", "MISTRAL_COOKIE_HEADER"], "zoommate" => ["ZOOMMATE_BEARER_TOKEN"], "notion" => ["NOTION_COOKIE", "NOTION_COOKIE_HEADER"], "alibaba" => ["ALIBABA_CODING_PLAN_API_KEY", "ALIBABA_QWEN_API_KEY", "DASHSCOPE_API_KEY"], _ => null
+        "factory" => ["FACTORY_API_KEY"], "zed" => ["ZED_ACCESS_TOKEN"], "groq" => ["GROQ_API_KEY"], "mistral" => ["MISTRAL_COOKIE", "MISTRAL_COOKIE_HEADER"], "zoommate" => ["ZOOMMATE_BEARER_TOKEN"], "notion" => ["NOTION_COOKIE", "NOTION_COOKIE_HEADER"], "alibaba" => ["ALIBABA_CODING_PLAN_API_KEY", "ALIBABA_QWEN_API_KEY", "DASHSCOPE_API_KEY"], "gemini-cli" => ["GEMINI_OAUTH_ACCESS_TOKEN"], "vertexai" => ["GOOGLE_OAUTH_ACCESS_TOKEN"], "alibabatokenplan" => ["ALIBABA_TOKEN_PLAN_COOKIE"], "qwencloud" => ["QWEN_CLOUD_COOKIE"], "augment" => ["AUGMENT_COOKIE", "AUGMENT_COOKIE_HEADER"], "kiro" => ["KIRO_ACCESS_TOKEN"], "azureopenai" => ["AZURE_OPENAI_API_KEY"], _ => null
     };
     private static string KiloEndpoint() => "https://app.kilo.ai/api/trpc/user.getCreditBlocks,kiloPass.getState,user.getAutoTopUpPaymentMethod?batch=1&input=" +
         Uri.EscapeDataString("""{"0":{"json":null},"1":{"json":null},"2":{"json":null}}""");
