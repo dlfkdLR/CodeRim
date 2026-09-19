@@ -84,7 +84,7 @@ public sealed class ScriptProviders : IDisposable
             requestDeadline.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(Number(requestOptions, "timeoutSeconds") ?? 15, 0.1, 15)));
             var requestToken = requestDeadline.Token;
             using var request = new HttpRequestMessage(method == "POST" ? HttpMethod.Post : HttpMethod.Get, uri);
-            request.Headers.UserAgent.ParseAdd("CodeRim/2.1.5");
+            request.Headers.UserAgent.ParseAdd("CodeRim/2.1.6");
             var headers = Get(requestOptions, "headers");
             if (headers.ValueKind == JsonValueKind.Object) foreach (var header in headers.EnumerateObject())
             {

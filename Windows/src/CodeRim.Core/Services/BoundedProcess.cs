@@ -68,7 +68,7 @@ public static class AppServerClient
         var errorTask = BoundedProcess.ReadBoundedAsync(process.StandardError, 2 * 1024 * 1024, stderrCancellation.Token);
         try
         {
-            await process.StandardInput.WriteLineAsync("""{"id":1,"method":"initialize","params":{"clientInfo":{"name":"coderim","version":"2.1.5"},"capabilities":{"optOutNotificationMethods":["remoteControl/status/changed"]}}}""").ConfigureAwait(false);
+            await process.StandardInput.WriteLineAsync("""{"id":1,"method":"initialize","params":{"clientInfo":{"name":"coderim","version":"2.1.6"},"capabilities":{"optOutNotificationMethods":["remoteControl/status/changed"]}}}""").ConfigureAwait(false);
             var pending = new StringBuilder();
             var buffer = new char[4096];
             var total = 0;

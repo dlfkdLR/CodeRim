@@ -17,7 +17,7 @@ public sealed class HttpProviders : IDisposable
     {
         client = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
             { Timeout = TimeSpan.FromSeconds(15) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("CodeRim/2.1.5");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("CodeRim/2.1.6");
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
     public void Dispose() => client.Dispose();

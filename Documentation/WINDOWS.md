@@ -4,7 +4,7 @@ This Windows port uses WPF on .NET 10 and targets Windows 11 x64 and ARM64. It i
 
 ## Run or install
 
-Extract the matching `CodeRim-Windows-2.1.5-x64.zip` or `CodeRim-Windows-2.1.5-arm64.zip` into a permanent folder and open `CodeRim.exe`. .NET is included. The tray icon opens the Usage dashboard and Settings. Hover the screen-edge notch to see provider rings. Add your providers in Settings → Providers.
+Extract the matching `CodeRim-Windows-2.1.6-x64.zip` or `CodeRim-Windows-2.1.6-arm64.zip` into a permanent folder and open `CodeRim.exe`. .NET is included. The tray icon opens the Usage dashboard and Settings. Hover the screen-edge notch to see provider rings. Add your providers in Settings → Providers.
 
 For a per-user installation, run this from the extracted folder in PowerShell:
 
@@ -50,7 +50,7 @@ coderim --format json --watch 5
 
 The 70-provider catalog and artwork match the macOS catalog. **The current source has a connection implementation for each of the 70 catalog entries.** Even implemented connections require native Windows and live-account verification.
 
-Browser cookie auto-import, remaining native/PTY/OAuth integrations, Antigravity and other provider activity monitors, a signed installer, in-place automatic updates, and full accessibility/mixed-monitor verification remain unfinished. Windows Widgets are excluded from this parity effort. API-key or manual-cookie support does not imply that every macOS authentication strategy has been ported. Native Windows CI covers synthetic startup, rendering, account operations, bridge installation, and CLI behavior; live account/provider verification is separate.
+Browser cookie auto-import, remaining native/PTY/OAuth integrations, Antigravity and other provider activity monitors, a signed installer, in-place automatic updates, and full accessibility/mixed-monitor verification remain unfinished. Windows Widgets are excluded from this parity effort. API-key or manual-cookie support does not imply that every macOS authentication strategy has been ported. Native Windows CI covers synthetic startup, rendering, credential storage, account display, bridge installation, and CLI behavior; live account/provider verification is separate.
 
 | Provider | Windows connection |
 | --- | --- |
