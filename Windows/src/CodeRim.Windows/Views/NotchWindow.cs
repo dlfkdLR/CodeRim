@@ -9,6 +9,7 @@ using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CodeRim.Core.Domain;
+using CodeRim.Core.Services;
 using CodeRim.Windows.Services;
 using CodeRim.Windows.ViewModels;
 using Button = System.Windows.Controls.Button;
@@ -104,9 +105,12 @@ internal sealed class NotchWindow : Window
         if (message == 0x02E0) Dispatcher.BeginInvoke(Render);
         return IntPtr.Zero;
     }
-    public void Peek()
+    private SessionActivity? attentionSession;
+    private DateTimeOffset attentionUntil;
+    public void Peek(SessionActivity? session = null)
     {
         if (settings.Current.Visibility == NotchVisibility.Hidden) return;
+        attentionSession = session; attentionUntil = DateTimeOffset.Now.AddSeconds(5);
         expanded = true; Render();
         foldTimer.Interval = TimeSpan.FromSeconds(5); foldTimer.Start();
     }
@@ -187,7 +191,15 @@ internal sealed class NotchWindow : Window
             buttons[id] = button;
             AutomationProperties.SetName(button, (ProviderCatalog.Find(id)?.Name ?? id) + " usage; refresh");
             AutomationProperties.SetAutomationId(button, "notch.provider." + id);
-            button.Click += async (_, _) => await store.RefreshProviderAsync(id).ConfigureAwait(true);
+            button.Click += async (_, _) =>
+            {
+                if (attentionSession is { } session && session.Provider == id && DateTimeOffset.Now <= attentionUntil)
+                {
+                    attentionSession = null; popup.IsOpen = false;
+                    if (!SessionFocus.Activate(session)) openSettings("sessions:" + id);
+                }
+                else await store.RefreshProviderAsync(id).ConfigureAwait(true);
+            };
             button.MouseEnter += (_, _) => OpenProvider(id);
             button.MouseLeave += (_, _) => hoverClear.Start();
             button.LostKeyboardFocus += (_, _) => hoverClear.Start();

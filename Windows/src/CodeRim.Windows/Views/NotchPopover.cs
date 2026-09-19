@@ -71,7 +71,13 @@ internal static class NotchPopover
             foreach (var session in sessions.Take(6))
             {
                 var state = session.State switch { "busy" => "working", "waiting" => "waiting", _ => "idle" };
-                content.Children.Add(Row(session.Name, state, session.State == "busy" ? Ui.Brush("#00FF88") : Secondary));
+                var open = PlainButton("Open " + session.Name, () =>
+                {
+                    if (!SessionFocus.Activate(session)) navigate("sessions:" + id);
+                });
+                open.Content = Row(session.Name, state, session.State == "busy" ? Ui.Brush("#00FF88") : Secondary);
+                System.Windows.Automation.AutomationProperties.SetName(open, "Open " + session.Name);
+                content.Children.Add(open);
                 content.Children.Add(Text(Age(session.Since), 9.5, Secondary));
             }
             if (sessions.Length > 6) content.Children.Add(PlainButton("View all " + sessions.Length + " sessions", () => navigate("sessions:" + id)));
