@@ -33,6 +33,7 @@ public sealed class UsageScanner
     private readonly long maximumBytesPerScan;
     private readonly long maximumTotalSourceBytes;
     private readonly TimeSpan maximumScanDuration;
+    private readonly Action<string>? sourceParsed;
     private int invalidationGeneration;
     private int appliedInvalidationGeneration;
 
@@ -64,9 +65,11 @@ public sealed class UsageScanner
         long maximumSourceBytes,
         long maximumBytesPerScan,
         TimeSpan maximumScanDuration,
-        long maximumTotalSourceBytes = MaximumTotalSourceBytes)
+        long maximumTotalSourceBytes = MaximumTotalSourceBytes,
+        Action<string>? sourceParsed = null)
     {
         this.roots = (roots ?? DefaultRoots()).Select(Path.GetFullPath).ToArray();
+        this.sourceParsed = sourceParsed;
         this.maximumSourceCount = Math.Max(1, maximumSourceCount);
         this.maximumEventCount = Math.Max(1, maximumEventCount);
         this.maximumEventsPerSource = Math.Max(1, maximumEventsPerSource);
@@ -200,6 +203,7 @@ public sealed class UsageScanner
                     break;
                 }
 
+                sourceParsed?.Invoke(source);
                 var after = FileStamp.Read(source);
                 var changed = before != after;
                 var sameFile = parsed.Identity == FileIdentity.TryRead(source);

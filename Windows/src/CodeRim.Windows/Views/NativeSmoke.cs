@@ -79,7 +79,8 @@ internal static class NativeSmoke
             Require(hooks.GetProperty("Stop").GetArrayLength() == 1 && hooks.GetProperty("SessionStart").GetArrayLength() == 1, "Claude setup duplicated or discarded hooks");
             var command = ClaudeHookInstaller.Command("claude-status").Split(' ', StringSplitOptions.RemoveEmptyEntries);
             var result = await BoundedProcess.RunAsync(Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"),
-                command.Skip(1), """{"session_id":"synthetic-unregistered","rate_limits":{"five_hour":{"used_percentage":53}}}""");
+                command.Skip(1), """{"session_id":"synthetic-unregistered","rate_limits":{"five_hour":{"used_percentage":53}}}""",
+                timeout: TimeSpan.FromSeconds(45));
             Require(result.Contains("53%", StringComparison.Ordinal), "Installed Claude command did not read stdin");
             Record("Claude installation preserves settings, is idempotent, and executes its Windows command with stdin");
         }
