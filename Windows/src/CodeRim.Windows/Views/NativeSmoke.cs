@@ -256,6 +256,16 @@ internal static class NativeSmoke
         var gearPoint = gear.PointToScreen(new Point(gear.ActualWidth / 2, gear.ActualHeight / 2));
         System.Windows.Forms.Cursor.Position = new System.Drawing.Point((int)gearPoint.X, (int)gearPoint.Y);
         await Task.Delay(400); await Idle();
+        if (!gear.IsMouseOver)
+        {
+            // Hosted Windows runners may have no interactive input desktop.
+            // Exercise the real routed handler and label this as synthetic input;
+            // do not call the popup dismissal method from the test.
+            Record("Pointer input desktop unavailable; control hover uses a routed MouseEnter event");
+            gear.RaiseEvent(new System.Windows.Input.MouseEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0)
+                { RoutedEvent = System.Windows.Input.Mouse.MouseEnterEvent });
+            await Idle();
+        }
         Require(!notch.PopupIsOpen, "Provider card remains open over notch controls");
         Require(notch.Expanded, "Clearing provider hover unexpectedly folded always-visible notch");
         Record("Leaving provider ring for controls clears card independently of notch visibility");
