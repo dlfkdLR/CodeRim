@@ -993,6 +993,12 @@ actor SQLiteDatabase {
     }
 
 #if DEBUG
+    func prepareVersion15ImageFixtureForTesting() throws {
+        try execute("UPDATE parsing_state SET image_attachment_count = 0 WHERE inherits_history = 1")
+        try execute("UPDATE session_metadata SET image_attachment_count = 0 WHERE parent_session_id IS NOT NULL")
+        try execute("PRAGMA user_version = 15")
+    }
+
     func prepareVersion14FixtureForTesting() throws {
         try execute("PRAGMA user_version = 14")
     }
@@ -1358,7 +1364,7 @@ actor SQLiteDatabase {
 
     private static func migrate(_ database: OpaquePointer) throws {
         var version = try userVersion(database)
-        guard version <= 15 else {
+        guard version <= 16 else {
             throw SQLiteDatabaseError.migration("database schema is newer than this app supports")
         }
 
@@ -1420,6 +1426,10 @@ actor SQLiteDatabase {
         }
         if version == 14 {
             try migrateToVersion15(database)
+            version = 15
+        }
+        if version == 15 {
+            try migrateToVersion16(database)
         }
     }
 
@@ -1973,6 +1983,61 @@ actor SQLiteDatabase {
                 on: database
             )
             try execute("PRAGMA user_version = 15", on: database)
+            try execute("COMMIT", on: database)
+        } catch {
+            try? execute("ROLLBACK", on: database)
+            throw error
+        }
+    }
+
+    private static func migrateToVersion16(_ database: OpaquePointer) throws {
+        try execute("BEGIN IMMEDIATE", on: database)
+        do {
+            if try userVersion(database) >= 16 {
+                try execute("COMMIT", on: database)
+                return
+            }
+            // Replay only inherited sessions whose first new image was previously
+            // skipped. Retain accounting rows and absent-source metadata; semantic
+            // event keys prevent replay from adding token deltas a second time.
+            try execute(
+                """
+                INSERT OR IGNORE INTO analytics_backfill_sources(source_path)
+                SELECT source_path FROM parsing_state WHERE inherits_history = 1
+                """, on: database
+            )
+            try execute(
+                """
+                DELETE FROM session_counters WHERE session_id IN (
+                    SELECT session_id FROM parsing_state WHERE inherits_history = 1
+                )
+                """, on: database
+            )
+            try execute(
+                """
+                UPDATE parsing_state
+                SET generation = MAX(
+                        generation + 1,
+                        COALESCE((SELECT MAX(usage_events.source_generation) + 1
+                            FROM usage_events WHERE usage_events.source_path = parsing_state.source_path),
+                            generation + 1)
+                    ),
+                    committed_offset = 0, skipping_oversized_line = 0,
+                    observed_size = 0, modification_time_ns = 0, content_fingerprint = '',
+                    has_pending_import = 1, session_id = NULL, inherits_history = 0,
+                    session_started_at = NULL, inherited_history_end_ordinal = NULL,
+                    history_replay_complete = 1, model = NULL, project_path = NULL,
+                    parent_session_id = NULL, project_name = NULL, image_attachment_count = 0
+                WHERE inherits_history = 1
+                """, on: database
+            )
+            try execute(
+                """
+                INSERT INTO app_metadata(key, value) VALUES('data_epoch', '1')
+                ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1
+                """, on: database
+            )
+            try execute("PRAGMA user_version = 16", on: database)
             try execute("COMMIT", on: database)
         } catch {
             try? execute("ROLLBACK", on: database)

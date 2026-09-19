@@ -224,7 +224,7 @@ internal sealed class UsagePane : StackPanel
     }
     private void Limits()
     {
-        var reading = store.Readings.GetValueOrDefault(provider)?.Evaluated(DateTimeOffset.Now);
+        var reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(provider)?.Evaluated(DateTimeOffset.Now), settings.Current);
         readings.Children.Add(Ui.Text(reading?.Plan ?? ProviderCatalog.Find(provider)?.Name ?? provider, 18, weight: FontWeights.SemiBold));
         foreach (var window in reading?.Windows ?? [])
         {
@@ -278,6 +278,28 @@ internal sealed class UsagePane : StackPanel
             }
             if (groups.Length > visibleRows) readings.Children.Add(Ui.Button("Show more (" + (groups.Length - visibleRows) + " remaining)", () => { visibleRows += 40; Update(); }));
             return;
+        }
+        if (session is not null)
+        {
+            var detail = store.SessionDetails.GetValueOrDefault(provider)?.FirstOrDefault(x => x.Id == session);
+            if (settings.Current.AgentDetailsEnabled)
+            {
+                var visibleSessions = (store.Events.GetValueOrDefault(provider) ?? []).Select(x => x.SessionId).ToHashSet(StringComparer.Ordinal);
+                var children = (store.SessionDetails.GetValueOrDefault(provider) ?? []).Where(x => x.ParentId == session && visibleSessions.Contains(x.Id)).ToArray();
+                readings.Children.Add(Ui.Row("Direct sub-agents", children.Length.ToString(CultureInfo.CurrentCulture)));
+                foreach (var child in children)
+                {
+                    var target = child.Id;
+                    readings.Children.Add(Ui.Button("Sub-agent " + target[..Math.Min(12, target.Length)],
+                        () => Forward("sessions", selectedSession: target)));
+                }
+                if (children.Length > 0) readings.Children.Add(Ui.Text("Sub-agent tokens are separate from this total.", 11, "#A6A6AA"));
+            }
+            if (settings.Current.AttachmentMetadataEnabled && provider == "codex")
+            {
+                readings.Children.Add(Ui.Row("Whole-session images", detail is null ? "Unavailable" : detail.Attachments.Sum(x => (long)x.Count).ToString(CultureInfo.CurrentCulture)));
+                readings.Children.Add(Ui.Text("Whole-session metadata after the history cutoff; image contents are never stored. Local metadata may be incomplete.", 11, "#A6A6AA"));
+            }
         }
         var totals = events.Aggregate(TokenUsage.Zero, (sum, x) => sum.Add(x.Usage)); Breakdown(readings, totals);
         var cost = UsageAnalytics.Estimate(events);

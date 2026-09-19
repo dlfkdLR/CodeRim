@@ -21,6 +21,7 @@ internal sealed class ProviderConnections : IDisposable
             if (id == "jetbrains") return JetBrainsQuota.Read(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "JetBrains"));
             if (id == "codex")
             {
+                if (!settings.AccountLimitsEnabled) return new(id, ReadingState.Disabled, [], Message: "Account limits are turned off in Settings.");
                 var executable = settings.CodexExecutable ?? ResolveCodex();
                 if (executable is null) return new(id, ReadingState.NeedsAuth, [], Message: "Install Codex and sign in, or select codex.exe in Settings.");
                 var result = await AppServerClient.ReadAsync(executable, "account/rateLimits/read", token).ConfigureAwait(false);

@@ -95,7 +95,24 @@ internal sealed partial class DashboardWindow : Window
         System.Windows.Automation.AutomationProperties.SetName(sidebar, "Settings sections");
         sidebar.SelectedItem = sidebar.Items.OfType<ListBoxItem>().FirstOrDefault(x => Equals(x.Tag, ProviderCatalog.Find(page) is not null ? "providers" : page)); refreshingSidebar = false;
     }
-    private void SettingsChanged(object? sender, EventArgs e) { BuildSidebar(); }
+    private void SettingsChanged(object? sender, EventArgs e)
+    {
+        BuildSidebar();
+        if (ProviderCatalog.Find(page) is not null) { UpdateProviderReading(page); UpdateProviderControlStates(); }
+    }
+    private void UpdateProviderControlStates()
+    {
+        foreach (var toggle in VisualChildren<CheckBox>(body))
+            toggle.IsEnabled = System.Windows.Automation.AutomationProperties.GetName(toggle) switch
+            {
+                "Show additional limits" or "Show reset credits" => settings.Current.AccountLimitsEnabled,
+                "Show estimated API-equivalent cost" => settings.Current.AnalyticsEnabled && page == "codex",
+                "Show projects" or "Show sessions" => settings.Current.AnalyticsEnabled,
+                "Show agent details" => settings.Current.AnalyticsEnabled && settings.Current.SessionsEnabled,
+                "Show attachment metadata" => settings.Current.AnalyticsEnabled && settings.Current.SessionsEnabled && page == "codex",
+                _ => true
+            };
+    }
     private void StoreChanged(object? sender, PropertyChangedEventArgs e)
     {
         status.Text = store.IsRefreshing ? "Refreshing…" : store.Status;
@@ -318,19 +335,44 @@ internal sealed partial class DashboardWindow : Window
     {
         var provider = ProviderCatalog.Find(id); if (provider is null) { Navigate("providers"); return; }
         body.Children.Add(SettingsUi.Action("‹ All Providers", () => Navigate("providers")));
-        Heading(provider.Name, provider.Summary);
+        var header = new DockPanel { Margin = new Thickness(14) };
+        var refresh = Ui.AsyncButton("↻", () => store.RefreshProviderAsync(id));
+        System.Windows.Automation.AutomationProperties.SetName(refresh, "Refresh " + provider.Name);
+        DockPanel.SetDock(refresh, Dock.Right); header.Children.Add(refresh);
+        var mark = new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(8),
+            Background = Ui.Brush(id == "codex" ? "#30D158" : "#454545"),
+            Margin = new Thickness(0, 0, 12, 0), Child = new ProviderMark { ProviderId = id, Margin = new Thickness(6) } };
+        DockPanel.SetDock(mark, Dock.Left); header.Children.Add(mark);
+        var headerText = new StackPanel();
+        headerText.Children.Add(Ui.Text(provider.Name, 16, weight: FontWeights.SemiBold));
+        headerText.Children.Add(Ui.Text(store.Readings.GetValueOrDefault(id)?.State.ToString() ?? "Available", 12, "#A6A6AA"));
+        header.Children.Add(headerText);
+        var headerCard = new Border { Child = header, CornerRadius = new CornerRadius(12), Margin = new Thickness(18, 0, 18, 4) };
+        headerCard.SetResourceReference(Border.BackgroundProperty, "CardBackground"); body.Children.Add(headerCard);
+        if (id is "codex" or "claude")
+            body.Children.Add(SettingsUi.Section("Account",
+                SettingsUi.Value("Account", SavedAccounts.CurrentAccountLabel(id, store.Synthetic) ?? "Not connected"),
+                SettingsUi.Value("Plan", store.Readings.GetValueOrDefault(id)?.Plan ?? "Unavailable"),
+                SettingsUi.Action("Manage Accounts…", () => Navigate(id + "-accounts"))));
+        if (id == "codex")
+            body.Children.Add(SettingsUi.Section("Limits",
+                SettingsUi.Toggle("Show account limits", settings.Current.AccountLimitsEnabled, x => { Save(settings.Current with { AccountLimitsEnabled = x }); _ = store.RefreshProviderAsync(id); }),
+                SettingsUi.Toggle("Show additional limits", settings.Current.AdditionalLimitsEnabled, x => Save(settings.Current with { AdditionalLimitsEnabled = x })),
+                SettingsUi.Toggle("Show reset credits", settings.Current.ResetCreditsEnabled, x => Save(settings.Current with { ResetCreditsEnabled = x }))));
         if (provider.HasLocalHistory)
         {
-            body.Children.Add(SettingsUi.Section("Analytics",
-                SettingsUi.Toggle("Enable analytics", settings.Current.AnalyticsEnabled, x => Save(settings.Current with { AnalyticsEnabled = x })),
-                SettingsUi.Toggle("Show estimated API costs", settings.Current.CostEstimatesEnabled, x => Save(settings.Current with { CostEstimatesEnabled = x })),
+            body.Children.Add(SettingsUi.Section("Usage Analytics",
+                SettingsUi.Toggle("Show usage analytics", settings.Current.AnalyticsEnabled, x => Save(settings.Current with { AnalyticsEnabled = x })),
+                SettingsUi.Toggle("Show estimated API-equivalent cost", settings.Current.CostEstimatesEnabled, x => Save(settings.Current with { CostEstimatesEnabled = x })),
                 SettingsUi.Toggle("Show projects", settings.Current.ProjectsEnabled, x => Save(settings.Current with { ProjectsEnabled = x })),
-                SettingsUi.Toggle("Show sessions", settings.Current.SessionsEnabled, x => Save(settings.Current with { SessionsEnabled = x }))));
+                SettingsUi.Toggle("Show sessions", settings.Current.SessionsEnabled, x => Save(settings.Current with { SessionsEnabled = x })),
+                SettingsUi.Toggle("Show agent details", settings.Current.AgentDetailsEnabled, x => Save(settings.Current with { AgentDetailsEnabled = x })),
+                SettingsUi.Toggle("Show attachment metadata", settings.Current.AttachmentMetadataEnabled, x => Save(settings.Current with { AttachmentMetadataEnabled = x }))));
         }
         body.Children.Add(providerReading); UpdateProviderReading(id);
         var actions = new WrapPanel(); actions.Children.Add(Ui.AsyncButton("Refresh", () => store.RefreshProviderAsync(id)));
         actions.Children.Add(Ui.Button("Setup guide", () => OpenUrl(provider.GuideUrl))); body.Children.Add(actions);
-        if (id is "codex" or "claude") body.Children.Add(Ui.Button("Manage accounts…", () => Navigate(id + "-accounts")));
+
         Ui.Section(body, "Connection");
         if (id == "codex")
         {
@@ -410,10 +452,14 @@ internal sealed partial class DashboardWindow : Window
                 { store.Clear(id); _ = store.RefreshAsync(); }
             }));
         }
+        foreach (var child in body.Children.OfType<FrameworkElement>())
+            if (child.Margin.Left == 0 && child.Margin.Right == 0)
+                child.Margin = new Thickness(18, child.Margin.Top, 18, child.Margin.Bottom);
+        UpdateProviderControlStates();
     }
     private void UpdateProviderReading(string id)
     {
-        providerReading.Children.Clear(); var reading = store.Readings.GetValueOrDefault(id);
+        providerReading.Children.Clear(); var reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(id), settings.Current);
         providerReading.Children.Add(Ui.Text(reading?.Message ?? reading?.State.ToString() ?? "Waiting for the first reading", color: "#B7B8BD"));
         foreach (var window in reading?.Windows ?? []) providerReading.Children.Add(Ui.Row(window.Name, window.UsedPercent is { } p ? $"{p:0.#}% used" + (window.DisplayValue is { } description ? " · " + description : "") : window.DisplayValue ?? "—"));
     }
@@ -475,10 +521,19 @@ internal sealed partial class DashboardWindow : Window
     }
     private void About()
     {
-        Heading("CodeRim", "Coding-assistant limits at the edge of your screen.");
-        body.Children.Add(Ui.Text("Windows · " + ReleaseUpdates.CurrentVersion, 18)); body.Children.Add(Ui.Text("Native WPF app · .NET 10 · MIT license"));
+        var identity = new StackPanel { Margin = new Thickness(18, 14, 18, 10), HorizontalAlignment = HorizontalAlignment.Center };
+        identity.Children.Add(new Image { Width = 60, Height = 60, Margin = new Thickness(0, 0, 0, 12),
+            Source = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Assets/CodeRim.ico")) });
+        identity.Children.Add(Ui.Text("CodeRim", 22, weight: FontWeights.SemiBold));
+        identity.Children.Add(Ui.Text("Version " + ReleaseUpdates.CurrentVersion, 14, "#A6A6AA"));
+        body.Children.Add(identity);
+        body.Children.Add(SettingsUi.Section("Application",
+            SettingsUi.Value("Version", ReleaseUpdates.CurrentVersion.ToString()),
+            SettingsUi.Value("Platform", "Windows · " + UpdateNotifications.Architecture),
+            SettingsUi.Value("Data scope", "Local history + optional account limits"),
+            SettingsUi.Value("Privacy", "Local numeric history; encrypted credentials")));
         var updateStatus = Ui.Text("", 12, "#A6A6AA");
-        body.Children.Add(Ui.AsyncButton("Check for updates", async () =>
+        var checkUpdate = Ui.AsyncButton("Check for updates", async () =>
         {
             updateStatus.Text = "Checking…";
             try
@@ -489,11 +544,17 @@ internal sealed partial class DashboardWindow : Window
                     OpenUrl(update.Download.AbsoluteUri);
             }
             catch (Exception error) when (error is not OutOfMemoryException) { updateStatus.Text = "Could not check Windows updates. Try again or open the releases page."; }
-        }));
-        body.Children.Add(updateStatus);
-        body.Children.Add(Ui.Button("Open releases", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/releases")));
-        body.Children.Add(Ui.Button("Windows documentation", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/WINDOWS.md")));
-        Ui.Section(body, "Credits"); body.Children.Add(Ui.Text("Notch design and supporting code: Codenotch, MIT © 2026 Vinz. Provider reference integrations: CodexBar. Provider logos belong to their respective owners. See the bundled LICENSE and NOTICE."));
+        });
+        checkUpdate.HorizontalAlignment = HorizontalAlignment.Left; checkUpdate.Margin = new Thickness(14, 9, 14, 9);
+        body.Children.Add(SettingsUi.Section("Updates", checkUpdate));
+        updateStatus.Margin = new Thickness(32, 6, 32, 0); body.Children.Add(updateStatus);
+        body.Children.Add(SettingsUi.Note("Checks GitHub releases. Token usage data is never sent. Installation is manual."));
+        body.Children.Add(SettingsUi.Section("Project",
+            SettingsUi.Action("Open Source on GitHub", () => OpenUrl("https://github.com/dlfkdLR/CodeRim")),
+            SettingsUi.Action("View Releases", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/releases")),
+            SettingsUi.Action("Read MIT License", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/blob/main/LICENSE")),
+            SettingsUi.Action("Windows documentation", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/WINDOWS.md"))));
+        body.Children.Add(SettingsUi.Note("Notch design and supporting code: Codenotch, MIT © 2026 Vinz. Provider reference integrations: CodexBar. Provider logos belong to their respective owners. See the bundled LICENSE and NOTICE."));
     }
     private void OpenAccounts(string provider)
     {

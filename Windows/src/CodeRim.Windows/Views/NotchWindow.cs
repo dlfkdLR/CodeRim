@@ -134,7 +134,7 @@ internal sealed class NotchWindow : Window
     {
         foreach (var ring in rings)
         {
-            ring.Reading = store.Readings.GetValueOrDefault(ring.ProviderId)?.Evaluated(DateTimeOffset.Now);
+            ring.Reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(ring.ProviderId)?.Evaluated(DateTimeOffset.Now), settings.Current);
             ring.Active = store.Sessions.Any(x => x.Provider == ring.ProviderId && x.State == "busy");
             ring.Waiting = store.Sessions.Any(x => x.Provider == ring.ProviderId && x.State == "waiting");
             ring.Refreshing = store.RefreshingProviders.Contains(ring.ProviderId);
@@ -176,7 +176,7 @@ internal sealed class NotchWindow : Window
         var cells = new StackPanel { Orientation = Vertical ? Orientation.Vertical : Orientation.Horizontal };
         foreach (var id in config.EnabledProviders)
         {
-            var ring = new ProviderRing { ProviderId = id, Settings = config, Reading = store.Readings.GetValueOrDefault(id),
+            var ring = new ProviderRing { ProviderId = id, Settings = config, Reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(id), config),
                 Active = store.Sessions.Any(x => x.Provider == id && x.State == "busy"),
                 Waiting = store.Sessions.Any(x => x.Provider == id && x.State == "waiting") };
             rings.Add(ring);
@@ -242,7 +242,9 @@ internal sealed class NotchWindow : Window
         var button = new Button { Style = (Style)FindResource("IconButton"), Content = new TextBlock { Text = glyph,
             FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = 20, Foreground = Brushes.White },
             Margin = new Thickness(0, 2, 0, 2), ToolTip = label };
-        AutomationProperties.SetName(button, label); button.Click += (_, _) => action(); return button;
+        AutomationProperties.SetName(button, label);
+        button.MouseEnter += (_, _) => { if (!accountMenu) { hoverClear.Stop(); popup.IsOpen = false; hovered = null; } };
+        button.Click += (_, _) => action(); return button;
     }
     private static void AddMenu(ContextMenu menu, string label, Action action)
     {

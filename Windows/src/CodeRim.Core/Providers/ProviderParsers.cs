@@ -13,6 +13,13 @@ public static class ProviderParsers
         if (buckets.ValueKind == JsonValueKind.Object && buckets.EnumerateObject().Any())
             foreach (var pair in buckets.EnumerateObject()) AddCodexBucket(pair.Value, pair.Name, result);
         else AddCodexBucket(Get(root, "rateLimits"), "codex", result);
+        var credits = Get(root, "rateLimitResetCredits");
+        var count = Count(credits, "availableCount") ?? Count(credits, "count");
+        var unlimited = Get(credits, "unlimited").ValueKind == JsonValueKind.True;
+        var expiry = Date(Get(credits, "expiresAt")) ?? Date(Get(credits, "expiry")) ?? Date(Get(credits, "resetsAt"));
+        if (count is not null || unlimited || expiry is not null)
+            result.Add(new("rate-limit-reset-credits", "Reset credits", ResetsAt: expiry, RemainingCount: unlimited ? null : count,
+                Unit: "resets", DisplayValue: unlimited ? "Unlimited resets" : count is null ? "Reset count unavailable" : null));
         return result;
     }
     private static void AddCodexBucket(JsonElement bucket, string id, List<LimitWindow> result)

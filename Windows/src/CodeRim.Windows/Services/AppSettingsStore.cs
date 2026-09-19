@@ -16,6 +16,11 @@ public sealed record AppSettings(
     public bool DebugLogging { get; init; }
     public string FinishedSound { get; init; } = "Asterisk";
     public string BlockedSound { get; init; } = "Exclamation";
+    public bool AccountLimitsEnabled { get; init; } = true;
+    public bool AdditionalLimitsEnabled { get; init; } = true;
+    public bool ResetCreditsEnabled { get; init; } = true;
+    public bool AgentDetailsEnabled { get; init; } = true;
+    public bool AttachmentMetadataEnabled { get; init; } = true;
     public bool AnalyticsEnabled { get; init; } = true;
     public bool CostEstimatesEnabled { get; init; }
     public bool ProjectsEnabled { get; init; } = true;
@@ -168,6 +173,9 @@ public sealed class AppSettingsStore
             Accent = settings.Accent is { Length: 7 } accent && accent[0] == '#' && uint.TryParse(accent.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _) ? accent : "#00FF88",
             Gradient = settings.Gradient is "Aurora" or "Ocean" or "Sunset" or "Spectrum" ? settings.Gradient : "Aurora",
             Visibility = Enum.IsDefined(settings.Visibility) ? settings.Visibility : NotchVisibility.OnHover,
+            LastVisibleNotchMode = settings.LastVisibleNotchMode == NotchVisibility.AlwaysShow ? NotchVisibility.AlwaysShow : NotchVisibility.OnHover,
+            FinishedSound = SessionChime.Names.Contains(settings.FinishedSound, StringComparer.Ordinal) ? settings.FinishedSound : "Asterisk",
+            BlockedSound = SessionChime.Names.Contains(settings.BlockedSound, StringComparer.Ordinal) ? settings.BlockedSound : "Exclamation",
             Scale = settings.Scale is >= 0.8 and <= 1.25 ? settings.Scale : 1,
             Offset = double.IsFinite(settings.Offset) ? settings.Offset : 0
         };

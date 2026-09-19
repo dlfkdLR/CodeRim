@@ -15,7 +15,7 @@ CodeRim keeps coding-assistant usage limits, reset times, and session activity v
 | Feature | macOS | Windows preview |
 | --- | --- | --- |
 | Provider connections | 70 providers | 70 connection implementations |
-| Desktop interface | Menu bar and edge notch | Tray, dashboard, and edge notch |
+| Desktop interface | Menu bar, Settings, and edge notch | Tray, matching Settings sections, and edge notch |
 | Local Codex / Claude history | Token history, charts, and cost estimates | Token history, charts, and cost estimates |
 | Terminal CLI | Included | Included |
 | Saved account switching | Codex and Claude Code | Codex and Claude Code |
@@ -23,6 +23,8 @@ CodeRim keeps coding-assistant usage limits, reset times, and session activity v
 | Updates | Signed Sparkle updates | Release checks; manual ZIP installation |
 
 The matrix describes the current source. Local token history is scoped to this computer across accounts. See the [Windows capability matrix](Documentation/WINDOWS.md#remaining-parity-work) for individual provider status and remaining work.
+
+Both apps use the same six Settings sections and the same Usage, Projects, Sessions, and account navigation. Windows supports system light/dark themes, high contrast, manual refresh, limit visibility controls, session image counts and direct sub-agent navigation. Local images and conversation text are never copied into the usage database. OS-specific authentication and update behavior still differ; the matrix below describes those limits.
 
 ## Install
 

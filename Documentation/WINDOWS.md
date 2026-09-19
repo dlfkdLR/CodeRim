@@ -30,11 +30,13 @@ An existing status line is preserved unless you explicitly pass `-ReplaceExistin
 
 ## Implemented behavior
 
-- A macOS-aligned dark Settings/Usage layout, provider/account popovers, authentic provider glyphs, and a transparent four-edge notch with matching dimensions. Hover dismissal, pinning, keyboard dismissal, refresh feedback, and account navigation share the macOS interaction model.
-- Tray application, four-edge notch, hover/always/hidden modes, provider ordering, monitor selection, offset, three sizes, usage/fixed/gradient colors, remaining percentage, reduced motion, 80%/100% notifications, session completion sound.
+- The six macOS Settings sections (General, Usage, Providers, Notch, Diagnostics, Information), grouped provider controls, system light/dark/high-contrast themes, provider/account popovers, authentic provider glyphs, and a transparent four-edge notch with matching dimensions. Hover dismissal, pinning, keyboard dismissal, refresh feedback, and account navigation share the macOS interaction model.
+- Tray application, four-edge notch, hover/always/hidden modes, provider ordering, monitor selection, offset, three sizes, usage/fixed/gradient colors, remaining percentage, reduced motion, 80%/100% notifications, separate completion/blocked sounds. Manual refresh stops background timer and file-change refresh; explicit Refresh still reads current limits and local history.
+- Codex limit, additional-limit and reset-credit visibility switches; analytics/project/session switches; Codex whole-session image counts and direct sub-agent links. Reset credits retain their reset unit. Images are represented only by a count, timestamp and hashed identity, with no image contents or prompt text stored.
 - Codex and Claude local numeric history in SQLite, copied-history deduplication, cumulative counter handling, nullable cache-write information, durable clear cutoffs, Today/Week/Month/All-time periods, model/project/day/session breakdowns and daily chart.
 - Local history is labelled **This PC · Across accounts**. It is never attributed to an account quota. Cached input is already part of Input. Missing pricing or cache-write data is excluded from labelled cost subtotals. Rates come from the bundled macOS pricing snapshot, not a live bill.
 - Codex/Claude saved accounts, account-scoped cached quotas, stale response protection after account changes, and a Claude session bridge bound to the originating account. Local history is kept separate.
+- Diagnostics includes CLI installation, private bounded debug logs, log/data folder access, and source rescan.
 - Release checks and notifications link to the matching architecture's ZIP. Installation is still manual.
 - API keys, explicit cookies, and provider settings are stored with Windows DPAPI CurrentUser and a user-only directory ACL. Cookie readers currently require manual cookie entry; browser decryption/import is not implemented.
 - A bounded JavaScript host runs the 16 unchanged CodexBar provider scripts pinned in `Windows/ThirdParty/provider-hashes.json`. The host exposes declared HTTP origins and settings only, disables redirects/cookie persistence, and has request/size/time/memory/statement bounds. This is for bundled scripts, not arbitrary user plugins.
@@ -45,6 +47,12 @@ coderim tokens --provider codex --period today
 coderim limits --provider claude
 coderim --format json --watch 5
 ```
+
+## Regression coverage
+
+The scanner verifies the exact frozen prefix when a session log grows during import; a concurrent append cannot discard already parsed token totals. Rewrites and replacement files still require reparse. History clearing excludes both prior token and attachment identities, including copied archives. Image identity does not depend on physical line numbers or JSON whitespace.
+
+On macOS, inherited-session images after the logged replay boundary are now counted even before the first token event. Existing version 15 databases replay only affected inherited sessions while preserving accounting rows. Cursor account changes are checked again before publishing an asynchronous quota result.
 
 ## Remaining parity work
 
@@ -157,4 +165,4 @@ dotnet build Windows/CodeRim.Windows.sln --configuration Release
 ./Windows/artifacts/publish/win-x64/CodeRim.exe --smoke-test --capture dashboard.png
 ```
 
-The smoke test uses an isolated temporary directory and synthetic values. It does not connect accounts or read the user's chat history. It proves only native startup/rendering if executed on Windows; inspect the capture separately. The GitHub workflow packages both architectures and runs the x64 smoke test. Consult the release commit's workflow result for the native x64 verification status. ARM64 execution, tray interaction, multiple monitors, credentials and live provider responses need separate Windows verification.
+The smoke test uses an isolated temporary directory and synthetic values. It does not connect accounts or read the user's chat history. It proves only native startup/rendering if executed on Windows; inspect the capture separately. The GitHub workflow packages both architectures and runs the x64 smoke test. Consult the release commit's workflow result for the native x64 verification status. The x64 checks also cover minimum-size light/dark/high-contrast layouts, popup dismissal, provider removal/navigation state, keyboard focus, image/sub-agent controls, isolated DPAPI/ACL storage, CLI PATH idempotence and Claude hook preservation. ARM64 execution, physical mixed-DPI monitors and live provider responses still need separate Windows verification.

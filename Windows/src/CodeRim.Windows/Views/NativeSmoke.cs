@@ -150,6 +150,33 @@ internal static class NativeSmoke
         Record("Removing a provider clears its navigation and filters");
 
 
+        dashboard.Navigate("codex"); await Idle();
+        var limitsToggle = Descendants<CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Show account limits");
+        limitsToggle.IsChecked = false; await Idle();
+        Require(!Descendants<CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Show reset credits").IsEnabled, "Limit dependent controls stayed enabled");
+        Require(ProviderDisplayPolicy.Apply(store.Readings["codex"], settings.Current) is { State: ReadingState.Disabled, Windows.Count: 0 }, "Disabled Codex limits remained visible");
+        limitsToggle.IsChecked = true; await Idle();
+        settings.Save(settings.Current with { AdditionalLimitsEnabled = false, ResetCreditsEnabled = false });
+        var filteredLimits = ProviderDisplayPolicy.Apply(store.Readings["codex"], settings.Current)!;
+        Require(filteredLimits.Windows.Count == 2 && filteredLimits.Windows.All(x => x.Id is "session" or "weekly"), "Additional/reset limit filters ignored");
+        settings.Save(settings.Current with { AdditionalLimitsEnabled = true, ResetCreditsEnabled = true });
+        Record("Codex limit switches filter all surfaces and dependent controls follow parent setting");
+        dashboard.Navigate("sessions:codex"); await Idle();
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => (AutomationProperties.GetName(x) ?? "").StartsWith("preview-session:", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        await Idle();
+        Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Whole-session images"), "Session image metadata is absent");
+        var childButton = Descendants<System.Windows.Controls.Button>(dashboard).Single(x => (x.Content as string ?? "").StartsWith("Sub-agent preview-", StringComparison.Ordinal));
+        Capture(dashboard, Path.Combine(directory, "windows-session-details.png"));
+        childButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "120"), "Sub-agent navigation did not show its own total");
+        settings.Save(settings.Current with { AgentDetailsEnabled = false, AttachmentMetadataEnabled = false });
+        dashboard.Navigate("providers"); dashboard.Navigate("sessions:codex"); await Idle();
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => (AutomationProperties.GetName(x) ?? "").StartsWith("preview-session:", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        Require(!Descendants<TextBlock>(dashboard).Any(x => x.Text is "Whole-session images" or "Direct sub-agents"), "Disabled session metadata remained visible");
+        settings.Save(settings.Current with { AgentDetailsEnabled = true, AttachmentMetadataEnabled = true });
+        dashboard.Navigate("usage"); await Idle();
+        Record("Session image counts, direct sub-agent navigation, and metadata visibility switches");
+
         dashboard.Navigate("codex-accounts"); await Idle();
         var accountsWindow = System.Windows.Application.Current.Windows.OfType<Window>().Single(x => x != dashboard && x.Content is AccountsPane);
         accountsWindow.Width = 500; accountsWindow.Height = 300; await Idle();
@@ -213,10 +240,18 @@ internal static class NativeSmoke
             Record($"{edge} at {scale:0.00}: no clipped single provider or native scroll chrome");
         }
         System.Windows.Input.Keyboard.ClearFocus();
+        if (notch.PopupContent is { } priorPopup)
+            priorPopup.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, PresentationSource.FromVisual(priorPopup)!, 0, System.Windows.Input.Key.Escape)
+                { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent });
+        await Idle();
+        var ringTarget = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.provider.codex");
+        var ringPoint = ringTarget.PointToScreen(new Point(ringTarget.ActualWidth / 2, ringTarget.ActualHeight / 2));
+        System.Windows.Forms.Cursor.Position = new System.Drawing.Point((int)ringPoint.X, (int)ringPoint.Y);
+        await Task.Delay(100); await Idle(); notch.OpenProvider("codex"); await Idle();
         var gear = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetName(x) == "Open Settings");
         var gearPoint = gear.PointToScreen(new Point(gear.ActualWidth / 2, gear.ActualHeight / 2));
         System.Windows.Forms.Cursor.Position = new System.Drawing.Point((int)gearPoint.X, (int)gearPoint.Y);
-        notch.OpenProvider("codex"); await Idle();
+        await Task.Delay(400); await Idle();
         notch.DismissProviderCard(); await Idle();
         Require(!notch.PopupIsOpen, "Provider card remains open over notch controls");
         Require(notch.Expanded, "Clearing provider hover unexpectedly folded always-visible notch");
