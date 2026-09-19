@@ -34,7 +34,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     public string Status { get; private set; } = "Reading local usage…";
     public event PropertyChangedEventHandler? PropertyChanged;
     public event Action<ProviderReading>? ReadingUpdated;
-    public event Action? SessionCompleted;
+    public event Action? SessionAttentionRequested;
     public bool Synthetic { get; }
     public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false)
     {
@@ -98,16 +98,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
                 pendingRefresh = false;
                 var enabled = settings.Current.EnabledProviders.ToArray();
                 if (Synthetic) { SeedPreview(); return; }
-                var previousSessions = Sessions;
-                Sessions = await Task.Run(() => ReadSessions(enabled), lifetime.Token).ConfigureAwait(true);
-                if (Sessions.Any(x => x.State == "idle" && previousSessions.Any(old => old.Id == x.Id && old.State == "busy")))
-                {
-                    if (settings.Current.CompletionSound) SessionChime.Play(settings.Current.FinishedSound);
-                    SessionCompleted?.Invoke();
-                }
-                if (settings.Current.CompletionSound && Sessions.Any(x => x.State == "waiting"
-                    && previousSessions.Any(old => old.Id == x.Id && old.State == "busy")))
-                    SessionChime.Play(settings.Current.BlockedSound);
+                UpdateSessionActivity(await Task.Run(() => ReadSessions(enabled), lifetime.Token).ConfigureAwait(true));
                 Changed();
                 foreach (var id in enabled.Where(scanners.ContainsKey))
                 {
@@ -207,6 +198,20 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
                 new("rate-limit-reset-credits", "Reset credits", null, RemainingCount: 2, Unit: "resets", DisplayValue: "2 resets remaining")] };
         Status = "Synthetic Windows UI verification";
     }
+    internal void UpdateSessionActivity(IReadOnlyList<SessionActivity> current)
+    {
+        var previous = Sessions;
+        Sessions = current;
+        var finished = current.Any(x => x.State == "idle" && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"));
+        var blocked = current.Any(x => x.State == "waiting" && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"));
+        if (settings.Current.CompletionSound)
+        {
+            if (finished) SessionChime.Play(settings.Current.FinishedSound);
+            else if (blocked) SessionChime.Play(settings.Current.BlockedSound);
+        }
+        if (finished || blocked) SessionAttentionRequested?.Invoke();
+    }
+
     private static List<SessionActivity> ReadSessions(string[] enabled)
     {
         var sessions = new List<SessionActivity>();

@@ -256,7 +256,6 @@ internal static class NativeSmoke
         var gearPoint = gear.PointToScreen(new Point(gear.ActualWidth / 2, gear.ActualHeight / 2));
         System.Windows.Forms.Cursor.Position = new System.Drawing.Point((int)gearPoint.X, (int)gearPoint.Y);
         await Task.Delay(400); await Idle();
-        notch.DismissProviderCard(); await Idle();
         Require(!notch.PopupIsOpen, "Provider card remains open over notch controls");
         Require(notch.Expanded, "Clearing provider hover unexpectedly folded always-visible notch");
         Record("Leaving provider ring for controls clears card independently of notch visibility");
@@ -286,6 +285,21 @@ internal static class NativeSmoke
         notch.TryFold(); await Idle();
         Capture(notch, Path.Combine(directory, "windows-notch-folded.png"));
         Require(!notch.Expanded, "Notch did not fold"); Record("Hover notch folds");
+        settings.Save(settings.Current with { CompletionSound = false, PeekOnCompletion = true });
+        var attentionEvents = 0;
+        void Attention() => attentionEvents++;
+        store.SessionAttentionRequested += Attention;
+        var activity = new SessionActivity("preview-transition", "claude", "Preview", "busy", DateTimeOffset.Now);
+        store.UpdateSessionActivity([activity]);
+        store.UpdateSessionActivity([activity with { State = "waiting" }]); await Idle();
+        Require(attentionEvents == 1 && notch.Expanded, "Blocked session did not peek when sounds are off");
+        store.UpdateSessionActivity([activity with { State = "waiting" }]);
+        Require(attentionEvents == 1, "Unchanged blocked state repeated attention");
+        store.UpdateSessionActivity([activity]);
+        store.UpdateSessionActivity([activity with { State = "idle" }]);
+        Require(attentionEvents == 2, "Finished session did not request attention");
+        store.SessionAttentionRequested -= Attention;
+        Record("Blocked and finished sessions peek independently of sound, without duplicate alerts");
         File.WriteAllText(Path.Combine(directory, "windows-ui-checks.json"), JsonSerializer.Serialize(new { kind = "Native WPF synthetic integration", checks }, JsonOptions));
     }
     private static async Task Idle() => await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);

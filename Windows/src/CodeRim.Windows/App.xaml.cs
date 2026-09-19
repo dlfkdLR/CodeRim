@@ -46,7 +46,7 @@ public partial class App : System.Windows.Application
         notch = new NotchWindow(store, settings, ShowSettings);
         tray = new TrayIconHost(() => ShowSettings("usage"), () => _ = store.RefreshAsync(true), () => ShowSettings(null), ShutdownApplication);
         tray.ShowNotchRequested += () => { settings.Save(settings.Current with { Visibility = NotchVisibility.OnHover }); notch.Peek(); };
-        store.SessionCompleted += () => { if (settings.Current.PeekOnCompletion) notch.Peek(); };
+        store.SessionAttentionRequested += () => { if (settings.Current.PeekOnCompletion) notch.Peek(); };
         store.ReadingUpdated += reading => { if (settings.Current.AlertsEnabled && !settings.Current.MutedAlertProviders.Contains(reading.Id, StringComparer.Ordinal)) foreach (var threshold in thresholds.Observe(reading, DateTimeOffset.Now)) tray.Notify(ProviderCatalog.Find(reading.Id)?.Name ?? reading.Id, threshold == 100 ? "Usage limit reached." : "Usage has reached 80%."); };
         settings.SettingsChanged += (_, _) => ConfigureTimer();
         timer.Tick += (_, _) => { watcher?.Rebuild(); _ = store.RefreshAsync(); };

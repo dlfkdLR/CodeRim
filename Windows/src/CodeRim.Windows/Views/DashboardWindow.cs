@@ -98,6 +98,11 @@ internal sealed partial class DashboardWindow : Window
     private void SettingsChanged(object? sender, EventArgs e)
     {
         BuildSidebar();
+        if (page == "general")
+        {
+            var statusLabel = VisualChildren<TextBlock>(body).FirstOrDefault(x => System.Windows.Automation.AutomationProperties.GetAutomationId(x) == "startup.status");
+            if (statusLabel is not null) statusLabel.Text = settings.Current.LaunchAtLogin ? "Enabled" : "Disabled";
+        }
         if (ProviderCatalog.Find(page) is not null) { UpdateProviderReading(page); UpdateProviderControlStates(); }
     }
     private void UpdateProviderControlStates()
@@ -181,9 +186,11 @@ internal sealed partial class DashboardWindow : Window
     }
     private void General()
     {
+        var startupStatus = Ui.Text(settings.Current.LaunchAtLogin ? "Enabled" : "Disabled", 13, "#A6A6AA");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(startupStatus, "startup.status");
         body.Children.Add(SettingsUi.Section("Startup",
             SettingsUi.Toggle("Launch at Login", settings.Current.LaunchAtLogin, x => Save(settings.Current with { LaunchAtLogin = x })),
-            SettingsUi.Value("Status", settings.Current.LaunchAtLogin ? "Enabled" : "Disabled")));
+            SettingsUi.Row("Status", startupStatus)));
         body.Children.Add(SettingsUi.Section("Refresh", SettingsUi.Picker("Mode", RefreshOptions, settings.Current.RefreshIntervalSeconds, x => Save(settings.Current with { RefreshIntervalSeconds = x }))));
         body.Children.Add(SettingsUi.Note("Automatic reacts to session changes with a one-minute fallback check."));
         body.Children.Add(SettingsUi.Section("Updates", SettingsUi.Toggle("Automatically check for updates", settings.Current.CheckForUpdates, x => Save(settings.Current with { CheckForUpdates = x }))));
