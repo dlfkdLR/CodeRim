@@ -76,7 +76,7 @@ internal sealed class DashboardWindow : Window
     private void StoreChanged(object? sender, PropertyChangedEventArgs e)
     {
         status.Text = store.IsRefreshing ? "Refreshing…" : store.Status;
-        if (page == "usage") usagePane?.Update();
+        if (page == "usage") usagePane?.RefreshReadings();
         else if (ProviderCatalog.Find(page) is not null) UpdateProviderReading(page);
     }
     private void Render()

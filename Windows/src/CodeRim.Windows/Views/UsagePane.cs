@@ -25,6 +25,12 @@ internal sealed class UsagePane : StackPanel
     private string? project;
     private string? session;
     private int visibleRows = 40;
+    private bool pendingRefresh;
+    internal void RefreshReadings()
+    {
+        if (readings.IsKeyboardFocusWithin) { pendingRefresh = true; return; }
+        pendingRefresh = false; Update();
+    }
     internal UsagePane(DashboardStore store, AppSettingsStore settings, string provider, Action<string?> navigate)
     {
         this.store = store; this.settings = settings; this.provider = provider; this.navigate = navigate;
@@ -39,7 +45,9 @@ internal sealed class UsagePane : StackPanel
         System.Windows.Automation.AutomationProperties.SetName(select, "Usage provider");
         select.SelectionChanged += (_, _) => { if (select.SelectedValue is string id) { this.provider = id; destination = "overview"; project = session = null; BuildControls(); Update(); } };
         header.Children.Add(select); Children.Add(header);
-        Children.Add(controls); Children.Add(readings); BuildControls(); Update();
+        Children.Add(controls); Children.Add(readings);
+        readings.LostKeyboardFocus += (_, _) => Dispatcher.BeginInvoke(new Action(() => { if (pendingRefresh && !readings.IsKeyboardFocusWithin) RefreshReadings(); }));
+        BuildControls(); Update();
     }
     internal void ShowSessions() { destination = "sessions"; period = "all-time"; BuildControls(); Update(); }
     private void BuildControls()
@@ -102,17 +110,34 @@ internal sealed class UsagePane : StackPanel
             panel.Children.Add(Ui.Text(TokenFormatter.Format(value.Item3.TotalTokens, settings.Current.NumberStyle), 21, weight: FontWeights.SemiBold));
             var button = Ui.Button("", () => { period = value.Item2; destination = "activity"; BuildControls(); Update(); });
             System.Windows.Automation.AutomationProperties.SetName(button, value.Item1 + ": " + value.Item3.TotalTokens.ToString(CultureInfo.CurrentCulture) + " tokens");
-            button.Content = panel; button.HorizontalContentAlignment = HorizontalAlignment.Left; Grid.SetColumn(button, i); history.Children.Add(button);
+            button.Content = panel; button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Margin = new Thickness(0);
+            if (i > 0) { var separator = new Border { Width = 1, Height = 36, Background = Ui.Brush("#38383A"), HorizontalAlignment = HorizontalAlignment.Left }; Grid.SetColumn(separator, i); history.Children.Add(separator); }
+            button.HorizontalContentAlignment = HorizontalAlignment.Left; Grid.SetColumn(button, i); history.Children.Add(button);
         }
         readings.Children.Add(history);
-        Ui.Section(readings, "Explore");
-        foreach (var (id, label, detail) in new[] { ("activity", "Usage history", "Daily tokens, model breakdown and estimated API cost"), ("projects", "Projects", "Usage grouped by local project"), ("sessions", "Sessions", "Individual coding sessions and their models") })
+        var links = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3, Margin = new Thickness(0, 24, 0, 18) };
+        foreach (var (id, label, detail, icon) in new[]
         {
-            var link = Ui.Button(label + "  ›", () => { destination = id; period = "week"; search = ""; visibleRows = 40; BuildControls(); Update(); });
-            link.HorizontalContentAlignment = HorizontalAlignment.Left; readings.Children.Add(link);
-            readings.Children.Add(Ui.Text(detail, 11, "#A6A6AA"));
+            ("activity", "Usage history", "Daily tokens, model breakdown and estimated API cost", "M2,14 V8 M8,14 V2 M14,14 V5"),
+            ("projects", "Projects", "Usage grouped by local project", "M1,4 V13 Q1,15 3,15 H13 Q15,15 15,13 V5 Q15,3 13,3 H7 L5,1 H3 Q1,1 1,3 Z"),
+            ("sessions", "Sessions", "Individual coding sessions and their models", "M1,1 H15 V11 H8 L4,15 V11 H1 Z M4,4 H12 M4,7 H10")
+        })
+        {
+            var link = Ui.Button(label, () => { destination = id; period = "week"; search = ""; visibleRows = 40; BuildControls(); Update(); });
+            System.Windows.Automation.AutomationProperties.SetAutomationId(link, "usage.destination." + id);
+            link.ToolTip = detail; link.BorderThickness = new Thickness(0); link.Background = Ui.Brush("#303030");
+            link.Padding = new Thickness(12, 11, 12, 11); link.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+            var content = new DockPanel();
+            var mark = new System.Windows.Shapes.Path { Data = Geometry.Parse(icon), Stroke = Ui.Brush("#C6C6CA"), StrokeThickness = 1.2,
+                StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, Width = 16, Height = 16, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+            DockPanel.SetDock(mark, Dock.Left); content.Children.Add(mark);
+            var disclosure = Ui.Text("›", 16, "#98989D"); disclosure.Margin = new Thickness(6, 0, 0, 0); DockPanel.SetDock(disclosure, Dock.Right); content.Children.Add(disclosure);
+            var title = Ui.Text(label, 13); title.Margin = new Thickness(0); title.VerticalAlignment = VerticalAlignment.Center; content.Children.Add(title);
+            link.Content = content; links.Children.Add(link);
         }
-        readings.Children.Add(Ui.Text(store.IsRefreshing ? "Refreshing…" : store.Status, 11, "#808080"));
+        readings.Children.Add(links);
+        if (settings.Current.ShowLastUpdated || store.IsRefreshing)
+            readings.Children.Add(Ui.Text(store.IsRefreshing ? "Refreshing…" : store.Status, 11, "#808080"));
     }
     private void Limits()
     {

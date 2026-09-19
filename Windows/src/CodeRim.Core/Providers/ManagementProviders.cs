@@ -9,6 +9,10 @@ public sealed partial class NativeProviders
 {
     public static IReadOnlyList<(string Key, string Label)> Settings(string id) => id switch
     {
+        "chutes" => [("CHUTES_API_URL", "Chutes API URL (HTTPS; default https://api.chutes.ai)")],
+        "devin" => [("DEVIN_ORGANIZATION", "Organization ID or slug")],
+        "kilo" => [("KILO_ORG_ID", "Organization ID (leave empty for personal usage)")],
+        "minimax" => [("MINIMAX_REGION", "Region: global or cn")],
         "mimo" => [("MIMO_API_URL", "MiMo API base URL (default https://platform.xiaomimimo.com/api/v1)")],
         "kimi" => [("KIMI_CODE_BASE_URL", "Kimi Code API base URL (default https://api.kimi.com)")],
         "wayfinder" => [("WAYFINDER_GATEWAY_URL", "Gateway URL (default http://127.0.0.1:8088)")],

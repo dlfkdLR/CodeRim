@@ -33,6 +33,9 @@ internal static class NativeCredentials
                 case "commandcode":
                     if (Environment.GetEnvironmentVariable("COMMAND_CODE_API_KEY") is { Length: > 0 } commandKey) return commandKey;
                     using (var document = JsonDocument.Parse(GuardedFile.Read(Path.Combine(home, ".commandcode", "auth.json")))) return Text(document.RootElement, "apiKey");
+                case "kilo":
+                    using (var document = JsonDocument.Parse(GuardedFile.Read(Path.Combine(home, ".local", "share", "kilo", "auth.json"))))
+                        return Text(Get(document.RootElement, "kilo"), "access");
                 case "opencode":
                     var data = Environment.GetEnvironmentVariable("XDG_DATA_HOME") ?? Path.Combine(home, ".local", "share");
                     using (var document = JsonDocument.Parse(GuardedFile.Read(Path.Combine(data, "opencode", "auth.json"))))

@@ -10,11 +10,11 @@ namespace CodeRim.Core.Providers;
 
 public sealed partial class NativeProviders
 {
-    private static readonly HashSet<string> BrowserIds = new(StringComparer.Ordinal) { "mimo", "abacus", "stepfun", "sakana" };
+    private static readonly HashSet<string> BrowserIds = new(StringComparer.Ordinal) { "mimo", "abacus", "stepfun", "sakana", "longcat" };
     public static string CredentialLabel(string id) => id switch
     {
         "mimo" => "Cookie header (api-platform_serviceToken and userId)",
-        "abacus" or "sakana" => "Cookie header from the signed-in provider page",
+        "abacus" or "sakana" or "longcat" => "Cookie header from the signed-in provider page",
         "stepfun" => "Oasis-Token (or Cookie header containing Oasis-Token)",
         "kimi" => "Kimi Code API key",
         _ => "Provider key or access token"
@@ -76,8 +76,8 @@ public sealed partial class NativeProviders
             if (Numeric(usageRoot, "code") == 0 && items.ValueKind == JsonValueKind.Array)
                 foreach (var item in items.EnumerateArray())
                     if (Numeric(item, "limit") is > 0 and var limit && Numeric(item, "used") is >= 0 and var used)
-                        windows.Insert(0, new("tokens." + windows.Count, Text(item, "name") ?? "Monthly tokens", used / limit * 100, reset,
-                            Unit: "tokens", DisplayValue: $"{used:N0} / {limit:N0} tokens"));
+                        windows.Insert(0, new("credits." + windows.Count, Text(item, "name") ?? "Monthly credits", Numeric(item, "percent") is >= 0 and <= 1 and var fraction ? fraction * 100 : used / limit * 100, reset,
+                            Unit: "credits", DisplayValue: $"{used:N0} / {limit:N0} credits"));
         }
         else if (id == "abacus")
         {

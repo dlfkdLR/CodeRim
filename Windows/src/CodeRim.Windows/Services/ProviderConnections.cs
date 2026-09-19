@@ -52,8 +52,8 @@ internal sealed class ProviderConnections : IDisposable
             var secret = vault.Load("provider:" + id);
             if (secret is null && definition is not null)
             {
-                var keys = id == "copilot" ? new[] { "GH_TOKEN", "GITHUB_TOKEN" } : id == "kimi" ? ["KIMI_CODE_API_KEY"] : definition.EnvironmentKeys;
-                foreach (var key in keys.Where(k => k.EndsWith("KEY", StringComparison.Ordinal) || k.EndsWith("TOKEN", StringComparison.Ordinal) || k.EndsWith("COOKIE", StringComparison.Ordinal)))
+                var keys = NativeProviders.CredentialKeys(id) ?? (id == "copilot" ? ["GH_TOKEN", "GITHUB_TOKEN"] : definition.EnvironmentKeys.Where(k => k.EndsWith("KEY", StringComparison.Ordinal) || k.EndsWith("TOKEN", StringComparison.Ordinal) || k.EndsWith("COOKIE", StringComparison.Ordinal)).ToArray());
+                foreach (var key in keys)
                     if (Environment.GetEnvironmentVariable(key) is { Length: > 0 } value) { secret = value; break; }
             }
             if (NativeProviders.Supported.Contains(id))

@@ -72,8 +72,8 @@ internal static class NativeSmoke
             Require(Enumerable.Range(0, 32 * 32).Count(i => pixels[i * 4 + 3] > 32) > 8, "Provider logo is blank: " + provider.Id);
             if (provider.Id is "opencode" or "opencode-zen")
                 Require(pixels[(16 * 32 + 16) * 4 + 3] < 32, "OpenCode logo lost its center cutout");
-            if (provider.Id == "openrouter")
-                Require(pixels[(1 * 32 + 1) * 4 + 3] < 32, "OpenRouter rendered its clipping rectangle");
+            if (provider.Id is "openrouter" or "ibmbob")
+                Require(pixels[(1 * 32 + 1) * 4 + 3] < 32, "Provider logo rendered its mask or clipping rectangle: " + provider.Id);
             var tile = new StackPanel { Width = 120, Height = 70, HorizontalAlignment = HorizontalAlignment.Center };
             tile.Children.Add(new ProviderMark { ProviderId = provider.Id, Width = 28, Height = 28, Margin = new Thickness(0, 6, 0, 4) });
             tile.Children.Add(Ui.Text(provider.Name, 10)); glyphGrid.Children.Add(tile);
@@ -81,6 +81,11 @@ internal static class NativeSmoke
         glyphGrid.Measure(new Size(720, double.PositiveInfinity)); glyphGrid.Arrange(new Rect(glyphGrid.DesiredSize));
         Capture(glyphGrid, Path.Combine(directory, "windows-provider-logos.png")); checks.Add("Every provider logo loads and renders");
         await Idle(); Capture(dashboard, output); checks.Add("Usage window renders");
+        var shortcuts = Descendants<System.Windows.Controls.Button>(dashboard).Where(x => (AutomationProperties.GetAutomationId(x) ?? "").StartsWith("usage.destination.", StringComparison.Ordinal)).ToArray();
+        Require(shortcuts.Length == 3, "Usage analytics shortcuts are missing");
+        var positions = shortcuts.Select(x => x.TransformToAncestor(dashboard).Transform(new Point())).ToArray();
+        Require(positions.Max(x => x.Y) - positions.Min(x => x.Y) < 1, "Settings analytics shortcuts must share one row");
+        Require(positions.Max(x => x.Y) + shortcuts.Max(x => x.ActualHeight) < dashboard.ActualHeight, "Analytics navigation is clipped below the Settings window");
         var selector = Descendants<System.Windows.Controls.ComboBox>(dashboard).First();
         selector.Focus(); var original = selector;
         await store.RefreshAsync(true).ConfigureAwait(true); await Idle();
@@ -112,6 +117,10 @@ internal static class NativeSmoke
             if (scale == 1) Capture(notch.PopupContent!, Path.Combine(directory, "windows-popup-" + edge + ".png"));
             checks.Add($"{edge} at {scale:0.00}: no clipped single provider or native scroll chrome");
         }
+        notch.OpenAccounts(); await Idle();
+        Require(notch.PopupContent is not null && Descendants<TextBlock>(notch.PopupContent).Any(x => x.Text.Contains("preview@example.invalid", StringComparison.Ordinal)), "Account popup omits current CLI identity");
+        Capture(notch.PopupContent!, Path.Combine(directory, "windows-account-popup.png"));
+        checks.Add("Account popup shows provider logo, plan and isolated current identity");
         settings.Save(settings.Current with { Edge = NotchEdge.Right, Scale = 1.25, EnabledProviders = ProviderCatalog.All.Select(x => x.Id).ToArray() });
         await store.RefreshAsync(true).ConfigureAwait(true); await Idle();
         var many = Descendants<ScrollViewer>(notch).Single();

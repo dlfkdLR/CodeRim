@@ -35,6 +35,13 @@ internal sealed class SavedAccounts(CredentialVault vault)
         }
         return new(provider, identity, credential, profile);
     }
+    internal static string? CurrentAccountLabel(string provider, bool synthetic)
+    {
+        if (provider is not ("codex" or "claude")) return null;
+        if (synthetic) return "preview@example.invalid";
+        try { return Current(provider).Identity.Email; }
+        catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or InvalidOperationException) { return null; }
+    }
     internal void SaveCurrent(string provider) => Save(Current(provider));
     internal async Task SaveCurrentAsync(string provider, string executable, CancellationToken token = default)
     {

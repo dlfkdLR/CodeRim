@@ -26,8 +26,15 @@ internal static class NotchPopover
         var switcher = PlainButton("Switch account", () => navigate(id is "codex" or "claude" ? id + "-accounts" : id));
         switcher.HorizontalAlignment = HorizontalAlignment.Right; DockPanel.SetDock(switcher, Dock.Right);
         account.Children.Add(switcher);
+        var identity = SavedAccounts.CurrentAccountLabel(id, store.Synthetic);
         account.Children.Add(Text(reading?.Plan ?? "Account", 10.5, Secondary));
         content.Children.Add(account);
+        if (identity is not null)
+        {
+            var accountLabel = Text(identity, 10.5, Secondary); accountLabel.TextWrapping = TextWrapping.NoWrap;
+            accountLabel.TextTrimming = TextTrimming.CharacterEllipsis; accountLabel.ToolTip = "CLI login file · " + identity;
+            content.Children.Add(accountLabel);
+        }
         if (store.Usage.TryGetValue(id, out var local))
         {
             var quality = local.Quality == DataQuality.Exact ? "" : " (partial)";

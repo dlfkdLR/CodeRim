@@ -209,12 +209,14 @@ internal sealed class NotchWindow : Window
         var gear = Control("\uE713", "Open Settings", () => openSettings(null));
         var accounts = Control("\uE77B", "Switch account", OpenAccounts);
         controls.Children.Add(gear); controls.Children.Add(accounts);
-        controls.LayoutTransform = new ScaleTransform(scale, scale);
-        canvas.Children.Add(controls);
+        var capsule = new Border { Background = Brushes.Black, CornerRadius = new CornerRadius(NotchMetrics.Control / 2),
+            Padding = Vertical ? new Thickness(0, 4, 0, 4) : new Thickness(4, 0, 4, 0), Child = controls, LayoutTransform = new ScaleTransform(scale, scale) };
+        AutomationProperties.SetAutomationId(capsule, "notch.controls");
+        canvas.Children.Add(capsule);
         var controlAlong = controlsFirst ? 4 * scale : bodyLength - 6 * scale;
         var controlAcross = (bodyDepth - NotchMetrics.Control * scale) / 2;
-        Canvas.SetLeft(controls, Vertical ? controlAcross : controlAlong);
-        Canvas.SetTop(controls, Vertical ? controlAlong : controlAcross);
+        Canvas.SetLeft(capsule, Vertical ? controlAcross : controlAlong);
+        Canvas.SetTop(capsule, Vertical ? controlAlong : controlAcross);
         var menu = new ContextMenu();
         menu.Opened += (_, _) => { trackingMenu = true; foldTimer.Stop(); };
         menu.Closed += (_, _) => { trackingMenu = false; foldTimer.Start(); };
@@ -265,14 +267,30 @@ internal sealed class NotchWindow : Window
         child.MouseLeave += (_, _) => foldTimer.Start();
         child.LostKeyboardFocus += (_, _) => foldTimer.Start();
     }
-    private void OpenAccounts()
+    internal void OpenAccounts()
     {
         hovered = null; var list = new StackPanel { Margin = new Thickness(12) };
         list.Children.Add(NotchPopover.Text("Accounts", 14, Brushes.White, FontWeights.SemiBold));
         foreach (var id in settings.Current.EnabledProviders.Where(x => x != "ollama-local"))
-            list.Children.Add(Ui.Button(ProviderCatalog.Find(id)?.Name ?? id, () => { popup.IsOpen = false; openSettings(id is "codex" or "claude" ? id + "-accounts" : id); }));
+        {
+            var reading = store.Readings.GetValueOrDefault(id)?.Evaluated(DateTimeOffset.Now);
+            var name = ProviderCatalog.Find(id)?.Name ?? id;
+            var account = SavedAccounts.CurrentAccountLabel(id, store.Synthetic);
+            var state = reading?.State is ReadingState.Ready or ReadingState.Partial or ReadingState.Stale ? "Connected" : "Connect account";
+            var button = Ui.Button(name, () => { popup.IsOpen = false; openSettings(id is "codex" or "claude" ? id + "-accounts" : id); });
+            button.BorderThickness = new Thickness(0); button.Background = Ui.Brush("#202020"); button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+            AutomationProperties.SetAutomationId(button, "notch.account." + id);
+            var row = new DockPanel();
+            var logo = new ProviderMark { ProviderId = id, Width = 20, Height = 20, Margin = new Thickness(0, 0, 10, 0), VerticalAlignment = VerticalAlignment.Center };
+            DockPanel.SetDock(logo, Dock.Left); row.Children.Add(logo);
+            var labels = new StackPanel();
+            labels.Children.Add(NotchPopover.Text(name + (reading?.Plan is { Length: > 0 } plan ? " · " + plan : ""), 12, Brushes.White, FontWeights.SemiBold));
+            var identity = NotchPopover.Text(account ?? state, 10.5, NotchPopover.Secondary); identity.TextWrapping = TextWrapping.NoWrap; identity.TextTrimming = TextTrimming.CharacterEllipsis;
+            identity.ToolTip = account is null ? state : "CLI login file · " + account;
+            labels.Children.Add(identity); row.Children.Add(labels); button.Content = row; list.Children.Add(button);
+        }
         if (list.Children.Count == 1) list.Children.Add(Ui.Button("Manage Providers", () => { popup.IsOpen = false; openSettings("providers"); }));
-        var frame = new Border { Background = Brushes.Black, CornerRadius = new CornerRadius(16), Width = 230,
+        var frame = new Border { Background = Brushes.Black, CornerRadius = new CornerRadius(16), Width = 280,
             Child = new ScrollViewer { Content = list, MaxHeight = 360, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } };
         AttachPopup(frame); popup.Child = frame; popup.IsOpen = true;
     }

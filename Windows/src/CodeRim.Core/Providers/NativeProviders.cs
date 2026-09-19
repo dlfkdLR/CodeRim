@@ -12,7 +12,7 @@ namespace CodeRim.Core.Providers;
 public sealed partial class NativeProviders : IDisposable
 {
     public static IReadOnlySet<string> Supported { get; } = new HashSet<string>(StringComparer.Ordinal)
-        { "cursor", "grok", "opencode", "commandcode", "ollama", "fireworks", "deepinfra", "codebuff", "neuralwatt", "llmproxy", "litellm", "zenmux", "warp", "wayfinder", "ibmbob", "kimi", "amp", "mimo", "abacus", "stepfun", "sakana" };
+        { "cursor", "grok", "opencode", "commandcode", "ollama", "fireworks", "deepinfra", "codebuff", "neuralwatt", "llmproxy", "litellm", "zenmux", "warp", "wayfinder", "ibmbob", "kimi", "amp", "mimo", "abacus", "stepfun", "sakana", "kilo", "devin", "minimax", "aiand", "longcat", "factory", "chutes" };
     private readonly HttpClient client;
     private readonly ConcurrentDictionary<string, DateTimeOffset> retryAfter = new(StringComparer.Ordinal);
     public NativeProviders(HttpMessageHandler? handler = null) => client = new(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(15) };
@@ -36,7 +36,7 @@ public sealed partial class NativeProviders : IDisposable
             {
                 request.Method = HttpMethod.Post; request.Content = new StringContent("""{"method":"userDisplayBalanceInfo","params":{}}""", System.Text.Encoding.UTF8, "application/json");
             }
-            if (id == "stepfun" || id == "abacus" && new Uri(url).AbsolutePath.EndsWith("_getBillingInfo", StringComparison.Ordinal))
+            if (id == "stepfun" || id == "longcat" && new Uri(url).AbsolutePath.EndsWith("/token-packs/summary", StringComparison.Ordinal) || id == "abacus" && new Uri(url).AbsolutePath.EndsWith("_getBillingInfo", StringComparison.Ordinal))
             { request.Method = HttpMethod.Post; request.Content = new StringContent("{}", System.Text.Encoding.UTF8, "application/json"); }
             if (id == "warp")
             {
@@ -45,6 +45,15 @@ public sealed partial class NativeProviders : IDisposable
                 request.Headers.Add("x-warp-os-name", "Windows"); request.Headers.Add("x-warp-os-version", Environment.OSVersion.Version.ToString());
             }
             request.Headers.UserAgent.ParseAdd(id == "commandcode" ? "command-code-desktop" : id == "warp" ? "Warp/1.0" : "CodeRim/2.1.5");
+            if (id == "kilo" && setting("KILO_ORG_ID") is { Length: > 0 } kiloOrg && !kiloOrg.Any(char.IsControl))
+                request.Headers.Add("X-KILOCODE-ORGANIZATIONID", kiloOrg);
+            if (id == "devin" && DevinPaths(setting).InternalId is { } devinOrg) request.Headers.Add("x-cog-org-id", devinOrg);
+            if (id == "factory")
+            {
+                request.Headers.Add("x-factory-client", "web-app"); request.Headers.Add("Origin", "https://app.factory.ai");
+                request.Headers.Referrer = new Uri("https://app.factory.ai/");
+            }
+            if (id == "minimax") request.Headers.Add("MM-API-Source", "CodexBar");
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             if (BrowserIds.Contains(id))
             {
@@ -56,6 +65,10 @@ public sealed partial class NativeProviders : IDisposable
                     normalized = "Oasis-Token=" + normalized + "; Oasis-Webid=" + webid;
                 }
                 request.Headers.TryAddWithoutValidation("Cookie", normalized);
+                if (id == "longcat")
+                {
+                    request.Headers.Add("Origin", "https://longcat.chat"); request.Headers.Referrer = new Uri("https://longcat.chat/platform/usage");
+                }
                 if (id == "mimo")
                 {
                     request.Headers.Add("x-timeZone", "UTC+00:00"); request.Headers.Add("Origin", "https://platform.xiaomimimo.com");
@@ -85,6 +98,15 @@ public sealed partial class NativeProviders : IDisposable
         }
         try
         {
+            if (id == "devin")
+            {
+                if (credential!.StartsWith("Authorization:", StringComparison.OrdinalIgnoreCase)) credential = credential[14..].Trim();
+                if (credential.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) credential = credential[7..].Trim();
+            }
+            if (id == "chutes") return await FetchChutes(setting, url => GetJson(url), token).ConfigureAwait(false);
+            if (id == "factory") return await FetchFactory(credential!, url => GetJson(url), token).ConfigureAwait(false);
+            if (LedgerIds.Contains(id)) return await FetchLedger(id, url => GetJson(url), token).ConfigureAwait(false);
+            if (SubscriptionIds.Contains(id)) return await FetchSubscription(id, setting, url => GetJson(url)).ConfigureAwait(false);
             if (id == "ibmbob") return await FetchBob(GetJson).ConfigureAwait(false);
             if (ManagementIds.Contains(id)) return Parse(id, await ManagementPayloads(id, setting, url => GetJson(url)).ConfigureAwait(false));
             var endpoint = id switch
@@ -155,7 +177,11 @@ public sealed partial class NativeProviders : IDisposable
     {
         ArgumentNullException.ThrowIfNull(payloads);
         if (ManagementIds.Contains(id)) return ParseManagement(id, payloads);
+        if (id == "chutes") return ParseChutes(payloads);
+        if (id == "factory") return ParseFactory(payloads);
+        if (LedgerIds.Contains(id)) return ParseLedger(id, payloads);
         if (BrowserIds.Contains(id)) return ParseBrowser(id, payloads);
+        if (SubscriptionIds.Contains(id)) return ParseSubscription(id, payloads.GetValueOrDefault("main"));
         var root = payloads.GetValueOrDefault("main");
         if (id == "kimi") return ParseKimi(root);
         if (id == "amp") return ParseAmp(root);

@@ -15,12 +15,12 @@ public sealed class BrowserProviderTests
         return NativeProviders.Parse(id, data);
     }
     [Fact]
-    public void MiMoPreservesCurrencyAndTokenPool()
+    public void MiMoPreservesCurrencyAndCreditPool()
     {
         var reading = Parse("mimo", """{"code":0,"data":{"balance":"50.5","cashBalance":"40","giftBalance":"10.5","currency":"CNY"}}""",
             ("detail", """{"code":0,"data":{"planCode":"Pro","currentPeriodEnd":"2026-10-01 00:00:00"}}"""),
-            ("usage", """{"code":0,"data":{"monthUsage":{"items":[{"name":"Monthly tokens","used":25,"limit":100,"percent":25}]}}}"""));
-        Assert.Equal("tokens", reading.Headline!.Unit); Assert.Equal(25, reading.Headline.UsedPercent);
+            ("usage", """{"code":0,"data":{"monthUsage":{"items":[{"name":"Monthly credits","used":20,"limit":100,"percent":0.25}]}}}"""));
+        Assert.Equal("credits", reading.Headline!.Unit); Assert.Equal(25, reading.Headline.UsedPercent);
         Assert.Equal(TimeSpan.Zero, reading.Headline.ResetsAt!.Value.Offset); Assert.Equal("CNY", reading.Windows[1].Unit); Assert.Null(reading.Windows[1].UsedPercent);
     }
     [Fact]
