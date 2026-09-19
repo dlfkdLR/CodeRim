@@ -14,15 +14,15 @@ CodeRim은 화면 가장자리의 작은 노치에 코딩 도우미의 사용 �
 
 | 기능 | macOS | Windows 프리뷰 |
 | --- | --- | --- |
-| 제공업체 연결 | 70개 제공업체 | 23개 구현, 47개 대기 |
+| 제공업체 연결 | 70개 제공업체 | 70개 연결 구현 |
 | 데스크톱 화면 | 메뉴 막대와 화면 가장자리 노치 | 트레이, 대시보드, 화면 가장자리 노치 |
 | Codex / Claude 로컬 기록 | 토큰 사용 기록, 차트, 예상 비용 | 토큰 사용 기록, 차트, 예상 비용 |
 | 터미널 CLI | 포함 | 포함 |
-| 저장된 계정 전환 | Codex와 Claude Code | 미지원 |
-| 위젯 | macOS 위젯 | 미지원 |
-| 자동 업데이트 | 서명된 Sparkle 업데이트 | ZIP을 직접 내려받아 업데이트 |
+| 저장된 계정 전환 | Codex와 Claude Code | Codex와 Claude Code |
+| 위젯 | macOS 위젯 | Windows 작업 범위 제외 |
+| 업데이트 | 서명된 Sparkle 업데이트 | 새 릴리스 확인, ZIP 직접 설치 |
 
-로컬 토큰 기록은 계정 구분 없이 이 컴퓨터에서 사용한 기록입니다. 제공업체별 Windows 지원 상태와 남은 작업은 [기능 현황표](Documentation/WINDOWS.md#remaining-parity-work)를 참고하세요.
+위 표는 현재 소스 기준입니다. 로컬 토큰 기록은 계정 구분 없이 이 컴퓨터에서 사용한 기록입니다. 제공업체별 Windows 지원 상태와 남은 작업은 [기능 현황표](Documentation/WINDOWS.md#remaining-parity-work)를 참고하세요.
 
 ## 설치
 

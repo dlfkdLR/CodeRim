@@ -14,15 +14,15 @@ CodeRim keeps coding-assistant usage limits, reset times, and session activity v
 
 | Feature | macOS | Windows preview |
 | --- | --- | --- |
-| Provider connections | 70 providers | 23 implemented; 47 pending |
+| Provider connections | 70 providers | 70 connection implementations |
 | Desktop interface | Menu bar and edge notch | Tray, dashboard, and edge notch |
 | Local Codex / Claude history | Token history, charts, and cost estimates | Token history, charts, and cost estimates |
 | Terminal CLI | Included | Included |
-| Saved account switching | Codex and Claude Code | Not yet available |
-| Widgets | macOS widgets | Not yet available |
-| Automatic updates | Signed Sparkle updates | Manual ZIP download |
+| Saved account switching | Codex and Claude Code | Codex and Claude Code |
+| Widgets | macOS widgets | Outside the Windows scope |
+| Updates | Signed Sparkle updates | Release checks; manual ZIP installation |
 
-Local token history is scoped to this computer across accounts. See the [Windows capability matrix](Documentation/WINDOWS.md#remaining-parity-work) for individual provider status and remaining work.
+The matrix describes the current source. Local token history is scoped to this computer across accounts. See the [Windows capability matrix](Documentation/WINDOWS.md#remaining-parity-work) for individual provider status and remaining work.
 
 ## Install
 
