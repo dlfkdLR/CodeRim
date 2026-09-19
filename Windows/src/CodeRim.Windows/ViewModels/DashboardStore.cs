@@ -178,6 +178,11 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     }
     private void SeedPreview()
     {
+        Events["codex"] = [new("preview-event", DateTimeOffset.Now.AddMinutes(-2), new(123456, 24000, 56000),
+            "gpt-5.6-sol", "CodeRim", "preview-session", "codex", "preview-project")];
+        Events["claude"] = [new("preview-claude", DateTimeOffset.Now.AddMinutes(-2), new(12000, 3000, 4000),
+            "claude-sonnet-4-6", "CodeRim", "preview-claude-session", "claude", "preview-project")];
+        Usage["claude"] = UsageScanner.Aggregate(Events["claude"], DateTimeOffset.Now, settings.Current.WeekStart, false);
         Usage["codex"] = new(new(123456, 24000, 56000), new(340000, 70000, 120000), new(1100000, 250000, 700000), new(4800000, 1000000, 1200000), DataQuality.Exact, DateTimeOffset.Now);
         foreach (var id in settings.Current.EnabledProviders)
             Readings[id] = new(id, ReadingState.Ready, [new("session", "5 hours", 32, DateTimeOffset.Now.AddHours(2), 300), new("weekly", "Weekly", 66, DateTimeOffset.Now.AddDays(3), 10080)], DateTimeOffset.Now, Plan: "Preview account");

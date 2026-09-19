@@ -22,6 +22,8 @@ internal sealed class NotchWindow : Window
     private readonly AppSettingsStore settings;
     private readonly Action<string?> openSettings;
     private readonly DispatcherTimer foldTimer = new() { Interval = TimeSpan.FromMilliseconds(450) };
+    private readonly DispatcherTimer hoverClear = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private bool accountMenu;
     private readonly DispatcherTimer animation = new() { Interval = TimeSpan.FromMilliseconds(40) };
     private readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromSeconds(10) };
     private readonly Popup popup = new() { AllowsTransparency = true, StaysOpen = true, Placement = PlacementMode.Custom };
@@ -36,6 +38,8 @@ internal sealed class NotchWindow : Window
     private double bodyLength, bodyDepth, bodyStart;
     private bool Vertical => settings.Current.Edge is NotchEdge.Left or NotchEdge.Right;
     internal bool Expanded => expanded || pinned || settings.Current.Visibility == NotchVisibility.AlwaysShow;
+    internal bool PopupIsOpen => popup.IsOpen;
+    internal bool AccountMenuIsOpen => accountMenu && popup.IsOpen;
     internal FrameworkElement? PopupContent => popup.Child as FrameworkElement;
 
     public NotchWindow(DashboardStore store, AppSettingsStore settings, Action<string?> openSettings)
@@ -53,6 +57,8 @@ internal sealed class NotchWindow : Window
         LostKeyboardFocus += (_, _) => foldTimer.Start();
         Deactivated += (_, _) => foldTimer.Start();
         PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { popup.IsOpen = false; hovered = null; Keyboard.ClearFocus(); foldTimer.Start(); e.Handled = true; } };
+        hoverClear.Tick += (_, _) => DismissProviderCard();
+        popup.Closed += (_, _) => { accountMenu = false; if (!closed) foldTimer.Start(); };
         foldTimer.Tick += (_, _) => TryFold();
         animation.Tick += (_, _) => { foreach (var ring in rings) { ring.Phase = DateTimeOffset.Now.ToUnixTimeMilliseconds() % 3000 / 3000d; ring.InvalidateVisual(); } };
         clock.Tick += (_, _) => { if (popup.IsOpen && popup.Child is UIElement child && !child.IsKeyboardFocusWithin) RefreshPopup(); };
@@ -83,7 +89,7 @@ internal sealed class NotchWindow : Window
         };
         Closed += (_, _) =>
         {
-            closed = true; popup.IsOpen = false; foldTimer.Stop(); animation.Stop(); clock.Stop();
+            closed = true; popup.IsOpen = false; foldTimer.Stop(); hoverClear.Stop(); animation.Stop(); clock.Stop();
             store.PropertyChanged -= Update; settings.SettingsChanged -= SettingsChanged;
             SystemParameters.StaticPropertyChanged -= DisplayChanged;
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= DisplaysChanged;
@@ -118,6 +124,7 @@ internal sealed class NotchWindow : Window
     private void DisplaysChanged(object? sender, EventArgs e) { if (!closed) Dispatcher.BeginInvoke(Render); }
     internal void TryFold()
     {
+        if (accountMenu && popup.IsOpen) return;
         if (IsMouseOver || dragging || trackingMenu || IsKeyboardFocusWithin ||
             popup.Child is UIElement child && (child.IsMouseOver || child.IsKeyboardFocusWithin)) return;
         foldTimer.Stop(); foldTimer.Interval = TimeSpan.FromMilliseconds(450); popup.IsOpen = false; hovered = null;
@@ -182,6 +189,8 @@ internal sealed class NotchWindow : Window
             AutomationProperties.SetAutomationId(button, "notch.provider." + id);
             button.Click += async (_, _) => await store.RefreshProviderAsync(id).ConfigureAwait(true);
             button.MouseEnter += (_, _) => OpenProvider(id);
+            button.MouseLeave += (_, _) => hoverClear.Start();
+            button.LostKeyboardFocus += (_, _) => hoverClear.Start();
             button.GotKeyboardFocus += (_, _) => OpenProvider(id);
             cells.Children.Add(button);
         }
@@ -241,8 +250,15 @@ internal sealed class NotchWindow : Window
     }
     internal void OpenProvider(string id)
     {
-        if (!buttons.ContainsKey(id)) return;
-        hovered = id; RefreshPopup(); popup.IsOpen = true; foldTimer.Stop();
+        if (accountMenu && popup.IsOpen || !buttons.ContainsKey(id)) return;
+        hoverClear.Stop(); popup.StaysOpen = true; hovered = id; RefreshPopup(); popup.IsOpen = true; foldTimer.Stop();
+    }
+    internal void DismissProviderCard()
+    {
+        if (accountMenu) { hoverClear.Stop(); return; }
+        if (hovered is not null && buttons.TryGetValue(hovered, out var target) && (target.IsMouseOver || target.IsKeyboardFocusWithin)) return;
+        if (popup.IsOpen && popup.Child is UIElement child && (child.IsMouseOver || child.IsKeyboardFocusWithin)) return;
+        hoverClear.Stop(); popup.IsOpen = false; hovered = null;
     }
     private void RefreshPopup()
     {
@@ -263,12 +279,13 @@ internal sealed class NotchWindow : Window
     private void AttachPopup(FrameworkElement child)
     {
         child.PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { popup.IsOpen = false; hovered = null; Keyboard.ClearFocus(); foldTimer.Start(); e.Handled = true; } };
-        child.MouseEnter += (_, _) => foldTimer.Stop();
-        child.MouseLeave += (_, _) => foldTimer.Start();
+        child.MouseEnter += (_, _) => { foldTimer.Stop(); hoverClear.Stop(); };
+        child.MouseLeave += (_, _) => { foldTimer.Start(); if (!accountMenu) hoverClear.Start(); };
         child.LostKeyboardFocus += (_, _) => foldTimer.Start();
     }
     internal void OpenAccounts()
     {
+        popup.IsOpen = false; accountMenu = true; popup.StaysOpen = false; hoverClear.Stop(); foldTimer.Stop();
         hovered = null; var list = new StackPanel { Margin = new Thickness(12) };
         list.Children.Add(NotchPopover.Text("Accounts", 14, Brushes.White, FontWeights.SemiBold));
         foreach (var id in settings.Current.EnabledProviders.Where(x => x != "ollama-local"))
@@ -292,6 +309,12 @@ internal sealed class NotchWindow : Window
         if (list.Children.Count == 1) list.Children.Add(Ui.Button("Manage Providers", () => { popup.IsOpen = false; openSettings("providers"); }));
         var frame = new Border { Background = Brushes.Black, CornerRadius = new CornerRadius(16), Width = 280,
             Child = new ScrollViewer { Content = list, MaxHeight = 360, VerticalScrollBarVisibility = ScrollBarVisibility.Auto } };
+        // The notch remains black independently of the system Settings theme.
+        frame.Resources["PrimaryText"] = Brushes.White;
+        frame.Resources["SecondaryText"] = Ui.Brush("#D4D4D4");
+        frame.Resources["ControlHover"] = Ui.Brush("#343434");
+        frame.Resources["ControlBackground"] = Ui.Brush("#202020");
+        frame.Resources["DividerBrush"] = Ui.Brush("#404040");
         AttachPopup(frame); popup.Child = frame; popup.IsOpen = true;
     }
     private CustomPopupPlacement[] PlacePopup(Size popupSize, Size targetSize, Point offset)

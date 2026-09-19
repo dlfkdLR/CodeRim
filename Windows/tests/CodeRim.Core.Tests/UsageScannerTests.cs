@@ -8,6 +8,79 @@ namespace CodeRim.Core.Tests;
 public sealed class UsageScannerTests
 {
 
+    public static bool IsWindows => OperatingSystem.IsWindows();
+
+    [Fact(Skip = "Requires native Windows file identity", SkipUnless = nameof(IsWindows))]
+    public void RejectsIdenticalContentFromReplacedWindowsFileIdentity()
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            var source = Path.Combine(root, "identity.jsonl");
+            File.WriteAllLines(source, [TokenLine("2026-08-27T01:00:01Z", 1, 100, 60, 20)]);
+            var length = new FileInfo(source).Length;
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
+            var parsed = typeof(UsageScanner).GetMethod("ParseFile", flags)!.Invoke(null,
+                [source, 100, length, TestContext.Current.CancellationToken, "codex", null]);
+            var replacement = source + ".replacement";
+            File.Copy(source, replacement); File.Move(replacement, source, overwrite: true);
+            var accepted = typeof(UsageScanner).GetMethod("VerifyPrefix", flags)!.Invoke(null,
+                [source, length, parsed, TestContext.Current.CancellationToken]);
+            Assert.Equal(false, accepted);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task ReadsStablePrefixWhileWriterContinuesAndThenCollectsTail()
+    {
+        var root = CreateTemporaryDirectory();
+        using var stop = new CancellationTokenSource();
+        Task? writer = null;
+        try
+        {
+            var source = Path.Combine(root, "active.jsonl");
+            File.WriteAllLines(source, ["{\"type\":\"session_meta\",\"payload\":{\"id\":\"active\"}}",
+                TokenLine("2026-08-27T01:00:01Z", 1, 100, 60, 20)]);
+            using (var fill = new FileStream(source, FileMode.Append, FileAccess.Write))
+            {
+                var line = System.Text.Encoding.UTF8.GetBytes(new string('x', 65534) + "\n");
+                for (var index = 0; index < 512; index++) fill.Write(line);
+            }
+            var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            writer = Task.Run(async () =>
+            {
+                using var append = new FileStream(source, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
+                while (!stop.IsCancellationRequested)
+                {
+                    append.Write("{}\n"u8); append.Flush(); started.TrySetResult();
+                    await Task.Delay(2).ConfigureAwait(false);
+                }
+            }, TestContext.Current.CancellationToken);
+            await started.Task;
+            var scanner = new UsageScanner([root]);
+            var active = await scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            Assert.Equal(120, active.Snapshot.AllTime.TotalTokens);
+            Assert.Single(active.Events);
+            Assert.True(active.HasMoreWork);
+            stop.Cancel(); await writer;
+            File.AppendAllText(source, TokenLine("2026-08-27T01:00:02Z", 2, 150, 90, 30) + "\n");
+            var complete = await scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            Assert.Equal(180, complete.Snapshot.AllTime.TotalTokens);
+            Assert.Equal(2, complete.Events.Count);
+            Assert.Equal(DataQuality.Exact, complete.Snapshot.Quality);
+            Assert.False(complete.HasMoreWork);
+            var unchanged = await scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            Assert.Equal(180, unchanged.Snapshot.AllTime.TotalTokens);
+        }
+        finally
+        {
+            stop.Cancel();
+            if (writer is not null) await writer;
+            Directory.Delete(root, true);
+        }
+    }
+
     [Fact]
     public async Task RepeatedSnapshotEnrichesCacheWriteWithoutAddingTokens()
     {

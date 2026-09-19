@@ -31,6 +31,8 @@ public partial class App : System.Windows.Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        SettingsTheme.Apply();
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged += AppearanceChanged;
         smokeTest = e.Args.Contains("--smoke-test", StringComparer.Ordinal);
         if (smokeTest)
         {
@@ -45,7 +47,7 @@ public partial class App : System.Windows.Application
         tray = new TrayIconHost(() => ShowSettings("usage"), () => _ = store.RefreshAsync(true), () => ShowSettings(null), ShutdownApplication);
         tray.ShowNotchRequested += () => { settings.Save(settings.Current with { Visibility = NotchVisibility.OnHover }); notch.Peek(); };
         store.SessionCompleted += () => { if (settings.Current.PeekOnCompletion) notch.Peek(); };
-        store.ReadingUpdated += reading => { if (settings.Current.AlertsEnabled) foreach (var threshold in thresholds.Observe(reading, DateTimeOffset.Now)) tray.Notify(ProviderCatalog.Find(reading.Id)?.Name ?? reading.Id, threshold == 100 ? "Usage limit reached." : "Usage has reached 80%."); };
+        store.ReadingUpdated += reading => { if (settings.Current.AlertsEnabled && !settings.Current.MutedAlertProviders.Contains(reading.Id, StringComparer.Ordinal)) foreach (var threshold in thresholds.Observe(reading, DateTimeOffset.Now)) tray.Notify(ProviderCatalog.Find(reading.Id)?.Name ?? reading.Id, threshold == 100 ? "Usage limit reached." : "Usage has reached 80%."); };
         if (!smokeTest) watcher = new SessionWatcher(paths => Dispatcher.BeginInvoke(() => { store.Invalidate(paths); _ = store.RefreshAsync(); }));
         settings.SettingsChanged += (_, _) => ConfigureTimer();
         timer.Tick += (_, _) => { watcher?.Rebuild(); _ = store.RefreshAsync(); };
@@ -53,6 +55,7 @@ public partial class App : System.Windows.Application
         if (!smokeTest) { updateTimer.Tick += async (_, _) => await CheckUpdatesAsync(); updateTimer.Start(); _ = CheckUpdatesAsync(); }
         _ = StartAsync(e.Args);
     }
+    private void AppearanceChanged(object sender, Microsoft.Win32.UserPreferenceChangedEventArgs e) => Dispatcher.BeginInvoke(() => SettingsTheme.Apply());
     private async Task StartAsync(string[] args)
     {
         if (store is null) return;
@@ -95,6 +98,7 @@ public partial class App : System.Windows.Application
     private void ShutdownApplication() { dashboard?.Close(); notch?.Close(); Shutdown(); }
     protected override void OnExit(ExitEventArgs e)
     {
+        Microsoft.Win32.SystemEvents.UserPreferenceChanged -= AppearanceChanged;
         timer.Stop(); updateTimer.Stop(); watcher?.Dispose(); store?.Dispose(); tray?.Dispose(); instance?.Dispose();
         base.OnExit(e);
     }

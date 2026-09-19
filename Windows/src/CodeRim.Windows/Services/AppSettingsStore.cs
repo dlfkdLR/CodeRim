@@ -12,6 +12,12 @@ public sealed record AppSettings(
     bool ShowCachedInput,
     bool LaunchAtLogin)
 {
+    public string UsageProvider { get; init; } = "codex";
+    public bool AnalyticsEnabled { get; init; } = true;
+    public bool CostEstimatesEnabled { get; init; }
+    public bool ProjectsEnabled { get; init; } = true;
+    public bool SessionsEnabled { get; init; } = true;
+    public string[] MutedAlertProviders { get; init; } = [];
     public string[] EnabledProviders { get; init; } = ["codex"];
     public NotchEdge Edge { get; init; } = NotchEdge.Right;
     public NotchVisibility Visibility { get; init; } = NotchVisibility.OnHover;
@@ -145,6 +151,8 @@ public sealed class AppSettingsStore
             : AppSettings.Default.RefreshIntervalSeconds;
         return settings with
         {
+            UsageProvider = ProviderCatalog.Find(settings.UsageProvider) is not null ? settings.UsageProvider : "codex",
+            MutedAlertProviders = (settings.MutedAlertProviders ?? []).Where(id => ProviderCatalog.Find(id) is not null).Distinct(StringComparer.Ordinal).ToArray(),
             ResetTime = settings.ResetTime is "Relative" or "Absolute" ? settings.ResetTime : "Relative",
             ControlsPosition = settings.ControlsPosition is "Auto" or "Start" or "End" ? settings.ControlsPosition : "Auto",
             NumberStyle = numberStyle,

@@ -134,18 +134,7 @@ internal static class NotchPopover
         System.Windows.Automation.AutomationProperties.SetName(button, label);
         button.Click += (_, _) => action(); return button;
     }
-    private static string Reset(DateTimeOffset? reset, string format)
-    {
-        if (reset is null) return "";
-        if (reset <= DateTimeOffset.Now) return "Reset pending";
-        if (format == "Relative")
-        {
-            var remaining = reset.Value - DateTimeOffset.Now;
-            return "Resets in " + (remaining.TotalDays >= 1 ? (int)remaining.TotalDays + "d " + remaining.Hours + "h" :
-                remaining.TotalHours >= 1 ? (int)remaining.TotalHours + "h " + remaining.Minutes + "m" : Math.Max(1, remaining.Minutes) + "m");
-        }
-        return "Resets " + reset.Value.ToLocalTime().ToString("ddd h:mm tt", CultureInfo.CurrentCulture);
-    }
+    private static string Reset(DateTimeOffset? reset, string format) => ResetCopy.Text(reset, format, DateTimeOffset.Now);
     private static string Age(DateTimeOffset date)
     {
         var age = DateTimeOffset.Now - date;

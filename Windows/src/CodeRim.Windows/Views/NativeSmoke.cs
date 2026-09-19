@@ -26,6 +26,8 @@ internal static class NativeSmoke
         Directory.CreateDirectory(directory);
         var checks = new List<string>();
         Require(store.Synthetic, "Smoke must use synthetic data");
+        settings.Save(settings.Current with { EnabledProviders = ["codex", "claude"] });
+        await store.RefreshAsync(true); dashboard.Navigate("usage");
         var privateFile = Path.Combine(CompanionFile.DataDirectory, "acl-fixture.txt");
         GuardedFile.WritePrivate(privateFile, "fixture-before");
         using (var identity = WindowsIdentity.GetCurrent())
@@ -80,6 +82,7 @@ internal static class NativeSmoke
         }
         glyphGrid.Measure(new Size(720, double.PositiveInfinity)); glyphGrid.Arrange(new Rect(glyphGrid.DesiredSize));
         Capture(glyphGrid, Path.Combine(directory, "windows-provider-logos.png")); checks.Add("Every provider logo loads and renders");
+        SettingsTheme.Apply(dark: true, highContrast: false);
         await Idle(); Capture(dashboard, output); checks.Add("Usage window renders");
         var shortcuts = Descendants<System.Windows.Controls.Button>(dashboard).Where(x => (AutomationProperties.GetAutomationId(x) ?? "").StartsWith("usage.destination.", StringComparison.Ordinal)).ToArray();
         Require(shortcuts.Length == 3, "Usage analytics shortcuts are missing");
@@ -91,6 +94,53 @@ internal static class NativeSmoke
         await store.RefreshAsync(true).ConfigureAwait(true); await Idle();
         Require(Descendants<System.Windows.Controls.ComboBox>(dashboard).Contains(original), "Refresh replaced usage selector");
         Require(original.IsKeyboardFocusWithin, "Refresh stole usage keyboard focus"); checks.Add("Refresh preserves usage selector and keyboard focus");
+        original.SelectedValue = "claude"; await Idle();
+        dashboard.Navigate("general"); dashboard.Navigate("usage"); await Idle();
+        Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).First().SelectedValue == "claude", "Sidebar navigation lost selected usage provider");
+        Require(settings.Current.UsageProvider == "claude", "Usage provider selection was not persisted");
+        original.SelectedValue = "codex"; await Idle();
+        var mode = Descendants<RadioButton>(dashboard).First();
+        Require(mode.IsChecked == true && new System.Windows.Automation.Peers.RadioButtonAutomationPeer(mode).GetPattern(System.Windows.Automation.Peers.PatternInterface.SelectionItem) is not null, "Usage mode has no accessible selection state");
+        checks.Add("Selected provider survives sidebar navigation and mode exposes selected state");
+
+        var projects = Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.projects");
+        projects.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        var periodSelector = Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period");
+        periodSelector.SelectedValue = "month";
+        var filter = Descendants<System.Windows.Controls.TextBox>(dashboard).Single(); filter.Text = "CodeRim"; await Idle();
+        var projectRow = Descendants<System.Windows.Controls.Button>(dashboard).FirstOrDefault(x => (AutomationProperties.GetName(x) ?? "").StartsWith("CodeRim:", StringComparison.Ordinal));
+        Require(projectRow is not null, "Synthetic project row missing");
+        projectRow!.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => Equals(x.Content, "‹ Back")).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        Require(Descendants<System.Windows.Controls.TextBox>(dashboard).Single().Text == "CodeRim", "Back lost project search");
+        Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period").SelectedValue == "month", "Back lost selected period");
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => Equals(x.Content, "‹ Back")).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        checks.Add("Project detail Back restores list search and period");
+
+        dashboard.Navigate("codex-accounts"); await Idle();
+        var accountsWindow = System.Windows.Application.Current.Windows.OfType<Window>().Single(x => x != dashboard && x.Content is AccountsPane);
+        accountsWindow.Width = 500; accountsWindow.Height = 300; await Idle();
+        var saveAccount = Descendants<System.Windows.Controls.Button>(accountsWindow).Single(x => Equals(x.Content, "Save current account"));
+        Require(saveAccount.TransformToAncestor(accountsWindow).Transform(new Point()).Y + saveAccount.ActualHeight < accountsWindow.ActualHeight, "Account actions clipped at minimum window size");
+        Capture(accountsWindow, Path.Combine(directory, "windows-accounts-min.png")); accountsWindow.Close();
+        checks.Add("Account utility keeps actions visible at 500 by 300");
+
+        foreach (var theme in new[] { "dark", "light", "high-contrast" })
+        {
+            SettingsTheme.Apply(dark: theme == "dark", highContrast: theme == "high-contrast");
+            dashboard.Width = 840; dashboard.Height = 560;
+            foreach (var section in new[] { "general", "usage", "providers", "notch" })
+            {
+                dashboard.Navigate(section); await Idle();
+                Require(Descendants<ScrollViewer>(dashboard).All(x => x.ScrollableWidth < 1), "Horizontal overflow: " + theme + "/" + section);
+                foreach (var picker in Descendants<System.Windows.Controls.ComboBox>(dashboard))
+                    Require(!string.IsNullOrWhiteSpace(AutomationProperties.GetName(picker)) || AutomationProperties.GetLabeledBy(picker) is not null, "Unlabelled settings picker: " + section);
+                Capture(dashboard, Path.Combine(directory, "windows-" + section + "-" + theme + "-min.png"));
+            }
+        }
+        SettingsTheme.Apply(dark: true, highContrast: false); dashboard.Width = 980; dashboard.Height = 680;
+        checks.Add("Dark, light and high contrast settings fit minimum size with labelled controls");
+
         foreach (var page in new[] { "general", "notch", "providers", "codex", "diagnostics", "about" })
         {
             dashboard.Navigate(page); await Idle(); Capture(dashboard, Path.Combine(directory, "windows-" + page + ".png"));
@@ -117,9 +167,25 @@ internal static class NativeSmoke
             if (scale == 1) Capture(notch.PopupContent!, Path.Combine(directory, "windows-popup-" + edge + ".png"));
             checks.Add($"{edge} at {scale:0.00}: no clipped single provider or native scroll chrome");
         }
+        System.Windows.Input.Keyboard.ClearFocus();
+        var gear = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetName(x) == "Settings");
+        var gearPoint = gear.PointToScreen(new Point(gear.ActualWidth / 2, gear.ActualHeight / 2));
+        System.Windows.Forms.Cursor.Position = new System.Drawing.Point((int)gearPoint.X, (int)gearPoint.Y);
+        notch.OpenProvider("codex"); await Idle();
+        notch.DismissProviderCard(); await Idle();
+        Require(!notch.PopupIsOpen, "Provider card remains open over notch controls");
+        Require(notch.Expanded, "Clearing provider hover unexpectedly folded always-visible notch");
+        checks.Add("Leaving provider ring for controls clears card independently of notch visibility");
         notch.OpenAccounts(); await Idle();
         Require(notch.PopupContent is not null && Descendants<TextBlock>(notch.PopupContent).Any(x => x.Text.Contains("preview@example.invalid", StringComparison.Ordinal)), "Account popup omits current CLI identity");
         Capture(notch.PopupContent!, Path.Combine(directory, "windows-account-popup.png"));
+        notch.TryFold(); await Task.Delay(550); await Idle();
+        Require(notch.AccountMenuIsOpen && notch.PopupIsOpen, "Account menu closed merely on pointer departure");
+        var popupSource = PresentationSource.FromVisual(notch.PopupContent!);
+        notch.PopupContent!.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, popupSource!, 0, System.Windows.Input.Key.Escape)
+            { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent });
+        await Idle(); Require(!notch.PopupIsOpen, "Escape did not dismiss account menu");
+        checks.Add("Account menu persists until explicit dismissal and Escape closes it");
         checks.Add("Account popup shows provider logo, plan and isolated current identity");
         settings.Save(settings.Current with { Edge = NotchEdge.Right, Scale = 1.25, EnabledProviders = ProviderCatalog.All.Select(x => x.Id).ToArray() });
         await store.RefreshAsync(true).ConfigureAwait(true); await Idle();

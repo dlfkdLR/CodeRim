@@ -18,8 +18,14 @@ final class CursorNotchProvider: NotchProvider {
     private let endpoint = URL(string: "https://cursor.com/api/usage-summary")!
     private let session: URLSession
 
-    init(session: URLSession = ProviderSession.shared) {
+    private let loadCredentials: @Sendable () async throws -> CursorCredentials
+
+    init(session: URLSession = ProviderSession.shared,
+         loadCredentials: @escaping @Sendable () async throws -> CursorCredentials = {
+             try await Task.detached { try CursorCredentials.load() }.value
+         }) {
         self.session = session
+        self.loadCredentials = loadCredentials
     }
 
     var signInRoute: SignInRoute {
@@ -36,7 +42,7 @@ final class CursorNotchProvider: NotchProvider {
 
     func fetchSnapshot() async throws -> ProviderSnapshot {
         // Reads the editor's SQLite store; keep it off the main actor.
-        let credentials = try await Task.detached { try CursorCredentials.load() }.value
+        let credentials = try await loadCredentials()
 
         var request = URLRequest(url: endpoint)
         request.setValue(credentials.sessionCookie, forHTTPHeaderField: "Cookie")
@@ -50,6 +56,16 @@ final class CursorNotchProvider: NotchProvider {
         guard (200..<300).contains(status) else {
             throw NotchProviderError.badResponse(status: status)
         }
+
+        // Cursor can switch accounts outside CodeRim while this request is in
+        // flight. Never publish the previous account's quota under the new
+        // account's identity. This provider clears history on authentication
+        // failure, so a rejected response cannot fall back to the old quota.
+        let currentCredentials = try await loadCredentials()
+        guard currentCredentials.accountID == credentials.accountID else {
+            throw NotchProviderError.needsAuth
+        }
+        try Task.checkCancellation()
 
         let body = String(data: data, encoding: .utf8) ?? ""
         // Size only, never the payload: this response carries the plan, spend

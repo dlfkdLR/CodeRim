@@ -191,15 +191,6 @@ public sealed class UsageScanner
                     before.Length,
                     cancellationToken, provider, projectKey);
                 scannedBytes += before.Length;
-                var after = FileStamp.Read(source);
-                if (before != after)
-                {
-                    cache.Remove(source);
-                    cachedEventCount = retainedEventCount;
-                    partial = true;
-                    continue;
-                }
-
                 if (parsed.ResourceLimitReached)
                 {
                     cache.Remove(source);
@@ -209,7 +200,36 @@ public sealed class UsageScanner
                     break;
                 }
 
-                cache[source] = new CachedFile(after, parsed.Events, parsed.Partial);
+                var after = FileStamp.Read(source);
+                var changed = before != after;
+                var sameFile = parsed.Identity == FileIdentity.TryRead(source);
+                if (changed)
+                {
+                    // A writer may append while we parse a frozen prefix. Keep a
+                    // verified prefix useful, and retry its tail on the next scan.
+                    hasMoreWork = true;
+                    partial = true;
+                    var canVerify = after.Length >= before.Length
+                        && after.CreationTimeTicks == before.CreationTimeTicks
+                        && scannedBytes + before.Length <= maximumBytesPerScan;
+                    if (canVerify && sameFile)
+                    {
+                        scannedBytes += before.Length;
+                        sameFile = VerifyPrefix(source, before.Length, parsed, cancellationToken);
+                    }
+                    else sameFile = false;
+                }
+                if (!sameFile)
+                {
+                    cache.Remove(source);
+                    cachedEventCount = retainedEventCount;
+                    partial = true;
+                    hasMoreWork = true;
+                    continue;
+                }
+
+
+                cache[source] = new CachedFile(before, parsed.Events, parsed.Partial);
                 cachedEventCount = retainedEventCount + parsed.Events.Count;
                 partial |= parsed.Partial;
             }
@@ -370,7 +390,9 @@ public sealed class UsageScanner
             bufferSize: 64 * 1024,
             FileOptions.SequentialScan);
 
-        foreach (var boundedLine in BoundedLineReader.Read(stream, maximumBytes, cancellationToken))
+        var identity = FileIdentity.TryRead(stream.SafeFileHandle);
+        using var prefixHash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        foreach (var boundedLine in BoundedLineReader.Read(stream, maximumBytes, cancellationToken, prefixHash))
         {
             if (boundedLine.Oversized)
             {
@@ -509,7 +531,32 @@ public sealed class UsageScanner
             }
         }
 
-        return new ParsedFile(events, partial, false);
+        return new ParsedFile(events, partial, false, prefixHash.GetHashAndReset(), identity);
+    }
+
+    private static bool VerifyPrefix(string path, long length, ParsedFile parsed, CancellationToken cancellationToken)
+    {
+        if (parsed.PrefixHash is null) return false;
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete, 64 * 1024, FileOptions.SequentialScan);
+        if (FileIdentity.TryRead(stream.SafeFileHandle) != parsed.Identity || stream.Length < length) return false;
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
+        try
+        {
+            var remaining = length;
+            while (remaining > 0)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var read = stream.Read(buffer, 0, (int)Math.Min(buffer.Length, remaining));
+                if (read == 0) return false;
+                hash.AppendData(buffer, 0, read);
+                remaining -= read;
+            }
+            return CryptographicOperations.FixedTimeEquals(hash.GetHashAndReset(), parsed.PrefixHash)
+                && FileIdentity.TryRead(path) == parsed.Identity;
+        }
+        finally { ArrayPool<byte>.Shared.Return(buffer); }
     }
 
     public static UsageSnapshot Aggregate(
@@ -626,7 +673,9 @@ public sealed class UsageScanner
     private sealed record ParsedFile(
         IReadOnlyList<UsageEvent> Events,
         bool Partial,
-        bool ResourceLimitReached);
+        bool ResourceLimitReached,
+        byte[]? PrefixHash = null,
+        FileIdentity? Identity = null);
     private sealed record DiscoveryResult(List<string> Sources, bool ResourceLimitReached);
     private sealed record CachedFile(FileStamp Stamp, IReadOnlyList<UsageEvent> Events, bool Partial);
     private readonly record struct FileStamp(long Length, long LastWriteTicks, long CreationTimeTicks)
@@ -640,6 +689,14 @@ public sealed class UsageScanner
 
     private readonly record struct FileIdentity(uint VolumeSerialNumber, ulong FileIndex)
     {
+        public static FileIdentity? TryRead(SafeFileHandle handle)
+        {
+            if (!OperatingSystem.IsWindows() || !GetFileInformationByHandle(handle, out var information))
+                return null;
+            return new FileIdentity(information.VolumeSerialNumber,
+                ((ulong)information.FileIndexHigh << 32) | information.FileIndexLow);
+        }
+
         public static FileIdentity? TryRead(string path)
         {
             if (!OperatingSystem.IsWindows())
@@ -655,14 +712,7 @@ public sealed class UsageScanner
                     FileAccess.Read,
                     FileShare.ReadWrite | FileShare.Delete,
                     FileOptions.None);
-                if (!GetFileInformationByHandle(handle, out var information))
-                {
-                    return null;
-                }
-
-                return new FileIdentity(
-                    information.VolumeSerialNumber,
-                    ((ulong)information.FileIndexHigh << 32) | information.FileIndexLow);
+                return TryRead(handle);
             }
             catch (Exception error) when (error is IOException
                                           or UnauthorizedAccessException
@@ -705,7 +755,8 @@ internal static class BoundedLineReader
     public static IEnumerable<BoundedLine> Read(
         Stream stream,
         long maximumBytes,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IncrementalHash? prefixHash = null)
     {
         var readBuffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
         var lineBuffer = new ArrayBufferWriter<byte>(64 * 1024);
@@ -738,6 +789,7 @@ internal static class BoundedLineReader
                     yield break;
                 }
                 totalBytesRead += read;
+                prefixHash?.AppendData(readBuffer, 0, read);
 
                 for (var index = 0; index < read; index++)
                 {
