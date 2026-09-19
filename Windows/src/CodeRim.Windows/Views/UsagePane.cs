@@ -134,7 +134,7 @@ internal sealed class UsagePane : StackPanel
             select.SelectionChanged += (_, _) => { if (select.SelectedValue is string value) { period = value; visibleRows = 40; Update(); } }; bar.Children.Add(select);
         }
         controls.Children.Add(bar);
-        if (destination is "projects" or "sessions")
+        if (destination is "projects" or "sessions" && project is null && session is null)
         {
             var filter = new System.Windows.Controls.TextBox { Text = search, Padding = new Thickness(8), Margin = new Thickness(0, 10, 0, 12), ToolTip = "Filter " + destination };
             System.Windows.Automation.AutomationProperties.SetName(filter, "Filter " + destination);

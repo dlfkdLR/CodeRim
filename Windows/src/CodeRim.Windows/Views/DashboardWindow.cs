@@ -67,7 +67,7 @@ internal sealed partial class DashboardWindow : Window
     {
         if (id?.StartsWith("sessions:", StringComparison.Ordinal) == true)
         {
-            localProvider = id[9..]; page = "usage"; Render(); usagePane?.SelectProvider(localProvider); usagePane?.ShowSessions(); Show(); Activate(); return;
+            localProvider = id[9..]; page = "usage"; BuildSidebar(); Render(); usagePane?.SelectProvider(localProvider); usagePane?.ShowSessions(); Show(); Activate(); return;
         }
         if (id is "codex-accounts" or "claude-accounts") { OpenAccounts(id.Split('-')[0]); return; }
         page = id ?? "general";

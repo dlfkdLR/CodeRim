@@ -165,6 +165,8 @@ internal static class NativeSmoke
         Descendants<System.Windows.Controls.Button>(dashboard).Single(x => (AutomationProperties.GetName(x) ?? "").StartsWith("preview-session:", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
         await Idle();
         Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Whole-session images"), "Session image metadata is absent");
+        Require(!Descendants<System.Windows.Controls.TextBox>(dashboard).Any(), "List filter leaked into session detail");
+        Require(Descendants<ListBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Settings sections").SelectedItem is ListBoxItem { Tag: "usage" }, "Session route left the wrong sidebar section selected");
         var sessionPeriod = Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period");
         sessionPeriod.SelectedValue = "today"; await Idle();
         Require(!Descendants<System.Windows.Controls.Button>(dashboard).Any(x => (x.Content as string ?? "").StartsWith("Sub-agent preview-", StringComparison.Ordinal)), "Out-of-period child links lead to empty detail");
