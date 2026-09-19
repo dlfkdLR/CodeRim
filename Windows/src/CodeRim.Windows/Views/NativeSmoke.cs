@@ -242,6 +242,8 @@ internal static class NativeSmoke
             Capture(notch, Path.Combine(directory, $"windows-notch-{edge}-{scale:0.00}.png"));
             notch.OpenProvider("codex"); await Idle();
             Require(notch.PopupContent is { ActualWidth: > 0, ActualHeight: > 0 }, "Provider popup did not open");
+            Require(Descendants<TextBlock>(notch.PopupContent!).Count(x => x.Text.Contains("2 resets", StringComparison.Ordinal)) == 1,
+                "Reset credit balance was duplicated in the popup");
             if (scale == 1) Capture(notch.PopupContent!, Path.Combine(directory, "windows-popup-" + edge + ".png"));
             Record($"{edge} at {scale:0.00}: no clipped single provider or native scroll chrome");
         }
