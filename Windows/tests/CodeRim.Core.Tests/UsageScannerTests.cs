@@ -35,36 +35,30 @@ public sealed class UsageScannerTests
     public async Task ReadsStablePrefixWhileWriterContinuesAndThenCollectsTail()
     {
         var root = CreateTemporaryDirectory();
-        using var stop = new CancellationTokenSource();
-        Task? writer = null;
         try
         {
             var source = Path.Combine(root, "active.jsonl");
-            File.WriteAllLines(source, ["{\"type\":\"session_meta\",\"payload\":{\"id\":\"active\"}}",
+            File.WriteAllLines(source, ["""{"type":"session_meta","payload":{"id":"active"}}""",
                 TokenLine("2026-08-27T01:00:01Z", 1, 100, 60, 20)]);
-            using (var fill = new FileStream(source, FileMode.Append, FileAccess.Write))
-            {
-                var line = System.Text.Encoding.UTF8.GetBytes(new string('x', 65534) + "\n");
-                for (var index = 0; index < 512; index++) fill.Write(line);
-            }
-            var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            writer = Task.Run(async () =>
-            {
-                using var append = new FileStream(source, FileMode.Append, FileAccess.Write, FileShare.ReadWrite | FileShare.Delete);
-                while (!stop.IsCancellationRequested)
+            var appendAfterRead = true;
+            var scanner = new UsageScanner([root],
+                UsageScanner.MaximumSourceCount, UsageScanner.MaximumEventCount,
+                UsageScanner.MaximumEventsPerSource, UsageScanner.MaximumSourceBytes,
+                UsageScanner.MaximumBytesPerScan, UsageScanner.MaximumScanDuration,
+                sourceParsed: path =>
                 {
-                    append.Write("{}\n"u8); append.Flush(); started.TrySetResult();
-                    await Task.Delay(2).ConfigureAwait(false);
-                }
-            }, TestContext.Current.CancellationToken);
-            await started.Task;
-            var scanner = new UsageScanner([root]);
+                    if (!appendAfterRead) return;
+                    appendAfterRead = false;
+                    // Force append between the frozen read and post-read validation.
+                    // Thread-pool scheduling cannot turn this into an unchanged-file test.
+                    File.AppendAllText(path, TokenLine("2026-08-27T01:00:02Z", 2, 150, 90, 30) + "\n");
+                });
             var active = await scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            Assert.False(appendAfterRead);
             Assert.Equal(120, active.Snapshot.AllTime.TotalTokens);
             Assert.Single(active.Events);
             Assert.True(active.HasMoreWork);
-            stop.Cancel(); await writer;
-            File.AppendAllText(source, TokenLine("2026-08-27T01:00:02Z", 2, 150, 90, 30) + "\n");
+            Assert.Equal(DataQuality.Partial, active.Snapshot.Quality);
             var complete = await scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
             Assert.Equal(180, complete.Snapshot.AllTime.TotalTokens);
             Assert.Equal(2, complete.Events.Count);
@@ -73,12 +67,7 @@ public sealed class UsageScannerTests
             var unchanged = await scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
             Assert.Equal(180, unchanged.Snapshot.AllTime.TotalTokens);
         }
-        finally
-        {
-            stop.Cancel();
-            if (writer is not null) await writer;
-            Directory.Delete(root, true);
-        }
+        finally { Directory.Delete(root, true); }
     }
 
     [Fact]
