@@ -46,7 +46,7 @@ internal static class SettingsUi
     }
     internal static FrameworkElement Picker<T>(string title, IEnumerable<T> values, T selected, Action<T> changed)
     {
-        var picker = Ui.Combo(values, selected, changed); picker.MinWidth = 100; picker.MaxWidth = 250;
+        var picker = Ui.Combo(values, selected, changed); picker.MinWidth = 100; picker.MaxWidth = 250; picker.MinHeight = 22; picker.Height = 24;
         picker.HorizontalAlignment = HorizontalAlignment.Right; return Row(title, picker);
     }
     internal static FrameworkElement Action(string title, Action action)

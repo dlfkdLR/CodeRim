@@ -49,6 +49,23 @@ internal static class NativeSmoke
         Require(vault.Load("smoke.fixture") == "synthetic-secret", "DPAPI round trip failed");
         vault.Delete("smoke.fixture"); Require(vault.Load("smoke.fixture") is null, "Credential removal failed");
         Record("Windows private-file ACL, atomic replacement, and user DPAPI round trip");
+        var previousPath = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User);
+        try
+        {
+            var cliDirectory = CliInstaller.Install();
+            CliInstaller.Install();
+            var pathEntries = (Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User) ?? "").Split(';');
+            Require(pathEntries.Count(x => string.Equals(x, cliDirectory, StringComparison.OrdinalIgnoreCase)) == 1, "CLI installation duplicated PATH");
+            Require(File.ReadAllText(Path.Combine(cliDirectory, "coderim.cmd")).Contains("CodeRimCLI.exe", StringComparison.Ordinal), "CLI wrapper is missing");
+        }
+        finally { Environment.SetEnvironmentVariable("Path", previousPath, EnvironmentVariableTarget.User); }
+        AppDiagnostics.Record("codex", "Ready", 2);
+        AppDiagnostics.Record("private-unknown", "private-payload", 0);
+        var diagnosticText = File.ReadAllText(Path.Combine(AppDiagnostics.LogDirectory, "diagnostics.log"));
+        Require(diagnosticText.Contains("codex Ready count=2", StringComparison.Ordinal)
+            && !diagnosticText.Contains("private-", StringComparison.Ordinal), "Diagnostic log accepted a non-catalog payload");
+        Record("Settings CLI installation is idempotent and debug logs accept only bounded metadata");
+
         var previousClaudeConfig = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
         var fixtureConfig = Path.Combine(CompanionFile.DataDirectory, "claude-fixture"); Directory.CreateDirectory(fixtureConfig);
         try
@@ -196,7 +213,7 @@ internal static class NativeSmoke
             Record($"{edge} at {scale:0.00}: no clipped single provider or native scroll chrome");
         }
         System.Windows.Input.Keyboard.ClearFocus();
-        var gear = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetName(x) == "Settings");
+        var gear = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetName(x) == "Open Settings");
         var gearPoint = gear.PointToScreen(new Point(gear.ActualWidth / 2, gear.ActualHeight / 2));
         System.Windows.Forms.Cursor.Position = new System.Drawing.Point((int)gearPoint.X, (int)gearPoint.Y);
         notch.OpenProvider("codex"); await Idle();

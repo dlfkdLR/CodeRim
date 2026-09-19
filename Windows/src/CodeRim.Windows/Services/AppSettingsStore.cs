@@ -13,6 +13,9 @@ public sealed record AppSettings(
     bool LaunchAtLogin)
 {
     public string UsageProvider { get; init; } = "codex";
+    public bool DebugLogging { get; init; }
+    public string FinishedSound { get; init; } = "Asterisk";
+    public string BlockedSound { get; init; } = "Exclamation";
     public bool AnalyticsEnabled { get; init; } = true;
     public bool CostEstimatesEnabled { get; init; }
     public bool ProjectsEnabled { get; init; } = true;

@@ -90,10 +90,10 @@ internal sealed class UsagePane : StackPanel
         this.store = store; this.settings = settings; this.provider = provider; this.navigate = navigate;
         var choices = settings.Current.EnabledProviders.Select(id => ProviderCatalog.Find(id)!).ToArray();
         if (!choices.Any(x => x.Id == provider)) this.provider = choices.FirstOrDefault()?.Id ?? "codex";
-        var header = new DockPanel { Margin = new Thickness(24, 20, 24, 16) };
+        var header = new DockPanel { Margin = new Thickness(24, 20, 24, 24) };
         DockPanel.SetDock(controls, Dock.Right); header.Children.Add(controls);
         selector = new System.Windows.Controls.ComboBox { ItemsSource = choices, DisplayMemberPath = "Name", SelectedValuePath = "Id",
-            SelectedValue = this.provider, MinWidth = 100, MaxWidth = 190, HorizontalAlignment = HorizontalAlignment.Left };
+            SelectedValue = this.provider, MinHeight = 24, Height = 24, MinWidth = 100, MaxWidth = 190, HorizontalAlignment = HorizontalAlignment.Left };
         System.Windows.Automation.AutomationProperties.SetName(selector, "Usage provider");
         selector.SelectionChanged += (_, _) =>
         {
@@ -148,10 +148,10 @@ internal sealed class UsagePane : StackPanel
         var identity = SavedAccounts.CurrentAccountLabel(provider, store.Synthetic);
         var account = new DockPanel();
         var change = Ui.Button("Switch", () => navigate(provider is "codex" or "claude" ? provider + "-accounts" : provider));
-        change.Background = Brushes.Transparent; change.BorderThickness = new Thickness(0); change.Margin = new Thickness(8, 0, 0, 0);
+        change.MinHeight = 20; change.Height = 20; change.Padding = new Thickness(0); change.Background = Brushes.Transparent; change.BorderThickness = new Thickness(0); change.Margin = new Thickness(8, 0, 0, 0);
         DockPanel.SetDock(change, Dock.Right); account.Children.Add(change);
         var accountLabel = Ui.Text(identity ?? store.Readings.GetValueOrDefault(provider)?.Plan ?? "Account", 12);
-        accountLabel.TextWrapping = TextWrapping.NoWrap; accountLabel.TextTrimming = TextTrimming.CharacterEllipsis; accountLabel.ToolTip = identity; accountLabel.VerticalAlignment = VerticalAlignment.Center;
+        accountLabel.FontWeight = FontWeights.SemiBold; accountLabel.Margin = new Thickness(0); accountLabel.TextWrapping = TextWrapping.NoWrap; accountLabel.TextTrimming = TextTrimming.CharacterEllipsis; accountLabel.ToolTip = identity; accountLabel.VerticalAlignment = VerticalAlignment.Center;
         account.Children.Add(accountLabel); accountRow.Children.Add(account);
         readings.Children.Clear();
         if (destination != "overview") { Detail(); return; }
@@ -179,14 +179,16 @@ internal sealed class UsagePane : StackPanel
         for (var i = 0; i < values.Length; i++)
         {
             var value = values[i]; history.ColumnDefinitions.Add(new ColumnDefinition());
-            var panel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Left };
-            panel.Children.Add(Ui.Text(value.Item1, 11, "#A6A6AA"));
+            var panel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Stretch };
+            var periodLabel = new DockPanel();
+            var arrow = Ui.Text("›", 15, "#A6A6AA"); DockPanel.SetDock(arrow, Dock.Right); periodLabel.Children.Add(arrow);
+            periodLabel.Children.Add(Ui.Text(value.Item1, 13, "#A6A6AA")); panel.Children.Add(periodLabel);
             panel.Children.Add(Ui.Text(TokenFormatter.Format(value.Item3.TotalTokens, settings.Current.NumberStyle), 21, weight: FontWeights.SemiBold));
             var button = Ui.Button("", () => Forward("activity", value.Item2));
             System.Windows.Automation.AutomationProperties.SetName(button, value.Item1 + ": " + value.Item3.TotalTokens.ToString(CultureInfo.CurrentCulture) + " tokens");
             button.Content = panel; button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Margin = new Thickness(0);
             if (i > 0) { var separator = new Border { Width = 1, Height = 64, Background = (Brush)System.Windows.Application.Current.FindResource("DividerBrush"), HorizontalAlignment = HorizontalAlignment.Left }; Grid.SetColumn(separator, i); history.Children.Add(separator); }
-            button.HorizontalContentAlignment = HorizontalAlignment.Left; Grid.SetColumn(button, i); history.Children.Add(button);
+            button.HorizontalContentAlignment = HorizontalAlignment.Stretch; button.Padding = new Thickness(i == 0 ? 0 : 16, 0, 16, 0); Grid.SetColumn(button, i); history.Children.Add(button);
         }
         readings.Children.Add(history);
         var links = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3, Margin = new Thickness(0, 24, 0, 18) };
@@ -249,7 +251,7 @@ internal sealed class UsagePane : StackPanel
             if (tokens.CacheWriteInputTokens is { } written && written > 0) parent.Children.Add(Ui.Row("Cache writes", TokenFormatter.Format(written, settings.Current.NumberStyle)));
         }
         parent.Children.Add(Ui.Row("Output", TokenFormatter.Format(tokens.OutputTokens, settings.Current.NumberStyle)));
-        if (settings.Current.ShowCachedInput) parent.Children.Add(Ui.Text("Cache tokens are included in Input.", 10, "#808080"));
+        parent.ToolTip = "Cached input is already included in Input. Total equals Input plus Output.";
     }
     private IEnumerable<UsageEvent> Filter()
     {

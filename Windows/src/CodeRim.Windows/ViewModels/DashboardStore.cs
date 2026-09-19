@@ -91,6 +91,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         try
         {
             localRefreshing = true; Changed();
+            var passes = 0;
             do
             {
                 pendingRefresh = false;
@@ -100,9 +101,12 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
                 Sessions = await Task.Run(() => ReadSessions(enabled), lifetime.Token).ConfigureAwait(true);
                 if (Sessions.Any(x => x.State == "idle" && previousSessions.Any(old => old.Id == x.Id && old.State == "busy")))
                 {
-                    if (settings.Current.CompletionSound) System.Media.SystemSounds.Asterisk.Play();
+                    if (settings.Current.CompletionSound) SessionChime.Play(settings.Current.FinishedSound);
                     SessionCompleted?.Invoke();
                 }
+                if (settings.Current.CompletionSound && Sessions.Any(x => x.State == "waiting"
+                    && previousSessions.Any(old => old.Id == x.Id && old.State == "busy")))
+                    SessionChime.Play(settings.Current.BlockedSound);
                 Changed();
                 foreach (var id in enabled.Where(scanners.ContainsKey))
                 {
@@ -115,10 +119,14 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
                     Events[id] = events;
                     Usage[id] = UsageScanner.Aggregate(events, DateTimeOffset.Now, settings.Current.WeekStart, scan.Snapshot.Quality == DataQuality.Partial || scan.HasMoreWork);
                     Status = scan.StatusMessage;
+                    if (settings.Current.DebugLogging) AppDiagnostics.Record(id, scan.Snapshot.Quality.ToString(), events.Count);
                     Changed();
                 }
                 Persist();
-                if (pendingRefresh) await Task.Yield();
+                // A continuously appended source must not keep a refresh alive
+                // forever. Watcher/timer/manual refresh will collect the next tail.
+                if (++passes >= 2) break;
+                if (pendingRefresh) await Task.Delay(250, lifetime.Token).ConfigureAwait(true);
             } while (pendingRefresh && !disposed);
         }
         catch (OperationCanceledException) { }
@@ -156,6 +164,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
             EnsureScope(id);
             if (generation != Generation(id) || requestScope != scopes.GetValueOrDefault(id) || !settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return;
             Readings[id] = ReadingRetention.Merge(reading, requestScope is null || !connections.CanCache(id) ? null : Readings.GetValueOrDefault(id));
+            if (settings.Current.DebugLogging) AppDiagnostics.Record(id, Readings[id].State.ToString(), Readings[id].Windows.Count);
             ReadingUpdated?.Invoke(Readings[id]);
             Persist();
         }

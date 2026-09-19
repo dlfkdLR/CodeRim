@@ -221,7 +221,9 @@ internal sealed partial class DashboardWindow : Window
         readings.IsEnabled = shown; body.Children.Add(readings);
         body.Children.Add(SettingsUi.Section("When a Session Ends",
             SettingsUi.Toggle("Peek the notch open", settings.Current.PeekOnCompletion, x => Save(settings.Current with { PeekOnCompletion = x })),
-            SettingsUi.Toggle("Play a sound", settings.Current.CompletionSound, x => Save(settings.Current with { CompletionSound = x }))));
+            SettingsUi.Toggle("Play a sound", settings.Current.CompletionSound, x => Save(settings.Current with { CompletionSound = x })),
+            SettingsUi.Picker("Finished", SessionChime.Names, settings.Current.FinishedSound, x => { Save(settings.Current with { FinishedSound = x }); SessionChime.Play(x); }),
+            SettingsUi.Picker("Blocked", SessionChime.Names, settings.Current.BlockedSound, x => { Save(settings.Current with { BlockedSound = x }); SessionChime.Play(x); })));
         body.Children.Add(SettingsUi.Section("Usage Alerts", SettingsUi.Toggle("Notify at 80% and 100% usage", settings.Current.AlertsEnabled, x => Save(settings.Current with { AlertsEnabled = x }))));
         body.Children.Add(SettingsUi.Note("Mute individual providers in Providers. Alerts always follow consumed usage."));
         var displays = System.Windows.Forms.Screen.AllScreens.Select(x => x.DeviceName).ToArray();
@@ -451,13 +453,25 @@ internal sealed partial class DashboardWindow : Window
     }
     private void Diagnostics()
     {
-        Heading("Diagnostics", "CodeRim keeps usage numbers, never prompts or response bodies.");
-        body.Children.Add(Ui.Row("Data folder", CompanionFile.DataDirectory)); body.Children.Add(Ui.Row("Companion snapshot", CompanionFile.SnapshotPath));
-        body.Children.Add(Ui.Row("Local scope", "This PC · Across accounts"));
-        body.Children.Add(Ui.Button("Open data folder", () => OpenUrl(CompanionFile.DataDirectory)));
-        body.Children.Add(Ui.Text("Source roots", 16)); foreach (var root in UsageScanner.DefaultRoots().Concat(UsageScanner.DefaultRoots("claude"))) body.Children.Add(Ui.Text(root, 12, "#B7B8BD"));
-        body.Children.Add(Ui.AsyncButton("Rescan local sources", () => { store.Invalidate(null); return store.RefreshAsync(); }));
-        body.Children.Add(Ui.Text(store.Status));
+        var cliStatus = Ui.Text("Use coderim in a new terminal after installation.", 11, "#A6A6AA");
+        body.Children.Add(SettingsUi.Section("CLI", SettingsUi.Action("Install CLI", () =>
+        {
+            try { cliStatus.Text = "Installed at " + CliInstaller.Install() + ". Open a new terminal."; }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException) { cliStatus.Text = "CLI installation failed. Keep the complete release package in a writable permanent folder."; }
+        })));
+        cliStatus.Margin = new Thickness(32, 8, 32, 0); body.Children.Add(cliStatus);
+        body.Children.Add(SettingsUi.Section("Diagnostics",
+            SettingsUi.Toggle("Enable debug logging", settings.Current.DebugLogging, x => Save(settings.Current with { DebugLogging = x })),
+            SettingsUi.Action("Open Log Folder", () => { Directory.CreateDirectory(AppDiagnostics.LogDirectory); CredentialVault.RestrictDirectory(AppDiagnostics.LogDirectory); OpenUrl(AppDiagnostics.LogDirectory); })));
+        body.Children.Add(SettingsUi.Note("Never includes prompts, responses, source code, terminal output, or authentication tokens."));
+        body.Children.Add(SettingsUi.Section("Codex Account Limit Source",
+            SettingsUi.Value("Mode", "Automatic"), SettingsUi.Value("Provider", "Codex app-server")));
+        body.Children.Add(SettingsUi.Note("Read-only local RPC request — no reset or purchase actions."));
+        body.Children.Add(SettingsUi.Section("Local Data",
+            SettingsUi.Value("Scope", "This PC · Across accounts"),
+            SettingsUi.Action("Open Data Folder", () => OpenUrl(CompanionFile.DataDirectory)),
+            Ui.AsyncButton("Rescan local sources", () => { store.Invalidate(null); return store.RefreshAsync(true); })));
+        body.Children.Add(SettingsUi.Note(store.Status));
     }
     private void About()
     {
