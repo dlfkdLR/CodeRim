@@ -26,7 +26,7 @@ The matrix describes the current source. Local token history is scoped to this c
 
 ## Install
 
-**Current release: [2.1.5](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.5)** · [Release notes](Documentation/ReleaseNotes/2.1.5.md)
+**macOS:** [2.1.5](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.5) · **Windows:** [2.1.6](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.6)
 
 ### macOS
 

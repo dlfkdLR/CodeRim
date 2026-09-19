@@ -26,7 +26,7 @@ CodeRim은 화면 가장자리의 작은 노치에 코딩 도우미의 사용 �
 
 ## 설치
 
-**현재 릴리스: [2.1.5](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.5)** · [릴리스 노트](Documentation/ReleaseNotes/2.1.5.md)
+**macOS:** [2.1.5](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.5) · **Windows:** [2.1.6](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.6)
 
 ### macOS
 

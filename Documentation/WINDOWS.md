@@ -56,18 +56,18 @@ Browser cookie auto-import, remaining native/PTY/OAuth integrations, Antigravity
 | --- | --- |
 | Codex (`codex`) | Local JSONL + Codex app-server |
 | Claude Code (`claude`) | Local JSONL + status-line bridge |
-| GitHub Copilot (`copilot`) | Bundled API reader / explicit credential or cookie |
+| GitHub Copilot (`copilot`) | GitHub access token |
 | Cursor (`cursor`) | Cursor local IDE sign-in or session cookie |
 | Grok (`grok`) | Grok CLI sign-in or CLI access token |
 | OpenCode Go (`opencode`) | OpenCode Go local sign-in or API key |
 | Command Code (`commandcode`) | Command Code local sign-in or API key |
-| GLM (`glm`) | Bundled API reader / explicit credential or cookie |
+| GLM (`glm`) | Z_AI_API_KEY; region and scope settings |
 | Ollama Cloud (`ollama`) | Ollama Cloud API key |
 | Antigravity (`gemini`) | OAuth token/JSON; project selection, remote model quotas and verification |
 | Ollama Local (`ollama-local`) | Local read-only API |
-| OpenAI (`openai`) | Bundled API reader / explicit credential or cookie |
+| OpenAI (`openai`) | API key with organization usage/cost permissions; optional Project ID |
 | Azure OpenAI (`azureopenai`) | API key and deployment; explicit paid validation opt-in, no quota counters |
-| ClinePass (`clinepass`) | Bundled API reader / explicit credential or cookie |
+| ClinePass (`clinepass`) | CLINE_API_KEY |
 | OpenCode (`opencode-zen`) | Web auth cookie; workspace subscription quotas or pay-as-you-go spending |
 | Alibaba (`alibaba`) | Coding Plan API key and intl/cn region; request quota |
 | Alibaba Token Plan (`alibabatokenplan`) | Console cookie; Team/Personal in intl/cn regions, sec_token discovery |
@@ -77,51 +77,51 @@ Browser cookie auto-import, remaining native/PTY/OAuth integrations, Antigravity
 | Gemini (`gemini-cli`) | Gemini CLI OAuth detection/refresh; Code Assist model quotas and consumer-migration state |
 | Devin (`devin`) | Access token and organization; quota and overage |
 | MiniMax (`minimax`) | Coding API key and region; plan quota |
-| Manus (`manus`) | Bundled API reader / explicit credential or cookie |
+| Manus (`manus`) | Manual manus.im Cookie header |
 | Kimi Code (`kimi`) | Kimi Code API key; coding quota |
 | Kilo (`kilo`) | Kilo local sign-in or API token; personal/organization billing |
 | Kiro (`kiro`) | CLI state database or token/profile ARN; plan and overage credits |
 | Vertex AI (`vertexai`) | gcloud ADC or OAuth token; active project Cloud Monitoring quota |
 | Augment (`augment`) | Augment web cookie; account credits and billing cycle |
 | JetBrains AI (`jetbrains`) | Installed IDE quota XML (read-only) |
-| Moonshot / Kimi Open Platform (`moonshot`) | Bundled API reader / explicit credential or cookie |
+| Moonshot / Kimi Open Platform (`moonshot`) | Moonshot API key |
 | Amp (`amp`) | Amp API key; subscription and balances |
-| T3 Chat (`t3chat`) | Bundled API reader / explicit credential or cookie |
-| Synthetic (`synthetic`) | Bundled API reader / explicit credential or cookie |
-| OpenRouter (`openrouter`) | Bundled API reader / explicit credential or cookie |
-| ElevenLabs (`elevenlabs`) | Bundled API reader / explicit credential or cookie |
+| T3 Chat (`t3chat`) | Manual t3.chat Cookie header |
+| Synthetic (`synthetic`) | API key |
+| OpenRouter (`openrouter`) | API key; optional Management API key for detailed activity |
+| ElevenLabs (`elevenlabs`) | ElevenLabs API key |
 | Warp (`warp`) | Access token; GraphQL limits |
 | Windsurf (`windsurf`) | Devin session JSON; daily and weekly plan limits |
 | Zed (`zed`) | User ID and access token; edit predictions |
-| Perplexity (`perplexity`) | Bundled API reader / explicit credential or cookie |
+| Perplexity (`perplexity`) | Manual www.perplexity.ai Cookie header |
 | Xiaomi MiMo (`mimo`) | MiMo console cookie; balance and token-plan credits |
 | Doubao (`doubao`) | Volcengine signing keys; Coding Plan percentages and Agent Plan points |
 | Sakana AI (`sakana`) | Sakana web cookie; billing page limits |
 | Abacus AI (`abacus`) | Abacus web cookie; compute credits |
 | Mistral (`mistral`) | Mistral web cookie; Vibe limits, monthly spending, credits |
-| DeepSeek (`deepseek`) | Bundled API reader / explicit credential or cookie |
+| DeepSeek (`deepseek`) | DeepSeek API key |
 | DeepInfra (`deepinfra`) | API key; balance and current-period spend |
 | Codebuff (`codebuff`) | API key; usage and subscription |
-| Crof (`crof`) | Bundled API reader / explicit credential or cookie |
-| Venice (`venice`) | Bundled API reader / explicit credential or cookie |
-| Qoder (`qoder`) | Bundled API reader / explicit credential or cookie |
+| Crof (`crof`) | API key |
+| Venice (`venice`) | API key |
+| Qoder (`qoder`) | Manual qoder.com or qoder.com.cn Cookie header |
 | StepFun (`stepfun`) | Oasis-Token; plan limits and credit packs |
 | AWS Bedrock (`bedrock`) | AWS CLI profile/SSO or signing keys; monthly costs and 14-day Claude activity |
 | Groq (`groq`) | Enterprise metrics API key; requests/tokens per minute |
 | LLM Proxy (`llmproxy`) | Proxy URL and API key |
 | LiteLLM (`litellm`) | Proxy URL and API key; key/user/team budget |
-| Deepgram (`deepgram`) | Bundled API reader / explicit credential or cookie |
-| Poe (`poe`) | Bundled API reader / explicit credential or cookie |
+| Deepgram (`deepgram`) | API key; optional Project ID and API URL |
+| Poe (`poe`) | API key |
 | Chutes (`chutes`) | API key; rolling/monthly/per-model quota |
 | Neuralwatt (`neuralwatt`) | API key; quota |
-| ClawRouter (`clawrouter`) | Bundled API reader / explicit credential or cookie |
+| ClawRouter (`clawrouter`) | Policy API key; optional Base URL |
 | LongCat (`longcat`) | LongCat web cookie; active token and fuel packs |
-| sub2api (`sub2api`) | Bundled API reader / explicit credential or cookie |
+| sub2api (`sub2api`) | API key and Base URL |
 | Wayfinder (`wayfinder`) | Local gateway URL; health and savings |
 | ZenMux (`zenmux`) | Management API key; subscription quota |
 | ai& (`aiand`) | API key; paginated last-30-day spending |
 | ZoomMate (`zoommate`) | Bearer token or explicit Cookie: header; credit quota |
-| xAI (`xai`) | Bundled API reader / explicit credential or cookie |
+| xAI (`xai`) | Management API key and Team ID |
 | Notion AI (`notion`) | Notion web cookie and optional workspace ID; AI credits |
 | IBM Bob (`ibmbob`) | Bob API key; profile/team allocation |
 
