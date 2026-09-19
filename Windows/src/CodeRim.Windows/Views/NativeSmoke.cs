@@ -329,9 +329,9 @@ internal static class NativeSmoke
         var ownSession = activity with { ProcessId = ownProcess.Id, ProcessStartedAt = new DateTimeOffset(ownProcess.StartTime.ToUniversalTime()) };
         Require(SessionFocus.FindOwningWindow(ownSession) != IntPtr.Zero, "Session window lookup failed for the synthetic app");
         Require(SessionFocus.FindOwningWindow(ownSession with { ProcessStartedAt = ownSession.ProcessStartedAt.GetValueOrDefault().AddMinutes(-1) }) == IntPtr.Zero, "Reused process identity was accepted");
-        var attentionButton = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.provider.codex");
+        Record("Session registry activation requires original process identity and rejects reused processes");
         notch.Peek(activity with { Provider = "codex" }); await Idle();
-        attentionButton = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.provider.codex");
+        var attentionButton = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.provider.codex");
         attentionButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         Require(Descendants<ListBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Settings sections").SelectedItem is ListBoxItem { Tag: "usage" }, "Unavailable session target did not open local sessions");
         Record("Session window discovery, process-reuse rejection, and unavailable-target fallback");
