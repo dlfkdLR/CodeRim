@@ -59,6 +59,7 @@ internal sealed class AccountsPane : StackPanel
                 var actions = new WrapPanel();
                 var select = Ui.AsyncButton("Use account", async () =>
                 {
+                    if (MessageBox.Show(Window.GetWindow(this), "Switch the CLI to " + account.Identity.Email + "? Close its running sessions before continuing.", "Switch account", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
                     feedback.Text = "Verifying account…";
                     try
                     {
@@ -75,7 +76,7 @@ internal sealed class AccountsPane : StackPanel
                     }
                 });
                 actions.Children.Add(select);
-                actions.Children.Add(Ui.Button("Remove saved account", () => Run(() => { accounts.Remove(provider, account.Identity.Id); Populate(); })));
+                actions.Children.Add(Ui.Button("Remove saved account", () => Run(() => { if (MessageBox.Show(Window.GetWindow(this), "Remove the saved login for " + account.Identity.Email + "? Its current CLI session and usage history are preserved.", "Remove saved account", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) { accounts.Remove(provider, account.Identity.Id); Populate(); } })));
                 panel.Children.Add(actions); list.Children.Add(panel);
             }
         }
