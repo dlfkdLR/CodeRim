@@ -5,7 +5,7 @@ using CodeRim.Core.Domain;
 namespace CodeRim.Core.Services;
 
 public sealed record CompanionSnapshot(int SchemaVersion, DateTimeOffset GeneratedAt, IReadOnlyList<CompanionProvider> Providers);
-public sealed record CompanionProvider(string Id, string Name, bool Enabled, LocalUsage? LocalUsage, ProviderReading Limits);
+public sealed record CompanionProvider(string Id, string Name, bool Enabled, LocalUsage? LocalUsage, ProviderReading Limits, string? AccountScope = null);
 public sealed record LocalUsage(string Scope, string State, DateTimeOffset? UpdatedAt, DateTimeOffset PeriodsAsOf,
     string TimeZoneIdentifier, Dictionary<string, TokenUsage> Totals);
 public static class CompanionFile
@@ -43,6 +43,7 @@ public static class CompanionFile
         foreach (var provider in snapshot.Providers)
         {
             if (provider is null || ProviderCatalog.Find(provider.Id) is null || !ids.Add(provider.Id) || string.IsNullOrWhiteSpace(provider.Name)
+                || provider.AccountScope?.Length > 128
                 || provider.Limits is null || provider.Limits.Id != provider.Id || !Enum.IsDefined(provider.Limits.State)
                 || provider.Limits.Windows is null || provider.Limits.Windows.Count > 512)
                 throw new InvalidDataException("Invalid provider reading.");

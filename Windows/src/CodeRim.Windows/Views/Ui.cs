@@ -25,22 +25,32 @@ internal static class Ui
     public static Button AsyncButton(string label, Func<Task> action)
     {
         var button = Button(label, () => { });
-        button.Click += async (_, _) => { button.IsEnabled = false; try { await action().ConfigureAwait(true); } finally { button.IsEnabled = true; } };
+        button.Click += async (_, _) => { button.IsEnabled = false; try { await action().ConfigureAwait(true); } catch (Exception e) when (e is not OutOfMemoryException) { System.Windows.MessageBox.Show("The action could not be completed. Your saved data has been retained. Please retry.", "CodeRim", MessageBoxButton.OK, MessageBoxImage.Error); } finally { button.IsEnabled = true; } };
         return button;
     }
     public static ComboBox Combo<T>(IEnumerable<T> values, T selected, Action<T> changed)
     {
         var box = new ComboBox { ItemsSource = values, SelectedItem = selected, MinWidth = 150, Margin = new Thickness(0, 5, 0, 10),
-            HorizontalAlignment = HorizontalAlignment.Left, Foreground = SystemColors.ControlTextBrush };
-        // The app's implicit TextBlock style is light for dark panels. Native
-        // ComboBox chrome stays light, so bind generated item text explicitly
-        // to its nearest control (ComboBox or popup ComboBoxItem).
+            HorizontalAlignment = HorizontalAlignment.Left, Foreground = Brushes.White };
         var text = new FrameworkElementFactory(typeof(TextBlock));
-        text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding());
+        text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding { Converter = new ChoiceLabel() });
         text.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding(nameof(Control.Foreground))
         { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(Control), 1) });
         box.ItemTemplate = new DataTemplate { VisualTree = text };
         box.SelectionChanged += (_, _) => { if (box.SelectedItem is T value) changed(value); }; return box;
+    }
+    private sealed class ChoiceLabel : System.Windows.Data.IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) => value switch
+        {
+            CodeRim.Core.Domain.NotchVisibility.OnHover => "On hover",
+            CodeRim.Core.Domain.NotchVisibility.AlwaysShow => "Always visible",
+            CodeRim.Core.Domain.NotchVisibility.Hidden => "Hidden",
+            CodeRim.Core.Domain.RingColorMode.Usage => "By usage",
+            double scale => scale.ToString("P0", culture),
+            _ => value?.ToString() ?? ""
+        };
+        public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) => throw new NotSupportedException();
     }
     public static CheckBox Toggle(string label, bool value, Action<bool> changed)
     {

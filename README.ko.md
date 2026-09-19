@@ -14,19 +14,19 @@ CodeRim은 화면 가장자리의 작은 노치에 코딩 도우미의 사용 �
 
 | 기능 | macOS | Windows 프리뷰 |
 | --- | --- | --- |
-| 제공업체 연결 | 70개 제공업체 | 23개 구현, 47개 대기 |
+| 제공업체 연결 | 70개 제공업체 | 70개 연결 구현 |
 | 데스크톱 화면 | 메뉴 막대와 화면 가장자리 노치 | 트레이, 대시보드, 화면 가장자리 노치 |
 | Codex / Claude 로컬 기록 | 토큰 사용 기록, 차트, 예상 비용 | 토큰 사용 기록, 차트, 예상 비용 |
 | 터미널 CLI | 포함 | 포함 |
-| 저장된 계정 전환 | Codex와 Claude Code | 미지원 |
-| 위젯 | macOS 위젯 | 미지원 |
-| 자동 업데이트 | 서명된 Sparkle 업데이트 | ZIP을 직접 내려받아 업데이트 |
+| 저장된 계정 전환 | Codex와 Claude Code | Codex와 Claude Code |
+| 위젯 | macOS 위젯 | Windows 작업 범위 제외 |
+| 업데이트 | 서명된 Sparkle 업데이트 | 새 릴리스 확인, ZIP 직접 설치 |
 
-로컬 토큰 기록은 계정 구분 없이 이 컴퓨터에서 사용한 기록입니다. 제공업체별 Windows 지원 상태와 남은 작업은 [기능 현황표](Documentation/WINDOWS.md#remaining-parity-work)를 참고하세요.
+위 표는 현재 소스 기준입니다. 로컬 토큰 기록은 계정 구분 없이 이 컴퓨터에서 사용한 기록입니다. 제공업체별 Windows 지원 상태와 남은 작업은 [기능 현황표](Documentation/WINDOWS.md#remaining-parity-work)를 참고하세요.
 
 ## 설치
 
-**현재 릴리스: [2.1.5](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.5)** · [릴리스 노트](Documentation/ReleaseNotes/2.1.5.md)
+**macOS:** [2.1.5](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.5) · **Windows:** [2.1.6](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.6)
 
 ### macOS
 
@@ -49,7 +49,7 @@ Homebrew에서 cask를 사용할 수 없다는 메시지가 표시되거나 이�
 
 **Windows 11 · x64 및 ARM64 · .NET 포함.**
 
-[x64 ZIP 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.5/CodeRim-Windows-2.1.5-x64.zip) · [ARM64 ZIP 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.5/CodeRim-Windows-2.1.5-arm64.zip) · [SHA-256 체크섬](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.5/SHA256SUMS-windows.txt)
+[x64 ZIP 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.6/CodeRim-Windows-2.1.6-x64.zip) · [ARM64 ZIP 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.6/CodeRim-Windows-2.1.6-arm64.zip) · [SHA-256 체크섬](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.6/SHA256SUMS-windows.txt)
 
 Windows 실행 파일은 **서명되지 않았습니다**. 압축을 풀기 전에 ZIP의 체크섬을 확인하세요. 계속 사용할 폴더에 압축을 풀고 `CodeRim.exe`를 실행하거나, CodeRim을 종료한 뒤 압축을 푼 폴더의 PowerShell에서 다음 명령으로 현재 사용자용 설치를 진행하세요.
 

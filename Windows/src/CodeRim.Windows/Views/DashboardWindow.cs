@@ -18,31 +18,29 @@ namespace CodeRim.Windows.Views;
 
 internal sealed class DashboardWindow : Window
 {
+    private static readonly string[] ControlOptions = ["Auto", "Start", "End"];
+    private static readonly string[] ResetOptions = ["Relative", "Absolute"];
     private static readonly int[] RefreshOptions = new[] { 0, 30, 60, 300 };
-    private static readonly string[] PeriodOptions = new[] { "today", "week", "month", "all-time" };
-    private static readonly string[] DimensionOptions = new[] { "model", "project", "session", "day" };
     private static readonly double[] ScaleOptions = new[] { 0.8, 1.0, 1.25 };
     private static readonly string[] AccentOptions = new[] { "#00FF88", "#3B9CFF", "#9B7DFF", "#FF6EC7", "#FF9F3F" };
     private static readonly string[] GradientOptions = new[] { "Aurora", "Ocean", "Sunset", "Spectrum" };
     private readonly DashboardStore store;
     private readonly AppSettingsStore settings;
     private readonly CredentialVault vault;
-    private readonly ListBox sidebar = new() { Background = Ui.Brush("#1C1D21"), Foreground = Brushes.White, BorderThickness = new Thickness(0), Padding = new Thickness(12) };
+    private readonly ListBox sidebar = new() { Background = Ui.Brush("#292929"), Foreground = Brushes.White, BorderThickness = new Thickness(0), Padding = new Thickness(12) };
     private readonly StackPanel body = Ui.Stack(28);
     private readonly TextBlock status = Ui.Text("");
     private readonly StackPanel providerReading = new();
     private string page = "usage";
     private string localProvider = "codex";
-    private string period = "today";
-    private string dimension = "model";
     private bool refreshingSidebar;
     public DashboardWindow(DashboardStore store, AppSettingsStore settings, CredentialVault vault)
     {
         this.store = store; this.settings = settings; this.vault = vault;
-        Title = "CodeRim"; Width = 960; Height = 720; MinWidth = 740; MinHeight = 520;
-        Background = Ui.Brush("#232428"); Foreground = Brushes.White; FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
+        Title = "CodeRim"; Width = 980; Height = 680; MinWidth = 840; MinHeight = 560;
+        Background = Ui.Brush("#202020"); Foreground = Brushes.White; FontFamily = new FontFamily("Segoe UI Variable Text, Segoe UI");
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
-        var layout = new Grid(); layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(205) }); layout.ColumnDefinitions.Add(new ColumnDefinition());
+        var layout = new Grid(); layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(216) }); layout.ColumnDefinitions.Add(new ColumnDefinition());
         layout.Children.Add(sidebar);
         var scroll = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         Grid.SetColumn(scroll, 1); layout.Children.Add(scroll); Content = layout;
@@ -53,6 +51,10 @@ internal sealed class DashboardWindow : Window
     }
     public void Navigate(string? id)
     {
+        if (id?.StartsWith("sessions:", StringComparison.Ordinal) == true)
+        {
+            localProvider = id[9..]; page = "usage"; Render(); usagePane?.ShowSessions(); Show(); Activate(); return;
+        }
         page = id ?? "general";
         if (ProviderCatalog.Find(page) is { } provider && !settings.Current.EnabledProviders.Contains(provider.Id, StringComparer.Ordinal)) page = "providers";
         refreshingSidebar = true;
@@ -74,11 +76,12 @@ internal sealed class DashboardWindow : Window
     private void StoreChanged(object? sender, PropertyChangedEventArgs e)
     {
         status.Text = store.IsRefreshing ? "Refreshing…" : store.Status;
-        if (!store.IsRefreshing && page == "usage") Render();
+        if (page == "usage") usagePane?.RefreshReadings();
         else if (ProviderCatalog.Find(page) is not null) UpdateProviderReading(page);
     }
     private void Render()
     {
+        usagePane = null;
         body.Children.Clear();
         switch (page)
         {
@@ -88,6 +91,8 @@ internal sealed class DashboardWindow : Window
             case "providers": Providers(); break;
             case "diagnostics": Diagnostics(); break;
             case "about": About(); break;
+            case "codex-accounts": body.Children.Add(new AccountsPane("codex", vault, store, settings)); break;
+            case "claude-accounts": body.Children.Add(new AccountsPane("claude", vault, store, settings)); break;
             default: Provider(page); break;
         }
     }
@@ -108,56 +113,19 @@ internal sealed class DashboardWindow : Window
         Ui.Section(body, "Readings"); body.Children.Add(Ui.Text("Number format")); body.Children.Add(Ui.Combo(Enum.GetValues<TokenNumberStyle>(), settings.Current.NumberStyle, x => Save(settings.Current with { NumberStyle = x })));
         body.Children.Add(Ui.Text("Week starts on")); body.Children.Add(Ui.Combo(Enum.GetValues<WeekStart>(), settings.Current.WeekStart, x => { Save(settings.Current with { WeekStart = x }); _ = store.RefreshAsync(); }));
         body.Children.Add(Ui.Text("Background refresh (seconds; 0 turns off periodic refresh)")); body.Children.Add(Ui.Combo(RefreshOptions, settings.Current.RefreshIntervalSeconds, x => Save(settings.Current with { RefreshIntervalSeconds = x })));
+        body.Children.Add(Ui.Toggle("Show cached input breakdown", settings.Current.ShowCachedInput, x => Save(settings.Current with { ShowCachedInput = x })));
+        body.Children.Add(Ui.Toggle("Show last updated", settings.Current.ShowLastUpdated, x => Save(settings.Current with { ShowLastUpdated = x })));
+        Ui.Section(body, "Updates"); body.Children.Add(Ui.Toggle("Automatically check for updates", settings.Current.CheckForUpdates, x => Save(settings.Current with { CheckForUpdates = x })));
+        body.Children.Add(Ui.Text("Checks GitHub once per day. Downloads open only when you choose them.", 11, "#A6A6AA"));
         Ui.Section(body, "Alerts"); body.Children.Add(Ui.Toggle("Notify at 80% and 100% usage", settings.Current.AlertsEnabled, x => Save(settings.Current with { AlertsEnabled = x })));
         body.Children.Add(Ui.Toggle("Play a sound when a session finishes", settings.Current.CompletionSound, x => Save(settings.Current with { CompletionSound = x })));
         body.Children.Add(Ui.Toggle("Reduce motion", settings.Current.ReduceMotion, x => Save(settings.Current with { ReduceMotion = x })));
     }
+    private UsagePane? usagePane;
     private void Usage()
     {
-        Heading("Usage", "Local token history · This PC · Across accounts");
-        var choices = settings.Current.EnabledProviders.Where(x => x is "codex" or "claude").ToArray();
-        if (choices.Length == 0) { body.Children.Add(Ui.Button("Add a local provider", () => Navigate("providers"))); return; }
-        if (!choices.Contains(localProvider, StringComparer.Ordinal)) localProvider = choices[0];
-        var controls = new WrapPanel(); controls.Children.Add(Ui.Combo(choices, localProvider, x => { localProvider = x; Render(); }));
-        controls.Children.Add(Ui.Combo(PeriodOptions, period, x => { period = x; Render(); }));
-        controls.Children.Add(Ui.AsyncButton(store.IsRefreshing ? "Refreshing…" : "Refresh", () => store.RefreshAsync(true))); body.Children.Add(controls);
-        var snapshot = store.Usage.GetValueOrDefault(localProvider) ?? UsageSnapshot.Empty;
-        var tokens = period switch { "week" => snapshot.Week, "month" => snapshot.Month, "all-time" => snapshot.AllTime, _ => snapshot.Today };
-        body.Children.Add(Ui.Text(TokenFormatter.Format(tokens.TotalTokens, settings.Current.NumberStyle), 48, weight: FontWeights.SemiBold));
-        body.Children.Add(Ui.Text("tokens · " + (snapshot.Quality == DataQuality.Exact ? "Observed local usage" : snapshot.Quality.ToString()), 12, "#B7B8BD"));
-        body.Children.Add(Ui.Row("Input", tokens.InputTokens.ToString("N0", CultureInfo.CurrentCulture)));
-        body.Children.Add(Ui.Row("Cached input · included in Input", tokens.CachedInputTokens.ToString("N0", CultureInfo.CurrentCulture)));
-        if (tokens.CacheWriteInputTokens is { } write) body.Children.Add(Ui.Row("Cache writes · included in Input", write.ToString("N0", CultureInfo.CurrentCulture)));
-        body.Children.Add(Ui.Row("Output", tokens.OutputTokens.ToString("N0", CultureInfo.CurrentCulture)));
-        var events = FilterEvents(store.Events.GetValueOrDefault(localProvider) ?? []).ToArray();
-        var cost = UsageAnalytics.Estimate(events);
-        Ui.Section(body, cost.Label); body.Children.Add(Ui.Text(cost.Amount is { } amount ? "$" + amount.ToString("N4", CultureInfo.CurrentCulture) : "Unavailable", 24));
-        if (cost.IsPartial) body.Children.Add(Ui.Text($"Excludes {cost.ExcludedTokens:N0} tokens · " + string.Join(", ", cost.ExcludedModels), 12, "#B7B8BD"));
-        body.Children.Add(Ui.Text("Derived from the bundled API pricing catalog. This is not a bill.", 11, "#B7B8BD"));
-        Ui.Section(body, "Daily history");
-        var days = UsageAnalytics.Group(events, "day").OrderBy(x => x.Name, StringComparer.Ordinal).TakeLast(30).ToArray();
-        if (days.Length == 0) body.Children.Add(Ui.Text("No local usage observed for this period.", color: "#B7B8BD"));
-        else
-        {
-            var chart = new Grid { Height = 90, Margin = new Thickness(0, 8, 0, 8) }; var maximum = Math.Max(1, days.Max(x => x.Tokens));
-            for (var i = 0; i < days.Length; i++)
-            {
-                chart.ColumnDefinitions.Add(new ColumnDefinition());
-                var bar = new Border { Background = Ui.Brush("#768FFF"), VerticalAlignment = VerticalAlignment.Bottom, Height = Math.Max(2, days[i].Tokens / (double)maximum * 90), Margin = new Thickness(2, 0, 2, 0), ToolTip = $"{days[i].Name}: {days[i].Tokens:N0} tokens" };
-                System.Windows.Automation.AutomationProperties.SetName(bar, $"{days[i].Name}: {days[i].Tokens:N0} tokens"); Grid.SetColumn(bar, i); chart.Children.Add(bar);
-            }
-            body.Children.Add(chart);
-        }
-        Ui.Section(body, "Breakdown"); body.Children.Add(Ui.Combo(DimensionOptions, dimension, x => { dimension = x; Render(); }));
-        var rows = UsageAnalytics.Group(events, dimension).Take(100).ToArray();
-        foreach (var row in rows) body.Children.Add(Ui.Row(row.Name, TokenFormatter.Format(row.Tokens, settings.Current.NumberStyle) + " tokens"));
-        status.Text = store.Status; body.Children.Add(status);
-    }
-    private IEnumerable<UsageEvent> FilterEvents(IEnumerable<UsageEvent> events)
-    {
-        var now = DateTimeOffset.Now; var day = DateTime.Today;
-        var since = period switch { "today" => day, "week" => day.AddDays(-(((int)day.DayOfWeek + (settings.Current.WeekStart == WeekStart.Monday ? 6 : 0)) % 7)), "month" => new DateTime(day.Year, day.Month, 1), _ => DateTime.MinValue };
-        return events.Where(x => x.OccurredAt <= now && x.OccurredAt.LocalDateTime >= since);
+        usagePane = new UsagePane(store, settings, localProvider, Navigate);
+        body.Children.Add(usagePane);
     }
     private void Notch()
     {
@@ -166,10 +134,18 @@ internal sealed class DashboardWindow : Window
         body.Children.Add(Ui.Text("Display"));
         var displays = System.Windows.Forms.Screen.AllScreens.Select(x => x.DeviceName).ToArray(); body.Children.Add(Ui.Combo(displays, settings.Current.Display ?? displays[0], x => Save(settings.Current with { Display = x })));
         body.Children.Add(Ui.Text("Position along edge")); var position = new Slider { Minimum = -1000, Maximum = 1000, Value = settings.Current.Offset, Margin = new Thickness(0, 8, 0, 16) };
-        position.ValueChanged += (_, _) => Save(settings.Current with { Offset = position.Value }); body.Children.Add(position);
+        position.IsMoveToPointEnabled = true;
+        position.PreviewMouseLeftButtonUp += (_, _) => Save(settings.Current with { Offset = position.Value });
+        position.PreviewKeyUp += (_, _) => Save(settings.Current with { Offset = position.Value }); body.Children.Add(position);
+        body.Children.Add(Ui.Button("Recentre", () => { Save(settings.Current with { Offset = 0 }); position.Value = 0; }));
+        body.Children.Add(Ui.Text("Alt-drag the notch to move it along the selected edge.", 11, "#A6A6AA"));
         body.Children.Add(Ui.Text("Visibility")); body.Children.Add(Ui.Combo(Enum.GetValues<NotchVisibility>(), settings.Current.Visibility, x => Save(settings.Current with { Visibility = x })));
         body.Children.Add(Ui.Text("Size")); body.Children.Add(Ui.Combo(ScaleOptions, settings.Current.Scale, x => Save(settings.Current with { Scale = x })));
+        body.Children.Add(Ui.Text("Controls position")); body.Children.Add(Ui.Combo(ControlOptions, settings.Current.ControlsPosition, x => Save(settings.Current with { ControlsPosition = x })));
         Ui.Section(body, "Readings"); body.Children.Add(Ui.Toggle("Show remaining percentage", settings.Current.ShowRemaining, x => Save(settings.Current with { ShowRemaining = x })));
+        body.Children.Add(Ui.Text("Reset time")); body.Children.Add(Ui.Combo(ResetOptions, settings.Current.ResetTime, x => Save(settings.Current with { ResetTime = x })));
+        body.Children.Add(Ui.Toggle("Show usage pace", settings.Current.ShowUsagePace, x => Save(settings.Current with { ShowUsagePace = x })));
+        body.Children.Add(Ui.Toggle("Peek when a session completes", settings.Current.PeekOnCompletion, x => Save(settings.Current with { PeekOnCompletion = x })));
         Ui.Section(body, "Appearance"); body.Children.Add(Ui.Combo(Enum.GetValues<RingColorMode>(), settings.Current.RingColor, x => Save(settings.Current with { RingColor = x })));
         body.Children.Add(Ui.Text("Accent")); body.Children.Add(Ui.Combo(AccentOptions, settings.Current.Accent, x => Save(settings.Current with { Accent = x })));
         body.Children.Add(Ui.Text("Gradient")); body.Children.Add(Ui.Combo(GradientOptions, settings.Current.Gradient, x => Save(settings.Current with { Gradient = x })));
@@ -189,7 +165,7 @@ internal sealed class DashboardWindow : Window
             {
                 var added = settings.Current.EnabledProviders.Contains(provider.Id, StringComparer.Ordinal);
                 var row = new DockPanel { Margin = new Thickness(0, 8, 0, 12) };
-                var add = Ui.Button(added ? "Settings" : "Add", () => { if (!added) Save(settings.Current with { EnabledProviders = [.. settings.Current.EnabledProviders, provider.Id] }); Navigate(provider.Id); }); DockPanel.SetDock(add, Dock.Right); row.Children.Add(add);
+                var add = Ui.Button(added ? "Settings" : "Add", () => { if (!added) { Save(settings.Current with { EnabledProviders = [.. settings.Current.EnabledProviders, provider.Id] }); _ = store.RefreshProviderAsync(provider.Id); Populate(); } else Navigate(provider.Id); }); DockPanel.SetDock(add, Dock.Right); row.Children.Add(add);
                 var text = Ui.Stack(); text.Children.Add(Ui.Text(provider.Name, 15, weight: FontWeights.SemiBold)); text.Children.Add(Ui.Text(provider.Summary, 11, "#B7B8BD"));
                 if (!HasConnector(provider.Id)) text.Children.Add(Ui.Text("Windows connector pending", 11, "#F2C66D"));
                 row.Children.Add(text); list.Children.Add(row);
@@ -197,14 +173,15 @@ internal sealed class DashboardWindow : Window
         }
         search.TextChanged += (_, _) => Populate(); Populate();
     }
-    private static bool HasConnector(string id) => id is "codex" or "claude" || HttpProviders.Supported.Contains(id) || ScriptProviders.Catalog.ContainsKey(id);
+    private static bool HasConnector(string id) => id is "codex" or "claude" or "jetbrains" || NativeProviders.Supported.Contains(id) || HttpProviders.Supported.Contains(id) || ScriptProviders.Catalog.ContainsKey(id);
     private void Provider(string id)
     {
         var provider = ProviderCatalog.Find(id); if (provider is null) { Navigate("providers"); return; }
         Heading(provider.Name, provider.Summary);
         body.Children.Add(providerReading); UpdateProviderReading(id);
-        var actions = new WrapPanel(); actions.Children.Add(Ui.AsyncButton("Refresh", () => store.RefreshAsync(true)));
+        var actions = new WrapPanel(); actions.Children.Add(Ui.AsyncButton("Refresh", () => store.RefreshProviderAsync(id)));
         actions.Children.Add(Ui.Button("Setup guide", () => OpenUrl(provider.GuideUrl))); body.Children.Add(actions);
+        if (id is "codex" or "claude") body.Children.Add(Ui.Button("Manage accounts…", () => Navigate(id + "-accounts")));
         Ui.Section(body, "Connection");
         if (id == "codex")
         {
@@ -219,16 +196,28 @@ internal sealed class DashboardWindow : Window
         else if (id == "claude")
         {
             body.Children.Add(Ui.Text("Local history is read from Claude Code. Plan limits arrive through its status-line integration."));
-            body.Children.Add(Ui.Text("Run coderim claude-status from Claude's statusLine command. The helper stores only rate-limit fields.", 12, "#B7B8BD"));
+            body.Children.Add(Ui.Text("Connect the SessionStart and status-line hooks, then start a new Claude session. Only rate-limit fields are stored.", 12, "#B7B8BD"));
+            body.Children.Add(Ui.Button("Connect Claude status line", () =>
+            {
+                try
+                {
+                    if (ClaudeHookInstaller.HasOtherStatusLine() && MessageBox.Show(this, "Replace your current status line? CodeRim will keep a backup of settings.json.", "Connect Claude", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+                    ClaudeHookInstaller.Install(replaceExisting: true);
+                    MessageBox.Show(this, "Connected. Start a new Claude Code session to read limits.", "CodeRim");
+                }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException)
+                { MessageBox.Show(this, "Unable to update Claude settings safely. Check the Windows setup instructions.", "CodeRim"); }
+            }));
             body.Children.Add(Ui.Button("Open Windows setup instructions", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/WINDOWS.md")));
         }
+        else if (id == "jetbrains") body.Children.Add(Ui.Text("Reads the latest AI Assistant quota from your JetBrains IDE settings. Enable AI Assistant and refresh its usage in the IDE."));
         else if (ScriptProviders.Catalog.TryGetValue(id, out var script))
         {
             foreach (var field in script.Settings)
             {
                 var vaultKey = "setting:" + id + ":" + field.Key;
                 body.Children.Add(Ui.Text(field.Title + " · " + field.Key, 12));
-                AddSecretField(vaultKey, id, field.Type == "secure" ? "Save credential" : "Save setting");
+                if (field.Type == "secure") AddSecretField(vaultKey, id, "Save credential"); else AddSettingField(vaultKey, id);
             }
             if (script.CookieDomains.Length > 0)
             {
@@ -239,8 +228,25 @@ internal sealed class DashboardWindow : Window
         }
         else if (HasConnector(id) && id != "ollama-local")
         {
-            body.Children.Add(Ui.Text("Provider key or access token"));
-            AddSecretField("provider:" + id, id, "Save credential");
+            if (id is "cursor" or "grok" or "opencode" or "commandcode" or "kilo" or "gemini-cli" or "vertexai" or "kiro") body.Children.Add(Ui.Text("Reads the provider’s existing local sign-in automatically. A saved credential overrides local discovery.", 12, "#A6A6AA"));
+            if (id == "bedrock") body.Children.Add(Ui.Text("Uses your AWS CLI v2 profile, including SSO and assume-role sessions. Sign in with aws sso login first. Cost Explorer and CloudWatch permissions are required; AWS may charge for these queries.", 12, "#A6A6AA"));
+            if (id == "kimi") body.Children.Add(Ui.Text("Use a Kimi Code API key (KIMI_CODE_API_KEY), not a Kimi web session token.", 12));
+            if (id == "cursor") body.Children.Add(Ui.Text("Manual value: WorkosCursorSessionToken cookie header", 12));
+            foreach (var field in NativeProviders.Settings(id))
+            {
+                var key = "setting:" + id + ":" + field.Key;
+                if (field.Key.EndsWith("_ALLOW_BILLABLE_REQUESTS", StringComparison.Ordinal))
+                {
+                    body.Children.Add(Ui.Text("Each refresh can incur charges from this provider.", 12, "#B7B8BD"));
+                    body.Children.Add(Ui.Toggle(field.Label, string.Equals(vault.Load(key) ?? Environment.GetEnvironmentVariable(field.Key), "true", StringComparison.OrdinalIgnoreCase), enabled =>
+                    {
+                        try { vault.Save(key, enabled ? "true" : "false"); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { MessageBox.Show(this, "Could not save this setting.", "CodeRim"); }
+                    }));
+                }
+                else { body.Children.Add(Ui.Text(field.Label)); if (field.Key.EndsWith("_TOKEN", StringComparison.Ordinal) || field.Key.EndsWith("_SECRET", StringComparison.Ordinal)) AddSecretField(key, id, "Save token"); else AddSettingField(key, id); }
+            }
+            if (id != "wayfinder") { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
         }
         else if (!HasConnector(id)) body.Children.Add(Ui.Text("This provider's Windows integration is still pending. Adding it does not create a live connection.", color: "#F2C66D"));
         Ui.Section(body, "Notch order");
@@ -262,6 +268,17 @@ internal sealed class DashboardWindow : Window
         providerReading.Children.Add(Ui.Text(reading?.Message ?? reading?.State.ToString() ?? "Waiting for the first reading", color: "#B7B8BD"));
         foreach (var window in reading?.Windows ?? []) providerReading.Children.Add(Ui.Row(window.Name, window.UsedPercent is { } p ? $"{p:0.#}% used" + (window.DisplayValue is { } description ? " · " + description : "") : window.DisplayValue ?? "—"));
     }
+    private void AddSettingField(string key, string id)
+    {
+        var input = new TextBox { Text = vault.Load(key) ?? "", MaxLength = 4096, Margin = new Thickness(0, 4, 0, 8) };
+        body.Children.Add(input);
+        System.Windows.Automation.AutomationProperties.SetName(input, key.Split(':').Last());
+        body.Children.Add(Ui.Button("Save setting", () =>
+        {
+            try { vault.Save(key, input.Text.Trim()); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { MessageBox.Show(this, "Could not save this setting.", "CodeRim"); }
+        }));
+    }
     private void AddSecretField(string key, string id, string label)
     {
         var password = new PasswordBox { MaxLength = 32768, Padding = new Thickness(8), Margin = new Thickness(0, 6, 0, 8) }; body.Children.Add(password);
@@ -270,12 +287,12 @@ internal sealed class DashboardWindow : Window
         body.Children.Add(Ui.Button(label, () =>
         {
             if (string.IsNullOrWhiteSpace(password.Password)) return;
-            try { vault.Save(key, password.Password.Trim()); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshAsync(true); }
+            try { vault.Save(key, password.Password.Trim()); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { result.Text = "Could not save the setting."; }
         }));
         body.Children.Add(Ui.Button("Remove saved value", () =>
         {
-            try { vault.Delete(key); store.InvalidateAccount(id); result.Text = "Removed."; _ = store.RefreshAsync(true); }
+            try { vault.Delete(key); store.InvalidateAccount(id); result.Text = "Removed."; _ = store.RefreshProviderAsync(id); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { result.Text = "Could not remove the setting."; }
         })); body.Children.Add(result);
     }
@@ -290,6 +307,7 @@ internal sealed class DashboardWindow : Window
         Heading("Diagnostics", "CodeRim keeps usage numbers, never prompts or response bodies.");
         body.Children.Add(Ui.Row("Data folder", CompanionFile.DataDirectory)); body.Children.Add(Ui.Row("Companion snapshot", CompanionFile.SnapshotPath));
         body.Children.Add(Ui.Row("Local scope", "This PC · Across accounts"));
+        body.Children.Add(Ui.Button("Open data folder", () => OpenUrl(CompanionFile.DataDirectory)));
         body.Children.Add(Ui.Text("Source roots", 16)); foreach (var root in UsageScanner.DefaultRoots().Concat(UsageScanner.DefaultRoots("claude"))) body.Children.Add(Ui.Text(root, 12, "#B7B8BD"));
         body.Children.Add(Ui.AsyncButton("Rescan local sources", () => { store.Invalidate(null); return store.RefreshAsync(); }));
         body.Children.Add(Ui.Text(store.Status));
@@ -297,8 +315,22 @@ internal sealed class DashboardWindow : Window
     private void About()
     {
         Heading("CodeRim", "Coding-assistant limits at the edge of your screen.");
-        body.Children.Add(Ui.Text("Windows · 2.1.5", 18)); body.Children.Add(Ui.Text("Native WPF app · .NET 10 · MIT license"));
-        body.Children.Add(Ui.Button("Check releases", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/releases")));
+        body.Children.Add(Ui.Text("Windows · " + ReleaseUpdates.CurrentVersion, 18)); body.Children.Add(Ui.Text("Native WPF app · .NET 10 · MIT license"));
+        var updateStatus = Ui.Text("", 12, "#A6A6AA");
+        body.Children.Add(Ui.AsyncButton("Check for updates", async () =>
+        {
+            updateStatus.Text = "Checking…";
+            try
+            {
+                var update = await ReleaseUpdates.CheckAsync(UpdateNotifications.Architecture).ConfigureAwait(true);
+                updateStatus.Text = update.IsNewer ? "CodeRim " + update.Version + " is available." : "You are using the latest Windows release.";
+                if (update.IsNewer && MessageBox.Show(this, "Download CodeRim " + update.Version + " for Windows?", "CodeRim update", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+                    OpenUrl(update.Download.AbsoluteUri);
+            }
+            catch (Exception error) when (error is not OutOfMemoryException) { updateStatus.Text = "Could not check Windows updates. Try again or open the releases page."; }
+        }));
+        body.Children.Add(updateStatus);
+        body.Children.Add(Ui.Button("Open releases", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/releases")));
         body.Children.Add(Ui.Button("Windows documentation", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/WINDOWS.md")));
         Ui.Section(body, "Credits"); body.Children.Add(Ui.Text("Notch design and supporting code: Codenotch, MIT © 2026 Vinz. Provider reference integrations: CodexBar. Provider logos belong to their respective owners. See the bundled LICENSE and NOTICE."));
     }

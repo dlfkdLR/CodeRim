@@ -33,6 +33,13 @@ internal sealed class SessionWatcher : IDisposable
             foreach (var root in UsageScanner.DefaultRoots().Concat(UsageScanner.DefaultRoots("claude")).Distinct(StringComparer.OrdinalIgnoreCase))
             {
                 if (Directory.Exists(root)) watchers.Add(CreateWatcher(root, "*.jsonl", includeSubdirectories: true));
+                else
+                {
+                    var missing = root;
+                    var parent = Path.GetDirectoryName(missing);
+                    while (parent is not null && !Directory.Exists(parent)) { missing = parent; parent = Path.GetDirectoryName(parent); }
+                    if (parent is not null) watchers.Add(CreateWatcher(parent, Path.GetFileName(missing), includeSubdirectories: false));
+                }
             }
         }
     }
@@ -84,11 +91,10 @@ internal sealed class SessionWatcher : IDisposable
 
     private void HandleChange(object sender, FileSystemEventArgs e)
     {
-        if (string.Equals(Path.GetFileName(e.FullPath), ".codex", StringComparison.OrdinalIgnoreCase)
-            && Directory.Exists(e.FullPath))
+        if (Directory.Exists(e.FullPath))
         {
             Rebuild();
-            onChange(null);
+            ScheduleRefresh(null);
             return;
         }
         ScheduleRefresh(e.FullPath);
@@ -117,8 +123,8 @@ internal sealed class SessionWatcher : IDisposable
             {
                 pendingChangedPaths.Add(Path.GetFullPath(changedPath));
             }
-            debounceTimer?.Dispose();
-            debounceTimer = new System.Threading.Timer(
+            if (pendingChangedPaths.Count > 4096) { requiresFullRefresh = true; pendingChangedPaths.Clear(); }
+            debounceTimer ??= new System.Threading.Timer(
                 _ => NotifyChangeIfActive(),
                 null,
                 TimeSpan.FromSeconds(2),
@@ -136,6 +142,8 @@ internal sealed class SessionWatcher : IDisposable
                 return;
             }
 
+            debounceTimer?.Dispose();
+            debounceTimer = null;
             changedPaths = requiresFullRefresh ? null : pendingChangedPaths.ToArray();
             requiresFullRefresh = false;
             pendingChangedPaths.Clear();

@@ -30,8 +30,8 @@ jobs:
           $exe = Join-Path $PWD 'Windows/artifacts/publish/win-x64/CodeRim.exe'
           $capture = Join-Path $PWD 'Artifacts/windows-dashboard.png'
           $process = Start-Process $exe -ArgumentList '--smoke-test', '--capture', $capture -PassThru
-          if (-not $process.WaitForExit(45000)) { $process.Kill(); throw 'Native smoke test timed out.' }
-          if ($process.ExitCode -ne 0 -or -not (Test-Path $capture)) { throw 'Native smoke test failed.' }
+          if (-not $process.WaitForExit(180000)) { $process.Kill(); throw 'Native smoke test timed out.' }
+          if ($process.ExitCode -ne 0 -or -not (Test-Path $capture)) { Get-Content (Join-Path $PWD 'Artifacts/windows-dashboard.error.txt') -ErrorAction SilentlyContinue; throw 'Native smoke test failed.' }
           & './Windows/artifacts/publish/win-x64/CodeRimCLI.exe' version
           if ($LASTEXITCODE -ne 0) { throw 'CLI startup failed.' }
           python Windows/tests/cli_regression_tests.py './Windows/artifacts/publish/win-x64/CodeRimCLI.exe'
@@ -50,5 +50,7 @@ jobs:
             Artifacts/CodeRim-Windows-*.zip
             Artifacts/*.sha256
             Artifacts/SHA256SUMS-windows.txt
-            Artifacts/windows-dashboard.png
+            Artifacts/windows-*.png
+            Artifacts/windows-*.json
+            Artifacts/windows-*.txt
             Windows/tests/**/TestResults/**

@@ -25,6 +25,7 @@ public partial class App : System.Windows.Application
     private DashboardWindow? dashboard;
     private SessionWatcher? watcher;
     private readonly DispatcherTimer timer = new();
+    private readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(1) };
     private readonly ThresholdTracker thresholds = new();
     private bool smokeTest;
     protected override void OnStartup(StartupEventArgs e)
@@ -42,12 +43,14 @@ public partial class App : System.Windows.Application
         store = new DashboardStore(settings, vault, smokeTest);
         notch = new NotchWindow(store, settings, ShowSettings);
         tray = new TrayIconHost(() => ShowSettings("usage"), () => _ = store.RefreshAsync(true), () => ShowSettings(null), ShutdownApplication);
-        tray.ShowNotchRequested += () => settings.Save(settings.Current with { Visibility = NotchVisibility.OnHover });
+        tray.ShowNotchRequested += () => { settings.Save(settings.Current with { Visibility = NotchVisibility.OnHover }); notch.Peek(); };
+        store.SessionCompleted += () => { if (settings.Current.PeekOnCompletion) notch.Peek(); };
         store.ReadingUpdated += reading => { if (settings.Current.AlertsEnabled) foreach (var threshold in thresholds.Observe(reading, DateTimeOffset.Now)) tray.Notify(ProviderCatalog.Find(reading.Id)?.Name ?? reading.Id, threshold == 100 ? "Usage limit reached." : "Usage has reached 80%."); };
         if (!smokeTest) watcher = new SessionWatcher(paths => Dispatcher.BeginInvoke(() => { store.Invalidate(paths); _ = store.RefreshAsync(); }));
         settings.SettingsChanged += (_, _) => ConfigureTimer();
         timer.Tick += (_, _) => { watcher?.Rebuild(); _ = store.RefreshAsync(); };
         ConfigureTimer(); notch.ApplyVisibility();
+        if (!smokeTest) { updateTimer.Tick += async (_, _) => await CheckUpdatesAsync(); updateTimer.Start(); _ = CheckUpdatesAsync(); }
         _ = StartAsync(e.Args);
     }
     private async Task StartAsync(string[] args)
@@ -56,19 +59,26 @@ public partial class App : System.Windows.Application
         await store.RefreshAsync().ConfigureAwait(true);
         if (smokeTest)
         {
-            ShowSettings("usage");
-            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
-            if (dashboard is null) throw new InvalidOperationException("The dashboard was not created.");
-            dashboard.UpdateLayout();
             var outputIndex = Array.IndexOf(args, "--capture");
-            if (outputIndex >= 0 && outputIndex + 1 < args.Length)
+            var output = outputIndex >= 0 && outputIndex + 1 < args.Length ? args[outputIndex + 1] : Path.Combine(Path.GetTempPath(), "windows-dashboard.png");
+            try
             {
-                var image = new RenderTargetBitmap((int)dashboard.ActualWidth, (int)dashboard.ActualHeight, 96, 96, PixelFormats.Pbgra32);
-                image.Render(dashboard); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
-                using var file = File.Create(args[outputIndex + 1]); encoder.Save(file);
+                ShowSettings("usage");
+                if (dashboard is null || notch is null || settings is null) throw new InvalidOperationException("UI was not created.");
+                await NativeSmoke.RunAsync(dashboard, notch, store, settings, output).ConfigureAwait(true);
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                File.WriteAllText(Path.ChangeExtension(output, ".error.txt"), error.ToString());
+                Shutdown(1); return;
             }
             ShutdownApplication();
         }
+    }
+    private async Task CheckUpdatesAsync()
+    {
+        if (settings?.Current.CheckForUpdates != true) return;
+        if (await UpdateNotifications.CheckAsync().ConfigureAwait(true) is { } version && settings.Current.CheckForUpdates) tray?.Notify("CodeRim update", "Version " + version + " is available. Open Information to download it.");
     }
     private void ConfigureTimer()
     {
@@ -85,7 +95,7 @@ public partial class App : System.Windows.Application
     private void ShutdownApplication() { dashboard?.Close(); notch?.Close(); Shutdown(); }
     protected override void OnExit(ExitEventArgs e)
     {
-        timer.Stop(); watcher?.Dispose(); store?.Dispose(); tray?.Dispose(); instance?.Dispose();
+        timer.Stop(); updateTimer.Stop(); watcher?.Dispose(); store?.Dispose(); tray?.Dispose(); instance?.Dispose();
         base.OnExit(e);
     }
 }

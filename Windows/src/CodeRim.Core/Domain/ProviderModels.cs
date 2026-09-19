@@ -13,7 +13,7 @@ public sealed record LimitWindow(string Id, string Name, double? UsedPercent = n
 public sealed record ProviderCostEntry(string Date, string? Model, long? InputTokens, long? OutputTokens,
     long? ReasoningTokens, long? Requests, double? Cost, double? EstimatedCost);
 public sealed record ProviderCostUsage(string Currency, int HistoryDays, string HistoryLabel,
-    string? WindowEnd, IReadOnlyList<ProviderCostEntry> Entries)
+    string? WindowEnd, IReadOnlyList<ProviderCostEntry> Entries, bool AllowCredits = false)
 {
     public void Validate()
     {
@@ -24,9 +24,9 @@ public sealed record ProviderCostUsage(string Currency, int HistoryDays, string 
         foreach (var row in Entries)
             if (row is null || !ValidDate(row.Date) || row.Model?.Length > 1024
                 || row.InputTokens < 0 || row.OutputTokens < 0 || row.ReasoningTokens < 0 || row.Requests < 0
-                || row.Cost is { } cost && (!double.IsFinite(cost) || cost < 0)
-                || row.EstimatedCost is { } estimated && (!double.IsFinite(estimated) || estimated < 0)
-                || row.EstimatedCost > row.Cost)
+                || row.Cost is { } cost && (!double.IsFinite(cost) || !AllowCredits && cost < 0)
+                || row.EstimatedCost is { } estimated && (!double.IsFinite(estimated) || !AllowCredits && estimated < 0)
+                || !AllowCredits && row.EstimatedCost > row.Cost)
                 throw new InvalidDataException("Invalid provider activity entry.");
     }
     private static bool ValidDate(string value) => DateOnly.TryParseExact(value, "yyyy-MM-dd",

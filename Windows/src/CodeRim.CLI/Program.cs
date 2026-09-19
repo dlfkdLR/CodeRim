@@ -10,7 +10,7 @@ static async Task<int> RunAsync(string[] arguments)
 {
     string command = "usage", period = "today", format = "text";
     string? provider = null, path = null;
-    var watch = 0;
+    var watch = 0; var replaceStatusLine = false;
     try
     {
         var start = 0;
@@ -19,6 +19,7 @@ static async Task<int> RunAsync(string[] arguments)
         {
             switch (arguments[i])
             {
+                case "--replace-statusline": replaceStatusLine = true; break;
                 case "--provider": provider = Value(arguments, ref i); break;
                 case "--period": period = Value(arguments, ref i); break;
                 case "--snapshot": path = Value(arguments, ref i); break;
@@ -33,7 +34,7 @@ static async Task<int> RunAsync(string[] arguments)
         if (provider is not null && ProviderCatalog.Find(provider) is null) throw new ArgumentException("Unknown provider.");
         if (period is not ("today" or "week" or "month" or "all-time")) throw new ArgumentException("Unknown period.");
         if (format is not ("text" or "json")) throw new ArgumentException("Format must be text or json.");
-        if (command == "version") { Console.WriteLine("CodeRim CLI 2.1.5 (Windows companion)"); return 0; }
+        if (command == "version") { Console.WriteLine("CodeRim CLI " + ReleaseUpdates.CurrentVersion + " (Windows companion)"); return 0; }
         if (command == "help")
         {
             Console.WriteLine("""
@@ -41,13 +42,23 @@ static async Task<int> RunAsync(string[] arguments)
                   coderim [usage|tokens|limits] [--provider ID] [--period today|week|month|all-time]
                          [--format text|json] [--pretty] [--watch SECONDS] [--snapshot PATH] [--no-color]
                   coderim path | version | help
+                  coderim claude-connect [--replace-statusline]
                   coderim claude-status  (reads Claude status-line JSON from stdin)
+                  coderim claude-session-start  (binds a Claude SessionStart hook to the current login)
 
                 Usage is local to This PC, across accounts. Limits retain the provider's original units.
                 Start CodeRim.exe to keep the companion snapshot up to date.
                 """); return 0;
         }
         if (command == "path") { Console.WriteLine(path ?? CompanionFile.SnapshotPath); return 0; }
+        if (command == "claude-connect")
+        {
+            try { ClaudeHookInstaller.Install(replaceStatusLine); }
+            catch (InvalidOperationException)
+            { Console.Error.WriteLine("Connect from a Windows package. If another status line exists, keep it or use --replace-statusline to replace it with a backup."); return 1; }
+            Console.WriteLine("Connected CodeRim. Start a new Claude Code session to read limits."); return 0;
+        }
+        if (command == "claude-session-start") { await RegisterClaudeSessionAsync().ConfigureAwait(false); return 0; }
         if (command == "claude-status") { await CaptureClaudeAsync().ConfigureAwait(false); return 0; }
         if (command is not ("usage" or "tokens" or "limits")) throw new ArgumentException("Unknown command.");
         using var cancellation = new CancellationTokenSource();
@@ -103,22 +114,44 @@ static string Value(string[] args, ref int index)
     if (++index >= args.Length) throw new ArgumentException("An option value is missing.");
     return args[index];
 }
-static async Task CaptureClaudeAsync()
+static async Task<JsonDocument> ReadHookInputAsync()
 {
     var buffer = new char[8192]; var text = new System.Text.StringBuilder(); int count;
     while ((count = await Console.In.ReadAsync(buffer).ConfigureAwait(false)) > 0)
     {
-        if (text.Length + count > 524288) throw new InvalidDataException("Status input is too large.");
+        if (text.Length + count > 524288) throw new InvalidDataException("Hook input is too large.");
         text.Append(buffer, 0, count);
     }
-    using var document = JsonDocument.Parse(text.ToString());
+    return JsonDocument.Parse(text.ToString());
+}
+static async Task RegisterClaudeSessionAsync()
+{
+    var before = LoginIdentity.CurrentClaudeScope();
+    using var document = await ReadHookInputAsync().ConfigureAwait(false);
+    var session = ProviderParsers.Text(document.RootElement, "session_id");
+    if (before is not null && session is { Length: > 0 and <= 256 } && before == LoginIdentity.CurrentClaudeScope())
+        ClaudeSessionScope.Register(CompanionFile.DataDirectory, session, before);
+}
+static async Task CaptureClaudeAsync()
+{
+    using var document = await ReadHookInputAsync().ConfigureAwait(false);
     var windows = ProviderParsers.Claude(document.RootElement);
     if (windows.Count == 0) return;
-    var quotas = windows.ToDictionary(x => x.Id, x => new { used_percentage = x.UsedPercent, resets_at = x.ResetsAt?.ToUnixTimeSeconds() }, StringComparer.Ordinal);
-    var snapshot = JsonSerializer.Serialize(new { updatedAt = DateTimeOffset.UtcNow, rate_limits = quotas }, CompanionFile.JsonOptions);
-    Directory.CreateDirectory(CompanionFile.DataDirectory);
-    var path = Path.Combine(CompanionFile.DataDirectory, "claude-limits.json"); var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-    try { await File.WriteAllTextAsync(temporary, snapshot).ConfigureAwait(false); File.Move(temporary, path, true); }
-    finally { File.Delete(temporary); }
+    // A pre-existing session cannot acquire a new login's identity on a later status callback.
+    var scope = LoginIdentity.CurrentClaudeScope();
+    var session = ProviderParsers.Text(document.RootElement, "session_id");
+    if (scope is not null && session is { Length: > 0 and <= 256 } && ClaudeSessionScope.Matches(CompanionFile.DataDirectory, session, scope))
+    {
+        var quotas = windows.ToDictionary(x => x.Id, x => new { used_percentage = x.UsedPercent, resets_at = x.ResetsAt?.ToUnixTimeSeconds() }, StringComparer.Ordinal);
+        var snapshot = JsonSerializer.Serialize(new { updatedAt = DateTimeOffset.UtcNow, accountScope = scope, rate_limits = quotas }, CompanionFile.JsonOptions);
+        Directory.CreateDirectory(CompanionFile.DataDirectory);
+        var path = Path.Combine(CompanionFile.DataDirectory, "claude-limits.json"); var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try
+        {
+            GuardedFile.WritePrivate(temporary, snapshot);
+            if (scope == LoginIdentity.CurrentClaudeScope()) File.Move(temporary, path, true);
+        }
+        finally { File.Delete(temporary); }
+    }
     Console.WriteLine(string.Join(" · ", windows.Select(x => $"{x.Name} {x.UsedPercent:0}%")));
 }

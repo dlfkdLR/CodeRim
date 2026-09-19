@@ -10,14 +10,14 @@ namespace CodeRim.Core.Providers;
 public sealed class HttpProviders : IDisposable
 {
     private readonly HttpClient client;
-    private readonly Dictionary<string, DateTimeOffset> retryAfter = new(StringComparer.Ordinal);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeOffset> retryAfter = new(StringComparer.Ordinal);
     public static IReadOnlySet<string> Supported { get; } = new HashSet<string>(StringComparer.Ordinal)
         { "copilot", "glm", "ollama-local", "deepseek", "openrouter", "elevenlabs", "moonshot", "synthetic" };
     public HttpProviders(HttpMessageHandler? handler = null)
     {
         client = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
             { Timeout = TimeSpan.FromSeconds(15) };
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("CodeRim/2.1.5");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("CodeRim/2.1.6");
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
     public void Dispose() => client.Dispose();

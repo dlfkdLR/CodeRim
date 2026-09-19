@@ -7,11 +7,11 @@ namespace CodeRim.Core.Services;
 public static class BoundedProcess
 {
     public static async Task<string> RunAsync(string executable, IEnumerable<string> arguments, string? input = null,
-        TimeSpan? timeout = null, int maximumBytes = 2 * 1024 * 1024, CancellationToken cancellationToken = default)
+        TimeSpan? timeout = null, int maximumBytes = 2 * 1024 * 1024, IReadOnlyDictionary<string, string?>? environment = null, CancellationToken cancellationToken = default)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(timeout ?? TimeSpan.FromSeconds(15));
-        using var process = Start(executable, arguments);
+        using var process = Start(executable, arguments, environment);
         try
         {
             var output = ReadBoundedAsync(process.StandardOutput, maximumBytes, deadline.Token);
@@ -25,12 +25,14 @@ public static class BoundedProcess
         finally { Kill(process); }
     }
 
-    internal static Process Start(string executable, IEnumerable<string> arguments)
+    internal static Process Start(string executable, IEnumerable<string> arguments, IReadOnlyDictionary<string, string?>? environment = null)
     {
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable)) throw new FileNotFoundException("Select an installed provider executable.");
         var start = new ProcessStartInfo(executable) { UseShellExecute = false, RedirectStandardOutput = true,
             RedirectStandardError = true, RedirectStandardInput = true, CreateNoWindow = true,
             WorkingDirectory = Path.GetDirectoryName(executable)! };
+        if (environment is not null) foreach (var pair in environment)
+            { if (pair.Value is null) start.Environment.Remove(pair.Key); else start.Environment[pair.Key] = pair.Value; }
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
         return Process.Start(start) ?? throw new IOException("The provider command could not start.");
     }
@@ -58,7 +60,7 @@ public static class AppServerClient
 {
     public static async Task<JsonElement> ReadAsync(string executable, string method, CancellationToken cancellationToken = default)
     {
-        if (method is not ("account/rateLimits/read" or "account/read")) throw new ArgumentException("Only read-only account RPCs are supported.", nameof(method));
+        if (method is not ("account/rateLimits/read" or "account/read" or "config/read")) throw new ArgumentException("Only read-only account RPCs are supported.", nameof(method));
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds(15));
         using var process = BoundedProcess.Start(executable, ["app-server"]);
@@ -66,7 +68,7 @@ public static class AppServerClient
         var errorTask = BoundedProcess.ReadBoundedAsync(process.StandardError, 2 * 1024 * 1024, stderrCancellation.Token);
         try
         {
-            await process.StandardInput.WriteLineAsync("""{"id":1,"method":"initialize","params":{"clientInfo":{"name":"coderim","version":"2.1.5"},"capabilities":{"optOutNotificationMethods":["remoteControl/status/changed"]}}}""").ConfigureAwait(false);
+            await process.StandardInput.WriteLineAsync("""{"id":1,"method":"initialize","params":{"clientInfo":{"name":"coderim","version":"2.1.6"},"capabilities":{"optOutNotificationMethods":["remoteControl/status/changed"]}}}""").ConfigureAwait(false);
             var pending = new StringBuilder();
             var buffer = new char[4096];
             var total = 0;
@@ -91,7 +93,8 @@ public static class AppServerClient
                     if (number == 1)
                     {
                         await process.StandardInput.WriteLineAsync("""{"method":"initialized","params":{}}""").ConfigureAwait(false);
-                        await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { id = 2, method })).ConfigureAwait(false);
+                        if (method == "config/read") await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { id = 2, method, @params = new { includeLayers = false } })).ConfigureAwait(false);
+                        else await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { id = 2, method })).ConfigureAwait(false);
                     }
                     else if (number == 2 && root.TryGetProperty("result", out var result)) return result.Clone();
                 }
