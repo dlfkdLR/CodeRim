@@ -24,7 +24,7 @@ internal sealed class AccountsPane : StackPanel
         var actions = new WrapPanel();
         actions.Children.Add(Ui.AsyncButton("Save current account", async () =>
         {
-            try { await accounts.SaveCurrentAsync(provider, Executable()).ConfigureAwait(true); Populate(); feedback.Text = "Verified CLI account saved using Windows user encryption."; }
+            try { await accounts.SaveCurrentAsync(provider, Executable(), waitForRefresh: () => store.WaitForProviderIdleAsync(provider)).ConfigureAwait(true); Populate(); feedback.Text = "Verified CLI account saved using Windows user encryption."; }
             catch (Exception error) when (error is not OutOfMemoryException) { feedback.Text = "The official CLI could not verify a file-backed subscription login. Finish sign-in through the CLI and retry."; }
         }));
         actions.Children.Add(Ui.Button("Sign in…", () => Run(SignIn)));
@@ -36,6 +36,7 @@ internal sealed class AccountsPane : StackPanel
         : ProviderConnections.ResolveExecutable("claude.exe") ?? throw new FileNotFoundException();
     private void SignIn()
     {
+        if (SavedAccounts.OperationInProgress) throw new InvalidOperationException("Wait for the current account operation to finish.");
         var executable = Executable();
         var start = new ProcessStartInfo(executable) { UseShellExecute = true };
         foreach (var argument in provider == "codex" ? new[] { "login" } : new[] { "auth", "login" }) start.ArgumentList.Add(argument);
@@ -65,7 +66,7 @@ internal sealed class AccountsPane : StackPanel
                     {
                         if (store.Sessions.Any(x => x.Provider == provider && x.State is "busy" or "waiting")) throw new InvalidOperationException("Close the provider's active sessions first.");
                         store.InvalidateAccount(provider);
-                        await accounts.SwitchAsync(account, Executable()).ConfigureAwait(true);
+                        await accounts.SwitchAsync(account, Executable(), waitForRefresh: () => store.WaitForProviderIdleAsync(provider)).ConfigureAwait(true);
                         store.InvalidateAccount(provider); await store.RefreshProviderAsync(provider).ConfigureAwait(true);
                         feedback.Text = "The CLI verified the selected account."; Populate();
                     }
@@ -86,6 +87,6 @@ internal sealed class AccountsPane : StackPanel
     {
         try { action(); }
         catch (Exception e) when (e is not OutOfMemoryException)
-        { feedback.Text = "A complete CLI subscription login is required. Finish sign-in through the official provider CLI, then retry."; }
+        { feedback.Text = SavedAccounts.OperationInProgress ? "Wait for the current account operation to finish, then retry." : "A complete CLI subscription login is required. Finish sign-in through the official provider CLI, then retry."; }
     }
 }

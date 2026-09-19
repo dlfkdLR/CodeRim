@@ -125,9 +125,11 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         { Status = "Local history could not be refreshed. Your existing reading is retained."; }
         finally { localRefreshing = false; refreshLock.Release(); Changed(); }
     }
+    public Task WaitForProviderIdleAsync(string id) => remoteTasks.GetValueOrDefault(id) ?? Task.CompletedTask;
+    private static bool PausedForAccount(string id) => id is "codex" or "claude" && SavedAccounts.OperationInProgress;
     public Task RefreshProviderAsync(string id)
     {
-        if (disposed || !settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return Task.CompletedTask;
+        if (disposed || PausedForAccount(id) || !settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return Task.CompletedTask;
         EnsureScope(id);
         if (remoteTasks.TryGetValue(id, out var running)) return running;
         var task = FetchProviderAsync(id);
@@ -145,6 +147,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         try
         {
             await remoteSlots.WaitAsync(lifetime.Token).ConfigureAwait(true); entered = true;
+            if (PausedForAccount(id)) return;
             EnsureScope(id); generation = Generation(id); requestScope = scopes.GetValueOrDefault(id);
             lastRefresh[id] = DateTimeOffset.Now;
             if (Synthetic) { SeedPreview(); return; }

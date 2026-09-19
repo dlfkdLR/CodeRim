@@ -11,6 +11,7 @@ internal sealed record SavedLogin(string Provider, LoginIdentity Identity, strin
 internal sealed class SavedAccounts(CredentialVault vault)
 {
     private static int switching;
+    internal static bool OperationInProgress => Volatile.Read(ref switching) != 0;
     internal IReadOnlyList<SavedLogin> Read(string provider)
     {
         var json = vault.Load("accounts:" + provider);
@@ -43,11 +44,13 @@ internal sealed class SavedAccounts(CredentialVault vault)
         catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or InvalidOperationException) { return null; }
     }
     internal void SaveCurrent(string provider) => Save(Current(provider));
-    internal async Task SaveCurrentAsync(string provider, string executable, CancellationToken token = default)
+    internal async Task SaveCurrentAsync(string provider, string executable, Func<Task>? waitForRefresh = null, CancellationToken token = default)
     {
         if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new InvalidOperationException("An account operation is already in progress.");
         try
         {
+            if (waitForRefresh is not null) await waitForRefresh().ConfigureAwait(true);
+            token.ThrowIfCancellationRequested();
             var before = Current(provider);
             CheckPolicy(provider, Paths(provider).Credential);
             if (provider == "codex")
@@ -87,12 +90,19 @@ internal sealed class SavedAccounts(CredentialVault vault)
         if (json.Length > 500000) throw new InvalidOperationException("The saved account vault is full.");
         vault.Save("accounts:" + account.Provider, json);
     }
-    internal void Remove(string provider, string id) => vault.Save("accounts:" + provider, JsonSerializer.Serialize(Read(provider).Where(x => x.Identity.Id != id).ToArray()));
-    internal async Task SwitchAsync(SavedLogin selected, string executable, CancellationToken token = default)
+    internal void Remove(string provider, string id)
+    {
+        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new InvalidOperationException("Wait for the current account operation to finish.");
+        try { vault.Save("accounts:" + provider, JsonSerializer.Serialize(Read(provider).Where(x => x.Identity.Id != id).ToArray())); }
+        finally { Interlocked.Exchange(ref switching, 0); }
+    }
+    internal async Task SwitchAsync(SavedLogin selected, string executable, Func<Task>? waitForRefresh = null, CancellationToken token = default)
     {
         if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new InvalidOperationException("An account operation is already in progress.");
         try
         {
+            if (waitForRefresh is not null) await waitForRefresh().ConfigureAwait(true);
+            token.ThrowIfCancellationRequested();
             var paths = Paths(selected.Provider);
             if (selected.Provider == "codex")
             {
