@@ -93,6 +93,9 @@ final class ExtendedNotchProvider: NotchProvider {
     }
 
     nonisolated static func fetchUpstream(_ descriptor: ProviderDescriptor, context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        if descriptor.id == .xai || descriptor.id == .poe {
+            return try await SharedScriptProvider.fetch(descriptor.id, environment: context.env)
+        }
         if descriptor.id == .jetbrains {
             let local = try Self.validatedJetBrainsQuota(settings: context.settings)
             // An IDE without an activated quota writes {type: "Unknown"}. The upstream

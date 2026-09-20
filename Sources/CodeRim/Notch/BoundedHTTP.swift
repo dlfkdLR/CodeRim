@@ -34,17 +34,18 @@ enum BoundedHTTP {
     static let credentialHeaders = ["Authorization", "Cookie", "X-XAI-Token-Auth",
                                     "x-codeium-csrf-token"]
 
-    /// Follow a redirect, but never carry a borrowed credential to a host the
-    /// caller did not choose. Same-host redirects (an added trailing slash, an
-    /// http→https upgrade) keep the headers and behave exactly as before;
-    /// anything that changes host travels without them, so a redirect cannot
-    /// turn into credential exfiltration. Stripping rather than refusing keeps
-    /// a provider that legitimately redirects working — and no provider here
-    /// currently redirects across hosts, so nothing that works today changes.
+    /// Borrowed credentials stay within the original origin: host, scheme,
+    /// and effective port. A same-host downgrade or a different service port
+    /// is a different security boundary just like a different hostname.
     static func redirect(from original: URLRequest, to proposed: URLRequest) -> URLRequest {
-        guard original.url?.host?.lowercased() != proposed.url?.host?.lowercased() else {
-            return proposed
+        func origin(_ url: URL?) -> (String, String, Int)? {
+            guard let url, let scheme = url.scheme?.lowercased(),
+                  let host = url.host?.lowercased(),
+                  scheme == "https" || scheme == "http" else { return nil }
+            return (scheme, host, url.port ?? (scheme == "https" ? 443 : 80))
         }
+        if let source = origin(original.url), let target = origin(proposed.url),
+           source == target { return proposed }
         var stripped = proposed
         for header in credentialHeaders { stripped.setValue(nil, forHTTPHeaderField: header) }
         return stripped

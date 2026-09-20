@@ -216,7 +216,8 @@ private struct SettingsWindowFixture {
             claudeStore: UsageStore(provider: .claude, automaticallyRefresh: false, collector: claude, defaults: defaults),
             limitStore: AccountLimitStore(provider: SettingsTestLimitProvider(), defaults: defaults, pollingInterval: nil),
             claude: ClaudeIntegrationStore(defaults: defaults, automaticallyRefresh: false),
-            profileStore: ProfileUsageStore(defaults: defaults)
+            profileStore: ProfileUsageStore(defaults: defaults, allowsAccountTotals: false),
+            codexAccounts: AccountLayoutFixture.emptyStore()
         )
     }
 

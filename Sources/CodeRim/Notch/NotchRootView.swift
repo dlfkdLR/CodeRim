@@ -19,7 +19,7 @@ struct NotchRootView: View {
                 // Outside the notch and outside its clip: the orb hangs past
                 // the end of the shape, tucked into the corner the far flare
                 // makes.
-                if !model.snapshots.isEmpty {
+                if !model.visibleSnapshots.isEmpty {
                     ZStack(alignment: .topLeading) {
                         controls(place)
                             .id(model.controlsAtStart)
@@ -36,6 +36,7 @@ struct NotchRootView: View {
                         now: model.now,
                         direction: model.edge.tooltipDirection,
                         sessionCap: model.sessionCap,
+                        maxHeight: model.cardHeight(for: snapshot),
                         resetTimeFormat: model.resetTimeFormat,
                         onSwitchAccount: model.onSwitchAccount.map { action in { action(snapshot.id) } }
                     )
@@ -60,6 +61,9 @@ struct NotchRootView: View {
         .environment(\.notchAccentColor, model.accentColor.color)
         .environment(\.notchRingAppearance, model.ringAppearance)
         .environment(\.notchRingAnimationEnabled, model.isExpanded)
+        .accessibilityValue(model.visibleRangeDescription)
+        .accessibilityAction(named: Text("Next providers")) { model.changePage(forward: true) }
+        .accessibilityAction(named: Text("Previous providers")) { model.changePage(forward: false) }
     }
 
     /// Keep each end's controls together while crossfading between them;
@@ -163,7 +167,7 @@ struct NotchRootView: View {
     /// than into it.
     private var orbMotion: Animation {
         model.isExpanded
-            ? NotchMotion.stagger(index: model.snapshots.count)
+            ? NotchMotion.stagger(index: model.visibleSnapshots.count)
             : NotchMotion.merge
     }
 
@@ -202,7 +206,7 @@ struct NotchRootView: View {
     /// pulled toward the edge, so the whole thing reads as one movement.
     @ViewBuilder
     private var cells: some View {
-        let stack = ForEach(Array(model.snapshots.enumerated()), id: \.element.id) { index, snapshot in
+        let stack = ForEach(Array(model.visibleSnapshots.enumerated()), id: \.element.id) { index, snapshot in
             ProviderCell(
                 snapshot: snapshot,
                 activity: model.activity(for: snapshot.id),
@@ -293,11 +297,7 @@ struct NotchRootView: View {
     ) -> CGPoint {
         let card = model.edge.isVertical
             ? NotchLayout.cardWidth
-            : NotchLayout.cardHeight(for: snapshot,
-                sessionCount: model.activity(for: snapshot.id)?.displayRows.count ?? 0,
-                sessionCap: model.sessionCap,
-                now: model.now, showsAccountAction: model.onSwitchAccount != nil
-            )
+            : model.cardHeight(for: snapshot)
         // The ring it points at has moved with the notch, so the tail follows
         // it — but the card beyond the tail is drawn at its own size, and
         // `tooltipInset` already ends where the drawn notch does.

@@ -156,6 +156,35 @@ final class BoundedHTTPTests: XCTestCase {
         XCTAssertFalse(try XCTUnwrap(requests.last).contains("WorkosCursorSessionToken"))
     }
 
+    func testARealCrossPortRedirectArrivesWithoutTheCredential() async throws {
+        let destination = try LocalHTTPServer()
+        defer { destination.stop() }
+        destination.respond(with: Data("{}".utf8), declaringLength: true)
+        server.redirectFirstRequest(to: destination.url)
+        var request = URLRequest(url: server.url)
+        request.setValue("synthetic-cookie", forHTTPHeaderField: "Cookie")
+        _ = try await BoundedHTTP.data(for: request, on: ProviderSession.shared)
+        XCTAssertEqual(destination.requests.count, 1)
+        XCTAssertFalse(try XCTUnwrap(destination.requests.first).contains("synthetic-cookie"))
+    }
+
+    func testCredentialsCannotCrossSchemeOrPortBoundaries() {
+        var original = URLRequest(url: URL(string: "https://example.invalid/a")!)
+        for header in BoundedHTTP.credentialHeaders { original.setValue("synthetic", forHTTPHeaderField: header) }
+        for target in ["http://example.invalid/a", "https://example.invalid:8443/a"] {
+            var proposed = original
+            proposed.url = URL(string: target)!
+            let redirected = BoundedHTTP.redirect(from: original, to: proposed)
+            for header in BoundedHTTP.credentialHeaders {
+                XCTAssertNil(redirected.value(forHTTPHeaderField: header), target)
+            }
+        }
+        var explicitDefault = original
+        explicitDefault.url = URL(string: "https://EXAMPLE.invalid:443/b")!
+        XCTAssertEqual(BoundedHTTP.redirect(from: original, to: explicitDefault)
+            .value(forHTTPHeaderField: "Cookie"), "synthetic")
+    }
+
     func testARealSameHostRedirectStillCarriesTheCredential() async throws {
         server.respond(with: Data("{}".utf8), declaringLength: true)
         server.redirectFirstRequest(to: server.sameHostURL)

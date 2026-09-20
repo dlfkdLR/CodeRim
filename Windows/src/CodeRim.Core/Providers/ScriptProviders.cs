@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using CodeRim.Core.Domain;
 using Jint;
+using Jint.Runtime;
 using static CodeRim.Core.Providers.ProviderParsers;
 
 namespace CodeRim.Core.Providers;
@@ -42,6 +43,23 @@ public sealed class ScriptProviders : IDisposable
         }
         return definitions;
     }
+    private sealed class ScriptAuthenticationException : Exception { }
+    private static bool IsClassifiedAuth(Exception error)
+    {
+        if (error is ScriptAuthenticationException) return true;
+        var reason = error switch {
+            JavaScriptException script => script.Error,
+            PromiseRejectedException promise => promise.RejectedValue,
+            _ => Jint.Native.JsValue.Undefined
+        };
+        if (!reason.IsObject()) return false;
+        var message = reason.AsObject().Get("message");
+        if (!message.IsString()) return false;
+        var text = message.AsString();
+        return text.StartsWith("__CODEXBAR_FAILURE_V2__:authentication-expired:", StringComparison.Ordinal)
+            || text.StartsWith("__CODEXBAR_FAILURE_V2__:missing-credential:", StringComparison.Ordinal);
+    }
+
     public async Task<ProviderReading> FetchAsync(string id, Func<string, string?> setting, string? cookie, CancellationToken token = default)
     {
         if (!Catalog.TryGetValue(id, out var definition)) return new(id, ReadingState.Unsupported, []);
@@ -54,7 +72,7 @@ public sealed class ScriptProviders : IDisposable
         {
             token.ThrowIfCancellationRequested();
             // Never include the raw script/network exception; it may contain vendor response data.
-            var auth = error.Message.Contains("authentication-expired", StringComparison.Ordinal) || error.Message.Contains("missing-credential", StringComparison.Ordinal);
+            var auth = IsClassifiedAuth(error);
             return new(id, auth ? ReadingState.NeedsAuth : ReadingState.Error, [], Message: auth ? "Connect the provider or update its credential." : "The provider could not return a reading. Check the connection and refresh.");
         }
     }
@@ -65,9 +83,9 @@ public sealed class ScriptProviders : IDisposable
         using var meta = JsonDocument.Parse(engine.Evaluate("JSON.stringify(__provider)").AsString());
         var root = meta.RootElement; var auth = Get(root, "auth");
         var secretKey = Text(auth, "secret");
-        if (secretKey is not null && string.IsNullOrWhiteSpace(setting(secretKey))) throw new InvalidDataException("missing-credential");
-        if (definition.CookieDomains.Length > 0 && string.IsNullOrWhiteSpace(cookie)) throw new InvalidDataException("missing-credential");
-        var count = 0; var totalBytes = 0L;
+        if (secretKey is not null && string.IsNullOrWhiteSpace(setting(secretKey))) throw new ScriptAuthenticationException();
+        if (definition.CookieDomains.Length > 0 && string.IsNullOrWhiteSpace(cookie)) throw new ScriptAuthenticationException();
+        var count = 0; var totalBytes = 0L; var sawAuthenticationFailure = false;
         engine.SetValue("__setting", new Func<string, string?>(key => definition.Settings.Any(x => x.Key == key) ? setting(key) : null));
         engine.SetValue("__cookie", new Func<string, string?>(domain => definition.CookieDomains.Contains(domain, StringComparer.OrdinalIgnoreCase) ? cookie : null));
         engine.SetValue("__reset", new Func<string, double, double>((zone, hour) => NextReset(zone, (int)hour).ToUnixTimeMilliseconds()));
@@ -96,7 +114,7 @@ public sealed class ScriptProviders : IDisposable
                 var management = Get(requestOptions, "openRouterManagementAuth").ValueKind == JsonValueKind.True;
                 if (management && (id != "openrouter" || uri.GetLeftPart(UriPartial.Authority) != "https://openrouter.ai" || uri.AbsolutePath != "/api/v1/activity")) throw new InvalidDataException("Management endpoint rejected.");
                 var credential = setting(management ? "OPENROUTER_MANAGEMENT_API_KEY" : secretKey);
-                if (string.IsNullOrWhiteSpace(credential)) throw new InvalidDataException("missing-credential");
+                if (string.IsNullOrWhiteSpace(credential)) throw new ScriptAuthenticationException();
                 var type = Text(auth, "type");
                 var name = type == "header" ? Text(auth, "header")! : type == "x-api-key" ? "x-api-key" : "Authorization";
                 var value = type == "bearer" ? "Bearer " + credential : type == "authorization-scheme" ? Text(auth, "scheme") + " " + credential : credential;
@@ -104,6 +122,8 @@ public sealed class ScriptProviders : IDisposable
             }
             if (method == "POST") request.Content = new StringContent(Text(requestOptions, "bodyJSON") ?? "{}", Encoding.UTF8, "application/json");
             using var response = client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, requestToken).GetAwaiter().GetResult();
+            if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+                sawAuthenticationFailure = true;
             if (response.Content.Headers.ContentLength > 2 * 1024 * 1024) throw new InvalidDataException();
             using var stream = response.Content.ReadAsStream(requestToken); using var memory = new MemoryStream(); var buffer = new byte[16384];
             int length;
@@ -127,11 +147,18 @@ public sealed class ScriptProviders : IDisposable
         if (TimeZoneInfo.TryConvertWindowsIdToIanaId(localZone, out var ianaZone)) localZone = ianaZone;
         engine.SetValue("__timeZone", localZone);
         engine.Execute("var __ctx = __prelude({__codexbarNowMillis: Date.now(), env:{timeZone:__timeZone}}, {" +
-            "http:(u,o,m,j,res,rej)=>{try{let r=JSON.parse(__request(u,m,JSON.stringify(o)));if(r.hostError)throw new Error(r.hostError);if(j)r.json=JSON.parse(r.bodyText);res(r);}catch(e){rej(e);}}," +
+            "http:(u,o,m,j,res,rej)=>{try{let r=JSON.parse(__request(u,m,JSON.stringify(o)));if(r.hostError)throw new Error(r.hostError);if(r.status===401||r.status===403)throw new Error('authentication-expired');if(j)r.json=JSON.parse(r.bodyText);res(r);}catch(e){rej(e);}}," +
             "settingGet:(k,s)=>__setting(k),cookieHeader:(d,res,rej)=>{let c=__cookie(d);c?res(c):rej(new Error('missing-credential'));}," +
             "nextDailyReset:(z,h)=>__reset(z,h),pct:(u,l)=>l>0?Math.max(0,u/l*100):0,amountFromPercent:(p,l)=>p*l/100," +
             "isDetailLabel:v=>typeof v==='string'&&v.length>0,log:()=>{},cacheGet:()=>null,cacheSet:()=>{}});");
-        var result = engine.Evaluate("__provider.fetchUsage(__ctx).then(value=>JSON.stringify(value))").UnwrapIfPromise(token);
+        Jint.Native.JsValue result;
+        try { result = engine.Evaluate("__provider.fetchUsage(__ctx).then(value=>JSON.stringify(value))").UnwrapIfPromise(token); }
+        catch (PromiseRejectedException) when (sawAuthenticationFailure && !token.IsCancellationRequested)
+        {
+            // Only a rejected fetch is an authentication failure. Optional failed
+            // requests are allowed when the reader still returns usable data.
+            throw new ScriptAuthenticationException();
+        }
         var jsonText = result.AsString();
         if (jsonText.Length > 2 * 1024 * 1024) throw new InvalidDataException();
         using var output = JsonDocument.Parse(jsonText);
@@ -208,7 +235,7 @@ public sealed class ScriptProviders : IDisposable
             foreach (var row in rows.EnumerateArray().Take(100))
                 if (Text(row, "value") is { } display) windows.Add(new("detail-" + windows.Count, Text(row, "label") ?? Text(detail, "title") ?? "Usage", DisplayValue: display + (Text(row, "secondaryValue") is { } secondary ? " · " + secondary : "")));
         }
-        return new(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, DateTimeOffset.Now, Plan: Text(Get(root, "identity"), "loginMethod"), CostUsage: activity);
+        return new(id, windows.Count > 0 ? Text(root, "dataConfidence") == "estimated" ? ReadingState.Partial : ReadingState.Ready : ReadingState.Unavailable, windows, DateTimeOffset.Now, Plan: Text(Get(root, "identity"), "loginMethod"), CostUsage: activity);
     }
     private static ProviderCostUsage? ReadCostUsage(JsonElement value)
     {

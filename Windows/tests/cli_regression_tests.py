@@ -32,6 +32,20 @@ with tempfile.TemporaryDirectory(prefix="coderim-cli-review-") as directory:
         assert structured["providers"][0]["localUsage"]["state"] == "partial"
 print("PASS: CLI preserves partial quality in fresh/stale text and JSON (4 process checks)")
 
+with tempfile.TemporaryDirectory(prefix="coderim-cli-units-") as directory:
+    path = pathlib.Path(directory) / "snapshot.json"
+    timestamp = now.isoformat()
+    snapshot = {"schemaVersion": 1, "generatedAt": timestamp, "providers": [
+        {"id": "crof", "name": "Crof", "enabled": True,
+         "limits": {"id": "crof", "state": "ready", "updatedAt": timestamp,
+                    "windows": [{"id": "credits", "name": "Credits", "usedPercent": 25,
+                                 "displayValue": "$123.45", "durationMinutes": 0}]}}]}
+    path.write_text(json.dumps(snapshot), encoding="utf-8")
+    output = subprocess.run(runner + ["limits", "--snapshot", str(path)],
+                            check=True, capture_output=True, text=True, timeout=10).stdout
+    assert "25% used" in output and "$123.45" in output, output
+print("PASS: CLI retains the original currency alongside a reported percentage")
+
 # Account fixtures are confined to the temporary directory and contain no real credentials.
 with tempfile.TemporaryDirectory(prefix="coderim-claude-review-") as directory:
     root = pathlib.Path(directory).resolve()

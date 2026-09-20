@@ -86,6 +86,18 @@ internal static class NativeSmoke
         }
         finally { Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", previousClaudeConfig); }
 
+        dashboard.Navigate("codex"); await Idle();
+        var planLabel = Descendants<TextBlock>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "provider.plan");
+        var stateLabel = Descendants<TextBlock>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "provider.status");
+        Require(planLabel.Text == "Preview account", "Provider plan fixture was not loaded");
+        store.InvalidateAccount("codex"); await Idle();
+        Require(planLabel.Text == "Unavailable" && stateLabel.Text == "Available", "Account invalidation kept old provider identity metadata");
+        await store.RefreshProviderAsync("codex"); await Idle();
+        Require(planLabel.Text == "Preview account" && stateLabel.Text == "Ready", "Provider metadata did not refresh in place");
+        Require(Descendants<TextBlock>(dashboard).Contains(planLabel), "Provider refresh rebuilt the account card");
+        Record("Provider plan and connection state follow account invalidation and refresh without rebuilding controls");
+        dashboard.Navigate("usage"); await Idle();
+
         var glyphGrid = new WrapPanel { Width = 720, Background = Ui.Brush("#202020") };
         foreach (var provider in ProviderCatalog.All)
         {

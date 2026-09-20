@@ -216,18 +216,21 @@ enum GitHubCopilotUsage {
         if entitlement == 0 { return nil }
         if let entitlement, entitlement > 0 {
             let consumed = used ?? max(0, entitlement - (remaining ?? entitlement))
+            let fraction = max(0, consumed / entitlement)
+            guard fraction.isFinite else { return nil }
             return LimitWindow(id: id, label: label(for: id),
-                               usedFraction: max(0, consumed / entitlement), resetsAt: reset,
+                               usedFraction: fraction, resetsAt: reset,
                                duration: monthlyDuration(endingAt: reset))
         }
-        if let remaining, remaining >= 0, used == nil {
+        if let remaining, remaining >= 0, used == nil,
+           let count = Int(exactly: remaining.rounded()) {
             return remaining == 0 && entitlement == 0 ? nil
                 : LimitWindow(id: id, label: label(for: id),
-                              remaining: Int(remaining.rounded()), resetsAt: reset)
+                              remaining: count, resetsAt: reset)
         }
-        if let used, used >= 0 {
+        if let used, used >= 0, let count = Int(exactly: used.rounded()) {
             return LimitWindow(id: id, label: label(for: id),
-                               used: Int(used.rounded()), resetsAt: reset)
+                               used: count, resetsAt: reset)
         }
         return nil
     }
@@ -245,7 +248,9 @@ enum GitHubCopilotUsage {
     }
 
     private static func number(_ value: Any?) -> Double? {
-        (value as? NSNumber)?.doubleValue
+        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+              number.doubleValue.isFinite else { return nil }
+        return number.doubleValue
     }
 
     private static func date(_ value: Any?) -> Date? {

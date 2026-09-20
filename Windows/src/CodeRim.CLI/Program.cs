@@ -94,6 +94,8 @@ static async Task<int> RunAsync(string[] arguments)
                     {
                         var value = window.UsedPercent is { } percent ? $"{percent:0.#}% used · {window.RemainingPercent:0.#}% left" : window.DisplayValue
                             ?? (window.UsedCount is { } used ? $"{used:N0} {window.Unit} used" : window.RemainingCount is { } left ? $"{left:N0} {window.Unit} left" : "unavailable");
+                        if (window.UsedPercent is not null && !string.IsNullOrWhiteSpace(window.DisplayValue))
+                            value += " · " + window.DisplayValue;
                         Console.WriteLine($"  {window.Name}: {value}" + (window.ResetsAt is { } reset ? " · resets " + reset.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) : ""));
                     }
                 }

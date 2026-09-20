@@ -154,7 +154,7 @@ final class NotchController: ObservableObject {
                 self.providerSummaries = self.store?.providerSummaries ?? []
                 self.window.model.snapshots = snapshots
                 self.window.model.now = Date()
-                if self.visible { self.window.relocate(cellCount: snapshots.count) }
+                if self.visible { self.window.relocate() }
                 if self.visible { self.thresholds.observe(snapshots) }
             }
             .store(in: &cancellables)

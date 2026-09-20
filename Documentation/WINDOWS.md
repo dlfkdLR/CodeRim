@@ -53,7 +53,7 @@ coderim --format json --watch 5
 
 The scanner verifies the exact frozen prefix when a session log grows during import; a concurrent append cannot discard already parsed token totals. Rewrites and replacement files still require reparse. History clearing excludes both prior token and attachment identities, including copied archives. Image identity does not depend on physical line numbers or JSON whitespace.
 
-On macOS, inherited-session images after the logged replay boundary are now counted even before the first token event. Existing version 15 databases replay only affected inherited sessions while preserving accounting rows. Cursor account changes are checked again before publishing an asynchronous quota result.
+On macOS, inherited-session images after the logged replay boundary are counted even before the first token event. Schema 17 additionally reconciles full-log/prefix image counts without rewriting token accounting. Cursor and notch account changes are checked again before publishing asynchronous quota results.
 
 ## Remaining parity work
 
@@ -167,3 +167,7 @@ dotnet build Windows/CodeRim.Windows.sln --configuration Release
 ```
 
 The smoke test uses an isolated temporary directory and synthetic values. It does not connect accounts or read the user's chat history. It proves only native startup/rendering if executed on Windows; inspect the capture separately. The GitHub workflow packages both architectures and runs the x64 smoke test. Consult the release commit's workflow result for the native x64 verification status. The x64 checks also cover minimum-size light/dark/high-contrast layouts, popup dismissal, provider removal/navigation state, keyboard focus, image/sub-agent controls, isolated DPAPI/ACL storage, CLI PATH idempotence and Claude hook preservation. ARM64 execution, physical mixed-DPI monitors and live provider responses still need separate Windows verification.
+
+## Current audit changes (unreleased)
+
+Provider account, plan and status labels update in place after refresh/account invalidation. xAI and Poe share corrected readers with macOS: unavailable history stays unavailable, bounded history is marked partial, repeated Poe query IDs are counted once, and required authentication failures are distinguished from parse failures. CLI output preserves currency/count values alongside reported percentages. See [the full audit](FULL_AUDIT_2026-09-20.md) for execution evidence and remaining native/live-provider checks.

@@ -20,7 +20,9 @@ final class NotchPanel: NSPanel {
     /// The ⌥-drag ended. Where to persist the offset the drags above moved to.
     var onDragEnd: (() -> Void)?
 
+    var onScroll: ((NSEvent) -> Bool)?
     override func sendEvent(_ event: NSEvent) {
+        if event.type == .scrollWheel, onScroll?(event) == true { return }
         guard event.type == .rightMouseDown,
               let menu = contextMenuProvider?(),
               let view = contentView,

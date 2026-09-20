@@ -352,14 +352,14 @@ internal sealed partial class DashboardWindow : Window
         DockPanel.SetDock(mark, Dock.Left); header.Children.Add(mark);
         var headerText = new StackPanel();
         headerText.Children.Add(Ui.Text(provider.Name, 16, weight: FontWeights.SemiBold));
-        headerText.Children.Add(Ui.Text(store.Readings.GetValueOrDefault(id)?.State.ToString() ?? "Available", 12, "#A6A6AA"));
+        headerText.Children.Add(ProviderValue("provider.status", store.Readings.GetValueOrDefault(id)?.State.ToString() ?? "Available", 12));
         header.Children.Add(headerText);
         var headerCard = new Border { Child = header, CornerRadius = new CornerRadius(12), Margin = new Thickness(18, 0, 18, 4) };
         headerCard.SetResourceReference(Border.BackgroundProperty, "CardBackground"); body.Children.Add(headerCard);
         if (id is "codex" or "claude")
             body.Children.Add(SettingsUi.Section("Account",
-                SettingsUi.Value("Account", SavedAccounts.CurrentAccountLabel(id, store.Synthetic) ?? "Not connected"),
-                SettingsUi.Value("Plan", store.Readings.GetValueOrDefault(id)?.Plan ?? "Unavailable"),
+                SettingsUi.Row("Account", ProviderValue("provider.account", SavedAccounts.CurrentAccountLabel(id, store.Synthetic) ?? "Not connected")),
+                SettingsUi.Row("Plan", ProviderValue("provider.plan", store.Readings.GetValueOrDefault(id)?.Plan ?? "Unavailable")),
                 SettingsUi.Action("Manage Accounts…", () => Navigate(id + "-accounts"))));
         if (id == "codex")
             body.Children.Add(SettingsUi.Section("Limits",
@@ -464,8 +464,25 @@ internal sealed partial class DashboardWindow : Window
                 child.Margin = new Thickness(18, child.Margin.Top, 18, child.Margin.Bottom);
         UpdateProviderControlStates();
     }
+    private static TextBlock ProviderValue(string identifier, string text, double size = 13)
+    {
+        var label = Ui.Text(text, size, "#A6A6AA");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(label, identifier);
+        return label;
+    }
     private void UpdateProviderReading(string id)
     {
+        // Update the existing labels so credential drafts and keyboard focus survive a poll.
+        var current = store.Readings.GetValueOrDefault(id);
+        foreach (var label in VisualChildren<TextBlock>(body))
+        {
+            switch (System.Windows.Automation.AutomationProperties.GetAutomationId(label))
+            {
+                case "provider.status": label.Text = current?.State.ToString() ?? "Available"; break;
+                case "provider.account": label.Text = SavedAccounts.CurrentAccountLabel(id, store.Synthetic) ?? "Not connected"; break;
+                case "provider.plan": label.Text = current?.Plan ?? "Unavailable"; break;
+            }
+        }
         providerReading.Children.Clear(); var reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(id), settings.Current);
         providerReading.Children.Add(Ui.Text(reading?.Message ?? reading?.State.ToString() ?? "Waiting for the first reading", color: "#B7B8BD"));
         foreach (var window in reading?.Windows ?? []) providerReading.Children.Add(Ui.Row(window.Name, window.UsedPercent is { } p ? $"{p:0.#}% used" + (window.DisplayValue is { } description ? " · " + description : "") : window.DisplayValue ?? "—"));

@@ -26,6 +26,8 @@ The matrix describes the current source. Local token history is scoped to this c
 
 Both apps use the same six Settings sections and the same Usage, Projects, Sessions, and account navigation. Windows supports system light/dark themes, high contrast, manual refresh, limit visibility controls, session image counts and direct sub-agent navigation. Local images and conversation text are never copied into the usage database. OS-specific authentication and update behavior still differ; the matrix below describes those limits.
 
+The current source also bounds large notch provider lists and scrolls overflowing detail cards. xAI/Poe readers share authentication and incomplete-history handling across platforms. These changes are under audit and are not part of the download above; see the [2026-09-20 audit and verification limits](Documentation/FULL_AUDIT_2026-09-20.md).
+
 ## Install
 
 **macOS:** [2.1.7](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.7) · **Windows:** [2.1.7](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.7)

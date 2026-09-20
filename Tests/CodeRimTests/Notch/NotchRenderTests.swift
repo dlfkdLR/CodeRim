@@ -371,7 +371,7 @@ final class NotchEdgeArrivalTests: XCTestCase {
         defer { controller.stop() }
 
         controller.apply(edge: .bottom)
-        XCTAssertTrue(wait { controller.model.isExpanded }, "it never opened")
+        XCTAssertTrue(wait { controller.model.edge == .bottom && controller.model.isExpanded }, "it never arrived and opened")
         XCTAssertEqual(controller.panelAlphaForTesting, 1, accuracy: 0.01,
                        "it is still fading while it opens — two animations over each other")
     }
