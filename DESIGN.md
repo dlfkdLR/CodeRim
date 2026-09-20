@@ -161,7 +161,7 @@ The shared spacing rhythm remains 4px for tightly related icon-label pairs, 8px 
 
 **The Real-Provider Rule.** Token Usage is the cross-source token summary. A named provider limits tab appears only when that provider has working data and status handling; empty provider tabs are not navigation.
 
-**The Notch Content Bounds Rule.** The tooltip shell, placement, pointer region, and session budget use the same content-height calculation, including Today, the account row, named limit groups, and their spacing. Natural text must fit inside the card before its mask is applied; if the full content exceeds the available screen height, preserve every row in a bounded vertical scroll viewport; grouped rows receive their spacing once. Preserve the existing notch silhouette, ring geometry, palette, and motion while adapting the tooltip height to its content.
+**The Notch Content Bounds Rule.** The tooltip shell, placement, pointer region, and session budget use the same content-height calculation, including Today, the account row, named limit groups, and their spacing. Natural text must fit inside the card before its mask is applied; grouped rows receive their spacing once. Preserve the existing notch silhouette, ring geometry, palette, and motion while adapting the tooltip height to its content.
 
 ## Elevation & Depth
 
@@ -289,5 +289,3 @@ The notch Settings and account controls share a slim black capsule instead of se
 ### Claude Accounts
 
 Claude inherits the Codex Accounts utility window: 560 × 400 pt by default, 500 × 300 pt minimum, system type and colors, native controls, and dividers. Only the saved list scrolls; Save Current Account, Add Account, Cancel during sign-in, status, and session guidance stay fixed. Rows show email, the reported plan, Current or Switch, and removal. A failed identity refresh removes the unverified Current badge. Switching and removal require confirmation. This extension adds no design tokens.
-
-For provider lists longer than the available edge, preserve the complete saved order and page the visible slice using wheel input over the notch, Previous/Next providers in the context menu, and named accessibility actions. Tooltip scrolling must not change the provider page. Keep the card reserve on-screen during repositioning.
