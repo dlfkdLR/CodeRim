@@ -13,6 +13,7 @@ internal sealed class AccountsPane : DockPanel
     private Process? signInProcess;
     private readonly System.Windows.Threading.DispatcherTimer signInTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly System.Windows.Controls.Button cancel;
+    private readonly System.Windows.Controls.Button refresh;
     private readonly string provider;
     private readonly SavedAccounts accounts;
     private readonly DashboardStore store;
@@ -22,31 +23,47 @@ internal sealed class AccountsPane : DockPanel
     internal AccountsPane(string provider, CredentialVault vault, DashboardStore store, AppSettingsStore settings)
     {
         this.provider = provider; this.store = store; this.settings = settings; accounts = new SavedAccounts(vault);
-        Margin = new Thickness(18); LastChildFill = true;
+        Margin = new Thickness(24); LastChildFill = true;
         var header = new StackPanel(); DockPanel.SetDock(header, Dock.Top); Children.Add(header);
         header.Children.Add(Ui.Text((provider == "codex" ? "Codex" : "Claude") + " Accounts", 17, weight: FontWeights.SemiBold));
         header.Children.Add(Ui.Text("Save the CLI's current sign-in, then switch between saved accounts.", color: "#A6A6AA"));
+        header.Margin = new Thickness(0, 0, 14, 14);
+        var footer = new StackPanel();
+        System.Windows.Automation.AutomationProperties.SetAutomationId(footer, "accounts.footer");
+        DockPanel.SetDock(footer, Dock.Bottom); Children.Add(footer);
+        var divider = new Border { Height = 1, Margin = new Thickness(0, 16, 0, 12) };
+        divider.SetResourceReference(Border.BackgroundProperty, "DividerBrush"); footer.Children.Add(divider);
         var actions = new WrapPanel();
-        actions.Children.Add(Ui.AsyncButton("Save current account", async () =>
+        var save = Ui.AsyncButton("Save Current Account", async () =>
         {
             try { await accounts.SaveCurrentAsync(provider, Executable(), waitForRefresh: () => store.WaitForProviderIdleAsync(provider)).ConfigureAwait(true); Populate(); feedback.Text = "Verified CLI account saved using Windows user encryption."; }
             catch (Exception error) when (error is not OutOfMemoryException) { feedback.Text = "The official CLI could not verify a file-backed subscription login. Finish sign-in through the CLI and retry."; }
-        }));
-        actions.Children.Add(Ui.Button("Sign in…", () => Run(SignIn)));
-        actions.Children.Add(Ui.Button("Refresh accounts", Populate));
+        });
+        System.Windows.Automation.AutomationProperties.SetAutomationId(save, "accounts.saveCurrent"); actions.Children.Add(save);
+        var add = Ui.Button("Add Account…", () => Run(SignIn));
+        System.Windows.Automation.AutomationProperties.SetAutomationId(add, "accounts.add"); actions.Children.Add(add);
+        refresh = Ui.Button("Refresh Accounts", Populate); actions.Children.Add(refresh);
         cancel = Ui.Button("Cancel sign-in", CancelSignIn); cancel.Visibility = Visibility.Collapsed; actions.Children.Add(cancel);
-        header.Children.Add(actions); header.Children.Add(feedback);
+        footer.Children.Add(actions); footer.Children.Add(feedback);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(feedback, "accounts.status");
         var note = Ui.Text("Close running provider sessions before switching. Removing a saved account preserves the current CLI login and local history.", 11, "#A6A6AA");
-        note.Margin = new Thickness(0, 10, 0, 0); DockPanel.SetDock(note, Dock.Bottom); Children.Add(note);
-        Children.Add(new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled });
+        note.Margin = new Thickness(0, 10, 0, 0); footer.Children.Add(note);
+        var scroll = new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(scroll, "accounts.list");
+        Children.Add(scroll);
         signInTimer.Tick += (_, _) =>
         {
             if (signInProcess is null || !signInProcess.HasExited) return;
-            signInProcess.Dispose(); signInProcess = null; signInTimer.Stop(); cancel.Visibility = Visibility.Collapsed;
+            signInProcess.Dispose(); signInProcess = null; signInTimer.Stop(); ShowSignInProgress(false);
             feedback.Text = "Sign-in process finished. Save Current Account to verify and keep this login."; Populate();
         };
         Unloaded += (_, _) => { signInTimer.Stop(); signInProcess?.Dispose(); signInProcess = null; };
         Populate();
+    }
+    internal void ShowSignInProgress(bool active)
+    {
+        cancel.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
+        refresh.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
     }
     private string Executable() => provider == "codex" ? settings.Current.CodexExecutable ?? ProviderConnections.ResolveCodex() ?? throw new FileNotFoundException()
         : ProviderConnections.ResolveExecutable("claude.exe") ?? throw new FileNotFoundException();
@@ -58,14 +75,14 @@ internal sealed class AccountsPane : DockPanel
         foreach (var argument in provider == "codex" ? new[] { "login" } : new[] { "auth", "login" }) start.ArgumentList.Add(argument);
         if (signInProcess is { HasExited: false }) { feedback.Text = "Sign-in is already in progress."; return; }
         signInProcess?.Dispose(); signInProcess = Process.Start(start);
-        cancel.Visibility = signInProcess is null ? Visibility.Collapsed : Visibility.Visible; signInTimer.Start();
-        feedback.Text = "Finish sign-in in the official CLI, then choose Save current account.";
+        ShowSignInProgress(signInProcess is not null); signInTimer.Start();
+        feedback.Text = "Finish sign-in in the official CLI, then choose Save Current Account.";
     }
     private void CancelSignIn()
     {
         try { if (signInProcess is { HasExited: false }) signInProcess.Kill(); }
         catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { }
-        signInProcess?.Dispose(); signInProcess = null; signInTimer.Stop(); cancel.Visibility = Visibility.Collapsed;
+        signInProcess?.Dispose(); signInProcess = null; signInTimer.Stop(); ShowSignInProgress(false);
         feedback.Text = "Sign-in cancelled. Previously saved accounts are preserved.";
     }
     private void Populate()
@@ -76,7 +93,11 @@ internal sealed class AccountsPane : DockPanel
             var saved = accounts.Read(provider);
             string? current = null;
             try { if (!store.Synthetic) current = SavedAccounts.Current(provider).Identity.Id; } catch (Exception e) when (e is IOException or System.Text.Json.JsonException or FormatException) { }
-            if (saved.Count == 0) list.Children.Add(Ui.Text("No saved accounts yet.", color: "#A6A6AA"));
+            if (saved.Count == 0)
+            {
+                list.Children.Add(Ui.Text("No saved accounts", weight: FontWeights.SemiBold));
+                list.Children.Add(Ui.Text("Save your current login, or sign in to add another account.", color: "#A6A6AA"));
+            }
             foreach (var account in saved)
             {
                 var panel = new StackPanel { Margin = new Thickness(0, 12, 0, 12) };

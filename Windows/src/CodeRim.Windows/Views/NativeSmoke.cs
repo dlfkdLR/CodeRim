@@ -196,13 +196,36 @@ internal static class NativeSmoke
         dashboard.Navigate("usage"); await Idle();
         Record("Session image counts, direct sub-agent navigation, and metadata visibility switches");
 
-        dashboard.Navigate("codex-accounts"); await Idle();
-        var accountsWindow = System.Windows.Application.Current.Windows.OfType<Window>().Single(x => x != dashboard && x.Content is AccountsPane);
-        accountsWindow.Width = 500; accountsWindow.Height = 300; await Idle();
-        var saveAccount = Descendants<System.Windows.Controls.Button>(accountsWindow).Single(x => Equals(x.Content, "Save current account"));
-        Require(saveAccount.TransformToAncestor(accountsWindow).Transform(new Point()).Y + saveAccount.ActualHeight < accountsWindow.ActualHeight, "Account actions clipped at minimum window size");
-        Capture(accountsWindow, Path.Combine(directory, "windows-accounts-min.png")); accountsWindow.Close();
-        Record("Account utility keeps actions visible at 500 by 300");
+        foreach (var accountProvider in new[] { "codex", "claude" })
+        {
+            dashboard.Navigate(accountProvider + "-accounts"); await Idle();
+            var accountsWindow = System.Windows.Application.Current.Windows.OfType<Window>().Single(x => x != dashboard && x.Content is AccountsPane);
+            accountsWindow.Width = 500; accountsWindow.Height = 300; await Idle();
+            var saveAccount = Descendants<System.Windows.Controls.Button>(accountsWindow).Single(x => AutomationProperties.GetAutomationId(x) == "accounts.saveCurrent");
+            var accountList = Descendants<ScrollViewer>(accountsWindow).Single(x => AutomationProperties.GetAutomationId(x) == "accounts.list");
+            var footer = Descendants<StackPanel>(accountsWindow).Single(x => AutomationProperties.GetAutomationId(x) == "accounts.footer");
+            var status = Descendants<TextBlock>(accountsWindow).Single(x => AutomationProperties.GetAutomationId(x) == "accounts.status");
+            var accountPane = (AccountsPane)accountsWindow.Content;
+            double Bottom(FrameworkElement element) => element.TransformToAncestor(accountPane).Transform(new Point()).Y + element.ActualHeight;
+            Require(Bottom(accountList) <= saveAccount.TransformToAncestor(accountPane).Transform(new Point()).Y, "Account actions must follow the independently scrolling list");
+            Require(Bottom(footer) <= accountPane.ActualHeight, "Account footer clipped at minimum window size");
+            Require(Bottom(saveAccount) < accountPane.ActualHeight, "Account actions clipped at minimum window size");
+            var originalSaveY = saveAccount.TransformToAncestor(accountPane).Transform(new Point()).Y;
+            var savedList = (StackPanel)accountList.Content;
+            for (var i = 0; i < 30; i++) savedList.Children.Add(Ui.Text("Synthetic saved account " + i));
+            accountList.ScrollToEnd(); await Idle();
+            Require(Math.Abs(saveAccount.TransformToAncestor(accountPane).Transform(new Point()).Y - originalSaveY) < 1, "Scrolling account list moved fixed actions");
+            accountPane.ShowSignInProgress(true);
+            status.Text = "The official CLI could not verify this account. Finish signing in through the CLI and retry."; await Idle();
+            Require(Descendants<System.Windows.Controls.Button>(accountPane).Single(x => Equals(x.Content, "Cancel sign-in")).IsVisible, "Sign-in cancel action missing");
+            Require(!Descendants<System.Windows.Controls.Button>(accountPane).Single(x => Equals(x.Content, "Refresh Accounts")).IsVisible, "Refresh should yield its action slot to Cancel during sign-in");
+            Require(accountList.ViewportHeight > 12 && accountList.ScrollableHeight > 0, "Busy account footer consumed the scrolling list viewport");
+            Require(Bottom(footer) <= accountPane.ActualHeight, "Account error status clipped footer actions");
+            Capture(accountsWindow, Path.Combine(directory, "windows-" + accountProvider + "-accounts-min.png"));
+            if (accountProvider == "codex") Capture(accountsWindow, Path.Combine(directory, "windows-accounts-min.png"));
+            accountsWindow.Close();
+        }
+        Record("Codex and Claude account utilities keep footer actions and error status below independently scrolling lists at 500 by 300");
 
         foreach (var theme in new[] { "dark", "light", "high-contrast" })
         {
