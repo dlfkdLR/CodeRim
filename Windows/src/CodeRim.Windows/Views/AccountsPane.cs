@@ -26,8 +26,8 @@ internal sealed class AccountsPane : DockPanel
         Margin = new Thickness(24); LastChildFill = true;
         var header = new StackPanel(); DockPanel.SetDock(header, Dock.Top); Children.Add(header);
         header.Children.Add(Ui.Text((provider == "codex" ? "Codex" : "Claude") + " Accounts", 17, weight: FontWeights.SemiBold));
-        header.Children.Add(Ui.Text("Save the CLI's current sign-in, then switch between saved accounts.", color: "#A6A6AA"));
-        header.Margin = new Thickness(0, 0, 14, 14);
+        header.Children.Add(Ui.Text("Select an account for the " + (provider == "codex" ? "Codex" : "Claude") + " CLI.", color: "#A6A6AA"));
+        header.Margin = new Thickness(0, 0, 0, 14);
         var footer = new StackPanel();
         System.Windows.Automation.AutomationProperties.SetAutomationId(footer, "accounts.footer");
         DockPanel.SetDock(footer, Dock.Bottom); Children.Add(footer);

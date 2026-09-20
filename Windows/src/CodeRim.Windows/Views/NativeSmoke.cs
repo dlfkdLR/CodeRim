@@ -219,7 +219,8 @@ internal static class NativeSmoke
             status.Text = "The official CLI could not verify this account. Finish signing in through the CLI and retry."; await Idle();
             Require(Descendants<System.Windows.Controls.Button>(accountPane).Single(x => Equals(x.Content, "Cancel sign-in")).IsVisible, "Sign-in cancel action missing");
             Require(!Descendants<System.Windows.Controls.Button>(accountPane).Single(x => Equals(x.Content, "Refresh Accounts")).IsVisible, "Refresh should yield its action slot to Cancel during sign-in");
-            Require(accountList.ViewportHeight > 12 && accountList.ScrollableHeight > 0, "Busy account footer consumed the scrolling list viewport");
+            Capture(accountsWindow, Path.Combine(directory, "windows-" + accountProvider + "-accounts-busy-min.png"));
+            Require(accountList.ViewportHeight > 12 && accountList.ScrollableHeight > 0, $"Busy account footer consumed the scrolling list viewport: viewport={accountList.ViewportHeight}, scrollable={accountList.ScrollableHeight}, content={accountPane.ActualHeight}, footer={footer.ActualHeight}");
             Require(Bottom(footer) <= accountPane.ActualHeight, "Account error status clipped footer actions");
             Capture(accountsWindow, Path.Combine(directory, "windows-" + accountProvider + "-accounts-min.png"));
             if (accountProvider == "codex") Capture(accountsWindow, Path.Combine(directory, "windows-accounts-min.png"));
