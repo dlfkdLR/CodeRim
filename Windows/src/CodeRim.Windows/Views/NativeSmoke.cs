@@ -200,12 +200,15 @@ internal static class NativeSmoke
         {
             dashboard.Navigate(accountProvider + "-accounts"); await Idle();
             var accountsWindow = System.Windows.Application.Current.Windows.OfType<Window>().Single(x => x != dashboard && x.Content is AccountsPane);
-            accountsWindow.Width = 500; accountsWindow.Height = 300; await Idle();
+            accountsWindow.Width = accountsWindow.MinWidth; accountsWindow.Height = accountsWindow.MinHeight; await Idle();
             var saveAccount = Descendants<System.Windows.Controls.Button>(accountsWindow).Single(x => AutomationProperties.GetAutomationId(x) == "accounts.saveCurrent");
             var accountList = Descendants<ScrollViewer>(accountsWindow).Single(x => AutomationProperties.GetAutomationId(x) == "accounts.list");
             var footer = Descendants<StackPanel>(accountsWindow).Single(x => AutomationProperties.GetAutomationId(x) == "accounts.footer");
             var status = Descendants<TextBlock>(accountsWindow).Single(x => AutomationProperties.GetAutomationId(x) == "accounts.status");
             var accountPane = (AccountsPane)accountsWindow.Content;
+            Require(accountPane.ActualWidth + accountPane.Margin.Left + accountPane.Margin.Right >= 499.5
+                && accountPane.ActualHeight + accountPane.Margin.Top + accountPane.Margin.Bottom >= 299.5,
+                "Account utility minimum must describe its client area, excluding native chrome");
             double Bottom(FrameworkElement element) => element.TransformToAncestor(accountPane).Transform(new Point()).Y + element.ActualHeight;
             Require(Bottom(accountList) <= saveAccount.TransformToAncestor(accountPane).Transform(new Point()).Y, "Account actions must follow the independently scrolling list");
             Require(Bottom(footer) <= accountPane.ActualHeight, "Account footer clipped at minimum window size");
@@ -226,7 +229,7 @@ internal static class NativeSmoke
             if (accountProvider == "codex") Capture(accountsWindow, Path.Combine(directory, "windows-accounts-min.png"));
             accountsWindow.Close();
         }
-        Record("Codex and Claude account utilities keep footer actions and error status below independently scrolling lists at 500 by 300");
+        Record("Codex and Claude account utilities keep footer actions and error status below independently scrolling lists at 500 by 300 client area");
 
         foreach (var theme in new[] { "dark", "light", "high-contrast" })
         {

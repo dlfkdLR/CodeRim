@@ -586,7 +586,24 @@ internal sealed partial class DashboardWindow : Window
         {
             window = new Window { Title = (provider == "codex" ? "Codex" : "Claude") + " Accounts", Width = 560, Height = 400, MinWidth = 500, MinHeight = 300, Owner = this, WindowStartupLocation = WindowStartupLocation.CenterOwner };
             window.SetResourceReference(BackgroundProperty, "WindowBackground"); window.SetResourceReference(ForegroundProperty, "PrimaryText");
-            window.Content = new AccountsPane(provider, vault, store, settings);
+            var pane = new AccountsPane(provider, vault, store, settings);
+            window.Content = pane;
+            var accountWindow = window;
+            var clientSizeInitialized = false;
+            window.Loaded += (_, _) =>
+            {
+                if (clientSizeInitialized) return;
+                clientSizeInitialized = true;
+                accountWindow.UpdateLayout();
+                // macOS utility sizes describe content. WPF Window sizes include
+                // the title bar and resize frame, so retain the same client area.
+                var chromeWidth = Math.Max(0, accountWindow.ActualWidth - pane.ActualWidth - pane.Margin.Left - pane.Margin.Right);
+                var chromeHeight = Math.Max(0, accountWindow.ActualHeight - pane.ActualHeight - pane.Margin.Top - pane.Margin.Bottom);
+                accountWindow.MinWidth = 500 + chromeWidth;
+                accountWindow.MinHeight = 300 + chromeHeight;
+                accountWindow.Width = 560 + chromeWidth;
+                accountWindow.Height = 400 + chromeHeight;
+            };
             window.Closed += (_, _) => accountWindows.Remove(provider); accountWindows[provider] = window;
         }
         window.Show(); window.Activate();
