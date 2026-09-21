@@ -29,6 +29,12 @@ public sealed partial class NativeProviders : IDisposable
         var rawSetting = setting;
         setting = key => id == "stepfun" && key == "STEPFUN_PASSWORD" ? rawSetting(key)
             : rawSetting(key)?.Trim() is { Length: > 0 } value ? value : null;
+        if (id == "mimo" && cookieForUri is not null)
+        {
+            // Borrowed browser sessions are restricted to the vendor's fixed origin.
+            var remainingSettings = setting;
+            setting = key => key == "MIMO_API_URL" ? "https://platform.xiaomimimo.com/api/v1" : remainingSettings(key);
+        }
         if (id == "alibabatokenplan")
         {
             // Console navigation and gateway requests must use one region for
@@ -48,6 +54,17 @@ public sealed partial class NativeProviders : IDisposable
                 profile = CodeRim.Core.Services.StepFunAuthentication.Login(setting("STEPFUN_USERNAME"), setting("STEPFUN_PASSWORD"));
             if (profile is null) return new(id, ReadingState.NeedsAuth, [], Message: "Connect StepFun in Settings.");
             return (await FetchStepFunAsync(profile, cookieForUri, token).ConfigureAwait(false)).Reading;
+        }
+        if (id == "minimax")
+        {
+            var mode = CodeRim.Core.Services.MiniMaxAuthentication.Source(setting("MINIMAX_USAGE_SOURCE"));
+            var region = CodeRim.Core.Services.MiniMaxAuthentication.Region(setting("MINIMAX_REGION"));
+            if (mode is null || region is null) return new(id, ReadingState.Error, [], Message: "Choose Auto, API or Web and a MiniMax region.");
+            var remainingSettings = setting;
+            setting = key => key == "MINIMAX_REGION" ? region : key == "MINIMAX_USAGE_SOURCE" ? mode : remainingSettings(key);
+            var manual = setting("MINIMAX_COOKIE") ?? setting("MINIMAX_COOKIE_HEADER");
+            if (mode == "web" || mode == "auto" && manual is not null)
+                return await FetchMiniMaxWebAsync(CodeRim.Core.Services.MiniMaxAuthentication.Parse(manual ?? credential, region), token).ConfigureAwait(false);
         }
         if (id == "kimi") return await FetchKimiAsync(new("api", credential, setting("KIMI_CODE_BASE_URL")), token).ConfigureAwait(false);
         credential = credential?.Trim();

@@ -17,20 +17,22 @@ internal sealed class CredentialVault
         if (Path.Exists(root) && (File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0) throw new IOException("Linked credential directories are not supported.");
         Directory.CreateDirectory(root); RestrictDirectory(root); entries = new(root);
     }
-    public void Save(string id, string value) => Store(id, value, null);
-    internal bool SaveIfUnchanged(string id, string expectedVersion, string value) => Store(id, value, expectedVersion);
-    private bool Store(string id, string value, string? expectedVersion)
+    public void Save(string id, string value) => Store(id, value, null, conditional: false);
+    internal bool SaveIfUnchanged(string id, string? expectedVersion, string value) => Store(id, value, expectedVersion, conditional: true);
+    private bool Store(string id, string value, string? expectedVersion, bool conditional)
     {
         var bytes = Encoding.UTF8.GetBytes(value);
         try
         {
             if (bytes.Length > AtomicCredentialFiles.MaximumBytes - 4096) throw new InvalidDataException("Credential entry is too large.");
             var encrypted = ProtectedData.Protect(bytes, null, DataProtectionScope.CurrentUser);
-            if (expectedVersion is not null) return entries.CompareExchange(id, expectedVersion, encrypted);
+            if (conditional) return entries.CompareExchange(id, expectedVersion, encrypted);
             entries.Write(id, encrypted); return true;
         }
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
+    // Compare imported-connection versions without decrypting an unrelated or damaged login.
+    internal string? Version(string id) => entries.Read(id) is { } value ? AtomicCredentialFiles.Version(value) : null;
     public string? Load(string id) => LoadVersioned(id)?.Value;
     internal Snapshot? LoadVersioned(string id)
     {

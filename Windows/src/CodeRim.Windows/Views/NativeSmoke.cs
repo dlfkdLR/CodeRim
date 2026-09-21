@@ -101,6 +101,27 @@ internal static partial class NativeSmoke
         verificationPending.SetResult(new ProviderReading("qoder", ReadingState.Ready, []));
         await Until(() => verifyButton.IsEnabled, "Closed verification did not finish");
         Require(vault.Load("browser:qoder") == savedJar, "Closed verification replaced the saved connection");
+        foreach (var conflict in new[] { "created", "replaced", "deleted" })
+        {
+            if (conflict == "created") vault.Delete("browser:qoder"); else vault.Save("browser:qoder", savedJar!);
+            var pending = new TaskCompletionSource<ProviderReading>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var lateSaved = false;
+            var late = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => lateSaved = true,
+                [new("Synthetic profile", "fixture-only")],
+                (_, _) => Task.FromResult(BrowserCookieJar.Parse(savedJar!, ["qoder.com", "qoder.com.cn"])),
+                (_, _) => pending.Task);
+            late.Show(); await Idle();
+            var submit = Descendants<Button>(late).Single(button => Equals(button.Content, "Import sign-in"));
+            submit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+            if (conflict == "deleted") vault.Delete("browser:qoder"); else vault.Save("browser:qoder", "replacement-fixture");
+            pending.SetResult(new ProviderReading("qoder", ReadingState.Ready, []));
+            await Until(() => submit.IsEnabled, "Conflicting import did not finish.");
+            Require(!lateSaved && vault.Load("browser:qoder") == (conflict == "deleted" ? null : "replacement-fixture"),
+                "Late browser verification overwrote a changed connection.");
+            Require(Descendants<TextBlock>(late).Any(text => text.Text == "The saved connection changed. Reopen this connection."),
+                "Browser import conflict was not visible.");
+            late.Close();
+        }
         vault.Delete("browser:qoder"); vault.Delete("cookie:qoder");
         Record("Browser import dialog opens; cancel rejects late results; successful import preserves manual fallback");
 
@@ -228,9 +249,15 @@ internal static partial class NativeSmoke
         await CodebuffAuthenticationRegression(settings.Current, vault, directory);
         Record("Codebuff DPAPI/environment/local login precedence, optional subscription and account replacement isolation");
         await MoonshotRegionRegression(dashboard, settings, vault, directory);
+        Record("Moonshot region switching preserves separate encrypted keys");
         await KimiConnectionRegression(dashboard, settings, vault, directory);
-        await StepFunConnectionRegression(dashboard, settings, vault, directory);
         Record("Kimi CLI and Web sources preserve credentials, quota priority and verified browser import");
+        await StepFunConnectionRegression(dashboard, settings, vault, directory);
+        Record("StepFun login, refresh and Auto-only browser import reach the ordinary store");
+        await AlibabaConnectionRegression(dashboard, settings, vault, directory);
+        Record("Alibaba CLI/Web/Auto preserves prior Web accounts, regional quota, volatile CLI data and actual native controls");
+        await MiniMaxConnectionRegression(dashboard, settings, vault, directory);
+        Record("MiniMax API/Web and Global/China credentials remain separate through native controls and browser import");
         await DeepSeekSourceRegression(settings, vault, directory);
         Record("DeepSeek API and platform credentials stay separate through native source switching");
         await AdditionalAuthenticationViews(settings, vault, directory);
@@ -447,10 +474,15 @@ internal static partial class NativeSmoke
         notch.OpenProvider("codex"); await Idle();
         Record("Reset credit balance is shown once and unlimited/unavailable states remain visible");
         System.Windows.Input.Keyboard.ClearFocus();
-        if (notch.PopupContent is { } priorPopup)
-            priorPopup.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, PresentationSource.FromVisual(priorPopup)!, 0, System.Windows.Input.Key.Escape)
-                { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent });
-        await Idle();
+        // This is pre-hover cleanup. A popup retains its Child after closing, so
+        // PopupContent alone does not imply an attached presentation source.
+        // Use the stable notch window's real Escape handler; the account-popup
+        // Escape route is independently exercised below.
+        var cleanupSource = PresentationSource.FromVisual(notch)
+            ?? throw new InvalidOperationException("The visible notch has no presentation source.");
+        notch.RaiseEvent(new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice, cleanupSource, 0, System.Windows.Input.Key.Escape)
+            { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent });
+        await Idle(); Require(!notch.PopupIsOpen, "Escape cleanup did not close the provider popup");
         var ringTarget = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.provider.codex");
         var ringPoint = ringTarget.PointToScreen(new Point(ringTarget.ActualWidth / 2, ringTarget.ActualHeight / 2));
         System.Windows.Forms.Cursor.Position = new System.Drawing.Point((int)ringPoint.X, (int)ringPoint.Y);

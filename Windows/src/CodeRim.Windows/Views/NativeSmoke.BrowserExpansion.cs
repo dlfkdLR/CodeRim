@@ -80,8 +80,11 @@ internal static partial class NativeSmoke
                 if (id == "alibabatokenplan") vault.Save("setting:" + id + ":ALIBABA_TOKEN_PLAN_REGION", "intl-personal");
                 using var verifier = Connections();
                 var saved = false;
+                var profile = id == "mimo" ? MiMoSessionFixture(directory) : new BrowserProfile("Synthetic selected Firefox profile", "fixture-only");
+                if (id == "mimo") vault.Save("setting:mimo:MIMO_API_URL", "https://other.xiaomimimo.com:8443/api/v1");
                 var dialog = BrowserConnections.CreateDialog(owner, id, vault, () => saved = true,
-                    [new("Synthetic selected Firefox profile", "fixture-only")], (_, _) => Task.FromResult(jar),
+                    [profile], (selected, token) => id == "mimo"
+                        ? Task.Run(() => MiMoFirefoxSessionImport.Read(selected, DateTimeOffset.UtcNow, token), token) : Task.FromResult(jar),
                     (candidate, token) => verifier.VerifyBrowserAsync(id, settings.Current, candidate, token));
                 dialog.Show(); await Idle();
                 Descendants<Button>(dialog).Single(button => Equals(button.Content, "Import sign-in"))
@@ -107,7 +110,7 @@ internal static partial class NativeSmoke
                     finally { liveWindow.Close(); }
                 }
                 evidence.Add(new { provider = id, requests, verifiedDialog = "PASS", dpapiRoundTrip = "PASS",
-                    manualFallbackPreserved = "PASS", connectorStoreWpf = "PASS" });
+                    manualFallbackPreserved = "PASS", connectorStoreWpf = "PASS", sessionstoreRead = id == "mimo" ? "PASS: selected synthetic Firefox profile and empty SQLite" : "N/A" });
                 vault.Delete("browser:" + id); vault.Delete("provider:" + id);
                 vault.Delete("setting:" + id + ":ALIBABA_TOKEN_PLAN_REGION");
             }
@@ -118,6 +121,7 @@ internal static partial class NativeSmoke
         }
         finally
         {
+            vault.Delete("setting:mimo:MIMO_API_URL");
             foreach (var key in keys) Environment.SetEnvironmentVariable(key, environment[key]);
             foreach (var id in new[] { "mimo", "abacus", "longcat", "alibabatokenplan", "qwencloud" })
             { vault.Delete("browser:" + id); vault.Delete("provider:" + id); vault.Delete("setting:" + id + ":ALIBABA_TOKEN_PLAN_REGION"); }

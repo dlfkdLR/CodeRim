@@ -56,6 +56,18 @@ public sealed class SubscriptionProviderTests
             new { service_type = service, window_type = "5h", limit = 100, usage = 4 } } }));
         Assert.Equal(4, result.Headline!.UsedPercent); Assert.Equal(1, result.Windows[1].UsedPercent); Assert.Equal(70, result.Windows[2].UsedPercent);
     }
+    [Theory]
+    [InlineData(3600)]
+    [InlineData(3600000)]
+    public void MiniMaxExpiredEndUsesRelativeResetAndBoostIsNotTokens(int remaining)
+    {
+        var before = DateTimeOffset.Now;
+        var result = Parse("minimax", JsonSerializer.Serialize(new { model_remains = new[] {
+            new { model_name = "general", current_interval_remaining_percent = 75, end_time = 1000000000, remains_time = remaining, interval_boost_permill = 1500 }
+        }}));
+        Assert.InRange(result.Headline!.ResetsAt!.Value, before.AddSeconds(3599), DateTimeOffset.Now.AddSeconds(3601));
+        Assert.Equal("1.5× quota", result.Headline.DisplayValue); Assert.Null(result.Headline.UsedCount); Assert.Null(result.Headline.Unit);
+    }
     [Fact]
     public void MiniMaxRemainingCountersAreNotUsedCounters()
     {
@@ -92,7 +104,7 @@ public sealed class SubscriptionProviderTests
             return paths.Count == 1 ? new(HttpStatusCode.NotFound) : new(HttpStatusCode.OK) { Content = new StringContent("""{"model_remains":[{"model_name":"general","current_interval_remaining_percent":75}]}""") };
         });
         using var client = new NativeProviders(handler);
-        var result = await client.FetchAsync("minimax", "fixture", _ => "cn", TestContext.Current.CancellationToken);
+        var result = await client.FetchAsync("minimax", "fixture", key => key == "MINIMAX_REGION" ? "cn" : null, TestContext.Current.CancellationToken);
         Assert.Equal(25, result.Headline!.UsedPercent); Assert.Equal(2, paths.Count);
         Assert.DoesNotContain("MINIMAX_COOKIE", NativeProviders.CredentialKeys("minimax")!);
     }
@@ -122,7 +134,7 @@ public sealed class SubscriptionProviderTests
             return new(HttpStatusCode.OK) { Content = new StringContent("""{"model_remains":[{"model_name":"general","current_interval_remaining_percent":75}]}""") };
         });
         using var provider = new NativeProviders(handler);
-        Assert.Equal(25, (await provider.FetchAsync("minimax", "fixture", _ => "cn", TestContext.Current.CancellationToken)).Headline!.UsedPercent);
+        Assert.Equal(25, (await provider.FetchAsync("minimax", "fixture", key => key == "MINIMAX_REGION" ? "cn" : null, TestContext.Current.CancellationToken)).Headline!.UsedPercent);
         Assert.Equal(2, calls);
     }
     [Fact]
@@ -132,7 +144,7 @@ public sealed class SubscriptionProviderTests
         using var provider = new NativeProviders(new Handler(_ => ++calls == 1
             ? new(HttpStatusCode.OK) { Content = new StringContent("""{"base_resp":{"status_code":1004,"status_msg":"invalid api key"}}""") }
             : new(HttpStatusCode.NotFound)));
-        Assert.Equal(ReadingState.NeedsAuth, (await provider.FetchAsync("minimax", "fixture", _ => "cn", TestContext.Current.CancellationToken)).State);
+        Assert.Equal(ReadingState.NeedsAuth, (await provider.FetchAsync("minimax", "fixture", key => key == "MINIMAX_REGION" ? "cn" : null, TestContext.Current.CancellationToken)).State);
     }
     [Fact]
     public async Task KiloStructuredAuthenticationCodeWinsOverGenericMessage()
