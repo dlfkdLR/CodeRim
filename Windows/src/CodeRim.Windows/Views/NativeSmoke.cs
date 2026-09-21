@@ -17,7 +17,7 @@ using CodeRim.Windows.ViewModels;
 namespace CodeRim.Windows.Views;
 
 /// <summary>Runs only with --smoke-test and isolated synthetic data, using production WPF views.</summary>
-internal static class NativeSmoke
+internal static partial class NativeSmoke
 {
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     internal static async Task RunAsync(DashboardWindow dashboard, NotchWindow notch, DashboardStore store, AppSettingsStore settings, string output)
@@ -30,6 +30,12 @@ internal static class NativeSmoke
             checks.Add(message);
             File.WriteAllText(Path.Combine(directory, "windows-ui-progress.json"), JsonSerializer.Serialize(checks, JsonOptions));
         }
+        File.WriteAllText(Path.Combine(directory, "windows-native-host.json"), JsonSerializer.Serialize(new {
+            os_architecture = System.Runtime.InteropServices.RuntimeInformation.OSArchitecture.ToString(),
+            process_architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
+            framework = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription,
+            os = System.Runtime.InteropServices.RuntimeInformation.OSDescription
+        }, JsonOptions));
         Require(store.Synthetic, "Smoke must use synthetic data");
         settings.Save(settings.Current with { EnabledProviders = ["codex", "claude"] });
         await store.RefreshAsync(true); dashboard.Navigate("usage");
@@ -49,16 +55,63 @@ internal static class NativeSmoke
         Require(vault.Load("smoke.fixture") == "synthetic-secret", "DPAPI round trip failed");
         vault.Delete("smoke.fixture"); Require(vault.Load("smoke.fixture") is null, "Credential removal failed");
         Record("Windows private-file ACL, atomic replacement, and user DPAPI round trip");
-        var previousPath = Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User);
-        try
+        var pendingImport = new TaskCompletionSource<BrowserCookieJar>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var importSaved = false; CancellationToken pendingReadToken = default;
+        vault.Save("cookie:qoder", "manual-fixture");
+        var importWindow = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => importSaved = true,
+            [new("Synthetic profile", "unused-fixture-directory")], (_, token) => { pendingReadToken = token; return pendingImport.Task; },
+            (_, _) => Task.FromResult(new ProviderReading("qoder", ReadingState.Ready, [])));
+        importWindow.Show(); await Idle();
+        var importButton = Descendants<Button>(importWindow).Single(x => Equals(x.Content, "Import sign-in"));
+        importButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        importWindow.Close();
+        Require(pendingReadToken.IsCancellationRequested, "Closing import did not cancel its read");
+        pendingImport.SetResult(new BrowserCookieJar([new("session", "fixture", ".qoder.com", "/", true, false, 0)], ["qoder.com", "qoder.com.cn"]));
+        await Until(() => importButton.IsEnabled, "Cancelled import did not finish");
+        Require(!importSaved && vault.Load("browser:qoder") is null && vault.Load("cookie:qoder") == "manual-fixture", "Closing browser import still changed credentials");
+        var successfulImport = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => importSaved = true,
+            [new("Synthetic profile", "unused-fixture-directory")], (_, _) => Task.FromResult(new BrowserCookieJar([new("session", "fixture", ".qoder.com", "/", true, false, 0)], ["qoder.com", "qoder.com.cn"])),
+            (_, _) => Task.FromResult(new ProviderReading("qoder", ReadingState.Ready, [])));
+        successfulImport.Show(); await Idle();
+        Descendants<Button>(successfulImport).Single(x => Equals(x.Content, "Import sign-in")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await Idle();
+        Require(importSaved && vault.Load("browser:qoder") is not null && vault.Load("cookie:qoder") == "manual-fixture", "Browser import did not preserve manual fallback");
+        var savedJar = vault.Load("browser:qoder");
+        var rejectedImport = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => throw new InvalidOperationException("Rejected import was saved"),
+            [new("Synthetic profile", "unused-fixture-directory")],
+            (_, _) => Task.FromResult(new BrowserCookieJar([new("analytics", "not-auth", ".qoder.com", "/", true, false, 0)], ["qoder.com", "qoder.com.cn"])),
+            (_, _) => Task.FromResult(new ProviderReading("qoder", ReadingState.NeedsAuth, [])));
+        rejectedImport.Show(); await Idle();
+        Descendants<Button>(rejectedImport).Single(x => Equals(x.Content, "Import sign-in")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await Idle();
+        Require(vault.Load("browser:qoder") == savedJar, "Failed provider verification overwrote the previous imported account");
+        Require(Descendants<TextBlock>(rejectedImport).Single(x => AutomationProperties.GetAutomationId(x) == "browser-import.status").Text.Contains("Existing connections were kept", StringComparison.Ordinal), "Import failure was not visible");
+        rejectedImport.Close();
+        var verificationPending = new TaskCompletionSource<ProviderReading>(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken verifyToken = default;
+        var verifyingImport = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => throw new InvalidOperationException("Closed verification was saved"),
+            [new("Synthetic profile", "unused-fixture-directory")],
+            (_, _) => Task.FromResult(new BrowserCookieJar([new("session", "another-fixture", ".qoder.com", "/", true, false, 0)], ["qoder.com", "qoder.com.cn"])),
+            (_, token) => { verifyToken = token; return verificationPending.Task; });
+        verifyingImport.Show(); await Idle();
+        var verifyButton = Descendants<Button>(verifyingImport).Single(x => Equals(x.Content, "Import sign-in"));
+        verifyButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+        Require(verifyToken.CanBeCanceled, "Verification did not receive its lifetime token");
+        verifyingImport.Close(); Require(verifyToken.IsCancellationRequested, "Closing import did not cancel verification");
+        verificationPending.SetResult(new ProviderReading("qoder", ReadingState.Ready, []));
+        await Until(() => verifyButton.IsEnabled, "Closed verification did not finish");
+        Require(vault.Load("browser:qoder") == savedJar, "Closed verification replaced the saved connection");
+        vault.Delete("browser:qoder"); vault.Delete("cookie:qoder");
+        Record("Browser import dialog opens; cancel rejects late results; successful import preserves manual fallback");
+
+        var fixturePath = @"C:\fixture-existing";
         {
-            var cliDirectory = CliInstaller.Install();
-            CliInstaller.Install();
-            var pathEntries = (Environment.GetEnvironmentVariable("Path", EnvironmentVariableTarget.User) ?? "").Split(';');
+            var cliDirectory = CliInstaller.Install(() => fixturePath, value => fixturePath = value);
+            CliInstaller.Install(() => fixturePath, value => fixturePath = value);
+            var pathEntries = fixturePath.Split(';');
             Require(pathEntries.Count(x => string.Equals(x, cliDirectory, StringComparison.OrdinalIgnoreCase)) == 1, "CLI installation duplicated PATH");
             Require(File.ReadAllText(Path.Combine(cliDirectory, "coderim.cmd")).Contains("CodeRimCLI.exe", StringComparison.Ordinal), "CLI wrapper is missing");
         }
-        finally { Environment.SetEnvironmentVariable("Path", previousPath, EnvironmentVariableTarget.User); }
         AppDiagnostics.Record("codex", "Ready", 2);
         AppDiagnostics.Record("private-unknown", "private-payload", 0);
         var diagnosticText = File.ReadAllText(Path.Combine(AppDiagnostics.LogDirectory, "diagnostics.log"));
@@ -86,6 +139,26 @@ internal static class NativeSmoke
         }
         finally { Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", previousClaudeConfig); }
 
+        settings.Save(settings.Current with { Visibility = NotchVisibility.AlwaysShow });
+        settings.RevealNotch();
+        Require(settings.Current.Visibility == NotchVisibility.AlwaysShow, "Tray reveal reset AlwaysShow");
+        settings.Save(settings.Current with { Visibility = NotchVisibility.Hidden });
+        settings.RevealNotch();
+        Require(settings.Current.Visibility == NotchVisibility.AlwaysShow, "Tray reveal lost the last visible preference");
+        settings.Save(settings.Current with { Visibility = NotchVisibility.OnHover });
+        dashboard.Navigate("providers"); await Idle();
+        var listPlan = Descendants<TextBlock>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "provider-list.codex");
+        Require(listPlan.Text == "Preview account", "Provider list fixture was not loaded");
+        store.InvalidateAccount("codex"); await Idle();
+        Require(listPlan.Text != "Preview account", "Provider list kept stale plan after account invalidation");
+        await store.RefreshProviderAsync("codex"); await Idle();
+        Require(listPlan.Text == "Preview account" && Descendants<TextBlock>(dashboard).Contains(listPlan), "Provider list did not refresh its existing row");
+        dashboard.Navigate("usage"); await Idle();
+        Require(Descendants<Button>(dashboard).Any(x => AutomationProperties.GetAutomationId(x) == "usage.refresh"), "Usage header has no refresh action");
+        var shortCard = NotchPopover.Create("codex", store, settings.Current, _ => { }, 140);
+        shortCard.Measure(new Size(500, 1000)); shortCard.Arrange(new Rect(0, 0, 500, shortCard.DesiredSize.Height));
+        Require(Descendants<ScrollViewer>(shortCard).Single().MaxHeight == 100, "Popover ignored the selected monitor viewport");
+        Record("Tray reveal preserves visibility preference; provider list refreshes in place; Usage refresh and selected-monitor card viewport");
         dashboard.Navigate("codex"); await Idle();
         var planLabel = Descendants<TextBlock>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "provider.plan");
         var stateLabel = Descendants<TextBlock>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "provider.status");
@@ -97,6 +170,55 @@ internal static class NativeSmoke
         Require(Descendants<TextBlock>(dashboard).Contains(planLabel), "Provider refresh rebuilt the account card");
         Record("Provider plan and connection state follow account invalidation and refresh without rebuilding controls");
         dashboard.Navigate("usage"); await Idle();
+
+        var activationReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var activationName = "CodeRim.Smoke.Activation." + Guid.NewGuid().ToString("N");
+        using (var activationProbe = new InstanceActivation(activationName, () => activationReceived.TrySetResult()))
+        {
+            Require(await InstanceActivation.NotifyAsync(activationName), "Existing-instance activation could not connect");
+            await activationReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        Record("Current-user-only activation IPC dispatches the fixed reopen action");
+
+        var axRing = new ProviderRing { ProviderId = "codex", Reading = new("codex", ReadingState.Ready, [new("test", "Weekly", 32)], DateTimeOffset.Now) };
+        Require(axRing.AccessibleReading() == "32% used", "Ring accessibility lost used percentage");
+        axRing.Settings = settings.Current with { ShowRemaining = true };
+        Require(axRing.AccessibleReading() == "68% remaining", "Ring accessibility lost remaining percentage");
+        axRing.Reading = new("codex", ReadingState.NeedsAuth, []);
+        Require(axRing.AccessibleReading().Contains("Sign in required", StringComparison.Ordinal), "Ring accessibility lost authentication state");
+        dashboard.WindowState = WindowState.Minimized; dashboard.Navigate("usage"); await Idle();
+        Require(dashboard.WindowState == WindowState.Normal, "Opening an existing settings window did not restore it");
+        settings.Save(settings.Current with { CompletionSound = false, Visibility = NotchVisibility.OnHover });
+        dashboard.Navigate("notch"); await Idle();
+        Require(Descendants<ComboBox>(dashboard).Count(x => AutomationProperties.GetName(x) is "Finished" or "Blocked" && !x.IsEnabled) == 2, "Sound picker stayed enabled while sound was off");
+        settings.Save(settings.Current with { CompletionSound = true }); dashboard.Navigate("notch"); await Idle();
+        Require(Descendants<ComboBox>(dashboard).Count(x => AutomationProperties.GetName(x) is "Finished" or "Blocked" && x.IsEnabled) == 2, "Sound picker did not enable with sound");
+        settings.Save(settings.Current with { CompletionSound = false }); dashboard.Navigate("usage"); await Idle();
+        Record("Ring accessibility retains percentage and authentication meaning; reopen restores window; sound pickers respect the sound preference");
+
+        Descendants<Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.activity").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await Idle();
+        var analyticsPeriod = Descendants<ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period");
+        Require(Equals(analyticsPeriod.SelectedValue, "7d"), "Usage analytics did not default to the rolling seven-day range");
+        var bucketButton = Descendants<Button>(dashboard).Last(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.tokens.", StringComparison.Ordinal));
+        bucketButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+        var bucketDetails = Descendants<StackPanel>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.bucket-details");
+        var bucketText = string.Join("|", Descendants<TextBlock>(bucketDetails).Select(x => x.Text));
+        Descendants<Button>(dashboard).First(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.model.", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        await Idle();
+        Descendants<UsagePane>(dashboard).Single().Back(); await Idle();
+        Require(Descendants<StackPanel>(dashboard).Any(x => AutomationProperties.GetAutomationId(x) == "usage.bucket-details" && string.Join("|", Descendants<TextBlock>(x).Select(t => t.Text)) == bucketText), "Model drill-down lost the selected chart bucket on Back");
+        Capture(dashboard, Path.Combine(directory, "windows-analytics-selected.png"));
+        Descendants<UsagePane>(dashboard).Single().Back();
+        dashboard.Navigate("usage"); await Idle();
+        Record("Rolling analytics range, accessible bucket selection, model drill-down and Back preserve the selected interval");
+
+        await NativeSourceRegression(dashboard, store, settings, vault);
+        Record("Amp source selection, volatile CLI display, rejected API fallback, and Antigravity alias scope");
+        await AnalyticsRegression(store, settings, directory);
+        ActivityRegression(store);
+        Record("Live Claude transcript completion and duplicate registry selection; provider-specific turn entry timing");
+        Record("Narrow usage layout, proportional sub-dollar cost, cost gaps and Today/7D/30D totals");
 
         var glyphGrid = new WrapPanel { Width = 720, Background = Ui.Brush("#202020") };
         foreach (var provider in ProviderCatalog.All)
@@ -312,14 +434,25 @@ internal static class NativeSmoke
         await Task.Delay(100); await Idle(); notch.OpenProvider("codex"); await Idle();
         var gear = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetName(x) == "Open Settings");
         var gearPoint = gear.PointToScreen(new Point(gear.ActualWidth / 2, gear.ActualHeight / 2));
-        System.Windows.Forms.Cursor.Position = new System.Drawing.Point((int)gearPoint.X, (int)gearPoint.Y);
+        var pointerMoved = MoveCursor((int)gearPoint.X, (int)gearPoint.Y);
+        var pointerError = System.Runtime.InteropServices.Marshal.GetLastWin32Error();
         await Task.Delay(400); await Idle();
+        var pointer = System.Windows.Forms.Cursor.Position;
+        var targetHandle = WindowAtPoint(new PointerPoint { X = pointer.X, Y = pointer.Y });
+        var notchHandle = new System.Windows.Interop.WindowInteropHelper(notch).Handle;
+        var reachedNotch = pointerMoved && Math.Abs(pointer.X - gearPoint.X) <= 1 && Math.Abs(pointer.Y - gearPoint.Y) <= 1 && targetHandle == notchHandle;
+        File.WriteAllText(Path.Combine(directory, "windows-pointer-input.json"), JsonSerializer.Serialize(new {
+            requested = new { gearPoint.X, gearPoint.Y }, observed = new { pointer.X, pointer.Y },
+            target = PointerOwner(targetHandle), moveSucceeded = pointerMoved, moveWin32Error = pointerError, hitNotchWindow = targetHandle == notchHandle,
+            gear.IsMouseOver, realHoverVerified = reachedNotch && gear.IsMouseOver,
+            outcome = reachedNotch ? gear.IsMouseOver ? "PASS" : "FAIL" : "INCONCLUSIVE"
+        }, JsonOptions));
+        Require(!reachedNotch || gear.IsMouseOver, "Pointer reached the notch window but the gear did not receive hover");
         if (!gear.IsMouseOver)
         {
-            // Hosted Windows runners may have no interactive input desktop.
-            // Exercise the real routed handler and label this as synthetic input;
-            // do not call the popup dismissal method from the test.
-            Record("Pointer input desktop unavailable; control hover uses a routed MouseEnter event");
+            // Only native cursor/hit-window evidence can classify this input limitation.
+            // Exercise the handler separately when another desktop/window intercepts input.
+            Record("Real pointer hover inconclusive; see windows-pointer-input.json. Control handler uses a routed MouseEnter event");
             gear.RaiseEvent(new System.Windows.Input.MouseEventArgs(System.Windows.Input.Mouse.PrimaryDevice, 0)
                 { RoutedEvent = System.Windows.Input.Mouse.MouseEnterEvent });
             await Idle();
@@ -393,6 +526,12 @@ internal static class NativeSmoke
         Record("Session window discovery, process-reuse rejection, and unavailable-target fallback");
         Record("Blocked and finished sessions peek independently of sound, without duplicate alerts");
         File.WriteAllText(Path.Combine(directory, "windows-ui-checks.json"), JsonSerializer.Serialize(new { kind = "Native WPF synthetic integration", checks }, JsonOptions));
+    }
+    private static async Task Until(Func<bool> condition, string failure)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(5);
+        while (!condition() && DateTimeOffset.UtcNow < deadline) { await Task.Delay(10); await Idle(); }
+        Require(condition(), failure);
     }
     private static async Task Idle() => await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
     internal static void Capture(FrameworkElement view, string output)

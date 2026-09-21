@@ -17,12 +17,16 @@ public sealed partial class NativeProviders : IDisposable
     private readonly ConcurrentDictionary<string, DateTimeOffset> retryAfter = new(StringComparer.Ordinal);
     public NativeProviders(HttpMessageHandler? handler = null) => client = new(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(15) };
     public void Dispose() => client.Dispose();
-    public async Task<ProviderReading> FetchAsync(string id, string? credential, Func<string, string?> setting, CancellationToken token = default)
+    public Task<ProviderReading> FetchAsync(string id, string? credential, Func<string, string?> setting, CancellationToken token = default)
+        => FetchAsync(id, credential, setting, null, token);
+
+    public async Task<ProviderReading> FetchAsync(string id, string? credential, Func<string, string?> setting, Func<Uri, string?>? cookieForUri, CancellationToken token = default)
     {
         ArgumentNullException.ThrowIfNull(setting);
         var rawSetting = setting;
         setting = key => rawSetting(key)?.Trim() is { Length: > 0 } value ? value : null;
         credential = credential?.Trim();
+        if (cookieForUri is not null && credential is null) credential = "imported-browser-session";
         if (!Supported.Contains(id)) return new(id, ReadingState.Unsupported, []);
         if (id is "windsurf" or "gemini" or "gemini-cli" or "vertexai" or "kiro" or "bedrock" && credential?.TrimStart().StartsWith('{') == true)
         {
@@ -43,14 +47,16 @@ public sealed partial class NativeProviders : IDisposable
         async Task<JsonElement> GetJson(string url, IReadOnlyDictionary<string, string>? extraHeaders = null, string? requestBody = null)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            var requestCredential = cookieForUri is null ? credential : cookieForUri(request.RequestUri!)
+                ?? throw new ProviderRequestException(HttpStatusCode.Unauthorized);
             if (id == "opencode-zen" && requestBody is not null)
             {
                 request.Method = HttpMethod.Post; request.Content = new StringContent(requestBody, System.Text.Encoding.UTF8, "application/json");
             }
-            if (id == "bedrock") ConfigureBedrock(request, credential!, setting, requestBody ?? "{}");
-            if (id == "doubao") ConfigureDoubao(request, credential!, setting);
-            if (id == "windsurf") ConfigureWindsurf(request, credential!);
-            if (id is "alibabatokenplan" or "qwencloud") ConfigureTokenPlan(request, id, credential!, setting, tokenPlanSec);
+            if (id == "bedrock") ConfigureBedrock(request, requestCredential!, setting, requestBody ?? "{}");
+            if (id == "doubao") ConfigureDoubao(request, requestCredential!, setting);
+            if (id == "windsurf") ConfigureWindsurf(request, requestCredential!);
+            if (id is "alibabatokenplan" or "qwencloud") ConfigureTokenPlan(request, id, requestCredential!, setting, tokenPlanSec);
             if (id == "codebuff" && new Uri(url).AbsolutePath == "/api/v1/usage")
             {
                 request.Method = HttpMethod.Post; request.Content = new StringContent("""{"fingerprintId":"codexbar-usage"}""", System.Text.Encoding.UTF8, "application/json");
@@ -63,7 +69,7 @@ public sealed partial class NativeProviders : IDisposable
             }
             if (id == "azureopenai")
             {
-                request.Method = HttpMethod.Post; request.Headers.Add("api-key", credential);
+                request.Method = HttpMethod.Post; request.Headers.Add("api-key", requestCredential);
                 request.Content = new StringContent(AzureBody(setting), System.Text.Encoding.UTF8, "application/json");
             }
             if (id is "gemini-cli" or "vertexai" or "gemini" && new Uri(url).Host is "oauth2.googleapis.com" or "cloudcode-pa.googleapis.com")
@@ -79,7 +85,7 @@ public sealed partial class NativeProviders : IDisposable
             {
                 var region = AlibabaRegion(_ => new Uri(url).Host == "bailian.console.aliyun.com" ? "cn" : "intl"); request.Method = HttpMethod.Post;
                 request.Content = new StringContent(JsonSerializer.Serialize(new { queryCodingPlanInstanceInfoRequest = new { commodityCode = region.Commodity } }), System.Text.Encoding.UTF8, "application/json");
-                request.Headers.Add("x-api-key", credential); request.Headers.Add("X-DashScope-API-Key", credential);
+                request.Headers.Add("x-api-key", requestCredential); request.Headers.Add("X-DashScope-API-Key", requestCredential);
                 request.Headers.Add("Origin", region.Host); request.Headers.Referrer = new Uri(region.Host + "/" + region.Region + "/");
             }
             if (id == "notion")
@@ -120,7 +126,7 @@ public sealed partial class NativeProviders : IDisposable
             if (id is "alibabatokenplan" or "qwencloud") TokenPlanNavigation(request);
             if (BrowserIds.Contains(id))
             {
-                var normalized = NormalizeBrowserCredential(id, credential!);
+                var normalized = NormalizeBrowserCredential(id, requestCredential!);
                 if (id == "stepfun")
                 {
                     var webid = StepFunWebId(normalized);
@@ -152,7 +158,7 @@ public sealed partial class NativeProviders : IDisposable
             }
             else if (id == "zoommate")
             {
-                if (credential!.StartsWith("Cookie:", StringComparison.OrdinalIgnoreCase)) request.Headers.TryAddWithoutValidation("Cookie", credential[7..].Trim());
+                if (requestCredential!.StartsWith("Cookie:", StringComparison.OrdinalIgnoreCase)) request.Headers.TryAddWithoutValidation("Cookie", requestCredential[7..].Trim());
                 if (zoomBearer is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", zoomBearer);
                 request.Headers.Add("Origin", "https://zoommate.zoom.us"); request.Headers.Referrer = new Uri("https://zoommate.zoom.us/");
             }
@@ -160,10 +166,10 @@ public sealed partial class NativeProviders : IDisposable
             {
                 var userId = setting("ZED_USER_ID")?.Trim();
                 if (userId is not { Length: > 0 and <= 128 } || !userId.All(char.IsAsciiDigit)) throw new InvalidDataException("Set the Zed user ID.");
-                request.Headers.TryAddWithoutValidation("Authorization", userId + " " + credential);
+                request.Headers.TryAddWithoutValidation("Authorization", userId + " " + requestCredential);
             }
-            else if (id == "cursor") request.Headers.TryAddWithoutValidation("Cookie", credential);
-            else if (id is not "wayfinder" and not "azureopenai" and not "windsurf" and not "doubao" and not "bedrock" && !((id is "gemini-cli" or "vertexai" or "gemini") && new Uri(url).Host == "oauth2.googleapis.com")) request.Headers.Authorization = new AuthenticationHeaderValue(id == "ibmbob" ? BobAuthorization(credential!) : "Bearer", credential);
+            else if (id == "cursor") request.Headers.TryAddWithoutValidation("Cookie", requestCredential);
+            else if (id is not "wayfinder" and not "azureopenai" and not "windsurf" and not "doubao" and not "bedrock" && !((id is "gemini-cli" or "vertexai" or "gemini") && new Uri(url).Host == "oauth2.googleapis.com")) request.Headers.Authorization = new AuthenticationHeaderValue(id == "ibmbob" ? BobAuthorization(requestCredential!) : "Bearer", requestCredential);
             if (extraHeaders is not null) foreach (var pair in extraHeaders) request.Headers.Add(pair.Key, pair.Value);
             if (id == "grok") request.Headers.Add("X-XAI-Token-Auth", "xai-grok-cli");
             if (id == "commandcode") request.Headers.Add("x-command-code-version", "desktop");
@@ -340,7 +346,7 @@ public sealed partial class NativeProviders : IDisposable
                 return notionReading with { Plan = selected.Plan };
             }
             if (id == "zoommate") return await FetchZoomMate(zoomBearer is null, value => zoomBearer = value, url => GetJson(url), token).ConfigureAwait(false);
-            if (id == "mistral") return await FetchMistral(credential!, url => GetJson(url), token).ConfigureAwait(false);
+            if (id == "mistral") return await FetchMistral(url => cookieForUri is null ? credential : cookieForUri(new Uri(url)), url => GetJson(url), token).ConfigureAwait(false);
             if (id == "groq") return await FetchGroq(setting, url => GetJson(url)).ConfigureAwait(false);
             if (id == "zed")
             {

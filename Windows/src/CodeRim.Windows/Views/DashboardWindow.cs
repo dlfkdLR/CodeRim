@@ -33,6 +33,7 @@ internal sealed partial class DashboardWindow : Window
     private readonly Dictionary<string, Window> accountWindows = new(StringComparer.Ordinal);
     private readonly TextBlock status = Ui.Text("");
     private readonly StackPanel providerReading = new();
+    private readonly Dictionary<string, TextBlock> providerListDetails = new(StringComparer.Ordinal);
     private string page = "usage";
     private string localProvider = "codex";
     private bool refreshingSidebar;
@@ -65,6 +66,7 @@ internal sealed partial class DashboardWindow : Window
     }
     public void Navigate(string? id)
     {
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         if (id?.StartsWith("sessions:", StringComparison.Ordinal) == true)
         {
             localProvider = id[9..]; page = "usage"; BuildSidebar(); Render(); usagePane?.SelectProvider(localProvider); usagePane?.ShowSessions(); Show(); Activate(); return;
@@ -122,6 +124,7 @@ internal sealed partial class DashboardWindow : Window
     {
         status.Text = store.IsRefreshing ? "Refreshing…" : store.Status;
         if (page == "usage") usagePane?.RefreshReadings();
+        else if (page == "providers") UpdateProviderList();
         else if (ProviderCatalog.Find(page) is not null) UpdateProviderReading(page);
     }
     private string? renderedPage;
@@ -156,7 +159,7 @@ internal sealed partial class DashboardWindow : Window
                 .Select(System.Windows.Automation.AutomationProperties.GetName).FirstOrDefault(x => !string.IsNullOrEmpty(x))
             : null;
         renderedPage = page;
-        body.Children.Clear();
+        body.Children.Clear(); providerListDetails.Clear();
         body.Margin = page == "usage" ? new Thickness(0) : new Thickness(0, 6, 0, 28);
         switch (page)
         {
@@ -243,17 +246,29 @@ internal sealed partial class DashboardWindow : Window
             SettingsUi.Picker("Reset time", ResetOptions, settings.Current.ResetTime, x => Save(settings.Current with { ResetTime = x })),
             SettingsUi.Toggle("Show usage pace", settings.Current.ShowUsagePace, x => Save(settings.Current with { ShowUsagePace = x })));
         readings.IsEnabled = shown; body.Children.Add(readings);
-        body.Children.Add(SettingsUi.Section("When a Session Ends",
+        var finished = SettingsUi.Picker("Finished", SessionChime.Names, settings.Current.FinishedSound, x => { Save(settings.Current with { FinishedSound = x }); if (settings.Current.CompletionSound && settings.Current.Visibility != NotchVisibility.Hidden) SessionChime.Play(x); });
+        var blocked = SettingsUi.Picker("Blocked", SessionChime.Names, settings.Current.BlockedSound, x => { Save(settings.Current with { BlockedSound = x }); if (settings.Current.CompletionSound && settings.Current.Visibility != NotchVisibility.Hidden) SessionChime.Play(x); });
+        finished.IsEnabled = blocked.IsEnabled = settings.Current.CompletionSound;
+        var sessionEnd = SettingsUi.Section("When a Session Ends",
             SettingsUi.Toggle("Peek the notch open", settings.Current.PeekOnCompletion, x => Save(settings.Current with { PeekOnCompletion = x })),
-            SettingsUi.Toggle("Play a sound", settings.Current.CompletionSound, x => Save(settings.Current with { CompletionSound = x })),
-            SettingsUi.Picker("Finished", SessionChime.Names, settings.Current.FinishedSound, x => { Save(settings.Current with { FinishedSound = x }); SessionChime.Play(x); }),
-            SettingsUi.Picker("Blocked", SessionChime.Names, settings.Current.BlockedSound, x => { Save(settings.Current with { BlockedSound = x }); SessionChime.Play(x); })));
-        body.Children.Add(SettingsUi.Section("Usage Alerts", SettingsUi.Toggle("Notify at 80% and 100% usage", settings.Current.AlertsEnabled, x => Save(settings.Current with { AlertsEnabled = x }))));
+            SettingsUi.Toggle("Play a sound", settings.Current.CompletionSound, x => { Save(settings.Current with { CompletionSound = x }); finished.IsEnabled = blocked.IsEnabled = x; }),
+            finished, blocked);
+        sessionEnd.IsEnabled = shown; body.Children.Add(sessionEnd);
+        var alerts = SettingsUi.Section("Usage Alerts", SettingsUi.Toggle("Notify at 80% and 100% usage", settings.Current.AlertsEnabled, x => Save(settings.Current with { AlertsEnabled = x })));
+        alerts.IsEnabled = shown; body.Children.Add(alerts);
         body.Children.Add(SettingsUi.Note("Mute individual providers in Providers. Alerts always follow consumed usage."));
         var displays = System.Windows.Forms.Screen.AllScreens.Select(x => x.DeviceName).ToArray();
         body.Children.Add(SettingsUi.Section("Display",
             SettingsUi.Picker("Display", displays, settings.Current.Display ?? displays[0], x => Save(settings.Current with { Display = x })),
             SettingsUi.Toggle("Reduce motion", settings.Current.ReduceMotion, x => Save(settings.Current with { ReduceMotion = x }))));
+    }
+    private void UpdateProviderList()
+    {
+        foreach (var (id, label) in providerListDetails)
+        {
+            var reading = store.Readings.GetValueOrDefault(id);
+            label.Text = reading?.Plan ?? reading?.Message ?? "Not connected";
+        }
     }
     private void Providers()
     {
@@ -297,6 +312,8 @@ internal sealed partial class DashboardWindow : Window
             var name = Ui.Text(provider.Name, 13, weight: FontWeights.SemiBold); name.Margin = new Thickness(0); labels.Children.Add(name);
             var reading = store.Readings.GetValueOrDefault(id);
             var detail = Ui.Text(reading?.Plan ?? reading?.Message ?? "Not connected", 11, "#A6A6AA"); detail.Margin = new Thickness(0, 2, 0, 0); labels.Children.Add(detail);
+            System.Windows.Automation.AutomationProperties.SetAutomationId(detail, "provider-list." + id);
+            providerListDetails[id] = detail;
             row.Children.Add(labels); rows.Add(row);
         }
         if (rows.Count == 0) rows.Add(SettingsUi.Note("No providers added. Choose Add Provider to start monitoring."));
@@ -433,7 +450,41 @@ internal sealed partial class DashboardWindow : Window
             foreach (var field in NativeProviders.Settings(id))
             {
                 var key = "setting:" + id + ":" + field.Key;
-                if (field.Key.EndsWith("_ALLOW_BILLABLE_REQUESTS", StringComparison.Ordinal))
+                if (field.Key == "WINDSURF_USAGE_SOURCE")
+                {
+                    var selected = WindsurfLocalUsage.Source(vault.Load(key) ?? Environment.GetEnvironmentVariable(field.Key)) == "local" ? "Local" : "Web";
+                    body.Children.Add(SettingsUi.Picker("Usage source", WindsurfSources, selected, value =>
+                    {
+                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
+                    }));
+                    body.Children.Add(Ui.Text("Web verifies your supplied sign-in. Local reads Windsurf's saved quota; its freshness and current account are not verified.", 11, "#A6A6AA"));
+                }
+                else if (field.Key == "WINDSURF_CACHE_PATH")
+                {
+                    body.Children.Add(Ui.Text(field.Label)); AddSettingField(key, id);
+                    body.Children.Add(Ui.Button("Choose state.vscdb…", () =>
+                    {
+                        var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "Windsurf state database|state.vscdb|SQLite database|*.vscdb;*.sqlite;*.db", CheckFileExists = true };
+                        if (dialog.ShowDialog(this) != true) return;
+                        try { vault.Save(key, dialog.FileName); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the selected path.", "CodeRim"); }
+                    }));
+                }
+                else if (field.Key == "AMP_USAGE_SOURCE")
+                {
+                    var selected = AmpCliUsage.Source(vault.Load(key) ?? Environment.GetEnvironmentVariable(field.Key)) == "cli" ? "CLI" : "API";
+                    body.Children.Add(SettingsUi.Picker("Usage source", AmpSources, selected, value =>
+                    {
+                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
+                    }));
+                    body.Children.Add(Ui.Text("API uses the saved credential. CLI reads the account signed in to Amp on this PC.", 11, "#A6A6AA"));
+                }
+                else if (field.Key.EndsWith("_ALLOW_BILLABLE_REQUESTS", StringComparison.Ordinal))
                 {
                     body.Children.Add(Ui.Text("Each refresh can incur charges from this provider.", 12, "#B7B8BD"));
                     body.Children.Add(Ui.Toggle(field.Label, string.Equals(vault.Load(key) ?? Environment.GetEnvironmentVariable(field.Key), "true", StringComparison.OrdinalIgnoreCase), enabled =>
@@ -447,6 +498,17 @@ internal sealed partial class DashboardWindow : Window
             if (id != "wayfinder") { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
         }
         else if (!HasConnector(id)) body.Children.Add(Ui.Text("This provider's Windows integration is still pending. Adding it does not create a live connection.", color: "#F2C66D"));
+        if (BrowserConnections.Domains(id).Length > 0)
+        {
+            body.Children.Add(Ui.Button("Import from Firefox…", () => BrowserConnections.Import(this, id, vault, settings.Current, () =>
+            { store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); })));
+            body.Children.Add(Ui.Button("Remove imported sign-in", () =>
+            {
+                try { vault.Delete("browser:" + id); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException)
+                { MessageBox.Show(this, "Could not remove the imported sign-in.", "CodeRim"); }
+            }));
+        }
         Ui.Section(body, "Notch order");
         var order = new WrapPanel(); order.Children.Add(Ui.Button("Move earlier", () => MoveProvider(id, -1))); order.Children.Add(Ui.Button("Move later", () => MoveProvider(id, 1)));
         order.Children.Add(Ui.Button("Remove from notch", () => { Save(settings.Current with { EnabledProviders = settings.Current.EnabledProviders.Where(x => x != id).ToArray() }); Navigate("providers"); })); body.Children.Add(order);
@@ -464,6 +526,8 @@ internal sealed partial class DashboardWindow : Window
                 child.Margin = new Thickness(18, child.Margin.Top, 18, child.Margin.Bottom);
         UpdateProviderControlStates();
     }
+    private static readonly string[] AmpSources = ["API", "CLI"];
+    private static readonly string[] WindsurfSources = ["Web", "Local"];
     private static TextBlock ProviderValue(string identifier, string text, double size = 13)
     {
         var label = Ui.Text(text, size, "#A6A6AA");
@@ -506,7 +570,7 @@ internal sealed partial class DashboardWindow : Window
         body.Children.Add(Ui.Button(label, () =>
         {
             if (string.IsNullOrWhiteSpace(password.Password)) return;
-            try { vault.Save(key, password.Password.Trim()); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
+            try { vault.Save(key, password.Password.Trim()); if (key == "provider:" + id || key == "cookie:" + id) vault.Delete("browser:" + id); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { result.Text = "Could not save the setting."; }
         }));
         body.Children.Add(Ui.Button("Remove saved value", () =>

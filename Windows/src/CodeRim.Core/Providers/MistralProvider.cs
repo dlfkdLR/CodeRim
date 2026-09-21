@@ -8,7 +8,7 @@ public sealed partial class NativeProviders
 {
     private static string? MistralCsrf(string cookie) => cookie.Split(';').Select(x => x.Trim().Split('=', 2))
         .LastOrDefault(x => x.Length == 2 && x[0] == "csrftoken" && x[1].Length > 0 && !x[1].Any(c => char.IsControl(c) || c == ','))?[1];
-    private static async Task<ProviderReading> FetchMistral(string cookie, Func<string, Task<JsonElement>> get, CancellationToken token)
+    private static async Task<ProviderReading> FetchMistral(Func<string, string?> cookieForUrl, Func<string, Task<JsonElement>> get, CancellationToken token)
     {
         var now = DateTimeOffset.UtcNow;
         var documents = new Dictionary<string, JsonElement> {
@@ -18,7 +18,7 @@ public sealed partial class NativeProviders
             ("credits", "https://admin.mistral.ai/api/billing/credits"),
             ("vibe", "https://console.mistral.ai/api-ui/trpc/billing.vibeUsage?batch=1&input=%7B%220%22%3A%7B%22json%22%3Anull%2C%22meta%22%3A%7B%22values%22%3A%5B%22undefined%22%5D%2C%22v%22%3A1%7D%7D%7D") })
         {
-            if (key == "vibe" && MistralCsrf(NormalizeBrowserCredential("mistral", cookie)) is null) continue;
+            if (key == "vibe" && MistralCsrf(NormalizeBrowserCredential("mistral", cookieForUrl(path) ?? "")) is null) continue;
             try { documents[key] = await get(path).ConfigureAwait(false); }
             catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException)
             { token.ThrowIfCancellationRequested(); partial = true; }

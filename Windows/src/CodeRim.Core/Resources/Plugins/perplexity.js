@@ -6,7 +6,7 @@ defineProvider({
   capabilities: ["browser-cookies"],
   cookieDomains: ["www.perplexity.ai"],
   async fetchUsage(ctx) {
-    const cookie = await ctx.browser.cookieHeader("www.perplexity.ai");
+    const cookie = await ctx.browser.cookieHeader("www.perplexity.ai", "https://www.perplexity.ai/rest/billing/credits");
     const response = await ctx.http.getJSON(
       "https://www.perplexity.ai/rest/billing/credits?version=2.18&source=default",
       {

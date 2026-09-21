@@ -72,6 +72,16 @@ public sealed class ScriptAuthBoundaryReviewTests
         Assert.Equal(ReadingState.Error, result.State);
         Assert.DoesNotContain(PrivateText, JsonSerializer.Serialize(result), StringComparison.Ordinal);
     }
+    [Theory]
+    [InlineData(503, 401, ReadingState.Error)]
+    [InlineData(401, 503, ReadingState.NeedsAuth)]
+    public async Task OptionalManagementCredentialDoesNotClassifyThePrimaryAccountKey(int primaryStatus, int managementStatus, ReadingState expected)
+    {
+        using var providers = new ScriptProviders(new Handler(request => Response("{}",
+            request.RequestUri!.AbsolutePath == "/api/v1/activity" ? managementStatus : primaryStatus)));
+        var result = await providers.FetchAsync("openrouter", key => key == "OPENROUTER_MANAGEMENT_API_KEY" ? "fixture-management" : Setting("openrouter", key), null, TestContext.Current.CancellationToken);
+        Assert.Equal(expected, result.State);
+    }
     [Fact]
     public async Task AuthObservationDoesNotLeakBetweenFetchesOnSameInstance()
     {

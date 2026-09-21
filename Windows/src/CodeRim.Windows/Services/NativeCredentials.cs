@@ -62,15 +62,9 @@ internal static class NativeCredentials
                     return null;
                 case "cursor":
                     var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cursor", "User", "globalStorage", "state.vscdb");
-                    if (!File.Exists(path) || (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) return null;
-                    using (var connection = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Mode = SqliteOpenMode.ReadOnly, Pooling = false, DefaultTimeout = 2 }.ToString()))
                     {
-                        connection.Open();
-                        string? Value(string key)
-                        {
-                            using var command = connection.CreateCommand(); command.CommandText = "SELECT value FROM ItemTable WHERE key=$key"; command.Parameters.AddWithValue("$key", key);
-                            return command.ExecuteScalar() as string;
-                        }
+                        var values = LocalStateDatabase.Read(path, "cursorAuth/accessToken", "cursorAuth/stripeMembershipAuthId");
+                        string? Value(string key) => values.TryGetValue(key, out var bytes) ? new UTF8Encoding(false, true).GetString(bytes) : null;
                         var access = Value("cursorAuth/accessToken"); var subject = Value("cursorAuth/stripeMembershipAuthId");
                         if (string.IsNullOrEmpty(access) || access.Length > 65536) return null;
                         if (string.IsNullOrEmpty(subject))
@@ -85,6 +79,6 @@ internal static class NativeCredentials
                 default: return null;
             }
         }
-        catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or System.Text.RegularExpressions.RegexMatchTimeoutException or SqliteException) { return null; }
+        catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or DecoderFallbackException or System.Text.RegularExpressions.RegexMatchTimeoutException or SqliteException) { return null; }
     }
 }
