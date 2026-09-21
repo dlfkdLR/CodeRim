@@ -15,7 +15,7 @@ public sealed partial class NativeProviders
             ("AZURE_OPENAI_API_VERSION", "API version (default 2024-10-21; or v1)"), ("AZURE_OPENAI_ALLOW_BILLABLE_REQUESTS", "Allow paid validation on refresh")],
         "alibabatokenplan" => [("ALIBABA_TOKEN_PLAN_REGION", "Region: intl, cn, intl-personal, or cn-personal"), ("ALIBABA_TOKEN_PLAN_SEC_TOKEN", "Console sec_token (optional if detected)")],
         "qwencloud" => [("QWEN_CLOUD_SEC_TOKEN", "Console sec_token (optional if detected)")],
-        "gemini" => [("ANTIGRAVITY_PROJECT_ID", "Project ID (optional if detected)"), ("ANTIGRAVITY_OAUTH_CLIENT_ID", "OAuth client ID (for refresh)"), ("ANTIGRAVITY_OAUTH_CLIENT_SECRET", "OAuth client secret (for refresh)")],
+        "gemini" => [("ANTIGRAVITY_USAGE_SOURCE", "Usage source"), ("ANTIGRAVITY_PROJECT_ID", "Project ID (optional if detected)"), ("ANTIGRAVITY_OAUTH_CLIENT_ID", "OAuth client ID (for refresh)"), ("ANTIGRAVITY_OAUTH_CLIENT_SECRET", "OAuth client secret (for refresh)")],
         "doubao" => [("VOLCENGINE_ACCESS_KEY_ID", "Volcengine access key ID"), ("VOLCENGINE_REGION", "Region (default cn-beijing)")],
         "opencode-zen" => [("OPENCODE_WORKSPACE_ID", "OpenCode workspace ID or URL (optional)")],
         "bedrock" => [("CODEXBAR_BEDROCK_AUTH_MODE", "Authentication: profile or keys (empty = automatic)"), ("AWS_PROFILE", "AWS CLI profile (default if empty)"), ("AWS_ACCESS_KEY_ID", "AWS access key ID"), ("AWS_SESSION_TOKEN", "AWS session token (optional)"), ("AWS_REGION", "AWS region"), ("CODEXBAR_BEDROCK_BUDGET", "Monthly budget (optional)")],

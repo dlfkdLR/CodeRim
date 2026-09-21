@@ -48,6 +48,12 @@ internal sealed class ProviderConnections : IDisposable
                 return new ProviderReading(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, updated).Evaluated(DateTimeOffset.Now);
             }
             string? NativeSetting(string key) => EffectiveSetting(vault, id, key);
+            if (id == "gemini")
+            {
+                var source = AntigravityLocalUsage.Source(NativeSetting("ANTIGRAVITY_USAGE_SOURCE"));
+                if (source is null) return new(id, ReadingState.Error, [], Message: "Choose OAuth or Local IDE as the Antigravity usage source.");
+                if (source == "local") return await AntigravityLocalConnection.FetchAsync(token).ConfigureAwait(false);
+            }
             var ampSource = id == "amp" ? AmpCliUsage.Source(NativeSetting("AMP_USAGE_SOURCE")) : null;
             var browser = browserOverride ?? (BrowserConnections.Domains(id).Length > 0 && (id != "amp" || ampSource == "web") ? BrowserConnections.Load(id, vault) : null);
             string? BrowserCookie(Uri uri) => browser?.Header(uri, DateTimeOffset.UtcNow);
@@ -140,6 +146,7 @@ internal sealed class ProviderConnections : IDisposable
     internal bool CanCache(string id)
     {
         if (id == "jetbrains") return false;
+        if (id == "gemini") return AntigravityLocalUsage.Source(EffectiveSetting(vault, id, "ANTIGRAVITY_USAGE_SOURCE")) == "oauth";
         if (id == "windsurf") return WindsurfLocalUsage.Source(EffectiveSetting(vault, "windsurf", "WINDSURF_USAGE_SOURCE")) == "web";
         if (id == "amp") return AmpCliUsage.Source(EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE")) is "api" or "web";
         if (id != "bedrock") return true;
@@ -150,15 +157,15 @@ internal sealed class ProviderConnections : IDisposable
     {
         try
         {
-            if (id == "jetbrains" || id is "amp" or "windsurf" && !CanCache(id))
+            if (id == "jetbrains" || id is "amp" or "windsurf" or "gemini" && !CanCache(id))
             {
                 // A source marker keeps the current UI reading between quota polls.
                 // It is never an account identity and CanCache=false prevents restore/retention.
-                var modeKey = id == "windsurf" ? "WINDSURF_USAGE_SOURCE" : "AMP_USAGE_SOURCE";
+                var modeKey = id == "gemini" ? "ANTIGRAVITY_USAGE_SOURCE" : id == "windsurf" ? "WINDSURF_USAGE_SOURCE" : "AMP_USAGE_SOURCE";
                 var pathKey = id == "windsurf" ? "WINDSURF_CACHE_PATH" : "AMP_EXECUTABLE";
                 var source = JsonSerializer.Serialize(new { id, process = Environment.ProcessId,
                     mode = id == "jetbrains" ? null : EffectiveSetting(vault, id, modeKey),
-                    path = id == "jetbrains" ? null : EffectiveSetting(vault, id, pathKey) });
+                    path = id is "jetbrains" or "gemini" ? null : EffectiveSetting(vault, id, pathKey) });
                 return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source)));
             }
             if (id is "codex" or "claude") return SavedAccounts.Current(id).Identity.Id;
