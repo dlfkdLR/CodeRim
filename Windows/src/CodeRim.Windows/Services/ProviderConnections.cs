@@ -6,13 +6,16 @@ using CodeRim.Core.Services;
 
 namespace CodeRim.Windows.Services;
 
-internal sealed class ProviderConnections : IDisposable
+internal sealed partial class ProviderConnections : IDisposable
 {
     private readonly CredentialVault vault;
-    private readonly HttpProviders http = new();
-    private readonly ScriptProviders scripts = new();
+    private readonly HttpProviders http;
+    private readonly ScriptProviders scripts;
     private readonly NativeProviders native;
-    public ProviderConnections(CredentialVault vault, NativeProviders? native = null) { this.vault = vault; this.native = native ?? new(); }
+    private readonly Func<string, string?> readCredential;
+    private readonly Func<CancellationToken, Task<string?>> readCopilotCli;
+    public ProviderConnections(CredentialVault vault, NativeProviders? native = null, HttpProviders? http = null, Func<string, string?>? nativeCredentialReader = null, ScriptProviders? scripts = null, Func<CancellationToken, Task<string?>>? copilotCliReader = null)
+    { this.vault = vault; this.native = native ?? new(); this.http = http ?? new(); this.scripts = scripts ?? new(); readCredential = nativeCredentialReader ?? NativeCredentials.Read; readCopilotCli = copilotCliReader ?? CopilotConnection.ReadCliAsync; }
     public void Dispose() { http.Dispose(); scripts.Dispose(); native.Dispose(); }
     public Task<ProviderReading> FetchAsync(string id, AppSettings settings, CancellationToken token)
         => FetchAsync(id, settings, null, token);
@@ -48,6 +51,42 @@ internal sealed class ProviderConnections : IDisposable
                 return new ProviderReading(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, updated).Evaluated(DateTimeOffset.Now);
             }
             string? NativeSetting(string key) => EffectiveSetting(vault, id, key);
+            if (id == "copilot")
+            {
+                async Task<string?> Resolve() => GitHubAuthentication.Configured(vault.Load("provider:copilot"),
+                    Environment.GetEnvironmentVariable("GH_TOKEN"), Environment.GetEnvironmentVariable("GITHUB_TOKEN"))
+                    ?? readCredential("copilot") ?? await readCopilotCli(token).ConfigureAwait(false);
+                var selected = await Resolve().ConfigureAwait(false);
+                var reading = await http.FetchAsync(id, selected, token).ConfigureAwait(false);
+                return selected == await Resolve().ConfigureAwait(false) ? reading
+                    : new(id, ReadingState.Unavailable, [], Message: "The GitHub account changed. Refresh the selected account.");
+            }
+            if (id == "codebuff")
+            {
+                CodebuffCredential? Resolve() => CodebuffAuthentication.Resolve(vault.Load("provider:codebuff"),
+                    Environment.GetEnvironmentVariable("CODEBUFF_API_KEY"), () => readCredential("codebuff"));
+                var selected = Resolve();
+                var reading = await native.FetchCodebuffAsync(selected?.Token, selected?.FromAuthFile == true, token).ConfigureAwait(false);
+                return selected == Resolve() ? reading : new(id, ReadingState.Unavailable, [], Message: "The connection changed. Refresh the selected account.");
+            }
+            if (id == "kimi") return await FetchKimiConnectionAsync(browserOverride, token).ConfigureAwait(false);
+            if (id == "deepseek")
+            {
+                DeepSeekCredential? Resolve() => DeepSeekAuthentication.Resolve(NativeSetting("DEEPSEEK_USAGE_SOURCE"), vault.Load, Environment.GetEnvironmentVariable);
+                var selected = Resolve();
+                if (selected is null) return new(id, ReadingState.Error, [], Message: "Choose Auto, API or Web as the DeepSeek source.");
+                var reading = await http.FetchAsync(id, selected.Token,
+                    key => key == "DEEPSEEK_USAGE_SOURCE" ? selected.Source : null, token).ConfigureAwait(false);
+                return selected == Resolve() ? reading
+                    : new(id, ReadingState.Unavailable, [], Message: "The DeepSeek connection changed. Refresh the selected account.");
+            }
+            if (id == "moonshot")
+            {
+                var region = MoonshotAuthentication.Region(NativeSetting("MOONSHOT_REGION"));
+                if (region is null) return new(id, ReadingState.Error, [], Message: "Choose International or China as the Moonshot region.");
+                return await http.FetchAsync(id, MoonshotAuthentication.Credential(region, vault.Load, Environment.GetEnvironmentVariable),
+                    key => key == "MOONSHOT_REGION" ? region : NativeSetting(key), token).ConfigureAwait(false);
+            }
             if (id == "gemini")
             {
                 var source = AntigravityLocalUsage.Source(NativeSetting("ANTIGRAVITY_USAGE_SOURCE"));
@@ -76,8 +115,27 @@ internal sealed class ProviderConnections : IDisposable
             if (ScriptProviders.Catalog.ContainsKey(id))
             {
                 var definitionSettings = ScriptProviders.Catalog[id].Settings.ToDictionary(x => x.Key,
-                    x => vault.Load("setting:" + id + ":" + x.Key) ?? Environment.GetEnvironmentVariable(x.Key), StringComparer.Ordinal);
-                return await scripts.FetchAsync(id, key => definitionSettings.GetValueOrDefault(key), vault.Load("cookie:" + id), browser is null ? null : BrowserCookie, token).ConfigureAwait(false);
+                    x => EffectiveSetting(vault, id, x.Key), StringComparer.Ordinal);
+                string? glmProfile = null;
+                if (id == "glm" && definitionSettings.GetValueOrDefault("Z_AI_API_KEY") is { } explicitGlm
+                    && GlmAuthentication.Clean(explicitGlm) is null)
+                    return new(id, ReadingState.NeedsAuth, [], Message: "Update the GLM API key.");
+                if (id == "glm" && definitionSettings.GetValueOrDefault("Z_AI_API_KEY") is null)
+                {
+                    glmProfile = readCredential("glm");
+                    if (GlmAuthentication.Profile(glmProfile) is { } local)
+                    {
+                        definitionSettings["Z_AI_API_KEY"] = local.Token;
+                        definitionSettings["Z_AI_REGION"] = local.Region;
+                        // Borrowed tool keys are only sent to their fixed vendor console.
+                        definitionSettings["Z_AI_QUOTA_ENDPOINT"] = null;
+                        definitionSettings["Z_AI_MODEL_USAGE_ENDPOINT"] = null;
+                        definitionSettings["Z_AI_BALANCE_ENDPOINT"] = null;
+                    }
+                }
+                var reading = await scripts.FetchAsync(id, key => definitionSettings.GetValueOrDefault(key), vault.Load("cookie:" + id), browser is null ? null : BrowserCookie, token).ConfigureAwait(false);
+                return glmProfile is null || glmProfile == readCredential("glm") ? reading
+                    : new(id, ReadingState.Unavailable, [], Message: "The connection changed. Refresh the selected account.");
             }
             var definition = ProviderCatalog.Find(id);
             var secret = vault.Load("provider:" + id);
@@ -130,7 +188,7 @@ internal sealed class ProviderConnections : IDisposable
                 { return new(id, ReadingState.NeedsAuth, [], Message: "AWS profile could not be loaded. Check the profile name and sign in to AWS CLI again."); }
             }
             if (NativeProviders.Supported.Contains(id))
-                return await native.FetchAsync(id, browser is null ? secret ?? NativeCredentials.Read(id) : null, NativeSetting, browser is null ? null : BrowserCookie, token).ConfigureAwait(false);
+                return await native.FetchAsync(id, browser is null ? secret ?? readCredential(id) : null, NativeSetting, browser is null ? null : BrowserCookie, token).ConfigureAwait(false);
             return await http.FetchAsync(id, secret, token).ConfigureAwait(false);
         }
         catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or System.Security.Cryptography.CryptographicException
@@ -146,6 +204,8 @@ internal sealed class ProviderConnections : IDisposable
     internal bool CanCache(string id)
     {
         if (id == "jetbrains") return false;
+        if (id == "copilot") return GitHubAuthentication.Configured(vault.Load("provider:copilot"),
+            Environment.GetEnvironmentVariable("GH_TOKEN"), Environment.GetEnvironmentVariable("GITHUB_TOKEN")) is not null || readCredential("copilot") is not null;
         if (id == "gemini") return AntigravityLocalUsage.Source(EffectiveSetting(vault, id, "ANTIGRAVITY_USAGE_SOURCE")) == "oauth";
         if (id == "windsurf") return WindsurfLocalUsage.Source(EffectiveSetting(vault, "windsurf", "WINDSURF_USAGE_SOURCE")) == "web";
         if (id == "amp") return AmpCliUsage.Source(EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE")) is "api" or "web";
@@ -157,6 +217,9 @@ internal sealed class ProviderConnections : IDisposable
     {
         try
         {
+            if (id == "copilot" && !CanCache(id))
+                return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
+                    JsonSerializer.Serialize(new { id, process = Environment.ProcessId, config = CopilotConnection.Directory, hosts = CopilotConnection.ScopeMarker() }))));
             if (id == "jetbrains" || id is "amp" or "windsurf" or "gemini" && !CanCache(id))
             {
                 // A source marker keeps the current UI reading between quota polls.
@@ -169,8 +232,21 @@ internal sealed class ProviderConnections : IDisposable
                 return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source)));
             }
             if (id is "codex" or "claude") return SavedAccounts.Current(id).Identity.Id;
+            if (id == "kimi")
+            {
+                var selected = ResolveKimi();
+                return selected?.Token is null ? null : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(selected))));
+            }
+            if (id == "deepseek")
+            {
+                var credential = DeepSeekAuthentication.Resolve(EffectiveSetting(vault, id, "DEEPSEEK_USAGE_SOURCE"), vault.Load, Environment.GetEnvironmentVariable);
+                return credential?.Token is null ? null : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(credential))));
+            }
             var definition = ProviderCatalog.Find(id);
-            var values = new List<string?> { vault.Load("browser:" + id), vault.Load("provider:" + id), vault.Load("cookie:" + id), NativeCredentials.Read(id) };
+            var values = new List<string?> { vault.Load("browser:" + id), vault.Load("provider:" + id), vault.Load("cookie:" + id), readCredential(id) };
+            if (id == "moonshot") values.AddRange(new[] { vault.Load("provider:moonshot:international"), vault.Load("provider:moonshot:china") });
             if (id == "bedrock" && !CanCache(id))
             {
                 var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

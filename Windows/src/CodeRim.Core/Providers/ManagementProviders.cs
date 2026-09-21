@@ -9,6 +9,8 @@ public sealed partial class NativeProviders
 {
     public static IReadOnlyList<(string Key, string Label)> Settings(string id) => id switch
     {
+        "deepseek" => [("DEEPSEEK_USAGE_SOURCE", "Usage source")],
+        "moonshot" => [("MOONSHOT_REGION", "Region")],
         "windsurf" => [("WINDSURF_USAGE_SOURCE", "Usage source"), ("WINDSURF_CACHE_PATH", "Local Windsurf state.vscdb path")],
         "amp" => [("AMP_USAGE_SOURCE", "Usage source"), ("AMP_EXECUTABLE", "Amp executable path (optional)")],
         "azureopenai" => [("AZURE_OPENAI_ENDPOINT", "Azure endpoint (HTTPS)"), ("AZURE_OPENAI_DEPLOYMENT_NAME", "Deployment name"),
@@ -31,7 +33,7 @@ public sealed partial class NativeProviders
         "kilo" => [("KILO_ORG_ID", "Organization ID (leave empty for personal usage)")],
         "minimax" => [("MINIMAX_REGION", "Region: global or cn")],
         "mimo" => [("MIMO_API_URL", "MiMo API base URL (default https://platform.xiaomimimo.com/api/v1)")],
-        "kimi" => [("KIMI_CODE_BASE_URL", "Kimi Code API base URL (default https://api.kimi.com)")],
+        "kimi" => [("KIMI_USAGE_SOURCE", "Usage source"), ("KIMI_CODE_BASE_URL", "Kimi Code API base URL (API key only)")],
         "wayfinder" => [("WAYFINDER_GATEWAY_URL", "Gateway URL (default http://127.0.0.1:8088)")],
         "fireworks" => [("FIREWORKS_ACCOUNT_SLUG", "Account slug")],
         "llmproxy" => [("LLM_PROXY_BASE_URL", "Proxy base URL (HTTPS, or HTTP on this PC)")],
@@ -40,6 +42,9 @@ public sealed partial class NativeProviders
     };
     public static IReadOnlyList<string> ScopeAliases(string id) => id switch
     {
+        "kimi" => ["KIMI_MANUAL_COOKIE", "KIMI_AUTH_TOKEN", "kimi_auth_token", "KIMI_CODE_HOME", "KIMI_CODE_OAUTH_HOST", "KIMI_OAUTH_HOST"],
+        "deepseek" => ["DEEPSEEK_KEY", "DEEPSEEK_PLATFORM_TOKEN", "DEEPSEEK_USER_TOKEN"],
+        "moonshot" => ["MOONSHOT_KEY", "CODEXBAR_MOONSHOT_API_KEY", "CODEXBAR_MOONSHOT_API_KEY_REGION"],
         "amp" => ["AMP_COOKIE", "AMP_COOKIE_HEADER"],
         "bedrock" => ["AWS_DEFAULT_PROFILE", "AWS_DEFAULT_REGION", "AWS_CONFIG_FILE", "AWS_SHARED_CREDENTIALS_FILE", "CODERIM_BEDROCK_BUDGET"],
         "opencode-zen" => ["CODEXBAR_OPENCODE_WORKSPACE_ID", "OPENCODE_ZEN_WORKSPACE_ID"],
