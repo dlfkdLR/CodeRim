@@ -11,8 +11,8 @@ internal sealed class ProviderConnections : IDisposable
     private readonly CredentialVault vault;
     private readonly HttpProviders http = new();
     private readonly ScriptProviders scripts = new();
-    private readonly NativeProviders native = new();
-    public ProviderConnections(CredentialVault vault) { this.vault = vault; }
+    private readonly NativeProviders native;
+    public ProviderConnections(CredentialVault vault, NativeProviders? native = null) { this.vault = vault; this.native = native ?? new(); }
     public void Dispose() { http.Dispose(); scripts.Dispose(); native.Dispose(); }
     public Task<ProviderReading> FetchAsync(string id, AppSettings settings, CancellationToken token)
         => FetchAsync(id, settings, null, token);
@@ -65,6 +65,17 @@ internal sealed class ProviderConnections : IDisposable
                     if (Environment.GetEnvironmentVariable(key) is { Length: > 0 } value) { secret = value; break; }
             }
             string? NativeSetting(string key) => vault.Load("setting:" + id + ":" + key)?.Trim() is { Length: > 0 } configured ? configured : Environment.GetEnvironmentVariable(key);
+            if (id == "factory" && browser is null && secret?.TrimStart().StartsWith('{') == true && vault.LoadVersioned("provider:factory") is { })
+            {
+                // Serialize network refreshes separately from short storage commits. A user
+                // can replace/remove the account while a refresh is pending; CAS then fails.
+                using var refreshLease = await vault.AcquireRefreshAsync("factory", token).ConfigureAwait(false);
+                var saved = vault.LoadVersioned("provider:factory");
+                if (saved is null || saved.Value != secret)
+                    return new(id, ReadingState.Unavailable, [], Message: "The connection changed. Refresh the selected account.");
+                return await native.FetchFactorySessionAsync(saved.Value, NativeSetting,
+                    updated => vault.SaveIfUnchanged("provider:factory", saved.Version, updated), token).ConfigureAwait(false);
+            }
             if (id == "windsurf")
             {
                 var source = WindsurfLocalUsage.Source(NativeSetting("WINDSURF_USAGE_SOURCE"));

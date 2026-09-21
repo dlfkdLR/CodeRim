@@ -4,9 +4,10 @@ This continues the [2026-09-20 audit](FULL_AUDIT_2026-09-20.md). It records sour
 
 ## Implemented changes
 
-- Firefox cookie import for ten supported readers, with profile selection, domain/path/expiry/HTTPS scoping, isolated DPAPI storage, validation before replacement, and cancellation/close guards.
+- Firefox cookie import for eleven supported readers, with profile selection, domain/path/expiry/HTTPS scoping, isolated DPAPI storage, validation before replacement, and cancellation/close guards.
 - Explicit Amp CLI usage and Windsurf local-cache sources; the documented Antigravity OAuth JSON alias is connected. CLI/cache sources do not inherit another account's API quota or restore an unverified snapshot.
 - Factory API/Authorization/Cookie input and Firefox sign-in across pinned origins; authentication-mode changes restart profile and billing together, bounded same-profile cookie conflict recovery, strict user-ID matching and 429 stop.
+- Factory saved WorkOS session JSON refresh with pinned public clients, strict response fields and same-account checks; rotated tokens commit with version checks and cross-process file locking before quota reads. Replacing/removing an account wins over a late refresh response.
 - Groq console JWT/session JSON and Firefox sign-in, pinned Stytch refresh, 30-day activity and dollar costs. Enterprise Prometheus metrics remain a separate source; missing fields remain unknown.
 - Today/7D/30D analytics with hourly/daily buckets, model navigation and Back, visible totals, proportional sub-dollar cost bars, unknown-cost gaps, and narrow-window layout.
 - Separate two-second Codex/Claude activity polling, bounded backward JSONL scanning, exact prefix verification on append/rewrite, live Claude transcript selection and stable provider-specific activity timing.
@@ -36,6 +37,9 @@ Evidence is retained locally under Artifacts/ParityCompletion-20260921 (ignored 
 | NuGet audit | No known vulnerable package reported for all four projects, including transitive packages | Registry result at execution time, not a proof of absence of vulnerabilities |
 | Mac-hosted Factory browser Core checkpoint | Core 551 passed / 1 Windows-only test skipped, 0 failed; solution build has no warnings or errors | Native WPF execution is recorded separately below |
 | Windows r11 on connected x64 PC | Core 552 passed, 0 skipped, 0 failed; build, package, WPF and CLI passed | Factory browser transactions; ZIP SHA256 8ad35e3da0f10601a122c3661da2be6f6b8aaa2a01defc23a9a1f3538e024640, 257 source files. Groq/Factory connection screens captured; real pointer remains INCONCLUSIVE |
+| Mac-hosted WorkOS/vault Core checkpoint | Core 589 passed / 1 Windows-only test skipped, 0 failed; solution build 0 warnings/errors | Synthetic request/atomic storage checks; actual Windows DPAPI execution below |
+| Windows r12 on connected x64 PC | Core 590 passed, 0 skipped, 0 failed; all six build/package/GUI/CLI commands exited 0 | 263 source files; ZIP SHA256 60cdc2c14bc8cd1a37672bf819a1fdd6710547428a112ab998e01de433dadaeb. WorkOS refresh, DPAPI rotation and replacement/removal race assertions passed. GUI recorded 48 checkpoints, including physical pointer INCONCLUSIVE |
+| Remote CI at 2896881 | macOS run 35579064769 and Windows run 35579064737 succeeded, including native ARM64 job | Factory browser checkpoint; WorkOS/vault changes are later and require their own CI |
 
 The r6 pointer diagnostic observed successful cursor movement, but WindowFromPoint resolved to explorer's LockScreenBackstopFrame. Therefore real pointer hover remains INCONCLUSIVE until an unlocked interactive desktop is available. Routed-event checks are not counted as real pointer checks.
 
@@ -75,6 +79,8 @@ Paths below are relative to the repository. The location column names the functi
 | PAR-BUG-19 / Medium | Windows/src/CodeRim.Core/Providers/FactoryProvider.cs, optional billing request | billing 429 was swallowed and legacy usage returned Ready after another request | Propagate the rate limit and retain backoff across subsequent fetches | Independent request traces stop at two calls; FactoryBrowserTests and r11 pass |
 | PAR-BUG-20 / Medium | Windows/src/CodeRim.Core/Providers/FactoryAuthentication.cs, conflict recovery | A stale access-token cookie caused six failed requests even with a valid auth-session cookie | Bounded same-profile cookie variants after URI scoping, restarting the transaction without changing saved cookies | Independent stale-cookie, later-stage conflict, empty-cookie and bounded exhaustion checks; r11 pass |
 | PAR-BUG-21 / Low | Windows/src/CodeRim.Core/Providers/FactoryAuthentication.cs and FactoryProvider.cs, input normalization | Quoted Authorization values and empty/padded profile IDs were rejected or miscompared | Normalize balanced header quotes and trim all profile/sub/returned IDs; reject IDs over 256 characters or containing internal controls | Independent pinned-source comparison and field boundary checks; r11 pass |
+| PAR-BUG-22 / Medium | Windows/src/CodeRim.Core/Providers/FactoryWorkOsProvider.cs, response validation | Synthetic refresh response has non-string or duplicate access/refresh/organization fields; permissive field access silently reused old values and accepted ambiguous rotation | Require one correctly typed canonical field, preserve omitted/null optional values, reject conflicting identity before save or quota | Independent 56-scenario recheck all passed; FactoryWorkOsTests and connected-PC r12 |
+| PAR-BUG-23 / Medium | Windows/src/CodeRim.Core/Services/AtomicCredentialFiles.cs and Windows/src/CodeRim.Windows/Services/CredentialVault.cs, commit/refresh coordination | Concurrent fixed-name staging writes, read/delete races and delayed refresh reproduce wrong final value, failed read or stale-account overwrite in isolated storage probes | Unique temporary files, cross-process commit lock and versioned compare-and-swap; separate asynchronous refresh lease lets manual save/delete proceed | Independent concurrent/process probes and Windows r12 DPAPI rotation/replacement/delete/same-value reconnect/32-write checks. Old UI-only writer reachability was not established; new background refresh requires this protection |
 
 ## Remaining requirements
 
@@ -87,7 +93,7 @@ The original 50-item matrix is retained as the baseline; additional tests do not
 | PROV-03 | Expanded native/script success and error contracts pass synthetic tests; all current live response shapes remain unverified |
 | ACCT-03 | Native Windows DPAPI fixtures pass; actual saved-account switching and real Keychain transitions remain separate |
 | ACCT-04 | Eleven Firefox cookie import paths implemented and verified with synthetic profiles; other browser engines/localStorage strategies remain |
-| ACCT-05 | Amp CLI, Windsurf cache, Antigravity alias and Groq console/Stytch plus Factory browser sessions added; Factory WorkOS, other localStorage and Antigravity local IDE paths remain |
+| ACCT-05 | Amp CLI, Windsurf cache, Antigravity alias and Groq console/Stytch plus Factory browser and saved WorkOS refresh profiles added; automatic browser localStorage and Antigravity local IDE paths remain |
 | UI-02 | Windows in-place plan/status refresh and Usage refresh verified; complete Mac live-click comparison remains |
 | UI-04 | Monitor-limited cards and layout checks pass; physical wheel traversal of long cards remains |
 | UI-06 | Native fade/arrival recheck passes all seven tests; complete user-desktop transition comparison remains separate |

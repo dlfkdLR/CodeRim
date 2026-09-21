@@ -81,7 +81,7 @@ Remaining native/PTY/OAuth and browser-localStorage integrations, activity sourc
 | Alibaba (`alibaba`) | Coding Plan API key and intl/cn region; request quota |
 | Alibaba Token Plan (`alibabatokenplan`) | Console cookie; Team/Personal in intl/cn regions, sec_token discovery |
 | Qwen Cloud (`qwencloud`) | Console cookie; Personal Token Plan rolling limits and sec_token discovery |
-| Droid (`factory`) | Factory API key/Authorization, explicit Cookie header or Firefox import; current or legacy personal quota |
+| Droid (`factory`) | Factory API key/Authorization, Cookie/Firefox import or saved WorkOS session JSON with refresh; current or legacy personal quota |
 | Fireworks (`fireworks`) | API key and account slug |
 | Gemini (`gemini-cli`) | Gemini CLI OAuth detection/refresh; Code Assist model quotas and consumer-migration state |
 | Devin (`devin`) | Access token and organization; quota and overage |
@@ -138,7 +138,7 @@ Remaining native/PTY/OAuth and browser-localStorage integrations, activity sourc
 
 In Settings → Providers, **Import from Firefox** is available for Qoder, Perplexity, Manus, T3 Chat, Cursor, Notion AI, Mistral, Augment, OpenCode Zen, Groq and Droid (Factory). Choose one signed-in profile. Only the provider domains are selected; containers and partitioned sessions are not merged. A rejected import cannot erase a working saved connection. Manual credentials remain available.
 
-Factory accepts an API key, pasted Authorization bearer or Cookie header (FACTORY_API_KEY, FACTORY_COOKIE and FACTORY_COOKIE_HEADER are also supported). Firefox imports retain per-request domain/path scope across its three pinned Factory origins. A rejected bearer restarts authentication and billing together in cookie-only mode; bounded conflict recovery uses only cookies from the same selected profile. Rate limits stop the transaction. WorkOS refresh/localStorage discovery is not implemented yet.
+Factory accepts an API key, pasted Authorization bearer or Cookie header (FACTORY_API_KEY, FACTORY_COOKIE and FACTORY_COOKIE_HEADER are also supported). Firefox imports retain per-request domain/path scope across its three pinned Factory origins. A rejected bearer restarts authentication and billing together in cookie-only mode; bounded conflict recovery uses only cookies from the same selected profile. Rate limits stop the transaction. A saved WorkOS session JSON can contain access_token, refresh_token, organization_id and an optional pinned Factory client_id (camelCase token aliases are also accepted). When needed, refresh exchanges the token only at api.workos.com; the rotated session is saved with DPAPI only if the original credential entry is unchanged. Concurrent refreshes are serialized, while replacing/removing the connection remains available. Browser localStorage discovery is not implemented yet. Environment or direct Core profiles are ephemeral; save the JSON in the provider page to retain rotated tokens across restarts.
 
 Amp offers **API / CLI** source selection. CLI runs the installed Amp executable with the fixed usage command and a timeout. An optional executable path can be selected. The child process does not inherit AMP_API_KEY, and CLI failure does not silently switch to API usage from another account.
 

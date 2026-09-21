@@ -564,7 +564,7 @@ internal sealed partial class DashboardWindow : Window
     }
     private void AddSecretField(string key, string id, string label)
     {
-        var password = new PasswordBox { MaxLength = 32768, Padding = new Thickness(8), Margin = new Thickness(0, 6, 0, 8) }; body.Children.Add(password);
+        var password = new PasswordBox { MaxLength = id == "factory" ? 262144 : 32768, Padding = new Thickness(8), Margin = new Thickness(0, 6, 0, 8) }; body.Children.Add(password);
         System.Windows.Automation.AutomationProperties.SetName(password, label);
         var result = Ui.Text("", 11, "#B7B8BD");
         body.Children.Add(Ui.Button(label, () =>

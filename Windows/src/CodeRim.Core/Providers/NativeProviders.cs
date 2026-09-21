@@ -28,13 +28,15 @@ public sealed partial class NativeProviders : IDisposable
         credential = credential?.Trim();
         if (cookieForUri is not null && credential is null) credential = "imported-browser-session";
         if (!Supported.Contains(id)) return new(id, ReadingState.Unsupported, []);
-        if (id is "windsurf" or "gemini" or "gemini-cli" or "vertexai" or "kiro" or "bedrock" or "groq" && credential?.TrimStart().StartsWith('{') == true)
+        if (id is "windsurf" or "gemini" or "gemini-cli" or "vertexai" or "kiro" or "bedrock" or "groq" or "factory" && credential?.TrimStart().StartsWith('{') == true)
         {
             if (credential.Length > 262144) return new(id, ReadingState.NeedsAuth, [], Message: "The credential profile is too large.");
             try { using var profile = JsonDocument.Parse(credential); credential = JsonSerializer.Serialize(profile.RootElement); }
             catch (JsonException) { return new(id, ReadingState.NeedsAuth, [], Message: "The credential profile is not valid JSON."); }
         }
         if (id != "wayfinder" && (string.IsNullOrWhiteSpace(credential) || credential.Any(char.IsControl))) return new(id, ReadingState.NeedsAuth, [], Message: "Connect this provider in Settings or sign in to its CLI.");
+        if (id == "factory" && cookieForUri is null && credential?.StartsWith('{') == true)
+            return await FetchFactorySessionAsync(credential, setting, token: token).ConfigureAwait(false);
         if (retryAfter.TryGetValue(id, out var retry) && retry > DateTimeOffset.Now) return new(id, ReadingState.Unavailable, [], Message: "Provider rate limit reached. Waiting before retrying.");
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(45));
         var documents = new Dictionary<string, JsonElement>(StringComparer.Ordinal);

@@ -13,3 +13,5 @@ Windows browser scope compatibility: the prelude accepts an optional HTTPS reque
 GroqConsoleProvider adapts the Groq console session, Stytch frontend exchange, organization activity endpoint and field mapping from the same pinned CodexBar revision. The Stytch frontend identifier is publishable metadata, not a private credential. Missing usage fields remain unknown and enterprise Prometheus metrics remain a separate source.
 
 FactoryAuthentication and FactoryProvider adapt the same pinned Factory manual-header forms, browser origins and cookie conflict variants. Cookie filtering is request-scoped and never overwrites an imported profile. Authentication retries restart the full profile/billing transaction, and provider rate limits stop further requests.
+
+Factory WorkOS session refresh uses the pinned Factory public client identifiers and authenticate endpoint. The protocol and rotation behavior are also documented by WorkOS (https://workos.com/docs/authkit/sessions and https://workos.com/docs/authkit/cli-auth). No client secret is embedded. Windows persists rotated saved profiles with DPAPI and a version-checked commit.

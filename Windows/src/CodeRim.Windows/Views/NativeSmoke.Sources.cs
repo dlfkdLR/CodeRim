@@ -70,7 +70,7 @@ internal static partial class NativeSmoke
             Environment.SetEnvironmentVariable("FACTORY_COOKIE", "session=second-fixture");
             Require(factoryScope is not null && factoryScope != connections.Scope("factory"), "Factory session does not invalidate account scope");
             settings.Save(settings.Current with { EnabledProviders = [..providers, "factory"] }); dashboard.Navigate("factory"); await Idle();
-            Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Factory API key, Authorization bearer, or Cookie header"), "Factory settings hide the cookie and Authorization connections");
+            Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Factory API key, Authorization bearer, Cookie header, or session JSON"), "Factory settings hide the cookie and Authorization connections");
             Require(Descendants<Button>(dashboard).Any(x => Equals(x.Content, "Import from Firefox…")), "Factory Firefox connection is absent");
             Capture(dashboard, Path.Combine(directory, "windows-factory-connection.png"));
             Require(!connections.CanCache("jetbrains") && connections.Scope("jetbrains") is { Length: > 0 }, "Local JetBrains display has no volatile source scope");
