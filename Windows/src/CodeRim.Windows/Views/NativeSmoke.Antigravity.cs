@@ -106,14 +106,14 @@ internal static partial class NativeSmoke
         using var child = new Process { StartInfo = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true } };
         child.StartInfo.Environment["CODERIM_ANTIGRAVITY_FIXTURE_DIR"] = root;
         foreach (var arg in new[] { "--smoke-test", "--antigravity-fixture-server", "--csrf_token", "native-antigravity-fixture", "--app_data_dir", "antigravity" }) child.StartInfo.ArgumentList.Add(arg);
-        var launched = false;
+        var launched = false; var forcedKill = false;
         async Task StopChild()
         {
             if (!launched || child.HasExited) return;
             File.WriteAllText(Path.Combine(root, "stop"), "stop");
             using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             try { await child.WaitForExitAsync(stopping.Token); }
-            catch (OperationCanceledException) { child.Kill(); await child.WaitForExitAsync(); }
+            catch (OperationCanceledException) { forcedKill = true; child.Kill(); await child.WaitForExitAsync(); }
         }
         try
         {
@@ -190,13 +190,14 @@ internal static partial class NativeSmoke
             }
             vault.Save("setting:gemini:ANTIGRAVITY_USAGE_SOURCE", "local");
             await StopChild();
+            Require(!forcedKill && child.ExitCode == 0, "Fixture did not gracefully dispose its temporary certificate key.");
             Require(!process.IsCurrent(), "Exited PID remained trusted.");
             var unavailable = await connections.FetchAsync("gemini", settings.Current, CancellationToken.None);
             Require(unavailable.Windows.Count == 0 && unavailable.State != ReadingState.Ready, "Stopped IDE restored local quota or fell back to OAuth.");
             File.WriteAllText(Path.Combine(directory, "windows-antigravity-local-evidence.json"), JsonSerializer.Serialize(new {
                 fixture = true, wmi = "PASS", currentUserSessionProcess = "PASS", reverseTcpOwnership = "PASS",
                 wrongPidNoHttp = "PASS", multipleOwnedListeners = "PASS", actualConnectorStoreWpf = "PASS",
-                stoppedProcessInvalidation = "PASS", cadence = local.Windows.Select(window => window.DurationMinutes).ToArray(), quotaPort, deniedPort
+                stoppedProcessInvalidation = "PASS", gracefulShutdown = !forcedKill, helperExitCode = child.ExitCode, cadence = local.Windows.Select(window => window.DurationMinutes).ToArray(), quotaPort, deniedPort
             }, JsonOptions));
         }
         catch (Exception error) when (error is not OutOfMemoryException)
@@ -207,6 +208,8 @@ internal static partial class NativeSmoke
         finally
         {
             await StopChild();
+            File.WriteAllText(Path.Combine(directory, "windows-antigravity-shutdown.json"), JsonSerializer.Serialize(new
+            { launched, forcedKill, helperExitCode = launched ? child.ExitCode : (int?)null, temporaryKeyDisposal = launched && !forcedKill && child.ExitCode == 0 }));
             child.Dispose();
             vault.Delete("provider:gemini"); vault.Delete("setting:gemini:ANTIGRAVITY_USAGE_SOURCE");
             settings.Save(settings.Current with { EnabledProviders = originalProviders }); dashboard.Navigate("usage");
