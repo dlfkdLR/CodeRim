@@ -4,9 +4,18 @@ using System.Text.Json;
 
 namespace CodeRim.Core.Services;
 
+public sealed record ProcessResult(int ExitCode, string Output, string Error);
+
 public static class BoundedProcess
 {
     public static async Task<string> RunAsync(string executable, IEnumerable<string> arguments, string? input = null,
+        TimeSpan? timeout = null, int maximumBytes = 2 * 1024 * 1024, IReadOnlyDictionary<string, string?>? environment = null, CancellationToken cancellationToken = default)
+    {
+        var result = await RunResultAsync(executable, arguments, input, timeout, maximumBytes, environment, cancellationToken).ConfigureAwait(false);
+        if (result.ExitCode != 0) throw new IOException("The provider command failed.");
+        return result.Output;
+    }
+    public static async Task<ProcessResult> RunResultAsync(string executable, IEnumerable<string> arguments, string? input = null,
         TimeSpan? timeout = null, int maximumBytes = 2 * 1024 * 1024, IReadOnlyDictionary<string, string?>? environment = null, CancellationToken cancellationToken = default)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -19,8 +28,7 @@ public static class BoundedProcess
             if (input is not null) await process.StandardInput.WriteAsync(input.AsMemory(), deadline.Token).ConfigureAwait(false);
             process.StandardInput.Close();
             await Task.WhenAll(output, error, process.WaitForExitAsync(deadline.Token)).ConfigureAwait(false);
-            if (process.ExitCode != 0) throw new IOException("The provider command failed.");
-            return await output.ConfigureAwait(false);
+            return new(process.ExitCode, await output.ConfigureAwait(false), await error.ConfigureAwait(false));
         }
         finally { Kill(process); }
     }

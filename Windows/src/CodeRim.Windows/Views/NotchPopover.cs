@@ -13,7 +13,7 @@ namespace CodeRim.Windows.Views;
 /// <summary>One black silhouette; no native ToolTip border, padding or focus chrome.</summary>
 internal static class NotchPopover
 {
-    internal static FrameworkElement Create(string id, DashboardStore store, AppSettings settings, Action<string?> navigate)
+    internal static FrameworkElement Create(string id, DashboardStore store, AppSettings settings, Action<string?> navigate, double? availableHeight = null)
     {
         var content = new StackPanel { Margin = new Thickness(NotchMetrics.CardPadding) };
         var header = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 8) };
@@ -84,7 +84,7 @@ internal static class NotchPopover
         }
         if (settings.ShowLastUpdated && reading?.UpdatedAt is { } updated) content.Children.Add(Text("Updated " + Age(updated), 9.5, Secondary));
         var scroll = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, MaxHeight = Math.Max(160, SystemParameters.WorkArea.Height - 40) };
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, MaxHeight = Math.Max(1, (availableHeight ?? SystemParameters.WorkArea.Height) - 40) };
         var card = new Border { Width = NotchMetrics.CardWidth, CornerRadius = new CornerRadius(NotchMetrics.CardCorner),
             Background = Brushes.Black, Child = scroll, SnapsToDevicePixels = true };
         var layout = new Grid();

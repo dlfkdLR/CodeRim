@@ -30,6 +30,32 @@ public sealed class SubscriptionProviderTests
         Assert.Equal(new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero), result.Headline.ResetsAt);
         Assert.StartsWith("12", result.Windows[1].DisplayValue); Assert.Null(result.Windows[1].UsedPercent);
     }
+    [Theory]
+    [InlineData("general")]
+    [InlineData("General")]
+    [InlineData("MiniMax-M2")]
+    public void MiniMaxTextIntervalAndWeeklyPrecedeVideoRegardlessOfArrayOrder(string textModel)
+    {
+        var value = JsonSerializer.Serialize(new { data = new { model_remains = new[] {
+            new { model_name = "video", current_interval_remaining_percent = 30, current_weekly_remaining_percent = (int?)null },
+            new { model_name = textModel, current_interval_remaining_percent = 96, current_weekly_remaining_percent = (int?)99 }
+        }}});
+        var result = Parse("minimax", value);
+        Assert.Equal(4, result.Headline!.UsedPercent); Assert.Equal(1, result.Windows[1].UsedPercent);
+        Assert.Equal(70, result.Windows[2].UsedPercent);
+    }
+    [Theory]
+    [InlineData("text-generation", "Weekly")]
+    [InlineData("Text_Generation", "Weekly")]
+    [InlineData("TextGeneration", " Weekly ")]
+    public void MiniMaxServiceFallbackUsesTheSameTextThenWeeklyOrdering(string service, string window)
+    {
+        var result = Parse("minimax", JsonSerializer.Serialize(new { services = new[] {
+            new { service_type = "video", window_type = "Today", limit = 100, usage = 70 },
+            new { service_type = service, window_type = window, limit = 100, usage = 1 },
+            new { service_type = service, window_type = "5h", limit = 100, usage = 4 } } }));
+        Assert.Equal(4, result.Headline!.UsedPercent); Assert.Equal(1, result.Windows[1].UsedPercent); Assert.Equal(70, result.Windows[2].UsedPercent);
+    }
     [Fact]
     public void MiniMaxRemainingCountersAreNotUsedCounters()
     {

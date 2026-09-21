@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using CodeRim.Core.Domain;
 using Jint;
+using Jint.Runtime;
 using static CodeRim.Core.Providers.ProviderParsers;
 
 namespace CodeRim.Core.Providers;
@@ -42,34 +43,64 @@ public sealed class ScriptProviders : IDisposable
         }
         return definitions;
     }
-    public async Task<ProviderReading> FetchAsync(string id, Func<string, string?> setting, string? cookie, CancellationToken token = default)
+    private sealed class ScriptAuthenticationException : Exception { }
+    private static bool IsClassifiedAuth(Exception error)
+    {
+        if (error is ScriptAuthenticationException) return true;
+        var reason = error switch {
+            JavaScriptException script => script.Error,
+            PromiseRejectedException promise => promise.RejectedValue,
+            _ => Jint.Native.JsValue.Undefined
+        };
+        if (!reason.IsObject()) return false;
+        var message = reason.AsObject().Get("message");
+        if (!message.IsString()) return false;
+        var text = message.AsString();
+        return text is "authentication-expired" or "missing-credential"
+            || text.StartsWith("__CODEXBAR_FAILURE_V2__:authentication-expired:", StringComparison.Ordinal)
+            || text.StartsWith("__CODEXBAR_FAILURE_V2__:missing-credential:", StringComparison.Ordinal);
+    }
+
+    public Task<ProviderReading> FetchAsync(string id, Func<string, string?> setting, string? cookie, CancellationToken token = default)
+        => FetchAsync(id, setting, cookie, null, token);
+
+    public async Task<ProviderReading> FetchAsync(string id, Func<string, string?> setting, string? cookie, Func<Uri, string?>? cookieForUri, CancellationToken token = default)
     {
         if (!Catalog.TryGetValue(id, out var definition)) return new(id, ReadingState.Unsupported, []);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(30));
         try
         {
-            return await Task.Run(() => Fetch(id, definition, setting, cookie, deadline.Token), deadline.Token).ConfigureAwait(false);
+            return await Task.Run(() => Fetch(id, definition, setting, cookie, cookieForUri, deadline.Token), deadline.Token).ConfigureAwait(false);
         }
         catch (Exception error) when (error is not OutOfMemoryException)
         {
             token.ThrowIfCancellationRequested();
             // Never include the raw script/network exception; it may contain vendor response data.
-            var auth = error.Message.Contains("authentication-expired", StringComparison.Ordinal) || error.Message.Contains("missing-credential", StringComparison.Ordinal);
+            var auth = IsClassifiedAuth(error);
             return new(id, auth ? ReadingState.NeedsAuth : ReadingState.Error, [], Message: auth ? "Connect the provider or update its credential." : "The provider could not return a reading. Check the connection and refresh.");
         }
     }
-    private ProviderReading Fetch(string id, ScriptDefinition definition, Func<string, string?> setting, string? cookie, CancellationToken token)
+    private ProviderReading Fetch(string id, ScriptDefinition definition, Func<string, string?> setting, string? cookie, Func<Uri, string?>? cookieForUri, CancellationToken token)
     {
         using var engine = Engine(token);
         engine.Execute("var __provider; function defineProvider(p) { __provider = p; }").Execute(Resource(definition.Id));
         using var meta = JsonDocument.Parse(engine.Evaluate("JSON.stringify(__provider)").AsString());
         var root = meta.RootElement; var auth = Get(root, "auth");
         var secretKey = Text(auth, "secret");
-        if (secretKey is not null && string.IsNullOrWhiteSpace(setting(secretKey))) throw new InvalidDataException("missing-credential");
-        if (definition.CookieDomains.Length > 0 && string.IsNullOrWhiteSpace(cookie)) throw new InvalidDataException("missing-credential");
-        var count = 0; var totalBytes = 0L;
+        if (secretKey is not null && string.IsNullOrWhiteSpace(setting(secretKey))) throw new ScriptAuthenticationException();
+        if (definition.CookieDomains.Length > 0 && string.IsNullOrWhiteSpace(cookie) && cookieForUri is null) throw new ScriptAuthenticationException();
+        var count = 0; var totalBytes = 0L; var lastRequiredRequestWasAuthenticationFailure = false;
         engine.SetValue("__setting", new Func<string, string?>(key => definition.Settings.Any(x => x.Key == key) ? setting(key) : null));
-        engine.SetValue("__cookie", new Func<string, string?>(domain => definition.CookieDomains.Contains(domain, StringComparer.OrdinalIgnoreCase) ? cookie : null));
+        engine.SetValue("__cookie", new Func<string, string, string?>((domain, requestUrl) =>
+        {
+            if (!definition.CookieDomains.Contains(domain, StringComparer.OrdinalIgnoreCase)) return null;
+            var url = requestUrl.Length == 0 ? "https://" + domain + "/" : requestUrl;
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var target) || target.Scheme != Uri.UriSchemeHttps
+                || target.UserInfo.Length > 0 || target.Fragment.Length > 0
+                || !(target.IdnHost.Equals(domain, StringComparison.OrdinalIgnoreCase) || target.IdnHost.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase))
+                || requestUrl.Length > 0 && !IsAllowed(target, Get(root, "endpoints"), setting)) return null;
+            return cookieForUri is null ? cookie : cookieForUri(target);
+        }));
         engine.SetValue("__reset", new Func<string, double, double>((zone, hour) => NextReset(zone, (int)hour).ToUnixTimeMilliseconds()));
         engine.SetValue("__request", new Func<string, string, string, string>((url, method, optionsJson) =>
         {
@@ -79,6 +110,9 @@ public sealed class ScriptProviders : IDisposable
             if (++count > 32) throw new InvalidDataException("Request budget exceeded.");
             var uri = new Uri(url, UriKind.Absolute);
             if (!IsAllowed(uri, Get(root, "endpoints"), setting)) throw new InvalidDataException("Provider endpoint rejected.");
+            // OpenRouter activity uses an optional management credential; it cannot classify the primary account key.
+            var auxiliaryAuthentication = id == "openrouter" && uri.AbsolutePath == "/api/v1/activity";
+            if (!auxiliaryAuthentication) lastRequiredRequestWasAuthenticationFailure = false;
             using var options = JsonDocument.Parse(optionsJson); var requestOptions = options.RootElement;
             using var requestDeadline = CancellationTokenSource.CreateLinkedTokenSource(token);
             requestDeadline.CancelAfter(TimeSpan.FromSeconds(Math.Clamp(Number(requestOptions, "timeoutSeconds") ?? 15, 0.1, 15)));
@@ -91,12 +125,17 @@ public sealed class ScriptProviders : IDisposable
                 if (header.Name.Equals("Host", StringComparison.OrdinalIgnoreCase) || header.Name.Equals("Content-Length", StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException();
                 request.Headers.TryAddWithoutValidation(header.Name, header.Value.GetString());
             }
+            if (cookieForUri is not null)
+            {
+                request.Headers.Remove("Cookie");
+                if (cookieForUri(uri) is { Length: > 0 } scopedCookie) request.Headers.TryAddWithoutValidation("Cookie", scopedCookie);
+            }
             if (secretKey is not null)
             {
                 var management = Get(requestOptions, "openRouterManagementAuth").ValueKind == JsonValueKind.True;
                 if (management && (id != "openrouter" || uri.GetLeftPart(UriPartial.Authority) != "https://openrouter.ai" || uri.AbsolutePath != "/api/v1/activity")) throw new InvalidDataException("Management endpoint rejected.");
                 var credential = setting(management ? "OPENROUTER_MANAGEMENT_API_KEY" : secretKey);
-                if (string.IsNullOrWhiteSpace(credential)) throw new InvalidDataException("missing-credential");
+                if (string.IsNullOrWhiteSpace(credential)) throw new ScriptAuthenticationException();
                 var type = Text(auth, "type");
                 var name = type == "header" ? Text(auth, "header")! : type == "x-api-key" ? "x-api-key" : "Authorization";
                 var value = type == "bearer" ? "Bearer " + credential : type == "authorization-scheme" ? Text(auth, "scheme") + " " + credential : credential;
@@ -104,6 +143,7 @@ public sealed class ScriptProviders : IDisposable
             }
             if (method == "POST") request.Content = new StringContent(Text(requestOptions, "bodyJSON") ?? "{}", Encoding.UTF8, "application/json");
             using var response = client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, requestToken).GetAwaiter().GetResult();
+            if (!auxiliaryAuthentication) lastRequiredRequestWasAuthenticationFailure = response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden;
             if (response.Content.Headers.ContentLength > 2 * 1024 * 1024) throw new InvalidDataException();
             using var stream = response.Content.ReadAsStream(requestToken); using var memory = new MemoryStream(); var buffer = new byte[16384];
             int length;
@@ -127,11 +167,17 @@ public sealed class ScriptProviders : IDisposable
         if (TimeZoneInfo.TryConvertWindowsIdToIanaId(localZone, out var ianaZone)) localZone = ianaZone;
         engine.SetValue("__timeZone", localZone);
         engine.Execute("var __ctx = __prelude({__codexbarNowMillis: Date.now(), env:{timeZone:__timeZone}}, {" +
-            "http:(u,o,m,j,res,rej)=>{try{let r=JSON.parse(__request(u,m,JSON.stringify(o)));if(r.hostError)throw new Error(r.hostError);if(j)r.json=JSON.parse(r.bodyText);res(r);}catch(e){rej(e);}}," +
-            "settingGet:(k,s)=>__setting(k),cookieHeader:(d,res,rej)=>{let c=__cookie(d);c?res(c):rej(new Error('missing-credential'));}," +
+            "http:(u,o,m,j,res,rej)=>{try{let r=JSON.parse(__request(u,m,JSON.stringify(o)));if(r.hostError)throw new Error(r.hostError);if(r.status===401||r.status===403)throw new Error('authentication-expired');if(j)r.json=JSON.parse(r.bodyText);res(r);}catch(e){rej(e);}}," +
+            "settingGet:(k,s)=>__setting(k),cookieHeader:(d,u,res,rej)=>{let c=__cookie(d,u);c?res(c):rej(new Error('missing-credential'));}," +
             "nextDailyReset:(z,h)=>__reset(z,h),pct:(u,l)=>l>0?Math.max(0,u/l*100):0,amountFromPercent:(p,l)=>p*l/100," +
             "isDetailLabel:v=>typeof v==='string'&&v.length>0,log:()=>{},cacheGet:()=>null,cacheSet:()=>{}});");
-        var result = engine.Evaluate("__provider.fetchUsage(__ctx).then(value=>JSON.stringify(value))").UnwrapIfPromise(token);
+        Jint.Native.JsValue result;
+        try { result = engine.Evaluate("__provider.fetchUsage(__ctx).then(value=>JSON.stringify(value))").UnwrapIfPromise(token); }
+        catch (PromiseRejectedException) when (lastRequiredRequestWasAuthenticationFailure && !token.IsCancellationRequested)
+        {
+            // Some plugins wrap the required HTTP failure. A later service/parse failure must not inherit earlier rejected auth.
+            throw new ScriptAuthenticationException();
+        }
         var jsonText = result.AsString();
         if (jsonText.Length > 2 * 1024 * 1024) throw new InvalidDataException();
         using var output = JsonDocument.Parse(jsonText);
@@ -208,7 +254,7 @@ public sealed class ScriptProviders : IDisposable
             foreach (var row in rows.EnumerateArray().Take(100))
                 if (Text(row, "value") is { } display) windows.Add(new("detail-" + windows.Count, Text(row, "label") ?? Text(detail, "title") ?? "Usage", DisplayValue: display + (Text(row, "secondaryValue") is { } secondary ? " · " + secondary : "")));
         }
-        return new(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, DateTimeOffset.Now, Plan: Text(Get(root, "identity"), "loginMethod"), CostUsage: activity);
+        return new(id, windows.Count > 0 ? Text(root, "dataConfidence") == "estimated" ? ReadingState.Partial : ReadingState.Ready : ReadingState.Unavailable, windows, DateTimeOffset.Now, Plan: Text(Get(root, "identity"), "loginMethod"), CostUsage: activity);
     }
     private static ProviderCostUsage? ReadCostUsage(JsonElement value)
     {

@@ -15,8 +15,12 @@ public sealed partial class NativeProviders
         "kimi" => ["KIMI_CODE_API_KEY"], "minimax" => ["MINIMAX_CODING_API_KEY", "MINIMAX_API_KEY"],
         "devin" => ["DEVIN_BEARER_TOKEN", "DEVIN_AUTHORIZATION"],
         "longcat" => ["LONGCAT_MANUAL_COOKIE", "longcat_manual_cookie"],
-        "factory" => ["FACTORY_API_KEY"], "zed" => ["ZED_ACCESS_TOKEN"], "groq" => ["GROQ_API_KEY"], "mistral" => ["MISTRAL_COOKIE", "MISTRAL_COOKIE_HEADER"], "zoommate" => ["ZOOMMATE_BEARER_TOKEN"], "notion" => ["NOTION_COOKIE", "NOTION_COOKIE_HEADER"], "alibaba" => ["ALIBABA_CODING_PLAN_API_KEY", "ALIBABA_QWEN_API_KEY", "DASHSCOPE_API_KEY"], "gemini-cli" => ["GEMINI_OAUTH_ACCESS_TOKEN"], "vertexai" => ["GOOGLE_OAUTH_ACCESS_TOKEN"], "alibabatokenplan" => ["ALIBABA_TOKEN_PLAN_COOKIE"], "qwencloud" => ["QWEN_CLOUD_COOKIE"], "opencode-zen" => ["OPENCODE_COOKIE", "OPENCODE_COOKIE_HEADER"], "bedrock" => ["AWS_SECRET_ACCESS_KEY"], "doubao" => ["VOLCENGINE_SECRET_ACCESS_KEY", "VOLCENGINE_SECRET_KEY", "VOLCENGINE_ACCESS_KEY_SECRET", "VOLC_SECRETKEY", "DOUBAO_SECRET_ACCESS_KEY"], "gemini" => ["ANTIGRAVITY_OAUTH_ACCESS_TOKEN", "ANTIGRAVITY_OAUTH_CREDENTIALS"], "windsurf" => ["WINDSURF_SESSION_JSON"], "augment" => ["AUGMENT_COOKIE", "AUGMENT_COOKIE_HEADER"], "kiro" => ["KIRO_ACCESS_TOKEN"], "azureopenai" => ["AZURE_OPENAI_API_KEY"], _ => null
+        "factory" => ["FACTORY_API_KEY", "FACTORY_COOKIE", "FACTORY_COOKIE_HEADER"], "zed" => ["ZED_ACCESS_TOKEN"], "groq" => ["GROQ_SESSION_TOKEN", "GROQ_SESSION_JWT", "GROQ_API_KEY"], "mistral" => ["MISTRAL_COOKIE", "MISTRAL_COOKIE_HEADER"], "zoommate" => ["ZOOMMATE_BEARER_TOKEN"], "notion" => ["NOTION_COOKIE", "NOTION_COOKIE_HEADER"], "alibaba" => ["ALIBABA_CODING_PLAN_API_KEY", "ALIBABA_QWEN_API_KEY", "DASHSCOPE_API_KEY"], "gemini-cli" => ["GEMINI_OAUTH_ACCESS_TOKEN"], "vertexai" => ["GOOGLE_OAUTH_ACCESS_TOKEN"], "alibabatokenplan" => ["ALIBABA_TOKEN_PLAN_COOKIE"], "qwencloud" => ["QWEN_CLOUD_COOKIE"], "opencode-zen" => ["OPENCODE_COOKIE", "OPENCODE_COOKIE_HEADER"], "bedrock" => ["AWS_SECRET_ACCESS_KEY"], "doubao" => ["VOLCENGINE_SECRET_ACCESS_KEY", "VOLCENGINE_SECRET_KEY", "VOLCENGINE_ACCESS_KEY_SECRET", "VOLC_SECRETKEY", "DOUBAO_SECRET_ACCESS_KEY"], "gemini" => ["ANTIGRAVITY_OAUTH_ACCESS_TOKEN", "ANTIGRAVITY_OAUTH_CREDENTIALS_JSON", "ANTIGRAVITY_OAUTH_CREDENTIALS"], "windsurf" => ["WINDSURF_SESSION_JSON"], "augment" => ["AUGMENT_COOKIE", "AUGMENT_COOKIE_HEADER"], "kiro" => ["KIRO_ACCESS_TOKEN"], "azureopenai" => ["AZURE_OPENAI_API_KEY"], _ => null
     };
+    private static bool MiniMaxTextModel(string name) => name.Trim().Equals("general", StringComparison.OrdinalIgnoreCase)
+        || name.Contains("minimax-m", StringComparison.OrdinalIgnoreCase) || name.StartsWith("m2.", StringComparison.OrdinalIgnoreCase);
+    private static bool MiniMaxTextQuota(string name) => MiniMaxTextModel(name)
+        || name.Contains("text", StringComparison.OrdinalIgnoreCase) && name.Contains("generation", StringComparison.OrdinalIgnoreCase);
     private static string KiloEndpoint() => "https://app.kilo.ai/api/trpc/user.getCreditBlocks,kiloPass.getState,user.getAutoTopUpPaymentMethod?batch=1&input=" +
         Uri.EscapeDataString("""{"0":{"json":null},"1":{"json":null},"2":{"json":null}}""");
     private static (string[] Paths, string? InternalId) DevinPaths(Func<string, string?> setting)
@@ -217,7 +221,7 @@ public sealed partial class NativeProviders
                     var name = Text(model, "model_name"); if (name is null) continue;
                     foreach (var weekly in new[] { false, true })
                     {
-                        if (weekly && !(name == "general" || name.Contains("minimax-m", StringComparison.OrdinalIgnoreCase) || name.StartsWith("m2.", StringComparison.OrdinalIgnoreCase))) continue;
+                        if (weekly && !MiniMaxTextModel(name)) continue;
                         var prefix = weekly ? "current_weekly_" : "current_interval_";
                         var total = Numeric(model, prefix + "total_count"); var left = Numeric(model, prefix + "usage_count");
                         var remaining = Numeric(model, prefix + "remaining_percent"); var unavailable = Numeric(model, prefix + "status") == 3;
@@ -240,6 +244,9 @@ public sealed partial class NativeProviders
                     if (Numeric(service, "limit") is > 0 and var limit && Numeric(service, "usage") is >= 0 and var used)
                         windows.Add(new("service." + windows.Count, (Text(service, "service_type") ?? "Usage") + " · " + Text(service, "window_type"),
                             Numeric(service, "percent") ?? used / limit * 100, DisplayValue: Text(service, "time_range")));
+            windows = windows.OrderBy(window => MiniMaxTextQuota(window.Name.Split('·')[0].Trim()) ? 0 : 1)
+                .ThenBy(window => window.Id.EndsWith(".weekly", StringComparison.Ordinal)
+                    || window.Name.Split('·')[^1].Trim().Equals("weekly", StringComparison.OrdinalIgnoreCase) ? 1 : 0).ToList();
             var balance = FirstNumeric(data, "points_balance", "point_balance", "credits_balance", "credit_balance");
             if (balance is >= 0) windows.Add(new("points", "Points balance", Unit: "points", DisplayValue: $"{balance:N2} points"));
         }

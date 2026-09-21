@@ -6,7 +6,7 @@ defineProvider({
   capabilities: ["browser-cookies"],
   cookieDomains: ["t3.chat"],
   async fetchUsage(ctx) {
-    const cookie = await ctx.browser.cookieHeader("t3.chat");
+    const cookie = await ctx.browser.cookieHeader("t3.chat", "https://t3.chat/api/trpc/getCustomerData");
     const input = encodeURIComponent(
       JSON.stringify({ 0: { json: { sessionId: null }, meta: { values: { sessionId: ["undefined"] } } } }),
     );
