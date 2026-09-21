@@ -63,7 +63,8 @@ internal static partial class NativeSmoke
                     await stream.WriteAsync(payload, lifetime.Token).ConfigureAwait(false); await stream.FlushAsync(lifetime.Token).ConfigureAwait(false);
                     File.WriteAllText(Path.Combine(directory, "requests.json"), JsonSerializer.Serialize(new { quotaRequests, deniedRequests }));
                 }
-                catch (Exception error) when (error is IOException or AuthenticationException or OperationCanceledException) { }
+                catch (Exception error) when (error is IOException or AuthenticationException or OperationCanceledException)
+                { File.AppendAllText(Path.Combine(directory, "transport-errors.txt"), error.GetType().Name + ":" + error.HResult.ToString("X8", System.Globalization.CultureInfo.InvariantCulture) + "\n"); }
             }
         }
         File.WriteAllText(Path.Combine(directory, "ready.json"), JsonSerializer.Serialize(new { pid = Environment.ProcessId, quotaPort, deniedPort }));
@@ -119,6 +120,16 @@ internal static partial class NativeSmoke
             Require(!connections.CanCache("gemini") && connections.Scope("gemini") is { Length: > 0 }, "Local IDE retained an account cache.");
             var localScope = connections.Scope("gemini");
             var local = await connections.FetchAsync("gemini", settings.Current, CancellationToken.None);
+            File.WriteAllText(Path.Combine(directory, "windows-antigravity-reading.json"), JsonSerializer.Serialize(local, JsonOptions));
+            if (local.State != ReadingState.Ready || local.Plan != "Pro" || local.Windows.Count != 2)
+            {
+                using var knownClient = AntigravityLocalConnection.CreateClient(process, quotaPort);
+                var direct = await AntigravityLocalUsage.FetchAsync(knownClient, "native-antigravity-fixture", process.IsCurrent);
+                File.WriteAllText(Path.Combine(directory, "windows-antigravity-direct-reading.json"), JsonSerializer.Serialize(direct, JsonOptions));
+            }
+            foreach (var diagnostic in new[] { "requests.json", "transport-errors.txt" })
+                if (File.Exists(Path.Combine(root, diagnostic)))
+                    File.Copy(Path.Combine(root, diagnostic), Path.Combine(directory, "windows-antigravity-" + diagnostic), overwrite: true);
             Require(local.State == ReadingState.Ready && local.Plan == "Pro" && local.Windows.Count == 2
                 && Math.Abs(local.Windows[0].UsedPercent!.Value - 33) < 0.001 && local.Windows[0].DurationMinutes == 300
                 && local.Windows[1].DurationMinutes == 10080, "Native discovery/TLS quota reading failed.");
