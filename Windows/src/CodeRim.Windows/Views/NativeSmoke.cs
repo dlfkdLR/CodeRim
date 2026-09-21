@@ -229,6 +229,7 @@ internal static partial class NativeSmoke
         Record("Codebuff DPAPI/environment/local login precedence, optional subscription and account replacement isolation");
         await MoonshotRegionRegression(dashboard, settings, vault, directory);
         await KimiConnectionRegression(dashboard, settings, vault, directory);
+        await StepFunConnectionRegression(dashboard, settings, vault, directory);
         Record("Kimi CLI and Web sources preserve credentials, quota priority and verified browser import");
         await DeepSeekSourceRegression(settings, vault, directory);
         Record("DeepSeek API and platform credentials stay separate through native source switching");

@@ -69,6 +69,7 @@ internal sealed partial class ProviderConnections : IDisposable
                 var reading = await native.FetchCodebuffAsync(selected?.Token, selected?.FromAuthFile == true, token).ConfigureAwait(false);
                 return selected == Resolve() ? reading : new(id, ReadingState.Unavailable, [], Message: "The connection changed. Refresh the selected account.");
             }
+            if (id == "stepfun") return await FetchStepFunConnectionAsync(browserOverride, token).ConfigureAwait(false);
             if (id == "kimi") return await FetchKimiConnectionAsync(browserOverride, token).ConfigureAwait(false);
             if (id == "deepseek")
             {
@@ -232,6 +233,7 @@ internal sealed partial class ProviderConnections : IDisposable
                 return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source)));
             }
             if (id is "codex" or "claude") return SavedAccounts.Current(id).Identity.Id;
+            if (id == "stepfun") return ResolveStepFun().Scope;
             if (id == "kimi")
             {
                 var selected = ResolveKimi();
