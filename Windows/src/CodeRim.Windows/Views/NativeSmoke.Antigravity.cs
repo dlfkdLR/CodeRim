@@ -27,7 +27,14 @@ internal static partial class NativeSmoke
         using var lifetime = new CancellationTokenSource(TimeSpan.FromSeconds(110));
         using var key = RSA.Create(2048);
         var request = new CertificateRequest("CN=CodeRim QA Loopback", key, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-        using var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddHours(1));
+        using var ephemeral = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddMinutes(-1), DateTimeOffset.UtcNow.AddHours(1));
+        // SChannel needs a temporary user-key association. No trust store or
+        // PersistKeySet is used; graceful fixture shutdown disposes that association.
+        var pkcs12 = ephemeral.Export(X509ContentType.Pfx);
+        X509Certificate2 loaded;
+        try { loaded = X509CertificateLoader.LoadPkcs12(pkcs12, null, X509KeyStorageFlags.UserKeySet); }
+        finally { CryptographicOperations.ZeroMemory(pkcs12); }
+        using var certificate = loaded;
         using var first = new TcpListener(IPAddress.Loopback, 0); first.Start();
         using var second = new TcpListener(IPAddress.Loopback, 0); second.Start();
         var firstPort = ((IPEndPoint)first.LocalEndpoint).Port; var secondPort = ((IPEndPoint)second.LocalEndpoint).Port;
@@ -68,8 +75,24 @@ internal static partial class NativeSmoke
             }
         }
         File.WriteAllText(Path.Combine(directory, "ready.json"), JsonSerializer.Serialize(new { pid = Environment.ProcessId, quotaPort, deniedPort }));
-        try { await Task.WhenAll(Listen(first), Listen(second)).ConfigureAwait(false); }
+        async Task StopSignal()
+        {
+            while (!File.Exists(Path.Combine(directory, "stop"))) await Task.Delay(100, lifetime.Token).ConfigureAwait(false);
+        }
+        var serving = Task.WhenAll(Listen(first), Listen(second));
+        var stopping = StopSignal();
+        try
+        {
+            await Task.WhenAny(serving, stopping).ConfigureAwait(false);
+            lifetime.Cancel();
+            await serving.ConfigureAwait(false);
+        }
         catch (OperationCanceledException) { }
+        finally
+        {
+            lifetime.Cancel();
+            try { await stopping.ConfigureAwait(false); } catch (OperationCanceledException) { }
+        }
     }
     private static async Task AntigravityRegression(DashboardWindow dashboard, AppSettingsStore settings, CredentialVault vault, string directory)
     {
@@ -84,6 +107,14 @@ internal static partial class NativeSmoke
         child.StartInfo.Environment["CODERIM_ANTIGRAVITY_FIXTURE_DIR"] = root;
         foreach (var arg in new[] { "--smoke-test", "--antigravity-fixture-server", "--csrf_token", "native-antigravity-fixture", "--app_data_dir", "antigravity" }) child.StartInfo.ArgumentList.Add(arg);
         var launched = false;
+        async Task StopChild()
+        {
+            if (!launched || child.HasExited) return;
+            File.WriteAllText(Path.Combine(root, "stop"), "stop");
+            using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try { await child.WaitForExitAsync(stopping.Token); }
+            catch (OperationCanceledException) { child.Kill(); await child.WaitForExitAsync(); }
+        }
         try
         {
             Require(AntigravityLocalConnection.ReadCsrf(@"C:\Program Files\Antigravity\language_server_windows_x64.exe",
@@ -158,7 +189,7 @@ internal static partial class NativeSmoke
                 finally { liveWindow.Close(); }
             }
             vault.Save("setting:gemini:ANTIGRAVITY_USAGE_SOURCE", "local");
-            child.Kill(); await child.WaitForExitAsync();
+            await StopChild();
             Require(!process.IsCurrent(), "Exited PID remained trusted.");
             var unavailable = await connections.FetchAsync("gemini", settings.Current, CancellationToken.None);
             Require(unavailable.Windows.Count == 0 && unavailable.State != ReadingState.Ready, "Stopped IDE restored local quota or fell back to OAuth.");
@@ -175,7 +206,8 @@ internal static partial class NativeSmoke
         }
         finally
         {
-            if (launched && !child.HasExited) { child.Kill(); await child.WaitForExitAsync(); }
+            await StopChild();
+            child.Dispose();
             vault.Delete("provider:gemini"); vault.Delete("setting:gemini:ANTIGRAVITY_USAGE_SOURCE");
             settings.Save(settings.Current with { EnabledProviders = originalProviders }); dashboard.Navigate("usage");
             try { Directory.Delete(root, recursive: true); } catch (Exception error) when (error is IOException or UnauthorizedAccessException)
