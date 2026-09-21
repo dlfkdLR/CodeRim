@@ -228,6 +228,10 @@ internal static partial class NativeSmoke
         await CodebuffAuthenticationRegression(settings.Current, vault, directory);
         Record("Codebuff DPAPI/environment/local login precedence, optional subscription and account replacement isolation");
         await MoonshotRegionRegression(dashboard, settings, vault, directory);
+        await AdditionalAuthenticationViews(settings, vault, directory);
+        Record("Four native auth readers render connector results without synthetic preview");
+        await AdditionalBrowserConnectionsRegression(dashboard, settings, vault, directory);
+        Record("Five additional Firefox readers verify scoped login and render native quota");
         Record("Moonshot regional endpoints, DPAPI key isolation, environment aliases and source UI");
         await AnalyticsRegression(store, settings, directory);
         ActivityRegression(store);

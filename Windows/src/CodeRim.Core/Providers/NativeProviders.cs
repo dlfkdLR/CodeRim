@@ -264,7 +264,7 @@ public sealed partial class NativeProviders : IDisposable
             if (id == "bedrock") return await FetchBedrock(setting, (url, body) => GetJson(url, requestBody: body), token).ConfigureAwait(false);
             if (id == "doubao") return await FetchDoubao(url => GetJson(url), token).ConfigureAwait(false);
             if (id == "windsurf") return ParseWindsurf(await GetJson("https://windsurf.com/_backend/exa.seat_management_pb.SeatManagementService/GetPlanStatus").ConfigureAwait(false));
-            if (id is "alibabatokenplan" or "qwencloud") return await FetchTokenPlan(id, credential!, setting, value => tokenPlanSec = value, url => GetJson(url), token).ConfigureAwait(false);
+            if (id is "alibabatokenplan" or "qwencloud") return await FetchTokenPlan(id, credential!, setting, cookieForUri, value => tokenPlanSec = value, url => GetJson(url), token).ConfigureAwait(false);
             if (id == "augment")
             {
                 var credits = await GetJson("https://app.augmentcode.com/api/credits").ConfigureAwait(false);
