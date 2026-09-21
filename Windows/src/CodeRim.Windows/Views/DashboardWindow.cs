@@ -450,7 +450,19 @@ internal sealed partial class DashboardWindow : Window
             foreach (var field in NativeProviders.Settings(id))
             {
                 var key = "setting:" + id + ":" + field.Key;
-                if (field.Key == "WINDSURF_USAGE_SOURCE")
+                if (field.Key == "ANTIGRAVITY_USAGE_SOURCE")
+                {
+                    var selected = AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, field.Key)) == "local" ? "Local IDE" : "OAuth";
+                    body.Children.Add(SettingsUi.Picker("Usage source", AntigravitySources, selected, value =>
+                    {
+                        try { vault.Save(key, value == "Local IDE" ? "local" : "oauth"); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
+                    }));
+                    body.Children.Add(Ui.Text("Local IDE reads quota from one running Antigravity session on this PC. OAuth uses your separately saved connection.", 11, "#A6A6AA"));
+                }
+                else if (id == "gemini" && AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, "ANTIGRAVITY_USAGE_SOURCE")) == "local") continue;
+                else if (field.Key == "WINDSURF_USAGE_SOURCE")
                 {
                     var selected = WindsurfLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, field.Key)) == "local" ? "Local" : "Web";
                     body.Children.Add(SettingsUi.Picker("Usage source", WindsurfSources, selected, value =>
@@ -501,7 +513,7 @@ internal sealed partial class DashboardWindow : Window
                 if (source == "web") { body.Children.Add(Ui.Text("Amp Web session cookie")); AddSecretField("cookie:amp", id, "Save cookie"); }
                 else if (source == "api") { body.Children.Add(Ui.Text("Amp API key")); AddSecretField("provider:amp", id, "Save credential"); }
             }
-            else if (id != "wayfinder") { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
+            else if (id != "wayfinder" && (id != "gemini" || AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, "ANTIGRAVITY_USAGE_SOURCE")) == "oauth")) { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
         }
         else if (!HasConnector(id)) body.Children.Add(Ui.Text("This provider's Windows integration is still pending. Adding it does not create a live connection.", color: "#F2C66D"));
         if (BrowserConnections.Domains(id).Length > 0 && (id != "amp" || AmpCliUsage.Source(ProviderConnections.EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE")) == "web"))
@@ -532,6 +544,7 @@ internal sealed partial class DashboardWindow : Window
                 child.Margin = new Thickness(18, child.Margin.Top, 18, child.Margin.Bottom);
         UpdateProviderControlStates();
     }
+    private static readonly string[] AntigravitySources = ["OAuth", "Local IDE"];
     private static readonly string[] AmpSources = ["API", "CLI", "Web"];
     private static readonly string[] WindsurfSources = ["Web", "Local"];
     private static TextBlock ProviderValue(string identifier, string text, double size = 13)

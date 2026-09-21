@@ -37,9 +37,9 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     public event Action<ProviderReading>? ReadingUpdated;
     public event Action<SessionActivity>? SessionAttentionRequested;
     public bool Synthetic { get; }
-    public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false)
+    public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false, ProviderConnections? providerConnections = null)
     {
-        this.settings = settings; Synthetic = synthetic; connections = new ProviderConnections(vault);
+        this.settings = settings; Synthetic = synthetic; connections = providerConnections ?? new ProviderConnections(vault);
         repository = new UsageRepository(Path.Combine(CompanionFile.DataDirectory, "usage.sqlite"));
         var keyPath = Path.Combine(CompanionFile.DataDirectory, "project-key.bin");
         if (!File.Exists(keyPath)) File.WriteAllBytes(keyPath, System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));

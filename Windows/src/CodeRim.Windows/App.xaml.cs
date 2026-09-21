@@ -33,6 +33,12 @@ public partial class App : System.Windows.Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Contains("--smoke-test", StringComparer.Ordinal) && e.Args.Contains("--antigravity-fixture-server", StringComparer.Ordinal))
+        {
+            try { await NativeSmoke.RunAntigravityFixtureAsync(); Shutdown(); }
+            catch (Exception error) when (error is not OutOfMemoryException) { Shutdown(1); }
+            return;
+        }
         SettingsTheme.Apply();
         Microsoft.Win32.SystemEvents.UserPreferenceChanged += AppearanceChanged;
         smokeTest = e.Args.Contains("--smoke-test", StringComparer.Ordinal);
