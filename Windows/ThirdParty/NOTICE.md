@@ -9,3 +9,5 @@ The bundled Jint JavaScript interpreter is BSD-2-Clause licensed. Microsoft.Data
 The bundled Windows qoder.js additionally handles missing or expired credentials per region, so importing a China-only browser session does not send it to qoder.com or stop before qoder.com.cn. Browser imports preserve per-request cookie scope in the native host.
 
 Windows browser scope compatibility: the prelude accepts an optional HTTPS request URL for cookieHeader; Qoder, Perplexity and T3 Chat use it to preserve cookie paths. Qoder preserves regional auth fallback while keeping service failures distinct from rejected credentials. Manus retains its upstream explicit session_id-to-Bearer contract.
+
+GroqConsoleProvider adapts the Groq console session, Stytch frontend exchange, organization activity endpoint and field mapping from the same pinned CodexBar revision. The Stytch frontend identifier is publishable metadata, not a private credential. Missing usage fields remain unknown and enterprise Prometheus metrics remain a separate source.

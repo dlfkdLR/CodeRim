@@ -12,6 +12,7 @@ internal static partial class NativeSmoke
         using var connections = new ProviderConnections(vault);
         var providers = settings.Current.EnabledProviders;
         var alias = Environment.GetEnvironmentVariable("ANTIGRAVITY_OAUTH_CREDENTIALS_JSON");
+        var groqAlias = Environment.GetEnvironmentVariable("GROQ_SESSION_JWT");
         try
         {
             vault.Save("provider:amp", "synthetic-api-fallback");
@@ -55,11 +56,19 @@ internal static partial class NativeSmoke
             windSource.SelectedItem = "Web"; await Idle();
             Require(connections.CanCache("windsurf"), "Windsurf source picker did not switch the connector");
             File.Delete(localPath);
+            Environment.SetEnvironmentVariable("GROQ_SESSION_JWT", "header.first.signature");
+            var groqScope = connections.Scope("groq");
+            Environment.SetEnvironmentVariable("GROQ_SESSION_JWT", "header.second.signature");
+            Require(groqScope is not null && groqScope != connections.Scope("groq"), "Groq console session does not invalidate account scope");
+            settings.Save(settings.Current with { EnabledProviders = [..providers, "groq"] }); dashboard.Navigate("groq"); await Idle();
+            Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Console session JWT, session JSON, or enterprise API key"), "Groq settings hide the console session connection");
+            Require(Descendants<Button>(dashboard).Any(x => Equals(x.Content, "Import from Firefox…")), "Groq Firefox connection is absent");
             Require(!connections.CanCache("jetbrains") && connections.Scope("jetbrains") is { Length: > 0 }, "Local JetBrains display has no volatile source scope");
         }
         finally
         {
             Environment.SetEnvironmentVariable("ANTIGRAVITY_OAUTH_CREDENTIALS_JSON", alias);
+            Environment.SetEnvironmentVariable("GROQ_SESSION_JWT", groqAlias);
             vault.Delete("provider:windsurf"); vault.Delete("setting:windsurf:WINDSURF_USAGE_SOURCE"); vault.Delete("setting:windsurf:WINDSURF_CACHE_PATH");
             vault.Delete("provider:amp"); vault.Delete("setting:amp:AMP_USAGE_SOURCE"); vault.Delete("setting:amp:AMP_EXECUTABLE");
             settings.Save(settings.Current with { EnabledProviders = providers }); dashboard.Navigate("usage"); await Idle();

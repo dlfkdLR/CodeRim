@@ -28,7 +28,7 @@ public sealed partial class NativeProviders : IDisposable
         credential = credential?.Trim();
         if (cookieForUri is not null && credential is null) credential = "imported-browser-session";
         if (!Supported.Contains(id)) return new(id, ReadingState.Unsupported, []);
-        if (id is "windsurf" or "gemini" or "gemini-cli" or "vertexai" or "kiro" or "bedrock" && credential?.TrimStart().StartsWith('{') == true)
+        if (id is "windsurf" or "gemini" or "gemini-cli" or "vertexai" or "kiro" or "bedrock" or "groq" && credential?.TrimStart().StartsWith('{') == true)
         {
             if (credential.Length > 262144) return new(id, ReadingState.NeedsAuth, [], Message: "The credential profile is too large.");
             try { using var profile = JsonDocument.Parse(credential); credential = JsonSerializer.Serialize(profile.RootElement); }
@@ -347,7 +347,9 @@ public sealed partial class NativeProviders : IDisposable
             }
             if (id == "zoommate") return await FetchZoomMate(zoomBearer is null, value => zoomBearer = value, url => GetJson(url), token).ConfigureAwait(false);
             if (id == "mistral") return await FetchMistral(url => cookieForUri is null ? credential : cookieForUri(new Uri(url)), url => GetJson(url), token).ConfigureAwait(false);
-            if (id == "groq") return await FetchGroq(setting, url => GetJson(url)).ConfigureAwait(false);
+            if (id == "groq") return GroqConsoleSelected(credential!, cookieForUri)
+                ? await FetchGroqConsole(credential!, cookieForUri, deadline.Token).ConfigureAwait(false)
+                : await FetchGroq(setting, url => GetJson(url)).ConfigureAwait(false);
             if (id == "zed")
             {
                 var response = await GetJson("https://cloud.zed.dev/client/users/me").ConfigureAwait(false);

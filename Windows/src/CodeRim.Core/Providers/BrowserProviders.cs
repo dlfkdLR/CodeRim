@@ -29,7 +29,7 @@ public sealed partial class NativeProviders
         "notion" => "Notion web cookie header (token_v2), or token_v2 value",
         "zed" => "Zed access token",
         "zoommate" => "Bearer token, or Cookie: followed by the ZoomMate cookie header",
-        "groq" => "Enterprise API key with Prometheus metrics access",
+        "groq" => "Console session JWT, session JSON, or enterprise API key",
         _ => "Provider key or access token"
     };
     private static string NormalizeBrowserCredential(string id, string credential)

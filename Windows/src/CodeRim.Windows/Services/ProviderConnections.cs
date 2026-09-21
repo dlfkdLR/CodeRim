@@ -57,6 +57,7 @@ internal sealed class ProviderConnections : IDisposable
             }
             var definition = ProviderCatalog.Find(id);
             var secret = vault.Load("provider:" + id);
+            if (id == "groq" && secret is null) secret = NativeProviders.GroqEnvironmentCredential(Environment.GetEnvironmentVariable);
             if (secret is null && definition is not null)
             {
                 var keys = NativeProviders.CredentialKeys(id) ?? (id == "copilot" ? ["GH_TOKEN", "GITHUB_TOKEN"] : definition.EnvironmentKeys.Where(k => k.EndsWith("KEY", StringComparison.Ordinal) || k.EndsWith("TOKEN", StringComparison.Ordinal) || k.EndsWith("COOKIE", StringComparison.Ordinal)).ToArray());
