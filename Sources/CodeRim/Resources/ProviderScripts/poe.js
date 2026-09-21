@@ -13,21 +13,21 @@ defineProvider({
   ],
 
   async fetchUsage(ctx) {
-    const balanceResponse = await ctx.http.getJSON("https://api.poe.com/usage/current_balance");
+    const balanceResponse = await ctx.http.get("https://api.poe.com/usage/current_balance");
     if (balanceResponse.status === 401 || balanceResponse.status === 403) {
-      throw new Error("Invalid or expired Poe API token");
+      throw ctx.fail.authenticationExpired("Invalid or expired Poe API token");
     }
     if (balanceResponse.status < 200 || balanceResponse.status >= 300) {
       throw new Error(`Poe API error: HTTP ${balanceResponse.status}`);
     }
-    const payload = balanceResponse.json;
+    const payload = JSON.parse(balanceResponse.bodyText);
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
       throw new Error("Failed to parse Poe balance response");
     }
 
     function optionalNumber(value, field) {
       if (value === null || value === undefined) return null;
-      const number = typeof value === "number" ? value : typeof value === "string" ? Number(value.trim()) : NaN;
+      const number = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value.trim()) : NaN;
       if (!Number.isFinite(number)) throw new Error(`Poe ${field} must be numeric`);
       return number;
     }
@@ -52,7 +52,7 @@ defineProvider({
       const secondary = [`${summary.requests} requests`];
       if (summary.hasCost) secondary.push(`$${summary.cost.toFixed(2)}`);
       return {
-        label,
+        label: historyComplete ? label : `${label} (partial)`,
         value: `${compact(summary.points)} points`,
         secondaryValue: secondary.join(" · "),
       };
@@ -60,6 +60,9 @@ defineProvider({
 
     const balance = optionalNumber(payload.current_point_balance, "current_point_balance");
     const entries = [];
+    let historyComplete = false;
+    const seenCursors = new Set();
+    const seenQueryIDs = new Set();
     try {
       let cursor = null;
       const cutoff = ctx.date.nowMillis() - 30 * 86400000;
@@ -75,17 +78,22 @@ defineProvider({
             ? root.items
             : Array.isArray(root.results)
               ? root.results
-              : [];
+              : null;
+        if (!rows) throw new Error("invalid history rows");
         for (const row of rows) {
-          if (!row || typeof row !== "object" || Array.isArray(row)) continue;
+          if (!row || typeof row !== "object" || Array.isArray(row)) throw new Error("invalid history entry");
+          const id = typeof row.query_id === "string" ? row.query_id.trim() : null;
+          if (id && seenQueryIDs.has(id)) continue;
           const date = entryDate(row.creation_time ?? row.timestamp ?? row.created_at);
-          if (!date || date.getTime() < cutoff) continue;
+          if (!date) throw new Error("invalid history date");
+          if (date.getTime() < cutoff) continue;
           const points = Math.max(0, optionalNumber(row.cost_points ?? row.points ?? row.point_cost, "points") ?? 0);
           const cost = optionalNumber(row.cost_usd ?? row.usd, "cost_usd");
           const model = typeof row.bot_name === "string" && row.bot_name.trim() ? row.bot_name.trim() : "unknown";
           const usageType =
             typeof row.usage_type === "string" && row.usage_type.trim() ? row.usage_type.trim() : "unknown";
           entries.push({ date, points, cost, model, usageType });
+          if (id) seenQueryIDs.add(id);
         }
         const next = typeof root.next_cursor === "string" && root.next_cursor.trim() ? root.next_cursor.trim() : null;
         cursor =
@@ -93,7 +101,9 @@ defineProvider({
           (root.has_more === true && rows.length && typeof rows[rows.length - 1].query_id === "string"
             ? rows[rows.length - 1].query_id.trim()
             : null);
-        if (!cursor) break;
+        if (!cursor) { historyComplete = root.has_more !== true; break; }
+        if (seenCursors.has(cursor)) break;
+        seenCursors.add(cursor);
         const lastDate = rows.length
           ? entryDate(
               rows[rows.length - 1].creation_time ??
@@ -101,7 +111,7 @@ defineProvider({
                 rows[rows.length - 1].created_at,
             )
           : null;
-        if (lastDate && lastDate.getTime() < cutoff) break;
+        if (lastDate && lastDate.getTime() < cutoff) { historyComplete = true; break; }
       }
     } catch {}
 
@@ -163,6 +173,7 @@ defineProvider({
           });
         });
     }
+    if (!historyComplete && !entries.length) rows.push({ label: "History", value: "Unavailable" });
     const section = { title: "Points", rows };
     if (days.length) {
       section.chart = {
@@ -172,7 +183,7 @@ defineProvider({
         points: days.map((item) => ({ label: item[0], value: item[1] })),
       };
     }
-    const result = { details: [section], identity: {} };
+    const result = { details: [section], identity: {}, dataConfidence: historyComplete ? "exact" : "estimated" };
     if (balance !== null) result.identity.loginMethod = `Balance: ${compact(balance)} points`;
     return result;
   },

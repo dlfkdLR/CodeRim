@@ -143,9 +143,15 @@ internal sealed class NotchWindow : Window
             ring.Waiting = store.Sessions.Any(x => x.Provider == ring.ProviderId && x.State == "waiting");
             ring.Refreshing = store.RefreshingProviders.Contains(ring.ProviderId);
             ring.InvalidateVisual();
+            if (buttons.TryGetValue(ring.ProviderId, out var button)) UpdateRingAccessibility(button, ring);
         }
         if (popup.IsOpen && popup.Child is UIElement child && !child.IsKeyboardFocusWithin) RefreshPopup();
         ConfigureAnimation();
+    }
+    private static void UpdateRingAccessibility(Button button, ProviderRing ring)
+    {
+        AutomationProperties.SetName(button, (ProviderCatalog.Find(ring.ProviderId)?.Name ?? ring.ProviderId) + "; " + ring.AccessibleReading());
+        AutomationProperties.SetHelpText(button, "Show usage details. Activate to refresh or open the session needing attention.");
     }
     private void ConfigureAnimation()
     {
@@ -189,7 +195,7 @@ internal sealed class NotchWindow : Window
                 Height = Vertical ? NotchMetrics.CellHeight : NotchMetrics.SideDepth - NotchMetrics.Ring + NotchMetrics.CellHeight,
                 Margin = Vertical ? new Thickness(0, 0, 0, NotchMetrics.CellGap) : new Thickness(0, 0, NotchMetrics.CellGap, 0) };
             buttons[id] = button;
-            AutomationProperties.SetName(button, (ProviderCatalog.Find(id)?.Name ?? id) + " usage; refresh");
+            UpdateRingAccessibility(button, ring);
             AutomationProperties.SetAutomationId(button, "notch.provider." + id);
             button.Click += async (_, _) =>
             {
@@ -278,7 +284,8 @@ internal sealed class NotchWindow : Window
     {
         if (hovered is null || !buttons.ContainsKey(hovered)) return;
         var scrollOffset = FindScroll(popup.Child)?.VerticalOffset ?? 0;
-        var card = NotchPopover.Create(hovered, store, settings.Current, page => { popup.IsOpen = false; openSettings(page); });
+        var screen = SelectedScreen();
+        var card = NotchPopover.Create(hovered, store, settings.Current, page => { popup.IsOpen = false; openSettings(page); }, screen.WorkingArea.Height / ScreenScale(screen));
         AttachPopup(card); popup.Child = card;
         card.Loaded += (_, _) => FindScroll(card)?.ScrollToVerticalOffset(scrollOffset);
     }

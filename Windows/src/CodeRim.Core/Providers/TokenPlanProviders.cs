@@ -53,7 +53,7 @@ public sealed partial class NativeProviders
         if (!string.IsNullOrWhiteSpace(sec)) fields["sec_token"] = sec;
         request.Content = new FormUrlEncodedContent(fields);
     }
-    private static async Task<ProviderReading> FetchTokenPlan(string id, string credential, Func<string, string?> setting, Action<string> setSec, Func<string, Task<JsonElement>> get, CancellationToken token)
+    private static async Task<ProviderReading> FetchTokenPlan(string id, string credential, Func<string, string?> setting, Func<Uri, string?>? cookieForUri, Action<string> setSec, Func<string, Task<JsonElement>> get, CancellationToken token)
     {
         var config = TokenPlanConfig(id, setting);
         if (string.IsNullOrWhiteSpace(setting(id == "qwencloud" ? "QWEN_CLOUD_SEC_TOKEN" : "ALIBABA_TOKEN_PLAN_SEC_TOKEN")))
@@ -71,7 +71,14 @@ public sealed partial class NativeProviders
                 try { sec = ExpandedContexts(await get(config.Origin + "/tool/user/info.json").ConfigureAwait(false)).Select(x => Text(x, "secToken") ?? Text(x, "sec_token") ?? Text(x, "SEC_TOKEN") ?? Text(x, "csrfToken") ?? Text(x, "token")).FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)); }
                 catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException) { token.ThrowIfCancellationRequested(); transient |= error is HttpRequestException or IOException or OperationCanceledException || error is ProviderRequestException http && (int)http.Status >= 500; }
             }
-            sec ??= TokenPlanCookie(NormalizeBrowserCredential(id, credential), "sec_token");
+            // The console uses a dashboard CSRF token in its paired gateway form.
+            // Keep the Cookie headers scoped to each actual request; only this
+            // named token can move between the selected region's fixed origins.
+            string? ScopedSec(string url) => cookieForUri?.Invoke(new Uri(url)) is { } cookie
+                ? TokenPlanCookie(NormalizeBrowserCredential(id, cookie), "sec_token") : null;
+            sec ??= cookieForUri is null
+                ? TokenPlanCookie(NormalizeBrowserCredential(id, credential), "sec_token")
+                : ScopedSec(config.Dashboard) ?? ScopedSec(config.Gateway + "/data/api.json");
             if (sec is not null) setSec(sec);
             else if (id == "qwencloud") { if (transient) throw new IOException("The console is temporarily unavailable."); throw new ProviderRequestException(HttpStatusCode.Unauthorized); }
         }

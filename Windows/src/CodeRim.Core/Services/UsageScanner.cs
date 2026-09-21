@@ -770,7 +770,7 @@ public sealed class UsageScanner
         }
     }
 
-    private readonly record struct FileIdentity(uint VolumeSerialNumber, ulong FileIndex)
+    internal readonly record struct FileIdentity(uint VolumeSerialNumber, ulong FileIndex)
     {
         public static FileIdentity? TryRead(SafeFileHandle handle)
         {

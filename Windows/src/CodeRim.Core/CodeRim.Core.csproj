@@ -12,5 +12,6 @@
     <PackageReference Include="Jint" Version="4.16.2" />
     <EmbeddedResource Include="Resources/*.json" />
     <EmbeddedResource Include="Resources/Plugins/*.js" />
+    <EmbeddedResource Include="../../../Sources/CodeRim/Resources/ProviderScripts/*.js" LogicalName="CodeRim.Core.Resources.Plugins.%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

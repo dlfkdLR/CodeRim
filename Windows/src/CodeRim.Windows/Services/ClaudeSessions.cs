@@ -9,9 +9,10 @@ namespace CodeRim.Windows.Services;
 
 internal static class ClaudeSessions
 {
-    public static IReadOnlyList<SessionActivity> Read()
+    public static IReadOnlyList<SessionActivity> Read(CancellationToken cancellationToken = default)
     {
         var results = new Dictionary<string, SessionActivity>(StringComparer.Ordinal);
+        var starts = new Dictionary<string, DateTimeOffset>(StringComparer.Ordinal);
         var projects = UsageScanner.DefaultRoots("claude")[0];
         var directory = Path.Combine(Path.GetDirectoryName(projects)!, "sessions");
         if (!Directory.Exists(directory) || (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0) return [];
@@ -19,6 +20,7 @@ internal static class ClaudeSessions
         { RecurseSubdirectories = true, MaxRecursionDepth = 4, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint }).Take(50000).ToLookup(Path.GetFileNameWithoutExtension, StringComparer.Ordinal) : null;
         foreach (var path in Directory.EnumerateFiles(directory, "*.json").Take(512))
         {
+            cancellationToken.ThrowIfCancellationRequested();
             try
             {
                 if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0 || new FileInfo(path).Length > 65536) continue;
@@ -32,11 +34,15 @@ internal static class ClaudeSessions
                 state = state switch { "blocked" or "waiting" => "waiting", "active" or "busy" => "busy", "idle" => "idle", _ => null };
                 var updated = ProviderParsers.Date(ProviderParsers.Get(root, "statusUpdatedAt"), milliseconds: true)
                     ?? ProviderParsers.Date(ProviderParsers.Get(root, "updatedAt"), milliseconds: true) ?? started ?? DateTimeOffset.Now;
-                var transcript = transcripts?[id].FirstOrDefault(); var activity = transcript is null ? null : ActivityReader.ReadClaude(transcript, DateTimeOffset.Now);
+                var transcript = transcripts?[id].OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault(); var activity = transcript is null ? null : ActivityReader.ReadClaude(transcript, DateTimeOffset.Now, cancellationToken);
                 if (state is null) { if (activity is null) continue; state = activity.State; updated = activity.Since; }
                 else if (activity is { State: "idle" } && activity.Since > updated) { state = "idle"; updated = activity.Since; }
                 var cwd = ProviderParsers.Text(root, "cwd") ?? "Claude session";
                 var name = Path.GetFileName(cwd.TrimEnd('\\', '/'));
+                var processStarted = started ?? new DateTimeOffset(process.StartTime.ToUniversalTime());
+                if (starts.TryGetValue(id, out var previousStart) && (previousStart > processStarted
+                    || previousStart == processStarted && results[id].Since >= updated)) continue;
+                starts[id] = processStarted;
                 results[id] = new(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(id))), "claude", name, state, updated)
                     { ProcessId = started.HasValue ? (int)pid : null,
                         ProcessStartedAt = started.HasValue ? new DateTimeOffset(process.StartTime.ToUniversalTime()) : null };

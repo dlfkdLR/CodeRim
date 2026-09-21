@@ -67,6 +67,20 @@ public sealed class KiroAugmentTests
         var reading = await provider.FetchAsync("augment", "Cookie: session=fixture", _ => null, TestContext.Current.CancellationToken);
         Assert.Equal(20, reading.Headline!.UsedPercent); Assert.Equal("Max", reading.Plan); Assert.Equal("credits", reading.Headline.Unit);
     }
+    [Fact]
+    public async Task OptionalAugmentLimitDoesNotSuppressFreshCreditRequests()
+    {
+        var calls = 0;
+        using var provider = new NativeProviders(new Handler(request =>
+        {
+            if (request.RequestUri!.AbsolutePath == "/api/credits")
+            { calls++; return Task.FromResult(Ok("""{"usageUnitsConsumedThisBillingCycle":200,"usageUnitsAvailable":1000}""")); }
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.TooManyRequests));
+        }));
+        Assert.Equal(ReadingState.Ready, (await provider.FetchAsync("augment", "Cookie: session=first", _ => null, TestContext.Current.CancellationToken)).State);
+        Assert.Equal(ReadingState.Ready, (await provider.FetchAsync("augment", "Cookie: session=second", _ => null, TestContext.Current.CancellationToken)).State);
+        Assert.Equal(2, calls);
+    }
     private static HttpResponseMessage Ok(string value) => new(HttpStatusCode.OK) { Content = new StringContent(value) };
     private sealed class Handler(Func<HttpRequestMessage, Task<HttpResponseMessage>> reply) : HttpMessageHandler
     { protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token) => reply(request); }

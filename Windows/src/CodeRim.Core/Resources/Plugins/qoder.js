@@ -8,8 +8,9 @@ defineProvider({
   async fetchUsage(ctx) {
     let response = null;
     for (const site of ["qoder.com", "qoder.com.cn"]) {
-      const cookie = await ctx.browser.cookieHeader(site);
+      try {
       const origin = `https://${site}`;
+      const cookie = await ctx.browser.cookieHeader(site, `${origin}/api/v2/me/usages/big_model_credits`);
       const candidate = await ctx.http.getJSON(`${origin}/api/v2/me/usages/big_model_credits`, {
         headers: {
           Cookie: cookie,
@@ -23,8 +24,14 @@ defineProvider({
         response = candidate;
         break;
       }
+      throw new Error(`Qoder API error: HTTP ${candidate.status}`);
+      } catch (error) {
+        // A saved browser profile may be signed in to only one region.
+        // Keep cookies scoped to that region; only missing/expired auth can fall back.
+        if (!/(missing-credential|authentication-expired)/.test(String(error && error.message))) throw error;
+      }
     }
-    if (!response) throw new Error("Qoder credentials were rejected");
+    if (!response) throw ctx.fail.authenticationExpired("Qoder credentials were rejected");
     const root = response.json || {};
     const container = root.totalQuota || root.total_quota;
     const sharedContainer = root.sharedQuota || root.shared_quota;
