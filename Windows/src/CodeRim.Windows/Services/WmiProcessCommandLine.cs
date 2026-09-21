@@ -66,7 +66,7 @@ internal static class WmiProcessCommandLine
     private static void Check(int result, string operation)
     {
         // Fixed operation names only: no command line, PID, path or credential.
-        if (result < 0) throw new COMException("IDE discovery failed during " + operation + ".", result);
+        if (result < 0) throw new IOException("IDE discovery failed during " + operation + " (0x" + result.ToString("X8", CultureInfo.InvariantCulture) + ").");
     }
     // Security is attached to a specific interface proxy. Marshaling these as
     // object/IUnknown sets a different proxy and leaves ExecQuery/Next at IDENTIFY.
