@@ -27,7 +27,8 @@ public sealed partial class NativeProviders : IDisposable
     {
         ArgumentNullException.ThrowIfNull(setting);
         var rawSetting = setting;
-        setting = key => rawSetting(key)?.Trim() is { Length: > 0 } value ? value : null;
+        setting = key => id == "stepfun" && key == "STEPFUN_PASSWORD" ? rawSetting(key)
+            : rawSetting(key)?.Trim() is { Length: > 0 } value ? value : null;
         if (id == "alibabatokenplan")
         {
             // Console navigation and gateway requests must use one region for
@@ -35,6 +36,18 @@ public sealed partial class NativeProviders : IDisposable
             var selectedRegion = setting("ALIBABA_TOKEN_PLAN_REGION");
             var remainingSettings = setting;
             setting = key => key == "ALIBABA_TOKEN_PLAN_REGION" ? selectedRegion : remainingSettings(key);
+        }
+        if (id == "stepfun")
+        {
+            var mode = CodeRim.Core.Services.StepFunAuthentication.Mode(setting("STEPFUN_AUTH_MODE"));
+            if (mode is null) return new(id, ReadingState.Error, [], Message: "Choose Auto or Manual for StepFun.");
+            var supplied = cookieForUri is null ? credential : cookieForUri(StepFunUsageUri);
+            var profile = CodeRim.Core.Services.StepFunAuthentication.Manual(supplied);
+            if (profile is null && !string.IsNullOrWhiteSpace(supplied)) return new(id, ReadingState.NeedsAuth, [], Message: "Update the StepFun token.");
+            if (profile is null && mode == "auto" && cookieForUri is null)
+                profile = CodeRim.Core.Services.StepFunAuthentication.Login(setting("STEPFUN_USERNAME"), setting("STEPFUN_PASSWORD"));
+            if (profile is null) return new(id, ReadingState.NeedsAuth, [], Message: "Connect StepFun in Settings.");
+            return (await FetchStepFunAsync(profile, cookieForUri, token).ConfigureAwait(false)).Reading;
         }
         if (id == "kimi") return await FetchKimiAsync(new("api", credential, setting("KIMI_CODE_BASE_URL")), token).ConfigureAwait(false);
         credential = credential?.Trim();

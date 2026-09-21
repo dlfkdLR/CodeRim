@@ -448,12 +448,24 @@ internal sealed partial class DashboardWindow : Window
         {
             if (id is "cursor" or "grok" or "opencode" or "commandcode" or "kilo" or "gemini-cli" or "vertexai" or "kiro") body.Children.Add(Ui.Text("Reads the provider’s existing local sign-in automatically. A saved credential overrides local discovery.", 12, "#A6A6AA"));
             if (id == "bedrock") body.Children.Add(Ui.Text("Uses your AWS CLI v2 profile, including SSO and assume-role sessions. Sign in with aws sso login first. Cost Explorer and CloudWatch permissions are required; AWS may charge for these queries.", 12, "#A6A6AA"));
+            if (id == "stepfun") body.Children.Add(Ui.Text("Auto uses your saved sign-in or username and password. Manual keeps the selected Oasis-Token and can refresh it without changing accounts.", 12));
             if (id == "kimi") body.Children.Add(Ui.Text("Auto tries your API key, a fresh Kimi Code CLI sign-in, then the selected Web session. Expired CLI credentials require signing in again.", 12));
             if (id == "cursor") body.Children.Add(Ui.Text("Manual value: WorkosCursorSessionToken cookie header", 12));
             foreach (var field in NativeProviders.Settings(id))
             {
                 var key = "setting:" + id + ":" + field.Key;
-                if (field.Key is "DEEPSEEK_USAGE_SOURCE" or "KIMI_USAGE_SOURCE")
+                if (field.Key == "STEPFUN_AUTH_MODE")
+                {
+                    var selected = StepFunAuthentication.Mode(ProviderConnections.EffectiveSetting(vault, id, field.Key)) == "manual" ? "Manual" : "Auto";
+                    body.Children.Add(SettingsUi.Picker(field.Label, StepFunModes, selected, value =>
+                    {
+                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the authentication mode.", "CodeRim"); }
+                    }));
+                }
+                else if (id == "stepfun" && StepFunAuthentication.Mode(ProviderConnections.EffectiveSetting(vault, id, "STEPFUN_AUTH_MODE")) == "manual") continue;
+                else if (field.Key is "DEEPSEEK_USAGE_SOURCE" or "KIMI_USAGE_SOURCE")
                 {
                     var selected = DeepSeekAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, field.Key)) switch { "api" => "API", "web" => "Web", _ => "Auto" };
                     body.Children.Add(SettingsUi.Picker("Usage source", DeepSeekSources, selected, value =>
@@ -531,7 +543,7 @@ internal sealed partial class DashboardWindow : Window
                         catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { MessageBox.Show(this, "Could not save this setting.", "CodeRim"); }
                     }));
                 }
-                else { body.Children.Add(Ui.Text(field.Label)); if (field.Key.EndsWith("_TOKEN", StringComparison.Ordinal) || field.Key.EndsWith("_SECRET", StringComparison.Ordinal)) AddSecretField(key, id, "Save token"); else AddSettingField(key, id); }
+                else { body.Children.Add(Ui.Text(field.Label)); if (field.Key.EndsWith("_TOKEN", StringComparison.Ordinal) || field.Key.EndsWith("_SECRET", StringComparison.Ordinal) || field.Key.EndsWith("_PASSWORD", StringComparison.Ordinal)) AddSecretField(key, id, field.Key.EndsWith("_PASSWORD", StringComparison.Ordinal) ? "Save password" : "Save token"); else AddSettingField(key, id); }
             }
             if (id == "kimi")
             {
@@ -626,6 +638,7 @@ internal sealed partial class DashboardWindow : Window
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { MessageBox.Show(this, "Could not save this setting.", "CodeRim"); }
         }));
     }
+    private static readonly string[] StepFunModes = ["Auto", "Manual"];
     private void AddSecretField(string key, string id, string label)
     {
         var password = new PasswordBox { MaxLength = id == "factory" ? 262144 : 32768, Padding = new Thickness(8), Margin = new Thickness(0, 6, 0, 8) }; body.Children.Add(password);
@@ -633,8 +646,8 @@ internal sealed partial class DashboardWindow : Window
         var result = Ui.Text("", 11, "#B7B8BD");
         body.Children.Add(Ui.Button(label, () =>
         {
-            if (string.IsNullOrWhiteSpace(password.Password)) return;
-            try { vault.Save(key, password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
+            if (key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password.Length == 0 : string.IsNullOrWhiteSpace(password.Password)) return;
+            try { vault.Save(key, key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password : password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { result.Text = "Could not save the setting."; }
         }));
         body.Children.Add(Ui.Button("Remove saved value", () =>

@@ -9,6 +9,7 @@ public sealed partial class NativeProviders
 {
     public static IReadOnlyList<(string Key, string Label)> Settings(string id) => id switch
     {
+        "stepfun" => [("STEPFUN_AUTH_MODE", "Authentication"), ("STEPFUN_USERNAME", "Username"), ("STEPFUN_PASSWORD", "Password")],
         "deepseek" => [("DEEPSEEK_USAGE_SOURCE", "Usage source")],
         "moonshot" => [("MOONSHOT_REGION", "Region")],
         "windsurf" => [("WINDSURF_USAGE_SOURCE", "Usage source"), ("WINDSURF_CACHE_PATH", "Local Windsurf state.vscdb path")],
