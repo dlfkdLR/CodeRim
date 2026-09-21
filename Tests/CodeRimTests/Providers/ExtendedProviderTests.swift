@@ -469,4 +469,39 @@ final class ExtendedProviderTests: XCTestCase {
         XCTAssertTrue(result.windows.isEmpty)
     }
 
+
+    func testStepFunPasswordKeepsSignificantWhitespaceFromSettingsToFetchContext() throws {
+        var config = ExtendedProviderConfiguration(providerID: .stepfun)
+        config.environment["STEPFUN_USERNAME"] = config.environmentInput(" user ", for: "STEPFUN_USERNAME")
+        config.environment["STEPFUN_PASSWORD"] = config.environmentInput(" pass word ", for: "STEPFUN_PASSWORD")
+        let environment = config.fetchEnvironment(base: [:])
+        let settings = try XCTUnwrap(config.settings(environment: environment)?.stepfun)
+        XCTAssertEqual(settings.username, "user")
+        XCTAssertEqual(settings.password, " pass word ")
+        XCTAssertEqual(settings.cookieSource, .auto)
+        config.provider.cookieSource = .manual
+        config.provider.cookieHeader = "manual-token"
+        XCTAssertEqual(config.settings(environment: environment)?.stepfun?.manualToken, "manual-token")
+        XCTAssertEqual(config.settings(environment: environment)?.stepfun?.cookieSource, .manual)
+        let other = ExtendedProviderConfiguration(providerID: .kimi)
+        XCTAssertEqual(other.environmentInput(" value ", for: "KIMI_AUTH_TOKEN"), "value")
+    }
+
+    func testStepFunProcessEnvironmentPasswordDoesNotUseTokenTrimming() {
+        let config = ExtendedProviderConfiguration(providerID: .stepfun)
+        let settings = config.settings(environment: ["STEPFUN_USERNAME": " user ", "STEPFUN_PASSWORD": "  pass  "])?.stepfun
+        XCTAssertEqual(settings?.username, "user")
+        XCTAssertEqual(settings?.password, "  pass  ")
+    }
+
+    func testStepFunEnvironmentTokenKeepsPriorityOverPassword() throws {
+        var config = ExtendedProviderConfiguration(providerID: .stepfun)
+        config.environment = ["STEPFUN_TOKEN": "fixture-token", "STEPFUN_USERNAME": "user", "STEPFUN_PASSWORD": " pass "]
+        let environment = config.fetchEnvironment(base: [:])
+        let settings = try XCTUnwrap(config.settings(environment: environment)?.stepfun)
+        XCTAssertEqual(settings.username, "")
+        XCTAssertEqual(settings.password, "")
+        XCTAssertEqual(environment["STEPFUN_PASSWORD"], " pass ")
+        XCTAssertEqual(StepFunSettingsReader.token(environment: environment), "fixture-token")
+    }
 }

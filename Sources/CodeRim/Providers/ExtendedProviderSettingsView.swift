@@ -70,7 +70,7 @@ struct ExtendedProviderSettingsView: View {
                                     Text(key).font(.caption).textSelection(.enabled)
                                     SecureField("Optional value", text: Binding(
                                         get: { configuration.environment[key] ?? "" },
-                                        set: { configuration.environment[key] = $0.trimmingCharacters(in: .whitespacesAndNewlines) }))
+                                        set: { configuration.environment[key] = configuration.environmentInput($0, for: key) }))
                                         .accessibilityLabel(key)
                                 }
                             }

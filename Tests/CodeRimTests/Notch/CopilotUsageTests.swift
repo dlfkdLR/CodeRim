@@ -83,7 +83,7 @@ final class NotchCopilotUsageTests: XCTestCase {
             command: { XCTFail("should not invoke gh"); return nil }
         )
         XCTAssertEqual(credentials.token, "env-token")
-        XCTAssertEqual(credentials.username, "octocat")
+        XCTAssertNil(credentials.username, "An environment token must not inherit another CLI account's label")
     }
 
     func testParsesGitHubCLIHosts() throws {
@@ -94,6 +94,80 @@ final class NotchCopilotUsageTests: XCTestCase {
         )
         XCTAssertEqual(credentials.token, "cli-token")
         XCTAssertEqual(credentials.source, "GitHub CLI")
+    }
+
+    func testBlankGitHubAliasDoesNotHideSecondEnvironmentToken() throws {
+        let credentials = try GitHubCopilotCredentials.load(
+            environment: ["GH_TOKEN": "  ", "GITHUB_TOKEN": "current-env"],
+            hosts: "github.com:\n    user: other\n    oauth_token: other-token\n",
+            command: { XCTFail("environment should take precedence"); return nil })
+        XCTAssertEqual(credentials.token, "current-env")
+        XCTAssertNil(credentials.username)
+        let account = GitHubCopilotCredentials.account(environment: ["GITHUB_TOKEN": "current-env"],
+            hosts: "github.com:\n    user: other\n    oauth_token: other-token\n")
+        XCTAssertNotNil(account, "Environment authentication must keep the provider visible")
+        XCTAssertNil(account?.label)
+    }
+
+    func testInvalidExplicitTokenDoesNotSelectAnotherAccount() {
+        XCTAssertThrowsError(try GitHubCopilotCredentials.load(environment: ["GH_TOKEN": "invalid\nheader"],
+            hosts: "github.com:\n    user: other\n    oauth_token: other-token\n",
+            command: { XCTFail("must not replace the explicit account"); return nil }))
+        XCTAssertNil(GitHubCopilotCredentials.account(environment: ["GH_TOKEN": "invalid\nheader"],
+            hosts: "github.com:\n    user: other\n    oauth_token: other-token\n"))
+    }
+
+    @MainActor
+    func testLateCopilotResponseDoesNotCrossAccountSwitch() async throws {
+        ProviderFixtureProtocol.install { request in
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer first")
+            return (200, #"{"quota_snapshots":{"chat":{"entitlement":100,"remaining":67}}}"#)
+        }
+        defer { ProviderFixtureProtocol.uninstall() }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ProviderFixtureProtocol.self]
+        let source = CopilotCredentialSequence()
+        let provider = CopilotNotchProvider(session: URLSession(configuration: configuration), loadCredentials: { source.next() })
+        do {
+            _ = try await provider.fetchSnapshot()
+            XCTFail("Previous account quota must not be published")
+        } catch NotchProviderError.needsAuth {}
+    }
+
+    func testActiveGitHubUserWinsOverLastStoredUser() throws {
+        let hosts = """
+        github.com:
+            user: active
+            users:
+                active:
+                    oauth_token: active-token
+                inactive:
+                    oauth_token: inactive-token
+        """
+        let credentials = try GitHubCopilotCredentials.load(environment: [:], hosts: hosts,
+            command: { XCTFail("active stored token is available"); return nil })
+        XCTAssertEqual(credentials.token, "active-token")
+        XCTAssertEqual(credentials.username, "active")
+    }
+
+    func testMalformedOrConflictingHostsAreLeftToGitHubCLI() throws {
+        let inputs = [
+            "github.com:\n    user: active\n    git_protocol: https\n        oauth_token: wrong-depth\n",
+            "github.com:\n    user: active\n  oauth_token: wrong-depth\n",
+            "github.com:\n    oauth_token: first\n    oauth_token: second\n",
+            "github.com:\n    oauth_token: root\n    user: active\n    users:\n        active:\n            oauth_token: conflict\n"
+        ]
+        for hosts in inputs {
+            let credentials = try GitHubCopilotCredentials.load(environment: [:], hosts: hosts, command: { "cli-current" })
+            XCTAssertEqual(credentials.token, "cli-current")
+            XCTAssertNil(credentials.username)
+        }
+    }
+
+    func testGitHubConfigDirectoryUsesDocumentedOverrides() {
+        XCTAssertEqual(GitHubCopilotCredentials.hostsURL(environment: ["GH_CONFIG_DIR": "/custom/gh"], home: "/home/u").path, "/custom/gh/hosts.yml")
+        XCTAssertEqual(GitHubCopilotCredentials.hostsURL(environment: ["XDG_CONFIG_HOME": "/custom"], home: "/home/u").path, "/custom/gh/hosts.yml")
+        XCTAssertEqual(GitHubCopilotCredentials.hostsURL(environment: [:], home: "/home/u").path, "/home/u/.config/gh/hosts.yml")
     }
 
     func testNoTokenAnywhereIsANeedsAuth() {
@@ -123,5 +197,16 @@ final class NotchCopilotUsageTests: XCTestCase {
         } catch {
             XCTFail("expected needsAuth, got \(error)")
         }
+    }
+}
+
+private final class CopilotCredentialSequence: @unchecked Sendable {
+    private let lock = NSLock()
+    private var index = 0
+    func next() -> GitHubCopilotCredentials {
+        lock.lock()
+        defer { lock.unlock() }
+        index += 1
+        return GitHubCopilotCredentials(token: index == 1 ? "first" : "second", username: nil, source: "GitHub")
     }
 }

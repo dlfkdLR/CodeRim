@@ -69,7 +69,11 @@ final class ExtendedNotchProvider: NotchProvider {
             })
         do {
             let result = try await KeychainCacheStore.withServiceOverrideForTesting(Self.cacheService) {
-                try await fetch(descriptor, context)
+                try await StepFunPasswordRecovery.$cacheCommit.withValue({ [weak self] token in
+                    await self?.cacheStepFunSession(token, version: version)
+                }) {
+                    try await fetch(descriptor, context)
+                }
             }
             try Task.checkCancellation()
             guard revision == version else { throw CancellationError() }
@@ -93,6 +97,7 @@ final class ExtendedNotchProvider: NotchProvider {
     }
 
     nonisolated static func fetchUpstream(_ descriptor: ProviderDescriptor, context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        if descriptor.id == .stepfun { return try await StepFunPasswordRecovery.fetch(descriptor, context: context) }
         if descriptor.id == .xai || descriptor.id == .poe {
             return try await SharedScriptProvider.fetch(descriptor.id, environment: context.env)
         }
@@ -137,6 +142,13 @@ final class ExtendedNotchProvider: NotchProvider {
                 message: "JetBrains AI has not reported a valid quota. Sign in and activate AI in the IDE.")
         }
         return try JetBrainsStatusProbe.parseXMLData(data, detectedIDE: ide)
+    }
+
+    private func cacheStepFunSession(_ token: String, version: UUID) {
+        guard revision == version, descriptor.id == .stepfun else { return }
+        // The version check and cache commit share this MainActor turn. Settings
+        // invalidation cannot clear the account between them and then be undone.
+        CookieHeaderCache.store(provider: .stepfun, cookieHeader: token, sourceLabel: "login")
     }
 
     private func persistRecoveredToken(_ token: String, provider: CodexBarCore.UsageProvider, version: UUID) {
