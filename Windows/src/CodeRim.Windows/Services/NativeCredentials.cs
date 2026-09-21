@@ -20,6 +20,8 @@ internal static class NativeCredentials
                     return GitHubAuthentication.ParseHosts(CopilotConnection.ScopeMarker());
                 case "glm":
                     return GlmAuthentication.Serialize(GlmAuthentication.Read(home));
+                case "kimi":
+                    return JsonSerializer.Serialize(KimiAuthentication.ReadCli(home, Environment.GetEnvironmentVariable, DateTimeOffset.UtcNow));
                 case "codebuff":
                     return CodebuffAuthentication.Read(Path.Combine(home, ".config", "manicode", "credentials.json"));
                 case "kiro":

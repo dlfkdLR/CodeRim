@@ -28,6 +28,15 @@ public sealed partial class NativeProviders : IDisposable
         ArgumentNullException.ThrowIfNull(setting);
         var rawSetting = setting;
         setting = key => rawSetting(key)?.Trim() is { Length: > 0 } value ? value : null;
+        if (id == "alibabatokenplan")
+        {
+            // Console navigation and gateway requests must use one region for
+            // the entire transaction, even when Settings changes while awaiting HTTP.
+            var selectedRegion = setting("ALIBABA_TOKEN_PLAN_REGION");
+            var remainingSettings = setting;
+            setting = key => key == "ALIBABA_TOKEN_PLAN_REGION" ? selectedRegion : remainingSettings(key);
+        }
+        if (id == "kimi") return await FetchKimiAsync(new("api", credential, setting("KIMI_CODE_BASE_URL")), token).ConfigureAwait(false);
         credential = credential?.Trim();
         if (cookieForUri is not null && credential is null) credential = "imported-browser-session";
         if (!Supported.Contains(id)) return new(id, ReadingState.Unsupported, []);
@@ -42,7 +51,8 @@ public sealed partial class NativeProviders : IDisposable
         if (id != "wayfinder" && (string.IsNullOrWhiteSpace(credential) || credential.Any(char.IsControl))) return new(id, ReadingState.NeedsAuth, [], Message: "Connect this provider in Settings or sign in to its CLI.");
         if (id == "factory" && cookieForUri is null && credential?.StartsWith('{') == true)
             return await FetchFactorySessionAsync(credential, setting, token: token).ConfigureAwait(false);
-        if (retryAfter.TryGetValue(id, out var retry) && retry > DateTimeOffset.Now) return new(id, ReadingState.Unavailable, [], Message: "Provider rate limit reached. Waiting before retrying.");
+        string? retryScope = null;
+        foreach (var expired in retryAfter.Where(pair => pair.Value <= DateTimeOffset.Now)) retryAfter.TryRemove(expired.Key, out _);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(45));
         var documents = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
         string? tokenPlanSec = setting(id == "qwencloud" ? "QWEN_CLOUD_SEC_TOKEN" : "ALIBABA_TOKEN_PLAN_SEC_TOKEN");
@@ -60,6 +70,14 @@ public sealed partial class NativeProviders : IDisposable
             FactoryCredential? originalFactoryAuth = null; FactoryCredential? sentFactoryAuth = null;
             var requestCredential = cookieForUri is null ? credential : cookieForUri(request.RequestUri!)
                 ?? throw new ProviderRequestException(HttpStatusCode.Unauthorized);
+            // Use the first actual request's URI-scoped credential for the complete transaction.
+            // This preserves a later billing 429 across retries without throttling a new account.
+            retryScope ??= ProviderRetryScope.Create(id, requestCredential, url,
+                new { Values = Settings(id).Select(field => new { field.Key, Value = setting(field.Key) }).ToArray(),
+                    AzureDeployment = id == "azureopenai" ? AzureDeployment(setting) : null,
+                    KiroProfile = id == "kiro" ? kiroProfile : null });
+            if (retryAfter.TryGetValue(retryScope, out var retry) && retry > DateTimeOffset.Now)
+                throw new ProviderRequestException(HttpStatusCode.TooManyRequests);
             if (id == "opencode-zen" && requestBody is not null)
             {
                 request.Method = HttpMethod.Post; request.Content = new StringContent(requestBody, System.Text.Encoding.UTF8, "application/json");
@@ -202,7 +220,7 @@ public sealed partial class NativeProviders : IDisposable
             if (id == "factory" && response.IsSuccessStatusCode && request.RequestUri!.AbsolutePath == "/api/app/auth/me")
                 factoryContext.AcceptedBearer = sentFactoryAuth!.Bearer;
             if (response.StatusCode == HttpStatusCode.TooManyRequests && !optionalRequest)
-                retryAfter[id] = response.Headers.RetryAfter?.Date ?? DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(1));
+                retryAfter[retryScope] = response.Headers.RetryAfter?.Date ?? DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(1));
             if (BrowserIds.Contains(id) && (int)response.StatusCode is >= 300 and < 400) throw new ProviderRequestException(HttpStatusCode.Unauthorized);
             var googleTokenError = (id is "gemini-cli" or "vertexai" or "gemini") && request.RequestUri!.Host == "oauth2.googleapis.com"
                 && response.StatusCode == HttpStatusCode.BadRequest;

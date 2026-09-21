@@ -34,6 +34,30 @@ public sealed class TokenPlanTests
         Assert.Equal(ReadingState.Ready, reading.State); Assert.Equal(25, reading.Windows[0].UsedPercent); Assert.Equal(60, reading.Windows[1].UsedPercent);
         Assert.Contains("100", reading.Windows[0].DisplayValue); Assert.Equal("pro", reading.Plan);
     }
+    [Theory]
+    [InlineData("cn-personal", "intl-personal", "bailian.console.aliyun.com", "bailian-cs.console.aliyun.com", "cn-beijing")]
+    [InlineData("intl-personal", "cn-personal", "modelstudio.console.alibabacloud.com", "bailian-singapore-cs.alibabacloud.com", "ap-southeast-1")]
+    public async Task RegionDoesNotChangeHalfwayThroughAConsoleTransaction(string initial, string replacement, string origin, string gateway, string region)
+    {
+        var selected = initial;
+        using var provider = new NativeProviders(new Handler(async request => {
+            if (request.RequestUri!.AbsolutePath != "/data/api.json")
+            {
+                selected = replacement;
+                return Ok("""<script>window.CONFIG={SEC_TOKEN:"initial-sec"}</script>""");
+            }
+            Assert.Equal(gateway, request.RequestUri.Host);
+            Assert.Equal("https://" + origin, request.Headers.GetValues("Origin").Single());
+            var form = await request.Content!.ReadAsStringAsync();
+            Assert.Contains("region=" + region, form);
+            Assert.Contains("sec_token=initial-sec", form);
+            return Ok("""{"per5HourPercentage":0.33}""");
+        }));
+        var reading = await provider.FetchAsync("alibabatokenplan", "session=fixture",
+            key => key == "ALIBABA_TOKEN_PLAN_REGION" ? selected : null, TestContext.Current.CancellationToken);
+        Assert.Equal(replacement, selected);
+        Assert.Equal(ReadingState.Ready, reading.State);
+    }
     [Fact]
     public async Task TeamPlanUsesSummaryAndDoesNotReportCreditsAsTokens()
     {

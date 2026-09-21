@@ -75,7 +75,7 @@ internal static partial class NativeSmoke
                     }
                     return new(HttpStatusCode.OK) { Content = new StringContent(body) };
                 }
-                ProviderConnections Connections() => new(vault, new NativeProviders(new AmpFixtureHandler(Response)));
+                ProviderConnections Connections() => new(vault, new NativeProviders(new AmpFixtureHandler(Response)), nativeCredentialReader: _ => null);
                 vault.Save("provider:" + id, "manual-preserved");
                 if (id == "alibabatokenplan") vault.Save("setting:" + id + ":ALIBABA_TOKEN_PLAN_REGION", "intl-personal");
                 using var verifier = Connections();

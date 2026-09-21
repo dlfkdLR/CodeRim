@@ -59,18 +59,18 @@ On macOS, inherited-session images after the logged replay boundary are counted 
 
 The 70-provider catalog and artwork match the macOS catalog. **The current source has a connection implementation for each of the 70 catalog entries.** Even implemented connections require native Windows and live-account verification.
 
-Remaining native/PTY/OAuth and browser-localStorage integrations, activity sources beyond Codex/Claude, a signed installer, in-place automatic updates, and full accessibility/mixed-monitor verification remain unfinished. Firefox cookie import is implemented for the supported cookie readers; it does not imply complete browser authentication parity. Windows Widgets are excluded from this parity effort. API-key or manual-cookie support does not imply that every macOS authentication strategy has been ported. Native Windows CI covers synthetic startup, rendering, credential storage, account display, bridge installation, and CLI behavior; live account/provider verification is separate.
+Remaining native/PTY/OAuth and browser-localStorage integrations, a signed installer, in-place automatic updates, and full accessibility/mixed-monitor verification remain unfinished. Firefox cookie import is implemented for the supported cookie readers; it does not imply complete browser authentication parity. Windows Widgets are excluded from this parity effort. API-key or manual-cookie support does not imply that every macOS authentication strategy has been ported. Native Windows CI covers synthetic startup, rendering, credential storage, account display, bridge installation, and CLI behavior; live account/provider verification is separate.
 
 | Provider | Windows connection |
 | --- | --- |
 | Codex (`codex`) | Local JSONL + Codex app-server |
 | Claude Code (`claude`) | Local JSONL + status-line bridge |
-| GitHub Copilot (`copilot`) | GitHub access token |
+| GitHub Copilot (`copilot`) | Saved token, GH_TOKEN/GITHUB_TOKEN, selected github.com GitHub CLI account or bounded gh auth token lookup |
 | Cursor (`cursor`) | Cursor local IDE sign-in or session cookie |
 | Grok (`grok`) | Grok CLI sign-in or CLI access token |
 | OpenCode Go (`opencode`) | OpenCode Go local sign-in or API key |
 | Command Code (`commandcode`) | Command Code local sign-in or API key |
-| GLM (`glm`) | Z_AI_API_KEY; region and scope settings |
+| GLM (`glm`) | Saved/environment API key or trusted Claude/ZCode/OpenCode Coding Plan sign-in, bound to the detected region |
 | Ollama Cloud (`ollama`) | Ollama Cloud API key |
 | Antigravity (`gemini`) | OAuth token/JSON or process-bound Local IDE; model quotas, session/week cadence and plan metadata |
 | Ollama Local (`ollama-local`) | Local read-only API |
@@ -79,21 +79,21 @@ Remaining native/PTY/OAuth and browser-localStorage integrations, activity sourc
 | ClinePass (`clinepass`) | CLINE_API_KEY |
 | OpenCode (`opencode-zen`) | Web auth cookie; workspace subscription quotas or pay-as-you-go spending |
 | Alibaba (`alibaba`) | Coding Plan API key and intl/cn region; request quota |
-| Alibaba Token Plan (`alibabatokenplan`) | Console cookie; Team/Personal in intl/cn regions, sec_token discovery |
-| Qwen Cloud (`qwencloud`) | Console cookie; Personal Token Plan rolling limits and sec_token discovery |
+| Alibaba Token Plan (`alibabatokenplan`) | Console cookie or Firefox import; Team/Personal in intl/cn regions, scoped sec_token discovery |
+| Qwen Cloud (`qwencloud`) | Console cookie or Firefox import; Personal Token Plan rolling limits and scoped sec_token discovery |
 | Droid (`factory`) | Factory API key/Authorization, Cookie/Firefox import or saved WorkOS session JSON with refresh; current or legacy personal quota |
 | Fireworks (`fireworks`) | API key and account slug |
 | Gemini (`gemini-cli`) | Gemini CLI OAuth detection/refresh; Code Assist model quotas and consumer-migration state |
 | Devin (`devin`) | Access token and organization; quota and overage |
 | MiniMax (`minimax`) | Coding API key and region; plan quota |
 | Manus (`manus`) | manus.im Cookie header or Firefox import |
-| Kimi Code (`kimi`) | Kimi Code API key; coding quota |
+| Kimi Code (`kimi`) | Auto/API/Web; API key, fresh read-only CLI sign-in, manual Web token/cookie or selected Firefox import |
 | Kilo (`kilo`) | Kilo local sign-in or API token; personal/organization billing |
 | Kiro (`kiro`) | CLI state database or token/profile ARN; plan and overage credits |
 | Vertex AI (`vertexai`) | gcloud ADC or OAuth token; active project Cloud Monitoring quota |
 | Augment (`augment`) | Augment web cookie; account credits and billing cycle |
 | JetBrains AI (`jetbrains`) | Installed IDE quota XML (read-only) |
-| Moonshot / Kimi Open Platform (`moonshot`) | Moonshot API key |
+| Moonshot / Kimi Open Platform (`moonshot`) | Separate International/China API keys and fixed regional balance endpoints; USD/CNY preserved |
 | Amp (`amp`) | API/CLI source for subscription and balances, or Web cookie/Firefox source for Amp Free |
 | T3 Chat (`t3chat`) | t3.chat Cookie header or Firefox import |
 | Synthetic (`synthetic`) | API key |
@@ -103,14 +103,14 @@ Remaining native/PTY/OAuth and browser-localStorage integrations, activity sourc
 | Windsurf (`windsurf`) | Devin session JSON or explicitly selected local Windsurf state database; cached values are labelled stale |
 | Zed (`zed`) | User ID and access token; edit predictions |
 | Perplexity (`perplexity`) | perplexity.ai Cookie header or Firefox import |
-| Xiaomi MiMo (`mimo`) | MiMo console cookie; balance and token-plan credits |
+| Xiaomi MiMo (`mimo`) | MiMo console cookie or Firefox import; balance and token-plan credits |
 | Doubao (`doubao`) | Volcengine signing keys; Coding Plan percentages and Agent Plan points |
 | Sakana AI (`sakana`) | Sakana web cookie; billing page limits |
-| Abacus AI (`abacus`) | Abacus web cookie; compute credits |
+| Abacus AI (`abacus`) | Abacus web cookie or Firefox import; compute credits |
 | Mistral (`mistral`) | Mistral web cookie; Vibe limits, monthly spending, credits |
-| DeepSeek (`deepseek`) | DeepSeek API key |
+| DeepSeek (`deepseek`) | Auto/API/Web source selection; API key and platform session stored separately, currency balances preserved |
 | DeepInfra (`deepinfra`) | API key; balance and current-period spend |
-| Codebuff (`codebuff`) | API key; usage and subscription |
+| Codebuff (`codebuff`) | API key or Codebuff/Manicode local sign-in; optional subscription details for the local session |
 | Crof (`crof`) | API key |
 | Venice (`venice`) | API key |
 | Qoder (`qoder`) | qoder.com or qoder.com.cn Cookie header or Firefox import |
@@ -124,7 +124,7 @@ Remaining native/PTY/OAuth and browser-localStorage integrations, activity sourc
 | Chutes (`chutes`) | API key; rolling/monthly/per-model quota |
 | Neuralwatt (`neuralwatt`) | API key; quota |
 | ClawRouter (`clawrouter`) | Policy API key; optional Base URL |
-| LongCat (`longcat`) | LongCat web cookie; active token and fuel packs |
+| LongCat (`longcat`) | LongCat web cookie or Firefox import; active token and fuel packs |
 | sub2api (`sub2api`) | API key and Base URL |
 | Wayfinder (`wayfinder`) | Local gateway URL; health and savings |
 | ZenMux (`zenmux`) | Management API key; subscription quota |
@@ -136,7 +136,20 @@ Remaining native/PTY/OAuth and browser-localStorage integrations, activity sourc
 
 ## Browser and local sources
 
-In Settings → Providers, **Import from Firefox** is available for Qoder, Perplexity, Manus, T3 Chat, Cursor, Notion AI, Mistral, Augment, OpenCode Zen, Groq and Droid (Factory), plus Amp when its Web source is selected. Choose one signed-in profile. Only the provider domains are selected; containers and partitioned sessions are not merged. A rejected import cannot erase a working saved connection. Manual credentials remain available.
+Kimi Code offers **Auto / API / Web**. Auto tries a configured Code API key, a fresh Kimi Code CLI login, then your selected Web connection. Explicit API/Web modes keep their own credentials. CLI reads KIMI_CODE_HOME/credentials/kimi-code.json (or ~/.kimi-code) only while its expiry has more than 60 seconds remaining; it never refreshes or writes the CLI login. A custom Code API/OAuth host disables borrowing that CLI token. Explicit API keys require HTTPS. Web accepts a token/cookie or verified Firefox import and sends only the selected kimi-auth token to the fixed www.kimi.com endpoints. Weekly quota is the primary gauge, matching macOS; shared Total usage uses the subscription pool rather than the Code-only ratio. Optional subscription statistics/title share a two-second deadline and cannot erase a completed primary reading. Auto fallback has an account-bound 30-second lease to stabilize the display; it is invalidated by candidate changes and expires before the next ordinary poll so the preferred source can recover. API/CLI readings are not enriched with another Web account. Automatic Kimi Desktop discovery is not implemented. The Windows CLI data root and KIMI_CODE_HOME behavior are also documented in the [official Kimi data-location reference](https://moonshotai.github.io/kimi-code/en/configuration/data-locations.html); endpoint override names are described in the [official environment reference](https://moonshotai.github.io/kimi-code/en/configuration/env-vars.html).
+
+GitHub Copilot reuses the active github.com account in the GitHub CLI configuration. GH_CONFIG_DIR and XDG_CONFIG_HOME are supported when absolute. An ambiguous or malformed hosts file cannot select an inactive account. If no usable file token exists, CodeRim can run the installed gh executable with a fixed auth-token command, bounded output and timeout. Tokens are never command-line arguments. CLI-only identity is not restored as a verified quota cache.
+
+GLM can reuse recognized Z.ai/BigModel credentials from Claude settings, ZCode or OpenCode. Only fixed trusted vendor hosts select a region; an unrelated custom base URL is not used with a borrowed token. A configured but invalid explicit key requires correction rather than silently switching accounts. Borrowed credentials are read only.
+
+Codebuff can reuse ~/.config/manicode/credentials.json. Local sessions may add subscription information, but a failure of that optional request does not erase a successful usage reading or throttle the next required request. Moonshot stores International and China keys independently; its legacy saved key belongs only to International. Changing region invalidates the old balance before refreshing.
+
+DeepSeek offers **Auto / API / Web**. API accepts DEEPSEEK_API_KEY or DEEPSEEK_KEY and its saved API key. Web accepts DEEPSEEK_PLATFORM_TOKEN or DEEPSEEK_USER_TOKEN and its separately saved platform session. Auto prefers a configured API key, then Web. Explicit source selection never borrows the other credential type. API requests use api.deepseek.com; Web wallet requests use platform.deepseek.com. USD/CNY and other returned currency wallets remain money, without invented token counts or percentages. An API balance marked unavailable is labelled accordingly. Browser localStorage discovery and optional detailed Web usage are not yet implemented.
+
+
+In Settings → Providers, **Import from Firefox** is available for Qoder, Perplexity, Manus, T3 Chat, Cursor, Notion AI, Mistral, Augment, OpenCode Zen, Groq, Droid (Factory), Kimi Code (Auto/Web), MiMo, Abacus, LongCat, Alibaba Token Plan and Qwen Cloud, plus Amp when its Web source is selected. Choose one signed-in profile. Only the provider domains are selected; containers and partitioned sessions are not merged. A rejected import cannot erase a working saved connection. Manual credentials remain available.
+
+Alibaba Token Plan freezes the selected region for the complete request sequence. Dashboard SEC tokens may be used only in the fixed paired gateway form; Cookie and CSRF headers retain each actual request URI scope. Changing region during a request discards the old result before updating the UI or snapshot.
 
 Factory accepts an API key, pasted Authorization bearer or Cookie header (FACTORY_API_KEY, FACTORY_COOKIE and FACTORY_COOKIE_HEADER are also supported). Firefox imports retain per-request domain/path scope across its three pinned Factory origins. A rejected bearer restarts authentication and billing together in cookie-only mode; bounded conflict recovery uses only cookies from the same selected profile. Rate limits stop the transaction. A saved WorkOS session JSON can contain access_token, refresh_token, organization_id and an optional pinned Factory client_id (camelCase token aliases are also accepted). When needed, refresh exchanges the token only at api.workos.com; the rotated session is saved with DPAPI only if the original credential entry is unchanged. Concurrent refreshes are serialized, while replacing/removing the connection remains available. Browser localStorage discovery is not implemented yet. Environment or direct Core profiles are ephemeral; save the JSON in the provider page to retain rotated tokens across restarts.
 

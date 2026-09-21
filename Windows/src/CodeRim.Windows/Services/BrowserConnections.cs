@@ -12,6 +12,7 @@ internal static class BrowserConnections
 {
     internal static string[] Domains(string id) => id == "perplexity" ? ["perplexity.ai"] : ScriptProviders.Catalog.TryGetValue(id, out var script)
         ? script.CookieDomains : id switch {
+            "kimi" => ["kimi.com"],
             "mimo" => ["xiaomimimo.com"],
             "abacus" => ["abacus.ai"],
             "longcat" => ["longcat.chat"],

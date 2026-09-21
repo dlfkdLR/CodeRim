@@ -448,12 +448,24 @@ internal sealed partial class DashboardWindow : Window
         {
             if (id is "cursor" or "grok" or "opencode" or "commandcode" or "kilo" or "gemini-cli" or "vertexai" or "kiro") body.Children.Add(Ui.Text("Reads the provider’s existing local sign-in automatically. A saved credential overrides local discovery.", 12, "#A6A6AA"));
             if (id == "bedrock") body.Children.Add(Ui.Text("Uses your AWS CLI v2 profile, including SSO and assume-role sessions. Sign in with aws sso login first. Cost Explorer and CloudWatch permissions are required; AWS may charge for these queries.", 12, "#A6A6AA"));
-            if (id == "kimi") body.Children.Add(Ui.Text("Use a Kimi Code API key (KIMI_CODE_API_KEY), not a Kimi web session token.", 12));
+            if (id == "kimi") body.Children.Add(Ui.Text("Auto tries your API key, a fresh Kimi Code CLI sign-in, then the selected Web session. Expired CLI credentials require signing in again.", 12));
             if (id == "cursor") body.Children.Add(Ui.Text("Manual value: WorkosCursorSessionToken cookie header", 12));
             foreach (var field in NativeProviders.Settings(id))
             {
                 var key = "setting:" + id + ":" + field.Key;
-                if (field.Key == "MOONSHOT_REGION")
+                if (field.Key is "DEEPSEEK_USAGE_SOURCE" or "KIMI_USAGE_SOURCE")
+                {
+                    var selected = DeepSeekAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, field.Key)) switch { "api" => "API", "web" => "Web", _ => "Auto" };
+                    body.Children.Add(SettingsUi.Picker("Usage source", DeepSeekSources, selected, value =>
+                    {
+                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
+                    }));
+                    body.Children.Add(Ui.Text(id == "kimi" ? "API, CLI and Web keep their account data separate. Web uses only its selected session."
+                        : "Auto uses an API key when present, then a platform session. Each source keeps its own credential.", 11, "#A6A6AA"));
+                }
+                else if (field.Key == "MOONSHOT_REGION")
                 {
                     var selected = MoonshotAuthentication.Region(ProviderConnections.EffectiveSetting(vault, id, field.Key)) == "china" ? "China" : "International";
                     body.Children.Add(SettingsUi.Picker("Region", MoonshotRegions, selected, value =>
@@ -521,7 +533,19 @@ internal sealed partial class DashboardWindow : Window
                 }
                 else { body.Children.Add(Ui.Text(field.Label)); if (field.Key.EndsWith("_TOKEN", StringComparison.Ordinal) || field.Key.EndsWith("_SECRET", StringComparison.Ordinal)) AddSecretField(key, id, "Save token"); else AddSettingField(key, id); }
             }
-            if (id == "moonshot")
+            if (id == "kimi")
+            {
+                var source = KimiAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "KIMI_USAGE_SOURCE"));
+                if (source is "auto" or "api") { body.Children.Add(Ui.Text("Kimi Code API key")); AddSecretField("provider:kimi", id, "Save API key"); }
+                if (source is "auto" or "web") { body.Children.Add(Ui.Text("Kimi Web session token or cookie")); AddSecretField("cookie:kimi", id, "Save Web session"); }
+            }
+            else if (id == "deepseek")
+            {
+                var source = DeepSeekAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "DEEPSEEK_USAGE_SOURCE"));
+                if (source is "auto" or "api") { body.Children.Add(Ui.Text("DeepSeek API key")); AddSecretField("provider:deepseek", id, "Save API key"); }
+                if (source is "auto" or "web") { body.Children.Add(Ui.Text("DeepSeek platform session token")); AddSecretField("provider:deepseek:web", id, "Save platform session"); }
+            }
+            else if (id == "moonshot")
             {
                 var region = MoonshotAuthentication.Region(ProviderConnections.EffectiveSetting(vault, id, "MOONSHOT_REGION"));
                 if (region is not null) { body.Children.Add(Ui.Text(region == "china" ? "Moonshot China API key" : "Moonshot International API key")); AddSecretField("provider:moonshot:" + region, id, "Save credential"); }
@@ -535,7 +559,7 @@ internal sealed partial class DashboardWindow : Window
             else if (id != "wayfinder" && (id != "gemini" || AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, "ANTIGRAVITY_USAGE_SOURCE")) == "oauth")) { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
         }
         else if (!HasConnector(id)) body.Children.Add(Ui.Text("This provider's Windows integration is still pending. Adding it does not create a live connection.", color: "#F2C66D"));
-        if (BrowserConnections.Domains(id).Length > 0 && (id != "amp" || AmpCliUsage.Source(ProviderConnections.EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE")) == "web"))
+        if (BrowserConnections.Domains(id).Length > 0 && (id != "kimi" || KimiAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "KIMI_USAGE_SOURCE")) is "auto" or "web") && (id != "amp" || AmpCliUsage.Source(ProviderConnections.EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE")) == "web"))
         {
             body.Children.Add(Ui.Button("Import from Firefox…", () => BrowserConnections.Import(this, id, vault, settings.Current, () =>
             { store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); })));
@@ -563,6 +587,7 @@ internal sealed partial class DashboardWindow : Window
                 child.Margin = new Thickness(18, child.Margin.Top, 18, child.Margin.Bottom);
         UpdateProviderControlStates();
     }
+    private static readonly string[] DeepSeekSources = ["Auto", "API", "Web"];
     private static readonly string[] MoonshotRegions = ["International", "China"];
     private static readonly string[] AntigravitySources = ["OAuth", "Local IDE"];
     private static readonly string[] AmpSources = ["API", "CLI", "Web"];

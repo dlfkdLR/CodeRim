@@ -6,7 +6,7 @@ using CodeRim.Core.Services;
 
 namespace CodeRim.Windows.Services;
 
-internal sealed class ProviderConnections : IDisposable
+internal sealed partial class ProviderConnections : IDisposable
 {
     private readonly CredentialVault vault;
     private readonly HttpProviders http;
@@ -68,6 +68,17 @@ internal sealed class ProviderConnections : IDisposable
                 var selected = Resolve();
                 var reading = await native.FetchCodebuffAsync(selected?.Token, selected?.FromAuthFile == true, token).ConfigureAwait(false);
                 return selected == Resolve() ? reading : new(id, ReadingState.Unavailable, [], Message: "The connection changed. Refresh the selected account.");
+            }
+            if (id == "kimi") return await FetchKimiConnectionAsync(browserOverride, token).ConfigureAwait(false);
+            if (id == "deepseek")
+            {
+                DeepSeekCredential? Resolve() => DeepSeekAuthentication.Resolve(NativeSetting("DEEPSEEK_USAGE_SOURCE"), vault.Load, Environment.GetEnvironmentVariable);
+                var selected = Resolve();
+                if (selected is null) return new(id, ReadingState.Error, [], Message: "Choose Auto, API or Web as the DeepSeek source.");
+                var reading = await http.FetchAsync(id, selected.Token,
+                    key => key == "DEEPSEEK_USAGE_SOURCE" ? selected.Source : null, token).ConfigureAwait(false);
+                return selected == Resolve() ? reading
+                    : new(id, ReadingState.Unavailable, [], Message: "The DeepSeek connection changed. Refresh the selected account.");
             }
             if (id == "moonshot")
             {
@@ -221,6 +232,18 @@ internal sealed class ProviderConnections : IDisposable
                 return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source)));
             }
             if (id is "codex" or "claude") return SavedAccounts.Current(id).Identity.Id;
+            if (id == "kimi")
+            {
+                var selected = ResolveKimi();
+                return selected?.Token is null ? null : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(selected))));
+            }
+            if (id == "deepseek")
+            {
+                var credential = DeepSeekAuthentication.Resolve(EffectiveSetting(vault, id, "DEEPSEEK_USAGE_SOURCE"), vault.Load, Environment.GetEnvironmentVariable);
+                return credential?.Token is null ? null : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+                    System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(credential))));
+            }
             var definition = ProviderCatalog.Find(id);
             var values = new List<string?> { vault.Load("browser:" + id), vault.Load("provider:" + id), vault.Load("cookie:" + id), readCredential(id) };
             if (id == "moonshot") values.AddRange(new[] { vault.Load("provider:moonshot:international"), vault.Load("provider:moonshot:china") });
