@@ -213,8 +213,8 @@ internal static partial class NativeSmoke
         dashboard.Navigate("usage"); await Idle();
         Record("Rolling analytics range, accessible bucket selection, model drill-down and Back preserve the selected interval");
 
-        await NativeSourceRegression(dashboard, store, settings, vault);
-        Record("Amp source selection, volatile CLI display, rejected API fallback, and Antigravity alias scope");
+        await NativeSourceRegression(dashboard, store, settings, vault, directory);
+        Record("Amp/Windsurf source selection, volatile local scope, rejected API fallback, Antigravity alias, and Groq/Factory connection controls");
         await AnalyticsRegression(store, settings, directory);
         ActivityRegression(store);
         Record("Live Claude transcript completion and duplicate registry selection; provider-specific turn entry timing");

@@ -42,11 +42,13 @@ public sealed partial class NativeProviders : IDisposable
         JsonElement googleAuth = default; string? googleProject = null; string? googleOnboardTier = null;
         string? kiroProfile = setting("KIRO_PROFILE_ARN");
         string? notionSpace = null; string? notionUser = null;
+        var factoryContext = new FactoryRequestContext();
         string? zoomBearer = id == "zoommate" && !credential!.StartsWith("Cookie:", StringComparison.OrdinalIgnoreCase)
             ? credential.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase) ? credential[7..].Trim() : credential : null;
         async Task<JsonElement> GetJson(string url, IReadOnlyDictionary<string, string>? extraHeaders = null, string? requestBody = null)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            FactoryCredential? originalFactoryAuth = null; FactoryCredential? sentFactoryAuth = null;
             var requestCredential = cookieForUri is null ? credential : cookieForUri(request.RequestUri!)
                 ?? throw new ProviderRequestException(HttpStatusCode.Unauthorized);
             if (id == "opencode-zen" && requestBody is not null)
@@ -168,12 +170,28 @@ public sealed partial class NativeProviders : IDisposable
                 if (userId is not { Length: > 0 and <= 128 } || !userId.All(char.IsAsciiDigit)) throw new InvalidDataException("Set the Zed user ID.");
                 request.Headers.TryAddWithoutValidation("Authorization", userId + " " + requestCredential);
             }
+            else if (id == "factory")
+            {
+                originalFactoryAuth = FactoryAuthentication(requestCredential!, cookieForUri is not null);
+                sentFactoryAuth = factoryContext.Apply(originalFactoryAuth);
+                if (sentFactoryAuth.Cookie is null && sentFactoryAuth.Bearer is null) throw new ProviderRequestException(HttpStatusCode.Unauthorized);
+                if (sentFactoryAuth.Cookie is not null) request.Headers.TryAddWithoutValidation("Cookie", sentFactoryAuth.Cookie);
+                if (sentFactoryAuth.Bearer is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", sentFactoryAuth.Bearer);
+            }
             else if (id == "cursor") request.Headers.TryAddWithoutValidation("Cookie", requestCredential);
             else if (id is not "wayfinder" and not "azureopenai" and not "windsurf" and not "doubao" and not "bedrock" && !((id is "gemini-cli" or "vertexai" or "gemini") && new Uri(url).Host == "oauth2.googleapis.com")) request.Headers.Authorization = new AuthenticationHeaderValue(id == "ibmbob" ? BobAuthorization(requestCredential!) : "Bearer", requestCredential);
             if (extraHeaders is not null) foreach (var pair in extraHeaders) request.Headers.Add(pair.Key, pair.Value);
             if (id == "grok") request.Headers.Add("X-XAI-Token-Auth", "xai-grok-cli");
             if (id == "commandcode") request.Headers.Add("x-command-code-version", "desktop");
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
+            if (id == "factory" && request.Headers.Contains("Cookie"))
+            {
+                if (factoryContext.Retry(response.StatusCode, originalFactoryAuth!, sentFactoryAuth!))
+                    throw new FactoryAuthenticationRetryException();
+                if ((int)response.StatusCode is >= 300 and < 400) throw new ProviderRequestException(HttpStatusCode.Unauthorized);
+            }
+            if (id == "factory" && response.IsSuccessStatusCode && request.RequestUri!.AbsolutePath == "/api/app/auth/me")
+                factoryContext.AcceptedBearer = sentFactoryAuth!.Bearer;
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
                 retryAfter[id] = response.Headers.RetryAfter?.Date ?? DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(1));
             if (BrowserIds.Contains(id) && (int)response.StatusCode is >= 300 and < 400) throw new ProviderRequestException(HttpStatusCode.Unauthorized);
@@ -358,7 +376,7 @@ public sealed partial class NativeProviders : IDisposable
                 return ParseZed(response);
             }
             if (id == "chutes") return await FetchChutes(setting, url => GetJson(url), token).ConfigureAwait(false);
-            if (id == "factory") return await FetchFactory(credential!, url => GetJson(url), token).ConfigureAwait(false);
+            if (id == "factory") return await FetchFactory(factoryContext, url => GetJson(url), deadline.Token).ConfigureAwait(false);
             if (LedgerIds.Contains(id)) return await FetchLedger(id, url => GetJson(url), token).ConfigureAwait(false);
             if (SubscriptionIds.Contains(id)) return await FetchSubscription(id, setting, url => GetJson(url)).ConfigureAwait(false);
             if (id == "ibmbob") return await FetchBob((url, headers) => GetJson(url, headers)).ConfigureAwait(false);

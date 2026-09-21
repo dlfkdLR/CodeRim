@@ -7,12 +7,13 @@ using CodeRim.Windows.ViewModels;
 namespace CodeRim.Windows.Views;
 internal static partial class NativeSmoke
 {
-    private static async Task NativeSourceRegression(DashboardWindow dashboard, DashboardStore store, AppSettingsStore settings, CredentialVault vault)
+    private static async Task NativeSourceRegression(DashboardWindow dashboard, DashboardStore store, AppSettingsStore settings, CredentialVault vault, string directory)
     {
         using var connections = new ProviderConnections(vault);
         var providers = settings.Current.EnabledProviders;
         var alias = Environment.GetEnvironmentVariable("ANTIGRAVITY_OAUTH_CREDENTIALS_JSON");
         var groqAlias = Environment.GetEnvironmentVariable("GROQ_SESSION_JWT");
+        var factoryAlias = Environment.GetEnvironmentVariable("FACTORY_COOKIE");
         try
         {
             vault.Save("provider:amp", "synthetic-api-fallback");
@@ -63,12 +64,22 @@ internal static partial class NativeSmoke
             settings.Save(settings.Current with { EnabledProviders = [..providers, "groq"] }); dashboard.Navigate("groq"); await Idle();
             Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Console session JWT, session JSON, or enterprise API key"), "Groq settings hide the console session connection");
             Require(Descendants<Button>(dashboard).Any(x => Equals(x.Content, "Import from Firefox…")), "Groq Firefox connection is absent");
+            Capture(dashboard, Path.Combine(directory, "windows-groq-connection.png"));
+            Environment.SetEnvironmentVariable("FACTORY_COOKIE", "session=first-fixture");
+            var factoryScope = connections.Scope("factory");
+            Environment.SetEnvironmentVariable("FACTORY_COOKIE", "session=second-fixture");
+            Require(factoryScope is not null && factoryScope != connections.Scope("factory"), "Factory session does not invalidate account scope");
+            settings.Save(settings.Current with { EnabledProviders = [..providers, "factory"] }); dashboard.Navigate("factory"); await Idle();
+            Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Factory API key, Authorization bearer, or Cookie header"), "Factory settings hide the cookie and Authorization connections");
+            Require(Descendants<Button>(dashboard).Any(x => Equals(x.Content, "Import from Firefox…")), "Factory Firefox connection is absent");
+            Capture(dashboard, Path.Combine(directory, "windows-factory-connection.png"));
             Require(!connections.CanCache("jetbrains") && connections.Scope("jetbrains") is { Length: > 0 }, "Local JetBrains display has no volatile source scope");
         }
         finally
         {
             Environment.SetEnvironmentVariable("ANTIGRAVITY_OAUTH_CREDENTIALS_JSON", alias);
             Environment.SetEnvironmentVariable("GROQ_SESSION_JWT", groqAlias);
+            Environment.SetEnvironmentVariable("FACTORY_COOKIE", factoryAlias);
             vault.Delete("provider:windsurf"); vault.Delete("setting:windsurf:WINDSURF_USAGE_SOURCE"); vault.Delete("setting:windsurf:WINDSURF_CACHE_PATH");
             vault.Delete("provider:amp"); vault.Delete("setting:amp:AMP_USAGE_SOURCE"); vault.Delete("setting:amp:AMP_EXECUTABLE");
             settings.Save(settings.Current with { EnabledProviders = providers }); dashboard.Navigate("usage"); await Idle();

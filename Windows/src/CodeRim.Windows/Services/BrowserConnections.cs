@@ -14,6 +14,7 @@ internal static class BrowserConnections
         ? script.CookieDomains : id switch {
             "cursor" => ["cursor.com"],
             "groq" => ["groq.com"],
+            "factory" => ["factory.ai"],
             "notion" => ["notion.so", "notion.com"],
             "mistral" => ["mistral.ai"],
             "augment" => ["augmentcode.com"],
