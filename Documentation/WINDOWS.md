@@ -94,7 +94,7 @@ Remaining native/PTY/OAuth and browser-localStorage integrations, activity sourc
 | Augment (`augment`) | Augment web cookie; account credits and billing cycle |
 | JetBrains AI (`jetbrains`) | Installed IDE quota XML (read-only) |
 | Moonshot / Kimi Open Platform (`moonshot`) | Moonshot API key |
-| Amp (`amp`) | API key or explicit installed Amp CLI usage source; subscription and balances |
+| Amp (`amp`) | API/CLI source for subscription and balances, or Web cookie/Firefox source for Amp Free |
 | T3 Chat (`t3chat`) | t3.chat Cookie header or Firefox import |
 | Synthetic (`synthetic`) | API key |
 | OpenRouter (`openrouter`) | API key; optional Management API key for detailed activity |
@@ -136,11 +136,11 @@ Remaining native/PTY/OAuth and browser-localStorage integrations, activity sourc
 
 ## Browser and local sources
 
-In Settings → Providers, **Import from Firefox** is available for Qoder, Perplexity, Manus, T3 Chat, Cursor, Notion AI, Mistral, Augment, OpenCode Zen, Groq and Droid (Factory). Choose one signed-in profile. Only the provider domains are selected; containers and partitioned sessions are not merged. A rejected import cannot erase a working saved connection. Manual credentials remain available.
+In Settings → Providers, **Import from Firefox** is available for Qoder, Perplexity, Manus, T3 Chat, Cursor, Notion AI, Mistral, Augment, OpenCode Zen, Groq and Droid (Factory), plus Amp when its Web source is selected. Choose one signed-in profile. Only the provider domains are selected; containers and partitioned sessions are not merged. A rejected import cannot erase a working saved connection. Manual credentials remain available.
 
 Factory accepts an API key, pasted Authorization bearer or Cookie header (FACTORY_API_KEY, FACTORY_COOKIE and FACTORY_COOKIE_HEADER are also supported). Firefox imports retain per-request domain/path scope across its three pinned Factory origins. A rejected bearer restarts authentication and billing together in cookie-only mode; bounded conflict recovery uses only cookies from the same selected profile. Rate limits stop the transaction. A saved WorkOS session JSON can contain access_token, refresh_token, organization_id and an optional pinned Factory client_id (camelCase token aliases are also accepted). When needed, refresh exchanges the token only at api.workos.com; the rotated session is saved with DPAPI only if the original credential entry is unchanged. Concurrent refreshes are serialized, while replacing/removing the connection remains available. Browser localStorage discovery is not implemented yet. Environment or direct Core profiles are ephemeral; save the JSON in the provider page to retain rotated tokens across restarts.
 
-Amp offers **API / CLI** source selection. CLI runs the installed Amp executable with the fixed usage command and a timeout. An optional executable path can be selected. The child process does not inherit AMP_API_KEY, and CLI failure does not silently switch to API usage from another account.
+Amp offers **API / CLI / Web** source selection. API and CLI read subscription and balance details; Web reads the Amp Free quota from the signed-in settings page. Web accepts a session cookie or a verified Firefox profile, with AMP_COOKIE / AMP_COOKIE_HEADER environment aliases. The API key and manual Web cookie are stored separately. Switching sources never substitutes a different account or credential type. CLI runs the installed Amp executable with the fixed usage command and a timeout; it does not inherit AMP_API_KEY. A blank saved executable path uses the current environment path, and that effective path participates in the display scope. Web parses the pinned Svelte hydration data without executing downloaded JavaScript; absent or ambiguous data remains unavailable instead of becoming zero usage. Only same-origin HTTPS settings redirects are followed, with cookies checked again for each URI. Unsupported live page layouts require a reader update and are not claimed as verified.
 
 Windsurf offers **Web / Local cache** selection. Choose its state.vscdb file explicitly for local mode. The reader uses a read-only SQLite transaction with WAL support and bounded values, SQL execution and stored-table validation. Local cache freshness and current account are not proven, so these readings stay marked stale and do not restore an old account quota. Legacy message and flow-action counts keep their original units without daily/weekly labels.
 

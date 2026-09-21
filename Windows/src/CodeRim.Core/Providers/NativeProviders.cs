@@ -28,6 +28,8 @@ public sealed partial class NativeProviders : IDisposable
         credential = credential?.Trim();
         if (cookieForUri is not null && credential is null) credential = "imported-browser-session";
         if (!Supported.Contains(id)) return new(id, ReadingState.Unsupported, []);
+        if (id == "amp" && (cookieForUri is not null || setting("AMP_USAGE_SOURCE")?.Equals("web", StringComparison.OrdinalIgnoreCase) == true))
+            return await FetchAmpBrowserAsync(cookieForUri is null ? credential : null, cookieForUri, token).ConfigureAwait(false);
         if (id is "windsurf" or "gemini" or "gemini-cli" or "vertexai" or "kiro" or "bedrock" or "groq" or "factory" && credential?.TrimStart().StartsWith('{') == true)
         {
             if (credential.Length > 262144) return new(id, ReadingState.NeedsAuth, [], Message: "The credential profile is too large.");

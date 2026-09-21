@@ -15,6 +15,7 @@ internal static class BrowserConnections
             "cursor" => ["cursor.com"],
             "groq" => ["groq.com"],
             "factory" => ["factory.ai"],
+            "amp" => ["ampcode.com"],
             "notion" => ["notion.so", "notion.com"],
             "mistral" => ["mistral.ai"],
             "augment" => ["augmentcode.com"],

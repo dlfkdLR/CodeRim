@@ -40,6 +40,7 @@ public sealed partial class NativeProviders
     };
     public static IReadOnlyList<string> ScopeAliases(string id) => id switch
     {
+        "amp" => ["AMP_COOKIE", "AMP_COOKIE_HEADER"],
         "bedrock" => ["AWS_DEFAULT_PROFILE", "AWS_DEFAULT_REGION", "AWS_CONFIG_FILE", "AWS_SHARED_CREDENTIALS_FILE", "CODERIM_BEDROCK_BUDGET"],
         "opencode-zen" => ["CODEXBAR_OPENCODE_WORKSPACE_ID", "OPENCODE_ZEN_WORKSPACE_ID"],
         _ => []

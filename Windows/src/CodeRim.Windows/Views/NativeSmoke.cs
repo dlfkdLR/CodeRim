@@ -215,6 +215,8 @@ internal static partial class NativeSmoke
 
         await FactorySessionRegression(vault, settings.Current);
         Record("Factory WorkOS profile refresh, DPAPI rotation, next-fetch stability, account replacement/removal and concurrent credential commits");
+        await AmpSourceRegression(dashboard, settings, vault, directory);
+        Record("Amp API/CLI/Web credential isolation, scoped browser verification, source picker and Web connection controls");
         await NativeSourceRegression(dashboard, store, settings, vault, directory);
         Record("Amp/Windsurf source selection, volatile local scope, rejected API fallback, Antigravity alias, and Groq/Factory connection controls");
         await AnalyticsRegression(store, settings, directory);

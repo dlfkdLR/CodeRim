@@ -8,7 +8,7 @@ public static class AmpCliUsage
 {
     private static readonly string[] AuthenticationMessages = ["not logged in", "not authenticated", "please sign in", "please log in", "ampcode.com/login", "run amp login"];
     public static string? Source(string? value) => value?.Trim().ToLowerInvariant() switch
-    { null or "" or "api" => "api", "cli" => "cli", _ => null };
+    { null or "" or "api" => "api", "cli" => "cli", "web" => "web", _ => null };
     public static async Task<ProviderReading> ReadAsync(string executable, CancellationToken cancellationToken = default)
     {
         var result = await BoundedProcess.RunResultAsync(executable, ["usage"], timeout: TimeSpan.FromSeconds(15),

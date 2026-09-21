@@ -452,7 +452,7 @@ internal sealed partial class DashboardWindow : Window
                 var key = "setting:" + id + ":" + field.Key;
                 if (field.Key == "WINDSURF_USAGE_SOURCE")
                 {
-                    var selected = WindsurfLocalUsage.Source(vault.Load(key) ?? Environment.GetEnvironmentVariable(field.Key)) == "local" ? "Local" : "Web";
+                    var selected = WindsurfLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, field.Key)) == "local" ? "Local" : "Web";
                     body.Children.Add(SettingsUi.Picker("Usage source", WindsurfSources, selected, value =>
                     {
                         try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
@@ -475,14 +475,14 @@ internal sealed partial class DashboardWindow : Window
                 }
                 else if (field.Key == "AMP_USAGE_SOURCE")
                 {
-                    var selected = AmpCliUsage.Source(vault.Load(key) ?? Environment.GetEnvironmentVariable(field.Key)) == "cli" ? "CLI" : "API";
+                    var selected = AmpCliUsage.Source(ProviderConnections.EffectiveSetting(vault, id, field.Key)) switch { "cli" => "CLI", "web" => "Web", _ => "API" };
                     body.Children.Add(SettingsUi.Picker("Usage source", AmpSources, selected, value =>
                     {
-                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
+                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
                         catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
                         { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
                     }));
-                    body.Children.Add(Ui.Text("API uses the saved credential. CLI reads the account signed in to Amp on this PC.", 11, "#A6A6AA"));
+                    body.Children.Add(Ui.Text("API reads subscription and balance details with an API key. CLI uses the Amp sign-in on this PC. Web reads Amp Free with your browser session.", 11, "#A6A6AA"));
                 }
                 else if (field.Key.EndsWith("_ALLOW_BILLABLE_REQUESTS", StringComparison.Ordinal))
                 {
@@ -495,10 +495,16 @@ internal sealed partial class DashboardWindow : Window
                 }
                 else { body.Children.Add(Ui.Text(field.Label)); if (field.Key.EndsWith("_TOKEN", StringComparison.Ordinal) || field.Key.EndsWith("_SECRET", StringComparison.Ordinal)) AddSecretField(key, id, "Save token"); else AddSettingField(key, id); }
             }
-            if (id != "wayfinder") { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
+            if (id == "amp")
+            {
+                var source = AmpCliUsage.Source(ProviderConnections.EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE"));
+                if (source == "web") { body.Children.Add(Ui.Text("Amp Web session cookie")); AddSecretField("cookie:amp", id, "Save cookie"); }
+                else if (source == "api") { body.Children.Add(Ui.Text("Amp API key")); AddSecretField("provider:amp", id, "Save credential"); }
+            }
+            else if (id != "wayfinder") { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
         }
         else if (!HasConnector(id)) body.Children.Add(Ui.Text("This provider's Windows integration is still pending. Adding it does not create a live connection.", color: "#F2C66D"));
-        if (BrowserConnections.Domains(id).Length > 0)
+        if (BrowserConnections.Domains(id).Length > 0 && (id != "amp" || AmpCliUsage.Source(ProviderConnections.EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE")) == "web"))
         {
             body.Children.Add(Ui.Button("Import from Firefox…", () => BrowserConnections.Import(this, id, vault, settings.Current, () =>
             { store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); })));
@@ -526,7 +532,7 @@ internal sealed partial class DashboardWindow : Window
                 child.Margin = new Thickness(18, child.Margin.Top, 18, child.Margin.Bottom);
         UpdateProviderControlStates();
     }
-    private static readonly string[] AmpSources = ["API", "CLI"];
+    private static readonly string[] AmpSources = ["API", "CLI", "Web"];
     private static readonly string[] WindsurfSources = ["Web", "Local"];
     private static TextBlock ProviderValue(string identifier, string text, double size = 13)
     {
@@ -570,7 +576,7 @@ internal sealed partial class DashboardWindow : Window
         body.Children.Add(Ui.Button(label, () =>
         {
             if (string.IsNullOrWhiteSpace(password.Password)) return;
-            try { vault.Save(key, password.Password.Trim()); if (key == "provider:" + id || key == "cookie:" + id) vault.Delete("browser:" + id); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
+            try { vault.Save(key, password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { result.Text = "Could not save the setting."; }
         }));
         body.Children.Add(Ui.Button("Remove saved value", () =>

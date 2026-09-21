@@ -47,8 +47,26 @@ internal sealed class ProviderConnections : IDisposable
                 var windows = ProviderParsers.Claude(root);
                 return new ProviderReading(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, updated).Evaluated(DateTimeOffset.Now);
             }
-            var browser = browserOverride ?? (BrowserConnections.Domains(id).Length > 0 ? BrowserConnections.Load(id, vault) : null);
+            string? NativeSetting(string key) => EffectiveSetting(vault, id, key);
+            var ampSource = id == "amp" ? AmpCliUsage.Source(NativeSetting("AMP_USAGE_SOURCE")) : null;
+            var browser = browserOverride ?? (BrowserConnections.Domains(id).Length > 0 && (id != "amp" || ampSource == "web") ? BrowserConnections.Load(id, vault) : null);
             string? BrowserCookie(Uri uri) => browser?.Header(uri, DateTimeOffset.UtcNow);
+            if (id == "amp")
+            {
+                // Verify the selected browser profile independently of the active source.
+                if (browserOverride is not null) return await native.FetchAmpBrowserAsync(null, BrowserCookie, token).ConfigureAwait(false);
+                if (ampSource is null) return new(id, ReadingState.Error, [], Message: "Choose API, CLI, or Web as the Amp usage source.");
+                if (ampSource == "cli")
+                {
+                    var executable = NativeSetting("AMP_EXECUTABLE") ?? ResolveExecutable("amp.exe");
+                    if (executable is null) return new(id, ReadingState.NeedsAuth, [], Message: "Install Amp, sign in with amp login, and select amp.exe if it is outside PATH.");
+                    return await AmpCliUsage.ReadAsync(executable, token).ConfigureAwait(false);
+                }
+                if (ampSource == "web")
+                    return await native.FetchAmpBrowserAsync(vault.Load("cookie:amp") ?? Environment.GetEnvironmentVariable("AMP_COOKIE")
+                        ?? Environment.GetEnvironmentVariable("AMP_COOKIE_HEADER"), browser is null ? null : BrowserCookie, token).ConfigureAwait(false);
+                return await native.FetchAsync(id, vault.Load("provider:amp") ?? Environment.GetEnvironmentVariable("AMP_API_KEY"), NativeSetting, token).ConfigureAwait(false);
+            }
             if (ScriptProviders.Catalog.ContainsKey(id))
             {
                 var definitionSettings = ScriptProviders.Catalog[id].Settings.ToDictionary(x => x.Key,
@@ -64,7 +82,6 @@ internal sealed class ProviderConnections : IDisposable
                 foreach (var key in keys)
                     if (Environment.GetEnvironmentVariable(key) is { Length: > 0 } value) { secret = value; break; }
             }
-            string? NativeSetting(string key) => vault.Load("setting:" + id + ":" + key)?.Trim() is { Length: > 0 } configured ? configured : Environment.GetEnvironmentVariable(key);
             if (id == "factory" && browser is null && secret?.TrimStart().StartsWith('{') == true && vault.LoadVersioned("provider:factory") is { })
             {
                 // Serialize network refreshes separately from short storage commits. A user
@@ -85,17 +102,6 @@ internal sealed class ProviderConnections : IDisposable
                     var path = NativeSetting("WINDSURF_CACHE_PATH");
                     if (string.IsNullOrWhiteSpace(path)) return new(id, ReadingState.Unavailable, [], Message: "Select Windsurf's local state.vscdb file in Settings.");
                     return await Task.Run(() => WindsurfLocalUsage.Read(path), token).ConfigureAwait(false);
-                }
-            }
-            if (id == "amp")
-            {
-                var source = AmpCliUsage.Source(NativeSetting("AMP_USAGE_SOURCE"));
-                if (source is null) return new(id, ReadingState.Error, [], Message: "Choose API or CLI as the Amp usage source.");
-                if (source == "cli")
-                {
-                    var executable = NativeSetting("AMP_EXECUTABLE") ?? ResolveExecutable("amp.exe");
-                    if (executable is null) return new(id, ReadingState.NeedsAuth, [], Message: "Install Amp, sign in with amp login, and select amp.exe if it is outside PATH.");
-                    return await AmpCliUsage.ReadAsync(executable, token).ConfigureAwait(false);
                 }
             }
             if (id == "bedrock" && BedrockAuthentication.UseProfile(secret, NativeSetting))
@@ -128,14 +134,17 @@ internal sealed class ProviderConnections : IDisposable
             return new(id, ReadingState.Error, [], Message: "Unable to read the provider. Check its connection and refresh.");
         }
     }
+    internal static string? EffectiveSetting(CredentialVault vault, string id, string key)
+        => vault.Load("setting:" + id + ":" + key)?.Trim() is { Length: > 0 } saved ? saved
+            : Environment.GetEnvironmentVariable(key)?.Trim() is { Length: > 0 } environment ? environment : null;
     internal bool CanCache(string id)
     {
         if (id == "jetbrains") return false;
-        if (id == "windsurf") return WindsurfLocalUsage.Source(vault.Load("setting:windsurf:WINDSURF_USAGE_SOURCE") ?? Environment.GetEnvironmentVariable("WINDSURF_USAGE_SOURCE")) == "web";
-        if (id == "amp") return AmpCliUsage.Source(vault.Load("setting:amp:AMP_USAGE_SOURCE") ?? Environment.GetEnvironmentVariable("AMP_USAGE_SOURCE")) == "api";
+        if (id == "windsurf") return WindsurfLocalUsage.Source(EffectiveSetting(vault, "windsurf", "WINDSURF_USAGE_SOURCE")) == "web";
+        if (id == "amp") return AmpCliUsage.Source(EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE")) is "api" or "web";
         if (id != "bedrock") return true;
         var secret = vault.Load("provider:" + id) ?? Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
-        return !BedrockAuthentication.UseProfile(secret, key => vault.Load("setting:" + id + ":" + key)?.Trim() is { Length: > 0 } value ? value : Environment.GetEnvironmentVariable(key));
+        return !BedrockAuthentication.UseProfile(secret, key => EffectiveSetting(vault, id, key));
     }
     internal string? Scope(string id)
     {
@@ -148,8 +157,8 @@ internal sealed class ProviderConnections : IDisposable
                 var modeKey = id == "windsurf" ? "WINDSURF_USAGE_SOURCE" : "AMP_USAGE_SOURCE";
                 var pathKey = id == "windsurf" ? "WINDSURF_CACHE_PATH" : "AMP_EXECUTABLE";
                 var source = JsonSerializer.Serialize(new { id, process = Environment.ProcessId,
-                    mode = id == "jetbrains" ? null : vault.Load("setting:" + id + ":" + modeKey) ?? Environment.GetEnvironmentVariable(modeKey),
-                    path = id == "jetbrains" ? null : vault.Load("setting:" + id + ":" + pathKey) ?? Environment.GetEnvironmentVariable(pathKey) });
+                    mode = id == "jetbrains" ? null : EffectiveSetting(vault, id, modeKey),
+                    path = id == "jetbrains" ? null : EffectiveSetting(vault, id, pathKey) });
                 return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source)));
             }
             if (id is "codex" or "claude") return SavedAccounts.Current(id).Identity.Id;
@@ -169,8 +178,8 @@ internal sealed class ProviderConnections : IDisposable
             if (NativeProviders.CredentialKeys(id) is { } credentialKeys) values.AddRange(credentialKeys.Select(Environment.GetEnvironmentVariable));
             if (ScriptProviders.Catalog.TryGetValue(id, out var script))
                 values.AddRange(script.Settings.Select(x => vault.Load("setting:" + id + ":" + x.Key) ?? Environment.GetEnvironmentVariable(x.Key)));
-            values.AddRange(NativeProviders.ScopeAliases(id).Select(x => vault.Load("setting:" + id + ":" + x) ?? Environment.GetEnvironmentVariable(x)));
-            values.AddRange(NativeProviders.Settings(id).Select(x => vault.Load("setting:" + id + ":" + x.Key) ?? Environment.GetEnvironmentVariable(x.Key)));
+            values.AddRange(NativeProviders.ScopeAliases(id).Select(x => EffectiveSetting(vault, id, x)));
+            values.AddRange(NativeProviders.Settings(id).Select(x => EffectiveSetting(vault, id, x.Key)));
             return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(values))));
         }
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or FormatException or System.Security.Cryptography.CryptographicException)
