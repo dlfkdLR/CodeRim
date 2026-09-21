@@ -33,24 +33,24 @@ internal static class WmiProcessCommandLine
         {
             token.ThrowIfCancellationRequested();
             locator = (IWbemLocator)(object)new WbemLocator();
-            Marshal.ThrowExceptionForHR(locator.ConnectServer(@"ROOT\CIMV2", null, null, null, 0x80, null, nint.Zero, out service));
+            Check(locator.ConnectServer(@"ROOT\CIMV2", null, null, null, 0x80, null, nint.Zero, out service), "connect");
             token.ThrowIfCancellationRequested();
-            Marshal.ThrowExceptionForHR(CoSetProxyBlanket(service, 10, 0, nint.Zero, 6, 3, nint.Zero, 0));
+            Check(SetServiceSecurity(service, 10, 0, nint.Zero, 6, 3, nint.Zero, 0), "service security");
             var query = "SELECT ProcessId, CommandLine FROM Win32_Process WHERE ProcessId = " + processId.ToString(CultureInfo.InvariantCulture);
-            Marshal.ThrowExceptionForHR(service.ExecQuery("WQL", query, 0x30, nint.Zero, out rows));
-            Marshal.ThrowExceptionForHR(CoSetProxyBlanket(rows, 10, 0, nint.Zero, 6, 3, nint.Zero, 0));
+            Check(service.ExecQuery("WQL", query, 0x30, nint.Zero, out rows), "query");
+            Check(SetEnumeratorSecurity(rows, 10, 0, nint.Zero, 6, 3, nint.Zero, 0), "enumerator security");
             var started = Stopwatch.GetTimestamp();
             while (true)
             {
                 token.ThrowIfCancellationRequested();
                 if (Stopwatch.GetElapsedTime(started) > TimeSpan.FromSeconds(4)) throw new IOException("IDE discovery timed out.");
                 var result = rows.Next(100, 1, out row, out var count);
-                if (result < 0) Marshal.ThrowExceptionForHR(result);
+                Check(result, "enumerate");
                 if (count == 0) { if (result == 1) return null; continue; }
                 if (row is null || count != 1) throw new InvalidDataException();
-                Marshal.ThrowExceptionForHR(row.Get("ProcessId", 0, out var actualId, out _, out _));
+                Check(row.Get("ProcessId", 0, out var actualId, out _, out _), "process ID");
                 if (Convert.ToInt64(actualId, CultureInfo.InvariantCulture) != processId) throw new InvalidDataException();
-                Marshal.ThrowExceptionForHR(row.Get("CommandLine", 0, out var value, out _, out _));
+                Check(row.Get("CommandLine", 0, out var value, out _, out _), "command line");
                 token.ThrowIfCancellationRequested();
                 return value is string { Length: > 0 and <= 65536 } text && !text.Contains('\0') ? text : null;
             }
@@ -63,9 +63,20 @@ internal static class WmiProcessCommandLine
             if (locator is not null) Marshal.ReleaseComObject(locator);
         }
     }
+    private static void Check(int result, string operation)
+    {
+        // Fixed operation names only: no command line, PID, path or credential.
+        if (result < 0) throw new COMException("IDE discovery failed during " + operation + ".", result);
+    }
+    // Security is attached to a specific interface proxy. Marshaling these as
+    // object/IUnknown sets a different proxy and leaves ExecQuery/Next at IDENTIFY.
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [DllImport("ole32.dll", ExactSpelling = true)]
-    private static extern int CoSetProxyBlanket([MarshalAs(UnmanagedType.IUnknown)] object proxy, uint authentication, uint authorization,
+    [DllImport("ole32.dll", EntryPoint = "CoSetProxyBlanket", ExactSpelling = true)]
+    private static extern int SetServiceSecurity([MarshalAs(UnmanagedType.Interface)] IWbemServices proxy, uint authentication, uint authorization,
+        nint principal, uint authenticationLevel, uint impersonationLevel, nint identity, uint capabilities);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("ole32.dll", EntryPoint = "CoSetProxyBlanket", ExactSpelling = true)]
+    private static extern int SetEnumeratorSecurity([MarshalAs(UnmanagedType.Interface)] IEnumWbemClassObject proxy, uint authentication, uint authorization,
         nint principal, uint authenticationLevel, uint impersonationLevel, nint identity, uint capabilities);
 
     [ComImport, Guid("4590F811-1D3A-11D0-891F-00AA004B2E24"), ClassInterface(ClassInterfaceType.None)]
