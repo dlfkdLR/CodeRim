@@ -398,6 +398,9 @@ internal sealed partial class DashboardWindow : Window
         actions.Children.Add(Ui.Button("Setup guide", () => OpenUrl(provider.GuideUrl))); body.Children.Add(actions);
 
         Ui.Section(body, "Connection");
+        if (id == "copilot") body.Children.Add(Ui.Text("Uses your current GitHub CLI sign-in. Sign in with gh auth login, or provide an access token below.", 12));
+        if (id == "glm") body.Children.Add(Ui.Text("Detects a GLM login from Claude Code, ZCode or OpenCode. A key entered below takes precedence.", 12));
+        if (id == "codebuff") body.Children.Add(Ui.Text("Uses your current Codebuff CLI sign-in. A key entered below takes precedence.", 12));
         if (id == "codex")
         {
             body.Children.Add(Ui.Text("Uses the installed Codex app-server and its current sign-in. Local history is read independently."));
@@ -450,7 +453,18 @@ internal sealed partial class DashboardWindow : Window
             foreach (var field in NativeProviders.Settings(id))
             {
                 var key = "setting:" + id + ":" + field.Key;
-                if (field.Key == "ANTIGRAVITY_USAGE_SOURCE")
+                if (field.Key == "MOONSHOT_REGION")
+                {
+                    var selected = MoonshotAuthentication.Region(ProviderConnections.EffectiveSetting(vault, id, field.Key)) == "china" ? "China" : "International";
+                    body.Children.Add(SettingsUi.Picker("Region", MoonshotRegions, selected, value =>
+                    {
+                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the region.", "CodeRim"); }
+                    }));
+                    body.Children.Add(Ui.Text("Each region keeps its own API key. Switching regions does not copy an existing key.", 11, "#A6A6AA"));
+                }
+                else if (field.Key == "ANTIGRAVITY_USAGE_SOURCE")
                 {
                     var selected = AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, field.Key)) == "local" ? "Local IDE" : "OAuth";
                     body.Children.Add(SettingsUi.Picker("Usage source", AntigravitySources, selected, value =>
@@ -507,7 +521,12 @@ internal sealed partial class DashboardWindow : Window
                 }
                 else { body.Children.Add(Ui.Text(field.Label)); if (field.Key.EndsWith("_TOKEN", StringComparison.Ordinal) || field.Key.EndsWith("_SECRET", StringComparison.Ordinal)) AddSecretField(key, id, "Save token"); else AddSettingField(key, id); }
             }
-            if (id == "amp")
+            if (id == "moonshot")
+            {
+                var region = MoonshotAuthentication.Region(ProviderConnections.EffectiveSetting(vault, id, "MOONSHOT_REGION"));
+                if (region is not null) { body.Children.Add(Ui.Text(region == "china" ? "Moonshot China API key" : "Moonshot International API key")); AddSecretField("provider:moonshot:" + region, id, "Save credential"); }
+            }
+            else if (id == "amp")
             {
                 var source = AmpCliUsage.Source(ProviderConnections.EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE"));
                 if (source == "web") { body.Children.Add(Ui.Text("Amp Web session cookie")); AddSecretField("cookie:amp", id, "Save cookie"); }
@@ -544,6 +563,7 @@ internal sealed partial class DashboardWindow : Window
                 child.Margin = new Thickness(18, child.Margin.Top, 18, child.Margin.Bottom);
         UpdateProviderControlStates();
     }
+    private static readonly string[] MoonshotRegions = ["International", "China"];
     private static readonly string[] AntigravitySources = ["OAuth", "Local IDE"];
     private static readonly string[] AmpSources = ["API", "CLI", "Web"];
     private static readonly string[] WindsurfSources = ["Web", "Local"];

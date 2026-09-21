@@ -9,6 +9,7 @@ public sealed partial class NativeProviders
 {
     public static IReadOnlyList<(string Key, string Label)> Settings(string id) => id switch
     {
+        "moonshot" => [("MOONSHOT_REGION", "Region")],
         "windsurf" => [("WINDSURF_USAGE_SOURCE", "Usage source"), ("WINDSURF_CACHE_PATH", "Local Windsurf state.vscdb path")],
         "amp" => [("AMP_USAGE_SOURCE", "Usage source"), ("AMP_EXECUTABLE", "Amp executable path (optional)")],
         "azureopenai" => [("AZURE_OPENAI_ENDPOINT", "Azure endpoint (HTTPS)"), ("AZURE_OPENAI_DEPLOYMENT_NAME", "Deployment name"),
@@ -40,6 +41,7 @@ public sealed partial class NativeProviders
     };
     public static IReadOnlyList<string> ScopeAliases(string id) => id switch
     {
+        "moonshot" => ["MOONSHOT_KEY", "CODEXBAR_MOONSHOT_API_KEY", "CODEXBAR_MOONSHOT_API_KEY_REGION"],
         "amp" => ["AMP_COOKIE", "AMP_COOKIE_HEADER"],
         "bedrock" => ["AWS_DEFAULT_PROFILE", "AWS_DEFAULT_REGION", "AWS_CONFIG_FILE", "AWS_SHARED_CREDENTIALS_FILE", "CODERIM_BEDROCK_BUDGET"],
         "opencode-zen" => ["CODEXBAR_OPENCODE_WORKSPACE_ID", "OPENCODE_ZEN_WORKSPACE_ID"],

@@ -16,6 +16,12 @@ internal static class NativeCredentials
         {
             switch (id)
             {
+                case "copilot":
+                    return GitHubAuthentication.ParseHosts(CopilotConnection.ScopeMarker());
+                case "glm":
+                    return GlmAuthentication.Serialize(GlmAuthentication.Read(home));
+                case "codebuff":
+                    return CodebuffAuthentication.Read(Path.Combine(home, ".config", "manicode", "credentials.json"));
                 case "kiro":
                     var kiroDirectory = Environment.GetEnvironmentVariable("KIRO_DATA_DIR");
                     if (kiroDirectory is { Length: > 0 }) return KiroAuthentication.Read(Path.Combine(kiroDirectory, "data.sqlite3"));

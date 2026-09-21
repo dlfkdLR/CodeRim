@@ -221,6 +221,14 @@ internal static partial class NativeSmoke
         Record("Antigravity native WMI identity, TCP owner before TLS, local quota/source isolation and real connector-to-WPF rendering");
         await NativeSourceRegression(dashboard, store, settings, vault, directory);
         Record("Amp/Windsurf source selection, volatile local scope, rejected API fallback, Antigravity alias, and Groq/Factory connection controls");
+        await CopilotAuthenticationRegression(settings.Current, vault, directory);
+        Record("Copilot DPAPI/environment/active hosts/CLI discovery, github.com contract and account replacement isolation");
+        await GlmAuthenticationRegression(settings.Current, vault, directory);
+        Record("GLM tool credentials, region and fixed-host isolation, explicit settings and account replacement");
+        await CodebuffAuthenticationRegression(settings.Current, vault, directory);
+        Record("Codebuff DPAPI/environment/local login precedence, optional subscription and account replacement isolation");
+        await MoonshotRegionRegression(dashboard, settings, vault, directory);
+        Record("Moonshot regional endpoints, DPAPI key isolation, environment aliases and source UI");
         await AnalyticsRegression(store, settings, directory);
         ActivityRegression(store);
         Record("Live Claude transcript completion and duplicate registry selection; provider-specific turn entry timing");
