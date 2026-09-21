@@ -4,8 +4,9 @@ This continues the [2026-09-20 audit](FULL_AUDIT_2026-09-20.md). It records sour
 
 ## Implemented changes
 
-- Firefox cookie import for nine supported readers, with profile selection, domain/path/expiry/HTTPS scoping, isolated DPAPI storage, validation before replacement, and cancellation/close guards.
+- Firefox cookie import for ten supported readers, with profile selection, domain/path/expiry/HTTPS scoping, isolated DPAPI storage, validation before replacement, and cancellation/close guards.
 - Explicit Amp CLI usage and Windsurf local-cache sources; the documented Antigravity OAuth JSON alias is connected. CLI/cache sources do not inherit another account's API quota or restore an unverified snapshot.
+- Groq console JWT/session JSON and Firefox sign-in, pinned Stytch refresh, 30-day activity and dollar costs. Enterprise Prometheus metrics remain a separate source; missing fields remain unknown.
 - Today/7D/30D analytics with hourly/daily buckets, model navigation and Back, visible totals, proportional sub-dollar cost bars, unknown-cost gaps, and narrow-window layout.
 - Separate two-second Codex/Claude activity polling, bounded backward JSONL scanning, exact prefix verification on append/rewrite, live Claude transcript selection and stable provider-specific activity timing.
 - Provider plan/status updates without rebuilding controls, Usage refresh action, tray reveal preference preservation, existing-instance activation IPC, selected-monitor card sizing, and accessible ring state.
@@ -27,7 +28,10 @@ Evidence is retained locally under Artifacts/ParityCompletion-20260921 (ignored 
 | Windows r7 on connected x64 PC | Core 467 passed, 0 skipped, 0 failed | Exactly one test helper changed from r6; all 249 other transferred files were verified unchanged, retaining the r6 native UI/package/CLI evidence |
 | Windows r8 on connected x64 PC | Core 482 passed, 0 skipped, 0 failed; build, package, native UI and both CLI stages exited 0 | Includes Firefox/Kiro SQL safety and pending-read/pending-verification close guards; physical pointer remains intercepted by the lock screen |
 | Windows ARM64 CI at cf0a41d | 481 passed / 1 failed; test process ran as ARM64 | Local-calendar test used fixed UTC timestamps and expected a different local day; reproduced under America/Los_Angeles, then corrected without changing production aggregation or expected totals. Native UI/CLI stages were not reached |
-| Mac-hosted Windows Core recheck | Core 481 passed / 1 Windows-only test skipped, 0 failed | Cross-platform core execution, not WPF execution |
+| Windows ARM64 CI at de6a754 | Core 482 passed, 0 skipped, 0 failed; native UI, CLI and isolated installer passed | Exact packaging archive SHA256 bb77013ddf57566fd231d814125d93fa75c1b205536c097f4e72955328d6f109; OS/process architecture both Arm64. This checkpoint precedes Groq console changes |
+| Windows r9 on connected x64 PC | Core 513 passed; build, package, WPF and CLI passed | Groq source/settings/scope tests; later token-normalization corrections are recorded as r10 |
+| Windows r10 on connected x64 PC | Core 515 passed, 0 skipped, 0 failed; build, package, WPF and CLI stages exited 0 | Includes final refreshed-JWT/empty-Session corrections; physical pointer remains lock-screen intercepted |
+| Mac-hosted Windows Core recheck | Core 514 passed / 1 Windows-only test skipped, 0 failed | Cross-platform core execution, not WPF execution |
 | NuGet audit | No known vulnerable package reported for all four projects, including transitive packages | Registry result at execution time, not a proof of absence of vulnerabilities |
 
 The r6 pointer diagnostic observed successful cursor movement, but WindowFromPoint resolved to explorer's LockScreenBackstopFrame. Therefore real pointer hover remains INCONCLUSIVE until an unlocked interactive desktop is available. Routed-event checks are not counted as real pointer checks.
@@ -61,6 +65,9 @@ Paths below are relative to the repository. The location column names the functi
 | PAR-QA-01 / Low | Windows/tests/CodeRim.Core.Tests/LocalStateDatabaseTests.cs, SharedBytes | Windows r6 fails three encoding tests at File.ReadAllBytes before the reader is called; live writer requires sharing | Read fixture snapshots with ReadWrite/Delete sharing; retain byte-preservation assertions | Local full suite and connected-PC r7 467/467 passed |
 | PAR-QA-02 / Low | .github/workflows/windows.yml, ARM64 archive verification | A PowerShell regex containing two backslashes does not split checksum whitespace | One-backslash whitespace regex | Independent source/synthetic review; actual remote workflow result required |
 | PAR-QA-03 / Low | Windows/tests/CodeRim.Core.Tests/UsageScannerTests.cs, UsesLocalCalendarBoundariesAndExcludesFutureEvents | ARM64 CI and a local America/Los_Angeles run report zero Today tokens instead of 12; fixed 01:00Z data is the previous local day in western timezones | Build fixture timestamps and fixed now from local calendar instants; preserve Monday/Sunday, future exclusion and all expected totals/time assertions | Complete Core suite passes America/Los_Angeles, UTC and Asia/Seoul; native ARM64 rerun required |
+| PAR-BUG-15 / Medium | Windows/src/CodeRim.Core/Providers/GroqConsoleProvider.cs, FetchGroqConsole | Actual 75ms HttpClient refresh timeout exits after one request despite a valid direct JWT from the same profile | Treat request-local timeout as a refresh failure eligible for the same-profile fallback, while propagating the caller/deadline cancellation | Independent real HttpClient timeout resolves Ready with two requests; external cancellation stops at one; GroqConsoleTests and r10 core pass |
+| PAR-BUG-16 / Medium | Windows/src/CodeRim.Core/Providers/GroqConsoleProvider.cs, GroqSession | Quoted Cookie header forms accepted by the pinned Swift normalizer result in NeedsAuth before any request | Strip balanced outer quotes before and after the Cookie prefix; preserve conflict and size checks | Independent pinned Swift comparison and single/double quoted input probes; r10 core pass |
+| PAR-BUG-17 / Low | Windows/src/CodeRim.Core/Providers/GroqConsoleProvider.cs, token normalization and source selection | Refresh JWT with outer whitespace is rejected; empty Session marker is misrouted to enterprise metrics | Reuse bounded token normalization for refreshed JWT and classify an empty Session marker as missing console authentication | Outer CRLF trimmed, internal controls/oversize rejected before send, empty marker NeedsAuth with zero requests; independent 59-scenario recheck and r10 core pass |
 
 ## Remaining requirements
 
@@ -72,8 +79,8 @@ The original 50-item matrix is retained as the baseline; additional tests do not
 | PROV-02 | All 70 IDs have implementations; live credentials/account permissions and actual quotas are not verified for every provider |
 | PROV-03 | Expanded native/script success and error contracts pass synthetic tests; all current live response shapes remain unverified |
 | ACCT-03 | Native Windows DPAPI fixtures pass; actual saved-account switching and real Keychain transitions remain separate |
-| ACCT-04 | Nine Firefox cookie import paths implemented and verified with synthetic profiles; other browser engines/localStorage strategies remain |
-| ACCT-05 | Amp CLI, Windsurf cache and Antigravity alias added; Groq console/Stytch, Factory browser/WorkOS, other localStorage and Antigravity local IDE paths remain |
+| ACCT-04 | Ten Firefox cookie import paths implemented and verified with synthetic profiles; other browser engines/localStorage strategies remain |
+| ACCT-05 | Amp CLI, Windsurf cache, Antigravity alias and Groq console/Stytch added; Factory browser/WorkOS, other localStorage and Antigravity local IDE paths remain |
 | UI-02 | Windows in-place plan/status refresh and Usage refresh verified; complete Mac live-click comparison remains |
 | UI-04 | Monitor-limited cards and layout checks pass; physical wheel traversal of long cards remains |
 | UI-06 | Native fade/arrival recheck passes all seven tests; complete user-desktop transition comparison remains separate |
@@ -82,7 +89,7 @@ The original 50-item matrix is retained as the baseline; additional tests do not
 | ACT-02 | State/focus guards and native fixtures checked; actual notification, sound and terminal activation workflows remain |
 | ACT-03 | Activity is implemented for Codex/Claude on both platforms; other-provider activity requires its own supported source, not an inference from quota traffic |
 | REL-03 | No eligible code-signing certificate was found in the Windows user's or machine's store; signed installer/in-place update remains unimplemented |
-| REL-04 | Connected x64 native execution verified; exact ARM64 archive execution is configured in CI but requires a successful run; production installation/update remain separate |
+| REL-04 | Connected x64 native execution verified; de6a754 exact ARM64 archive, native UI/CLI and isolated CI installer passed. Subsequent authentication changes need their own ARM64 CI; production installation/update remain separate |
 
 No real tokens, passwords, certificate subjects/private keys, or user database contents are included in this record.
 

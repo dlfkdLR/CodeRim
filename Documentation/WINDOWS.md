@@ -116,7 +116,7 @@ Remaining native/PTY/OAuth and browser-localStorage integrations, activity sourc
 | Qoder (`qoder`) | qoder.com or qoder.com.cn Cookie header or Firefox import |
 | StepFun (`stepfun`) | Oasis-Token; plan limits and credit packs |
 | AWS Bedrock (`bedrock`) | AWS CLI profile/SSO or signing keys; monthly costs and 14-day Claude activity |
-| Groq (`groq`) | Enterprise metrics API key; requests/tokens per minute |
+| Groq (`groq`) | Console session JWT/JSON or Firefox import for 30-day activity; enterprise metrics API key remains available |
 | LLM Proxy (`llmproxy`) | Proxy URL and API key |
 | LiteLLM (`litellm`) | Proxy URL and API key; key/user/team budget |
 | Deepgram (`deepgram`) | API key; optional Project ID and API URL |
@@ -136,7 +136,7 @@ Remaining native/PTY/OAuth and browser-localStorage integrations, activity sourc
 
 ## Browser and local sources
 
-In Settings → Providers, **Import from Firefox** is available for Qoder, Perplexity, Manus, T3 Chat, Cursor, Notion AI, Mistral, Augment and OpenCode Zen. Choose one signed-in profile. Only the provider domains are selected; containers and partitioned sessions are not merged. A rejected import cannot erase a working saved connection. Manual credentials remain available.
+In Settings → Providers, **Import from Firefox** is available for Qoder, Perplexity, Manus, T3 Chat, Cursor, Notion AI, Mistral, Augment, OpenCode Zen and Groq. Choose one signed-in profile. Only the provider domains are selected; containers and partitioned sessions are not merged. A rejected import cannot erase a working saved connection. Manual credentials remain available.
 
 Amp offers **API / CLI** source selection. CLI runs the installed Amp executable with the fixed usage command and a timeout. An optional executable path can be selected. The child process does not inherit AMP_API_KEY, and CLI failure does not silently switch to API usage from another account.
 
@@ -183,3 +183,5 @@ The smoke test uses an isolated temporary directory and synthetic values. It doe
 Provider account, plan and status labels update in place after refresh/account invalidation. xAI and Poe share corrected readers with macOS: unavailable history stays unavailable, bounded history is marked partial, repeated Poe query IDs are counted once, and required authentication failures are distinguished from parse failures. CLI output preserves currency/count values alongside reported percentages. See [the full audit](FULL_AUDIT_2026-09-20.md) for execution evidence and remaining native/live-provider checks.
 
 The [2026-09-21 continuation record](PARITY_VERIFICATION_2026-09-21.md) distinguishes connected-PC execution, independent synthetic checks, and remaining desktop/account/release evidence.
+
+Groq console sessions use `GROQ_SESSION_JWT` or `GROQ_SESSION_TOKEN`, a manually supplied JWT/session JSON, or a selected Firefox profile. An opaque Stytch session is exchanged only at Groq's pinned HTTPS frontend endpoint; a timeout can use the direct JWT from that same profile. User cancellation stops both requests. Console activity keeps missing costs/counts unknown, and input includes cached context without relabeling it as reasoning tokens. The custom Groq API URL setting applies to enterprise metrics, not imported console sessions.
