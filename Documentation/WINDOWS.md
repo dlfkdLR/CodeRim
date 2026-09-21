@@ -31,16 +31,16 @@ An existing status line is preserved unless you explicitly pass `-ReplaceExistin
 ## Implemented behavior
 
 - The six macOS Settings sections (General, Usage, Providers, Notch, Diagnostics, Information), grouped provider controls, system light/dark/high-contrast themes, provider/account popovers, authentic provider glyphs, and a transparent four-edge notch with matching dimensions. Hover dismissal, pinning, keyboard dismissal, refresh feedback, and account navigation share the macOS interaction model.
-- Tray application, four-edge notch, hover/always/hidden modes, provider ordering, monitor selection, offset, three sizes, usage/fixed/gradient colors, remaining percentage, reduced motion, 80%/100% notifications, separate completion/blocked sounds. Manual refresh stops background timer and file-change refresh; explicit Refresh still reads current limits and local history.
+- Tray application, four-edge notch, hover/always/hidden modes, provider ordering, monitor selection, offset, three sizes, usage/fixed/gradient colors, remaining percentage, reduced motion, 80%/100% notifications, separate completion/blocked sounds. Manual refresh stops quota/history timer and file-change refresh; explicit Refresh still reads current limits and local history. Lightweight Codex/Claude activity polling remains independent at two-second intervals.
 - Codex limit, additional-limit and reset-credit visibility switches; analytics/project/session switches; Codex whole-session image counts and direct sub-agent links. Reset credits retain their reset unit. Images are represented only by a count, timestamp and hashed identity, with no image contents or prompt text stored.
-- Codex and Claude local numeric history in SQLite, copied-history deduplication, cumulative counter handling, nullable cache-write information, durable clear cutoffs, Today/Week/Month/All-time periods, model/project/day/session breakdowns and daily chart.
+- Codex and Claude local numeric history in SQLite, copied-history deduplication, cumulative counter handling, nullable cache-write information, durable clear cutoffs, Today/Week/Month/All-time history and Today/7D/30D analytics, model/project/session breakdowns, hourly or daily chart selection, model drill-down and Back navigation. Token and cost bars use independent common baselines; unavailable cost stays unavailable.
 - Local history is labelled **This PC · Across accounts**. It is never attributed to an account quota. Cached input is already part of Input. Missing pricing or cache-write data is excluded from labelled cost subtotals. Rates come from the bundled macOS pricing snapshot, not a live bill.
 - Codex/Claude saved accounts, account-scoped cached quotas, stale response protection after account changes, and a Claude session bridge bound to the originating account. Local history is kept separate.
 - Clicking a session row or its completion peek opens a validated Codex thread link or raises the live Claude process owning application. Process start times prevent PID reuse from targeting a different application. If no target is available or Windows denies activation, local sessions open; terminal-tab selection is not supported.
 - Diagnostics includes CLI installation, private bounded debug logs, log/data folder access, and source rescan.
 - Release checks and notifications link to the matching architecture's ZIP. Installation is still manual.
-- API keys, explicit cookies, and provider settings are stored with Windows DPAPI CurrentUser and a user-only directory ACL. Cookie readers currently require manual cookie entry; browser decryption/import is not implemented.
-- A bounded JavaScript host runs the 16 unchanged CodexBar provider scripts pinned in `Windows/ThirdParty/provider-hashes.json`. The host exposes declared HTTP origins and settings only, disables redirects/cookie persistence, and has request/size/time/memory/statement bounds. This is for bundled scripts, not arbitrary user plugins.
+- API keys, explicit cookies, and provider settings are stored with Windows DPAPI CurrentUser and a user-only directory ACL. Supported Firefox profiles can import provider sign-in cookies. Each cookie retains its host, path, expiry and HTTPS scope. The selected connection is verified before its encrypted replacement is saved; closing or canceling leaves the previous connection intact. Chrome/Edge protected-cookie decryption is not implemented.
+- A bounded JavaScript host runs 16 CodexBar-derived provider scripts. Unmodified upstream input hashes are recorded in `Windows/ThirdParty/provider-hashes.json`. The host exposes declared HTTP origins and settings only, disables redirects/cookie persistence, and has request/size/time/memory/statement bounds. This is for bundled scripts, not arbitrary user plugins.
 - Companion snapshot and CLI (`usage`, `tokens`, `limits`, `path`, `version`, `claude-status`, `claude-connect`; provider, period, JSON, watch options). Snapshots carry their schema, source scope and timestamps; stale readings remain marked. This Windows schema is documented by `CompanionFile.cs`, not a binary drop-in for macOS WidgetKit.
 
 ```powershell
@@ -59,7 +59,7 @@ On macOS, inherited-session images after the logged replay boundary are counted 
 
 The 70-provider catalog and artwork match the macOS catalog. **The current source has a connection implementation for each of the 70 catalog entries.** Even implemented connections require native Windows and live-account verification.
 
-Browser cookie auto-import, remaining native/PTY/OAuth integrations, Antigravity and other provider activity monitors, a signed installer, in-place automatic updates, and full accessibility/mixed-monitor verification remain unfinished. Windows Widgets are excluded from this parity effort. API-key or manual-cookie support does not imply that every macOS authentication strategy has been ported. Native Windows CI covers synthetic startup, rendering, credential storage, account display, bridge installation, and CLI behavior; live account/provider verification is separate.
+Remaining native/PTY/OAuth and browser-localStorage integrations, activity sources beyond Codex/Claude, a signed installer, in-place automatic updates, and full accessibility/mixed-monitor verification remain unfinished. Firefox cookie import is implemented for the supported cookie readers; it does not imply complete browser authentication parity. Windows Widgets are excluded from this parity effort. API-key or manual-cookie support does not imply that every macOS authentication strategy has been ported. Native Windows CI covers synthetic startup, rendering, credential storage, account display, bridge installation, and CLI behavior; live account/provider verification is separate.
 
 | Provider | Windows connection |
 | --- | --- |
@@ -86,7 +86,7 @@ Browser cookie auto-import, remaining native/PTY/OAuth integrations, Antigravity
 | Gemini (`gemini-cli`) | Gemini CLI OAuth detection/refresh; Code Assist model quotas and consumer-migration state |
 | Devin (`devin`) | Access token and organization; quota and overage |
 | MiniMax (`minimax`) | Coding API key and region; plan quota |
-| Manus (`manus`) | Manual manus.im Cookie header |
+| Manus (`manus`) | manus.im Cookie header or Firefox import |
 | Kimi Code (`kimi`) | Kimi Code API key; coding quota |
 | Kilo (`kilo`) | Kilo local sign-in or API token; personal/organization billing |
 | Kiro (`kiro`) | CLI state database or token/profile ARN; plan and overage credits |
@@ -94,15 +94,15 @@ Browser cookie auto-import, remaining native/PTY/OAuth integrations, Antigravity
 | Augment (`augment`) | Augment web cookie; account credits and billing cycle |
 | JetBrains AI (`jetbrains`) | Installed IDE quota XML (read-only) |
 | Moonshot / Kimi Open Platform (`moonshot`) | Moonshot API key |
-| Amp (`amp`) | Amp API key; subscription and balances |
-| T3 Chat (`t3chat`) | Manual t3.chat Cookie header |
+| Amp (`amp`) | API key or explicit installed Amp CLI usage source; subscription and balances |
+| T3 Chat (`t3chat`) | t3.chat Cookie header or Firefox import |
 | Synthetic (`synthetic`) | API key |
 | OpenRouter (`openrouter`) | API key; optional Management API key for detailed activity |
 | ElevenLabs (`elevenlabs`) | ElevenLabs API key |
 | Warp (`warp`) | Access token; GraphQL limits |
-| Windsurf (`windsurf`) | Devin session JSON; daily and weekly plan limits |
+| Windsurf (`windsurf`) | Devin session JSON or explicitly selected local Windsurf state database; cached values are labelled stale |
 | Zed (`zed`) | User ID and access token; edit predictions |
-| Perplexity (`perplexity`) | Manual www.perplexity.ai Cookie header |
+| Perplexity (`perplexity`) | perplexity.ai Cookie header or Firefox import |
 | Xiaomi MiMo (`mimo`) | MiMo console cookie; balance and token-plan credits |
 | Doubao (`doubao`) | Volcengine signing keys; Coding Plan percentages and Agent Plan points |
 | Sakana AI (`sakana`) | Sakana web cookie; billing page limits |
@@ -113,7 +113,7 @@ Browser cookie auto-import, remaining native/PTY/OAuth integrations, Antigravity
 | Codebuff (`codebuff`) | API key; usage and subscription |
 | Crof (`crof`) | API key |
 | Venice (`venice`) | API key |
-| Qoder (`qoder`) | Manual qoder.com or qoder.com.cn Cookie header |
+| Qoder (`qoder`) | qoder.com or qoder.com.cn Cookie header or Firefox import |
 | StepFun (`stepfun`) | Oasis-Token; plan limits and credit packs |
 | AWS Bedrock (`bedrock`) | AWS CLI profile/SSO or signing keys; monthly costs and 14-day Claude activity |
 | Groq (`groq`) | Enterprise metrics API key; requests/tokens per minute |
@@ -133,6 +133,16 @@ Browser cookie auto-import, remaining native/PTY/OAuth integrations, Antigravity
 | xAI (`xai`) | Management API key and Team ID |
 | Notion AI (`notion`) | Notion web cookie and optional workspace ID; AI credits |
 | IBM Bob (`ibmbob`) | Bob API key; profile/team allocation |
+
+## Browser and local sources
+
+In Settings → Providers, **Import from Firefox** is available for Qoder, Perplexity, Manus, T3 Chat, Cursor, Notion AI, Mistral, Augment and OpenCode Zen. Choose one signed-in profile. Only the provider domains are selected; containers and partitioned sessions are not merged. A rejected import cannot erase a working saved connection. Manual credentials remain available.
+
+Amp offers **API / CLI** source selection. CLI runs the installed Amp executable with the fixed usage command and a timeout. An optional executable path can be selected. The child process does not inherit AMP_API_KEY, and CLI failure does not silently switch to API usage from another account.
+
+Windsurf offers **Web / Local cache** selection. Choose its state.vscdb file explicitly for local mode. The reader uses a read-only SQLite transaction with WAL support and bounded values, SQL execution and stored-table validation. Local cache freshness and current account are not proven, so these readings stay marked stale and do not restore an old account quota. Legacy message and flow-action counts keep their original units without daily/weekly labels.
+
+Antigravity accepts the documented ANTIGRAVITY_OAUTH_CREDENTIALS_JSON variable as well as the existing access-token and credentials aliases.
 
 ## Additional native connections
 
@@ -166,8 +176,10 @@ dotnet build Windows/CodeRim.Windows.sln --configuration Release
 ./Windows/artifacts/publish/win-x64/CodeRim.exe --smoke-test --capture dashboard.png
 ```
 
-The smoke test uses an isolated temporary directory and synthetic values. It does not connect accounts or read the user's chat history. It proves only native startup/rendering if executed on Windows; inspect the capture separately. The GitHub workflow packages both architectures and runs the x64 smoke test. Consult the release commit's workflow result for the native x64 verification status. The x64 checks also cover minimum-size light/dark/high-contrast layouts, popup dismissal, provider removal/navigation state, keyboard focus, image/sub-agent controls, isolated DPAPI/ACL storage, CLI PATH idempotence and Claude hook preservation. ARM64 execution, physical mixed-DPI monitors and live provider responses still need separate Windows verification.
+The smoke test uses an isolated temporary directory and synthetic values. It does not connect accounts or read the user's chat history. It proves only native startup/rendering if executed on Windows; inspect the capture separately. The GitHub workflow packages both architectures and runs x64 smoke tests. A separate Windows ARM64 job downloads the packaging artifact, verifies its ZIP checksum, then executes that exact ARM64 archive and records OS/process architecture. Consult the release commit's workflow result for the native x64 verification status. The x64 checks also cover minimum-size light/dark/high-contrast layouts, popup dismissal, provider removal/navigation state, keyboard focus, image/sub-agent controls, isolated DPAPI/ACL storage, CLI PATH idempotence and Claude hook preservation. Read the actual workflow result before treating ARM64 execution as verified. Physical mixed-DPI monitors and live provider responses remain separate checks.
 
 ## Current audit changes (unreleased)
 
 Provider account, plan and status labels update in place after refresh/account invalidation. xAI and Poe share corrected readers with macOS: unavailable history stays unavailable, bounded history is marked partial, repeated Poe query IDs are counted once, and required authentication failures are distinguished from parse failures. CLI output preserves currency/count values alongside reported percentages. See [the full audit](FULL_AUDIT_2026-09-20.md) for execution evidence and remaining native/live-provider checks.
+
+The [2026-09-21 continuation record](PARITY_VERIFICATION_2026-09-21.md) distinguishes connected-PC execution, independent synthetic checks, and remaining desktop/account/release evidence.
