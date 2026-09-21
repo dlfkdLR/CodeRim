@@ -10,29 +10,37 @@ namespace CodeRim.Windows.Services;
 internal sealed class CredentialVault
 {
     private readonly string root = Path.Combine(CompanionFile.DataDirectory, "vault");
-    public CredentialVault() { Directory.CreateDirectory(root); RestrictDirectory(root); }
-    public void Save(string id, string value)
+    private readonly AtomicCredentialFiles entries;
+    internal sealed record Snapshot(string Value, string Version);
+    public CredentialVault()
+    {
+        if (Path.Exists(root) && (File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0) throw new IOException("Linked credential directories are not supported.");
+        Directory.CreateDirectory(root); RestrictDirectory(root); entries = new(root);
+    }
+    public void Save(string id, string value) => Store(id, value, null);
+    internal bool SaveIfUnchanged(string id, string expectedVersion, string value) => Store(id, value, expectedVersion);
+    private bool Store(string id, string value, string? expectedVersion)
     {
         var bytes = Encoding.UTF8.GetBytes(value);
         try
         {
+            if (bytes.Length > AtomicCredentialFiles.MaximumBytes - 4096) throw new InvalidDataException("Credential entry is too large.");
             var encrypted = ProtectedData.Protect(bytes, null, DataProtectionScope.CurrentUser);
-            var path = PathFor(id); var temporary = path + ".new";
-            File.WriteAllBytes(temporary, encrypted); File.Move(temporary, path, true);
+            if (expectedVersion is not null) return entries.CompareExchange(id, expectedVersion, encrypted);
+            entries.Write(id, encrypted); return true;
         }
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
-    public string? Load(string id)
+    public string? Load(string id) => LoadVersioned(id)?.Value;
+    internal Snapshot? LoadVersioned(string id)
     {
-        var path = PathFor(id);
-        if (!File.Exists(path)) return null;
-        if (new FileInfo(path).Length > 1_048_576) throw new InvalidDataException("Credential entry is too large.");
-        var bytes = ProtectedData.Unprotect(File.ReadAllBytes(path), null, DataProtectionScope.CurrentUser);
-        try { return Encoding.UTF8.GetString(bytes); }
+        var encrypted = entries.Read(id); if (encrypted is null) return null;
+        var bytes = ProtectedData.Unprotect(encrypted, null, DataProtectionScope.CurrentUser);
+        try { return new(Encoding.UTF8.GetString(bytes), AtomicCredentialFiles.Version(encrypted)); }
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }
-    public void Delete(string id) => File.Delete(PathFor(id));
-    private string PathFor(string id) => Path.Combine(root, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(id))) + ".bin");
+    public void Delete(string id) => entries.Delete(id);
+    internal Task<FileStream> AcquireRefreshAsync(string id, CancellationToken token) => entries.AcquireRefreshAsync(id, token);
     public static void RestrictDirectory(string path)
     {
         using var identity = WindowsIdentity.GetCurrent();

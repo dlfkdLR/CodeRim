@@ -17,8 +17,8 @@ public sealed class CodingPlanProviderTests
     public void KimiModernPoolsWinOverLegacyAndPreserveZero()
     {
         var reading = Parse("kimi", """{"usages":{"limit_5h":{"used_ratio":0},"limit_7d":{"used_ratio":0.25},"limit_month_total":{"used_ratio":0.8}},"usage":{"limit":"100","used":"70"},"user":{"membership":{"level":"LEVEL_BASIC"}},"version":"GOODS_VERSION_V1"}""");
-        Assert.Equal("Moderato", reading.Plan); Assert.Equal(3, reading.Windows.Count); Assert.Equal(0, reading.Headline!.UsedPercent);
-        Assert.Equal(25, reading.Windows[1].UsedPercent); Assert.Equal(80, reading.Windows[2].UsedPercent);
+        Assert.Equal("Moderato", reading.Plan); Assert.Equal(3, reading.Windows.Count); Assert.Equal(25, reading.Headline!.UsedPercent);
+        Assert.Equal(0, reading.Windows[1].UsedPercent); Assert.Equal(80, reading.Windows[2].UsedPercent);
     }
     [Fact]
     public void KimiUnknownCountersDoNotBecomeFreshZero()

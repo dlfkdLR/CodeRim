@@ -1,9 +1,9 @@
 name: Windows
 on:
   push:
-    paths: ['Windows/**', '.github/workflows/windows.yml']
+    paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', '.github/workflows/windows.yml']
   pull_request:
-    paths: ['Windows/**', '.github/workflows/windows.yml']
+    paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', '.github/workflows/windows.yml']
   workflow_dispatch:
 permissions:
   contents: read
@@ -59,6 +59,69 @@ jobs:
             Artifacts/CodeRim-Windows-*.zip
             Artifacts/*.sha256
             Artifacts/SHA256SUMS-windows.txt
+            Artifacts/windows-*.png
+            Artifacts/windows-*.json
+            Artifacts/windows-*.txt
+            Windows/tests/**/TestResults/**
+
+  native-arm64:
+    needs: test-and-package
+    runs-on: windows-11-arm
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Test core on Windows ARM64
+        run: dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
+      - name: Build WPF application and CLI
+        run: dotnet build Windows/CodeRim.Windows.sln --configuration Release
+      - name: Download the release candidate built by the packaging job
+        uses: actions/download-artifact@v4
+        with:
+          name: CodeRim-Windows
+          path: Artifacts/packaged
+      - name: Verify and extract the exact ARM64 archive
+        shell: pwsh
+        run: |
+          $archives = @(Get-ChildItem 'Artifacts/packaged' -Filter 'CodeRim-Windows-*-arm64.zip' -Recurse)
+          if ($archives.Count -ne 1) { throw 'Expected exactly one ARM64 release archive.' }
+          $archive = $archives[0]
+          $checksum = Get-Content ($archive.FullName + '.sha256') -Raw
+          $expected = ($checksum.Trim() -split '\s+')[0]
+          $actual = (Get-FileHash $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($expected -notmatch '^[0-9a-f]{64}$' -or $actual -ne $expected) { throw 'ARM64 archive checksum mismatch.' }
+          New-Item -ItemType Directory -Force 'Windows/artifacts/publish/win-arm64' | Out-Null
+          Expand-Archive $archive.FullName 'Windows/artifacts/publish/win-arm64'
+          @{ archive = $archive.Name; sha256 = $actual; source = 'CodeRim-Windows packaging artifact' } |
+            ConvertTo-Json | Set-Content 'Artifacts/windows-native-archive.json' -Encoding utf8
+      - name: Native ARM64 UI and CLI regressions
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'Windows/artifacts/publish/win-arm64/CodeRim.exe'
+          $capture = Join-Path $PWD 'Artifacts/windows-dashboard.png'
+          $process = Start-Process $exe -ArgumentList '--smoke-test', '--capture', $capture -PassThru
+          if (-not $process.WaitForExit(180000)) { $process.Kill(); throw 'Native smoke test timed out.' }
+          if ($process.ExitCode -ne 0 -or -not (Test-Path $capture)) { Get-Content (Join-Path $PWD 'Artifacts/windows-dashboard.error.txt') -ErrorAction SilentlyContinue; throw 'Native smoke test failed.' }
+          $hostEvidence = Get-Content 'Artifacts/windows-native-host.json' -Raw | ConvertFrom-Json
+          if ($hostEvidence.os_architecture -ne 'Arm64' -or $hostEvidence.process_architecture -ne 'Arm64') { throw 'ARM64 smoke must execute natively.' }
+          & './Windows/artifacts/publish/win-arm64/CodeRimCLI.exe' version
+          if ($LASTEXITCODE -ne 0) { throw 'CLI startup failed.' }
+          python Windows/tests/cli_regression_tests.py './Windows/artifacts/publish/win-arm64/CodeRimCLI.exe'
+          if ($LASTEXITCODE -ne 0) { throw 'CLI regression checks failed.' }
+          & './Windows/artifacts/publish/win-arm64/install.ps1' -AddCliToPath
+          $cliBin = Join-Path $env:LOCALAPPDATA 'Programs\CodeRim\bin'
+          $env:PATH = $cliBin + ';' + $env:PATH
+          if ((Get-Command coderim).Source -ne (Join-Path $cliBin 'coderim.cmd')) { throw 'CLI is shadowed.' }
+          $text = cmd /d /c 'coderim version'
+          if ($LASTEXITCODE -ne 0 -or $text -notmatch 'CodeRim CLI') { throw 'Installed CLI failed.' }
+      - name: Upload ARM64 execution evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CodeRim-Windows-ARM64-Native
+          path: |
             Artifacts/windows-*.png
             Artifacts/windows-*.json
             Artifacts/windows-*.txt

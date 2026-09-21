@@ -18,6 +18,28 @@ internal sealed class ProviderRing : FrameworkElement
     public bool Refreshing { get; set; }
     public double Phase { get; set; }
     public ProviderRing() { Width = NotchMetrics.Ring; Height = NotchMetrics.CellHeight; }
+    internal string AccessibleReading()
+    {
+        var reading = Reading?.Evaluated(DateTimeOffset.Now);
+        var amount = reading?.Headline?.UsedPercent is { } used
+            ? Percent(Settings.ShowRemaining ? Math.Clamp(100 - used, 0, 100) : used) + (Settings.ShowRemaining ? "% remaining" : "% used")
+            : reading?.Headline?.UsedCount is { } count ? TokenFormatter.Format(count, Settings.NumberStyle) + " used"
+            : reading?.Headline?.RemainingCount is { } left ? TokenFormatter.Format(left, Settings.NumberStyle) + " remaining"
+            : "Usage unavailable";
+        var state = reading?.State switch
+        {
+            ReadingState.NeedsAuth => "Sign in required",
+            ReadingState.Partial => "Partial reading",
+            ReadingState.Stale => "Stale reading",
+            ReadingState.Error => "Connection error",
+            ReadingState.Loading => "Loading",
+            ReadingState.Disabled => "Disabled",
+            ReadingState.Unsupported => "Unsupported",
+            ReadingState.Unavailable => "Unavailable",
+            _ => null
+        };
+        return string.Join("; ", new[] { amount, state, Waiting ? "Waiting for input" : Active ? "Session active" : null, Refreshing ? "Refreshing" : null }.Where(x => x is not null));
+    }
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);

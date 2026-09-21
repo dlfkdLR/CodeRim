@@ -251,15 +251,18 @@ public sealed class UsageScannerTests
         var root = CreateTemporaryDirectory();
         try
         {
-            var now = new DateTimeOffset(2026, 8, 27, 12, 0, 0, TimeSpan.Zero);
+            DateTimeOffset LocalInstant(int day, int hour = 1, int second = 1) =>
+                TimeZoneInfo.ConvertTimeToUtc(new DateTime(2026, 8, day, hour, 0, second, DateTimeKind.Unspecified), TimeZoneInfo.Local);
+            string Stamp(int day) => LocalInstant(day).ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+            var now = LocalInstant(27, 12, 0);
             var session = Path.Combine(root, "periods.jsonl");
             await File.WriteAllLinesAsync(session,
             [
-                "{\"timestamp\":\"2026-08-23T01:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"periods\"}}",
-                TokenLineWithLast("2026-08-23T01:00:01Z", 10, 5, 2, 10, 5, 2, 1),
-                TokenLineWithLast("2026-08-24T01:00:01Z", 20, 10, 4, 10, 5, 2, 2),
-                TokenLineWithLast("2026-08-27T01:00:01Z", 30, 15, 6, 10, 5, 2, 3),
-                TokenLineWithLast("2026-08-28T01:00:01Z", 40, 20, 8, 10, 5, 2, 4)
+                JsonSerializer.Serialize(new { timestamp = LocalInstant(23, 1, 0), type = "session_meta", payload = new { id = "periods" } }),
+                TokenLineWithLast(Stamp(23), 10, 5, 2, 10, 5, 2, 1),
+                TokenLineWithLast(Stamp(24), 20, 10, 4, 10, 5, 2, 2),
+                TokenLineWithLast(Stamp(27), 30, 15, 6, 10, 5, 2, 3),
+                TokenLineWithLast(Stamp(28), 40, 20, 8, 10, 5, 2, 4)
             ], cancellationToken).ConfigureAwait(true);
 
             var scanner = new UsageScanner([root]);
@@ -271,7 +274,7 @@ public sealed class UsageScannerTests
             Assert.Equal(new TokenUsage(30, 15, 6), sunday.Snapshot.Week);
             Assert.Equal(new TokenUsage(30, 15, 6), monday.Snapshot.AllTime);
             Assert.Equal(
-                new DateTimeOffset(2026, 8, 27, 1, 0, 1, TimeSpan.Zero),
+                LocalInstant(27),
                 monday.Snapshot.UpdatedAt);
         }
         finally

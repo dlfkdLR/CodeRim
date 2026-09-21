@@ -17,6 +17,7 @@ namespace CodeRim.Windows;
 public partial class App : System.Windows.Application
 {
     private Mutex? instance;
+    private InstanceActivation? activation;
     private TrayIconHost? tray;
     private DashboardStore? store;
     private AppSettingsStore? settings;
@@ -25,12 +26,19 @@ public partial class App : System.Windows.Application
     private DashboardWindow? dashboard;
     private SessionWatcher? watcher;
     private readonly DispatcherTimer timer = new();
+    private readonly DispatcherTimer activityTimer = new() { Interval = TimeSpan.FromSeconds(2) };
     private readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(1) };
     private readonly ThresholdTracker thresholds = new();
     private bool smokeTest;
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (e.Args.Contains("--smoke-test", StringComparer.Ordinal) && e.Args.Contains("--antigravity-fixture-server", StringComparer.Ordinal))
+        {
+            try { await NativeSmoke.RunAntigravityFixtureAsync(); Shutdown(); }
+            catch (Exception error) when (error is not OutOfMemoryException) { Shutdown(1); }
+            return;
+        }
         SettingsTheme.Apply();
         Microsoft.Win32.SystemEvents.UserPreferenceChanged += AppearanceChanged;
         smokeTest = e.Args.Contains("--smoke-test", StringComparer.Ordinal);
@@ -39,17 +47,21 @@ public partial class App : System.Windows.Application
             var temp = Path.Combine(Path.GetTempPath(), "CodeRim-Smoke-" + Guid.NewGuid().ToString("N"));
             Environment.SetEnvironmentVariable("CODERIM_DATA_DIR", temp);
         }
-        instance = new Mutex(true, smokeTest ? "Local\\CodeRim.Smoke." + Environment.ProcessId : "Local\\CodeRim.Windows", out var created);
-        if (!created) { Shutdown(); return; }
+        var instanceName = smokeTest ? "CodeRim.Smoke." + Environment.ProcessId : InstanceActivation.UserName;
+        instance = new Mutex(true, "Local\\" + instanceName, out var created);
+        if (!created) { await InstanceActivation.NotifyAsync(instanceName); Shutdown(); return; }
         settings = new AppSettingsStore(); CredentialVault.RestrictDirectory(CompanionFile.DataDirectory); vault = new CredentialVault();
         store = new DashboardStore(settings, vault, smokeTest);
         notch = new NotchWindow(store, settings, ShowSettings);
         tray = new TrayIconHost(() => ShowSettings("usage"), () => _ = store.RefreshAsync(true), () => ShowSettings(null), ShutdownApplication);
-        tray.ShowNotchRequested += () => { settings.Save(settings.Current with { Visibility = NotchVisibility.OnHover }); notch.Peek(); };
+        if (!smokeTest) activation = new InstanceActivation(instanceName, () => Dispatcher.BeginInvoke(() => ShowSettings("usage")));
+        tray.ShowNotchRequested += () => { settings.RevealNotch(); notch.Peek(); };
         store.SessionAttentionRequested += session => { if (settings.Current.PeekOnCompletion) notch.Peek(session); };
         store.ReadingUpdated += reading => { if (settings.Current.AlertsEnabled && !settings.Current.MutedAlertProviders.Contains(reading.Id, StringComparer.Ordinal)) foreach (var threshold in thresholds.Observe(reading, DateTimeOffset.Now)) tray.Notify(ProviderCatalog.Find(reading.Id)?.Name ?? reading.Id, threshold == 100 ? "Usage limit reached." : "Usage has reached 80%."); };
         settings.SettingsChanged += (_, _) => ConfigureTimer();
         timer.Tick += (_, _) => { watcher?.Rebuild(); _ = store.RefreshAsync(); };
+        activityTimer.Tick += (_, _) => _ = store.RefreshActivityAsync();
+        if (!smokeTest) activityTimer.Start();
         ConfigureTimer(); notch.ApplyVisibility();
         if (!smokeTest) { updateTimer.Tick += async (_, _) => await CheckUpdatesAsync(); updateTimer.Start(); _ = CheckUpdatesAsync(); }
         _ = StartAsync(e.Args);
@@ -86,7 +98,7 @@ public partial class App : System.Windows.Application
     private void ConfigureTimer()
     {
         timer.Stop();
-        if (settings is null || settings.Current.RefreshIntervalSeconds <= 0)
+        if (smokeTest || settings is null || settings.Current.RefreshIntervalSeconds <= 0)
         {
             watcher?.Dispose(); watcher = null; return;
         }
@@ -108,7 +120,7 @@ public partial class App : System.Windows.Application
     protected override void OnExit(ExitEventArgs e)
     {
         Microsoft.Win32.SystemEvents.UserPreferenceChanged -= AppearanceChanged;
-        timer.Stop(); updateTimer.Stop(); watcher?.Dispose(); store?.Dispose(); tray?.Dispose(); instance?.Dispose();
+        timer.Stop(); activityTimer.Stop(); updateTimer.Stop(); watcher?.Dispose(); store?.Dispose(); tray?.Dispose(); activation?.Dispose(); instance?.Dispose();
         base.OnExit(e);
     }
 }

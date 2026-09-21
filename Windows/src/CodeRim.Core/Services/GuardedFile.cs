@@ -6,8 +6,19 @@ public static class GuardedFile
     public static string Read(string path, int maximumBytes = 262144)
     {
         Check(path);
-        if (new FileInfo(path).Length > maximumBytes) throw new InvalidDataException("The login file is too large.");
-        return File.ReadAllText(path);
+        ArgumentOutOfRangeException.ThrowIfNegative(maximumBytes);
+        using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        if (input.Length > maximumBytes) throw new InvalidDataException("The login file is too large.");
+        using var output = new MemoryStream();
+        var buffer = new byte[8192]; int count;
+        while ((count = input.Read(buffer)) > 0)
+        {
+            if (output.Length + count > maximumBytes) throw new InvalidDataException("The login file is too large.");
+            output.Write(buffer, 0, count);
+        }
+        output.Position = 0;
+        using var reader = new StreamReader(output);
+        return reader.ReadToEnd();
     }
     public static void Replace(string path, string expected, string replacement)
     {

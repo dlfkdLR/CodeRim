@@ -77,10 +77,20 @@ public sealed class AppSettingsStore
 
     public AppSettings Current { get; private set; }
 
+    public void RevealNotch()
+    {
+        if (Current.Visibility == NotchVisibility.Hidden)
+            Save(Current with { Visibility = Current.LastVisibleNotchMode });
+    }
+
     public void Save(AppSettings settings)
     {
         ArgumentNullException.ThrowIfNull(settings);
         settings = Normalize(settings);
+        if (settings.Visibility != NotchVisibility.Hidden)
+            settings = settings with { LastVisibleNotchMode = settings.Visibility };
+        else if (Current.Visibility != NotchVisibility.Hidden)
+            settings = settings with { LastVisibleNotchMode = Current.Visibility };
         var temporaryPath = settingsPath + ".new";
         var previous = Current;
         var startupChanged = settings.LaunchAtLogin != previous.LaunchAtLogin;
