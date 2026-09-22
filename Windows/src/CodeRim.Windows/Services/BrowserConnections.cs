@@ -13,6 +13,7 @@ internal static class BrowserConnections
     internal static string[] Domains(string id) => id == "perplexity" ? ["perplexity.ai"] : ScriptProviders.Catalog.TryGetValue(id, out var script)
         ? script.CookieDomains : id switch {
             "kimi" => ["kimi.com"],
+            "minimax" => ["minimax.io", "minimaxi.com"],
             "stepfun" => ["stepfun.com"],
             "mimo" => ["xiaomimimo.com"],
             "abacus" => ["abacus.ai"],
@@ -29,8 +30,12 @@ internal static class BrowserConnections
             "opencode-zen" => ["opencode.ai"],
             _ => []
         };
+    internal static string StorageKey(string id, CredentialVault vault) => id == "minimax"
+        ? "browser:minimax:" + MiniMaxAuthentication.Region(ProviderConnections.EffectiveSetting(vault, id, "MINIMAX_REGION")) : "browser:" + id;
+    private static string[] SelectedDomains(string id, CredentialVault vault) => id == "minimax"
+        ? [MiniMaxAuthentication.Domain(MiniMaxAuthentication.Region(ProviderConnections.EffectiveSetting(vault, id, "MINIMAX_REGION")) ?? "global")] : Domains(id);
     internal static BrowserCookieJar? Load(string id, CredentialVault vault) =>
-        vault.Load("browser:" + id) is { } json ? BrowserCookieJar.Parse(json, Domains(id)) : null;
+        vault.Load(StorageKey(id, vault)) is { } json ? BrowserCookieJar.Parse(json, SelectedDomains(id, vault)) : null;
 
     private static BrowserProfile[] Profiles()
     {
@@ -52,16 +57,20 @@ internal static class BrowserConnections
                 MessageBox.Show(owner, "No supported Firefox profile was found. Sign in to this provider in Firefox, then try again. Chrome and Edge protected profiles are not decrypted by CodeRim.", "Browser connection");
                 return;
             }
+            var domains = SelectedDomains(id, vault);
             CreateDialog(owner, id, vault, saved, profiles,
-                (profile, token) => Task.Run(() => FirefoxCookieImport.Read(profile, Domains(id), DateTimeOffset.UtcNow, token), token),
+                (profile, token) => Task.Run(() => id == "mimo" ? MiMoFirefoxSessionImport.Read(profile, DateTimeOffset.UtcNow, token)
+                    : FirefoxCookieImport.Read(profile, domains, DateTimeOffset.UtcNow, token), token),
                 async (jar, token) => { using var connections = new ProviderConnections(vault); return await connections.VerifyBrowserAsync(id, settings, jar, token); }).ShowDialog();
         }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException)
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or ArgumentException or System.Security.Cryptography.CryptographicException)
         { MessageBox.Show(owner, "Firefox profiles could not be read. You can still enter a provider credential manually.", "Browser connection"); }
     }
     internal static Window CreateDialog(Window owner, string id, CredentialVault vault, Action saved,
         BrowserProfile[] profiles, Func<BrowserProfile, CancellationToken, Task<BrowserCookieJar>> read, Func<BrowserCookieJar, CancellationToken, Task<ProviderReading>> verify)
     {
+            var storageKey = StorageKey(id, vault);
+            var expectedVersion = vault.Version(storageKey);
             var window = new Window { Owner = owner, Title = "Connect " + id, Width = 460, SizeToContent = SizeToContent.Height,
                 WindowStartupLocation = WindowStartupLocation.CenterOwner, ResizeMode = ResizeMode.NoResize };
             window.SetResourceReference(Window.BackgroundProperty, "WindowBackground");
@@ -69,7 +78,7 @@ internal static class BrowserConnections
             window.Closed += (_, _) => { closed = true; lifetime.Cancel(); if (!busy) lifetime.Dispose(); };
             var body = new StackPanel { Margin = new Thickness(24) };
             body.Children.Add(Ui.Text("Choose your signed-in Firefox profile."));
-            body.Children.Add(Ui.Text("Only cookies for " + string.Join(", ", Domains(id)) + " are imported. Container and partitioned sessions remain separate. Imported cookies are encrypted for your Windows user.", 12, "#A6A6AA"));
+            body.Children.Add(Ui.Text("Only cookies for " + string.Join(", ", SelectedDomains(id, vault)) + " are imported. Container and partitioned sessions remain separate. Imported cookies are encrypted for your Windows user.", 12, "#A6A6AA"));
             var select = new System.Windows.Controls.ComboBox { ItemsSource = profiles, DisplayMemberPath = "Name", SelectedIndex = 0, MinHeight = 28 };
             System.Windows.Automation.AutomationProperties.SetName(select, "Firefox profile");
             body.Children.Add(select);
@@ -92,7 +101,9 @@ internal static class BrowserConnections
                         status.Text = "The provider did not confirm this sign-in. Existing connections were kept. Check the browser account and retry.";
                         return;
                     }
-                    vault.Save("browser:" + id, jar.Serialize());
+                    if (storageKey != StorageKey(id, vault)) { status.Text = "The selected region changed. Reopen this connection."; return; }
+                    if (!vault.SaveIfUnchanged(storageKey, expectedVersion, jar.Serialize()))
+                    { status.Text = "The saved connection changed. Reopen this connection."; return; }
                     // Imported credentials take precedence. Preserve manual credentials so removal can restore them.
                     saved(); window.Close();
                 }

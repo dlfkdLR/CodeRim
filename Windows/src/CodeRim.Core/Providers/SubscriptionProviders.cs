@@ -234,8 +234,15 @@ public sealed partial class NativeProviders
                         var percent = remaining is >= 0 ? 100 - remaining : total is > 0 && left is >= 0 ? (total - left) / total * 100 : null;
                         if (!percent.HasValue) continue;
                         var start = EpochDate(model, weekly ? "weekly_start_time" : "start_time"); var end = EpochDate(model, weekly ? "weekly_end_time" : "end_time");
-                        windows.Add(new(name + (weekly ? ".weekly" : ".interval"), label, Math.Clamp(percent.Value, 0, 100), end,
-                            start.HasValue && end > start && (end.Value - start.Value).TotalMinutes < int.MaxValue ? (int)(end.Value - start.Value).TotalMinutes : weekly ? 10080 : 0));
+                        var now = DateTimeOffset.Now; var reset = end > now ? end : null;
+                        var secondsLeft = Numeric(model, weekly ? "weekly_remains_time" : "remains_time");
+                        if (secondsLeft > 1_000_000) secondsLeft /= 1000;
+                        if (reset is null && secondsLeft is > 0 and <= 31536000) reset = now.AddSeconds(secondsLeft.Value);
+                        var boostPrefix = weekly ? "weekly_boost_" : "interval_boost_";
+                        var boost = Numeric(model, boostPrefix + "permille") ?? Numeric(model, boostPrefix + "permill");
+                        windows.Add(new(name + (weekly ? ".weekly" : ".interval"), label, Math.Clamp(percent.Value, 0, 100), reset,
+                            start.HasValue && end > start && (end.Value - start.Value).TotalMinutes < int.MaxValue ? (int)(end.Value - start.Value).TotalMinutes : weekly ? 10080 : 0,
+                            DisplayValue: boost is > 0 and < 1_000_000 ? (boost.Value / 1000).ToString("0.##", CultureInfo.InvariantCulture) + "× quota" : null));
                     }
                 }
             var services = Get(data, "services");

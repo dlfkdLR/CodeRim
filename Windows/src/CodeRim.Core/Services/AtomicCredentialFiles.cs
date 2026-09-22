@@ -9,9 +9,45 @@ public sealed class AtomicCredentialFiles
 {
     public const int MaximumBytes = 1_048_576;
     private readonly string root;
+    private sealed class CommitGate : IDisposable
+    {
+        internal readonly SemaphoreSlim Semaphore = new(1, 1);
+        internal int Users;
+        public void Dispose() => Semaphore.Dispose();
+    }
+    private static readonly object GatesLock = new();
+    private static readonly Dictionary<string, CommitGate> Gates = new(OperatingSystem.IsWindows()
+        ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+    private CommitGate RentGate()
+    {
+        lock (GatesLock)
+        {
+            if (!Gates.TryGetValue(root, out var gate)) Gates[root] = gate = new();
+            gate.Users++;
+            return gate;
+        }
+    }
+    private void ReturnGate(CommitGate gate)
+    {
+        lock (GatesLock)
+        {
+            if (--gate.Users == 0) { Gates.Remove(root); gate.Dispose(); }
+        }
+    }
+    private sealed class CommitLease(AtomicCredentialFiles owner, CommitGate gate, FileStream stream) : IDisposable
+    {
+        private FileStream? held = stream;
+        public void Dispose()
+        {
+            var current = Interlocked.Exchange(ref held, null);
+            if (current is null) return;
+            try { current.Dispose(); }
+            finally { gate.Semaphore.Release(); owner.ReturnGate(gate); }
+        }
+    }
     public AtomicCredentialFiles(string directory)
     {
-        root = Path.GetFullPath(directory); Directory.CreateDirectory(root); Check(root);
+        root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory)); Directory.CreateDirectory(root); Check(root);
     }
     public byte[]? Read(string key)
     {
@@ -23,13 +59,13 @@ public sealed class AtomicCredentialFiles
         if (value.Length > MaximumBytes) throw new InvalidDataException("Credential entry is too large.");
         using var lease = Acquire(); WriteUnlocked(PathFor(key), value);
     }
-    public bool CompareExchange(string key, string expectedVersion, byte[] value)
+    public bool CompareExchange(string key, string? expectedVersion, byte[] value)
     {
         ArgumentNullException.ThrowIfNull(value);
         if (value.Length > MaximumBytes) throw new InvalidDataException("Credential entry is too large.");
         using var lease = Acquire();
         var path = PathFor(key); var current = ReadUnlocked(path);
-        if (current is null || Version(current) != expectedVersion) return false;
+        if ((current is null ? null : Version(current)) != expectedVersion) return false;
         WriteUnlocked(path, value); return true;
     }
     public void Delete(string key)
@@ -50,15 +86,24 @@ public sealed class AtomicCredentialFiles
             { await Task.Delay(25, token).ConfigureAwait(false); }
         }
     }
-    private FileStream Acquire()
+    private CommitLease Acquire()
     {
-        var path = Path.Combine(root, ".commit.lock"); var timer = Stopwatch.StartNew();
-        while (true)
+        // Queue threads from this process before starting the cross-process timeout.
+        // Otherwise a busy local writer can repeatedly reacquire the file lock and
+        // exhaust another local caller's entire 2-second polling budget.
+        var gate = RentGate();
+        gate.Semaphore.Wait();
+        try
         {
-            Check(root); Check(path);
-            try { return OpenLock(path); }
-            catch (IOException) when (timer.Elapsed < TimeSpan.FromSeconds(2)) { Thread.Sleep(5); }
+            var path = Path.Combine(root, ".commit.lock"); var timer = Stopwatch.StartNew();
+            while (true)
+            {
+                Check(root); Check(path);
+                try { return new CommitLease(this, gate, OpenLock(path)); }
+                catch (IOException) when (timer.Elapsed < TimeSpan.FromSeconds(2)) { Thread.Sleep(5); }
+            }
         }
+        catch { gate.Semaphore.Release(); ReturnGate(gate); throw; }
     }
     private static FileStream OpenLock(string path) => new(path, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
     private string PathFor(string key) => Path.Combine(root, Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(key))) + ".bin");

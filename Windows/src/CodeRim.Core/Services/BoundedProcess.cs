@@ -8,6 +8,8 @@ public sealed record ProcessResult(int ExitCode, string Output, string Error);
 
 public static class BoundedProcess
 {
+    // Keep inheritable standard handles private to one product launch at a time.
+    internal static object CreationLock { get; } = new();
     public static async Task<string> RunAsync(string executable, IEnumerable<string> arguments, string? input = null,
         TimeSpan? timeout = null, int maximumBytes = 2 * 1024 * 1024, IReadOnlyDictionary<string, string?>? environment = null, CancellationToken cancellationToken = default)
     {
@@ -33,16 +35,101 @@ public static class BoundedProcess
         finally { Kill(process); }
     }
 
-    internal static Process Start(string executable, IEnumerable<string> arguments, IReadOnlyDictionary<string, string?>? environment = null)
+    public static async Task<ProcessResult> RunIsolatedResultAsync(string executable, IEnumerable<string> arguments,
+        IReadOnlyDictionary<string, string?> environment, TimeSpan timeout, int maximumBytes, CancellationToken cancellationToken = default)
+    {
+        if (OperatingSystem.IsWindows())
+            return await RunWindowsIsolatedAsync(executable, arguments, environment, timeout, maximumBytes, cancellationToken).ConfigureAwait(false);
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(timeout);
+        cancellationToken.ThrowIfCancellationRequested();
+        using var process = Start(executable, arguments, environment, inheritEnvironment: false);
+        Task<string>? output = null; Task<string>? error = null; Task? exited = null;
+        try
+        {
+            async Task<string> Read(Stream input)
+            {
+                using var content = new MemoryStream();
+                var buffer = new byte[4096];
+                while (true)
+                {
+                    var count = await input.ReadAsync(buffer, deadline.Token).ConfigureAwait(false);
+                    if (count == 0) return new UTF8Encoding(false, true).GetString(content.ToArray());
+                    if (content.Length + count > maximumBytes) throw new IOException("Provider output exceeded its safety limit.");
+                    content.Write(buffer, 0, count);
+                }
+            }
+            output = Read(process.StandardOutput.BaseStream); error = Read(process.StandardError.BaseStream);
+            process.StandardInput.Close();
+            exited = process.WaitForExitAsync(deadline.Token);
+            var pending = new List<Task> { output, error, exited };
+            while (pending.Count > 0)
+            {
+                var completed = await Task.WhenAny(pending).ConfigureAwait(false);
+                await completed.ConfigureAwait(false); pending.Remove(completed);
+            }
+            return new(process.ExitCode, await output.ConfigureAwait(false), await error.ConfigureAwait(false));
+        }
+        finally
+        {
+            deadline.Cancel(); Kill(process);
+            // Observe every reader after early failure, including oversized/invalid UTF-8 output.
+            foreach (var pending in new Task?[] { output, error, exited })
+                if (pending is not null)
+                    try { await pending.ConfigureAwait(false); }
+                    catch (Exception failure) when (failure is IOException or OperationCanceledException or DecoderFallbackException) { }
+        }
+    }
+
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    private static async Task<ProcessResult> RunWindowsIsolatedAsync(string executable, IEnumerable<string> arguments,
+        IReadOnlyDictionary<string, string?> environment, TimeSpan timeout, int maximumBytes, CancellationToken cancellationToken)
+    {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(timeout); cancellationToken.ThrowIfCancellationRequested();
+        using var child = WindowsIsolatedProcess.Start(executable, arguments, environment);
+        async Task<string> Read(Stream stream)
+        {
+            using var content = new MemoryStream(); var buffer = new byte[4096];
+            while (true)
+            {
+                var count = await stream.ReadAsync(buffer, deadline.Token).ConfigureAwait(false);
+                if (count == 0) return new UTF8Encoding(false, true).GetString(content.ToArray());
+                if (content.Length + count > maximumBytes) throw new IOException("Provider output exceeded its safety limit.");
+                content.Write(buffer, 0, count);
+            }
+        }
+        var output = Read(child.Output); var error = Read(child.Error); var exited = child.WaitAsync();
+        try
+        {
+            var pending = new List<Task> { output, error, exited };
+            while (pending.Count > 0)
+            {
+                var completed = await Task.WhenAny(pending).WaitAsync(deadline.Token).ConfigureAwait(false);
+                await completed.ConfigureAwait(false); pending.Remove(completed);
+            }
+            return new(await exited.ConfigureAwait(false), await output.ConfigureAwait(false), await error.ConfigureAwait(false));
+        }
+        finally
+        {
+            deadline.Cancel(); child.KillTree();
+            foreach (var task in new Task[] { output, error, exited })
+                try { await task.ConfigureAwait(false); }
+                catch (Exception failure) when (failure is IOException or OperationCanceledException or DecoderFallbackException or System.ComponentModel.Win32Exception) { }
+        }
+    }
+
+    internal static Process Start(string executable, IEnumerable<string> arguments, IReadOnlyDictionary<string, string?>? environment = null, bool inheritEnvironment = true)
     {
         if (!Path.IsPathFullyQualified(executable) || !File.Exists(executable)) throw new FileNotFoundException("Select an installed provider executable.");
         var start = new ProcessStartInfo(executable) { UseShellExecute = false, RedirectStandardOutput = true,
             RedirectStandardError = true, RedirectStandardInput = true, CreateNoWindow = true,
             WorkingDirectory = Path.GetDirectoryName(executable)! };
+        if (!inheritEnvironment) start.Environment.Clear();
         if (environment is not null) foreach (var pair in environment)
             { if (pair.Value is null) start.Environment.Remove(pair.Key); else start.Environment[pair.Key] = pair.Value; }
         foreach (var argument in arguments) start.ArgumentList.Add(argument);
-        return Process.Start(start) ?? throw new IOException("The provider command could not start.");
+        lock (CreationLock) return Process.Start(start) ?? throw new IOException("The provider command could not start.");
     }
     internal static async Task<string> ReadBoundedAsync(StreamReader reader, int limit, CancellationToken token)
     {

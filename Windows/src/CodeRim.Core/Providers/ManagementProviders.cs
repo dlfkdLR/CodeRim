@@ -10,13 +10,13 @@ public sealed partial class NativeProviders
     public static IReadOnlyList<(string Key, string Label)> Settings(string id) => id switch
     {
         "stepfun" => [("STEPFUN_AUTH_MODE", "Authentication"), ("STEPFUN_USERNAME", "Username"), ("STEPFUN_PASSWORD", "Password")],
-        "deepseek" => [("DEEPSEEK_USAGE_SOURCE", "Usage source")],
+        "deepseek" => [("DEEPSEEK_USAGE_SOURCE", "Usage source"), ("DEEPSEEK_DETAILED_USAGE", "Detailed Web usage")],
         "moonshot" => [("MOONSHOT_REGION", "Region")],
         "windsurf" => [("WINDSURF_USAGE_SOURCE", "Usage source"), ("WINDSURF_CACHE_PATH", "Local Windsurf state.vscdb path")],
         "amp" => [("AMP_USAGE_SOURCE", "Usage source"), ("AMP_EXECUTABLE", "Amp executable path (optional)")],
         "azureopenai" => [("AZURE_OPENAI_ENDPOINT", "Azure endpoint (HTTPS)"), ("AZURE_OPENAI_DEPLOYMENT_NAME", "Deployment name"),
             ("AZURE_OPENAI_API_VERSION", "API version (default 2024-10-21; or v1)"), ("AZURE_OPENAI_ALLOW_BILLABLE_REQUESTS", "Allow paid validation on refresh")],
-        "alibabatokenplan" => [("ALIBABA_TOKEN_PLAN_REGION", "Region: intl, cn, intl-personal, or cn-personal"), ("ALIBABA_TOKEN_PLAN_SEC_TOKEN", "Console sec_token (optional if detected)")],
+        "alibabatokenplan" => [("ALIBABA_TOKEN_PLAN_SOURCE", "Usage source"), ("ALIBABA_TOKEN_PLAN_EXECUTABLE", "Bailian bl.exe path (optional)"), ("ALIBABA_TOKEN_PLAN_REGION", "Region: intl, cn, intl-personal, or cn-personal"), ("ALIBABA_TOKEN_PLAN_SEC_TOKEN", "Console sec_token (optional if detected)")],
         "qwencloud" => [("QWEN_CLOUD_SEC_TOKEN", "Console sec_token (optional if detected)")],
         "gemini" => [("ANTIGRAVITY_USAGE_SOURCE", "Usage source"), ("ANTIGRAVITY_PROJECT_ID", "Project ID (optional if detected)"), ("ANTIGRAVITY_OAUTH_CLIENT_ID", "OAuth client ID (for refresh)"), ("ANTIGRAVITY_OAUTH_CLIENT_SECRET", "OAuth client secret (for refresh)")],
         "doubao" => [("VOLCENGINE_ACCESS_KEY_ID", "Volcengine access key ID"), ("VOLCENGINE_REGION", "Region (default cn-beijing)")],
@@ -32,7 +32,7 @@ public sealed partial class NativeProviders
         "chutes" => [("CHUTES_API_URL", "Chutes API URL (HTTPS; default https://api.chutes.ai)")],
         "devin" => [("DEVIN_ORGANIZATION", "Organization ID or slug")],
         "kilo" => [("KILO_ORG_ID", "Organization ID (leave empty for personal usage)")],
-        "minimax" => [("MINIMAX_REGION", "Region: global or cn")],
+        "minimax" => [("MINIMAX_USAGE_SOURCE", "Usage source"), ("MINIMAX_REGION", "Region")],
         "mimo" => [("MIMO_API_URL", "MiMo API base URL (default https://platform.xiaomimimo.com/api/v1)")],
         "kimi" => [("KIMI_USAGE_SOURCE", "Usage source"), ("KIMI_CODE_BASE_URL", "Kimi Code API base URL (API key only)")],
         "wayfinder" => [("WAYFINDER_GATEWAY_URL", "Gateway URL (default http://127.0.0.1:8088)")],
@@ -43,6 +43,7 @@ public sealed partial class NativeProviders
     };
     public static IReadOnlyList<string> ScopeAliases(string id) => id switch
     {
+        "minimax" => ["MINIMAX_COOKIE", "MINIMAX_COOKIE_HEADER"],
         "kimi" => ["KIMI_MANUAL_COOKIE", "KIMI_AUTH_TOKEN", "kimi_auth_token", "KIMI_CODE_HOME", "KIMI_CODE_OAUTH_HOST", "KIMI_OAUTH_HOST"],
         "deepseek" => ["DEEPSEEK_KEY", "DEEPSEEK_PLATFORM_TOKEN", "DEEPSEEK_USER_TOKEN"],
         "moonshot" => ["MOONSHOT_KEY", "CODEXBAR_MOONSHOT_API_KEY", "CODEXBAR_MOONSHOT_API_KEY_REGION"],

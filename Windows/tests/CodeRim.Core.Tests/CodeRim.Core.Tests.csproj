@@ -15,5 +15,25 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\CodeRim.Core\CodeRim.Core.csproj" />
+    <ProjectReference Include="..\CodeRim.ProcessFixture\CodeRim.ProcessFixture.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+  <Target Name="CopyProcessFixture" AfterTargets="Build">
+    <MSBuild Projects="../CodeRim.ProcessFixture/CodeRim.ProcessFixture.csproj" Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration);TargetFramework=$(TargetFramework);RuntimeIdentifier=$(RuntimeIdentifier)">
+      <Output TaskParameter="TargetOutputs" ItemName="_FixtureTarget" />
+    </MSBuild>
+    <PropertyGroup>
+      <_FixtureWindows Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('win-')) or ('$(RuntimeIdentifier)' == '' and '$(OS)' == 'Windows_NT')">true</_FixtureWindows>
+    </PropertyGroup>
+    <ItemGroup>
+      <_FixtureFile Include="@(_FixtureTarget)" />
+      <_FixtureFile Include="@(_FixtureTarget -> '%(RootDir)%(Directory)%(Filename).runtimeconfig.json')" />
+      <_FixtureFile Include="@(_FixtureTarget -> '%(RootDir)%(Directory)%(Filename).deps.json')" />
+      <_FixtureFile Include="@(_FixtureTarget -> '%(RootDir)%(Directory)%(Filename).exe')" Condition="'$(_FixtureWindows)' == 'true'" />
+      <_FixtureFile Include="@(_FixtureTarget -> '%(RootDir)%(Directory)%(Filename)')" Condition="'$(_FixtureWindows)' != 'true'" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_FixtureFile)" DestinationFolder="$(TargetDir)ProcessFixture" SkipUnchangedFiles="true">
+      <Output TaskParameter="CopiedFiles" ItemName="FileWrites" />
+    </Copy>
+  </Target>
 </Project>

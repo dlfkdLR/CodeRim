@@ -454,7 +454,48 @@ internal sealed partial class DashboardWindow : Window
             foreach (var field in NativeProviders.Settings(id))
             {
                 var key = "setting:" + id + ":" + field.Key;
-                if (field.Key == "STEPFUN_AUTH_MODE")
+                if (field.Key == "ALIBABA_TOKEN_PLAN_SOURCE")
+                {
+                    var selected = ProviderConnections.AlibabaSource(vault) switch { "cli" => "CLI", "web" => "Web", _ => "Auto" };
+                    body.Children.Add(SettingsUi.Picker("Usage source", AlibabaSources, selected, value =>
+                    {
+                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
+                    }));
+                    body.Children.Add(Ui.Text("Auto tries Bailian CLI, then the selected Web session. CLI shows the active personal 5-hour and weekly quotas; Web follows the selected Team or Personal plan.", 11, "#A6A6AA"));
+                }
+                else if (field.Key == "ALIBABA_TOKEN_PLAN_REGION")
+                {
+                    var region = AlibabaTokenPlanCliUsage.Region(ProviderConnections.EffectiveSetting(vault, id, field.Key));
+                    var selected = region switch { "cn" => "China · Team", "cn-personal" => "China · Personal", "intl-personal" => "International · Personal", _ => "International · Team" };
+                    body.Children.Add(SettingsUi.Picker("Region and Web plan", AlibabaRegions, selected, value =>
+                    {
+                        try
+                        {
+                            vault.Save(key, value switch { "China · Team" => "cn", "China · Personal" => "cn-personal", "International · Personal" => "intl-personal", _ => "intl" });
+                            store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id);
+                        }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the region.", "CodeRim"); }
+                    }));
+                }
+                else if (field.Key == "ALIBABA_TOKEN_PLAN_EXECUTABLE")
+                {
+                    if (ProviderConnections.AlibabaSource(vault) == "web") continue;
+                    body.Children.Add(Ui.Text(field.Label)); AddSettingField(key, id);
+                    body.Children.Add(Ui.Button("Choose bl.exe…", () =>
+                    {
+                        var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "Bailian executable|bl.exe", CheckFileExists = true };
+                        if (dialog.ShowDialog(this) != true) return;
+                        try { vault.Save(key, dialog.FileName); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the selected path.", "CodeRim"); }
+                    }));
+                    body.Children.Add(Ui.Button("Bailian CLI installation and sign-in", () => OpenUrl("https://docs.agent.bailian.aliyun.com/en/bailian-cli/getting-started/installation")));
+                }
+                else if (field.Key == "ALIBABA_TOKEN_PLAN_SEC_TOKEN" && ProviderConnections.AlibabaSource(vault) == "cli") continue;
+                else if (field.Key == "STEPFUN_AUTH_MODE")
                 {
                     var selected = StepFunAuthentication.Mode(ProviderConnections.EffectiveSetting(vault, id, field.Key)) == "manual" ? "Manual" : "Auto";
                     body.Children.Add(SettingsUi.Picker(field.Label, StepFunModes, selected, value =>
@@ -465,7 +506,19 @@ internal sealed partial class DashboardWindow : Window
                     }));
                 }
                 else if (id == "stepfun" && StepFunAuthentication.Mode(ProviderConnections.EffectiveSetting(vault, id, "STEPFUN_AUTH_MODE")) == "manual") continue;
-                else if (field.Key is "DEEPSEEK_USAGE_SOURCE" or "KIMI_USAGE_SOURCE")
+                else if (field.Key == "DEEPSEEK_DETAILED_USAGE")
+                {
+                    if (DeepSeekAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "DEEPSEEK_USAGE_SOURCE")) == "api") continue;
+                    body.Children.Add(SettingsUi.Toggle("Detailed Web usage", DeepSeekUsageDetails.Enabled(
+                        ProviderConnections.EffectiveSetting(vault, id, field.Key)), enabled =>
+                    {
+                        try { vault.Save(key, enabled ? "true" : "false"); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the usage preference.", "CodeRim"); }
+                    }));
+                    body.Children.Add(Ui.Text("Shows daily and period totals from the selected platform session. API-key readings remain separate.", 11, "#A6A6AA"));
+                }
+                else if (field.Key is "DEEPSEEK_USAGE_SOURCE" or "KIMI_USAGE_SOURCE" or "MINIMAX_USAGE_SOURCE")
                 {
                     var selected = DeepSeekAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, field.Key)) switch { "api" => "API", "web" => "Web", _ => "Auto" };
                     body.Children.Add(SettingsUi.Picker("Usage source", DeepSeekSources, selected, value =>
@@ -474,8 +527,20 @@ internal sealed partial class DashboardWindow : Window
                         catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
                         { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
                     }));
-                    body.Children.Add(Ui.Text(id == "kimi" ? "API, CLI and Web keep their account data separate. Web uses only its selected session."
+                    body.Children.Add(Ui.Text(id == "minimax" ? "Auto uses the selected Web session when present, otherwise the API key. Each region keeps separate connections."
+                        : id == "kimi" ? "API, CLI and Web keep their account data separate. Web uses only its selected session."
                         : "Auto uses an API key when present, then a platform session. Each source keeps its own credential.", 11, "#A6A6AA"));
+                }
+                else if (field.Key == "MINIMAX_REGION")
+                {
+                    ProviderConnections.BindMiniMaxLegacy(vault);
+                    var selected = MiniMaxAuthentication.Region(ProviderConnections.EffectiveSetting(vault, id, field.Key)) == "cn" ? "China" : "Global";
+                    body.Children.Add(SettingsUi.Picker("Region", MiniMaxRegions, selected, value =>
+                    {
+                        try { ProviderConnections.BindMiniMaxLegacy(vault); vault.Save(key, value == "China" ? "cn" : "global"); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the region.", "CodeRim"); }
+                    }));
                 }
                 else if (field.Key == "MOONSHOT_REGION")
                 {
@@ -551,6 +616,21 @@ internal sealed partial class DashboardWindow : Window
                 if (source is "auto" or "api") { body.Children.Add(Ui.Text("Kimi Code API key")); AddSecretField("provider:kimi", id, "Save API key"); }
                 if (source is "auto" or "web") { body.Children.Add(Ui.Text("Kimi Web session token or cookie")); AddSecretField("cookie:kimi", id, "Save Web session"); }
             }
+            else if (id == "alibabatokenplan")
+            {
+                if (ProviderConnections.AlibabaSource(vault) is "auto" or "web")
+                { body.Children.Add(Ui.Text("Token Plan Web session cookie")); AddSecretField("provider:" + id, id, "Save Web session"); }
+            }
+            else if (id == "minimax")
+            {
+                var region = MiniMaxAuthentication.Region(ProviderConnections.EffectiveSetting(vault, id, "MINIMAX_REGION"));
+                var source = MiniMaxAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "MINIMAX_USAGE_SOURCE"));
+                if (region is not null)
+                {
+                    if (source is "auto" or "api") { body.Children.Add(Ui.Text("MiniMax Coding Plan API key")); AddSecretField("provider:minimax:" + region, id, "Save API key"); }
+                    if (source is "auto" or "web") { body.Children.Add(Ui.Text("MiniMax Web cookie or copied cURL request")); AddSecretField("cookie:minimax:" + region, id, "Save Web session"); }
+                }
+            }
             else if (id == "deepseek")
             {
                 var source = DeepSeekAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "DEEPSEEK_USAGE_SOURCE"));
@@ -571,13 +651,13 @@ internal sealed partial class DashboardWindow : Window
             else if (id != "wayfinder" && (id != "gemini" || AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, "ANTIGRAVITY_USAGE_SOURCE")) == "oauth")) { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
         }
         else if (!HasConnector(id)) body.Children.Add(Ui.Text("This provider's Windows integration is still pending. Adding it does not create a live connection.", color: "#F2C66D"));
-        if (BrowserConnections.Domains(id).Length > 0 && (id != "stepfun" || StepFunAuthentication.Mode(ProviderConnections.EffectiveSetting(vault, id, "STEPFUN_AUTH_MODE")) == "auto") && (id != "kimi" || KimiAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "KIMI_USAGE_SOURCE")) is "auto" or "web") && (id != "amp" || AmpCliUsage.Source(ProviderConnections.EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE")) == "web"))
+        if (BrowserConnections.Domains(id).Length > 0 && (id != "alibabatokenplan" || ProviderConnections.AlibabaSource(vault) is "auto" or "web") && (id != "minimax" || MiniMaxAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "MINIMAX_USAGE_SOURCE")) is "auto" or "web") && (id != "stepfun" || StepFunAuthentication.Mode(ProviderConnections.EffectiveSetting(vault, id, "STEPFUN_AUTH_MODE")) == "auto") && (id != "kimi" || KimiAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "KIMI_USAGE_SOURCE")) is "auto" or "web") && (id != "amp" || AmpCliUsage.Source(ProviderConnections.EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE")) == "web"))
         {
             body.Children.Add(Ui.Button("Import from Firefox…", () => BrowserConnections.Import(this, id, vault, settings.Current, () =>
             { store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); })));
             body.Children.Add(Ui.Button("Remove imported sign-in", () =>
             {
-                try { vault.Delete("browser:" + id); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
+                try { vault.Delete(BrowserConnections.StorageKey(id, vault)); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
                 catch (Exception error) when (error is IOException or UnauthorizedAccessException)
                 { MessageBox.Show(this, "Could not remove the imported sign-in.", "CodeRim"); }
             }));
@@ -625,7 +705,14 @@ internal sealed partial class DashboardWindow : Window
         }
         providerReading.Children.Clear(); var reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(id), settings.Current);
         providerReading.Children.Add(Ui.Text(reading?.Message ?? reading?.State.ToString() ?? "Waiting for the first reading", color: "#B7B8BD"));
-        foreach (var window in reading?.Windows ?? []) providerReading.Children.Add(Ui.Row(window.Name, window.UsedPercent is { } p ? $"{p:0.#}% used" + (window.DisplayValue is { } description ? " · " + description : "") : window.DisplayValue ?? "—"));
+        string? group = null;
+        foreach (var window in reading?.Windows ?? [])
+        {
+            if (window.Group is { Length: > 0 } nextGroup && nextGroup != group)
+                providerReading.Children.Add(Ui.Text(nextGroup, weight: FontWeights.SemiBold));
+            group = window.Group;
+            providerReading.Children.Add(Ui.Row(window.Name, window.UsedPercent is { } p ? $"{p:0.#}% used" + (window.DisplayValue is { } description ? " · " + description : "") : window.DisplayValue ?? "—"));
+        }
     }
     private void AddSettingField(string key, string id)
     {
@@ -638,21 +725,26 @@ internal sealed partial class DashboardWindow : Window
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { MessageBox.Show(this, "Could not save this setting.", "CodeRim"); }
         }));
     }
+    private static readonly string[] AlibabaSources = ["Auto", "CLI", "Web"];
+    private static readonly string[] AlibabaRegions = ["International · Team", "International · Personal", "China · Team", "China · Personal"];
+    private static readonly string[] MiniMaxRegions = ["Global", "China"];
     private static readonly string[] StepFunModes = ["Auto", "Manual"];
     private void AddSecretField(string key, string id, string label)
     {
-        var password = new PasswordBox { MaxLength = id == "factory" ? 262144 : 32768, Padding = new Thickness(8), Margin = new Thickness(0, 6, 0, 8) }; body.Children.Add(password);
+        var password = new PasswordBox { MaxLength = id == "factory" ? 262144 : id == "minimax" ? 65536 : 32768, Padding = new Thickness(8), Margin = new Thickness(0, 6, 0, 8) }; body.Children.Add(password);
         System.Windows.Automation.AutomationProperties.SetName(password, label);
         var result = Ui.Text("", 11, "#B7B8BD");
         body.Children.Add(Ui.Button(label, () =>
         {
             if (key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password.Length == 0 : string.IsNullOrWhiteSpace(password.Password)) return;
-            try { vault.Save(key, key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password : password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
+            if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal) && MiniMaxAuthentication.Parse(password.Password, key.Split(':')[^1]) is null)
+            { result.Text = "Enter a valid cookie or copied request for this region."; return; }
+            try { vault.Save(key, key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password : password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal)) vault.Delete("browser:minimax:" + key.Split(':')[^1]); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { result.Text = "Could not save the setting."; }
         }));
         body.Children.Add(Ui.Button("Remove saved value", () =>
         {
-            try { vault.Delete(key); store.InvalidateAccount(id); result.Text = "Removed."; _ = store.RefreshProviderAsync(id); }
+            try { vault.Delete(key); if (id == "minimax" && key == "provider:minimax:" + vault.Load("setting:minimax:LEGACY_REGION")) vault.Delete("provider:minimax"); store.InvalidateAccount(id); result.Text = "Removed."; _ = store.RefreshProviderAsync(id); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException) { result.Text = "Could not remove the setting."; }
         })); body.Children.Add(result);
     }
