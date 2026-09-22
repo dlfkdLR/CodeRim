@@ -7,7 +7,7 @@ using static CodeRim.Core.Providers.ProviderParsers;
 namespace CodeRim.Core.Providers;
 
 /// Read-only requests to fixed vendor endpoints. Redirects and cookie storage are disabled.
-public sealed class HttpProviders : IDisposable
+public sealed partial class HttpProviders : IDisposable
 {
     private readonly HttpClient client;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeOffset> retryAfter = new(StringComparer.Ordinal);
@@ -33,6 +33,7 @@ public sealed class HttpProviders : IDisposable
         var deepSeekSource = id == "deepseek" ? DeepSeekAuthentication.Source(setting("DEEPSEEK_USAGE_SOURCE")) : null;
         if (deepSeekSource == "auto") deepSeekSource = "api"; // This transport receives an already selected credential.
         if (id == "deepseek" && deepSeekSource is null) return new(id, ReadingState.Error, [], Message: "Choose API or Web as the DeepSeek source.");
+        var deepSeekDetails = deepSeekSource == "web" && DeepSeekUsageDetails.Enabled(setting("DEEPSEEK_DETAILED_USAGE"));
         var endpoint = id switch
         {
             "copilot" => "https://api.github.com/copilot_internal/user",
@@ -84,7 +85,12 @@ public sealed class HttpProviders : IDisposable
                 deadline.Token.ThrowIfCancellationRequested();
                 return balance;
             }
-            if (id == "deepseek") return DeepSeekBalance.Parse(document.RootElement, deepSeekSource!);
+            if (id == "deepseek")
+            {
+                var balance = DeepSeekBalance.Parse(document.RootElement, deepSeekSource!);
+                return deepSeekDetails
+                    ? await WithDeepSeekDetailsAsync(balance, secret!, cancellationToken).ConfigureAwait(false) : balance;
+            }
             var windows = Parse(id, document.RootElement);
             deadline.Token.ThrowIfCancellationRequested();
             return new(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, DateTimeOffset.Now,

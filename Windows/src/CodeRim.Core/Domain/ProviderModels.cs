@@ -6,7 +6,8 @@ namespace CodeRim.Core.Domain;
 
 public enum ReadingState { Ready, Loading, Partial, Stale, NeedsAuth, Unsupported, Unavailable, Error, Disabled }
 public sealed record LimitWindow(string Id, string Name, double? UsedPercent = null, DateTimeOffset? ResetsAt = null,
-    int DurationMinutes = 0, long? UsedCount = null, long? RemainingCount = null, string? Unit = null, string? DisplayValue = null)
+    int DurationMinutes = 0, long? UsedCount = null, long? RemainingCount = null, string? Unit = null, string? DisplayValue = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Group = null)
 {
     public double? RemainingPercent => UsedPercent is { } value ? Math.Clamp(100 - value, 0, 100) : null;
 }

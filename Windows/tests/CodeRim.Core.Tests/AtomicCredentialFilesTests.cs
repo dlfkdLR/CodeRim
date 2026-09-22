@@ -25,6 +25,43 @@ public sealed class AtomicCredentialFilesTests : IDisposable
         }, TestContext.Current.CancellationToken)));
         Assert.Empty(Directory.EnumerateFiles(root, "*.tmp"));
     }
+    [Fact]
+    public async Task ManyIndependentWritersQueueBeforeTheExternalLockTimeout()
+    {
+        var initial = new AtomicCredentialFiles(root);
+        initial.Write("provider", new byte[262144]);
+        using var start = new ManualResetEventSlim();
+        var writers = Enumerable.Range(0, 48).Select(worker => Task.Factory.StartNew(() =>
+        {
+            var store = new AtomicCredentialFiles(root);
+            var bytes = Enumerable.Repeat((byte)worker, 262144).ToArray();
+            start.Wait(TestContext.Current.CancellationToken);
+            for (var i = 0; i < 8; i++)
+            {
+                store.Write("provider", bytes);
+                var actual = store.Read("provider")!;
+                Assert.Equal(bytes.Length, actual.Length);
+                Assert.True(actual.All(value => value == actual[0]));
+            }
+        }, TestContext.Current.CancellationToken, TaskCreationOptions.LongRunning, TaskScheduler.Default)).ToArray();
+        start.Set();
+        await Task.WhenAll(writers);
+        Assert.Empty(Directory.EnumerateFiles(root, "*.tmp"));
+    }
+    [Fact]
+    public async Task FailedExternalLockDoesNotPoisonLaterLocalCommits()
+    {
+        var store = new AtomicCredentialFiles(root); store.Write("provider", Bytes("before"));
+        using (var external = new FileStream(Path.Combine(root, ".commit.lock"), FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+        {
+            await Assert.ThrowsAsync<IOException>(() => Task.Run(() => store.Write("provider", Bytes("rejected")),
+                TestContext.Current.CancellationToken));
+        }
+        var second = new AtomicCredentialFiles(root);
+        Assert.Equal("before", Encoding.UTF8.GetString(second.Read("provider")!));
+        second.Write("provider", Bytes("after"));
+        Assert.Equal("after", Encoding.UTF8.GetString(store.Read("provider")!));
+    }
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -69,6 +106,17 @@ public sealed class AtomicCredentialFilesTests : IDisposable
         {
             for (var i = 0; i < 150; i++) if (second.Read("provider") is { } value) Assert.Equal(text, Encoding.UTF8.GetString(value));
         }, TestContext.Current.CancellationToken));
+    }
+    [Fact]
+    public async Task ConcurrentFirstImportsCannotOverwriteAnAlreadyCreatedEntry()
+    {
+        var stores = Enumerable.Range(0, 12).Select(_ => new AtomicCredentialFiles(root)).ToArray();
+        var outcomes = await Task.WhenAll(stores.Select((store, i) => Task.Run(() =>
+            store.CompareExchange("new-profile", null, Bytes("import-" + i)), TestContext.Current.CancellationToken)));
+        Assert.Single(outcomes, won => won);
+        var existing = stores[0].Read("new-profile")!;
+        Assert.False(stores[0].CompareExchange("new-profile", null, Bytes("late-import")));
+        Assert.Equal(existing, stores[0].Read("new-profile"));
     }
     [Fact]
     public void SizeAndEntryPathAreBounded()

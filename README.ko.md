@@ -26,7 +26,9 @@ CodeRim은 화면 가장자리의 작은 노치에 코딩 도우미의 사용 �
 
 두 앱은 여섯 가지 설정 분류와 Usage·Projects·Sessions·계정 탐색 구조를 공유합니다. Windows도 시스템 밝은/어두운 테마, 고대비, 수동 새로고침, 한도 표시 설정, 세션 이미지 개수와 직속 하위 에이전트 탐색을 지원합니다. 이미지 원본과 대화 내용은 사용량 DB에 복사하지 않습니다. Windows에는 지원 제공업체의 Firefox 로그인 가져오기, 서로 분리된 Amp API·CLI·Web 연결, Windsurf 로컬 캐시와 Antigravity OAuth·Local IDE 소스 선택, 갱신을 지원하는 Groq 콘솔 세션과 30일 사용 이력, 인증부터 청구 조회까지 일관된 재시도를 적용한 Factory 브라우저 세션과 계정 변경 충돌을 방지하는 WorkOS 세션 자동 갱신, Today·7D·30D 분석과 별도의 Codex·Claude 활동 감지도 구현되어 있습니다. 운영체제별 인증과 업데이트 방식에는 차이가 있으며, 아래 안내에서 구분합니다.
 
-현재 소스는 공급자가 많을 때 노치 목록을 화면 크기에 맞춰 나누고, 긴 상세 카드는 스크롤로 표시합니다. xAI·Poe는 두 플랫폼이 인증 오류와 불완전한 이력을 같은 방식으로 처리합니다. 이 변경은 위 다운로드에 포함되지 않은 감사 중인 수정입니다. [2026-09-20 감사 결과와 검증 범위](Documentation/FULL_AUDIT_2026-09-20.md)를 참고하세요.
+Windows 인증은 GitHub CLI, 신뢰할 수 있는 GLM Coding Plan과 Codebuff 로컬 로그인도 재사용합니다. Moonshot 지역별 키와 DeepSeek API·Web 인증 정보는 분리하고, Kimi API·CLI·Web 연결도 지원합니다. DeepSeek Web에서는 같은 세션의 상세 사용량 조회를 선택할 수 있습니다. StepFun에는 비밀번호 로그인과 Oasis-Token 갱신을 추가했습니다. MiniMax는 지역별 API·Web 연결을 분리합니다. Alibaba Token Plan은 소스와 지역을 선택해 Bailian CLI 또는 Web으로 연결할 수 있습니다. Firefox 가져오기는 선택한 프로필의 MiMo 세션 쿠키 복구와 Abacus·LongCat·Alibaba/Qwen Token Plan을 포함한 20개 연결 경로를 지원합니다. 연결 코드는 합성 응답으로 검사했으며, 실제 계정 인증 결과와는 구분합니다.
+
+현재 소스는 공급자가 많을 때 노치 목록을 화면 크기에 맞춰 나누고, 긴 상세 카드는 스크롤로 표시합니다. xAI·Poe는 두 플랫폼이 인증 오류와 불완전한 이력을 같은 방식으로 처리합니다. 이 변경은 아래 릴리스 다운로드에 아직 포함되지 않은 감사 중인 수정입니다. [2026-09-20 감사 결과와 검증 범위](Documentation/FULL_AUDIT_2026-09-20.md)를 참고하세요.
 
 ## 설치
 

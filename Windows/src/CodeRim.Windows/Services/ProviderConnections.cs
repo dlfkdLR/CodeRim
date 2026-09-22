@@ -14,8 +14,9 @@ internal sealed partial class ProviderConnections : IDisposable
     private readonly NativeProviders native;
     private readonly Func<string, string?> readCredential;
     private readonly Func<CancellationToken, Task<string?>> readCopilotCli;
-    public ProviderConnections(CredentialVault vault, NativeProviders? native = null, HttpProviders? http = null, Func<string, string?>? nativeCredentialReader = null, ScriptProviders? scripts = null, Func<CancellationToken, Task<string?>>? copilotCliReader = null)
-    { this.vault = vault; this.native = native ?? new(); this.http = http ?? new(); this.scripts = scripts ?? new(); readCredential = nativeCredentialReader ?? NativeCredentials.Read; readCopilotCli = copilotCliReader ?? CopilotConnection.ReadCliAsync; }
+    private readonly Func<string, string, CancellationToken, Task<ProviderReading>> readAlibabaCli;
+    public ProviderConnections(CredentialVault vault, NativeProviders? native = null, HttpProviders? http = null, Func<string, string?>? nativeCredentialReader = null, ScriptProviders? scripts = null, Func<CancellationToken, Task<string?>>? copilotCliReader = null, Func<string, string, CancellationToken, Task<ProviderReading>>? alibabaCliReader = null)
+    { this.vault = vault; this.native = native ?? new(); this.http = http ?? new(); this.scripts = scripts ?? new(); readCredential = nativeCredentialReader ?? NativeCredentials.Read; readCopilotCli = copilotCliReader ?? CopilotConnection.ReadCliAsync; readAlibabaCli = alibabaCliReader ?? AlibabaTokenPlanCliUsage.ReadAsync; }
     public void Dispose() { http.Dispose(); scripts.Dispose(); native.Dispose(); }
     public Task<ProviderReading> FetchAsync(string id, AppSettings settings, CancellationToken token)
         => FetchAsync(id, settings, null, token);
@@ -69,16 +70,19 @@ internal sealed partial class ProviderConnections : IDisposable
                 var reading = await native.FetchCodebuffAsync(selected?.Token, selected?.FromAuthFile == true, token).ConfigureAwait(false);
                 return selected == Resolve() ? reading : new(id, ReadingState.Unavailable, [], Message: "The connection changed. Refresh the selected account.");
             }
+            if (id == "alibabatokenplan") return await FetchAlibabaConnectionAsync(browserOverride, token).ConfigureAwait(false);
             if (id == "stepfun") return await FetchStepFunConnectionAsync(browserOverride, token).ConfigureAwait(false);
+            if (id == "minimax") return await FetchMiniMaxConnectionAsync(browserOverride, token).ConfigureAwait(false);
             if (id == "kimi") return await FetchKimiConnectionAsync(browserOverride, token).ConfigureAwait(false);
             if (id == "deepseek")
             {
                 DeepSeekCredential? Resolve() => DeepSeekAuthentication.Resolve(NativeSetting("DEEPSEEK_USAGE_SOURCE"), vault.Load, Environment.GetEnvironmentVariable);
                 var selected = Resolve();
+                var details = DeepSeekUsageDetails.Enabled(NativeSetting("DEEPSEEK_DETAILED_USAGE"));
                 if (selected is null) return new(id, ReadingState.Error, [], Message: "Choose Auto, API or Web as the DeepSeek source.");
                 var reading = await http.FetchAsync(id, selected.Token,
-                    key => key == "DEEPSEEK_USAGE_SOURCE" ? selected.Source : null, token).ConfigureAwait(false);
-                return selected == Resolve() ? reading
+                    key => key == "DEEPSEEK_USAGE_SOURCE" ? selected.Source : key == "DEEPSEEK_DETAILED_USAGE" ? details.ToString() : null, token).ConfigureAwait(false);
+                return selected == Resolve() && details == DeepSeekUsageDetails.Enabled(NativeSetting("DEEPSEEK_DETAILED_USAGE")) ? reading
                     : new(id, ReadingState.Unavailable, [], Message: "The DeepSeek connection changed. Refresh the selected account.");
             }
             if (id == "moonshot")
@@ -204,6 +208,7 @@ internal sealed partial class ProviderConnections : IDisposable
             : Environment.GetEnvironmentVariable(key)?.Trim() is { Length: > 0 } environment ? environment : null;
     internal bool CanCache(string id)
     {
+        if (id == "alibabatokenplan") return AlibabaSource(vault) == "web";
         if (id == "jetbrains") return false;
         if (id == "copilot") return GitHubAuthentication.Configured(vault.Load("provider:copilot"),
             Environment.GetEnvironmentVariable("GH_TOKEN"), Environment.GetEnvironmentVariable("GITHUB_TOKEN")) is not null || readCredential("copilot") is not null;
@@ -233,7 +238,9 @@ internal sealed partial class ProviderConnections : IDisposable
                 return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source)));
             }
             if (id is "codex" or "claude") return SavedAccounts.Current(id).Identity.Id;
+            if (id == "alibabatokenplan") return AlibabaScope();
             if (id == "stepfun") return ResolveStepFun().Scope;
+            if (id == "minimax") return MiniMaxScope();
             if (id == "kimi")
             {
                 var selected = ResolveKimi();
@@ -244,7 +251,8 @@ internal sealed partial class ProviderConnections : IDisposable
             {
                 var credential = DeepSeekAuthentication.Resolve(EffectiveSetting(vault, id, "DEEPSEEK_USAGE_SOURCE"), vault.Load, Environment.GetEnvironmentVariable);
                 return credential?.Token is null ? null : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
-                    System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(credential))));
+                    System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { credential,
+                        details = DeepSeekUsageDetails.Enabled(EffectiveSetting(vault, id, "DEEPSEEK_DETAILED_USAGE")) }))));
             }
             var definition = ProviderCatalog.Find(id);
             var values = new List<string?> { vault.Load("browser:" + id), vault.Load("provider:" + id), vault.Load("cookie:" + id), readCredential(id) };
