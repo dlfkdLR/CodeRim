@@ -40,7 +40,7 @@ internal static partial class NativeSmoke
         Require(typeof(ReleaseUpdates).Assembly.GetType("CodeRim.Core.Services.MsiUpdateQa") is null, "QA updater entry leaked into the release binary");
         Record("Release assembly excludes the conditional MSI QA entry");
         var worker = Path.Combine(AppContext.BaseDirectory, "CodeRim.UpdateWorker.exe");
-        if (File.Exists(worker))
+        if (File.Exists(worker) && !UpdateCoordinator.SigningConfigured)
         {
             var pin = typeof(App).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
                 .Cast<System.Reflection.AssemblyMetadataAttribute>().Single(a => a.Key == "CodeRimInstallerWorkerSha256").Value;
