@@ -34,11 +34,11 @@ Windows Setup installations automatically check and download updates authenticat
 
 The Windows notch now uses the same resting settings arc and revealed account controls as macOS. Repeated quota refreshes keep detail popups clear of the notch. Keyboard account selection keeps focus within the menu and returns it on Escape; redirected CLI output uses UTF-8, including Unicode provider names.
 
-The current source also bounds large notch provider lists and scrolls overflowing detail cards. xAI/Poe readers share authentication and incomplete-history handling across platforms. These changes are under audit and are not yet part of the release downloads below; see the [2026-09-20 audit and verification limits](Documentation/FULL_AUDIT_2026-09-20.md).
+The current source also bounds large notch provider lists and scrolls overflowing detail cards. xAI/Poe readers share authentication and incomplete-history handling across platforms. For audit findings and remaining verification limits, see the [2026-09-20 audit and verification limits](Documentation/FULL_AUDIT_2026-09-20.md).
 
 ## Install
 
-**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8)
+**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.9](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.9)
 
 ### macOS
 

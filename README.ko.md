@@ -34,11 +34,11 @@ Windows MSI 설치본은 릴리스 서명을 검증한 업데이트를 자동 �
 
 Windows 노치도 macOS와 같은 기본 설정 곡선과 마우스를 올렸을 때 나타나는 계정 컨트롤을 사용합니다. 사용량을 반복 갱신해도 상세 팝업이 노치를 덮지 않습니다. 키보드로 계정 메뉴를 열면 메뉴 안에서 이동하고 Escape로 돌아갈 수 있으며, CLI 출력을 다른 프로그램으로 전달할 때 한글·이모지를 포함한 UTF-8을 사용합니다.
 
-현재 소스는 공급자가 많을 때 노치 목록을 화면 크기에 맞춰 나누고, 긴 상세 카드는 스크롤로 표시합니다. xAI·Poe는 두 플랫폼이 인증 오류와 불완전한 이력을 같은 방식으로 처리합니다. 이 변경은 아래 릴리스 다운로드에 아직 포함되지 않은 감사 중인 수정입니다. [2026-09-20 감사 결과와 검증 범위](Documentation/FULL_AUDIT_2026-09-20.md)를 참고하세요.
+현재 소스는 공급자가 많을 때 노치 목록을 화면 크기에 맞춰 나누고, 긴 상세 카드는 스크롤로 표시합니다. xAI·Poe는 두 플랫폼이 인증 오류와 불완전한 이력을 같은 방식으로 처리합니다. [2026-09-20 감사 결과와 검증 범위](Documentation/FULL_AUDIT_2026-09-20.md)를 참고하세요.
 
 ## 설치
 
-**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8)
+**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.9](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.9)
 
 ### macOS
 
