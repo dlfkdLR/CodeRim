@@ -13,10 +13,10 @@ public sealed record AvailableUpdate(Version Version, Uri Download, bool IsNewer
 /// <summary>One exact stable release asset. A digest checks integrity, not publisher authenticity.</summary>
 public sealed record ReleasePackage
 {
-    internal ReleasePackage(long releaseId, long assetId, Version version, string architecture, long size, string sha256, Uri download)
+    internal ReleasePackage(long releaseId, long assetId, Version version, string architecture, long size, string sha256, Uri download, bool isInstaller = false)
     {
         ReleaseId = releaseId; AssetId = assetId; Version = version; Architecture = architecture;
-        Size = size; Sha256 = sha256; Download = download;
+        Size = size; Sha256 = sha256; Download = download; IsInstaller = isInstaller;
     }
     public long ReleaseId { get; }
     public long AssetId { get; }
@@ -25,7 +25,8 @@ public sealed record ReleasePackage
     public long Size { get; }
     public string Sha256 { get; }
     public Uri Download { get; }
-    public string FileName => "CodeRim-Windows-" + Version.ToString(3) + "-" + Architecture + ".zip";
+    public bool IsInstaller { get; }
+    public string FileName => "CodeRim-Windows-" + Version.ToString(3) + "-" + Architecture + (IsInstaller ? "-Setup.msi" : ".zip");
 }
 
 public static class ReleaseUpdates
@@ -37,13 +38,13 @@ public static class ReleaseUpdates
     internal const string Repository = "https://github.com/dlfkdLR/CodeRim";
     public static string CurrentVersion => typeof(ReleaseUpdates).Assembly.GetName().Version!.ToString(3);
 
-    public static async Task<AvailableUpdate> CheckAsync(string architecture, CancellationToken token = default)
+    public static async Task<AvailableUpdate> CheckAsync(string architecture, CancellationToken token = default, bool preferInstaller = true)
     {
         using var handler = ReleasePackageDownload.CreateHandler();
-        return await CheckAsync(architecture, handler, token).ConfigureAwait(false);
+        return await CheckAsync(architecture, handler, token, preferInstaller).ConfigureAwait(false);
     }
 
-    internal static async Task<AvailableUpdate> CheckAsync(string architecture, HttpMessageHandler handler, CancellationToken token)
+    internal static async Task<AvailableUpdate> CheckAsync(string architecture, HttpMessageHandler handler, CancellationToken token, bool preferInstaller = true)
     {
         ValidateArchitecture(architecture);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(15));
@@ -79,9 +80,9 @@ public static class ReleaseUpdates
                     || !release.TryGetProperty("prerelease", out var prerelease) || prerelease.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
                     throw new InvalidDataException("The release channel is invalid.");
                 if (draft.GetBoolean() || prerelease.GetBoolean()) continue;
-                if (!HasWindowsPackage(release, architecture)) continue;
+                if (!HasWindowsPackage(release, architecture, preferInstaller)) continue;
                 // A matching Windows release must validate fully. Never hide corrupt newer metadata by trying an older release.
-                var update = ParseRelease(release, architecture, Version.Parse(CurrentVersion));
+                var update = ParseRelease(release, architecture, Version.Parse(CurrentVersion), preferInstaller);
                 if (!versions.Add(update.Version)) throw new InvalidDataException("The Windows release version is ambiguous.");
                 if (selected is null || update.Version > selected.Version) selected = update;
             }
@@ -108,7 +109,7 @@ public static class ReleaseUpdates
         return target.ToArray();
     }
 
-    private static bool HasWindowsPackage(JsonElement release, string architecture)
+    private static bool HasWindowsPackage(JsonElement release, string architecture, bool preferInstaller)
     {
         if (!release.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("The release asset list is invalid.");
@@ -117,21 +118,21 @@ public static class ReleaseUpdates
         {
             UniqueObject(asset);
             var name = Text(asset, "name") ?? throw new InvalidDataException("The release asset name is invalid.");
-            if (name.StartsWith("CodeRim-Windows-", StringComparison.Ordinal) && name.EndsWith("-" + architecture + ".zip", StringComparison.Ordinal)) matching = true;
+            if (name.StartsWith("CodeRim-Windows-", StringComparison.Ordinal) && (name.EndsWith("-" + architecture + ".zip", StringComparison.Ordinal) || preferInstaller && name.EndsWith("-" + architecture + "-Setup.msi", StringComparison.Ordinal))) matching = true;
         }
         return matching;
     }
 
-    public static AvailableUpdate Parse(string json, string architecture, Version current)
+    public static AvailableUpdate Parse(string json, string architecture, Version current, bool preferInstaller = true)
     {
         ArgumentNullException.ThrowIfNull(json); ArgumentNullException.ThrowIfNull(current);
         ValidateArchitecture(architecture);
         if (Encoding.UTF8.GetByteCount(json) > MaximumMetadataBytes) throw new InvalidDataException("Release metadata is too large.");
         using var document = JsonDocument.Parse(json); var root = document.RootElement;
-        return ParseRelease(root, architecture, current);
+        return ParseRelease(root, architecture, current, preferInstaller);
     }
 
-    private static AvailableUpdate ParseRelease(JsonElement root, string architecture, Version current)
+    private static AvailableUpdate ParseRelease(JsonElement root, string architecture, Version current, bool preferInstaller)
     {
         UniqueObject(root);
         var tag = Text(root, "tag_name");
@@ -143,6 +144,9 @@ public static class ReleaseUpdates
         var fileName = "CodeRim-Windows-" + version.ToString(3) + "-" + architecture + ".zip";
         if (!root.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("No Windows package is available.");
+        var installerName = "CodeRim-Windows-" + version.ToString(3) + "-" + architecture + "-Setup.msi";
+        var isInstaller = preferInstaller && assets.EnumerateArray().Any(asset => Text(asset, "name") == installerName);
+        if (isInstaller) fileName = installerName;
         JsonElement? matching = null;
         foreach (var asset in assets.EnumerateArray())
         {
@@ -173,7 +177,7 @@ public static class ReleaseUpdates
         var download = new Uri(expected);
         // Older GitHub assets can lack a digest. Do not break their existing manual update flow.
         var package = releaseId is { } rid && assetId is { } aid && size is { } bytes && hash is not null
-            ? new ReleasePackage(rid, aid, version, architecture, bytes, hash, download) : null;
+            ? new ReleasePackage(rid, aid, version, architecture, bytes, hash, download, isInstaller) : null;
         return new(version, download, version > current) { Package = package };
     }
 

@@ -126,6 +126,14 @@ if ($LASTEXITCODE -ne 0) { throw 'Update worker publish failed.' }
 $workerPath = Join-Path $workerRoot 'CodeRim.UpdateWorker.exe'
 if (-not (Test-Path $workerPath)) { throw 'Published update worker is missing.' }
 if ($SigningMode -eq 'Required') { Sign-PayloadFile $workerPath }
+else {
+    # Pin the already-installed bootstrap worker in the GUI before building a public MSI.
+    $installerWorkerHash = (Get-FileHash $workerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+    dotnet publish $projectPath --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $publishRoot -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false "-p:CodeRimInstallerWorkerSha256=$installerWorkerHash" -p:CodeRimPublisherSpkiSha256=
+    if ($LASTEXITCODE -ne 0) { throw 'Installer bootstrap pin publish failed.' }
+    $bootstrap = @{version=$Version; workerSha256=$installerWorkerHash; guiSha256=(Get-FileHash $executablePath -Algorithm SHA256).Hash.ToLowerInvariant()}
+    [IO.File]::WriteAllText((Join-Path $publishRoot 'CodeRim.bootstrap.json'), ($bootstrap | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
+}
 Copy-Item -LiteralPath $workerPath -Destination $publishRoot
 
 # Verify emitted PE metadata as well as source declarations before creating a release archive.

@@ -37,6 +37,15 @@ internal static partial class NativeSmoke
             os = System.Runtime.InteropServices.RuntimeInformation.OSDescription
         }, JsonOptions));
         Require(store.Synthetic, "Smoke must use synthetic data");
+        var worker = Path.Combine(AppContext.BaseDirectory, "CodeRim.UpdateWorker.exe");
+        if (File.Exists(worker))
+        {
+            var pin = typeof(App).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+                .Cast<System.Reflection.AssemblyMetadataAttribute>().Single(a => a.Key == "CodeRimInstallerWorkerSha256").Value;
+            using var file = File.OpenRead(worker);
+            Require(string.Equals(pin, Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(file)), StringComparison.OrdinalIgnoreCase), "Published installer worker does not match its compiled GUI pin");
+            Record("Published installer worker SHA-256 matches the GUI bootstrap pin");
+        }
         settings.Save(settings.Current with { EnabledProviders = ["codex", "claude"] });
         await store.RefreshAsync(true); dashboard.Navigate("usage");
         var privateFile = Path.Combine(CompanionFile.DataDirectory, "acl-fixture.txt");

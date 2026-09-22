@@ -2,6 +2,12 @@ using System.Reflection;
 using System.Text.Json;
 using CodeRim.Core.Services;
 
+if (OperatingSystem.IsWindows() && args.Length == 3 && args[0] == MsiUpdateExecution.EntryArgument)
+{
+    try { Console.WriteLine(JsonSerializer.Serialize(await MsiUpdateExecution.ExecuteAsync(args[1], args[2]))); return 0; }
+    catch (Exception error) when (error is not OutOfMemoryException) { Console.WriteLine("Installer update validation failed."); return 1; }
+}
+
 UpdateExecutionResult result;
 try
 {

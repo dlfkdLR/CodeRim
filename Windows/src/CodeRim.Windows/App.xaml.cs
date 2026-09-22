@@ -58,6 +58,9 @@ public partial class App : System.Windows.Application
         instance = new Mutex(true, "Local\\" + instanceName, out var created);
         if (!created) { await InstanceActivation.NotifyAsync(instanceName); Shutdown(); return; }
         settings = new AppSettingsStore(); CredentialVault.RestrictDirectory(CompanionFile.DataDirectory); vault = new CredentialVault();
+        if (!smokeTest && InstallerUpdateCoordinator.IsManaged && settings.Current.LaunchAtLogin)
+            try { StartupService.SetEnabled(true); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.SecurityException or InvalidOperationException) { /* Login registration must not prevent the app from opening. */ }
         store = new DashboardStore(settings, vault, smokeTest);
         notch = new NotchWindow(store, settings, ShowSettings);
         tray = new TrayIconHost(() => ShowSettings("usage"), () => _ = store.RefreshAsync(true), () => ShowSettings(null), ShutdownApplication);
@@ -100,6 +103,16 @@ public partial class App : System.Windows.Application
     private async Task CheckUpdatesAsync()
     {
         if (settings?.Current.CheckForUpdates != true) return;
+        if (InstallerUpdateCoordinator.IsManaged)
+        {
+            try
+            {
+                if (await InstallerUpdateCoordinator.CheckAndDownloadAsync(automatic: true).ConfigureAwait(true) is { } ready && settings.Current.CheckForUpdates)
+                    tray?.Notify("CodeRim update", "Version " + ready + " is ready. Open Information to restart and install.");
+            }
+            catch (Exception error) when (error is not OutOfMemoryException) { /* Retry on the next timer tick; manual checks show failures. */ }
+            return;
+        }
         if (await UpdateNotifications.CheckAsync().ConfigureAwait(true) is { } version && settings.Current.CheckForUpdates) tray?.Notify("CodeRim update", "Version " + version + " is available. Open Information to download it.");
     }
     private void ConfigureTimer()

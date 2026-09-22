@@ -61,15 +61,11 @@ Homebrew에서 cask를 사용할 수 없다는 메시지가 표시되거나 이�
 
 **Windows 11 · x64 및 ARM64 · .NET 포함.**
 
-[x64 ZIP 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/CodeRim-Windows-2.1.8-x64.zip) · [ARM64 ZIP 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/CodeRim-Windows-2.1.8-arm64.zip) · [SHA-256 체크섬](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/SHA256SUMS-windows.txt)
+[x64 설치 파일 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-x64-Setup.msi) · [ARM64 설치 파일 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-arm64-Setup.msi)
 
-Windows 실행 파일은 **서명되지 않았습니다**. 압축을 풀기 전에 ZIP의 체크섬을 확인하세요. 계속 사용할 폴더에 압축을 풀고 `CodeRim.exe`를 실행하거나, CodeRim을 종료한 뒤 압축을 푼 폴더의 PowerShell에서 다음 명령으로 현재 사용자용 설치를 진행하세요.
+`Setup.msi`를 실행하면 관리자 권한 없이 설치되며 시작 메뉴, 제거 프로그램과 선택 가능한 CLI 경로를 등록합니다. 기존 ZIP 사용자는 설치 파일을 한 번 실행하면 됩니다. 계정·설정·로컬 사용 기록은 유지됩니다.
 
-```powershell
-./install.ps1 -AddCliToPath -Launch
-```
-
-설치기는 관리자 권한 없이 시작 메뉴 바로가기를 만들고 `coderim` CLI를 사용자 PATH에 추가합니다. 설치 후 새 터미널을 여세요. 제공업체는 **Settings → Providers**에서 연결하며, Codex·Claude Code 연결 방법과 남은 제한 사항은 [Windows 설치 및 기능 안내](Documentation/WINDOWS.md)를 참고하세요.
+설치 후에는 업데이트를 자동 확인·다운로드합니다. **Settings → Information → Check for updates**에서 서명 검증을 마친 새 버전을 재시작하여 적용합니다. **General → Automatically check for updates**에서 자동 다운로드를 끌 수 있습니다. Windows Authenticode 인증서는 없어 최초 설치 시 SmartScreen 경고가 나타날 수 있습니다. 업데이트는 앱에 고정된 Ed25519 공개 키와 SHA-256으로 검증합니다. [설치 및 업데이트 안내](Documentation/WINDOWS.md#updates).
 
 ## macOS 지원 제공업체
 

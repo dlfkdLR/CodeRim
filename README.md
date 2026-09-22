@@ -20,7 +20,7 @@ CodeRim keeps coding-assistant usage limits, reset times, and session activity v
 | Terminal CLI | Included | Included |
 | Saved account switching | Codex and Claude Code | Codex and Claude Code |
 | Widgets | macOS widgets | Outside the Windows scope |
-| Updates | Signed Sparkle updates | Release checks; in-app installation for signed managed builds, manual ZIP for unsigned builds |
+| Updates | Signed Sparkle updates | Setup installer; signed update downloads and restart installation |
 
 The matrix describes the current source. Local token history is scoped to this computer across accounts. See the [Windows capability matrix](Documentation/WINDOWS.md#remaining-parity-work) for individual provider status and remaining work.
 
@@ -30,7 +30,7 @@ Windows authentication also reuses GitHub CLI, trusted GLM Coding Plan and Codeb
 
 The current source adds explicit Chromium profile import for DeepSeek, Factory and MiniMax. It reads current storage records, verifies the selected account and saves the connection with Windows encryption. MiniMax requires matching session and group information; protected Chromium cookies still require a supported alternative. These additions are undergoing native regression checks.
 
-Windows in-app updates now include download verification, restart installation and interrupted-update recovery for signed managed builds. The published unsigned ZIPs still use manual installation. See the [Windows update guide](Documentation/WINDOWS.md#updates) for the signing and installation conditions.
+Windows Setup installations automatically check and download updates authenticated by the release signing key. Restart from Information to install; accounts, settings and local history are preserved. See the [Windows update guide](Documentation/WINDOWS.md#updates).
 
 The Windows notch now uses the same resting settings arc and revealed account controls as macOS. Repeated quota refreshes keep detail popups clear of the notch. Keyboard account selection keeps focus within the menu and returns it on Escape; redirected CLI output uses UTF-8, including Unicode provider names.
 
@@ -61,15 +61,11 @@ Open **Settings → Providers → Add Provider**, connect your tools, and hover 
 
 **Windows 11 · x64 and ARM64 · .NET included.**
 
-[Download x64 ZIP](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/CodeRim-Windows-2.1.8-x64.zip) · [Download ARM64 ZIP](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/CodeRim-Windows-2.1.8-arm64.zip) · [SHA-256 checksums](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/SHA256SUMS-windows.txt)
+[Download x64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-x64-Setup.msi) · [Download ARM64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-arm64-Setup.msi)
 
-Windows binaries are **unsigned**. Verify your ZIP against the matching checksum before extracting it. Extract it into a permanent folder and open `CodeRim.exe`, or close CodeRim and run this from the extracted folder in PowerShell for a per-user installation:
+Run `Setup.msi` to install without administrator access. Setup registers Start menu and uninstall entries and offers the `coderim` CLI on your user PATH. Existing ZIP users run Setup once to enable automatic updates. Accounts, settings and local usage history are preserved.
 
-```powershell
-./install.ps1 -AddCliToPath -Launch
-```
-
-The installer creates a Start menu shortcut and adds the `coderim` CLI to your user PATH without administrator access. Open a new terminal afterwards. Use **Settings → Providers** to connect providers; see [Windows setup and feature status](Documentation/WINDOWS.md) for Codex, Claude Code, and the remaining limitations.
+The installed app automatically checks and downloads updates. Open **Settings → Information → Check for updates** to restart into the verified release. Disable automatic downloads with **General → Automatically check for updates**. The installer does not have an Authenticode certificate, so Windows SmartScreen may warn on first installation. Updates are verified against the pinned Ed25519 release key and SHA-256. [Installation and update details](Documentation/WINDOWS.md#updates).
 
 ## macOS providers
 

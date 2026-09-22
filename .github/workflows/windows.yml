@@ -10,7 +10,7 @@ permissions:
 jobs:
   test-and-package:
     runs-on: windows-2025
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -28,6 +28,14 @@ jobs:
         run: ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-x64 -ResetManifest
       - name: Package ARM64
         run: ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-arm64
+      - name: Build MSI installers
+        run: |
+          ./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-x64
+          ./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-arm64
+      - name: MSI lifecycle and rollback on x64
+        run: |
+          $setup = (Get-ChildItem Artifacts -Filter '*-x64-Setup.msi').FullName
+          ./Windows/Scripts/test-installer.ps1 -Architecture x64 -Installer $setup
       - name: Native x64 smoke test
         shell: pwsh
         run: |
@@ -57,23 +65,26 @@ jobs:
             Artifacts/windows-*.png
             Artifacts/windows-*.json
             Artifacts/windows-*.txt
+            Artifacts/windows-msi-*.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: CodeRim-Windows
           path: |
             Artifacts/CodeRim-Windows-*.zip
+            Artifacts/CodeRim-Windows-*-Setup.msi
             Artifacts/*.sha256
             Artifacts/SHA256SUMS-windows.txt
             Artifacts/windows-*.png
             Artifacts/windows-*.json
             Artifacts/windows-*.txt
+            Artifacts/windows-msi-*.log
             Windows/tests/**/TestResults/**
 
   native-arm64:
     needs: test-and-package
     runs-on: windows-11-arm
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -106,6 +117,10 @@ jobs:
           Expand-Archive $archive.FullName 'Windows/artifacts/publish/win-arm64'
           @{ archive = $archive.Name; sha256 = $actual; source = 'CodeRim-Windows packaging artifact' } |
             ConvertTo-Json | Set-Content 'Artifacts/windows-native-archive.json' -Encoding utf8
+      - name: MSI lifecycle and rollback on ARM64
+        run: |
+          $setup = (Get-ChildItem Artifacts/packaged -Filter '*-arm64-Setup.msi' -Recurse).FullName
+          ./Windows/Scripts/test-installer.ps1 -Architecture arm64 -Installer $setup
       - name: Native ARM64 UI and CLI regressions
         shell: pwsh
         run: |
@@ -137,4 +152,5 @@ jobs:
             Artifacts/windows-*.png
             Artifacts/windows-*.json
             Artifacts/windows-*.txt
+            Artifacts/windows-msi-*.log
             Windows/tests/**/TestResults/**
