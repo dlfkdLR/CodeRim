@@ -140,4 +140,45 @@ public sealed class ChromiumProviderTests : IDisposable
         Assert.Contains((await provider.FetchMiniMaxWebAsync(value, TestContext.Current.CancellationToken)).State, new[] { ReadingState.Ready, ReadingState.Partial });
         var before = calls; Assert.Equal(ReadingState.NeedsAuth, (await provider.FetchMiniMaxWebAsync(value with { Bearer = "synthetic-attacker-123456789" }, TestContext.Current.CancellationToken)).State); Assert.Equal(before, calls);
     }
+    [Theory] [InlineData("global", "minimax.io")] [InlineData("cn", "minimaxi.com")]
+    public async Task ImportedMiniMaxUsesBothRegionalHostsWithTheSameSessionAndDistinctBearer(string region, string domain)
+    {
+        var jar = new BrowserCookieJar(new[] { new BrowserCookie("HERTZ-SESSION", Token, "." + domain, "/", true, false, 0),
+            new BrowserCookie("minimax_group_id_v2", "123", "." + domain, "/", true, false, 0) }, [domain]);
+        var credential = new ChromiumProviderCredential("minimax", region, profile, "https://platform." + domain, Other, jar.Serialize(), "123");
+        var requests = new List<string>();
+        using var provider = new NativeProviders(new Handler(request =>
+        {
+            var uri = request.RequestUri!; requests.Add(uri.PathAndQuery);
+            Assert.Equal(HttpMethod.Get, request.Method); Assert.Equal("https", uri.Scheme);
+            var cookie = request.Headers.GetValues("Cookie").Single();
+            Assert.Contains("HERTZ-SESSION=" + Token, cookie, StringComparison.Ordinal);
+            Assert.Contains("minimax_group_id_v2=123", cookie, StringComparison.Ordinal);
+            string body;
+            if (uri.Host == "www." + domain)
+            {
+                Assert.Equal("/v1/api/openplatform/charge/combo/cycle_audio_resource_package?biz_line=2&cycle_type=3&resource_package_type=7", uri.PathAndQuery);
+                Assert.Null(request.Headers.Authorization); Assert.Equal("123", request.Headers.GetValues("x-group-id").Single());
+                body = """{"data":{"current_subscribe":{"title":"Synthetic Coding Plan"}}}""";
+            }
+            else
+            {
+                Assert.Equal("platform." + domain, uri.Host); Assert.Equal(Other, request.Headers.Authorization?.Parameter);
+                if (uri.AbsolutePath == "/account/amount")
+                {
+                    Assert.Equal("/account/amount?page=1&limit=100&aggregate=false", uri.PathAndQuery);
+                    body = """{"charge_records":[],"total_cnt":0}""";
+                }
+                else
+                {
+                    Assert.Equal("/user-center/payment/coding-plan?cycle_type=3", uri.PathAndQuery);
+                    body = """{"model_remains":[{"model_name":"general","current_interval_remaining_percent":96}]}""";
+                }
+            }
+            return new(HttpStatusCode.OK) { Content = new StringContent(body) };
+        }));
+        var reading = await provider.FetchMiniMaxWebAsync(credential.MiniMax(), TestContext.Current.CancellationToken);
+        Assert.Equal(ReadingState.Ready, reading.State); Assert.Equal("Synthetic Coding Plan", reading.Plan);
+        Assert.Equal(4, reading.Headline!.UsedPercent); Assert.Equal(3, requests.Count); Assert.Equal(3, requests.Distinct().Count());
+    }
 }

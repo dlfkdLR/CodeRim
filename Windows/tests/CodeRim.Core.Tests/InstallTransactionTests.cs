@@ -1,4 +1,9 @@
 using System.Text.Json.Nodes;
+using System.Text;
+using System.Buffers.Binary;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 using CodeRim.Core.Services;
 
 namespace CodeRim.Core.Tests;
@@ -165,10 +170,16 @@ public sealed class InstallTransactionTests
     {
         using var fixture = new InstallFixture(); var target = Path.Combine(fixture.Root, "target"); InstallFileSystem.CreatePrivateDirectory(target);
         var link = Path.Combine(fixture.Root, "link");
-        try { Directory.CreateSymbolicLink(link, target); }
-        catch (UnauthorizedAccessException) { Assert.Skip("Creating a synthetic symlink is not permitted on this host."); }
+        // A directory junction exercises the same ancestor reparse boundary without changing Windows privileges or Developer Mode.
+        if (OperatingSystem.IsWindows()) CreateJunction(link, target);
+        else
+        {
+            try { Directory.CreateSymbolicLink(link, target); }
+            catch (UnauthorizedAccessException) { Assert.Skip("Creating a synthetic symlink is not permitted on this host."); }
+        }
         try
         {
+            Assert.True((File.GetAttributes(link) & FileAttributes.ReparsePoint) != 0);
             Assert.Throws<IOException>(() => InstallTransaction.Apply(Path.Combine(link, "App"), fixture.Archive(), InstallFixture.Manifest(), token: TestContext.Current.CancellationToken));
             Assert.Empty(Directory.GetFileSystemEntries(target));
         }
@@ -186,6 +197,30 @@ public sealed class InstallTransactionTests
         Assert.Throws<InvalidDataException>(() => InstallTransaction.Apply(fixture.InstallRoot, fixture.Archive(), InstallFixture.Manifest("2.2.1"), previous, token: TestContext.Current.CancellationToken));
         Assert.Equal("synthetic user-owned alternate stream", File.ReadAllText(stream));
     }
+    private static void CreateJunction(string path, string target)
+    {
+        Directory.CreateDirectory(path);
+        using var handle = CreateFileW(path, 0x40000000, 7, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero);
+        if (handle.IsInvalid) throw new Win32Exception(Marshal.GetLastWin32Error());
+        var substitute = Encoding.Unicode.GetBytes(@"\??\" + Path.GetFullPath(target));
+        var display = Encoding.Unicode.GetBytes(Path.GetFullPath(target));
+        var data = new byte[16 + substitute.Length + 2 + display.Length + 2];
+        BinaryPrimitives.WriteUInt32LittleEndian(data, 0xA0000003); // IO_REPARSE_TAG_MOUNT_POINT
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(4), checked((ushort)(data.Length - 8)));
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(10), checked((ushort)substitute.Length));
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(12), checked((ushort)(substitute.Length + 2)));
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(14), checked((ushort)display.Length));
+        substitute.CopyTo(data, 16); display.CopyTo(data, 18 + substitute.Length);
+        if (!DeviceIoControl(handle, 0x000900A4, data, data.Length, IntPtr.Zero, 0, out _, IntPtr.Zero))
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+    }
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFileW(string path, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeviceIoControl(SafeFileHandle handle, uint code, byte[] input, int length, IntPtr output, int outputLength, out int returned, IntPtr overlapped);
     private static void AssertClean(InstallFixture fixture)
     {
         var work = InstallTransaction.WorkPath(fixture.InstallRoot);

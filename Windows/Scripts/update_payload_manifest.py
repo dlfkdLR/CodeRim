@@ -64,7 +64,9 @@ def inventory(root: Path, version: str, architecture: str) -> dict:
                 if folded in names:
                     raise ValueError("Case-ambiguous payload path")
                 names.add(folded)
-                info = entry.stat(follow_symlinks=False)
+                # DirEntry.stat caches directory-enumeration data; on Windows its device/inode are zero.
+                # Read current no-follow identity before opening, then retain the exact fstat comparison below.
+                info = os.stat(entry.path, follow_symlinks=False)
                 if stat.S_ISLNK(info.st_mode) or getattr(info, "st_file_attributes", 0) & 0x400:
                     raise ValueError("Linked/reparse payload entry")
                 if stat.S_ISDIR(info.st_mode):

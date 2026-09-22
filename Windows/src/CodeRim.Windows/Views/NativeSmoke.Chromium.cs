@@ -45,8 +45,22 @@ internal static partial class NativeSmoke
                 return new(HttpStatusCode.OK) { Content = new StringContent("""{"code":0,"data":{"biz_code":0,"biz_data":{"normal_wallets":[{"currency":"USD","balance":"42.00"}],"bonus_wallets":[]}}}""") };
             }
             if (request.RequestUri.Host == "api.deepseek.com") return new(HttpStatusCode.OK) { Content = new StringContent("""{"is_available":true,"balance_infos":[{"currency":"USD","total_balance":"7.00"}]}""") };
-            Require(request.RequestUri.Host == "platform.minimax.io", "Chromium MiniMax left its region.");
-            return new(HttpStatusCode.OK) { Content = new StringContent(quota) };
+            var uri = request.RequestUri;
+            Require(request.Method == HttpMethod.Get && uri.Scheme == "https", "Chromium MiniMax changed its request contract.");
+            Require(request.Headers.GetValues("Cookie").Single().Contains("HERTZ-SESSION=" + token, StringComparison.Ordinal), "Chromium MiniMax borrowed another session.");
+            string body;
+            if (uri.Host == "www.minimax.io" && uri.PathAndQuery == "/v1/api/openplatform/charge/combo/cycle_audio_resource_package?biz_line=2&cycle_type=3&resource_package_type=7")
+            {
+                Require(request.Headers.Authorization is null && request.Headers.GetValues("x-group-id").Single() == "123", "Chromium MiniMax metadata crossed its selected group.");
+                body = """{"data":{"current_subscribe":{"title":"Synthetic Coding Plan"}}}""";
+            }
+            else
+            {
+                Require(uri.Host == "platform.minimax.io" && request.Headers.Authorization?.Parameter == other, "Chromium MiniMax left its region or local-storage bearer.");
+                Require(uri.PathAndQuery is "/user-center/payment/coding-plan?cycle_type=3" or "/account/amount?page=1&limit=100&aggregate=false", "Chromium MiniMax requested an unexpected endpoint.");
+                body = uri.AbsolutePath == "/account/amount" ? """{"charge_records":[],"total_cnt":0}""" : quota;
+            }
+            return new(HttpStatusCode.OK) { Content = new StringContent(body) };
         }
         ProviderConnections Connections() => new(vault, new NativeProviders(new AmpFixtureHandler(Response)), new HttpProviders(new AmpFixtureHandler(Response)), nativeCredentialReader: _ => null);
         try

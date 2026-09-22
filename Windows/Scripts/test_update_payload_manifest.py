@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 """Synthetic temporary-file tests only; no signing, certificate, install or release operations."""
+from contextlib import contextmanager
+from types import SimpleNamespace
+from unittest import mock
 import hashlib
 import importlib.util
 import json
@@ -39,6 +42,48 @@ class PayloadTests(unittest.TestCase):
         self.assertEqual(0, struct.unpack_from('<H', resource, 32 + 22)[0])
         self.assertEqual(data, resource[64:64 + len(data)])
         self.assertEqual(0, len(resource) % 4)
+
+    def test_windows_cached_directory_identity_is_not_used_for_open_file_identity(self):
+        original_scandir = os.scandir
+
+        class CachedWindowsEntry:
+            def __init__(self, entry):
+                self.name, self.path = entry.name, entry.path
+                self.entry = entry
+
+            def stat(self, *, follow_symlinks=True):
+                info = self.entry.stat(follow_symlinks=follow_symlinks)
+                values = {name: getattr(info, name) for name in dir(info) if name.startswith('st_')}
+                values.update(st_dev=0, st_ino=0, st_nlink=0)
+                return SimpleNamespace(**values)
+
+        @contextmanager
+        def cached_scandir(path):
+            with original_scandir(path) as entries:
+                yield [CachedWindowsEntry(entry) for entry in entries]
+
+        with mock.patch.object(payload.os, 'scandir', side_effect=cached_scandir):
+            result = payload.inventory(self.root, '2.2.1', 'x64')
+        self.assertEqual(2, len(result['files']))
+        for file in result['files']:
+            self.assertEqual(hashlib.sha256((self.root / file['path']).read_bytes()).hexdigest(), file['sha256'])
+
+    def test_same_size_replacement_between_stat_and_open_is_rejected(self):
+        original_open = os.open
+        replaced = False
+
+        def replace_before_open(path, flags, *args, **kwargs):
+            nonlocal replaced
+            if not replaced and Path(path) == self.root / 'CodeRim.exe':
+                replaced = True
+                replacement = self.root.parent / 'replacement'
+                replacement.write_bytes(b'x' * Path(path).stat().st_size)
+                replacement.replace(path)
+            return original_open(path, flags, *args, **kwargs)
+
+        with mock.patch.object(payload.os, 'open', side_effect=replace_before_open), self.assertRaisesRegex(ValueError, 'identity changed'):
+            payload.inventory(self.root, '2.2.1', 'x64')
+        self.assertTrue(replaced)
 
     def test_path_rejections(self):
         for path in ('../a', '/a', 'a/b/../c', 'a\\b', 'a:b', 'a.', 'a ', 'CON', 'dir/LPT1.txt', 'a//b', 'x/.coderim-install.json', '.coderim-install.json', 'a' * 121, '/'.join(['a'] * 17)):
