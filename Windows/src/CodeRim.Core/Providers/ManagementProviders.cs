@@ -25,7 +25,7 @@ public sealed partial class NativeProviders
         "kiro" => [("KIRO_PROFILE_ARN", "Kiro profile ARN (optional when detected from CLI)")],
         "vertexai" => [("GOOGLE_CLOUD_PROJECT", "Google Cloud project ID")],
         "gemini-cli" => [("GOOGLE_CLOUD_PROJECT", "Google Cloud project (optional if detected from Code Assist)")],
-        "alibaba" => [("ALIBABA_CODING_PLAN_REGION", "Region: intl or cn")],
+        "alibaba" => [("ALIBABA_CODING_PLAN_SOURCE", "Usage source"), ("ALIBABA_CODING_PLAN_REGION", "Region")],
         "notion" => [("NOTION_SPACE_ID", "Workspace ID (leave empty to select a paid workspace)")],
         "zed" => [("ZED_USER_ID", "Zed user ID")],
         "groq" => [("GROQ_API_URL", "Groq API URL (HTTPS; default https://api.groq.com/v1)")],

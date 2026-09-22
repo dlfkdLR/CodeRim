@@ -28,7 +28,7 @@ public static class DeepSeekUsageDetails
     }
     private static readonly Regex Numeric = new(@"\A(?<sign>[+-]?)(?<whole>[0-9]+)(?:\.(?<fraction>[0-9]+))?(?:[eE](?<exponent>[+-]?[0-9]+))?\z",
         RegexOptions.CultureInvariant | RegexOptions.NonBacktracking, TimeSpan.FromMilliseconds(50));
-    private static (string Digits, int Power) Exact(string text)
+    private static (string Digits, int Power) Exact(string text, bool allowNegative = false)
     {
         var match = Numeric.Match(text.Trim());
         if (!match.Success) throw Invalid();
@@ -38,18 +38,18 @@ public static class DeepSeekUsageDetails
         var fraction = match.Groups["fraction"].Value;
         var digits = (match.Groups["whole"].Value + fraction).TrimStart('0');
         if (digits.Length == 0) return ("0", 0);
-        if (match.Groups["sign"].Value == "-") throw Invalid();
+        if (match.Groups["sign"].Value == "-" && !allowNegative) throw Invalid();
         var power = exponent - fraction.Length;
         var trimmed = digits.TrimEnd('0'); power += digits.Length - trimmed.Length;
-        return (trimmed, power);
+        return ((match.Groups["sign"].Value == "-" ? "-" : "") + trimmed, power);
     }
-    private static decimal Number(JsonElement value)
+    internal static decimal Number(JsonElement value, bool allowNegative = false)
     {
         var text = value.ValueKind == JsonValueKind.String ? value.GetString() : value.ValueKind == JsonValueKind.Number ? value.GetRawText() : null;
         if (text is not { Length: > 0 and <= 128 }) throw Invalid();
-        var exact = Exact(text);
+        var exact = Exact(text, allowNegative);
         if (!decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var amount)
-            || amount < 0 || exact != Exact(amount.ToString("G29", CultureInfo.InvariantCulture))) throw Invalid();
+            || !allowNegative && amount < 0 || exact != Exact(amount.ToString("G29", CultureInfo.InvariantCulture), allowNegative)) throw Invalid();
         return amount;
     }
     private static long Count(JsonElement value)

@@ -19,6 +19,8 @@ internal sealed partial class ProviderConnections
         ? KimiAuthentication.LocalProfile(readCredential("kimi"), DateTimeOffset.UtcNow) : null;
     private KimiCredential KimiWeb(BrowserCookieJar? browserOverride = null)
     {
+        if (browserOverride is null && vault.Load(KimiDesktopConnection.StorageKey) is { } desktop)
+            return KimiDesktopAuthentication.Read(desktop, DateTimeOffset.UtcNow);
         var jar = browserOverride ?? BrowserConnections.Load("kimi", vault);
         if (jar is not null) return new("web", KimiAuthentication.WebToken(jar.Header(NativeProviders.KimiWebUsageUri, DateTimeOffset.UtcNow)), BrowserState: jar.Serialize());
         var raw = new[] { vault.Load("cookie:kimi"), Environment.GetEnvironmentVariable("KIMI_MANUAL_COOKIE"),
@@ -32,9 +34,9 @@ internal sealed partial class ProviderConnections
         var api = KimiApi();
         if (!string.IsNullOrWhiteSpace(api)) candidates.Add(new("api", KimiAuthentication.ApiKey(api), KimiSetting("KIMI_CODE_BASE_URL")));
         try { if (KimiCli() is { } cli) candidates.Add(cli); }
-        catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or CryptographicException) { }
+        catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or CryptographicException or Microsoft.Data.Sqlite.SqliteException) { }
         try { candidates.Add(KimiWeb()); }
-        catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or CryptographicException) { }
+        catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or CryptographicException or Microsoft.Data.Sqlite.SqliteException) { }
         return candidates.ToArray();
     }
     private KimiCredential? ResolveKimi(BrowserCookieJar? browserOverride = null)

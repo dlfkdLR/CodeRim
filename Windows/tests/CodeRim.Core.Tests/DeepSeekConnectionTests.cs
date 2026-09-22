@@ -103,6 +103,36 @@ public sealed class DeepSeekConnectionTests
         Assert.Contains("12", reading.Windows[0].DisplayValue); Assert.Contains("8", reading.Windows[1].DisplayValue);
     }
     [Fact]
+    public void PaidAndGrantedBalancesStayInTheirOwnCurrency()
+    {
+        using var document = JsonDocument.Parse(Platform);
+        var reading = DeepSeekBalance.Parse(document.RootElement, "web");
+        var usd = reading.Windows.Single(row => row.Unit == "USD").DisplayValue!;
+        var cny = reading.Windows.Single(row => row.Unit == "CNY").DisplayValue!;
+        Assert.Contains("Paid: " + 10.25m.ToString("N2", System.Globalization.CultureInfo.CurrentCulture) + " USD", usd);
+        Assert.Contains("Granted: " + 2.25m.ToString("N2", System.Globalization.CultureInfo.CurrentCulture) + " USD", usd);
+        Assert.DoesNotContain("USD", cny); Assert.Contains("Paid:", cny); Assert.Contains("Granted:", cny);
+    }
+    [Fact]
+    public void MissingApiBalanceComponentsAreNotInvented()
+    {
+        using var document = JsonDocument.Parse("""{"balance_infos":[{"currency":"USD","total_balance":"-1.25","granted_balance":"0"}]}""");
+        var reading = DeepSeekBalance.Parse(document.RootElement, "api");
+        Assert.Equal(ReadingState.Ready, reading.State);
+        Assert.StartsWith((-1.25m).ToString("N2", System.Globalization.CultureInfo.CurrentCulture), reading.Headline!.DisplayValue);
+        Assert.DoesNotContain("Paid:", reading.Headline.DisplayValue); Assert.Contains("Granted:", reading.Headline.DisplayValue);
+    }
+    [Theory]
+    [InlineData("1e-100")]
+    [InlineData("-1e-100")]
+    [InlineData("1.00000000000000000000000000001")]
+    [InlineData("-1.00000000000000000000000000001")]
+    public void BalanceCannotRoundUnsupportedPrecisionIntoZeroOrAnotherAmount(string value)
+    {
+        using var document = JsonDocument.Parse(System.Text.Json.JsonSerializer.Serialize(new { balance_infos = new[] { new { currency = "USD", total_balance = value } } }));
+        Assert.Equal(ReadingState.Error, DeepSeekBalance.Parse(document.RootElement, "api").State);
+    }
+    [Fact]
     public void PositiveCnyIsNotHiddenBehindAnEmptyUsdWallet()
     {
         using var document = JsonDocument.Parse("""{"balance_infos":[{"currency":"USD","total_balance":"0"},{"currency":"CNY","total_balance":"10"}]}""");

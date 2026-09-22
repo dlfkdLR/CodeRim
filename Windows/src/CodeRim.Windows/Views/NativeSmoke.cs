@@ -258,6 +258,8 @@ internal static partial class NativeSmoke
         Record("Alibaba CLI/Web/Auto preserves prior Web accounts, regional quota, volatile CLI data and actual native controls");
         await MiniMaxConnectionRegression(dashboard, settings, vault, directory);
         Record("MiniMax API/Web and Global/China credentials remain separate through native controls and browser import");
+        await AlibabaCodingSourceRegression(settings, vault, directory);
+        Record("Alibaba Coding Plan regional API/Web credentials, quota and import stay separate through native controls");
         await DeepSeekSourceRegression(settings, vault, directory);
         Record("DeepSeek API and platform credentials stay separate through native source switching");
         await AdditionalAuthenticationViews(settings, vault, directory);

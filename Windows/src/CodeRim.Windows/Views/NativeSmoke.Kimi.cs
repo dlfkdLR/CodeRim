@@ -99,6 +99,7 @@ internal static partial class NativeSmoke
                 await Until(() => saved || Descendants<Button>(dialog).Single(button => Equals(button.Content, "Import sign-in")).IsEnabled, "Kimi browser verification did not finish.");
                 Require(saved && vault.Load("provider:kimi") == "manual-api" && BrowserConnections.Load("kimi", vault)?.Count == 1
                     && calls[^1] == ("www.kimi.com", "browser-web"), "Firefox verification used another credential or erased the API key.");
+                await KimiDesktopRegression(window, settings, vault, directory);
             }
             finally { window.Close(); }
             File.WriteAllText(Path.Combine(directory, "windows-kimi-evidence.json"), JsonSerializer.Serialize(new {
@@ -109,7 +110,7 @@ internal static partial class NativeSmoke
         finally
         {
             foreach (var key in KimiEnvironmentKeys) Environment.SetEnvironmentVariable(key, environment[key]);
-            foreach (var key in new[] { "provider:kimi", "cookie:kimi", "browser:kimi", "setting:kimi:KIMI_USAGE_SOURCE" }) vault.Delete(key);
+            foreach (var key in new[] { "provider:kimi", "cookie:kimi", "browser:kimi", "desktop:kimi", "setting:kimi:KIMI_USAGE_SOURCE" }) vault.Delete(key);
             if (Directory.Exists(root)) Directory.Delete(root, true);
             settings.Save(settings.Current with { EnabledProviders = enabled }); owner.Navigate("usage");
         }
