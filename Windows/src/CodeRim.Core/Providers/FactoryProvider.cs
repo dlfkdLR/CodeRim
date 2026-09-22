@@ -8,6 +8,13 @@ public sealed partial class NativeProviders
 {
     private static bool FactoryModern(JsonElement billing) =>
         Get(billing, "usesTokenRateLimitsBilling").ValueKind == JsonValueKind.True && Get(billing, "limits").ValueKind == JsonValueKind.Object;
+    private static string? FactoryUserId(string? value)
+    {
+        value = value?.Trim();
+        if (string.IsNullOrEmpty(value)) return null;
+        if (value.Length > 256 || value.Any(char.IsControl)) throw new InvalidDataException("Invalid Factory user identifier.");
+        return value;
+    }
     private static string? FactorySubject(string bearer)
     {
         if (bearer.Length > 32768) return null;
@@ -18,35 +25,45 @@ public sealed partial class NativeProviders
             using var json = JsonDocument.Parse(Convert.FromBase64String(payload.PadRight((payload.Length + 3) / 4 * 4, '=')));
             // Used only as a server-validated lookup hint, never as proof of identity.
             var subject = Text(json.RootElement, "sub");
-            return subject is { Length: > 0 and <= 256 } && !subject.Any(char.IsControl) ? subject : null;
+            return FactoryUserId(subject);
         }
         catch (Exception error) when (error is FormatException or JsonException) { return null; }
     }
-    private static async Task<ProviderReading> FetchFactory(string bearer, Func<string, Task<JsonElement>> get, CancellationToken token)
+    private static async Task<ProviderReading> FetchFactory(FactoryRequestContext context, Func<string, Task<JsonElement>> get, CancellationToken token)
     {
         Exception? last = null; ProviderRequestException? authError = null;
-        foreach (var host in new[] { "https://api.factory.ai", "https://app.factory.ai" })
+        foreach (var host in new[] { "https://api.factory.ai", "https://app.factory.ai", "https://auth.factory.ai" })
         {
-            try
+            // At most one bearer removal and four cookie variants across this fetch.
+            for (var attempt = 0; attempt < 6; attempt++)
             {
-                var auth = await get(host + "/api/app/auth/me").ConfigureAwait(false);
-                var documents = new Dictionary<string, JsonElement> { ["auth"] = auth };
-                try { documents["limits"] = await get("https://api.factory.ai/api/billing/limits").ConfigureAwait(false); }
-                catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException)
-                { token.ThrowIfCancellationRequested(); }
-                if (!FactoryModern(documents.GetValueOrDefault("limits")))
+                try
                 {
-                    var user = Text(Get(auth, "userProfile"), "id") ?? FactorySubject(bearer);
-                    documents["usage"] = await get(host + "/api/organization/subscription/usage?useCache=true" + (user is null ? "" : "&userId=" + Uri.EscapeDataString(user))).ConfigureAwait(false);
-                    var returnedUser = Text(documents["usage"], "userId");
-                    if (user is not null && returnedUser is not null && user != returnedUser) throw new InvalidDataException("Factory returned another user.");
+                    token.ThrowIfCancellationRequested(); context.AcceptedBearer = null;
+                    var auth = await get(host + "/api/app/auth/me").ConfigureAwait(false);
+                    var documents = new Dictionary<string, JsonElement> { ["auth"] = auth };
+                    try { documents["limits"] = await get("https://api.factory.ai/api/billing/limits").ConfigureAwait(false); }
+                    catch (ProviderRequestException error) when (error.Status == System.Net.HttpStatusCode.TooManyRequests) { throw; }
+                    catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException)
+                    { token.ThrowIfCancellationRequested(); }
+                    if (!FactoryModern(documents.GetValueOrDefault("limits")))
+                    {
+                        var user = FactoryUserId(Text(Get(auth, "userProfile"), "id")) ?? FactorySubject(context.AcceptedBearer ?? "");
+                        documents["usage"] = await get(host + "/api/organization/subscription/usage?useCache=true" + (user is null ? "" : "&userId=" + Uri.EscapeDataString(user))).ConfigureAwait(false);
+                        var returnedUser = FactoryUserId(Text(documents["usage"], "userId"));
+                        if (user is not null && returnedUser is not null && user != returnedUser) throw new InvalidDataException("Factory returned another user.");
+                    }
+                    return ParseFactory(documents);
                 }
-                return ParseFactory(documents);
-            }
-            catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException)
-            {
-                token.ThrowIfCancellationRequested(); last = error;
-                if (error is ProviderRequestException { Status: System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden } rejected) authError ??= rejected;
+                catch (FactoryAuthenticationRetryException) { token.ThrowIfCancellationRequested(); }
+                catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (error is ProviderRequestException { Status: System.Net.HttpStatusCode.TooManyRequests }) throw;
+                    last = error;
+                    if (error is ProviderRequestException { Status: System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden } rejected) authError ??= rejected;
+                    break;
+                }
             }
         }
         throw (Exception?)authError ?? last ?? new InvalidDataException("Factory returned no billing response.");

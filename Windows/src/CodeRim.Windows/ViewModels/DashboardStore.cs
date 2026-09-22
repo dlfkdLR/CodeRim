@@ -20,6 +20,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     private readonly Dictionary<string, DateTimeOffset> lastRefresh = new(StringComparer.Ordinal);
     private bool pendingRefresh;
     private bool localRefreshing;
+    private Task? activityTask;
     private bool disposed;
     private readonly Dictionary<string, string?> scopes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> generations = new(StringComparer.Ordinal);
@@ -36,9 +37,9 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     public event Action<ProviderReading>? ReadingUpdated;
     public event Action<SessionActivity>? SessionAttentionRequested;
     public bool Synthetic { get; }
-    public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false)
+    public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false, ProviderConnections? providerConnections = null)
     {
-        this.settings = settings; Synthetic = synthetic; connections = new ProviderConnections(vault);
+        this.settings = settings; Synthetic = synthetic; connections = providerConnections ?? new ProviderConnections(vault);
         repository = new UsageRepository(Path.Combine(CompanionFile.DataDirectory, "usage.sqlite"));
         var keyPath = Path.Combine(CompanionFile.DataDirectory, "project-key.bin");
         if (!File.Exists(keyPath)) File.WriteAllBytes(keyPath, System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
@@ -80,11 +81,12 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         if (userInitiated) foreach (var scanner in scanners.Values) scanner.InvalidateCachedSources();
         // Local scans never wait for provider network requests.
         foreach (var id in settings.Current.EnabledProviders) EnsureScope(id);
+        var activity = RefreshActivityAsync();
         var local = RefreshLocalAsync();
         var remote = settings.Current.EnabledProviders.Where(id => userInitiated
             || DateTimeOffset.Now - lastRefresh.GetValueOrDefault(id) >= TimeSpan.FromSeconds(60))
             .Select(RefreshProviderAsync).ToArray();
-        await Task.WhenAll(remote.Append(local)).ConfigureAwait(true);
+        await Task.WhenAll(remote.Append(local).Append(activity)).ConfigureAwait(true);
     }
     private async Task RefreshLocalAsync()
     {
@@ -98,8 +100,6 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
                 pendingRefresh = false;
                 var enabled = settings.Current.EnabledProviders.ToArray();
                 if (Synthetic) { SeedPreview(); return; }
-                UpdateSessionActivity(await Task.Run(() => ReadSessions(enabled), lifetime.Token).ConfigureAwait(true));
-                Changed();
                 foreach (var id in enabled.Where(scanners.ContainsKey))
                 {
                     var generation = Generation(id);
@@ -152,8 +152,14 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
             EnsureScope(id); generation = Generation(id); requestScope = scopes.GetValueOrDefault(id);
             lastRefresh[id] = DateTimeOffset.Now;
             if (Synthetic) { SeedPreview(); return; }
-            var reading = await connections.FetchAsync(id, settings.Current, lifetime.Token).ConfigureAwait(true);
+            var result = await connections.FetchForStoreAsync(id, settings.Current, requestScope, lifetime.Token).ConfigureAwait(true);
+            // No await between the request/generation checks, exact rotation-version
+            // acceptance and the normal current-scope guard on this owning UI context.
+            if (generation == Generation(id) && requestScope == scopes.GetValueOrDefault(id)
+                && connections.TryAcceptScopeRotation(id, requestScope, result.Rotation, out var rotatedScope))
+            { scopes[id] = rotatedScope; requestScope = rotatedScope; }
             EnsureScope(id);
+            var reading = result.Reading;
             if (generation != Generation(id) || requestScope != scopes.GetValueOrDefault(id) || !settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return;
             Readings[id] = ReadingRetention.Merge(reading, requestScope is null || !connections.CanCache(id) ? null : Readings.GetValueOrDefault(id));
             if (settings.Current.DebugLogging) AppDiagnostics.Record(id, Readings[id].State.ToString(), Readings[id].Windows.Count);
@@ -198,9 +204,39 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
                 new("rate-limit-reset-credits", "Reset credits", null, RemainingCount: 2, Unit: "resets", DisplayValue: "2 resets remaining")] };
         Status = "Synthetic Windows UI verification";
     }
+    public Task RefreshActivityAsync()
+    {
+        if (disposed || Synthetic) return Task.CompletedTask;
+        return activityTask ??= ReadActivityAsync();
+    }
+    private async Task ReadActivityAsync()
+    {
+        await Task.Yield();
+        var enabled = settings.Current.EnabledProviders.ToArray();
+        var versions = enabled.ToDictionary(id => id, Generation, StringComparer.Ordinal);
+        try
+        {
+            var current = await Task.Run(() => ReadSessions(enabled, lifetime.Token), lifetime.Token).ConfigureAwait(true);
+            if (disposed) return;
+            var valid = current.Where(item => settings.Current.EnabledProviders.Contains(item.Provider, StringComparer.Ordinal)
+                && versions.GetValueOrDefault(item.Provider, -1) == Generation(item.Provider)).ToArray();
+            var previous = Sessions;
+            UpdateSessionActivity(valid);
+            if (!previous.SequenceEqual(Sessions)) Changed();
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
+        {
+            if (settings.Current.DebugLogging) AppDiagnostics.Record("activity", "LocalReadUnavailable", 0);
+        }
+        finally { activityTask = null; }
+    }
     internal void UpdateSessionActivity(IReadOnlyList<SessionActivity> current)
     {
         var previous = Sessions;
+        current = current.Select(item => previous.FirstOrDefault(old => item.Provider == "claude" && old.Id == item.Id && old.Provider == item.Provider
+            && old.State == item.State && old.ProcessStartedAt == item.ProcessStartedAt) is { } old
+                ? item with { Since = old.Since } : item).ToArray();
         Sessions = current;
         var finished = current.Any(x => x.State == "idle" && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"));
         var blocked = current.Any(x => x.State == "waiting" && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"));
@@ -215,16 +251,21 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
                 .OrderByDescending(x => x.Since).First());
     }
 
-    private static List<SessionActivity> ReadSessions(string[] enabled)
+    private static List<SessionActivity> ReadSessions(string[] enabled, CancellationToken cancellationToken)
     {
         var sessions = new List<SessionActivity>();
-        if (enabled.Contains("claude", StringComparer.Ordinal)) sessions.AddRange(ClaudeSessions.Read());
+        if (enabled.Contains("claude", StringComparer.Ordinal)) sessions.AddRange(ClaudeSessions.Read(cancellationToken));
         if (!enabled.Contains("codex", StringComparer.Ordinal)) return sessions;
         var root = UsageScanner.DefaultRoots()[0];
         if (!Directory.Exists(root)) return sessions;
         var files = Directory.EnumerateFiles(root, "*.jsonl", new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint, MaxRecursionDepth = 32 })
             .Take(50000).OrderByDescending(File.GetLastWriteTimeUtc).Take(64);
-        foreach (var path in files) if (ActivityReader.ReadCodex(path, DateTimeOffset.Now) is { } activity) sessions.Add(activity);
+        foreach (var path in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (DateTimeOffset.Now - File.GetLastWriteTimeUtc(path) <= TimeSpan.FromHours(6)
+                && ActivityReader.ReadCodex(path, DateTimeOffset.Now, cancellationToken) is { } activity) sessions.Add(activity);
+        }
         return sessions;
     }
     public void Clear(string id)

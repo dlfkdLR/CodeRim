@@ -11,6 +11,7 @@ public sealed partial class NativeProviders
     private static string KimiEndpoint(Func<string, string?> setting)
     {
         var baseUrl = ManagementBase(setting("KIMI_CODE_BASE_URL") is { Length: > 0 } configured ? configured : "https://api.kimi.com");
+        if (!baseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase)) throw new InvalidDataException("Kimi API requires HTTPS.");
         return baseUrl.EndsWith("/coding/v1", StringComparison.Ordinal) ? baseUrl + "/usages"
             : baseUrl.EndsWith("/coding", StringComparison.Ordinal) ? baseUrl + "/v1/usages" : baseUrl + "/coding/v1/usages";
     }
@@ -28,7 +29,7 @@ public sealed partial class NativeProviders
             if (windows.Any(x => x.Id == key) || Numeric(detail, "limit") is not > 0) return;
             var limit = Numeric(detail, "limit")!.Value;
             var used = Numeric(detail, "used");
-            if (used is null && Numeric(detail, "remaining") is >= 0 and var left && left <= limit) used = limit - left;
+            if (used is not >= 0 && Numeric(detail, "remaining") is >= 0 and var left && left <= limit) used = limit - left;
             if (used is not >= 0) return;
             var reset = Date(Get(detail, "resetTime")) ?? Date(Get(detail, "resetAt")) ?? Date(Get(detail, "reset_time")) ?? Date(Get(detail, "reset_at"));
             windows.Add(new(key, name, Math.Clamp(used.Value / limit * 100, 0, 100), reset, minutes));
@@ -41,7 +42,7 @@ public sealed partial class NativeProviders
                 var window = Get(item, "window");
                 var multiplier = Text(window, "timeUnit") switch { "TIME_UNIT_MINUTE" => 1, "TIME_UNIT_HOUR" => 60, "TIME_UNIT_DAY" => 1440, _ => 0 };
                 var duration = Numeric(window, "duration") * multiplier;
-                if (duration is not > 0 or > int.MaxValue) continue;
+                if (duration is not > 0 or > int.MaxValue || duration != Math.Truncate(duration.Value)) continue;
                 var minutes = (int)duration.Value;
                 Legacy(minutes == 300 ? "limit_5h" : minutes == 10080 ? "limit_7d" : "window." + minutes,
                     minutes == 300 ? "5h limit" : minutes == 10080 ? "Weekly limit" : minutes + " minute limit", Get(item, "detail"), minutes);
@@ -51,7 +52,7 @@ public sealed partial class NativeProviders
         var version = Get(root, "version");
         if (version.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null || Text(root, "version") == "GOODS_VERSION_V1")
             plan = plan switch { "LEVEL_FREE" => "Adagio", "LEVEL_TRIAL" => "Andante", "LEVEL_BASIC" => "Moderato", "LEVEL_INTERMEDIATE" => "Allegretto", "LEVEL_ADVANCED" => "Allegro", _ => plan };
-        return Metered("kimi", windows.OrderBy(x => x.DurationMinutes == 300 ? 0 : x.DurationMinutes == 10080 ? 1 : 2).ToArray(), plan);
+        return Metered("kimi", windows.OrderBy(x => x.DurationMinutes == 10080 ? 0 : x.DurationMinutes == 300 ? 1 : 2).ToArray(), plan);
     }
     private static ProviderReading Metered(string id, IReadOnlyList<LimitWindow> windows, string? plan = null) =>
         new(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, DateTimeOffset.Now,

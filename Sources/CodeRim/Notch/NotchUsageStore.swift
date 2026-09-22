@@ -281,7 +281,9 @@ final class NotchUsageStore: ObservableObject {
             guard !refreshing.contains(provider.id), isCurrent(provider.id, version: versions[provider.id]) else { continue }
             refreshing.insert(provider.id)
             let fresh = await snapshot(from: provider, version: versions[provider.id])
-            apply(fresh, providerID: provider.id)
+            if isCurrent(provider.id, version: versions[provider.id]) {
+                apply(fresh, providerID: provider.id)
+            }
             finishRefresh(provider.id)
         }
     }
@@ -364,7 +366,9 @@ final class NotchUsageStore: ObservableObject {
             guard let self else { return }
             defer { self.finishRefresh(providerID) }
             let fresh = await self.snapshot(from: provider, version: version)
-            self.apply(fresh, providerID: providerID)
+            if self.isCurrent(providerID, version: version) {
+                self.apply(fresh, providerID: providerID)
+            }
             self.lastAttempt = Date()
             // A beat of visible work even when the answer was instant: a spinner
             // that flashes for one frame reads as a glitch, not as a refresh.
@@ -480,7 +484,7 @@ final class NotchUsageStore: ObservableObject {
             return fresh
         } catch {
             guard isCurrent(provider.id, version: version) else { return nil }
-            NotchLog.usage.error("\(provider.id, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+            NotchLog.usage.error("\(provider.id, privacy: .public) failed: \(String(describing: error), privacy: .private)")
             return degraded(provider: provider, error: error)
         }
     }

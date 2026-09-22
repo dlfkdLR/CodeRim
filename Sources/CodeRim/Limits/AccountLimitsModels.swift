@@ -168,7 +168,9 @@ enum LimitFreshness {
         case ..<3_600: elapsed = "\(Int(age / 60)) min ago"
         case ..<86_400: elapsed = "\(Int(age / 3_600)) hr ago"
         default:
-            let days = Int(age / 86_400)
+            guard let days = Int(exactly: (age / 86_400).rounded(.towardZero)) else {
+                return stale ? "Last known · update time unavailable" : "Update time unavailable"
+            }
             elapsed = "\(days) \(days == 1 ? "day" : "days") ago"
         }
         return stale ? "Last known · updated \(elapsed)" : "Updated \(elapsed)"

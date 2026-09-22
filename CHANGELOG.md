@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.8 — Browser sessions and native reliability
+
+- Expand Windows provider connections and align notch controls, account menus and usage navigation with macOS.
+- Preserve credential rotation, isolate account retry state and validate current browser storage without reviving obsolete sessions.
+- Add publisher-verified Windows installation/update/recovery code; public unsigned packages continue to use manual updates.
+- Fix macOS Safari snapshot reads and reject credential-bearing authentication redirects.
+- See [release notes](Documentation/ReleaseNotes/2.1.8.md) for native test evidence and remaining live-account/display limits.
+
 ## 2.1.7 — Settings parity and session history
 
 - Align Windows Settings categories, themes, account/usage navigation, diagnostics and session controls with macOS.

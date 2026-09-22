@@ -55,7 +55,7 @@ final class UsageSettingsLayoutTests: XCTestCase {
                                             section: scenario == "limits" ? .codex : .overview, embedded: true)
                         }
                         .background(.background)
-                        .environmentObject(UsageStore(provider: provider,
+                        .environmentObject(isolatedLayoutUsageStore(provider: provider,
                             analyticsSnapshots: scenario == "analytics" ? [.thirtyDays: analytics] : [:],
                             initialSnapshot: scenario == "empty" ? .empty : snapshot,
                             automaticallyRefresh: false, defaults: defaults))

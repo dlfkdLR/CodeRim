@@ -34,7 +34,14 @@ final class ExtendedNotchProvider: NotchProvider {
         currentAccount = nil
         // The dependency's default cache belongs to CodexBar, not this app.
         KeychainCacheStore.withServiceOverrideForTesting(Self.cacheService) {
-            _ = CookieHeaderCache.clearAllScopes(provider: descriptor.id)
+            if [.deepseek, .minimax, .factory].contains(descriptor.id) {
+                // CookieHeaderCache's legacy file belongs to CodexBar, even under a service override.
+                if case let .found(keys) = KeychainCacheStore.keysResult(category: "cookie") {
+                    for key in keys where key.identifier == descriptor.id.rawValue || key.identifier.hasPrefix(descriptor.id.rawValue + ".") {
+                        _ = KeychainCacheStore.clearResult(key: key)
+                    }
+                }
+            } else { _ = CookieHeaderCache.clearAllScopes(provider: descriptor.id) }
         }
     }
 
@@ -69,7 +76,19 @@ final class ExtendedNotchProvider: NotchProvider {
             })
         do {
             let result = try await KeychainCacheStore.withServiceOverrideForTesting(Self.cacheService) {
-                try await fetch(descriptor, context)
+                try await StepFunPasswordRecovery.$cacheCommit.withValue({ [weak self] token in
+                    await self?.cacheStepFunSession(token, version: version)
+                }) {
+                    try await SafeBrowserProviderFetch.$automaticAllowed.withValue(config.provider.cookieSource == .auto) {
+                        try await SafeBrowserProviderFetch.$cacheRead.withValue({ [weak self] in
+                            await self?.browserSessionCache(version: version)
+                        }) {
+                            try await SafeBrowserProviderFetch.$cacheCommit.withValue({ [weak self] expected, value in
+                                await self?.cacheBrowserSession(value, expected: expected, version: version) ?? false
+                            }) { try await fetch(descriptor, context) }
+                        }
+                    }
+                }
             }
             try Task.checkCancellation()
             guard revision == version else { throw CancellationError() }
@@ -93,6 +112,11 @@ final class ExtendedNotchProvider: NotchProvider {
     }
 
     nonisolated static func fetchUpstream(_ descriptor: ProviderDescriptor, context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        if [.deepseek, .minimax, .factory].contains(descriptor.id) { return try await SafeBrowserProviderFetch.fetch(descriptor, context: context) }
+        if descriptor.id == .stepfun { return try await StepFunPasswordRecovery.fetch(descriptor, context: context) }
+        if descriptor.id == .xai || descriptor.id == .poe {
+            return try await SharedScriptProvider.fetch(descriptor.id, environment: context.env)
+        }
         if descriptor.id == .jetbrains {
             let local = try Self.validatedJetBrainsQuota(settings: context.settings)
             // An IDE without an activated quota writes {type: "Unknown"}. The upstream
@@ -134,6 +158,30 @@ final class ExtendedNotchProvider: NotchProvider {
                 message: "JetBrains AI has not reported a valid quota. Sign in and activate AI in the IDE.")
         }
         return try JetBrainsStatusProbe.parseXMLData(data, detectedIDE: ide)
+    }
+
+    private func browserSessionCache(version: UUID) -> String? {
+        guard revision == version, [.deepseek, .minimax, .factory].contains(descriptor.id) else { return nil }
+        if case let .found(entry) = KeychainCacheStore.load(key: .cookie(provider: descriptor.id.instanceID), as: CookieHeaderCacheEntry.self) {
+            return entry.cookieHeader
+        }
+        return nil
+    }
+
+    private func cacheBrowserSession(_ value: String, expected: String?, version: UUID) -> Bool {
+        guard revision == version, descriptor.id == .factory,
+              browserSessionCache(version: version) == expected else { return false }
+        // MainActor check + store is one turn. Rotation retains the original account/revision;
+        // explicit clear/settings invalidation cannot be undone by a late refresh response.
+        return KeychainCacheStore.storeResult(key: .cookie(provider: descriptor.id.instanceID),
+            entry: CookieHeaderCacheEntry(cookieHeader: value, storedAt: Date(), sourceLabel: "browser session"))
+    }
+
+    private func cacheStepFunSession(_ token: String, version: UUID) {
+        guard revision == version, descriptor.id == .stepfun else { return }
+        // The version check and cache commit share this MainActor turn. Settings
+        // invalidation cannot clear the account between them and then be undone.
+        CookieHeaderCache.store(provider: .stepfun, cookieHeader: token, sourceLabel: "login")
     }
 
     private func persistRecoveredToken(_ token: String, provider: CodexBarCore.UsageProvider, version: UUID) {

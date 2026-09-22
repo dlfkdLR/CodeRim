@@ -13,7 +13,7 @@ defineProvider({
       throw ctx.fail.missingCredential("Missing or invalid xAI team ID");
     }
     const root = `https://management-api.x.ai/v1/billing/teams/${encodeURIComponent(team)}`;
-    const balanceResponse = await ctx.http.getJSON(`${root}/prepaid/balance`);
+    const balanceResponse = await ctx.http.get(`${root}/prepaid/balance`);
     if (balanceResponse.status === 401 || balanceResponse.status === 403) {
       throw ctx.fail.authenticationExpired(
         "xAI rejected the Management API key. Create one in the xAI Console under Settings > Management Keys; inference API keys are not accepted.",
@@ -30,6 +30,7 @@ defineProvider({
     if (balanceResponse.status < 200 || balanceResponse.status >= 300) {
       throw ctx.fail.apiFailure(`xAI Management API returned HTTP ${balanceResponse.status}.`);
     }
+    balanceResponse.json = JSON.parse(balanceResponse.bodyText);
     const raw = balanceResponse.json && balanceResponse.json.total && balanceResponse.json.total.val;
     if (typeof raw !== "string" || !/^-?\d+(\.\d+)?$/.test(raw.trim())) {
       throw ctx.fail.parseFailure("Could not parse xAI billing data: balance total.val is not a cent amount");
@@ -56,11 +57,6 @@ defineProvider({
           },
         },
       });
-      if (usage.status === 401 || usage.status === 403) {
-        throw ctx.fail.authenticationExpired(
-          "xAI rejected the Management API key. Create one in the xAI Console under Settings > Management Keys; inference API keys are not accepted.",
-        );
-      }
       if (usage.status >= 200 && usage.status < 300) {
         if (!usage.json || !Array.isArray(usage.json.timeSeries)) {
           throw new Error("invalid xAI usage history");
@@ -86,13 +82,11 @@ defineProvider({
         partial = usage.json.limitReached === true;
         historyAvailable = true;
       }
-    } catch (error) {
-      if (/rejected the Management API key/.test(error.message)) throw error;
-    }
+    } catch {} // Optional analytics must not discard a valid balance.
     return {
       cost: { used: balance, currency: "USD", period: "Prepaid credits" },
       identity: { loginMethod: "Management API" },
-      dataConfidence: partial ? "estimated" : "exact",
+      dataConfidence: partial || !historyAvailable ? "estimated" : "exact",
       details: [
         {
           title: "Billing summary",
@@ -100,7 +94,7 @@ defineProvider({
             { label: "Prepaid balance", value: `$${balance.toFixed(2)}` },
             {
               label: partial ? "Last 30 days (partial)" : "Last 30 days",
-              value: `$${daily.reduce((sum, point) => sum + point.value, 0).toFixed(2)}`,
+              value: historyAvailable ? `$${daily.reduce((sum, point) => sum + point.value, 0).toFixed(2)}` : "Unavailable",
             },
           ],
           // Emit an empty chart on successful history so spend mapping can tell

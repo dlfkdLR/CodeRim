@@ -13,9 +13,9 @@
     <LangVersion>12.0</LangVersion>
     <AssemblyName>CodeRim</AssemblyName>
     <RootNamespace>CodeRim.Windows</RootNamespace>
-    <Version>2.1.7</Version>
-    <AssemblyVersion>2.1.7.0</AssemblyVersion>
-    <FileVersion>2.1.7.0</FileVersion>
+    <Version>2.1.8</Version>
+    <AssemblyVersion>2.1.8.0</AssemblyVersion>
+    <FileVersion>2.1.8.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\CodeRim.ico</ApplicationIcon>
     <PublishSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</PublishSingleFile>
@@ -25,10 +25,14 @@
     <PublishTrimmed Condition="'$(RuntimeIdentifier)' != ''">false</PublishTrimmed>
   </PropertyGroup>
   <ItemGroup>
+    <AssemblyMetadata Include="CodeRimPublisherSpkiSha256" Value="$(CodeRimPublisherSpkiSha256)" />
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
     <ProjectReference Include="..\CodeRim.Core\CodeRim.Core.csproj" />
     <Resource Include="Assets\CodeRim.ico" />
     <Resource Include="Assets\ProviderLogos\*.svg" />
   </ItemGroup>
+  <Target Name="ValidateApplicationPublisherPin" BeforeTargets="CoreCompile">
+    <Error Condition="'$(CodeRimPublisherSpkiSha256)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(CodeRimPublisherSpkiSha256)', '^[0-9a-f]{64}$'))" Text="The application publisher SPKI pin must be an exact lowercase SHA-256 value." />
+  </Target>
 </Project>

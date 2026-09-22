@@ -1,9 +1,16 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Providers;
 using CodeRim.Core.Services;
 
+// Piped CLI data has the same UTF-8 contract on both platforms. Replace only
+// redirected readers/writers so a user's attached console code page is unchanged.
+var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+if (Console.IsOutputRedirected) Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), utf8) { AutoFlush = true });
+if (Console.IsErrorRedirected) Console.SetError(new StreamWriter(Console.OpenStandardError(), utf8) { AutoFlush = true });
+if (Console.IsInputRedirected) Console.SetIn(new StreamReader(Console.OpenStandardInput(), utf8));
 return await RunAsync(args).ConfigureAwait(false);
 
 static async Task<int> RunAsync(string[] arguments)
@@ -94,6 +101,8 @@ static async Task<int> RunAsync(string[] arguments)
                     {
                         var value = window.UsedPercent is { } percent ? $"{percent:0.#}% used · {window.RemainingPercent:0.#}% left" : window.DisplayValue
                             ?? (window.UsedCount is { } used ? $"{used:N0} {window.Unit} used" : window.RemainingCount is { } left ? $"{left:N0} {window.Unit} left" : "unavailable");
+                        if (window.UsedPercent is not null && !string.IsNullOrWhiteSpace(window.DisplayValue))
+                            value += " · " + window.DisplayValue;
                         Console.WriteLine($"  {window.Name}: {value}" + (window.ResetsAt is { } reset ? " · resets " + reset.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) : ""));
                     }
                 }

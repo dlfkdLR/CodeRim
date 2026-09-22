@@ -20,21 +20,31 @@ CodeRim은 화면 가장자리의 작은 노치에 코딩 도우미의 사용 �
 | 터미널 CLI | 포함 | 포함 |
 | 저장된 계정 전환 | Codex와 Claude Code | Codex와 Claude Code |
 | 위젯 | macOS 위젯 | Windows 작업 범위 제외 |
-| 업데이트 | 서명된 Sparkle 업데이트 | 새 릴리스 확인, ZIP 직접 설치 |
+| 업데이트 | 서명된 Sparkle 업데이트 | 새 릴리스 확인, 서명된 관리 설치본의 앱 내 설치, 미서명 ZIP 직접 설치 |
 
 위 표는 현재 소스 기준입니다. 로컬 토큰 기록은 계정 구분 없이 이 컴퓨터에서 사용한 기록입니다. 제공업체별 Windows 지원 상태와 남은 작업은 [기능 현황표](Documentation/WINDOWS.md#remaining-parity-work)를 참고하세요.
 
-두 앱은 여섯 가지 설정 분류와 Usage·Projects·Sessions·계정 탐색 구조를 공유합니다. Windows도 시스템 밝은/어두운 테마, 고대비, 수동 새로고침, 한도 표시 설정, 세션 이미지 개수와 직속 하위 에이전트 탐색을 지원합니다. 이미지 원본과 대화 내용은 사용량 DB에 복사하지 않습니다. 운영체제별 인증과 업데이트 방식에는 차이가 있으며, 아래 안내에서 구분합니다.
+두 앱은 여섯 가지 설정 분류와 Usage·Projects·Sessions·계정 탐색 구조를 공유합니다. Windows도 시스템 밝은/어두운 테마, 고대비, 수동 새로고침, 한도 표시 설정, 세션 이미지 개수와 직속 하위 에이전트 탐색을 지원합니다. 이미지 원본과 대화 내용은 사용량 DB에 복사하지 않습니다. Windows에는 지원 제공업체의 Firefox 로그인 가져오기, 서로 분리된 Amp API·CLI·Web 연결, Windsurf 로컬 캐시와 Antigravity OAuth·Local IDE 소스 선택, 갱신을 지원하는 Groq 콘솔 세션과 30일 사용 이력, 인증부터 청구 조회까지 일관된 재시도를 적용한 Factory 브라우저 세션과 계정 변경 충돌을 방지하는 WorkOS 세션 자동 갱신, Today·7D·30D 분석과 별도의 Codex·Claude 활동 감지도 구현되어 있습니다. 운영체제별 인증과 업데이트 방식에는 차이가 있으며, 아래 안내에서 구분합니다.
+
+Windows 인증은 GitHub CLI, 신뢰할 수 있는 GLM Coding Plan과 Codebuff 로컬 로그인도 재사용합니다. Moonshot 지역별 키와 DeepSeek API·Web 인증 정보는 분리하고, Kimi API·CLI·Web 연결도 지원합니다. DeepSeek Web에서는 같은 세션의 상세 사용량 조회를 선택할 수 있습니다. Kimi는 직접 선택한 Desktop의 평문 세션을 검증 후 연결하며, Desktop 자동 발견은 아직 검증하지 못했습니다. StepFun에는 비밀번호 로그인과 Oasis-Token 갱신을 추가했습니다. MiniMax는 지역별 API·Web 연결을 분리합니다. Alibaba Token Plan은 소스와 지역을 선택해 Bailian CLI 또는 Web으로 연결할 수 있습니다. Alibaba Coding Plan도 API 키와 지역별 Web 세션을 분리합니다. Firefox 가져오기는 선택한 프로필의 MiMo 세션 쿠키 복구와 Abacus·LongCat·Alibaba Coding Plan·Alibaba/Qwen Token Plan을 포함한 21개 연결 경로를 지원합니다. 연결 코드는 합성 응답으로 검사했으며, 실제 계정 인증 결과와는 구분합니다.
+
+현재 소스에는 DeepSeek·Factory·MiniMax의 Chromium 프로필 선택 가져오기를 추가했습니다. 현재 저장 기록을 읽고 선택한 계정을 검증한 뒤 Windows 암호화 저장소에 연결을 보관합니다. MiniMax는 세션과 그룹 정보의 일치를 확인하며, Chromium이 보호하는 암호화 쿠키는 지원되는 다른 연결 방법이 필요합니다. 이 추가 기능은 Windows 실제 실행 회귀검사를 진행하고 있습니다.
+
+Windows 앱 내 업데이트도 다운로드 검증·재시작 설치·중단된 업데이트 복구까지 구현했습니다. 서명된 관리 설치본에서 활성화되며, 현재 공개된 미서명 ZIP은 직접 설치 방식입니다. 적용 조건은 [Windows 업데이트 안내](Documentation/WINDOWS.md#updates)에 정리했습니다.
+
+Windows 노치도 macOS와 같은 기본 설정 곡선과 마우스를 올렸을 때 나타나는 계정 컨트롤을 사용합니다. 사용량을 반복 갱신해도 상세 팝업이 노치를 덮지 않습니다. 키보드로 계정 메뉴를 열면 메뉴 안에서 이동하고 Escape로 돌아갈 수 있으며, CLI 출력을 다른 프로그램으로 전달할 때 한글·이모지를 포함한 UTF-8을 사용합니다.
+
+현재 소스는 공급자가 많을 때 노치 목록을 화면 크기에 맞춰 나누고, 긴 상세 카드는 스크롤로 표시합니다. xAI·Poe는 두 플랫폼이 인증 오류와 불완전한 이력을 같은 방식으로 처리합니다. 이 변경은 아래 릴리스 다운로드에 아직 포함되지 않은 감사 중인 수정입니다. [2026-09-20 감사 결과와 검증 범위](Documentation/FULL_AUDIT_2026-09-20.md)를 참고하세요.
 
 ## 설치
 
-**macOS:** [2.1.7](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.7) · **Windows:** [2.1.7](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.7)
+**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8)
 
 ### macOS
 
 **macOS 14 이상 · Apple Silicon 및 Intel 지원.**
 
-[![macOS용 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/CodeRim-2.1.7.dmg)
+[![macOS용 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/CodeRim-2.1.8.dmg)
 
 ```sh
 brew tap dlfkdLR/tap &&
@@ -51,7 +61,7 @@ Homebrew에서 cask를 사용할 수 없다는 메시지가 표시되거나 이�
 
 **Windows 11 · x64 및 ARM64 · .NET 포함.**
 
-[x64 ZIP 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/CodeRim-Windows-2.1.7-x64.zip) · [ARM64 ZIP 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/CodeRim-Windows-2.1.7-arm64.zip) · [SHA-256 체크섬](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/SHA256SUMS-windows.txt)
+[x64 ZIP 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/CodeRim-Windows-2.1.8-x64.zip) · [ARM64 ZIP 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/CodeRim-Windows-2.1.8-arm64.zip) · [SHA-256 체크섬](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/SHA256SUMS-windows.txt)
 
 Windows 실행 파일은 **서명되지 않았습니다**. 압축을 풀기 전에 ZIP의 체크섬을 확인하세요. 계속 사용할 폴더에 압축을 풀고 `CodeRim.exe`를 실행하거나, CodeRim을 종료한 뒤 압축을 푼 폴더의 PowerShell에서 다음 명령으로 현재 사용자용 설치를 진행하세요.
 

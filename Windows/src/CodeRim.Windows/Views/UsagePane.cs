@@ -11,7 +11,7 @@ using CodeRim.Windows.ViewModels;
 namespace CodeRim.Windows.Views;
 
 /// <summary>Persistent selectors and navigation; polling replaces only the numeric content.</summary>
-internal sealed class UsagePane : StackPanel
+internal sealed partial class UsagePane : StackPanel
 {
     private readonly DashboardStore store;
     private readonly AppSettingsStore settings;
@@ -20,17 +20,17 @@ internal sealed class UsagePane : StackPanel
     private readonly StackPanel accountRow = new() { Margin = new Thickness(24, 0, 24, 16) };
     private readonly System.Windows.Controls.ComboBox selector;
     private readonly Stack<NavigationState> history = new();
-    private sealed record NavigationState(string Destination, string Period, string Search, string? Project, string? Session, int VisibleRows);
-    private void Forward(string target, string? selectedPeriod = null, string? selectedProject = null, string? selectedSession = null)
+    private sealed record NavigationState(string Destination, string Period, string Search, string? Project, string? Session, int VisibleRows, string? Model, DateTimeOffset? Bucket);
+    private void Forward(string target, string? selectedPeriod = null, string? selectedProject = null, string? selectedSession = null, string? model = null)
     {
-        history.Push(new(destination, period, search, project, session, visibleRows));
-        destination = target; period = selectedPeriod ?? period; project = selectedProject; session = selectedSession;
+        history.Push(new(destination, period, search, project, session, visibleRows, selectedModel, selectedBucket));
+        destination = target; period = selectedPeriod ?? period; project = selectedProject; session = selectedSession; selectedModel = model; selectedBucket = null;
         BuildControls(); Update();
     }
     internal void Back()
     {
         if (!history.TryPop(out var previous)) return;
-        (destination, period, search, project, session, visibleRows) = (previous.Destination, previous.Period, previous.Search, previous.Project, previous.Session, previous.VisibleRows);
+        (destination, period, search, project, session, visibleRows, selectedModel, selectedBucket) = (previous.Destination, previous.Period, previous.Search, previous.Project, previous.Session, previous.VisibleRows, previous.Model, previous.Bucket);
         BuildControls(); Update();
     }
     internal bool HandleShortcut(Key key, ModifierKeys modifiers)
@@ -90,8 +90,8 @@ internal sealed class UsagePane : StackPanel
         this.store = store; this.settings = settings; this.provider = provider; this.navigate = navigate;
         var choices = settings.Current.EnabledProviders.Select(id => ProviderCatalog.Find(id)!).ToArray();
         if (!choices.Any(x => x.Id == provider)) this.provider = choices.FirstOrDefault()?.Id ?? "codex";
-        var header = new DockPanel { Margin = new Thickness(24, 20, 24, 24) };
-        DockPanel.SetDock(controls, Dock.Right); header.Children.Add(controls);
+        var header = new Grid { Margin = new Thickness(24, 20, 24, 24) };
+        header.Children.Add(controls);
         selector = new System.Windows.Controls.ComboBox { ItemsSource = choices, DisplayMemberPath = "Name", SelectedValuePath = "Id",
             SelectedValue = this.provider, MinHeight = 24, Height = 24, MinWidth = 100, MaxWidth = 190, HorizontalAlignment = HorizontalAlignment.Left };
         System.Windows.Automation.AutomationProperties.SetName(selector, "Usage provider");
@@ -105,7 +105,7 @@ internal sealed class UsagePane : StackPanel
                 BuildControls(); Update();
             }
         };
-        header.Children.Add(selector); Children.Add(header);
+        header.Children.Add(selector); AdaptHeader(header, controls); Children.Add(header);
         Children.Add(filters); Children.Add(accountRow); Children.Add(SettingsUi.Divider()); Children.Add(readings);
         LostKeyboardFocus += (_, _) => Dispatcher.BeginInvoke(new Action(() => { if (pendingRefresh && !readings.IsKeyboardFocusWithin && !accountRow.IsKeyboardFocusWithin) RefreshReadings(); }));
         BuildControls(); Update();
@@ -128,11 +128,15 @@ internal sealed class UsagePane : StackPanel
         }
         else
         {
-            var periods = new[] { ("today", "Today"), ("week", "This week"), ("month", "This month"), ("all-time", "All time") };
+            var periods = new[] { ("today", "Today"), ("7d", "7D"), ("30d", "30D"), ("week", "This week"), ("month", "This month"), ("all-time", "All time") };
             var select = new System.Windows.Controls.ComboBox { ItemsSource = periods.Select(x => new PeriodChoice(x.Item1, x.Item2)), DisplayMemberPath = "Name", SelectedValuePath = "Id", SelectedValue = period, MinWidth = 145, Margin = new Thickness(0, 4, 8, 4) };
             System.Windows.Automation.AutomationProperties.SetName(select, "Usage period");
-            select.SelectionChanged += (_, _) => { if (select.SelectedValue is string value) { period = value; visibleRows = 40; Update(); } }; bar.Children.Add(select);
+            select.SelectionChanged += (_, _) => { if (select.SelectedValue is string value) { period = value; selectedBucket = null; visibleRows = 40; Update(); } }; bar.Children.Add(select);
         }
+        var refresh = Ui.AsyncButton("Refresh", () => store.RefreshAsync(true));
+        refresh.ToolTip = "Refresh usage and limits (Ctrl+R)";
+        System.Windows.Automation.AutomationProperties.SetAutomationId(refresh, "usage.refresh");
+        bar.Children.Add(refresh);
         controls.Children.Add(bar);
         if (destination is "projects" or "sessions" && project is null && session is null)
         {
@@ -165,16 +169,20 @@ internal sealed class UsagePane : StackPanel
         var today = snapshot.Today;
         readings.Children.Add(Heading("Today"));
         var overview = new Grid { Margin = new Thickness(0, 18, 0, 24) };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(overview, "usage.overview");
         overview.ColumnDefinitions.Add(new ColumnDefinition()); overview.ColumnDefinitions.Add(new ColumnDefinition());
         var total = new StackPanel { Margin = new Thickness(0, 0, 24, 0) };
-        total.Children.Add(Ui.Text(TokenFormatter.Format(today.TotalTokens, settings.Current.NumberStyle), 42, weight: FontWeights.SemiBold));
+        var totalText = Ui.Text(TokenFormatter.Format(today.TotalTokens, settings.Current.NumberStyle), 42, weight: FontWeights.SemiBold);
+        totalText.TextWrapping = TextWrapping.NoWrap;
+        total.Children.Add(new Viewbox { Child = totalText, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left, MaxHeight = 56 });
         total.Children.Add(Ui.Text("tokens", 13, "#A6A6AA"));
         if (snapshot.Quality != DataQuality.Exact) total.Children.Add(Ui.Text(snapshot.Quality == DataQuality.Partial ? "Partial local reading" : "No local usage observed", 11, "#A6A6AA"));
         overview.Children.Add(total);
-        var breakdown = new StackPanel(); Breakdown(breakdown, today); Grid.SetColumn(breakdown, 1); overview.Children.Add(breakdown); readings.Children.Add(overview);
+        var breakdown = new StackPanel(); Breakdown(breakdown, today); Grid.SetColumn(breakdown, 1); overview.Children.Add(breakdown); AdaptOverview(overview, total, breakdown); readings.Children.Add(overview);
         readings.Children.Add(SettingsUi.Divider());
         readings.Children.Add(Heading("History"));
         var history = new Grid { Margin = new Thickness(0, 14, 0, 24) };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(history, "usage.history");
         var values = new[] { ("This Week", "week", snapshot.Week), ("This Month", "month", snapshot.Month), ("Local History", "all-time", snapshot.AllTime) };
         for (var i = 0; i < values.Length; i++)
         {
@@ -190,8 +198,9 @@ internal sealed class UsagePane : StackPanel
             if (i > 0) { var separator = new Border { Width = 1, Height = 64, Background = (Brush)System.Windows.Application.Current.FindResource("DividerBrush"), HorizontalAlignment = HorizontalAlignment.Left }; Grid.SetColumn(separator, i); history.Children.Add(separator); }
             button.HorizontalContentAlignment = HorizontalAlignment.Stretch; button.Padding = new Thickness(i == 0 ? 0 : 16, 0, 16, 0); Grid.SetColumn(button, i); history.Children.Add(button);
         }
-        readings.Children.Add(history);
+        AdaptHistory(history); readings.Children.Add(history);
         var links = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3, Margin = new Thickness(0, 24, 0, 18) };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(links, "usage.links");
         foreach (var (id, label, detail, icon) in new[]
         {
             ("activity", "Usage", "Daily tokens, model breakdown and estimated API cost", "M2,14 V8 M8,14 V2 M14,14 V5"),
@@ -200,7 +209,7 @@ internal sealed class UsagePane : StackPanel
         })
         {
             if (!settings.Current.AnalyticsEnabled || id == "projects" && !settings.Current.ProjectsEnabled || id == "sessions" && !settings.Current.SessionsEnabled) continue;
-            var link = Ui.Button(label, () => Forward(id, "week"));
+            var link = Ui.Button(label, () => Forward(id, "7d"));
             System.Windows.Automation.AutomationProperties.SetAutomationId(link, "usage.destination." + id);
             link.ToolTip = detail; link.BorderThickness = new Thickness(0); link.SetResourceReference(Control.BackgroundProperty, "ControlBackground");
             link.Padding = new Thickness(12, 11, 12, 11); link.HorizontalContentAlignment = HorizontalAlignment.Stretch;
@@ -212,7 +221,7 @@ internal sealed class UsagePane : StackPanel
             var title = Ui.Text(label, 13); title.Margin = new Thickness(0); title.VerticalAlignment = VerticalAlignment.Center; content.Children.Add(title);
             link.Content = content; links.Children.Add(link);
         }
-        if (links.Children.Count > 0) { links.Columns = links.Children.Count; readings.Children.Add(SettingsUi.Divider()); readings.Children.Add(links); }
+        if (links.Children.Count > 0) { links.Columns = links.Children.Count; links.SizeChanged += (_, _) => links.Columns = links.ActualWidth < 390 ? 1 : links.Children.Count; readings.Children.Add(SettingsUi.Divider()); readings.Children.Add(links); }
         if (settings.Current.ShowLastUpdated || store.IsRefreshing)
             readings.Children.Add(Ui.Text(store.IsRefreshing ? "Refreshing…" : store.Status, 11, "#808080"));
     }
@@ -256,14 +265,14 @@ internal sealed class UsagePane : StackPanel
     private IEnumerable<UsageEvent> Filter(bool includeSelection = true)
     {
         var now = DateTimeOffset.Now; var day = DateTime.Today;
-        var since = period switch { "today" => day, "week" => day.AddDays(-(((int)day.DayOfWeek + (settings.Current.WeekStart == WeekStart.Monday ? 6 : 0)) % 7)), "month" => new DateTime(day.Year, day.Month, 1), _ => DateTime.MinValue };
+        var since = period switch { "today" => day, "7d" => day.AddDays(-6), "30d" => day.AddDays(-29), "week" => day.AddDays(-(((int)day.DayOfWeek + (settings.Current.WeekStart == WeekStart.Monday ? 6 : 0)) % 7)), "month" => new DateTime(day.Year, day.Month, 1), _ => DateTime.MinValue };
         return (store.Events.GetValueOrDefault(provider) ?? []).Where(x => x.OccurredAt <= now && x.OccurredAt.LocalDateTime >= since
-            && (!includeSelection || (project is null || x.ProjectId == project) && (session is null || x.SessionId == session)));
+            && (!includeSelection || (project is null || x.ProjectId == project) && (session is null || x.SessionId == session) && (selectedModel is null || x.Model == selectedModel)));
     }
     private void Detail()
     {
         var events = Filter().ToArray();
-        readings.Children.Add(Ui.Text(session is not null ? "Session details" : project is not null ? "Project details" : destination switch { "projects" => "Projects", "sessions" => "Sessions", _ => "Usage history" }, 20, weight: FontWeights.SemiBold));
+        readings.Children.Add(Ui.Text(selectedModel is not null ? selectedModel : session is not null ? "Session details" : project is not null ? "Project details" : destination switch { "projects" => "Projects", "sessions" => "Sessions", _ => "Usage history" }, 20, weight: FontWeights.SemiBold));
         if (events.Length == 0) { readings.Children.Add(Ui.Text("No local usage observed for this period.", color: "#A6A6AA")); return; }
         if (destination is "projects" or "sessions" && project is null && session is null)
         {
@@ -301,27 +310,16 @@ internal sealed class UsagePane : StackPanel
                 readings.Children.Add(Ui.Text("Whole-session metadata after the history cutoff; image contents are never stored. Local metadata may be incomplete.", 11, "#A6A6AA"));
             }
         }
-        var totals = events.Aggregate(TokenUsage.Zero, (sum, x) => sum.Add(x.Usage)); Breakdown(readings, totals);
+        var totals = events.Aggregate(TokenUsage.Zero, (sum, x) => sum.Add(x.Usage)); MetricSummary(readings, totals);
         var cost = UsageAnalytics.Estimate(events);
-        if (settings.Current.CostEstimatesEnabled)
+        if (settings.Current.CostEstimatesEnabled && provider == "codex")
         {
         Ui.Section(readings, cost.Label);
         readings.Children.Add(Ui.Text(cost.Amount is { } amount ? "$" + amount.ToString("N4", CultureInfo.CurrentCulture) : "Unavailable", 24));
         readings.Children.Add(Ui.Text("Estimated from bundled API pricing · not a bill", 11, "#A6A6AA"));
         if (cost.IsPartial) readings.Children.Add(Ui.Text($"Excludes {cost.ExcludedTokens:N0} tokens · " + string.Join(", ", cost.ExcludedModels), 11, "#A6A6AA"));
         }
-        Ui.Section(readings, "Daily history");
-        var days = UsageAnalytics.Group(events, "day").OrderBy(x => x.Name, StringComparer.Ordinal).TakeLast(30).ToArray();
-        var chart = new Grid { Height = 96, Margin = new Thickness(0, 8, 0, 12) }; var maximum = Math.Max(1, days.Max(x => x.Tokens));
-        for (var i = 0; i < days.Length; i++)
-        {
-            chart.ColumnDefinitions.Add(new ColumnDefinition());
-            var label = $"{days[i].Name}: {days[i].Tokens:N0} tokens";
-            var bar = new Border { Background = Ui.Brush("#0A84FF"), VerticalAlignment = VerticalAlignment.Bottom, Height = Math.Max(2, days[i].Tokens / (double)maximum * 96), CornerRadius = new CornerRadius(2), Margin = new Thickness(2, 0, 2, 0), ToolTip = label };
-            System.Windows.Automation.AutomationProperties.SetName(bar, label); Grid.SetColumn(bar, i); chart.Children.Add(bar);
-        }
-        readings.Children.Add(chart); Ui.Section(readings, "Models");
-        foreach (var row in UsageAnalytics.Group(events, "model")) readings.Children.Add(Ui.Row(row.Name, TokenFormatter.Format(row.Tokens, settings.Current.NumberStyle)));
+        Timeline(events);
     }
     private sealed record PeriodChoice(string Id, string Name);
 }

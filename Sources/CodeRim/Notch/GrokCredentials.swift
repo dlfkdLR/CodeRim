@@ -66,7 +66,7 @@ struct GrokCredentials {
     }
 
     static func isTrusted(key: String, entry: [String: Any]) -> Bool {
-        if key.hasPrefix(trustedIssuer) { return true }
+        if key == trustedIssuer || key.hasPrefix(trustedIssuer + "::") { return true }
         if let issuer = entry["oidc_issuer"] as? String, issuer == trustedIssuer { return true }
         return false
     }

@@ -4,15 +4,15 @@
 
 ## Platform
 
-macOS
+macOS 14+ and a Windows 11 implementation preview (x64 / ARM64). Windows widgets are outside this work.
 
 ## Stack
 
-The app uses Swift, SwiftUI, AppKit, Foundation, Swift Concurrency, SQLite, OSLog, CoreServices file events, ServiceManagement, and Sparkle. Public packages are Universal 2 macOS applications and do not require a separately installed runtime.
+The app uses Swift, SwiftUI, AppKit, Foundation, Swift Concurrency, SQLite, OSLog, CoreServices file events, ServiceManagement, and Sparkle. Public macOS packages are Universal 2 applications. Windows uses WPF, .NET 10 and SQLite with self-contained packages. Neither platform requires a separately installed runtime.
 
 ## Users
 
-People who use Codex or Claude Code on macOS and want to see the input, cached input, output, and total tokens visible in their local history. Both support local model/project/session analytics. Codex also supports API-equivalent cost estimates, read-only account limits, and live local token history.
+People who use Codex or Claude Code on macOS or Windows and want to see the input, cached input, output, and total tokens visible in their local history. Both support local model/project/session analytics. Codex also supports API-equivalent cost estimates, read-only account limits, and live local token history.
 
 ## Product Purpose
 
@@ -33,12 +33,12 @@ The app runs quietly on macOS 14 or later as a native menu bar utility. It disco
 - Preserve input, cached input, and output as separate auditable local components. Keep account totals out of the local database and display them separately. Local history has no account ownership metadata and must never supplement account totals, even after a server date cutoff or an account switch.
 - Persist normalized usage and parser checkpoints in owner-only SQLite.
 - Avoid prompts, responses, source code, and terminal output. Authentication data never enters usage storage or logs; explicitly saved account logins use a separate local Keychain vault.
-- Keep optional account retrieval opt-in, fixed-destination, aggregate-only, and memory-only.
+- Keep the account-total retrieval boundary fixed-destination, aggregate-only, and memory-only. Production currently disables account-wide profile totals; Today and History use local totals.
 - Read Codex account limits only through a verified signed Codex app-server. Read Claude five-hour and weekly limits only from its documented local status-line fields. Keep both paths read-only and never expose reset-credit consumption or purchase actions.
 - Let users explicitly save and switch their own Codex or Claude subscription logins in separate local Keychain vaults. Codex uses normal desktop quit, private login replacement, and reopen; Claude requires existing sessions to be closed first and never stops them. Never rotate accounts automatically based on quota; keep account state separate from local history.
 - Derive current API-equivalent estimates from model token usage; unknown or incomplete pricing data remains unavailable rather than becoming zero.
 - Persist only canonical model IDs, keyed project identifiers, folder basenames, session relationships, and numeric attachment metadata needed for local analytics.
-- Keep normal accounting free of telemetry, analytics, notifications, a local web server, and a separately installed runtime. Explicit account registration delegates temporary browser sign-in to the verified bundled Codex CLI or the installed official Claude CLI, using a separate temporary configuration.
+- Keep local accounting free of telemetry, remote analytics, a local web server, and a separately installed runtime. Optional notch threshold/session notifications are separate from accounting. Explicit account registration delegates temporary browser sign-in to the verified bundled Codex CLI or the installed official Claude CLI, using a separate temporary configuration.
 - Remain responsive during large historical imports and tolerate unknown, malformed, partial, truncated, rotated, and duplicated input.
 - Keep launch-at-login optional and use the platform-supported current-user mechanism.
 
@@ -64,3 +64,7 @@ The product name is CodeRim. Its interface is compact, quiet, precise, and nativ
 ## Accessibility & Inclusion
 
 Support VoiceOver labels, keyboard navigation, system appearance, sufficient contrast, Reduce Motion, and non-color-only status communication.
+
+## Platform verification boundary
+
+The Settings sections, provider identifiers, quota units, local-accounting scope, and analytics destinations are shared product contracts. Browser credential discovery, native authentication strategies, automatic updates, mixed-DPI behavior and accessibility still require platform-specific implementation or verification; see [Windows status](Documentation/WINDOWS.md) and the [current audit](Documentation/FULL_AUDIT_2026-09-20.md). A catalog entry or a successful cross-build is not a verified live connection.

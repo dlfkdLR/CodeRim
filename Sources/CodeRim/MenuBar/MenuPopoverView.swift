@@ -185,6 +185,20 @@ struct MenuPopoverView: View {
                 .labelsHidden()
                 .frame(width: 246)
                 .accessibilityIdentifier("settings.usage.section")
+
+                Button {
+                    Task { await refreshUsage() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .frame(minWidth: 28, minHeight: 28)
+                }
+                .buttonStyle(.borderless)
+                .disabled(isRefreshing || store.isMaintainingData || store.isImportingHistory)
+                .keyboardShortcut("r", modifiers: .command)
+                .accessibilityLabel("Refresh usage")
+                .accessibilityIdentifier("settings.usage.refresh")
+                .help("Refresh usage")
+
             }
             .controlSize(.regular)
             .padding(.horizontal, 24)
@@ -629,17 +643,7 @@ struct MenuPopoverView: View {
             if !embedded {
             HStack(spacing: 18) {
                 Button {
-                    Task {
-                        guard store.provider == .codex else {
-                            async let localRefresh: Void = store.refresh()
-                            async let limitsRefresh: Void = claude.refresh()
-                            _ = await (localRefresh, limitsRefresh)
-                            return
-                        }
-                        async let localRefresh: Void = store.refresh()
-                        async let limitsRefresh: Void = limitStore.refresh()
-                        _ = await (localRefresh, limitsRefresh)
-                    }
+                    Task { await refreshUsage() }
                 } label: {
                     Label {
                         Text("Refresh")
@@ -884,6 +888,12 @@ struct MenuPopoverView: View {
 
     private var currentLimitsRefreshing: Bool {
         store.provider == .codex ? limitStore.isRefreshing : claude.isRefreshing
+    }
+
+    private func refreshUsage() async {
+        async let local: Void = store.refresh()
+        async let limits: Void = refreshCurrentLimits()
+        _ = await (local, limits)
     }
 
     private func refreshCurrentLimits() async {

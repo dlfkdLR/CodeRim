@@ -128,10 +128,11 @@ final class SettingsLayoutTests: XCTestCase {
 
     private func makeEnvironment(claudeConnected: Bool) -> SettingsEnvironment {
         SettingsEnvironment(
-            codexStore: UsageStore(automaticallyRefresh: false),
-            claudeStore: UsageStore(provider: .claude, automaticallyRefresh: false),
+            codexStore: isolatedLayoutUsageStore(automaticallyRefresh: false),
+            claudeStore: isolatedLayoutUsageStore(provider: .claude, automaticallyRefresh: false),
             limitStore: AccountLimitStore(provider: SettingsLayoutTestLimitProvider(), pollingInterval: nil),
-            claude: makeConnectedClaude()
+            claude: makeConnectedClaude(),
+            codexAccounts: AccountLayoutFixture.emptyStore()
         )
     }
 

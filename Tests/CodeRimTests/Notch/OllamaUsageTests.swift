@@ -192,16 +192,15 @@ final class NotchKeychainTests: XCTestCase {
     }
 
     func testOllamaCredentialsRoundTripsThroughTheStore() {
-        defer { OllamaCredentials.delete() }
-        // Guard: only meaningful without the env var set.
-        try? XCTSkipIf(ProcessInfo.processInfo.environment["OLLAMA_API_KEY"] != nil)
-
-        XCTAssertFalse(OllamaCredentials.hasStoredKey)
-        XCTAssertTrue(OllamaCredentials.store("  ollama_pasted  "))
-        XCTAssertEqual(OllamaCredentials.load(), "ollama_pasted", "trimmed on the way in")
-        XCTAssertTrue(OllamaCredentials.hasStoredKey)
-
-        OllamaCredentials.delete()
-        XCTAssertNil(OllamaCredentials.load())
+        // Every call is scoped to this test's unique service, including cleanup.
+        // An existing production Ollama key and environment are never touched.
+        defer { OllamaCredentials.delete(service: service) }
+        XCTAssertNil(OllamaCredentials.load(environment: [:], service: service))
+        XCTAssertTrue(OllamaCredentials.store("  ollama_pasted  ", service: service))
+        XCTAssertEqual(OllamaCredentials.load(environment: [:], service: service), "ollama_pasted")
+        XCTAssertEqual(OllamaCredentials.load(environment: ["OLLAMA_API_KEY": "synthetic-env"],
+                                              service: service), "synthetic-env")
+        XCTAssertTrue(OllamaCredentials.store("  ", service: service))
+        XCTAssertNil(OllamaCredentials.load(environment: [:], service: service))
     }
 }

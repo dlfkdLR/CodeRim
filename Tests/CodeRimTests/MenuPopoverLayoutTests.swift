@@ -61,8 +61,8 @@ final class MenuPopoverLayoutTests: XCTestCase {
         ] {
             let host = NSHostingView(rootView:
                 view
-                    .environmentObject(UsageStore(provider: .claude, initialSnapshot: .empty, automaticallyRefresh: false))
-                    .environmentObject(ProfileUsageStore())
+                    .environmentObject(isolatedLayoutUsageStore(provider: .claude, initialSnapshot: .empty, automaticallyRefresh: false))
+                    .environmentObject(ProfileUsageStore(allowsAccountTotals: false))
                     .environmentObject(AccountLimitStore(provider: CollapsedPopoverTestLimitProvider(), pollingInterval: nil))
                     .environmentObject(claude)
                     .environment(\.colorScheme, .light)
@@ -88,7 +88,7 @@ final class MenuPopoverLayoutTests: XCTestCase {
 
         let usage = TokenUsage(inputTokens: 5_000_000, cachedInputTokens: 1_000_000, outputTokens: 40_000)
         let now = Date()
-        let store = UsageStore(
+        let store = isolatedLayoutUsageStore(
             provider: .codex,
             initialSnapshot: UsageSnapshot(today: usage, week: usage, month: usage, allTime: usage,
                                            quality: .exact, updatedAt: now),
@@ -158,12 +158,12 @@ final class MenuPopoverLayoutTests: XCTestCase {
             for dark in [false, true] {
                 for empty in [false, true] {
                     let name = "\(provider.rawValue)-\(empty ? "empty" : "ready")-\(dark ? "dark" : "light")"
-                    let store = UsageStore(provider: provider,
+                    let store = isolatedLayoutUsageStore(provider: provider,
                         initialSnapshot: empty ? .empty : snapshot, automaticallyRefresh: false)
                     let host = NSHostingView(rootView:
                         MenuPopoverView(accounts: AccountLayoutFixture.emptyStore())
                             .environmentObject(store)
-                            .environmentObject(ProfileUsageStore())
+                            .environmentObject(ProfileUsageStore(allowsAccountTotals: false))
                             .environmentObject(AccountLimitStore(provider: CollapsedPopoverTestLimitProvider(), pollingInterval: nil))
                             .environmentObject(ClaudeIntegrationStore(automaticallyRefresh: false))
                             .environment(\.colorScheme, dark ? .dark : .light)
@@ -213,10 +213,10 @@ final class MenuPopoverLayoutTests: XCTestCase {
                 let host = NSHostingView(rootView:
                     MenuPopoverView(accounts: AccountLayoutFixture.emptyStore(),
                         navigation: MenuNavigation(path: [destination]))
-                        .environmentObject(UsageStore(provider: .claude,
+                        .environmentObject(isolatedLayoutUsageStore(provider: .claude,
                             analyticsSnapshots: makeAnalyticsFixtures(provider: .claude),
                             automaticallyRefresh: false))
-                        .environmentObject(ProfileUsageStore())
+                        .environmentObject(ProfileUsageStore(allowsAccountTotals: false))
                         .environmentObject(AccountLimitStore(provider: CollapsedPopoverTestLimitProvider(), pollingInterval: nil))
                         .environmentObject(ClaudeIntegrationStore(automaticallyRefresh: false))
                         .environment(\.colorScheme, dark ? .dark : .light)
@@ -243,8 +243,8 @@ final class MenuPopoverLayoutTests: XCTestCase {
 
     func testPopoverFittingSizeShowsContentWithoutEmbeddingAScrollView() {
         _ = NSApplication.shared
-        let store = UsageStore()
-        let profileStore = ProfileUsageStore()
+        let store = isolatedLayoutUsageStore()
+        let profileStore = ProfileUsageStore(allowsAccountTotals: false)
         let limitStore = AccountLimitStore(
             provider: CollapsedPopoverTestLimitProvider(),
             pollingInterval: nil
@@ -482,8 +482,8 @@ final class MenuPopoverLayoutTests: XCTestCase {
             XCTAssertEqual(store.status, stale ? .stale : .ready)
             let hostingView = NSHostingView(rootView:
                 MenuPopoverView(accounts: AccountLayoutFixture.emptyStore(), navigation: MenuNavigation(path: [.limits]))
-                    .environmentObject(UsageStore())
-                    .environmentObject(ProfileUsageStore())
+                    .environmentObject(isolatedLayoutUsageStore())
+                    .environmentObject(ProfileUsageStore(allowsAccountTotals: false))
                     .environmentObject(store)
                     .environmentObject(ClaudeIntegrationStore(automaticallyRefresh: false))
                     .defaultAppStorage(defaults)
@@ -506,8 +506,8 @@ final class MenuPopoverLayoutTests: XCTestCase {
     func testEmbeddedPopoverDropsMenuBarFooterAndUnpinsWidth() {
         _ = NSApplication.shared
         let view = MenuPopoverView(accounts: AccountLayoutFixture.emptyStore(), embedded: true)
-            .environmentObject(UsageStore(analyticsSnapshots: analyticsFixtures))
-            .environmentObject(ProfileUsageStore())
+            .environmentObject(isolatedLayoutUsageStore(analyticsSnapshots: analyticsFixtures))
+            .environmentObject(ProfileUsageStore(allowsAccountTotals: false))
             .environmentObject(AccountLimitStore(provider: CollapsedPopoverTestLimitProvider(), pollingInterval: nil))
             .environmentObject(ClaudeIntegrationStore(automaticallyRefresh: false))
             .frame(width: 720)
@@ -532,8 +532,8 @@ final class MenuPopoverLayoutTests: XCTestCase {
 
     private func popover(destination: MenuDestination?, snapshots: [AnalyticsRange: AnalyticsSnapshot]) -> some View {
         MenuPopoverView(accounts: AccountLayoutFixture.emptyStore(), navigation: MenuNavigation(path: destination.map { [$0] } ?? []))
-            .environmentObject(UsageStore(analyticsSnapshots: snapshots))
-            .environmentObject(ProfileUsageStore())
+            .environmentObject(isolatedLayoutUsageStore(analyticsSnapshots: snapshots))
+            .environmentObject(ProfileUsageStore(allowsAccountTotals: false))
             .environmentObject(AccountLimitStore(provider: CollapsedPopoverTestLimitProvider(), pollingInterval: nil))
             .environmentObject(ClaudeIntegrationStore(automaticallyRefresh: false))
     }

@@ -13,7 +13,7 @@ namespace CodeRim.Windows.Views;
 /// <summary>One black silhouette; no native ToolTip border, padding or focus chrome.</summary>
 internal static class NotchPopover
 {
-    internal static FrameworkElement Create(string id, DashboardStore store, AppSettings settings, Action<string?> navigate)
+    internal static FrameworkElement Create(string id, DashboardStore store, AppSettings settings, Action<string?> navigate, double? availableHeight = null)
     {
         var content = new StackPanel { Margin = new Thickness(NotchMetrics.CardPadding) };
         var header = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 8) };
@@ -40,8 +40,12 @@ internal static class NotchPopover
             var quality = local.Quality == DataQuality.Exact ? "" : " (partial)";
             content.Children.Add(Row("Today · This PC", TokenFormatter.Format(local.Today.TotalTokens, settings.NumberStyle) + " tokens" + quality));
         }
+        string? group = null;
         foreach (var window in reading?.Windows ?? [])
         {
+            if (window.Group is { Length: > 0 } nextGroup && nextGroup != group)
+                content.Children.Add(Text(nextGroup, 10.5, Secondary, FontWeights.SemiBold));
+            group = window.Group;
             content.Children.Add(Row(window.Name, Reset(window.ResetsAt, settings.ResetTime)));
             if (window.UsedPercent is { } percent)
             {
@@ -84,7 +88,7 @@ internal static class NotchPopover
         }
         if (settings.ShowLastUpdated && reading?.UpdatedAt is { } updated) content.Children.Add(Text("Updated " + Age(updated), 9.5, Secondary));
         var scroll = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, MaxHeight = Math.Max(160, SystemParameters.WorkArea.Height - 40) };
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, MaxHeight = Math.Max(1, (availableHeight ?? SystemParameters.WorkArea.Height) - 40) };
         var card = new Border { Width = NotchMetrics.CardWidth, CornerRadius = new CornerRadius(NotchMetrics.CardCorner),
             Background = Brushes.Black, Child = scroll, SnapsToDevicePixels = true };
         var layout = new Grid();

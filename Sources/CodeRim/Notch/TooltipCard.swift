@@ -78,6 +78,7 @@ private struct TooltipShell<Content: View>: View {
     let height: CGFloat
     /// Which side of the notch the card is on, so the tail goes on the other one.
     let direction: NotchEdge.TooltipDirection
+    var scrolls = false
     @ViewBuilder let content: Content
 
     @Environment(\.notchReduceTransparency) private var reduceTransparency
@@ -97,10 +98,19 @@ private struct TooltipShell<Content: View>: View {
                 .fill(NotchPalette.card)
                 .frame(width: NotchLayout.cardWidth, height: height)
 
-            content
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(NotchLayout.cardPadding)
-                .frame(width: NotchLayout.cardWidth, alignment: .topLeading)
+            if scrolls {
+                ScrollView(.vertical) {
+                    content.fixedSize(horizontal: false, vertical: true)
+                        .padding(NotchLayout.cardPadding)
+                        .frame(width: NotchLayout.cardWidth, alignment: .topLeading)
+                }
+                .frame(width: NotchLayout.cardWidth, height: height)
+                .accessibilityIdentifier("notch.tooltip.scroll")
+            } else {
+                content.fixedSize(horizontal: false, vertical: true)
+                    .padding(NotchLayout.cardPadding)
+                    .frame(width: NotchLayout.cardWidth, alignment: .topLeading)
+            }
         }
         .frame(width: NotchLayout.cardWidth, height: height, alignment: .top)
         .clipShape(
@@ -630,6 +640,7 @@ struct TooltipCard: View {
     /// How many sessions this screen has room to list. Solved from the display
     /// rather than fixed, so a big screen hides nothing.
     var sessionCap: Int = NotchLayout.defaultSessionCap
+    var maxHeight: CGFloat?
     var resetTimeFormat: ResetTimeFormat = .automatic
     var onSwitchAccount: (() -> Void)?
     @AppStorage("notchShowUsagePace") private var showUsagePace = false
@@ -646,7 +657,8 @@ struct TooltipCard: View {
     }
 
     var body: some View {
-        TooltipShell(height: height, direction: direction) {
+        TooltipShell(height: min(height, maxHeight ?? height), direction: direction,
+                     scrolls: maxHeight.map { height > $0 } ?? false) {
             cardContent
         }
     }

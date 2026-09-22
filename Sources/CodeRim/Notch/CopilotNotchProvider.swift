@@ -58,6 +58,8 @@ final class CopilotNotchProvider: NotchProvider {
         }
 
         let windows = try GitHubCopilotUsage.windows(from: data)
+        let current = try await Task.detached { try load() }.value
+        guard current.token == credentials.token else { throw NotchProviderError.needsAuth }
         return ProviderSnapshot(
             id: id,
             displayName: displayName,
@@ -77,12 +79,23 @@ struct GitHubCopilotCredentials: Sendable {
     let source: String
 
     static var hostsURL: URL {
-        URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".config/gh/hosts.yml")
+        hostsURL(environment: ProcessInfo.processInfo.environment, home: NSHomeDirectory())
+    }
+
+    static func hostsURL(environment: [String: String], home: String) -> URL {
+        func absolute(_ value: String?) -> String? {
+            guard let path = nonEmpty(value), path.hasPrefix("/") else { return nil }
+            return path
+        }
+        let directory = absolute(environment["GH_CONFIG_DIR"])
+            ?? absolute(environment["XDG_CONFIG_HOME"]).map { $0 + "/gh" }
+            ?? home + "/.config/gh"
+        return URL(fileURLWithPath: directory).appendingPathComponent("hosts.yml")
     }
 
     static func load() throws -> GitHubCopilotCredentials {
         let environment = ProcessInfo.processInfo.environment
-        let hosts = CredentialFileReader.text(at: hostsURL)
+        let hosts = CredentialFileReader.text(at: hostsURL(environment: environment, home: NSHomeDirectory()))
         return try load(environment: environment, hosts: hosts, command: ghToken)
     }
 
@@ -92,8 +105,9 @@ struct GitHubCopilotCredentials: Sendable {
                      hosts: String?,
                      command: () -> String?) throws -> GitHubCopilotCredentials {
         let parsed = parseHosts(hosts)
-        if let token = nonEmpty(environment["GH_TOKEN"] ?? environment["GITHUB_TOKEN"]) {
-            return GitHubCopilotCredentials(token: token, username: parsed.username,
+        if let raw = configuredEnvironmentToken(environment) {
+            guard let token = nonEmpty(raw) else { throw NotchProviderError.needsAuth }
+            return GitHubCopilotCredentials(token: token, username: nil,
                                             source: "GitHub")
         }
         if let token = parsed.token {
@@ -108,11 +122,19 @@ struct GitHubCopilotCredentials: Sendable {
     }
 
     static func account() -> ProviderAccount? {
-        guard let hosts = CredentialFileReader.text(at: hostsURL),
-              let username = parseHosts(hosts).username
-        else { return nil }
+        account(environment: ProcessInfo.processInfo.environment, hosts: CredentialFileReader.text(at: hostsURL))
+    }
+
+    static func account(environment: [String: String], hosts: String?) -> ProviderAccount? {
+        if let raw = configuredEnvironmentToken(environment) {
+            guard nonEmpty(raw) != nil else { return nil }
+            return ProviderAccount(label: nil, plan: nil, source: "GitHub",
+                                   manageURL: URL(string: "https://github.com/settings/copilot"))
+        }
+        let parsed = parseHosts(hosts)
+        guard parsed.username != nil || parsed.token != nil else { return nil }
         return ProviderAccount(
-            label: username,
+            label: parsed.username,
             plan: nil,
             source: "GitHub",
             manageURL: URL(string: "https://github.com/settings/copilot")
@@ -148,35 +170,84 @@ struct GitHubCopilotCredentials: Sendable {
     }
 
     private static func parseHosts(_ text: String?) -> (username: String?, token: String?) {
-        guard let text else { return (nil, nil) }
-        let lines = text.components(separatedBy: .newlines)
-        guard let start = lines.firstIndex(where: {
-            $0.trimmingCharacters(in: .whitespaces) == "github.com:"
-        }) else { return (nil, nil) }
-
-        var username: String?
-        var token: String?
-        for line in lines.dropFirst(start + 1) {
+        guard let text, text.utf8.count <= 262_144 else { return (nil, nil) }
+        var active = false
+        var seenHost = false
+        var stack: [(indent: Int, key: String, container: Bool)] = []
+        var childIndents: [String: Int] = [:]
+        var paths: Set<String> = []
+        var values: [String: String] = [:]
+        for line in text.components(separatedBy: .newlines) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if !line.hasPrefix(" ") && !line.hasPrefix("\t") { break }
-            if let value = yamlValue(trimmed, key: "user") { username = value }
-            if let value = yamlValue(trimmed, key: "oauth_token") { token = value }
+            if trimmed.isEmpty || trimmed.hasPrefix("#") { continue }
+            let indent = line.prefix { $0 == " " || $0 == "\t" }.count
+            guard let colon = trimmed.firstIndex(of: ":") else {
+                if active { return (nil, nil) }
+                continue
+            }
+            let key = String(trimmed[..<colon])
+            let raw = String(trimmed[trimmed.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
+            if indent == 0 {
+                active = key == "github.com"
+                stack.removeAll()
+                if active {
+                    guard !seenHost, raw.isEmpty || raw.hasPrefix("#") else { return (nil, nil) }
+                    seenHost = true
+                }
+                continue
+            }
+            guard active else { continue }
+            guard !line.prefix(indent).contains("\t"), !key.isEmpty,
+                  key.utf8.allSatisfy({ (65...90).contains($0) || (97...122).contains($0)
+                      || (48...57).contains($0) || $0 == 45 || $0 == 95 || $0 == 46 })
+            else { return (nil, nil) }
+            while let last = stack.last, last.indent >= indent { stack.removeLast() }
+            if let last = stack.last, !last.container { return (nil, nil) }
+            let parent = stack.map(\.key).joined(separator: "/")
+            if let expected = childIndents[parent], expected != indent { return (nil, nil) }
+            childIndents[parent] = indent
+            let path = parent.isEmpty ? key : parent + "/" + key
+            guard paths.insert(path).inserted else { return (nil, nil) }
+            if raw.isEmpty || raw.hasPrefix("#") {
+                stack.append((indent, key, true))
+                continue
+            }
+            guard let value = yamlScalar(raw) else { return (nil, nil) }
+            values[path] = value
+            stack.append((indent, key, false))
         }
-        return (username, token)
+        let username = nonEmpty(values["user"])
+        let root = nonEmpty(values["oauth_token"])
+        let selected = username.flatMap { nonEmpty(values["users/" + $0 + "/oauth_token"]) }
+        if let root, let selected, root != selected { return (nil, nil) }
+        return (username, root ?? selected)
     }
 
-    private static func yamlValue(_ line: String, key: String) -> String? {
-        let prefix = "\(key):"
-        guard line.hasPrefix(prefix) else { return nil }
-        let value = String(line.dropFirst(prefix.count))
-            .trimmingCharacters(in: .whitespaces)
-        return nonEmpty(value)?.trimmingCharacters(in: CharacterSet(charactersIn: "\"'"))
+    private static func yamlScalar(_ raw: String) -> String? {
+        if raw.hasPrefix("\"") {
+            return (try? JSONSerialization.jsonObject(with: Data(raw.utf8), options: .fragmentsAllowed)) as? String
+        }
+        if raw.hasPrefix("'") {
+            guard raw.count >= 2, raw.hasSuffix("'") else { return nil }
+            return String(raw.dropFirst().dropLast()).replacingOccurrences(of: "''", with: "'")
+        }
+        guard let first = raw.first, !"!&*[{|>".contains(first) else { return nil }
+        let value = raw.range(of: " #").map { String(raw[..<$0.lowerBound]) } ?? raw
+        return value.trimmingCharacters(in: .whitespaces)
+    }
+
+    private static func configuredEnvironmentToken(_ environment: [String: String]) -> String? {
+        for key in ["GH_TOKEN", "GITHUB_TOKEN"] {
+            if let raw = environment[key]?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty { return raw }
+        }
+        return nil
     }
 
     private static func nonEmpty(_ value: String?) -> String? {
         guard let value else { return nil }
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+        return trimmed.isEmpty || trimmed.utf8.count > 65_536
+            || trimmed.rangeOfCharacter(from: .controlCharacters) != nil ? nil : trimmed
     }
 }
 
@@ -216,18 +287,21 @@ enum GitHubCopilotUsage {
         if entitlement == 0 { return nil }
         if let entitlement, entitlement > 0 {
             let consumed = used ?? max(0, entitlement - (remaining ?? entitlement))
+            let fraction = max(0, consumed / entitlement)
+            guard fraction.isFinite else { return nil }
             return LimitWindow(id: id, label: label(for: id),
-                               usedFraction: max(0, consumed / entitlement), resetsAt: reset,
+                               usedFraction: fraction, resetsAt: reset,
                                duration: monthlyDuration(endingAt: reset))
         }
-        if let remaining, remaining >= 0, used == nil {
+        if let remaining, remaining >= 0, used == nil,
+           let count = Int(exactly: remaining.rounded()) {
             return remaining == 0 && entitlement == 0 ? nil
                 : LimitWindow(id: id, label: label(for: id),
-                              remaining: Int(remaining.rounded()), resetsAt: reset)
+                              remaining: count, resetsAt: reset)
         }
-        if let used, used >= 0 {
+        if let used, used >= 0, let count = Int(exactly: used.rounded()) {
             return LimitWindow(id: id, label: label(for: id),
-                               used: Int(used.rounded()), resetsAt: reset)
+                               used: count, resetsAt: reset)
         }
         return nil
     }
@@ -245,7 +319,9 @@ enum GitHubCopilotUsage {
     }
 
     private static func number(_ value: Any?) -> Double? {
-        (value as? NSNumber)?.doubleValue
+        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+              number.doubleValue.isFinite else { return nil }
+        return number.doubleValue
     }
 
     private static func date(_ value: Any?) -> Date? {

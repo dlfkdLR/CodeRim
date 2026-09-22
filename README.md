@@ -20,21 +20,31 @@ CodeRim keeps coding-assistant usage limits, reset times, and session activity v
 | Terminal CLI | Included | Included |
 | Saved account switching | Codex and Claude Code | Codex and Claude Code |
 | Widgets | macOS widgets | Outside the Windows scope |
-| Updates | Signed Sparkle updates | Release checks; manual ZIP installation |
+| Updates | Signed Sparkle updates | Release checks; in-app installation for signed managed builds, manual ZIP for unsigned builds |
 
 The matrix describes the current source. Local token history is scoped to this computer across accounts. See the [Windows capability matrix](Documentation/WINDOWS.md#remaining-parity-work) for individual provider status and remaining work.
 
-Both apps use the same six Settings sections and the same Usage, Projects, Sessions, and account navigation. Windows supports system light/dark themes, high contrast, manual refresh, limit visibility controls, session image counts and direct sub-agent navigation. Local images and conversation text are never copied into the usage database. OS-specific authentication and update behavior still differ; the matrix below describes those limits.
+Both apps use the same six Settings sections and the same Usage, Projects, Sessions, and account navigation. Windows supports system light/dark themes, high contrast, manual refresh, limit visibility controls, session image counts and direct sub-agent navigation. Local images and conversation text are never copied into the usage database. Windows also supports verified Firefox cookie import for supported readers, separate Amp API/CLI/Web connections, Windsurf local-cache sources and Antigravity OAuth/Local IDE selection, Groq console sessions with refresh and 30-day activity, Factory browser sessions with consistent authentication and billing retries plus refreshable WorkOS session profiles protected against concurrent account changes, Today/7D/30D analytics, and independent Codex/Claude activity polling. OS-specific authentication and update behavior still differ; the matrix below describes those limits.
+
+Windows authentication also reuses GitHub CLI, trusted GLM Coding Plan and Codebuff local sign-ins, keeps Moonshot regional keys separate, and offers separate DeepSeek API/Web and Kimi API/CLI/Web connections. DeepSeek Web can also show optional detailed usage from that same session. Kimi can use an explicitly selected Desktop plaintext session after verification; automatic Desktop discovery remains unverified. StepFun supports password sign-in and Oasis-Token recovery. MiniMax offers separate regional API and Web connections. Alibaba Token Plan supports Bailian CLI or Web, with explicit source and region selection. Alibaba Coding Plan now separates API keys from regional Web sessions. Firefox import covers 21 supported readers, including MiMo session-cookie recovery from the selected profile, Abacus, LongCat and the Alibaba/Qwen Token Plan consoles. These paths are covered by synthetic connector tests; actual provider accounts remain a separate verification requirement.
+
+The current source adds explicit Chromium profile import for DeepSeek, Factory and MiniMax. It reads current storage records, verifies the selected account and saves the connection with Windows encryption. MiniMax requires matching session and group information; protected Chromium cookies still require a supported alternative. These additions are undergoing native regression checks.
+
+Windows in-app updates now include download verification, restart installation and interrupted-update recovery for signed managed builds. The published unsigned ZIPs still use manual installation. See the [Windows update guide](Documentation/WINDOWS.md#updates) for the signing and installation conditions.
+
+The Windows notch now uses the same resting settings arc and revealed account controls as macOS. Repeated quota refreshes keep detail popups clear of the notch. Keyboard account selection keeps focus within the menu and returns it on Escape; redirected CLI output uses UTF-8, including Unicode provider names.
+
+The current source also bounds large notch provider lists and scrolls overflowing detail cards. xAI/Poe readers share authentication and incomplete-history handling across platforms. These changes are under audit and are not yet part of the release downloads below; see the [2026-09-20 audit and verification limits](Documentation/FULL_AUDIT_2026-09-20.md).
 
 ## Install
 
-**macOS:** [2.1.7](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.7) · **Windows:** [2.1.7](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.7)
+**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8)
 
 ### macOS
 
 **macOS 14 or later · Apple silicon and Intel.**
 
-[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/CodeRim-2.1.7.dmg)
+[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/CodeRim-2.1.8.dmg)
 
 ```sh
 brew tap dlfkdLR/tap &&
@@ -51,7 +61,7 @@ Open **Settings → Providers → Add Provider**, connect your tools, and hover 
 
 **Windows 11 · x64 and ARM64 · .NET included.**
 
-[Download x64 ZIP](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/CodeRim-Windows-2.1.7-x64.zip) · [Download ARM64 ZIP](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/CodeRim-Windows-2.1.7-arm64.zip) · [SHA-256 checksums](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/SHA256SUMS-windows.txt)
+[Download x64 ZIP](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/CodeRim-Windows-2.1.8-x64.zip) · [Download ARM64 ZIP](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/CodeRim-Windows-2.1.8-arm64.zip) · [SHA-256 checksums](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/SHA256SUMS-windows.txt)
 
 Windows binaries are **unsigned**. Verify your ZIP against the matching checksum before extracting it. Extract it into a permanent folder and open `CodeRim.exe`, or close CodeRim and run this from the extracted folder in PowerShell for a per-user installation:
 

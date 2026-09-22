@@ -9,6 +9,7 @@ namespace CodeRim.Windows.Views;
 internal sealed class NotchShape : Shape
 {
     public NotchEdge Edge { get; init; }
+    public double DesignScale { get; init; } = 1;
     protected override Geometry DefiningGeometry
     {
         get
@@ -16,7 +17,7 @@ internal sealed class NotchShape : Shape
             var vertical = Edge is NotchEdge.Left or NotchEdge.Right;
             var depth = vertical ? ActualWidth : ActualHeight; var length = vertical ? ActualHeight : ActualWidth;
             if (depth <= 0 || length <= 0) return Geometry.Empty;
-            var wanted = Math.Min(NotchMetrics.Corner, depth / 2); var curl = Math.Max(0, Math.Min(NotchMetrics.Curl, Math.Min(length / 2, depth - wanted)));
+            var wanted = Math.Min(NotchMetrics.Corner * DesignScale, depth / 2); var curl = Math.Max(0, Math.Min(NotchMetrics.Curl * DesignScale, Math.Min(length / 2, depth - wanted)));
             var corner = Math.Max(0, Math.Min(wanted, (length - 2 * curl) / 2));
             var path = new StreamGeometry();
             using (var context = path.Open())

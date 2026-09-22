@@ -51,9 +51,9 @@ final class CodexAccountsLayoutTests: XCTestCase {
                     let name = "switcher-\(section.rawValue)-\(state.rawValue)-\(dark ? "dark" : "light")"
                     let host = NSHostingView(rootView:
                         MenuPopoverView(accounts: fixture.store, section: section)
-                            .environmentObject(UsageStore())
-                            .environmentObject(ProfileUsageStore())
-                            .environmentObject(AccountLimitStore(pollingInterval: nil))
+                            .environmentObject(isolatedLayoutUsageStore(initialSnapshot: .empty, automaticallyRefresh: false))
+                            .environmentObject(ProfileUsageStore(allowsAccountTotals: false))
+                            .environmentObject(AccountLimitStore(provider: OfflineLayoutLimits(), pollingInterval: nil))
                             .environmentObject(ClaudeIntegrationStore(automaticallyRefresh: false))
                             .environment(\.colorScheme, dark ? .dark : .light)
                             .environment(\.displayScale, Self.renderScale)
@@ -483,5 +483,13 @@ final class AccountLayoutRuntime: CodexAccountRuntime {
         applicationActionCount += 1
         XCTFail("Layout rendering must not launch, quit, or switch a real application")
         throw AccountSwitchError.unavailable
+    }
+}
+
+
+private struct OfflineLayoutLimits: AccountLimitProviding {
+    func readLimits() async throws -> AccountLimitsSnapshot {
+        XCTFail("Layout test unexpectedly requested account limits")
+        throw AccountLimitError.trustedAppServerNotFound
     }
 }

@@ -7,7 +7,7 @@ using static CodeRim.Core.Providers.ProviderParsers;
 namespace CodeRim.Core.Providers;
 
 /// Read-only requests to fixed vendor endpoints. Redirects and cookie storage are disabled.
-public sealed class HttpProviders : IDisposable
+public sealed partial class HttpProviders : IDisposable
 {
     private readonly HttpClient client;
     private readonly System.Collections.Concurrent.ConcurrentDictionary<string, DateTimeOffset> retryAfter = new(StringComparer.Ordinal);
@@ -21,25 +21,39 @@ public sealed class HttpProviders : IDisposable
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
     }
     public void Dispose() => client.Dispose();
-    public async Task<ProviderReading> FetchAsync(string id, string? secret, CancellationToken cancellationToken = default)
+    public Task<ProviderReading> FetchAsync(string id, string? secret, CancellationToken cancellationToken = default)
+        => FetchAsync(id, secret, _ => null, cancellationToken);
+    public async Task<ProviderReading> FetchAsync(string id, string? secret, Func<string, string?> setting, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(setting);
         if (!Supported.Contains(id)) return new(id, ReadingState.Unsupported, [], Message: "The Windows connector for this provider is not available yet.");
-        if (retryAfter.TryGetValue(id, out var retry) && retry > DateTimeOffset.Now) return new(id, ReadingState.Unavailable, [], Message: "Rate limited. Refresh resumes after " + retry.ToLocalTime().ToString("t", System.Globalization.CultureInfo.CurrentCulture));
-        if (id != "ollama-local" && string.IsNullOrWhiteSpace(secret)) return new(id, ReadingState.NeedsAuth, [], Message: "Connect this provider in Settings.");
+        if (id != "ollama-local" && (string.IsNullOrWhiteSpace(secret) || secret.Length > 65536 || secret.Any(char.IsControl))) return new(id, ReadingState.NeedsAuth, [], Message: "Connect this provider in Settings.");
+        var moonshotRegion = id == "moonshot" ? MoonshotAuthentication.Region(setting("MOONSHOT_REGION")) : null;
+        if (id == "moonshot" && moonshotRegion is null) return new(id, ReadingState.Error, [], Message: "Choose International or China as the Moonshot region.");
+        var deepSeekSource = id == "deepseek" ? DeepSeekAuthentication.Source(setting("DEEPSEEK_USAGE_SOURCE")) : null;
+        if (deepSeekSource == "auto") deepSeekSource = "api"; // This transport receives an already selected credential.
+        if (id == "deepseek" && deepSeekSource is null) return new(id, ReadingState.Error, [], Message: "Choose API or Web as the DeepSeek source.");
+        var deepSeekDetails = deepSeekSource == "web" && DeepSeekUsageDetails.Enabled(setting("DEEPSEEK_DETAILED_USAGE"));
         var endpoint = id switch
         {
             "copilot" => "https://api.github.com/copilot_internal/user",
             "glm" => "https://api.z.ai/api/monitor/usage/quota/limit",
-            "deepseek" => "https://api.deepseek.com/user/balance",
+            "deepseek" => deepSeekSource == "web" ? "https://platform.deepseek.com/api/v0/users/get_user_summary" : "https://api.deepseek.com/user/balance",
             "openrouter" => "https://openrouter.ai/api/v1/key",
             "elevenlabs" => "https://api.elevenlabs.io/v1/user/subscription",
-            "moonshot" => "https://api.moonshot.ai/v1/users/me/balance",
+            "moonshot" => MoonshotAuthentication.Endpoint(moonshotRegion!),
             "synthetic" => "https://api.synthetic.new/v2/quotas",
             _ => "http://127.0.0.1:11434/api/ps"
         };
+        var retryScope = ProviderRetryScope.Create(id, secret, endpoint);
+        foreach (var expired in retryAfter.Where(pair => pair.Value <= DateTimeOffset.Now)) retryAfter.TryRemove(expired.Key, out _);
+        if (retryAfter.TryGetValue(retryScope, out var retry) && retry > DateTimeOffset.Now)
+            return new(id, ReadingState.Unavailable, [], Message: "Rate limited. Refresh resumes after " + retry.ToLocalTime().ToString("t", System.Globalization.CultureInfo.CurrentCulture));
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds(15));
         using var request = new HttpRequestMessage(HttpMethod.Get, endpoint);
+        if (deepSeekSource == "web") request.Headers.Add("x-client-platform", "web");
+        if (id == "copilot") request.Headers.Add("X-GitHub-Api-Version", "2022-11-28");
         if (id == "elevenlabs") request.Headers.Add("xi-api-key", secret);
         else if (id == "glm") request.Headers.TryAddWithoutValidation("Authorization", secret);
         else if (id != "ollama-local") request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", secret);
@@ -49,7 +63,7 @@ public sealed class HttpProviders : IDisposable
             if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden) return new(id, ReadingState.NeedsAuth, [], Message: "Sign in again or update the provider credential.");
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
             {
-                retryAfter[id] = DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(60));
+                retryAfter[retryScope] = response.Headers.RetryAfter?.Date ?? DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromSeconds(60));
                 return new(id, ReadingState.Unavailable, [], Message: "Provider rate limit reached. Waiting before retrying.");
             }
             if (!response.IsSuccessStatusCode) return new(id, ReadingState.Error, [], Message: "The provider could not return a reading.");
@@ -63,8 +77,22 @@ public sealed class HttpProviders : IDisposable
                 if (memory.Length + count > 2 * 1024 * 1024) throw new IOException("Provider response is too large.");
                 memory.Write(bytes, 0, count);
             }
+            deadline.Token.ThrowIfCancellationRequested();
             using var document = JsonDocument.Parse(memory.ToArray());
+            if (id == "moonshot")
+            {
+                var balance = ParseMoonshot(document.RootElement, moonshotRegion!);
+                deadline.Token.ThrowIfCancellationRequested();
+                return balance;
+            }
+            if (id == "deepseek")
+            {
+                var balance = DeepSeekBalance.Parse(document.RootElement, deepSeekSource!);
+                return deepSeekDetails
+                    ? await WithDeepSeekDetailsAsync(balance, secret!, cancellationToken).ConfigureAwait(false) : balance;
+            }
             var windows = Parse(id, document.RootElement);
+            deadline.Token.ThrowIfCancellationRequested();
             return new(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, DateTimeOffset.Now,
                 windows.Count > 0 ? null : "No metered usage was returned.");
         }
@@ -74,8 +102,32 @@ public sealed class HttpProviders : IDisposable
             return new(id, ReadingState.Error, [], Message: "Unable to refresh. Check the provider connection.");
         }
     }
+    public static ProviderReading ParseMoonshot(JsonElement root, string region)
+    {
+        static bool Unique(JsonElement value)
+        {
+            if (value.ValueKind != JsonValueKind.Object) return false;
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            return value.EnumerateObject().All(property => names.Add(property.Name));
+        }
+        static double? Amount(JsonElement data, string name) => Get(data, name) is { ValueKind: JsonValueKind.Number } value
+            && value.TryGetDouble(out var amount) && double.IsFinite(amount) ? amount : null;
+        ProviderReading Failure() => new("moonshot", ReadingState.Error, [], Message: "Moonshot could not return a valid balance for the selected region.");
+        var data = Get(root, "data");
+        if (region is not "china" and not "international" || !Unique(root) || !Unique(data)
+            || Get(root, "code").ValueKind != JsonValueKind.Number || !Get(root, "code").TryGetInt32(out var code) || code != 0
+            || Get(root, "status").ValueKind != JsonValueKind.True || Get(root, "scode").ValueKind != JsonValueKind.String
+            || Amount(data, "available_balance") is not { } available || Amount(data, "cash_balance") is not { } cash
+            || Amount(data, "voucher_balance") is null) return Failure();
+        var currency = region == "china" ? "CNY" : "USD";
+        string Money(double amount) => amount.ToString("N2", System.Globalization.CultureInfo.CurrentCulture) + " " + currency;
+        var windows = new List<LimitWindow> { new("balance", "Available balance", Unit: currency, DisplayValue: Money(available)) };
+        if (cash < 0) windows.Add(new("cash-deficit", "Cash deficit", Unit: currency, DisplayValue: Money(Math.Abs(cash)) + " in deficit"));
+        return new("moonshot", ReadingState.Ready, windows, DateTimeOffset.Now);
+    }
     public static IReadOnlyList<LimitWindow> Parse(string id, JsonElement root)
     {
+        if (id == "moonshot") return ParseMoonshot(root, "international").Windows;
         if (id == "copilot") return Copilot(root);
         if (id == "glm") return Glm(root);
         var result = new List<LimitWindow>();
@@ -94,18 +146,7 @@ public sealed class HttpProviders : IDisposable
                 }
                 break;
             case "deepseek":
-                var balances = Get(root, "balance_infos");
-                if (balances.ValueKind != JsonValueKind.Array) break;
-                foreach (var balance in balances.EnumerateArray())
-                {
-                    var currency = Text(balance, "currency"); var amount = Text(balance, "total_balance");
-                    if (amount is not null) result.Add(new(currency ?? "balance", "Available balance", Unit: currency, DisplayValue: amount + " " + currency));
-                }
-                break;
-            case "moonshot":
-                var data = Get(root, "data");
-                if (Number(data, "available_balance") is { } available) result.Add(new("balance", "Available balance", DisplayValue: available.ToString("N2", System.Globalization.CultureInfo.CurrentCulture) + " balance"));
-                break;
+                return DeepSeekBalance.Parse(root, "api").Windows;
             case "openrouter":
                 var key = Get(root, "data");
                 var usage = Number(key, "usage"); var limit = Number(key, "limit");

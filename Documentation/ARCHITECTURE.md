@@ -1,6 +1,6 @@
 # Architecture
 
-CodeRim is a native SwiftUI accessory app for macOS. Through 1.x it was a `MenuBarExtra` popover with a diamond meter; 2.0 replaced that with a floating **edge notch** (a usage ring per provider, ported from the MIT-licensed [Codenotch](https://github.com/vinzdg/codenotch); see `Sources/CodeRim/Notch/` and `NOTICE`) plus a Settings window, with a minimal `NSStatusItem` (`StatusItemController`) as the always-present entry point. Local usage accounting has no network dependency. The app also offers an explicitly enabled, memory-only account-total overlay. Sparkle 2.9.6 is bundled for signed application updates.
+CodeRim is a native SwiftUI accessory app for macOS. Through 1.x it was a `MenuBarExtra` popover with a diamond meter; 2.0 replaced that with a floating **edge notch** (a usage ring per provider, ported from the MIT-licensed [Codenotch](https://github.com/vinzdg/codenotch); see `Sources/CodeRim/Notch/` and `NOTICE`) plus a Settings window, with a minimal `NSStatusItem` (`StatusItemController`) as the always-present entry point. Local usage accounting has no network dependency. The code retains a memory-only account-total adapter, but production constructs ProfileUsageStore with allowsAccountTotals: false; account-wide profile totals are not currently exposed. Sparkle 2.9.6 is bundled for signed application updates.
 
 ```text
 Codex session JSONL
@@ -33,7 +33,7 @@ idle for 90 seconds so completion transitions can be observed. A six-hour
 silence limit expires orphaned turns whose client exited without an end event.
 The local thread catalogue supplies project and task names for the notch.
 
-Optional profile totals follow a separate boundary:
+The disabled profile-total adapter retains this separate boundary for isolated tests:
 
 ```text
 ~/.codex/auth.json credential projection
@@ -57,7 +57,7 @@ normalized usage_events
 
 `UsageProvider` selects the local roots and an independent `UsageStore`/database. Codex keeps `CodexMeter.sqlite` unchanged; Claude uses `Claude.sqlite` under the same owner-only Application Support directory. The shared bounded reader/checkpoint machinery dispatches to `ClaudeJSONLParser` for Claude records. Claude messages are identified by hashed `message.id` across files, repeated blocks, restarts, and copied history. Conflict updates take maxima of the disjoint uncached-input/cache-read/cache-write/output components and retain the earliest observation date. Codex's cumulative normalizer and conflict behavior remain unchanged. See [Claude accounting](CLAUDE.md).
 
-The `usageProvider` selection scopes the Usage pane's readings and analytics destinations. Only Codex can render ChatGPT profile totals, account switching, or Codex account limits; switching provider resets detail navigation. The Settings window is a single `NavigationSplitView` that is not provider-scoped: `SettingsEnvironment` holds every store (`ProfileUsageStore` included), the sidebar lists the shared panes — General, Usage, Notch, Diagnostics, Information — plus one entry per provider, and `ProviderSettingsView` shows that provider's account, limits, analytics options, and local-data actions. The Usage pane hosts `MenuPopoverView` in `embedded` mode (no Quit/Refresh footer). Detail panes use flat `SettingsSection`/`SettingsRow` primitives rather than a boxed `Form`.
+The usageProvider selection scopes the Usage pane's readings and analytics destinations; switching providers resets detail navigation. Codex and Claude have separate account-switch and quota paths. SettingsEnvironment owns their stores. The six sidebar sections are General, Usage, Providers, Notch, Diagnostics, and Information; provider details live under Providers. The Usage pane hosts MenuPopoverView in embedded mode with its own header refresh action (Command-R) and status-only footer. Detail panes use flat SettingsSection/SettingsRow primitives rather than a boxed Form.
 
 `UsageStore` refreshes every requested analytics range after an import or calendar recalculation. Maintenance invalidates the analytics cache before starting; revision/request identifiers discard older in-flight results. Claude's optional `claude_message_exclusions` table retains only hashed response identities across clear/rebuild to reject later copies of pre-cutoff messages, without changing the Codex schema or retaining cleared usage values.
 
@@ -69,7 +69,7 @@ project labels such as `Codex` use the available project/task names. Existing
 project IDs, session counts, token events, costs, and stored metadata are not
 rewritten; unavailable catalogue entries retain their stored labels.
 
-Schema version 15 preserves every Phase 1 accounting event while replaying available JSONL sources once to enrich model, project, cache-write, pricing-context, and session metadata. Replay checkpoints start above each source's historical generation and update semantic duplicates instead of adding token deltas twice. Missing legacy sources remain represented by their preserved totals, with unresolved backfill or legacy partial quality kept conservative rather than reported as exact.
+Schema version 17 preserves accounting events and the version 16 inherited-image replay repair. It indexes parsing_state.session_id and repairs session image counts from the maximum matching source checkpoint in a transaction, so a shorter archived prefix cannot erase a fuller log's count. Only sessions with matching checkpoints are repaired; metadata for absent sources remains intact. This is full-log/prefix reconciliation, not a union of arbitrary non-overlapping image fragments. Token deltas, clear cutoffs and historical generations keep their existing semantics.
 
 Only the production bundle identifier opens `~/Library/Application Support/CodexMeter`. Preview, test-host, and command-line development builds use `~/Library/Application Support/CodexMeter-Development`, so unreleased schema migrations cannot make an installed older app reject its production database.
 
@@ -98,3 +98,14 @@ The committed byte offset is the first byte after the last complete newline whos
 One refresh processes at most 32 MiB or roughly five seconds of new data before committing progress. Source discovery fails closed above 50,000 files.
 
 File-system notifications are only refresh hints. Startup, manual refresh, watcher events, and the fallback timer reconcile source state again. The app also reconciles committed offsets and keyed continuity fingerprints against SQLite.
+
+
+## Windows and shared readers
+
+Windows/src contains the WPF app, platform-independent Core services and the CLI. User action flows through DashboardWindow or NotchWindow into UsageStateStore, provider connections/refresh, bounded native HTTP or sandboxed scripts, then immutable readings back into the dispatcher. Local JSONL ingestion uses its own SQLite schema; neither database is a hosted multi-user service and no RLS layer exists. Credentials stay in the Windows encrypted vault and are excluded from companion snapshots.
+
+The corrected xAI and Poe scripts under Sources/CodeRim/Resources/ProviderScripts are loaded by the pinned macOS ProviderPluginRuntime and embedded in Windows Core with stable logical names. Required authentication failures are classified before JSON parsing; optional analytics failure retains balance and marks history incomplete. This does not replace live-provider acceptance tests.
+
+## Notch viewport
+
+The model retains all provider snapshots and derives a screen-sized visible slice. Rendering, hover, refresh hit testing and tooltips all use local indices in that slice. Wheel events over the notch body, context-menu entries and named accessibility actions navigate pages; tooltip wheel events reach the card's ScrollView. Actual card rows determine its natural height, bounded by screen space. The panel stays on screen, including its card reserve, when repositioned. Animation completion has a generation-checked fallback so an occluded WindowServer cannot indefinitely defer an edge change.

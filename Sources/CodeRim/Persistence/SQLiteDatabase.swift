@@ -518,7 +518,9 @@ actor SQLiteDatabase {
                     INSERT INTO session_metadata (
                         session_id, parent_session_id, project_id, project_name,
                         started_at, image_attachment_count, updated_at
-                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                    ) VALUES (?1, ?2, ?3, ?4, ?5,
+                        (SELECT COALESCE(MAX(image_attachment_count), 0)
+                         FROM parsing_state WHERE session_id = ?1), ?6)
                     ON CONFLICT(session_id) DO UPDATE SET
                         parent_session_id = excluded.parent_session_id,
                         project_id = excluded.project_id,
@@ -538,8 +540,7 @@ actor SQLiteDatabase {
                 } else {
                     sqlite3_bind_null(metadata, 5)
                 }
-                sqlite3_bind_int64(metadata, 6, checkpoint.imageAttachmentCount)
-                sqlite3_bind_double(metadata, 7, Date().timeIntervalSince1970)
+                sqlite3_bind_double(metadata, 6, Date().timeIntervalSince1970)
                 guard sqlite3_step(metadata) == SQLITE_DONE else {
                     throw SQLiteDatabaseError.step(errorMessage)
                 }
@@ -1364,7 +1365,7 @@ actor SQLiteDatabase {
 
     private static func migrate(_ database: OpaquePointer) throws {
         var version = try userVersion(database)
-        guard version <= 16 else {
+        guard version <= 17 else {
             throw SQLiteDatabaseError.migration("database schema is newer than this app supports")
         }
 
@@ -1430,6 +1431,10 @@ actor SQLiteDatabase {
         }
         if version == 15 {
             try migrateToVersion16(database)
+            version = 16
+        }
+        if version == 16 {
+            try migrateToVersion17(database)
         }
     }
 
@@ -2038,6 +2043,41 @@ actor SQLiteDatabase {
                 """, on: database
             )
             try execute("PRAGMA user_version = 16", on: database)
+            try execute("COMMIT", on: database)
+        } catch {
+            try? execute("ROLLBACK", on: database)
+            throw error
+        }
+    }
+
+    private static func migrateToVersion17(_ database: OpaquePointer) throws {
+        try execute("BEGIN IMMEDIATE", on: database)
+        do {
+            if try userVersion(database) >= 17 {
+                try execute("COMMIT", on: database)
+                return
+            }
+            // A shorter archive copy must not replace a fuller session's image
+            // count. Derive it from source checkpoints, so rewriting a single
+            // source can still lower its count. Token events remain unchanged.
+            try execute(
+                "CREATE INDEX IF NOT EXISTS parsing_state_session_idx ON parsing_state(session_id)",
+                on: database
+            )
+            try execute(
+                """
+                UPDATE session_metadata
+                SET image_attachment_count = (
+                    SELECT MAX(image_attachment_count) FROM parsing_state
+                    WHERE parsing_state.session_id = session_metadata.session_id
+                )
+                WHERE EXISTS (
+                    SELECT 1 FROM parsing_state
+                    WHERE parsing_state.session_id = session_metadata.session_id
+                )
+                """, on: database
+            )
+            try execute("PRAGMA user_version = 17", on: database)
             try execute("COMMIT", on: database)
         } catch {
             try? execute("ROLLBACK", on: database)

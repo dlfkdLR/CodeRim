@@ -11,7 +11,7 @@ public static class NotchMetrics
     public const double SideDepth = 186 * Unit;
     public const double Curl = 103 * Unit;
     public const double Corner = 78.8 * Unit;
-    public const double CellHeight = Ring + 26.9 * Unit + 18;
+    public const double CellHeight = Ring + 26.9 * Unit + 17;
     public const double CellGap = 83.5 * Unit;
     public const double PadStart = 69.5 * Unit;
     public const double PadEnd = 50.1 * Unit;
@@ -21,7 +21,27 @@ public static class NotchMetrics
     public const double Tail = 75 * Unit;
     public const double TailGap = 28 * Unit;
     public const double Control = 96 * Unit;
-    public const double ControlExtent = 88;
+    public const double OrbStroke = 18 * Unit;
+    public const double OrbArcRadius = (103 - 27) * Unit;
+    public const double OrbHotZone = 152 * Unit;
+    public const double OrbGlyph = 56 * Unit;
+    public const double ControlSpacing = (OrbHotZone + Control) / 2 + 1;
+    public static double ControlExtent => Math.Ceiling(ControlSpacing + Control / 2);
+
+    public static double StartPadding(NotchEdge edge) => edge is NotchEdge.Left or NotchEdge.Right ? PadStart : (PadStart + PadEnd) / 2;
+    public static double EndPadding(NotchEdge edge) => edge is NotchEdge.Left or NotchEdge.Right ? PadEnd : (PadStart + PadEnd) / 2;
+    public static bool ControlsAtStart(NotchEdge edge, string preference, double bodyLength, double scale, double screenAlong, double offset)
+    {
+        if (edge is not (NotchEdge.Left or NotchEdge.Right)) return false;
+        if (preference == "Start") return true;
+        if (preference == "End") return false;
+        return offset > 0 && (screenAlong - bodyLength) / 2 - offset < ControlExtent * scale + 8;
+    }
+    public static double RestingArcStart(NotchEdge edge, bool atStart)
+    {
+        var start = edge switch { NotchEdge.Right => 0.75, NotchEdge.Bottom => 0.25, _ => 0.5 };
+        return atStart && edge is NotchEdge.Left or NotchEdge.Right ? 1 - (start + 0.25) : start;
+    }
     public const double PillDepth = 26 * Unit;
     public const double PillLength = 210 * Unit;
 

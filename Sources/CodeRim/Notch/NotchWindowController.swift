@@ -56,6 +56,9 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     private var clockTimer: Timer?
     private var cursorTimer: Timer?
     private let mouseLocation: () -> CGPoint
+    private let animateEdge: ((NotchPanel, @escaping @MainActor () -> Void) -> Void)?
+    private let reduceMotion: () -> Bool
+    private var pendingEdge: NotchEdge?
 
     /// Hover in is quick; hover out waits, because the pointer has to cross the
     /// gap between the notch and the card without the card vanishing under it.
@@ -86,6 +89,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     private var peekUntil: Date?
     /// The standing visibility choice, so a peek never overrides Hidden.
     private var visibility: NotchVisibility = .onHover
+    private var visibilityChange = 0
     /// Whether we have pushed the pointing hand onto the cursor stack.
     private var isPointing = false
     /// The usable area the panel was last placed against.
@@ -97,10 +101,19 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     /// rect comparison every 0.3s and needs no new machinery.
     private var lastVisibleFrame: CGRect?
 
-    init(mouseLocation: @escaping () -> CGPoint = { NSEvent.mouseLocation }) {
+    init(mouseLocation: @escaping () -> CGPoint = { NSEvent.mouseLocation },
+         animateEdge: ((NotchPanel, @escaping @MainActor () -> Void) -> Void)? = nil,
+         reduceMotion: @escaping () -> Bool = { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }) {
         self.mouseLocation = mouseLocation
+        self.animateEdge = animateEdge
+        self.reduceMotion = reduceMotion
         super.init()
         model.onOpenAccountMenu = { [weak self] in self?.showAccountMenu() }
+        model.onPageChange = { [weak self] in
+            self?.clearHoverWork?.cancel()
+            self?.clearHoverWork = nil
+            self?.relocate()
+        }
     }
 
     /// A transient native popover preserves outside-click and Escape dismissal
@@ -162,26 +175,27 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         .store(in: &cancellables)
 
         model.$hoveredIndex
+            .receive(on: RunLoop.main)
             .sink { [weak self] _ in
                 MainActor.assumeIsolated { self?.updateInteractiveRects() }
             }
             .store(in: &cancellables)
 
-        // The notch is as tall as the provider list, so gaining or losing one
-        // has to resize the panel, not just redraw inside it.
+        // Receive after @Published has assigned, including same-count content changes.
         model.$snapshots
-            .map(\.count)
-            .removeDuplicates()
-            .sink { [weak self] count in
-                // The count comes from the emission, not from re-reading the
-                // model: `@Published` fires in `willSet`, so `model.snapshots`
-                // is still the previous array at this point.
-                MainActor.assumeIsolated { self?.relocate(cellCount: count) }
-            }
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in MainActor.assumeIsolated { self?.relocate() } }
+            .store(in: &cancellables)
+        model.$sessions
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in MainActor.assumeIsolated { self?.relocate() } }
             .store(in: &cancellables)
     }
 
     func stop() {
+        edgeChange &+= 1
+        pendingEdge = nil
+        cancellables.removeAll()
         accountPopover?.close()
         setPointing(false)
         peekUntil = nil
@@ -215,13 +229,14 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     func relocate(cellCount: Int? = nil) {
         guard let screen = currentScreen() else { return }
         model.adopt(screen: screen)
-        let count = cellCount ?? model.snapshots.count
+        let count = min(cellCount ?? model.visibleSnapshots.count, model.visibleSnapshots.count)
         let size = model.panelSize(cellCount: count)
         let frame = NotchGeometry.panelFrame(
             for: screen, panelSize: size, edge: model.edge,
             alongOffset: model.alongOffset, slack: model.slack(cellCount: count),
             trailingExtent: model.trailingExtent(cellCount: count) * model.sizeScale,
-            leadingExtent: model.leadingExtent(cellCount: count) * model.sizeScale
+            leadingExtent: model.leadingExtent(cellCount: count) * model.sizeScale,
+            keepsPanelOnScreen: true
         )
         lastVisibleFrame = screen.visibleFrame
 
@@ -232,6 +247,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             let hosting = NotchHostingView(rootView: NotchRootView(model: model))
             panel.contextMenuProvider = { [weak self] in self?.contextMenu() }
             panel.onClick = { [weak self] in self?.handleClick() }
+            panel.onScroll = { [weak self] event in self?.scrollProviders(event) ?? false }
             panel.onDrag = { [weak self] dx, dy in self?.dragged(dx: dx, dy: dy) }
             panel.onDragEnd = { [weak self] in
                 guard let self else { return }
@@ -360,13 +376,9 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     /// The card, its tail, and the gap between the tail and the notch — so
     /// sliding the pointer off the notch and onto the card never leaves it.
     private func tooltipRect(index: Int) -> CGRect? {
-        guard model.snapshots.indices.contains(index) else { return nil }
-        let snapshot = model.snapshots[index]
-        let cardHeight = NotchLayout.cardHeight(for: snapshot,
-            sessionCount: model.activity(for: snapshot.id)?.displayRows.count ?? 0,
-            sessionCap: model.sessionCap,
-            now: model.now, showsAccountAction: model.onSwitchAccount != nil
-        )
+        guard model.visibleSnapshots.indices.contains(index) else { return nil }
+        let snapshot = model.visibleSnapshots[index]
+        let cardHeight = model.cardHeight(for: snapshot)
         // Across the stack the region is the card, its tail, and the gap the
         // pointer has to cross. Along it, the card's own extent.
         let cardAcross = model.edge.isVertical ? NotchLayout.cardWidth : cardHeight
@@ -594,8 +606,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         }
         if notchRect.contains(local),
            let index = cellIndex(along: placement.along(of: local)),
-           model.snapshots.indices.contains(index) {
-            onRefreshProvider?(model.snapshots[index].id)
+           model.visibleSnapshots.indices.contains(index) {
+            onRefreshProvider?(model.visibleSnapshots[index].id)
             return
         }
         // The cursor monitor can unfold the notch before mouseDown arrives.
@@ -630,51 +642,71 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     }
 
     func apply(edge: NotchEdge) {
-        guard model.edge != edge else { return }
+        guard model.edge != edge || pendingEdge != nil else { return }
+        edgeChange += 1
+        let change = edgeChange
+        pendingEdge = edge
         guard let panel else {   // before there is anything on screen to fade
             model.edge = edge
+            pendingEdge = nil
+            relocate()
+            return
+        }
+        if reduceMotion() {
+            model.edge = edge
+            pendingEdge = nil
+            panel.alphaValue = 1
             relocate()
             return
         }
 
-        let wasOpen = model.isExpanded
         model.hoveredIndex = nil
         setPointing(false)
 
         // Clicking through the picker starts a move before the last one has
         // landed, and a stale completion would drop the notch on an edge the
         // user has already moved on from.
-        edgeChange += 1
-        let change = edgeChange
+        let finish: @MainActor () -> Void = { [weak self] in
+            guard let self, let panel = self.panel, change == self.edgeChange,
+                  self.pendingEdge != nil else { return }
+            self.pendingEdge = nil
+            let shouldReopen = self.visibility != .hidden && (self.model.isExpanded || self.model.staysOpen)
+            let visibilityChange = self.visibilityChange
 
-        NSAnimationContext.runAnimationGroup { context in
-            context.duration = Self.edgeCrossfade
-            panel.animator().alphaValue = 0
-        } completionHandler: { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self, let panel = self.panel, change == self.edgeChange else { return }
+            // Land folded, and at full strength: the opening *is* the
+            // animation, and fading in underneath it would be two at once.
+            self.model.edge = edge
+            self.model.isExpanded = false
+            self.relocate()
+            self.updateInteractiveRects()
+            panel.alphaValue = 1
 
-                // Land folded, and at full strength: the opening *is* the
-                // animation, and fading in underneath it would be two at once.
-                self.model.edge = edge
-                self.model.isExpanded = false
-                self.relocate()
-                self.updateInteractiveRects()
-                panel.alphaValue = 1
-
-                guard wasOpen else { return }
-                // A beat, then open. Not decoration: setting it shut and open
-                // again inside one turn lets SwiftUI coalesce the pair, and the
-                // notch arrives at full size having animated nothing.
-                DispatchQueue.main.asyncAfter(deadline: .now() + Self.arrivalBeat) {
-                    MainActor.assumeIsolated {
-                        guard change == self.edgeChange else { return }
-                        withAnimation(NotchMotion.unfold) { self.model.isExpanded = true }
-                        self.updateInteractiveRects()
-                    }
+            guard shouldReopen else { return }
+            // A beat, then open. Not decoration: setting it shut and open
+            // again inside one turn lets SwiftUI coalesce the pair, and the
+            // notch arrives at full size having animated nothing.
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.arrivalBeat) {
+                MainActor.assumeIsolated {
+                    guard change == self.edgeChange, visibilityChange == self.visibilityChange,
+                          self.visibility != .hidden else { return }
+                    withAnimation(NotchMotion.unfold) { self.model.isExpanded = true }
+                    self.updateInteractiveRects()
                 }
             }
         }
+        if let animateEdge { animateEdge(panel, finish) }
+        else {
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = Self.edgeCrossfade
+                panel.animator().alphaValue = 0
+            } completionHandler: {
+                MainActor.assumeIsolated { finish() }
+            }
+        }
+        // An occluded/locked WindowServer can stop advancing an animation
+        // without delivering its completion. Placement is state, so commit it
+        // even then. A normal completion clears pendingEdge and makes this a no-op.
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.edgeCrossfade * 2) { finish() }
     }
 
     func apply(displayPreference: DisplayPreference) {
@@ -692,6 +724,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
 
     func apply(_ visibility: NotchVisibility) {
         self.visibility = visibility
+        visibilityChange &+= 1
         // A standing choice outranks a peek that happens to be in flight.
         peekWork?.cancel()
         peekWork = nil
@@ -830,11 +863,28 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     /// pitch included, or a large notch would match the wrong ring at the ends.
     private func cellIndex(along: CGFloat) -> Int? {
         let pitch = NotchLayout.cellPitch(for: model.edge) * model.sizeScale
-        for index in model.snapshots.indices {
+        for index in model.visibleSnapshots.indices {
             let centre = model.slack + model.ringCenter(index: index) * model.sizeScale
             if abs(along - centre) <= pitch / 2 { return index }
         }
         return nil
+    }
+
+    private var lastPageScroll: TimeInterval = 0
+    private func scrollProviders(_ event: NSEvent) -> Bool {
+        guard model.isExpanded, let panel else { return false }
+        let point = event.locationInWindow
+        let local = CGPoint(x: point.x, y: panel.frame.height - point.y)
+        guard notchRect.contains(local),
+              model.canShowPreviousPage || model.canShowNextPage else { return false }
+        let delta = abs(event.scrollingDeltaY) >= abs(event.scrollingDeltaX)
+            ? event.scrollingDeltaY : event.scrollingDeltaX
+        guard abs(delta) > 0.1 else { return true }
+        if event.timestamp - lastPageScroll >= 0.2 {
+            lastPageScroll = event.timestamp
+            model.changePage(forward: delta < 0)
+        }
+        return true
     }
 
     // MARK: - Odds and ends
@@ -870,6 +920,18 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             ? "CodeRim is set to Always show. Change it in Settings."
             : nil
         menu.addItem(keepOpen)
+        if model.canShowPreviousPage || model.canShowNextPage {
+            for (title, forward, enabled) in [
+                ("Previous providers", false, model.canShowPreviousPage),
+                ("Next providers", true, model.canShowNextPage)
+            ] {
+                let item = NSMenuItem(title: title, action: #selector(MenuActions.changePage(_:)), keyEquivalent: "")
+                item.target = menuActions
+                item.tag = forward ? 1 : 0
+                item.isEnabled = enabled
+                menu.addItem(item)
+            }
+        }
         menu.addItem(.separator())
 
         let refresh = NSMenuItem(
@@ -914,7 +976,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         refresh: { [weak self] in self?.onRefresh?() },
         signIn: { [weak self] index in self?.signInItems[safe: index]?.action() },
         togglePinned: { [weak self] in self?.togglePinned() },
-        openUsage: { [weak self] in self?.onOpenUsage?() }
+        openUsage: { [weak self] in self?.onOpenUsage?() },
+        page: { [weak self] forward in self?.model.changePage(forward: forward) }
     )
 }
 
@@ -926,19 +989,23 @@ final class MenuActions: NSObject {
     private let signIn: (Int) -> Void
     private let pin: () -> Void
     private let usage: () -> Void
+    private let page: (Bool) -> Void
 
     init(
         refresh: @escaping () -> Void,
         signIn: @escaping (Int) -> Void,
         togglePinned: @escaping () -> Void,
-        openUsage: @escaping () -> Void
+        openUsage: @escaping () -> Void,
+        page: @escaping (Bool) -> Void
     ) {
         self.refresh = refresh
         self.signIn = signIn
         self.pin = togglePinned
         self.usage = openUsage
+        self.page = page
     }
 
+    @objc func changePage(_ sender: NSMenuItem) { page(sender.tag == 1) }
     @objc func refreshNow(_ sender: Any?) { refresh() }
     @objc func togglePinned(_ sender: Any?) { pin() }
     @objc func openUsage(_ sender: Any?) { usage() }
