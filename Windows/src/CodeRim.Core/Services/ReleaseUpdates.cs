@@ -38,13 +38,17 @@ public static class ReleaseUpdates
     internal const string Repository = "https://github.com/dlfkdLR/CodeRim";
     public static string CurrentVersion => typeof(ReleaseUpdates).Assembly.GetName().Version!.ToString(3);
 
-    public static async Task<AvailableUpdate> CheckAsync(string architecture, CancellationToken token = default, bool preferInstaller = true)
+    public static Task<AvailableUpdate> CheckAsync(string architecture, CancellationToken token = default) => CheckAsync(architecture, true, token);
+
+    public static async Task<AvailableUpdate> CheckAsync(string architecture, bool preferInstaller, CancellationToken token = default)
     {
         using var handler = ReleasePackageDownload.CreateHandler();
-        return await CheckAsync(architecture, handler, token, preferInstaller).ConfigureAwait(false);
+        return await CheckAsync(architecture, handler, preferInstaller, token).ConfigureAwait(false);
     }
 
-    internal static async Task<AvailableUpdate> CheckAsync(string architecture, HttpMessageHandler handler, CancellationToken token, bool preferInstaller = true)
+    internal static Task<AvailableUpdate> CheckAsync(string architecture, HttpMessageHandler handler, CancellationToken token) => CheckAsync(architecture, handler, true, token);
+
+    internal static async Task<AvailableUpdate> CheckAsync(string architecture, HttpMessageHandler handler, bool preferInstaller, CancellationToken token)
     {
         ValidateArchitecture(architecture);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(15));

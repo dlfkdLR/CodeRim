@@ -52,7 +52,7 @@ internal sealed partial class DashboardWindow
                     }
                     return;
                 }
-                var update = await ReleaseUpdates.CheckAsync(UpdateNotifications.Architecture, cancellation.Token, preferInstaller: !UpdateCoordinator.SigningConfigured).ConfigureAwait(true);
+                var update = await ReleaseUpdates.CheckAsync(UpdateNotifications.Architecture, preferInstaller: !UpdateCoordinator.SigningConfigured, token: cancellation.Token).ConfigureAwait(true);
                 if (!IsCurrentUpdate(cancellation, revision)) return;
                 status.Text = update.IsNewer ? "CodeRim " + update.Version + " is available." : "You are using the latest Windows release.";
                 if (!update.IsNewer) return;
