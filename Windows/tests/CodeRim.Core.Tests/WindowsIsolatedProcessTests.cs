@@ -63,6 +63,7 @@ public sealed class WindowsIsolatedProcessTests : IDisposable
     private async Task AssertChildExitedAsync()
     {
         var (pid, born) = ChildIdentity();
+        Assert.Equal("pipe-write-ok", File.ReadAllText(Path.Combine(root, "child.output-pipe-verified")));
         Assert.Equal(pid.ToString(CultureInfo.InvariantCulture) + "|" + born.ToString(CultureInfo.InvariantCulture)
             + "|" + Path.GetFileName(root), File.ReadAllText(Path.Combine(root, "child.self")));
         try
