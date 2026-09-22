@@ -140,6 +140,18 @@ public sealed class InstallerUpdateTests : IDisposable
     {
         if (OperatingSystem.IsWindows()) Assert.Equal(expected, MsiUpdateExecution.Classify(code, oldVerified, newVerified));
     }
+    [Fact]
+    public void ExistingSparkleReleaseKeyVerifiesInManagedUpdater()
+    {
+        // Signed once by the release signer. Version zero cannot authorize any application upgrade.
+        var bytes = Encoding.UTF8.GetBytes("{\"architecture\":\"x64\",\"file\":\"CodeRim-Windows-0.0.0-x64-Setup.msi\",\"product\":\"CodeRim.Windows\",\"schema\":1,\"sha256\":\"a1536d3ff08b3bfe1a61aa2ff8711ebb073603de621d3a1222f2efbf2e7a93e7\",\"size\":56,\"version\":\"0.0.0\"}\n");
+        const string signature = "x25xBmyiDSPWU79paTPwlrNzlsowKLTBjT45YziGGoMW09OcmdcgXQVmnqa0JEQZKQj/Wplha28O2qyKFqDVDw==";
+        using var json = JsonDocument.Parse(bytes);
+        var p = new ReleasePackage(1, 2, new Version(0, 0, 0), "x64", 56,
+            json.RootElement.GetProperty("sha256").GetString()!, new Uri("https://github.com/dlfkdLR/CodeRim/releases/download/v0.0.0/CodeRim-Windows-0.0.0-x64-Setup.msi"), true);
+        InstallerUpdates.VerifyManifest(p, bytes, signature, Convert.FromBase64String(InstallerUpdates.PublicKey));
+        Assert.Throws<InvalidDataException>(() => InstallerUpdates.ParseAuthorization(bytes, signature, "x64", new Version(2, 1, 8)));
+    }
     private sealed class Handler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) { cancellationToken.ThrowIfCancellationRequested(); return Task.FromResult(respond(request)); }

@@ -74,7 +74,7 @@ try {
     $failedMsi=Join-Path $qa 'failure.msi';Build-Fixture $version $current $failureTemplate $failedMsi
     [void](Invoke-Msi @('/i',('"'+$failedMsi+'"'),'LAUNCHAPP=0') $false)
     $rollbackLog=Get-Content (Join-Path $repo "Artifacts/windows-msi-$Architecture-$script:logIndex.log") -Raw
-    foreach($required in @('Intentional QA rollback fixture','Action start [^\r\n]*: QaFail\.','Action ended [^\r\n]*: InstallExecute\. Return value 1\.','Action start [^\r\n]*: InstallFiles\.','Action start [^\r\n]*: RemoveExistingProducts\.','Rollback:')) {
+    foreach($required in @('Intentional QA rollback fixture','Action start [^\r\n]*: QaFail\.','Action ended [^\r\n]*: InstallExecute\. Return value 1\.','Action start [^\r\n]*: InstallFiles\.','Action start [^\r\n]*: RemoveExistingProducts\.','ScriptType=2','Executing op: FileCopy\(SourceName=[^\r\n]*\.rbf')) {
         if($rollbackLog -notmatch $required){throw "Rollback fixture did not reach the expected transaction stage: $required"}
     }
     Compare-State $before (Product-State);$results.Add('injected-upgrade-failure-restores-binaries-registration-path-shortcut')
