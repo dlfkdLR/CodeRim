@@ -119,7 +119,7 @@ if ($SigningMode -eq 'Required') {
     if ($LASTEXITCODE -ne 0 -or -not (Test-Path $resourcePath)) { throw 'Signed payload manifest generation failed.' }
     $resourceArguments = @("-p:CodeRimPublisherSpkiSha256=$PublisherSpkiSha256", "-p:CodeRimUpdateWin32Resource=$resourcePath")
 }
-# The unsigned worker is deliberately inert: no compiled pin or manifest means SigningNotConfigured.
+# The legacy ZIP entry remains disabled without its publisher pin. The MSI entry requires a release-key-signed manifest.
 $workerRoot = Join-Path $windowsRoot ('artifacts\worker-publish-' + [Guid]::NewGuid().ToString('N'))
 dotnet publish $workerProject --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $workerRoot -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false @resourceArguments
 if ($LASTEXITCODE -ne 0) { throw 'Update worker publish failed.' }

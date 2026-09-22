@@ -63,7 +63,7 @@ Open **Settings → Providers → Add Provider**, connect your tools, and hover 
 
 [Download x64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-x64-Setup.msi) · [Download ARM64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-arm64-Setup.msi)
 
-Run `Setup.msi` to install without administrator access. Setup registers Start menu and uninstall entries and offers the `coderim` CLI on your user PATH. Existing ZIP users run Setup once to enable automatic updates. Accounts, settings and local usage history are preserved.
+Run `Setup.msi` to install without administrator access. Setup registers Start menu and uninstall entries and adds the `coderim` CLI to your user PATH. Existing ZIP users run Setup once to enable automatic updates. Accounts, settings and local usage history are preserved.
 
 The installed app automatically checks and downloads updates. Open **Settings → Information → Check for updates** to restart into the verified release. Disable automatic downloads with **General → Automatically check for updates**. The installer does not have an Authenticode certificate, so Windows SmartScreen may warn on first installation. Updates are verified against the pinned Ed25519 release key and SHA-256. [Installation and update details](Documentation/WINDOWS.md#updates).
 

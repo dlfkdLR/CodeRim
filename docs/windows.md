@@ -1,3 +1,3 @@
-# Windows implementation preview
+# Windows setup
 
-See [Windows setup, capability matrix, and validation](../Documentation/WINDOWS.md). This port is not yet at full macOS feature parity.
+See [MSI installation, automatic updates, capability matrix and validation](../Documentation/WINDOWS.md). Windows 11 x64 and ARM64 installers are available. Full live-provider and physical-display parity remains a separate verification scope.

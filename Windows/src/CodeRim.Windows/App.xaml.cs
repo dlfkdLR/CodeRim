@@ -33,6 +33,22 @@ public partial class App : System.Windows.Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+#if CODERIM_MSI_QA
+        if (e.Args.Length == 2 && e.Args[0] == "--qa-msi-update")
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            try
+            {
+                var pin = typeof(App).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+                    .Cast<System.Reflection.AssemblyMetadataAttribute>().Single(a => a.Key == "CodeRimInstallerWorkerSha256").Value ?? "";
+                var operation = await MsiUpdateQa.StartAsync(e.Args[1], pin).ConfigureAwait(true);
+                MsiUpdateExecution.Confirm(operation); Shutdown();
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            { File.WriteAllText(Path.Combine(e.Args[1], "handoff-error.txt"), error.ToString()); Shutdown(1); }
+            return;
+        }
+#endif
         if (e.Args.Contains("--smoke-test", StringComparer.Ordinal) && e.Args.Contains("--antigravity-fixture-server", StringComparer.Ordinal))
         {
             try { await NativeSmoke.RunAntigravityFixtureAsync(); Shutdown(); }

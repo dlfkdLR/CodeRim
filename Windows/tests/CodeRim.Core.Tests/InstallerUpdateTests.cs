@@ -125,7 +125,8 @@ public sealed class InstallerUpdateTests : IDisposable
         InstallerUpdates.CleanCache(root, null);
         Assert.Equal((string[]) ["CodeRim-Windows-malformed-Setup.msi", "keep.exe", "old.zip"], Directory.GetFiles(root).Select(Path.GetFileName).OrderBy(x => x, StringComparer.Ordinal));
     }
-    [Theory]
+    public static bool IsWindows => OperatingSystem.IsWindows();
+    [Theory(Skip = "Requires Windows updater result classification", SkipUnless = nameof(IsWindows))]
     [InlineData(0, false, true, MsiUpdateStatus.Applied)]
     [InlineData(0, true, false, MsiUpdateStatus.RecoveryRequired)]
     [InlineData(3010, false, true, MsiUpdateStatus.RebootRequired)]

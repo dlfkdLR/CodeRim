@@ -8,7 +8,7 @@ $app=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Programs\
 $qa=Join-Path $env:TEMP ('CodeRim-MSI-QA-'+[Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $qa,(Join-Path $repo 'Artifacts') | Out-Null
 $results=[Collections.Generic.List[string]]::new()
-$originalPath=[Environment]::GetEnvironmentVariable('Path','User')
+$originalPath=[string][Environment]::GetEnvironmentVariable('Path','User')
 $data=Join-Path $qa 'Data 한글'; New-Item -ItemType Directory $data | Out-Null
 $env:CODERIM_DATA_DIR=$data
 $sentinel=Join-Path $data 'account-settings-history-sentinel';[IO.File]::WriteAllText($sentinel,'preserve')
@@ -35,8 +35,8 @@ function Compare-State($Before,$After) {
     foreach($name in $Before.files.Keys){if($Before.files[$name] -cne $After.files[$name]){throw "MSI rollback did not restore $name"}}
 }
 function Build-Fixture([string]$Version,[string]$Publish,[string]$Template,[string]$Output) {
-    $tools=Join-Path $windowsRoot 'artifacts\wix-7.0.0'
-    if(-not(Test-Path (Join-Path $tools 'wix.exe'))){dotnet tool install wix --version 7.0.0 --tool-path $tools;if($LASTEXITCODE -ne 0){throw 'WiX restore failed'}}
+    $tools=Join-Path $windowsRoot 'artifacts\wix-5.0.2'
+    if(-not(Test-Path (Join-Path $tools 'wix.exe'))){dotnet tool install wix --version 5.0.2 --allow-roll-forward --tool-path $tools;if($LASTEXITCODE -ne 0){throw 'WiX restore failed'}}
     $payload=Join-Path $qa ([IO.Path]::GetFileNameWithoutExtension($Output)+'.wxs')
     python (Join-Path $PSScriptRoot 'generate_msi_payload.py') $Publish $payload
     if($LASTEXITCODE -ne 0){throw 'Fixture payload failed'}
@@ -90,7 +90,7 @@ try {
     if ((Get-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -ErrorAction SilentlyContinue).CodeRim) { throw 'Uninstall left the owned startup entry.' }
     if(Test-Path (Join-Path $app 'CodeRim.exe')){throw 'Uninstall left application binary'}
     if([IO.File]::ReadAllText($sentinel) -cne 'preserve'){throw 'Uninstall changed user data'}
-    $remaining=[Environment]::GetEnvironmentVariable('Path','User')
+    $remaining=[string][Environment]::GetEnvironmentVariable('Path','User')
     if($remaining.TrimEnd(';') -cne $originalPath.TrimEnd(';')){throw 'Uninstall changed unrelated PATH values'}
     $results.Add('uninstall-preserves-user-data-and-unrelated-path')
 } finally {

@@ -4,17 +4,13 @@ This Windows port uses WPF on .NET 10 and targets Windows 11 x64 and ARM64. It i
 
 ## Run or install
 
-Extract the matching `CodeRim-Windows-2.1.7-x64.zip` or `CodeRim-Windows-2.1.7-arm64.zip` into a permanent folder and open `CodeRim.exe`. .NET is included. The tray icon opens the Usage dashboard and Settings. Hover the screen-edge notch to see provider rings. Add your providers in Settings → Providers.
+Run the matching [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-x64-Setup.msi) or [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-arm64-Setup.msi). .NET is included. The installer uses `%LOCALAPPDATA%\Programs\CodeRim`, registers Start menu and uninstall entries, and adds `bin` to the current user's PATH without requiring administrator access. Open a new terminal after installation to use `coderim`.
 
-For a per-user installation, run this from the extracted folder in PowerShell:
+Existing unsigned ZIP users should quit CodeRim and run the MSI once. Settings, accounts and usage history are stored outside the application directory and are preserved. A legacy Authenticode-managed installation must continue using its signed ZIP channel; the public MSI refuses to overwrite it. The initial MSI does not have an Authenticode publisher certificate, so Windows may show a SmartScreen warning. Automatic updates use the pinned Ed25519 release key described below.
 
-```powershell
-./install.ps1 -AddCliToPath -Launch
-```
+The tray icon opens the Usage dashboard and Settings. Hover the screen-edge notch to see provider rings. Add your providers in Settings → Providers.
 
-The installer copies to `%LOCALAPPDATA%\Programs\CodeRim`, creates a Start menu shortcut, and optionally adds the CLI to your user PATH. It requires CodeRim to be closed and does not request administrator access. The Windows preview binaries are unsigned. Verify the ZIP against SHA256SUMS-windows.txt from the same release before extracting it. Do not disable Windows security settings to run it.
-
-`CodeRim.exe` is the desktop app. `CodeRimCLI.exe` is the companion CLI; `bin\coderim.cmd` supplies the short command. The installer adds only this bin directory to PATH and removes the legacy GUI directory entry, preventing a case-insensitive executable-name collision.
+`CodeRim.exe` is the desktop app. `CodeRimCLI.exe` is the companion CLI; `bin\coderim.cmd` supplies the short command. The MSI places this bin directory first in the user PATH. The legacy PowerShell installer also removes its old GUI-directory PATH entry.
 
 ## Connect Codex and Claude
 
@@ -38,7 +34,7 @@ An existing status line is preserved unless you explicitly pass `-ReplaceExistin
 - Codex/Claude saved accounts, account-scoped cached quotas, stale response protection after account changes, and a Claude session bridge bound to the originating account. Local history is kept separate.
 - Clicking a session row or its completion peek opens a validated Codex thread link or raises the live Claude process owning application. Process start times prevent PID reuse from targeting a different application. If no target is available or Windows denies activation, local sessions open; terminal-tab selection is not supported.
 - Diagnostics includes CLI installation, private bounded debug logs, log/data folder access, and source rescan.
-- Release checks and notifications select the matching architecture's ZIP. Signed managed builds can verify the publisher, stage an update and restart to install it, with cancellation and interrupted-update recovery. Unsigned and portable builds use the manual download path; see [Updates](#updates).
+- MSI installations automatically check and download the matching architecture's signed update and offer restart installation. Windows Installer rolls back failed upgrades. Legacy Authenticode-managed builds keep their signed ZIP channel; see [Updates](#updates).
 - API keys, explicit cookies, and provider settings are stored with Windows DPAPI CurrentUser and a user-only directory ACL. Supported Firefox profiles can import provider sign-in cookies. Each cookie retains its host, path, expiry and HTTPS scope. The selected connection is verified before its encrypted replacement is saved; closing or canceling leaves the previous connection intact. If another window replaces or removes that connection during verification, the later import cannot overwrite it. Chrome/Edge protected-cookie decryption is not implemented.
 - A bounded JavaScript host runs 16 CodexBar-derived provider scripts. Unmodified upstream input hashes are recorded in `Windows/ThirdParty/provider-hashes.json`. The host exposes declared HTTP origins and settings only, disables redirects/cookie persistence, and has request/size/time/memory/statement bounds. This is for bundled scripts, not arbitrary user plugins.
 - Companion snapshot and CLI (`usage`, `tokens`, `limits`, `path`, `version`, `claude-status`, `claude-connect`; provider, period, JSON, watch options). Snapshots carry their schema, source scope and timestamps; stale readings remain marked. This Windows schema is documented by `CompanionFile.cs`, not a binary drop-in for macOS WidgetKit.
@@ -59,7 +55,7 @@ On macOS, inherited-session images after the logged replay boundary are counted 
 
 The 70-provider catalog and artwork match the macOS catalog. **The current source has a connection implementation for each of the 70 catalog entries.** Even implemented connections require native Windows and live-account verification.
 
-Remaining verification includes automatic Kimi Desktop discovery, live provider accounts and full accessibility/mixed-monitor workflows. Explicit Chromium localStorage import is implemented for DeepSeek, Factory and MiniMax; the exact provider strategies follow the pinned macOS implementations. Signed installation and in-place update code is implemented, while production publisher signing and a real signed update cycle remain unverified. Firefox cookie import is implemented for the supported cookie readers; it does not imply complete browser authentication parity. Windows Widgets are excluded from this parity effort. API-key or manual-cookie support does not imply that every macOS authentication strategy has been ported. Native Windows CI covers synthetic startup, rendering, credential storage, account display, bridge installation, and CLI behavior; live account/provider verification is separate.
+Remaining verification includes automatic Kimi Desktop discovery, live provider accounts and full accessibility/mixed-monitor workflows. Explicit Chromium localStorage import is implemented for DeepSeek, Factory and MiniMax; the exact provider strategies follow the pinned macOS implementations. The MSI automatic updater uses the existing Ed25519 release key. Authenticode publisher signing remains unavailable; it is separate from the updater signature. Firefox cookie import is implemented for the supported cookie readers; it does not imply complete browser authentication parity. Windows Widgets are excluded from this parity effort. API-key or manual-cookie support does not imply that every macOS authentication strategy has been ported. Native Windows CI covers synthetic startup, rendering, credential storage, account display, bridge installation, and CLI behavior; live account/provider verification is separate.
 
 | Provider | Windows connection |
 | --- | --- |
@@ -136,11 +132,13 @@ Remaining verification includes automatic Kimi Desktop discovery, live provider 
 
 ## Updates
 
-The currently published Windows ZIPs are unsigned and use manual installation. **Information → Check for updates** checks GitHub releases and offers the correct architecture's download.
+MSI installations check for stable releases at startup and periodically while running, with successful automatic checks limited to once per day. When **General → Automatically check for updates** is enabled, the matching installer is downloaded in the background. **Information → Check for updates** can check immediately, show download errors, and offer **Restart and install** after verification. Turning the preference off prevents later automatic checks; manual checks remain available.
 
-The current source also supports signed managed installations. A package built with an existing publisher certificate and a compiled public-key pin can download and verify a new release, ask to restart, install it after the original process exits, and recover an interrupted transaction. Canceling, leaving the page or closing the window withdraws a pending restart. Binary transactions preserve local history, settings and credentials. An unsigned package cannot overwrite a managed signed installation.
+Every update requires a bounded manifest signed by the existing Ed25519 release key, an exact version/architecture/file/size contract, and SHA-256 validation. The GUI pins the installed update worker's hash. That worker rechecks the signed manifest and the exact cached MSI before asking Windows Installer to apply it. GitHub metadata or a checksum alone cannot authorize execution. No new signing key or Windows trust-store entry is installed.
 
-This mode requires a signed initial installation. Portable and existing unsigned installations remain manual until installed through the signed package's supported setup path. The signing pipeline refuses missing or mismatched signing inputs. No suitable Windows signing certificate was present at the recorded environment check, so this audit has not produced or verified a signed public Windows release. See the [packaging contract](../Windows/src/CodeRim.UpdateWorker/PACKAGING.md) for build inputs and recovery steps.
+Leaving the Information page or closing its window cancels a pending restart before confirmation. The updater waits for the original application process to exit, then performs a per-user MSI major upgrade. Standard Windows Installer rollback covers application files, installer registration, CLI PATH and shortcuts. Rollback-disabled machines are refused before installation. The worker waits for Windows Installer to finish, distinguishes cancellation, concurrent installers, reboot requirements and failures, and only reopens a verified installation. Account data, settings and usage history are outside this transaction. A recovery message asks for the official MSI if the resulting installation cannot be verified.
+
+The first MSI is not Authenticode signed; Windows SmartScreen publisher warnings can appear. **Ed25519 update authentication and an Authenticode publisher certificate are different checks.** Legacy Authenticode-managed installations continue to require their compiled publisher pin and signed ZIP packages. The public MSI cannot overwrite that managed channel. Portable/old ZIP installations need a one-time MSI installation to enable this update flow. See the [legacy packaging contract](../Windows/src/CodeRim.UpdateWorker/PACKAGING.md) for the separate certificate-based channel.
 
 ## Browser and local sources
 
@@ -203,7 +201,7 @@ AWS Bedrock uses AWS CLI v2 profiles (including an already authenticated SSO ses
 
 User data is under `%LOCALAPPDATA%\CodeRim` (override with `CODERIM_DATA_DIR`): `usage.sqlite`, `settings.json`, `snapshot.json`, `project-key.bin`, `claude-limits.json`, and encrypted `vault` entries. Project grouping uses an installation-specific HMAC identity and a display basename. The source chat logs remain untouched.
 
-Clear history in a provider page clears CodeRim's numeric records and prevents earlier records/copies from reappearing. It does not delete the source logs. To uninstall, first turn off launch-at-login in Settings and quit the tray app, then remove the installation folder and Start menu shortcut. Remove its user PATH entry if installed. Preserve the data directory to retain settings/history. Restore the Claude settings backup or remove only CodeRim's status line and session hooks if they were installed.
+Clear history in a provider page clears CodeRim's numeric records and prevents earlier records/copies from reappearing. It does not delete the source logs. To uninstall an MSI installation, quit the tray app and use Windows **Settings → Apps → Installed apps → CodeRim → Uninstall**. Windows Installer removes application files, its shortcut, its CLI PATH entry and a launch-at-login entry that still points to this installation. It preserves the data directory. For an old portable ZIP installation, turn off launch-at-login, quit, then remove that application folder and its own shortcut/PATH entry. Restore the Claude settings backup or remove only CodeRim's status line and session hooks if they were installed.
 
 ## Build and verify
 
@@ -212,10 +210,12 @@ dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
 dotnet build Windows/CodeRim.Windows.sln --configuration Release
 ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-x64 -ResetManifest
 ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-arm64
+./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-x64
+./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-arm64
 ./Windows/artifacts/publish/win-x64/CodeRim.exe --smoke-test --capture dashboard.png
 ```
 
-The smoke test uses an isolated temporary directory and synthetic values. It does not connect accounts or read the user's chat history. It proves only native startup/rendering if executed on Windows; inspect the capture separately. The GitHub workflow packages both architectures and runs x64 smoke tests. A separate Windows ARM64 job downloads the packaging artifact, verifies its ZIP checksum, then executes that exact ARM64 archive and records OS/process architecture. Consult the release commit's workflow result for the native x64 verification status. The x64 checks also cover minimum-size light/dark/high-contrast layouts, popup dismissal, provider removal/navigation state, keyboard focus, image/sub-agent controls, isolated DPAPI/ACL storage, CLI PATH idempotence and Claude hook preservation. Read the actual workflow result before treating ARM64 execution as verified. Physical mixed-DPI monitors and live provider responses remain separate checks.
+The smoke test uses an isolated temporary directory and synthetic values. It does not connect accounts or read the user's chat history. It proves only native startup/rendering if executed on Windows; inspect the capture separately. The GitHub workflow packages both MSI architectures and tests installation, an injected upgrade failure and rollback, successful upgrade, downgrade refusal, installed native UI, and uninstall/data preservation on disposable x64 and ARM64 runners. A separate Windows ARM64 job downloads the packaging artifact, verifies its ZIP checksum, then executes that exact ARM64 archive and records OS/process architecture. Consult the release commit's workflow result for the native x64 verification status. The x64 checks also cover minimum-size light/dark/high-contrast layouts, popup dismissal, provider removal/navigation state, keyboard focus, image/sub-agent controls, isolated DPAPI/ACL storage, CLI PATH idempotence and Claude hook preservation. Read the actual workflow result before treating ARM64 execution as verified. Physical mixed-DPI monitors and live provider responses remain separate checks.
 
 ## Current audit changes (unreleased)
 

@@ -20,7 +20,7 @@ CodeRim은 화면 가장자리의 작은 노치에 코딩 도우미의 사용 �
 | 터미널 CLI | 포함 | 포함 |
 | 저장된 계정 전환 | Codex와 Claude Code | Codex와 Claude Code |
 | 위젯 | macOS 위젯 | Windows 작업 범위 제외 |
-| 업데이트 | 서명된 Sparkle 업데이트 | 새 릴리스 확인, 서명된 관리 설치본의 앱 내 설치, 미서명 ZIP 직접 설치 |
+| 업데이트 | 서명된 Sparkle 업데이트 | MSI 설치, 서명된 업데이트 자동 다운로드·재시작 설치 |
 
 위 표는 현재 소스 기준입니다. 로컬 토큰 기록은 계정 구분 없이 이 컴퓨터에서 사용한 기록입니다. 제공업체별 Windows 지원 상태와 남은 작업은 [기능 현황표](Documentation/WINDOWS.md#remaining-parity-work)를 참고하세요.
 
@@ -30,7 +30,7 @@ Windows 인증은 GitHub CLI, 신뢰할 수 있는 GLM Coding Plan과 Codebuff �
 
 현재 소스에는 DeepSeek·Factory·MiniMax의 Chromium 프로필 선택 가져오기를 추가했습니다. 현재 저장 기록을 읽고 선택한 계정을 검증한 뒤 Windows 암호화 저장소에 연결을 보관합니다. MiniMax는 세션과 그룹 정보의 일치를 확인하며, Chromium이 보호하는 암호화 쿠키는 지원되는 다른 연결 방법이 필요합니다. 이 추가 기능은 Windows 실제 실행 회귀검사를 진행하고 있습니다.
 
-Windows 앱 내 업데이트도 다운로드 검증·재시작 설치·중단된 업데이트 복구까지 구현했습니다. 서명된 관리 설치본에서 활성화되며, 현재 공개된 미서명 ZIP은 직접 설치 방식입니다. 적용 조건은 [Windows 업데이트 안내](Documentation/WINDOWS.md#updates)에 정리했습니다.
+Windows MSI 설치본은 릴리스 서명을 검증한 업데이트를 자동 다운로드하고 재시작 시 적용합니다. 설치 실패 시 Windows Installer가 이전 설치를 복구합니다. 적용 조건은 [Windows 업데이트 안내](Documentation/WINDOWS.md#updates)에 정리했습니다.
 
 Windows 노치도 macOS와 같은 기본 설정 곡선과 마우스를 올렸을 때 나타나는 계정 컨트롤을 사용합니다. 사용량을 반복 갱신해도 상세 팝업이 노치를 덮지 않습니다. 키보드로 계정 메뉴를 열면 메뉴 안에서 이동하고 Escape로 돌아갈 수 있으며, CLI 출력을 다른 프로그램으로 전달할 때 한글·이모지를 포함한 UTF-8을 사용합니다.
 
@@ -63,7 +63,7 @@ Homebrew에서 cask를 사용할 수 없다는 메시지가 표시되거나 이�
 
 [x64 설치 파일 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-x64-Setup.msi) · [ARM64 설치 파일 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-arm64-Setup.msi)
 
-`Setup.msi`를 실행하면 관리자 권한 없이 설치되며 시작 메뉴, 제거 프로그램과 선택 가능한 CLI 경로를 등록합니다. 기존 ZIP 사용자는 설치 파일을 한 번 실행하면 됩니다. 계정·설정·로컬 사용 기록은 유지됩니다.
+`Setup.msi`를 실행하면 관리자 권한 없이 설치되며 시작 메뉴, 제거 프로그램과 CLI 경로를 등록합니다. 기존 ZIP 사용자는 설치 파일을 한 번 실행하면 됩니다. 계정·설정·로컬 사용 기록은 유지됩니다.
 
 설치 후에는 업데이트를 자동 확인·다운로드합니다. **Settings → Information → Check for updates**에서 서명 검증을 마친 새 버전을 재시작하여 적용합니다. **General → Automatically check for updates**에서 자동 다운로드를 끌 수 있습니다. Windows Authenticode 인증서는 없어 최초 설치 시 SmartScreen 경고가 나타날 수 있습니다. 업데이트는 앱에 고정된 Ed25519 공개 키와 SHA-256으로 검증합니다. [설치 및 업데이트 안내](Documentation/WINDOWS.md#updates).
 

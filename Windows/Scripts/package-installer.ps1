@@ -12,9 +12,9 @@ $bootstrap = Get-Content $bootstrapPath -Raw | ConvertFrom-Json
 if ($bootstrap.version -cne $version -or
     $bootstrap.workerSha256 -cne (Get-FileHash (Join-Path $publish 'CodeRim.UpdateWorker.exe') -Algorithm SHA256).Hash.ToLowerInvariant() -or
     $bootstrap.guiSha256 -cne (Get-FileHash (Join-Path $publish 'CodeRim.exe') -Algorithm SHA256).Hash.ToLowerInvariant()) { throw 'The MSI bootstrap identity is stale or modified.' }
-$tools = Join-Path $windowsRoot 'artifacts\wix-7.0.0' 
+$tools = Join-Path $windowsRoot 'artifacts\wix-5.0.2'
 if (-not (Test-Path (Join-Path $tools 'wix.exe'))) {
-    dotnet tool install wix --version 7.0.0 --tool-path $tools
+    dotnet tool install wix --version 5.0.2 --allow-roll-forward --tool-path $tools
     if ($LASTEXITCODE -ne 0) { throw 'WiX installation failed.' }
 }
 $marker = @{product='CodeRim.Windows';version=$version;architecture=$arch;format='msi'} | ConvertTo-Json -Compress

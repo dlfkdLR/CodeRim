@@ -5,10 +5,16 @@ on:
   pull_request:
     paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', '.github/workflows/windows.yml']
   workflow_dispatch:
+    inputs:
+      msi_handoff:
+        description: 'Test the signed draft MSI with an isolated old-version fixture'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   test-and-package:
+    if: ${{ inputs.msi_handoff != true }}
     runs-on: windows-2025
     timeout-minutes: 40
     steps:
@@ -82,6 +88,7 @@ jobs:
             Windows/tests/**/TestResults/**
 
   native-arm64:
+    if: ${{ inputs.msi_handoff != true }}
     needs: test-and-package
     runs-on: windows-11-arm
     timeout-minutes: 40
@@ -154,3 +161,40 @@ jobs:
             Artifacts/windows-*.txt
             Artifacts/windows-msi-*.log
             Windows/tests/**/TestResults/**
+
+  msi-handoff:
+    if: ${{ inputs.msi_handoff == true }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            architecture: x64
+          - runner: windows-11-arm
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Download exact signed draft installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force Artifacts/handoff | Out-Null
+          gh release download v2.1.9 --repo $env:GITHUB_REPOSITORY --pattern '*-${{ matrix.architecture }}-Setup.msi*' --dir Artifacts/handoff
+          if ($LASTEXITCODE -ne 0) { throw 'Signed draft installer is unavailable.' }
+      - name: Exercise authenticated worker handoff and relaunch
+        run: ./Windows/Scripts/test-msi-handoff.ps1 -Architecture ${{ matrix.architecture }} -ReleaseDirectory Artifacts/handoff
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CodeRim-MSI-Handoff-${{ matrix.architecture }}
+          path: |
+            Artifacts/handoff/*.json
+            Artifacts/handoff/*.txt
+            Artifacts/handoff/*.log
+            Artifacts/handoff/*.png
