@@ -1,4 +1,8 @@
 using System.Text;
+using System.Buffers.Binary;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 using CodeRim.Core.Services;
 using Microsoft.Data.Sqlite;
 
@@ -111,9 +115,9 @@ public sealed class KimiDesktopAuthenticationTests : IDisposable
     {
         using var db = Create(); using var mode = db.CreateCommand(); mode.CommandText = "PRAGMA journal_mode=WAL"; mode.ExecuteScalar();
         Insert(db, "from-wal");
-        var before = File.ReadAllBytes(Database); var walBefore = File.ReadAllBytes(Database + "-wal");
+        var before = SnapshotSharedFile(Database); var walBefore = SnapshotSharedFile(Database + "-wal");
         Assert.Equal("from-wal", KimiDesktopAuthentication.Read(Database, Now, TestContext.Current.CancellationToken).Token);
-        Assert.Equal(before, File.ReadAllBytes(Database)); Assert.Equal(walBefore, File.ReadAllBytes(Database + "-wal"));
+        Assert.Equal(before, SnapshotSharedFile(Database)); Assert.Equal(walBefore, SnapshotSharedFile(Database + "-wal"));
         // SQLite may coordinate readers through SHM; it is not credential content.
     }
     [Fact]
@@ -140,9 +144,60 @@ public sealed class KimiDesktopAuthenticationTests : IDisposable
     public void LinkedDatabaseIsRejected()
     {
         using (var db = Create()) Insert(db, "token");
-        var linked = Path.Combine(root, "linked"); File.CreateSymbolicLink(linked, Database);
-        Assert.Throws<InvalidDataException>(() => KimiDesktopAuthentication.Read(linked, Now, TestContext.Current.CancellationToken));
+        var linked = Path.Combine(root, "linked");
+        if (OperatingSystem.IsWindows())
+        {
+            // A junction exercises the ancestor reparse boundary without enabling Developer Mode
+            // or requiring the privilege needed for file symbolic links.
+            CreateJunction(linked, root);
+            try
+            {
+                Assert.True((File.GetAttributes(linked) & FileAttributes.ReparsePoint) != 0);
+                Assert.True(File.Exists(Path.Combine(linked, "Cookies")));
+                Assert.Throws<InvalidDataException>(() => KimiDesktopAuthentication.Read(Path.Combine(linked, "Cookies"), Now, TestContext.Current.CancellationToken));
+            }
+            finally { Directory.Delete(linked); }
+        }
+        else
+        {
+            File.CreateSymbolicLink(linked, Database);
+            Assert.Throws<InvalidDataException>(() => KimiDesktopAuthentication.Read(linked, Now, TestContext.Current.CancellationToken));
+        }
     }
+    private static byte[] SnapshotSharedFile(string path)
+    {
+        // The fixture's SQLite writer remains open. Observe committed bytes without
+        // denying that existing writer's access on Windows.
+        using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        Assert.InRange(file.Length, 0, 1024 * 1024);
+        using var bytes = new MemoryStream();
+        file.CopyTo(bytes);
+        return bytes.ToArray();
+    }
+    private static void CreateJunction(string path, string target)
+    {
+        Directory.CreateDirectory(path);
+        using var handle = CreateFileW(path, 0x40000000, 7, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero);
+        if (handle.IsInvalid) throw new Win32Exception(Marshal.GetLastWin32Error());
+        var substitute = Encoding.Unicode.GetBytes(@"\??\" + Path.GetFullPath(target));
+        var display = Encoding.Unicode.GetBytes(Path.GetFullPath(target));
+        var data = new byte[16 + substitute.Length + 2 + display.Length + 2];
+        BinaryPrimitives.WriteUInt32LittleEndian(data, 0xA0000003); // IO_REPARSE_TAG_MOUNT_POINT
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(4), checked((ushort)(data.Length - 8)));
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(10), checked((ushort)substitute.Length));
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(12), checked((ushort)(substitute.Length + 2)));
+        BinaryPrimitives.WriteUInt16LittleEndian(data.AsSpan(14), checked((ushort)display.Length));
+        substitute.CopyTo(data, 16); display.CopyTo(data, 18 + substitute.Length);
+        if (!DeviceIoControl(handle, 0x000900A4, data, data.Length, IntPtr.Zero, 0, out _, IntPtr.Zero))
+            throw new Win32Exception(Marshal.GetLastWin32Error());
+    }
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern SafeFileHandle CreateFileW(string path, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeviceIoControl(SafeFileHandle handle, uint code, byte[] input, int length, IntPtr output, int outputLength, out int returned, IntPtr overlapped);
     [Theory]
     [InlineData("Cookies")]
     [InlineData(@"\\server\share\Cookies")]

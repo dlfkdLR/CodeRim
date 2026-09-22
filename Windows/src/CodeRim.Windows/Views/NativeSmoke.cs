@@ -498,9 +498,17 @@ internal static partial class NativeSmoke
         var targetHandle = WindowAtPoint(new PointerPoint { X = pointer.X, Y = pointer.Y });
         var notchHandle = new System.Windows.Interop.WindowInteropHelper(notch).Handle;
         var reachedNotch = pointerMoved && Math.Abs(pointer.X - gearPoint.X) <= 1 && Math.Abs(pointer.Y - gearPoint.Y) <= 1 && targetHandle == notchHandle;
+        var popupHandle = notch.PopupContent is { } shownPopup
+            && PresentationSource.FromVisual(shownPopup) is System.Windows.Interop.HwndSource popupSourceAtHover
+            ? popupSourceAtHover.Handle : IntPtr.Zero;
         File.WriteAllText(Path.Combine(directory, "windows-pointer-input.json"), JsonSerializer.Serialize(new {
             requested = new { gearPoint.X, gearPoint.Y }, observed = new { pointer.X, pointer.Y },
-            target = PointerOwner(targetHandle), moveSucceeded = pointerMoved, moveWin32Error = pointerError, hitNotchWindow = targetHandle == notchHandle,
+            target = PointerOwner(targetHandle), targetWindow = PointerWindow(targetHandle),
+            notchWindow = PointerWindow(notchHandle), popupWindow = PointerWindow(popupHandle),
+            hitOwnPopup = popupHandle != IntPtr.Zero && targetHandle == popupHandle,
+            notchSize = new { notch.Width, notch.Height, notch.ActualWidth, notch.ActualHeight },
+            gearSize = new { gear.ActualWidth, gear.ActualHeight }, popupOpen = notch.PopupIsOpen,
+            moveSucceeded = pointerMoved, moveWin32Error = pointerError, hitNotchWindow = targetHandle == notchHandle,
             gear.IsMouseOver, realHoverVerified = reachedNotch && gear.IsMouseOver,
             outcome = reachedNotch ? gear.IsMouseOver ? "PASS" : "FAIL" : "INCONCLUSIVE"
         }, JsonOptions));

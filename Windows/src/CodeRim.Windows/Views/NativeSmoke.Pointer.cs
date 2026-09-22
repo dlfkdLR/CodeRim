@@ -12,6 +12,18 @@ internal static partial class NativeSmoke
         return new { handlePresent = handle != IntPtr.Zero, ownerResolved = threadId != 0, currentProcess = pid == Environment.ProcessId,
             processName, windowClass = new string(characters, 0, count) };
     }
+    private static object PointerWindow(IntPtr handle)
+    {
+        var exists = WindowBounds(handle, out var bounds);
+        return new { present = handle != IntPtr.Zero, rectangleAvailable = exists,
+            bounds.Left, bounds.Top, bounds.Right, bounds.Bottom };
+    }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PointerRectangle { internal int Left; internal int Top; internal int Right; internal int Bottom; }
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("user32.dll", EntryPoint = "GetWindowRect", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool WindowBounds(IntPtr handle, out PointerRectangle rectangle);
     [StructLayout(LayoutKind.Sequential)]
     private struct PointerPoint { internal int X; internal int Y; }
 #pragma warning disable SYSLIB1054
