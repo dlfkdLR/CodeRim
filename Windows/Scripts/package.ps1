@@ -7,7 +7,8 @@ param(
     [string]$SigningCertificateThumbprint,
     [string]$PublisherSpkiSha256,
     [string]$SignToolPath,
-    [uri]$TimestampServer = 'https://timestamp.digicert.com'
+    [uri]$TimestampServer = 'https://timestamp.digicert.com',
+    [switch]$CheckVersionOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,9 +16,30 @@ $windowsRoot = Split-Path -Parent $PSScriptRoot
 $projectRoot = Split-Path -Parent $windowsRoot
 $projectPath = Join-Path $windowsRoot "src\CodeRim.Windows\CodeRim.Windows.csproj"
 $project = [xml](Get-Content $projectPath)
-if ([string]::IsNullOrWhiteSpace($Version)) {
-    $Version = $project.Project.PropertyGroup.Version
+# Validate declarations before deleting a publish directory or reading a signing certificate.
+$projectVersion = [string]$project.Project.PropertyGroup.Version
+$sharedProps = [xml](Get-Content (Join-Path $windowsRoot 'Directory.Build.props') -Raw)
+$applicationManifest = [xml](Get-Content (Join-Path $windowsRoot 'src\CodeRim.Windows\app.manifest') -Raw)
+$releaseVersions = @(Get-Content (Join-Path $projectRoot 'Config\Release.env') | ForEach-Object {
+    if ($_ -match '^MARKETING_VERSION=(.*)$') { $Matches[1] }
+})
+if ($projectVersion -notmatch '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$' -or
+    [string]$sharedProps.Project.PropertyGroup.Version -cne $projectVersion -or
+    $releaseVersions.Count -ne 1 -or $releaseVersions[0] -cne $projectVersion) {
+    throw 'Release version declarations disagree: check Release.env, Directory.Build.props and the application project.'
 }
+$binaryVersion = [regex]::Match($projectVersion, '^[0-9]+\.[0-9]+\.[0-9]+').Value + '.0'
+if ([string]$project.Project.PropertyGroup.AssemblyVersion -cne $binaryVersion -or
+    [string]$project.Project.PropertyGroup.FileVersion -cne $binaryVersion -or
+    [string]$applicationManifest.assembly.assemblyIdentity.version -cne $binaryVersion) {
+    throw 'Binary version declarations disagree: check AssemblyVersion, FileVersion and app.manifest.'
+}
+if ([string]::IsNullOrWhiteSpace($Version)) {
+    $Version = $projectVersion
+} elseif ($Version -cne $projectVersion) {
+    throw 'The requested package version must match the repository release version.'
+}
+if ($CheckVersionOnly) { return $Version }
 $publishRoot = Join-Path $windowsRoot "artifacts\publish\$RuntimeIdentifier"
 $artifactRoot = Join-Path $projectRoot "Artifacts"
 $architecture = $RuntimeIdentifier.Replace("win-", "")
@@ -26,7 +48,7 @@ $archivePath = Join-Path $artifactRoot $archiveName
 $checksumPath = "$archivePath.sha256"
 $manifestPath = Join-Path $artifactRoot "SHA256SUMS-windows.txt"
 
-if ($Version -notmatch '^\d+\.\d+\.\d+([.-][0-9A-Za-z.-]+)?$') {
+if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$') {
     throw "Unsupported version: $Version"
 }
 
@@ -105,6 +127,18 @@ $workerPath = Join-Path $workerRoot 'CodeRim.UpdateWorker.exe'
 if (-not (Test-Path $workerPath)) { throw 'Published update worker is missing.' }
 if ($SigningMode -eq 'Required') { Sign-PayloadFile $workerPath }
 Copy-Item -LiteralPath $workerPath -Destination $publishRoot
+
+# Verify emitted PE metadata as well as source declarations before creating a release archive.
+$versionedExecutables = @('CodeRim.exe', 'CodeRimCLI.exe')
+# A Required worker replaces VERSIONINFO with its authenticated RT_RCDATA payload manifest.
+# SignedInstallPayload/WindowsUpdateWorker compare the authenticated manifest with the release request.
+if ($SigningMode -eq 'Unsigned') { $versionedExecutables += 'CodeRim.UpdateWorker.exe' }
+foreach ($name in $versionedExecutables) {
+    $info = [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $publishRoot $name))
+    if ($info.FileVersion -cne $binaryVersion -or ($info.ProductVersion -split '\+', 2)[0] -cne $Version) {
+        throw ("Published binary version does not match the release: " + $name)
+    }
+}
 
 if (Test-Path $archivePath) {
     Remove-Item -Force $archivePath

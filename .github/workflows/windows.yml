@@ -18,6 +18,8 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Test numeric history, scripts, and contracts
         run: dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
+      - name: Validate release version declarations
+        run: ./Windows/Scripts/test_release_version.ps1
       - name: Validate signed payload manifest generator
         run: python Windows/Scripts/test_update_payload_manifest.py
       - name: Build WPF application and CLI
@@ -79,6 +81,8 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Test core on Windows ARM64
         run: dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
+      - name: Validate release version declarations
+        run: ./Windows/Scripts/test_release_version.ps1
       - name: Validate signed payload manifest generator
         run: python Windows/Scripts/test_update_payload_manifest.py
       - name: Build WPF application and CLI

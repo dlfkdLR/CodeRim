@@ -13,9 +13,9 @@
     <LangVersion>12.0</LangVersion>
     <AssemblyName>CodeRim</AssemblyName>
     <RootNamespace>CodeRim.Windows</RootNamespace>
-    <Version>2.1.7</Version>
-    <AssemblyVersion>2.1.7.0</AssemblyVersion>
-    <FileVersion>2.1.7.0</FileVersion>
+    <Version>2.1.8</Version>
+    <AssemblyVersion>2.1.8.0</AssemblyVersion>
+    <FileVersion>2.1.8.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\CodeRim.ico</ApplicationIcon>
     <PublishSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</PublishSingleFile>
