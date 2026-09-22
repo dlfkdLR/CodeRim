@@ -80,12 +80,15 @@ public sealed partial class NativeProviders
         }
         catch (Exception error) when (error is FormatException or JsonException) { throw new ProviderRequestException(HttpStatusCode.Unauthorized); }
     }
-    private async Task<JsonElement> GroqConsoleJson(HttpRequestMessage request, CancellationToken token)
+    private async Task<JsonElement> GroqConsoleJson(HttpRequestMessage request, string scope, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
+        if (retryAfter.TryGetValue(scope, out var retry) && retry > DateTimeOffset.Now)
+            throw new ProviderRequestException(HttpStatusCode.TooManyRequests);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.TooManyRequests)
-            retryAfter["groq"] = response.Headers.RetryAfter?.Date ?? DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(1));
+            retryAfter[scope] = response.Headers.RetryAfter?.Date ?? DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(1));
         if (!response.IsSuccessStatusCode) throw new ProviderRequestException(response.StatusCode);
         if (response.Content.Headers.ContentLength > 2 * 1024 * 1024) throw new InvalidDataException("Console response too large.");
         using var input = await response.Content.ReadAsStreamAsync(token).ConfigureAwait(false);
@@ -99,7 +102,13 @@ public sealed partial class NativeProviders
     }
     private async Task<ProviderReading> FetchGroqConsole(string credential, Func<Uri, string?>? cookies, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
         var session = GroqSession(credential, cookies); var jwt = session.Jwt;
+        // The selected console session binds the complete quota transaction, including a refreshed JWT.
+        // Rolling activity dates and refresh output must not bypass the same selected-session limit.
+        var quotaScope = ProviderRetryScope.Create("groq", session.Token, GroqConsoleOrigin.AbsoluteUri, new { session.Jwt });
+        if (retryAfter.TryGetValue(quotaScope, out var retry) && retry > DateTimeOffset.Now)
+            throw new ProviderRequestException(HttpStatusCode.TooManyRequests);
         if (session.Token is not null)
         {
             try
@@ -109,7 +118,8 @@ public sealed partial class NativeProviders
                 refresh.Headers.Add("Origin", "https://console.groq.com"); refresh.Headers.Add("X-SDK-Parent-Host", "https://console.groq.com");
                 refresh.Headers.Add("X-SDK-Client", Convert.ToBase64String(Encoding.UTF8.GetBytes("""{"app":{"identifier":"console.groq.com"},"sdk":{"identifier":"Stytch.js Javascript SDK","version":"5.43.0"}}""")));
                 refresh.Content = new StringContent(JsonSerializer.Serialize(new { session_token = session.Token, session_duration_minutes = 30 }), Encoding.UTF8, "application/json");
-                var response = await GroqConsoleJson(refresh, token).ConfigureAwait(false);
+                var refreshScope = ProviderRetryScope.Create("groq", session.Token, refresh.RequestUri!.AbsoluteUri);
+                var response = await GroqConsoleJson(refresh, refreshScope, token).ConfigureAwait(false);
                 jwt = GroqValidToken(Text(Get(response, "data"), "session_jwt"));
                 if (string.IsNullOrWhiteSpace(jwt)) throw new InvalidDataException("Missing refreshed console session.");
                 _ = GroqOrganization(jwt);
@@ -123,7 +133,7 @@ public sealed partial class NativeProviders
         var start = new DateTimeOffset(today.AddDays(-29)).ToUnixTimeSeconds(); var end = new DateTimeOffset(today.AddDays(1)).ToUnixTimeSeconds();
         var uri = "https://api.groq.com/platform/v1/organizations/" + Uri.EscapeDataString(organization) + "/activity?start_date=" + start.ToString(CultureInfo.InvariantCulture) + "&end_date=" + end.ToString(CultureInfo.InvariantCulture);
         using var request = new HttpRequestMessage(HttpMethod.Get, uri); request.Headers.Authorization = new("Bearer", jwt);
-        return ParseGroqConsole(await GroqConsoleJson(request, token).ConfigureAwait(false), now);
+        return ParseGroqConsole(await GroqConsoleJson(request, quotaScope, token).ConfigureAwait(false), now);
     }
     private static ProviderReading ParseGroqConsole(JsonElement payload, DateTimeOffset now)
     {

@@ -13,15 +13,7 @@ public static class DeepSeekBalance
         var names = new HashSet<string>(StringComparer.Ordinal);
         return value.EnumerateObject().All(property => names.Add(property.Name));
     }
-    private static decimal Money(JsonElement value)
-    {
-        var text = value.ValueKind == JsonValueKind.String ? value.GetString()
-            : value.ValueKind == JsonValueKind.Number ? value.GetRawText() : null;
-        if (text is null || text.Length > 128
-            || !decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var amount))
-            throw new InvalidDataException("The provider balance is not a finite supported amount.");
-        return amount;
-    }
+    private static decimal Money(JsonElement value) => DeepSeekUsageDetails.Number(value, allowNegative: true);
     private static string Currency(JsonElement value)
     {
         var text = value.ValueKind == JsonValueKind.String ? value.GetString() : null;
@@ -43,6 +35,8 @@ public static class DeepSeekBalance
         {
             if (!Unique(root) || source is not "api" and not "web") return Error();
             var balances = new Dictionary<string, decimal>(StringComparer.Ordinal);
+            var paid = new Dictionary<string, decimal>(StringComparer.Ordinal);
+            var granted = new Dictionary<string, decimal>(StringComparer.Ordinal);
             var unavailableForCalls = false;
             if (source == "web")
             {
@@ -64,8 +58,11 @@ public static class DeepSeekBalance
                         if (!Unique(wallet)) return Error();
                         var currency = Currency(Get(wallet, "currency")); var amount = Money(Get(wallet, "balance"));
                         balances[currency] = checked(balances.GetValueOrDefault(currency) + amount);
+                        var detail = key == "normal_wallets" ? paid : granted;
+                        detail[currency] = checked(detail.GetValueOrDefault(currency) + amount);
                     }
                 }
+                foreach (var currency in balances.Keys) { paid.TryAdd(currency, 0); granted.TryAdd(currency, 0); }
             }
             else
             {
@@ -80,16 +77,24 @@ public static class DeepSeekBalance
                     var currency = Currency(Get(row, "currency"));
                     if (balances.ContainsKey(currency)) return Error();
                     var amount = Money(Get(row, "total_balance"));
-                    foreach (var name in new[] { "granted_balance", "topped_up_balance" })
-                        if (row.TryGetProperty(name, out var extra)) _ = Money(extra);
+                    if (row.TryGetProperty("granted_balance", out var bonus)) granted[currency] = Money(bonus);
+                    if (row.TryGetProperty("topped_up_balance", out var topup)) paid[currency] = Money(topup);
                     balances.Add(currency, amount);
                 }
             }
             if (balances.Count > 16) return Error();
+            string Amount(decimal value, string currency) => value.ToString("N2", CultureInfo.CurrentCulture) + " " + currency;
+            string Detail(string currency)
+            {
+                var values = new List<string>();
+                if (paid.TryGetValue(currency, out var topup)) values.Add("Paid: " + Amount(topup, currency));
+                if (granted.TryGetValue(currency, out var bonus)) values.Add("Granted: " + Amount(bonus, currency));
+                return values.Count == 0 ? "" : " (" + string.Join(" / ", values) + ")";
+            }
             var windows = balances.OrderByDescending(pair => pair.Value > 0 && pair.Key == "USD")
                 .ThenByDescending(pair => pair.Value > 0).ThenByDescending(pair => pair.Key == "USD").ThenBy(pair => pair.Key, StringComparer.Ordinal)
                 .Select(pair => new LimitWindow(pair.Key, unavailableForCalls ? "Total balance" : "Available balance", Unit: pair.Key,
-                    DisplayValue: pair.Value.ToString("N2", CultureInfo.CurrentCulture) + " " + pair.Key)).ToArray();
+                    DisplayValue: Amount(pair.Value, pair.Key) + Detail(pair.Key))).ToArray();
             return new("deepseek", ReadingState.Ready, windows, DateTimeOffset.Now,
                 unavailableForCalls ? "Balance unavailable for API calls." : windows.Length == 0 ? "No balance wallets were returned for this account." : null);
         }

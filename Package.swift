@@ -14,6 +14,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6"),
+        .package(url: "https://github.com/steipete/SweetCookieKit", exact: "0.5.3"),
         .package(url: "https://github.com/steipete/CodexBar", revision: "51ed16bdd3abe35ec53af99818e1b5f0d2a631d3")
     ],
     targets: [
@@ -28,6 +29,7 @@ let package = Package(
                 "CodeRimShared",
                 "CSQLite",
                 .product(name: "CodexBarCore", package: "CodexBar"),
+                .product(name: "SweetCookieKit", package: "SweetCookieKit"),
                 .product(name: "Sparkle", package: "Sparkle")
             ],
             path: "Sources/CodeRim",

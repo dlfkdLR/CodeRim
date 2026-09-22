@@ -18,7 +18,7 @@ internal static class BrowserConnections
             "mimo" => ["xiaomimimo.com"],
             "abacus" => ["abacus.ai"],
             "longcat" => ["longcat.chat"],
-            "alibabatokenplan" => ["aliyun.com", "alibabacloud.com"],
+            "alibaba" or "alibabatokenplan" => ["aliyun.com", "alibabacloud.com"],
             "qwencloud" => ["qwencloud.com"],
             "cursor" => ["cursor.com"],
             "groq" => ["groq.com"],
@@ -30,9 +30,10 @@ internal static class BrowserConnections
             "opencode-zen" => ["opencode.ai"],
             _ => []
         };
-    internal static string StorageKey(string id, CredentialVault vault) => id == "minimax"
+    internal static string StorageKey(string id, CredentialVault vault) => id == "alibaba" ? ProviderConnections.AlibabaCodingBrowserKey(vault) : id == "minimax"
         ? "browser:minimax:" + MiniMaxAuthentication.Region(ProviderConnections.EffectiveSetting(vault, id, "MINIMAX_REGION")) : "browser:" + id;
-    private static string[] SelectedDomains(string id, CredentialVault vault) => id == "minimax"
+    private static string[] SelectedDomains(string id, CredentialVault vault) => id == "alibaba"
+        ? ProviderConnections.AlibabaCodingRegion(vault) is { } region ? AlibabaCodingPlanAuthentication.Domains(region) : [] : id == "minimax"
         ? [MiniMaxAuthentication.Domain(MiniMaxAuthentication.Region(ProviderConnections.EffectiveSetting(vault, id, "MINIMAX_REGION")) ?? "global")] : Domains(id);
     internal static BrowserCookieJar? Load(string id, CredentialVault vault) =>
         vault.Load(StorageKey(id, vault)) is { } json ? BrowserCookieJar.Parse(json, SelectedDomains(id, vault)) : null;

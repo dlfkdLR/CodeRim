@@ -29,6 +29,15 @@ public sealed partial class NativeProviders : IDisposable
         var rawSetting = setting;
         setting = key => id == "stepfun" && key == "STEPFUN_PASSWORD" ? rawSetting(key)
             : rawSetting(key)?.Trim() is { Length: > 0 } value ? value : null;
+        if (id == "alibaba")
+        {
+            var region = setting("ALIBABA_CODING_PLAN_REGION");
+            var source = setting("ALIBABA_CODING_PLAN_SOURCE");
+            var remainingSettings = setting;
+            setting = key => key == "ALIBABA_CODING_PLAN_REGION" ? region : key == "ALIBABA_CODING_PLAN_SOURCE" ? source : remainingSettings(key);
+            if (source?.Equals("web", StringComparison.OrdinalIgnoreCase) == true)
+                return await FetchAlibabaCodingWebAsync(credential, region ?? "intl", cookieForUri, token).ConfigureAwait(false);
+        }
         if (id == "mimo" && cookieForUri is not null)
         {
             // Borrowed browser sessions are restricted to the vendor's fixed origin.

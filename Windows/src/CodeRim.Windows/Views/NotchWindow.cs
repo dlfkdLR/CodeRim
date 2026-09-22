@@ -17,7 +17,7 @@ using Screen = System.Windows.Forms.Screen;
 
 namespace CodeRim.Windows.Views;
 
-internal sealed class NotchWindow : Window
+internal sealed partial class NotchWindow : Window
 {
     private readonly DashboardStore store;
     private readonly AppSettingsStore settings;
@@ -28,6 +28,10 @@ internal sealed class NotchWindow : Window
     private readonly DispatcherTimer animation = new() { Interval = TimeSpan.FromMilliseconds(40) };
     private readonly DispatcherTimer clock = new() { Interval = TimeSpan.FromSeconds(10) };
     private readonly Popup popup = new() { AllowsTransparency = true, StaysOpen = true, Placement = PlacementMode.Custom };
+    // Keep the measured Popup child stable across same-sized reading refreshes.
+    // WPF positions an assigned unmeasured child at size0 and does not raise a
+    // native resize when its eventual size equals the preceding child's size.
+    private readonly Border popupFrame = new();
     private readonly List<ProviderRing> rings = [];
     private readonly Dictionary<string, Button> buttons = new(StringComparer.Ordinal);
     private bool expanded, pinned, trackingMenu, dragging, closed;
@@ -41,7 +45,7 @@ internal sealed class NotchWindow : Window
     internal bool Expanded => expanded || pinned || settings.Current.Visibility == NotchVisibility.AlwaysShow;
     internal bool PopupIsOpen => popup.IsOpen;
     internal bool AccountMenuIsOpen => accountMenu && popup.IsOpen;
-    internal FrameworkElement? PopupContent => popup.Child as FrameworkElement;
+    internal FrameworkElement? PopupContent => popupFrame.Child as FrameworkElement;
 
     public NotchWindow(DashboardStore store, AppSettingsStore settings, Action<string?> openSettings)
     {
@@ -51,13 +55,15 @@ internal sealed class NotchWindow : Window
         UseLayoutRounding = true; SnapsToDevicePixels = true;
         AutomationProperties.SetName(this, "CodeRim provider usage notch");
         popup.PlacementTarget = this;
+        popup.Child = popupFrame;
+        controlHide.Tick += (_, _) => HideControlsIfUnused();
         popup.CustomPopupPlacementCallback = PlacePopup;
         store.PropertyChanged += Update; settings.SettingsChanged += SettingsChanged;
         MouseEnter += (_, _) => { foldTimer.Stop(); if (!Expanded) { expanded = true; Render(); } };
         MouseLeave += (_, _) => foldTimer.Start();
         LostKeyboardFocus += (_, _) => foldTimer.Start();
         Deactivated += (_, _) => foldTimer.Start();
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { popup.IsOpen = false; hovered = null; Keyboard.ClearFocus(); foldTimer.Start(); e.Handled = true; } };
+        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { DismissPopupFromKeyboard(); e.Handled = true; } };
         hoverClear.Tick += (_, _) => DismissProviderCard();
         popup.Closed += (_, _) => { accountMenu = false; if (!closed) foldTimer.Start(); };
         foldTimer.Tick += (_, _) => TryFold();
@@ -90,7 +96,7 @@ internal sealed class NotchWindow : Window
         };
         Closed += (_, _) =>
         {
-            closed = true; popup.IsOpen = false; foldTimer.Stop(); hoverClear.Stop(); animation.Stop(); clock.Stop();
+            closed = true; popup.IsOpen = false; foldTimer.Stop(); hoverClear.Stop(); controlHide.Stop(); animation.Stop(); clock.Stop();
             store.PropertyChanged -= Update; settings.SettingsChanged -= SettingsChanged;
             SystemParameters.StaticPropertyChanged -= DisplayChanged;
             Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= DisplaysChanged;
@@ -164,6 +170,7 @@ internal sealed class NotchWindow : Window
     {
         if (closed) return;
         rings.Clear(); buttons.Clear(); animation.Stop(); popup.IsOpen = false;
+        ResetControls();
         var config = settings.Current; var scale = config.Scale;
         if (!Expanded)
         {
@@ -175,13 +182,14 @@ internal sealed class NotchWindow : Window
         var available = (Vertical ? screen.WorkingArea.Height : screen.WorkingArea.Width) / dpi - 16;
         var fit = NotchMetrics.Fit(config.Edge, config.EnabledProviders.Length, scale, available);
         bodyLength = fit.Length; bodyDepth = fit.Depth;
-        var controlsFirst = config.ControlsPosition == "Start" || config.ControlsPosition == "Auto" && config.Offset > available / 4;
+        var controlsFirst = NotchMetrics.ControlsAtStart(config.Edge, config.ControlsPosition, bodyLength, scale, available, config.Offset);
         bodyStart = controlsFirst ? NotchMetrics.ControlExtent * scale : 0;
         var canvas = new Canvas { Background = null };
-        Width = Vertical ? bodyDepth : bodyLength + NotchMetrics.ControlExtent * scale;
-        Height = Vertical ? bodyLength + NotchMetrics.ControlExtent * scale : bodyDepth;
+        var outerDepth = Math.Max(bodyDepth, (NotchMetrics.Curl + NotchMetrics.OrbArcRadius + NotchMetrics.OrbStroke / 2) * scale);
+        Width = Vertical ? outerDepth : bodyLength + NotchMetrics.ControlExtent * scale;
+        Height = Vertical ? bodyLength + NotchMetrics.ControlExtent * scale : outerDepth;
         var body = new Grid { Width = Vertical ? bodyDepth : bodyLength, Height = Vertical ? bodyLength : bodyDepth };
-        var shape = new NotchShape { Edge = config.Edge, Fill = Brushes.Black };
+        var shape = new NotchShape { Edge = config.Edge, DesignScale = scale, Fill = Brushes.Black };
         body.Children.Add(shape);
         var cells = new StackPanel { Orientation = Vertical ? Orientation.Vertical : Orientation.Horizontal };
         foreach (var id in config.EnabledProviders)
@@ -223,7 +231,7 @@ internal sealed class NotchWindow : Window
             CanContentScroll = false, Focusable = false, PanningMode = PanningMode.None,
             LayoutTransform = new ScaleTransform(scale, scale),
             Margin = Vertical ? new Thickness(0, (NotchMetrics.Curl + NotchMetrics.PadStart) * scale, 0, (NotchMetrics.Curl + NotchMetrics.PadEnd) * scale)
-                : new Thickness((NotchMetrics.Curl + NotchMetrics.PadStart) * scale, 0, (NotchMetrics.Curl + NotchMetrics.PadEnd) * scale, 0) };
+                : new Thickness((NotchMetrics.Curl + NotchMetrics.StartPadding(config.Edge)) * scale, 0, (NotchMetrics.Curl + NotchMetrics.EndPadding(config.Edge)) * scale, 0) };
         viewport.PreviewMouseWheel += (_, e) =>
         {
             if (Vertical) viewport.ScrollToVerticalOffset(viewport.VerticalOffset - e.Delta / 2d);
@@ -232,18 +240,9 @@ internal sealed class NotchWindow : Window
         };
         body.Children.Add(viewport); canvas.Children.Add(body);
         if (Vertical) Canvas.SetTop(body, bodyStart); else Canvas.SetLeft(body, bodyStart);
-        var controls = new StackPanel { Orientation = Vertical ? Orientation.Vertical : Orientation.Horizontal };
-        var gear = Control("\uE713", "Open Settings", () => openSettings(null));
-        var accounts = Control("\uE77B", "Switch account", OpenAccounts);
-        controls.Children.Add(gear); controls.Children.Add(accounts);
-        var capsule = new Border { Background = Brushes.Black, CornerRadius = new CornerRadius(NotchMetrics.Control / 2),
-            Padding = Vertical ? new Thickness(0, 4, 0, 4) : new Thickness(4, 0, 4, 0), Child = controls, LayoutTransform = new ScaleTransform(scale, scale) };
-        AutomationProperties.SetAutomationId(capsule, "notch.controls");
-        canvas.Children.Add(capsule);
-        var controlAlong = controlsFirst ? 4 * scale : bodyLength - 6 * scale;
-        var controlAcross = (bodyDepth - NotchMetrics.Control * scale) / 2;
-        Canvas.SetLeft(capsule, Vertical ? controlAcross : controlAlong);
-        Canvas.SetTop(capsule, Vertical ? controlAlong : controlAcross);
+        if (config.Edge == NotchEdge.Right) Canvas.SetLeft(body, outerDepth - bodyDepth);
+        if (config.Edge == NotchEdge.Bottom) Canvas.SetTop(body, outerDepth - bodyDepth);
+        if (config.EnabledProviders.Length > 0) RenderControls(canvas, controlsFirst);
         var menu = new ContextMenu();
         menu.Opened += (_, _) => { trackingMenu = true; foldTimer.Stop(); };
         menu.Closed += (_, _) => { trackingMenu = false; foldTimer.Start(); };
@@ -261,7 +260,9 @@ internal sealed class NotchWindow : Window
             FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = 20, Foreground = Brushes.White },
             Margin = new Thickness(0, 2, 0, 2), ToolTip = label };
         AutomationProperties.SetName(button, label);
-        button.MouseEnter += (_, _) => { if (!accountMenu) { hoverClear.Stop(); popup.IsOpen = false; hovered = null; } };
+        void ClearProviderCard() { if (!accountMenu) { hoverClear.Stop(); popup.IsOpen = false; hovered = null; } }
+        button.MouseEnter += (_, _) => ClearProviderCard();
+        button.GotKeyboardFocus += (_, _) => ClearProviderCard();
         button.Click += (_, _) => action(); return button;
     }
     private static void AddMenu(ContextMenu menu, string label, Action action)
@@ -286,7 +287,7 @@ internal sealed class NotchWindow : Window
         var scrollOffset = FindScroll(popup.Child)?.VerticalOffset ?? 0;
         var screen = SelectedScreen();
         var card = NotchPopover.Create(hovered, store, settings.Current, page => { popup.IsOpen = false; openSettings(page); }, screen.WorkingArea.Height / ScreenScale(screen));
-        AttachPopup(card); popup.Child = card;
+        AttachPopup(card); popupFrame.Child = card;
         card.Loaded += (_, _) => FindScroll(card)?.ScrollToVerticalOffset(scrollOffset);
     }
     private static ScrollViewer? FindScroll(DependencyObject? root)
@@ -299,14 +300,24 @@ internal sealed class NotchWindow : Window
     }
     private void AttachPopup(FrameworkElement child)
     {
-        child.PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { popup.IsOpen = false; hovered = null; Keyboard.ClearFocus(); foldTimer.Start(); e.Handled = true; } };
+        child.PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { DismissPopupFromKeyboard(); e.Handled = true; } };
         child.MouseEnter += (_, _) => { foldTimer.Stop(); hoverClear.Stop(); };
         child.MouseLeave += (_, _) => { foldTimer.Start(); if (!accountMenu) hoverClear.Start(); };
         child.LostKeyboardFocus += (_, _) => foldTimer.Start();
     }
+    private void DismissPopupFromKeyboard()
+    {
+        var returnToAccount = accountMenu && popup.IsOpen;
+        popup.IsOpen = false; hovered = null;
+        if (returnToAccount && accountControl is { IsVisible: true, IsEnabled: true } account) account.Focus();
+        else Keyboard.ClearFocus();
+        foldTimer.Start();
+    }
     internal void OpenAccounts()
     {
+        var openedFromKeyboard = accountControl?.IsKeyboardFocusWithin == true;
         popup.IsOpen = false; accountMenu = true; popup.StaysOpen = false; hoverClear.Stop(); foldTimer.Stop();
+        RevealControls();
         hovered = null; var list = new StackPanel { Margin = new Thickness(12) };
         list.Children.Add(NotchPopover.Text("Accounts", 14, Brushes.White, FontWeights.SemiBold));
         foreach (var id in settings.Current.EnabledProviders.Where(x => x != "ollama-local"))
@@ -336,20 +347,35 @@ internal sealed class NotchWindow : Window
         frame.Resources["ControlHover"] = Ui.Brush("#343434");
         frame.Resources["ControlBackground"] = Ui.Brush("#202020");
         frame.Resources["DividerBrush"] = Ui.Brush("#404040");
-        AttachPopup(frame); popup.Child = frame; popup.IsOpen = true;
+        KeyboardNavigation.SetTabNavigation(frame, KeyboardNavigationMode.Cycle);
+        // Pointer invocation keeps the editor active; keyboard invocation enters
+        // the menu after its native popup has been attached and measured.
+        if (openedFromKeyboard)
+            frame.Loaded += (_, _) =>
+            {
+                if (accountMenu && popup.IsOpen && ReferenceEquals(popupFrame.Child, frame))
+                    list.Children.OfType<Button>().FirstOrDefault()?.Focus();
+            };
+        AttachPopup(frame); popupFrame.Child = frame; popup.IsOpen = true;
     }
     private CustomPopupPlacement[] PlacePopup(Size popupSize, Size targetSize, Point offset)
     {
         var center = Vertical ? new Point(bodyDepth / 2, bodyStart + bodyLength / 2) : new Point(bodyStart + bodyLength / 2, bodyDepth / 2);
         if (hovered is not null && buttons.TryGetValue(hovered, out var button) && button.IsLoaded)
             center = button.TranslatePoint(new Point(button.ActualWidth / 2, NotchMetrics.Ring / 2), this);
-        var gap = NotchMetrics.TailGap;
+        // WPF supplies custom-placement sizes in device pixels. The native
+        // target origin is then added by Popup, so convert every relative DIP
+        // measurement before mixing it with popupSize/targetSize.
+        var transform = PresentationSource.FromVisual(this)?.CompositionTarget?.TransformToDevice ?? Matrix.Identity;
+        center = transform.Transform(center);
+        var gapX = NotchMetrics.TailGap * transform.M11;
+        var gapY = NotchMetrics.TailGap * transform.M22;
         var point = settings.Current.Edge switch
         {
-            NotchEdge.Right => new Point(-popupSize.Width - gap, center.Y - popupSize.Height / 2),
-            NotchEdge.Left => new Point(Width + gap, center.Y - popupSize.Height / 2),
-            NotchEdge.Top => new Point(center.X - popupSize.Width / 2, Height + gap),
-            _ => new Point(center.X - popupSize.Width / 2, -popupSize.Height - gap)
+            NotchEdge.Right => new Point(-popupSize.Width - gapX, center.Y - popupSize.Height / 2),
+            NotchEdge.Left => new Point(targetSize.Width + gapX, center.Y - popupSize.Height / 2),
+            NotchEdge.Top => new Point(center.X - popupSize.Width / 2, targetSize.Height + gapY),
+            _ => new Point(center.X - popupSize.Width / 2, -popupSize.Height - gapY)
         };
         return [new CustomPopupPlacement(point, Vertical ? PopupPrimaryAxis.Vertical : PopupPrimaryAxis.Horizontal)];
     }

@@ -52,7 +52,7 @@ internal sealed partial class DashboardWindow : Window
         Grid.SetColumn(scroll, 1); layout.Children.Add(scroll); Content = layout;
         sidebar.SelectionChanged += (_, _) => { if (!refreshingSidebar && sidebar.SelectedItem is ListBoxItem item && item.Tag is string id) Navigate(id); };
         settings.SettingsChanged += SettingsChanged; store.PropertyChanged += StoreChanged;
-        Closed += (_, _) => { settings.SettingsChanged -= SettingsChanged; store.PropertyChanged -= StoreChanged; };
+        Closed += (_, _) => { updateWindowClosed = true; CancelUpdateOperation(); settings.SettingsChanged -= SettingsChanged; store.PropertyChanged -= StoreChanged; };
         PreviewKeyDown += (_, e) =>
         {
             if (System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control))
@@ -159,6 +159,7 @@ internal sealed partial class DashboardWindow : Window
                 .Select(System.Windows.Automation.AutomationProperties.GetName).FirstOrDefault(x => !string.IsNullOrEmpty(x))
             : null;
         renderedPage = page;
+        CancelUpdateOperation(); updateViewRevision++;
         body.Children.Clear(); providerListDetails.Clear();
         body.Margin = page == "usage" ? new Thickness(0) : new Thickness(0, 6, 0, 28);
         switch (page)
@@ -454,7 +455,28 @@ internal sealed partial class DashboardWindow : Window
             foreach (var field in NativeProviders.Settings(id))
             {
                 var key = "setting:" + id + ":" + field.Key;
-                if (field.Key == "ALIBABA_TOKEN_PLAN_SOURCE")
+                if (field.Key == "ALIBABA_CODING_PLAN_SOURCE")
+                {
+                    var selected = ProviderConnections.AlibabaCodingSource(vault) == "web" ? "Web" : "API";
+                    body.Children.Add(SettingsUi.Picker("Usage source", AlibabaCodingSources, selected, value =>
+                    {
+                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
+                    }));
+                    body.Children.Add(Ui.Text("API keys and Web sessions stay separate. Web reads the selected region's Coding Plan quotas.", 11, "#A6A6AA"));
+                }
+                else if (field.Key == "ALIBABA_CODING_PLAN_REGION")
+                {
+                    var selected = ProviderConnections.AlibabaCodingRegion(vault) == "cn" ? "China" : "International";
+                    body.Children.Add(SettingsUi.Picker("Region", MoonshotRegions, selected, value =>
+                    {
+                        try { vault.Save(key, value == "China" ? "cn" : "intl"); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
+                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                        { MessageBox.Show(this, "Could not save the region.", "CodeRim"); }
+                    }));
+                }
+                else if (field.Key == "ALIBABA_TOKEN_PLAN_SOURCE")
                 {
                     var selected = ProviderConnections.AlibabaSource(vault) switch { "cli" => "CLI", "web" => "Web", _ => "Auto" };
                     body.Children.Add(SettingsUi.Picker("Usage source", AlibabaSources, selected, value =>
@@ -614,7 +636,31 @@ internal sealed partial class DashboardWindow : Window
             {
                 var source = KimiAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "KIMI_USAGE_SOURCE"));
                 if (source is "auto" or "api") { body.Children.Add(Ui.Text("Kimi Code API key")); AddSecretField("provider:kimi", id, "Save API key"); }
-                if (source is "auto" or "web") { body.Children.Add(Ui.Text("Kimi Web session token or cookie")); AddSecretField("cookie:kimi", id, "Save Web session"); }
+                if (source is "auto" or "web")
+                {
+                    var desktop = vault.Load(KimiDesktopConnection.StorageKey);
+                    if (desktop is null) { body.Children.Add(Ui.Text("Kimi Web session token or cookie")); AddSecretField("cookie:kimi", id, "Save Web session"); }
+                    else
+                    {
+                        body.Children.Add(Ui.Text("Web session: Kimi Desktop", 12));
+                        body.Children.Add(Ui.Text("The selected Desktop sign-in is read again on each refresh.", 11, "#A6A6AA"));
+                        body.Children.Add(Ui.Button("Use saved Web session", () =>
+                        {
+                            try { vault.Delete(KimiDesktopConnection.StorageKey); store.InvalidateAccount(id); Render(); _ = store.RefreshProviderAsync(id); }
+                            catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                            { MessageBox.Show(this, "Could not change the Kimi connection.", "CodeRim"); }
+                        }));
+                    }
+                    body.Children.Add(Ui.Button(desktop is null ? "Connect Kimi Desktop…" : "Change Desktop connection…",
+                        () => KimiDesktopConnection.Import(this, vault, () => { store.InvalidateAccount(id); Render(); _ = store.RefreshProviderAsync(id); })));
+                }
+            }
+            else if (id == "alibaba")
+            {
+                if (ProviderConnections.AlibabaCodingSource(vault) == "api")
+                { body.Children.Add(Ui.Text("Alibaba Coding Plan API key")); AddSecretField("provider:alibaba", id, "Save API key"); }
+                else if (ProviderConnections.AlibabaCodingRegion(vault) is not null)
+                { body.Children.Add(Ui.Text("Coding Plan Web session cookie")); AddSecretField(ProviderConnections.AlibabaCodingWebKey(vault), id, "Save Web session"); }
             }
             else if (id == "alibabatokenplan")
             {
@@ -651,10 +697,11 @@ internal sealed partial class DashboardWindow : Window
             else if (id != "wayfinder" && (id != "gemini" || AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, "ANTIGRAVITY_USAGE_SOURCE")) == "oauth")) { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
         }
         else if (!HasConnector(id)) body.Children.Add(Ui.Text("This provider's Windows integration is still pending. Adding it does not create a live connection.", color: "#F2C66D"));
-        if (BrowserConnections.Domains(id).Length > 0 && (id != "alibabatokenplan" || ProviderConnections.AlibabaSource(vault) is "auto" or "web") && (id != "minimax" || MiniMaxAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "MINIMAX_USAGE_SOURCE")) is "auto" or "web") && (id != "stepfun" || StepFunAuthentication.Mode(ProviderConnections.EffectiveSetting(vault, id, "STEPFUN_AUTH_MODE")) == "auto") && (id != "kimi" || KimiAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "KIMI_USAGE_SOURCE")) is "auto" or "web") && (id != "amp" || AmpCliUsage.Source(ProviderConnections.EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE")) == "web"))
+        AddChromiumConnection(id);
+        if (BrowserConnections.Domains(id).Length > 0 && (id != "alibaba" || ProviderConnections.AlibabaCodingSource(vault) == "web" && ProviderConnections.AlibabaCodingRegion(vault) is not null) && (id != "alibabatokenplan" || ProviderConnections.AlibabaSource(vault) is "auto" or "web") && (id != "minimax" || MiniMaxAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "MINIMAX_USAGE_SOURCE")) is "auto" or "web") && (id != "stepfun" || StepFunAuthentication.Mode(ProviderConnections.EffectiveSetting(vault, id, "STEPFUN_AUTH_MODE")) == "auto") && (id != "kimi" || vault.Load(KimiDesktopConnection.StorageKey) is null && KimiAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "KIMI_USAGE_SOURCE")) is "auto" or "web") && (id != "amp" || AmpCliUsage.Source(ProviderConnections.EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE")) == "web"))
         {
             body.Children.Add(Ui.Button("Import from Firefox…", () => BrowserConnections.Import(this, id, vault, settings.Current, () =>
-            { store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); })));
+            { ClearChromiumForBrowser(id); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); })));
             body.Children.Add(Ui.Button("Remove imported sign-in", () =>
             {
                 try { vault.Delete(BrowserConnections.StorageKey(id, vault)); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
@@ -679,6 +726,7 @@ internal sealed partial class DashboardWindow : Window
                 child.Margin = new Thickness(18, child.Margin.Top, 18, child.Margin.Bottom);
         UpdateProviderControlStates();
     }
+    private static readonly string[] AlibabaCodingSources = ["API", "Web"];
     private static readonly string[] DeepSeekSources = ["Auto", "API", "Web"];
     private static readonly string[] MoonshotRegions = ["International", "China"];
     private static readonly string[] AntigravitySources = ["OAuth", "Local IDE"];
@@ -739,7 +787,7 @@ internal sealed partial class DashboardWindow : Window
             if (key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password.Length == 0 : string.IsNullOrWhiteSpace(password.Password)) return;
             if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal) && MiniMaxAuthentication.Parse(password.Password, key.Split(':')[^1]) is null)
             { result.Text = "Enter a valid cookie or copied request for this region."; return; }
-            try { vault.Save(key, key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password : password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal)) vault.Delete("browser:minimax:" + key.Split(':')[^1]); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
+            try { vault.Save(key, key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password : password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal)) vault.Delete("browser:minimax:" + key.Split(':')[^1]); ClearChromiumForManual(id, key); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { result.Text = "Could not save the setting."; }
         }));
         body.Children.Add(Ui.Button("Remove saved value", () =>
@@ -789,23 +837,7 @@ internal sealed partial class DashboardWindow : Window
             SettingsUi.Value("Platform", "Windows · " + UpdateNotifications.Architecture),
             SettingsUi.Value("Data scope", "Local history + optional account limits"),
             SettingsUi.Value("Privacy", "Local numeric history; encrypted credentials")));
-        var updateStatus = Ui.Text("", 12, "#A6A6AA");
-        var checkUpdate = Ui.AsyncButton("Check for updates", async () =>
-        {
-            updateStatus.Text = "Checking…";
-            try
-            {
-                var update = await ReleaseUpdates.CheckAsync(UpdateNotifications.Architecture).ConfigureAwait(true);
-                updateStatus.Text = update.IsNewer ? "CodeRim " + update.Version + " is available." : "You are using the latest Windows release.";
-                if (update.IsNewer && MessageBox.Show(this, "Download CodeRim " + update.Version + " for Windows?", "CodeRim update", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
-                    OpenUrl(update.Download.AbsoluteUri);
-            }
-            catch (Exception error) when (error is not OutOfMemoryException) { updateStatus.Text = "Could not check Windows updates. Try again or open the releases page."; }
-        });
-        checkUpdate.HorizontalAlignment = HorizontalAlignment.Left; checkUpdate.Margin = new Thickness(14, 9, 14, 9);
-        body.Children.Add(SettingsUi.Section("Updates", checkUpdate));
-        updateStatus.Margin = new Thickness(32, 6, 32, 0); body.Children.Add(updateStatus);
-        body.Children.Add(SettingsUi.Note("Checks GitHub releases. Token usage data is never sent. Installation is manual."));
+        AddUpdateSection();
         body.Children.Add(SettingsUi.Section("Project",
             SettingsUi.Action("Open Source on GitHub", () => OpenUrl("https://github.com/dlfkdLR/CodeRim")),
             SettingsUi.Action("View Releases", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/releases")),

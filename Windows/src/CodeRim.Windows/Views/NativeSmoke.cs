@@ -258,6 +258,10 @@ internal static partial class NativeSmoke
         Record("Alibaba CLI/Web/Auto preserves prior Web accounts, regional quota, volatile CLI data and actual native controls");
         await MiniMaxConnectionRegression(dashboard, settings, vault, directory);
         Record("MiniMax API/Web and Global/China credentials remain separate through native controls and browser import");
+        await AlibabaCodingSourceRegression(settings, vault, directory);
+        await ChromiumConnectionRegression(settings, vault, directory);
+        await FactoryRotationStoreRegression(settings, vault, directory);
+        Record("Alibaba Coding Plan regional API/Web credentials, quota and import stay separate through native controls");
         await DeepSeekSourceRegression(settings, vault, directory);
         Record("DeepSeek API and platform credentials stay separate through native source switching");
         await AdditionalAuthenticationViews(settings, vault, directory);
@@ -454,6 +458,8 @@ internal static partial class NativeSmoke
             Capture(notch, Path.Combine(directory, $"windows-notch-{edge}-{scale:0.00}.png"));
             notch.OpenProvider("codex"); await Idle();
             Require(notch.PopupContent is { ActualWidth: > 0, ActualHeight: > 0 }, "Provider popup did not open");
+            notch.OpenProvider("codex"); await Idle();
+            RequirePopupClearOfNotch(notch, edge + "/" + scale);
             Require(Descendants<TextBlock>(notch.PopupContent!).Count(x => x.Text.Contains("2 resets", StringComparison.Ordinal)) == 1,
                 "Reset credit balance was duplicated in the popup");
             if (scale == 1) Capture(notch.PopupContent!, Path.Combine(directory, "windows-popup-" + edge + ".png"));
@@ -496,9 +502,17 @@ internal static partial class NativeSmoke
         var targetHandle = WindowAtPoint(new PointerPoint { X = pointer.X, Y = pointer.Y });
         var notchHandle = new System.Windows.Interop.WindowInteropHelper(notch).Handle;
         var reachedNotch = pointerMoved && Math.Abs(pointer.X - gearPoint.X) <= 1 && Math.Abs(pointer.Y - gearPoint.Y) <= 1 && targetHandle == notchHandle;
+        var popupHandle = notch.PopupContent is { } shownPopup
+            && PresentationSource.FromVisual(shownPopup) is System.Windows.Interop.HwndSource popupSourceAtHover
+            ? popupSourceAtHover.Handle : IntPtr.Zero;
         File.WriteAllText(Path.Combine(directory, "windows-pointer-input.json"), JsonSerializer.Serialize(new {
             requested = new { gearPoint.X, gearPoint.Y }, observed = new { pointer.X, pointer.Y },
-            target = PointerOwner(targetHandle), moveSucceeded = pointerMoved, moveWin32Error = pointerError, hitNotchWindow = targetHandle == notchHandle,
+            target = PointerOwner(targetHandle), targetWindow = PointerWindow(targetHandle),
+            notchWindow = PointerWindow(notchHandle), popupWindow = PointerWindow(popupHandle),
+            hitOwnPopup = popupHandle != IntPtr.Zero && targetHandle == popupHandle,
+            notchSize = new { notch.Width, notch.Height, notch.ActualWidth, notch.ActualHeight },
+            gearSize = new { gear.ActualWidth, gear.ActualHeight }, popupOpen = notch.PopupIsOpen,
+            moveSucceeded = pointerMoved, moveWin32Error = pointerError, hitNotchWindow = targetHandle == notchHandle,
             gear.IsMouseOver, realHoverVerified = reachedNotch && gear.IsMouseOver,
             outcome = reachedNotch ? gear.IsMouseOver ? "PASS" : "FAIL" : "INCONCLUSIVE"
         }, JsonOptions));
@@ -513,6 +527,11 @@ internal static partial class NativeSmoke
             await Idle();
         }
         Require(!notch.PopupIsOpen, "Provider card remains open over notch controls");
+        Require(notch.ControlsRevealed, "Hover did not reveal the macOS-style settings/account rail");
+        Require(Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetName(x) == "Switch account").IsVisible,
+            "Revealed settings rail has no reachable account control");
+        Capture(notch, Path.Combine(directory, "windows-notch-controls-revealed.png"));
+        Record("Resting settings arc reveals the settings/account rail on hover");
         Require(notch.Expanded, "Clearing provider hover unexpectedly folded always-visible notch");
         Record("Leaving provider ring for controls clears card independently of notch visibility");
         notch.OpenAccounts(); await Idle();
@@ -526,10 +545,22 @@ internal static partial class NativeSmoke
         await Idle(); Require(!notch.PopupIsOpen, "Escape did not dismiss account menu");
         Record("Account menu persists until explicit dismissal and Escape closes it");
         Record("Account popup shows provider logo, plan and isolated current identity");
+        var keyboardProviders = settings.Current.EnabledProviders;
+        try
+        {
+            Require(store.Synthetic, "Keyboard fixture requires synthetic provider data");
+            settings.Save(settings.Current with { EnabledProviders = ["codex", "claude"] }); await Idle();
+            await CheckNotchKeyboardAccounts(notch, directory);
+        }
+        finally { settings.Save(settings.Current with { EnabledProviders = keyboardProviders }); await Idle(); }
+        Record("Keyboard traversal enters account menu, cycles rows, and Escape restores the trigger");
         settings.Save(settings.Current with { Edge = NotchEdge.Right, Scale = 1.25, EnabledProviders = ProviderCatalog.All.Select(x => x.Id).ToArray() });
         await store.RefreshAsync(true).ConfigureAwait(true); await Idle();
         var many = Descendants<ScrollViewer>(notch).Single();
         Require(many.ScrollableHeight > 0, "Many-provider notch cannot scroll");
+        var nativeWheel = await CheckNativeWheel(notch, many, directory);
+        Record(nativeWheel ? "Native mouse wheel scrolls providers through the Windows input queue"
+            : "Native mouse wheel inconclusive; see windows-wheel-input.json");
         many.ScrollToEnd(); await Idle();
         Require(many.VerticalOffset > 0, "Cannot reach last provider");
         Capture(notch, Path.Combine(directory, "windows-notch-many.png")); Record("All providers reachable with hidden scroll chrome");

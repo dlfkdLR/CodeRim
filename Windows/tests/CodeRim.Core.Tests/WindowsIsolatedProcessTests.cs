@@ -14,7 +14,21 @@ public sealed class WindowsIsolatedProcessTests : IDisposable
     private readonly string root = Path.Combine(AppContext.BaseDirectory, "TestResults", "isolated command " + Guid.NewGuid().ToString("N"));
     private bool completed;
     private static string Executable => Path.Combine(AppContext.BaseDirectory, "ProcessFixture", "CodeRim.ProcessFixture.exe");
-    public void Dispose() { if (completed && Directory.Exists(root)) Directory.Delete(root, true); }
+    public void Dispose()
+    {
+        if (!completed) return; // Preserve a failed test's evidence.
+        var clock = Stopwatch.StartNew();
+        while (Directory.Exists(root))
+        {
+            try { Directory.Delete(root, true); return; }
+            catch (IOException) when (clock.Elapsed < TimeSpan.FromSeconds(2))
+            {
+                // Windows can retain a terminating descendant's file handle briefly
+                // after its process has exited. Persistent cleanup errors still fail.
+                Thread.Sleep(20);
+            }
+        }
+    }
     private Dictionary<string, string?> EnvironmentForChild() => new()
     {
         ["SystemRoot"] = Environment.GetEnvironmentVariable("SystemRoot"), ["WINDIR"] = Environment.GetEnvironmentVariable("WINDIR"),

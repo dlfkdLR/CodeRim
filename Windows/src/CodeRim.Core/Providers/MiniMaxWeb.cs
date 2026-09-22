@@ -134,6 +134,7 @@ public sealed partial class NativeProviders
         if (credential is null || MiniMaxAuthentication.Parse(credential.Cookie, credential.Region) is null
             || MiniMaxAuthentication.Parse(credential.Cookie, credential.Region)?.Group is { } cookieGroup && cookieGroup != credential.Group
             || credential.BrowserState is not null && credential.Bearer is not null && credential.Bearer != MiniMaxSession(credential.Cookie)
+                && credential.ImportedTupleFingerprint != ChromiumProviderAuthentication.MiniMaxFingerprint(credential)
             || credential.Bearer is not null && KimiAuthentication.Clean(credential.Bearer) != credential.Bearer
             || credential.Group is not null && (credential.Group.Length is 0 or > 256 || credential.Group.Any(c => !char.IsAsciiLetterOrDigit(c) && c is not '_' and not '-')))
             return new("minimax", ReadingState.NeedsAuth, [], Message: "Save a MiniMax Web session for the selected region.");

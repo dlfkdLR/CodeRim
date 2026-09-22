@@ -16,8 +16,8 @@ public sealed partial class NativeProviders
         try { profile = FactoryWorkOsProfile.Parse(credential); }
         catch (Exception error) when (error is InvalidDataException or JsonException)
         { return new("factory", ReadingState.NeedsAuth, [], Message: "Enter a valid Factory session JSON or reconnect."); }
-        if (retryAfter.TryGetValue("factory", out var retry) && retry > DateTimeOffset.Now)
-            return new("factory", ReadingState.Unavailable, [], Message: "Provider rate limit reached. Waiting before retrying.");
+        token.ThrowIfCancellationRequested();
+        foreach (var expired in retryAfter.Where(pair => pair.Value <= DateTimeOffset.Now)) retryAfter.TryRemove(expired.Key, out _);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(45));
         try
         {
@@ -48,14 +48,20 @@ public sealed partial class NativeProviders
         var clients = profile.ClientId is { } selected ? new[] { selected } : FactoryWorkOsProfile.ClientIds;
         for (var index = 0; index < clients.Count; index++)
         {
-            using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.workos.com/user_management/authenticate");
+            token.ThrowIfCancellationRequested();
+            const string endpoint = "https://api.workos.com/user_management/authenticate";
+            var scope = ProviderRetryScope.Create("factory", profile.RefreshToken, endpoint,
+                new { profile.OrganizationId, ClientId = clients[index] });
+            if (retryAfter.TryGetValue(scope, out var retry) && retry > DateTimeOffset.Now)
+                throw new ProviderRequestException(HttpStatusCode.TooManyRequests);
+            using var request = new HttpRequestMessage(HttpMethod.Post, endpoint);
             request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
             var body = new Dictionary<string, string> { ["client_id"] = clients[index], ["grant_type"] = "refresh_token", ["refresh_token"] = profile.RefreshToken! };
             if (profile.OrganizationId is not null) body["organization_id"] = profile.OrganizationId;
             request.Content = new StringContent(JsonSerializer.Serialize(body), Encoding.UTF8, "application/json");
             using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
             if (response.StatusCode == HttpStatusCode.TooManyRequests)
-                retryAfter["factory"] = response.Headers.RetryAfter?.Date ?? DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(1));
+                retryAfter[scope] = response.Headers.RetryAfter?.Date ?? DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(1));
             if (!response.IsSuccessStatusCode)
             {
                 // Only rejected public-client combinations try the other pinned Factory client.

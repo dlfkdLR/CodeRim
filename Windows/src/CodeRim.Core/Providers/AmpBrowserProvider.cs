@@ -7,8 +7,8 @@ public sealed partial class NativeProviders
     private static readonly Uri AmpSettingsUri = new("https://ampcode.com/settings");
     public async Task<ProviderReading> FetchAmpBrowserAsync(string? credential, Func<Uri, string?>? cookies = null, CancellationToken token = default)
     {
-        if (retryAfter.TryGetValue("amp", out var retry) && retry > DateTimeOffset.Now)
-            return new("amp", ReadingState.Unavailable, [], Message: "Provider rate limit reached. Waiting before retrying.");
+        token.ThrowIfCancellationRequested();
+        foreach (var expired in retryAfter.Where(pair => pair.Value <= DateTimeOffset.Now)) retryAfter.TryRemove(expired.Key, out _);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(20));
         try
         {
@@ -19,6 +19,10 @@ public sealed partial class NativeProviders
                 if (!visited.Add(uri.AbsoluteUri)) throw new InvalidDataException("Amp redirected repeatedly.");
                 var raw = cookies is null ? credential : cookies(uri);
                 var cookie = AmpSessionCookie(raw);
+                // A redirected path may select a different host/path-scoped browser cookie.
+                var scope = ProviderRetryScope.Create("amp", cookie, uri.AbsoluteUri);
+                if (retryAfter.TryGetValue(scope, out var retry) && retry > DateTimeOffset.Now)
+                    throw new ProviderRequestException(HttpStatusCode.TooManyRequests);
                 using var request = new HttpRequestMessage(HttpMethod.Get, uri);
                 request.Headers.TryAddWithoutValidation("Cookie", cookie);
                 request.Headers.Accept.ParseAdd("text/html,application/xhtml+xml");
@@ -28,7 +32,7 @@ public sealed partial class NativeProviders
                 request.Headers.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/132.0.0.0 Safari/537.36");
                 using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, deadline.Token).ConfigureAwait(false);
                 if (response.StatusCode == HttpStatusCode.TooManyRequests)
-                    retryAfter["amp"] = response.Headers.RetryAfter?.Date ?? DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(1));
+                    retryAfter[scope] = response.Headers.RetryAfter?.Date ?? DateTimeOffset.Now + (response.Headers.RetryAfter?.Delta ?? TimeSpan.FromMinutes(1));
                 if ((int)response.StatusCode is >= 300 and < 400)
                 {
                     var location = response.Headers.Location;

@@ -23,12 +23,12 @@ with tempfile.TemporaryDirectory(prefix="coderim-cli-review-") as directory:
              "limits": {"id": "codex", "state": "ready", "windows": [], "updatedAt": now.isoformat()}}]}
         path.write_text(json.dumps(snapshot), encoding="utf-8")
         args = runner + ["tokens", "--snapshot", str(path)]
-        text = subprocess.run(args, check=True, capture_output=True, text=True, timeout=10).stdout
+        text = subprocess.run(args, check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
         assert "partial" in text and "110 tokens" in text, text
         if age:
             assert "stale" in text, text
         structured = json.loads(subprocess.run(args + ["--format", "json"], check=True,
-                                               capture_output=True, text=True, timeout=10).stdout)
+                                               capture_output=True, text=True, encoding="utf-8", timeout=10).stdout)
         assert structured["providers"][0]["localUsage"]["state"] == "partial"
 print("PASS: CLI preserves partial quality in fresh/stale text and JSON (4 process checks)")
 
@@ -42,7 +42,7 @@ with tempfile.TemporaryDirectory(prefix="coderim-cli-units-") as directory:
                                  "displayValue": "$123.45", "durationMinutes": 0}]}}]}
     path.write_text(json.dumps(snapshot), encoding="utf-8")
     output = subprocess.run(runner + ["limits", "--snapshot", str(path)],
-                            check=True, capture_output=True, text=True, timeout=10).stdout
+                            check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
     assert "25% used" in output and "$123.45" in output, output
 print("PASS: CLI retains the original currency alongside a reported percentage")
 
@@ -62,7 +62,7 @@ with tempfile.TemporaryDirectory(prefix="coderim-claude-review-") as directory:
             "accountUuid": "account-" + name}}), encoding="utf-8")
     def invoke(command, session):
         payload = json.dumps({"session_id": session, "rate_limits": {"five_hour": {"used_percentage": 53}}})
-        result = subprocess.run(runner + [command], input=payload, capture_output=True, text=True,
+        result = subprocess.run(runner + [command], input=payload, capture_output=True, text=True, encoding="utf-8",
                                 timeout=15, env=env, check=True)
         return result.stdout
     snapshot = output / "claude-limits.json"
@@ -84,3 +84,28 @@ with tempfile.TemporaryDirectory(prefix="coderim-claude-review-") as directory:
     invoke("claude-status", "B-session")
     assert snapshot.read_bytes() == current, "Unknown login replaced account quota"
 print("PASS: CLI session bindings reject cross-account and unknown-account writes")
+
+
+# Redirected text must not depend on the Windows console code page, and JSON
+# input/output must retain identities outside that code page.
+with tempfile.TemporaryDirectory(prefix="coderim-cli-unicode-") as directory:
+    path = pathlib.Path(directory) / "snapshot.json"
+    timestamp = now.isoformat()
+    name = "테스트 日本語 🧪"
+    label = "한도 🧮"
+    value = "余额 € 12.50"
+    snapshot = {"schemaVersion": 1, "generatedAt": timestamp, "providers": [
+        {"id": "codex", "name": name, "enabled": True,
+         "limits": {"id": "codex", "state": "ready", "updatedAt": timestamp,
+                    "windows": [{"id": "unicode", "name": label, "displayValue": value, "durationMinutes": 0}]}}]}
+    path.write_text(json.dumps(snapshot, ensure_ascii=False), encoding="utf-8")
+    raw = subprocess.run(runner + ["usage", "--snapshot", str(path)], check=True,
+                         capture_output=True, timeout=10).stdout
+    assert not raw.startswith(b"\\xef\\xbb\\xbf"), "Redirected output unexpectedly has a UTF-8 BOM"
+    text = raw.decode("utf-8", errors="strict")
+    assert name in text and label in text and value in text, text
+    data = json.loads(subprocess.run(runner + ["limits", "--snapshot", str(path), "--format", "json"],
+                                    check=True, capture_output=True, timeout=10).stdout.decode("utf-8", errors="strict"))
+    assert data["providers"][0]["name"] == name
+    assert data["providers"][0]["limits"]["windows"][0]["displayValue"] == value
+print("PASS: CLI redirected text and JSON preserve Korean, Japanese, emoji and currency as BOM-free UTF-8")

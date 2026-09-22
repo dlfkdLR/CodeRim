@@ -11,10 +11,11 @@ enum BoundedHTTP {
     static func data(
         for request: URLRequest,
         on session: URLSession,
-        maximumBytes: Int = defaultMaximumBytes
+        maximumBytes: Int = defaultMaximumBytes,
+        rejectRedirects: Bool = false
     ) async throws -> (Data, URLResponse) {
         guard maximumBytes >= 0 else { throw NotchProviderError.responseTooLarge }
-        let reader = ResponseSizeLimit(maximumBytes: maximumBytes)
+        let reader = ResponseSizeLimit(maximumBytes: maximumBytes, rejectRedirects: rejectRedirects)
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 let task = session.dataTask(with: request)
@@ -62,9 +63,13 @@ private final class ResponseSizeLimit: NSObject, URLSessionDataDelegate, @unchec
         var cancelled = false
     }
     private let maximumBytes: Int
+    private let rejectRedirects: Bool
     private let state = OSAllocatedUnfairLock(initialState: State())
 
-    init(maximumBytes: Int) { self.maximumBytes = maximumBytes }
+    init(maximumBytes: Int, rejectRedirects: Bool) {
+        self.maximumBytes = maximumBytes
+        self.rejectRedirects = rejectRedirects
+    }
 
     func start(_ task: URLSessionDataTask,
                continuation: CheckedContinuation<(Data, URLResponse), Error>) {
@@ -101,6 +106,9 @@ private final class ResponseSizeLimit: NSObject, URLSessionDataDelegate, @unchec
     func urlSession(_ session: URLSession, task: URLSessionTask,
                     willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest) async -> URLRequest? {
+        // Header stripping cannot protect a refresh token in a POST body or a
+        // cookie scoped to the original path. Fixed-endpoint callers opt out.
+        guard !rejectRedirects else { return nil }
         guard let original = task.originalRequest else { return request }
         return BoundedHTTP.redirect(from: original, to: request)
     }

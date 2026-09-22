@@ -73,7 +73,8 @@ internal static partial class NativeSmoke
             {
                 await store.RefreshProviderAsync("deepseek"); await Idle();
                 Require(Descendants<TextBlock>(window).Any(text => text.Text.Contains("12.50 USD", StringComparison.Ordinal))
-                    && !store.Readings["deepseek"].Windows.Any(limit => limit.UsedPercent.HasValue), "Platform money became synthetic quota.");
+                    && Descendants<TextBlock>(window).Any(text => text.Text.Contains("Paid: 12.50 USD / Granted: 0.00 USD", StringComparison.Ordinal))
+                    && !store.Readings["deepseek"].Windows.Any(limit => limit.UsedPercent.HasValue), "Platform money lost balance components or became synthetic quota.");
                 Require(Descendants<PasswordBox>(window).Count() == 1, "Web exposes an unrelated API key field.");
                 Capture(window, Path.Combine(directory, "windows-deepseek-web.png"));
                 var priorScope = connection.Scope("deepseek");

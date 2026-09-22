@@ -52,56 +52,10 @@ public sealed partial class NativeProviders
             foreach (var nested in ExpandedContexts(parsed, depth + 1)) yield return nested;
         }
     }
-    private static readonly string[] AlibabaPlanKeys = ["planName", "plan_name", "packageName", "package_name"];
-    private static int AlibabaActive(JsonElement value)
-    {
-        var status = (Text(value, "status") ?? Text(value, "instanceStatus"))?.ToUpperInvariant();
-        if (status is "ACTIVE" or "VALID") return 3;
-        if (status is "EXPIRED" or "INVALID" or "INACTIVE" or "DISABLED" or "TERMINATED" or "STOPPED") return -1;
-        var active = Get(value, "isActive"); if (active.ValueKind == JsonValueKind.Undefined) active = Get(value, "active");
-        if (active.ValueKind is JsonValueKind.String or JsonValueKind.Number)
-        {
-            var raw = active.ValueKind == JsonValueKind.String ? active.GetString()?.Trim().ToLowerInvariant() : active.GetRawText();
-            if (raw is "true" or "1" or "yes") return 3;
-            if (raw is "false" or "0" or "no") return -1;
-        }
-        if (active.ValueKind == JsonValueKind.True) return 3;
-        if (active.ValueKind == JsonValueKind.False) return -1;
-        return (EpochDate(value, "endTime") ?? EpochDate(value, "periodEndTime") ?? EpochDate(value, "expireTime") ?? EpochDate(value, "expirationTime")) > DateTimeOffset.UtcNow ? 1 : 0;
-    }
     private static ProviderReading ParseAlibaba(JsonElement root)
     {
-        var contexts = ExpandedContexts(root).ToArray();
-        foreach (var context in contexts)
-        {
-            var code = Numeric(context, "statusCode") ?? Numeric(context, "status_code") ?? Numeric(context, "code");
-            var message = (Text(context, "statusMessage") ?? Text(context, "status_msg") ?? Text(context, "message") ?? Text(context, "msg") ?? Text(context, "code") ?? "").ToLowerInvariant();
-            if (code is 401 or 403 || message.Contains("login", StringComparison.Ordinal) || message.Contains("log in", StringComparison.Ordinal)
-                || message.Contains("unauthorized", StringComparison.Ordinal) || message.Contains("console session", StringComparison.Ordinal))
-                throw new ProviderRequestException(HttpStatusCode.Unauthorized);
-            if (code.HasValue && code is not 0 and not 200 && message.Contains("api key", StringComparison.Ordinal)) throw new ProviderRequestException(HttpStatusCode.Unauthorized);
-            if (code.HasValue && code is not 0 and not 200) throw new InvalidDataException("Alibaba rejected the quota request.");
-        }
-        var instances = contexts.Select(x => AlibabaDecoded(Get(x, "codingPlanInstanceInfos")).ValueKind == JsonValueKind.Array ? AlibabaDecoded(Get(x, "codingPlanInstanceInfos")) : AlibabaDecoded(Get(x, "coding_plan_instance_infos"))).FirstOrDefault(x => x.ValueKind == JsonValueKind.Array);
-        var selected = instances.ValueKind == JsonValueKind.Array ? instances.EnumerateArray().Where(x => x.ValueKind == JsonValueKind.Object).OrderByDescending(AlibabaActive).FirstOrDefault() : default;
-        var sources = selected.ValueKind == JsonValueKind.Object ? ExpandedContexts(selected).ToArray() : contexts;
-        bool Quota(JsonElement x) => x.EnumerateObject().Any(p => p.Name.StartsWith("per", StringComparison.Ordinal) && (p.Name.EndsWith("UsedQuota", StringComparison.Ordinal) || p.Name.EndsWith("TotalQuota", StringComparison.Ordinal)));
-        var quota = sources.FirstOrDefault(Quota);
-        // An active selected instance must never borrow another subscription's quota.
-        if (quota.ValueKind == JsonValueKind.Undefined && !(instances.ValueKind == JsonValueKind.Array && instances.GetArrayLength() > 1 && AlibabaActive(selected) > 0)) quota = contexts.FirstOrDefault(Quota);
-        var plan = sources.Select(x => FirstText(x, AlibabaPlanKeys)).FirstOrDefault(x => x is not null);
-        var windows = new List<LimitWindow>();
-        void Add(string id, string label, int minutes, string prefix, string? alias = null)
-        {
-            var used = Numeric(quota, prefix + "UsedQuota") ?? (alias is null ? null : Numeric(quota, alias + "UsedQuota"));
-            var limit = Numeric(quota, prefix + "TotalQuota") ?? (alias is null ? null : Numeric(quota, alias + "TotalQuota"));
-            var reset = EpochDate(quota, prefix + "QuotaNextRefreshTime") ?? (alias is null ? null : EpochDate(quota, alias + "QuotaNextRefreshTime"));
-            if (used is not >= 0 || limit is not > 0) return;
-            windows.Add(new(id, label, Math.Clamp(used.Value / limit.Value * 100, 0, 100), reset, minutes,
-                Unit: "requests", DisplayValue: $"{used:N0} / {limit:N0} requests"));
-        }
-        Add("five-hour", "5-hour limit", 300, "per5Hour", "perFiveHour"); Add("weekly", "Weekly limit", 10080, "perWeek"); Add("monthly", "Monthly limit", 0, "perBillMonth", "perMonth");
-        var reading = Metered("alibaba", windows, plan);
-        return windows.Count == 0 && AlibabaActive(selected) > 0 ? reading with { Message = "The plan is active, but no quota counters were returned." } : reading;
+        var reading = AlibabaCodingPlanUsage.Parse(root);
+        if (reading.State == ReadingState.NeedsAuth) throw new ProviderRequestException(HttpStatusCode.Unauthorized);
+        return reading;
     }
 }
