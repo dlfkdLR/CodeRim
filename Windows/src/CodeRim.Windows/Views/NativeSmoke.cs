@@ -37,6 +37,8 @@ internal static partial class NativeSmoke
             os = System.Runtime.InteropServices.RuntimeInformation.OSDescription
         }, JsonOptions));
         Require(store.Synthetic, "Smoke must use synthetic data");
+        Require(typeof(ReleaseUpdates).Assembly.GetType("CodeRim.Core.Services.MsiUpdateQa") is null, "QA updater entry leaked into the release binary");
+        Record("Release assembly excludes the conditional MSI QA entry");
         var worker = Path.Combine(AppContext.BaseDirectory, "CodeRim.UpdateWorker.exe");
         if (File.Exists(worker))
         {

@@ -73,6 +73,10 @@ try {
     $current=Join-Path $windowsRoot "artifacts\publish\win-$Architecture"
     $failedMsi=Join-Path $qa 'failure.msi';Build-Fixture $version $current $failureTemplate $failedMsi
     [void](Invoke-Msi @('/i',('"'+$failedMsi+'"'),'LAUNCHAPP=0') $false)
+    $rollbackLog=Get-Content (Join-Path $repo "Artifacts/windows-msi-$Architecture-$script:logIndex.log") -Raw
+    foreach($required in @('Intentional QA rollback fixture','Action start [^\r\n]*: QaFail\.','Action ended [^\r\n]*: InstallExecute\. Return value 1\.','Action start [^\r\n]*: InstallFiles\.','Action start [^\r\n]*: RemoveExistingProducts\.','Rollback:')) {
+        if($rollbackLog -notmatch $required){throw "Rollback fixture did not reach the expected transaction stage: $required"}
+    }
     Compare-State $before (Product-State);$results.Add('injected-upgrade-failure-restores-binaries-registration-path-shortcut')
     [void](Invoke-Msi @('/i',('"'+$Installer+'"'),'LAUNCHAPP=0'))
     $after=Product-State
@@ -80,7 +84,7 @@ try {
     $results.Add('upgrade-current-version')
     [void](Invoke-Msi @('/i',('"'+$oldMsi+'"'),'LAUNCHAPP=0') $false)
     Compare-State $after (Product-State);$results.Add('downgrade-refused-without-changes')
-    $capture=Join-Path $repo 'Artifacts/windows-installed-dashboard.png'
+    $capture=Join-Path $repo 'Artifacts/installed/windows-installed-dashboard.png'
     $smoke=Start-Process (Join-Path $app 'CodeRim.exe') -ArgumentList '--smoke-test','--capture',('"'+$capture+'"') -PassThru
     if(-not $smoke.WaitForExit(180000) -or $smoke.ExitCode -ne 0 -or -not(Test-Path $capture)){throw 'Installed native app smoke failed'}
     $results.Add('installed-native-ui-and-pinned-worker')

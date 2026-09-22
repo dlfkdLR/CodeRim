@@ -87,12 +87,12 @@ dotnet publish $projectPath `
     --self-contained true `
     --output $publishRoot `
     -p:Version=$Version `
-    -p:DebugType=None `
+    -p:CodeRimMsiQa=false -p:DebugType=None `
     -p:DebugSymbols=false `
     "-p:CodeRimPublisherSpkiSha256=$PublisherSpkiSha256"
 
 if ($LASTEXITCODE -ne 0) { throw 'Application publish failed.' }
-dotnet publish (Join-Path $windowsRoot "src\CodeRim.CLI\CodeRim.CLI.csproj") --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $publishRoot -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false
+dotnet publish (Join-Path $windowsRoot "src\CodeRim.CLI\CodeRim.CLI.csproj") --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $publishRoot -p:Version=$Version -p:CodeRimMsiQa=false -p:DebugType=None -p:DebugSymbols=false
 if ($LASTEXITCODE -ne 0) { throw 'CLI publish failed.' }
 Copy-Item (Join-Path $PSScriptRoot 'install.ps1'), (Join-Path $PSScriptRoot 'connect-claude.ps1') $publishRoot
 New-Item -ItemType Directory -Force (Join-Path $publishRoot 'bin') | Out-Null
@@ -121,7 +121,7 @@ if ($SigningMode -eq 'Required') {
 }
 # The legacy ZIP entry remains disabled without its publisher pin. The MSI entry requires a release-key-signed manifest.
 $workerRoot = Join-Path $windowsRoot ('artifacts\worker-publish-' + [Guid]::NewGuid().ToString('N'))
-dotnet publish $workerProject --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $workerRoot -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false @resourceArguments
+dotnet publish $workerProject --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $workerRoot -p:Version=$Version -p:CodeRimMsiQa=false -p:DebugType=None -p:DebugSymbols=false @resourceArguments
 if ($LASTEXITCODE -ne 0) { throw 'Update worker publish failed.' }
 $workerPath = Join-Path $workerRoot 'CodeRim.UpdateWorker.exe'
 if (-not (Test-Path $workerPath)) { throw 'Published update worker is missing.' }
@@ -129,7 +129,7 @@ if ($SigningMode -eq 'Required') { Sign-PayloadFile $workerPath }
 else {
     # Pin the already-installed bootstrap worker in the GUI before building a public MSI.
     $installerWorkerHash = (Get-FileHash $workerPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    dotnet publish $projectPath --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $publishRoot -p:Version=$Version -p:DebugType=None -p:DebugSymbols=false "-p:CodeRimInstallerWorkerSha256=$installerWorkerHash" -p:CodeRimPublisherSpkiSha256=
+    dotnet publish $projectPath --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $publishRoot -p:Version=$Version -p:CodeRimMsiQa=false -p:DebugType=None -p:DebugSymbols=false "-p:CodeRimInstallerWorkerSha256=$installerWorkerHash" -p:CodeRimPublisherSpkiSha256=
     if ($LASTEXITCODE -ne 0) { throw 'Installer bootstrap pin publish failed.' }
     $bootstrap = @{version=$Version; workerSha256=$installerWorkerHash; guiSha256=(Get-FileHash $executablePath -Algorithm SHA256).Hash.ToLowerInvariant()}
     [IO.File]::WriteAllText((Join-Path $publishRoot 'CodeRim.bootstrap.json'), ($bootstrap | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))

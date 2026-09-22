@@ -10,7 +10,7 @@ if(Test-Path (Join-Path $app 'CodeRim.exe')){throw 'Existing app cannot be used 
 New-Item -ItemType Directory -Force $publish,$worker | Out-Null
 $env:CODERIM_DATA_DIR=Join-Path $qa 'Data 한글'
 New-Item -ItemType Directory $env:CODERIM_DATA_DIR | Out-Null
-[IO.File]::WriteAllText((Join-Path $env:CODERIM_DATA_DIR 'settings.json'),'{}')
+[IO.File]::WriteAllText((Join-Path $env:CODERIM_DATA_DIR 'settings.json'),'{"CheckForUpdates":false,"EnabledProviders":[]}')
 $sentinel=Join-Path $env:CODERIM_DATA_DIR 'preserve-sentinel';[IO.File]::WriteAllText($sentinel,'settings and credentials stay outside MSI')
 $argsCommon=@('--configuration','Release','--runtime',"win-$Architecture",'--self-contained','true','-p:Version=2.1.8','-p:AssemblyVersion=2.1.8.0','-p:FileVersion=2.1.8.0','-p:DebugType=None','-p:DebugSymbols=false','-p:CodeRimPublisherSpkiSha256=','-p:CodeRimUpdateWin32Resource=')
 # QA source uses the same production worker; only the old GUI/Core fixture includes the test entry.

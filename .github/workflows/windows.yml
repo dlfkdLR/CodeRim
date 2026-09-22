@@ -69,6 +69,7 @@ jobs:
           name: CodeRim-Windows-UI
           path: |
             Artifacts/windows-*.png
+            Artifacts/installed/**
             Artifacts/windows-*.json
             Artifacts/windows-*.txt
             Artifacts/windows-msi-*.log
@@ -82,6 +83,7 @@ jobs:
             Artifacts/*.sha256
             Artifacts/SHA256SUMS-windows.txt
             Artifacts/windows-*.png
+            Artifacts/installed/**
             Artifacts/windows-*.json
             Artifacts/windows-*.txt
             Artifacts/windows-msi-*.log
@@ -157,6 +159,7 @@ jobs:
           name: CodeRim-Windows-ARM64-Native
           path: |
             Artifacts/windows-*.png
+            Artifacts/installed/**
             Artifacts/windows-*.json
             Artifacts/windows-*.txt
             Artifacts/windows-msi-*.log
