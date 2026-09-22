@@ -152,8 +152,14 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
             EnsureScope(id); generation = Generation(id); requestScope = scopes.GetValueOrDefault(id);
             lastRefresh[id] = DateTimeOffset.Now;
             if (Synthetic) { SeedPreview(); return; }
-            var reading = await connections.FetchAsync(id, settings.Current, lifetime.Token).ConfigureAwait(true);
+            var result = await connections.FetchForStoreAsync(id, settings.Current, requestScope, lifetime.Token).ConfigureAwait(true);
+            // No await between the request/generation checks, exact rotation-version
+            // acceptance and the normal current-scope guard on this owning UI context.
+            if (generation == Generation(id) && requestScope == scopes.GetValueOrDefault(id)
+                && connections.TryAcceptScopeRotation(id, requestScope, result.Rotation, out var rotatedScope))
+            { scopes[id] = rotatedScope; requestScope = rotatedScope; }
             EnsureScope(id);
+            var reading = result.Reading;
             if (generation != Generation(id) || requestScope != scopes.GetValueOrDefault(id) || !settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return;
             Readings[id] = ReadingRetention.Merge(reading, requestScope is null || !connections.CanCache(id) ? null : Readings.GetValueOrDefault(id));
             if (settings.Current.DebugLogging) AppDiagnostics.Record(id, Readings[id].State.ToString(), Readings[id].Windows.Count);

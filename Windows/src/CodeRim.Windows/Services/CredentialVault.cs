@@ -19,15 +19,23 @@ internal sealed class CredentialVault
     }
     public void Save(string id, string value) => Store(id, value, null, conditional: false);
     internal bool SaveIfUnchanged(string id, string? expectedVersion, string value) => Store(id, value, expectedVersion, conditional: true);
+    internal bool SaveIfUnchanged(string id, string? expectedVersion, string value, out string? version)
+        => Store(id, value, expectedVersion, conditional: true, out version);
     private bool Store(string id, string value, string? expectedVersion, bool conditional)
+        => Store(id, value, expectedVersion, conditional, out _);
+    private bool Store(string id, string value, string? expectedVersion, bool conditional, out string? version)
     {
+        version = null;
         var bytes = Encoding.UTF8.GetBytes(value);
         try
         {
             if (bytes.Length > AtomicCredentialFiles.MaximumBytes - 4096) throw new InvalidDataException("Credential entry is too large.");
             var encrypted = ProtectedData.Protect(bytes, null, DataProtectionScope.CurrentUser);
-            if (conditional) return entries.CompareExchange(id, expectedVersion, encrypted);
-            entries.Write(id, encrypted); return true;
+            if (conditional && !entries.CompareExchange(id, expectedVersion, encrypted)) return false;
+            if (!conditional) entries.Write(id, encrypted);
+            // This version belongs to the exact bytes committed by this CAS, without
+            // a later read that could accidentally adopt another process's write.
+            version = AtomicCredentialFiles.Version(encrypted); return true;
         }
         finally { CryptographicOperations.ZeroMemory(bytes); }
     }

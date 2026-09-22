@@ -4,6 +4,19 @@ namespace CodeRim.Core.Tests;
 
 public sealed class NotchControlLayoutTests
 {
+    // Golden dimensions from the real macOS NotchLayout/NotchDesign probe,
+    // using its measured17-point ring label rather than a Windows-only18-point row.
+    [Theory]
+    [InlineData(NotchEdge.Right, 1, 1d, 69.94871794871794, 193.56410256410254)]
+    [InlineData(NotchEdge.Left, 3, 0.8, 55.95897435897436, 318.88)]
+    [InlineData(NotchEdge.Right, 70, 1.25, 87.43589743589743, 9084.128205128205)]
+    public void BodyMatchesMacOSMeasuredLabelHeight(NotchEdge edge, int count, double scale, double depth, double length)
+    {
+        var fit = NotchMetrics.Fit(edge, count, scale, 100_000);
+        Assert.Equal(depth, fit.Depth, 8);
+        Assert.Equal(length, fit.Length, 8);
+    }
+
     [Theory]
     [InlineData(NotchEdge.Right, false, 0.75)]
     [InlineData(NotchEdge.Right, true, 0.0)]

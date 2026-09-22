@@ -52,7 +52,7 @@ internal sealed partial class DashboardWindow : Window
         Grid.SetColumn(scroll, 1); layout.Children.Add(scroll); Content = layout;
         sidebar.SelectionChanged += (_, _) => { if (!refreshingSidebar && sidebar.SelectedItem is ListBoxItem item && item.Tag is string id) Navigate(id); };
         settings.SettingsChanged += SettingsChanged; store.PropertyChanged += StoreChanged;
-        Closed += (_, _) => { settings.SettingsChanged -= SettingsChanged; store.PropertyChanged -= StoreChanged; };
+        Closed += (_, _) => { updateWindowClosed = true; CancelUpdateOperation(); settings.SettingsChanged -= SettingsChanged; store.PropertyChanged -= StoreChanged; };
         PreviewKeyDown += (_, e) =>
         {
             if (System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control))
@@ -159,6 +159,7 @@ internal sealed partial class DashboardWindow : Window
                 .Select(System.Windows.Automation.AutomationProperties.GetName).FirstOrDefault(x => !string.IsNullOrEmpty(x))
             : null;
         renderedPage = page;
+        CancelUpdateOperation(); updateViewRevision++;
         body.Children.Clear(); providerListDetails.Clear();
         body.Margin = page == "usage" ? new Thickness(0) : new Thickness(0, 6, 0, 28);
         switch (page)
@@ -696,10 +697,11 @@ internal sealed partial class DashboardWindow : Window
             else if (id != "wayfinder" && (id != "gemini" || AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, "ANTIGRAVITY_USAGE_SOURCE")) == "oauth")) { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
         }
         else if (!HasConnector(id)) body.Children.Add(Ui.Text("This provider's Windows integration is still pending. Adding it does not create a live connection.", color: "#F2C66D"));
+        AddChromiumConnection(id);
         if (BrowserConnections.Domains(id).Length > 0 && (id != "alibaba" || ProviderConnections.AlibabaCodingSource(vault) == "web" && ProviderConnections.AlibabaCodingRegion(vault) is not null) && (id != "alibabatokenplan" || ProviderConnections.AlibabaSource(vault) is "auto" or "web") && (id != "minimax" || MiniMaxAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "MINIMAX_USAGE_SOURCE")) is "auto" or "web") && (id != "stepfun" || StepFunAuthentication.Mode(ProviderConnections.EffectiveSetting(vault, id, "STEPFUN_AUTH_MODE")) == "auto") && (id != "kimi" || vault.Load(KimiDesktopConnection.StorageKey) is null && KimiAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "KIMI_USAGE_SOURCE")) is "auto" or "web") && (id != "amp" || AmpCliUsage.Source(ProviderConnections.EffectiveSetting(vault, "amp", "AMP_USAGE_SOURCE")) == "web"))
         {
             body.Children.Add(Ui.Button("Import from Firefox…", () => BrowserConnections.Import(this, id, vault, settings.Current, () =>
-            { store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); })));
+            { ClearChromiumForBrowser(id); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); })));
             body.Children.Add(Ui.Button("Remove imported sign-in", () =>
             {
                 try { vault.Delete(BrowserConnections.StorageKey(id, vault)); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
@@ -785,7 +787,7 @@ internal sealed partial class DashboardWindow : Window
             if (key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password.Length == 0 : string.IsNullOrWhiteSpace(password.Password)) return;
             if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal) && MiniMaxAuthentication.Parse(password.Password, key.Split(':')[^1]) is null)
             { result.Text = "Enter a valid cookie or copied request for this region."; return; }
-            try { vault.Save(key, key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password : password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal)) vault.Delete("browser:minimax:" + key.Split(':')[^1]); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
+            try { vault.Save(key, key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password : password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal)) vault.Delete("browser:minimax:" + key.Split(':')[^1]); ClearChromiumForManual(id, key); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { result.Text = "Could not save the setting."; }
         }));
         body.Children.Add(Ui.Button("Remove saved value", () =>
@@ -835,23 +837,7 @@ internal sealed partial class DashboardWindow : Window
             SettingsUi.Value("Platform", "Windows · " + UpdateNotifications.Architecture),
             SettingsUi.Value("Data scope", "Local history + optional account limits"),
             SettingsUi.Value("Privacy", "Local numeric history; encrypted credentials")));
-        var updateStatus = Ui.Text("", 12, "#A6A6AA");
-        var checkUpdate = Ui.AsyncButton("Check for updates", async () =>
-        {
-            updateStatus.Text = "Checking…";
-            try
-            {
-                var update = await ReleaseUpdates.CheckAsync(UpdateNotifications.Architecture).ConfigureAwait(true);
-                updateStatus.Text = update.IsNewer ? "CodeRim " + update.Version + " is available." : "You are using the latest Windows release.";
-                if (update.IsNewer && MessageBox.Show(this, "Download CodeRim " + update.Version + " for Windows?", "CodeRim update", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
-                    OpenUrl(update.Download.AbsoluteUri);
-            }
-            catch (Exception error) when (error is not OutOfMemoryException) { updateStatus.Text = "Could not check Windows updates. Try again or open the releases page."; }
-        });
-        checkUpdate.HorizontalAlignment = HorizontalAlignment.Left; checkUpdate.Margin = new Thickness(14, 9, 14, 9);
-        body.Children.Add(SettingsUi.Section("Updates", checkUpdate));
-        updateStatus.Margin = new Thickness(32, 6, 32, 0); body.Children.Add(updateStatus);
-        body.Children.Add(SettingsUi.Note("Checks GitHub releases. Token usage data is never sent. Installation is manual."));
+        AddUpdateSection();
         body.Children.Add(SettingsUi.Section("Project",
             SettingsUi.Action("Open Source on GitHub", () => OpenUrl("https://github.com/dlfkdLR/CodeRim")),
             SettingsUi.Action("View Releases", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/releases")),

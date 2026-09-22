@@ -63,7 +63,7 @@ internal sealed partial class NotchWindow : Window
         MouseLeave += (_, _) => foldTimer.Start();
         LostKeyboardFocus += (_, _) => foldTimer.Start();
         Deactivated += (_, _) => foldTimer.Start();
-        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { popup.IsOpen = false; hovered = null; Keyboard.ClearFocus(); foldTimer.Start(); e.Handled = true; } };
+        PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { DismissPopupFromKeyboard(); e.Handled = true; } };
         hoverClear.Tick += (_, _) => DismissProviderCard();
         popup.Closed += (_, _) => { accountMenu = false; if (!closed) foldTimer.Start(); };
         foldTimer.Tick += (_, _) => TryFold();
@@ -260,7 +260,9 @@ internal sealed partial class NotchWindow : Window
             FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"), FontSize = 20, Foreground = Brushes.White },
             Margin = new Thickness(0, 2, 0, 2), ToolTip = label };
         AutomationProperties.SetName(button, label);
-        button.MouseEnter += (_, _) => { if (!accountMenu) { hoverClear.Stop(); popup.IsOpen = false; hovered = null; } };
+        void ClearProviderCard() { if (!accountMenu) { hoverClear.Stop(); popup.IsOpen = false; hovered = null; } }
+        button.MouseEnter += (_, _) => ClearProviderCard();
+        button.GotKeyboardFocus += (_, _) => ClearProviderCard();
         button.Click += (_, _) => action(); return button;
     }
     private static void AddMenu(ContextMenu menu, string label, Action action)
@@ -298,13 +300,22 @@ internal sealed partial class NotchWindow : Window
     }
     private void AttachPopup(FrameworkElement child)
     {
-        child.PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { popup.IsOpen = false; hovered = null; Keyboard.ClearFocus(); foldTimer.Start(); e.Handled = true; } };
+        child.PreviewKeyDown += (_, e) => { if (e.Key == Key.Escape) { DismissPopupFromKeyboard(); e.Handled = true; } };
         child.MouseEnter += (_, _) => { foldTimer.Stop(); hoverClear.Stop(); };
         child.MouseLeave += (_, _) => { foldTimer.Start(); if (!accountMenu) hoverClear.Start(); };
         child.LostKeyboardFocus += (_, _) => foldTimer.Start();
     }
+    private void DismissPopupFromKeyboard()
+    {
+        var returnToAccount = accountMenu && popup.IsOpen;
+        popup.IsOpen = false; hovered = null;
+        if (returnToAccount && accountControl is { IsVisible: true, IsEnabled: true } account) account.Focus();
+        else Keyboard.ClearFocus();
+        foldTimer.Start();
+    }
     internal void OpenAccounts()
     {
+        var openedFromKeyboard = accountControl?.IsKeyboardFocusWithin == true;
         popup.IsOpen = false; accountMenu = true; popup.StaysOpen = false; hoverClear.Stop(); foldTimer.Stop();
         RevealControls();
         hovered = null; var list = new StackPanel { Margin = new Thickness(12) };
@@ -336,6 +347,15 @@ internal sealed partial class NotchWindow : Window
         frame.Resources["ControlHover"] = Ui.Brush("#343434");
         frame.Resources["ControlBackground"] = Ui.Brush("#202020");
         frame.Resources["DividerBrush"] = Ui.Brush("#404040");
+        KeyboardNavigation.SetTabNavigation(frame, KeyboardNavigationMode.Cycle);
+        // Pointer invocation keeps the editor active; keyboard invocation enters
+        // the menu after its native popup has been attached and measured.
+        if (openedFromKeyboard)
+            frame.Loaded += (_, _) =>
+            {
+                if (accountMenu && popup.IsOpen && ReferenceEquals(popupFrame.Child, frame))
+                    list.Children.OfType<Button>().FirstOrDefault()?.Focus();
+            };
         AttachPopup(frame); popupFrame.Child = frame; popup.IsOpen = true;
     }
     private CustomPopupPlacement[] PlacePopup(Size popupSize, Size targetSize, Point offset)

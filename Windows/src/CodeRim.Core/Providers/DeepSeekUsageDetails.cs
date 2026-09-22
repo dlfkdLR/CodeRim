@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using CodeRim.Core.Domain;
 using static CodeRim.Core.Providers.ProviderParsers;
 
@@ -26,22 +25,44 @@ public static class DeepSeekUsageDetails
             || name.Any(char.IsControl)) throw Invalid();
         return name;
     }
-    private static readonly Regex Numeric = new(@"\A(?<sign>[+-]?)(?<whole>[0-9]+)(?:\.(?<fraction>[0-9]+))?(?:[eE](?<exponent>[+-]?[0-9]+))?\z",
-        RegexOptions.CultureInvariant | RegexOptions.NonBacktracking, TimeSpan.FromMilliseconds(50));
     private static (string Digits, int Power) Exact(string text, bool allowNegative = false)
     {
-        var match = Numeric.Match(text.Trim());
-        if (!match.Success) throw Invalid();
+        // Number inputs are bounded; scanning their ASCII grammar avoids a wall-clock regex
+        // timeout escaping the data-error boundary during cold or heavily scheduled refreshes.
+        if (text.Length is 0 or > 128) throw Invalid();
+        text = text.Trim(); var index = 0;
+        if (text.Length == 0) throw Invalid();
+        var negative = text[0] == '-';
+        if (text[0] is '+' or '-') index++;
+        int Digits()
+        {
+            var start = index;
+            while (index < text.Length && char.IsAsciiDigit(text[index])) index++;
+            if (index == start) throw Invalid();
+            return start;
+        }
+        var wholeStart = Digits(); var wholeEnd = index;
+        var fraction = "";
+        if (index < text.Length && text[index] == '.')
+        {
+            index++; var start = Digits(); fraction = text[start..index];
+        }
         var exponent = 0;
-        if (match.Groups["exponent"].Success && (!int.TryParse(match.Groups["exponent"].Value, NumberStyles.AllowLeadingSign,
-            CultureInfo.InvariantCulture, out exponent) || exponent is < -1024 or > 1024)) throw Invalid();
-        var fraction = match.Groups["fraction"].Value;
-        var digits = (match.Groups["whole"].Value + fraction).TrimStart('0');
+        if (index < text.Length && text[index] is 'e' or 'E')
+        {
+            var start = ++index;
+            if (index < text.Length && text[index] is '+' or '-') index++;
+            _ = Digits();
+            if (!int.TryParse(text.AsSpan(start, index - start), NumberStyles.AllowLeadingSign,
+                CultureInfo.InvariantCulture, out exponent) || exponent is < -1024 or > 1024) throw Invalid();
+        }
+        if (index != text.Length) throw Invalid();
+        var digits = (text[wholeStart..wholeEnd] + fraction).TrimStart('0');
         if (digits.Length == 0) return ("0", 0);
-        if (match.Groups["sign"].Value == "-" && !allowNegative) throw Invalid();
+        if (negative && !allowNegative) throw Invalid();
         var power = exponent - fraction.Length;
         var trimmed = digits.TrimEnd('0'); power += digits.Length - trimmed.Length;
-        return ((match.Groups["sign"].Value == "-" ? "-" : "") + trimmed, power);
+        return ((negative ? "-" : "") + trimmed, power);
     }
     internal static decimal Number(JsonElement value, bool allowNegative = false)
     {

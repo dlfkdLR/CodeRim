@@ -259,6 +259,8 @@ internal static partial class NativeSmoke
         await MiniMaxConnectionRegression(dashboard, settings, vault, directory);
         Record("MiniMax API/Web and Global/China credentials remain separate through native controls and browser import");
         await AlibabaCodingSourceRegression(settings, vault, directory);
+        await ChromiumConnectionRegression(settings, vault, directory);
+        await FactoryRotationStoreRegression(settings, vault, directory);
         Record("Alibaba Coding Plan regional API/Web credentials, quota and import stay separate through native controls");
         await DeepSeekSourceRegression(settings, vault, directory);
         Record("DeepSeek API and platform credentials stay separate through native source switching");
@@ -543,10 +545,22 @@ internal static partial class NativeSmoke
         await Idle(); Require(!notch.PopupIsOpen, "Escape did not dismiss account menu");
         Record("Account menu persists until explicit dismissal and Escape closes it");
         Record("Account popup shows provider logo, plan and isolated current identity");
+        var keyboardProviders = settings.Current.EnabledProviders;
+        try
+        {
+            Require(store.Synthetic, "Keyboard fixture requires synthetic provider data");
+            settings.Save(settings.Current with { EnabledProviders = ["codex", "claude"] }); await Idle();
+            await CheckNotchKeyboardAccounts(notch, directory);
+        }
+        finally { settings.Save(settings.Current with { EnabledProviders = keyboardProviders }); await Idle(); }
+        Record("Keyboard traversal enters account menu, cycles rows, and Escape restores the trigger");
         settings.Save(settings.Current with { Edge = NotchEdge.Right, Scale = 1.25, EnabledProviders = ProviderCatalog.All.Select(x => x.Id).ToArray() });
         await store.RefreshAsync(true).ConfigureAwait(true); await Idle();
         var many = Descendants<ScrollViewer>(notch).Single();
         Require(many.ScrollableHeight > 0, "Many-provider notch cannot scroll");
+        var nativeWheel = await CheckNativeWheel(notch, many, directory);
+        Record(nativeWheel ? "Native mouse wheel scrolls providers through the Windows input queue"
+            : "Native mouse wheel inconclusive; see windows-wheel-input.json");
         many.ScrollToEnd(); await Idle();
         Require(many.VerticalOffset > 0, "Cannot reach last provider");
         Capture(notch, Path.Combine(directory, "windows-notch-many.png")); Record("All providers reachable with hidden scroll chrome");

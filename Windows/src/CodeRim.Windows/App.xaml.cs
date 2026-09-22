@@ -39,6 +39,13 @@ public partial class App : System.Windows.Application
             catch (Exception error) when (error is not OutOfMemoryException) { Shutdown(1); }
             return;
         }
+        if (e.Args.Length > 0 && e.Args[0] == UpdateBootstrap.EntryArgument)
+        {
+            // No settings, keychain, vault, companion publisher, single-instance signalling or normal application UI.
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            await UpdateBootstrap.RunEntryAsync(e.Args, typeof(App).Assembly).ConfigureAwait(true);
+            Shutdown(); return;
+        }
         SettingsTheme.Apply();
         Microsoft.Win32.SystemEvents.UserPreferenceChanged += AppearanceChanged;
         smokeTest = e.Args.Contains("--smoke-test", StringComparer.Ordinal);
@@ -116,7 +123,7 @@ public partial class App : System.Windows.Application
         if (dashboard is null) { dashboard = new DashboardWindow(store, settings, vault); dashboard.Closed += (_, _) => dashboard = null; }
         dashboard.Navigate(page ?? "general");
     }
-    private void ShutdownApplication() { dashboard?.Close(); notch?.Close(); Shutdown(); }
+    internal void ShutdownApplication() { dashboard?.Close(); notch?.Close(); Shutdown(); }
     protected override void OnExit(ExitEventArgs e)
     {
         Microsoft.Win32.SystemEvents.UserPreferenceChanged -= AppearanceChanged;

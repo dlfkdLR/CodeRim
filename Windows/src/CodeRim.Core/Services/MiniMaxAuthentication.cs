@@ -2,7 +2,10 @@ using System.Text;
 
 namespace CodeRim.Core.Services;
 
-public sealed record MiniMaxWebCredential(string Region, string Cookie, string? Bearer = null, string? Group = null, string? BrowserState = null);
+public sealed record MiniMaxWebCredential(string Region, string Cookie, string? Bearer = null, string? Group = null, string? BrowserState = null)
+{
+    internal string? ImportedTupleFingerprint { get; init; }
+}
 
 public static class MiniMaxAuthentication
 {

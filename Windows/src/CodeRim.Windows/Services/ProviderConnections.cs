@@ -19,10 +19,10 @@ internal sealed partial class ProviderConnections : IDisposable
     { this.vault = vault; this.native = native ?? new(); this.http = http ?? new(); this.scripts = scripts ?? new(); readCredential = nativeCredentialReader ?? NativeCredentials.Read; readCopilotCli = copilotCliReader ?? CopilotConnection.ReadCliAsync; readAlibabaCli = alibabaCliReader ?? AlibabaTokenPlanCliUsage.ReadAsync; }
     public void Dispose() { http.Dispose(); scripts.Dispose(); native.Dispose(); }
     public Task<ProviderReading> FetchAsync(string id, AppSettings settings, CancellationToken token)
-        => FetchAsync(id, settings, null, token);
+        => FetchAsync(id, settings, null, null, token);
     internal Task<ProviderReading> VerifyBrowserAsync(string id, AppSettings settings, BrowserCookieJar browser, CancellationToken token = default)
-        => FetchAsync(id, settings, browser, token);
-    private async Task<ProviderReading> FetchAsync(string id, AppSettings settings, BrowserCookieJar? browserOverride, CancellationToken token)
+        => FetchAsync(id, settings, browser, null, token);
+    private async Task<ProviderReading> FetchAsync(string id, AppSettings settings, BrowserCookieJar? browserOverride, RotationCapture? capture, CancellationToken token)
     {
         try
         {
@@ -51,6 +51,7 @@ internal sealed partial class ProviderConnections : IDisposable
                 var windows = ProviderParsers.Claude(root);
                 return new ProviderReading(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, updated).Evaluated(DateTimeOffset.Now);
             }
+            if (browserOverride is null && await FetchChromiumAsync(id, capture, token).ConfigureAwait(false) is { } imported) return imported;
             string? NativeSetting(string key) => EffectiveSetting(vault, id, key);
             if (id == "copilot")
             {
@@ -160,8 +161,12 @@ internal sealed partial class ProviderConnections : IDisposable
                 var saved = vault.LoadVersioned("provider:factory");
                 if (saved is null || saved.Value != secret)
                     return new(id, ReadingState.Unavailable, [], Message: "The connection changed. Refresh the selected account.");
-                return await native.FetchFactorySessionAsync(saved.Value, NativeSetting,
-                    updated => vault.SaveIfUnchanged("provider:factory", saved.Version, updated), token).ConfigureAwait(false);
+                var sourceScope = Scope(id); ProviderScopeRotation? rotation = null;
+                var reading = await native.FetchFactorySessionAsync(saved.Value, NativeSetting,
+                    updated => SaveFactoryRotation("provider:factory", saved, updated, sourceScope, capture, out rotation, token), token).ConfigureAwait(false);
+                var expectedVersion = rotation?.Version ?? saved.Version;
+                var expectedScope = rotation?.TargetScope ?? sourceScope;
+                return vault.Version("provider:factory") == expectedVersion && Scope(id) == expectedScope ? reading : ChangedChromium(id);
             }
             if (id == "windsurf")
             {
@@ -220,10 +225,14 @@ internal sealed partial class ProviderConnections : IDisposable
         var secret = vault.Load("provider:" + id) ?? Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY");
         return !BedrockAuthentication.UseProfile(secret, key => EffectiveSetting(vault, id, key));
     }
-    internal string? Scope(string id)
+    internal string? Scope(string id) => Scope(id, null);
+    private string? Scope(string id, ScopeOverride? replacement)
     {
+        string? Read(string key) => replacement?.Key == key ? replacement.Snapshot.Value : vault.Load(key);
+        string? Version(string key) => replacement?.Key == key ? replacement.Snapshot.Version : vault.Version(key);
         try
         {
+            if (ChromiumScope(id, replacement) is { } importedScope) return importedScope;
             if (id == "copilot" && !CanCache(id))
                 return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
                     JsonSerializer.Serialize(new { id, process = Environment.ProcessId, config = CopilotConnection.Directory, hosts = CopilotConnection.ScopeMarker() }))));
@@ -257,7 +266,8 @@ internal sealed partial class ProviderConnections : IDisposable
                         details = DeepSeekUsageDetails.Enabled(EffectiveSetting(vault, id, "DEEPSEEK_DETAILED_USAGE")) }))));
             }
             var definition = ProviderCatalog.Find(id);
-            var values = new List<string?> { vault.Load("browser:" + id), vault.Load("provider:" + id), vault.Load("cookie:" + id), readCredential(id) };
+            var values = new List<string?> { Read("browser:" + id), Read("provider:" + id), Read("cookie:" + id), readCredential(id) };
+            if (id == "factory") values.AddRange(new[] { Version("provider:factory"), Version("browser:factory"), Version("cookie:factory") });
             if (id == "moonshot") values.AddRange(new[] { vault.Load("provider:moonshot:international"), vault.Load("provider:moonshot:china") });
             if (id == "bedrock" && !CanCache(id))
             {

@@ -1,3 +1,4 @@
+using System.IO;
 using System.Runtime.InteropServices;
 namespace CodeRim.Windows.Views;
 internal static partial class NativeSmoke
@@ -22,6 +23,38 @@ internal static partial class NativeSmoke
         Require(popup.Right <= bar.Left || popup.Left >= bar.Right || popup.Bottom <= bar.Top || popup.Top >= bar.Bottom,
             "Popup overlaps the native notch after content refresh: " + context);
     }
+    private static async Task<bool> CheckNativeWheel(NotchWindow notch, System.Windows.Controls.ScrollViewer scroll, string directory)
+    {
+        scroll.ScrollToHome(); await Idle();
+        var point = scroll.PointToScreen(new System.Windows.Point(scroll.ActualWidth / 2, Math.Min(40, scroll.ActualHeight / 2)));
+        var moved = MoveCursor((int)point.X, (int)point.Y); await Task.Delay(150); await Idle();
+        var cursor = System.Windows.Forms.Cursor.Position;
+        var own = new System.Windows.Interop.WindowInteropHelper(notch).Handle;
+        var reached = moved && Math.Abs(cursor.X - point.X) <= 1 && Math.Abs(cursor.Y - point.Y) <= 1
+            && WindowAtPoint(new PointerPoint { X = cursor.X, Y = cursor.Y }) == own;
+        var before = scroll.VerticalOffset;
+        var submitted = reached ? SendPointerInput(1,
+            [new PointerInput { Type = 0, Mouse = new() { MouseData = unchecked((uint)-360), Flags = 0x0800 } }],
+            Marshal.SizeOf<PointerInput>()) : 0;
+        await Task.Delay(200); await Idle();
+        var after = scroll.VerticalOffset;
+        var outcome = reached && submitted == 1 ? after > before ? "PASS" : "FAIL" : "INCONCLUSIVE";
+        File.WriteAllText(Path.Combine(directory, "windows-wheel-input.json"),
+            System.Text.Json.JsonSerializer.Serialize(new { reached, submitted, before, after, outcome,
+                method = "Native SendInput mouse-wheel queue, following WindowFromPoint owner verification" }, JsonOptions));
+        Require(!reached || submitted != 1 || after > before, "Native wheel reached the notch but did not scroll providers");
+        return outcome == "PASS";
+    }
+    // INPUT also contains a 24-byte KEYBDINPUT union member on64-bit targets;
+    // MOUSEINPUT is the largest member and fixes the correct native alignment.
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PointerInput { internal uint Type; internal PointerMouseInput Mouse; }
+    [StructLayout(LayoutKind.Sequential)]
+    private struct PointerMouseInput
+    { internal int X, Y; internal uint MouseData, Flags, Time; internal UIntPtr ExtraInfo; }
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("user32.dll", EntryPoint = "SendInput", ExactSpelling = true, SetLastError = true)]
+    private static extern uint SendPointerInput(uint count, [In] PointerInput[] input, int size);
     private static object PointerWindow(IntPtr handle)
     {
         var exists = WindowBounds(handle, out var bounds);

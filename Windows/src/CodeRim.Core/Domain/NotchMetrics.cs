@@ -11,7 +11,7 @@ public static class NotchMetrics
     public const double SideDepth = 186 * Unit;
     public const double Curl = 103 * Unit;
     public const double Corner = 78.8 * Unit;
-    public const double CellHeight = Ring + 26.9 * Unit + 18;
+    public const double CellHeight = Ring + 26.9 * Unit + 17;
     public const double CellGap = 83.5 * Unit;
     public const double PadStart = 69.5 * Unit;
     public const double PadEnd = 50.1 * Unit;
