@@ -12,6 +12,16 @@ internal static partial class NativeSmoke
         return new { handlePresent = handle != IntPtr.Zero, ownerResolved = threadId != 0, currentProcess = pid == Environment.ProcessId,
             processName, windowClass = new string(characters, 0, count) };
     }
+    private static void RequirePopupClearOfNotch(NotchWindow notch, string context)
+    {
+        var handle = new System.Windows.Interop.WindowInteropHelper(notch).Handle;
+        var popupHandle = notch.PopupContent is { } child
+            && System.Windows.PresentationSource.FromVisual(child) is System.Windows.Interop.HwndSource source ? source.Handle : IntPtr.Zero;
+        Require(WindowBounds(handle, out var bar) && popupHandle != IntPtr.Zero && WindowBounds(popupHandle, out _), "No native popup geometry: " + context);
+        WindowBounds(popupHandle, out var popup);
+        Require(popup.Right <= bar.Left || popup.Left >= bar.Right || popup.Bottom <= bar.Top || popup.Top >= bar.Bottom,
+            "Popup overlaps the native notch after content refresh: " + context);
+    }
     private static object PointerWindow(IntPtr handle)
     {
         var exists = WindowBounds(handle, out var bounds);

@@ -456,6 +456,8 @@ internal static partial class NativeSmoke
             Capture(notch, Path.Combine(directory, $"windows-notch-{edge}-{scale:0.00}.png"));
             notch.OpenProvider("codex"); await Idle();
             Require(notch.PopupContent is { ActualWidth: > 0, ActualHeight: > 0 }, "Provider popup did not open");
+            notch.OpenProvider("codex"); await Idle();
+            RequirePopupClearOfNotch(notch, edge + "/" + scale);
             Require(Descendants<TextBlock>(notch.PopupContent!).Count(x => x.Text.Contains("2 resets", StringComparison.Ordinal)) == 1,
                 "Reset credit balance was duplicated in the popup");
             if (scale == 1) Capture(notch.PopupContent!, Path.Combine(directory, "windows-popup-" + edge + ".png"));
@@ -523,6 +525,11 @@ internal static partial class NativeSmoke
             await Idle();
         }
         Require(!notch.PopupIsOpen, "Provider card remains open over notch controls");
+        Require(notch.ControlsRevealed, "Hover did not reveal the macOS-style settings/account rail");
+        Require(Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetName(x) == "Switch account").IsVisible,
+            "Revealed settings rail has no reachable account control");
+        Capture(notch, Path.Combine(directory, "windows-notch-controls-revealed.png"));
+        Record("Resting settings arc reveals the settings/account rail on hover");
         Require(notch.Expanded, "Clearing provider hover unexpectedly folded always-visible notch");
         Record("Leaving provider ring for controls clears card independently of notch visibility");
         notch.OpenAccounts(); await Idle();
