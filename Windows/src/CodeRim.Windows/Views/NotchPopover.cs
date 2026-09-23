@@ -53,20 +53,18 @@ internal static class NotchPopover
                 content.Children.Add(Text(nextGroup, 10.5, Secondary, FontWeights.SemiBold));
             group = window.Group;
             content.Children.Add(Row(window.Name, Reset(window.ResetsAt, settings.ResetTime)));
-            if (window.UsedPercent is { } percent)
+            string? pace = null;
+            if (window.UsedPercent is { } percent && double.IsFinite(percent))
             {
                 content.Children.Add(UsageBar(percent, settings.AccentColor));
-                content.Children.Add(Text(percent.ToString("0.#", CultureInfo.CurrentCulture) + "% used · " +
-                    Math.Clamp(100 - percent, 0, 100).ToString("0.#", CultureInfo.CurrentCulture) + "% left", 10.5, Secondary));
                 if (settings.ShowUsagePace && window.DurationMinutes > 0 && window.ResetsAt is { } reset)
                 {
                     var elapsed = Math.Clamp(1 - (reset - DateTimeOffset.Now).TotalMinutes / window.DurationMinutes, 0, 1) * 100;
-                    content.Children.Add(Text(percent > elapsed + 5 ? "Above even pace" : "Within even pace", 10.5, Secondary));
+                    pace = percent > elapsed + 5 ? "Above even pace" : "Within even pace";
                 }
             }
-            if ((window.Id != "rate-limit-reset-credits" || !window.RemainingCount.HasValue) && window.DisplayValue is { } display) content.Children.Add(Text(display, 10.5));
-            if (window.UsedCount is { } count) content.Children.Add(Text(TokenFormatter.Format(count, settings.NumberStyle) + " " + (window.Unit ?? "units") + " used", 10.5));
-            if (window.RemainingCount is { } remaining) content.Children.Add(Text(TokenFormatter.Format(remaining, settings.NumberStyle) + " " + (window.Unit ?? "units") + " left", 10.5));
+            content.Children.Add(Text(LimitFormatting.Summary(window, settings.NumberStyle), 10.5, Secondary));
+            if (pace is not null) content.Children.Add(Text(pace, 10.5, Secondary));
         }
         if (reading is null) content.Children.Add(Text("Waiting for a reading…", 10.5, Secondary));
         else if (reading.State != ReadingState.Ready)

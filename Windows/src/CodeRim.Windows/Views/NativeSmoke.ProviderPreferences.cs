@@ -1,8 +1,10 @@
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using CodeRim.Windows.Services;
 
 namespace CodeRim.Windows.Views;
@@ -30,12 +32,15 @@ internal static partial class NativeSmoke
             dashboard.Navigate("notch"); await Idle();
             var reset = Descendants<ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Reset time");
             Require(reset.Items.Count == 2 && reset.Items[0] as string == "Absolute" && reset.Items[1] as string == "Relative", "Reset picker order differs from the reference.");
-            string Label(string value)
-            {
-                var item = (TextBlock)reset.ItemTemplate.LoadContent(); item.DataContext = value;
-                item.GetBindingExpression(TextBlock.TextProperty)!.UpdateTarget(); return item.Text;
-            }
-            Require(Label("Absolute") == "Reset date" && Label("Relative") == "Time remaining", "Reset picker labels differ from the reference.");
+            reset.IsDropDownOpen = true; await Idle();
+            var absolute = reset.ItemContainerGenerator.ContainerFromItem("Absolute") as ComboBoxItem;
+            var relative = reset.ItemContainerGenerator.ContainerFromItem("Relative") as ComboBoxItem;
+            Require(absolute is not null && relative is not null
+                && Descendants<TextBlock>(absolute).Any(x => x.Text == "Reset date")
+                && Descendants<TextBlock>(relative).Any(x => x.Text == "Time remaining"), "Reset picker labels differ from the reference.");
+            if (reset.Template.FindName("PART_Popup", reset) is Popup { Child: FrameworkElement picker })
+                Capture(picker, Path.Combine(directory, "windows-reset-picker.png"));
+            reset.IsDropDownOpen = false;
             reset.SelectedItem = "Absolute"; await Idle();
             Require(new AppSettingsStore().Current.ResetTime == "Absolute", "Reset-date selection did not persist.");
 

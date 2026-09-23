@@ -119,6 +119,7 @@ internal sealed partial class DashboardWindow : Window
                 "Show projects" or "Show sessions" => settings.Current.AnalyticsEnabled,
                 "Show agent details" => settings.Current.AnalyticsEnabled && settings.Current.SessionsEnabled,
                 "Show attachment metadata" => settings.Current.AnalyticsEnabled && settings.Current.SessionsEnabled && page == "codex",
+                "Notify at 80% and 100%" => settings.Current.AlertsEnabled,
                 _ => true
             };
     }
@@ -163,7 +164,7 @@ internal sealed partial class DashboardWindow : Window
         var changedPage = renderedPage != page;
         renderedPage = page; UpdateSectionTitle();
         CancelUpdateOperation(); updateViewRevision++;
-        body.Children.Clear(); providerListDetails.Clear();
+        body.Children.Clear(); providerListDetails.Clear(); ResetProviderAlerts();
         body.Margin = page == "usage" ? new Thickness(0) : new Thickness(0, 6, 0, 28);
         switch (page)
         {
@@ -347,13 +348,14 @@ internal sealed partial class DashboardWindow : Window
         var refresh = Ui.AsyncButton("↻", () => store.RefreshProviderAsync(id));
         System.Windows.Automation.AutomationProperties.SetName(refresh, "Refresh " + provider.Name);
         DockPanel.SetDock(refresh, Dock.Right); header.Children.Add(refresh);
+        if (!provider.HasLocalHistory) AddProviderAlertButton(header, id, provider.Name);
         var mark = new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(8),
             Background = Ui.Brush(id == "codex" ? "#30D158" : "#454545"),
             Margin = new Thickness(0, 0, 12, 0), Child = new ProviderMark { ProviderId = id, Margin = new Thickness(6) } };
         DockPanel.SetDock(mark, Dock.Left); header.Children.Add(mark);
         var headerText = new StackPanel();
         headerText.Children.Add(Ui.Text(provider.Name, 16, weight: FontWeights.SemiBold));
-        headerText.Children.Add(ProviderValue("provider.status", accountDisplay.Reading?.State.ToString() ?? "Available", 12));
+        headerText.Children.Add(ProviderValue("provider.status", ProviderStatus(id, accountDisplay.Reading), 12));
         header.Children.Add(headerText);
         var headerCard = new Border { Child = header, CornerRadius = new CornerRadius(12), Margin = new Thickness(18, 0, 18, 4) };
         headerCard.SetResourceReference(Border.BackgroundProperty, "CardBackground"); body.Children.Add(headerCard);
@@ -698,15 +700,19 @@ internal sealed partial class DashboardWindow : Window
                 { MessageBox.Show(this, "Could not remove the imported sign-in.", "CodeRim"); }
             }));
         }
-        Ui.Section(body, "Notch order");
-        var order = new WrapPanel(); order.Children.Add(Ui.Button("Move earlier", () => MoveProvider(id, -1))); order.Children.Add(Ui.Button("Move later", () => MoveProvider(id, 1)));
-        order.Children.Add(Ui.Button("Remove from notch", () => { Save(settings.Current with { EnabledProviders = settings.Current.EnabledProviders.Where(x => x != id).ToArray() }); Navigate("providers"); })); body.Children.Add(order);
+        if (provider.HasLocalHistory)
+        {
+            Ui.Section(body, "Notch order");
+            var order = new WrapPanel(); order.Children.Add(Ui.Button("Move earlier", () => MoveProvider(id, -1))); order.Children.Add(Ui.Button("Move later", () => MoveProvider(id, 1)));
+            order.Children.Add(Ui.Button("Remove from notch", () => { Save(settings.Current with { EnabledProviders = settings.Current.EnabledProviders.Where(x => x != id).ToArray() }); Navigate("providers"); })); body.Children.Add(order);
+        }
+        else AddProviderAlerts(id);
         if (provider.HasLocalHistory)
         {
             AddProviderLocalData(id, provider.Name);
         }
         foreach (var child in body.Children.OfType<FrameworkElement>())
-            if (child.Margin.Left == 0 && child.Margin.Right == 0)
+            if (child != providerReading && child.Margin.Left == 0 && child.Margin.Right == 0)
                 child.Margin = new Thickness(18, child.Margin.Top, 18, child.Margin.Bottom);
         UpdateProviderControlStates();
     }
@@ -727,12 +733,13 @@ internal sealed partial class DashboardWindow : Window
         UpdateProviderLocalData(id);
         // Update the existing labels so credential drafts and keyboard focus survive a poll.
         var display = store.AccountDisplay(id);
-        var current = display.Reading;
+        var current = display.Reading?.Evaluated(DateTimeOffset.Now);
+        UpdateProviderAlerts(id, current);
         foreach (var label in VisualChildren<TextBlock>(body))
         {
             switch (System.Windows.Automation.AutomationProperties.GetAutomationId(label))
             {
-                case "provider.status": label.Text = current?.State.ToString() ?? "Available"; break;
+                case "provider.status": label.Text = ProviderStatus(id, current); break;
                 case "provider.account": label.Text = display.Label ?? "Not connected"; break;
                 case "provider.plan":
                     label.Text = display.Plan ?? "Unavailable";
@@ -740,16 +747,7 @@ internal sealed partial class DashboardWindow : Window
                     break;
             }
         }
-        providerReading.Children.Clear(); var reading = ProviderDisplayPolicy.Apply(current, settings.Current);
-        providerReading.Children.Add(Ui.Text(reading?.Message ?? reading?.State.ToString() ?? "Waiting for the first reading", color: "#B7B8BD"));
-        string? group = null;
-        foreach (var window in reading?.Windows ?? [])
-        {
-            if (window.Group is { Length: > 0 } nextGroup && nextGroup != group)
-                providerReading.Children.Add(Ui.Text(nextGroup, weight: FontWeights.SemiBold));
-            group = window.Group;
-            providerReading.Children.Add(Ui.Row(window.Name, window.UsedPercent is { } p ? $"{p:0.#}% used" + (window.DisplayValue is { } description ? " · " + description : "") : window.DisplayValue ?? "—"));
-        }
+        RenderProviderLimits(ProviderDisplayPolicy.Apply(current, settings.Current));
     }
     private void AddSettingField(string key, string id)
     {

@@ -55,8 +55,9 @@ internal sealed class ProviderRing : FrameworkElement
     private void UpdateReading()
     {
         var percent = reading?.Evaluated(DateTimeOffset.Now).Headline?.UsedPercent;
-        var display = percent.HasValue ? Math.Clamp(settings.ShowRemaining ? 100 - percent.Value : percent.Value, 0, 100) : (double?)null;
-        var sweep = display / 100 ?? 0;
+        var display = percent is { } raw && double.IsFinite(raw) && raw >= 0 && raw < 9223372036854775808d
+            ? settings.ShowRemaining ? Math.Max(0, 100 - raw) : raw : (double?)null;
+        var sweep = Math.Clamp(display / 100 ?? 0, 0, 1);
         if (!initialized || targetSweep != sweep || targetPercent != display || !Animates)
         {
             var animate = initialized && Animates;
@@ -84,7 +85,7 @@ internal sealed class ProviderRing : FrameworkElement
     {
         var value = reading?.Evaluated(DateTimeOffset.Now);
         var amount = value?.Headline?.UsedPercent is { } used
-            ? Percent(settings.ShowRemaining ? Math.Clamp(100 - used, 0, 100) : used) + (settings.ShowRemaining ? "% remaining" : "% used")
+            ? (settings.ShowRemaining ? LimitFormatting.Halves(used).Left : Percent(used)) + (settings.ShowRemaining ? "% remaining" : "% used")
             : value?.Headline?.UsedCount is { } count ? TokenFormatter.Format(count, settings.NumberStyle) + " used"
             : value?.Headline?.RemainingCount is { } left ? TokenFormatter.Format(left, settings.NumberStyle) + " remaining" : "Usage unavailable";
         var state = value?.State switch
@@ -133,7 +134,9 @@ internal sealed class ProviderRing : FrameworkElement
             DrawArc(dc, Brushes.White, activityRadius, activityStroke, start, 0.25);
         }
         dc.Pop();
-        var label = percent is not null ? Percent(Math.Clamp((double)GetValue(PercentProperty), 0, 100)) + "%"
+        var label = percent is not null ? targetPercent is null ? "—" : (settings.ShowRemaining
+                ? LimitFormatting.Halves(Math.Clamp(100 - (double)GetValue(PercentProperty), 0, 100)).Left
+                : Percent(Math.Max((double)GetValue(PercentProperty), 0))) + "%"
             : value?.Headline?.UsedCount is { } count ? TokenFormatter.Format(count, settings.NumberStyle)
             : value?.Headline?.RemainingCount is { } remaining ? TokenFormatter.Format(remaining, settings.NumberStyle) : "—";
         var formatted = new FormattedText(label, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
@@ -153,7 +156,7 @@ internal sealed class ProviderRing : FrameworkElement
         }
         path.Freeze(); dc.DrawGeometry(null, pen, path);
     }
-    private static string Percent(double value) => value is > 0 and < 0.1 ? "<0.1" : value is > 0 and < 1 ? value.ToString("0.0", CultureInfo.InvariantCulture) : Math.Round(value, MidpointRounding.AwayFromZero).ToString(CultureInfo.InvariantCulture);
+    private static string Percent(double value) => LimitFormatting.Percent(value);
     private SolidColorBrush Gradient(double position)
     {
         string[] colors = settings.Gradient switch

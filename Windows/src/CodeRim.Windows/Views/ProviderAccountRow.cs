@@ -64,7 +64,7 @@ internal sealed class ProviderAccountRow : DockPanel
         if (reading is { Windows.Count: > 0 })
         {
             var window = reading.Headline;
-            if (window?.UsedPercent is { } used && double.IsFinite(used)) headline = Math.Round(used, MidpointRounding.AwayFromZero).ToString(CultureInfo.CurrentCulture) + "% of " + window.Name;
+            if (window?.UsedPercent is { } used && double.IsFinite(used)) headline = LimitFormatting.Percent(used) + "% of " + window.Name;
             else if (window?.DisplayValue is { Length: > 0 } value) headline = value + " of " + window.Name;
         }
         var state = headline ?? reading?.State switch

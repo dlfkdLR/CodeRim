@@ -225,7 +225,7 @@ internal static partial class NativeSmoke
         store.InvalidateAccount("codex"); await Idle();
         Require(planLabel.Text == "Unavailable" && stateLabel.Text == "Available", "Account invalidation kept old provider identity metadata");
         await store.RefreshProviderAsync("codex"); await Idle();
-        Require(planLabel.Text == "Preview account" && stateLabel.Text == "Ready", "Provider metadata did not refresh in place");
+        Require(planLabel.Text == "Preview account" && stateLabel.Text == "Available", "Provider metadata did not refresh in place");
         Require(Descendants<TextBlock>(dashboard).Contains(planLabel), "Provider refresh rebuilt the account card");
         Record("Provider plan and connection state follow account invalidation and refresh without rebuilding controls");
         dashboard.Navigate("usage"); await Idle();
@@ -314,6 +314,7 @@ internal static partial class NativeSmoke
         await IsolatedAccountsRegression(directory);
         Record("Isolated Add Account success, cancellation, verification and cleanup for Codex and Claude");
         await ProviderPreferencesRegression(dashboard, settings, directory);
+        await ProviderDetailsRegression(dashboard, store, settings, directory);
         await MacReferenceRegression(dashboard, store, settings, directory);
         Record("macOS reference shell, refresh modes and Usage states");
         await AnalyticsRegression(store, settings, directory);

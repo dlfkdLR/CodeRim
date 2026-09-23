@@ -177,7 +177,7 @@ internal static partial class NativeSmoke
                 {
                     await liveStore.RefreshProviderAsync("gemini"); await Idle();
                     Require(liveStore.Readings["gemini"].State == ReadingState.Ready
-                        && Descendants<TextBlock>(liveWindow).Any(x => x.Text.Contains("33% used", StringComparison.Ordinal)), "Local quota did not reach the rendered WPF state.");
+                        && Descendants<ProgressBar>(liveWindow).Any(bar => bar.Value == 33), "Local quota did not reach the rendered WPF state.");
                     Require(!Descendants<PasswordBox>(liveWindow).Any(), "Local source exposed unrelated OAuth fields.");
                     Capture(liveWindow, Path.Combine(directory, "windows-antigravity-local-quota.png"));
                     var picker = Descendants<ComboBox>(liveWindow).Single(x => AutomationProperties.GetName(x) == "Usage source");

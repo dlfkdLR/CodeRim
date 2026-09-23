@@ -7,9 +7,11 @@ namespace CodeRim.Windows.Views;
 internal static class SettingsTheme
 {
     internal static bool IsDark { get; private set; }
+    internal static bool IsHighContrast { get; private set; }
     internal static void Apply(bool? dark = null, bool? highContrast = null)
     {
         var contrast = highContrast ?? SystemParameters.HighContrast;
+        IsHighContrast = contrast;
         if (dark is null)
         {
             try { dark = (int?)Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1) == 0; }
@@ -29,6 +31,9 @@ internal static class SettingsTheme
             ["DividerBrush"] = Color(IsDark ? "#383838" : "#E3E3E3"),
             ["AccentBrush"] = Color(IsDark ? "#0A84FF" : "#007AFF"),
             ["AccentText"] = Colors.White,
+            ["UsageAmple"] = Color(IsDark ? "#30D158" : "#34C759"),
+            ["UsageWatch"] = Color(IsDark ? "#FFD60A" : "#FFCC00"),
+            ["UsageCritical"] = Color(IsDark ? "#FF9F0A" : "#FF9500"),
             ["AccentBorderBrush"] = Color("#660A84FF"),
             ["AccentSubtleBrush"] = Color(IsDark ? "#19314A" : "#E6F2FF"),
             ["WindowCloseBrush"] = Color("#FF5F57"),
@@ -43,6 +48,7 @@ internal static class SettingsTheme
             colors["PrimaryText"] = colors["SecondaryText"] = SystemColors.WindowTextColor;
             colors["DividerBrush"] = SystemColors.WindowTextColor;
             colors["AccentBrush"] = SystemColors.HighlightColor;
+            colors["UsageAmple"] = colors["UsageWatch"] = colors["UsageCritical"] = SystemColors.HighlightColor;
             colors["AccentText"] = SystemColors.HighlightTextColor;
             colors["AccentBorderBrush"] = SystemColors.HighlightColor;
             colors["AccentSubtleBrush"] = SystemColors.WindowColor;

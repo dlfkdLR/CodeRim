@@ -10,6 +10,16 @@
   <SolidColorBrush x:Key="SecondaryText" Color="#A6A6AA"/>
   <SolidColorBrush x:Key="DividerBrush" Color="#414141"/>
   <SolidColorBrush x:Key="AccentBrush" Color="#0A84FF"/>
+  <Style x:Key="ProviderUsageProgress" TargetType="ProgressBar">
+   <Setter Property="Height" Value="4"/><Setter Property="Minimum" Value="0"/><Setter Property="Maximum" Value="100"/>
+   <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ProgressBar">
+    <Grid SnapsToDevicePixels="True">
+     <Border x:Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="2"/>
+     <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="2" HorizontalAlignment="Left"/>
+    </Grid>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
   <Style TargetType="ScrollBar">
    <Setter Property="Width" Value="8"/><Setter Property="Background" Value="Transparent"/>
    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar">
