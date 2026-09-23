@@ -24,8 +24,9 @@ internal static partial class NativeSmoke
         try
         {
             // This path is only invoked by the explicitly requested, isolated synthetic smoke run.
-            // Enable the disposable desktop session's animation policy, then restore it in finally.
-            Require(SetClientAreaAnimation(0x1043, 0, new IntPtr(1), 2), "Could not enable animations in the native smoke desktop");
+            // Match Windows Settings by updating the disposable user's preference and broadcasting it
+            // (SPIF_UPDATEINIFILE | SPIF_SENDCHANGE). Restore the original value in finally.
+            Require(SetClientAreaAnimation(0x1043, 0, new IntPtr(1), 3), "Could not enable animations in the native smoke desktop");
             var nativeEnabled = 0;
             Require(ReadClientAreaAnimation(0x1042, 0, ref nativeEnabled, 0) && nativeEnabled != 0, "Native animation policy did not enable");
             await MotionFrame(); Motion.RefreshPolicy();
@@ -161,10 +162,15 @@ internal static partial class NativeSmoke
             fixture.Hide(); await MotionFrame(); Require(!ring.ClockRunning, "Hidden ring retained its render subscription");
             fixture.Show(); await MotionFrame(); Require(ring.ClockRunning, "Visible activity did not resume");
             checks.Add("Working/waiting animation pauses while hidden and resumes on visibility");
-            Require(SetClientAreaAnimation(0x1043, 0, IntPtr.Zero, 2), "Could not disable the native animation policy");
-            await MotionUntil(() => !Motion.Enabled && !ring.ClockRunning, "OS disable broadcast did not reach the production motion policy");
-            Require(SetClientAreaAnimation(0x1043, 0, new IntPtr(1), 2), "Could not restore the native animation policy");
-            await MotionUntil(() => Motion.Enabled && ring.ClockRunning, "OS enable broadcast did not reach the production motion policy");
+            Require(SetClientAreaAnimation(0x1043, 0, IntPtr.Zero, 3), "Could not disable the native animation policy");
+            var disabledValue = 1;
+            Require(ReadClientAreaAnimation(0x1042, 0, ref disabledValue, 0) && disabledValue == 0, "Native animation preference failed to disable");
+            await MotionUntil(() => !Motion.Enabled, "OS disable broadcast did not reach the production motion policy");
+            Require(!ring.ClockRunning, "Disabled OS motion policy left the activity render clock running");
+            Require(SetClientAreaAnimation(0x1043, 0, new IntPtr(1), 3), "Could not restore the native animation policy");
+            Require(ReadClientAreaAnimation(0x1042, 0, ref nativeEnabled, 0) && nativeEnabled != 0, "Native animation preference failed to restore");
+            await MotionUntil(() => Motion.Enabled, "OS enable broadcast did not reach the production motion policy");
+            Require(ring.ClockRunning, "Restored OS motion policy did not resume the activity render clock");
             checks.Add("Live native OS animation preference disables and restores motion without stale WPF cache");
             toggle.IsChecked = true;
             await MotionUntil(() => Motion.GetToggleOffset(toggle) is > 0 and < 16, "Toggle thumb skipped its transition");
@@ -179,7 +185,7 @@ internal static partial class NativeSmoke
         finally
         {
             fixture?.Close(); settings.Save(saved);
-            SetClientAreaAnimation(0x1043, 0, new IntPtr(originalAnimations), 2);
+            SetClientAreaAnimation(0x1043, 0, new IntPtr(originalAnimations), 3);
             await MotionFrame(); Motion.RefreshPolicy();
         }
     }

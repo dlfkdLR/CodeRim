@@ -110,7 +110,8 @@ internal sealed partial class UsagePane : StackPanel
         var header = new Grid { Margin = new Thickness(24, 16, 24, 12) };
         header.Children.Add(controls);
         selector = new System.Windows.Controls.ComboBox { ItemsSource = choices, ItemTemplate = ProviderTemplate(), SelectedValuePath = "Id",
-            SelectedValue = this.provider, MinHeight = 30, Height = 30, Width = 156, MaxWidth = 190, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Left };
+            SelectedValue = this.provider, MinHeight = 32, Height = 32, Width = 156, MaxWidth = 190, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Left,
+            Style = (Style)System.Windows.Application.Current.FindResource("UsageProviderPicker") };
         TextSearch.SetTextPath(selector, "Name");
         System.Windows.Automation.AutomationProperties.SetName(selector, "Usage provider");
         selector.SelectionChanged += (_, _) =>
@@ -158,10 +159,9 @@ internal sealed partial class UsagePane : StackPanel
         if (destination != "overview") bar.Children.Add(Ui.Button("‹ Back", Back));
         if (destination == "overview")
         {
-            var segments = new StackPanel { Orientation = Orientation.Horizontal };
-            var group = new Border { Child = segments, CornerRadius = new CornerRadius(7), Padding = new Thickness(2), BorderThickness = new Thickness(1), Height = 30 };
-            group.SetResourceReference(Border.BackgroundProperty, "ControlBackground");
-            group.SetResourceReference(Border.BorderBrushProperty, "DividerBrush");
+            var segments = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
+            var group = new Border { Child = segments, CornerRadius = new CornerRadius(6), Padding = new Thickness(2), Height = 28, Width = 246, VerticalAlignment = VerticalAlignment.Center };
+            group.SetResourceReference(Border.BackgroundProperty, "PanelBackground");
             System.Windows.Automation.AutomationProperties.SetAutomationId(group, "usage.mode");
             System.Windows.Automation.AutomationProperties.SetName(group, "Usage view");
             bar.Children.Add(group);
@@ -184,8 +184,8 @@ internal sealed partial class UsagePane : StackPanel
         var refreshIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 14 6 A 6 6 0 1 0 15 10 M 14 2 L 14 6 L 10 6"),
             Width = 16, Height = 16, StrokeThickness = 1.5, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round };
         refreshIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText");
-        refresh.Content = refreshIcon; refresh.Width = refresh.Height = refresh.MinHeight = 30;
-        refresh.Padding = new Thickness(6); refresh.Margin = new Thickness(12, 0, 0, 0);
+        refresh.Content = refreshIcon; refresh.Width = refresh.Height = refresh.MinHeight = 32;
+        refresh.Padding = new Thickness(6); refresh.Margin = new Thickness(16, 0, 0, 0);
         refresh.Background = Brushes.Transparent; refresh.BorderBrush = Brushes.Transparent;
         refresh.HorizontalContentAlignment = HorizontalAlignment.Center;
         refresh.ToolTip = "Refresh usage and limits (Ctrl+R)";

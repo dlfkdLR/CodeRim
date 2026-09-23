@@ -212,13 +212,38 @@
     </ControlTemplate.Triggers>
    </ControlTemplate></Setter.Value></Setter>
   </Style>
+  <Style x:Key="UsageProviderPicker" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+   <Setter Property="Background" Value="{DynamicResource CardBackground}"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox">
+    <Grid>
+     <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" ClickMode="Press">
+      <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
+       <Border x:Name="Surface" CornerRadius="6" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"/>
+       <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource ControlBackground}"/></Trigger></ControlTemplate.Triggers>
+      </ControlTemplate></ToggleButton.Template>
+     </ToggleButton>
+     <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" Margin="10,4,28,4" VerticalAlignment="Center" IsHitTestVisible="False"/>
+     <Path Data="M 0 3 L 3 0 L 6 3 M 0 7 L 3 10 L 6 7" Stroke="{DynamicResource SecondaryText}" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" IsHitTestVisible="False"/>
+     <Border x:Name="Focus" CornerRadius="6" BorderThickness="1" BorderBrush="Transparent" IsHitTestVisible="False"/>
+     <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" Placement="Bottom" PopupAnimation="None">
+      <Border Background="{DynamicResource PanelBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="6" Padding="4" MinWidth="{TemplateBinding ActualWidth}">
+       <ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}" CanContentScroll="True" HorizontalScrollBarVisibility="Disabled"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
+      </Border>
+     </Popup>
+    </Grid>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Focus" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
   <Style x:Key="UsageModeButton" TargetType="RadioButton">
    <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/><Setter Property="Padding" Value="10,0"/>
-   <Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="Medium"/>
+   <Setter Property="FontSize" Value="13"/><Setter Property="FontWeight" Value="Normal"/>
    <Setter Property="Height" Value="24"/><Setter Property="Cursor" Value="Hand"/>
    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="RadioButton">
     <Grid>
-     <Border x:Name="Surface" Background="Transparent" CornerRadius="5" Padding="{TemplateBinding Padding}">
+     <Border x:Name="Surface" Background="Transparent" CornerRadius="4" Padding="{TemplateBinding Padding}">
       <TextBlock Text="{TemplateBinding Content}" Foreground="{TemplateBinding Foreground}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
      </Border>
      <Border x:Name="Focus" BorderBrush="Transparent" BorderThickness="1" CornerRadius="5" IsHitTestVisible="False"/>
