@@ -17,15 +17,17 @@ internal static partial class NativeSmoke
     private static async Task CheckMotion(DashboardWindow dashboard, NotchWindow notch, CodeRim.Windows.ViewModels.DashboardStore store, AppSettingsStore settings, string directory)
     {
         var saved = settings.Current;
-        var originalAnimations = SystemParameters.ClientAreaAnimation ? 1 : 0;
+        var originalAnimations = 0;
+        Require(ReadClientAreaAnimation(0x1042, 0, ref originalAnimations, 0), "Could not read the desktop animation policy");
         var samples = new List<object>(); var checks = new List<string>();
         Window? fixture = null;
         try
         {
             // This path is only invoked by the explicitly requested, isolated synthetic smoke run.
             // Enable the disposable desktop session's animation policy, then restore it in finally.
-            var enabled = 1;
-            Require(SetClientAreaAnimation(0x1043, 0, ref enabled, 2), "Could not enable animations in the native smoke desktop");
+            Require(SetClientAreaAnimation(0x1043, 0, new IntPtr(1), 2), "Could not enable animations in the native smoke desktop");
+            var nativeEnabled = 0;
+            Require(ReadClientAreaAnimation(0x1042, 0, ref nativeEnabled, 0) && nativeEnabled != 0, "Native animation policy did not enable");
             await MotionFrame(); Motion.RefreshPolicy();
             settings.Save(saved with { ReduceMotion = false, EnabledProviders = ["codex", "claude"], Visibility = NotchVisibility.OnHover });
             await MotionUntil(() => Motion.Enabled, "Native desktop animation policy stayed disabled");
@@ -48,7 +50,14 @@ internal static partial class NativeSmoke
                 await MotionUntil(() => notch.FoldProgress >= 0.999, "Reversed unfold did not settle");
                 notch.SetExpanded(false);
                 await MotionUntil(() => !notch.Expanded && notch.FoldProgress == 0, "Fold did not finish");
-                Require(notch.Width < 100 || notch.Height < 100, "Folded native hit bounds remained expanded");
+                var vertical = edge is NotchEdge.Left or NotchEdge.Right;
+                var expectedWidth = (vertical ? NotchMetrics.PillDepth : NotchMetrics.PillLength) * settings.Current.Scale;
+                var expectedHeight = (vertical ? NotchMetrics.PillLength : NotchMetrics.PillDepth) * settings.Current.Scale;
+                var dpi = VisualTreeHelper.GetDpi(notch);
+                Require(WindowBounds(new System.Windows.Interop.WindowInteropHelper(notch).Handle, out var bounds), "Folded HWND has no bounds");
+                Require(Math.Abs(bounds.Right - bounds.Left - Math.Ceiling(expectedWidth * dpi.DpiScaleX)) <= 1
+                    && Math.Abs(bounds.Bottom - bounds.Top - Math.Ceiling(expectedHeight * dpi.DpiScaleY)) <= 1,
+                    "Folded native hit bounds remained expanded");
             }
             checks.Add("Four-edge spring geometry has intermediate frames, reverses without snapping and shrinks native hit bounds");
             settings.Save(settings.Current with { Edge = NotchEdge.Right, Visibility = NotchVisibility.AlwaysShow }); await MotionFrame();
@@ -61,8 +70,18 @@ internal static partial class NativeSmoke
             notch.OpenProvider("codex"); await Task.Delay(200); await MotionFrame();
             notch.OpenProvider("claude"); await MotionFrame();
             Require(notch.PopupIsOpen && notch.PopupContent is not null, "Provider change lost popup");
-            Capture(notch.PopupContent!, Path.Combine(directory, "windows-motion-popup-transition.png"));
-            checks.Add("Provider transitions retain the native popup and keyboard surface");
+            var popupPositions = new List<double>();
+            for (var frame = 0; frame < 6; frame++)
+            {
+                var child = notch.PopupContent!;
+                var y = child.PointToScreen(new Point(0, child.ActualHeight / 2)).Y;
+                popupPositions.Add(y); samples.Add(new { kind = "popup", frame, y });
+                RequirePopupClearOfNotch(notch, "animated provider transition");
+                Capture(child, Path.Combine(directory, $"windows-motion-popup-{frame:D2}.png"));
+                await Task.Delay(75); await MotionFrame();
+            }
+            Require(popupPositions.Distinct().Count() > 1, "Provider tooltip skipped its position transition");
+            checks.Add("Provider tooltip moves through native intermediate positions without covering the notch");
 
             dashboard.Navigate("notch"); await Idle();
             var realToggle = Descendants<CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Show edge notch");
@@ -151,7 +170,7 @@ internal static partial class NativeSmoke
         finally
         {
             fixture?.Close(); settings.Save(saved);
-            SetClientAreaAnimation(0x1043, 0, ref originalAnimations, 2);
+            SetClientAreaAnimation(0x1043, 0, new IntPtr(originalAnimations), 2);
             await MotionFrame(); Motion.RefreshPolicy();
         }
     }
@@ -167,6 +186,10 @@ internal static partial class NativeSmoke
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetClientAreaAnimation(uint action, uint parameter, ref int value, uint flags);
+    private static extern bool SetClientAreaAnimation(uint action, uint parameter, IntPtr value, uint flags);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ReadClientAreaAnimation(uint action, uint parameter, ref int value, uint flags);
 #pragma warning restore SYSLIB1054
 }

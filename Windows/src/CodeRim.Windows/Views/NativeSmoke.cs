@@ -425,6 +425,13 @@ internal static partial class NativeSmoke
             foreach (var section in new[] { "general", "usage", "providers", "notch" })
             {
                 dashboard.Navigate(section); await Idle();
+                if (section == "usage")
+                {
+                    var pane = Descendants<UsagePane>(dashboard).Single();
+                    pane.SelectProvider("codex"); pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
+                    var viewport = Descendants<ScrollViewer>(dashboard).Single(x => x.Content is StackPanel panel && panel.Children.OfType<UsagePane>().Any());
+                    Require(viewport.ScrollableHeight < 1, "Usage overview hides analytics links below the minimum-size viewport: " + theme);
+                }
                 Require(Descendants<ScrollViewer>(dashboard).All(x => x.ScrollableWidth < 1), "Horizontal overflow: " + theme + "/" + section);
                 foreach (var picker in Descendants<System.Windows.Controls.ComboBox>(dashboard))
                     Require(!string.IsNullOrWhiteSpace(AutomationProperties.GetName(picker)) || AutomationProperties.GetLabeledBy(picker) is not null, "Unlabelled settings picker: " + section);

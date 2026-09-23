@@ -13,7 +13,7 @@ struct UsageSettingsOverview: View {
     @AppStorage("sessionsEnabled") private var sessionsEnabled = AppPreferences.defaultSessionsEnabled
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: 16) {
             today
 
             if store.provider == .codex || store.snapshot.updatedAt != nil {
@@ -34,12 +34,13 @@ struct UsageSettingsOverview: View {
                 }
             }
         }
-        .padding(24)
+        .padding(.horizontal, 24)
+        .padding(.vertical, 16)
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private var today: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 12) {
             sectionHeading("Today", context: "This Mac")
                 .help(UsageDisplayPolicy.localHistoryHelp)
             if store.snapshot.updatedAt != nil {
@@ -118,7 +119,7 @@ struct UsageSettingsOverview: View {
     }
 
     private var history: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             sectionHeading("History", context: "This Mac")
                 .help(UsageDisplayPolicy.localHistoryHelp)
             ViewThatFits(in: .horizontal) {
@@ -142,7 +143,7 @@ struct UsageSettingsOverview: View {
         let total = store.snapshot.totals(for: period).totalTokens
         let text = formatted(total)
         return MenuLink(destination: .period(period)) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Text(title).font(.callout).foregroundStyle(.secondary)
                     Spacer(minLength: 0)
@@ -157,7 +158,7 @@ struct UsageSettingsOverview: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
-            .padding(.vertical, 6)
+            .padding(.vertical, 4)
             .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
         }
         .disabled(store.snapshot.updatedAt == nil)

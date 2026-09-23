@@ -153,7 +153,7 @@ struct MenuPopoverView: View {
     /// Settings has room for a compact toolbar and a full-width overview.
     /// Keep the account actions and navigation owned by the existing host.
     private var settingsHeader: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 6) {
             HStack(spacing: 16) {
                 Menu {
                     ForEach(availableProviders) { provider in
@@ -211,7 +211,7 @@ struct MenuPopoverView: View {
             }
             Divider()
         }
-        .padding(.top, 20)
+        .padding(.top, 16)
     }
 
     private func detailHeader(_ destination: MenuDestination) -> some View {

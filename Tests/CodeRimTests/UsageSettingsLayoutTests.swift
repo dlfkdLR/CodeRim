@@ -41,11 +41,18 @@ final class UsageSettingsLayoutTests: XCTestCase {
                     usage: usage, models: [], sessionCount: index)
             }, sessions: [])
 
+        let costAnalytics = AnalyticsSnapshot(range: .today,
+            interval: AnalyticsRange.today.interval(through: now, calendar: .current),
+            through: now, usage: usage, quality: .partial, buckets: [],
+            models: [ModelUsageSummary(modelID: "gpt-5.4", usage: usage)], projects: [], sessions: [])
+        XCTAssertNotNil(CostDisplaySummary(models: costAnalytics.models, through: now, quality: .partial).amountUSD)
+
         for width: CGFloat in [579, 920] {
             for dark in [false, true] {
-                for scenario in ["codex", "claude", "empty", "period", "limits", "analytics"] {
+                for scenario in ["codex", "codex-cost", "claude", "empty", "period", "limits", "analytics"] {
                     let provider: UsageProvider = scenario == "claude" ? .claude : .codex
                     defaults.set(provider.rawValue, forKey: "usageProvider")
+                    defaults.set(scenario == "codex-cost", forKey: "costEstimatesEnabled")
                     let navigation = MenuNavigation(path: scenario == "period" ? [.period(.month)]
                         : scenario == "analytics" ? [.projects] : [])
                     let size = NSSize(width: width, height: 560)
@@ -54,9 +61,10 @@ final class UsageSettingsLayoutTests: XCTestCase {
                             MenuPopoverView(accounts: accounts.store, navigation: navigation,
                                             section: scenario == "limits" ? .codex : .overview, embedded: true)
                         }
+                        .defaultScrollAnchor(.top)
                         .background(.background)
                         .environmentObject(isolatedLayoutUsageStore(provider: provider,
-                            analyticsSnapshots: scenario == "analytics" ? [.thirtyDays: analytics] : [:],
+                            analyticsSnapshots: scenario == "analytics" ? [.thirtyDays: analytics] : scenario == "codex-cost" ? [.today: costAnalytics] : [:],
                             initialSnapshot: scenario == "empty" ? .empty : snapshot,
                             automaticallyRefresh: false, defaults: defaults))
                         .environmentObject(profile)
@@ -80,6 +88,12 @@ final class UsageSettingsLayoutTests: XCTestCase {
                     XCTAssertEqual(scrolls.count, 1, "\(name): Settings must own the only scroll viewport")
                     for scroll in scrolls {
                         XCTAssertLessThanOrEqual(scroll.documentView?.bounds.width ?? 0, scroll.contentSize.width + 1, name)
+                        if scenario.hasPrefix("codex") || scenario == "claude" {
+                            XCTAssertLessThanOrEqual(abs(scroll.contentView.bounds.minY), 1, "\(name): overview header is scrolled out on first display")
+                            print("USAGE_VIEWPORT \(name) document=\(scroll.documentView?.bounds.height ?? 0) viewport=\(scroll.contentSize.height) origin=\(scroll.contentView.bounds.minY)")
+                            XCTAssertLessThanOrEqual(scroll.documentView?.bounds.height ?? 0, scroll.contentSize.height + 1,
+                                "\(name): ready overview must show Today, History and all analytic links without scrolling")
+                        }
                     }
                     if let directory = ProcessInfo.processInfo.environment["CODERIM_USAGE_CAPTURE_DIR"] {
                         let url = URL(fileURLWithPath: directory, isDirectory: true)

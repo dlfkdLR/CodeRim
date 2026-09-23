@@ -16,8 +16,8 @@ internal sealed partial class UsagePane : StackPanel
     private readonly DashboardStore store;
     private readonly AppSettingsStore settings;
     private readonly Action<string?> navigate;
-    private readonly StackPanel readings = new() { Margin = new Thickness(24) };
-    private readonly StackPanel accountRow = new() { Margin = new Thickness(24, 0, 24, 16) };
+    private readonly StackPanel readings = new() { Margin = new Thickness(24, 16, 24, 16) };
+    private readonly StackPanel accountRow = new() { Margin = new Thickness(24, 0, 24, 12) };
     private readonly System.Windows.Controls.ComboBox selector;
     private readonly Stack<NavigationState> history = new();
     private sealed record NavigationState(string Destination, string Period, string Search, string? Project, string? Session, int VisibleRows, string? Model, DateTimeOffset? Bucket);
@@ -107,7 +107,7 @@ internal sealed partial class UsagePane : StackPanel
         this.store = store; this.settings = settings; this.provider = provider; this.navigate = navigate;
         var choices = settings.Current.EnabledProviders.Select(id => ProviderCatalog.Find(id)!).ToArray();
         if (!choices.Any(x => x.Id == provider)) this.provider = choices.FirstOrDefault()?.Id ?? "codex";
-        var header = new Grid { Margin = new Thickness(24, 20, 24, 24) };
+        var header = new Grid { Margin = new Thickness(24, 16, 24, 12) };
         header.Children.Add(controls);
         selector = new System.Windows.Controls.ComboBox { ItemsSource = choices, DisplayMemberPath = "Name", SelectedValuePath = "Id",
             SelectedValue = this.provider, MinHeight = 24, Height = 24, MinWidth = 100, MaxWidth = 190, HorizontalAlignment = HorizontalAlignment.Left };
@@ -193,7 +193,7 @@ internal sealed partial class UsagePane : StackPanel
         var snapshot = store.Usage.GetValueOrDefault(provider) ?? UsageSnapshot.Empty;
         var today = snapshot.Today;
         readings.Children.Add(Heading("Today"));
-        var overview = new Grid { Margin = new Thickness(0, 18, 0, 24) };
+        var overview = new Grid { Margin = new Thickness(0, 12, 0, 16) };
         System.Windows.Automation.AutomationProperties.SetAutomationId(overview, "usage.overview");
         overview.ColumnDefinitions.Add(new ColumnDefinition()); overview.ColumnDefinitions.Add(new ColumnDefinition());
         var total = new StackPanel { Margin = new Thickness(0, 0, 24, 0) };
@@ -206,7 +206,7 @@ internal sealed partial class UsagePane : StackPanel
         var breakdown = new StackPanel(); Breakdown(breakdown, today); Grid.SetColumn(breakdown, 1); overview.Children.Add(breakdown); AdaptOverview(overview, total, breakdown); readings.Children.Add(overview);
         readings.Children.Add(SettingsUi.Divider());
         readings.Children.Add(Heading("History"));
-        var history = new Grid { Margin = new Thickness(0, 14, 0, 24) };
+        var history = new Grid { Margin = new Thickness(0, 10, 0, 16) };
         System.Windows.Automation.AutomationProperties.SetAutomationId(history, "usage.history");
         var values = new[] { ("This Week", "week", snapshot.Week), ("This Month", "month", snapshot.Month), ("Local History", "all-time", snapshot.AllTime) };
         for (var i = 0; i < values.Length; i++)
@@ -224,7 +224,7 @@ internal sealed partial class UsagePane : StackPanel
             button.HorizontalContentAlignment = HorizontalAlignment.Stretch; button.Padding = new Thickness(i == 0 ? 0 : 16, 0, 16, 0); Grid.SetColumn(button, i); history.Children.Add(button);
         }
         AdaptHistory(history); readings.Children.Add(history);
-        var links = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3, Margin = new Thickness(0, 24, 0, 18) };
+        var links = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3, Margin = new Thickness(0, 16, 0, 12) };
         System.Windows.Automation.AutomationProperties.SetAutomationId(links, "usage.links");
         foreach (var (id, label, detail, icon) in new[]
         {
@@ -252,7 +252,7 @@ internal sealed partial class UsagePane : StackPanel
     }
     private static DockPanel Heading(string title)
     {
-        var row = new DockPanel { Margin = new Thickness(0, title == "History" ? 24 : 0, 0, 0) };
+        var row = new DockPanel { Margin = new Thickness(0, title == "History" ? 16 : 0, 0, 0) };
         var scope = Ui.Text("This PC", 11, "#A6A6AA"); scope.ToolTip = "Local usage across accounts on this computer."; DockPanel.SetDock(scope, Dock.Right); row.Children.Add(scope);
         row.Children.Add(Ui.Text(title, 13, weight: FontWeights.SemiBold)); return row;
     }
