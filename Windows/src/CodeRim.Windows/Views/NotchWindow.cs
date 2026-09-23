@@ -142,7 +142,7 @@ internal sealed partial class NotchWindow : Window
     {
         foreach (var ring in rings)
         {
-            ring.Reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(ring.ProviderId)?.Evaluated(DateTimeOffset.Now), settings.Current);
+            ring.Reading = ProviderDisplayPolicy.Apply(store.AccountDisplay(ring.ProviderId).Reading?.Evaluated(DateTimeOffset.Now), settings.Current);
             ring.Active = store.Sessions.Any(x => x.Provider == ring.ProviderId && x.State == "busy");
             ring.Waiting = store.Sessions.Any(x => x.Provider == ring.ProviderId && x.State == "waiting");
             ring.Refreshing = store.RefreshingProviders.Contains(ring.ProviderId);
@@ -189,7 +189,7 @@ internal sealed partial class NotchWindow : Window
         var cells = new StackPanel { Orientation = Vertical ? Orientation.Vertical : Orientation.Horizontal };
         foreach (var id in config.EnabledProviders)
         {
-            var ring = new ProviderRing { ProviderId = id, Settings = config, Reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(id), config),
+            var ring = new ProviderRing { ProviderId = id, Settings = config, Reading = ProviderDisplayPolicy.Apply(store.AccountDisplay(id).Reading, config),
                 Active = store.Sessions.Any(x => x.Provider == id && x.State == "busy"),
                 Waiting = store.Sessions.Any(x => x.Provider == id && x.State == "waiting"),
                 Refreshing = store.RefreshingProviders.Contains(id) };
@@ -327,9 +327,10 @@ internal sealed partial class NotchWindow : Window
         list.Children.Add(NotchPopover.Text("Accounts", 14, Brushes.White, FontWeights.SemiBold));
         foreach (var id in settings.Current.EnabledProviders.Where(x => x != "ollama-local"))
         {
-            var reading = store.Readings.GetValueOrDefault(id)?.Evaluated(DateTimeOffset.Now);
+            var display = store.AccountDisplay(id);
+            var reading = display.Reading?.Evaluated(DateTimeOffset.Now);
             var name = ProviderCatalog.Find(id)?.Name ?? id;
-            var account = SavedAccounts.CurrentAccountLabel(id, store.Synthetic);
+            var account = display.Label;
             var state = reading?.State is ReadingState.Ready or ReadingState.Partial or ReadingState.Stale ? "Connected" : "Connect account";
             var button = Ui.Button(name, () => { popup.IsOpen = false; openSettings(id is "codex" or "claude" ? id + "-accounts" : id); });
             button.BorderThickness = new Thickness(0); button.Background = Ui.Brush("#202020"); button.HorizontalContentAlignment = HorizontalAlignment.Stretch;

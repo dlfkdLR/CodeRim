@@ -214,10 +214,10 @@ internal sealed partial class UsagePane : StackPanel
         }
         var refresh = Ui.AsyncButton("Refresh usage", () => store.RefreshAsync(true));
         var refreshIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 14 6 A 6 6 0 1 0 15 10 M 14 2 L 14 6 L 10 6"),
-            Width = 16, Height = 16, StrokeThickness = 1.5, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round };
+            Width = 16, Height = 16, Stretch = Stretch.Uniform, StrokeThickness = 1.5, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round };
         refreshIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText");
         refresh.Content = refreshIcon; refresh.Width = refresh.Height = refresh.MinHeight = 28;
-        refresh.Padding = new Thickness(6); refresh.Margin = new Thickness(16, 0, 0, 0);
+        refresh.Padding = new Thickness(5); refresh.BorderThickness = new Thickness(0); refresh.Margin = new Thickness(16, 0, 0, 0);
         refresh.Background = Brushes.Transparent; refresh.BorderBrush = Brushes.Transparent;
         refresh.HorizontalContentAlignment = HorizontalAlignment.Center;
         refreshAction = refresh; refresh.IsEnabled = !store.IsRefreshing;
@@ -254,12 +254,13 @@ internal sealed partial class UsagePane : StackPanel
                 if (parent is ScrollViewer scroll) { scroll.ScrollToTop(); break; }
         }
         accountRow.Children.Clear();
-        var identity = SavedAccounts.CurrentAccountLabel(provider, store.Synthetic);
+        var display = store.AccountDisplay(provider);
+        var identity = display.Label;
         var account = new DockPanel();
         var change = Ui.Button("Switch", () => navigate(provider is "codex" or "claude" ? provider + "-accounts" : provider));
         change.MinHeight = 20; change.Height = 20; change.Padding = new Thickness(0); change.Background = Brushes.Transparent; change.BorderThickness = new Thickness(0); change.Margin = new Thickness(8, 0, 0, 0);
         DockPanel.SetDock(change, Dock.Right); account.Children.Add(change);
-        var accountLabel = Ui.Text(identity ?? store.Readings.GetValueOrDefault(provider)?.Plan ?? "Account", 12);
+        var accountLabel = Ui.Text(identity ?? display.Reading?.Plan ?? "Account", 12);
         accountLabel.FontWeight = FontWeights.SemiBold; accountLabel.Margin = new Thickness(0); accountLabel.TextWrapping = TextWrapping.NoWrap; accountLabel.TextTrimming = TextTrimming.CharacterEllipsis; accountLabel.ToolTip = identity; accountLabel.VerticalAlignment = VerticalAlignment.Center;
         var identityIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M8,1 A7,7 0 1 0 8,15 A7,7 0 1 0 8,1 M5,6 A3,3 0 1 0 11,6 A3,3 0 1 0 5,6 M3,13 Q8,8 13,13"), Width = 13, Height = 13, StrokeThickness = 1, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
         identityIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); DockPanel.SetDock(identityIcon, Dock.Left); account.Children.Add(identityIcon);
@@ -267,7 +268,7 @@ internal sealed partial class UsagePane : StackPanel
         readings.Children.Clear();
         if (destination is "account-period" or "local-period") { PeriodDetail(); return; }
         if (destination != "overview") { Detail(); return; }
-        if (mode == "Limits") { Limits(); return; }
+        if (mode == "Limits") { Limits(display.Reading); return; }
         if (provider is not ("codex" or "claude"))
         {
             readings.Children.Add(Ui.Text("Local token history is available for Codex and Claude Code.", color: "#A6A6AA"));
@@ -281,9 +282,9 @@ internal sealed partial class UsagePane : StackPanel
         var scope = Ui.Text(scopeTitle, 11, "#A6A6AA"); scope.Margin = new Thickness(0); scope.ToolTip = scopeTitle == "This PC" ? "Local usage across accounts on this computer." : AccountHistoryHelp; DockPanel.SetDock(scope, Dock.Right); row.Children.Add(scope);
         var heading = Ui.Text(title, 13, weight: FontWeights.SemiBold); heading.Margin = new Thickness(0); row.Children.Add(heading); return row;
     }
-    private void Limits()
+    private void Limits(ProviderReading? accountReading)
     {
-        var reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(provider)?.Evaluated(DateTimeOffset.Now), settings.Current);
+        var reading = ProviderDisplayPolicy.Apply(accountReading?.Evaluated(DateTimeOffset.Now), settings.Current);
         readings.Children.Add(Ui.Text(reading?.Plan ?? ProviderCatalog.Find(provider)?.Name ?? provider, 18, weight: FontWeights.SemiBold));
         foreach (var window in reading?.Windows ?? [])
         {

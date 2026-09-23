@@ -73,7 +73,7 @@ internal sealed class ProviderPickerWindow : Window
                 button.FontSize = 11; button.MinHeight = 22; button.Margin = new Thickness(6, 0, 0, 0); button.Padding = new Thickness(7, 2, 7, 2);
                 AutomationProperties.SetName(button, (added ? "Configure " : "Add ") + provider.Name); AutomationProperties.SetAutomationId(button, "providers.picker." + (added ? "configure." : "add.") + provider.Id);
                 DockPanel.SetDock(button, Dock.Right); row.Children.Add(button);
-                var available = store.Readings.GetValueOrDefault(provider.Id)?.State == ReadingState.Ready;
+                var available = store.AccountDisplay(provider.Id).Reading?.State == ReadingState.Ready;
                 var state = Ui.Text(added ? "✓ Added" : available ? "Reading available" : "Connect after adding", 11, "#A6A6AA"); state.VerticalAlignment = VerticalAlignment.Center; state.Margin = new Thickness(0);
                 if (added) state.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush"); row.Children.Add(state); inner.Children.Add(row);
                 var card = new Border { Child = inner, Padding = new Thickness(14), CornerRadius = new CornerRadius(12), BorderThickness = new Thickness(1), Margin = new Thickness(0, 0, 0, 12) };

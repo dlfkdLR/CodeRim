@@ -34,7 +34,7 @@ internal sealed partial class DashboardWindow : Window
     private readonly Dictionary<string, Window> accountWindows = new(StringComparer.Ordinal);
     private readonly TextBlock status = Ui.Text("");
     private readonly StackPanel providerReading = new();
-    private readonly Dictionary<string, TextBlock> providerListDetails = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, Action> providerListDetails = new(StringComparer.Ordinal);
     private TextBlock? gradientMotionNote;
     private string page = "usage";
     private string localProvider = "codex";
@@ -104,6 +104,7 @@ internal sealed partial class DashboardWindow : Window
     private void SettingsChanged(object? sender, EventArgs e)
     {
         BuildSidebar(); UpdateNotchMotionNote();
+        if (page == "providers") UpdateProviderList();
         foreach (var ring in VisualChildren<ProviderRing>(body)) ring.Settings = settings.Current;
         RefreshStartupStatus();
         if (ProviderCatalog.Find(page) is not null) { UpdateProviderReading(page); UpdateProviderControlStates(); }
@@ -283,11 +284,7 @@ internal sealed partial class DashboardWindow : Window
     }
     private void UpdateProviderList()
     {
-        foreach (var (id, label) in providerListDetails)
-        {
-            var reading = store.Readings.GetValueOrDefault(id);
-            label.Text = reading?.Plan ?? reading?.Message ?? "Not connected";
-        }
+        foreach (var update in providerListDetails.Values) update();
     }
     private void Providers()
     {
@@ -295,21 +292,18 @@ internal sealed partial class DashboardWindow : Window
         foreach (var id in settings.Current.EnabledProviders)
         {
             var provider = ProviderCatalog.Find(id)!;
-            var row = new DockPanel { Margin = new Thickness(14, 10, 14, 10) };
-            var actions = new StackPanel { Orientation = Orientation.Horizontal };
-            var muted = settings.Current.MutedAlertProviders.Contains(id, StringComparer.Ordinal);
-            var alerts = Ui.Toggle("", !muted, on => { Save(settings.Current with { MutedAlertProviders = on ? settings.Current.MutedAlertProviders.Where(x => x != id).ToArray() : [..settings.Current.MutedAlertProviders, id] }); });
-            alerts.ToolTip = "Usage alerts for " + provider.Name;
-            System.Windows.Automation.AutomationProperties.SetName(alerts, "Usage alerts for " + provider.Name);
-            alerts.IsEnabled = settings.Current.AlertsEnabled; alerts.Width = 36; alerts.Margin = new Thickness(4, 0, 12, 0);
-            actions.Children.Add(alerts);
-            actions.Children.Add(Ui.Button("Details", () => Navigate(id)));
-            var remove = Ui.Button("⊖", () => { Save(settings.Current with { EnabledProviders = settings.Current.EnabledProviders.Where(x => x != id).ToArray() }); Render(); });
-            System.Windows.Automation.AutomationProperties.SetName(remove, "Remove " + provider.Name); actions.Children.Add(remove);
-            DockPanel.SetDock(actions, Dock.Right); row.Children.Add(actions);
+            var row = new DockPanel { Margin = new Thickness(20, 9, 20, 9), MinHeight = 36 };
+            var content = new ProviderAccountRow(id, store, settings, () => Navigate(id), () =>
+            {
+                Save(settings.Current with { EnabledProviders = settings.Current.EnabledProviders.Where(x => x != id).ToArray() }); Render();
+            }, muted => Save(settings.Current with { MutedAlertProviders = muted
+                ? settings.Current.MutedAlertProviders.Append(id).Distinct(StringComparer.Ordinal).ToArray()
+                : settings.Current.MutedAlertProviders.Where(x => x != id).ToArray() }));
+            providerListDetails[id] = content.Refresh;
             if (settings.Current.EnabledProviders.Length > 1)
             {
-                var handle = Ui.Button("⋮", () => { }); handle.ToolTip = "Drag to reorder " + provider.Name;
+                var handle = Ui.Button("☰", () => { }); handle.ToolTip = "Drag to reorder " + provider.Name;
+                handle.Width = 20; handle.MinHeight = 20; handle.Padding = new Thickness(0); handle.Margin = new Thickness(0, 0, 10, 0); handle.Background = Brushes.Transparent; handle.BorderThickness = new Thickness(0); handle.FontSize = 11;
                 System.Windows.Automation.AutomationProperties.SetName(handle, "Reorder " + provider.Name);
                 handle.PreviewMouseMove += (_, e) => { if (e.LeftButton == System.Windows.Input.MouseButtonState.Pressed) DragDrop.DoDragDrop(handle, new DataObject("CodeRim.Provider", id), DragDropEffects.Move); };
                 var menu = new ContextMenu();
@@ -325,15 +319,7 @@ internal sealed partial class DashboardWindow : Window
                     }
                 };
             }
-            var mark = new Border { Width = 28, Height = 28, Background = Ui.Brush("#454545"), CornerRadius = new CornerRadius(7), Margin = new Thickness(0, 0, 10, 0), Child = new ProviderMark { ProviderId = id, Margin = new Thickness(5) } };
-            DockPanel.SetDock(mark, Dock.Left); row.Children.Add(mark);
-            var labels = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            var name = Ui.Text(provider.Name, 13, weight: FontWeights.SemiBold); name.Margin = new Thickness(0); labels.Children.Add(name);
-            var reading = store.Readings.GetValueOrDefault(id);
-            var detail = Ui.Text(reading?.Plan ?? reading?.Message ?? "Not connected", 11, "#A6A6AA"); detail.Margin = new Thickness(0, 2, 0, 0); labels.Children.Add(detail);
-            System.Windows.Automation.AutomationProperties.SetAutomationId(detail, "provider-list." + id);
-            providerListDetails[id] = detail;
-            row.Children.Add(labels); rows.Add(row);
+            row.Children.Add(content); rows.Add(row);
         }
         if (rows.Count == 0) rows.Add(SettingsUi.Note("No providers added. Choose Add Provider to start monitoring."));
         rows.Add(SettingsUi.Action("+ Add Provider", ShowProviderPicker));
@@ -355,6 +341,7 @@ internal sealed partial class DashboardWindow : Window
     private void Provider(string id)
     {
         var provider = ProviderCatalog.Find(id); if (provider is null) { Navigate("providers"); return; }
+        var accountDisplay = store.AccountDisplay(id);
         body.Children.Add(SettingsUi.Action("‹ All Providers", () => Navigate("providers")));
         var header = new DockPanel { Margin = new Thickness(14) };
         var refresh = Ui.AsyncButton("↻", () => store.RefreshProviderAsync(id));
@@ -366,14 +353,14 @@ internal sealed partial class DashboardWindow : Window
         DockPanel.SetDock(mark, Dock.Left); header.Children.Add(mark);
         var headerText = new StackPanel();
         headerText.Children.Add(Ui.Text(provider.Name, 16, weight: FontWeights.SemiBold));
-        headerText.Children.Add(ProviderValue("provider.status", store.Readings.GetValueOrDefault(id)?.State.ToString() ?? "Available", 12));
+        headerText.Children.Add(ProviderValue("provider.status", accountDisplay.Reading?.State.ToString() ?? "Available", 12));
         header.Children.Add(headerText);
         var headerCard = new Border { Child = header, CornerRadius = new CornerRadius(12), Margin = new Thickness(18, 0, 18, 4) };
         headerCard.SetResourceReference(Border.BackgroundProperty, "CardBackground"); body.Children.Add(headerCard);
         if (id is "codex" or "claude")
             body.Children.Add(SettingsUi.Section("Account",
-                SettingsUi.Row("Account", ProviderValue("provider.account", SavedAccounts.CurrentAccountLabel(id, store.Synthetic) ?? "Not connected")),
-                SettingsUi.Row("Plan", ProviderValue("provider.plan", store.Readings.GetValueOrDefault(id)?.Plan ?? "Unavailable")),
+                SettingsUi.Row("Account", ProviderValue("provider.account", accountDisplay.Label ?? "Not connected")),
+                SettingsUi.Row("Plan", ProviderValue("provider.plan", accountDisplay.Reading?.Plan ?? "Unavailable")),
                 SettingsUi.Action("Manage Accounts…", () => Navigate(id + "-accounts"))));
         if (id == "codex")
             body.Children.Add(SettingsUi.Section("Limits",
@@ -737,17 +724,18 @@ internal sealed partial class DashboardWindow : Window
     private void UpdateProviderReading(string id)
     {
         // Update the existing labels so credential drafts and keyboard focus survive a poll.
-        var current = store.Readings.GetValueOrDefault(id);
+        var display = store.AccountDisplay(id);
+        var current = display.Reading;
         foreach (var label in VisualChildren<TextBlock>(body))
         {
             switch (System.Windows.Automation.AutomationProperties.GetAutomationId(label))
             {
                 case "provider.status": label.Text = current?.State.ToString() ?? "Available"; break;
-                case "provider.account": label.Text = SavedAccounts.CurrentAccountLabel(id, store.Synthetic) ?? "Not connected"; break;
+                case "provider.account": label.Text = display.Label ?? "Not connected"; break;
                 case "provider.plan": label.Text = current?.Plan ?? "Unavailable"; break;
             }
         }
-        providerReading.Children.Clear(); var reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(id), settings.Current);
+        providerReading.Children.Clear(); var reading = ProviderDisplayPolicy.Apply(current, settings.Current);
         providerReading.Children.Add(Ui.Text(reading?.Message ?? reading?.State.ToString() ?? "Waiting for the first reading", color: "#B7B8BD"));
         string? group = null;
         foreach (var window in reading?.Windows ?? [])

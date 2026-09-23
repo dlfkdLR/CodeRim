@@ -36,7 +36,9 @@ public sealed record ProviderCostUsage(string Currency, int HistoryDays, string 
 public sealed record ProviderReading(string Id, ReadingState State, IReadOnlyList<LimitWindow> Windows,
     DateTimeOffset? UpdatedAt = null, string? Message = null, string? Plan = null, ProviderCostUsage? CostUsage = null)
 {
-    public LimitWindow? Headline => Windows.Count == 0 ? null : Windows[0];
+    public LimitWindow? Headline => Windows.Count == 0 ? null : Id is "codex" or "claude"
+        ? Windows.Where(x => x.UsedPercent is { } used && double.IsFinite(used)).MaxBy(x => x.UsedPercent) ?? Windows[0]
+        : Windows[0];
     public bool IsStale(DateTimeOffset now) => UpdatedAt is null || UpdatedAt > now.AddMinutes(1)
         || now - UpdatedAt > TimeSpan.FromMinutes(5) || Windows.Any(x => x.ResetsAt <= now);
     public ProviderReading Evaluated(DateTimeOffset now) => State == ReadingState.Ready && IsStale(now) ? this with { State = ReadingState.Stale } : this;

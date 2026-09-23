@@ -180,11 +180,11 @@ internal static partial class NativeSmoke
         settings.Save(settings.Current with { Visibility = NotchVisibility.OnHover });
         dashboard.Navigate("providers"); await Idle();
         var listPlan = Descendants<TextBlock>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "provider-list.codex");
-        Require(listPlan.Text == "Preview account", "Provider list fixture was not loaded");
+        Require(listPlan.Text.Contains("Preview account", StringComparison.Ordinal), "Provider list fixture was not loaded");
         store.InvalidateAccount("codex"); await Idle();
-        Require(listPlan.Text != "Preview account", "Provider list kept stale plan after account invalidation");
+        Require(!listPlan.Text.Contains("Preview account", StringComparison.Ordinal), "Provider list kept stale plan after account invalidation");
         await store.RefreshProviderAsync("codex"); await Idle();
-        Require(listPlan.Text == "Preview account" && Descendants<TextBlock>(dashboard).Contains(listPlan), "Provider list did not refresh its existing row");
+        Require(listPlan.Text.Contains("Preview account", StringComparison.Ordinal) && Descendants<TextBlock>(dashboard).Contains(listPlan), "Provider list did not refresh its existing row");
         dashboard.Navigate("usage"); await Idle();
         Require(Descendants<Button>(dashboard).Any(x => AutomationProperties.GetAutomationId(x) == "usage.refresh"), "Usage header has no refresh action");
         var providerPicker = Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage provider");
@@ -202,6 +202,12 @@ internal static partial class NativeSmoke
         Require(usageModes.Select(VisualTreeHelper.GetParent).Distinct().Count() == 1, "Usage modes are not one segmented control");
         var refreshAction = Descendants<Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.refresh");
         Require(refreshAction.Content is System.Windows.Shapes.Path && AutomationProperties.GetName(refreshAction) == "Refresh usage", "Usage refresh icon has no accessible action name");
+        var refreshGlyph = (System.Windows.Shapes.Path)refreshAction.Content;
+        var glyphBounds = refreshGlyph.RenderedGeometry.GetRenderBounds(new Pen(Brushes.Black, refreshGlyph.StrokeThickness));
+        Require(glyphBounds.Left >= -0.1 && glyphBounds.Top >= -0.1 && glyphBounds.Right <= refreshGlyph.ActualWidth + 0.1 && glyphBounds.Bottom <= refreshGlyph.ActualHeight + 0.1,
+            "Refresh icon stroke extends outside its arranged bounds.");
+        Require(refreshAction.ActualWidth - refreshAction.Padding.Left - refreshAction.Padding.Right - refreshAction.BorderThickness.Left - refreshAction.BorderThickness.Right >= refreshGlyph.ActualWidth,
+            "Refresh button padding clips its icon.");
         Require(Descendants<ProviderMark>(dashboard).Any(x => x.ProviderId == "codex"), "Usage provider selector is missing its glyph");
         usageModes[1].IsChecked = true; await Idle();
         Require(usageModes[1].IsChecked == true && usageModes[0].IsChecked == false, "Limits segment failed to select exclusively");
@@ -301,6 +307,8 @@ internal static partial class NativeSmoke
         await AdditionalBrowserConnectionsRegression(dashboard, settings, vault, directory);
         Record("Five additional Firefox readers verify scoped login and render native quota");
         Record("Moonshot regional endpoints, DPAPI key isolation, environment aliases and source UI");
+        await ProviderRowsRegression(dashboard, store, settings, directory);
+        await ProviderAccountOwnershipRegression(settings, vault, directory);
         await ProviderPickersRegression(dashboard, store, settings, directory);
         Record("Mac provider catalogue and searchable Usage popover");
         await IsolatedAccountsRegression(directory);

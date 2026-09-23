@@ -21,12 +21,13 @@ internal static class NotchPopover
         header.Children.Add(mark);
         header.Children.Add(Text(ProviderCatalog.Find(id)?.Name ?? id, 13.7, Brushes.White, FontWeights.SemiBold));
         content.Children.Add(header);
-        var reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(id)?.Evaluated(DateTimeOffset.Now), settings);
+        var accountDisplay = store.AccountDisplay(id);
+        var reading = ProviderDisplayPolicy.Apply(accountDisplay.Reading?.Evaluated(DateTimeOffset.Now), settings);
         var account = new DockPanel { Margin = new Thickness(0, 0, 0, 8), LastChildFill = true };
         var switcher = PlainButton("Switch account", () => navigate(id is "codex" or "claude" ? id + "-accounts" : id));
         switcher.HorizontalAlignment = HorizontalAlignment.Right; DockPanel.SetDock(switcher, Dock.Right);
         account.Children.Add(switcher);
-        var identity = SavedAccounts.CurrentAccountLabel(id, store.Synthetic);
+        var identity = accountDisplay.Label;
         account.Children.Add(Text(reading?.Plan ?? "Account", 10.5, Secondary));
         content.Children.Add(account);
         if (identity is not null)
