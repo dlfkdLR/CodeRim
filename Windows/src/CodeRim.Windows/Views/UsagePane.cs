@@ -109,8 +109,9 @@ internal sealed partial class UsagePane : StackPanel
         if (!choices.Any(x => x.Id == provider)) this.provider = choices.FirstOrDefault()?.Id ?? "codex";
         var header = new Grid { Margin = new Thickness(24, 16, 24, 12) };
         header.Children.Add(controls);
-        selector = new System.Windows.Controls.ComboBox { ItemsSource = choices, DisplayMemberPath = "Name", SelectedValuePath = "Id",
-            SelectedValue = this.provider, MinHeight = 24, Height = 24, MinWidth = 100, MaxWidth = 190, HorizontalAlignment = HorizontalAlignment.Left };
+        selector = new System.Windows.Controls.ComboBox { ItemsSource = choices, ItemTemplate = ProviderTemplate(), SelectedValuePath = "Id",
+            SelectedValue = this.provider, MinHeight = 30, Height = 30, Width = 156, MaxWidth = 190, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Left };
+        TextSearch.SetTextPath(selector, "Name");
         System.Windows.Automation.AutomationProperties.SetName(selector, "Usage provider");
         selector.SelectionChanged += (_, _) =>
         {
@@ -127,20 +128,49 @@ internal sealed partial class UsagePane : StackPanel
         LostKeyboardFocus += (_, _) => Dispatcher.BeginInvoke(new Action(() => { if (pendingRefresh && !readings.IsKeyboardFocusWithin && !accountRow.IsKeyboardFocusWithin) RefreshReadings(); }));
         BuildControls(); Update();
     }
+    private static DataTemplate ProviderTemplate()
+    {
+        var row = new FrameworkElementFactory(typeof(DockPanel));
+        var glyph = new FrameworkElementFactory(typeof(ProviderMark));
+        glyph.SetValue(DockPanel.DockProperty, Dock.Left);
+        glyph.SetValue(WidthProperty, 18d); glyph.SetValue(HeightProperty, 18d);
+        glyph.SetValue(MarginProperty, new Thickness(0, 0, 8, 0));
+        glyph.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
+        glyph.SetBinding(ProviderMark.ProviderIdProperty, new System.Windows.Data.Binding("Id"));
+        glyph.SetBinding(ProviderMark.ForegroundProperty, new System.Windows.Data.Binding("Foreground")
+        { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(Control), 1) });
+        row.AppendChild(glyph);
+        var name = new FrameworkElementFactory(typeof(TextBlock));
+        name.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Name"));
+        name.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding("Foreground")
+        { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(Control), 1) });
+        name.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+        name.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+        name.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
+        row.AppendChild(name);
+        return new DataTemplate { VisualTree = row };
+    }
     internal void ShowSessions() => Forward("sessions", "all-time");
     private void BuildControls()
     {
         controls.Children.Clear(); filters.Children.Clear();
-        var bar = new WrapPanel();
+        var bar = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
         if (destination != "overview") bar.Children.Add(Ui.Button("‹ Back", Back));
         if (destination == "overview")
         {
+            var segments = new StackPanel { Orientation = Orientation.Horizontal };
+            var group = new Border { Child = segments, CornerRadius = new CornerRadius(7), Padding = new Thickness(2), BorderThickness = new Thickness(1), Height = 30 };
+            group.SetResourceReference(Border.BackgroundProperty, "ControlBackground");
+            group.SetResourceReference(Border.BorderBrushProperty, "DividerBrush");
+            System.Windows.Automation.AutomationProperties.SetAutomationId(group, "usage.mode");
+            System.Windows.Automation.AutomationProperties.SetName(group, "Usage view");
+            bar.Children.Add(group);
             foreach (var choice in new[] { "Token usage", "Limits" })
             {
                 var button = new RadioButton { Content = choice == "Limits" ? (provider == "codex" ? "Codex Limits" : provider == "claude" ? "Claude Limits" : "Limits") : "Token Usage",
                     IsChecked = mode == choice, GroupName = "UsageMode", Style = (Style)System.Windows.Application.Current.FindResource("UsageModeButton") };
                 System.Windows.Automation.AutomationProperties.SetName(button, button.Content.ToString());
-                button.Checked += (_, _) => { mode = choice; Update(); }; bar.Children.Add(button);
+                button.Checked += (_, _) => { mode = choice; Update(); }; segments.Children.Add(button);
             }
         }
         else
@@ -150,7 +180,14 @@ internal sealed partial class UsagePane : StackPanel
             System.Windows.Automation.AutomationProperties.SetName(select, "Usage period");
             select.SelectionChanged += (_, _) => { if (select.SelectedValue is string value) { period = value; selectedBucket = null; visibleRows = 40; Update(); } }; bar.Children.Add(select);
         }
-        var refresh = Ui.AsyncButton("Refresh", () => store.RefreshAsync(true));
+        var refresh = Ui.AsyncButton("Refresh usage", () => store.RefreshAsync(true));
+        var refreshIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 14 6 A 6 6 0 1 0 15 10 M 14 2 L 14 6 L 10 6"),
+            Width = 16, Height = 16, StrokeThickness = 1.5, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round };
+        refreshIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText");
+        refresh.Content = refreshIcon; refresh.Width = refresh.Height = refresh.MinHeight = 30;
+        refresh.Padding = new Thickness(6); refresh.Margin = new Thickness(12, 0, 0, 0);
+        refresh.Background = Brushes.Transparent; refresh.BorderBrush = Brushes.Transparent;
+        refresh.HorizontalContentAlignment = HorizontalAlignment.Center;
         refresh.ToolTip = "Refresh usage and limits (Ctrl+R)";
         System.Windows.Automation.AutomationProperties.SetAutomationId(refresh, "usage.refresh");
         bar.Children.Add(refresh);

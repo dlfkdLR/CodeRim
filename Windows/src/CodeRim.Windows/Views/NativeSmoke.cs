@@ -187,6 +187,26 @@ internal static partial class NativeSmoke
         Require(listPlan.Text == "Preview account" && Descendants<TextBlock>(dashboard).Contains(listPlan), "Provider list did not refresh its existing row");
         dashboard.Navigate("usage"); await Idle();
         Require(Descendants<Button>(dashboard).Any(x => AutomationProperties.GetAutomationId(x) == "usage.refresh"), "Usage header has no refresh action");
+        var providerPicker = Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage provider");
+        dashboard.Activate(); providerPicker.Focus();
+        providerPicker.RaiseEvent(new System.Windows.Input.TextCompositionEventArgs(System.Windows.Input.Keyboard.PrimaryDevice,
+            new System.Windows.Input.TextComposition(System.Windows.Input.InputManager.Current, providerPicker, "Claude"))
+            { RoutedEvent = System.Windows.Input.TextCompositionManager.TextInputEvent });
+        await Idle();
+        Require(providerPicker.SelectedValue is string selectedProvider && selectedProvider == "claude", "Provider name typing no longer selects Claude");
+        Descendants<UsagePane>(dashboard).Single().SelectProvider("codex");
+        System.Windows.Input.Keyboard.ClearFocus(); await Idle();
+        var usageModes = Descendants<RadioButton>(dashboard).Where(x => x.GroupName == "UsageMode").ToArray();
+        Require(usageModes.Length == 2 && usageModes.All(x => x.ActualHeight <= 26), "Usage mode controls lost their compact height");
+        Require(usageModes.Select(VisualTreeHelper.GetParent).Distinct().Count() == 1, "Usage modes are not one segmented control");
+        var refreshAction = Descendants<Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.refresh");
+        Require(refreshAction.Content is System.Windows.Shapes.Path && AutomationProperties.GetName(refreshAction) == "Refresh usage", "Usage refresh icon has no accessible action name");
+        Require(Descendants<ProviderMark>(dashboard).Any(x => x.ProviderId == "codex"), "Usage provider selector is missing its glyph");
+        usageModes[1].IsChecked = true; await Idle();
+        Require(usageModes[1].IsChecked == true && usageModes[0].IsChecked == false, "Limits segment failed to select exclusively");
+        usageModes[0].IsChecked = true; await Idle();
+        Require(usageModes[0].IsChecked == true && usageModes[1].IsChecked == false, "Token Usage segment failed to select exclusively");
+        Record("Compact Usage segments, provider glyph and accessible icon refresh preserve selection behavior");
         var shortCard = NotchPopover.Create("codex", store, settings.Current, _ => { }, 140);
         shortCard.Measure(new Size(500, 1000)); shortCard.Arrange(new Rect(0, 0, 500, shortCard.DesiredSize.Height));
         Require(Descendants<ScrollViewer>(shortCard).Single().MaxHeight == 100, "Popover ignored the selected monitor viewport");

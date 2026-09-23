@@ -29,11 +29,15 @@ internal static partial class NativeSmoke
             var nativeEnabled = 0;
             Require(ReadClientAreaAnimation(0x1042, 0, ref nativeEnabled, 0) && nativeEnabled != 0, "Native animation policy did not enable");
             await MotionFrame(); Motion.RefreshPolicy();
-            settings.Save(saved with { ReduceMotion = false, EnabledProviders = ["codex", "claude"], Visibility = NotchVisibility.OnHover });
+            // Previous attention scenarios deliberately leave the notch expanded. Start
+            // this geometry scenario folded, using the real visibility state transition.
+            settings.Save(saved with { ReduceMotion = false, EnabledProviders = ["codex", "claude"], Visibility = NotchVisibility.Hidden });
+            settings.Save(settings.Current with { Visibility = NotchVisibility.OnHover });
             await MotionUntil(() => Motion.Enabled, "Native desktop animation policy stayed disabled");
             foreach (var edge in Enum.GetValues<NotchEdge>())
             {
                 settings.Save(settings.Current with { Edge = edge }); await MotionFrame();
+                Require(!notch.Expanded && notch.FoldProgress == 0, "Unfold fixture must start folded: " + edge);
                 notch.Peek(); await MotionUntil(() => notch.FoldProgress is > 0 and < 0.98, "Unfold skipped intermediate geometry: " + edge);
                 for (var i = 0; i < 6; i++)
                 {

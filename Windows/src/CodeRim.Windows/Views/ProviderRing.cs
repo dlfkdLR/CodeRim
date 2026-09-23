@@ -172,18 +172,26 @@ internal sealed class ProviderRing : FrameworkElement
 internal sealed class ProviderMark : FrameworkElement
 {
     private static readonly Dictionary<string, DrawingGroup?> Glyphs = new(StringComparer.Ordinal);
-    public string ProviderId { get; set; } = "codex";
-    protected override void OnRender(DrawingContext dc) => Draw(dc, ProviderId, new Rect(0, 0, ActualWidth, ActualHeight));
-    internal static void Draw(DrawingContext dc, string id, Rect target)
+    public static readonly DependencyProperty ProviderIdProperty = DependencyProperty.Register(nameof(ProviderId), typeof(string), typeof(ProviderMark), new FrameworkPropertyMetadata("codex", FrameworkPropertyMetadataOptions.AffectsRender));
+    public string ProviderId { get => (string)GetValue(ProviderIdProperty); set => SetValue(ProviderIdProperty, value); }
+    public static readonly DependencyProperty ForegroundProperty = DependencyProperty.Register(nameof(Foreground), typeof(Brush), typeof(ProviderMark), new FrameworkPropertyMetadata(Brushes.White, FrameworkPropertyMetadataOptions.AffectsRender));
+    public Brush Foreground { get => (Brush)GetValue(ForegroundProperty); set => SetValue(ForegroundProperty, value); }
+    protected override void OnRender(DrawingContext dc) => Draw(dc, ProviderId, new Rect(0, 0, ActualWidth, ActualHeight), Foreground);
+    internal static void Draw(DrawingContext dc, string id, Rect target, Brush? foreground = null)
     {
         if (Glyph(id) is not { } glyph)
         {
             var name = ProviderCatalog.Find(id)?.Name ?? "?";
-            var text = new FormattedText(name[..1], CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), target.Height, Brushes.White, 1);
+            var text = new FormattedText(name[..1], CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), target.Height, foreground ?? Brushes.White, 1);
             dc.DrawText(text, new Point(target.X + (target.Width - text.Width) / 2, target.Y)); return;
         }
         var bounds = glyph.Bounds;
         if (bounds.IsEmpty || bounds.Width <= 0 || bounds.Height <= 0) return;
+        if (foreground is not null)
+        {
+            dc.PushOpacityMask(new DrawingBrush(glyph) { Stretch = Stretch.Uniform });
+            dc.DrawRectangle(foreground, null, target); dc.Pop(); return;
+        }
         var scale = Math.Min(target.Width / bounds.Width, target.Height / bounds.Height);
         dc.PushTransform(new TranslateTransform(target.X + (target.Width - bounds.Width * scale) / 2, target.Y + (target.Height - bounds.Height * scale) / 2));
         dc.PushTransform(new ScaleTransform(scale, scale)); dc.PushTransform(new TranslateTransform(-bounds.X, -bounds.Y));
