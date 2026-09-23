@@ -11,9 +11,14 @@ using CodeRim.Windows.ViewModels;
 namespace CodeRim.Windows.Views;
 
 /// <summary>One black silhouette; no native ToolTip border, padding or focus chrome.</summary>
+internal sealed class SessionExpansionState
+{
+    internal bool Expanded { get; set; }
+}
+
 internal static class NotchPopover
 {
-    internal static FrameworkElement Create(string id, DashboardStore store, AppSettings settings, Action<string?> navigate, double? availableHeight = null)
+    internal static FrameworkElement Create(string id, DashboardStore store, AppSettings settings, Action<string?> navigate, double? availableHeight = null, SessionExpansionState? expansion = null)
     {
         var content = new StackPanel { Margin = new Thickness(NotchMetrics.CardPadding) };
         var header = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 8) };
@@ -69,45 +74,70 @@ internal static class NotchPopover
             content.Children.Add(Text(reading.Message ?? reading.State.ToString(), 10.5, Ui.Brush("#F2FF00")));
             if (reading.State == ReadingState.NeedsAuth) content.Children.Add(PlainButton("Connect " + (ProviderCatalog.Find(id)?.Name ?? id), () => navigate(id)));
         }
-        var sessions = store.Sessions.Where(x => x.Provider == id && (settings.ShowUnknownSessions || x.State != "unavailable"))
-            .OrderBy(x => x.State switch { "waiting" => 0, "busy" => 1, "idle" => 2, _ => 3 }).ThenByDescending(x => x.Since).ToArray();
+        var sessions = store.Sessions.Where(x => x.Provider == id && (settings.ShowUnknownSessions || x.State != "unavailable")).ToArray();
+        var groups = SessionPresentation.Groups(sessions);
         var tokenTotals = settings.ShowSessionTokens ? store.TokensForSessions(id) : null;
-        if (sessions.Length > 0)
+        if (groups.Count > 0)
         {
-            content.Children.Add(new Border { Height = 1, Background = Ui.Brush("#303030"), Margin = new Thickness(0, 8, 0, 8) });
-            foreach (var session in sessions.Take(6))
+            expansion ??= new SessionExpansionState();
+            content.Measure(new Size(NotchMetrics.CardWidth, double.PositiveInfinity));
+            var remaining = (availableHeight ?? SystemParameters.WorkArea.Height) - 40 - content.DesiredSize.Height - 2 * NotchMetrics.CardPadding - 42;
+            var cap = Math.Max(0, (int)Math.Floor(remaining / (26 + 30 * NotchMetrics.Unit + 4)));
+            var list = new StackPanel(); content.Children.Add(list);
+            void RenderSessions(bool focusDisclosure = false)
             {
-                var state = session.State switch { "busy" => "working", "waiting" => "waiting", "unavailable" => "unknown", _ => "idle" };
-                var open = PlainButton("Open " + session.Name, () =>
+                list.Children.Clear();
+                list.Children.Add(new Border { Height = 1, Background = Ui.Brush("#303030"), Margin = new Thickness(0, 8, 0, 8) });
+                var shown = expansion.Expanded ? groups : groups.Take(cap).ToArray();
+                foreach (var group in shown)
                 {
-                    if (!SessionFocus.Activate(session)) navigate("sessions:" + id);
-                });
-                var stateColor = session.State == "busy" ? Ui.Brush(settings.AccentColor) : session.State == "waiting" ? Ui.Brush("#F2FF00") : Secondary;
-                var sessionContent = new StackPanel { Margin = new Thickness(0, 20 * NotchMetrics.Unit, 0, 0) };
-                var firstLine = (Grid)Row(session.Name, state, stateColor);
-                ConfigureSessionLine(firstLine);
-                if (session.State != "unavailable")
-                {
-                    var statusText = (TextBlock)firstLine.Children[1]; firstLine.Children.Remove(statusText);
-                    var indicator = new StackPanel { Orientation = Orientation.Horizontal };
-                    indicator.Children.Add(new SessionStatusRing(session.State, stateColor) { Margin = new Thickness(8, 0, NotchMetrics.StatusDotGap, 0), VerticalAlignment = VerticalAlignment.Center });
-                    statusText.Margin = new Thickness(0); indicator.Children.Add(statusText); Grid.SetColumn(indicator, 1); firstLine.Children.Add(indicator);
+                    foreach (var row in new[] { group.Parent }.Concat(group.Children))
+                    {
+                        var session = row.Session;
+                        var state = row.ContextOnly ? "" : session.State switch { "busy" => "working", "waiting" => "waiting", "unavailable" => "unknown", _ => "idle" };
+                        var title = session.CodexThreadId is not null && session.RemoteHostId is null ? session.Detail ?? session.Name : session.Name;
+                        if (row.Depth > 0) title = "↳ " + title;
+                        var detail = session.CodexThreadId is not null && session.RemoteHostId is null ? session.Name : session.Detail ?? "";
+                        var openLabel = row.Depth > 0 ? "Open sub-agent " + title.TrimStart('↳', ' ') + " of " + (session.ParentThreadTitle ?? group.Parent.Session.Detail ?? group.Parent.Session.Name) + " in Codex"
+                            : "Open " + title;
+                        var open = PlainButton(openLabel, () => { if (!SessionFocus.Activate(session)) navigate("sessions:" + id); });
+                        var stateColor = session.State == "busy" ? Ui.Brush(settings.AccentColor) : session.State == "waiting" ? Ui.Brush("#F2FF00") : Secondary;
+                        var sessionContent = new StackPanel { Margin = new Thickness(14 * NotchMetrics.Unit * Math.Min(row.Depth, 2), 20 * NotchMetrics.Unit, 0, 0) };
+                        var firstLine = (Grid)Row(title, state, stateColor); ConfigureSessionLine(firstLine);
+                        if (!row.ContextOnly && session.State != "unavailable")
+                        {
+                            var statusText = (TextBlock)firstLine.Children[1]; firstLine.Children.Remove(statusText);
+                            var indicator = new StackPanel { Orientation = Orientation.Horizontal };
+                            indicator.Children.Add(new SessionStatusRing(session.State, stateColor) { Margin = new Thickness(8, 0, NotchMetrics.StatusDotGap, 0), VerticalAlignment = VerticalAlignment.Center });
+                            statusText.Margin = new Thickness(0); indicator.Children.Add(statusText); Grid.SetColumn(indicator, 1); firstLine.Children.Add(indicator);
+                        }
+                        sessionContent.Children.Add(firstLine);
+                        System.Windows.Automation.AutomationProperties.SetAutomationId(open, "notch.session." + session.Id);
+                        var duration = row.ContextOnly ? null : SessionPresentation.Duration(session, settings.ShowSessionDuration, DateTimeOffset.Now);
+                        var tokens = row.Depth == 0 && tokenTotals?.TryGetValue(session.Id, out var total) == true ? TokenFormatter.Format(total, TokenNumberStyle.Compact) + " tokens" : null;
+                        var metrics = string.Join(" · ", new[] { duration, tokens }.Where(x => x is not null));
+                        System.Windows.Automation.AutomationProperties.SetItemStatus(open, row.ContextOnly ? "Parent chat" : state);
+                        var secondLine = (Grid)Row(detail, metrics); ConfigureSessionLine(secondLine);
+                        secondLine.Margin = new Thickness(0, 10 * NotchMetrics.Unit, 0, 0); ((TextBlock)secondLine.Children[0]).Foreground = Secondary;
+                        sessionContent.Children.Add(secondLine); open.Content = sessionContent; open.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+                        list.Children.Add(open);
+                        open.ToolTip = session.RemoteHostId is null ? openLabel : "Remote task · live status unavailable. Open in Codex.";
+                    }
                 }
-                sessionContent.Children.Add(firstLine);
-                System.Windows.Automation.AutomationProperties.SetName(open, "Open " + session.Name);
-                System.Windows.Automation.AutomationProperties.SetAutomationId(open, "notch.session." + session.Id);
-                var duration = SessionPresentation.Duration(session, settings.ShowSessionDuration, DateTimeOffset.Now);
-                var tokens = tokenTotals?.TryGetValue(session.Id, out var total) == true ? TokenFormatter.Format(total, TokenNumberStyle.Compact) + " tokens" : null;
-                var metrics = string.Join(" · ", new[] { duration, tokens }.Where(x => x is not null));
-                var secondLine = (Grid)Row(session.Detail ?? "", metrics);
-                ConfigureSessionLine(secondLine); secondLine.Margin = new Thickness(0, 10 * NotchMetrics.Unit, 0, 0);
-                ((TextBlock)secondLine.Children[0]).Foreground = Secondary;
-                sessionContent.Children.Add(secondLine);
-                open.Content = sessionContent; open.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-                content.Children.Add(open);
-                open.ToolTip = session.RemoteHostId is null ? "Open " + session.Name : "Remote task · live status unavailable. Open in Codex.";
+                var hidden = groups.Count - shown.Count;
+                if (hidden > 0 || expansion.Expanded)
+                {
+                    var disclosure = PlainButton(expansion.Expanded ? "Show less  ⌃" : "and " + hidden + " more  ⌄", () =>
+                    { expansion.Expanded = !expansion.Expanded; RenderSessions(true); });
+                    disclosure.HorizontalContentAlignment = HorizontalAlignment.Left;
+                    disclosure.Margin = new Thickness(0, 20 * NotchMetrics.Unit, 0, 0);
+                    System.Windows.Automation.AutomationProperties.SetName(disclosure, expansion.Expanded ? "Show fewer tasks" : "Show all " + groups.Count + " tasks");
+                    System.Windows.Automation.AutomationProperties.SetAutomationId(disclosure, expansion.Expanded ? "notch.sessions.showLess" : "notch.sessions.showAll");
+                    list.Children.Add(disclosure);
+                    if (focusDisclosure) disclosure.Focus();
+                }
             }
-            if (sessions.Length > 6) content.Children.Add(PlainButton("View all " + sessions.Length + " sessions", () => navigate("sessions:" + id)));
+            RenderSessions();
         }
         if (settings.ShowLastUpdated && reading?.UpdatedAt is { } updated) content.Children.Add(Text("Updated " + Age(updated), 9.5, Secondary));
         var scroll = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,

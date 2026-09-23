@@ -2,7 +2,7 @@ using CodeRim.Core.Domain;
 
 namespace CodeRim.Core.Services;
 
-public static class SessionPresentation
+public static partial class SessionPresentation
 {
     public static string? Duration(SessionActivity session, bool enabled, DateTimeOffset now)
     {

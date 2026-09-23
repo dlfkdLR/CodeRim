@@ -52,7 +52,9 @@ internal static partial class NativeSmoke
                 "Local source, size and date statistics are incomplete.");
             Require(Descendants<TextBlock>(window).Any(x => x.Text == "Pricing catalog") && Descendants<TextBlock>(window).Any(x => x.Text == "Statistics rebuilt."),
                 "Provider settings did not render Sources and Manage Data results.");
-            var section = Descendants<TextBlock>(window).Single(x => x.Text == "Codex Local Data"); section.BringIntoView(); await Idle();
+            var section = Descendants<TextBlock>(window).Single(x => x.Text == "Codex Local Data");
+            var viewport = Descendants<ScrollViewer>(window).Single(x => x.ScrollableHeight > 0 && x.ActualHeight > 200);
+            viewport.ScrollToVerticalOffset(viewport.VerticalOffset + section.TranslatePoint(new Point(), viewport).Y - 16); await Idle();
             Capture(window, Path.Combine(directory, "windows-local-data.png"));
             var emptySource = Path.Combine(home, "sessions", "empty.jsonl"); File.WriteAllText(emptySource, "");
             await store.RebuildStatisticsAsync("codex");

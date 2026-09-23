@@ -9,6 +9,8 @@ public sealed record SessionActivity(string Id, string Provider, string Name, st
     public string? CodexThreadId { get; init; }
     public string? UsageSessionId { get; init; }
     public string? RemoteHostId { get; init; }
+    public string? ParentThreadId { get; init; }
+    public string? ParentThreadTitle { get; init; }
     public string? Detail { get; init; }
     public int? ProcessId { get; init; }
     public DateTimeOffset? ProcessStartedAt { get; init; }

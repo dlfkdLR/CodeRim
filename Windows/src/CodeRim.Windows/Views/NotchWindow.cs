@@ -66,7 +66,7 @@ internal sealed partial class NotchWindow : Window
         hoverClear.Tick += (_, _) => DismissProviderCard();
         popup.Closed += (_, _) => { accountMenu = false; if (!closed) foldTimer.Start(); };
         foldTimer.Tick += (_, _) => TryFold();
-        clock.Tick += (_, _) => { if (popup.IsOpen && popup.Child is UIElement child && !child.IsKeyboardFocusWithin) RefreshPopup(); };
+        clock.Tick += (_, _) => { if (CanRefreshProviderPopup()) RefreshPopup(); };
         PreviewMouseLeftButtonDown += (_, e) =>
         {
             if ((Keyboard.Modifiers & ModifierKeys.Alt) == 0) return;
@@ -149,7 +149,7 @@ internal sealed partial class NotchWindow : Window
             ring.InvalidateVisual();
             if (buttons.TryGetValue(ring.ProviderId, out var button)) UpdateRingAccessibility(button, ring);
         }
-        if (popup.IsOpen && popup.Child is UIElement child && !child.IsKeyboardFocusWithin) RefreshPopup();
+        if (CanRefreshProviderPopup()) RefreshPopup();
     }
     private static void UpdateRingAccessibility(Button button, ProviderRing ring)
     {
@@ -277,6 +277,7 @@ internal sealed partial class NotchWindow : Window
     {
         if (accountMenu && popup.IsOpen || !buttons.ContainsKey(id)) return;
         var transition = !popup.IsOpen || hovered != id;
+        if (transition) sessionExpansion.Expanded = false;
         hoverClear.Stop(); popup.StaysOpen = true; hovered = id; RefreshPopup(); RevealPopup(transition); foldTimer.Stop();
     }
     internal void DismissProviderCard()
@@ -286,14 +287,39 @@ internal sealed partial class NotchWindow : Window
         if (popup.IsOpen && popup.Child is UIElement child && (child.IsMouseOver || child.IsKeyboardFocusWithin)) return;
         hoverClear.Stop(); hovered = null; FadeProviderPopup();
     }
+    private readonly SessionExpansionState sessionExpansion = new();
+    private bool CanRefreshProviderPopup()
+    {
+        if (accountMenu || !popup.IsOpen || popup.Child is not UIElement child) return false;
+        if (!child.IsKeyboardFocusWithin) return true;
+        if (Mouse.LeftButton == MouseButtonState.Pressed || Keyboard.IsKeyDown(Key.Space) || Keyboard.IsKeyDown(Key.Return)) return false;
+        var id = Keyboard.FocusedElement is DependencyObject focused ? AutomationProperties.GetAutomationId(focused) : "";
+        return id.StartsWith("notch.session.", StringComparison.Ordinal) || id.StartsWith("notch.sessions.", StringComparison.Ordinal);
+    }
     private void RefreshPopup()
     {
         if (hovered is null || !buttons.ContainsKey(hovered)) return;
         var scrollOffset = FindScroll(popup.Child)?.VerticalOffset ?? 0;
+        var focusedId = popup.Child is UIElement child && child.IsKeyboardFocusWithin && Keyboard.FocusedElement is DependencyObject focused
+            ? AutomationProperties.GetAutomationId(focused) : null;
         var screen = SelectedScreen();
-        var card = NotchPopover.Create(hovered, store, settings.Current, page => { popup.IsOpen = false; openSettings(page); }, screen.WorkingArea.Height / ScreenScale(screen));
+        var card = NotchPopover.Create(hovered, store, settings.Current, page => { popup.IsOpen = false; openSettings(page); }, screen.WorkingArea.Height / ScreenScale(screen), sessionExpansion);
+        card.Loaded += (_, _) =>
+        {
+            if (!ReferenceEquals(popupFrame.Child, card)) return;
+            if (!string.IsNullOrEmpty(focusedId))
+                (FindPopupControl(card, focusedId) ?? FindPopupControl(card, sessionExpansion.Expanded ? "notch.sessions.showLess" : "notch.sessions.showAll")
+                    ?? buttons.GetValueOrDefault(hovered ?? ""))?.Focus();
+            FindScroll(card)?.ScrollToVerticalOffset(scrollOffset);
+        };
         AttachPopup(card); popupFrame.Child = card; UpdatePopupAnchor(popup.IsOpen);
-        card.Loaded += (_, _) => FindScroll(card)?.ScrollToVerticalOffset(scrollOffset);
+    }
+    private static Control? FindPopupControl(DependencyObject root, string id)
+    {
+        if (root is Control control && AutomationProperties.GetAutomationId(control) == id) return control;
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+            if (FindPopupControl(VisualTreeHelper.GetChild(root, index), id) is { } found) return found;
+        return null;
     }
     private static ScrollViewer? FindScroll(DependencyObject? root)
     {

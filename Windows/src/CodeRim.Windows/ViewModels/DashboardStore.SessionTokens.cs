@@ -43,7 +43,8 @@ internal sealed partial class DashboardStore
 
     private TokenSnapshot CaptureTokenSnapshot(string provider)
     {
-        var active = Sessions.Where(x => x.Provider == provider && x.RemoteHostId is null).ToArray();
+        var active = SessionPresentation.Groups(Sessions.Where(x => x.Provider == provider && x.RemoteHostId is null).ToArray())
+            .SelectMany(x => new[] { x.Parent }.Concat(x.Children)).Select(x => x.Session).ToArray();
         return new(Events.GetValueOrDefault(provider) ?? Array.Empty<UsageEvent>(),
             SessionDetails.GetValueOrDefault(provider) ?? Array.Empty<SessionDetails>(), active,
             string.Join("|", active.Select(x => x.Id + ":" + x.UsageSessionId).Order(StringComparer.Ordinal)));

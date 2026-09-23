@@ -24,7 +24,7 @@ public sealed record AppSettings(
     public bool AgentDetailsEnabled { get; init; } = true;
     public bool AttachmentMetadataEnabled { get; init; } = true;
     public bool AnalyticsEnabled { get; init; } = true;
-    public bool CostEstimatesEnabled { get; init; }
+    public bool CostEstimatesEnabled { get; init; } = true;
     public bool ProjectsEnabled { get; init; } = true;
     public bool SessionsEnabled { get; init; } = true;
     public bool ShowUnknownSessions { get; init; }
@@ -42,7 +42,7 @@ public sealed record AppSettings(
     public string Gradient { get; init; } = "Aurora";
     public bool AnimateGradient { get; init; }
     public bool ShowRemaining { get; init; }
-    public string ResetTime { get; init; } = "Relative";
+    public string ResetTime { get; init; } = "Absolute";
     public string ControlsPosition { get; init; } = "Auto";
     public bool ShowUsagePace { get; init; }
     public bool PeekOnCompletion { get; init; } = true;
@@ -50,7 +50,7 @@ public sealed record AppSettings(
     public bool CheckForUpdates { get; init; } = true;
     public bool ShowLastUpdated { get; init; } = true;
     public bool AlertsEnabled { get; init; } = true;
-    public bool CompletionSound { get; init; }
+    public bool CompletionSound { get; init; } = true;
     public double Scale { get; init; } = 1;
     public double Offset { get; init; }
     public string? Display { get; init; }
@@ -182,7 +182,7 @@ public sealed class AppSettingsStore
             AutomaticRefresh = settings.AutomaticRefresh && refreshInterval == 60,
             UsageProvider = ProviderCatalog.Find(settings.UsageProvider) is not null ? settings.UsageProvider : "codex",
             MutedAlertProviders = (settings.MutedAlertProviders ?? []).Where(id => ProviderCatalog.Find(id) is not null).Distinct(StringComparer.Ordinal).ToArray(),
-            ResetTime = settings.ResetTime is "Relative" or "Absolute" ? settings.ResetTime : "Relative",
+            ResetTime = settings.ResetTime is "Relative" or "Absolute" ? settings.ResetTime : AppSettings.Default.ResetTime,
             ControlsPosition = settings.ControlsPosition is "Auto" or "Start" or "End" ? settings.ControlsPosition : "Auto",
             NumberStyle = numberStyle,
             WeekStart = weekStart,

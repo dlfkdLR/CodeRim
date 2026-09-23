@@ -20,7 +20,7 @@ internal sealed partial class DashboardWindow : Window
 {
     private static readonly string[] PercentageOptions = ["Used", "Remaining"];
     private static readonly string[] ControlOptions = ["Auto", "Start", "End"];
-    private static readonly string[] ResetOptions = ["Relative", "Absolute"];
+    private static readonly string[] ResetOptions = ["Absolute", "Relative"];
     private static readonly int[] RefreshOptions = [-1, 30, 60, 120, 300, 900, 1800, 0];
     private static readonly double[] ScaleOptions = new[] { 0.8, 1.0, 1.25 };
     private static readonly string[] AccentOptions = new[] { "system", "#00FF88", "#3B9CFF", "#9B7DFF", "#FF6EC7", "#FF9F3F" };
@@ -369,13 +369,19 @@ internal sealed partial class DashboardWindow : Window
                 SettingsUi.Toggle("Show reset credits", settings.Current.ResetCreditsEnabled, x => Save(settings.Current with { ResetCreditsEnabled = x }))));
         if (provider.HasLocalHistory)
         {
-            body.Children.Add(SettingsUi.Section("Usage Analytics",
-                SettingsUi.Toggle("Show usage analytics", settings.Current.AnalyticsEnabled, x => Save(settings.Current with { AnalyticsEnabled = x })),
-                SettingsUi.Toggle("Show estimated API-equivalent cost", settings.Current.CostEstimatesEnabled, x => Save(settings.Current with { CostEstimatesEnabled = x })),
+            var analytics = new List<UIElement> {
+                SettingsUi.Toggle("Show usage analytics", settings.Current.AnalyticsEnabled, x => Save(settings.Current with { AnalyticsEnabled = x }))
+            };
+            if (id == "codex") analytics.Add(SettingsUi.Toggle("Show estimated API-equivalent cost", settings.Current.CostEstimatesEnabled, x => Save(settings.Current with { CostEstimatesEnabled = x })));
+            analytics.AddRange([
                 SettingsUi.Toggle("Show projects", settings.Current.ProjectsEnabled, x => Save(settings.Current with { ProjectsEnabled = x })),
                 SettingsUi.Toggle("Show sessions", settings.Current.SessionsEnabled, x => Save(settings.Current with { SessionsEnabled = x })),
                 SettingsUi.Toggle("Show agent details", settings.Current.AgentDetailsEnabled, x => Save(settings.Current with { AgentDetailsEnabled = x })),
-                SettingsUi.Toggle("Show attachment metadata", settings.Current.AttachmentMetadataEnabled, x => Save(settings.Current with { AttachmentMetadataEnabled = x }))));
+                SettingsUi.Toggle("Show attachment metadata", settings.Current.AttachmentMetadataEnabled, x => Save(settings.Current with { AttachmentMetadataEnabled = x }))]);
+            body.Children.Add(SettingsUi.Section("Usage Analytics", analytics.ToArray()));
+            body.Children.Add(SettingsUi.Note(id == "codex"
+                ? "Estimated from current API prices — not a bill or a quota prediction."
+                : "Comes from Claude Code session logs on this PC. Five-hour and weekly limits appear after a connected account completes a response; cost estimates aren't available yet."));
         }
         body.Children.Add(providerReading); UpdateProviderReading(id);
         var actions = new WrapPanel(); actions.Children.Add(Ui.AsyncButton("Refresh", () => store.RefreshProviderAsync(id)));

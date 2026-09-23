@@ -277,7 +277,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
             if (DateTimeOffset.Now - File.GetLastWriteTimeUtc(path) <= TimeSpan.FromHours(6)
                 && ActivityReader.ReadCodex(path, DateTimeOffset.Now, cancellationToken) is { } activity) sessions.Add(activity);
         }
-        return sessions;
+        return CodexActivityCatalogue.Enrich(sessions, Path.Combine(Path.GetDirectoryName(root)!, "state_5.sqlite"), cancellationToken).ToList();
     }
     private void EnsureScope(string id)
     {

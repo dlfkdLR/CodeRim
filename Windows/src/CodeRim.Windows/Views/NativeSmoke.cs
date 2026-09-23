@@ -313,11 +313,13 @@ internal static partial class NativeSmoke
         Record("Mac provider catalogue and searchable Usage popover");
         await IsolatedAccountsRegression(directory);
         Record("Isolated Add Account success, cancellation, verification and cleanup for Codex and Claude");
+        await ProviderPreferencesRegression(dashboard, settings, directory);
         await MacReferenceRegression(dashboard, store, settings, directory);
         Record("macOS reference shell, refresh modes and Usage states");
         await AnalyticsRegression(store, settings, directory);
         ActivityRegression(store);
         await SessionPresentationRegression(dashboard, store, settings, directory);
+        await ActivityGroupsRegression(notch, store, settings, directory);
         await SettingsReferenceRegression(dashboard, settings, directory);
         await ProfileHistoryRegression(settings, vault, directory);
         await LocalDataRegression(settings, vault, directory);
