@@ -39,8 +39,19 @@ internal static class Motion
         if (!(enabled ?? Enabled) || !double.IsFinite(from) || Math.Abs(from - to) < 0.00001)
         { completed?.Invoke(); return; }
         var item = new Running(target, property, completed); RunningAnimations[key] = item;
-        var animation = new DoubleAnimation(from, to, TimeSpan.FromSeconds(seconds))
-        { BeginTime = TimeSpan.FromSeconds(delay), EasingFunction = ease ?? Smooth, FillBehavior = FillBehavior.Stop };
+        // BeginTime alone exposes the final base value before a delayed clock starts.
+        // Hold the sampled value with an active key frame instead, so staggered cells never flash.
+        AnimationTimeline animation;
+        if (delay > 0)
+        {
+            var frames = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+            frames.KeyFrames.Add(new DiscreteDoubleKeyFrame(from, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            frames.KeyFrames.Add(new DiscreteDoubleKeyFrame(from, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(delay))));
+            frames.KeyFrames.Add(new EasingDoubleKeyFrame(to, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(delay + seconds)), ease ?? Smooth));
+            animation = frames;
+        }
+        else animation = new DoubleAnimation(from, to, TimeSpan.FromSeconds(seconds))
+        { EasingFunction = ease ?? Smooth, FillBehavior = FillBehavior.Stop };
         animation.Completed += (_, _) => Finish(item);
         ((IAnimatable)target).BeginAnimation(property, animation, HandoffBehavior.SnapshotAndReplace);
     }

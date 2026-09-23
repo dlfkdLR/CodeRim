@@ -14,7 +14,7 @@ namespace CodeRim.Windows.Views;
 
 internal static partial class NativeSmoke
 {
-    private static async Task CheckMotion(NotchWindow notch, AppSettingsStore settings, string directory)
+    private static async Task CheckMotion(DashboardWindow dashboard, NotchWindow notch, AppSettingsStore settings, string directory)
     {
         var saved = settings.Current;
         var originalAnimations = SystemParameters.ClientAreaAnimation ? 1 : 0;
@@ -64,8 +64,22 @@ internal static partial class NativeSmoke
             Capture(notch.PopupContent!, Path.Combine(directory, "windows-motion-popup-transition.png"));
             checks.Add("Provider transitions retain the native popup and keyboard surface");
 
+            dashboard.Navigate("notch"); await Idle();
+            var realToggle = Descendants<CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Show edge notch");
+            realToggle.IsChecked = false;
+            await MotionUntil(() => Motion.GetToggleOffset(realToggle) is > 0 and < 16, "Notch setting toggle skipped its slide");
+            Require(realToggle.IsLoaded && !notch.IsVisible, "Notch visibility recreated the settings toggle or failed to hide");
+            realToggle.IsChecked = true;
+            await MotionUntil(() => Motion.GetToggleOffset(realToggle) == 16, "Notch toggle did not settle after reversal");
+            Require(notch.IsVisible, "Notch toggle failed to restore visibility");
+            settings.Save(settings.Current with { ShowRemaining = true, RingColor = RingColorMode.Gradient, AnimateGradient = true });
+            await MotionFrame();
+            var previews = Descendants<ProviderRing>(dashboard).ToArray();
+            Require(previews.Length == 3 && previews.All(x => x.Settings.ShowRemaining && x.Settings.AnimateGradient && x.ClockRunning), "Settings previews kept stale appearance or motion settings");
+            checks.Add("Actual Notch settings toggle reverses without view replacement; previews update immediately");
+
             ProviderReading Reading(double percent) => new("codex", ReadingState.Ready, [new("weekly", "Weekly", percent)], DateTimeOffset.Now);
-            var ring = new ProviderRing { ProviderId = "codex", Settings = settings.Current, Reading = Reading(10) };
+            var ring = new ProviderRing { ProviderId = "codex", Settings = settings.Current with { ShowRemaining = false, RingColor = RingColorMode.Usage }, Reading = Reading(10) };
             var toggle = new CheckBox { Content = "Synthetic motion toggle", IsChecked = false };
             var content = new StackPanel { Margin = new Thickness(20), Background = Brushes.Black };
             content.Children.Add(ring); content.Children.Add(toggle);
