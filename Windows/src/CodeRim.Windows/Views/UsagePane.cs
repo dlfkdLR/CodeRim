@@ -282,6 +282,10 @@ internal sealed partial class UsagePane : StackPanel
         readings.Children.Add(Ui.Text(reading?.Plan ?? ProviderCatalog.Find(provider)?.Name ?? provider, 18, weight: FontWeights.SemiBold));
         foreach (var window in reading?.Windows ?? [])
         {
+            if (provider == "codex" && window.Id == ProviderDisplayPolicy.ResetCreditsId)
+            {
+                readings.Children.Add(ResetCreditsCard(window)); continue;
+            }
             Ui.Section(readings, window.Name);
             if (window.UsedPercent is { } used)
             {
@@ -295,6 +299,32 @@ internal sealed partial class UsagePane : StackPanel
         }
         readings.Children.Add(Ui.Text(reading?.Message ?? (reading is null ? "Waiting for a reading…" : reading.State.ToString()), 12, "#A6A6AA"));
         readings.Children.Add(Ui.Button("Manage connection", () => navigate(provider)));
+    }
+    private static Border ResetCreditsCard(LimitWindow credits)
+    {
+        var row = new DockPanel { LastChildFill = true, Margin = new Thickness(12) };
+        var value = credits.DisplayValue == "Unlimited resets" ? "Unlimited"
+            : credits.RemainingCount is >= 0 ? credits.RemainingCount.Value.ToString("N0", CultureInfo.CurrentCulture) : "Available";
+        if (credits.ResetsAt is { } expiration)
+        {
+            var text = Ui.Text("· " + expiration.ToLocalTime().ToString(CultureInfo.CurrentCulture.DateTimeFormat.MonthDayPattern.Replace("MMMM", "MMM", StringComparison.Ordinal), CultureInfo.CurrentCulture), 12, "#A6A6AA");
+            text.Margin = new Thickness(8, 0, 0, 0); text.VerticalAlignment = VerticalAlignment.Center;
+            System.Windows.Automation.AutomationProperties.SetAutomationId(text, "usage.reset-credits.expiration");
+            DockPanel.SetDock(text, Dock.Right); row.Children.Add(text);
+        }
+        var count = Ui.Text(value); count.Margin = new Thickness(8, 0, 0, 0); count.VerticalAlignment = VerticalAlignment.Center;
+        System.Windows.Documents.Typography.SetNumeralAlignment(count, FontNumeralAlignment.Tabular);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(count, "usage.reset-credits.value");
+        DockPanel.SetDock(count, Dock.Right); row.Children.Add(count);
+        var icon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M12,3 A6,6 0 1 1 3,4 M3,1 V4 H6"), Width = 15, Height = 15,
+            Stretch = Stretch.Uniform, StrokeThickness = 1.2, Margin = new Thickness(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center };
+        icon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); DockPanel.SetDock(icon, Dock.Left); row.Children.Add(icon);
+        var label = Ui.Text("Reset credits"); label.Margin = new Thickness(0); label.VerticalAlignment = VerticalAlignment.Center; row.Children.Add(label);
+        var card = new Border { Child = row, CornerRadius = new CornerRadius(10), Margin = new Thickness(0, 16, 0, 0) };
+        card.SetResourceReference(Border.BackgroundProperty, "CardBackground");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(card, "usage.reset-credits");
+        System.Windows.Automation.AutomationProperties.SetName(card, "Reset credits, " + value);
+        return card;
     }
     private void Breakdown(Panel parent, TokenUsage tokens)
     {

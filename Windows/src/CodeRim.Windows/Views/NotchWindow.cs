@@ -142,7 +142,7 @@ internal sealed partial class NotchWindow : Window
     {
         foreach (var ring in rings)
         {
-            ring.Reading = ProviderDisplayPolicy.Apply(store.AccountDisplay(ring.ProviderId).Reading?.Evaluated(DateTimeOffset.Now), settings.Current);
+            ring.Reading = ProviderDisplayPolicy.ForNotch(store.AccountDisplay(ring.ProviderId).Reading, settings.Current)?.Evaluated(DateTimeOffset.Now);
             ring.Active = store.Sessions.Any(x => x.Provider == ring.ProviderId && x.State == "busy");
             ring.Waiting = store.Sessions.Any(x => x.Provider == ring.ProviderId && x.State == "waiting");
             ring.Refreshing = store.RefreshingProviders.Contains(ring.ProviderId);
@@ -189,7 +189,7 @@ internal sealed partial class NotchWindow : Window
         var cells = new StackPanel { Orientation = Vertical ? Orientation.Vertical : Orientation.Horizontal };
         foreach (var id in config.EnabledProviders)
         {
-            var ring = new ProviderRing { ProviderId = id, Settings = config, Reading = ProviderDisplayPolicy.Apply(store.AccountDisplay(id).Reading, config),
+            var ring = new ProviderRing { ProviderId = id, Settings = config, Reading = ProviderDisplayPolicy.ForNotch(store.AccountDisplay(id).Reading, config)?.Evaluated(DateTimeOffset.Now),
                 Active = store.Sessions.Any(x => x.Provider == id && x.State == "busy"),
                 Waiting = store.Sessions.Any(x => x.Provider == id && x.State == "waiting"),
                 Refreshing = store.RefreshingProviders.Contains(id) };

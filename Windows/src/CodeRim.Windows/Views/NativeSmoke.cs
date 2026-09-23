@@ -547,25 +547,14 @@ internal static partial class NativeSmoke
             Require(notch.PopupContent is { ActualWidth: > 0, ActualHeight: > 0 }, "Provider popup did not open");
             notch.OpenProvider("codex"); await Idle();
             RequirePopupClearOfNotch(notch, edge + "/" + scale);
-            Require(Descendants<TextBlock>(notch.PopupContent!).Count(x => x.Text.Contains("2 resets", StringComparison.Ordinal)) == 1,
-                "Reset credit balance was duplicated in the popup");
+            Require(!Descendants<TextBlock>(notch.PopupContent!).Any(x => x.Text == "Reset credits" || x.Text.Contains("2 resets", StringComparison.Ordinal)),
+                "Reset credits leaked from Usage into the reference's quota-only notch popup");
             if (scale == 1) Capture(notch.PopupContent!, Path.Combine(directory, "windows-popup-" + edge + ".png"));
             Record($"{edge} at {scale:0.00}: no clipped single provider or native scroll chrome");
         }
-        var originalCreditReading = store.Readings["codex"];
-        try
-        {
-            foreach (var creditText in new[] { "Unlimited resets", "Reset count unavailable" })
-            {
-                store.Readings["codex"] = originalCreditReading with { Windows =
-                    [new("rate-limit-reset-credits", "Reset credits", Unit: "resets", DisplayValue: creditText)] };
-                notch.OpenProvider("codex"); await Idle();
-                Require(Descendants<TextBlock>(notch.PopupContent!).Any(x => x.Text == creditText), "Non-numeric reset credit status disappeared");
-            }
-        }
-        finally { store.Readings["codex"] = originalCreditReading; }
+        await ResetCreditsRegression(dashboard, notch, store, settings, directory);
         notch.OpenProvider("codex"); await Idle();
-        Record("Reset credit balance is shown once and unlimited/unavailable states remain visible");
+        Record("Reset credits remain in Usage with numeric, unlimited, available and hidden states; notch matches the quota-only reference");
         System.Windows.Input.Keyboard.ClearFocus();
         // This is pre-hover cleanup. A popup retains its Child after closing, so
         // PopupContent alone does not imply an attached presentation source.

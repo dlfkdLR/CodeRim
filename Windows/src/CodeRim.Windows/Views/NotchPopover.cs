@@ -27,7 +27,7 @@ internal static class NotchPopover
         header.Children.Add(Text(ProviderCatalog.Find(id)?.Name ?? id, 13.7, Brushes.White, FontWeights.SemiBold));
         content.Children.Add(header);
         var accountDisplay = store.AccountDisplay(id);
-        var reading = ProviderDisplayPolicy.Apply(accountDisplay.Reading?.Evaluated(DateTimeOffset.Now), settings);
+        var reading = ProviderDisplayPolicy.ForNotch(accountDisplay.Reading, settings)?.Evaluated(DateTimeOffset.Now);
         var account = new DockPanel { Margin = new Thickness(0, 0, 0, 8), LastChildFill = true };
         var switcher = PlainButton("Switch account", () => navigate(id is "codex" or "claude" ? id + "-accounts" : id));
         switcher.HorizontalAlignment = HorizontalAlignment.Right; DockPanel.SetDock(switcher, Dock.Right);
