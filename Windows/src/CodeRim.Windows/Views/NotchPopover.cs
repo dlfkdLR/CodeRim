@@ -68,21 +68,28 @@ internal static class NotchPopover
             content.Children.Add(Text(reading.Message ?? reading.State.ToString(), 10.5, Ui.Brush("#F2FF00")));
             if (reading.State == ReadingState.NeedsAuth) content.Children.Add(PlainButton("Connect " + (ProviderCatalog.Find(id)?.Name ?? id), () => navigate(id)));
         }
-        var sessions = store.Sessions.Where(x => x.Provider == id).ToArray();
+        var sessions = store.Sessions.Where(x => x.Provider == id && (settings.ShowUnknownSessions || x.State != "unavailable"))
+            .OrderBy(x => x.State switch { "waiting" => 0, "busy" => 1, "idle" => 2, _ => 3 }).ThenByDescending(x => x.Since).ToArray();
+        var tokenTotals = settings.ShowSessionTokens ? store.TokensForSessions(id) : null;
         if (sessions.Length > 0)
         {
             content.Children.Add(new Border { Height = 1, Background = Ui.Brush("#303030"), Margin = new Thickness(0, 8, 0, 8) });
             foreach (var session in sessions.Take(6))
             {
-                var state = session.State switch { "busy" => "working", "waiting" => "waiting", _ => "idle" };
+                var state = session.State switch { "busy" => "working", "waiting" => "waiting", "unavailable" => "unknown", _ => "idle" };
                 var open = PlainButton("Open " + session.Name, () =>
                 {
                     if (!SessionFocus.Activate(session)) navigate("sessions:" + id);
                 });
-                open.Content = Row(session.Name, state, session.State == "busy" ? Ui.Brush("#00FF88") : Secondary);
+                open.Content = Row(session.Name, state, session.State == "busy" ? Ui.Brush(settings.AccentColor) : session.State == "waiting" ? Ui.Brush("#F2FF00") : Secondary);
                 System.Windows.Automation.AutomationProperties.SetName(open, "Open " + session.Name);
                 content.Children.Add(open);
-                content.Children.Add(Text(Age(session.Since), 9.5, Secondary));
+                if (session.Detail is { Length: > 0 } detail) content.Children.Add(Text(detail, 9.5, Secondary));
+                var duration = SessionPresentation.Duration(session, settings.ShowSessionDuration, DateTimeOffset.Now);
+                var tokens = tokenTotals?.TryGetValue(session.Id, out var total) == true ? TokenFormatter.Format(total, TokenNumberStyle.Compact) + " tokens" : null;
+                var metrics = string.Join(" · ", new[] { duration, tokens }.Where(x => x is not null));
+                if (metrics.Length > 0) content.Children.Add(Text(metrics, 9.5, Secondary));
+                open.ToolTip = session.RemoteHostId is null ? "Open " + session.Name : "Remote task · live status unavailable. Open in Codex.";
             }
             if (sessions.Length > 6) content.Children.Add(PlainButton("View all " + sessions.Length + " sessions", () => navigate("sessions:" + id)));
         }

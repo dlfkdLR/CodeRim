@@ -39,9 +39,14 @@ internal static class SettingsUi
         Grid.SetColumn(control, 1); grid.Children.Add(control); return grid;
     }
     internal static FrameworkElement Value(string title, string value) => Row(title, Ui.Text(value, 13, "#A6A6AA"));
-    internal static FrameworkElement Toggle(string title, bool value, Action<bool> changed)
+    internal static FrameworkElement Toggle(string title, bool value, Action<bool> changed, string? caption = null)
     {
         var toggle = Ui.Toggle(title, value, changed); toggle.Margin = new Thickness(14, 6, 14, 6);
+        if (caption is not null)
+        {
+            var labels = new StackPanel(); var label = Ui.Text(title); label.Margin = new Thickness(0); labels.Children.Add(label);
+            var note = Ui.Text(caption, 11, "#A6A6AA"); note.Margin = new Thickness(0, 2, 0, 0); labels.Children.Add(note); toggle.Content = labels;
+        }
         AutomationProperties.SetName(toggle, title); return toggle;
     }
     internal static FrameworkElement Picker<T>(string title, IEnumerable<T> values, T selected, Action<T> changed)

@@ -267,6 +267,11 @@ internal sealed partial class DashboardWindow : Window
             SettingsUi.Picker("Reset time", ResetOptions, settings.Current.ResetTime, x => Save(settings.Current with { ResetTime = x })),
             SettingsUi.Toggle("Show usage pace", settings.Current.ShowUsagePace, x => Save(settings.Current with { ShowUsagePace = x })));
         readings.IsEnabled = shown; notchSections.Add(readings); body.Children.Add(readings);
+        var taskActivity = SettingsUi.Section("Task Activity",
+            SettingsUi.Toggle("Show tasks with unknown status", settings.Current.ShowUnknownSessions, x => { Save(settings.Current with { ShowUnknownSessions = x }); _ = store.RefreshActivityAsync(); }, caption: "Include recent tasks whose live status cannot be checked, such as remote tasks. They may already be finished."),
+            SettingsUi.Toggle("Show task duration", settings.Current.ShowSessionDuration, x => Save(settings.Current with { ShowSessionDuration = x }), caption: "Show time spent in the current working or waiting state. Unknown tasks have no duration."),
+            SettingsUi.Toggle("Show tokens per chat", settings.Current.ShowSessionTokens, x => Save(settings.Current with { ShowSessionTokens = x }), caption: "Include sub-agent usage in the main chat total. Chats without usage records stay blank."));
+        taskActivity.IsEnabled = shown; notchSections.Add(taskActivity); body.Children.Add(taskActivity);
         var finished = SettingsUi.Picker("Finished", SessionChime.Names, settings.Current.FinishedSound, x => { Save(settings.Current with { FinishedSound = x }); if (settings.Current.CompletionSound && settings.Current.Visibility != NotchVisibility.Hidden) SessionChime.Play(x); });
         var blocked = SettingsUi.Picker("Blocked", SessionChime.Names, settings.Current.BlockedSound, x => { Save(settings.Current with { BlockedSound = x }); if (settings.Current.CompletionSound && settings.Current.Visibility != NotchVisibility.Hidden) SessionChime.Play(x); });
         finished.IsEnabled = blocked.IsEnabled = settings.Current.CompletionSound;

@@ -7,6 +7,9 @@ namespace CodeRim.Core.Services;
 public sealed record SessionActivity(string Id, string Provider, string Name, string State, DateTimeOffset Since)
 {
     public string? CodexThreadId { get; init; }
+    public string? UsageSessionId { get; init; }
+    public string? RemoteHostId { get; init; }
+    public string? Detail { get; init; }
     public int? ProcessId { get; init; }
     public DateTimeOffset? ProcessStartedAt { get; init; }
     public Uri? CodexThreadUri => Provider == "codex" && Guid.TryParseExact(CodexThreadId, "D", out var id)
@@ -18,7 +21,7 @@ public static class ActivityReader
     public const int MaximumTailBytes = 8 * 1024 * 1024;
     private sealed record Boundary(bool Running, DateTimeOffset Time);
     private sealed record Snapshot(long Length, DateTime Created, long Complete,
-        byte[] Digest, Boundary? Event, UsageScanner.FileIdentity? Identity);
+        byte[] Digest, Boundary? Event, UsageScanner.FileIdentity? Identity, string? SessionId);
     private static readonly Dictionary<string, Snapshot> Cache = new(StringComparer.Ordinal);
     private static readonly object CacheLock = new();
     public static SessionActivity? ReadCodex(string path, DateTimeOffset now, CancellationToken cancellationToken = default) => Read(path, now, false, cancellationToken);
@@ -53,6 +56,7 @@ public static class ActivityReader
                 boundary = result.Event ?? (reusable ? previous!.Event : null);
                 complete = result.Complete ?? (reusable ? previous!.Complete : 0);
             }
+            var sessionId = claude ? null : reusable && previous!.Length == length ? previous.SessionId : ReadSessionId(stream, length, path, cancellationToken);
             // Allow concurrent append after this frozen prefix, but reject rewritten,
             // truncated or replaced input. No unbounded line is materialized.
             info.Refresh();
@@ -63,7 +67,7 @@ public static class ActivityReader
             lock (CacheLock)
             {
                 if (Cache.Count >= 256 && !Cache.ContainsKey(key)) Cache.Clear();
-                Cache[key] = new(length, created, complete, digests.Full, boundary, identity);
+                Cache[key] = new(length, created, complete, digests.Full, boundary, identity, sessionId);
             }
             if (boundary is null || boundary.Time > now.AddMinutes(1)) return null;
             // Codex uses file freshness to bound orphaned starts, not the age of a long live turn.
@@ -71,9 +75,23 @@ public static class ActivityReader
                 || !boundary.Running && now - boundary.Time > TimeSpan.FromSeconds(90))) return null;
             return new SessionActivity(ClaudeJsonlParser.Hash(Path.GetFileName(path)), claude ? "claude" : "codex",
                 claude ? "Claude session" : "Codex task", boundary.Running ? "busy" : "idle", boundary.Time)
-            { CodexThreadId = !claude && Path.GetFileNameWithoutExtension(path) is { Length: >= 36 } name ? name[^36..] : null };
+            { CodexThreadId = sessionId, UsageSessionId = sessionId is not null ? ClaudeJsonlParser.Hash(sessionId) : null };
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or ArgumentException or OverflowException) { return null; }
+    }
+    private static string ReadSessionId(FileStream stream, long length, string path, CancellationToken cancellationToken)
+    {
+        // Use the importer's first complete session_meta record, with the same
+        // normalized filename/path fallback. A copied rollout must keep its owner.
+        var fallback = UsageScanner.SessionIdentifierFromFilename(path) ?? path;
+        stream.Position = 0;
+        foreach (var line in BoundedLineReader.Read(stream, length, cancellationToken))
+        {
+            if (line.Oversized || line.Bytes!.AsSpan().IndexOf("\"session_meta\""u8) < 0) continue;
+            var parsed = CodexJsonlParser.Parse(line.Bytes);
+            if (parsed.Kind == ParsedLineKind.SessionMetadata) return parsed.SessionMetadata!.Id ?? fallback;
+        }
+        return fallback;
     }
     private static (byte[] Full, byte[] Previous) Hashes(FileStream stream, long length, long previousLength, CancellationToken cancellationToken)
     {

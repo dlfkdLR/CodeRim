@@ -702,7 +702,7 @@ public sealed class UsageScanner
         ? "none"
         : $"{usage.Value.InputTokens},{usage.Value.CachedInputTokens},{usage.Value.OutputTokens}";
 
-    private static string? SessionIdentifierFromFilename(string path)
+    internal static string? SessionIdentifierFromFilename(string path)
     {
         var stem = Path.GetFileNameWithoutExtension(path);
         if (stem.Length < 36)

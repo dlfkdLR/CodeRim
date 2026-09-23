@@ -49,6 +49,18 @@ internal static partial class NativeSmoke
                 settings.Current.CostEstimatesEnabled, settings.Current.AnalyticsEnabled, snapshot = store.Usage.GetValueOrDefault("codex"),
                 visibleText = Descendants<TextBlock>(pane).Select(x => x.Text).ToArray() }));
             Require(Descendants<TextBlock>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.today.cost"), "Today is missing the existing local cost estimate.");
+            var pricedEvents = store.Events["codex"];
+            try
+            {
+                store.Events["codex"] = pricedEvents.Select(x => x with { Usage = x.Usage with { CacheWriteInputTokens = null } }).ToArray();
+                pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
+                Require(!Descendants<TextBlock>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.today.cost"), "Missing cache-write data invented a Today cost.");
+            }
+            finally
+            {
+                store.Events["codex"] = pricedEvents;
+                pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
+            }
             var picker = Descendants<System.Windows.Controls.ComboBox>(pane).Single(x => AutomationProperties.GetName(x) == "Usage provider");
             Require(Math.Abs(picker.ActualWidth - 142) < 1 && Math.Abs(picker.ActualHeight - 34) < 1, "Provider selector dimensions differ from the reference.");
             Descendants<System.Windows.Controls.Button>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.projects").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();

@@ -26,6 +26,9 @@ public sealed record AppSettings(
     public bool CostEstimatesEnabled { get; init; }
     public bool ProjectsEnabled { get; init; } = true;
     public bool SessionsEnabled { get; init; } = true;
+    public bool ShowUnknownSessions { get; init; }
+    public bool ShowSessionDuration { get; init; }
+    public bool ShowSessionTokens { get; init; }
     public string[] MutedAlertProviders { get; init; } = [];
     public string[] EnabledProviders { get; init; } = ["codex"];
     public NotchEdge Edge { get; init; } = NotchEdge.Right;

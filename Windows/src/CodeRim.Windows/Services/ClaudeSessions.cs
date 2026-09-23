@@ -44,7 +44,8 @@ internal static class ClaudeSessions
                     || previousStart == processStarted && results[id].Since >= updated)) continue;
                 starts[id] = processStarted;
                 results[id] = new(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(id))), "claude", name, state, updated)
-                    { ProcessId = started.HasValue ? (int)pid : null,
+                    { UsageSessionId = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(id))),
+                        ProcessId = started.HasValue ? (int)pid : null,
                         ProcessStartedAt = started.HasValue ? new DateTimeOffset(process.StartTime.ToUniversalTime()) : null };
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or ArgumentException or InvalidOperationException or System.ComponentModel.Win32Exception) { }

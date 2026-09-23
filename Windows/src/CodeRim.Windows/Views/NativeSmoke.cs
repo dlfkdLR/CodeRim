@@ -309,6 +309,7 @@ internal static partial class NativeSmoke
         Record("macOS reference shell, refresh modes and Usage states");
         await AnalyticsRegression(store, settings, directory);
         ActivityRegression(store);
+        await SessionPresentationRegression(dashboard, store, settings, directory);
         Record("Live Claude transcript completion and duplicate registry selection; provider-specific turn entry timing");
         Record("Narrow usage layout, proportional sub-dollar cost, cost gaps and Today/7D/30D totals");
 
@@ -685,7 +686,12 @@ internal static partial class NativeSmoke
         Require(width > 0 && height > 0, "Empty capture");
         var image = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
         var background = new DrawingVisual();
-        using (var context = background.RenderOpen()) { context.DrawRectangle((Brush)view.FindResource("WindowBackground"), null, new Rect(0, 0, width, height)); context.DrawRectangle(new VisualBrush(view), null, new Rect(0, 0, width, height)); }
+        var bounds = new Rect(0, 0, width, height);
+        // A scroller's offscreen children expand VisualBrush's automatic content
+        // bounds. Capture the actual viewport instead of shrinking all 70 rows.
+        var brush = new VisualBrush(view) { ViewboxUnits = BrushMappingMode.Absolute, Viewbox = bounds,
+            ViewportUnits = BrushMappingMode.Absolute, Viewport = bounds, Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top };
+        using (var context = background.RenderOpen()) { context.DrawRectangle((Brush)view.FindResource("WindowBackground"), null, bounds); context.DrawRectangle(brush, null, bounds); }
         image.Render(background); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
         using var file = File.Create(output); encoder.Save(file);
     }

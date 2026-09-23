@@ -7,7 +7,7 @@ using CodeRim.Windows.Services;
 
 namespace CodeRim.Windows.ViewModels;
 
-internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
+internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposable
 {
     private readonly AppSettingsStore settings;
     private readonly ProviderConnections connections;
@@ -66,6 +66,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
                 }
         }
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException) { }
+        settings.SettingsChanged += SessionTokenSettingsChanged;
     }
     public void Invalidate(IReadOnlyCollection<string>? paths)
     {
@@ -186,9 +187,9 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     }
     private void SeedPreview()
     {
-        Events["codex"] = [new("preview-event", DateTimeOffset.Now.AddMinutes(-2), new(123456, 24000, 56000),
+        Events["codex"] = [new("preview-event", DateTimeOffset.Now.AddMinutes(-2), new(123456, 24000, 56000, 0),
             "gpt-5.6-sol", "CodeRim", "preview-session", "codex", "preview-project"),
-            new("preview-child-event", DateTimeOffset.Now.AddDays(-1), new(100, 0, 20),
+            new("preview-child-event", DateTimeOffset.Now.AddDays(-1), new(100, 0, 20, 0),
                 "gpt-5.6-sol", "CodeRim", "preview-child", "codex", "preview-project")];
         SessionDetails["codex"] = [new("preview-session", null, [new("preview-image", DateTimeOffset.Now.AddMinutes(-3), 2)]),
             new("preview-child", "preview-session", [])];
@@ -216,7 +217,8 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         var versions = enabled.ToDictionary(id => id, Generation, StringComparer.Ordinal);
         try
         {
-            var current = await Task.Run(() => ReadSessions(enabled, lifetime.Token), lifetime.Token).ConfigureAwait(true);
+            var includeUnknown = settings.Current.ShowUnknownSessions;
+            var current = await Task.Run(() => ReadSessions(enabled, includeUnknown, lifetime.Token), lifetime.Token).ConfigureAwait(true);
             if (disposed) return;
             var valid = current.Where(item => settings.Current.EnabledProviders.Contains(item.Provider, StringComparer.Ordinal)
                 && versions.GetValueOrDefault(item.Provider, -1) == Generation(item.Provider)).ToArray();
@@ -251,12 +253,13 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
                 .OrderByDescending(x => x.Since).First());
     }
 
-    private static List<SessionActivity> ReadSessions(string[] enabled, CancellationToken cancellationToken)
+    private static List<SessionActivity> ReadSessions(string[] enabled, bool includeUnknown, CancellationToken cancellationToken)
     {
         var sessions = new List<SessionActivity>();
         if (enabled.Contains("claude", StringComparer.Ordinal)) sessions.AddRange(ClaudeSessions.Read(cancellationToken));
         if (!enabled.Contains("codex", StringComparer.Ordinal)) return sessions;
         var root = UsageScanner.DefaultRoots()[0];
+        if (includeUnknown) sessions.AddRange(CodexRemoteActivity.Read(Path.Combine(Path.GetDirectoryName(root)!, "sqlite", "codex-dev.db"), DateTimeOffset.Now, cancellationToken));
         if (!Directory.Exists(root)) return sessions;
         var files = Directory.EnumerateFiles(root, "*.jsonl", new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint, MaxRecursionDepth = 32 })
             .Take(50000).OrderByDescending(File.GetLastWriteTimeUtc).Take(64);
@@ -283,5 +286,5 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     }
     public void InvalidateAccount(string id) { generations[id] = Generation(id) + 1; Readings.Remove(id); lastRefresh.Remove(id); Persist(); Changed(); }
     private void Changed() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
-    public void Dispose() { disposed = true; lifetime.Cancel(); connections.Dispose(); }
+    public void Dispose() { disposed = true; settings.SettingsChanged -= SessionTokenSettingsChanged; lifetime.Cancel(); CancelSessionTokenReads(); sessionTokens.Clear(); connections.Dispose(); }
 }
