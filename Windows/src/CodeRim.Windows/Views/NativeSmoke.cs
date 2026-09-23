@@ -301,6 +301,10 @@ internal static partial class NativeSmoke
         await AdditionalBrowserConnectionsRegression(dashboard, settings, vault, directory);
         Record("Five additional Firefox readers verify scoped login and render native quota");
         Record("Moonshot regional endpoints, DPAPI key isolation, environment aliases and source UI");
+        await IsolatedAccountsRegression(directory);
+        Record("Isolated Add Account success, cancellation, verification and cleanup for Codex and Claude");
+        await MacReferenceRegression(dashboard, store, settings, directory);
+        Record("macOS reference shell, refresh modes and Usage states");
         await AnalyticsRegression(store, settings, directory);
         ActivityRegression(store);
         Record("Live Claude transcript completion and duplicate registry selection; provider-specific turn entry timing");

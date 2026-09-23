@@ -22,9 +22,9 @@ internal sealed class SavedAccounts(CredentialVault vault)
             if (account.Provider != provider || Identity(provider, account.Credential, account.Profile) != account.Identity) throw new InvalidDataException("Saved account identity is invalid.");
         return saved;
     }
-    internal static SavedLogin Current(string provider)
+    internal static SavedLogin Current(string provider) => ReadLogin(provider, Paths(provider));
+    internal static SavedLogin ReadLogin(string provider, (string Credential, string? Profile) paths)
     {
-        var paths = Paths(provider);
         var credential = GuardedFile.Read(paths.Credential);
         var profile = paths.Profile is { } path ? GuardedFile.Read(path) : null;
         var identity = Identity(provider, credential, profile);
@@ -64,6 +64,34 @@ internal sealed class SavedAccounts(CredentialVault vault)
             Save(after);
         }
         finally { Interlocked.Exchange(ref switching, 0); }
+    }
+    internal async Task AddAsync(string provider, string executable, CancellationToken token)
+    {
+        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new InvalidOperationException("An account operation is already in progress.");
+        try
+        {
+            CheckPolicy(provider, Paths(provider).Credential);
+            if (provider == "codex")
+            {
+                var policy = await AppServerClient.ReadAsync(executable, "config/read", token).ConfigureAwait(true);
+                LoginIdentity.ValidateCodexSignInPolicy(Get(policy, "config"));
+            }
+            var added = await IsolatedAccountSignIn.RunAsync(provider, executable, token: token).ConfigureAwait(true);
+            if (provider == "codex")
+            {
+                var configuration = await AppServerClient.ReadAsync(executable, "config/read", token).ConfigureAwait(true);
+                LoginIdentity.ValidateCodexPolicy(Get(configuration, "config"), added.Identity.Organization);
+            }
+            token.ThrowIfCancellationRequested(); Save(added);
+        }
+        finally { Interlocked.Exchange(ref switching, 0); }
+    }
+    internal static async Task<string> VerifyCurrentIdAsync(string provider, string executable, CancellationToken token = default)
+    {
+        var before = Current(provider);
+        await VerifyAsync(before, executable, token).ConfigureAwait(true);
+        if (Current(provider).Identity.Id != before.Identity.Id) throw new IOException("The current account changed during verification.");
+        return before.Identity.Id;
     }
     private static async Task VerifyAsync(SavedLogin selected, string executable, CancellationToken token)
     {

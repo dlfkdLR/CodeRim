@@ -32,7 +32,11 @@ public static class BoundedProcess
             await Task.WhenAll(output, error, process.WaitForExitAsync(deadline.Token)).ConfigureAwait(false);
             return new(process.ExitCode, await output.ConfigureAwait(false), await error.ConfigureAwait(false));
         }
-        finally { Kill(process); }
+        finally
+        {
+            Kill(process);
+            await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None).ConfigureAwait(false);
+        }
     }
 
     public static async Task<ProcessResult> RunIsolatedResultAsync(string executable, IEnumerable<string> arguments,
@@ -153,12 +157,16 @@ public static class BoundedProcess
 
 public static class AppServerClient
 {
-    public static async Task<JsonElement> ReadAsync(string executable, string method, CancellationToken cancellationToken = default)
+    public static Task<JsonElement> ReadAsync(string executable, string method, CancellationToken cancellationToken = default)
+        => ReadAsync(executable, method, null, true, cancellationToken);
+
+    public static async Task<JsonElement> ReadAsync(string executable, string method,
+        IReadOnlyDictionary<string, string?>? environment, bool inheritEnvironment, CancellationToken cancellationToken = default)
     {
         if (method is not ("account/rateLimits/read" or "account/read" or "config/read")) throw new ArgumentException("Only read-only account RPCs are supported.", nameof(method));
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(TimeSpan.FromSeconds(15));
-        using var process = BoundedProcess.Start(executable, ["app-server"]);
+        using var process = BoundedProcess.Start(executable, ["app-server"], environment, inheritEnvironment);
         using var stderrCancellation = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
         var errorTask = BoundedProcess.ReadBoundedAsync(process.StandardError, 2 * 1024 * 1024, stderrCancellation.Token);
         try
@@ -200,6 +208,7 @@ public static class AppServerClient
         {
             stderrCancellation.Cancel();
             BoundedProcess.Kill(process);
+            await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None).ConfigureAwait(false);
             try { await errorTask.ConfigureAwait(false); } catch (Exception e) when (e is IOException or OperationCanceledException) { }
         }
     }

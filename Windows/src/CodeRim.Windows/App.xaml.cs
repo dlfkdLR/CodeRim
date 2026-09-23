@@ -139,10 +139,11 @@ public partial class App : System.Windows.Application
         {
             watcher?.Dispose(); watcher = null; return;
         }
-        if (!smokeTest && watcher is null)
+        if (!settings.Current.AutomaticRefresh) { watcher?.Dispose(); watcher = null; }
+        if (!smokeTest && settings.Current.AutomaticRefresh && watcher is null)
             watcher = new SessionWatcher(paths => Dispatcher.BeginInvoke(() =>
             {
-                if (settings.Current.RefreshIntervalSeconds <= 0 || store is null) return;
+                if (!settings.Current.AutomaticRefresh || settings.Current.RefreshIntervalSeconds <= 0 || store is null) return;
                 store.Invalidate(paths); _ = store.RefreshAsync();
             }));
         timer.Interval = TimeSpan.FromSeconds(settings.Current.RefreshIntervalSeconds); timer.Start();

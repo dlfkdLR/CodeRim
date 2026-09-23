@@ -48,6 +48,33 @@ public sealed class WindowsIsolatedProcessTests : IDisposable
         Assert.Equal([first, second, "한글 ✓"], result.Output.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(value => value.TrimEnd('\r')));
         completed = true;
     }
+    [Fact(Skip = "Requires native Windows process fixture", SkipUnless = nameof(IsWindows))]
+    public async Task AccountRpcUsesOnlyTheExplicitIsolatedEnvironment()
+    {
+        Directory.CreateDirectory(root);
+        const string variable = "SYNTHETIC_PARENT_SECRET";
+        var before = Environment.GetEnvironmentVariable(variable);
+        try
+        {
+            Environment.SetEnvironmentVariable(variable, "synthetic-parent-value");
+            var environment = EnvironmentForChild(); environment["CODEX_HOME"] = Path.Combine(root, "isolated 계정");
+            var response = await AppServerClient.ReadAsync(Executable, "account/read", environment, false, TestContext.Current.CancellationToken);
+            Assert.Equal(environment["CODEX_HOME"], response.GetProperty("home").GetString());
+            Assert.False(response.GetProperty("inherited").GetBoolean()); completed = true;
+        }
+        finally { Environment.SetEnvironmentVariable(variable, before); }
+    }
+    [Fact(Skip = "Requires native Windows process fixture", SkipUnless = nameof(IsWindows))]
+    public async Task CancelledStatusProbeHasExitedBeforeReturning()
+    {
+        Directory.CreateDirectory(root);
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => BoundedProcess.RunResultAsync(Executable, ["sibling"],
+            timeout: TimeSpan.FromSeconds(2), environment: EnvironmentForChild(), cancellationToken: TestContext.Current.CancellationToken));
+        var pid = int.Parse(File.ReadAllText(Path.Combine(root, "root.pid")), CultureInfo.InvariantCulture);
+        try { using var process = Process.GetProcessById(pid); Assert.True(process.HasExited, "The next account operation could still see the cancelled probe."); }
+        catch (ArgumentException) { /* Process has already been reaped. */ }
+        completed = true;
+    }
     [Theory(Skip = "Requires native Windows Job Object execution", SkipUnless = nameof(IsWindows))]
     [InlineData("early")]
     [InlineData("early-detached")]

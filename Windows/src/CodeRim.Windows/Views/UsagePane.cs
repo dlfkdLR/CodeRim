@@ -17,8 +17,11 @@ internal sealed partial class UsagePane : StackPanel
     private readonly AppSettingsStore settings;
     private readonly Action<string?> navigate;
     private readonly StackPanel readings = new() { Margin = new Thickness(24, 16, 24, 16) };
-    private readonly StackPanel accountRow = new() { Margin = new Thickness(24, 0, 24, 12) };
+    private readonly StackPanel accountRow = new() { Margin = new Thickness(24, 0, 24, 4), MinHeight = 44 };
     private readonly System.Windows.Controls.ComboBox selector;
+    private readonly Grid header;
+    private System.Windows.Controls.Button? refreshAction;
+    private TextBlock? detailTitle;
     private readonly Stack<NavigationState> history = new();
     private sealed record NavigationState(string Destination, string Period, string Search, string? Project, string? Session, int VisibleRows, string? Model, DateTimeOffset? Bucket);
     private void Forward(string target, string? selectedPeriod = null, string? selectedProject = null, string? selectedSession = null, string? model = null)
@@ -107,10 +110,10 @@ internal sealed partial class UsagePane : StackPanel
         this.store = store; this.settings = settings; this.provider = provider; this.navigate = navigate;
         var choices = settings.Current.EnabledProviders.Select(id => ProviderCatalog.Find(id)!).ToArray();
         if (!choices.Any(x => x.Id == provider)) this.provider = choices.FirstOrDefault()?.Id ?? "codex";
-        var header = new Grid { Margin = new Thickness(24, 16, 24, 12) };
+        header = new Grid { Margin = new Thickness(24, 16, 24, 6) };
         header.Children.Add(controls);
         selector = new System.Windows.Controls.ComboBox { ItemsSource = choices, ItemTemplate = ProviderTemplate(), SelectedValuePath = "Id",
-            SelectedValue = this.provider, MinHeight = 32, Height = 32, Width = 156, MaxWidth = 190, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Left,
+            SelectedValue = this.provider, MinHeight = 34, Height = 34, Width = 142, MaxWidth = 190, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Left,
             Style = (Style)System.Windows.Application.Current.FindResource("UsageProviderPicker") };
         TextSearch.SetTextPath(selector, "Name");
         System.Windows.Automation.AutomationProperties.SetName(selector, "Usage provider");
@@ -129,12 +132,19 @@ internal sealed partial class UsagePane : StackPanel
         LostKeyboardFocus += (_, _) => Dispatcher.BeginInvoke(new Action(() => { if (pendingRefresh && !readings.IsKeyboardFocusWithin && !accountRow.IsKeyboardFocusWithin) RefreshReadings(); }));
         BuildControls(); Update();
     }
+    private string DetailTitle() => destination switch
+    {
+        "model" => "Model",
+        "projects" => project is null ? "Projects" : "Project",
+        "sessions" => session is null ? "Sessions" : "Session",
+        _ => period switch { "week" => "This Week", "month" => "This Month", "all-time" => "Local History", "today" => "Today", _ => "Usage" }
+    };
     private static DataTemplate ProviderTemplate()
     {
         var row = new FrameworkElementFactory(typeof(DockPanel));
         var glyph = new FrameworkElementFactory(typeof(ProviderMark));
         glyph.SetValue(DockPanel.DockProperty, Dock.Left);
-        glyph.SetValue(WidthProperty, 18d); glyph.SetValue(HeightProperty, 18d);
+        glyph.SetValue(WidthProperty, 17d); glyph.SetValue(HeightProperty, 17d);
         glyph.SetValue(MarginProperty, new Thickness(0, 0, 8, 0));
         glyph.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
         glyph.SetBinding(ProviderMark.ProviderIdProperty, new System.Windows.Data.Binding("Id"));
@@ -154,9 +164,27 @@ internal sealed partial class UsagePane : StackPanel
     internal void ShowSessions() => Forward("sessions", "all-time");
     private void BuildControls()
     {
-        controls.Children.Clear(); filters.Children.Clear();
+        controls.Children.Clear(); filters.Children.Clear(); detailTitle = null;
         var bar = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
-        if (destination != "overview") bar.Children.Add(Ui.Button("‹ Back", Back));
+        selector.Visibility = destination == "overview" ? Visibility.Visible : Visibility.Collapsed;
+        accountRow.Visibility = destination == "overview" ? Visibility.Visible : Visibility.Collapsed;
+        header.Margin = destination == "overview" ? new Thickness(24, 16, 24, 6) : new Thickness(18, 8, 18, 8);
+        if (destination != "overview")
+        {
+            var detail = new DockPanel { LastChildFill = true, MinHeight = 28 };
+            var back = Ui.Button("‹", Back); back.Width = back.Height = 28; back.Padding = new Thickness(0);
+            back.Margin = new Thickness(0, 0, 8, 0); back.Background = Brushes.Transparent; back.BorderThickness = new Thickness(0);
+            back.ToolTip = "Back (Ctrl+[)";
+            System.Windows.Automation.AutomationProperties.SetName(back, "Back");
+            System.Windows.Automation.AutomationProperties.SetAutomationId(back, "usage.navigation.back");
+            DockPanel.SetDock(back, Dock.Left); detail.Children.Add(back);
+            var context = Ui.Text(ProviderCatalog.Find(provider)?.Name ?? provider, 11, "#A6A6AA");
+            context.VerticalAlignment = VerticalAlignment.Center; context.Margin = new Thickness(12, 0, 0, 0);
+            DockPanel.SetDock(context, Dock.Right); detail.Children.Add(context);
+            var heading = Ui.Text(DetailTitle(), 13, weight: FontWeights.SemiBold); heading.Margin = new Thickness(0); heading.VerticalAlignment = VerticalAlignment.Center;
+            System.Windows.Automation.AutomationProperties.SetAutomationId(heading, "usage.detail.title"); detailTitle = heading; detail.Children.Add(heading);
+            controls.Children.Add(detail);
+        }
         if (destination == "overview")
         {
             var segments = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
@@ -184,14 +212,16 @@ internal sealed partial class UsagePane : StackPanel
         var refreshIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 14 6 A 6 6 0 1 0 15 10 M 14 2 L 14 6 L 10 6"),
             Width = 16, Height = 16, StrokeThickness = 1.5, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round };
         refreshIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText");
-        refresh.Content = refreshIcon; refresh.Width = refresh.Height = refresh.MinHeight = 32;
+        refresh.Content = refreshIcon; refresh.Width = refresh.Height = refresh.MinHeight = 28;
         refresh.Padding = new Thickness(6); refresh.Margin = new Thickness(16, 0, 0, 0);
         refresh.Background = Brushes.Transparent; refresh.BorderBrush = Brushes.Transparent;
         refresh.HorizontalContentAlignment = HorizontalAlignment.Center;
+        refreshAction = refresh; refresh.IsEnabled = !store.IsRefreshing;
         refresh.ToolTip = "Refresh usage and limits (Ctrl+R)";
         System.Windows.Automation.AutomationProperties.SetAutomationId(refresh, "usage.refresh");
         bar.Children.Add(refresh);
-        controls.Children.Add(bar);
+        if (destination == "overview") controls.Children.Add(bar);
+        else { bar.HorizontalAlignment = HorizontalAlignment.Right; filters.Children.Add(bar); }
         if (destination is "projects" or "sessions" && project is null && session is null)
         {
             var filter = new System.Windows.Controls.TextBox { Text = search, Padding = new Thickness(8), Margin = new Thickness(0, 10, 0, 12), ToolTip = "Filter " + destination };
@@ -202,6 +232,8 @@ internal sealed partial class UsagePane : StackPanel
     }
     internal void Update()
     {
+        if (detailTitle is not null) detailTitle.Text = DetailTitle();
+        if (refreshAction is not null) refreshAction.IsEnabled = !store.IsRefreshing;
         var view = provider + ":" + mode + ":" + destination;
         var changedView = lastView is not null && lastView != view; lastView = view;
         if (changedView)
@@ -218,7 +250,9 @@ internal sealed partial class UsagePane : StackPanel
         DockPanel.SetDock(change, Dock.Right); account.Children.Add(change);
         var accountLabel = Ui.Text(identity ?? store.Readings.GetValueOrDefault(provider)?.Plan ?? "Account", 12);
         accountLabel.FontWeight = FontWeights.SemiBold; accountLabel.Margin = new Thickness(0); accountLabel.TextWrapping = TextWrapping.NoWrap; accountLabel.TextTrimming = TextTrimming.CharacterEllipsis; accountLabel.ToolTip = identity; accountLabel.VerticalAlignment = VerticalAlignment.Center;
-        account.Children.Add(accountLabel); accountRow.Children.Add(account);
+        var identityIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M8,1 A7,7 0 1 0 8,15 A7,7 0 1 0 8,1 M5,6 A3,3 0 1 0 11,6 A3,3 0 1 0 5,6 M3,13 Q8,8 13,13"), Width = 13, Height = 13, StrokeThickness = 1, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
+        identityIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); DockPanel.SetDock(identityIcon, Dock.Left); account.Children.Add(identityIcon);
+        account.Children.Add(accountLabel); accountRow.Children.Add(account); account.VerticalAlignment = VerticalAlignment.Center; account.Margin = new Thickness(0, 12, 0, 12);
         readings.Children.Clear();
         if (destination != "overview") { Detail(); return; }
         if (mode == "Limits") { Limits(); return; }
@@ -227,71 +261,13 @@ internal sealed partial class UsagePane : StackPanel
             readings.Children.Add(Ui.Text("Local token history is available for Codex and Claude Code.", color: "#A6A6AA"));
             readings.Children.Add(Ui.Button("View provider limits", () => { mode = "Limits"; BuildControls(); Update(); })); return;
         }
-        var snapshot = store.Usage.GetValueOrDefault(provider) ?? UsageSnapshot.Empty;
-        var today = snapshot.Today;
-        readings.Children.Add(Heading("Today"));
-        var overview = new Grid { Margin = new Thickness(0, 12, 0, 16) };
-        System.Windows.Automation.AutomationProperties.SetAutomationId(overview, "usage.overview");
-        overview.ColumnDefinitions.Add(new ColumnDefinition()); overview.ColumnDefinitions.Add(new ColumnDefinition());
-        var total = new StackPanel { Margin = new Thickness(0, 0, 24, 0) };
-        var totalText = Metric("today", today.TotalTokens, 42);
-        totalText.TextWrapping = TextWrapping.NoWrap;
-        total.Children.Add(new Viewbox { Child = totalText, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left, MaxHeight = 56 });
-        total.Children.Add(Ui.Text("tokens", 13, "#A6A6AA"));
-        if (snapshot.Quality != DataQuality.Exact) total.Children.Add(Ui.Text(snapshot.Quality == DataQuality.Partial ? "Partial local reading" : "No local usage observed", 11, "#A6A6AA"));
-        overview.Children.Add(total);
-        var breakdown = new StackPanel(); Breakdown(breakdown, today); Grid.SetColumn(breakdown, 1); overview.Children.Add(breakdown); AdaptOverview(overview, total, breakdown); readings.Children.Add(overview);
-        readings.Children.Add(SettingsUi.Divider());
-        readings.Children.Add(Heading("History"));
-        var history = new Grid { Margin = new Thickness(0, 10, 0, 16) };
-        System.Windows.Automation.AutomationProperties.SetAutomationId(history, "usage.history");
-        var values = new[] { ("This Week", "week", snapshot.Week), ("This Month", "month", snapshot.Month), ("Local History", "all-time", snapshot.AllTime) };
-        for (var i = 0; i < values.Length; i++)
-        {
-            var value = values[i]; history.ColumnDefinitions.Add(new ColumnDefinition());
-            var panel = new StackPanel { HorizontalAlignment = HorizontalAlignment.Stretch };
-            var periodLabel = new DockPanel();
-            var arrow = Ui.Text("›", 15, "#A6A6AA"); DockPanel.SetDock(arrow, Dock.Right); periodLabel.Children.Add(arrow);
-            periodLabel.Children.Add(Ui.Text(value.Item1, 13, "#A6A6AA")); panel.Children.Add(periodLabel);
-            panel.Children.Add(Metric(value.Item2, value.Item3.TotalTokens, 21));
-            var button = Ui.Button("", () => Forward("activity", value.Item2));
-            System.Windows.Automation.AutomationProperties.SetName(button, value.Item1 + ": " + value.Item3.TotalTokens.ToString(CultureInfo.CurrentCulture) + " tokens");
-            button.Content = panel; button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Margin = new Thickness(0);
-            if (i > 0) { var separator = new Border { Width = 1, Height = 64, Background = (Brush)System.Windows.Application.Current.FindResource("DividerBrush"), HorizontalAlignment = HorizontalAlignment.Left }; Grid.SetColumn(separator, i); history.Children.Add(separator); }
-            button.HorizontalContentAlignment = HorizontalAlignment.Stretch; button.Padding = new Thickness(i == 0 ? 0 : 16, 0, 16, 0); Grid.SetColumn(button, i); history.Children.Add(button);
-        }
-        AdaptHistory(history); readings.Children.Add(history);
-        var links = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3, Margin = new Thickness(0, 16, 0, 12) };
-        System.Windows.Automation.AutomationProperties.SetAutomationId(links, "usage.links");
-        foreach (var (id, label, detail, icon) in new[]
-        {
-            ("activity", "Usage", "Daily tokens, model breakdown and estimated API cost", "M2,14 V8 M8,14 V2 M14,14 V5"),
-            ("projects", "Projects", "Usage grouped by local project", "M1,4 V13 Q1,15 3,15 H13 Q15,15 15,13 V5 Q15,3 13,3 H7 L5,1 H3 Q1,1 1,3 Z"),
-            ("sessions", "Sessions", "Individual coding sessions and their models", "M1,1 H15 V11 H8 L4,15 V11 H1 Z M4,4 H12 M4,7 H10")
-        })
-        {
-            if (!settings.Current.AnalyticsEnabled || id == "projects" && !settings.Current.ProjectsEnabled || id == "sessions" && !settings.Current.SessionsEnabled) continue;
-            var link = Ui.Button(label, () => Forward(id, "7d"));
-            System.Windows.Automation.AutomationProperties.SetAutomationId(link, "usage.destination." + id);
-            link.ToolTip = detail; link.BorderThickness = new Thickness(0); link.SetResourceReference(Control.BackgroundProperty, "ControlBackground");
-            link.Padding = new Thickness(12, 11, 12, 11); link.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-            var content = new DockPanel();
-            var mark = new System.Windows.Shapes.Path { Data = Geometry.Parse(icon), Stroke = (Brush)System.Windows.Application.Current.FindResource("SecondaryText"), StrokeThickness = 1.2,
-                StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, Width = 16, Height = 16, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
-            DockPanel.SetDock(mark, Dock.Left); content.Children.Add(mark);
-            var disclosure = Ui.Text("›", 16, "#98989D"); disclosure.Margin = new Thickness(6, 0, 0, 0); DockPanel.SetDock(disclosure, Dock.Right); content.Children.Add(disclosure);
-            var title = Ui.Text(label, 13); title.Margin = new Thickness(0); title.VerticalAlignment = VerticalAlignment.Center; content.Children.Add(title);
-            link.Content = content; links.Children.Add(link);
-        }
-        if (links.Children.Count > 0) { links.Columns = links.Children.Count; links.SizeChanged += (_, _) => links.Columns = links.ActualWidth < 390 ? 1 : links.Children.Count; readings.Children.Add(SettingsUi.Divider()); readings.Children.Add(links); }
-        if (settings.Current.ShowLastUpdated || store.IsRefreshing)
-            readings.Children.Add(Ui.Text(store.IsRefreshing ? "Refreshing…" : store.Status, 11, "#808080"));
+        Overview();
     }
     private static DockPanel Heading(string title)
     {
         var row = new DockPanel { Margin = new Thickness(0, title == "History" ? 16 : 0, 0, 0) };
-        var scope = Ui.Text("This PC", 11, "#A6A6AA"); scope.ToolTip = "Local usage across accounts on this computer."; DockPanel.SetDock(scope, Dock.Right); row.Children.Add(scope);
-        row.Children.Add(Ui.Text(title, 13, weight: FontWeights.SemiBold)); return row;
+        var scope = Ui.Text("This PC", 11, "#A6A6AA"); scope.Margin = new Thickness(0); scope.ToolTip = "Local usage across accounts on this computer."; DockPanel.SetDock(scope, Dock.Right); row.Children.Add(scope);
+        var heading = Ui.Text(title, 13, weight: FontWeights.SemiBold); heading.Margin = new Thickness(0); row.Children.Add(heading); return row;
     }
     private void Limits()
     {

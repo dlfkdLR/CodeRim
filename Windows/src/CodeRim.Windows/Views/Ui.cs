@@ -62,7 +62,7 @@ internal static class Ui
             double scale => scale < 1 ? "Small" : scale > 1 ? "Large" : "Medium",
             "Relative" => "Countdown", "Absolute" => "Reset date",
             "Start" => "Above", "End" => "Below",
-            0 => "Manual", 60 => "Automatic", 30 => "Every 30 seconds", 300 => "Every 5 minutes",
+            -1 => "Automatic", 0 => "Manual", 30 => "30 Seconds", 60 => "1 Minute", 120 => "2 Minutes", 300 => "5 Minutes", 900 => "15 Minutes", 1800 => "30 Minutes",
             _ => value?.ToString() ?? ""
         };
         public object ConvertBack(object value, Type targetType, object parameter, System.Globalization.CultureInfo culture) => throw new NotSupportedException();

@@ -10,8 +10,14 @@ namespace CodeRim.Windows.Views;
 
 internal sealed class AccountsPane : DockPanel
 {
-    private Process? signInProcess;
-    private readonly System.Windows.Threading.DispatcherTimer signInTimer = new() { Interval = TimeSpan.FromSeconds(1) };
+    private CancellationTokenSource? signInCancellation;
+    private CancellationTokenSource? accountRefreshCancellation;
+    private Task? accountRefresh;
+    private readonly WrapPanel actions = new();
+    private bool busy;
+    private int refreshRevision;
+    private string? verifiedCurrentId;
+    private Window? owner;
     private readonly System.Windows.Controls.Button cancel;
     private readonly System.Windows.Controls.Button refresh;
     private readonly string provider;
@@ -33,16 +39,17 @@ internal sealed class AccountsPane : DockPanel
         DockPanel.SetDock(footer, Dock.Bottom); Children.Add(footer);
         var divider = new Border { Height = 1, Margin = new Thickness(0, 16, 0, 12) };
         divider.SetResourceReference(Border.BackgroundProperty, "DividerBrush"); footer.Children.Add(divider);
-        var actions = new WrapPanel();
         var save = Ui.AsyncButton("Save Current Account", async () =>
         {
-            try { await accounts.SaveCurrentAsync(provider, Executable(), waitForRefresh: () => store.WaitForProviderIdleAsync(provider)).ConfigureAwait(true); Populate(); feedback.Text = "Verified CLI account saved using Windows user encryption."; }
+            SetBusy(true); await WaitForCurrentProbeAsync();
+            try { await accounts.SaveCurrentAsync(provider, Executable(), waitForRefresh: () => store.WaitForProviderIdleAsync(provider)).ConfigureAwait(true); await RefreshAccountsAsync(); feedback.Text = "Current account saved."; }
             catch (Exception error) when (error is not OutOfMemoryException) { feedback.Text = "The official CLI could not verify a file-backed subscription login. Finish sign-in through the CLI and retry."; }
+            finally { SetBusy(false); }
         });
         System.Windows.Automation.AutomationProperties.SetAutomationId(save, "accounts.saveCurrent"); actions.Children.Add(save);
-        var add = Ui.Button("Add Account…", () => Run(SignIn));
+        var add = Ui.AsyncButton("Add Account…", SignInAsync);
         System.Windows.Automation.AutomationProperties.SetAutomationId(add, "accounts.add"); actions.Children.Add(add);
-        refresh = Ui.Button("Refresh Accounts", Populate); actions.Children.Add(refresh);
+        refresh = Ui.AsyncButton("Refresh Accounts", RefreshAccountsAsync); actions.Children.Add(refresh);
         cancel = Ui.Button("Cancel sign-in", CancelSignIn); cancel.Visibility = Visibility.Collapsed; actions.Children.Add(cancel);
         footer.Children.Add(actions); footer.Children.Add(feedback);
         System.Windows.Automation.AutomationProperties.SetAutomationId(feedback, "accounts.status");
@@ -51,39 +58,65 @@ internal sealed class AccountsPane : DockPanel
         var scroll = new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         System.Windows.Automation.AutomationProperties.SetAutomationId(scroll, "accounts.list");
         Children.Add(scroll);
-        signInTimer.Tick += (_, _) =>
-        {
-            if (signInProcess is null || !signInProcess.HasExited) return;
-            signInProcess.Dispose(); signInProcess = null; signInTimer.Stop(); ShowSignInProgress(false);
-            feedback.Text = "Sign-in process finished. Save Current Account to verify and keep this login."; Populate();
-        };
-        Unloaded += (_, _) => { signInTimer.Stop(); signInProcess?.Dispose(); signInProcess = null; };
+        Loaded += (_, _) => { owner = Window.GetWindow(this); if (owner is not null) owner.Activated += Activated; _ = RefreshAccountsAsync(); };
+        Unloaded += (_, _) => { refreshRevision++; accountRefreshCancellation?.Cancel(); signInCancellation?.Cancel(); if (owner is not null) owner.Activated -= Activated; owner = null; };
         Populate();
     }
     internal void ShowSignInProgress(bool active)
     {
+        SetBusy(active);
         cancel.Visibility = active ? Visibility.Visible : Visibility.Collapsed;
         refresh.Visibility = active ? Visibility.Collapsed : Visibility.Visible;
     }
     private string Executable() => provider == "codex" ? settings.Current.CodexExecutable ?? ProviderConnections.ResolveCodex() ?? throw new FileNotFoundException()
         : ProviderConnections.ResolveExecutable("claude.exe") ?? throw new FileNotFoundException();
-    private void SignIn()
+    private async Task SignInAsync()
     {
-        if (SavedAccounts.OperationInProgress) throw new InvalidOperationException("Wait for the current account operation to finish.");
-        var executable = Executable();
-        var start = new ProcessStartInfo(executable) { UseShellExecute = true };
-        foreach (var argument in provider == "codex" ? new[] { "login" } : new[] { "auth", "login" }) start.ArgumentList.Add(argument);
-        if (signInProcess is { HasExited: false }) { feedback.Text = "Sign-in is already in progress."; return; }
-        signInProcess?.Dispose(); signInProcess = Process.Start(start);
-        ShowSignInProgress(signInProcess is not null); signInTimer.Start();
-        feedback.Text = "Finish sign-in in the official CLI, then choose Save Current Account.";
+        if (busy || SavedAccounts.OperationInProgress) { feedback.Text = "Wait for the current account operation to finish."; return; }
+        using var cancellation = new CancellationTokenSource(); signInCancellation = cancellation;
+        ShowSignInProgress(true); await WaitForCurrentProbeAsync();
+        feedback.Text = "Finish sign-in in your browser. Your current CLI account stays selected.";
+        try
+        {
+            await accounts.AddAsync(provider, Executable(), cancellation.Token).ConfigureAwait(true);
+            await RefreshAccountsAsync(); feedback.Text = "Account added. Select Switch when you want to use it.";
+        }
+        catch (OperationCanceledException) { feedback.Text = "Sign-in cancelled. Your current account is unchanged."; }
+        catch (Exception e) when (e is not OutOfMemoryException) { feedback.Text = "The new account could not be verified. Your current CLI login and saved accounts are unchanged."; }
+        finally { signInCancellation = null; ShowSignInProgress(false); Populate(); }
     }
-    private void CancelSignIn()
+    private void CancelSignIn() => signInCancellation?.Cancel();
+    private void SetBusy(bool active)
     {
-        try { if (signInProcess is { HasExited: false }) signInProcess.Kill(); }
-        catch (Exception e) when (e is System.ComponentModel.Win32Exception or InvalidOperationException) { }
-        signInProcess?.Dispose(); signInProcess = null; signInTimer.Stop(); ShowSignInProgress(false);
-        feedback.Text = "Sign-in cancelled. Previously saved accounts are preserved.";
+        busy = active; if (active) { refreshRevision++; accountRefreshCancellation?.Cancel(); } list.IsEnabled = !active;
+        foreach (var button in actions.Children.OfType<System.Windows.Controls.Button>()) button.IsEnabled = !active || button == cancel;
+    }
+    private async void Activated(object? sender, EventArgs e)
+    {
+        if (!busy) await RefreshAccountsAsync();
+    }
+    private async Task WaitForCurrentProbeAsync()
+    {
+        if (accountRefresh is { } pending) await pending.ConfigureAwait(true);
+    }
+    private Task RefreshAccountsAsync()
+    {
+        if (accountRefresh is { IsCompleted: false }) return accountRefresh;
+        return accountRefresh = VerifyAndPopulateAsync();
+    }
+    private async Task VerifyAndPopulateAsync()
+    {
+        using var cancellation = new CancellationTokenSource(); accountRefreshCancellation = cancellation;
+        var revision = ++refreshRevision;
+        string? verified = null;
+        if (!store.Synthetic)
+        {
+            try { verified = await SavedAccounts.VerifyCurrentIdAsync(provider, Executable(), cancellation.Token).ConfigureAwait(true); }
+            catch (Exception e) when (e is not OutOfMemoryException) { }
+        }
+        accountRefreshCancellation = null;
+        if (revision != refreshRevision || cancellation.IsCancellationRequested) return;
+        verifiedCurrentId = verified; Populate();
     }
     private void Populate()
     {
@@ -91,8 +124,7 @@ internal sealed class AccountsPane : DockPanel
         try
         {
             var saved = accounts.Read(provider);
-            string? current = null;
-            try { if (!store.Synthetic) current = SavedAccounts.Current(provider).Identity.Id; } catch (Exception e) when (e is IOException or System.Text.Json.JsonException or FormatException) { }
+            var current = verifiedCurrentId;
             if (saved.Count == 0)
             {
                 list.Children.Add(Ui.Text("No saved accounts", weight: FontWeights.SemiBold));
@@ -101,29 +133,30 @@ internal sealed class AccountsPane : DockPanel
             foreach (var account in saved)
             {
                 var panel = new StackPanel { Margin = new Thickness(0, 12, 0, 12) };
-                panel.Children.Add(Ui.Text(account.Identity.Email + (current == account.Identity.Id ? " · CLI login file" : ""), 15, weight: FontWeights.SemiBold));
+                panel.Children.Add(Ui.Text(account.Identity.Email + (current == account.Identity.Id ? " · Current ✓" : ""), 15, weight: FontWeights.SemiBold));
                 panel.Children.Add(Ui.Text((account.Identity.Plan ?? "Subscription") + " · " + account.Identity.Organization, 11, "#A6A6AA"));
                 var actions = new WrapPanel();
-                var select = Ui.AsyncButton("Use account", async () =>
+                var select = Ui.AsyncButton("Switch", async () =>
                 {
                     if (MessageBox.Show(Window.GetWindow(this), "Switch the CLI to " + account.Identity.Email + "? Close its running sessions before continuing.", "Switch account", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-                    feedback.Text = "Verifying account…";
+                    SetBusy(true); await WaitForCurrentProbeAsync(); verifiedCurrentId = null; feedback.Text = "Verifying account…";
                     try
                     {
                         if (store.Sessions.Any(x => x.Provider == provider && x.State is "busy" or "waiting")) throw new InvalidOperationException("Close the provider's active sessions first.");
                         store.InvalidateAccount(provider);
                         await accounts.SwitchAsync(account, Executable(), waitForRefresh: () => store.WaitForProviderIdleAsync(provider)).ConfigureAwait(true);
                         store.InvalidateAccount(provider); await store.RefreshProviderAsync(provider).ConfigureAwait(true);
-                        feedback.Text = "The CLI verified the selected account."; Populate();
+                        await RefreshAccountsAsync(); feedback.Text = "The CLI verified the selected account.";
                     }
                     catch (Exception e) when (e is not OutOfMemoryException)
                     {
                         store.InvalidateAccount(provider); await store.RefreshProviderAsync(provider).ConfigureAwait(true);
                         feedback.Text = "The switch could not be verified. Close running provider sessions, sign in through the official CLI, and retry.";
                     }
+                    finally { SetBusy(false); }
                 });
                 System.Windows.Automation.AutomationProperties.SetName(select, "Switch to " + account.Identity.Email);
-                actions.Children.Add(select);
+                if (current != account.Identity.Id) actions.Children.Add(select);
                 var remove = Ui.Button("Remove", () => Run(() => { if (MessageBox.Show(Window.GetWindow(this), "Remove the saved login for " + account.Identity.Email + "? Its current CLI session and usage history are preserved.", "Remove saved account", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) { accounts.Remove(provider, account.Identity.Id); Populate(); } }));
                 System.Windows.Automation.AutomationProperties.SetName(remove, "Remove saved account " + account.Identity.Email);
                 actions.Children.Add(remove);

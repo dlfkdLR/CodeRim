@@ -21,7 +21,7 @@ internal sealed partial class DashboardWindow : Window
     private static readonly string[] PercentageOptions = ["Used", "Remaining"];
     private static readonly string[] ControlOptions = ["Auto", "Start", "End"];
     private static readonly string[] ResetOptions = ["Relative", "Absolute"];
-    private static readonly int[] RefreshOptions = new[] { 0, 30, 60, 300 };
+    private static readonly int[] RefreshOptions = [-1, 30, 60, 120, 300, 900, 1800, 0];
     private static readonly double[] ScaleOptions = new[] { 0.8, 1.0, 1.25 };
     private static readonly string[] AccentOptions = new[] { "#00FF88", "#3B9CFF", "#9B7DFF", "#FF6EC7", "#FF9F3F" };
     private static readonly string[] GradientOptions = new[] { "Aurora", "Ocean", "Sunset", "Spectrum" };
@@ -47,11 +47,11 @@ internal sealed partial class DashboardWindow : Window
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         var layout = new Grid(); layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(216), MinWidth = 200, MaxWidth = 260 }); layout.ColumnDefinitions.Add(new ColumnDefinition());
         layout.Children.Add(sidebar);
-        layout.Children.Add(new GridSplitter { Width = 4, HorizontalAlignment = HorizontalAlignment.Right,
-            VerticalAlignment = VerticalAlignment.Stretch, Background = Brushes.Transparent, ResizeDirection = GridResizeDirection.Columns, ResizeBehavior = GridResizeBehavior.CurrentAndNext });
+        var splitter = new GridSplitter { Width = 4, HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Stretch, Background = Brushes.Transparent, ResizeDirection = GridResizeDirection.Columns, ResizeBehavior = GridResizeBehavior.CurrentAndNext }; layout.Children.Add(splitter);
         var scroll = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         contentViewport = scroll;
-        Grid.SetColumn(scroll, 1); layout.Children.Add(scroll); Content = layout;
+        Grid.SetColumn(scroll, 1); layout.Children.Add(scroll); ConfigureShell(layout, splitter);
         sidebar.SelectionChanged += (_, _) => { if (!refreshingSidebar && sidebar.SelectedItem is ListBoxItem item && item.Tag is string id) Navigate(id); };
         settings.SettingsChanged += SettingsChanged; store.PropertyChanged += StoreChanged;
         Closed += (_, _) => { updateWindowClosed = true; CancelUpdateOperation(); settings.SettingsChanged -= SettingsChanged; store.PropertyChanged -= StoreChanged; };
@@ -59,7 +59,7 @@ internal sealed partial class DashboardWindow : Window
         {
             if (System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control))
             {
-                if (e.Key == System.Windows.Input.Key.OemComma) { Navigate("general"); e.Handled = true; }
+                if (e.Key == System.Windows.Input.Key.OemComma) { Show(); Activate(); e.Handled = true; }
                 else if (e.Key == System.Windows.Input.Key.R) { _ = store.RefreshAsync(true); e.Handled = true; }
                 else if (page == "usage" && usagePane is not null) e.Handled = usagePane.HandleShortcut(e.Key, System.Windows.Input.Keyboard.Modifiers);
             }
@@ -162,7 +162,7 @@ internal sealed partial class DashboardWindow : Window
                 .Select(System.Windows.Automation.AutomationProperties.GetName).FirstOrDefault(x => !string.IsNullOrEmpty(x))
             : null;
         var changedPage = renderedPage != page;
-        renderedPage = page;
+        renderedPage = page; UpdateSectionTitle();
         CancelUpdateOperation(); updateViewRevision++;
         body.Children.Clear(); providerListDetails.Clear();
         body.Margin = page == "usage" ? new Thickness(0) : new Thickness(0, 6, 0, 28);
@@ -200,7 +200,7 @@ internal sealed partial class DashboardWindow : Window
         body.Children.Add(SettingsUi.Section("Startup",
             SettingsUi.Toggle("Launch at Login", settings.Current.LaunchAtLogin, x => Save(settings.Current with { LaunchAtLogin = x })),
             SettingsUi.Row("Status", startupStatus)));
-        body.Children.Add(SettingsUi.Section("Refresh", SettingsUi.Picker("Mode", RefreshOptions, settings.Current.RefreshIntervalSeconds, x => Save(settings.Current with { RefreshIntervalSeconds = x }))));
+        body.Children.Add(SettingsUi.Section("Refresh", SettingsUi.Picker("Mode", RefreshOptions, settings.Current.AutomaticRefresh ? -1 : settings.Current.RefreshIntervalSeconds, x => Save(settings.Current with { RefreshIntervalSeconds = x == -1 ? 60 : x, AutomaticRefresh = x == -1 }))));
         body.Children.Add(SettingsUi.Note("Automatic reacts to session changes with a one-minute fallback check."));
         body.Children.Add(SettingsUi.Section("Updates", SettingsUi.Toggle("Automatically check for updates", settings.Current.CheckForUpdates, x => Save(settings.Current with { CheckForUpdates = x }))));
         body.Children.Add(SettingsUi.Note("Checks GitHub once per day and downloads verified updates for Setup installations. Restart from Information to install. Token usage data is never sent."));

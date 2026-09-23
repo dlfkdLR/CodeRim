@@ -12,6 +12,7 @@ public sealed record AppSettings(
     bool ShowCachedInput,
     bool LaunchAtLogin)
 {
+    public bool AutomaticRefresh { get; init; } = true;
     public string UsageProvider { get; init; } = "codex";
     public bool DebugLogging { get; init; }
     public string FinishedSound { get; init; } = "Asterisk";
@@ -165,11 +166,12 @@ public sealed class AppSettingsStore
         var weekStart = Enum.IsDefined(settings.WeekStart)
             ? settings.WeekStart
             : AppSettings.Default.WeekStart;
-        var refreshInterval = settings.RefreshIntervalSeconds is 0 or 30 or 60 or 300
+        var refreshInterval = settings.RefreshIntervalSeconds is 0 or 30 or 60 or 120 or 300 or 900 or 1800
             ? settings.RefreshIntervalSeconds
             : AppSettings.Default.RefreshIntervalSeconds;
         return settings with
         {
+            AutomaticRefresh = settings.AutomaticRefresh && refreshInterval == 60,
             UsageProvider = ProviderCatalog.Find(settings.UsageProvider) is not null ? settings.UsageProvider : "codex",
             MutedAlertProviders = (settings.MutedAlertProviders ?? []).Where(id => ProviderCatalog.Find(id) is not null).Distinct(StringComparer.Ordinal).ToArray(),
             ResetTime = settings.ResetTime is "Relative" or "Absolute" ? settings.ResetTime : "Relative",

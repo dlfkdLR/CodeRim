@@ -14,9 +14,11 @@ internal sealed partial class UsagePane
         AutomationProperties.SetAutomationId(grid, "usage.header");
         AutomationProperties.SetAutomationId(actions, "usage.controls");
         bool? compact = null;
-        grid.SizeChanged += (_, _) =>
+        void Layout()
         {
+            var detail = !grid.Children.OfType<System.Windows.Controls.ComboBox>().Any(x => x.Visibility == Visibility.Visible);
             var next = grid.ActualWidth < 480;
+            if (detail) { compact = null; grid.ColumnDefinitions.Clear(); grid.RowDefinitions.Clear(); Grid.SetRow(actions, 0); Grid.SetColumn(actions, 0); actions.Margin = new Thickness(0); return; }
             if (compact == next) return;
             compact = next; grid.ColumnDefinitions.Clear(); grid.RowDefinitions.Clear();
             grid.ColumnDefinitions.Add(new ColumnDefinition());
@@ -25,21 +27,23 @@ internal sealed partial class UsagePane
             else grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             Grid.SetRow(actions, next ? 1 : 0); Grid.SetColumn(actions, next ? 0 : 1);
             actions.Margin = next ? new Thickness(0, 12, 0, 0) : new Thickness(12, 0, 0, 0);
-        };
+        }
+        grid.SizeChanged += (_, _) => Layout();
+        foreach (var picker in grid.Children.OfType<System.Windows.Controls.ComboBox>()) picker.IsVisibleChanged += (_, _) => Layout();
     }
     private static void AdaptOverview(Grid grid, FrameworkElement total, FrameworkElement breakdown)
     {
         bool? compact = null;
         grid.SizeChanged += (_, _) =>
         {
-            var next = grid.ActualWidth < 470;
+            var next = grid.ActualWidth < 492;
             if (compact == next) return;
             compact = next; grid.ColumnDefinitions.Clear(); grid.RowDefinitions.Clear();
             grid.ColumnDefinitions.Add(new ColumnDefinition());
             if (next) { grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); }
-            else grid.ColumnDefinitions.Add(new ColumnDefinition());
+            else grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(240) });
             Grid.SetColumn(breakdown, next ? 0 : 1); Grid.SetRow(breakdown, next ? 1 : 0);
-            total.Margin = next ? new Thickness(0, 0, 0, 16) : new Thickness(0, 0, 24, 0);
+            total.Margin = next ? new Thickness(0, 0, 0, 16) : new Thickness(0, 0, 32, 0);
         };
     }
     private static void AdaptHistory(Grid grid)
@@ -56,7 +60,7 @@ internal sealed partial class UsagePane
             for (var i = 0; i < buttons.Length; i++)
             {
                 Grid.SetColumn(buttons[i], next ? 0 : i); Grid.SetRow(buttons[i], next ? i : 0);
-                buttons[i].Padding = next ? new Thickness(0, 8, 0, 8) : new Thickness(i == 0 ? 0 : 16, 0, 16, 0);
+                buttons[i].Padding = next ? new Thickness(0, 8, 0, 8) : new Thickness(i == 0 ? 0 : 16, 4, 16, 4);
             }
             foreach (var separator in grid.Children.OfType<Border>()) separator.Visibility = next ? Visibility.Collapsed : Visibility.Visible;
         };

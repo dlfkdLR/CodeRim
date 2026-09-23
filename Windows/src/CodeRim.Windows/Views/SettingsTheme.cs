@@ -28,7 +28,12 @@ internal static class SettingsTheme
             ["SecondaryText"] = Color(IsDark ? "#9E9E9E" : "#707070"),
             ["DividerBrush"] = Color(IsDark ? "#383838" : "#E3E3E3"),
             ["AccentBrush"] = Color(IsDark ? "#0A84FF" : "#007AFF"),
-            ["AccentText"] = Colors.White
+            ["AccentText"] = Colors.White,
+            ["WindowCloseBrush"] = Color("#FF5F57"),
+            ["WindowMinimizeBrush"] = Color("#FEBC2E"),
+            ["WindowMaximizeBrush"] = Color("#28C840"),
+            ["WindowButtonText"] = Color("#4A302C"),
+            ["WindowButtonOutline"] = Colors.Transparent
         };
         if (contrast)
         {
@@ -38,7 +43,10 @@ internal static class SettingsTheme
             colors["AccentBrush"] = SystemColors.HighlightColor;
             colors["AccentText"] = SystemColors.HighlightTextColor;
             colors["ControlHover"] = SystemColors.WindowColor;
+            foreach (var name in new[] { "WindowCloseBrush", "WindowMinimizeBrush", "WindowMaximizeBrush" }) colors[name] = SystemColors.WindowColor;
+            colors["WindowButtonText"] = colors["WindowButtonOutline"] = SystemColors.WindowTextColor;
         }
+        Application.Current.Resources["WindowButtonSymbolOpacity"] = contrast ? 1d : 0d;
         foreach (var (key, color) in colors) Application.Current.Resources[key] = new SolidColorBrush(color);
     }
     private static Color Color(string value) => (Color)ColorConverter.ConvertFromString(value);

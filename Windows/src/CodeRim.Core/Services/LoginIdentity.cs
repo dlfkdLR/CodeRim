@@ -35,7 +35,7 @@ public sealed record LoginIdentity(string Id, string Email, string Organization,
         var email = Label(Text(account, "emailAddress")); var org = Label(Text(account, "organizationUuid")); var id = Label(Text(account, "accountUuid"));
         return new(Key(org, id), email, org, Text(oauth, "subscriptionType"));
     }
-    public static void ValidateCodexPolicy(JsonElement config, string organization)
+    public static void ValidateCodexSignInPolicy(JsonElement config)
     {
         if (config.ValueKind != JsonValueKind.Object) throw new InvalidOperationException("Codex configuration could not be verified.");
         var storage = Get(config, "cli_auth_credentials_store");
@@ -43,6 +43,10 @@ public sealed record LoginIdentity(string Id, string Email, string Organization,
             throw new InvalidOperationException("Account switching requires Codex file-based authentication.");
         var method = Text(config, "forced_login_method");
         if (method is not null && method != "chatgpt") throw new InvalidOperationException("This Codex authentication method is managed.");
+    }
+    public static void ValidateCodexPolicy(JsonElement config, string organization)
+    {
+        ValidateCodexSignInPolicy(config);
         var workspace = Get(config, "forced_chatgpt_workspace_id");
         if (workspace.ValueKind is not (JsonValueKind.Null or JsonValueKind.Undefined)
             && !(workspace.ValueKind == JsonValueKind.String && workspace.GetString() == organization)
