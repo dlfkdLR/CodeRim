@@ -36,9 +36,11 @@ Windows 노치도 macOS와 같은 기본 설정 곡선과 마우스를 올렸을
 
 현재 소스는 공급자가 많을 때 노치 목록을 화면 크기에 맞춰 나누고, 긴 상세 카드는 스크롤로 표시합니다. xAI·Poe는 두 플랫폼이 인증 오류와 불완전한 이력을 같은 방식으로 처리합니다. [2026-09-20 감사 결과와 검증 범위](Documentation/FULL_AUDIT_2026-09-20.md)를 참고하세요.
 
+Windows에도 노치 접힘·펼침, 공급자·컨트롤 순차 등장, 사용량·초기화·새로고침·활동 표시, 팝업·토글·토큰 숫자 전환을 적용했습니다. 앱과 Windows의 동작 줄이기 설정을 따르며, 설정 미리보기를 즉시 갱신하고 화면 이동 시 스크롤 위치를 초기화합니다. 실제 검사와 비교 범위는 [애니메이션 점검 기록](Documentation/WINDOWS_MOTION_2026-09-23.md)에 정리했습니다.
+
 ## 설치
 
-**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.9](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.9)
+**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.10](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.10)
 
 ### macOS
 
@@ -61,7 +63,7 @@ Homebrew에서 cask를 사용할 수 없다는 메시지가 표시되거나 이�
 
 **Windows 11 · x64 및 ARM64 · .NET 포함.**
 
-[x64 설치 파일 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-x64-Setup.msi) · [ARM64 설치 파일 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-arm64-Setup.msi)
+[x64 설치 파일 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.10/CodeRim-Windows-2.1.10-x64-Setup.msi) · [ARM64 설치 파일 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.10/CodeRim-Windows-2.1.10-arm64-Setup.msi)
 
 `Setup.msi`를 실행하면 관리자 권한 없이 설치되며 시작 메뉴, 제거 프로그램과 CLI 경로를 등록합니다. 기존 ZIP 사용자는 설치 파일을 한 번 실행하면 됩니다. 계정·설정·로컬 사용 기록은 유지됩니다.
 

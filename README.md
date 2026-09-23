@@ -36,9 +36,11 @@ The Windows notch now uses the same resting settings arc and revealed account co
 
 The current source also bounds large notch provider lists and scrolls overflowing detail cards. xAI/Poe readers share authentication and incomplete-history handling across platforms. For audit findings and remaining verification limits, see the [2026-09-20 audit and verification limits](Documentation/FULL_AUDIT_2026-09-20.md).
 
+Windows now animates notch folding, staggered provider/control entrances, usage readings and reset, refresh/activity indicators, tooltips, toggles and token totals. The app and Windows Reduce Motion settings stop these transitions. Settings previews update in place and navigation resets the correct scroll viewport. See the [motion audit](Documentation/WINDOWS_MOTION_2026-09-23.md) for native checks and remaining comparison limits.
+
 ## Install
 
-**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.9](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.9)
+**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.10](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.10)
 
 ### macOS
 
@@ -61,7 +63,7 @@ Open **Settings → Providers → Add Provider**, connect your tools, and hover 
 
 **Windows 11 · x64 and ARM64 · .NET included.**
 
-[Download x64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-x64-Setup.msi) · [Download ARM64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-arm64-Setup.msi)
+[Download x64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.10/CodeRim-Windows-2.1.10-x64-Setup.msi) · [Download ARM64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.10/CodeRim-Windows-2.1.10-arm64-Setup.msi)
 
 Run `Setup.msi` to install without administrator access. Setup registers Start menu and uninstall entries and adds the `coderim` CLI to your user PATH. Existing ZIP users run Setup once to enable automatic updates. Accounts, settings and local usage history are preserved.
 

@@ -4,7 +4,7 @@ This Windows port uses WPF on .NET 10 and targets Windows 11 x64 and ARM64. It i
 
 ## Run or install
 
-Run the matching [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-x64-Setup.msi) or [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.9/CodeRim-Windows-2.1.9-arm64-Setup.msi). .NET is included. The installer uses `%LOCALAPPDATA%\Programs\CodeRim`, registers Start menu and uninstall entries, and adds `bin` to the current user's PATH without requiring administrator access. Open a new terminal after installation to use `coderim`.
+Run the matching [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.10/CodeRim-Windows-2.1.10-x64-Setup.msi) or [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.10/CodeRim-Windows-2.1.10-arm64-Setup.msi). .NET is included. The installer uses `%LOCALAPPDATA%\Programs\CodeRim`, registers Start menu and uninstall entries, and adds `bin` to the current user's PATH without requiring administrator access. Open a new terminal after installation to use `coderim`.
 
 Existing unsigned ZIP users should quit CodeRim and run the MSI once. Settings, accounts and usage history are stored outside the application directory and are preserved. A legacy Authenticode-managed installation must continue using its signed ZIP channel; the public MSI refuses to overwrite it. The initial MSI does not have an Authenticode publisher certificate, so Windows may show a SmartScreen warning. Automatic updates use the pinned Ed25519 release key described below.
 
@@ -23,6 +23,10 @@ Claude local tokens are read from `$env:CLAUDE_CONFIG_DIR` or `$env:USERPROFILE\
 ```
 
 An existing status line is preserved unless you explicitly pass `-ReplaceExistingStatusLine`. The script backs up `settings.json`, preserves other settings, and points the status line to the absolute `CodeRimCLI.exe` path. Restart Claude Code afterwards. Only quota fields and the account/session binding are stored; prompts and response text are not retained. A Claude version/account that does not provide `rate_limits` cannot supply plan limits through this bridge.
+
+## Motion and interaction
+
+The notch follows the macOS spring/stagger vocabulary for unfolding, provider readings, reset, working/waiting indicators, settings/account controls and tooltip movement. Settings hover fills, toggle thumbs and Usage token totals transition without changing stored values. Both the app Reduce motion preference and Windows animation policy are honored, including changes during an animation. Hidden/unloaded rings release their continuous render subscriptions. Native intermediate-frame evidence and limits are recorded in the [motion audit](WINDOWS_MOTION_2026-09-23.md).
 
 ## Implemented behavior
 
@@ -228,7 +232,7 @@ python3 Scripts/sign_windows_installer.py CodeRim-Windows-VERSION-arm64-Setup.ms
 
 Replace `VERSION` with the configured release version. The helper defaults to the existing `HechoLP` Keychain account; `--account` can select that same release key under another local account name. Never export the private key. A different key will not be accepted by installed apps.
 
-Upload each MSI plus its `.sha256`, `.manifest.json` and `.manifest.sig` to the matching GitHub release draft. The stable updater requires the expected canonical filenames and GitHub SHA-256 metadata, and independently authenticates the signed manifest. Do not change the MSI after signing. For 2.1.9, dispatch the Windows workflow with `msi_handoff=true` to exercise both signed draft installers from an isolated old-version fixture before publishing. This manual-only job needs repository content write permission because GitHub hides drafts from read-only tokens; it does not publish or edit the release and checkout credentials are not persisted.
+Upload each MSI plus its `.sha256`, `.manifest.json` and `.manifest.sig` to the matching GitHub release draft. The stable updater requires the expected canonical filenames and GitHub SHA-256 metadata, and independently authenticates the signed manifest. Do not change the MSI after signing. For 2.1.10, dispatch the Windows workflow with `msi_handoff=true` to exercise both signed draft installers from an isolated old-version fixture before publishing. This manual-only job needs repository content write permission because GitHub hides drafts from read-only tokens; it does not publish or edit the release and checkout credentials are not persisted.
 
 ## Audit history and verification limits
 

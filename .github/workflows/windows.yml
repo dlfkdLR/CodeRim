@@ -201,7 +201,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force Artifacts/handoff | Out-Null
-          gh release download v2.1.9 --repo $env:GITHUB_REPOSITORY --pattern '*-${{ matrix.architecture }}-Setup.msi*' --dir Artifacts/handoff
+          gh release download v2.1.10 --repo $env:GITHUB_REPOSITORY --pattern '*-${{ matrix.architecture }}-Setup.msi*' --dir Artifacts/handoff
           if ($LASTEXITCODE -ne 0) { throw 'Signed draft installer is unavailable.' }
       - name: Exercise authenticated worker handoff and relaunch
         run: ./Windows/Scripts/test-msi-handoff.ps1 -Architecture ${{ matrix.architecture }} -ReleaseDirectory Artifacts/handoff

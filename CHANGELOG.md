@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.10 — Windows motion and interaction
+
+- Add four-edge notch spring transitions, staggered controls, reading/reset interpolation and finite refresh feedback.
+- Match working/waiting ring indicators, tooltip movement, toggle/hover transitions and exact token-total interpolation to the macOS interaction design.
+- Honor Reduce Motion, pause hidden render clocks, preserve numeric transitions across repeated refresh events, and update Settings previews without replacing active controls.
+- Preserve MSI installation and authenticated automatic updates; macOS distribution remains 2.1.8. See [release notes](Documentation/ReleaseNotes/2.1.10.md).
+
 ## 2.1.9 — Windows installer and automatic updates
 
 - Ship per-user x64/ARM64 MSI installers with Start menu, uninstall and CLI PATH registration.
