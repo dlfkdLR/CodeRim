@@ -134,7 +134,8 @@ internal sealed class AccountsPane : DockPanel
             {
                 var panel = new StackPanel { Margin = new Thickness(0, 12, 0, 12) };
                 panel.Children.Add(Ui.Text(account.Identity.Email + (current == account.Identity.Id ? " · Current ✓" : ""), 15, weight: FontWeights.SemiBold));
-                panel.Children.Add(Ui.Text((account.Identity.Plan ?? "Subscription") + " · " + account.Identity.Organization, 11, "#A6A6AA"));
+                panel.Children.Add(Ui.Text((AccountPlanDisplay.Name(provider, account.Identity.Plan, account.Profile, account.Identity.Email, account.Identity.Organization)
+                    ?? "Subscription") + " · " + account.Identity.Organization, 11, "#A6A6AA"));
                 var actions = new WrapPanel();
                 var select = Ui.AsyncButton("Switch", async () =>
                 {

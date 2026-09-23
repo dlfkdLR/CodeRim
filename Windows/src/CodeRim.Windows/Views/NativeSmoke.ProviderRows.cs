@@ -35,11 +35,16 @@ internal static partial class NativeSmoke
             Capture(dashboard, Path.Combine(directory, "windows-provider-rows.png"));
             Button("settings.providers.primary.copilot").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
             Require(dashboard.Title == "Providers" && Descendants<TextBlock>(dashboard).Any(x => x.Text == "Connection"), "Set Up action failed to open provider connection settings.");
+            store.Readings["copilot"] = new("copilot", ReadingState.Stale, [], DateTimeOffset.Now.AddMinutes(-90));
+            dashboard.Navigate("copilot"); await Idle();
+            Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Last read 1 hr 30 min ago"), "Provider detail stale status differs from the reference's relative time.");
             dashboard.Navigate("providers"); await Idle();
+            Require(Descendants<TextBlock>(dashboard).Any(x => AutomationProperties.GetAutomationId(x) == "provider-list.copilot" && x.Text == "Last read 1 hr 30 min ago"),
+                "Provider row stale status differs from its detail view.");
             Button("settings.providers.remove.copilot").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
             Require(!settings.Current.EnabledProviders.Contains("copilot", StringComparer.Ordinal) && store.Readings.ContainsKey("copilot"), "Removing a provider did not stop monitoring or destructively cleared its reading.");
             File.WriteAllText(Path.Combine(directory, "windows-provider-rows.json"), JsonSerializer.Serialize(new { completed = true,
-                checks = new List<string> { "Account/plan/highest-used limit share a stable row", "Bell persists mute state and follows global alerts", "Disconnected providers expose setup and hide alert controls", "Setup navigation and removal preserve provider state" } }));
+                checks = new List<string> { "Account/plan/highest-used limit share a stable row", "Bell persists mute state and follows global alerts", "Disconnected providers expose setup and hide alert controls", "Relative stale time agrees across list and detail", "Setup navigation and removal preserve provider state" } }));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally

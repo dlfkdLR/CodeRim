@@ -230,9 +230,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
             if (disposed) return;
             var valid = current.Where(item => settings.Current.EnabledProviders.Contains(item.Provider, StringComparer.Ordinal)
                 && versions.GetValueOrDefault(item.Provider, -1) == Generation(item.Provider)).ToArray();
-            var previous = Sessions;
             UpdateSessionActivity(valid);
-            if (!previous.SequenceEqual(Sessions)) Changed();
         }
         catch (OperationCanceledException) { }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
@@ -259,6 +257,9 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
             SessionAttentionRequested?.Invoke(current.Where(x => x.State is "idle" or "waiting"
                 && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"))
                 .OrderByDescending(x => x.Since).First());
+        // Publish at the mutation boundary. Every caller, including updates that
+        // only change a task title/state and reuse the token cache, needs this.
+        if (!previous.SequenceEqual(Sessions)) Changed();
     }
 
     private static List<SessionActivity> ReadSessions(string[] enabled, bool includeUnknown, CancellationToken cancellationToken)

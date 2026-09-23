@@ -14,6 +14,7 @@ internal static partial class NativeSmoke
     private static async Task ProviderAccountOwnershipRegression(AppSettingsStore settings, CredentialVault vault, string directory)
     {
         var before = settings.Current; var previousHome = Environment.GetEnvironmentVariable("CODEX_HOME");
+        var previousClaude = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
         var home = Path.Combine(Path.GetTempPath(), "coderim-account-display-" + Guid.NewGuid().ToString("N"));
         var path = Path.Combine(home, "auth.json"); DashboardStore? store = null; Window? popupWindow = null;
         Exception? failure = null; var cleanup = new List<Exception>();
@@ -54,14 +55,30 @@ internal static partial class NativeSmoke
                 && Descendants<TextBlock>(row).Any(x => x.Text.Contains("Pro 5x", StringComparison.Ordinal)), "Pro 5x was not mapped from current login metadata.");
             File.Delete(path);
             Require(store.AccountDisplay("codex") is { Label: null, Plan: null, Reading: null }, "Sign-out kept private account data visible.");
+            Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", home);
+            GuardedFile.WritePrivate(Path.Combine(home, ".credentials.json"), """{"claudeAiOauth":{"accessToken":"synthetic-access","refreshToken":"synthetic-refresh","subscriptionType":"max","expiresAt":4102444800000,"scopes":["user:inference"]}}""");
+            var profilePath = Path.Combine(home, ".claude.json");
+            foreach (var multiple in new[] { 5, 20 })
+            {
+                var profile = JsonSerializer.Serialize(new { oauthAccount = new { emailAddress = "max@example.invalid", accountUuid = "fixture-user",
+                    organizationUuid = "fixture-org", userRateLimitTier = "default_claude_max_" + multiple + "x" } });
+                if (File.Exists(profilePath)) GuardedFile.Replace(profilePath, GuardedFile.Read(profilePath), profile);
+                else GuardedFile.WritePrivate(profilePath, profile);
+                Require(store.AccountDisplay("claude").Plan == "Max " + multiple + "x" && SavedAccounts.Current("claude").Identity.Plan == "max",
+                    "Claude display tier is missing or changed stored login identity metadata.");
+                popupWindow.Content = NotchPopover.Create("claude", store, settings.Current, _ => { }); await Idle();
+                Require(Descendants<TextBlock>(popupWindow).Any(x => x.Text == "Max " + multiple + "x"), "Claude tier did not reach the mounted popup.");
+                Capture(popupWindow, Path.Combine(directory, "windows-claude-plan-" + multiple + "x.png"));
+            }
             File.WriteAllText(Path.Combine(directory, "windows-account-reading-ownership.json"), JsonSerializer.Serialize(new { completed = true,
-                checks = new List<string> { "Real local auth identity matches captured reading scope", "External same-workspace switch hides old plan and limits before provider polling", "Provider row and notch popup never pair new email with old quota", "Sign-out hides account data" } }));
+                checks = new List<string> { "Real local auth identity matches captured reading scope", "External same-workspace switch hides old plan and limits before provider polling", "Provider row and notch popup never pair new email with old quota", "Sign-out hides account data", "Matching Claude Max 5x/20x profile tier reaches popup without changing stored identity" } }));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally
         {
             void Restore(Action action) { try { action(); } catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); } }
             Restore(() => popupWindow?.Close()); Restore(() => store?.Dispose()); Restore(() => Environment.SetEnvironmentVariable("CODEX_HOME", previousHome));
+            Restore(() => Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", previousClaude));
             Restore(() => settings.Save(before)); Restore(() => Directory.Delete(home, true));
         }
         if (cleanup.Count > 0) throw new AggregateException("Account display fixture cleanup failed", failure is null ? cleanup : cleanup.Prepend(failure));

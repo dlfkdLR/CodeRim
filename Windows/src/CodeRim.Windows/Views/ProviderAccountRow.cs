@@ -1,9 +1,9 @@
-using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using CodeRim.Core.Domain;
+using CodeRim.Core.Services;
 using CodeRim.Windows.Services;
 using CodeRim.Windows.ViewModels;
 
@@ -71,7 +71,7 @@ internal sealed class ProviderAccountRow : DockPanel
         {
             ReadingState.Loading => "Checking…",
             ReadingState.Ready => "Connected — no reading yet",
-            ReadingState.Stale => reading.UpdatedAt is { } date ? "Last read " + date.ToLocalTime().ToString("t", CultureInfo.CurrentCulture) : "Checking…",
+            ReadingState.Stale => reading.UpdatedAt is { } date && date != DateTimeOffset.MinValue ? "Last read " + ElapsedCopy.Ago(date, DateTimeOffset.Now) : "Checking…",
             ReadingState.Disabled => "Disabled",
             ReadingState.Error or ReadingState.Unavailable or ReadingState.Unsupported => reading.Message ?? "Unavailable",
             _ => identity is not null ? "Signed in" : reading?.Message ?? "Not connected"

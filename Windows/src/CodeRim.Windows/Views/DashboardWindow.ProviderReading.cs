@@ -1,9 +1,9 @@
-using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using CodeRim.Core.Domain;
+using CodeRim.Core.Services;
 
 namespace CodeRim.Windows.Views;
 
@@ -69,7 +69,7 @@ internal sealed partial class DashboardWindow
         {
             ReadingState.Ready => reading.Windows.Count > 0 ? "Connected" : "Connected — no reading yet",
             ReadingState.Loading => "Checking…",
-            ReadingState.Stale => reading.UpdatedAt is { } date ? "Last read " + date.ToLocalTime().ToString("t", CultureInfo.CurrentCulture) : "Checking…",
+            ReadingState.Stale => reading.UpdatedAt is { } date && date != DateTimeOffset.MinValue ? "Last read " + ElapsedCopy.Ago(date, DateTimeOffset.Now) : "Checking…",
             ReadingState.NeedsAuth => "Not connected",
             ReadingState.Disabled => "Disabled",
             _ => reading?.Message ?? "Not connected"

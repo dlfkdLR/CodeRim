@@ -7,13 +7,8 @@ public static partial class SessionPresentation
     public static string? Duration(SessionActivity session, bool enabled, DateTimeOffset now)
     {
         if (!enabled || session.State is not ("busy" or "waiting") || session.Since > now) return null;
-        var seconds = (now - session.Since).TotalSeconds;
-        if (seconds < 45) return "<1 min";
-        var minutes = (long)Math.Round(seconds / 60, MidpointRounding.AwayFromZero);
-        if (minutes < 60) return Math.Max(1, minutes) + " min";
-        var hours = minutes / 60; var rest = minutes % 60;
-        if (hours >= 24) return hours / 24 + " d " + hours % 24 + " hr " + rest + " min";
-        return hours + " hr" + (rest == 0 ? "" : " " + rest + " min");
+        var text = ElapsedCopy.Text(session.Since, now);
+        return text == "just now" ? "<1 min" : text;
     }
 
     /// <summary>Only attributed local sessions receive totals; recursively include deduplicated child usage.</summary>

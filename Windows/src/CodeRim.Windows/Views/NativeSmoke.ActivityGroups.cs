@@ -61,10 +61,32 @@ internal static partial class NativeSmoke
             var showAll = Descendants<Button>(notch.PopupContent!).Single(x => AutomationProperties.GetAutomationId(x) == "notch.sessions.showAll");
             showAll.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
             Require(notch.PopupContent!.IsKeyboardFocusWithin, "Native task disclosure did not retain keyboard focus.");
-            store.UpdateSessionActivity(crowded.Select(x => x.Id == "agent" ? x with { Detail = "Changed after expansion", State = "busy" } : x).ToArray());
-            await MotionUntil(() => notch.PopupContent is { } content && content.IsKeyboardFocusWithin
-                && Descendants<TextBlock>(content).Any(x => x.Text == "↳ Changed after expansion"),
-                "Focused expanded popup stopped applying live task updates.");
+            var changed = crowded.Select(x => x.Id == "agent" ? x with { Detail = "Changed after expansion", State = "busy" } : x).ToArray();
+            var notifications = 0;
+            System.ComponentModel.PropertyChangedEventHandler countChanges = (_, _) => notifications++;
+            store.PropertyChanged += countChanges;
+            try
+            {
+                store.UpdateSessionActivity(changed);
+                Require(notifications == 1, "Task mutation did not publish exactly one state change.");
+                store.UpdateSessionActivity(changed);
+                Require(notifications == 1, "An unchanged task snapshot published a duplicate change.");
+                await MotionUntil(() => notch.PopupContent is { } content && content.IsKeyboardFocusWithin
+                    && Descendants<TextBlock>(content).Any(x => x.Text == "↳ Changed after expansion"),
+                    "Focused expanded popup stopped applying live task updates.");
+            }
+            finally
+            {
+                store.PropertyChanged -= countChanges;
+                try
+                {
+                    File.WriteAllText(Path.Combine(directory, "windows-task-groups-live-state.json"), JsonSerializer.Serialize(new {
+                        notifications, popupOpen = notch.PopupIsOpen, focused = notch.PopupContent?.IsKeyboardFocusWithin,
+                        focusId = Keyboard.FocusedElement is DependencyObject currentFocus ? AutomationProperties.GetAutomationId(currentFocus) : null,
+                        updatedTitle = notch.PopupContent is { } content && Descendants<TextBlock>(content).Any(x => x.Text == "↳ Changed after expansion") }));
+                }
+                catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); }
+            }
             Require(Keyboard.FocusedElement is DependencyObject focus && AutomationProperties.GetAutomationId(focus) == "notch.sessions.showLess",
                 "Live task refresh stole disclosure keyboard focus.");
             Capture(notch.PopupContent!, Path.Combine(directory, "windows-task-groups-live.png"));
