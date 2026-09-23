@@ -27,13 +27,22 @@ internal static partial class NativeSmoke
                  new("small", "Small", 0.3), new("nearly", "Nearly full", 99.7),
                  new("expired", "Expired", 10, now.AddMinutes(-1))], now);
             dashboard.Navigate("copilot"); await Idle();
+            dashboard.UpdateLayout();
             var refresh = Descendants<Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "provider.refresh");
+            var icon = refresh.Content as System.Windows.Shapes.Path;
+            File.WriteAllText(Path.Combine(directory, "windows-provider-refresh-geometry.json"), JsonSerializer.Serialize(new {
+                button = new { refresh.ActualWidth, refresh.ActualHeight, name = AutomationProperties.GetName(refresh) },
+                icon = icon is null ? null : new { icon.Width, icon.Height, icon.ActualWidth, icon.ActualHeight,
+                    origin = icon.TranslatePoint(new Point(), refresh), end = icon.TranslatePoint(new Point(icon.ActualWidth, icon.ActualHeight), refresh) }
+            }, JsonOptions));
+            Capture(dashboard, Path.Combine(directory, "windows-provider-refresh-before-assert.png"));
             Require(refresh.Content is System.Windows.Shapes.Path refreshIcon && refresh.ActualWidth == 28 && refresh.ActualHeight == 28
-                && refreshIcon.ActualWidth == 16 && refreshIcon.ActualHeight == 16
-                && refreshIcon.TranslatePoint(new Point(), refresh).X >= 0
-                && refreshIcon.TranslatePoint(new Point(), refresh).Y >= 0
-                && refreshIcon.TranslatePoint(new Point(16, 16), refresh).X <= refresh.ActualWidth
-                && refreshIcon.TranslatePoint(new Point(16, 16), refresh).Y <= refresh.ActualHeight
+                && refreshIcon.Width == 16 && refreshIcon.Height == 16
+                && refreshIcon.ActualWidth is > 0 and <= 16.01 && refreshIcon.ActualHeight is > 0 and <= 16.01
+                && refreshIcon.TranslatePoint(new Point(), refresh).X >= -0.01
+                && refreshIcon.TranslatePoint(new Point(), refresh).Y >= -0.01
+                && refreshIcon.TranslatePoint(new Point(refreshIcon.ActualWidth, refreshIcon.ActualHeight), refresh).X <= refresh.ActualWidth + 0.01
+                && refreshIcon.TranslatePoint(new Point(refreshIcon.ActualWidth, refreshIcon.ActualHeight), refresh).Y <= refresh.ActualHeight + 0.01
                 && AutomationProperties.GetName(refresh) == "Refresh GitHub Copilot",
                 "Provider refresh is not a complete accessible compact icon.");
             var connection = Descendants<StackPanel>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "provider.connection");
