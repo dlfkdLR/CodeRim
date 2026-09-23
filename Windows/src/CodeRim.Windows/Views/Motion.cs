@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -14,16 +15,31 @@ internal static class Motion
     private sealed record Running(DependencyObject Target, DependencyProperty Property, Action? Completed);
     private static readonly Dictionary<(DependencyObject, DependencyProperty), Running> RunningAnimations = [];
     private static bool reduced;
+    private static bool systemAnimations = ReadSystemAnimations();
     internal static bool IsAnimating => RunningAnimations.Count != 0;
-    internal static bool Enabled => !reduced && SystemParameters.ClientAreaAnimation;
+    internal static bool Enabled => !reduced && systemAnimations;
     internal static event Action? PolicyChanged;
     internal static void SetReduced(bool value) { reduced = value; RefreshPolicy(); }
     internal static void RefreshPolicy()
     {
+        systemAnimations = ReadSystemAnimations();
         if (!Enabled)
             foreach (var item in RunningAnimations.Values.ToArray()) Finish(item);
         PolicyChanged?.Invoke();
     }
+    private static bool ReadSystemAnimations()
+    {
+        // Read the current OS preference when policy changes. WPF may still return
+        // its earlier cached value while processing the same settings broadcast.
+        var enabled = 0;
+        return ReadClientAreaAnimation(0x1042, 0, ref enabled, 0) && enabled != 0;
+    }
+#pragma warning disable SYSLIB1054
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ReadClientAreaAnimation(uint action, uint parameter, ref int value, uint flags);
+#pragma warning restore SYSLIB1054
     internal static IEasingFunction Spring(double damping) => new SpringEase(damping);
     private sealed class SpringEase(double damping) : IEasingFunction
     { public double Ease(double normalizedTime) => NotchMotion.Spring(normalizedTime, damping); }

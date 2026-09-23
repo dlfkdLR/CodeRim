@@ -157,6 +157,13 @@ internal static partial class NativeSmoke
             fixture.Hide(); await MotionFrame(); Require(!ring.ClockRunning, "Hidden ring retained its render subscription");
             fixture.Show(); await MotionFrame(); Require(ring.ClockRunning, "Visible activity did not resume");
             checks.Add("Working/waiting animation pauses while hidden and resumes on visibility");
+            Require(SetClientAreaAnimation(0x1043, 0, IntPtr.Zero, 2), "Could not disable the native animation policy");
+            Motion.RefreshPolicy(); await MotionFrame();
+            Require(!Motion.Enabled && !ring.ClockRunning, "Disabled OS animation policy was not applied");
+            Require(SetClientAreaAnimation(0x1043, 0, new IntPtr(1), 2), "Could not restore the native animation policy");
+            Motion.RefreshPolicy(); await MotionFrame();
+            Require(Motion.Enabled && ring.ClockRunning, "Enabled OS animation policy was not applied");
+            checks.Add("Live native OS animation preference disables and restores motion without stale WPF cache");
             toggle.IsChecked = true;
             await MotionUntil(() => Motion.GetToggleOffset(toggle) is > 0 and < 16, "Toggle thumb skipped its transition");
             settings.Save(settings.Current with { ReduceMotion = true }); await MotionFrame();

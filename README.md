@@ -36,7 +36,7 @@ The Windows notch now uses the same resting settings arc and revealed account co
 
 The current source also bounds large notch provider lists and scrolls overflowing detail cards. xAI/Poe readers share authentication and incomplete-history handling across platforms. For audit findings and remaining verification limits, see the [2026-09-20 audit and verification limits](Documentation/FULL_AUDIT_2026-09-20.md).
 
-Windows now animates notch folding, staggered provider/control entrances, usage readings and reset, refresh/activity indicators, tooltips, toggles and token totals. The app and Windows Reduce Motion settings stop these transitions. Settings previews update in place and navigation resets the correct scroll viewport. See the [motion audit](Documentation/WINDOWS_MOTION_2026-09-23.md) for native checks and remaining comparison limits.
+Windows now animates notch folding, staggered provider/control entrances, usage readings and reset, refresh/activity indicators, tooltips, toggles and token totals. The app and Windows Reduce Motion settings stop these transitions. Settings previews update in place and navigation resets the correct scroll viewport. The Usage summary uses tighter vertical spacing so Today, History and the analytic links fit together in the standard Settings viewport. See the [motion audit](Documentation/WINDOWS_MOTION_2026-09-23.md) for native checks and remaining comparison limits.
 
 ## Install
 
