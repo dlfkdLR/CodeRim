@@ -6,7 +6,7 @@ using Microsoft.Data.Sqlite;
 
 namespace CodeRim.Core.Tests;
 
-public sealed class ActivityGroupsTests
+public sealed partial class ActivityGroupsTests
 {
     private const string Parent = "11111111-1111-4111-8111-111111111111";
     private const string Child = "22222222-2222-4222-8222-222222222222";

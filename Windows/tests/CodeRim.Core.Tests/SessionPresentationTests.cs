@@ -60,17 +60,21 @@ public sealed class SessionPresentationTests
                     CREATE TABLE local_thread_catalog(host_id TEXT,thread_id TEXT,display_title TEXT,cwd TEXT,source_updated_at REAL,missing_candidate INTEGER,source_kind TEXT);
                     INSERT INTO local_thread_catalog_hosts VALUES('remote-one','remote-control'),('wsl-one','wsl'),('local','local');
                     """; schema.ExecuteNonQuery();
-                void Insert(string host, int age, int missing = 0, string kind = "cli", string? thread = null)
+                void Insert(string host, int age, int missing = 0, string kind = "cli", string? thread = null, string cwd = "C:\\Projects\\Example")
                 {
-                    using var insert = connection.CreateCommand(); insert.CommandText = "INSERT INTO local_thread_catalog VALUES($host,$id,'A remote task','C:\\Projects\\Example',$date,$missing,$kind)";
+                    using var insert = connection.CreateCommand(); insert.CommandText = "INSERT INTO local_thread_catalog VALUES($host,$id,'A remote task',$cwd,$date,$missing,$kind)";
                     insert.Parameters.AddWithValue("$host", host); insert.Parameters.AddWithValue("$id", thread ?? Guid.NewGuid().ToString("D"));
+                    insert.Parameters.AddWithValue("$cwd", cwd);
                     insert.Parameters.AddWithValue("$date", Now.AddMinutes(-age).ToUnixTimeSeconds()); insert.Parameters.AddWithValue("$missing", missing); insert.Parameters.AddWithValue("$kind", kind); insert.ExecuteNonQuery();
                 }
                 Insert("remote-one", 5); Insert("wsl-one", 10); Insert("local", 1); Insert("remote-one", 361);
                 Insert("remote-one", -5); Insert("remote-one", 1, missing: 1); Insert("remote-one", 1, kind: "subagent"); Insert("remote-one", 1, thread: "invalid");
+                Insert("remote-one", 15, cwd: "C:\\Users\\me\\Documents\\Codex\\2026-09-21\\new-chat");
+                Insert("remote-one", 20, cwd: "C:\\Users\\me\\.codex");
             }
             var before = File.ReadAllBytes(path); var sessions = CodexRemoteActivity.Read(path, Now, TestContext.Current.CancellationToken);
-            Assert.Equal(2, sessions.Count); Assert.All(sessions, x => { Assert.Equal("unavailable", x.State); Assert.NotNull(x.CodexThreadUri); Assert.Null(x.UsageSessionId); Assert.Equal("Example", x.Detail); });
+            Assert.Equal(4, sessions.Count); Assert.All(sessions, x => { Assert.Equal("unavailable", x.State); Assert.NotNull(x.CodexThreadUri); Assert.Null(x.UsageSessionId); Assert.Equal("A remote task", x.Name); });
+            Assert.Equal(["Example", "Example", "", "Remote task"], sessions.Select(x => x.Detail));
             Assert.Equal(before, File.ReadAllBytes(path));
             using var corrupt = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString()); corrupt.Open();
             using var command = corrupt.CreateCommand(); command.CommandText = "ALTER TABLE local_thread_catalog RENAME TO records; CREATE VIEW local_thread_catalog AS SELECT * FROM records;"; command.ExecuteNonQuery();

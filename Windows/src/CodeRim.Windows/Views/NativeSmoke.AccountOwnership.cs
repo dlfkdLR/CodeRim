@@ -1,5 +1,6 @@
 using System.IO;
 using System.Text.Json;
+using System.Windows;
 using System.Windows.Controls;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
@@ -14,7 +15,7 @@ internal static partial class NativeSmoke
     {
         var before = settings.Current; var previousHome = Environment.GetEnvironmentVariable("CODEX_HOME");
         var home = Path.Combine(Path.GetTempPath(), "coderim-account-display-" + Guid.NewGuid().ToString("N"));
-        var path = Path.Combine(home, "auth.json"); DashboardStore? store = null;
+        var path = Path.Combine(home, "auth.json"); DashboardStore? store = null; Window? popupWindow = null;
         Exception? failure = null; var cleanup = new List<Exception>();
         string Credential(string subject, string? plan = null)
         {
@@ -41,8 +42,13 @@ internal static partial class NativeSmoke
             Require(text.Contains("account-b@example.invalid", StringComparison.Ordinal) && text.Contains("Pro 20x", StringComparison.Ordinal)
                 && !text.Contains("Plan A", StringComparison.Ordinal) && !text.Contains("85%", StringComparison.Ordinal), "Provider row rendered mixed account data or lost the current plan.");
             var popup = NotchPopover.Create("codex", store, settings.Current, _ => { });
-            Require(!Descendants<TextBlock>(popup).Any(x => x.Text.Contains("Plan A", StringComparison.Ordinal) || x.Text.Contains("85%", StringComparison.Ordinal)), "Notch popup retained another account's quota.");
-            Require(Descendants<TextBlock>(popup).Any(x => x.Text.Contains("Pro 20x", StringComparison.Ordinal)), "Notch popup lost the current plan.");
+            // ScrollViewer materializes its content only after its control template is
+            // loaded. Checking an unattached popup made every negative check vacuous.
+            popupWindow = new Window { Width = 320, Height = 300, Content = popup, ShowInTaskbar = false };
+            popupWindow.Show(); await Idle();
+            Require(!Descendants<TextBlock>(popupWindow).Any(x => x.Text.Contains("Plan A", StringComparison.Ordinal) || x.Text.Contains("85%", StringComparison.Ordinal)), "Notch popup retained another account's quota.");
+            Require(Descendants<TextBlock>(popupWindow).Any(x => x.Text.Contains("Pro 20x", StringComparison.Ordinal)), "Notch popup lost the current plan.");
+            Capture(popupWindow, Path.Combine(directory, "windows-account-reading-ownership.png"));
             GuardedFile.Replace(path, Credential("account-b"), Credential("account-b", "prolite")); row.Refresh();
             Require(store.AccountDisplay("codex").Plan == "Pro 5x"
                 && Descendants<TextBlock>(row).Any(x => x.Text.Contains("Pro 5x", StringComparison.Ordinal)), "Pro 5x was not mapped from current login metadata.");
@@ -55,7 +61,7 @@ internal static partial class NativeSmoke
         finally
         {
             void Restore(Action action) { try { action(); } catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); } }
-            Restore(() => store?.Dispose()); Restore(() => Environment.SetEnvironmentVariable("CODEX_HOME", previousHome));
+            Restore(() => popupWindow?.Close()); Restore(() => store?.Dispose()); Restore(() => Environment.SetEnvironmentVariable("CODEX_HOME", previousHome));
             Restore(() => settings.Save(before)); Restore(() => Directory.Delete(home, true));
         }
         if (cleanup.Count > 0) throw new AggregateException("Account display fixture cleanup failed", failure is null ? cleanup : cleanup.Prepend(failure));

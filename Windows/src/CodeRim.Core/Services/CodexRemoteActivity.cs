@@ -35,11 +35,11 @@ public static class CodexRemoteActivity
                 var host = reader.IsDBNull(0) ? "" : reader.GetString(0); var thread = reader.IsDBNull(1) ? "" : reader.GetString(1);
                 if (host is "" or "local" || host.Length > 256 || host.Any(char.IsControl) || !Guid.TryParseExact(thread, "D", out _)) continue;
                 var title = reader.IsDBNull(2) ? null : Label(reader.GetString(2));
-                var cwd = reader.IsDBNull(3) ? "" : reader.GetString(3); var project = Label(cwd.Replace('\\', '/').TrimEnd('/').Split('/').LastOrDefault() ?? "");
+                var cwd = reader.IsDBNull(3) ? "" : reader.GetString(3); var project = CodexActivityCatalogue.ProjectName(cwd, "Remote task");
                 if (!double.TryParse(Convert.ToString(reader.GetValue(4), CultureInfo.InvariantCulture), NumberStyles.Float, CultureInfo.InvariantCulture, out var seconds)
                     || !double.IsFinite(seconds) || seconds < now.AddHours(-6).ToUnixTimeSeconds() || seconds > now.ToUnixTimeMilliseconds() / 1000d) continue;
                 sessions.Add(new("remote:" + host + ":" + thread, "codex", title ?? "Task " + thread[..8], "unavailable", DateTimeOffset.FromUnixTimeMilliseconds((long)(seconds * 1000)))
-                    { CodexThreadId = thread, RemoteHostId = host, Detail = project is "" or null ? "Remote task" : project });
+                    { CodexThreadId = thread, RemoteHostId = host, Detail = project });
             }
             return sessions;
         }

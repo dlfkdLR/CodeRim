@@ -4,11 +4,13 @@ using Microsoft.Data.Sqlite;
 namespace CodeRim.Core.Services;
 
 /// <summary>Read-only display metadata. A catalogue entry never changes a task's live state.</summary>
-public static class CodexActivityCatalogue
+public static partial class CodexActivityCatalogue
 {
-    private sealed record Thread(string Id, string Title, string? Project, string? Parent);
+    private sealed record Thread(string Id, string? Title, string? Name, string? AgentName, string? Cwd, string? ProjectId, string? Parent);
     public static IReadOnlyList<SessionActivity> Enrich(IReadOnlyList<SessionActivity> sessions, string statePath,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) => Enrich(sessions, statePath, null, cancellationToken);
+    public static IReadOnlyList<SessionActivity> Enrich(IReadOnlyList<SessionActivity> sessions, string statePath,
+        string? desktopStore, CancellationToken cancellationToken = default)
     {
         var requested = sessions.Where(x => x.Provider == "codex" && x.RemoteHostId is null && ValidId(x.CodexThreadId))
             .Select(x => x.CodexThreadId!).Distinct(StringComparer.OrdinalIgnoreCase).Take(128).ToArray();
@@ -32,6 +34,7 @@ public static class CodexActivityCatalogue
             var name = columns.Contains("name") ? "substr(name,1,161)" : "NULL";
             var nickname = columns.Contains("agent_nickname") ? "substr(agent_nickname,1,161)" : "NULL";
             var source = columns.Contains("source") ? "substr(source,1,8193)" : "NULL";
+            var project = columns.Contains("project_id") ? "substr(project_id,1,321)" : "NULL";
             var threads = new Dictionary<string, Thread>(StringComparer.OrdinalIgnoreCase);
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var pending = requested;
@@ -41,7 +44,7 @@ public static class CodexActivityCatalogue
                 var next = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 using var command = connection.CreateCommand(); command.Transaction = transaction;
                 var parameters = pending.Select((_, index) => "$id" + index).ToArray();
-                command.CommandText = "SELECT id,substr(title,1,161),substr(cwd,1,4097)," + name + "," + nickname + "," + source
+                command.CommandText = "SELECT id,substr(title,1,161),substr(cwd,1,4097)," + name + "," + nickname + "," + source + "," + project
                     + " FROM threads WHERE id IN (" + string.Join(",", parameters) + ") LIMIT 128";
                 for (var index = 0; index < pending.Length; index++) { seen.Add(pending[index]); command.Parameters.AddWithValue(parameters[index], pending[index]); }
                 using var reader = command.ExecuteReader();
@@ -50,15 +53,17 @@ public static class CodexActivityCatalogue
                     cancellationToken.ThrowIfCancellationRequested();
                     string? Value(int index) => reader.IsDBNull(index) ? null : reader.GetString(index);
                     var id = Value(0); if (!ValidId(id)) continue;
-                    var parent = Parent(Value(5), id!);
-                    var title = Label(Value(3)) ?? Label(Value(1)) ?? Label(Value(4)) ?? "Task " + id![..8];
-                    var cwd = Value(2);
-                    var project = cwd is { Length: <= 4096 } ? Label(cwd.Replace('\\', '/').TrimEnd('/').Split('/').LastOrDefault()) : null;
-                    threads.TryAdd(id!, new(id!, title, project, parent));
+                    var spawn = Spawn(Value(5), id!); var parent = spawn?.Parent;
+                    threads.TryAdd(id!, new(id!, Label(Value(1)), Label(Value(3)), Label(Value(4)) ?? spawn?.Nickname, Value(2), Value(6), parent));
                     if (parent is not null && !seen.Contains(parent)) next.Add(parent);
                 }
                 pending = next.Take(128).ToArray();
             }
+            var projects = ProjectNames(connection, transaction, threads.Values.Select(x => x.ProjectId), cancellationToken);
+            var titles = DesktopTitles(desktopStore, seen, cancellationToken);
+            string Title(string id) => threads.TryGetValue(id, out var thread)
+                ? thread.Name ?? titles.GetValueOrDefault(id) ?? thread.Title ?? thread.AgentName ?? "Task " + id[..8]
+                : titles.GetValueOrDefault(id) ?? "Task " + id[..8];
             string? MainParent(string id)
             {
                 var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { id };
@@ -76,8 +81,10 @@ public static class CodexActivityCatalogue
                 if (session.Provider != "codex" || session.RemoteHostId is not null || session.CodexThreadId is not { } id
                     || !threads.TryGetValue(id, out var thread)) return session;
                 var parent = MainParent(id);
-                return session with { Name = thread.Project ?? thread.Title, Detail = thread.Title,
-                    ParentThreadId = parent, ParentThreadTitle = parent is null ? null : threads.GetValueOrDefault(parent)?.Title ?? "Task " + parent[..8] };
+                var title = Title(id);
+                var projectName = thread.ProjectId is { } projectId ? projects.GetValueOrDefault(projectId) : null;
+                return session with { Name = projectName ?? ProjectName(thread.Cwd, title), Detail = title,
+                    ParentThreadId = parent, ParentThreadTitle = parent is null ? null : Title(parent) };
             }).ToArray();
         }
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or SqliteException or ArgumentException
@@ -92,7 +99,7 @@ public static class CodexActivityCatalogue
         return value is { Length: > 0 and <= 160 } && !value.Any(char.IsControl)
             && value.ToLowerInvariant() is not ("codex" or ".codex" or "unknown project" or "/") ? value : null;
     }
-    private static string? Parent(string? source, string id)
+    private static (string Parent, string? Nickname)? Spawn(string? source, string id)
     {
         if (source is not { Length: > 0 and <= 8192 }) return null;
         try
@@ -103,7 +110,8 @@ public static class CodexActivityCatalogue
                 || spawn.ValueKind != JsonValueKind.Object || !spawn.TryGetProperty("parent_thread_id", out var parent)
                 || parent.ValueKind != JsonValueKind.String) return null;
             var result = parent.GetString();
-            return ValidId(result) && !string.Equals(result, id, StringComparison.OrdinalIgnoreCase) ? result : null;
+            var nickname = spawn.TryGetProperty("agent_nickname", out var value) && value.ValueKind == JsonValueKind.String ? Label(value.GetString()) : null;
+            return ValidId(result) && !string.Equals(result, id, StringComparison.OrdinalIgnoreCase) ? (result!, nickname) : null;
         }
         catch (JsonException) { return null; }
     }
