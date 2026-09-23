@@ -319,6 +319,14 @@ public sealed class WindowsParityTests
         Assert.False(ActivityReader.TryCodex(Encoding.UTF8.GetBytes("""{"type":"response_item","timestamp":"2026-09-01T00:00:00Z","payload":{"type":"task_started"}}"""), out _, out _));
     }
     [Fact]
+    public void UsageRingKeepsChosenAccentBelowItsWarningThresholds()
+    {
+        Assert.Equal("#3B9CFF", NotchGeometry.BandColor(49.999, "#3B9CFF"));
+        Assert.Equal("#3B9CFF", NotchGeometry.BandColor(null, "#3B9CFF"));
+        Assert.Equal("#F2FF00", NotchGeometry.BandColor(50, "#3B9CFF"));
+        Assert.Equal("#FF3F00", NotchGeometry.BandColor(70, "#3B9CFF"));
+    }
+    [Fact]
     public void NotchPlacementRespectsTaskbarAndNegativeMonitorOrigins()
     {
         var area = new ScreenArea(-1920, 0, 1920, 1040);

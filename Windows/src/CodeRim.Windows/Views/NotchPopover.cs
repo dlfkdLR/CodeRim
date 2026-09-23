@@ -49,7 +49,7 @@ internal static class NotchPopover
             content.Children.Add(Row(window.Name, Reset(window.ResetsAt, settings.ResetTime)));
             if (window.UsedPercent is { } percent)
             {
-                content.Children.Add(UsageBar(percent));
+                content.Children.Add(UsageBar(percent, settings.AccentColor));
                 content.Children.Add(Text(percent.ToString("0.#", CultureInfo.CurrentCulture) + "% used · " +
                     Math.Clamp(100 - percent, 0, 100).ToString("0.#", CultureInfo.CurrentCulture) + "% left", 10.5, Secondary));
                 if (settings.ShowUsagePace && window.DurationMinutes > 0 && window.ResetsAt is { } reset)
@@ -128,13 +128,13 @@ internal static class NotchPopover
         var right = Text(value, 10.5, valueBrush ?? Secondary); right.Margin = new Thickness(8, 0, 0, 5);
         row.Children.Add(left); Grid.SetColumn(right, 1); row.Children.Add(right); return row;
     }
-    internal static FrameworkElement UsageBar(double used)
+    internal static FrameworkElement UsageBar(double used, string accent = "#00FF88")
     {
         var amount = Math.Clamp(used, 0, 100);
         var fill = new Grid();
         fill.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(amount, GridUnitType.Star) });
         fill.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100 - amount, GridUnitType.Star) });
-        fill.Children.Add(new Border { Background = Ui.Brush(NotchGeometry.BandColor(used)), CornerRadius = new CornerRadius(2) });
+        fill.Children.Add(new Border { Background = Ui.Brush(NotchGeometry.BandColor(used, accent)), CornerRadius = new CornerRadius(2) });
         return new Border { Height = 4, Background = Ui.Brush("#2D2D2D"), CornerRadius = new CornerRadius(2), Child = fill, Margin = new Thickness(0, 0, 0, 6) };
     }
     private static System.Windows.Controls.Button PlainButton(string label, Action action)

@@ -112,7 +112,7 @@ internal sealed partial class UsagePane : StackPanel
         if (!choices.Any(x => x.Id == provider)) this.provider = choices.FirstOrDefault()?.Id ?? "codex";
         header = new Grid { Margin = new Thickness(24, 16, 24, 6) };
         header.Children.Add(controls);
-        selector = new System.Windows.Controls.ComboBox { ItemsSource = choices, ItemTemplate = ProviderTemplate(), SelectedValuePath = "Id",
+        selector = new UsageProviderPicker { ItemsSource = choices, ItemTemplate = ProviderTemplate(), SelectedValuePath = "Id",
             SelectedValue = this.provider, MinHeight = 34, Height = 34, Width = 142, MaxWidth = 190, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Left,
             Style = (Style)System.Windows.Application.Current.FindResource("UsageProviderPicker") };
         TextSearch.SetTextPath(selector, "Name");

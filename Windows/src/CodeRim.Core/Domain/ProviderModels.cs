@@ -77,7 +77,7 @@ public static class NotchGeometry
         };
     }
     private static double Clamp(double value, double min, double max) => max < min ? min : Math.Clamp(value, min, max);
-    public static string BandColor(double? used) => used is >= 70 ? "#FF3F00" : used is >= 50 ? "#F2FF00" : "#00FF88";
+    public static string BandColor(double? used, string accent = "#00FF88") => used is >= 70 ? "#FF3F00" : used is >= 50 ? "#F2FF00" : accent;
 }
 
 public sealed class ThresholdTracker

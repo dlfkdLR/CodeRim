@@ -107,7 +107,7 @@ internal sealed class ProviderRing : FrameworkElement
         dc.PushTransform(new ScaleTransform((double)GetValue(PressProperty), (double)GetValue(PressProperty), 22, 22));
         dc.PushOpacity(stale ? 0.45 : 1);
         dc.DrawEllipse(null, new Pen(Ui.Brush("#303030"), NotchMetrics.Track), center, radius, radius);
-        var color = settings.RingColor == RingColorMode.Usage ? NotchGeometry.BandColor(percent) : settings.Accent;
+        var color = settings.RingColor == RingColorMode.Usage ? NotchGeometry.BandColor(percent, settings.AccentColor) : settings.AccentColor;
         var rotation = RefreshRotation * Math.PI / 180;
         var gradientPhase = settings.AnimateGradient && Animates ? Phase : 0;
         if (settings.RingColor != RingColorMode.Gradient) DrawArc(dc, Ui.Brush(color), radius, NotchMetrics.Progress, -Math.PI / 2 + rotation, fraction);

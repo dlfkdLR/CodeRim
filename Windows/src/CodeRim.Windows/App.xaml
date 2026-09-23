@@ -218,23 +218,29 @@
     <Grid>
      <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" ClickMode="Press">
       <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
-       <Border x:Name="Surface" CornerRadius="6" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"/>
+       <Border x:Name="Surface" CornerRadius="8" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"/>
        <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource ControlBackground}"/></Trigger></ControlTemplate.Triggers>
       </ControlTemplate></ToggleButton.Template>
      </ToggleButton>
      <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" Margin="10,4,28,4" VerticalAlignment="Center" IsHitTestVisible="False"/>
      <Path Data="M 0 3 L 3 0 L 6 3 M 0 7 L 3 10 L 6 7" Stroke="{DynamicResource SecondaryText}" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" IsHitTestVisible="False"/>
-     <Border x:Name="Focus" CornerRadius="6" BorderThickness="1" BorderBrush="Transparent" IsHitTestVisible="False"/>
+     <Border x:Name="Focus" CornerRadius="8" BorderThickness="1" BorderBrush="Transparent" IsHitTestVisible="False"/>
      <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" Placement="Bottom" PopupAnimation="None">
-      <Border Background="{DynamicResource PanelBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="6" Padding="4" MinWidth="{TemplateBinding ActualWidth}">
-       <ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}" CanContentScroll="True" HorizontalScrollBarVisibility="Disabled"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
-      </Border>
+      <Border x:Name="PART_ProviderContent" Width="272" Background="{DynamicResource WindowBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="12" Padding="10"/>
      </Popup>
     </Grid>
     <ControlTemplate.Triggers>
      <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Focus" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/></Trigger>
      <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
     </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="UsageProviderOption" TargetType="Button">
+   <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/><Setter Property="BorderThickness" Value="1"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Border x:Name="Surface" CornerRadius="8" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" Padding="{TemplateBinding Padding}">
+     <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
+    </Border>
    </ControlTemplate></Setter.Value></Setter>
   </Style>
   <Style x:Key="UsageModeButton" TargetType="RadioButton">

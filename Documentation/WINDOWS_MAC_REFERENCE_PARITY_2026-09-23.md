@@ -19,13 +19,13 @@ The reference includes local Mac changes beyond the published 2.1.8 source, incl
 | WP-09 | Medium | Notch Task Activity: unknown tasks, state duration and per-chat tokens including subagents | Open; all three data paths need implementation, not only toggles |
 | WP-10 | Medium | Provider local statistics, Sources, database size/date range, pricing catalogue and Rebuild Statistics | Open |
 | WP-11 | Medium | Providers rows: account/plan/limit state, contextual connection action and alert bell | Open |
-| WP-12 | Medium | Add Providers: two-column cards, summary search, empty search state, added count, Settings action and default Done | Open |
+| WP-12 | Medium | Add Providers: two-column cards, summary search, empty search state, added count, Settings action and default Done | Implemented; native keyboard/layout checks pending |
 | WP-13 | Medium | Claude connection lifecycle, detected identity and provider-specific analysis settings | Open |
 | WP-14 | Medium | Other provider details: limit progress/reset, identity/source, management link and per-provider alerts | Open |
-| WP-15 | Low | Notch fixed colors show hex values, missing System choice and contextual motion explanations | Open |
+| WP-15 | Low | Notch fixed colors show hex values, missing System choice and contextual motion explanations | Named colors/System and live motion explanation implemented; also fixed ignored custom accent below 50% in Usage mode |
 | WP-16 | Low | Information Build row, link-row treatment, Codenotch MIT link and independent-project notice | Open |
 | WP-17 | Medium | General startup status must read actual OS registration on activation | Open |
-| WP-18 | Medium | Usage provider popup differs from current Mac popover/selection/search behavior | Open; matching selector dimensions alone does not close this item |
+| WP-18 | Medium | Usage provider popup differs from current Mac popover/selection/search behavior | Searchable 272-point popover, 40-point rows, selected state and keyboard behavior implemented; native verification and available-provider lifecycle comparison pending |
 | WP-19 | High | ChatGPT account totals, dated server history and separate device-local history are absent on Windows | Open; account isolation and no double-counting are required |
 | WP-20 | Medium | Full limits/analytics/projects/sessions/tooltip states and physical interaction parity | Active audit; no blanket pass from existing fixture coverage |
 
@@ -48,3 +48,12 @@ Native regression assertions exercise sidebar hiding/restoration, category title
 - Mac source preservation check and final independent review are required before application to the user's checkout.
 
 No total match percentage is assigned while the inventory and open functional differences remain unresolved.
+
+## Second change batch and native findings
+
+- Provider catalogue now follows the 600 × 520 Mac content frame, two card columns, stable initial ordering, description search, empty state, added count and Add → Settings action. The Usage popover follows the 272-point width, 40-point rows and explicit keyboard selection/cancellation.
+- Independent review found missing light-mode logo foreground, focus/highlight disagreement, Clear search key interception and stale reduced-motion help. These received source fixes and new native assertions; successful native execution is still required.
+- Fixed a functional ring bug: the chosen accent was ignored in Usage colors mode. The accent now applies below 50%; yellow/orange thresholds remain unchanged. System and named colors retain existing saved hex colors.
+- Native x64 run `35846973991` at `d048892`: core tests and builds passed, MSI install/upgrade progressed to installed-app execution; the UI run failed at the new Today-cost assertion. Isolated sign-in's ten synthetic cases passed. ARM64 was skipped because x64 failed. This run is FAIL, not parity evidence for the later picker changes.
+- The new Usage overview test explicitly enters Token Usage and captures its screen/state before checking the cost. The cause and fix must be confirmed by the next native run.
+- Latest local core run: 1,627 passed, 33 native-Windows-only skips, no failures. Full Windows cross-build: zero warnings/errors.

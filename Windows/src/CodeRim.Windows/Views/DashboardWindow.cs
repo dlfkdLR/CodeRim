@@ -23,7 +23,7 @@ internal sealed partial class DashboardWindow : Window
     private static readonly string[] ResetOptions = ["Relative", "Absolute"];
     private static readonly int[] RefreshOptions = [-1, 30, 60, 120, 300, 900, 1800, 0];
     private static readonly double[] ScaleOptions = new[] { 0.8, 1.0, 1.25 };
-    private static readonly string[] AccentOptions = new[] { "#00FF88", "#3B9CFF", "#9B7DFF", "#FF6EC7", "#FF9F3F" };
+    private static readonly string[] AccentOptions = new[] { "system", "#00FF88", "#3B9CFF", "#9B7DFF", "#FF6EC7", "#FF9F3F" };
     private static readonly string[] GradientOptions = new[] { "Aurora", "Ocean", "Sunset", "Spectrum" };
     private readonly DashboardStore store;
     private readonly AppSettingsStore settings;
@@ -35,6 +35,7 @@ internal sealed partial class DashboardWindow : Window
     private readonly TextBlock status = Ui.Text("");
     private readonly StackPanel providerReading = new();
     private readonly Dictionary<string, TextBlock> providerListDetails = new(StringComparer.Ordinal);
+    private TextBlock? gradientMotionNote;
     private string page = "usage";
     private string localProvider = "codex";
     private bool refreshingSidebar;
@@ -53,8 +54,8 @@ internal sealed partial class DashboardWindow : Window
         contentViewport = scroll;
         Grid.SetColumn(scroll, 1); layout.Children.Add(scroll); ConfigureShell(layout, splitter);
         sidebar.SelectionChanged += (_, _) => { if (!refreshingSidebar && sidebar.SelectedItem is ListBoxItem item && item.Tag is string id) Navigate(id); };
-        settings.SettingsChanged += SettingsChanged; store.PropertyChanged += StoreChanged;
-        Closed += (_, _) => { updateWindowClosed = true; CancelUpdateOperation(); settings.SettingsChanged -= SettingsChanged; store.PropertyChanged -= StoreChanged; };
+        settings.SettingsChanged += SettingsChanged; store.PropertyChanged += StoreChanged; Motion.PolicyChanged += UpdateNotchMotionNote;
+        Closed += (_, _) => { updateWindowClosed = true; CancelUpdateOperation(); settings.SettingsChanged -= SettingsChanged; store.PropertyChanged -= StoreChanged; Motion.PolicyChanged -= UpdateNotchMotionNote; };
         PreviewKeyDown += (_, e) =>
         {
             if (System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control))
@@ -101,7 +102,7 @@ internal sealed partial class DashboardWindow : Window
     }
     private void SettingsChanged(object? sender, EventArgs e)
     {
-        BuildSidebar();
+        BuildSidebar(); UpdateNotchMotionNote();
         foreach (var ring in VisualChildren<ProviderRing>(body)) ring.Settings = settings.Current;
         if (page == "general")
         {
@@ -218,8 +219,14 @@ internal sealed partial class DashboardWindow : Window
         usagePane.RefreshReadings();
         body.Children.Add(usagePane);
     }
+    private void UpdateNotchMotionNote()
+    {
+        if (gradientMotionNote is not null) gradientMotionNote.Text = settings.Current.ReduceMotion || !Motion.Enabled
+            ? "Paused while Reduce Motion is enabled in Windows or CodeRim settings." : "The gradient colours flow smoothly around the ring.";
+    }
     private void Notch()
     {
+        gradientMotionNote = null;
         var shown = settings.Current.Visibility != NotchVisibility.Hidden;
         var notchSections = new List<FrameworkElement>();
         body.Children.Add(SettingsUi.Section("Edge Notch", SettingsUi.Toggle("Show edge notch", shown, x => { Save(settings.Current with {
@@ -241,6 +248,7 @@ internal sealed partial class DashboardWindow : Window
         {
             rows.Add(SettingsUi.Picker("Gradient", GradientOptions, settings.Current.Gradient, x => { Save(settings.Current with { Gradient = x }); RenderAfterPicker(); }));
             rows.Add(SettingsUi.Toggle("Animate gradient", settings.Current.AnimateGradient, x => Save(settings.Current with { AnimateGradient = x })));
+            gradientMotionNote = SettingsUi.Note(""); UpdateNotchMotionNote(); rows.Add(gradientMotionNote);
         }
         else rows.Add(SettingsUi.Picker("Ring colour", AccentOptions, settings.Current.Accent, x => { Save(settings.Current with { Accent = x }); RenderAfterPicker(); }));
         var previews = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(8) };
@@ -248,7 +256,12 @@ internal sealed partial class DashboardWindow : Window
             previews.Children.Add(new ProviderRing { Settings = settings.Current, Reading = new ProviderReading("codex", ReadingState.Ready, [new LimitWindow("preview", "Preview", percent)], DateTimeOffset.Now), Margin = new Thickness(6) });
         rows.Add(SettingsUi.Row("Preview", new Border { Background = Brushes.Black, CornerRadius = new CornerRadius(8), Child = previews }));
         var appearance = SettingsUi.Section("Appearance", rows.ToArray()); appearance.IsEnabled = shown; notchSections.Add(appearance); body.Children.Add(appearance);
-        body.Children.Add(SettingsUi.Note("Usage colours reflect consumed quota. Fixed colour and Gradient keep the selected palette."));
+        body.Children.Add(SettingsUi.Note(settings.Current.RingColor switch
+        {
+            RingColorMode.Usage => "The ring uses your chosen colour below 50%, yellow from 50%, and orange from 70%.",
+            RingColorMode.Fixed => "The ring keeps your chosen colour at every usage level. Limit alerts stay enabled according to your settings.",
+            _ => "The ring keeps the same gradient at every usage level. Limit alerts stay enabled according to your settings."
+        }));
         var readings = SettingsUi.Section("Readings",
             SettingsUi.Picker("Percentage", PercentageOptions, settings.Current.ShowRemaining ? "Remaining" : "Used", x => Save(settings.Current with { ShowRemaining = x == "Remaining" })),
             SettingsUi.Picker("Reset time", ResetOptions, settings.Current.ResetTime, x => Save(settings.Current with { ResetTime = x })),
@@ -332,34 +345,12 @@ internal sealed partial class DashboardWindow : Window
     }
     private void ShowProviderPicker()
     {
-        var picker = new Window { Title = "Add Provider", Owner = this, Width = 620, Height = 580, MinWidth = 500, MinHeight = 400, WindowStartupLocation = WindowStartupLocation.CenterOwner };
-        picker.SetResourceReference(BackgroundProperty, "WindowBackground");
-        var layout = new DockPanel { Margin = new Thickness(20) }; picker.Content = layout;
-        var close = Ui.Button("Done", picker.Close); close.HorizontalAlignment = HorizontalAlignment.Right; DockPanel.SetDock(close, Dock.Bottom); layout.Children.Add(close);
-        var search = new TextBox { Padding = new Thickness(8), Margin = new Thickness(0, 0, 0, 12) };
-        System.Windows.Automation.AutomationProperties.SetName(search, "Search providers"); DockPanel.SetDock(search, Dock.Top); layout.Children.Add(search);
-        var list = new StackPanel(); layout.Children.Add(new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto });
-        var order = ProviderCatalog.All.OrderBy(x => settings.Current.EnabledProviders.Contains(x.Id, StringComparer.Ordinal)).ToArray();
-        void Populate()
+        var picker = new ProviderPickerWindow(this, store, settings, id =>
         {
-            list.Children.Clear();
-            foreach (var provider in order.Where(x => x.Name.Contains(search.Text, StringComparison.OrdinalIgnoreCase) || x.Id.Contains(search.Text, StringComparison.OrdinalIgnoreCase)))
-            {
-                var added = settings.Current.EnabledProviders.Contains(provider.Id, StringComparer.Ordinal);
-                var row = new DockPanel { Margin = new Thickness(0, 8, 0, 8) };
-                var button = Ui.Button(added ? "Added" : "Add", () =>
-                {
-                    if (!settings.Current.EnabledProviders.Contains(provider.Id, StringComparer.Ordinal))
-                    { Save(settings.Current with { EnabledProviders = [..settings.Current.EnabledProviders, provider.Id] }); _ = store.RefreshProviderAsync(provider.Id); Populate(); }
-                });
-                button.IsEnabled = !added; System.Windows.Automation.AutomationProperties.SetName(button, (added ? "Added " : "Add ") + provider.Name);
-                DockPanel.SetDock(button, Dock.Right); row.Children.Add(button);
-                var mark = new Border { Background = Ui.Brush("#454545"), CornerRadius = new CornerRadius(8), Width = 32, Height = 32, Margin = new Thickness(0, 0, 12, 0), Child = new ProviderMark { ProviderId = provider.Id, Margin = new Thickness(6) } };
-                DockPanel.SetDock(mark, Dock.Left); row.Children.Add(mark);
-                var text = new StackPanel(); text.Children.Add(Ui.Text(provider.Name, 14, weight: FontWeights.SemiBold)); text.Children.Add(Ui.Text(provider.Summary, 11, "#A6A6AA")); row.Children.Add(text); list.Children.Add(row);
-            }
-        }
-        search.TextChanged += (_, _) => Populate(); Populate(); picker.PreviewKeyDown += (_, e) => { if (e.Key == System.Windows.Input.Key.Escape) picker.Close(); };
+            if (settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return;
+            Save(settings.Current with { EnabledProviders = [..settings.Current.EnabledProviders, id] });
+            _ = store.RefreshProviderAsync(id);
+        }, id => Navigate(id));
         picker.ShowDialog(); Render();
     }
     private static bool HasConnector(string id) => id is "codex" or "claude" or "jetbrains" || NativeProviders.Supported.Contains(id) || HttpProviders.Supported.Contains(id) || ScriptProviders.Catalog.ContainsKey(id);

@@ -60,6 +60,7 @@ internal static class Ui
             CodeRim.Core.Domain.RingColorMode.Usage => "Usage colours",
             CodeRim.Core.Domain.RingColorMode.Fixed => "Fixed colour",
             double scale => scale < 1 ? "Small" : scale > 1 ? "Large" : "Medium",
+            "system" => "System", "#00FF88" => "Green", "#3B9CFF" => "Blue", "#9B7DFF" => "Purple", "#FF6EC7" => "Pink", "#FF9F3F" => "Orange",
             "Relative" => "Countdown", "Absolute" => "Reset date",
             "Start" => "Above", "End" => "Below",
             -1 => "Automatic", 0 => "Manual", 30 => "30 Seconds", 60 => "1 Minute", 120 => "2 Minutes", 300 => "5 Minutes", 900 => "15 Minutes", 1800 => "30 Minutes",

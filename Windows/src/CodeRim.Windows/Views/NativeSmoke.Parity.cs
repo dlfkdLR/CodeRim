@@ -42,7 +42,12 @@ internal static partial class NativeSmoke
 
             settings.Save(before with { CostEstimatesEnabled = true, AnalyticsEnabled = true, ProjectsEnabled = true, SessionsEnabled = true });
             dashboard.Navigate("usage"); await Idle();
-            var pane = Descendants<UsagePane>(dashboard).Single(); pane.SelectProvider("codex"); await Idle();
+            var pane = Descendants<UsagePane>(dashboard).Single(); pane.SelectProvider("codex");
+            pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
+            Capture(dashboard, Path.Combine(directory, "windows-reference-overview.png"));
+            File.WriteAllText(Path.Combine(directory, "windows-reference-overview-state.json"), JsonSerializer.Serialize(new {
+                settings.Current.CostEstimatesEnabled, settings.Current.AnalyticsEnabled, snapshot = store.Usage.GetValueOrDefault("codex"),
+                visibleText = Descendants<TextBlock>(pane).Select(x => x.Text).ToArray() }));
             Require(Descendants<TextBlock>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.today.cost"), "Today is missing the existing local cost estimate.");
             var picker = Descendants<System.Windows.Controls.ComboBox>(pane).Single(x => AutomationProperties.GetName(x) == "Usage provider");
             Require(Math.Abs(picker.ActualWidth - 142) < 1 && Math.Abs(picker.ActualHeight - 34) < 1, "Provider selector dimensions differ from the reference.");

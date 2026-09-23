@@ -32,7 +32,9 @@ public sealed record AppSettings(
     public NotchVisibility Visibility { get; init; } = NotchVisibility.OnHover;
     public NotchVisibility LastVisibleNotchMode { get; init; } = NotchVisibility.OnHover;
     public RingColorMode RingColor { get; init; } = RingColorMode.Usage;
-    public string Accent { get; init; } = "#00FF88";
+    public string Accent { get; init; } = "system";
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string AccentColor => Accent == "system" ? "#00FF88" : Accent;
     public string Gradient { get; init; } = "Aurora";
     public bool AnimateGradient { get; init; }
     public bool ShowRemaining { get; init; }
@@ -182,7 +184,7 @@ public sealed class AppSettingsStore
             EnabledProviders = (settings.EnabledProviders ?? ["codex"]).Where(id => ProviderCatalog.Find(id) is not null).Distinct(StringComparer.Ordinal).Take(70).ToArray(),
             Edge = Enum.IsDefined(settings.Edge) ? settings.Edge : NotchEdge.Right,
             RingColor = Enum.IsDefined(settings.RingColor) ? settings.RingColor : RingColorMode.Usage,
-            Accent = settings.Accent is { Length: 7 } accent && accent[0] == '#' && uint.TryParse(accent.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _) ? accent : "#00FF88",
+            Accent = settings.Accent == "system" ? "system" : settings.Accent is { Length: 7 } accent && accent[0] == '#' && uint.TryParse(accent.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _) ? accent : "#00FF88",
             Gradient = settings.Gradient is "Aurora" or "Ocean" or "Sunset" or "Spectrum" ? settings.Gradient : "Aurora",
             Visibility = Enum.IsDefined(settings.Visibility) ? settings.Visibility : NotchVisibility.OnHover,
             LastVisibleNotchMode = settings.LastVisibleNotchMode == NotchVisibility.AlwaysShow ? NotchVisibility.AlwaysShow : NotchVisibility.OnHover,

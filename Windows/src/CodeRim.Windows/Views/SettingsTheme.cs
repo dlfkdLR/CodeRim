@@ -29,6 +29,8 @@ internal static class SettingsTheme
             ["DividerBrush"] = Color(IsDark ? "#383838" : "#E3E3E3"),
             ["AccentBrush"] = Color(IsDark ? "#0A84FF" : "#007AFF"),
             ["AccentText"] = Colors.White,
+            ["AccentBorderBrush"] = Color("#660A84FF"),
+            ["AccentSubtleBrush"] = Color(IsDark ? "#19314A" : "#E6F2FF"),
             ["WindowCloseBrush"] = Color("#FF5F57"),
             ["WindowMinimizeBrush"] = Color("#FEBC2E"),
             ["WindowMaximizeBrush"] = Color("#28C840"),
@@ -42,6 +44,8 @@ internal static class SettingsTheme
             colors["DividerBrush"] = SystemColors.WindowTextColor;
             colors["AccentBrush"] = SystemColors.HighlightColor;
             colors["AccentText"] = SystemColors.HighlightTextColor;
+            colors["AccentBorderBrush"] = SystemColors.HighlightColor;
+            colors["AccentSubtleBrush"] = SystemColors.WindowColor;
             colors["ControlHover"] = SystemColors.WindowColor;
             foreach (var name in new[] { "WindowCloseBrush", "WindowMinimizeBrush", "WindowMaximizeBrush" }) colors[name] = SystemColors.WindowColor;
             colors["WindowButtonText"] = colors["WindowButtonOutline"] = SystemColors.WindowTextColor;
