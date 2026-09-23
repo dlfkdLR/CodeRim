@@ -212,14 +212,8 @@ internal sealed partial class UsagePane : StackPanel
             System.Windows.Automation.AutomationProperties.SetName(select, "Usage period");
             select.SelectionChanged += (_, _) => { if (select.SelectedValue is string value) { period = value; selectedBucket = null; visibleRows = 40; Update(); } }; bar.Children.Add(select);
         }
-        var refresh = Ui.AsyncButton("Refresh usage", () => store.RefreshAsync(true));
-        var refreshIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 14 6 A 6 6 0 1 0 15 10 M 14 2 L 14 6 L 10 6"),
-            Width = 16, Height = 16, Stretch = Stretch.Uniform, StrokeThickness = 1.5, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round };
-        refreshIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText");
-        refresh.Content = refreshIcon; refresh.Width = refresh.Height = refresh.MinHeight = 28;
-        refresh.Padding = new Thickness(5); refresh.BorderThickness = new Thickness(0); refresh.Margin = new Thickness(16, 0, 0, 0);
-        refresh.Background = Brushes.Transparent; refresh.BorderBrush = Brushes.Transparent;
-        refresh.HorizontalContentAlignment = HorizontalAlignment.Center;
+        var refresh = Ui.RefreshButton("Refresh usage", () => store.RefreshAsync(true));
+        refresh.Margin = new Thickness(16, 0, 0, 0);
         refreshAction = refresh; refresh.IsEnabled = !store.IsRefreshing;
         refresh.ToolTip = "Refresh usage and limits (Ctrl+R)";
         System.Windows.Automation.AutomationProperties.SetAutomationId(refresh, "usage.refresh");

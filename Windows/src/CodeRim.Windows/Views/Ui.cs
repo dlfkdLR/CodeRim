@@ -38,6 +38,19 @@ internal static class Ui
         button.Click += async (_, _) => { button.IsEnabled = false; try { await action().ConfigureAwait(true); } catch (Exception e) when (e is not OutOfMemoryException) { System.Windows.MessageBox.Show("The action could not be completed. Your saved data has been retained. Please retry.", "CodeRim", MessageBoxButton.OK, MessageBoxImage.Error); } finally { button.IsEnabled = true; } };
         return button;
     }
+    public static Button RefreshButton(string name, Func<Task> action)
+    {
+        var button = AsyncButton(name, action);
+        var icon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 14 6 A 6 6 0 1 0 15 10 M 14 2 L 14 6 L 10 6"),
+            Width = 16, Height = 16, Stretch = Stretch.Uniform, StrokeThickness = 1.5,
+            StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round };
+        icon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText");
+        button.Content = icon; button.Width = button.Height = button.MinHeight = 28;
+        button.Padding = new Thickness(5); button.BorderThickness = new Thickness(0); button.Margin = new Thickness(0);
+        button.Background = Brushes.Transparent; button.BorderBrush = Brushes.Transparent;
+        button.HorizontalContentAlignment = HorizontalAlignment.Center; button.VerticalAlignment = VerticalAlignment.Center;
+        button.ToolTip = name; return button;
+    }
     public static ComboBox Combo<T>(IEnumerable<T> values, T selected, Action<T> changed)
     {
         var box = new ComboBox { ItemsSource = values, SelectedItem = selected, MinWidth = 150, Margin = new Thickness(0, 5, 0, 10),

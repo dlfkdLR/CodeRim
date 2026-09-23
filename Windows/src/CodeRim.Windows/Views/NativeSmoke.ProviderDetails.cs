@@ -27,6 +27,22 @@ internal static partial class NativeSmoke
                  new("small", "Small", 0.3), new("nearly", "Nearly full", 99.7),
                  new("expired", "Expired", 10, now.AddMinutes(-1))], now);
             dashboard.Navigate("copilot"); await Idle();
+            var refresh = Descendants<Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "provider.refresh");
+            Require(refresh.Content is System.Windows.Shapes.Path refreshIcon && refresh.ActualWidth == 28 && refresh.ActualHeight == 28
+                && refreshIcon.ActualWidth == 16 && refreshIcon.ActualHeight == 16
+                && refreshIcon.TranslatePoint(new Point(), refresh).X >= 0
+                && refreshIcon.TranslatePoint(new Point(), refresh).Y >= 0
+                && refreshIcon.TranslatePoint(new Point(16, 16), refresh).X <= refresh.ActualWidth
+                && refreshIcon.TranslatePoint(new Point(16, 16), refresh).Y <= refresh.ActualHeight
+                && AutomationProperties.GetName(refresh) == "Refresh GitHub Copilot",
+                "Provider refresh is not a complete accessible compact icon.");
+            var connection = Descendants<StackPanel>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "provider.connection");
+            Require(Descendants<Border>(connection).Any() && Descendants<PasswordBox>(connection).Any()
+                && !Descendants<Button>(dashboard).Any(x => x.Content as string is "Refresh" or "Setup guide"),
+                "Provider connection controls are not grouped or the duplicate toolbar remains.");
+            var instructions = Descendants<TextBlock>(connection).SelectMany(x => x.Inlines.OfType<System.Windows.Documents.Hyperlink>()).Single();
+            Require(instructions.NavigateUri.AbsoluteUri == ProviderCatalog.Find("copilot")!.GuideUrl
+                && AutomationProperties.GetName(instructions) == "Connection instructions", "Connection instructions lost their original destination or accessible label.");
             var bars = Descendants<ProgressBar>(dashboard).ToArray();
             Require(bars.Length == 5 && bars.Any(x => x.Value == 32.6) && bars.Any(x => x.Value == 100), "Provider progress lost exact values or failed to clamp an exceeded limit.");
             Require(bars.All(x => x.ActualHeight == 4), "Provider usage bars differ from the compact reference.");
@@ -69,11 +85,18 @@ internal static partial class NativeSmoke
             Require(!alert.IsEnabled && !notify.IsEnabled && draft.Password == "fixture-unsaved"
                 && Descendants<PasswordBox>(dashboard).Contains(draft), "Global alert disable left active controls or discarded credential drafts.");
             Capture(dashboard, Path.Combine(directory, "windows-provider-details.png"));
+            var viewport = Descendants<ScrollViewer>(dashboard).Single(x => x.ScrollableHeight > 0 && x.ActualHeight > 200);
+            viewport.ScrollToVerticalOffset(viewport.VerticalOffset + connection.TranslatePoint(new Point(), viewport).Y - 16); await Idle();
+            Require(Descendants<PasswordBox>(connection).Contains(draft) && draft.ActualWidth > 80
+                && Descendants<Button>(connection).All(x => x.HorizontalAlignment == HorizontalAlignment.Left),
+                "Grouped connection lost its credential input or stretched its actions.");
+            Capture(dashboard, Path.Combine(directory, "windows-provider-connection.png"));
             store.InvalidateAccount("copilot"); await Idle();
             Require(!alert.IsVisible && !Descendants<ProgressBar>(dashboard).Any() && draft.Password == "fixture-unsaved", "Account invalidation retained old quotas or rebuilt credential inputs.");
             File.WriteAllText(Path.Combine(directory, "windows-provider-details.json"), JsonSerializer.Serialize(new { completed = true,
                 checks = new List<string> { "Compact bars, exact progress, clamped overflow and nonnumeric balances", "Unknown values do not invent a bar",
-                    "Future resets only and nearest reset", "Persisted header/toggle mute synchronization", "Global disable preserves drafts", "Invalidation clears old quota in place" } }));
+                    "Future resets only and nearest reset", "Persisted header/toggle mute synchronization", "Global disable preserves drafts", "Invalidation clears old quota in place",
+                    "Compact accessible refresh without duplicate toolbar", "Grouped connection preserves credential input, actions and instruction destination" } }));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally

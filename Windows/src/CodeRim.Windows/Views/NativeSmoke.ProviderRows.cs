@@ -34,7 +34,7 @@ internal static partial class NativeSmoke
             Require(!Button("settings.providers.alerts.copilot").IsVisible && Button("settings.providers.primary.copilot").Content as string == "Set Up…", "Disconnected provider retained connected actions.");
             Capture(dashboard, Path.Combine(directory, "windows-provider-rows.png"));
             Button("settings.providers.primary.copilot").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
-            Require(dashboard.Title == "Providers" && Descendants<TextBlock>(dashboard).Any(x => x.Text == "Connection"), "Set Up action failed to open provider connection settings.");
+            Require(dashboard.Title == "Providers" && Descendants<FrameworkElement>(dashboard).Any(x => AutomationProperties.GetAutomationId(x) == "provider.connection"), "Set Up action failed to open provider connection settings.");
             store.Readings["copilot"] = new("copilot", ReadingState.Stale, [], DateTimeOffset.Now.AddMinutes(-90));
             dashboard.Navigate("copilot"); await Idle();
             Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Last read 1 hr 30 min ago"), "Provider detail stale status differs from the reference's relative time.");

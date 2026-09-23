@@ -9,6 +9,23 @@ namespace CodeRim.Windows.Views;
 
 internal sealed partial class DashboardWindow
 {
+    private void GroupProviderConnection(int first, string guideUrl)
+    {
+        // Reparent the existing controls once during navigation. Polling updates
+        // readings in place, so passwords, selection and focus remain untouched.
+        var content = new StackPanel { Margin = new Thickness(20, 12, 20, 12) };
+        var guide = SettingsUi.Link("Connection instructions", new Uri(guideUrl),
+            "M2,1 H10 L14,5 V15 H2 Z M10,1 V5 H14 M5,8 H11 M5,11 H11", OpenUrl);
+        guide.Margin = new Thickness(0, 0, 0, 12); content.Children.Add(guide);
+        while (body.Children.Count > first)
+        {
+            var child = body.Children[first]; body.Children.RemoveAt(first);
+            if (child is Button button) button.HorizontalAlignment = HorizontalAlignment.Left;
+            content.Children.Add(child);
+        }
+        var section = SettingsUi.Section("Connection settings", content);
+        AutomationProperties.SetAutomationId(section, "provider.connection"); body.Children.Add(section);
+    }
     private Button? providerAlert;
     private System.Windows.Shapes.Path? providerBell;
     private CheckBox? providerNotify;

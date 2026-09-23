@@ -345,8 +345,8 @@ internal sealed partial class DashboardWindow : Window
         var accountDisplay = store.AccountDisplay(id);
         body.Children.Add(SettingsUi.Action("‹ All Providers", () => Navigate("providers")));
         var header = new DockPanel { Margin = new Thickness(14) };
-        var refresh = Ui.AsyncButton("↻", () => store.RefreshProviderAsync(id));
-        System.Windows.Automation.AutomationProperties.SetName(refresh, "Refresh " + provider.Name);
+        var refresh = Ui.RefreshButton("Refresh " + provider.Name, () => store.RefreshProviderAsync(id));
+        System.Windows.Automation.AutomationProperties.SetAutomationId(refresh, "provider.refresh");
         DockPanel.SetDock(refresh, Dock.Right); header.Children.Add(refresh);
         if (!provider.HasLocalHistory) AddProviderAlertButton(header, id, provider.Name);
         var mark = new Border { Width = 30, Height = 30, CornerRadius = new CornerRadius(8),
@@ -396,10 +396,8 @@ internal sealed partial class DashboardWindow : Window
             UpdateProviderReading(id); UpdateProviderControlStates(); return;
         }
         body.Children.Add(providerReading); UpdateProviderReading(id);
-        var actions = new WrapPanel(); actions.Children.Add(Ui.AsyncButton("Refresh", () => store.RefreshProviderAsync(id)));
-        actions.Children.Add(Ui.Button("Setup guide", () => OpenUrl(provider.GuideUrl))); body.Children.Add(actions);
-
-        Ui.Section(body, "Connection");
+        var connectionStart = body.Children.Count;
+        if (provider.HasLocalHistory) Ui.Section(body, "Connection");
         if (id == "copilot") body.Children.Add(Ui.Text("Uses your current GitHub CLI sign-in. Sign in with gh auth login, or provide an access token below.", 12));
         if (id == "glm") body.Children.Add(Ui.Text("Detects a GLM login from Claude Code, ZCode or OpenCode. A key entered below takes precedence.", 12));
         if (id == "codebuff") body.Children.Add(Ui.Text("Uses your current Codebuff CLI sign-in. A key entered below takes precedence.", 12));
@@ -700,6 +698,7 @@ internal sealed partial class DashboardWindow : Window
                 { MessageBox.Show(this, "Could not remove the imported sign-in.", "CodeRim"); }
             }));
         }
+        if (!provider.HasLocalHistory) GroupProviderConnection(connectionStart, provider.GuideUrl);
         if (provider.HasLocalHistory)
         {
             Ui.Section(body, "Notch order");
