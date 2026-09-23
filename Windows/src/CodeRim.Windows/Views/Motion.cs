@@ -9,10 +9,10 @@ using CodeRim.Core.Services;
 
 namespace CodeRim.Windows.Views;
 
-/// <summary>Finite, replaceable WPF animations. Base values always hold the final state.</summary>
+/// <summary>Finite, replaceable WPF animations with continuous handoff and explicit final values.</summary>
 internal static class Motion
 {
-    private sealed record Running(DependencyObject Target, DependencyProperty Property, Action? Completed);
+    private sealed record Running(DependencyObject Target, DependencyProperty Property, double FinalValue, Action? Completed);
     private static readonly Dictionary<(DependencyObject, DependencyProperty), Running> RunningAnimations = [];
     private static bool reduced;
     private static bool systemAnimations = ReadSystemAnimations();
@@ -51,23 +51,25 @@ internal static class Motion
         var key = (target, property);
         RunningAnimations.Remove(key);
         ((IAnimatable)target).BeginAnimation(property, null);
-        target.SetValue(property, to);
         if (!(enabled ?? Enabled) || !double.IsFinite(from) || Math.Abs(from - to) < 0.00001)
-        { completed?.Invoke(); return; }
-        var item = new Running(target, property, completed); RunningAnimations[key] = item;
+        { target.SetValue(property, to); completed?.Invoke(); return; }
+        // A replacement clock can be stopped until its first tick. Keep the sampled
+        // current value as the base so reversal never exposes the new target early.
+        target.SetValue(property, from);
+        var item = new Running(target, property, to, completed); RunningAnimations[key] = item;
         // BeginTime alone exposes the final base value before a delayed clock starts.
         // Hold the sampled value with an active key frame instead, so staggered cells never flash.
         AnimationTimeline animation;
         if (delay > 0)
         {
-            var frames = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.Stop };
+            var frames = new DoubleAnimationUsingKeyFrames { FillBehavior = FillBehavior.HoldEnd };
             frames.KeyFrames.Add(new DiscreteDoubleKeyFrame(from, KeyTime.FromTimeSpan(TimeSpan.Zero)));
             frames.KeyFrames.Add(new DiscreteDoubleKeyFrame(from, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(delay))));
             frames.KeyFrames.Add(new EasingDoubleKeyFrame(to, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(delay + seconds)), ease ?? Smooth));
             animation = frames;
         }
         else animation = new DoubleAnimation(from, to, TimeSpan.FromSeconds(seconds))
-        { EasingFunction = ease ?? Smooth, FillBehavior = FillBehavior.Stop };
+        { EasingFunction = ease ?? Smooth, FillBehavior = FillBehavior.HoldEnd };
         animation.Completed += (_, _) => Finish(item);
         ((IAnimatable)target).BeginAnimation(property, animation, HandoffBehavior.SnapshotAndReplace);
     }
@@ -76,6 +78,7 @@ internal static class Motion
         var key = (item.Target, item.Property);
         if (!RunningAnimations.TryGetValue(key, out var current) || !ReferenceEquals(current, item)) return;
         RunningAnimations.Remove(key);
+        item.Target.SetValue(item.Property, item.FinalValue);
         ((IAnimatable)item.Target).BeginAnimation(item.Property, null);
         item.Completed?.Invoke();
     }
@@ -84,6 +87,7 @@ internal static class Motion
         foreach (var item in RunningAnimations.Values.Where(x => ReferenceEquals(x.Target, target)).ToArray())
         {
             RunningAnimations.Remove((target, item.Property));
+            target.SetValue(item.Property, item.FinalValue);
             ((IAnimatable)target).BeginAnimation(item.Property, null);
         }
     }
