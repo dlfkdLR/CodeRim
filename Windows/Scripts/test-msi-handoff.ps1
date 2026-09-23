@@ -36,6 +36,14 @@ if($LASTEXITCODE -ne 0){throw 'Old MSI fixture build failed.'}
 $msi=Join-Path $env:WINDIR 'System32\msiexec.exe'
 $install=Start-Process $msi -ArgumentList @('/i',('"'+$oldMsi+'"'),'/qn','/norestart','LAUNCHAPP=0',('/l*v "'+(Join-Path $ReleaseDirectory 'old-install.log')+'"')) -PassThru
 if(-not $install.WaitForExit(180000) -or $install.ExitCode -ne 0){throw 'Old MSI installation failed.'}
+# Preserve the actual known-folder ACL boundary when diagnosing native handoff failures.
+$local=[Environment]::GetFolderPath('LocalApplicationData')
+$securityEvidence=@{userSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value;paths=@()}
+foreach($path in @($local,(Join-Path $local 'Programs'),$app)) {
+    $acl=Get-Acl $path
+    $securityEvidence.paths+=@{path=$path;owner=$acl.Owner;sddl=$acl.Sddl}
+}
+$securityEvidence | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $ReleaseDirectory 'handoff-path-security.json')
 $parent=Start-Process (Join-Path $app 'CodeRim.exe') -ArgumentList '--qa-msi-update',('"'+$ReleaseDirectory+'"') -PassThru
 if(-not $parent.WaitForExit(90000)){throw 'Original GUI did not exit after the worker became ready.'}
 if($parent.ExitCode -ne 0){Get-Content (Join-Path $ReleaseDirectory 'handoff-error.txt') -ErrorAction SilentlyContinue;throw 'GUI handoff failed.'}

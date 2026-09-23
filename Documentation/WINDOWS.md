@@ -217,7 +217,20 @@ dotnet build Windows/CodeRim.Windows.sln --configuration Release
 
 The smoke test uses an isolated temporary directory and synthetic values. It does not connect accounts or read the user's chat history. It proves only native startup/rendering if executed on Windows; inspect the capture separately. The GitHub workflow packages both MSI architectures and tests installation, an injected upgrade failure and rollback, successful upgrade, downgrade refusal, installed native UI, and uninstall/data preservation on disposable x64 and ARM64 runners. A separate Windows ARM64 job downloads the packaging artifact, verifies its ZIP checksum, then executes that exact ARM64 archive and records OS/process architecture. Consult the release commit's workflow result for the native x64 verification status. The x64 checks also cover minimum-size light/dark/high-contrast layouts, popup dismissal, provider removal/navigation state, keyboard focus, image/sub-agent controls, isolated DPAPI/ACL storage, CLI PATH idempotence and Claude hook preservation. Read the actual workflow result before treating ARM64 execution as verified. Physical mixed-DPI monitors and live provider responses remain separate checks.
 
-## Current audit changes (unreleased)
+### Publish authenticated installer updates
+
+After native CI passes, download the `CodeRim-Windows-MSI` artifact and verify both `.sha256` files. On the release Mac, sign each exact MSI manifest with the existing Sparkle Keychain key:
+
+```sh
+python3 Scripts/sign_windows_installer.py CodeRim-Windows-VERSION-x64-Setup.msi --sign-tool /path/to/Sparkle/bin/sign_update
+python3 Scripts/sign_windows_installer.py CodeRim-Windows-VERSION-arm64-Setup.msi --sign-tool /path/to/Sparkle/bin/sign_update
+```
+
+Replace `VERSION` with the configured release version. The helper defaults to the existing `HechoLP` Keychain account; `--account` can select that same release key under another local account name. Never export the private key. A different key will not be accepted by installed apps.
+
+Upload each MSI plus its `.sha256`, `.manifest.json` and `.manifest.sig` to the matching GitHub release draft. The stable updater requires the expected canonical filenames and GitHub SHA-256 metadata, and independently authenticates the signed manifest. Do not change the MSI after signing. For 2.1.9, dispatch the Windows workflow with `msi_handoff=true` to exercise both signed draft installers from an isolated old-version fixture before publishing. This manual-only job needs repository content write permission because GitHub hides drafts from read-only tokens; it does not publish or edit the release and checkout credentials are not persisted.
+
+## Audit history and verification limits
 
 Provider account, plan and status labels update in place after refresh/account invalidation. xAI and Poe share corrected readers with macOS: unavailable history stays unavailable, bounded history is marked partial, repeated Poe query IDs are counted once, and required authentication failures are distinguished from parse failures. CLI output preserves currency/count values alongside reported percentages. See [the full audit](FULL_AUDIT_2026-09-20.md) for execution evidence and remaining native/live-provider checks.
 
