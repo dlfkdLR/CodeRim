@@ -622,6 +622,8 @@ internal static partial class NativeSmoke
         Require(Descendants<ListBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Settings sections").SelectedItem is ListBoxItem { Tag: "usage" }, "Unavailable session target did not open local sessions");
         Record("Session window discovery, process-reuse rejection, and unavailable-target fallback");
         Record("Blocked and finished sessions peek independently of sound, without duplicate alerts");
+        await CheckMotion(notch, settings, directory);
+        Record("Motion parity: intermediate frames, reversal, ring reset, refresh, controls, visibility and reduced-motion policy");
         File.WriteAllText(Path.Combine(directory, "windows-ui-checks.json"), JsonSerializer.Serialize(new { kind = "Native WPF synthetic integration", checks }, JsonOptions));
     }
     private static async Task Until(Func<bool> condition, string failure)
@@ -630,7 +632,14 @@ internal static partial class NativeSmoke
         while (!condition() && DateTimeOffset.UtcNow < deadline) { await Task.Delay(10); await Idle(); }
         Require(condition(), failure);
     }
-    private static async Task Idle() => await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+    private static async Task Idle()
+    {
+        await MotionFrame();
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(2);
+        while (Motion.IsAnimating && DateTimeOffset.UtcNow < deadline)
+        { await Task.Delay(10); await MotionFrame(); }
+        Require(!Motion.IsAnimating, "Finite UI animations did not settle before a static capture");
+    }
     internal static void Capture(FrameworkElement view, string output)
     {
         view.UpdateLayout();

@@ -77,6 +77,7 @@ public partial class App : System.Windows.Application
         if (!smokeTest && InstallerUpdateCoordinator.IsManaged && settings.Current.LaunchAtLogin)
             try { StartupService.SetEnabled(true); }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.SecurityException or InvalidOperationException) { /* Login registration must not prevent the app from opening. */ }
+        Motion.SetReduced(settings.Current.ReduceMotion);
         store = new DashboardStore(settings, vault, smokeTest);
         notch = new NotchWindow(store, settings, ShowSettings);
         tray = new TrayIconHost(() => ShowSettings("usage"), () => _ = store.RefreshAsync(true), () => ShowSettings(null), ShutdownApplication);
@@ -84,7 +85,7 @@ public partial class App : System.Windows.Application
         tray.ShowNotchRequested += () => { settings.RevealNotch(); notch.Peek(); };
         store.SessionAttentionRequested += session => { if (settings.Current.PeekOnCompletion) notch.Peek(session); };
         store.ReadingUpdated += reading => { if (settings.Current.AlertsEnabled && !settings.Current.MutedAlertProviders.Contains(reading.Id, StringComparer.Ordinal)) foreach (var threshold in thresholds.Observe(reading, DateTimeOffset.Now)) tray.Notify(ProviderCatalog.Find(reading.Id)?.Name ?? reading.Id, threshold == 100 ? "Usage limit reached." : "Usage has reached 80%."); };
-        settings.SettingsChanged += (_, _) => ConfigureTimer();
+        settings.SettingsChanged += (_, _) => { Motion.SetReduced(settings.Current.ReduceMotion); ConfigureTimer(); };
         timer.Tick += (_, _) => { watcher?.Rebuild(); _ = store.RefreshAsync(); };
         activityTimer.Tick += (_, _) => _ = store.RefreshActivityAsync();
         if (!smokeTest) activityTimer.Start();
@@ -92,7 +93,7 @@ public partial class App : System.Windows.Application
         if (!smokeTest) { updateTimer.Tick += async (_, _) => await CheckUpdatesAsync(); updateTimer.Start(); _ = CheckUpdatesAsync(); }
         _ = StartAsync(e.Args);
     }
-    private void AppearanceChanged(object sender, Microsoft.Win32.UserPreferenceChangedEventArgs e) => Dispatcher.BeginInvoke(() => SettingsTheme.Apply());
+    private void AppearanceChanged(object sender, Microsoft.Win32.UserPreferenceChangedEventArgs e) => Dispatcher.BeginInvoke(() => { SettingsTheme.Apply(); Motion.RefreshPolicy(); });
     private async Task StartAsync(string[] args)
     {
         if (store is null) return;

@@ -64,6 +64,15 @@ internal sealed partial class UsagePane : StackPanel
     private string? session;
     private int visibleRows = 40;
     private bool pendingRefresh;
+    private string? lastView;
+    private readonly Dictionary<string, long> metricValues = [];
+    private AnimatedMetric Metric(string key, long value, double size)
+    {
+        key = provider + ":" + key;
+        var hadValue = metricValues.TryGetValue(key, out var previous); metricValues[key] = value;
+        return new AnimatedMetric(hadValue ? previous : value, value, settings.Current.NumberStyle, size,
+            hadValue && IsLoaded && !settings.Current.ReduceMotion);
+    }
     internal void RefreshReadings()
     {
         var choices = settings.Current.EnabledProviders.Select(id => ProviderCatalog.Find(id)!).ToArray();
@@ -148,6 +157,14 @@ internal sealed partial class UsagePane : StackPanel
     }
     internal void Update()
     {
+        var view = provider + ":" + mode + ":" + destination;
+        var changedView = lastView is not null && lastView != view; lastView = view;
+        if (changedView)
+        {
+            Motion.Enter(readings);
+            for (DependencyObject? parent = VisualTreeHelper.GetParent(this); parent is not null; parent = VisualTreeHelper.GetParent(parent))
+                if (parent is ScrollViewer scroll) { scroll.ScrollToTop(); break; }
+        }
         accountRow.Children.Clear();
         var identity = SavedAccounts.CurrentAccountLabel(provider, store.Synthetic);
         var account = new DockPanel();
@@ -172,7 +189,7 @@ internal sealed partial class UsagePane : StackPanel
         System.Windows.Automation.AutomationProperties.SetAutomationId(overview, "usage.overview");
         overview.ColumnDefinitions.Add(new ColumnDefinition()); overview.ColumnDefinitions.Add(new ColumnDefinition());
         var total = new StackPanel { Margin = new Thickness(0, 0, 24, 0) };
-        var totalText = Ui.Text(TokenFormatter.Format(today.TotalTokens, settings.Current.NumberStyle), 42, weight: FontWeights.SemiBold);
+        var totalText = Metric("today", today.TotalTokens, 42);
         totalText.TextWrapping = TextWrapping.NoWrap;
         total.Children.Add(new Viewbox { Child = totalText, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left, MaxHeight = 56 });
         total.Children.Add(Ui.Text("tokens", 13, "#A6A6AA"));
@@ -191,7 +208,7 @@ internal sealed partial class UsagePane : StackPanel
             var periodLabel = new DockPanel();
             var arrow = Ui.Text("›", 15, "#A6A6AA"); DockPanel.SetDock(arrow, Dock.Right); periodLabel.Children.Add(arrow);
             periodLabel.Children.Add(Ui.Text(value.Item1, 13, "#A6A6AA")); panel.Children.Add(periodLabel);
-            panel.Children.Add(Ui.Text(TokenFormatter.Format(value.Item3.TotalTokens, settings.Current.NumberStyle), 21, weight: FontWeights.SemiBold));
+            panel.Children.Add(Metric(value.Item2, value.Item3.TotalTokens, 21));
             var button = Ui.Button("", () => Forward("activity", value.Item2));
             System.Windows.Automation.AutomationProperties.SetName(button, value.Item1 + ": " + value.Item3.TotalTokens.ToString(CultureInfo.CurrentCulture) + " tokens");
             button.Content = panel; button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Margin = new Thickness(0);

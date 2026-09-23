@@ -1,0 +1,137 @@
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Text.Json;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
+using CodeRim.Core.Domain;
+using CodeRim.Core.Services;
+using CodeRim.Windows.Services;
+
+namespace CodeRim.Windows.Views;
+
+internal static partial class NativeSmoke
+{
+    private static async Task CheckMotion(NotchWindow notch, AppSettingsStore settings, string directory)
+    {
+        var saved = settings.Current;
+        var originalAnimations = SystemParameters.ClientAreaAnimation ? 1 : 0;
+        var samples = new List<object>(); var checks = new List<string>();
+        Window? fixture = null;
+        try
+        {
+            // This path is only invoked by the explicitly requested, isolated synthetic smoke run.
+            // Enable the disposable desktop session's animation policy, then restore it in finally.
+            var enabled = 1;
+            Require(SetClientAreaAnimation(0x1043, 0, ref enabled, 2), "Could not enable animations in the native smoke desktop");
+            await MotionFrame(); Motion.RefreshPolicy();
+            settings.Save(saved with { ReduceMotion = false, EnabledProviders = ["codex", "claude"], Visibility = NotchVisibility.OnHover });
+            await MotionUntil(() => Motion.Enabled, "Native desktop animation policy stayed disabled");
+            foreach (var edge in Enum.GetValues<NotchEdge>())
+            {
+                settings.Save(settings.Current with { Edge = edge }); await MotionFrame();
+                notch.Peek(); await MotionUntil(() => notch.FoldProgress is > 0 and < 0.98, "Unfold skipped intermediate geometry: " + edge);
+                for (var i = 0; i < 6; i++)
+                {
+                    samples.Add(new { kind = "unfold", edge = edge.ToString(), frame = i, progress = notch.FoldProgress });
+                    Capture(notch, Path.Combine(directory, $"windows-motion-unfold-{edge}-{i:D2}.png"));
+                    await Task.Delay(90); await MotionFrame();
+                }
+                await MotionUntil(() => notch.FoldProgress >= 0.999, "Unfold did not settle");
+                notch.SetExpanded(false); await Task.Delay(100); await MotionFrame();
+                var reversing = notch.FoldProgress;
+                Require(reversing is > 0 and < 1, "Fold skipped intermediate geometry");
+                notch.SetExpanded(true);
+                Require(Math.Abs(notch.FoldProgress - reversing) < 0.1, "Reversing fold snapped geometry");
+                await MotionUntil(() => notch.FoldProgress >= 0.999, "Reversed unfold did not settle");
+                notch.SetExpanded(false);
+                await MotionUntil(() => !notch.Expanded && notch.FoldProgress == 0, "Fold did not finish");
+                Require(notch.Width < 100 || notch.Height < 100, "Folded native hit bounds remained expanded");
+            }
+            checks.Add("Four-edge spring geometry has intermediate frames, reverses without snapping and shrinks native hit bounds");
+            settings.Save(settings.Current with { Edge = NotchEdge.Right, Visibility = NotchVisibility.AlwaysShow }); await MotionFrame();
+            var gear = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.settings");
+            gear.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0) { RoutedEvent = Mouse.MouseEnterEvent }); await MotionFrame();
+            var account = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.switchAccount");
+            Require(account.IsVisible && account.Opacity < 1, "Account control skipped its delayed entrance");
+            await MotionUntil(() => account.Opacity >= 0.999, "Account entrance did not settle");
+            checks.Add("Settings reveal retains the account control's delayed fade/scale entrance");
+            notch.OpenProvider("codex"); await Task.Delay(200); await MotionFrame();
+            notch.OpenProvider("claude"); await MotionFrame();
+            Require(notch.PopupIsOpen && notch.PopupContent is not null, "Provider change lost popup");
+            Capture(notch.PopupContent!, Path.Combine(directory, "windows-motion-popup-transition.png"));
+            checks.Add("Provider transitions retain the native popup and keyboard surface");
+
+            ProviderReading Reading(double percent) => new("codex", ReadingState.Ready, [new("weekly", "Weekly", percent)], DateTimeOffset.Now);
+            var ring = new ProviderRing { ProviderId = "codex", Settings = settings.Current, Reading = Reading(10) };
+            var toggle = new CheckBox { Content = "Synthetic motion toggle", IsChecked = false };
+            var content = new StackPanel { Margin = new Thickness(20), Background = Brushes.Black };
+            content.Children.Add(ring); content.Children.Add(toggle);
+            fixture = new Window { Content = content, Width = 320, Height = 200, ShowActivated = false, Topmost = true, Title = "Synthetic motion verification" };
+            fixture.Show(); await MotionFrame();
+            ring.Reading = Reading(90);
+            await MotionUntil(() => ring.Sweep is > 0.1 and < 0.89, "Reading jumps directly to the new value");
+            for (var i = 0; i < 5; i++)
+            {
+                samples.Add(new { kind = "reading", frame = i, sweep = ring.Sweep });
+                Capture(content, Path.Combine(directory, $"windows-motion-reading-{i:D2}.png"));
+                await Task.Delay(120); await MotionFrame();
+            }
+            ring.Reading = Reading(0);
+            var previous = ring.Sweep;
+            for (var i = 0; i < 9; i++)
+            {
+                await Task.Delay(110); await MotionFrame();
+                Require(ring.Sweep <= previous + 0.0001, "Reset arc reversed direction"); previous = ring.Sweep;
+                samples.Add(new { kind = "reset", frame = i, sweep = ring.Sweep });
+                Capture(content, Path.Combine(directory, $"windows-motion-reset-{i:D2}.png"));
+            }
+            Require(ring.Sweep == 0, "Reset left a visible endpoint");
+            checks.Add("Reading sweep interpolates; reset retracts monotonically to an empty track");
+            ring.Reading = Reading(60); ring.Refreshing = true;
+            await MotionUntil(() => ring.RefreshRotation is > 0 and < 360, "Refresh reading did not rotate");
+            ring.Refreshing = false; await Task.Delay(100); ring.Refreshing = true;
+            await MotionUntil(() => Math.Abs(ring.RefreshRotation % 360) < 0.0001, "Rapid refresh did not end at twelve o'clock");
+            var stoppedRotation = ring.RefreshRotation; await Task.Delay(120); await MotionFrame();
+            Require(ring.RefreshRotation == stoppedRotation, "Refresh repeats indefinitely");
+            ring.Refreshing = false;
+            checks.Add("Finite refresh rotation stops at a complete turn even after rapid retrigger");
+            ring.Active = true; await MotionFrame(); Require(ring.ClockRunning, "Working arc has no render clock");
+            ring.Waiting = true; await MotionFrame(); Capture(content, Path.Combine(directory, "windows-motion-waiting.png"));
+            fixture.Hide(); await MotionFrame(); Require(!ring.ClockRunning, "Hidden ring retained its render subscription");
+            fixture.Show(); await MotionFrame(); Require(ring.ClockRunning, "Visible activity did not resume");
+            checks.Add("Working/waiting animation pauses while hidden and resumes on visibility");
+            toggle.IsChecked = true;
+            await MotionUntil(() => Motion.GetToggleOffset(toggle) is > 0 and < 16, "Toggle thumb skipped its transition");
+            settings.Save(settings.Current with { ReduceMotion = true }); await MotionFrame();
+            Require(Motion.GetToggleOffset(toggle) == 16 && !ring.ClockRunning, "Reduce Motion did not settle active animations");
+            ring.Reading = Reading(37); Require(Math.Abs(ring.Sweep - 0.37) < 0.0001, "Reduced motion reading was delayed");
+            toggle.IsChecked = false; Require(Motion.GetToggleOffset(toggle) == 0, "Reduced motion toggle was delayed");
+            checks.Add("Reduced motion immediately settles in-flight readings, toggles and activity clocks");
+            fixture.Close(); fixture = null; await MotionFrame(); Require(!ring.ClockRunning, "Closed ring retained render subscription");
+            File.WriteAllText(Path.Combine(directory, "windows-motion.json"), JsonSerializer.Serialize(new { kind = "Native WPF animation frames", systemAnimationsBefore = originalAnimations, checks, samples }, JsonOptions));
+        }
+        finally
+        {
+            fixture?.Close(); settings.Save(saved);
+            SetClientAreaAnimation(0x1043, 0, ref originalAnimations, 2);
+            await MotionFrame(); Motion.RefreshPolicy();
+        }
+    }
+    private static async Task MotionFrame() => await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+    private static async Task MotionUntil(Func<bool> condition, string failure)
+    {
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(3);
+        while (!condition() && DateTimeOffset.UtcNow < deadline)
+        { await Task.Delay(10); await MotionFrame(); }
+        Require(condition(), failure);
+    }
+#pragma warning disable SYSLIB1054
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("user32.dll", EntryPoint = "SystemParametersInfoW", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetClientAreaAnimation(uint action, uint parameter, ref int value, uint flags);
+#pragma warning restore SYSLIB1054
+}

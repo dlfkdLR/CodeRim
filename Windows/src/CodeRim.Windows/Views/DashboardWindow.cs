@@ -29,6 +29,7 @@ internal sealed partial class DashboardWindow : Window
     private readonly AppSettingsStore settings;
     private readonly CredentialVault vault;
     private readonly ListBox sidebar = new() { BorderThickness = new Thickness(0), Padding = new Thickness(10, 10, 10, 0) };
+    private ScrollViewer? contentViewport;
     private readonly StackPanel body = new() { Margin = new Thickness(0, 6, 0, 28) };
     private readonly Dictionary<string, Window> accountWindows = new(StringComparer.Ordinal);
     private readonly TextBlock status = Ui.Text("");
@@ -49,6 +50,7 @@ internal sealed partial class DashboardWindow : Window
         layout.Children.Add(new GridSplitter { Width = 4, HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Stretch, Background = Brushes.Transparent, ResizeDirection = GridResizeDirection.Columns, ResizeBehavior = GridResizeBehavior.CurrentAndNext });
         var scroll = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        contentViewport = scroll;
         Grid.SetColumn(scroll, 1); layout.Children.Add(scroll); Content = layout;
         sidebar.SelectionChanged += (_, _) => { if (!refreshingSidebar && sidebar.SelectedItem is ListBoxItem item && item.Tag is string id) Navigate(id); };
         settings.SettingsChanged += SettingsChanged; store.PropertyChanged += StoreChanged;
@@ -158,6 +160,7 @@ internal sealed partial class DashboardWindow : Window
             ? VisualChildren<Control>(body).Where(x => x.IsKeyboardFocusWithin)
                 .Select(System.Windows.Automation.AutomationProperties.GetName).FirstOrDefault(x => !string.IsNullOrEmpty(x))
             : null;
+        var changedPage = renderedPage != page;
         renderedPage = page;
         CancelUpdateOperation(); updateViewRevision++;
         body.Children.Clear(); providerListDetails.Clear();
@@ -174,6 +177,7 @@ internal sealed partial class DashboardWindow : Window
             case "claude-accounts": body.Children.Add(new AccountsPane("claude", vault, store, settings)); break;
             default: Provider(page); break;
         }
+        if (changedPage) { contentViewport?.ScrollToTop(); Motion.Enter(body); }
         if (focusName is not null)
             Dispatcher.BeginInvoke(new Action(() =>
                 VisualChildren<Control>(body).FirstOrDefault(x => System.Windows.Automation.AutomationProperties.GetName(x) == focusName)?.Focus()));
