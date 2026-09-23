@@ -320,6 +320,7 @@ internal static partial class NativeSmoke
         await SessionPresentationRegression(dashboard, store, settings, directory);
         await SettingsReferenceRegression(dashboard, settings, directory);
         await ProfileHistoryRegression(settings, vault, directory);
+        await LocalDataRegression(settings, vault, directory);
         Record("Live Claude transcript completion and duplicate registry selection; provider-specific turn entry timing");
         Record("Narrow usage layout, proportional sub-dollar cost, cost gaps and Today/7D/30D totals");
 

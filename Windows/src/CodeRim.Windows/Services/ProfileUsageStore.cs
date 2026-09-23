@@ -5,6 +5,7 @@ using System.Security.Principal;
 using System.Windows.Threading;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
+using Microsoft.Win32;
 
 namespace CodeRim.Windows.Services;
 
@@ -21,6 +22,8 @@ internal sealed class ProfileUsageStore : IDisposable
     private readonly Func<bool> accountBusy;
     private readonly Func<DateTimeOffset> clock;
     private readonly bool allowsAccountTotals;
+    private readonly Dispatcher dispatcher = Dispatcher.CurrentDispatcher;
+    private readonly bool observesSystemTime;
     private CancellationTokenSource? pending;
     private Task? active;
     private string? accountKey;
@@ -57,6 +60,9 @@ internal sealed class ProfileUsageStore : IDisposable
         // Synthetic previews never read real credentials or make profile requests.
         if (!synthetic)
         {
+            observesSystemTime = true;
+            SystemEvents.TimeChanged += TimeChanged;
+            SystemEvents.PowerModeChanged += PowerModeChanged;
             timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(2) };
             timer.Tick += Tick; timer.Start();
         }
@@ -96,6 +102,23 @@ internal sealed class ProfileUsageStore : IDisposable
     }
     private void SettingsChanged(object? sender, EventArgs args) { _ = RefreshAsync(); }
     private void Tick(object? sender, EventArgs args) { _ = RefreshAsync(); }
+    private void TimeChanged(object? sender, EventArgs args) { _ = CalendarContextChangedAsync(); }
+    private void PowerModeChanged(object sender, PowerModeChangedEventArgs args)
+    {
+        if (args.Mode == PowerModes.Resume) _ = CalendarContextChangedAsync();
+    }
+    internal Task CalendarContextChangedAsync()
+    {
+        if (dispatcher.HasShutdownStarted || dispatcher.HasShutdownFinished) return Task.CompletedTask;
+        if (!dispatcher.CheckAccess())
+            return dispatcher.InvokeAsync(CalendarContextChangedAsync, DispatcherPriority.Send).Task.Unwrap();
+        if (disposed) return Task.CompletedTask;
+        // The OS can change its time zone while TimeZoneInfo.Local is still cached.
+        // Wake and backward same-day clock changes also invalidate in-flight totals.
+        TimeZoneInfo.ClearCachedData();
+        Reset(Enabled ? ProfileUsageStatus.Idle : ProfileUsageStatus.Disabled);
+        return RefreshAsync(true);
+    }
     internal Task RefreshAsync(bool force = false)
     {
         if (disposed) return Task.CompletedTask;
@@ -166,6 +189,11 @@ internal sealed class ProfileUsageStore : IDisposable
     {
         if (disposed) return; disposed = true;
         settings.SettingsChanged -= SettingsChanged;
+        if (observesSystemTime)
+        {
+            SystemEvents.TimeChanged -= TimeChanged;
+            SystemEvents.PowerModeChanged -= PowerModeChanged;
+        }
         if (timer is not null) { timer.Stop(); timer.Tick -= Tick; }
         Reset(ProfileUsageStatus.Disabled); client?.Dispose();
     }

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
@@ -22,8 +23,11 @@ internal static partial class NativeSmoke
         var temporary = Path.Combine(CompanionFile.DataDirectory, "settings.json.new"); var createdTemporary = false;
         Exception? failure = null; var cleanupFailures = new List<Exception>();
         var activationCount = 0;
+        var fixtureActivationCount = 0;
         void Activated(object? sender, EventArgs args) => activationCount++;
+        void FixtureActivated(object? sender, EventArgs args) => fixtureActivationCount++;
         dashboard.Activated += Activated;
+        fixture.Activated += FixtureActivated;
         try
         {
             approval.DeleteValue(StartupService.ValueName, false);
@@ -40,21 +44,31 @@ internal static partial class NativeSmoke
                 File.WriteAllText(Path.Combine(directory, "windows-startup-activation.json"), JsonSerializer.Serialize(activationStates));
                 var fixtureAccepted = false; var dashboardAccepted = false;
                 var countBefore = activationCount;
+                var fixtureCountBefore = fixtureActivationCount;
                 try
                 {
                     fixture.Show(); fixtureAccepted = fixture.Activate();
-                    await MotionUntil(() => fixture.IsActive, "Startup fixture could not acquire native activation.");
+                    if (!fixtureAccepted) SetThreadActiveWindow(new System.Windows.Interop.WindowInteropHelper(fixture).Handle);
+                    await MotionUntil(() => fixture.IsActive && fixtureActivationCount > fixtureCountBefore, "Startup fixture could not acquire native activation.");
                     countBefore = activationCount;
                     // Hide the owned window before returning to its owner. An active
                     // owned window can otherwise retain foreground activation on ARM64.
-                    fixture.Hide(); dashboardAccepted = dashboard.Activate();
+                    fixture.Hide(); dashboard.Show(); dashboardAccepted = dashboard.Activate();
+                    // Hosted desktops can deny foreground permission. Select only
+                    // our own UI thread's native window; still require WM_ACTIVATE
+                    // to reach WPF and the production Activated handler below.
+                    if (!dashboardAccepted) SetThreadActiveWindow(new System.Windows.Interop.WindowInteropHelper(dashboard).Handle);
                     await MotionUntil(() => dashboard.IsActive && activationCount > countBefore, "Settings window could not regain native activation.");
                     await Idle();
                 }
                 finally
                 {
                     activationStates.Add(new { fixtureAccepted, dashboardAccepted, fixtureActive = fixture.IsActive, dashboardActive = dashboard.IsActive,
-                        activationCount, countBefore, check = Toggle().IsChecked, toggleEnabled = Toggle().IsEnabled, text = Status(), preference = settings.Current.LaunchAtLogin,
+                        activationCount, countBefore, fixtureActivationCount, fixtureCountBefore,
+                        dashboard.IsVisible, dashboard.IsEnabled, dashboard.WindowState,
+                        foregroundConfirmed = ForegroundWindow() == new System.Windows.Interop.WindowInteropHelper(dashboard).Handle,
+                        foregroundOwner = PointerOwner(ForegroundWindow()),
+                        check = Toggle().IsChecked, toggleEnabled = Toggle().IsEnabled, text = Status(), preference = settings.Current.LaunchAtLogin,
                         actual = StartupService.ReadStatus(), approval = approval.GetValue(StartupService.ValueName) is byte[] bytes ? Convert.ToHexString(bytes) : "not-binary-or-absent" });
                     File.WriteAllText(Path.Combine(directory, "windows-startup-activation.json"), JsonSerializer.Serialize(activationStates));
                 }
@@ -107,6 +121,7 @@ internal static partial class NativeSmoke
                 catch (Exception error) when (error is not OutOfMemoryException) { cleanupFailures.Add(error); }
             }
             Restore(fixture.Close);
+            Restore(() => fixture.Activated -= FixtureActivated);
             Restore(() => dashboard.Activated -= Activated);
             Restore(() => { if (createdTemporary) Directory.Delete(temporary); });
             Restore(() => settings.Save(before));
@@ -121,4 +136,12 @@ internal static partial class NativeSmoke
         if (cleanupFailures.Count > 0) throw new AggregateException("Native settings fixture cleanup failed.", failure is null ? cleanupFailures : cleanupFailures.Prepend(failure));
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
+#pragma warning disable SYSLIB1054
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("user32.dll", EntryPoint = "SetActiveWindow", ExactSpelling = true)]
+    private static extern IntPtr SetThreadActiveWindow(IntPtr handle);
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("user32.dll", EntryPoint = "GetForegroundWindow", ExactSpelling = true)]
+    private static extern IntPtr ForegroundWindow();
+#pragma warning restore SYSLIB1054
 }

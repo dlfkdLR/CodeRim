@@ -697,12 +697,7 @@ internal sealed partial class DashboardWindow : Window
         order.Children.Add(Ui.Button("Remove from notch", () => { Save(settings.Current with { EnabledProviders = settings.Current.EnabledProviders.Where(x => x != id).ToArray() }); Navigate("providers"); })); body.Children.Add(order);
         if (provider.HasLocalHistory)
         {
-            Ui.Section(body, "Local data"); body.Children.Add(Ui.Button("Show usage", () => { localProvider = id; Navigate("usage"); usagePane?.SelectProvider(id); }));
-            body.Children.Add(Ui.Button("Clear local history…", () =>
-            {
-                if (MessageBox.Show(this, "Clear CodeRim's stored history for " + provider.Name + "? Original session files will be preserved. Earlier events will not be imported again.", "Clear local history", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
-                { store.Clear(id); _ = store.RefreshAsync(); }
-            }));
+            AddProviderLocalData(id, provider.Name);
         }
         foreach (var child in body.Children.OfType<FrameworkElement>())
             if (child.Margin.Left == 0 && child.Margin.Right == 0)
@@ -723,6 +718,7 @@ internal sealed partial class DashboardWindow : Window
     }
     private void UpdateProviderReading(string id)
     {
+        UpdateProviderLocalData(id);
         // Update the existing labels so credential drafts and keyboard focus survive a poll.
         var display = store.AccountDisplay(id);
         var current = display.Reading;

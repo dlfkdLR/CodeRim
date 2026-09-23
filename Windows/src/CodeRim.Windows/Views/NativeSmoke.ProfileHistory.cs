@@ -89,13 +89,35 @@ internal static partial class NativeSmoke
             busyFailure.SetException(new IOException("Synthetic switching failure")); await busyFailureTask;
             Require(profile.Snapshot is null && profile.Status == ProfileUsageStatus.Idle, "Failed request during account switch retained old totals.");
             busy = false; response = _ => Task.FromResult(Reading(current, 2000000)); await profile.RefreshAsync();
+            var beforeClock = Pause(); var clockTask = profile.RefreshAsync(true); tasks.Add(clockTask); await Idle();
+            now = now.AddHours(-1); var beforeClockCalls = calls;
+            var changedOffDispatcher = false;
+            void OnProfileChanged() => changedOffDispatcher |= !window.Dispatcher.CheckAccess();
+            profile.Changed += OnProfileChanged;
+            try
+            {
+                response = _ => Task.FromResult(Reading(current, 3000000));
+                await Task.Run(profile.CalendarContextChangedAsync);
+                beforeClock.SetResult(Reading(current, 7777777)); await clockTask;
+                Require(calls == beforeClockCalls + 1 && profile.Snapshot?.Lifetime == 3000000 && !changedOffDispatcher,
+                    "Backward clock change retained an old request or refreshed off the UI dispatcher.");
+                var beforeResume = calls; response = _ => Task.FromResult(Reading(current, 4000000));
+                await Task.Run(profile.CalendarContextChangedAsync);
+                Require(calls == beforeResume + 1 && profile.Snapshot?.Lifetime == 4000000,
+                    "Resume invalidation skipped fresh totals inside the normal polling interval.");
+            }
+            finally { profile.Changed -= OnProfileChanged; }
             var disabledCompletion = Pause(); var disabledTask = profile.RefreshAsync(true); tasks.Add(disabledTask); await Idle();
             settings.Save(settings.Current with { ProfileSyncEnabled = false });
             disabledCompletion.SetResult(Reading(current, 8888888)); await disabledTask;
             Require(profile.Snapshot is null && profile.Status == ProfileUsageStatus.Disabled, "Disabling history accepted an in-flight response.");
+            var beforeDisabledTimeChange = calls; await Task.Run(profile.CalendarContextChangedAsync);
+            Require(calls == beforeDisabledTimeChange && profile.Snapshot is null, "Disabled history fetched after a time-context signal.");
+            profile.Dispose(); await Task.Run(profile.CalendarContextChangedAsync);
+            Require(calls == beforeDisabledTimeChange, "Disposed history reacted to a queued time-context signal.");
             File.WriteAllText(Path.Combine(directory, "windows-profile-history.json"), JsonSerializer.Serialize(new { completed = true, calls,
                 checks = new List<string> { "Explicit enable persists; previews remain offline", "Today stays local; server history is never double-counted", "Account and local period details are distinct",
-                    "Same-workspace account switch rejects late response", "Transient error retains only same-account snapshot", "Missing credentials and account operations clear history", "Week/day changes invalidate old totals", "Disable rejects in-flight response" } }));
+                    "Same-workspace account switch rejects late response", "Transient error retains only same-account snapshot", "Missing credentials and account operations clear history", "Week/day changes invalidate old totals", "Background clock/resume signals marshal to UI and reject late totals", "Disabled/disposed history ignores time signals", "Disable rejects in-flight response" } }));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally

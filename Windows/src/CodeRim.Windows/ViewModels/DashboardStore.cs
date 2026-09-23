@@ -12,6 +12,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     private readonly AppSettingsStore settings;
     private readonly ProviderConnections connections;
     private readonly UsageRepository repository;
+    private readonly byte[] projectKey;
     private readonly Dictionary<string, UsageScanner> scanners = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim refreshLock = new(1, 1);
     private readonly SemaphoreSlim remoteSlots = new(4, 4);
@@ -31,21 +32,21 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     public Dictionary<string, ProviderReading> Readings { get; } = new(StringComparer.Ordinal);
     public HashSet<string> RefreshingProviders { get; } = new(StringComparer.Ordinal);
     public IReadOnlyList<SessionActivity> Sessions { get; private set; } = [];
-    public bool IsRefreshing => localRefreshing || RefreshingProviders.Count > 0;
+    public bool IsRefreshing => localRefreshing || RebuildingProviders.Count > 0 || RefreshingProviders.Count > 0;
     public string Status { get; private set; } = "Reading local usage…";
     public event PropertyChangedEventHandler? PropertyChanged;
     public event Action<ProviderReading>? ReadingUpdated;
     public event Action<SessionActivity>? SessionAttentionRequested;
     public bool Synthetic { get; }
     internal ProfileUsageStore ProfileHistory { get; }
-    public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false, ProviderConnections? providerConnections = null, ProfileUsageStore? profileHistory = null)
+    public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false, ProviderConnections? providerConnections = null, ProfileUsageStore? profileHistory = null, UsageRepository? usageRepository = null)
     {
         this.settings = settings; Synthetic = synthetic; connections = providerConnections ?? new ProviderConnections(vault);
         ProfileHistory = profileHistory ?? new ProfileUsageStore(settings, synthetic || providerConnections is not null); ProfileHistory.Changed += Changed;
-        repository = new UsageRepository(Path.Combine(CompanionFile.DataDirectory, "usage.sqlite"));
+        repository = usageRepository ?? new UsageRepository(Path.Combine(CompanionFile.DataDirectory, "usage.sqlite"));
         var keyPath = Path.Combine(CompanionFile.DataDirectory, "project-key.bin");
         if (!File.Exists(keyPath)) File.WriteAllBytes(keyPath, System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
-        var projectKey = File.ReadAllBytes(keyPath);
+        projectKey = File.ReadAllBytes(keyPath);
         if (projectKey.Length != 32) throw new InvalidDataException("Project identity key is invalid.");
         foreach (var id in new[] { "codex", "claude" })
         {
@@ -109,10 +110,14 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                     var generation = Generation(id);
                     var scan = await scanners[id].ScanAsync(settings.Current.WeekStart, lifetime.Token).ConfigureAwait(true);
                     if (generation != Generation(id)) continue;
-                    var events = await Task.Run(() => repository.Merge(id, scan.Events, scan.Sessions), lifetime.Token).ConfigureAwait(true);
+                    var imported = await Task.Run(() => (Events: repository.Merge(id, scan.Events, scan.Sessions),
+                        Sessions: repository.ReadSessionDetails(id), Statistics: repository.Statistics(id)), lifetime.Token).ConfigureAwait(true);
                     if (generation != Generation(id)) continue;
                     pendingRefresh |= scan.HasMoreWork;
-                    Events[id] = events; SessionDetails[id] = repository.ReadSessionDetails(id);
+                    var events = imported.Events;
+                    Events[id] = events; SessionDetails[id] = imported.Sessions;
+                    SourceCounts[id] = scan.SourceCount;
+                    DataStatistics[id] = imported.Statistics;
                     Usage[id] = UsageScanner.Aggregate(events, DateTimeOffset.Now, settings.Current.WeekStart, scan.Snapshot.Quality == DataQuality.Partial || scan.HasMoreWork);
                     Status = scan.StatusMessage;
                     if (settings.Current.DebugLogging) AppDiagnostics.Record(id, scan.Snapshot.Quality.ToString(), events.Count);
@@ -273,11 +278,6 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                 && ActivityReader.ReadCodex(path, DateTimeOffset.Now, cancellationToken) is { } activity) sessions.Add(activity);
         }
         return sessions;
-    }
-    public void Clear(string id)
-    {
-        if (!scanners.TryGetValue(id, out var scanner)) return;
-        generations[id] = Generation(id) + 1; repository.Clear(id, DateTimeOffset.Now); scanner.InvalidateCachedSources(); Usage.Remove(id); Events.Remove(id); SessionDetails.Remove(id); Persist(); Changed();
     }
     private void EnsureScope(string id)
     {

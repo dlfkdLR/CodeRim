@@ -24,6 +24,7 @@ public sealed class UsageScanner
     private readonly IReadOnlyList<string> roots;
     private string provider = "codex";
     private byte[]? projectKey;
+    private readonly bool requireCompleteSources;
     private readonly Dictionary<string, CachedFile> cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentQueue<string> invalidatedPaths = new();
     private readonly int maximumSourceCount;
@@ -50,11 +51,12 @@ public sealed class UsageScanner
     {
     }
 
-    public UsageScanner(string provider, IEnumerable<string>? roots = null, byte[]? projectKey = null) : this(roots ?? DefaultRoots(provider))
+    public UsageScanner(string provider, IEnumerable<string>? roots = null, byte[]? projectKey = null, bool requireCompleteSources = false) : this(roots ?? DefaultRoots(provider))
     {
         if (provider is not ("codex" or "claude")) throw new ArgumentException("Unknown local provider", nameof(provider));
         this.provider = provider;
         this.projectKey = projectKey;
+        this.requireCompleteSources = requireCompleteSources;
     }
 
     internal UsageScanner(
@@ -192,7 +194,7 @@ public sealed class UsageScanner
                     source,
                     Math.Min(maximumEventsPerSource, remainingEventCapacity),
                     before.Length,
-                    cancellationToken, provider, projectKey);
+                    cancellationToken, provider, projectKey, requireCompleteSources);
                 scannedBytes += before.Length;
                 if (parsed.ResourceLimitReached)
                 {
@@ -310,7 +312,7 @@ public sealed class UsageScanner
         var options = new EnumerationOptions
         {
             RecurseSubdirectories = true,
-            IgnoreInaccessible = true,
+            IgnoreInaccessible = !requireCompleteSources,
             AttributesToSkip = FileAttributes.Hidden
                 | FileAttributes.System
                 | FileAttributes.ReparsePoint,
@@ -322,6 +324,15 @@ public sealed class UsageScanner
         foreach (var root in roots)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (requireCompleteSources)
+            {
+                try
+                {
+                    if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0)
+                        throw new IOException("Local session root is a reparse point.");
+                }
+                catch (Exception error) when (error is DirectoryNotFoundException or FileNotFoundException) { continue; }
+            }
             if (!Directory.Exists(root) || (File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0)
             {
                 continue;
@@ -373,7 +384,7 @@ public sealed class UsageScanner
         string path,
         int maximumEvents,
         long maximumBytes,
-        CancellationToken cancellationToken, string provider = "codex", byte[]? projectKey = null)
+        CancellationToken cancellationToken, string provider = "codex", byte[]? projectKey = null, bool requireCompleteSources = false)
     {
         var events = new List<UsageEvent>();
         var attachments = new List<AttachmentObservation>();
@@ -389,6 +400,7 @@ public sealed class UsageScanner
         var model = "unknown";
         var project = "Unknown project";
         var projectId = "unknown";
+        var sawCompleteRecord = false;
 
         using var stream = new FileStream(
             path,
@@ -409,12 +421,32 @@ public sealed class UsageScanner
             }
 
             var line = boundedLine.Bytes!;
+            if (requireCompleteSources && line.AsSpan().IndexOfAnyExcept((byte)' ', (byte)'\t', (byte)'\r') < 0) continue;
+            if (requireCompleteSources)
+            {
+                try
+                {
+                    using var document = System.Text.Json.JsonDocument.Parse(line);
+                    if (document.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object || JsonFields.Text(document.RootElement, "type") is null)
+                    { partial = true; continue; }
+                    sawCompleteRecord = true;
+                }
+                catch (System.Text.Json.JsonException) { partial = true; continue; }
+            }
             if (provider == "claude")
             {
                 if (ClaudeJsonlParser.Parse(line, projectKey) is { } claudeEvent)
                 {
                     if (events.Count + attachments.Count >= maximumEvents) return new ParsedFile([], true, true);
                     events.Add(claudeEvent);
+                }
+                else if (requireCompleteSources)
+                {
+                    using var document = System.Text.Json.JsonDocument.Parse(line);
+                    var root = document.RootElement; var message = JsonFields.Object(root, "message");
+                    if (JsonFields.Text(root, "type") == "assistant" && !JsonFields.Flag(root, "isApiErrorMessage")
+                        && (JsonFields.Text(message, "model")?.StartsWith("claude-", StringComparison.Ordinal) == true
+                            || JsonFields.Object(message, "usage").ValueKind != System.Text.Json.JsonValueKind.Undefined)) partial = true;
                 }
                 continue;
             }
@@ -468,7 +500,7 @@ public sealed class UsageScanner
                 }
                 catch (System.Text.Json.JsonException) { partial = true; }
             }
-            if (!ContainsRelevantMarker(line))
+            if (!requireCompleteSources && !ContainsRelevantMarker(line))
             {
                 continue;
             }
@@ -579,7 +611,7 @@ public sealed class UsageScanner
             }
         }
 
-        return new ParsedFile(events, partial, false, prefixHash.GetHashAndReset(), identity,
+        return new ParsedFile(events, partial || requireCompleteSources && !sawCompleteRecord, false, prefixHash.GetHashAndReset(), identity,
             provider == "codex" ? new SessionDetails(sessionId, parentSession, attachments) : null);
     }
 

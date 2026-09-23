@@ -5,6 +5,7 @@ using CodeRim.Core.Services;
 
 namespace CodeRim.Core.Tests;
 
+[Collection("Native process execution")]
 public sealed class AlibabaTokenPlanCliTests : IDisposable
 {
     private readonly string root = Path.Combine(Path.GetTempPath(), "coderim-bailian-fixture-" + Guid.NewGuid().ToString("N"));

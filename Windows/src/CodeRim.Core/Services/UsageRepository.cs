@@ -9,8 +9,10 @@ namespace CodeRim.Core.Services;
 public sealed class UsageRepository
 {
     private readonly string connectionString;
+    private readonly string databasePath;
     public UsageRepository(string path)
     {
+        databasePath = Path.GetFullPath(path);
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         connectionString = new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString();
         using var connection = Open();
@@ -33,12 +35,24 @@ public sealed class UsageRepository
     }
 
     public IReadOnlyList<UsageEvent> Merge(string provider, IEnumerable<UsageEvent> events, IEnumerable<SessionDetails>? sessions = null)
+        => Write(provider, events, sessions, replace: false);
+
+    /// Replaces derived statistics atomically; cleared history remains excluded.
+    public IReadOnlyList<UsageEvent> Rebuild(string provider, IEnumerable<UsageEvent> events, IEnumerable<SessionDetails>? sessions = null)
+        => Write(provider, events, sessions, replace: true);
+
+    private List<UsageEvent> Write(string provider, IEnumerable<UsageEvent> events, IEnumerable<SessionDetails>? sessions, bool replace)
     {
         ArgumentNullException.ThrowIfNull(events);
         using var connection = Open();
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
+        if (replace)
+        {
+            command.CommandText = "DELETE FROM events WHERE provider=$provider; DELETE FROM attachments WHERE provider=$provider; DELETE FROM session_links WHERE provider=$provider";
+            command.Parameters.AddWithValue("$provider", provider); command.ExecuteNonQuery(); command.Parameters.Clear();
+        }
         // Inputs are disjoint in storage so revisions from copied Claude histories cannot lose cache reads/writes.
         command.CommandText = """
             INSERT INTO events(provider,id,time,input,cached,output,written,model,project,session,projectId)
@@ -91,14 +105,20 @@ public sealed class UsageRepository
                 command.Parameters.AddWithValue("$count", attachment.Count); command.ExecuteNonQuery();
             }
         }
+        var result = Read(provider, connection, transaction);
         transaction.Commit();
-        return Read(provider);
+        return result;
     }
 
     public IReadOnlyList<UsageEvent> Read(string provider)
     {
         using var connection = Open();
+        return Read(provider, connection);
+    }
+    private static List<UsageEvent> Read(string provider, SqliteConnection connection, SqliteTransaction? transaction = null)
+    {
         using var command = connection.CreateCommand();
+        command.Transaction = transaction;
         command.CommandText = "SELECT id,time,input,cached,output,written,model,project,session,projectId FROM events WHERE provider=$provider ORDER BY time";
         command.Parameters.AddWithValue("$provider", provider);
         using var reader = command.ExecuteReader();
@@ -143,6 +163,18 @@ public sealed class UsageRepository
         transaction.Commit();
     }
 
+    public LocalDataStatistics Statistics(string provider)
+    {
+        using var connection = Open(); using var command = connection.CreateCommand();
+        command.CommandText = "SELECT COUNT(*), MIN(time), MAX(time) FROM events WHERE provider=$provider";
+        command.Parameters.AddWithValue("$provider", provider); using var reader = command.ExecuteReader(); reader.Read();
+        long bytes = 0;
+        foreach (var path in new[] { databasePath, databasePath + "-wal" })
+            if (File.Exists(path)) bytes = checked(bytes + new FileInfo(path).Length);
+        return new(bytes, reader.GetInt64(0), reader.IsDBNull(1) ? null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(1)),
+            reader.IsDBNull(2) ? null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(2)));
+    }
+
     private SqliteConnection Open()
     {
         var connection = new SqliteConnection(connectionString);
@@ -150,3 +182,5 @@ public sealed class UsageRepository
         return connection;
     }
 }
+
+public sealed record LocalDataStatistics(long DatabaseBytes, long RecordCount, DateTimeOffset? OldestRecord, DateTimeOffset? NewestRecord);
