@@ -832,8 +832,8 @@ internal sealed partial class DashboardWindow : Window
         body.Children.Add(SettingsUi.Section("Application",
             SettingsUi.Value("Version", ReleaseUpdates.CurrentVersion.ToString()),
             SettingsUi.Value("Build", System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyFileVersionAttribute>(typeof(App).Assembly)?.Version ?? "Development"),
-            SettingsUi.Value("Data scope", "Local history + optional account limits"),
-            SettingsUi.Value("Privacy", "Local numeric history; encrypted credentials")));
+            SettingsUi.Value("Data scope", "Local history + ChatGPT account totals"),
+            SettingsUi.Value("Privacy", "Local numeric history; account totals in memory")));
         AddUpdateSection();
         body.Children.Add(SettingsUi.Section("Project",
             SettingsUi.Link("Open Source on GitHub", new("https://github.com/dlfkdLR/CodeRim"), "M5,2 L1,7 L5,12 M10,2 L14,7 L10,12 M9,0 L6,14", OpenUrl),

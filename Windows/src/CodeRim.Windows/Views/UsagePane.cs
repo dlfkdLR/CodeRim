@@ -68,6 +68,8 @@ internal sealed partial class UsagePane : StackPanel
     private int visibleRows = 40;
     private bool pendingRefresh;
     private string? lastView;
+    private string? displayedProfileAccountKey;
+    private bool displayedProfileEnabled;
     private readonly Dictionary<string, AnimatedMetric> metricValues = [];
     private AnimatedMetric Metric(string key, long value, double size)
     {
@@ -102,7 +104,8 @@ internal sealed partial class UsagePane : StackPanel
             selector.SelectedValue = provider;
             updatingChoices = false;
         }
-        if (readings.IsKeyboardFocusWithin || accountRow.IsKeyboardFocusWithin) { pendingRefresh = true; return; }
+        var changedAccount = displayedProfileAccountKey != store.ProfileHistory.Snapshot?.AccountKey || displayedProfileEnabled != store.ProfileHistory.Enabled;
+        if (!changedAccount && (readings.IsKeyboardFocusWithin || accountRow.IsKeyboardFocusWithin)) { pendingRefresh = true; return; }
         pendingRefresh = false; Update();
     }
     internal UsagePane(DashboardStore store, AppSettingsStore settings, string provider, Action<string?> navigate)
@@ -137,7 +140,7 @@ internal sealed partial class UsagePane : StackPanel
         "model" => "Model",
         "projects" => project is null ? "Projects" : "Project",
         "sessions" => session is null ? "Sessions" : "Session",
-        _ => period switch { "week" => "This Week", "month" => "This Month", "all-time" => "Local History", "today" => "Today", _ => "Usage" }
+        _ => period switch { "week" => "This Week", "month" => "This Month", "all-time" => destination == "account-period" ? "Lifetime" : "Local History", "today" => "Today", _ => "Usage" }
     };
     private static DataTemplate ProviderTemplate()
     {
@@ -185,6 +188,7 @@ internal sealed partial class UsagePane : StackPanel
             System.Windows.Automation.AutomationProperties.SetAutomationId(heading, "usage.detail.title"); detailTitle = heading; detail.Children.Add(heading);
             controls.Children.Add(detail);
         }
+        if (destination is "account-period" or "local-period") return;
         if (destination == "overview")
         {
             var segments = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
@@ -232,6 +236,13 @@ internal sealed partial class UsagePane : StackPanel
     }
     internal void Update()
     {
+        displayedProfileEnabled = store.ProfileHistory.Enabled;
+        var profileAccountKey = store.ProfileHistory.Snapshot?.AccountKey;
+        if (displayedProfileAccountKey != profileAccountKey)
+        {
+            foreach (var key in metricValues.Keys.Where(x => x.StartsWith("codex:account", StringComparison.Ordinal)).ToArray()) metricValues.Remove(key);
+            displayedProfileAccountKey = profileAccountKey;
+        }
         if (detailTitle is not null) detailTitle.Text = DetailTitle();
         if (refreshAction is not null) refreshAction.IsEnabled = !store.IsRefreshing;
         var view = provider + ":" + mode + ":" + destination;
@@ -254,6 +265,7 @@ internal sealed partial class UsagePane : StackPanel
         identityIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); DockPanel.SetDock(identityIcon, Dock.Left); account.Children.Add(identityIcon);
         account.Children.Add(accountLabel); accountRow.Children.Add(account); account.VerticalAlignment = VerticalAlignment.Center; account.Margin = new Thickness(0, 12, 0, 12);
         readings.Children.Clear();
+        if (destination is "account-period" or "local-period") { PeriodDetail(); return; }
         if (destination != "overview") { Detail(); return; }
         if (mode == "Limits") { Limits(); return; }
         if (provider is not ("codex" or "claude"))
@@ -263,10 +275,10 @@ internal sealed partial class UsagePane : StackPanel
         }
         Overview();
     }
-    private static DockPanel Heading(string title)
+    private static DockPanel Heading(string title, string scopeTitle = "This PC")
     {
         var row = new DockPanel { Margin = new Thickness(0, title == "History" ? 16 : 0, 0, 0) };
-        var scope = Ui.Text("This PC", 11, "#A6A6AA"); scope.Margin = new Thickness(0); scope.ToolTip = "Local usage across accounts on this computer."; DockPanel.SetDock(scope, Dock.Right); row.Children.Add(scope);
+        var scope = Ui.Text(scopeTitle, 11, "#A6A6AA"); scope.Margin = new Thickness(0); scope.ToolTip = scopeTitle == "This PC" ? "Local usage across accounts on this computer." : AccountHistoryHelp; DockPanel.SetDock(scope, Dock.Right); row.Children.Add(scope);
         var heading = Ui.Text(title, 13, weight: FontWeights.SemiBold); heading.Margin = new Thickness(0); row.Children.Add(heading); return row;
     }
     private void Limits()

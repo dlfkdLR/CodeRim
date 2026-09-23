@@ -61,10 +61,16 @@ internal sealed partial class UsagePane
 
         if (provider == "codex" || snapshot.UpdatedAt is not null)
         {
-            readings.Children.Add(SettingsUi.Divider()); readings.Children.Add(Heading("History"));
+            var accountHistory = provider == "codex" && store.ProfileHistory.Enabled;
+            var accountSnapshot = store.ProfileHistory.Snapshot;
+            var scope = accountHistory ? "ChatGPT account" : "This PC";
+            readings.Children.Add(SettingsUi.Divider()); readings.Children.Add(Heading("History", scope));
             var historyGrid = new Grid { Margin = new Thickness(0, 10, 0, 16) };
             AutomationProperties.SetAutomationId(historyGrid, "usage.history");
-            var values = new[] { ("This Week", "week", snapshot.Week), ("This Month", "month", snapshot.Month), ("Local History", "all-time", snapshot.AllTime) };
+            (string Title, string Period, long? Total)[] values = [
+                ("This Week", "week", accountHistory ? accountSnapshot?.Week : snapshot.UpdatedAt is null ? null : snapshot.Week.TotalTokens),
+                ("This Month", "month", accountHistory ? accountSnapshot?.Month : snapshot.UpdatedAt is null ? null : snapshot.Month.TotalTokens),
+                (accountHistory ? "Lifetime" : "Local History", "all-time", accountHistory ? accountSnapshot?.Lifetime : snapshot.UpdatedAt is null ? null : snapshot.AllTime.TotalTokens)];
             for (var i = 0; i < values.Length; i++)
             {
                 var value = values[i]; historyGrid.ColumnDefinitions.Add(new ColumnDefinition());
@@ -72,16 +78,18 @@ internal sealed partial class UsagePane
                 var label = new DockPanel();
                 var arrow = Ui.Text("›", 13, "#A6A6AA"); arrow.Margin = new Thickness(8, 0, 0, 0); DockPanel.SetDock(arrow, Dock.Right); label.Children.Add(arrow);
                 var name = Ui.Text(value.Item1, 13, "#A6A6AA"); name.Margin = new Thickness(0); label.Children.Add(name); panel.Children.Add(label);
-                FrameworkElement metric = snapshot.UpdatedAt is null ? Ui.Text("—", 20, weight: FontWeights.SemiBold) : Metric(value.Item2, value.Item3.TotalTokens, 20);
+                FrameworkElement metric = value.Total is { } count ? Metric((accountHistory ? "account:" : "local:") + value.Period, count, 20) : Ui.Text("—", 20, weight: FontWeights.SemiBold);
                 metric.Margin = new Thickness(0, 8, 0, 0); panel.Children.Add(metric);
-                var button = Ui.Button("", () => Forward("activity", value.Item2));
-                button.IsEnabled = snapshot.UpdatedAt is not null;
-                AutomationProperties.SetName(button, "This PC " + value.Item1 + ", " + (snapshot.UpdatedAt is null ? "Unavailable" : TokenFormatter.Format(value.Item3.TotalTokens, settings.Current.NumberStyle)) + " tokens");
+                var button = Ui.Button("", () => Forward(accountHistory ? "account-period" : "local-period", value.Period));
+                button.IsEnabled = accountHistory || snapshot.UpdatedAt is not null;
+                AutomationProperties.SetAutomationId(button, "usage.history." + value.Period);
+                AutomationProperties.SetName(button, scope + " " + value.Title + ", " + (value.Total is null ? "Unavailable" : TokenFormatter.Format(value.Total.Value, settings.Current.NumberStyle)) + " tokens");
                 button.Content = panel; button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Margin = new Thickness(0);
                 if (i > 0) { var separator = new Border { Width = 1, Height = 64, HorizontalAlignment = HorizontalAlignment.Left }; separator.SetResourceReference(Border.BackgroundProperty, "DividerBrush"); Grid.SetColumn(separator, i); historyGrid.Children.Add(separator); }
                 button.HorizontalContentAlignment = HorizontalAlignment.Stretch; button.Padding = new Thickness(i == 0 ? 0 : 16, 4, 16, 4); Grid.SetColumn(button, i); historyGrid.Children.Add(button);
             }
             AdaptHistory(historyGrid); readings.Children.Add(historyGrid);
+            AddAccountHistoryFooter();
         }
         AddOverviewLinks();
         if (settings.Current.ShowLastUpdated || store.IsRefreshing)

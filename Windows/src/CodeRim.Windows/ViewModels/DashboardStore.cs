@@ -37,9 +37,11 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     public event Action<ProviderReading>? ReadingUpdated;
     public event Action<SessionActivity>? SessionAttentionRequested;
     public bool Synthetic { get; }
-    public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false, ProviderConnections? providerConnections = null)
+    internal ProfileUsageStore ProfileHistory { get; }
+    public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false, ProviderConnections? providerConnections = null, ProfileUsageStore? profileHistory = null)
     {
         this.settings = settings; Synthetic = synthetic; connections = providerConnections ?? new ProviderConnections(vault);
+        ProfileHistory = profileHistory ?? new ProfileUsageStore(settings, synthetic || providerConnections is not null); ProfileHistory.Changed += Changed;
         repository = new UsageRepository(Path.Combine(CompanionFile.DataDirectory, "usage.sqlite"));
         var keyPath = Path.Combine(CompanionFile.DataDirectory, "project-key.bin");
         if (!File.Exists(keyPath)) File.WriteAllBytes(keyPath, System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
@@ -82,12 +84,13 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
         if (userInitiated) foreach (var scanner in scanners.Values) scanner.InvalidateCachedSources();
         // Local scans never wait for provider network requests.
         foreach (var id in settings.Current.EnabledProviders) EnsureScope(id);
+        var profile = ProfileHistory.RefreshAsync(userInitiated);
         var activity = RefreshActivityAsync();
         var local = RefreshLocalAsync();
         var remote = settings.Current.EnabledProviders.Where(id => userInitiated
             || DateTimeOffset.Now - lastRefresh.GetValueOrDefault(id) >= TimeSpan.FromSeconds(60))
             .Select(RefreshProviderAsync).ToArray();
-        await Task.WhenAll(remote.Append(local).Append(activity)).ConfigureAwait(true);
+        await Task.WhenAll(remote.Append(local).Append(activity).Append(profile)).ConfigureAwait(true);
     }
     private async Task RefreshLocalAsync()
     {
@@ -286,5 +289,5 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     }
     public void InvalidateAccount(string id) { generations[id] = Generation(id) + 1; Readings.Remove(id); lastRefresh.Remove(id); Persist(); Changed(); }
     private void Changed() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
-    public void Dispose() { disposed = true; settings.SettingsChanged -= SessionTokenSettingsChanged; lifetime.Cancel(); CancelSessionTokenReads(); sessionTokens.Clear(); connections.Dispose(); }
+    public void Dispose() { disposed = true; ProfileHistory.Changed -= Changed; ProfileHistory.Dispose(); settings.SettingsChanged -= SessionTokenSettingsChanged; lifetime.Cancel(); CancelSessionTokenReads(); sessionTokens.Clear(); connections.Dispose(); }
 }

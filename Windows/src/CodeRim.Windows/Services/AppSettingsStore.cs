@@ -17,6 +17,7 @@ public sealed record AppSettings(
     public bool DebugLogging { get; init; }
     public string FinishedSound { get; init; } = "Asterisk";
     public string BlockedSound { get; init; } = "Exclamation";
+    public bool ProfileSyncEnabled { get; init; } = true;
     public bool AccountLimitsEnabled { get; init; } = true;
     public bool AdditionalLimitsEnabled { get; init; } = true;
     public bool ResetCreditsEnabled { get; init; } = true;
