@@ -60,11 +60,12 @@ public static partial class CodexActivityCatalogue
             {
                 token.ThrowIfCancellationRequested();
                 using var command = connection.CreateCommand(); command.Transaction = transaction;
-                var parameters = batch.Select((_, index) => "$thread" + index).ToArray();
+                var lookups = LookupIds(batch);
+                var parameters = lookups.Select((_, index) => "$thread" + index).ToArray();
                 // A remote catalogue copy must never rename a local task with a colliding UUID.
                 command.CommandText = "SELECT substr(thread_id,1,37),substr(display_title,1,161) FROM local_thread_catalog WHERE host_id='local' AND thread_id IN ("
                     + string.Join(",", parameters) + ") ORDER BY source_updated_at DESC LIMIT 1024";
-                for (var index = 0; index < batch.Length; index++) command.Parameters.AddWithValue(parameters[index], batch[index]);
+                for (var index = 0; index < lookups.Length; index++) command.Parameters.AddWithValue(parameters[index], lookups[index]);
                 using var reader = command.ExecuteReader();
                 while (reader.Read())
                 {

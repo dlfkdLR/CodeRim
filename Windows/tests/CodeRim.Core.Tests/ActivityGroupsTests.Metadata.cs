@@ -6,6 +6,50 @@ namespace CodeRim.Core.Tests;
 
 public sealed partial class ActivityGroupsTests
 {
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public void CatalogueUuidCasingDoesNotLoseParentOrDesktopTitles(bool upperStored, bool upperLive)
+    {
+        const string parent = "abcdefab-1111-4111-8111-abcdefabcdef";
+        const string child = "bcdefabc-2222-4222-8222-bcdefabcdefa";
+        static string Casing(string value, bool upper) => upper ? value.ToUpperInvariant() : value;
+        WithDatabase((connection, path) =>
+        {
+            Insert(connection, Casing(parent, upperStored), "Stored parent", null);
+            Insert(connection, Casing(child, upperStored), "Stored child", Casing(parent, !upperStored));
+            connection.Close();
+            var desktop = path + ".desktop";
+            using (var catalogue = new SqliteConnection(new SqliteConnectionStringBuilder { DataSource = desktop, Pooling = false }.ToString()))
+            {
+                catalogue.Open(); using var command = catalogue.CreateCommand();
+                command.CommandText = "CREATE TABLE local_thread_catalog(host_id TEXT,thread_id TEXT,display_title TEXT,source_updated_at REAL); INSERT INTO local_thread_catalog VALUES('local',$id,'Desktop parent',1)";
+                command.Parameters.AddWithValue("$id", Casing(parent, upperStored)); command.ExecuteNonQuery();
+            }
+            var stateBefore = File.ReadAllBytes(path); var desktopBefore = File.ReadAllBytes(desktop);
+            var live = Task(Casing(child, upperLive), "waiting");
+            var row = Assert.Single(CodexActivityCatalogue.Enrich([live], path, desktop, TestContext.Current.CancellationToken));
+            Assert.Equal("Stored child", row.Detail);
+            Assert.Equal(parent, row.ParentThreadId, ignoreCase: true);
+            Assert.Equal("Desktop parent", row.ParentThreadTitle);
+            Assert.Equal((live.Id, live.UsageSessionId, live.State, live.Since), (row.Id, row.UsageSessionId, row.State, row.Since));
+            Assert.Equal(stateBefore, File.ReadAllBytes(path)); Assert.Equal(desktopBefore, File.ReadAllBytes(desktop));
+        });
+    }
+
+    [Fact]
+    public void ConflictingCatalogueUuidSpellingsRetainOriginalActivity()
+    {
+        const string id = "abcdefab-1111-4111-8111-abcdefabcdef";
+        WithDatabase((connection, path) =>
+        {
+            Insert(connection, id, "First task", null);
+            Insert(connection, id.ToUpperInvariant(), "Conflicting task", null);
+            var original = Task(id);
+            Assert.Equal(original, Assert.Single(CodexActivityCatalogue.Enrich([original], path, TestContext.Current.CancellationToken)));
+        });
+    }
+
     [Fact]
     public void DisplayMetadataUsesSavedNamesAndLocalDesktopTitlesWithoutChangingActivity()
     {

@@ -43,10 +43,12 @@ public static partial class CodexActivityCatalogue
                 cancellationToken.ThrowIfCancellationRequested();
                 var next = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 using var command = connection.CreateCommand(); command.Transaction = transaction;
-                var parameters = pending.Select((_, index) => "$id" + index).ToArray();
+                var lookups = LookupIds(pending);
+                var parameters = lookups.Select((_, index) => "$id" + index).ToArray();
                 command.CommandText = "SELECT id,substr(title,1,161),substr(cwd,1,4097)," + name + "," + nickname + "," + source + "," + project
-                    + " FROM threads WHERE id IN (" + string.Join(",", parameters) + ") LIMIT 128";
-                for (var index = 0; index < pending.Length; index++) { seen.Add(pending[index]); command.Parameters.AddWithValue(parameters[index], pending[index]); }
+                    + " FROM threads WHERE id IN (" + string.Join(",", parameters) + ") LIMIT 385";
+                seen.UnionWith(pending);
+                for (var index = 0; index < lookups.Length; index++) command.Parameters.AddWithValue(parameters[index], lookups[index]);
                 using var reader = command.ExecuteReader();
                 while (reader.Read())
                 {
@@ -54,7 +56,8 @@ public static partial class CodexActivityCatalogue
                     string? Value(int index) => reader.IsDBNull(index) ? null : reader.GetString(index);
                     var id = Value(0); if (!ValidId(id)) continue;
                     var spawn = Spawn(Value(5), id!); var parent = spawn?.Parent;
-                    threads.TryAdd(id!, new(id!, Label(Value(1)), Label(Value(3)), Label(Value(4)) ?? spawn?.Nickname, Value(2), Value(6), parent));
+                    if (!threads.TryAdd(id!, new(id!, Label(Value(1)), Label(Value(3)), Label(Value(4)) ?? spawn?.Nickname, Value(2), Value(6), parent)))
+                        throw new InvalidDataException("Ambiguous local thread identity.");
                     if (parent is not null && !seen.Contains(parent)) next.Add(parent);
                 }
                 pending = next.Take(128).ToArray();
@@ -93,6 +96,11 @@ public static partial class CodexActivityCatalogue
     }
 
     private static bool ValidId(string? value) => Guid.TryParseExact(value, "D", out _);
+    // Activity/parent references may use Guid's upper-case spelling while SQLite
+    // stores the canonical lower-case spelling. Keep indexed equality lookups;
+    // applying lower(id) or NOCASE to the column would force repeated full scans.
+    private static string[] LookupIds(IEnumerable<string> ids) => ids
+        .SelectMany(id => new[] { id, id.ToLowerInvariant(), id.ToUpperInvariant() }).Distinct(StringComparer.Ordinal).ToArray();
     private static string? Label(string? value)
     {
         value = value?.Trim();
