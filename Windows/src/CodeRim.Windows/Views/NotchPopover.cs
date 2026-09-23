@@ -33,7 +33,7 @@ internal static class NotchPopover
         switcher.HorizontalAlignment = HorizontalAlignment.Right; DockPanel.SetDock(switcher, Dock.Right);
         account.Children.Add(switcher);
         var identity = accountDisplay.Label;
-        account.Children.Add(Text(reading?.Plan ?? "Account", 10.5, Secondary));
+        account.Children.Add(Text(accountDisplay.Plan ?? "Account", 10.5, Secondary));
         content.Children.Add(account);
         if (identity is not null)
         {

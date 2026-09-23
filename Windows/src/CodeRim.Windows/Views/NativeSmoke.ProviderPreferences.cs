@@ -64,6 +64,11 @@ internal static partial class NativeSmoke
                 sessions.IsChecked = true; await Idle();
                 if (provider == "codex")
                 {
+                    Require(!Descendants<TextBlock>(dashboard).Any(x => x.Text is "Connection" or "Notch order")
+                        && !Descendants<Button>(dashboard).Any(x => x.Content as string is "Refresh" or "Setup guide" or "Manage Accounts…"),
+                        "Codex details retained extra sections absent from the Mac reference.");
+                    Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Add or switch accounts from the account menu in Settings ▸ Usage."),
+                        "Codex details lost the account menu route.");
                     var limits = Toggle("Show account limits"); limits.IsChecked = false; await Idle();
                     Require(!Toggle("Show additional limits").IsEnabled && !Toggle("Show reset credits").IsEnabled,
                         "Disabled limits left dependent controls enabled.");
@@ -71,6 +76,10 @@ internal static partial class NativeSmoke
                 }
                 Capture(dashboard, Path.Combine(directory, "windows-provider-preferences-" + provider + ".png"));
             }
+            dashboard.Navigate("diagnostics"); await Idle();
+            Require(Descendants<Button>(dashboard).Any(x => x.Content as string == "Choose codex.exe…")
+                && Descendants<Button>(dashboard).Any(x => x.Content as string == "Open Windows setup instructions"),
+                "Windows executable selection or setup recovery became unreachable.");
             File.WriteAllText(Path.Combine(directory, "windows-provider-preferences.json"), JsonSerializer.Serialize(new { completed = true,
                 checks = new List<string> { "Fresh and missing settings use Mac defaults; explicit preferences survive reload", "Reset labels, order and persistence",
                     "Codex-only cost control", "Analytics, sessions, attachments and limits dependencies update in place without discarding preferences" } }));

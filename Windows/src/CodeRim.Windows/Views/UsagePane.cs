@@ -260,7 +260,7 @@ internal sealed partial class UsagePane : StackPanel
         var change = Ui.Button("Switch", () => navigate(provider is "codex" or "claude" ? provider + "-accounts" : provider));
         change.MinHeight = 20; change.Height = 20; change.Padding = new Thickness(0); change.Background = Brushes.Transparent; change.BorderThickness = new Thickness(0); change.Margin = new Thickness(8, 0, 0, 0);
         DockPanel.SetDock(change, Dock.Right); account.Children.Add(change);
-        var accountLabel = Ui.Text(identity ?? display.Reading?.Plan ?? "Account", 12);
+        var accountLabel = Ui.Text(identity ?? display.Plan ?? "Account", 12);
         accountLabel.FontWeight = FontWeights.SemiBold; accountLabel.Margin = new Thickness(0); accountLabel.TextWrapping = TextWrapping.NoWrap; accountLabel.TextTrimming = TextTrimming.CharacterEllipsis; accountLabel.ToolTip = identity; accountLabel.VerticalAlignment = VerticalAlignment.Center;
         var identityIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M8,1 A7,7 0 1 0 8,15 A7,7 0 1 0 8,1 M5,6 A3,3 0 1 0 11,6 A3,3 0 1 0 5,6 M3,13 Q8,8 13,13"), Width = 13, Height = 13, StrokeThickness = 1, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
         identityIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); DockPanel.SetDock(identityIcon, Dock.Left); account.Children.Add(identityIcon);

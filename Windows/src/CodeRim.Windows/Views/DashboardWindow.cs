@@ -358,10 +358,15 @@ internal sealed partial class DashboardWindow : Window
         var headerCard = new Border { Child = header, CornerRadius = new CornerRadius(12), Margin = new Thickness(18, 0, 18, 4) };
         headerCard.SetResourceReference(Border.BackgroundProperty, "CardBackground"); body.Children.Add(headerCard);
         if (id is "codex" or "claude")
-            body.Children.Add(SettingsUi.Section("Account",
+        {
+            var accountRows = new List<UIElement> {
                 SettingsUi.Row("Account", ProviderValue("provider.account", accountDisplay.Label ?? "Not connected")),
-                SettingsUi.Row("Plan", ProviderValue("provider.plan", accountDisplay.Reading?.Plan ?? "Unavailable")),
-                SettingsUi.Action("Manage Accounts…", () => Navigate(id + "-accounts"))));
+                SettingsUi.Row("Plan", ProviderValue("provider.plan", accountDisplay.Plan ?? "Unavailable"))
+            };
+            if (id == "claude") accountRows.Add(SettingsUi.Action("Manage Accounts…", () => Navigate(id + "-accounts")));
+            body.Children.Add(SettingsUi.Section("Account", accountRows.ToArray()));
+            if (id == "codex") body.Children.Add(SettingsUi.Note("Add or switch accounts from the account menu in Settings ▸ Usage."));
+        }
         if (id == "codex")
             body.Children.Add(SettingsUi.Section("Limits",
                 SettingsUi.Toggle("Show account limits", settings.Current.AccountLimitsEnabled, x => { Save(settings.Current with { AccountLimitsEnabled = x }); _ = store.RefreshProviderAsync(id); }),
@@ -383,6 +388,11 @@ internal sealed partial class DashboardWindow : Window
                 ? "Estimated from current API prices — not a bill or a quota prediction."
                 : "Comes from Claude Code session logs on this PC. Five-hour and weekly limits appear after a connected account completes a response; cost estimates aren't available yet."));
         }
+        if (id == "codex")
+        {
+            AddProviderLocalData(id, provider.Name);
+            UpdateProviderReading(id); UpdateProviderControlStates(); return;
+        }
         body.Children.Add(providerReading); UpdateProviderReading(id);
         var actions = new WrapPanel(); actions.Children.Add(Ui.AsyncButton("Refresh", () => store.RefreshProviderAsync(id)));
         actions.Children.Add(Ui.Button("Setup guide", () => OpenUrl(provider.GuideUrl))); body.Children.Add(actions);
@@ -391,17 +401,7 @@ internal sealed partial class DashboardWindow : Window
         if (id == "copilot") body.Children.Add(Ui.Text("Uses your current GitHub CLI sign-in. Sign in with gh auth login, or provide an access token below.", 12));
         if (id == "glm") body.Children.Add(Ui.Text("Detects a GLM login from Claude Code, ZCode or OpenCode. A key entered below takes precedence.", 12));
         if (id == "codebuff") body.Children.Add(Ui.Text("Uses your current Codebuff CLI sign-in. A key entered below takes precedence.", 12));
-        if (id == "codex")
-        {
-            body.Children.Add(Ui.Text("Uses the installed Codex app-server and its current sign-in. Local history is read independently."));
-            body.Children.Add(Ui.Text(settings.Current.CodexExecutable ?? ProviderConnections.ResolveCodex() ?? "codex.exe has not been found", 11, "#B7B8BD"));
-            body.Children.Add(Ui.Button("Choose codex.exe…", () =>
-            {
-                var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "Codex executable|codex.exe", CheckFileExists = true };
-                if (dialog.ShowDialog(this) == true) { Save(settings.Current with { CodexExecutable = dialog.FileName }); Render(); }
-            }));
-        }
-        else if (id == "claude")
+        if (id == "claude")
         {
             body.Children.Add(Ui.Text("Local history is read from Claude Code. Plan limits arrive through its status-line integration."));
             body.Children.Add(Ui.Text("Connect the SessionStart and status-line hooks, then start a new Claude session. Only rate-limit fields are stored.", 12, "#B7B8BD"));
@@ -734,7 +734,10 @@ internal sealed partial class DashboardWindow : Window
             {
                 case "provider.status": label.Text = current?.State.ToString() ?? "Available"; break;
                 case "provider.account": label.Text = display.Label ?? "Not connected"; break;
-                case "provider.plan": label.Text = current?.Plan ?? "Unavailable"; break;
+                case "provider.plan":
+                    label.Text = display.Plan ?? "Unavailable";
+                    if (page == "codex" && label.Parent is FrameworkElement planRow) planRow.Visibility = display.Plan is null ? Visibility.Collapsed : Visibility.Visible;
+                    break;
             }
         }
         providerReading.Children.Clear(); var reading = ProviderDisplayPolicy.Apply(current, settings.Current);
@@ -788,6 +791,11 @@ internal sealed partial class DashboardWindow : Window
         if (index < 0 || next < 0 || next >= providers.Length) return;
         (providers[index], providers[next]) = (providers[next], providers[index]); Save(settings.Current with { EnabledProviders = providers });
     }
+    private void ChooseCodexExecutable()
+    {
+        var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "Codex executable|codex.exe", CheckFileExists = true };
+        if (dialog.ShowDialog(this) == true) { Save(settings.Current with { CodexExecutable = dialog.FileName }); Render(); }
+    }
     private void Diagnostics()
     {
         var cliStatus = Ui.Text("Use coderim in a new terminal after installation.", 11, "#A6A6AA");
@@ -802,7 +810,10 @@ internal sealed partial class DashboardWindow : Window
             SettingsUi.Action("Open Log Folder", () => { Directory.CreateDirectory(AppDiagnostics.LogDirectory); CredentialVault.RestrictDirectory(AppDiagnostics.LogDirectory); OpenUrl(AppDiagnostics.LogDirectory); })));
         body.Children.Add(SettingsUi.Note("Never includes prompts, responses, source code, terminal output, or authentication tokens."));
         body.Children.Add(SettingsUi.Section("Codex Account Limit Source",
-            SettingsUi.Value("Mode", "Automatic"), SettingsUi.Value("Provider", "Codex app-server")));
+            SettingsUi.Value("Mode", "Automatic"), SettingsUi.Value("Provider", "Codex app-server"),
+            SettingsUi.Value("Executable", settings.Current.CodexExecutable ?? ProviderConnections.ResolveCodex() ?? "codex.exe has not been found"),
+            SettingsUi.Action("Choose codex.exe…", ChooseCodexExecutable),
+            SettingsUi.Action("Open Windows setup instructions", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/WINDOWS.md"))));
         body.Children.Add(SettingsUi.Note("Read-only local RPC request — no reset or purchase actions."));
         body.Children.Add(SettingsUi.Section("Local Data",
             SettingsUi.Value("Scope", "This PC · Across accounts"),

@@ -68,6 +68,9 @@ public sealed class ActivityGroupsTests
             Insert(connection, Parent, "Main saved task", null, name: "Renamed task");
             Insert(connection, Child, "Finished intermediate", Parent);
             Insert(connection, Grandchild, "Active agent", Child);
+            // Finish the fixture writer before taking byte-for-byte snapshots. Windows
+            // correctly refuses File.ReadAllBytes while SQLite holds its write handle.
+            connection.Close();
             var before = File.ReadAllBytes(path); var original = Task(Grandchild, "waiting");
             var enriched = Assert.Single(CodexActivityCatalogue.Enrich([original], path, TestContext.Current.CancellationToken));
             Assert.Equal("Project", enriched.Name); Assert.Equal("Active agent", enriched.Detail);
