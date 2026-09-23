@@ -98,6 +98,9 @@ Copy-Item (Join-Path $PSScriptRoot 'install.ps1'), (Join-Path $PSScriptRoot 'con
 New-Item -ItemType Directory -Force (Join-Path $publishRoot 'bin') | Out-Null
 Copy-Item (Join-Path $PSScriptRoot 'coderim.cmd') (Join-Path $publishRoot 'bin')
 Copy-Item (Join-Path $windowsRoot 'ThirdParty') $publishRoot -Recurse
+foreach ($notice in @('LICENSE', 'NOTICE')) {
+    Copy-Item -LiteralPath (Join-Path $projectRoot $notice) -Destination (Join-Path $publishRoot ($notice + '.txt'))
+}
 Copy-Item (Join-Path $projectRoot 'Documentation\WINDOWS.md') (Join-Path $publishRoot 'README.md')
 $executablePath = Join-Path $publishRoot "CodeRim.exe"
 if (-not (Test-Path $executablePath)) {

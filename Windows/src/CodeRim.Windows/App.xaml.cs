@@ -74,9 +74,8 @@ public partial class App : System.Windows.Application
         instance = new Mutex(true, "Local\\" + instanceName, out var created);
         if (!created) { await InstanceActivation.NotifyAsync(instanceName); Shutdown(); return; }
         settings = new AppSettingsStore(); CredentialVault.RestrictDirectory(CompanionFile.DataDirectory); vault = new CredentialVault();
-        if (!smokeTest && InstallerUpdateCoordinator.IsManaged && settings.Current.LaunchAtLogin)
-            try { StartupService.SetEnabled(true); }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.SecurityException or InvalidOperationException) { /* Login registration must not prevent the app from opening. */ }
+        // Startup registration is owned by the user's explicit action, not the
+        // saved preference. Opening/updating the app must respect OS removal.
         Motion.SetReduced(settings.Current.ReduceMotion);
         store = new DashboardStore(settings, vault, smokeTest);
         notch = new NotchWindow(store, settings, ShowSettings);

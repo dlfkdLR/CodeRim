@@ -55,6 +55,7 @@ internal sealed partial class DashboardWindow : Window
         Grid.SetColumn(scroll, 1); layout.Children.Add(scroll); ConfigureShell(layout, splitter);
         sidebar.SelectionChanged += (_, _) => { if (!refreshingSidebar && sidebar.SelectedItem is ListBoxItem item && item.Tag is string id) Navigate(id); };
         settings.SettingsChanged += SettingsChanged; store.PropertyChanged += StoreChanged; Motion.PolicyChanged += UpdateNotchMotionNote;
+        Activated += (_, _) => RefreshStartupStatus();
         Closed += (_, _) => { updateWindowClosed = true; CancelUpdateOperation(); settings.SettingsChanged -= SettingsChanged; store.PropertyChanged -= StoreChanged; Motion.PolicyChanged -= UpdateNotchMotionNote; };
         PreviewKeyDown += (_, e) =>
         {
@@ -104,11 +105,7 @@ internal sealed partial class DashboardWindow : Window
     {
         BuildSidebar(); UpdateNotchMotionNote();
         foreach (var ring in VisualChildren<ProviderRing>(body)) ring.Settings = settings.Current;
-        if (page == "general")
-        {
-            var statusLabel = VisualChildren<TextBlock>(body).FirstOrDefault(x => System.Windows.Automation.AutomationProperties.GetAutomationId(x) == "startup.status");
-            if (statusLabel is not null) statusLabel.Text = settings.Current.LaunchAtLogin ? "Enabled" : "Disabled";
-        }
+        RefreshStartupStatus();
         if (ProviderCatalog.Find(page) is not null) { UpdateProviderReading(page); UpdateProviderControlStates(); }
     }
     private void UpdateProviderControlStates()
@@ -196,11 +193,7 @@ internal sealed partial class DashboardWindow : Window
     }
     private void General()
     {
-        var startupStatus = Ui.Text(settings.Current.LaunchAtLogin ? "Enabled" : "Disabled", 13, "#A6A6AA");
-        System.Windows.Automation.AutomationProperties.SetAutomationId(startupStatus, "startup.status");
-        body.Children.Add(SettingsUi.Section("Startup",
-            SettingsUi.Toggle("Launch at Login", settings.Current.LaunchAtLogin, x => Save(settings.Current with { LaunchAtLogin = x })),
-            SettingsUi.Row("Status", startupStatus)));
+        AddStartupSection();
         body.Children.Add(SettingsUi.Section("Refresh", SettingsUi.Picker("Mode", RefreshOptions, settings.Current.AutomaticRefresh ? -1 : settings.Current.RefreshIntervalSeconds, x => Save(settings.Current with { RefreshIntervalSeconds = x == -1 ? 60 : x, AutomaticRefresh = x == -1 }))));
         body.Children.Add(SettingsUi.Note("Automatic reacts to session changes with a one-minute fallback check."));
         body.Children.Add(SettingsUi.Section("Updates", SettingsUi.Toggle("Automatically check for updates", settings.Current.CheckForUpdates, x => Save(settings.Current with { CheckForUpdates = x }))));
@@ -829,24 +822,31 @@ internal sealed partial class DashboardWindow : Window
     }
     private void About()
     {
-        var identity = new StackPanel { Margin = new Thickness(18, 14, 18, 10), HorizontalAlignment = HorizontalAlignment.Center };
-        identity.Children.Add(new Image { Width = 60, Height = 60, Margin = new Thickness(0, 0, 0, 12),
+        var identity = new StackPanel { Margin = new Thickness(18, 6, 18, 4), HorizontalAlignment = HorizontalAlignment.Center };
+        identity.Children.Add(new Image { Width = 64, Height = 64, Margin = new Thickness(0, 0, 0, 8),
             Source = new System.Windows.Media.Imaging.BitmapImage(new Uri("pack://application:,,,/Assets/CodeRim.ico")) });
-        identity.Children.Add(Ui.Text("CodeRim", 22, weight: FontWeights.SemiBold));
-        identity.Children.Add(Ui.Text("Version " + ReleaseUpdates.CurrentVersion, 14, "#A6A6AA"));
+        identity.Children.Add(Ui.Text("CodeRim", 17, weight: FontWeights.SemiBold));
+        identity.Children.Add(Ui.Text("Version " + ReleaseUpdates.CurrentVersion, 13, "#A6A6AA"));
+        foreach (var text in identity.Children.OfType<TextBlock>()) text.TextAlignment = TextAlignment.Center;
         body.Children.Add(identity);
         body.Children.Add(SettingsUi.Section("Application",
             SettingsUi.Value("Version", ReleaseUpdates.CurrentVersion.ToString()),
-            SettingsUi.Value("Platform", "Windows · " + UpdateNotifications.Architecture),
+            SettingsUi.Value("Build", System.Reflection.CustomAttributeExtensions.GetCustomAttribute<System.Reflection.AssemblyFileVersionAttribute>(typeof(App).Assembly)?.Version ?? "Development"),
             SettingsUi.Value("Data scope", "Local history + optional account limits"),
             SettingsUi.Value("Privacy", "Local numeric history; encrypted credentials")));
         AddUpdateSection();
         body.Children.Add(SettingsUi.Section("Project",
-            SettingsUi.Action("Open Source on GitHub", () => OpenUrl("https://github.com/dlfkdLR/CodeRim")),
-            SettingsUi.Action("View Releases", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/releases")),
-            SettingsUi.Action("Read MIT License", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/blob/main/LICENSE")),
-            SettingsUi.Action("Windows documentation", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/WINDOWS.md"))));
-        body.Children.Add(SettingsUi.Note("Notch design and supporting code: Codenotch, MIT © 2026 Vinz. Provider reference integrations: CodexBar. Provider logos belong to their respective owners. See the bundled LICENSE and NOTICE."));
+            SettingsUi.Link("Open Source on GitHub", new("https://github.com/dlfkdLR/CodeRim"), "M5,2 L1,7 L5,12 M10,2 L14,7 L10,12 M9,0 L6,14", OpenUrl),
+            SettingsUi.Link("View Releases", new("https://github.com/dlfkdLR/CodeRim/releases"), "M1,4 L8,1 L15,4 V12 L8,15 L1,12 Z M1,4 L8,7 L15,4 M8,7 V15", OpenUrl),
+            SettingsUi.Link("Read MIT License", BundledNotice("LICENSE"), "M3,1 H10 L14,5 V15 H3 Z M10,1 V5 H14 M5,8 H12 M5,11 H12", OpenUrl),
+            SettingsUi.Link("Codenotch - MIT License", BundledNotice("NOTICE"), "M3,1 H10 L14,5 V15 H3 Z M10,1 V5 H14 M5,8 H12 M5,11 H12", OpenUrl)));
+        body.Children.Add(SettingsUi.Note("Includes code and design adapted from Codenotch. Copyright © 2026 Vinz, MIT License."));
+        body.Children.Add(SettingsUi.Note("CodeRim is an independent utility and is not affiliated with or endorsed by OpenAI or Anthropic."));
+    }
+    private static Uri BundledNotice(string name)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, name + ".txt");
+        return File.Exists(path) ? new Uri(path) : new Uri("https://github.com/dlfkdLR/CodeRim/blob/main/" + name);
     }
     private void OpenAccounts(string provider)
     {

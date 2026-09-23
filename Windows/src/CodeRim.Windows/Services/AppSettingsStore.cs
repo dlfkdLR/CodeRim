@@ -89,7 +89,7 @@ public sealed class AppSettingsStore
             Save(Current with { Visibility = Current.LastVisibleNotchMode });
     }
 
-    public void Save(AppSettings settings)
+    public void Save(AppSettings settings, bool synchronizeStartup = false)
     {
         ArgumentNullException.ThrowIfNull(settings);
         settings = Normalize(settings);
@@ -99,11 +99,13 @@ public sealed class AppSettingsStore
             settings = settings with { LastVisibleNotchMode = Current.Visibility };
         var temporaryPath = settingsPath + ".new";
         var previous = Current;
-        var startupChanged = settings.LaunchAtLogin != previous.LaunchAtLogin;
+        var startupChanged = synchronizeStartup || settings.LaunchAtLogin != previous.LaunchAtLogin;
+        StartupService.Registration? startupBefore = null;
         try
         {
             if (startupChanged)
             {
+                startupBefore = StartupService.ReadRegistration();
                 StartupService.SetEnabled(settings.LaunchAtLogin);
             }
 
@@ -115,11 +117,11 @@ public sealed class AppSettingsStore
         }
         catch
         {
-            if (startupChanged)
+            if (startupBefore is not null)
             {
                 try
                 {
-                    StartupService.SetEnabled(previous.LaunchAtLogin);
+                    StartupService.Restore(startupBefore);
                 }
                 catch (Exception error) when (error is not OutOfMemoryException)
                 {

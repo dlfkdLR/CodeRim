@@ -21,6 +21,8 @@ internal static partial class NativeSmoke
         Require(ReadClientAreaAnimation(0x1042, 0, ref originalAnimations, 0), "Could not read the desktop animation policy");
         var samples = new List<object>(); var checks = new List<string>();
         Window? fixture = null;
+        Exception? verificationError = null;
+        var cleanupErrors = new List<Exception>();
         try
         {
             // This path is only invoked by the explicitly requested, isolated synthetic smoke run.
@@ -128,8 +130,19 @@ internal static partial class NativeSmoke
             var toggle = new CheckBox { Content = "Synthetic motion toggle", IsChecked = false };
             var content = new StackPanel { Margin = new Thickness(20), Background = Brushes.Black };
             content.Children.Add(ring); content.Children.Add(toggle);
+            var taskRing = new SessionStatusRing("busy", Brushes.LimeGreen);
+            var waitingRing = new SessionStatusRing("waiting", Brushes.Yellow);
+            var idleRing = new SessionStatusRing("idle", Brushes.Gray);
+            var taskIndicators = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
+            taskIndicators.Children.Add(taskRing); taskIndicators.Children.Add(waitingRing); taskIndicators.Children.Add(idleRing); content.Children.Add(taskIndicators);
             fixture = new Window { Content = content, Width = 320, Height = 200, ShowActivated = false, Topmost = true, Title = "Synthetic motion verification" };
             fixture.Show(); await MotionFrame();
+            await MotionUntil(() => taskRing.IsTicking, "Working task indicator did not start");
+            var taskAngle = taskRing.Angle;
+            Capture(taskIndicators, Path.Combine(directory, "windows-task-motion-first.png"));
+            await Task.Delay(180); await MotionFrame();
+            Require(Math.Abs(taskRing.Angle - taskAngle) > 1 && !waitingRing.IsTicking && !idleRing.IsTicking, "Task indicators do not distinguish animated working from static waiting/idle");
+            Capture(taskIndicators, Path.Combine(directory, "windows-task-motion-second.png"));
             ring.Reading = Reading(90);
             await MotionUntil(() => ring.Sweep is > 0.1 and < 0.89, "Reading jumps directly to the new value");
             for (var i = 0; i < 5; i++)
@@ -159,35 +172,52 @@ internal static partial class NativeSmoke
             checks.Add("Finite refresh rotation stops at a complete turn even after rapid retrigger");
             ring.Active = true; await MotionFrame(); Require(ring.ClockRunning, "Working arc has no render clock");
             ring.Waiting = true; await MotionFrame(); Capture(content, Path.Combine(directory, "windows-motion-waiting.png"));
-            fixture.Hide(); await MotionFrame(); Require(!ring.ClockRunning, "Hidden ring retained its render subscription");
-            fixture.Show(); await MotionFrame(); Require(ring.ClockRunning, "Visible activity did not resume");
+            fixture.Hide(); await MotionFrame(); Require(!ring.ClockRunning && !taskRing.IsTicking, "Hidden ring retained its render subscription");
+            fixture.Show(); await MotionFrame(); Require(ring.ClockRunning && taskRing.IsTicking, "Visible activity did not resume");
             checks.Add("Working/waiting animation pauses while hidden and resumes on visibility");
             Require(SetClientAreaAnimation(0x1043, 0, IntPtr.Zero, 3), "Could not disable the native animation policy");
             var disabledValue = 1;
             Require(ReadClientAreaAnimation(0x1042, 0, ref disabledValue, 0) && disabledValue == 0, "Native animation preference failed to disable");
             await MotionUntil(() => !Motion.Enabled, "OS disable broadcast did not reach the production motion policy");
-            Require(!ring.ClockRunning, "Disabled OS motion policy left the activity render clock running");
+            Require(!ring.ClockRunning && !taskRing.IsTicking && taskRing.Angle == 0, "Disabled OS motion policy left the activity render clock running");
             Require(SetClientAreaAnimation(0x1043, 0, new IntPtr(1), 3), "Could not restore the native animation policy");
             Require(ReadClientAreaAnimation(0x1042, 0, ref nativeEnabled, 0) && nativeEnabled != 0, "Native animation preference failed to restore");
             await MotionUntil(() => Motion.Enabled, "OS enable broadcast did not reach the production motion policy");
-            Require(ring.ClockRunning, "Restored OS motion policy did not resume the activity render clock");
+            Require(ring.ClockRunning && taskRing.IsTicking, "Restored OS motion policy did not resume the activity render clock");
             checks.Add("Live native OS animation preference disables and restores motion without stale WPF cache");
             toggle.IsChecked = true;
             await MotionUntil(() => Motion.GetToggleOffset(toggle) is > 0 and < 16, "Toggle thumb skipped its transition");
             settings.Save(settings.Current with { ReduceMotion = true }); await MotionFrame();
-            Require(Motion.GetToggleOffset(toggle) == 16 && !ring.ClockRunning, "Reduce Motion did not settle active animations");
+            Require(Motion.GetToggleOffset(toggle) == 16 && !ring.ClockRunning && !taskRing.IsTicking && taskRing.Angle == 0, "Reduce Motion did not settle active animations");
             ring.Reading = Reading(37); Require(Math.Abs(ring.Sweep - 0.37) < 0.0001, "Reduced motion reading was delayed");
             toggle.IsChecked = false; Require(Motion.GetToggleOffset(toggle) == 0, "Reduced motion toggle was delayed");
             checks.Add("Reduced motion immediately settles in-flight readings, toggles and activity clocks");
-            fixture.Close(); fixture = null; await MotionFrame(); Require(!ring.ClockRunning, "Closed ring retained render subscription");
+            settings.Save(settings.Current with { ReduceMotion = false }); await MotionFrame();
+            Require(ring.ClockRunning && taskRing.IsTicking, "Unload fixture did not resume active render subscriptions");
+            fixture.Close(); fixture = null; await MotionFrame(); Require(!ring.ClockRunning && !taskRing.IsTicking, "Closed ring retained render subscription");
+            checks.Add("Task status uses a rotating three-quarter working ring, static waiting/idle rings and immediate reduced-motion/hidden/unload cleanup");
             File.WriteAllText(Path.Combine(directory, "windows-motion.json"), JsonSerializer.Serialize(new { kind = "Native WPF animation frames", systemAnimationsBefore = originalAnimations, checks, samples }, JsonOptions));
         }
+        catch (Exception error) { verificationError = error; }
         finally
         {
-            fixture?.Close(); settings.Save(saved);
-            SetClientAreaAnimation(0x1043, 0, new IntPtr(originalAnimations), 3);
-            await MotionFrame(); Motion.RefreshPolicy();
+            try { fixture?.Close(); } catch (Exception error) { cleanupErrors.Add(error); }
+            try { settings.Save(saved); } catch (Exception error) { cleanupErrors.Add(error); }
+            try
+            {
+                Require(SetClientAreaAnimation(0x1043, 0, new IntPtr(originalAnimations), 3), "Could not restore the original desktop animation policy");
+                var restored = 0;
+                Require(ReadClientAreaAnimation(0x1042, 0, ref restored, 0) && restored == originalAnimations, "Original desktop animation policy was not restored");
+            }
+            catch (Exception error) { cleanupErrors.Add(error); }
+            try { await MotionFrame(); Motion.RefreshPolicy(); } catch (Exception error) { cleanupErrors.Add(error); }
         }
+        if (cleanupErrors.Count > 0)
+        {
+            if (verificationError is not null) cleanupErrors.Insert(0, verificationError);
+            throw new AggregateException("Native motion verification or cleanup failed", cleanupErrors);
+        }
+        if (verificationError is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(verificationError).Throw();
     }
     private static async Task MotionFrame() => await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
     private static async Task MotionUntil(Func<bool> condition, string failure)

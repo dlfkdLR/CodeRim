@@ -81,14 +81,29 @@ internal static class NotchPopover
                 {
                     if (!SessionFocus.Activate(session)) navigate("sessions:" + id);
                 });
-                open.Content = Row(session.Name, state, session.State == "busy" ? Ui.Brush(settings.AccentColor) : session.State == "waiting" ? Ui.Brush("#F2FF00") : Secondary);
+                var stateColor = session.State == "busy" ? Ui.Brush(settings.AccentColor) : session.State == "waiting" ? Ui.Brush("#F2FF00") : Secondary;
+                var sessionContent = new StackPanel { Margin = new Thickness(0, 20 * NotchMetrics.Unit, 0, 0) };
+                var firstLine = (Grid)Row(session.Name, state, stateColor);
+                ConfigureSessionLine(firstLine);
+                if (session.State != "unavailable")
+                {
+                    var statusText = (TextBlock)firstLine.Children[1]; firstLine.Children.Remove(statusText);
+                    var indicator = new StackPanel { Orientation = Orientation.Horizontal };
+                    indicator.Children.Add(new SessionStatusRing(session.State, stateColor) { Margin = new Thickness(8, 0, NotchMetrics.StatusDotGap, 0), VerticalAlignment = VerticalAlignment.Center });
+                    statusText.Margin = new Thickness(0); indicator.Children.Add(statusText); Grid.SetColumn(indicator, 1); firstLine.Children.Add(indicator);
+                }
+                sessionContent.Children.Add(firstLine);
                 System.Windows.Automation.AutomationProperties.SetName(open, "Open " + session.Name);
-                content.Children.Add(open);
-                if (session.Detail is { Length: > 0 } detail) content.Children.Add(Text(detail, 9.5, Secondary));
+                System.Windows.Automation.AutomationProperties.SetAutomationId(open, "notch.session." + session.Id);
                 var duration = SessionPresentation.Duration(session, settings.ShowSessionDuration, DateTimeOffset.Now);
                 var tokens = tokenTotals?.TryGetValue(session.Id, out var total) == true ? TokenFormatter.Format(total, TokenNumberStyle.Compact) + " tokens" : null;
                 var metrics = string.Join(" · ", new[] { duration, tokens }.Where(x => x is not null));
-                if (metrics.Length > 0) content.Children.Add(Text(metrics, 9.5, Secondary));
+                var secondLine = (Grid)Row(session.Detail ?? "", metrics);
+                ConfigureSessionLine(secondLine); secondLine.Margin = new Thickness(0, 10 * NotchMetrics.Unit, 0, 0);
+                ((TextBlock)secondLine.Children[0]).Foreground = Secondary;
+                sessionContent.Children.Add(secondLine);
+                open.Content = sessionContent; open.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+                content.Children.Add(open);
                 open.ToolTip = session.RemoteHostId is null ? "Open " + session.Name : "Remote task · live status unavailable. Open in Codex.";
             }
             if (sessions.Length > 6) content.Children.Add(PlainButton("View all " + sessions.Length + " sessions", () => navigate("sessions:" + id)));
@@ -121,6 +136,16 @@ internal static class NotchPopover
             Grid.SetRow(tail, tailFirst ? 0 : 1); layout.Children.Add(tail);
         }
         return layout;
+    }
+    private static void ConfigureSessionLine(Grid row)
+    {
+        row.Margin = new Thickness(0);
+        foreach (var text in row.Children.OfType<TextBlock>())
+        {
+            text.FontSize = NotchMetrics.CardBodyFontSize; text.Margin = new Thickness(Grid.GetColumn(text) == 1 ? 8 : 0, 0, 0, 0);
+            text.TextWrapping = TextWrapping.NoWrap; text.TextTrimming = TextTrimming.CharacterEllipsis;
+            text.Height = 13; text.VerticalAlignment = VerticalAlignment.Center;
+        }
     }
     internal static readonly Brush Secondary = Ui.Brush("#808080");
     internal static TextBlock Text(string value, double size = 10.5, Brush? brush = null, FontWeight? weight = null) =>

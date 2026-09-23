@@ -18,6 +18,10 @@ public static class NotchMetrics
     public const double CardWidth = 600 * Unit;
     public const double CardCorner = 49.5 * Unit;
     public const double CardPadding = 32 * Unit;
+    public const double CardBodyFontSize = 18 * Unit / 0.714;
+    public const double StatusDot = 17 * Unit;
+    public const double StatusDotStroke = 3.4 * Unit;
+    public const double StatusDotGap = 11 * Unit;
     public const double Tail = 75 * Unit;
     public const double TailGap = 28 * Unit;
     public const double Control = 96 * Unit;

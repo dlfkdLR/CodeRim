@@ -310,6 +310,7 @@ internal static partial class NativeSmoke
         await AnalyticsRegression(store, settings, directory);
         ActivityRegression(store);
         await SessionPresentationRegression(dashboard, store, settings, directory);
+        await SettingsReferenceRegression(dashboard, settings, directory);
         Record("Live Claude transcript completion and duplicate registry selection; provider-specific turn entry timing");
         Record("Narrow usage layout, proportional sub-dollar cost, cost gaps and Today/7D/30D totals");
 
@@ -361,10 +362,10 @@ internal static partial class NativeSmoke
         var projectRow = Descendants<System.Windows.Controls.Button>(dashboard).FirstOrDefault(x => (AutomationProperties.GetName(x) ?? "").StartsWith("CodeRim:", StringComparison.Ordinal));
         Require(projectRow is not null, "Synthetic project row missing");
         projectRow!.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
-        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => Equals(x.Content, "‹ Back")).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.navigation.back").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         Require(Descendants<System.Windows.Controls.TextBox>(dashboard).Single().Text == "CodeRim", "Back lost project search");
         Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period").SelectedValue == "month", "Back lost selected period");
-        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => Equals(x.Content, "‹ Back")).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.navigation.back").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         Record("Project detail Back restores list search and period");
 
         dashboard.Navigate("sessions:codex"); await Idle();

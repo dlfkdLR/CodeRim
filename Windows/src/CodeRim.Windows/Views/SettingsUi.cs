@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Documents;
 using CodeRim.Core.Domain;
 using Button = System.Windows.Controls.Button;
 
@@ -22,7 +23,16 @@ internal static class SettingsUi
         var heading = Ui.Text(title, 12, "#A6A6AA", FontWeights.SemiBold); heading.Margin = new Thickness(14, 0, 14, 6);
         section.Children.Add(heading);
         var content = new StackPanel();
-        foreach (var row in rows) { if (content.Children.Count > 0) content.Children.Add(Divider(14)); content.Children.Add(row); }
+        foreach (var row in rows)
+        {
+            if (content.Children.Count > 0)
+            {
+                var divider = Divider(14);
+                divider.SetBinding(UIElement.VisibilityProperty, new System.Windows.Data.Binding(nameof(UIElement.Visibility)) { Source = row });
+                content.Children.Add(divider);
+            }
+            content.Children.Add(row);
+        }
         var card = new Border { CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1), Child = content };
         Resource(card, Border.BackgroundProperty, "CardBackground"); Resource(card, Border.BorderBrushProperty, "DividerBrush");
         section.Children.Add(card); return section;
@@ -57,6 +67,20 @@ internal static class SettingsUi
     internal static FrameworkElement Action(string title, Action action)
     {
         var button = Ui.Button(title, action); button.HorizontalAlignment = HorizontalAlignment.Left; button.Margin = new Thickness(14, 9, 14, 9); return button;
+    }
+    internal static FrameworkElement Link(string title, Uri destination, string geometry, Action<string> open)
+    {
+        var row = new DockPanel { Margin = new Thickness(14, 9, 14, 9), LastChildFill = true };
+        var external = Ui.Text("↗", 11, "#A6A6AA"); external.Margin = new Thickness(12, 0, 0, 0);
+        DockPanel.SetDock(external, Dock.Right); row.Children.Add(external);
+        var icon = new System.Windows.Shapes.Path { Data = Geometry.Parse(geometry), Width = 14, Height = 14, Stretch = Stretch.Uniform,
+            StrokeThickness = 1.2, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, Margin = new Thickness(0, 0, 7, 0) };
+        icon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "AccentBrush");
+        var link = new Hyperlink { NavigateUri = destination, TextDecorations = null };
+        link.SetResourceReference(TextElement.ForegroundProperty, "AccentBrush");
+        link.Inlines.Add(new InlineUIContainer(icon) { BaselineAlignment = BaselineAlignment.Center }); link.Inlines.Add(title);
+        AutomationProperties.SetName(link, title); link.Click += (_, _) => open(destination.IsFile ? destination.LocalPath : destination.AbsoluteUri);
+        var text = new TextBlock { FontSize = 13 }; text.Inlines.Add(link); row.Children.Add(text); return row;
     }
     internal static TextBlock Note(string value)
     {
