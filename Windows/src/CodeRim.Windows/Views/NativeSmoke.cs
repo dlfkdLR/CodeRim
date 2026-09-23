@@ -622,7 +622,7 @@ internal static partial class NativeSmoke
         Require(Descendants<ListBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Settings sections").SelectedItem is ListBoxItem { Tag: "usage" }, "Unavailable session target did not open local sessions");
         Record("Session window discovery, process-reuse rejection, and unavailable-target fallback");
         Record("Blocked and finished sessions peek independently of sound, without duplicate alerts");
-        await CheckMotion(dashboard, notch, settings, directory);
+        await CheckMotion(dashboard, notch, store, settings, directory);
         Record("Motion parity: intermediate frames, reversal, ring reset, refresh, controls, visibility and reduced-motion policy");
         File.WriteAllText(Path.Combine(directory, "windows-ui-checks.json"), JsonSerializer.Serialize(new { kind = "Native WPF synthetic integration", checks }, JsonOptions));
     }

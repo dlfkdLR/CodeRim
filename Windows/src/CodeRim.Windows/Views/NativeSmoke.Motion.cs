@@ -14,7 +14,7 @@ namespace CodeRim.Windows.Views;
 
 internal static partial class NativeSmoke
 {
-    private static async Task CheckMotion(DashboardWindow dashboard, NotchWindow notch, AppSettingsStore settings, string directory)
+    private static async Task CheckMotion(DashboardWindow dashboard, NotchWindow notch, CodeRim.Windows.ViewModels.DashboardStore store, AppSettingsStore settings, string directory)
     {
         var saved = settings.Current;
         var originalAnimations = SystemParameters.ClientAreaAnimation ? 1 : 0;
@@ -77,6 +77,27 @@ internal static partial class NativeSmoke
             var previews = Descendants<ProviderRing>(dashboard).ToArray();
             Require(previews.Length == 3 && previews.All(x => x.Settings.ShowRemaining && x.Settings.AnimateGradient && x.ClockRunning), "Settings previews kept stale appearance or motion settings");
             checks.Add("Actual Notch settings toggle reverses without view replacement; previews update immediately");
+
+            dashboard.Navigate("usage"); await Idle();
+            var usage = Descendants<UsagePane>(dashboard).Single();
+            usage.SelectProvider("codex"); usage.HandleShortcut(Key.D1, ModifierKeys.Control); await Idle();
+            var savedUsage = store.Usage["codex"];
+            try
+            {
+                var metric = Descendants<AnimatedMetric>(usage).Single(x => x.FontSize == 42);
+                var initial = metric.DisplayedValue;
+                store.Usage["codex"] = savedUsage with { Today = new TokenUsage(initial + 100000, 0, 0) };
+                usage.RefreshReadings(); usage.RefreshReadings();
+                Require(ReferenceEquals(metric, Descendants<AnimatedMetric>(usage).Single(x => x.FontSize == 42)), "Duplicate refresh replaced the animating total");
+                await MotionUntil(() => metric.DisplayedValue > initial && metric.DisplayedValue < initial + 100000, "Duplicate refresh jumped to final total");
+                var intermediate = metric.DisplayedValue;
+                store.Usage["codex"] = savedUsage with { Today = new TokenUsage(initial + 200000, 0, 0) };
+                usage.RefreshReadings();
+                Require(Math.Abs(metric.DisplayedValue - intermediate) < 1000, "Retargeted total jumped from its displayed value");
+                await MotionUntil(() => metric.DisplayedValue == initial + 200000, "Total failed to settle exactly");
+            }
+            finally { store.Usage["codex"] = savedUsage; usage.RefreshReadings(); }
+            checks.Add("Duplicate store notifications preserve numeric motion; new totals retarget from the displayed value");
 
             ProviderReading Reading(double percent) => new("codex", ReadingState.Ready, [new("weekly", "Weekly", percent)], DateTimeOffset.Now);
             var ring = new ProviderRing { ProviderId = "codex", Settings = settings.Current with { ShowRemaining = false, RingColor = RingColorMode.Usage }, Reading = Reading(10) };

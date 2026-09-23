@@ -380,6 +380,10 @@ internal sealed partial class NotchWindow : Window
             NotchEdge.Top => new Point(center.X - popupSize.Width / 2, targetSize.Height + gapY),
             _ => new Point(center.X - popupSize.Width / 2, -popupSize.Height - gapY)
         };
+        // WPF applies Horizontal/VerticalOffset to the target rectangle before invoking
+        // custom placement. These offsets also trigger each animation-frame reposition;
+        // subtract their device-space contribution so the animated anchor is applied once.
+        point -= transform.Transform(new Vector(offset.X, offset.Y));
         return [new CustomPopupPlacement(point, Vertical ? PopupPrimaryAxis.Vertical : PopupPrimaryAxis.Horizontal)];
     }
     private Screen SelectedScreen() => Screen.AllScreens.FirstOrDefault(x => x.DeviceName == settings.Current.Display) ?? Screen.PrimaryScreen ?? Screen.AllScreens[0];

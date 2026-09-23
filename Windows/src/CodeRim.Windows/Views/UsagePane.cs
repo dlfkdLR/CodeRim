@@ -65,13 +65,21 @@ internal sealed partial class UsagePane : StackPanel
     private int visibleRows = 40;
     private bool pendingRefresh;
     private string? lastView;
-    private readonly Dictionary<string, long> metricValues = [];
+    private readonly Dictionary<string, AnimatedMetric> metricValues = [];
     private AnimatedMetric Metric(string key, long value, double size)
     {
         key = provider + ":" + key;
-        var hadValue = metricValues.TryGetValue(key, out var previous); metricValues[key] = value;
-        return new AnimatedMetric(hadValue ? previous : value, value, settings.Current.NumberStyle, size,
-            hadValue && IsLoaded && !settings.Current.ReduceMotion);
+        if (!metricValues.TryGetValue(key, out var metric))
+        {
+            metric = new AnimatedMetric(value, value, settings.Current.NumberStyle, size, false);
+            metricValues[key] = metric;
+        }
+        // Polling can emit several notifications in one dispatcher turn. Reuse the actual
+        // displayed metric so a duplicate notification cannot replace an in-flight reading.
+        if (metric.Parent is Panel panel) panel.Children.Remove(metric);
+        else if (metric.Parent is Viewbox viewbox) viewbox.Child = null;
+        metric.Update(value, settings.Current.NumberStyle, IsLoaded && !settings.Current.ReduceMotion);
+        return metric;
     }
     internal void RefreshReadings()
     {
