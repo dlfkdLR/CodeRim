@@ -10,6 +10,27 @@
   <SolidColorBrush x:Key="SecondaryText" Color="#A6A6AA"/>
   <SolidColorBrush x:Key="DividerBrush" Color="#414141"/>
   <SolidColorBrush x:Key="AccentBrush" Color="#0A84FF"/>
+  <SolidColorBrush x:Key="LimitCardBackground" Color="#292929"/>
+  <Style x:Key="UsageLimitsDisclosure" TargetType="Expander">
+   <Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Expander">
+    <StackPanel>
+     <ToggleButton x:Name="HeaderSite" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" HorizontalAlignment="Left"
+                   AutomationProperties.Name="About these limits" Foreground="{TemplateBinding Foreground}">
+      <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
+       <Border Background="Transparent" Padding="0,2"><StackPanel Orientation="Horizontal">
+        <Path x:Name="Chevron" Data="M 1 1 L 5 5 L 1 9" Width="6" Height="10" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.2" Margin="0,0,6,0" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"><Path.RenderTransform><RotateTransform/></Path.RenderTransform></Path>
+        <ContentPresenter VerticalAlignment="Center"/>
+       </StackPanel></Border>
+       <ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="Chevron" Property="RenderTransform"><Setter.Value><RotateTransform Angle="90"/></Setter.Value></Setter></Trigger></ControlTemplate.Triggers>
+      </ControlTemplate></ToggleButton.Template>
+      <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"/>
+     </ToggleButton>
+     <ContentPresenter x:Name="Details" ContentSource="Content" Visibility="Collapsed"/>
+    </StackPanel>
+    <ControlTemplate.Triggers><Trigger Property="IsExpanded" Value="True"><Setter TargetName="Details" Property="Visibility" Value="Visible"/></Trigger></ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
   <Style x:Key="ProviderUsageProgress" TargetType="ProgressBar">
    <Setter Property="Height" Value="4"/><Setter Property="Minimum" Value="0"/><Setter Property="Maximum" Value="100"/>
    <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>

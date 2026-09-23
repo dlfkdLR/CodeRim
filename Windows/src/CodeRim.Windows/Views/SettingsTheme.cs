@@ -23,6 +23,7 @@ internal static class SettingsTheme
             ["WindowBackground"] = Color(IsDark ? "#202020" : "#FFFFFF"),
             ["PanelBackground"] = Color(IsDark ? "#292929" : "#F0F0F0"),
             ["CardBackground"] = Color(IsDark ? "#202020" : "#FFFFFF"),
+            ["LimitCardBackground"] = Color(IsDark ? "#292929" : "#F5F5F5"),
             ["ControlBackground"] = Color(IsDark ? "#303030" : "#F3F3F3"),
             ["ControlHover"] = Color(IsDark ? "#414141" : "#E5E5E5"),
             ["SelectedControl"] = Color(IsDark ? "#4D4D4D" : "#FFFFFF"),
@@ -44,7 +45,7 @@ internal static class SettingsTheme
         };
         if (contrast)
         {
-            foreach (var name in new[] { "WindowBackground", "PanelBackground", "CardBackground", "ControlBackground", "SelectedControl" }) colors[name] = SystemColors.WindowColor;
+            foreach (var name in new[] { "WindowBackground", "PanelBackground", "CardBackground", "LimitCardBackground", "ControlBackground", "SelectedControl" }) colors[name] = SystemColors.WindowColor;
             colors["PrimaryText"] = colors["SecondaryText"] = SystemColors.WindowTextColor;
             colors["DividerBrush"] = SystemColors.WindowTextColor;
             colors["AccentBrush"] = SystemColors.HighlightColor;

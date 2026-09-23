@@ -18,7 +18,6 @@ internal static class ProviderDisplayPolicy
             Message = "Account limits are turned off in Settings." };
         return reading with { Windows = reading.Windows.Where(window =>
             window.Id == ResetCreditsId ? settings.ResetCreditsEnabled :
-            settings.AdditionalLimitsEnabled || window.Id.StartsWith("codex.", StringComparison.Ordinal)
-                || window.Id is "session" or "weekly").ToArray() };
+            settings.AdditionalLimitsEnabled || AccountLimitPresentation.IsPrimary(window)).ToArray() };
     }
 }

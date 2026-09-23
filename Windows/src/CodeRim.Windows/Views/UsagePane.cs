@@ -132,6 +132,9 @@ internal sealed partial class UsagePane : StackPanel
         };
         header.Children.Add(selector); AdaptHeader(header, controls); Children.Add(header);
         Children.Add(filters); Children.Add(accountRow); Children.Add(SettingsUi.Divider()); Children.Add(readings);
+        limitClock.Tick += (_, _) => RefreshLimitClock(DateTimeOffset.Now);
+        Loaded += (_, _) => { limitClock.Start(); RefreshLimitClock(DateTimeOffset.Now); };
+        Unloaded += (_, _) => limitClock.Stop();
         LostKeyboardFocus += (_, _) => Dispatcher.BeginInvoke(new Action(() => { if (pendingRefresh && !readings.IsKeyboardFocusWithin && !accountRow.IsKeyboardFocusWithin) RefreshReadings(); }));
         BuildControls(); Update();
     }
@@ -259,10 +262,11 @@ internal sealed partial class UsagePane : StackPanel
         var identityIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M8,1 A7,7 0 1 0 8,15 A7,7 0 1 0 8,1 M5,6 A3,3 0 1 0 11,6 A3,3 0 1 0 5,6 M3,13 Q8,8 13,13"), Width = 13, Height = 13, StrokeThickness = 1, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
         identityIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); DockPanel.SetDock(identityIcon, Dock.Left); account.Children.Add(identityIcon);
         account.Children.Add(accountLabel); accountRow.Children.Add(account); account.VerticalAlignment = VerticalAlignment.Center; account.Margin = new Thickness(0, 12, 0, 12);
-        readings.Children.Clear();
+        readings.Children.Clear(); limitClockUpdates.Clear();
+        readings.Margin = mode == "Limits" && destination == "overview" ? new Thickness(16) : new Thickness(24, 16, 24, 16);
         if (destination is "account-period" or "local-period") { PeriodDetail(); return; }
         if (destination != "overview") { Detail(); return; }
-        if (mode == "Limits") { Limits(display.Reading); return; }
+        if (mode == "Limits") { limitClockOwnerKey = display.OwnerKey; Limits(display.Reading); return; }
         if (provider is not ("codex" or "claude"))
         {
             readings.Children.Add(Ui.Text("Local token history is available for Codex and Claude Code.", color: "#A6A6AA"));
@@ -278,6 +282,7 @@ internal sealed partial class UsagePane : StackPanel
     }
     private void Limits(ProviderReading? accountReading)
     {
+        if (provider is "codex" or "claude") { AccountLimits(accountReading); return; }
         var reading = ProviderDisplayPolicy.Apply(accountReading?.Evaluated(DateTimeOffset.Now), settings.Current);
         readings.Children.Add(Ui.Text(reading?.Plan ?? ProviderCatalog.Find(provider)?.Name ?? provider, 18, weight: FontWeights.SemiBold));
         foreach (var window in reading?.Windows ?? [])
@@ -321,7 +326,7 @@ internal sealed partial class UsagePane : StackPanel
         icon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); DockPanel.SetDock(icon, Dock.Left); row.Children.Add(icon);
         var label = Ui.Text("Reset credits"); label.Margin = new Thickness(0); label.VerticalAlignment = VerticalAlignment.Center; row.Children.Add(label);
         var card = new Border { Child = row, CornerRadius = new CornerRadius(10), Margin = new Thickness(0, 16, 0, 0) };
-        card.SetResourceReference(Border.BackgroundProperty, "CardBackground");
+        card.SetResourceReference(Border.BackgroundProperty, "LimitCardBackground");
         System.Windows.Automation.AutomationProperties.SetAutomationId(card, "usage.reset-credits");
         System.Windows.Automation.AutomationProperties.SetName(card, "Reset credits, " + value);
         return card;

@@ -17,12 +17,14 @@ internal static partial class NativeSmoke
     private static async Task ResetCreditsRegression(DashboardWindow dashboard, NotchWindow notch, DashboardStore store, AppSettingsStore settings, string directory)
     {
         var before = settings.Current; var previous = store.Readings["codex"];
+        UsagePane? usage = null; var wasLimits = false;
         Exception? failure = null; var cleanup = new List<Exception>();
         try
         {
             settings.Save(before with { EnabledProviders = ["codex"], AccountLimitsEnabled = true, ResetCreditsEnabled = true });
             dashboard.Navigate("usage"); await Idle();
-            var pane = Descendants<UsagePane>(dashboard).Single(); pane.SelectProvider("codex"); pane.HandleShortcut(Key.D2, ModifierKeys.Control);
+            var pane = usage = Descendants<UsagePane>(dashboard).Single(); wasLimits = pane.ShowsLimits;
+            pane.SelectProvider("codex"); pane.HandleShortcut(Key.D2, ModifierKeys.Control);
             foreach (var style in new[] { TokenNumberStyle.Compact, TokenNumberStyle.Detailed })
             foreach (var variant in new[] { "zero", "numeric", "large", "unlimited", "available", "expired" })
             {
@@ -71,7 +73,9 @@ internal static partial class NativeSmoke
         finally
         {
             void Restore(Action action) { try { action(); } catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); } }
-            Restore(() => store.Readings["codex"] = previous); Restore(() => settings.Save(before)); Restore(() => dashboard.Navigate("notch"));
+            Restore(() => store.Readings["codex"] = previous); Restore(() => settings.Save(before));
+            Restore(() => usage?.HandleShortcut(wasLimits ? Key.D2 : Key.D1, ModifierKeys.Control));
+            Restore(() => dashboard.Navigate("notch"));
         }
         if (cleanup.Count > 0) throw new AggregateException("Reset credit fixture cleanup failed.", failure is null ? cleanup : cleanup.Prepend(failure));
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();

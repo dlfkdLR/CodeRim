@@ -52,6 +52,7 @@ public static class CompanionFile
             foreach (var window in provider.Limits.Windows)
                 if (window is null || string.IsNullOrWhiteSpace(window.Id) || !windows.Add(window.Id) || string.IsNullOrWhiteSpace(window.Name)
                     || window.DurationMinutes < 0 || window.UsedCount < 0 || window.RemainingCount < 0
+                    || window.AccountLimitName is { } name && (string.IsNullOrWhiteSpace(name) || System.Text.Encoding.UTF8.GetByteCount(name) > 256 || name.Any(char.IsControl))
                     || window.UsedPercent is { } percent && (!double.IsFinite(percent) || percent < 0))
                     throw new InvalidDataException("Invalid quota window.");
             if (provider.LocalUsage is { } local && (local.Scope != "this-pc" || local.Totals is null || local.Totals.Count > 4

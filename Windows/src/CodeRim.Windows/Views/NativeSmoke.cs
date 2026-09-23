@@ -553,6 +553,7 @@ internal static partial class NativeSmoke
             Record($"{edge} at {scale:0.00}: no clipped single provider or native scroll chrome");
         }
         await ResetCreditsRegression(dashboard, notch, store, settings, directory);
+        await AccountLimitsRegression(dashboard, store, settings, directory);
         notch.OpenProvider("codex"); await Idle();
         Record("Reset credits remain in Usage with numeric, unlimited, available and hidden states; notch matches the quota-only reference");
         System.Windows.Input.Keyboard.ClearFocus();

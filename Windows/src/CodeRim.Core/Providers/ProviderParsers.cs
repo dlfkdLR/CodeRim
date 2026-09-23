@@ -24,6 +24,7 @@ public static class ProviderParsers
     }
     private static void AddCodexBucket(JsonElement bucket, string id, List<LimitWindow> result)
     {
+        var name = AccountLimitName(Text(bucket, "limitName")) ?? AccountLimitName(Text(bucket, "modelName"));
         foreach (var slot in new[] { "primary", "secondary" })
         {
             var window = Get(bucket, slot);
@@ -31,8 +32,13 @@ public static class ProviderParsers
             if (percent is null || percent < 0) continue;
             var duration = Number(window, "windowDurationMins");
             result.Add(new LimitWindow(id + "." + slot, (id == "codex" ? "" : id + " · ") + (duration == 300 ? "5 hours" : duration == 10080 ? "Weekly" : slot),
-                percent, Date(Get(window, "resetsAt")), (int)Math.Clamp(duration ?? 0, 0, int.MaxValue)));
+                percent, Date(Get(window, "resetsAt")), (int)Math.Clamp(duration ?? 0, 0, int.MaxValue), AccountLimitName: name));
         }
+    }
+    private static string? AccountLimitName(string? value)
+    {
+        var text = value?.Trim();
+        return string.IsNullOrEmpty(text) || System.Text.Encoding.UTF8.GetByteCount(text) > 256 || text.Any(char.IsControl) ? null : text;
     }
     public static IReadOnlyList<LimitWindow> Claude(JsonElement root)
     {

@@ -81,8 +81,18 @@ internal static partial class NativeSmoke
             store.UpdateSessionActivity([]); await Idle();
             Require(ring.Reading is { Windows.Count: 1, Headline.Id: "session" }, "Pro fallback blanked its only reported quota.");
             accountNotch.Close(); accountNotch = null;
+            var usage = new UsagePane(store, settings, "codex", _ => { });
+            popupWindow.Width = 640; popupWindow.Height = 560; popupWindow.Content = usage;
+            usage.HandleShortcut(System.Windows.Input.Key.D2, System.Windows.Input.ModifierKeys.Control); await Idle();
+            Require(Descendants<ProgressBar>(usage).Any(), "Owned quota did not reach the mounted Usage pane.");
+            var disclosure = Descendants<System.Windows.Controls.Primitives.ToggleButton>(Descendants<Expander>(usage).Single()).Single();
+            System.Windows.Input.Keyboard.Focus(disclosure);
+            Require(disclosure.IsKeyboardFocusWithin, "Owner-change fixture did not focus the disclosure.");
             File.Delete(path);
+            usage.RefreshLimitClock(DateTimeOffset.Now); await Idle();
             Require(store.AccountDisplay("codex") is { Label: null, Plan: null, Reading: null }, "Sign-out kept private account data visible.");
+            Require(!Descendants<ProgressBar>(usage).Any() && !Descendants<TextBlock>(usage).Any(x => x.Text == "account-b@example.invalid"),
+                "Focused Limits retained another owner's account label or quota after sign-out.");
             Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", home);
             GuardedFile.WritePrivate(Path.Combine(home, ".credentials.json"), """{"claudeAiOauth":{"accessToken":"synthetic-access","refreshToken":"synthetic-refresh","subscriptionType":"max","expiresAt":4102444800000,"scopes":["user:inference"]}}""");
             var profilePath = Path.Combine(home, ".claude.json");
