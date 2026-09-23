@@ -29,7 +29,7 @@ The reference includes local Mac changes beyond the published 2.1.8 source, incl
 | WP-19 | High | ChatGPT account totals, dated server history and separate device-local history are absent on Windows | Implemented dated account/local period views; x64 installed/direct native race, identity and calendar fixtures pass in 35854834026; clock/wake handling, ARM64 and real account checks remain open |
 | WP-20 | Medium | Full limits/analytics/projects/sessions/tooltip states and physical interaction parity | Active audit; no blanket pass from existing fixture coverage |
 | WP-21 | Medium | AccountLimitsView: remaining metric/bars, quota card order, reset countdown, pace and freshness | Open; existing generic Windows Limits layout is not yet the complete Mac layout |
-| WP-22 | Medium | CodexNotchProvider: Pro plan hides the five-hour quota when another quota exists | Open; current display-plan mapping is present but this notch-specific window rule is not yet ported |
+| WP-22 | Medium | CodexNotchProvider: Pro plan hides the five-hour quota when another quota exists | Implemented raw-plan filter for initial/live rings and popover, retaining the sole-quota fallback and all Usage quotas; native rerun pending |
 | WP-23 | Medium | Reset credits belong to the separate Usage row, not the quota-only notch snapshot | Implemented dedicated numeric/Unlimited/Available/expiration row and notch filtering; native rerun pending |
 
 ## First change batch
@@ -198,3 +198,10 @@ No total match percentage is assigned while the inventory and open functional di
 - Build94 found two analyzer violations in the new UI/fixture; these were corrected without relaxing rules. Builds95/96 passed with zero warnings/errors. Core23 passed **1,771 tests, 33 Windows-only skips, zero failures**. Source review found no blocker in the credit surface split; full Limits layout and Pro-specific notch filtering remain explicit open work. Mac preservation check13 again found **389 of 389 reference files unchanged**.
 
 - A tabular-numeral request was added to the credit count to follow the Mac row. Build97 caught the missing Typography namespace; the qualified call was corrected and build98 passed with zero warnings/errors. This requests the OpenType feature, not proof of every installed font’s glyph metrics.
+
+
+## Seventeenth change batch: Pro quota visibility
+
+- The notch now applies the frozen Mac rule to the raw plan from the same local login snapshot used for ownership: only Pro removes 270–330-minute windows, and only when another reported quota remains. Pro 5x (`prolite`), unknown plans and the only-quota fallback retain the reported data. The human-readable Pro 20x label and a cached reading's plan are not used as authorization or plan evidence. Both initial and live rings and the popover apply the policy before freshness evaluation. Usage's unfiltered account quota data is retained.
+- New Core cases cover duration boundaries, primary headline selection, case/space plan normalization, unknown and display-only plan labels, zero-use single quotas and empty data. Build99 passed with zero warnings/errors; Core24 passed **1,781 tests, 33 Windows-only skips, zero failures**. Native assertions extend the real isolated login fixture to inspect initial/live rings and mounted Pro/Pro 5x popovers, a hidden expired five-hour reset, unchanged Usage data and the only-quota fallback. Their Windows execution is pending.
+- CI14 (`35875278939`, `5073011`) runs the preceding grouped connection, UUID and reset-credit batches. It does not contain this new Pro delta. The Mac companion publisher also filters Pro windows; Windows' companion file currently doubles as the restart cache, so changing that persisted raw reading would lose Usage data. Its separate presentation mapping remains an explicit open item, not silently counted as parity.

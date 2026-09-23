@@ -3,12 +3,13 @@ namespace CodeRim.Windows.Services;
 internal static class ProviderDisplayPolicy
 {
     internal const string ResetCreditsId = "rate-limit-reset-credits";
-    internal static ProviderReading? ForNotch(ProviderReading? reading, AppSettings settings)
+    internal static ProviderReading? ForNotch(ProviderReading? reading, AppSettings settings, string? rawPlan = null)
     {
         var displayed = Apply(reading, settings);
         // The reference maps only quota windows into its notch snapshot.
         // Reset credits have their own read-only row in Usage > Codex Limits.
-        return displayed?.Id == "codex" ? displayed with { Windows = displayed.Windows.Where(x => x.Id != ResetCreditsId).ToArray() } : displayed;
+        return displayed?.Id == "codex" ? displayed with { Windows = CodexPlanLimits.VisibleWindows(
+            displayed.Windows.Where(x => x.Id != ResetCreditsId).ToArray(), rawPlan) } : displayed;
     }
     internal static ProviderReading? Apply(ProviderReading? reading, AppSettings settings)
     {

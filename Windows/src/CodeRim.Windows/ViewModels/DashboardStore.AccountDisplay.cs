@@ -10,10 +10,10 @@ internal sealed partial class DashboardStore
 {
     // Read label and ownership together. An external CLI switch must not combine
     // the new login's email with the previous account's cached plan or limits.
-    internal (ProviderReading? Reading, string? Label, string? Plan) AccountDisplay(string id)
+    internal (ProviderReading? Reading, string? Label, string? Plan, string? RawPlan) AccountDisplay(string id)
     {
         var reading = Readings.GetValueOrDefault(id);
-        if (Synthetic) return (reading, SavedAccounts.CurrentAccountLabel(id, true), reading?.Plan);
+        if (Synthetic) return (reading, SavedAccounts.CurrentAccountLabel(id, true), reading?.Plan, reading?.Plan);
         var capturedScope = scopes.GetValueOrDefault(id);
         if (id is "codex" or "claude")
         {
@@ -21,11 +21,11 @@ internal sealed partial class DashboardStore
             {
                 var login = SavedAccounts.Current(id); var identity = login.Identity;
                 var owned = identity.Id == capturedScope ? reading : null;
-                return (owned, identity.Email, AccountPlanDisplay.Name(id, identity.Plan, login.Profile, identity.Email, identity.Organization) ?? owned?.Plan);
+                return (owned, identity.Email, AccountPlanDisplay.Name(id, identity.Plan, login.Profile, identity.Email, identity.Organization) ?? owned?.Plan, identity.Plan);
             }
             catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or InvalidOperationException)
-            { return (capturedScope is null && reading is { Windows.Count: 0, Plan: null } ? reading : null, null, null); }
+            { return (capturedScope is null && reading is { Windows.Count: 0, Plan: null } ? reading : null, null, null, null); }
         }
-        return (reading, null, reading?.Plan);
+        return (reading, null, reading?.Plan, reading?.Plan);
     }
 }
