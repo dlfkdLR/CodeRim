@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
@@ -10,74 +11,152 @@ namespace CodeRim.Windows.Views;
 
 internal sealed class ProviderRing : FrameworkElement
 {
+    private ProviderReading? reading;
+    private AppSettings settings = AppSettings.Default;
+    private bool active, waiting, refreshing, clockAttached, initialized;
+    private double? targetPercent;
+    private double targetSweep;
+    private static DependencyProperty Animated(string name, double value) => DependencyProperty.Register(name, typeof(double), typeof(ProviderRing),
+        new FrameworkPropertyMetadata(value, FrameworkPropertyMetadataOptions.AffectsRender));
+    internal static readonly DependencyProperty SweepProperty = Animated("Sweep", 0);
+    internal static readonly DependencyProperty PercentProperty = Animated("Percent", 0);
+    private static readonly DependencyProperty RotationProperty = Animated("Rotation", 0);
+    private static readonly DependencyProperty PressProperty = Animated("Press", 1);
     public string ProviderId { get; set; } = "codex";
-    public ProviderReading? Reading { get; set; }
-    public AppSettings Settings { get; set; } = AppSettings.Default;
-    public bool Active { get; set; }
-    public bool Waiting { get; set; }
-    public bool Refreshing { get; set; }
+    public ProviderReading? Reading { get => reading; set { reading = value; UpdateReading(); } }
+    public AppSettings Settings { get => settings; set { settings = value; UpdateReading(); ConfigureClock(); } }
+    public bool Active { get => active; set { active = value; ConfigureClock(); InvalidateVisual(); } }
+    public bool Waiting { get => waiting; set { waiting = value; ConfigureClock(); InvalidateVisual(); } }
+    public bool Refreshing
+    {
+        get => refreshing;
+        set
+        {
+            if (refreshing == value) return;
+            refreshing = value;
+            Motion.To(this, PressProperty, value ? 0.93 : 1, 0.45, Motion.Spring(0.62), enabled: Animates);
+            if (value) Motion.To(this, RotationProperty, (Math.Floor((double)GetValue(RotationProperty) / 360) + 1) * 360,
+                NotchMotion.Refresh, new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut }, enabled: Animates);
+        }
+    }
     public double Phase { get; set; }
-    public ProviderRing() { Width = NotchMetrics.Ring; Height = NotchMetrics.CellHeight; }
+    internal double Sweep => Math.Clamp((double)GetValue(SweepProperty), 0, 1);
+    internal double RefreshRotation => (double)GetValue(RotationProperty);
+    internal bool ClockRunning => clockAttached;
+    private bool Animates => IsLoaded && IsVisible && Motion.Enabled && !settings.ReduceMotion;
+    public ProviderRing()
+    {
+        Width = NotchMetrics.Ring; Height = NotchMetrics.CellHeight;
+        Loaded += (_, _) => { Motion.PolicyChanged += PolicyChanged; UpdateReading(); ConfigureClock(); };
+        Unloaded += (_, _) => { Motion.PolicyChanged -= PolicyChanged; StopClock(); Motion.Stop(this); };
+        IsVisibleChanged += (_, _) => ConfigureClock();
+    }
+    private void PolicyChanged() { if (!Animates) Motion.Stop(this); ConfigureClock(); InvalidateVisual(); }
+    private void UpdateReading()
+    {
+        var percent = reading?.Evaluated(DateTimeOffset.Now).Headline?.UsedPercent;
+        var display = percent.HasValue ? Math.Clamp(settings.ShowRemaining ? 100 - percent.Value : percent.Value, 0, 100) : (double?)null;
+        var sweep = display / 100 ?? 0;
+        if (!initialized || targetSweep != sweep || targetPercent != display || !Animates)
+        {
+            var animate = initialized && Animates;
+            Motion.To(this, SweepProperty, sweep, sweep == 0 ? NotchMotion.ReadingReset : NotchMotion.Reading,
+                sweep == 0 ? Motion.Smooth : Motion.Spring(0.9), enabled: animate);
+            Motion.To(this, PercentProperty, display ?? 0, NotchMotion.Reading, Motion.Spring(0.9), enabled: animate && targetPercent.HasValue && display.HasValue);
+            initialized = reading is not null; targetSweep = sweep; targetPercent = display;
+        }
+        InvalidateVisual();
+    }
+    private void ConfigureClock()
+    {
+        var needed = Animates && (Active || Waiting || settings.RingColor == RingColorMode.Gradient && settings.AnimateGradient);
+        if (needed && !clockAttached) { CompositionTarget.Rendering += Frame; clockAttached = true; }
+        else if (!needed) StopClock();
+    }
+    private void StopClock() { if (clockAttached) CompositionTarget.Rendering -= Frame; clockAttached = false; }
+    private void Frame(object? sender, EventArgs e)
+    {
+        if (!Animates) { StopClock(); return; }
+        Phase = NotchMotion.Phase(Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency, NotchMotion.GradientPeriod);
+        InvalidateVisual();
+    }
     internal string AccessibleReading()
     {
-        var reading = Reading?.Evaluated(DateTimeOffset.Now);
-        var amount = reading?.Headline?.UsedPercent is { } used
-            ? Percent(Settings.ShowRemaining ? Math.Clamp(100 - used, 0, 100) : used) + (Settings.ShowRemaining ? "% remaining" : "% used")
-            : reading?.Headline?.UsedCount is { } count ? TokenFormatter.Format(count, Settings.NumberStyle) + " used"
-            : reading?.Headline?.RemainingCount is { } left ? TokenFormatter.Format(left, Settings.NumberStyle) + " remaining"
-            : "Usage unavailable";
-        var state = reading?.State switch
+        var value = reading?.Evaluated(DateTimeOffset.Now);
+        var amount = value?.Headline?.UsedPercent is { } used
+            ? Percent(settings.ShowRemaining ? Math.Clamp(100 - used, 0, 100) : used) + (settings.ShowRemaining ? "% remaining" : "% used")
+            : value?.Headline?.UsedCount is { } count ? TokenFormatter.Format(count, settings.NumberStyle) + " used"
+            : value?.Headline?.RemainingCount is { } left ? TokenFormatter.Format(left, settings.NumberStyle) + " remaining" : "Usage unavailable";
+        var state = value?.State switch
         {
-            ReadingState.NeedsAuth => "Sign in required",
-            ReadingState.Partial => "Partial reading",
-            ReadingState.Stale => "Stale reading",
-            ReadingState.Error => "Connection error",
-            ReadingState.Loading => "Loading",
-            ReadingState.Disabled => "Disabled",
-            ReadingState.Unsupported => "Unsupported",
-            ReadingState.Unavailable => "Unavailable",
-            _ => null
+            ReadingState.NeedsAuth => "Sign in required", ReadingState.Partial => "Partial reading", ReadingState.Stale => "Stale reading",
+            ReadingState.Error => "Connection error", ReadingState.Loading => "Loading", ReadingState.Disabled => "Disabled",
+            ReadingState.Unsupported => "Unsupported", ReadingState.Unavailable => "Unavailable", _ => null
         };
         return string.Join("; ", new[] { amount, state, Waiting ? "Waiting for input" : Active ? "Session active" : null, Refreshing ? "Refreshing" : null }.Where(x => x is not null));
     }
     protected override void OnRender(DrawingContext dc)
     {
         base.OnRender(dc);
-        var center = new Point(22, 22); const double radius = 19;
-        var reading = Reading?.Evaluated(DateTimeOffset.Now);
-        var stale = reading?.State is ReadingState.Stale or ReadingState.Error;
-        dc.PushOpacity(stale ? 0.6 : 1);
-        dc.DrawEllipse(null, new Pen(Ui.Brush("#303030"), 5.8), center, radius, radius);
-        var percent = reading?.Headline?.UsedPercent;
-        var fraction = percent.HasValue ? Math.Clamp((Settings.ShowRemaining ? 100 - percent.Value : percent.Value) / 100, 0, 1) : 0;
-        var color = Settings.RingColor == RingColorMode.Usage ? NotchGeometry.BandColor(percent) : Settings.Accent;
-        for (var i = 0; i < Math.Ceiling(fraction * 120); i++)
+        var center = new Point(22, 22); var radius = 22 - NotchMetrics.Track / 2;
+        var activityRadius = 36 * NotchMetrics.Unit; var activityStroke = 5.5 * NotchMetrics.Unit;
+        var value = reading?.Evaluated(DateTimeOffset.Now);
+        var percent = value?.Headline?.UsedPercent;
+        var fraction = Sweep;
+        var stale = value?.State is ReadingState.Stale or ReadingState.Error;
+        dc.PushTransform(new ScaleTransform((double)GetValue(PressProperty), (double)GetValue(PressProperty), 22, 22));
+        dc.PushOpacity(stale ? 0.45 : 1);
+        dc.DrawEllipse(null, new Pen(Ui.Brush("#303030"), NotchMetrics.Track), center, radius, radius);
+        var color = settings.RingColor == RingColorMode.Usage ? NotchGeometry.BandColor(percent) : settings.Accent;
+        var rotation = RefreshRotation * Math.PI / 180;
+        var gradientPhase = settings.AnimateGradient && Animates ? Phase : 0;
+        if (settings.RingColor != RingColorMode.Gradient) DrawArc(dc, Ui.Brush(color), radius, NotchMetrics.Progress, -Math.PI / 2 + rotation, fraction);
+        for (var i = 0; settings.RingColor == RingColorMode.Gradient && i < Math.Ceiling(fraction * 120); i++)
         {
-            var start = -Math.PI / 2 + i / 120d * Math.PI * 2;
-            var end = -Math.PI / 2 + Math.Min(fraction, (i + 1) / 120d) * Math.PI * 2;
-            var brush = Settings.RingColor == RingColorMode.Gradient ? Gradient(i / 120d + Phase) : Ui.Brush(color);
+            var start = -Math.PI / 2 + rotation + i / 120d * Math.Tau;
+            var end = -Math.PI / 2 + rotation + Math.Min(fraction, (i + 1) / 120d) * Math.Tau;
+            var brush = settings.RingColor == RingColorMode.Gradient ? Gradient(i / 120d + gradientPhase) : Ui.Brush(color);
             dc.DrawLine(new Pen(brush, 3) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round },
-                new Point(center.X + Math.Cos(start) * radius, center.Y + Math.Sin(start) * radius), new Point(center.X + Math.Cos(end) * radius, center.Y + Math.Sin(end) * radius));
+                new Point(22 + Math.Cos(start) * radius, 22 + Math.Sin(start) * radius), new Point(22 + Math.Cos(end) * radius, 22 + Math.Sin(end) * radius));
         }
-        ProviderMark.Draw(dc, ProviderId, new Rect(13.35, 13.35, 17.3, 17.3));
-        if (Active || Refreshing)
+        dc.PushOpacity(percent >= 100 ? 0.35 : 1);
+        ProviderMark.Draw(dc, ProviderId, new Rect(13.35, 13.35, 17.3, 17.3)); dc.Pop(); dc.Pop();
+        var seconds = Stopwatch.GetTimestamp() / (double)Stopwatch.Frequency;
+        if (Waiting)
         {
-            var angle = Phase * Math.PI * 2;
-            dc.DrawEllipse(Brushes.White, null, new Point(22 + Math.Sin(angle) * 13, 22 - Math.Cos(angle) * 13), 1.5, 1.5);
+            var alpha = Animates ? 0.3 + 0.7 * (1 + Math.Cos(Math.Tau * NotchMotion.Phase(seconds, NotchMotion.WaitingPeriod))) / 2 : 1;
+            dc.PushOpacity(alpha); dc.DrawEllipse(null, new Pen(Ui.Brush("#F2FF00"), activityStroke), center, activityRadius, activityRadius); dc.Pop();
         }
-        if (Waiting) dc.DrawEllipse(Ui.Brush("#F2FF00"), null, new Point(39, 4), 3, 3);
-        var label = percent is { } used ? Percent(Settings.ShowRemaining ? Math.Clamp(100 - used, 0, 100) : used) + "%"
-            : reading?.Headline?.UsedCount is { } count ? TokenFormatter.Format(count, Settings.NumberStyle)
-            : reading?.Headline?.RemainingCount is { } remaining ? TokenFormatter.Format(remaining, Settings.NumberStyle) : "—";
+        else if (Active)
+        {
+            var start = (Animates ? NotchMotion.Phase(seconds, NotchMotion.ActivityPeriod) : 0) * Math.Tau;
+            DrawArc(dc, Brushes.White, activityRadius, activityStroke, start, 0.25);
+        }
+        dc.Pop();
+        var label = percent is not null ? Percent(Math.Clamp((double)GetValue(PercentProperty), 0, 100)) + "%"
+            : value?.Headline?.UsedCount is { } count ? TokenFormatter.Format(count, settings.NumberStyle)
+            : value?.Headline?.RemainingCount is { } remaining ? TokenFormatter.Format(remaining, settings.NumberStyle) : "—";
         var formatted = new FormattedText(label, CultureInfo.CurrentCulture, FlowDirection.LeftToRight,
             new Typeface(new FontFamily("Segoe UI"), FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal), 14, Brushes.White, VisualTreeHelper.GetDpi(this).PixelsPerDip);
         dc.DrawText(formatted, new Point(22 - formatted.Width / 2, 54));
-        dc.Pop();
+    }
+    private static void DrawArc(DrawingContext dc, Brush brush, double radius, double stroke, double start, double fraction)
+    {
+        if (fraction <= 0) return;
+        var pen = new Pen(brush, stroke) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round };
+        if (fraction >= 1) { dc.DrawEllipse(null, pen, new Point(22, 22), radius, radius); return; }
+        var end = start + fraction * Math.Tau; var path = new StreamGeometry();
+        using (var context = path.Open())
+        {
+            context.BeginFigure(new Point(22 + Math.Cos(start) * radius, 22 + Math.Sin(start) * radius), false, false);
+            context.ArcTo(new Point(22 + Math.Cos(end) * radius, 22 + Math.Sin(end) * radius), new Size(radius, radius), 0, fraction > 0.5, SweepDirection.Clockwise, true, false);
+        }
+        path.Freeze(); dc.DrawGeometry(null, pen, path);
     }
     private static string Percent(double value) => value is > 0 and < 0.1 ? "<0.1" : value is > 0 and < 1 ? value.ToString("0.0", CultureInfo.InvariantCulture) : Math.Round(value, MidpointRounding.AwayFromZero).ToString(CultureInfo.InvariantCulture);
     private SolidColorBrush Gradient(double position)
     {
-        string[] colors = Settings.Gradient switch
+        string[] colors = settings.Gradient switch
         {
             "Ocean" => ["#54D9FF", "#4A8DFF", "#777BFF", "#54D9FF"],
             "Sunset" => ["#FFCA70", "#FF8C69", "#F879BD", "#FFCA70"],
@@ -93,18 +172,26 @@ internal sealed class ProviderRing : FrameworkElement
 internal sealed class ProviderMark : FrameworkElement
 {
     private static readonly Dictionary<string, DrawingGroup?> Glyphs = new(StringComparer.Ordinal);
-    public string ProviderId { get; set; } = "codex";
-    protected override void OnRender(DrawingContext dc) => Draw(dc, ProviderId, new Rect(0, 0, ActualWidth, ActualHeight));
-    internal static void Draw(DrawingContext dc, string id, Rect target)
+    public static readonly DependencyProperty ProviderIdProperty = DependencyProperty.Register(nameof(ProviderId), typeof(string), typeof(ProviderMark), new FrameworkPropertyMetadata("codex", FrameworkPropertyMetadataOptions.AffectsRender));
+    public string ProviderId { get => (string)GetValue(ProviderIdProperty); set => SetValue(ProviderIdProperty, value); }
+    public static readonly DependencyProperty ForegroundProperty = DependencyProperty.Register(nameof(Foreground), typeof(Brush), typeof(ProviderMark), new FrameworkPropertyMetadata(Brushes.White, FrameworkPropertyMetadataOptions.AffectsRender));
+    public Brush Foreground { get => (Brush)GetValue(ForegroundProperty); set => SetValue(ForegroundProperty, value); }
+    protected override void OnRender(DrawingContext dc) => Draw(dc, ProviderId, new Rect(0, 0, ActualWidth, ActualHeight), Foreground);
+    internal static void Draw(DrawingContext dc, string id, Rect target, Brush? foreground = null)
     {
         if (Glyph(id) is not { } glyph)
         {
             var name = ProviderCatalog.Find(id)?.Name ?? "?";
-            var text = new FormattedText(name[..1], CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), target.Height, Brushes.White, 1);
+            var text = new FormattedText(name[..1], CultureInfo.InvariantCulture, FlowDirection.LeftToRight, new Typeface("Segoe UI"), target.Height, foreground ?? Brushes.White, 1);
             dc.DrawText(text, new Point(target.X + (target.Width - text.Width) / 2, target.Y)); return;
         }
         var bounds = glyph.Bounds;
         if (bounds.IsEmpty || bounds.Width <= 0 || bounds.Height <= 0) return;
+        if (foreground is not null)
+        {
+            dc.PushOpacityMask(new DrawingBrush(glyph) { Stretch = Stretch.Uniform });
+            dc.DrawRectangle(foreground, null, target); dc.Pop(); return;
+        }
         var scale = Math.Min(target.Width / bounds.Width, target.Height / bounds.Height);
         dc.PushTransform(new TranslateTransform(target.X + (target.Width - bounds.Width * scale) / 2, target.Y + (target.Height - bounds.Height * scale) / 2));
         dc.PushTransform(new ScaleTransform(scale, scale)); dc.PushTransform(new TranslateTransform(-bounds.X, -bounds.Y));

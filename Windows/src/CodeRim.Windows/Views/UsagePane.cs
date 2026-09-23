@@ -16,8 +16,8 @@ internal sealed partial class UsagePane : StackPanel
     private readonly DashboardStore store;
     private readonly AppSettingsStore settings;
     private readonly Action<string?> navigate;
-    private readonly StackPanel readings = new() { Margin = new Thickness(24) };
-    private readonly StackPanel accountRow = new() { Margin = new Thickness(24, 0, 24, 16) };
+    private readonly StackPanel readings = new() { Margin = new Thickness(24, 16, 24, 16) };
+    private readonly StackPanel accountRow = new() { Margin = new Thickness(24, 0, 24, 12) };
     private readonly System.Windows.Controls.ComboBox selector;
     private readonly Stack<NavigationState> history = new();
     private sealed record NavigationState(string Destination, string Period, string Search, string? Project, string? Session, int VisibleRows, string? Model, DateTimeOffset? Bucket);
@@ -64,6 +64,23 @@ internal sealed partial class UsagePane : StackPanel
     private string? session;
     private int visibleRows = 40;
     private bool pendingRefresh;
+    private string? lastView;
+    private readonly Dictionary<string, AnimatedMetric> metricValues = [];
+    private AnimatedMetric Metric(string key, long value, double size)
+    {
+        key = provider + ":" + key;
+        if (!metricValues.TryGetValue(key, out var metric))
+        {
+            metric = new AnimatedMetric(value, value, settings.Current.NumberStyle, size, false);
+            metricValues[key] = metric;
+        }
+        // Polling can emit several notifications in one dispatcher turn. Reuse the actual
+        // displayed metric so a duplicate notification cannot replace an in-flight reading.
+        if (metric.Parent is Panel panel) panel.Children.Remove(metric);
+        else if (metric.Parent is Viewbox viewbox) viewbox.Child = null;
+        metric.Update(value, settings.Current.NumberStyle, IsLoaded && !settings.Current.ReduceMotion);
+        return metric;
+    }
     internal void RefreshReadings()
     {
         var choices = settings.Current.EnabledProviders.Select(id => ProviderCatalog.Find(id)!).ToArray();
@@ -90,10 +107,12 @@ internal sealed partial class UsagePane : StackPanel
         this.store = store; this.settings = settings; this.provider = provider; this.navigate = navigate;
         var choices = settings.Current.EnabledProviders.Select(id => ProviderCatalog.Find(id)!).ToArray();
         if (!choices.Any(x => x.Id == provider)) this.provider = choices.FirstOrDefault()?.Id ?? "codex";
-        var header = new Grid { Margin = new Thickness(24, 20, 24, 24) };
+        var header = new Grid { Margin = new Thickness(24, 16, 24, 12) };
         header.Children.Add(controls);
-        selector = new System.Windows.Controls.ComboBox { ItemsSource = choices, DisplayMemberPath = "Name", SelectedValuePath = "Id",
-            SelectedValue = this.provider, MinHeight = 24, Height = 24, MinWidth = 100, MaxWidth = 190, HorizontalAlignment = HorizontalAlignment.Left };
+        selector = new System.Windows.Controls.ComboBox { ItemsSource = choices, ItemTemplate = ProviderTemplate(), SelectedValuePath = "Id",
+            SelectedValue = this.provider, MinHeight = 32, Height = 32, Width = 156, MaxWidth = 190, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Left,
+            Style = (Style)System.Windows.Application.Current.FindResource("UsageProviderPicker") };
+        TextSearch.SetTextPath(selector, "Name");
         System.Windows.Automation.AutomationProperties.SetName(selector, "Usage provider");
         selector.SelectionChanged += (_, _) =>
         {
@@ -110,20 +129,48 @@ internal sealed partial class UsagePane : StackPanel
         LostKeyboardFocus += (_, _) => Dispatcher.BeginInvoke(new Action(() => { if (pendingRefresh && !readings.IsKeyboardFocusWithin && !accountRow.IsKeyboardFocusWithin) RefreshReadings(); }));
         BuildControls(); Update();
     }
+    private static DataTemplate ProviderTemplate()
+    {
+        var row = new FrameworkElementFactory(typeof(DockPanel));
+        var glyph = new FrameworkElementFactory(typeof(ProviderMark));
+        glyph.SetValue(DockPanel.DockProperty, Dock.Left);
+        glyph.SetValue(WidthProperty, 18d); glyph.SetValue(HeightProperty, 18d);
+        glyph.SetValue(MarginProperty, new Thickness(0, 0, 8, 0));
+        glyph.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
+        glyph.SetBinding(ProviderMark.ProviderIdProperty, new System.Windows.Data.Binding("Id"));
+        glyph.SetBinding(ProviderMark.ForegroundProperty, new System.Windows.Data.Binding("Foreground")
+        { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(Control), 1) });
+        row.AppendChild(glyph);
+        var name = new FrameworkElementFactory(typeof(TextBlock));
+        name.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding("Name"));
+        name.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding("Foreground")
+        { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(Control), 1) });
+        name.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
+        name.SetValue(TextBlock.TextTrimmingProperty, TextTrimming.CharacterEllipsis);
+        name.SetValue(VerticalAlignmentProperty, VerticalAlignment.Center);
+        row.AppendChild(name);
+        return new DataTemplate { VisualTree = row };
+    }
     internal void ShowSessions() => Forward("sessions", "all-time");
     private void BuildControls()
     {
         controls.Children.Clear(); filters.Children.Clear();
-        var bar = new WrapPanel();
+        var bar = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
         if (destination != "overview") bar.Children.Add(Ui.Button("‹ Back", Back));
         if (destination == "overview")
         {
+            var segments = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
+            var group = new Border { Child = segments, CornerRadius = new CornerRadius(6), Padding = new Thickness(2), Height = 28, Width = 246, VerticalAlignment = VerticalAlignment.Center };
+            group.SetResourceReference(Border.BackgroundProperty, "PanelBackground");
+            System.Windows.Automation.AutomationProperties.SetAutomationId(group, "usage.mode");
+            System.Windows.Automation.AutomationProperties.SetName(group, "Usage view");
+            bar.Children.Add(group);
             foreach (var choice in new[] { "Token usage", "Limits" })
             {
                 var button = new RadioButton { Content = choice == "Limits" ? (provider == "codex" ? "Codex Limits" : provider == "claude" ? "Claude Limits" : "Limits") : "Token Usage",
                     IsChecked = mode == choice, GroupName = "UsageMode", Style = (Style)System.Windows.Application.Current.FindResource("UsageModeButton") };
                 System.Windows.Automation.AutomationProperties.SetName(button, button.Content.ToString());
-                button.Checked += (_, _) => { mode = choice; Update(); }; bar.Children.Add(button);
+                button.Checked += (_, _) => { mode = choice; Update(); }; segments.Children.Add(button);
             }
         }
         else
@@ -133,7 +180,14 @@ internal sealed partial class UsagePane : StackPanel
             System.Windows.Automation.AutomationProperties.SetName(select, "Usage period");
             select.SelectionChanged += (_, _) => { if (select.SelectedValue is string value) { period = value; selectedBucket = null; visibleRows = 40; Update(); } }; bar.Children.Add(select);
         }
-        var refresh = Ui.AsyncButton("Refresh", () => store.RefreshAsync(true));
+        var refresh = Ui.AsyncButton("Refresh usage", () => store.RefreshAsync(true));
+        var refreshIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 14 6 A 6 6 0 1 0 15 10 M 14 2 L 14 6 L 10 6"),
+            Width = 16, Height = 16, StrokeThickness = 1.5, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round };
+        refreshIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText");
+        refresh.Content = refreshIcon; refresh.Width = refresh.Height = refresh.MinHeight = 32;
+        refresh.Padding = new Thickness(6); refresh.Margin = new Thickness(16, 0, 0, 0);
+        refresh.Background = Brushes.Transparent; refresh.BorderBrush = Brushes.Transparent;
+        refresh.HorizontalContentAlignment = HorizontalAlignment.Center;
         refresh.ToolTip = "Refresh usage and limits (Ctrl+R)";
         System.Windows.Automation.AutomationProperties.SetAutomationId(refresh, "usage.refresh");
         bar.Children.Add(refresh);
@@ -148,6 +202,14 @@ internal sealed partial class UsagePane : StackPanel
     }
     internal void Update()
     {
+        var view = provider + ":" + mode + ":" + destination;
+        var changedView = lastView is not null && lastView != view; lastView = view;
+        if (changedView)
+        {
+            Motion.Enter(readings);
+            for (DependencyObject? parent = VisualTreeHelper.GetParent(this); parent is not null; parent = VisualTreeHelper.GetParent(parent))
+                if (parent is ScrollViewer scroll) { scroll.ScrollToTop(); break; }
+        }
         accountRow.Children.Clear();
         var identity = SavedAccounts.CurrentAccountLabel(provider, store.Synthetic);
         var account = new DockPanel();
@@ -168,11 +230,11 @@ internal sealed partial class UsagePane : StackPanel
         var snapshot = store.Usage.GetValueOrDefault(provider) ?? UsageSnapshot.Empty;
         var today = snapshot.Today;
         readings.Children.Add(Heading("Today"));
-        var overview = new Grid { Margin = new Thickness(0, 18, 0, 24) };
+        var overview = new Grid { Margin = new Thickness(0, 12, 0, 16) };
         System.Windows.Automation.AutomationProperties.SetAutomationId(overview, "usage.overview");
         overview.ColumnDefinitions.Add(new ColumnDefinition()); overview.ColumnDefinitions.Add(new ColumnDefinition());
         var total = new StackPanel { Margin = new Thickness(0, 0, 24, 0) };
-        var totalText = Ui.Text(TokenFormatter.Format(today.TotalTokens, settings.Current.NumberStyle), 42, weight: FontWeights.SemiBold);
+        var totalText = Metric("today", today.TotalTokens, 42);
         totalText.TextWrapping = TextWrapping.NoWrap;
         total.Children.Add(new Viewbox { Child = totalText, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly, HorizontalAlignment = HorizontalAlignment.Left, MaxHeight = 56 });
         total.Children.Add(Ui.Text("tokens", 13, "#A6A6AA"));
@@ -181,7 +243,7 @@ internal sealed partial class UsagePane : StackPanel
         var breakdown = new StackPanel(); Breakdown(breakdown, today); Grid.SetColumn(breakdown, 1); overview.Children.Add(breakdown); AdaptOverview(overview, total, breakdown); readings.Children.Add(overview);
         readings.Children.Add(SettingsUi.Divider());
         readings.Children.Add(Heading("History"));
-        var history = new Grid { Margin = new Thickness(0, 14, 0, 24) };
+        var history = new Grid { Margin = new Thickness(0, 10, 0, 16) };
         System.Windows.Automation.AutomationProperties.SetAutomationId(history, "usage.history");
         var values = new[] { ("This Week", "week", snapshot.Week), ("This Month", "month", snapshot.Month), ("Local History", "all-time", snapshot.AllTime) };
         for (var i = 0; i < values.Length; i++)
@@ -191,7 +253,7 @@ internal sealed partial class UsagePane : StackPanel
             var periodLabel = new DockPanel();
             var arrow = Ui.Text("›", 15, "#A6A6AA"); DockPanel.SetDock(arrow, Dock.Right); periodLabel.Children.Add(arrow);
             periodLabel.Children.Add(Ui.Text(value.Item1, 13, "#A6A6AA")); panel.Children.Add(periodLabel);
-            panel.Children.Add(Ui.Text(TokenFormatter.Format(value.Item3.TotalTokens, settings.Current.NumberStyle), 21, weight: FontWeights.SemiBold));
+            panel.Children.Add(Metric(value.Item2, value.Item3.TotalTokens, 21));
             var button = Ui.Button("", () => Forward("activity", value.Item2));
             System.Windows.Automation.AutomationProperties.SetName(button, value.Item1 + ": " + value.Item3.TotalTokens.ToString(CultureInfo.CurrentCulture) + " tokens");
             button.Content = panel; button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Margin = new Thickness(0);
@@ -199,7 +261,7 @@ internal sealed partial class UsagePane : StackPanel
             button.HorizontalContentAlignment = HorizontalAlignment.Stretch; button.Padding = new Thickness(i == 0 ? 0 : 16, 0, 16, 0); Grid.SetColumn(button, i); history.Children.Add(button);
         }
         AdaptHistory(history); readings.Children.Add(history);
-        var links = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3, Margin = new Thickness(0, 24, 0, 18) };
+        var links = new System.Windows.Controls.Primitives.UniformGrid { Columns = 3, Margin = new Thickness(0, 16, 0, 12) };
         System.Windows.Automation.AutomationProperties.SetAutomationId(links, "usage.links");
         foreach (var (id, label, detail, icon) in new[]
         {
@@ -227,7 +289,7 @@ internal sealed partial class UsagePane : StackPanel
     }
     private static DockPanel Heading(string title)
     {
-        var row = new DockPanel { Margin = new Thickness(0, title == "History" ? 24 : 0, 0, 0) };
+        var row = new DockPanel { Margin = new Thickness(0, title == "History" ? 16 : 0, 0, 0) };
         var scope = Ui.Text("This PC", 11, "#A6A6AA"); scope.ToolTip = "Local usage across accounts on this computer."; DockPanel.SetDock(scope, Dock.Right); row.Children.Add(scope);
         row.Children.Add(Ui.Text(title, 13, weight: FontWeights.SemiBold)); return row;
     }

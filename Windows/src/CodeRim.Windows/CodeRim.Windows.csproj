@@ -14,9 +14,9 @@
     <AssemblyName>CodeRim</AssemblyName>
     <RootNamespace>CodeRim.Windows</RootNamespace>
     <DefineConstants Condition="'$(CodeRimMsiQa)' == 'true'">$(DefineConstants);CODERIM_MSI_QA</DefineConstants>
-    <Version>2.1.9</Version>
-    <AssemblyVersion>2.1.9.0</AssemblyVersion>
-    <FileVersion>2.1.9.0</FileVersion>
+    <Version>2.1.10</Version>
+    <AssemblyVersion>2.1.10.0</AssemblyVersion>
+    <FileVersion>2.1.10.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\CodeRim.ico</ApplicationIcon>
     <PublishSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</PublishSingleFile>

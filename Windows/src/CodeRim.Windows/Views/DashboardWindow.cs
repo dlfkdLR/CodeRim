@@ -29,6 +29,7 @@ internal sealed partial class DashboardWindow : Window
     private readonly AppSettingsStore settings;
     private readonly CredentialVault vault;
     private readonly ListBox sidebar = new() { BorderThickness = new Thickness(0), Padding = new Thickness(10, 10, 10, 0) };
+    private ScrollViewer? contentViewport;
     private readonly StackPanel body = new() { Margin = new Thickness(0, 6, 0, 28) };
     private readonly Dictionary<string, Window> accountWindows = new(StringComparer.Ordinal);
     private readonly TextBlock status = Ui.Text("");
@@ -49,6 +50,7 @@ internal sealed partial class DashboardWindow : Window
         layout.Children.Add(new GridSplitter { Width = 4, HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Stretch, Background = Brushes.Transparent, ResizeDirection = GridResizeDirection.Columns, ResizeBehavior = GridResizeBehavior.CurrentAndNext });
         var scroll = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        contentViewport = scroll;
         Grid.SetColumn(scroll, 1); layout.Children.Add(scroll); Content = layout;
         sidebar.SelectionChanged += (_, _) => { if (!refreshingSidebar && sidebar.SelectedItem is ListBoxItem item && item.Tag is string id) Navigate(id); };
         settings.SettingsChanged += SettingsChanged; store.PropertyChanged += StoreChanged;
@@ -100,6 +102,7 @@ internal sealed partial class DashboardWindow : Window
     private void SettingsChanged(object? sender, EventArgs e)
     {
         BuildSidebar();
+        foreach (var ring in VisualChildren<ProviderRing>(body)) ring.Settings = settings.Current;
         if (page == "general")
         {
             var statusLabel = VisualChildren<TextBlock>(body).FirstOrDefault(x => System.Windows.Automation.AutomationProperties.GetAutomationId(x) == "startup.status");
@@ -158,6 +161,7 @@ internal sealed partial class DashboardWindow : Window
             ? VisualChildren<Control>(body).Where(x => x.IsKeyboardFocusWithin)
                 .Select(System.Windows.Automation.AutomationProperties.GetName).FirstOrDefault(x => !string.IsNullOrEmpty(x))
             : null;
+        var changedPage = renderedPage != page;
         renderedPage = page;
         CancelUpdateOperation(); updateViewRevision++;
         body.Children.Clear(); providerListDetails.Clear();
@@ -174,6 +178,7 @@ internal sealed partial class DashboardWindow : Window
             case "claude-accounts": body.Children.Add(new AccountsPane("claude", vault, store, settings)); break;
             default: Provider(page); break;
         }
+        if (changedPage) { contentViewport?.ScrollToTop(); Motion.Enter(body); }
         if (focusName is not null)
             Dispatcher.BeginInvoke(new Action(() =>
                 VisualChildren<Control>(body).FirstOrDefault(x => System.Windows.Automation.AutomationProperties.GetName(x) == focusName)?.Focus()));
@@ -216,9 +221,11 @@ internal sealed partial class DashboardWindow : Window
     private void Notch()
     {
         var shown = settings.Current.Visibility != NotchVisibility.Hidden;
+        var notchSections = new List<FrameworkElement>();
         body.Children.Add(SettingsUi.Section("Edge Notch", SettingsUi.Toggle("Show edge notch", shown, x => { Save(settings.Current with {
             LastVisibleNotchMode = x ? settings.Current.LastVisibleNotchMode : settings.Current.Visibility,
-            Visibility = x ? (settings.Current.LastVisibleNotchMode == NotchVisibility.AlwaysShow ? NotchVisibility.AlwaysShow : NotchVisibility.OnHover) : NotchVisibility.Hidden }); Render(); })));
+            Visibility = x ? (settings.Current.LastVisibleNotchMode == NotchVisibility.AlwaysShow ? NotchVisibility.AlwaysShow : NotchVisibility.OnHover) : NotchVisibility.Hidden });
+            foreach (var section in notchSections) section.IsEnabled = settings.Current.Visibility != NotchVisibility.Hidden; })));
         body.Children.Add(SettingsUi.Note("A floating usage ring welded to a screen edge. Alt-drag the pill to slide it along the edge; Recentre puts it back."));
         var controls = SettingsUi.Picker("Controls position", ControlOptions, settings.Current.ControlsPosition, x => Save(settings.Current with { ControlsPosition = x }));
         controls.IsEnabled = settings.Current.Edge is NotchEdge.Left or NotchEdge.Right;
@@ -227,7 +234,7 @@ internal sealed partial class DashboardWindow : Window
             SettingsUi.Picker("Edge", Enum.GetValues<NotchEdge>(), settings.Current.Edge, x => { Save(settings.Current with { Edge = x }); RenderAfterPicker(); }),
             SettingsUi.Picker("Size", ScaleOptions, settings.Current.Scale, x => Save(settings.Current with { Scale = x })),
             controls, SettingsUi.Action("Recentre", () => Save(settings.Current with { Offset = 0 })));
-        placement.IsEnabled = shown; body.Children.Add(placement);
+        placement.IsEnabled = shown; notchSections.Add(placement); body.Children.Add(placement);
         body.Children.Add(SettingsUi.Note("Controls position applies to the left and right edges. Auto moves Settings and account controls above the notch when space below runs out."));
         var rows = new List<UIElement> { SettingsUi.Picker("Ring style", Enum.GetValues<RingColorMode>(), settings.Current.RingColor, x => { Save(settings.Current with { RingColor = x }); RenderAfterPicker(); }) };
         if (settings.Current.RingColor == RingColorMode.Gradient)
@@ -240,13 +247,13 @@ internal sealed partial class DashboardWindow : Window
         foreach (var percent in new[] { 25d, 60d, 90d })
             previews.Children.Add(new ProviderRing { Settings = settings.Current, Reading = new ProviderReading("codex", ReadingState.Ready, [new LimitWindow("preview", "Preview", percent)], DateTimeOffset.Now), Margin = new Thickness(6) });
         rows.Add(SettingsUi.Row("Preview", new Border { Background = Brushes.Black, CornerRadius = new CornerRadius(8), Child = previews }));
-        var appearance = SettingsUi.Section("Appearance", rows.ToArray()); appearance.IsEnabled = shown; body.Children.Add(appearance);
+        var appearance = SettingsUi.Section("Appearance", rows.ToArray()); appearance.IsEnabled = shown; notchSections.Add(appearance); body.Children.Add(appearance);
         body.Children.Add(SettingsUi.Note("Usage colours reflect consumed quota. Fixed colour and Gradient keep the selected palette."));
         var readings = SettingsUi.Section("Readings",
             SettingsUi.Picker("Percentage", PercentageOptions, settings.Current.ShowRemaining ? "Remaining" : "Used", x => Save(settings.Current with { ShowRemaining = x == "Remaining" })),
             SettingsUi.Picker("Reset time", ResetOptions, settings.Current.ResetTime, x => Save(settings.Current with { ResetTime = x })),
             SettingsUi.Toggle("Show usage pace", settings.Current.ShowUsagePace, x => Save(settings.Current with { ShowUsagePace = x })));
-        readings.IsEnabled = shown; body.Children.Add(readings);
+        readings.IsEnabled = shown; notchSections.Add(readings); body.Children.Add(readings);
         var finished = SettingsUi.Picker("Finished", SessionChime.Names, settings.Current.FinishedSound, x => { Save(settings.Current with { FinishedSound = x }); if (settings.Current.CompletionSound && settings.Current.Visibility != NotchVisibility.Hidden) SessionChime.Play(x); });
         var blocked = SettingsUi.Picker("Blocked", SessionChime.Names, settings.Current.BlockedSound, x => { Save(settings.Current with { BlockedSound = x }); if (settings.Current.CompletionSound && settings.Current.Visibility != NotchVisibility.Hidden) SessionChime.Play(x); });
         finished.IsEnabled = blocked.IsEnabled = settings.Current.CompletionSound;
@@ -254,9 +261,9 @@ internal sealed partial class DashboardWindow : Window
             SettingsUi.Toggle("Peek the notch open", settings.Current.PeekOnCompletion, x => Save(settings.Current with { PeekOnCompletion = x })),
             SettingsUi.Toggle("Play a sound", settings.Current.CompletionSound, x => { Save(settings.Current with { CompletionSound = x }); finished.IsEnabled = blocked.IsEnabled = x; }),
             finished, blocked);
-        sessionEnd.IsEnabled = shown; body.Children.Add(sessionEnd);
+        sessionEnd.IsEnabled = shown; notchSections.Add(sessionEnd); body.Children.Add(sessionEnd);
         var alerts = SettingsUi.Section("Usage Alerts", SettingsUi.Toggle("Notify at 80% and 100% usage", settings.Current.AlertsEnabled, x => Save(settings.Current with { AlertsEnabled = x })));
-        alerts.IsEnabled = shown; body.Children.Add(alerts);
+        alerts.IsEnabled = shown; notchSections.Add(alerts); body.Children.Add(alerts);
         body.Children.Add(SettingsUi.Note("Mute individual providers in Providers. Alerts always follow consumed usage."));
         var displays = System.Windows.Forms.Screen.AllScreens.Select(x => x.DeviceName).ToArray();
         body.Children.Add(SettingsUi.Section("Display",

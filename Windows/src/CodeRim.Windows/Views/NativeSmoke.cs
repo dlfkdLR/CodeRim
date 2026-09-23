@@ -187,6 +187,27 @@ internal static partial class NativeSmoke
         Require(listPlan.Text == "Preview account" && Descendants<TextBlock>(dashboard).Contains(listPlan), "Provider list did not refresh its existing row");
         dashboard.Navigate("usage"); await Idle();
         Require(Descendants<Button>(dashboard).Any(x => AutomationProperties.GetAutomationId(x) == "usage.refresh"), "Usage header has no refresh action");
+        var providerPicker = Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage provider");
+        dashboard.Activate(); providerPicker.Focus();
+        providerPicker.RaiseEvent(new System.Windows.Input.TextCompositionEventArgs(System.Windows.Input.Keyboard.PrimaryDevice,
+            new System.Windows.Input.TextComposition(System.Windows.Input.InputManager.Current, providerPicker, "Claude"))
+            { RoutedEvent = System.Windows.Input.TextCompositionManager.TextInputEvent });
+        await Idle();
+        Require(providerPicker.SelectedValue is string selectedProvider && selectedProvider == "claude", "Provider name typing no longer selects Claude");
+        Require(Descendants<ProviderMark>(providerPicker).Any(x => x.ProviderId == "claude"), "Provider typing left a stale logo");
+        Descendants<UsagePane>(dashboard).Single().SelectProvider("codex");
+        System.Windows.Input.Keyboard.ClearFocus(); await Idle();
+        var usageModes = Descendants<RadioButton>(dashboard).Where(x => x.GroupName == "UsageMode").ToArray();
+        Require(usageModes.Length == 2 && usageModes.All(x => x.ActualHeight <= 26), "Usage mode controls lost their compact height");
+        Require(usageModes.Select(VisualTreeHelper.GetParent).Distinct().Count() == 1, "Usage modes are not one segmented control");
+        var refreshAction = Descendants<Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.refresh");
+        Require(refreshAction.Content is System.Windows.Shapes.Path && AutomationProperties.GetName(refreshAction) == "Refresh usage", "Usage refresh icon has no accessible action name");
+        Require(Descendants<ProviderMark>(dashboard).Any(x => x.ProviderId == "codex"), "Usage provider selector is missing its glyph");
+        usageModes[1].IsChecked = true; await Idle();
+        Require(usageModes[1].IsChecked == true && usageModes[0].IsChecked == false, "Limits segment failed to select exclusively");
+        usageModes[0].IsChecked = true; await Idle();
+        Require(usageModes[0].IsChecked == true && usageModes[1].IsChecked == false, "Token Usage segment failed to select exclusively");
+        Record("Compact Usage segments, provider glyph and accessible icon refresh preserve selection behavior");
         var shortCard = NotchPopover.Create("codex", store, settings.Current, _ => { }, 140);
         shortCard.Measure(new Size(500, 1000)); shortCard.Arrange(new Rect(0, 0, 500, shortCard.DesiredSize.Height));
         Require(Descendants<ScrollViewer>(shortCard).Single().MaxHeight == 100, "Popover ignored the selected monitor viewport");
@@ -425,6 +446,17 @@ internal static partial class NativeSmoke
             foreach (var section in new[] { "general", "usage", "providers", "notch" })
             {
                 dashboard.Navigate(section); await Idle();
+                if (section == "usage")
+                {
+                    var pane = Descendants<UsagePane>(dashboard).Single();
+                    pane.SelectProvider("codex"); pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
+                    var viewport = Descendants<ScrollViewer>(dashboard).Single(x => x.Content is StackPanel panel && panel.Children.OfType<UsagePane>().Any());
+                    Require(viewport.ScrollableHeight < 1, "Usage overview hides analytics links below the minimum-size viewport: " + theme);
+                    var selectedMode = Descendants<RadioButton>(pane).Single(x => x.GroupName == "UsageMode" && x.IsChecked == true);
+                    var selectedText = Descendants<TextBlock>(selectedMode).Single();
+                    Require(selectedText.Foreground is SolidColorBrush selectedForeground && selectedForeground.Color == ((SolidColorBrush)System.Windows.Application.Current.FindResource("AccentText")).Color,
+                        "Selected Usage text lost theme contrast: " + theme);
+                }
                 Require(Descendants<ScrollViewer>(dashboard).All(x => x.ScrollableWidth < 1), "Horizontal overflow: " + theme + "/" + section);
                 foreach (var picker in Descendants<System.Windows.Controls.ComboBox>(dashboard))
                     Require(!string.IsNullOrWhiteSpace(AutomationProperties.GetName(picker)) || AutomationProperties.GetLabeledBy(picker) is not null, "Unlabelled settings picker: " + section);
@@ -622,6 +654,8 @@ internal static partial class NativeSmoke
         Require(Descendants<ListBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Settings sections").SelectedItem is ListBoxItem { Tag: "usage" }, "Unavailable session target did not open local sessions");
         Record("Session window discovery, process-reuse rejection, and unavailable-target fallback");
         Record("Blocked and finished sessions peek independently of sound, without duplicate alerts");
+        await CheckMotion(dashboard, notch, store, settings, directory);
+        Record("Motion parity: intermediate frames, reversal, ring reset, refresh, controls, visibility and reduced-motion policy");
         File.WriteAllText(Path.Combine(directory, "windows-ui-checks.json"), JsonSerializer.Serialize(new { kind = "Native WPF synthetic integration", checks }, JsonOptions));
     }
     private static async Task Until(Func<bool> condition, string failure)
@@ -630,7 +664,14 @@ internal static partial class NativeSmoke
         while (!condition() && DateTimeOffset.UtcNow < deadline) { await Task.Delay(10); await Idle(); }
         Require(condition(), failure);
     }
-    private static async Task Idle() => await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => { }, DispatcherPriority.ApplicationIdle);
+    private static async Task Idle()
+    {
+        await MotionFrame();
+        var deadline = DateTimeOffset.UtcNow.AddSeconds(2);
+        while (Motion.IsAnimating && DateTimeOffset.UtcNow < deadline)
+        { await Task.Delay(10); await MotionFrame(); }
+        Require(!Motion.IsAnimating, "Finite UI animations did not settle before a static capture");
+    }
     internal static void Capture(FrameworkElement view, string output)
     {
         view.UpdateLayout();
@@ -638,7 +679,7 @@ internal static partial class NativeSmoke
         Require(width > 0 && height > 0, "Empty capture");
         var image = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
         var background = new DrawingVisual();
-        using (var context = background.RenderOpen()) { context.DrawRectangle(Ui.Brush("#292929"), null, new Rect(0, 0, width, height)); context.DrawRectangle(new VisualBrush(view), null, new Rect(0, 0, width, height)); }
+        using (var context = background.RenderOpen()) { context.DrawRectangle((Brush)view.FindResource("WindowBackground"), null, new Rect(0, 0, width, height)); context.DrawRectangle(new VisualBrush(view), null, new Rect(0, 0, width, height)); }
         image.Render(background); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
         using var file = File.Create(output); encoder.Save(file);
     }

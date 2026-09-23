@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CodeRim.Core.Domain;
+using CodeRim.Core.Services;
 using Button = System.Windows.Controls.Button;
 
 namespace CodeRim.Windows.Views;
@@ -14,16 +15,18 @@ internal sealed partial class NotchWindow
     private Button? settingsControl, accountControl;
     private Border? controlRail;
     private NotchSettingsGlyph? settingsGlyph;
+    private int controlsRevision;
+    private double controlDirection;
     internal bool ControlsRevealed { get; private set; }
 
     private void ResetControls()
     {
-        controlHide.Stop(); ControlsRevealed = false;
+        controlsRevision++; controlHide.Stop(); ControlsRevealed = false;
         settingsControl = null; accountControl = null; controlRail = null; settingsGlyph = null;
     }
     private void RenderControls(Canvas canvas, bool atStart)
     {
-        var scale = settings.Current.Scale;
+        var scale = settings.Current.Scale; controlDirection = atStart ? -1 : 1;
         var along = bodyStart + (atStart ? 0 : bodyLength);
         var next = along + (atStart ? -1 : 1) * NotchMetrics.ControlSpacing * scale;
         Point Center(double value) => settings.Current.Edge switch
@@ -75,9 +78,7 @@ internal sealed partial class NotchWindow
     private void RevealControls()
     {
         controlHide.Stop(); ControlsRevealed = settingsControl is not null;
-        if (controlRail is not null) controlRail.Visibility = Visibility.Visible;
-        if (accountControl is not null) accountControl.Visibility = Visibility.Visible;
-        if (settingsGlyph is not null) { settingsGlyph.Revealed = true; settingsGlyph.InvalidateVisual(); }
+        AnimateControls(true);
     }
     private void HideControlsIfUnused()
     {
@@ -85,9 +86,42 @@ internal sealed partial class NotchWindow
             || accountControl is { IsMouseOver: true } or { IsKeyboardFocusWithin: true }
             || controlRail is { IsMouseOver: true }) return;
         controlHide.Stop(); ControlsRevealed = false;
-        if (controlRail is not null) controlRail.Visibility = Visibility.Hidden;
-        if (accountControl is not null) accountControl.Visibility = Visibility.Hidden;
-        if (settingsGlyph is not null) { settingsGlyph.Revealed = false; settingsGlyph.InvalidateVisual(); }
+        AnimateControls(false);
+    }
+    private void HideControlsForFold() { controlHide.Stop(); ControlsRevealed = false; AnimateControls(false); }
+    private void AnimateControls(bool show)
+    {
+        var revision = ++controlsRevision;
+        if (settingsGlyph is not null) Motion.To(settingsGlyph, NotchSettingsGlyph.RevealProperty, show ? 1 : 0, 0.3, enabled: Animates);
+        if (controlRail is not null)
+        {
+            if (show && controlRail.Visibility != Visibility.Visible) { controlRail.Opacity = 0; controlRail.Visibility = Visibility.Visible; }
+            var rail = controlRail;
+            Motion.To(rail, OpacityProperty, show ? 1 : 0, NotchMotion.Crossfade,
+                completed: () => { if (!show && revision == controlsRevision) rail.Visibility = Visibility.Hidden; }, enabled: Animates);
+        }
+        if (accountControl is not null)
+        {
+            var account = accountControl;
+            var shift = 24 * NotchMetrics.Unit * settings.Current.Scale;
+            if (account.RenderTransform is not TransformGroup)
+            {
+                var transforms = new TransformGroup(); transforms.Children.Add(new ScaleTransform(0.65, 0.65));
+                transforms.Children.Add(new TranslateTransform(Vertical ? 0 : -shift * controlDirection, Vertical ? -shift * controlDirection : 0));
+                account.RenderTransform = transforms; account.RenderTransformOrigin = new Point(0.5, 0.5); account.Opacity = 0;
+            }
+            var group = (TransformGroup)account.RenderTransform;
+            var scale = (ScaleTransform)group.Children[0]; var slide = (TranslateTransform)group.Children[1];
+            if (show) account.Visibility = Visibility.Visible;
+            account.IsHitTestVisible = show; account.Focusable = show;
+            var delay = show ? 0.08 : 0;
+            Motion.To(scale, ScaleTransform.ScaleXProperty, show ? 1 : 0.65, 0.6, Motion.Spring(0.82), delay, enabled: Animates);
+            Motion.To(scale, ScaleTransform.ScaleYProperty, show ? 1 : 0.65, 0.6, Motion.Spring(0.82), delay, enabled: Animates);
+            Motion.To(slide, TranslateTransform.XProperty, show || Vertical ? 0 : -shift * controlDirection, 0.6, Motion.Spring(0.82), delay, enabled: Animates);
+            Motion.To(slide, TranslateTransform.YProperty, show || !Vertical ? 0 : -shift * controlDirection, 0.6, Motion.Spring(0.82), delay, enabled: Animates);
+            Motion.To(account, OpacityProperty, show ? 1 : 0, 0.3, delay: delay,
+                completed: () => { if (!show && revision == controlsRevision) account.Visibility = Visibility.Hidden; }, enabled: Animates);
+        }
     }
 }
 
@@ -95,17 +129,21 @@ internal sealed partial class NotchWindow
 internal sealed class NotchSettingsGlyph(NotchEdge edge, bool atStart) : FrameworkElement
 {
     internal static double Extent => 2 * NotchMetrics.OrbArcRadius + NotchMetrics.OrbStroke;
-    internal bool Revealed { get; set; }
+    internal static readonly DependencyProperty RevealProperty = DependencyProperty.Register("Reveal", typeof(double), typeof(NotchSettingsGlyph),
+        new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
     protected override void OnRender(DrawingContext drawing)
     {
         var center = new Point(ActualWidth / 2, ActualHeight / 2);
-        if (Revealed)
+        var reveal = Math.Clamp((double)GetValue(RevealProperty), 0, 1);
+        if (reveal > 0)
         {
+            drawing.PushOpacity(reveal);
             var text = new FormattedText("\uE713", System.Globalization.CultureInfo.CurrentUICulture,
                 FlowDirection.LeftToRight, new Typeface("Segoe Fluent Icons, Segoe MDL2 Assets"),
                 NotchMetrics.OrbGlyph * 0.8, Brushes.White, VisualTreeHelper.GetDpi(this).PixelsPerDip);
-            drawing.DrawText(text, new Point(center.X - text.Width / 2, center.Y - text.Height / 2)); return;
+            drawing.DrawText(text, new Point(center.X - text.Width / 2, center.Y - text.Height / 2)); drawing.Pop();
         }
+        drawing.PushOpacity(1 - reveal);
         var start = NotchMetrics.RestingArcStart(edge, atStart) * Math.Tau;
         Point At(double angle) => new(center.X + Math.Cos(angle) * NotchMetrics.OrbArcRadius, center.Y + Math.Sin(angle) * NotchMetrics.OrbArcRadius);
         var path = new StreamGeometry();
@@ -116,5 +154,6 @@ internal sealed class NotchSettingsGlyph(NotchEdge edge, bool atStart) : Framewo
         }
         path.Freeze();
         drawing.DrawGeometry(null, new Pen(Brushes.Black, NotchMetrics.OrbStroke) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round }, path);
+        drawing.Pop();
     }
 }

@@ -2,7 +2,7 @@
   <PropertyGroup>
     <AnalysisLevel>latest-recommended</AnalysisLevel>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
-    <Version>2.1.9</Version>
+    <Version>2.1.10</Version>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
 </Project>

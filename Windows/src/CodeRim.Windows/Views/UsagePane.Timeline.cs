@@ -16,7 +16,7 @@ internal sealed partial class UsagePane
         bool? compact = null;
         grid.SizeChanged += (_, _) =>
         {
-            var next = grid.ActualWidth < 450;
+            var next = grid.ActualWidth < 480;
             if (compact == next) return;
             compact = next; grid.ColumnDefinitions.Clear(); grid.RowDefinitions.Clear();
             grid.ColumnDefinitions.Add(new ColumnDefinition());
