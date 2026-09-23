@@ -54,12 +54,19 @@ $deadline=[DateTime]::UtcNow.AddMinutes(4)
 while(-not(Test-Path $result) -and [DateTime]::UtcNow -lt $deadline){Start-Sleep -Milliseconds 250}
 Copy-Item (Join-Path $private "Launchers\$id\install.log") (Join-Path $ReleaseDirectory 'worker-install.log') -ErrorAction SilentlyContinue
 if(-not(Test-Path $result)){throw 'Worker did not finish; no success or rollback is assumed.'}
+Copy-Item $result (Join-Path $ReleaseDirectory 'worker-result.json')
 $outcome=Get-Content $result -Raw | ConvertFrom-Json
 if($outcome.Status -ne 0 -or $outcome.ExitCode -ne 0){throw 'Worker did not verify an applied update.'}
 $manifest=Get-Content (Join-Path $ReleaseDirectory "CodeRim-Windows-2.1.9-$Architecture-Setup.msi.manifest.json") -Raw | ConvertFrom-Json
 $deadline=[DateTime]::UtcNow.AddSeconds(30);$relaunched=$null
-while(-not $relaunched -and [DateTime]::UtcNow -lt $deadline){$relaunched=Get-Process CodeRim -ErrorAction SilentlyContinue | Where-Object {$_.Path -eq (Join-Path $app 'CodeRim.exe')};Start-Sleep -Milliseconds 250}
-if(-not $relaunched -or @($relaunched).Count -ne 1){throw 'Expected exactly one automatically relaunched app.'}
+$database=Join-Path $env:CODERIM_DATA_DIR 'usage.sqlite'
+while([DateTime]::UtcNow -lt $deadline){
+    $running=@(Get-Process CodeRim -ErrorAction SilentlyContinue | Where-Object {$_.Path -eq (Join-Path $app 'CodeRim.exe')})
+    if($running.Count -gt 1){throw 'More than one installed app was relaunched.'}
+    if($running.Count -eq 1 -and -not $running[0].HasExited -and (Test-Path $database)){$relaunched=$running[0];break}
+    Start-Sleep -Milliseconds 250
+}
+if(-not $relaunched -or $relaunched.HasExited){throw 'The automatically relaunched app did not finish initializing its isolated data directory.'}
 if([Diagnostics.FileVersionInfo]::GetVersionInfo($relaunched.Path).FileVersion -ne '2.1.9.0'){throw 'Relaunch used the old binary.'}
 if((Get-ItemProperty 'HKCU:\Software\CodeRim\Installer').Version -ne '2.1.9'){throw 'Registration was not upgraded.'}
 if([IO.File]::ReadAllText($sentinel) -cne 'settings and credentials stay outside MSI'){throw 'User data was changed.'}

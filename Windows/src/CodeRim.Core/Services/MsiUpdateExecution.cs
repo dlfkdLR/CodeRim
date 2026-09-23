@@ -5,6 +5,8 @@ using Microsoft.Win32;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text.Json;
 
 namespace CodeRim.Core.Services;
@@ -114,6 +116,7 @@ public static class MsiUpdateExecution
         var package = InstallerUpdates.ParseAuthorization(Convert.FromBase64String(request.Manifest), request.Signature, arch, Version.Parse(ReleaseUpdates.CurrentVersion));
         var downloaded = InstallerUpdates.FindCached(package, location.PrivateDirectory("Downloads")) ?? throw new InvalidDataException("The verified MSI is missing.");
         using var lease = InstallerUpdates.OpenVerifiedInstaller(downloaded);
+        AllowInstallerServiceRead(downloaded.Path);
         var installedExe = Path.Combine(location.InstallRoot, "CodeRim.exe");
         var previous = Snapshot(location.InstallRoot);
         if (previous.Version != ReleaseUpdates.CurrentVersion) throw new InvalidDataException("The MSI registration does not match the running app.");
@@ -128,7 +131,7 @@ public static class MsiUpdateExecution
             return Record(location, id, new(MsiUpdateStatus.ParentStillRunning, null));
         var start = new ProcessStartInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "msiexec.exe"))
             { UseShellExecute = false, WorkingDirectory = launcher };
-        foreach (var argument in new[] { "/i", downloaded.Path, "/qb", "/norestart", "REBOOT=ReallySuppress", "LAUNCHAPP=0", "MSIRESTARTMANAGERCONTROL=Disable", "/l*v", Path.Combine(launcher, "install.log") }) start.ArgumentList.Add(argument);
+        foreach (var argument in new[] { "/i", downloaded.Path, "/qn", "/norestart", "REBOOT=ReallySuppress", "LAUNCHAPP=0", "MSIRESTARTMANAGERCONTROL=Disable", "/l*v", Path.Combine(launcher, "install.log") }) start.ArgumentList.Add(argument);
         start.Environment["TEMP"] = launcher; start.Environment["TMP"] = launcher;
         using var process = Process.Start(start) ?? throw new IOException("Windows Installer could not be started.");
         // Never kill msiexec or report rollback while its service-side transaction may still be running.
@@ -147,6 +150,19 @@ public static class MsiUpdateExecution
             using var restarted = Process.Start(restart);
         }
         return result;
+    }
+
+    internal static void AllowInstallerServiceRead(string path)
+    {
+        // Windows Installer's service reads the authenticated MSI as SYSTEM. Expose only
+        // these public installer bytes; request/pipe/runtime directories stay user-private.
+        using var identity = WindowsIdentity.GetCurrent();
+        var user = identity.User ?? throw new IOException("The current user is unavailable.");
+        var security = new FileSecurity(); security.SetOwner(user);
+        security.SetAccessRuleProtection(isProtected: true, preserveInheritance: false);
+        security.AddAccessRule(new FileSystemAccessRule(user, FileSystemRights.FullControl, AccessControlType.Allow));
+        security.AddAccessRule(new FileSystemAccessRule(new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), FileSystemRights.ReadAndExecute, AccessControlType.Allow));
+        new FileInfo(path).SetAccessControl(security);
     }
 
     private static void ShowResult(MsiUpdateResult result)
