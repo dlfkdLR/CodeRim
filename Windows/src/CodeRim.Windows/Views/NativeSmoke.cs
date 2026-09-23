@@ -194,6 +194,7 @@ internal static partial class NativeSmoke
             { RoutedEvent = System.Windows.Input.TextCompositionManager.TextInputEvent });
         await Idle();
         Require(providerPicker.SelectedValue is string selectedProvider && selectedProvider == "claude", "Provider name typing no longer selects Claude");
+        Require(Descendants<ProviderMark>(providerPicker).Any(x => x.ProviderId == "claude"), "Provider typing left a stale logo");
         Descendants<UsagePane>(dashboard).Single().SelectProvider("codex");
         System.Windows.Input.Keyboard.ClearFocus(); await Idle();
         var usageModes = Descendants<RadioButton>(dashboard).Where(x => x.GroupName == "UsageMode").ToArray();
@@ -451,6 +452,10 @@ internal static partial class NativeSmoke
                     pane.SelectProvider("codex"); pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
                     var viewport = Descendants<ScrollViewer>(dashboard).Single(x => x.Content is StackPanel panel && panel.Children.OfType<UsagePane>().Any());
                     Require(viewport.ScrollableHeight < 1, "Usage overview hides analytics links below the minimum-size viewport: " + theme);
+                    var selectedMode = Descendants<RadioButton>(pane).Single(x => x.GroupName == "UsageMode" && x.IsChecked == true);
+                    var selectedText = Descendants<TextBlock>(selectedMode).Single();
+                    Require(selectedText.Foreground is SolidColorBrush selectedForeground && selectedForeground.Color == ((SolidColorBrush)System.Windows.Application.Current.FindResource("AccentText")).Color,
+                        "Selected Usage text lost theme contrast: " + theme);
                 }
                 Require(Descendants<ScrollViewer>(dashboard).All(x => x.ScrollableWidth < 1), "Horizontal overflow: " + theme + "/" + section);
                 foreach (var picker in Descendants<System.Windows.Controls.ComboBox>(dashboard))
@@ -674,7 +679,7 @@ internal static partial class NativeSmoke
         Require(width > 0 && height > 0, "Empty capture");
         var image = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
         var background = new DrawingVisual();
-        using (var context = background.RenderOpen()) { context.DrawRectangle(Ui.Brush("#292929"), null, new Rect(0, 0, width, height)); context.DrawRectangle(new VisualBrush(view), null, new Rect(0, 0, width, height)); }
+        using (var context = background.RenderOpen()) { context.DrawRectangle((Brush)view.FindResource("WindowBackground"), null, new Rect(0, 0, width, height)); context.DrawRectangle(new VisualBrush(view), null, new Rect(0, 0, width, height)); }
         image.Render(background); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
         using var file = File.Create(output); encoder.Save(file);
     }
