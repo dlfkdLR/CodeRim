@@ -28,10 +28,22 @@ internal static partial class NativeSmoke
             dashboard.Navigate("general"); await Idle();
             CheckBox Toggle() => Descendants<CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Launch at Login");
             string Status() => Descendants<TextBlock>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "startup.status").Text;
+            var activationStates = new List<object>();
             async Task Reactivate()
             {
-                fixture.Show(); fixture.Activate(); await Idle();
-                dashboard.Activate(); await Idle();
+                activationStates.Add(new { phase = "before", fixtureActive = fixture.IsActive, dashboardActive = dashboard.IsActive,
+                    check = Toggle().IsChecked, text = Status(), preference = settings.Current.LaunchAtLogin, actual = StartupService.ReadStatus(),
+                    approval = approval.GetValue(StartupService.ValueName) is byte[] initialBytes ? Convert.ToHexString(initialBytes) : "not-binary-or-absent" });
+                File.WriteAllText(Path.Combine(directory, "windows-startup-activation.json"), JsonSerializer.Serialize(activationStates));
+                fixture.Show(); var fixtureAccepted = fixture.Activate();
+                await MotionUntil(() => fixture.IsActive, "Startup fixture could not acquire native activation.");
+                var dashboardAccepted = dashboard.Activate();
+                await MotionUntil(() => dashboard.IsActive, "Settings window could not regain native activation.");
+                await Idle();
+                activationStates.Add(new { fixtureAccepted, dashboardAccepted, fixtureActive = fixture.IsActive, dashboardActive = dashboard.IsActive,
+                    check = Toggle().IsChecked, toggleEnabled = Toggle().IsEnabled, text = Status(), preference = settings.Current.LaunchAtLogin,
+                    actual = StartupService.ReadStatus(), approval = approval.GetValue(StartupService.ValueName) is byte[] bytes ? Convert.ToHexString(bytes) : "not-binary-or-absent" });
+                File.WriteAllText(Path.Combine(directory, "windows-startup-activation.json"), JsonSerializer.Serialize(activationStates));
             }
             Require(Toggle().IsChecked == false && Status() == "Disabled", "Missing startup registration displayed as enabled.");
             StartupService.SetEnabled(true); await Reactivate();
