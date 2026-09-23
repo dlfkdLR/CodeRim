@@ -75,7 +75,29 @@ internal static partial class NativeSmoke
             await MotionUntil(() => account.Opacity >= 0.999, "Account entrance did not settle");
             checks.Add("Settings reveal retains the account control's delayed fade/scale entrance");
             notch.OpenProvider("codex"); await Task.Delay(200); await MotionFrame();
+            var popupDiagnostics = new List<object>(); var popupStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+            void RecordPopup(string stage)
+            {
+                var target = Descendants<Button>(notch).Where(button => AutomationProperties.GetAutomationId(button) is "notch.provider.codex" or "notch.provider.claude")
+                    .Select(button => new { id = AutomationProperties.GetAutomationId(button),
+                        localDip = button.TranslatePoint(new Point(button.ActualWidth / 2, NotchMetrics.Ring / 2), notch),
+                        screenPixel = button.PointToScreen(new Point(button.ActualWidth / 2, NotchMetrics.Ring / 2)) }).ToArray();
+                var child = notch.PopupContent;
+                popupDiagnostics.Add(new { stage, milliseconds = System.Diagnostics.Stopwatch.GetElapsedTime(popupStarted).TotalMilliseconds,
+                    notch.PopupIsOpen, notch.AccountMenuIsOpen,
+                    renderedProvider = child is null ? null : Descendants<ProviderMark>(child).FirstOrDefault()?.ProviderId,
+                    anchorLocalDip = notch.PopupAnchor, anchorScreenPixel = notch.PointToScreen(notch.PopupAnchor),
+                    notchDpi = VisualTreeHelper.GetDpi(notch).PixelsPerInchX, target, settings.Current.Edge, settings.Current.Offset,
+                    settings.Current.Scale, settings.Current.ReduceMotion, Motion.Enabled,
+                    centerScreenPixel = child is { IsLoaded: true } ? child.PointToScreen(new Point(child.ActualWidth / 2, child.ActualHeight / 2)) : (Point?)null });
+                File.WriteAllText(Path.Combine(directory, "windows-motion-popup-state.json"), JsonSerializer.Serialize(popupDiagnostics, JsonOptions));
+            }
+            RecordPopup("codex before switch");
+            Require(notch.PopupIsOpen && !notch.AccountMenuIsOpen && notch.PopupContent is { } sourceCard
+                && Descendants<ProviderMark>(sourceCard).FirstOrDefault()?.ProviderId == "codex",
+                "Source popup is not Codex before the provider-switch motion fixture.");
             notch.OpenProvider("claude"); await MotionFrame();
+            RecordPopup("claude first layout");
             Require(notch.PopupIsOpen && notch.PopupContent is not null, "Provider change lost popup");
             var popupPositions = new List<double>();
             for (var frame = 0; frame < 6; frame++)
@@ -83,6 +105,7 @@ internal static partial class NativeSmoke
                 var child = notch.PopupContent!;
                 var y = child.PointToScreen(new Point(0, child.ActualHeight / 2)).Y;
                 popupPositions.Add(y); samples.Add(new { kind = "popup", frame, y });
+                RecordPopup("sample " + frame);
                 RequirePopupClearOfNotch(notch, "animated provider transition");
                 Capture(child, Path.Combine(directory, $"windows-motion-popup-{frame:D2}.png"));
                 await Task.Delay(75); await MotionFrame();

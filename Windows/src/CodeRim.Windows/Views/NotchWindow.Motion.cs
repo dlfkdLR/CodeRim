@@ -46,7 +46,7 @@ internal sealed partial class NotchWindow
         new PropertyMetadata(0d, (o, e) => ((NotchWindow)o).popup.HorizontalOffset = (double)e.NewValue));
     private static readonly DependencyProperty PopupYProperty = DependencyProperty.Register("PopupY", typeof(double), typeof(NotchWindow),
         new PropertyMetadata(0d, (o, e) => ((NotchWindow)o).popup.VerticalOffset = (double)e.NewValue));
-    private Point PopupAnchor => new((double)GetValue(PopupXProperty), (double)GetValue(PopupYProperty));
+    internal Point PopupAnchor => new((double)GetValue(PopupXProperty), (double)GetValue(PopupYProperty));
     private void UpdatePopupAnchor(bool animate)
     {
         var center = Vertical ? new Point(bodyDepth / 2, bodyStart + bodyLength / 2) : new Point(bodyStart + bodyLength / 2, bodyDepth / 2);
