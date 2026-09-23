@@ -167,7 +167,30 @@ internal static partial class NativeSmoke
                 command.Skip(1), """{"session_id":"synthetic-unregistered","rate_limits":{"five_hour":{"used_percentage":53}}}""",
                 timeout: TimeSpan.FromSeconds(45));
             Require(result.Contains("53%", StringComparison.Ordinal), "Installed Claude command did not read stdin");
-            Record("Claude installation preserves settings, is idempotent, and executes its Windows command with stdin");
+            ClaudeHookInstaller.Uninstall(); ClaudeHookInstaller.Uninstall();
+            using var removed = JsonDocument.Parse(File.ReadAllText(ClaudeHookInstaller.SettingsPath));
+            Require(!removed.RootElement.TryGetProperty("statusLine", out _) && removed.RootElement.GetProperty("unrelated").GetBoolean()
+                && !removed.RootElement.GetProperty("hooks").TryGetProperty("SessionStart", out _)
+                && removed.RootElement.GetProperty("hooks").GetProperty("Stop").GetArrayLength() == 1,
+                "Claude disconnect did not remove only its owned settings.");
+            var originalStatus = """{"type":"command","command":"fixture-user-status","padding":3}""";
+            var userSettings = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(ClaudeHookInstaller.SettingsPath))!;
+            userSettings["statusLine"] = System.Text.Json.Nodes.JsonNode.Parse(originalStatus);
+            File.WriteAllText(ClaudeHookInstaller.SettingsPath, userSettings.ToJsonString());
+            var helper = Path.Combine(AppContext.BaseDirectory, "CodeRimCLI.exe");
+            await BoundedProcess.RunAsync(helper, ["claude-connect", "--replace-statusline"], timeout: TimeSpan.FromSeconds(20));
+            await BoundedProcess.RunAsync(helper, ["claude-disconnect"], timeout: TimeSpan.FromSeconds(20));
+            var restored = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(ClaudeHookInstaller.SettingsPath))!;
+            Require(System.Text.Json.Nodes.JsonNode.DeepEquals(restored["statusLine"], System.Text.Json.Nodes.JsonNode.Parse(originalStatus)),
+                "CLI disconnect failed to restore the user's original status line.");
+            ClaudeHookInstaller.Install(replaceExisting: true);
+            var edited = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(ClaudeHookInstaller.SettingsPath))!;
+            edited["statusLine"]!["command"] = "fixture-new-user-status";
+            File.WriteAllText(ClaudeHookInstaller.SettingsPath, edited.ToJsonString());
+            ClaudeHookInstaller.Uninstall();
+            var preserved = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(ClaudeHookInstaller.SettingsPath))!;
+            Require(preserved["statusLine"]!["command"]!.GetValue<string>() == "fixture-new-user-status", "Disconnect overwrote a status line edited since install.");
+            Record("Claude installation is idempotent, executes stdin, restores original settings through CLI disconnect and preserves later user edits");
         }
         finally { Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", previousClaudeConfig); }
 

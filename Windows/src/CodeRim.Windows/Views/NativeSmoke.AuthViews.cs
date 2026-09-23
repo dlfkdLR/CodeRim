@@ -71,7 +71,7 @@ internal static partial class NativeSmoke
                             && texts.Any(text => text.Contains("12", StringComparison.Ordinal) && text.Contains("USD", StringComparison.Ordinal)),
                             "Moonshot balance was replaced with synthetic percentage quota.");
                     }
-                    else Require(Descendants<ProgressBar>(window).Any(bar => bar.Value == (id == "codebuff" ? 12 : 33)),
+                    else Require(Descendants<ProgressBar>(window).Any(bar => Math.Abs(bar.Value - (id == "codebuff" ? 12 : 33)) < 0.001),
                         "Provider quota did not reach its native view.");
                     Capture(window, Path.Combine(directory, "windows-auth-view-" + id + ".png"));
                     evidence.Add(new { provider = id, requests = count, reading.State, reading.Plan,

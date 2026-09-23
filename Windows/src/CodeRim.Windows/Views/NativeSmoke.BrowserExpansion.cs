@@ -101,7 +101,7 @@ internal static partial class NativeSmoke
                     {
                         await liveStore.RefreshProviderAsync(id); await Idle();
                         Require(liveStore.Readings[id].State == ReadingState.Ready
-                            && Descendants<ProgressBar>(liveWindow).Any(bar => bar.Value == 33),
+                            && Descendants<ProgressBar>(liveWindow).Any(bar => Math.Abs(bar.Value - 33) < 0.001),
                             "Imported browser reading did not reach the provider view.");
                         Require(Descendants<Button>(liveWindow).Any(button => Equals(button.Content, "Import from Firefox…")),
                             "Firefox connection action is missing.");

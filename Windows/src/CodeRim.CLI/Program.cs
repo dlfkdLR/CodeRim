@@ -50,6 +50,7 @@ static async Task<int> RunAsync(string[] arguments)
                          [--format text|json] [--pretty] [--watch SECONDS] [--snapshot PATH] [--no-color]
                   coderim path | version | help
                   coderim claude-connect [--replace-statusline]
+                  coderim claude-disconnect  (restores the previous status line and removes CodeRim hooks)
                   coderim claude-status  (reads Claude status-line JSON from stdin)
                   coderim claude-session-start  (binds a Claude SessionStart hook to the current login)
 
@@ -64,6 +65,13 @@ static async Task<int> RunAsync(string[] arguments)
             catch (InvalidOperationException)
             { Console.Error.WriteLine("Connect from a Windows package. If another status line exists, keep it or use --replace-statusline to replace it with a backup."); return 1; }
             Console.WriteLine("Connected CodeRim. Start a new Claude Code session to read limits."); return 0;
+        }
+        if (command == "claude-disconnect")
+        {
+            try { ClaudeHookInstaller.Uninstall(); }
+            catch (InvalidOperationException)
+            { Console.Error.WriteLine("Disconnect from a Windows package. Claude settings could not be changed safely."); return 1; }
+            Console.WriteLine("Disconnected CodeRim's Claude status-line and session hooks."); return 0;
         }
         if (command == "claude-session-start") { await RegisterClaudeSessionAsync().ConfigureAwait(false); return 0; }
         if (command == "claude-status") { await CaptureClaudeAsync().ConfigureAwait(false); return 0; }
