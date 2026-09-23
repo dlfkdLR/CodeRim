@@ -5,12 +5,18 @@ on:
   pull_request:
     paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', '.github/workflows/windows.yml']
   workflow_dispatch:
+    inputs:
+      msi_handoff:
+        description: 'Test the signed draft MSI with an isolated old-version fixture'
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
   test-and-package:
+    if: ${{ inputs.msi_handoff != true }}
     runs-on: windows-2025
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -28,6 +34,14 @@ jobs:
         run: ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-x64 -ResetManifest
       - name: Package ARM64
         run: ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-arm64
+      - name: Build MSI installers
+        run: |
+          ./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-x64
+          ./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-arm64
+      - name: MSI lifecycle and rollback on x64
+        run: |
+          $setup = (Get-ChildItem Artifacts -Filter '*-x64-Setup.msi').FullName
+          ./Windows/Scripts/test-installer.ps1 -Architecture x64 -Installer $setup
       - name: Native x64 smoke test
         shell: pwsh
         run: |
@@ -48,6 +62,14 @@ jobs:
           if ((Get-Command coderim).Source -ne (Join-Path $cliBin 'coderim.cmd')) { throw 'CLI is shadowed.' }
           $text = cmd /d /c 'coderim version'
           if ($LASTEXITCODE -ne 0 -or $text -notmatch 'CodeRim CLI') { throw 'Installed CLI failed.' }
+      - name: Upload MSI release candidates
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CodeRim-Windows-MSI
+          path: |
+            Artifacts/CodeRim-Windows-*-Setup.msi
+            Artifacts/CodeRim-Windows-*-Setup.msi.sha256
       - name: Upload native UI evidence
         uses: actions/upload-artifact@v4
         if: always()
@@ -55,25 +77,31 @@ jobs:
           name: CodeRim-Windows-UI
           path: |
             Artifacts/windows-*.png
+            Artifacts/installed/**
             Artifacts/windows-*.json
             Artifacts/windows-*.txt
+            Artifacts/windows-msi-*.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: CodeRim-Windows
           path: |
             Artifacts/CodeRim-Windows-*.zip
+            Artifacts/CodeRim-Windows-*-Setup.msi
             Artifacts/*.sha256
             Artifacts/SHA256SUMS-windows.txt
             Artifacts/windows-*.png
+            Artifacts/installed/**
             Artifacts/windows-*.json
             Artifacts/windows-*.txt
+            Artifacts/windows-msi-*.log
             Windows/tests/**/TestResults/**
 
   native-arm64:
+    if: ${{ inputs.msi_handoff != true }}
     needs: test-and-package
     runs-on: windows-11-arm
-    timeout-minutes: 25
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -106,6 +134,10 @@ jobs:
           Expand-Archive $archive.FullName 'Windows/artifacts/publish/win-arm64'
           @{ archive = $archive.Name; sha256 = $actual; source = 'CodeRim-Windows packaging artifact' } |
             ConvertTo-Json | Set-Content 'Artifacts/windows-native-archive.json' -Encoding utf8
+      - name: MSI lifecycle and rollback on ARM64
+        run: |
+          $setup = (Get-ChildItem Artifacts/packaged -Filter '*-arm64-Setup.msi' -Recurse).FullName
+          ./Windows/Scripts/test-installer.ps1 -Architecture arm64 -Installer $setup
       - name: Native ARM64 UI and CLI regressions
         shell: pwsh
         run: |
@@ -135,6 +167,50 @@ jobs:
           name: CodeRim-Windows-ARM64-Native
           path: |
             Artifacts/windows-*.png
+            Artifacts/installed/**
             Artifacts/windows-*.json
             Artifacts/windows-*.txt
+            Artifacts/windows-msi-*.log
             Windows/tests/**/TestResults/**
+
+  msi-handoff:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.msi_handoff == true }}
+    # GitHub hides draft releases from read-only installation tokens.
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            architecture: x64
+          - runner: windows-11-arm
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Download exact signed draft installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force Artifacts/handoff | Out-Null
+          gh release download v2.1.9 --repo $env:GITHUB_REPOSITORY --pattern '*-${{ matrix.architecture }}-Setup.msi*' --dir Artifacts/handoff
+          if ($LASTEXITCODE -ne 0) { throw 'Signed draft installer is unavailable.' }
+      - name: Exercise authenticated worker handoff and relaunch
+        run: ./Windows/Scripts/test-msi-handoff.ps1 -Architecture ${{ matrix.architecture }} -ReleaseDirectory Artifacts/handoff
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: CodeRim-MSI-Handoff-${{ matrix.architecture }}
+          path: |
+            Artifacts/handoff/*.json
+            Artifacts/handoff/*.txt
+            Artifacts/handoff/*.log
+            Artifacts/handoff/*.png

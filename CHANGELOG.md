@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.9 — Windows installer and automatic updates
+
+- Ship per-user x64/ARM64 MSI installers with Start menu, uninstall and CLI PATH registration.
+- Automatically download updates authenticated by the existing Ed25519 release key; verify the worker and install on confirmed restart with Windows Installer rollback.
+- Preserve accounts, settings, usage history and the separate legacy Authenticode-managed update channel.
+- Keep macOS distribution on 2.1.8. See [release notes](Documentation/ReleaseNotes/2.1.9.md) for installation details and the publisher-certificate limitation.
+
 ## 2.1.8 — Browser sessions and native reliability
 
 - Expand Windows provider connections and align notch controls, account menus and usage navigation with macOS.

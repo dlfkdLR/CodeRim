@@ -20,7 +20,7 @@ internal static class UpdateNotifications
         if (age >= TimeSpan.Zero && age < TimeSpan.FromDays(1)) return null;
         try
         {
-            var update = await ReleaseUpdates.CheckAsync(Architecture).ConfigureAwait(false);
+            var update = await ReleaseUpdates.CheckAsync(Architecture, preferInstaller: !UpdateCoordinator.SigningConfigured).ConfigureAwait(false);
             var notify = update.IsNewer && previous?.NotifiedVersion != update.Version.ToString() ? update.Version.ToString() : null;
             var receipt = new Receipt(DateTimeOffset.UtcNow, notify ?? previous?.NotifiedVersion);
             File.WriteAllText(path, JsonSerializer.Serialize(receipt));

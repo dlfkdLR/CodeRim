@@ -1,0 +1,66 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="CodeRim" Manufacturer="CodeRim" Version="$(var.Version)"
+           ProductCode="$(var.ProductCode)" UpgradeCode="EC9C7B6D-9A12-49C1-89E6-0164E785E85E"
+           Scope="perUser" InstallerVersion="500" Compressed="yes">
+    <MajorUpgrade Schedule="afterInstallInitialize" AllowSameVersionUpgrades="yes" DowngradeErrorMessage="A newer CodeRim version is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="medium" />
+    <Launch Condition="NOT RollbackDisabled" Message="Windows Installer rollback must be enabled to install CodeRim safely." />
+    <Launch Condition="VersionNT64 AND REALWINDOWSBUILD &gt;= 22000" Message="CodeRim requires Windows 11 or later." />
+    <Launch Condition="NOT LEGACY_SIGNED_INSTALL" Message="This folder contains a legacy signed CodeRim installation. Use its signed update channel or remove only that application before installing this MSI. Your account data is separate." />
+    <Property Id="STARTUPCOMMAND">
+      <RegistrySearch Id="CurrentStartupCommand" Root="HKCU" Key="Software\Microsoft\Windows\CurrentVersion\Run" Name="CodeRim" Type="raw" />
+    </Property>
+    <SetProperty Id="EXPECTEDSTARTUP" Value="&quot;[INSTALLFOLDER]CodeRim.exe&quot;" After="CostFinalize" Sequence="execute" />
+    <Property Id="REALWINDOWSBUILD">
+      <RegistrySearch Id="WindowsBuildNumber" Root="HKLM" Key="SOFTWARE\Microsoft\Windows NT\CurrentVersion" Name="CurrentBuildNumber" Type="raw" Bitness="always64" />
+    </Property>
+    <Property Id="LEGACY_SIGNED_INSTALL">
+      <DirectorySearch Id="LegacySignedDirectory" Path="[LocalAppDataFolder]Programs\CodeRim" Depth="0">
+        <FileSearch Id="LegacySignedReceipt" Name=".coderim-install.json" />
+      </DirectorySearch>
+    </Property>
+    <Property Id="LAUNCHAPP" Value="1" />
+    <Property Id="ARPPRODUCTICON" Value="CodeRimIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/dlfkdLR/CodeRim" />
+    <Icon Id="CodeRimIcon" SourceFile="$(var.IconFile)" />
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsDirectory" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="CodeRim">
+          <Component Id="InstallationMarker" Guid="3465305D-A0E6-4103-A321-BC9364C57C1D">
+            <RegistryValue Root="HKCU" Key="Software\CodeRim\Installer" Name="Version" Value="$(var.Version)" Type="string" KeyPath="yes" />
+            <RegistryValue Root="HKCU" Key="Software\CodeRim\Installer" Name="ProductCode" Value="[ProductCode]" Type="string" />
+            <RemoveFolder Id="RemoveAppFolder" On="uninstall" />
+          </Component>
+          <Directory Id="CliBinDirectory" Name="bin">
+            <Component Id="CliPath" Guid="32650566-E6E9-41E4-9CBC-609E877CC7D9">
+              <RegistryValue Root="HKCU" Key="Software\CodeRim\Installer" Name="CliPath" Value="[CliBinDirectory]" Type="string" KeyPath="yes" />
+              <Environment Id="CliUserPath" Name="PATH" Value="[CliBinDirectory]" Action="set" Part="first" System="no" Permanent="no" />
+              <RemoveFolder Id="RemoveCliFolder" On="uninstall" />
+            </Component>
+          </Directory>
+        </Directory>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="D136A1A8-74B8-4C95-B224-FCECFBDB4C3D">
+        <Shortcut Id="CodeRimShortcut" Name="CodeRim" Target="[INSTALLFOLDER]CodeRim.exe" WorkingDirectory="INSTALLFOLDER" Icon="CodeRimIcon" />
+        <RegistryValue Root="HKCU" Key="Software\CodeRim\Installer" Name="Shortcut" Value="1" Type="integer" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+    <Feature Id="Application" Title="CodeRim" Level="1">
+      <ComponentGroupRef Id="Payload" />
+      <ComponentRef Id="InstallationMarker" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <Feature Id="CommandLine" Title="Command line tools on PATH" Level="1"><ComponentRef Id="CliPath" /></Feature>
+    </Feature>
+    <CustomAction Id="LaunchCodeRim" FileRef="AppExecutable" ExeCommand="" Return="asyncNoWait" Impersonate="yes" />
+    <!-- After commit only: no startup mutation occurs on failed/cancelled uninstall or during major upgrade. -->
+    <CustomAction Id="RemoveOwnedStartup" Directory="SystemFolder"
+      ExeCommand="&quot;[SystemFolder]reg.exe&quot; delete &quot;HKCU\Software\Microsoft\Windows\CurrentVersion\Run&quot; /v CodeRim /f"
+      Return="ignore" Impersonate="yes" />
+    <InstallExecuteSequence>
+      <Custom Action="RemoveOwnedStartup" After="LaunchCodeRim" Condition="REMOVE ~= &quot;ALL&quot; AND NOT UPGRADINGPRODUCTCODE AND STARTUPCOMMAND = EXPECTEDSTARTUP" />
+      <Custom Action="LaunchCodeRim" After="InstallFinalize" Condition="NOT REMOVE AND LAUNCHAPP = 1" />
+    </InstallExecuteSequence>
+  </Package>
+</Wix>

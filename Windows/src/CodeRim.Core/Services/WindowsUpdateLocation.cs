@@ -71,8 +71,16 @@ internal sealed record WindowsUpdateLocation(string Parent, string InstallRoot, 
         InstallFileSystem.CheckPath(path); InstallFileSystem.CheckStreams(path);
         using var identity = WindowsIdentity.GetCurrent(); var user = identity.User ?? throw new IOException("The current user is unavailable.");
         var security = new DirectoryInfo(path).GetAccessControl(AccessControlSections.Owner | AccessControlSections.Access);
-        if (!user.Equals(security.GetOwner(typeof(SecurityIdentifier)))) throw new IOException("The installation parent is not owned by the current user.");
+        AssertSafeParentSecurity(security, user);
+    }
+    internal static void AssertSafeParentSecurity(DirectorySecurity security, SecurityIdentifier user)
+    {
+        // Known-folder parents may be owned by Windows or Administrators (including MSI-created
+        // Programs folders). Those principals are already trusted writers; foreign owners/writers
+        // remain forbidden. The updater's own capsules still require exact-user private ACLs.
         var trusted = new[] { user.Value, "S-1-5-18", "S-1-5-32-544" };
+        if (security.GetOwner(typeof(SecurityIdentifier)) is not SecurityIdentifier owner
+            || !trusted.Contains(owner.Value, StringComparer.Ordinal)) throw new IOException("The installation parent has an untrusted owner.");
         const FileSystemRights dangerous = FileSystemRights.Write | FileSystemRights.Delete | FileSystemRights.DeleteSubdirectoriesAndFiles | FileSystemRights.ChangePermissions | FileSystemRights.TakeOwnership;
         foreach (FileSystemAccessRule rule in security.GetAccessRules(true, true, typeof(SecurityIdentifier)))
             if (rule.AccessControlType == AccessControlType.Allow && (rule.FileSystemRights & dangerous) != 0 && !trusted.Contains(rule.IdentityReference.Value, StringComparer.Ordinal))

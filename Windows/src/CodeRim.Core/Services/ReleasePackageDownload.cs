@@ -68,7 +68,7 @@ public static class ReleasePackageDownload
             throw new InvalidDataException("The release download length does not match.");
         using var source = await OpenStreamAsync(response.Content, deadline.Token).ConfigureAwait(false);
         Directory.CreateDirectory(destinationDirectory);
-        var path = Path.Combine(destinationDirectory, Path.GetFileNameWithoutExtension(package.FileName) + "." + Guid.NewGuid().ToString("N") + ".zip");
+        var path = Path.Combine(destinationDirectory, Path.GetFileNameWithoutExtension(package.FileName) + "." + Guid.NewGuid().ToString("N") + Path.GetExtension(package.FileName));
         var partial = path + ".partial";
         var committed = false;
         try
@@ -140,7 +140,7 @@ public static class ReleasePackageDownload
         }
     }
 
-    private static async Task<HttpResponseMessage> GetAsync(HttpClient client, Uri initial, CancellationToken token)
+    internal static async Task<HttpResponseMessage> GetAsync(HttpClient client, Uri initial, CancellationToken token)
     {
         var current = initial; var seen = new HashSet<string>(StringComparer.Ordinal);
         for (var redirects = 0; ; redirects++)

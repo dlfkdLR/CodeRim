@@ -12,9 +12,12 @@ internal sealed partial class DashboardWindow
     private long updateViewRevision;
     private (string Operation, string Launcher)? pendingRestart;
     private bool updateHandedOff;
+    private string? pendingMsiRestart;
     private void CancelUpdateOperation()
     {
         updateOperation?.Cancel();
+        if (!updateHandedOff && pendingMsiRestart is { } msiId)
+            try { MsiUpdateExecution.Cancel(msiId); } catch (Exception error) when (error is not OutOfMemoryException) { }
         if (!updateHandedOff && pendingRestart is { } restart)
             try { UpdateBootstrap.WithdrawRestart(restart.Operation, restart.Launcher); }
             catch (Exception error) when (error is not OutOfMemoryException) { }
@@ -34,11 +37,26 @@ internal sealed partial class DashboardWindow
             status.Text = "Checking…";
             try
             {
-                var update = await ReleaseUpdates.CheckAsync(UpdateNotifications.Architecture, cancellation.Token).ConfigureAwait(true);
+                if (InstallerUpdateCoordinator.IsManaged)
+                {
+                    status.Text = "Checking and downloading a verified update…";
+                    var ready = await InstallerUpdateCoordinator.CheckAndDownloadAsync(automatic: false, cancellation.Token).ConfigureAwait(true);
+                    if (!IsCurrentUpdate(cancellation, revision)) return;
+                    status.Text = ready is null ? "You are using the latest Windows release." : "CodeRim " + ready + " is ready to install.";
+                    if (ready is not null && MessageBox.Show(this, "Restart CodeRim and install version " + ready + "? Your settings and accounts will be preserved.", "CodeRim update", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+                    {
+                        pendingMsiRestart = await InstallerUpdateCoordinator.PrepareRestartAsync(cancellation.Token).ConfigureAwait(true);
+                        if (!IsCurrentUpdate(cancellation, revision)) { MsiUpdateExecution.Cancel(pendingMsiRestart); return; }
+                        MsiUpdateExecution.Confirm(pendingMsiRestart); updateHandedOff = true;
+                        ((App)System.Windows.Application.Current).ShutdownApplication();
+                    }
+                    return;
+                }
+                var update = await ReleaseUpdates.CheckAsync(UpdateNotifications.Architecture, preferInstaller: !UpdateCoordinator.SigningConfigured, token: cancellation.Token).ConfigureAwait(true);
                 if (!IsCurrentUpdate(cancellation, revision)) return;
                 status.Text = update.IsNewer ? "CodeRim " + update.Version + " is available." : "You are using the latest Windows release.";
                 if (!update.IsNewer) return;
-                if (!UpdateCoordinator.SigningConfigured || update.Package is null)
+                if (!UpdateCoordinator.SigningConfigured || update.Package is null || update.Package.IsInstaller)
                 {
                     status.Text += " Use the manual release download for this installation.";
                     if (MessageBox.Show(this, "Download CodeRim " + update.Version + " for Windows?", "CodeRim update", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
@@ -62,13 +80,13 @@ internal sealed partial class DashboardWindow
                 }
                 else if (result.Status is UpdateExecutionStatus.UnmanagedInstallation or UpdateExecutionStatus.SigningNotConfigured)
                 {
-                    if (MessageBox.Show(this, result.Message + "\n\nOpen the manual ZIP download?", "CodeRim update", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+                    if (MessageBox.Show(this, result.Message + "\n\nOpen the release installer download?", "CodeRim update", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
                         OpenUrl(update.Download.AbsoluteUri);
                 }
             }
             catch (OperationCanceledException) { status.Text = "Update check cancelled."; }
             catch (Exception error) when (error is not OutOfMemoryException) { status.Text = "Could not complete the Windows update. Try again or open the releases page."; }
-            finally { if (!updateHandedOff) { CancelUpdateOperation(); pendingRestart = null; } if (ReferenceEquals(updateOperation, cancellation)) updateOperation = null; cancel.Visibility = Visibility.Collapsed; }
+            finally { if (!updateHandedOff) { CancelUpdateOperation(); pendingRestart = null; pendingMsiRestart = null; } if (ReferenceEquals(updateOperation, cancellation)) updateOperation = null; cancel.Visibility = Visibility.Collapsed; }
         });
         check.HorizontalAlignment = HorizontalAlignment.Left; check.Margin = new Thickness(14, 9, 14, 9);
         cancel.HorizontalAlignment = HorizontalAlignment.Left; cancel.Margin = new Thickness(14, 0, 14, 9);
@@ -99,14 +117,16 @@ internal sealed partial class DashboardWindow
                     }
                 }
                 catch (Exception error) when (error is not OutOfMemoryException) { status.Text = "Preserved update files could not be recovered automatically. Open the releases page for a manual repair."; }
-                finally { if (!updateHandedOff) { CancelUpdateOperation(); pendingRestart = null; } if (ReferenceEquals(updateOperation, cancellation)) updateOperation = null; cancel.Visibility = Visibility.Collapsed; }
+                finally { if (!updateHandedOff) { CancelUpdateOperation(); pendingRestart = null; pendingMsiRestart = null; } if (ReferenceEquals(updateOperation, cancellation)) updateOperation = null; cancel.Visibility = Visibility.Collapsed; }
             });
             recovery.HorizontalAlignment = HorizontalAlignment.Left; recovery.Margin = new Thickness(14, 9, 14, 9);
             body.Children.Add(SettingsUi.Section("Recovery", recovery));
         }
         status.Margin = new Thickness(32, 6, 32, 0); body.Children.Add(status);
-        body.Children.Add(SettingsUi.Note(UpdateCoordinator.SigningConfigured
+        body.Children.Add(SettingsUi.Note(InstallerUpdateCoordinator.IsManaged
+            ? "Automatically downloads signed, verified updates. Restart to install. Settings, accounts and local history are preserved."
+            : UpdateCoordinator.SigningConfigured
             ? "Checks GitHub releases. Signed managed installations can restart to update. Local history and credentials are preserved."
-            : "Checks GitHub releases. Token usage data is never sent. Installation is manual; signed updates are not configured."));
+            : "Checks GitHub releases. Token usage data is never sent. Install the current Setup.msi once to enable automatic updates."));
     }
 }

@@ -17,3 +17,5 @@ FactoryAuthentication and FactoryProvider adapt the same pinned Factory manual-h
 Factory WorkOS session refresh uses the pinned Factory public client identifiers and authenticate endpoint. The protocol and rotation behavior are also documented by WorkOS (https://workos.com/docs/authkit/sessions and https://workos.com/docs/authkit/cli-auth). No client secret is embedded. Windows persists rotated saved profiles with DPAPI and a version-checked commit.
 
 Amp Web usage follows the pinned CodexBar Amp settings-page contract and the two Svelte hydration fixtures. Syntax parsing uses Acornima, already included by Jint; downloaded page scripts are never executed. Source selection, scoped redirects, literal-data validation and resource limits are implemented separately for Windows.
+
+The bundled BouncyCastle.Cryptography 2.7.0 library verifies Ed25519 installer manifests. See BouncyCastle-LICENSE.md for its MIT license. WiX 5.0.2 is a build-time tool; the product ships a standard MSI and does not bundle the WiX Burn runtime.

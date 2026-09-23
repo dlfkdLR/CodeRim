@@ -33,6 +33,22 @@ public partial class App : System.Windows.Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+#if CODERIM_MSI_QA
+        if (e.Args.Length == 2 && e.Args[0] == "--qa-msi-update")
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            try
+            {
+                var pin = typeof(App).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyMetadataAttribute), false)
+                    .Cast<System.Reflection.AssemblyMetadataAttribute>().Single(a => a.Key == "CodeRimInstallerWorkerSha256").Value ?? "";
+                var operation = await MsiUpdateQa.StartAsync(e.Args[1], pin).ConfigureAwait(true);
+                MsiUpdateExecution.Confirm(operation); Shutdown();
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            { File.WriteAllText(Path.Combine(e.Args[1], "handoff-error.txt"), error.ToString()); Shutdown(1); }
+            return;
+        }
+#endif
         if (e.Args.Contains("--smoke-test", StringComparer.Ordinal) && e.Args.Contains("--antigravity-fixture-server", StringComparer.Ordinal))
         {
             try { await NativeSmoke.RunAntigravityFixtureAsync(); Shutdown(); }
@@ -58,6 +74,9 @@ public partial class App : System.Windows.Application
         instance = new Mutex(true, "Local\\" + instanceName, out var created);
         if (!created) { await InstanceActivation.NotifyAsync(instanceName); Shutdown(); return; }
         settings = new AppSettingsStore(); CredentialVault.RestrictDirectory(CompanionFile.DataDirectory); vault = new CredentialVault();
+        if (!smokeTest && InstallerUpdateCoordinator.IsManaged && settings.Current.LaunchAtLogin)
+            try { StartupService.SetEnabled(true); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.SecurityException or InvalidOperationException) { /* Login registration must not prevent the app from opening. */ }
         store = new DashboardStore(settings, vault, smokeTest);
         notch = new NotchWindow(store, settings, ShowSettings);
         tray = new TrayIconHost(() => ShowSettings("usage"), () => _ = store.RefreshAsync(true), () => ShowSettings(null), ShutdownApplication);
@@ -100,6 +119,16 @@ public partial class App : System.Windows.Application
     private async Task CheckUpdatesAsync()
     {
         if (settings?.Current.CheckForUpdates != true) return;
+        if (InstallerUpdateCoordinator.IsManaged)
+        {
+            try
+            {
+                if (await InstallerUpdateCoordinator.CheckAndDownloadAsync(automatic: true).ConfigureAwait(true) is { } ready && settings.Current.CheckForUpdates)
+                    tray?.Notify("CodeRim update", "Version " + ready + " is ready. Open Information to restart and install.");
+            }
+            catch (Exception error) when (error is not OutOfMemoryException) { /* Retry on the next timer tick; manual checks show failures. */ }
+            return;
+        }
         if (await UpdateNotifications.CheckAsync().ConfigureAwait(true) is { } version && settings.Current.CheckForUpdates) tray?.Notify("CodeRim update", "Version " + version + " is available. Open Information to download it.");
     }
     private void ConfigureTimer()
