@@ -327,7 +327,7 @@ internal sealed partial class UsagePane : StackPanel
             : credits.RemainingCount is >= 0 ? credits.RemainingCount.Value.ToString("N0", CultureInfo.CurrentCulture) : "Available";
         if (credits.ResetsAt is { } expiration)
         {
-            var text = Ui.Text("· " + expiration.ToLocalTime().ToString(CultureInfo.CurrentCulture.DateTimeFormat.MonthDayPattern.Replace("MMMM", "MMM", StringComparison.Ordinal), CultureInfo.CurrentCulture), 12, "#A6A6AA");
+            var text = Ui.Text("· " + (CalendarDateText.MonthDay(expiration.LocalDateTime) ?? "Date unavailable"), 12, "#A6A6AA");
             text.Margin = new Thickness(8, 0, 0, 0); text.VerticalAlignment = VerticalAlignment.Center;
             System.Windows.Automation.AutomationProperties.SetAutomationId(text, "usage.reset-credits.expiration");
             DockPanel.SetDock(text, Dock.Right); row.Children.Add(text);

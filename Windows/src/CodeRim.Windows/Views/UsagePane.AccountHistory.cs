@@ -39,7 +39,7 @@ internal sealed partial class UsagePane
         }
         readings.Children.Add(footer);
     }
-    private static string ProfileDate(DateOnly date) => date.ToString("MMM d", CultureInfo.CurrentCulture);
+    private static string ProfileDate(DateOnly date) => CalendarDateText.MonthDay(date.ToDateTime(TimeOnly.MinValue)) ?? "Date unavailable";
     private static TextBlock HistoryNote(string text)
     {
         var note = Ui.Text(text, 11, "#A6A6AA"); note.Margin = new Thickness(0, 0, 0, 8); return note;

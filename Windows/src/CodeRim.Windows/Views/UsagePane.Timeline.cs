@@ -144,7 +144,7 @@ internal sealed partial class UsagePane
     }
     private string BucketLabel(DateTimeOffset date) => period == "today"
         ? date.ToLocalTime().ToString("HH:mm zzz", CultureInfo.CurrentCulture)
-        : date.ToLocalTime().ToString("MMM d", CultureInfo.CurrentCulture);
+        : CalendarDateText.MonthDay(date.LocalDateTime) ?? "Date unavailable";
     private static string CostText(CostSummary cost) => cost.Amount is { } amount
         ? "$" + amount.ToString("N4", CultureInfo.CurrentCulture) + (cost.IsPartial ? " · partial" : "") : "Unavailable";
 }

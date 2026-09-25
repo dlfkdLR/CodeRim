@@ -61,13 +61,30 @@ internal static partial class NativeSmoke
                 if (style == TokenNumberStyle.Detailed && variant is "numeric" or "available")
                     Capture(dashboard, Path.Combine(directory, "windows-reset-credits-" + variant + ".png"));
             }
+            var originalCulture = CultureInfo.CurrentCulture;
+            try
+            {
+                foreach (var (locale, expected) in new[] { ("en-GB", "9 Oct"), ("ko-KR", "10월 9일"), ("ja-JP", "10月9日"), ("ar-SA", "Date unavailable") })
+                {
+                    var culture = (CultureInfo)CultureInfo.GetCultureInfo(locale).Clone();
+                    if (locale == "ar-SA") culture.DateTimeFormat.Calendar = new UmAlQuraCalendar();
+                    CultureInfo.CurrentCulture = culture;
+                    var expiry = locale == "ar-SA" ? DateTimeOffset.MaxValue : new DateTimeOffset(new DateTime(2026, 10, 9, 12, 0, 0, DateTimeKind.Local));
+                    store.Readings["codex"] = new("codex", ReadingState.Ready, [new("weekly", "Weekly", 20),
+                        new(ProviderDisplayPolicy.ResetCreditsId, "Reset credits", ResetsAt: expiry, RemainingCount: 2)], DateTimeOffset.Now);
+                    pane.Update(); await Idle();
+                    Require(Descendants<TextBlock>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.reset-credits.expiration").Text == "· " + expected,
+                        "Reset credit locale order or unsupported-calendar fallback differs: " + locale);
+                }
+            }
+            finally { CultureInfo.CurrentCulture = originalCulture; }
             settings.Save(settings.Current with { ResetCreditsEnabled = false }); pane.Update(); await Idle();
             Require(!Descendants<Border>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.reset-credits"), "Reset credit preference did not hide the row.");
             settings.Save(settings.Current with { ResetCreditsEnabled = true, AccountLimitsEnabled = false }); pane.Update(); await Idle();
             Require(!Descendants<Border>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.reset-credits"), "Disabled account limits retained reset credits.");
             File.WriteAllText(Path.Combine(directory, "windows-reset-credits.json"), JsonSerializer.Serialize(new { completed = true,
                 checks = new List<string> { "One read-only Usage row", "Exact zero, numeric and large counts in both number styles", "Unlimited and available-with-expiry",
-                    "Quota-only notch omits credits", "Reset-credit and account-limit preferences hide the row" } }));
+                    "Locale order and unsupported calendar date stay safe", "Quota-only notch omits credits", "Reset-credit and account-limit preferences hide the row" } }));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally

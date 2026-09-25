@@ -21,6 +21,22 @@ public sealed class ResetCopyLocaleTests
         Assert.Equal("Resets " + expected, ResetCopy.Text(Reset, "Absolute", Reset.AddDays(-14), TimeZoneInfo.Utc, CultureInfo.GetCultureInfo(locale)));
 
     [Fact]
+    public void NearResetKeepsTheReferencesLiteralColon()
+    {
+        var culture = (CultureInfo)CultureInfo.GetCultureInfo("en-US").Clone();
+        culture.DateTimeFormat.TimeSeparator = ".";
+        Assert.Equal("Resets Fri 11:00 PM", ResetCopy.Text(Reset, "Absolute", Reset.AddHours(-2), TimeZoneInfo.Utc, culture));
+    }
+
+    [Theory]
+    [InlineData("en-GB", "9 Oct")]
+    [InlineData("ko-KR", "10월 9일")]
+    public void CalendarLabelsKeepTheSuppliedDateWithoutTimeZoneConversion(string locale, string expected)
+    {
+        Assert.Equal(expected, CalendarDateText.MonthDay(new DateOnly(2026, 10, 9).ToDateTime(TimeOnly.MinValue), CultureInfo.GetCultureInfo(locale)));
+    }
+
+    [Fact]
     public void CustomDatePatternLiteralsAreNotRewritten()
     {
         var culture = (CultureInfo)CultureInfo.GetCultureInfo("en-US").Clone();

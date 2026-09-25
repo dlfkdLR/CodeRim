@@ -216,8 +216,18 @@ internal static partial class NativeSmoke
             new System.Windows.Input.TextComposition(System.Windows.Input.InputManager.Current, providerPicker, "Claude"))
             { RoutedEvent = System.Windows.Input.TextCompositionManager.TextInputEvent });
         await Idle();
-        Require(providerPicker.SelectedValue is string selectedProvider && selectedProvider == "claude", "Provider name typing no longer selects Claude");
-        Require(Descendants<ProviderMark>(providerPicker).Any(x => x.ProviderId == "claude"), "Provider typing left a stale logo");
+        Require(Equals(providerPicker.SelectedValue, "codex") && settings.Current.UsageProvider == "codex", "Closed provider button changed selection through ComboBox text search");
+        foreach (var key in new[] { System.Windows.Input.Key.Space, System.Windows.Input.Key.Down, System.Windows.Input.Key.Enter })
+        {
+            var input = new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice,
+                PresentationSource.FromVisual(providerPicker)!, 0, key) { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent };
+            providerPicker.RaiseEvent(input);
+            if (!input.Handled) { input.RoutedEvent = System.Windows.Input.Keyboard.KeyDownEvent; providerPicker.RaiseEvent(input); }
+            await Idle();
+        }
+        Require(Equals(providerPicker.SelectedValue, "claude") && settings.Current.UsageProvider == "claude" && !providerPicker.IsDropDownOpen,
+            "Opening the provider list and confirming Claude did not update Usage");
+        Require(Descendants<ProviderMark>(providerPicker).Any(x => x.ProviderId == "claude"), "Provider selection left a stale logo");
         Descendants<UsagePane>(dashboard).Single().SelectProvider("codex");
         System.Windows.Input.Keyboard.ClearFocus(); await Idle();
         var usageModes = Descendants<RadioButton>(dashboard).Where(x => x.GroupName == "UsageMode").ToArray();
