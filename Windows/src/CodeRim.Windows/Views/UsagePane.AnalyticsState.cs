@@ -32,7 +32,8 @@ internal sealed partial class UsagePane
             var icon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M1,1 V15 H15 M3,11 L6,7 L10,9 L14,3"),
                 Width = 32, Height = 32, Stretch = Stretch.Uniform, StrokeThickness = 1.5, Margin = new Thickness(0, 0, 0, 12) };
             icon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); content.Children.Add(icon);
-            var title = Ui.Text("Usage Unavailable", 17, weight: FontWeights.SemiBold); title.TextAlignment = TextAlignment.Center; content.Children.Add(title);
+            var title = Ui.Text(destination switch { "projects" => "Projects Unavailable", "sessions" => "Sessions Unavailable", _ => "Usage Unavailable" },
+                17, weight: FontWeights.SemiBold); title.TextAlignment = TextAlignment.Center; content.Children.Add(title);
             var detail = Ui.Text("Analytics are unavailable", 13, "#A6A6AA"); detail.TextAlignment = TextAlignment.Center; content.Children.Add(detail);
             var error = new Grid { MinHeight = 180 }; error.Children.Add(content);
             AutomationProperties.SetAutomationId(error, "usage.analytics.unavailable"); readings.Children.Add(error); return false;

@@ -118,10 +118,39 @@ internal static partial class NativeSmoke
             settings.Save(settings.Current with { UsageProvider = "claude" }); pane.RefreshReadings(); await Idle();
             settings.Save(settings.Current with { UsageProvider = "codex" }); pane.RefreshReadings(); await Idle(); await Open("projects");
             Require(Equals(ListPeriod().SelectedValue, "30d"), "External provider preference changes retained an old Projects range");
+            pane.Back(); await Idle();
+            var listTime = DateTimeOffset.Now;
+            store.Events["codex"] = [new("list-state", listTime, new(127, 0, 0, 0), "gpt-5.6-sol", "State project", "state-session", "codex", "state-project")];
+            var listSnapshot = new UsageSnapshot(new(127, 0, 0, 0), new(127, 0, 0, 0), new(127, 0, 0, 0), new(127, 0, 0, 0), DataQuality.Exact, listTime);
+            foreach (var route in new[] { "projects", "sessions" })
+            {
+                var rowPrefix = (route == "projects" ? "State project" : "state-session") + ":";
+                Button? DataRow() => Descendants<Button>(pane).SingleOrDefault(x => AutomationProperties.GetName(x).StartsWith(rowPrefix, StringComparison.Ordinal));
+                store.Usage.Remove("codex"); await Open(route);
+                Require(Has("usage.analytics.loading") && DataRow() is null, route + " exposed cached events before the first local snapshot");
+                store.Usage["codex"] = UsageSnapshot.Empty with { Quality = DataQuality.Error }; pane.RefreshReadings(); await Idle();
+                Require(Has("usage.analytics.unavailable") && DataRow() is null
+                    && Descendants<TextBlock>(pane).Any(x => x.Text == (route == "projects" ? "Projects Unavailable" : "Sessions Unavailable")),
+                    route + " failed read fabricated a healthy list");
+                store.Usage["codex"] = listSnapshot; pane.RefreshReadings(); await Idle();
+                Require(DataRow() is not null && !Has("usage.analytics.unavailable"), route + " did not recover after a successful read");
+                DataRow()!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+                store.Usage.Remove("codex"); pane.RefreshReadings(); await Idle();
+                Require(Has("usage.analytics.loading") && !Descendants<TextBlock>(pane).Any(x => x.Text == "127"), route + " detail exposed values before its local snapshot");
+                store.Usage["codex"] = UsageSnapshot.Empty with { Quality = DataQuality.Error }; pane.RefreshReadings(); await Idle();
+                Require(Has("usage.analytics.unavailable") && !Descendants<TextBlock>(pane).Any(x => x.Text == "127"), route + " detail exposed cached values after a first-read error");
+                store.Usage["codex"] = LocalTokenPresentation.AfterFailure(listSnapshot); pane.RefreshReadings(); await Idle();
+                Require(Has("usage.analytics.stale") && Descendants<TextBlock>(pane).Any(x => x.Text == "127"), route + " detail lost its retained snapshot or stale warning");
+                pane.Back(); await Idle();
+                Require(Has("usage.analytics.stale") && DataRow() is not null, route + " list lost its retained snapshot or stale warning");
+                Capture(pane, System.IO.Path.Combine(directory, "windows-analytics-" + route + "-stale.png"));
+                pane.Back(); await Idle();
+            }
             System.IO.File.WriteAllText(System.IO.Path.Combine(directory, "windows-analytics-states.json"), System.Text.Json.JsonSerializer.Serialize(new { completed = true,
                 checks = new List<string> { "Pending without numbers and motion cleanup", "Empty range and selected interval without invented cost", "Older data recovers on range change",
                     "Focused refresh retains partial snapshot with stale warning", "Model and activity errors independent of quota refresh", "Zero-valued model coverage", "Recovery and clear",
-                    "Independent retained Usage/Projects/Sessions ranges and reference defaults", "Exact interval restoration and direct/external provider reset" } }, JsonOptions));
+                    "Independent retained Usage/Projects/Sessions ranges and reference defaults", "Exact interval restoration and direct/external provider reset",
+                    "Projects/Sessions list and detail loading, first error, recovery and retained snapshot warnings" } }, JsonOptions));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally

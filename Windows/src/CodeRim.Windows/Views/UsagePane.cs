@@ -387,8 +387,8 @@ internal sealed partial class UsagePane : StackPanel
     }
     private void Detail()
     {
+        if (!AnalyticsReady()) return;
         var events = Filter().ToArray();
-        if (destination is "activity" or "model" && !AnalyticsReady()) return;
         if (destination == "activity")
         {
             var total = events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
