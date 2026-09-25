@@ -30,6 +30,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     public Dictionary<string, UsageSnapshot> Usage { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, IReadOnlyList<UsageEvent>> Events { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, IReadOnlyList<SessionDetails>> SessionDetails { get; } = new(StringComparer.Ordinal);
+    internal IReadOnlyDictionary<string, CodexAnalyticsLabel> CodexAnalyticsLabels { get; set; } = new Dictionary<string, CodexAnalyticsLabel>(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, ProviderReading> Readings { get; } = new(StringComparer.Ordinal);
     public HashSet<string> RefreshingProviders { get; } = new(StringComparer.Ordinal);
     public IReadOnlyList<SessionActivity> Sessions { get; private set; } = [];
@@ -144,12 +145,17 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                     {
                         var scan = await scanners[id].ScanAsync(settings.Current.WeekStart, lifetime.Token).ConfigureAwait(true);
                         if (generation != Generation(id)) continue;
-                        var imported = await Task.Run(() => (Events: repository.Merge(id, scan.Events, scan.Sessions),
-                            Sessions: repository.ReadSessionDetails(id), Statistics: repository.Statistics(id)), lifetime.Token).ConfigureAwait(true);
+                        var imported = await Task.Run(() =>
+                        {
+                            var retained = repository.Merge(id, scan.Events, scan.Sessions);
+                            return (Events: retained, Sessions: repository.ReadSessionDetails(id), Statistics: repository.Statistics(id),
+                                Labels: id == "codex" ? ReadAnalyticsLabels(retained, lifetime.Token) : null);
+                        }, lifetime.Token).ConfigureAwait(true);
                         if (generation != Generation(id)) continue;
                         pendingRefresh |= scan.HasMoreWork;
                         var events = imported.Events;
                         Events[id] = events; SessionDetails[id] = imported.Sessions;
+                        if (imported.Labels is { } labels) CodexAnalyticsLabels = labels;
                         SourceCounts[id] = scan.SourceCount;
                         DataStatistics[id] = imported.Statistics;
                         Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(events, DateTimeOffset.Now, settings.Current.WeekStart, scan.Snapshot.Quality == DataQuality.Partial || scan.HasMoreWork));
@@ -343,6 +349,12 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
         }
         return CodexActivityCatalogue.Enrich(sessions, Path.Combine(Path.GetDirectoryName(root)!, "state_5.sqlite"),
             Path.Combine(Path.GetDirectoryName(root)!, "sqlite", "codex-dev.db"), cancellationToken).ToList();
+    }
+    private static IReadOnlyDictionary<string, CodexAnalyticsLabel> ReadAnalyticsLabels(IReadOnlyList<UsageEvent> events, CancellationToken token)
+    {
+        var root = Path.GetDirectoryName(UsageScanner.DefaultRoots()[0])!;
+        return CodexActivityCatalogue.ReadAnalyticsLabels(events.Select(x => x.SessionId).Distinct(StringComparer.Ordinal).ToArray(),
+            Path.Combine(root, "state_5.sqlite"), Path.Combine(root, "sqlite", "codex-dev.db"), token);
     }
     private void EnsureScope(string id)
     {

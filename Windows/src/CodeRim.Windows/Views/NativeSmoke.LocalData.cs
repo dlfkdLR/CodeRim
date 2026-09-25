@@ -24,10 +24,15 @@ internal static partial class NativeSmoke
             Directory.CreateDirectory(Path.Combine(home, "sessions")); Environment.SetEnvironmentVariable("CODEX_HOME", home);
             var source = Path.Combine(home, "sessions", "session.jsonl");
             var original = """
-                {"type":"session_meta","payload":{"id":"rebuild-fixture","model":"gpt-6-astra"}}
+                {"type":"session_meta","payload":{"id":"11111111-1111-4111-8111-111111111111","model":"gpt-6-astra"}}
                 {"type":"event_msg","timestamp":"2026-09-01T00:00:01Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":0,"output_tokens":20,"cache_write_input_tokens":0},"last_token_usage":{"input_tokens":100,"cached_input_tokens":0,"output_tokens":20,"cache_write_input_tokens":0}}}}
                 """ + "\n";
             File.WriteAllText(source, original);
+            var state = Path.Combine(home, "state_5.sqlite");
+            AnalyticsLabelSql(state, """
+                CREATE TABLE threads(id TEXT PRIMARY KEY,title TEXT,cwd TEXT,rollout_path TEXT);
+                INSERT INTO threads VALUES('11111111-1111-4111-8111-111111111111','Rebuilt task','C:/fixture/Project','unused');
+                """);
             var repository = new UsageRepository(Path.Combine(home, "statistics.sqlite"));
             repository.Merge("codex", [new("obsolete", DateTimeOffset.Now.AddDays(-1), new(99999, 0, 1), "gpt-6-astra")]);
             settings.Save(before with { AccountLimitsEnabled = false, EnabledProviders = ["codex"] });
@@ -48,6 +53,10 @@ internal static partial class NativeSmoke
             await MotionUntil(() => !store.RebuildingProviders.Contains("codex"), "Local rebuild did not finish."); await Idle();
             Require(store.DataOperationMessages["codex"] == "Statistics rebuilt." && store.Usage["codex"].AllTime.TotalTokens == 120,
                 "Rebuild did not replace obsolete statistics from the actual session source.");
+            Require(store.CodexAnalyticsLabels.Values.Single().SessionTitle == "Rebuilt task", "Rebuild did not reload Codex task labels");
+            AnalyticsLabelSql(state, "UPDATE threads SET title='Renamed task'"); await store.RefreshLocalAsync();
+            Require(store.CodexAnalyticsLabels.Values.Single().SessionTitle == "Renamed task" && store.Usage["codex"].AllTime.TotalTokens == 120,
+                "Ordinary refresh missed an updated title or changed usage");
             Require(store.SourceCounts["codex"] == 1 && store.DataStatistics["codex"] is { RecordCount: 1, DatabaseBytes: > 0, OldestRecord: not null },
                 "Local source, size and date statistics are incomplete.");
             Require(Descendants<TextBlock>(window).Any(x => x.Text == "Pricing catalog") && Descendants<TextBlock>(window).Any(x => x.Text == "Statistics rebuilt."),
@@ -71,10 +80,11 @@ internal static partial class NativeSmoke
             Require(repository.Read("codex").Sum(x => x.Usage.TotalTokens) == 120 && store.SourceCounts["codex"] == 0,
                 "Missing source erased history or retained a stale source count.");
             File.WriteAllText(source, original); await store.ClearLocalHistoryAsync("codex"); await store.RebuildStatisticsAsync("codex");
+            Require(store.CodexAnalyticsLabels.Count == 0, "Cleared usage retained stale task titles");
             Require(repository.Read("codex").Count == 0 && store.Usage["codex"].AllTime.TotalTokens == 0 && File.ReadAllText(source) == original,
                 "Rebuild resurrected cleared history or changed original session files.");
             File.WriteAllText(Path.Combine(directory, "windows-local-data.json"), JsonSerializer.Serialize(new { completed = true,
-                checks = new List<string> { "Native action reparses real fixture JSONL into atomic derived statistics", "Duplicate rebuild and clear controls are disabled while busy", "Local size/source/date, Sources and operation status render", "Malformed/missing sources retain previous statistics", "Rebuild preserves clear exclusions and original source files" } }));
+                checks = new List<string> { "Native action reparses real fixture JSONL into atomic derived statistics", "Duplicate rebuild and clear controls are disabled while busy", "Local size/source/date, Sources and operation status render", "Malformed/missing sources retain previous statistics", "Rebuild preserves clear exclusions and original source files", "Task title enrichment follows rebuild, ordinary refresh and clear" } }));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally

@@ -40,6 +40,7 @@ internal sealed partial class DashboardStore
                 var cutoff = DateTimeOffset.Now;
                 await Task.Run(() => repository.Clear(id, cutoff), cancellation.Token).ConfigureAwait(true); committed = true;
                 scanners[id].InvalidateCachedSources(); Usage[id] = UsageSnapshot.Empty; Events.Remove(id); SessionDetails.Remove(id);
+                if (id == "codex") CodexAnalyticsLabels = new Dictionary<string, CodexAnalyticsLabel>(StringComparer.OrdinalIgnoreCase);
                 DataStatistics[id] = await Task.Run(() => repository.Statistics(id), lifetime.Token).ConfigureAwait(true);
                 DataOperationMessages[id] = "Local history cleared."; Persist(); return;
             }
@@ -63,10 +64,12 @@ internal sealed partial class DashboardStore
             cancellation.Token.ThrowIfCancellationRequested();
             var events = await Task.Run(() => repository.Rebuild(id, scan.Events, scan.Sessions), cancellation.Token).ConfigureAwait(true);
             committed = true;
+            var labels = id == "codex" ? await Task.Run(() => ReadAnalyticsLabels(events, cancellation.Token), cancellation.Token).ConfigureAwait(true) : null;
             // A rebuild's strict validation must not change ordinary incremental
             // reads. Discard the old cache but restore its tolerant source policy.
             scanners[id] = new UsageScanner(id, projectKey: projectKey); SourceCounts[id] = scan.SourceCount;
             Events[id] = events; SessionDetails[id] = repository.ReadSessionDetails(id);
+            if (labels is not null) CodexAnalyticsLabels = labels;
             Usage[id] = UsageScanner.Aggregate(events, DateTimeOffset.Now, settings.Current.WeekStart, false);
             DataStatistics[id] = await Task.Run(() => repository.Statistics(id), lifetime.Token).ConfigureAwait(true);
             DataOperationMessages[id] = "Statistics rebuilt."; Persist();
