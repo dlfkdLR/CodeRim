@@ -144,3 +144,21 @@ with tempfile.TemporaryDirectory(prefix="coderim-cli-quota-cache-") as directory
                             capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
     assert "Weekly" not in output and "5 hours" not in output and "Reset credits" not in output, output
 print("PASS: CLI publishes only visible quotas and never falls back to the retained restart cache")
+
+with tempfile.TemporaryDirectory(prefix="coderim-cli-account-display-") as directory:
+    path = pathlib.Path(directory) / "snapshot.json"
+    snapshot = {"schemaVersion": 1, "generatedAt": now.isoformat(), "providers": [
+        {"id": "poe", "name": "Poe", "enabled": True,
+         "limits": {"id": "poe", "state": "ready", "updatedAt": now.isoformat(),
+                    "account": {"label": "private-fixture@example.invalid", "source": "api"},
+                    "windows": [{"id": "quota", "name": "Quota", "usedPercent": 25}]}}]}
+    path.write_text(json.dumps(snapshot), encoding="utf-8")
+    original = path.read_bytes()
+    for command in ("usage", "limits", "tokens"):
+        for extra in ([], ["--format", "json"]):
+            output = subprocess.run(runner + [command, "--snapshot", str(path)] + extra,
+                                    check=True, capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+            assert "private-fixture@example.invalid" not in output, output
+            assert '"account"' not in output, output
+    assert path.read_bytes() == original
+print("PASS: display-only provider identity stays out of CLI output (6 process checks)")

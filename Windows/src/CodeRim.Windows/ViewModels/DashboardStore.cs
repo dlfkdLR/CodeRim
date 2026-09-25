@@ -209,7 +209,10 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
             }
             return new CompanionProvider(id, ProviderCatalog.Find(id)!.Name, true,
                 Usage.TryGetValue(id, out var usage) ? CompanionFile.Local(usage, now) : null,
-                display, scopes.GetValueOrDefault(id), id is "codex" or "claude" ? raw : null);
+                // Account display metadata stays in the owner-scoped restart cache,
+                // not the public quota projection used by companion consumers.
+                display with { Account = null }, scopes.GetValueOrDefault(id),
+                id is "codex" or "claude" || raw.Account is not null ? raw : null);
         }).ToArray());
     private void SeedPreview()
     {

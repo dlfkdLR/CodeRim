@@ -164,7 +164,7 @@ internal sealed partial class DashboardWindow : Window
         var changedPage = renderedPage != page;
         renderedPage = page; UpdateSectionTitle();
         CancelUpdateOperation(); updateViewRevision++;
-        body.Children.Clear(); providerListDetails.Clear(); ResetProviderAlerts();
+        body.Children.Clear(); providerListDetails.Clear(); ResetProviderAlerts(); ResetProviderAccount();
         body.Margin = page == "usage" ? new Thickness(0) : new Thickness(0, 6, 0, 28);
         switch (page)
         {
@@ -395,7 +395,9 @@ internal sealed partial class DashboardWindow : Window
             AddProviderLocalData(id, provider.Name);
             UpdateProviderReading(id); UpdateProviderControlStates(); return;
         }
-        body.Children.Add(providerReading); UpdateProviderReading(id);
+        body.Children.Add(providerReading);
+        if (!provider.HasLocalHistory) AddProviderAccount(id);
+        UpdateProviderReading(id);
         var connectionStart = body.Children.Count;
         if (provider.HasLocalHistory) Ui.Section(body, "Connection");
         if (id == "copilot") body.Children.Add(Ui.Text("Uses your current GitHub CLI sign-in. Sign in with gh auth login, or provide an access token below.", 12));
@@ -734,6 +736,7 @@ internal sealed partial class DashboardWindow : Window
         var display = store.AccountDisplay(id);
         var current = display.Reading?.Evaluated(DateTimeOffset.Now);
         UpdateProviderAlerts(id, current);
+        UpdateProviderAccount(current);
         foreach (var label in VisualChildren<TextBlock>(body))
         {
             switch (System.Windows.Automation.AutomationProperties.GetAutomationId(label))

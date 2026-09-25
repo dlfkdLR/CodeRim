@@ -35,7 +35,8 @@ public sealed record ProviderCostUsage(string Currency, int HistoryDays, string 
         CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
 }
 public sealed record ProviderReading(string Id, ReadingState State, IReadOnlyList<LimitWindow> Windows,
-    DateTimeOffset? UpdatedAt = null, string? Message = null, string? Plan = null, ProviderCostUsage? CostUsage = null)
+    DateTimeOffset? UpdatedAt = null, string? Message = null, string? Plan = null, ProviderCostUsage? CostUsage = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] ProviderAccountMetadata? Account = null)
 {
     public LimitWindow? Headline => Windows.Count == 0 ? null : Id is "codex" or "claude"
         ? Windows.Where(x => x.UsedPercent is { } used && double.IsFinite(used)).MaxBy(x => x.UsedPercent) ?? Windows[0]

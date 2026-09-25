@@ -68,6 +68,7 @@ public static class CompanionFile
         if (reading.Id != id || !Enum.IsDefined(reading.State) || reading.Windows is null || reading.Windows.Count > 512)
             throw new InvalidDataException("Invalid provider cache.");
         reading.CostUsage?.Validate();
+        reading.Account?.Validate();
         var windows = new HashSet<string>(StringComparer.Ordinal);
         foreach (var window in reading.Windows)
             if (window is null || string.IsNullOrWhiteSpace(window.Id) || !windows.Add(window.Id) || string.IsNullOrWhiteSpace(window.Name)

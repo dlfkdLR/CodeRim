@@ -88,7 +88,7 @@ static async Task<int> RunAsync(string[] arguments)
                 Console.WriteLine(JsonSerializer.Serialize(new { snapshot.SchemaVersion, snapshot.GeneratedAt, command, period,
                     providers = providers.Select(item => new { item.Id, item.Name, item.Enabled,
                         localUsage = command == "limits" ? null : item.LocalUsage is { } local ? local with { Totals = local.Totals.Where(pair => pair.Key == period).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal) } : null,
-                        limits = command == "tokens" ? null : item.Limits }) }, CompanionFile.JsonOptions));
+                        limits = command == "tokens" ? null : item.Limits with { Account = null } }) }, CompanionFile.JsonOptions));
             }
             else
             {

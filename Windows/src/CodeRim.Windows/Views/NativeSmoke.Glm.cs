@@ -30,19 +30,20 @@ internal static partial class NativeSmoke
             vault.Save("setting:glm:Z_AI_REGION", "global");
             var scope = connections.Scope("glm");
             var local = await connections.FetchAsync("glm", settings, CancellationToken.None);
-            Require(local.Headline?.UsedPercent == 33 && calls.Count > 0
+            Require(local.Headline?.UsedPercent == 33 && local.Account is { Source: "OpenCode", Region: "bigmodel-cn" } && calls.Count > 0
                 && calls.All(call => call.Key == "local-cn" && call.Host is "open.bigmodel.cn" or "www.bigmodel.cn"),
                 "Borrowed GLM key lost its region or reached a custom host.");
             vault.Delete("setting:glm:Z_AI_QUOTA_ENDPOINT");
             vault.Save("setting:glm:Z_AI_API_KEY", "manual-global"); calls.Clear();
-            Require((await connections.FetchAsync("glm", settings, CancellationToken.None)).Headline?.UsedPercent == 33
+            var manual = await connections.FetchAsync("glm", settings, CancellationToken.None);
+            Require(manual.Headline?.UsedPercent == 33 && manual.Account is { Source: "api", Region: "global" }
                 && calls.All(call => call == ("api.z.ai", "manual-global")), "Explicit GLM key/region did not override discovery.");
             vault.Save("setting:glm:Z_AI_API_KEY", " "); Environment.SetEnvironmentVariable("Z_AI_API_KEY", "environment-global"); calls.Clear();
             Require((await connections.FetchAsync("glm", settings, CancellationToken.None)).Headline?.UsedPercent == 33
                 && calls.All(call => call == ("api.z.ai", "environment-global")), "Blank saved GLM key suppressed the environment key.");
             Environment.SetEnvironmentVariable("Z_AI_API_KEY", null); replaceDuringFetch = true;
             var changed = await connections.FetchAsync("glm", settings, CancellationToken.None);
-            Require(changed.State == ReadingState.Unavailable && changed.Windows.Count == 0 && connections.Scope("glm") != scope,
+            Require(changed.State == ReadingState.Unavailable && changed.Windows.Count == 0 && changed.Account is null && connections.Scope("glm") != scope,
                 "GLM account replacement published stale quota.");
             File.WriteAllText(Path.Combine(directory, "windows-glm-auth-evidence.json"), JsonSerializer.Serialize(new {
                 fixture = true, requests = "in-memory only", regionAndHostIsolation = "PASS",

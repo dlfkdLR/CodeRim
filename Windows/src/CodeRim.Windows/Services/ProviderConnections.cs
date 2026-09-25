@@ -60,8 +60,14 @@ internal sealed partial class ProviderConnections : IDisposable
                     ?? readCredential("copilot") ?? await readCopilotCli(token).ConfigureAwait(false);
                 var selected = await Resolve().ConfigureAwait(false);
                 var reading = await http.FetchAsync(id, selected, token).ConfigureAwait(false);
-                return selected == await Resolve().ConfigureAwait(false) ? reading
-                    : new(id, ReadingState.Unavailable, [], Message: "The GitHub account changed. Refresh the selected account.");
+                // Bind optional hosts identity to the same token that produced the
+                // reading, then verify it did not change while the request ran.
+                var configured = GitHubAuthentication.Configured(vault.Load("provider:copilot"),
+                    Environment.GetEnvironmentVariable("GH_TOKEN"), Environment.GetEnvironmentVariable("GITHUB_TOKEN"));
+                var label = configured is null ? GitHubAuthentication.AccountLabel(CopilotConnection.ScopeMarker(), selected) : null;
+                if (selected != await Resolve().ConfigureAwait(false))
+                    return new(id, ReadingState.Unavailable, [], Message: "The GitHub account changed. Refresh the selected account.");
+                return reading.State == ReadingState.Ready ? reading with { Account = new(label, "GitHub") } : reading;
             }
             if (id == "codebuff")
             {
@@ -141,8 +147,12 @@ internal sealed partial class ProviderConnections : IDisposable
                     }
                 }
                 var reading = await scripts.FetchAsync(id, key => definitionSettings.GetValueOrDefault(key), vault.Load("cookie:" + id), browser is null ? null : BrowserCookie, token).ConfigureAwait(false);
-                return glmProfile is null || glmProfile == readCredential("glm") ? reading
-                    : new(id, ReadingState.Unavailable, [], Message: "The connection changed. Refresh the selected account.");
+                if (glmProfile is not null && glmProfile != readCredential("glm"))
+                    return new(id, ReadingState.Unavailable, [], Message: "The connection changed. Refresh the selected account.");
+                if (id == "glm" && reading.Account is not null)
+                    reading = reading with { Account = new(null, GlmAuthentication.Profile(glmProfile)?.Source ?? "api",
+                        definitionSettings.GetValueOrDefault("Z_AI_REGION") ?? "global") };
+                return reading;
             }
             var definition = ProviderCatalog.Find(id);
             var secret = vault.Load("provider:" + id);

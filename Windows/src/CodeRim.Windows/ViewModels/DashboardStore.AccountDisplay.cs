@@ -13,7 +13,7 @@ internal sealed partial class DashboardStore
     internal (ProviderReading? Reading, string? Label, string? Plan, string? RawPlan, string? OwnerKey) AccountDisplay(string id)
     {
         var reading = Readings.GetValueOrDefault(id);
-        if (Synthetic) return (reading, SavedAccounts.CurrentAccountLabel(id, true), reading?.Plan, reading?.Plan, null);
+        if (Synthetic) return (reading, id is "codex" or "claude" ? SavedAccounts.CurrentAccountLabel(id, true) : reading?.Account?.Label, reading?.Plan, reading?.Plan, null);
         var capturedScope = scopes.GetValueOrDefault(id);
         if (id is "codex" or "claude")
         {
@@ -26,6 +26,6 @@ internal sealed partial class DashboardStore
             catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or InvalidOperationException)
             { return (capturedScope is null && reading is { Windows.Count: 0, Plan: null } ? reading : null, null, null, null, null); }
         }
-        return (reading, null, reading?.Plan, reading?.Plan, capturedScope);
+        return (reading, reading?.Account?.Label, reading?.Plan, reading?.Plan, capturedScope);
     }
 }
