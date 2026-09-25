@@ -47,7 +47,7 @@ internal static partial class NativeSmoke
                     culture = CultureInfo.CurrentCulture.Name, line.ActualWidth, line.ActualHeight
                 }, JsonOptions));
                 Capture(card, Path.Combine(directory, "windows-local-tokens-" + item.State + ".png"));
-                Require(LocalTokenText(line) == "Today  " + item.Text, "Local token state does not match the Mac reference: " + item.State);
+                Require(RenderedText(line) == "Today  " + item.Text, "Local token state does not match the Mac reference: " + item.State);
                 Require(scope.Text == LocalTokenPresentation.Scope && (string?)scope.ToolTip == LocalTokenPresentation.ScopeHelp,
                     "Local token scope or help text is missing.");
                 var lineBounds = line.TransformToAncestor(card).TransformBounds(new Rect(line.RenderSize));
@@ -57,7 +57,7 @@ internal static partial class NativeSmoke
                     "Local token lines overlap or extend outside the card: " + item.State);
                 Require(lineBounds.Width / line.ActualWidth >= .85, "Local token text shrank below the reference minimum.");
                 Require(ReferenceEquals(quota, store.Readings.GetValueOrDefault("codex")), "Local token presentation replaced account quotas.");
-                states.Add(new { item.State, Text = LocalTokenText(line), scope = scope.Text, lineBounds, scopeBounds });
+                states.Add(new { item.State, Text = RenderedText(line), scope = scope.Text, lineBounds, scopeBounds });
             }
             fixture.Content = NotchPopover.Create("copilot", store, settings.Current, _ => { }); await Idle();
             Require(!Descendants<TextBlock>(fixture).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("notch.tokens.", StringComparison.Ordinal)),
@@ -100,7 +100,7 @@ internal static partial class NativeSmoke
             var quotaRequests = 0;
             store.ReadingUpdated += _ => quotaRequests++;
             notch = new NotchWindow(store, settings, _ => { }); notch.ApplyVisibility(); notch.OpenProvider("codex"); await Idle();
-            string Tokens() => LocalTokenText(Descendants<TextBlock>(notch.PopupContent!).Single(x => AutomationProperties.GetAutomationId(x) == "notch.tokens.codex"));
+            string Tokens() => RenderedText(Descendants<TextBlock>(notch.PopupContent!).Single(x => AutomationProperties.GetAutomationId(x) == "notch.tokens.codex"));
             Require(store.Usage["codex"].Quality == DataQuality.Unavailable && Tokens() == "Today  Unavailable",
                 "A newly opened empty local repository presented an unmeasured zero before scanning.");
             await store.RefreshLocalAsync(); await Idle();
@@ -144,5 +144,5 @@ internal static partial class NativeSmoke
 
     // The native CI capture confirmed that the colored Run content is visible
     // while TextBlock.Text remains empty. Read the rendered text container.
-    private static string LocalTokenText(TextBlock line) => new System.Windows.Documents.TextRange(line.ContentStart, line.ContentEnd).Text;
+    private static string RenderedText(TextBlock line) => new System.Windows.Documents.TextRange(line.ContentStart, line.ContentEnd).Text;
 }

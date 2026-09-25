@@ -17,53 +17,30 @@ internal sealed class SessionExpansionState
     internal bool Expanded { get; set; }
 }
 
-internal static class NotchPopover
+internal static partial class NotchPopover
 {
     internal static FrameworkElement Create(string id, DashboardStore store, AppSettings settings, Action<string?> navigate, double? availableHeight = null, SessionExpansionState? expansion = null)
     {
         var content = new StackPanel { Margin = new Thickness(NotchMetrics.CardPadding) };
-        var header = new DockPanel { LastChildFill = true, Margin = new Thickness(0, 0, 0, 8) };
-        var mark = new ProviderMark { ProviderId = id, Width = 18, Height = 18, Margin = new Thickness(0, 0, 7, 0) };
-        header.Children.Add(mark);
-        header.Children.Add(Text(ProviderCatalog.Find(id)?.Name ?? id, 13.7, Brushes.White, FontWeights.SemiBold));
+        var header = new Grid();
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.Children.Add(new ProviderMark { ProviderId = id, Width = NotchMetrics.Glyph, Height = NotchMetrics.Glyph,
+            Margin = new Thickness(0, 0, NotchMetrics.HeaderGap, 0) });
+        var title = Text((ProviderCatalog.Find(id)?.Name ?? id) + " Usage", NotchMetrics.CardTitleFontSize, Brushes.White, FontWeights.SemiBold);
+        title.Margin = new Thickness(0); title.TextWrapping = TextWrapping.NoWrap; title.TextTrimming = TextTrimming.CharacterEllipsis;
+        title.MaxWidth = (NotchMetrics.CardWidth - 2 * NotchMetrics.CardPadding - NotchMetrics.Glyph - NotchMetrics.HeaderGap) / .85;
+        var fittedTitle = new Viewbox { Child = title, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly,
+            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetColumn(fittedTitle, 1); header.Children.Add(fittedTitle);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(title, "notch.title." + id);
         content.Children.Add(header);
         var accountDisplay = store.AccountDisplay(id);
         var reading = ProviderDisplayPolicy.ForNotch(accountDisplay.Reading, settings, accountDisplay.RawPlan)?.Evaluated(DateTimeOffset.Now);
-        var account = new DockPanel { Margin = new Thickness(0, 0, 0, 8), LastChildFill = true };
-        var switcher = PlainButton("Switch account", () => navigate(id is "codex" or "claude" ? id + "-accounts" : id));
-        switcher.HorizontalAlignment = HorizontalAlignment.Right; DockPanel.SetDock(switcher, Dock.Right);
-        account.Children.Add(switcher);
-        var identity = accountDisplay.Label;
-        account.Children.Add(Text(accountDisplay.Plan ?? "Account", 10.5, Secondary));
-        content.Children.Add(account);
-        if (identity is not null)
-        {
-            var accountLabel = Text(identity, 10.5, Secondary); accountLabel.TextWrapping = TextWrapping.NoWrap;
-            accountLabel.TextTrimming = TextTrimming.CharacterEllipsis; accountLabel.ToolTip = "CLI login file · " + identity;
-            content.Children.Add(accountLabel);
-        }
+        content.Children.Add(AccountRow(id, accountDisplay.Plan, navigate));
         if (id is "codex" or "claude" || store.Usage.ContainsKey(id))
             content.Children.Add(LocalTokens(id, store.Usage.GetValueOrDefault(id), settings.NumberStyle));
-        string? group = null;
-        foreach (var window in reading?.Windows ?? [])
-        {
-            if (window.Group is { Length: > 0 } nextGroup && nextGroup != group)
-                content.Children.Add(Text(nextGroup, 10.5, Secondary, FontWeights.SemiBold));
-            group = window.Group;
-            content.Children.Add(Row(window.Name, Reset(window.ResetsAt, settings.ResetTime)));
-            string? pace = null;
-            if (window.UsedPercent is { } percent && double.IsFinite(percent))
-            {
-                content.Children.Add(UsageBar(percent, settings.AccentColor));
-                if (settings.ShowUsagePace && window.DurationMinutes > 0 && window.ResetsAt is { } reset)
-                {
-                    var elapsed = Math.Clamp(1 - (reset - DateTimeOffset.Now).TotalMinutes / window.DurationMinutes, 0, 1) * 100;
-                    pace = percent > elapsed + 5 ? "Above even pace" : "Within even pace";
-                }
-            }
-            content.Children.Add(Text(LimitFormatting.Summary(window, settings.NumberStyle), 10.5, Secondary));
-            if (pace is not null) content.Children.Add(Text(pace, 10.5, Secondary));
-        }
+        AddLimitGroups(content, reading?.Windows ?? [], settings);
         if (reading is null) content.Children.Add(Text("Waiting for a reading…", 10.5, Secondary));
         else if (reading.State != ReadingState.Ready)
         {

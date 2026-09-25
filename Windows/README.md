@@ -15,3 +15,5 @@ Provider details now show available account/plan/source metadata and fixed usage
 Local-token popups distinguish Loading, Unavailable, measured zero and stale readings. Today is this PC’s transcript total since local midnight, across accounts and sessions, and includes cached input. Local scans update it independently from account quota requests; failed reads retain previously measured values with a stale marker.
 
 Settings window placement now fits the current monitor’s working area when opened or restored, including a smaller usable area after display or DPI changes. The verification record distinguishes automated single-monitor coverage from untested physical multi-monitor transitions.
+
+Provider tooltips use the Mac reference’s curved tail, plan/action row, outlined quota groups and single-line count rows. Optional pace appears beside usage as reserved or deficit, using the notch’s own cycle calculation. Account identity remains available in Settings and the account menu. The comparison record tracks the native results for these development changes.

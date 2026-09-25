@@ -349,6 +349,7 @@ internal static partial class NativeSmoke
         await LocalDataRegression(settings, vault, directory);
         await WindowFrameRegression(store, settings, vault, directory);
         await LocalTokenRegression(store, settings, vault, directory);
+        await NotchLimitsRegression(store, settings, directory);
         Record("Live Claude transcript completion and duplicate registry selection; provider-specific turn entry timing");
         Record("Narrow usage layout, proportional sub-dollar cost, cost gaps and Today/7D/30D totals");
 

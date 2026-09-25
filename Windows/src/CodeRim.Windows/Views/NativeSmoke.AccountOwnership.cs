@@ -50,7 +50,7 @@ internal static partial class NativeSmoke
             // loaded. Checking an unattached popup made every negative check vacuous.
             popupWindow = new Window { Width = 320, Height = 300, Content = popup, ShowInTaskbar = false };
             popupWindow.Show(); await Idle();
-            Require(!Descendants<TextBlock>(popupWindow).Any(x => x.Text.Contains("Plan A", StringComparison.Ordinal) || x.Text.Contains("85%", StringComparison.Ordinal)), "Notch popup retained another account's quota.");
+            Require(!Descendants<TextBlock>(popupWindow).Any(x => RenderedText(x).Contains("Plan A", StringComparison.Ordinal) || RenderedText(x).Contains("85%", StringComparison.Ordinal)), "Notch popup retained another account's quota.");
             Require(Descendants<TextBlock>(popupWindow).Any(x => x.Text.Contains("Pro 20x", StringComparison.Ordinal)), "Notch popup lost the current plan.");
             Capture(popupWindow, Path.Combine(directory, "windows-account-reading-ownership.png"));
 
