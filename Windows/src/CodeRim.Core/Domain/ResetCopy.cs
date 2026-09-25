@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 
 namespace CodeRim.Core.Domain;
 
@@ -21,6 +22,40 @@ public static class ResetCopy
         zone ??= TimeZoneInfo.Local; culture ??= CultureInfo.CurrentCulture;
         var localReset = TimeZoneInfo.ConvertTime(reset.Value, zone);
         var localNow = TimeZoneInfo.ConvertTime(now, zone);
-        return "Resets " + localReset.ToString((localReset.Date - localNow.Date).TotalDays >= 7 ? "MMM d" : "ddd h:mm tt", culture);
+        var pattern = (localReset.Date - localNow.Date).TotalDays >= 7 ? MonthDayFormat(culture) : "ddd h:mm tt";
+        try { return "Resets " + localReset.ToString(pattern, culture); }
+        catch (ArgumentOutOfRangeException) { return "Reset time unavailable"; }
+        catch (FormatException) { return "Reset time unavailable"; }
+    }
+
+    // Foundation's MMM d template preserves locale-specific order and literals.
+    // Use the matching local month/day pattern, abbreviating only format tokens.
+    private static string MonthDayFormat(CultureInfo culture)
+    {
+        var pattern = culture.DateTimeFormat.MonthDayPattern;
+        var result = new StringBuilder(pattern.Length);
+        for (var index = 0; index < pattern.Length;)
+        {
+            var token = pattern[index++];
+            result.Append(token);
+            if (token is '\\' or '%' && index < pattern.Length) { result.Append(pattern[index++]); continue; }
+            if (token is '\'' or '"')
+            {
+                while (index < pattern.Length)
+                {
+                    var quoted = pattern[index++]; result.Append(quoted);
+                    if (quoted == '\\' && index < pattern.Length) result.Append(pattern[index++]);
+                    else if (quoted == token) break;
+                }
+                continue;
+            }
+            var count = 1;
+            while (index < pattern.Length && pattern[index] == token) { index++; count++; }
+            var length = token == 'M' && count == 4 ? 3 : token == 'd' && count == 2 ? 1 : count;
+            result.Append(token, length - 1);
+        }
+        // A single custom day/month token would otherwise become a standard
+        // date format when passed to ToString (for example dd -> d).
+        return result.Length == 1 && result[0] is 'd' or 'M' ? "%" + result : result.ToString();
     }
 }
