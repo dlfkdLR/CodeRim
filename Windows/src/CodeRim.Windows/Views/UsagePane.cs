@@ -178,7 +178,8 @@ internal sealed partial class UsagePane : StackPanel
     internal void ShowSessions() => Forward("sessions", "all-time");
     private void BuildControls()
     {
-        controls.Children.Clear(); filters.Children.Clear(); detailTitle = null;
+        controls.Children.Clear(); filters.Children.Clear(); detailTitle = null; refreshAction = null;
+        filters.Margin = destination == "activity" ? new Thickness(16, 12, 16, 12) : new Thickness(24, 0, 24, 0);
         var bar = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
         selector.Visibility = destination == "overview" ? Visibility.Visible : Visibility.Collapsed;
         accountRow.Visibility = destination == "overview" ? Visibility.Visible : Visibility.Collapsed;
@@ -199,7 +200,8 @@ internal sealed partial class UsagePane : StackPanel
             System.Windows.Automation.AutomationProperties.SetAutomationId(heading, "usage.detail.title"); detailTitle = heading; detail.Children.Add(heading);
             controls.Children.Add(detail);
         }
-        if (destination is "account-period" or "local-period") return;
+        if (destination is "account-period" or "local-period" or "model") return;
+        if (destination == "activity") { filters.Children.Add(AnalyticsRangeControl()); return; }
         if (destination == "overview")
         {
             var segments = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
@@ -272,7 +274,7 @@ internal sealed partial class UsagePane : StackPanel
         identityIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); DockPanel.SetDock(identityIcon, Dock.Left); account.Children.Add(identityIcon);
         account.Children.Add(accountLabel); accountRow.Children.Add(account); account.VerticalAlignment = VerticalAlignment.Center; account.Margin = new Thickness(0, 12, 0, 12);
         readings.Children.Clear(); limitClockUpdates.Clear();
-        readings.Margin = mode == "Limits" && destination == "overview" ? new Thickness(16) : new Thickness(24, 16, 24, 16);
+        readings.Margin = mode == "Limits" && destination == "overview" || destination is "activity" or "model" ? new Thickness(16) : new Thickness(24, 16, 24, 16);
         if (!ProviderAvailable)
         {
             accountRow.Children.Clear();
@@ -367,6 +369,24 @@ internal sealed partial class UsagePane : StackPanel
     private void Detail()
     {
         var events = Filter().ToArray();
+        if (destination == "activity")
+        {
+            if (events.Length == 0) { readings.Children.Add(Ui.Text("No local usage observed for this period.", color: "#A6A6AA")); return; }
+            var total = events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
+            var estimate = UsageAnalytics.Estimate(events);
+            AnalyticsSummary(readings, total, estimate, compact: false); Timeline(events, estimate); return;
+        }
+        if (destination == "model" && selectedModel is not null)
+        {
+            var name = Ui.Text(selectedModel, 13, weight: FontWeights.SemiBold); name.Margin = new Thickness(0, 0, 0, 14); readings.Children.Add(name);
+            if (events.Length == 0) { readings.Children.Add(Ui.Text("No local usage observed for this period.", color: "#A6A6AA")); return; }
+            var total = events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
+            AnalyticsSummary(readings, total, UsageAnalytics.Estimate(events), compact: false);
+            var breakdown = new StackPanel { Margin = new Thickness(0, 8, 0, 0) }; AnalyticsBreakdown(breakdown, total); readings.Children.Add(breakdown);
+            readings.Children.Add(AnalyticsValueRow("Projects", events.Select(x => x.ProjectId).Distinct(StringComparer.Ordinal).LongCount(), 14));
+            readings.Children.Add(AnalyticsValueRow("Sessions", events.Select(x => x.SessionId).Distinct(StringComparer.Ordinal).LongCount(), 14));
+            return;
+        }
         readings.Children.Add(Ui.Text(selectedModel is not null ? selectedModel : session is not null ? "Session details" : project is not null ? "Project details" : destination switch { "projects" => "Projects", "sessions" => "Sessions", _ => "Usage history" }, 20, weight: FontWeights.SemiBold));
         if (events.Length == 0) { readings.Children.Add(Ui.Text("No local usage observed for this period.", color: "#A6A6AA")); return; }
         if (destination is "projects" or "sessions" && project is null && session is null)

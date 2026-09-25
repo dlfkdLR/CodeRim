@@ -290,8 +290,8 @@ internal static partial class NativeSmoke
 
         Descendants<Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.activity").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await Idle();
-        var analyticsPeriod = Descendants<ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period");
-        Require(Equals(analyticsPeriod.SelectedValue, "7d"), "Usage analytics did not default to the rolling seven-day range");
+        var analyticsPeriod = Descendants<RadioButton>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.7d");
+        Require(analyticsPeriod.IsChecked == true, "Usage analytics did not default to the rolling seven-day range");
         var bucketButton = Descendants<Button>(dashboard).Last(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.tokens.", StringComparison.Ordinal));
         bucketButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
         var bucketDetails = Descendants<StackPanel>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.bucket-details");

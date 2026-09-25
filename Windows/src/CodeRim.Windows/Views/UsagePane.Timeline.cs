@@ -86,16 +86,15 @@ internal sealed partial class UsagePane
             selectedBucket = bucket.Start; details.Children.Clear();
             detailCard.Visibility = Visibility.Visible;
             details.Children.Add(Ui.Text(BucketLabel(bucket.Start), 11, weight: FontWeights.SemiBold));
-            MetricSummary(details, bucket.Usage);
-            if (showsCost)
-                details.Children.Add(Ui.Row(bucket.Cost.Label, CostText(bucket.Cost)));
+            AnalyticsSummary(details, bucket.Usage, bucket.Cost, compact: true);
+            AnalyticsBreakdown(details, bucket.Usage);
             AutomationProperties.SetName(details, "Selected usage interval");
             AutomationProperties.SetAutomationId(details, "usage.bucket-details");
         }
         void Chart(bool cost)
         {
             var title = cost ? totalCost.IsPartial ? "Estimated cost of priced usage" : "Estimated API cost" : "Token activity";
-            Ui.Section(readings, title);
+            AnalyticsHeading(readings, title);
             if (cost && totalCost.Amount is null)
             {
                 readings.Children.Add(Ui.Text("No cost estimate is available for the recorded usage in this range.", 11, "#A6A6AA"));
@@ -132,15 +131,27 @@ internal sealed partial class UsagePane
         if (period is not ("today" or "7d" or "30d")) readings.Children.Add(Ui.Text("Chart shows up to 30 recent active days in this period.", 11, "#A6A6AA"));
         readings.Children.Add(detailCard);
         if (selectedBucket is { } selected && buckets.FirstOrDefault(b => b.Start == selected) is { } current) Select(current);
-        Ui.Section(readings, "Models");
+        AnalyticsHeading(readings, "Models");
         foreach (var row in UsageAnalytics.Group(events, "model"))
         {
             var button = Ui.Button("", () => Forward("model", selectedProject: project, selectedSession: session, model: row.Name));
-            var costText = settings.Current.CostEstimatesEnabled && provider == "codex"
-                ? " · " + (row.Cost is { } amount ? "$" + amount.ToString("N4", CultureInfo.CurrentCulture) + (row.Partial ? " · partial" : "") : "Unavailable") : "";
-            button.Content = Ui.Row(row.Name, TokenFormatter.Format(row.Tokens, settings.Current.NumberStyle) + costText + "  ›");
+            var costText = showsCost && row.Cost is { } amount ? "~" + AnalyticsCurrency(amount) + (row.Partial ? " · subtotal" : "") : "";
+            var content = new DockPanel();
+            var arrow = Ui.Text("›", 11, "#98989D"); arrow.Margin = new Thickness(10, 0, 0, 0); arrow.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(arrow, Dock.Right); content.Children.Add(arrow);
+            var values = new StackPanel();
+            var top = new Grid(); top.ColumnDefinitions.Add(new ColumnDefinition()); top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            var name = Ui.Text(row.Name, 13, weight: FontWeights.Medium); name.Margin = new Thickness(0, 0, 8, 0);
+            name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis; name.ToolTip = row.Name; top.Children.Add(name);
+            var tokens = Ui.Text(row.Tokens.ToString("N0", CultureInfo.CurrentCulture)); tokens.Margin = new Thickness(0);
+            System.Windows.Documents.Typography.SetNumeralAlignment(tokens, FontNumeralAlignment.Tabular);
+            Grid.SetColumn(tokens, 1); top.Children.Add(tokens); values.Children.Add(top);
+            if (costText.Length > 0)
+            { var estimate = Ui.Text(costText, 11, "#A6A6AA"); estimate.Margin = new Thickness(0, 4, 0, 0); estimate.HorizontalAlignment = HorizontalAlignment.Right; values.Children.Add(estimate); }
+            content.Children.Add(values); button.Content = content;
+            button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Margin = new Thickness(0); button.Padding = new Thickness(8, 10, 8, 10);
             button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-            AutomationProperties.SetName(button, row.Name + ": " + row.Tokens.ToString("N0", CultureInfo.CurrentCulture) + " tokens" + costText);
+            AutomationProperties.SetName(button, row.Name + ": " + row.Tokens.ToString("N0", CultureInfo.CurrentCulture) + " tokens" + (costText.Length == 0 ? "" : ", " + costText));
             AutomationProperties.SetAutomationId(button, "usage.model." + row.Name);
             readings.Children.Add(button);
         }
