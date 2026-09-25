@@ -24,6 +24,8 @@ Cost charts use the same model coverage as the displayed range subtotal. A model
 
 Usage analytics now follows the Mac reference's Today/7D/30D control, exact two-column token/cost summary and plain model rows. Model details retain their originating range and show pricing coverage plus project/session counts; Back restores the previous view. The comparison record tracks the remaining analytics and native validation gaps.
 
+Projects and Sessions show all matching entries in one continuous list, using the Settings window’s existing scrolling area. There is no 40-row “Show more” step; range selection, optional Find and detail/Back navigation remain available.
+
 Usage analytics distinguishes an empty selected range from a failed local read. Empty ranges show zero tokens with unavailable cost; failed refreshes label retained analytics as the last snapshot. First-read failures and initial loading do not fabricate numeric values. Account quota refresh stays independent from those local-history states.
 
 Analytics navigation keeps independent ranges while you return to the overview and reopen a list: Usage starts at 7D, Projects at 30D and Sessions at 7D. Usage also keeps the selected chart interval until its range or provider changes. Projects and Sessions use the same three-segment range control and plain rows with exact token counts, optional estimates and session metadata. Their details inherit the originating range. Find remains available with Ctrl+F; Escape clears the filter and returns focus to the selected range. Week/month/lifetime History routes are unchanged.

@@ -378,6 +378,7 @@ internal static partial class NativeSmoke
         await AnalyticsDetailsRegression(store, settings, directory);
         await ClaudeAgentUsageRegression(store, settings, directory);
         await AnalyticsLabelsRegression(store, settings, directory);
+        await AnalyticsListsRegression(store, settings, directory);
         AnalyticsDateRegression(directory);
         ActivityRegression(store);
         await SessionPresentationRegression(dashboard, store, settings, directory);

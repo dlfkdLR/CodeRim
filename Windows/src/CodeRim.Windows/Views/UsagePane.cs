@@ -45,12 +45,12 @@ internal sealed partial class UsagePane : StackPanel
         if (destination == "activity" || destination is "projects" or "sessions" && project is null && session is null)
             analyticsRanges[destination] = value;
         if (destination == "activity") analyticsSelectedBucket = null;
-        selectedBucket = null; visibleRows = 40; Update();
+        selectedBucket = null; Update();
     }
-    private sealed record NavigationState(string Destination, string Period, string Search, bool SearchVisible, string? Project, string? Session, int VisibleRows, string? Model, DateTimeOffset? Bucket);
+    private sealed record NavigationState(string Destination, string Period, string Search, bool SearchVisible, string? Project, string? Session, string? Model, DateTimeOffset? Bucket);
     private void Forward(string target, string? selectedPeriod = null, string? selectedProject = null, string? selectedSession = null, string? model = null)
     {
-        history.Push(new(destination, period, search, searchVisible, project, session, visibleRows, selectedModel, selectedBucket));
+        history.Push(new(destination, period, search, searchVisible, project, session, selectedModel, selectedBucket));
         destination = target; period = selectedPeriod ?? period; project = selectedProject; session = selectedSession; selectedModel = model;
         search = ""; searchVisible = false;
         selectedBucket = target == "activity" ? analyticsSelectedBucket : null;
@@ -59,7 +59,7 @@ internal sealed partial class UsagePane : StackPanel
     internal void Back()
     {
         if (!history.TryPop(out var previous)) return;
-        (destination, period, search, project, session, visibleRows, selectedModel, selectedBucket) = (previous.Destination, previous.Period, previous.Search, previous.Project, previous.Session, previous.VisibleRows, previous.Model, previous.Bucket);
+        (destination, period, search, project, session, selectedModel, selectedBucket) = (previous.Destination, previous.Period, previous.Search, previous.Project, previous.Session, previous.Model, previous.Bucket);
         searchVisible = previous.SearchVisible;
         BuildControls(); Update();
     }
@@ -99,7 +99,6 @@ internal sealed partial class UsagePane : StackPanel
     private string search = "";
     private string? project;
     private string? session;
-    private int visibleRows = 40;
     private bool pendingRefresh;
     private string? lastView;
     private string? displayedProfileAccountKey;
@@ -126,7 +125,7 @@ internal sealed partial class UsagePane : StackPanel
         if (provider != preferred && preferred is "codex" or "claude")
         {
             provider = preferred; destination = "overview"; project = session = null;
-            period = "today"; search = ""; visibleRows = 40; history.Clear(); analyticsRanges.Clear(); analyticsSelectedBucket = null; BuildControls();
+            period = "today"; search = ""; history.Clear(); analyticsRanges.Clear(); analyticsSelectedBucket = null; BuildControls();
         }
         RefreshProviderChoices();
         var changedAccount = displayedOwner != store.AccountDisplay(provider).OwnerKey || displayedAvailable != ProviderAvailable || displayedProfileAccountKey != store.ProfileHistory.Snapshot?.AccountKey || displayedProfileEnabled != store.ProfileHistory.Enabled;
@@ -161,7 +160,7 @@ internal sealed partial class UsagePane : StackPanel
             if (updatingChoices) return;
             if (selector.SelectedValue is string id && store.AvailableUsageProviders.Contains(id, StringComparer.Ordinal))
             {
-                this.provider = id; destination = "overview"; project = session = null; search = ""; period = "today"; visibleRows = 40; history.Clear(); analyticsRanges.Clear(); analyticsSelectedBucket = null;
+                this.provider = id; destination = "overview"; project = session = null; search = ""; period = "today"; history.Clear(); analyticsRanges.Clear(); analyticsSelectedBucket = null;
                 try { settings.Save(settings.Current with { UsageProvider = id }); }
                 catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException) { }
                 RefreshProviderChoices(); BuildControls(); Update();
@@ -237,11 +236,11 @@ internal sealed partial class UsagePane : StackPanel
             {
                 var filter = new TextBox { Text = search, Padding = new Thickness(8), Margin = new Thickness(0, 10, 0, 0), ToolTip = "Find " + destination + " (Ctrl+F, Escape to close)" };
                 System.Windows.Automation.AutomationProperties.SetName(filter, "Filter " + destination);
-                filter.TextChanged += (_, _) => { search = filter.Text; visibleRows = 40; Update(); };
+                filter.TextChanged += (_, _) => { search = filter.Text; Update(); };
                 filter.PreviewKeyDown += (_, e) =>
                 {
                     if (e.Key != Key.Escape) return;
-                    search = ""; searchVisible = false; visibleRows = 40; BuildControls(); Update(); e.Handled = true;
+                    search = ""; searchVisible = false; BuildControls(); Update(); e.Handled = true;
                     var range = filters.Children.OfType<Border>().FirstOrDefault()?.Child as System.Windows.Controls.Primitives.UniformGrid;
                     var selected = range?.Children.OfType<RadioButton>().FirstOrDefault(x => x.IsChecked == true);
                     Dispatcher.BeginInvoke(new Action(() => selected?.Focus()));
@@ -438,6 +437,11 @@ internal sealed partial class UsagePane : StackPanel
             }
             var quality = AnalyticsQuality(events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage)));
             var visibleSessions = events.Select(x => x.SessionId).ToHashSet(StringComparer.Ordinal);
+            var childCounts = new Dictionary<string, int>(StringComparer.Ordinal);
+            if (destination == "sessions" && settings.Current.AgentDetailsEnabled)
+                foreach (var metadata in analyticsMetadata.Values)
+                    if (metadata.ParentId is { } parent && visibleSessions.Contains(metadata.Id))
+                        childCounts[parent] = childCounts.GetValueOrDefault(parent) + 1;
             var rows = events.GroupBy(x => destination == "projects" ? x.ProjectId : x.SessionId).Select(g =>
             {
                 return new { Id = g.Key, Name = AnalyticsEntityName(g, g.Key, destination == "sessions"),
@@ -451,17 +455,16 @@ internal sealed partial class UsagePane : StackPanel
             {
                 var empty = Ui.Text("No matching " + destination + ".", 11, "#A6A6AA"); empty.Margin = new Thickness(24); readings.Children.Add(empty);
             }
-            foreach (var group in groups.Take(visibleRows))
+            foreach (var group in groups)
             {
                 var detail = destination == "projects" ? group.Sessions.ToString("N0", CultureInfo.CurrentCulture) + (group.Sessions == 1 ? " session" : " sessions")
-                    : SessionListDetail(group.Id, group.LastActivity, visibleSessions);
+                    : SessionListDetail(group.Id, group.LastActivity, childCounts);
                 var costText = settings.Current.CostEstimatesEnabled && provider == "codex" && quality != DataQuality.Unavailable && group.Cost.Amount is { } amount
                     ? "~" + AnalyticsCurrency(amount) + (group.Cost.IsPartial ? " · subtotal" : "") : "";
                 readings.Children.Add(AnalyticsRowButton(group.Name, detail, group.Total, costText,
                     "usage." + (destination == "projects" ? "project." : "session.") + group.Id, 16,
                     () => Forward(destination, selectedProject: destination == "projects" ? group.Id : null, selectedSession: destination == "sessions" ? group.Id : null)));
             }
-            if (groups.Length > visibleRows) readings.Children.Add(Ui.Button("Show more (" + (groups.Length - visibleRows) + " remaining)", () => { visibleRows += 40; Update(); }));
             return;
         }
         if (project is not null || session is not null) EntityDetail(events);
@@ -486,18 +489,17 @@ internal sealed partial class UsagePane : StackPanel
     }
     private static bool HasProjectName(UsageEvent item) => !string.IsNullOrWhiteSpace(item.Project)
         && (item.Project != "Unknown project" || item.ProjectId != "unknown");
-    private string SessionListDetail(string id, DateTimeOffset lastActivity, HashSet<string> visibleSessions)
+    private string SessionListDetail(string id, DateTimeOffset lastActivity, IReadOnlyDictionary<string, int> childCounts)
     {
         var parts = new List<string> { AnalyticsDateText.Format(lastActivity, AnalyticsDateStyle.DayAndTime) };
-        var metadata = store.SessionDetails.GetValueOrDefault(provider) ?? [];
         if (settings.Current.AgentDetailsEnabled)
         {
-            var count = metadata.Count(x => x.ParentId == id && visibleSessions.Contains(x.Id));
+            var count = childCounts.GetValueOrDefault(id);
             if (count > 0) parts.Add(count.ToString("N0", CultureInfo.CurrentCulture) + (count == 1 ? " agent" : " agents"));
         }
         if (settings.Current.AttachmentMetadataEnabled)
         {
-            var count = metadata.FirstOrDefault(x => x.Id == id)?.Attachments.Sum(x => (long)x.Count) ?? 0;
+            var count = analyticsMetadata.GetValueOrDefault(id)?.Attachments.Sum(x => (long)x.Count) ?? 0;
             if (count > 0) parts.Add(count.ToString("N0", CultureInfo.CurrentCulture) + (count == 1 ? " whole-session image" : " whole-session images"));
         }
         return string.Join(" · ", parts);
