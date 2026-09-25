@@ -8,6 +8,20 @@ internal enum AnalyticsDateStyle { Day, Time, DayAndTime }
 /// <summary>ICU medium-date/short-time styles used by the Mac analytics reference.</summary>
 internal static class AnalyticsDateText
 {
+    private static readonly Dictionary<string, string[]> ReferencePatterns = LoadReferencePatterns();
+
+    private static Dictionary<string, string[]> LoadReferencePatterns()
+    {
+        using var stream = typeof(AnalyticsDateText).Assembly.GetManifestResourceStream("CodeRim.Windows.Assets.Reference.AnalyticsDatePatterns.json")
+            ?? throw new InvalidOperationException("Analytics date reference is missing.");
+        using var document = System.Text.Json.JsonDocument.Parse(stream);
+        return document.RootElement.GetProperty("patterns").EnumerateObject().ToDictionary(item => item.Name,
+            item => item.Value.EnumerateArray().Select(value => value.GetString()!).ToArray(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    internal static string? ReferencePattern(string locale, AnalyticsDateStyle style) =>
+        ReferencePatterns.TryGetValue(locale, out var patterns) ? patterns[(int)style] : null;
+
     internal static string Format(DateTimeOffset date, AnalyticsDateStyle style, CultureInfo? culture = null, TimeZoneInfo? timeZone = null)
     {
         culture ??= CultureInfo.CurrentCulture; timeZone ??= TimeZoneInfo.Local;
@@ -28,11 +42,16 @@ internal static class AnalyticsDateText
         // time zone. This also preserves the two sides of a daylight-saving fold.
         var offset = timeZone.GetUtcOffset(date);
         var zone = "GMT" + (offset < TimeSpan.Zero ? "-" : "+") + offset.Duration().ToString(@"hh\:mm", CultureInfo.InvariantCulture);
-        var locale = culture.Name.Length == 0 ? "en_US_POSIX" : culture.Name;
+        var locale = culture.Name.Length == 0 ? "en-US-POSIX" : culture.Name;
+        // OS ICU/CLDR releases differ in date/time joining words and whitespace.
+        // Keep the read-only Mac reference patterns explicit, using ICU for fields,
+        // calendar and localized symbols rather than assembling translated text.
+        var pattern = ReferencePattern(locale, style);
+        if (pattern is not null) (timeStyle, dateStyle) = (-2, -2); // UDAT_PATTERN
         try
         {
             var status = 0;
-            var formatter = Open(timeStyle, dateStyle, System.Text.Encoding.UTF8.GetBytes(locale + "\0"), zone, zone.Length, IntPtr.Zero, 0, ref status);
+            var formatter = Open(timeStyle, dateStyle, System.Text.Encoding.UTF8.GetBytes(locale + "\0"), zone, zone.Length, pattern, pattern?.Length ?? 0, ref status);
             if (formatter == IntPtr.Zero) return null;
             try
             {
@@ -75,7 +94,7 @@ internal static class AnalyticsDateText
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("icu.dll", EntryPoint = "udat_open", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl, CharSet = CharSet.Unicode)]
     private static extern IntPtr Open(int timeStyle, int dateStyle, [In] byte[] locale,
-        string timeZone, int timeZoneLength, IntPtr pattern, int patternLength, ref int status);
+        string timeZone, int timeZoneLength, string? pattern, int patternLength, ref int status);
 
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("icu.dll", EntryPoint = "udat_format", ExactSpelling = true, CallingConvention = CallingConvention.Cdecl)]

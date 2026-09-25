@@ -32,6 +32,7 @@
     <Using Remove="System.Drawing" />
     <ProjectReference Include="..\CodeRim.Core\CodeRim.Core.csproj" />
     <Resource Include="Assets\CodeRim.ico" />
+    <EmbeddedResource Include="Assets\Reference\AnalyticsDatePatterns.json" />
     <Resource Include="Assets\ProviderLogos\*.svg" />
   </ItemGroup>
   <Target Name="ValidateApplicationPublisherPin" BeforeTargets="CoreCompile">

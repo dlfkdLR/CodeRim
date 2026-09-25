@@ -18,12 +18,17 @@ internal static partial class NativeSmoke
             ("ko-KR", "2026. 10. 9.", "2026. 10. 9. 오후 3:04"),
             ("ja-JP", "2026/10/09", "2026/10/09 15:04"),
             ("zh-CN", "2026年10月9日", "2026年10月9日 15:04"),
+            ("zh-TW", "2026年10月9日", "2026年10月9日 下午3:04"),
+            ("zh-HK", "2026年10月9日", "2026年10月9日 下午3:04"),
+            ("zh-MO", "2026年10月9日", "2026年10月9日 下午3:04"),
+            ("zh-SG", "2026年10月9日", "2026年10月9日 下午3:04"),
             ("pl-PL", "9 paź 2026", "9 paź 2026 o 15:04")
         };
         var checks = new List<string>();
         foreach (var reference in references)
         {
             var culture = CultureInfo.GetCultureInfo(reference.Locale);
+            Require(AnalyticsDateText.ReferencePattern(reference.Locale, AnalyticsDateStyle.DayAndTime) is not null, "Native reference locale has no pinned pattern: " + reference.Locale);
             var day = AnalyticsDateText.TryFormat(date, AnalyticsDateStyle.Day, culture, TimeZoneInfo.Utc);
             var timestamp = AnalyticsDateText.TryFormat(date, AnalyticsDateStyle.DayAndTime, culture, TimeZoneInfo.Utc);
             Require(day == reference.Day && timestamp == reference.Timestamp,
@@ -56,6 +61,7 @@ internal static partial class NativeSmoke
         checks.AddRange(["Localized Today interval time", "Local day/year rollover", "Offset changes across daylight saving", "Unsupported fallback calendar date", "User time/date/calendar overrides preserved"]);
         System.IO.File.WriteAllText(System.IO.Path.Combine(directory, "windows-analytics-dates.json"), System.Text.Json.JsonSerializer.Serialize(new { completed = true, checks,
             currentCulture = CultureInfo.CurrentCulture.Name,
+            currentCultureReferencePattern = AnalyticsDateText.ReferencePattern(CultureInfo.CurrentCulture.Name, AnalyticsDateStyle.DayAndTime),
             currentCultureUsesNative = AnalyticsDateText.TryFormat(date, AnalyticsDateStyle.DayAndTime, CultureInfo.CurrentCulture, TimeZoneInfo.Local) is not null }, JsonOptions));
     }
 }
