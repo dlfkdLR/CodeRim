@@ -47,11 +47,22 @@ public sealed class ClaudeIntegration : IDisposable
     public Task RefreshAsync()
     {
         if (disposed || mutations > 0 || Switching || !Preferences.Enabled) return Task.CompletedTask;
-        return refreshing ??= RefreshCoreAsync();
+        if (refreshing is { } active) return active;
+        // Register before scheduling: Yield may resume on another thread before
+        // the right-hand side of an assignment has returned to its caller.
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        refreshing = completion.Task;
+        _ = CompleteRefreshAsync(completion);
+        return completion.Task;
+    }
+    private async Task CompleteRefreshAsync(TaskCompletionSource completion)
+    {
+        try { await RefreshCoreAsync().ConfigureAwait(true); completion.SetResult(); }
+        catch (OperationCanceledException error) { completion.SetCanceled(error.CancellationToken); }
+        catch (Exception error) { completion.SetException(error); }
     }
     private async Task RefreshCoreAsync()
     {
-        // Register the shared task before even an entirely synchronous fake completes.
         await Task.Yield();
         try
         {

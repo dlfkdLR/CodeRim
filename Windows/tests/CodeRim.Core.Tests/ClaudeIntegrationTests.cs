@@ -189,6 +189,51 @@ public sealed class ClaudeIntegrationTests
         Assert.False(await f.Store.SetEnabledAsync(false)); Assert.False(f.Store.Busy);
         Assert.True(await f.Store.SetEnabledAsync(false)); Assert.False(f.Store.Available);
     }
+    private sealed class InlineSynchronizationContext : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback callback, object? state) => callback(state);
+    }
+    [Fact]
+    public async Task RefreshNotificationFailureRemainsObservableAndAllowsRetry()
+    {
+        using var f = new Fixture(true, A.Id);
+        var first = true;
+        f.Store.Changed += () => { if (first) { first = false; throw new IOException("subscriber failed"); } };
+        await Assert.ThrowsAsync<IOException>(() => f.Store.RefreshAsync());
+        Assert.False(f.Store.Busy);
+        await f.Store.RefreshAsync();
+        Assert.False(f.Store.Busy); Assert.True(f.Store.Available);
+    }
+    [Fact]
+    public async Task RefreshNotificationCancellationPreservesCanceledTaskAndAllowsRetry()
+    {
+        using var f = new Fixture(true, A.Id);
+        using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
+        var first = true;
+        f.Store.Changed += () => { if (first) { first = false; cancellation.Token.ThrowIfCancellationRequested(); } };
+        var refresh = f.Store.RefreshAsync();
+        var error = await Assert.ThrowsAnyAsync<OperationCanceledException>(() => refresh);
+        Assert.True(refresh.IsCanceled); Assert.Equal(cancellation.Token, error.CancellationToken);
+        Assert.False(f.Store.Busy);
+        await f.Store.RefreshAsync();
+        Assert.False(f.Store.Busy); Assert.True(f.Store.Available);
+    }
+    [Fact]
+    public void SynchronousRefreshCompletionCannotLeaveACompletedTaskRegistered()
+    {
+        using var f = new Fixture(true, A.Id);
+        var previous = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new InlineSynchronizationContext());
+        try
+        {
+            Assert.True(f.Store.RefreshAsync().IsCompletedSuccessfully);
+            Assert.False(f.Store.Busy);
+            Assert.True(f.Store.RefreshAsync().IsCompletedSuccessfully);
+            Assert.False(f.Store.Busy);
+            Assert.Equal(2, f.Ops.Probes);
+        }
+        finally { SynchronizationContext.SetSynchronizationContext(previous); }
+    }
     private static async Task WaitUntil(Func<bool> condition)
     {
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
