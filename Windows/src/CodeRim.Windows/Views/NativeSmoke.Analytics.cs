@@ -174,6 +174,17 @@ internal static partial class NativeSmoke
             Require(!Descendants<Button>(pane).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.cost.", StringComparison.Ordinal))
                 && Descendants<TextBlock>(pane).Any(x => x.Text == "No cost estimate is available for the recorded usage in this range."), "Unavailable cost range renders an empty chart instead of its explanation");
             Capture(pane, System.IO.Path.Combine(directory, "windows-analytics-cost-unavailable.png"));
+            store.Events["codex"] = [new("known-high-context", now, new(300000, 100000, 100, 10000), "gpt-5.6-sol") { PricingContext = PricingContext.HighContext }];
+            pane.Update(); await Idle();
+            var highCost = Descendants<StackPanel>(pane).First(x => AutomationProperties.GetAutomationId(x) == "analytics.summary.cost");
+            Require(Descendants<TextBlock>(highCost).Any(x => x.Text == "~$" + 1.703m.ToString("N2", CultureInfo.CurrentCulture)), "Known high-context request did not render its tiered cost");
+            var highBucket = Descendants<Button>(pane).Last(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.cost.", StringComparison.Ordinal));
+            Require(!AutomationProperties.GetName(highBucket).Contains("Unavailable", StringComparison.Ordinal)
+                && Descendants<Border>((Grid)highBucket.Content).Single().Height > 0, "Known high-context cost remained a chart gap");
+            Capture(pane, System.IO.Path.Combine(directory, "windows-analytics-high-context.png"));
+            store.Events["codex"] = store.Events["codex"].Select(x => x with { PricingContext = null }).ToArray(); pane.Update(); await Idle();
+            Require(!Descendants<Button>(pane).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.cost.", StringComparison.Ordinal)),
+                "Unknown high-context request was priced without request proof");
             store.Events["codex"] = [new("large-unpriced", now, new(long.MaxValue, 0, 0, 0), "unpriced-model")];
             pane.Width = 360; pane.Update(); await Idle();
             Descendants<Button>(pane).Last(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.tokens.", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
@@ -192,7 +203,7 @@ internal static partial class NativeSmoke
                 checks = new List<string> { "Mounted Today/7d/30d totals and selected values", "Common baseline and ten-to-one fractional cost ratio", "Reference compact/full chart heights and green costs",
                     "Measured empty intervals are zero, unpriced coverage is a gap", "Model-wide range/bucket exclusions", "Selected interval card", "Unavailable cost explanation",
                     "Three-segment range and exact summary", "Model detail and Back", "Two-column summary at 360/450/650 widths", "Long-number bounds and 0.65 minimum scale",
-                    "Regular date axes inside 80/112 frames and clear of bars at all tested widths" } }, JsonOptions));
+                    "Regular date axes inside 80/112 frames and clear of bars at all tested widths", "Known high-context tiered cost and unknown-context chart gap" } }, JsonOptions));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally

@@ -12,6 +12,7 @@ public sealed record ModelPrice(string Model, decimal InputUSDPerMillionTokens, 
 public sealed record AnalyticsRow(string Name, long Tokens, decimal? Cost, bool Partial);
 public static class UsageAnalytics
 {
+    public const long HighContextInputThreshold = 272_000;
     public const string CatalogVersion = "2026-09-14";
     private static readonly Dictionary<string, ModelPrice> Prices = ProviderCatalog.ReadResource<ModelPrice[]>("pricing.json").ToDictionary(x => x.Model, StringComparer.Ordinal);
     public static CostSummary Estimate(IEnumerable<UsageEvent> events, IReadOnlySet<string>? excludingModels = null)
@@ -26,21 +27,29 @@ public static class UsageAnalytics
             var valid = usage.IsValid && group.All(item => item.Usage.IsValid);
             if (valid && usage.IsZero) continue;
             var model = group.Key == "gpt-5.6" ? "gpt-5.6-sol" : group.Key;
-            // Until request context is unambiguous, large context usage is a gap, never a cheap estimate.
-            // Coverage is model-wide, matching the displayed range subtotal.
+            // Unknown large-request context remains a gap; a known request uses
+            // its own pricing tier. Coverage stays model-wide for the range.
             if (!valid || excludingModels?.Contains(group.Key) == true || !Prices.TryGetValue(model, out var price)
                 || (price.CacheWriteInputMultiplier is not null && usage.CacheWriteInputTokens is null && usage.InputTokens > 0)
-                || (price.HighContextInputMultiplier is not null && group.Any(item => item.Usage.InputTokens > 272_000)))
+                || (price.HighContextInputMultiplier is not null && group.Any(item =>
+                    item.PricingContext is not (null or PricingContext.Standard or PricingContext.HighContext)
+                    || item.PricingContext is null && item.Usage.InputTokens > HighContextInputThreshold)))
             {
                 excluded = new TokenUsage(excluded, 0, 0).Add(new TokenUsage(Math.Max(0, usage.TotalTokens), 0, 0)).InputTokens;
                 models.Add(group.Key);
                 continue;
             }
             any = true;
-            amount += (usage.UncachedInputTokens * price.InputUSDPerMillionTokens
-                + usage.CachedInputTokens * price.CachedInputUSDPerMillionTokens
-                + (usage.CacheWriteInputTokens ?? 0) * price.InputUSDPerMillionTokens * (price.CacheWriteInputMultiplier ?? 1)
-                + usage.OutputTokens * price.OutputUSDPerMillionTokens) / 1_000_000m;
+            foreach (var tier in group.GroupBy(item => item.PricingContext == PricingContext.HighContext))
+            {
+                var tierUsage = tier.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
+                var inputMultiplier = tier.Key ? price.HighContextInputMultiplier ?? 1 : 1;
+                var outputMultiplier = tier.Key ? price.HighContextOutputMultiplier ?? 1 : 1;
+                amount += ((tierUsage.UncachedInputTokens * price.InputUSDPerMillionTokens
+                    + tierUsage.CachedInputTokens * price.CachedInputUSDPerMillionTokens
+                    + (tierUsage.CacheWriteInputTokens ?? 0) * price.InputUSDPerMillionTokens * (price.CacheWriteInputMultiplier ?? 1)) * inputMultiplier
+                    + tierUsage.OutputTokens * price.OutputUSDPerMillionTokens * outputMultiplier) / 1_000_000m;
+            }
         }
         return new CostSummary(any || models.Count == 0 ? amount : null, excluded, models.Order(StringComparer.Ordinal).ToArray());
     }

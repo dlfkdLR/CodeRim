@@ -58,6 +58,8 @@ public sealed record TokenObservation(
     TokenUsage? LastUsage,
     TokenUsage? CumulativeUsage);
 
+public enum PricingContext { Standard, HighContext }
+
 public sealed record UsageEvent(
     string EventKey,
     DateTimeOffset OccurredAt,
@@ -68,6 +70,10 @@ public sealed record UsageEvent(
     string Provider = "codex",
     string ProjectId = "unknown")
 {
+    // Pricing metadata stays in the local database, not exported event JSON.
+    [System.Text.Json.Serialization.JsonIgnore]
+    public PricingContext? PricingContext { get; init; }
+
     // Transient import evidence. Durable relationships live in session_links;
     // this is not a new field in exported numeric history.
     [System.Text.Json.Serialization.JsonIgnore]

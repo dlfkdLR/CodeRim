@@ -265,11 +265,12 @@ public sealed class UsageScanner
                 if (eventIndices.TryGetValue(usageEvent.EventKey, out var existingIndex))
                 {
                     var existing = events[existingIndex];
-                    if (existing.Usage.CacheWriteInputTokens is null && usageEvent.Usage.CacheWriteInputTokens is not null
-                        && existing.Usage.InputTokens == usageEvent.Usage.InputTokens
+                    if (existing.Usage.InputTokens == usageEvent.Usage.InputTokens
                         && existing.Usage.CachedInputTokens == usageEvent.Usage.CachedInputTokens
                         && existing.Usage.OutputTokens == usageEvent.Usage.OutputTokens)
-                        events[existingIndex] = existing with { Usage = usageEvent.Usage };
+                        events[existingIndex] = existing with {
+                            Usage = existing.Usage.CacheWriteInputTokens is null && usageEvent.Usage.CacheWriteInputTokens is not null ? usageEvent.Usage : existing.Usage,
+                            PricingContext = usageEvent.PricingContext ?? existing.PricingContext };
                     continue;
                 }
 
@@ -619,7 +620,9 @@ public sealed class UsageScanner
                     events.Add(new UsageEvent(
                         EventKey(sessionId, observation),
                         observation.OccurredAt,
-                        delta, model, project, sessionId, "codex", projectId));
+                        delta, model, project, sessionId, "codex", projectId) {
+                            PricingContext = delta.InputTokens <= UsageAnalytics.HighContextInputThreshold ? PricingContext.Standard
+                                : observation.LastUsage == delta ? PricingContext.HighContext : null });
                     break;
 
                 case ParsedLineKind.Malformed:

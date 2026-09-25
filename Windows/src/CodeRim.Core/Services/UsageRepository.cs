@@ -23,6 +23,7 @@ public sealed class UsageRepository
                 provider TEXT NOT NULL, id TEXT NOT NULL, time INTEGER NOT NULL,
                 input INTEGER NOT NULL, cached INTEGER NOT NULL, output INTEGER NOT NULL, written INTEGER,
                 model TEXT NOT NULL, project TEXT NOT NULL, session TEXT NOT NULL, projectId TEXT NOT NULL,
+                highContext INTEGER CHECK(highContext IN (0,1)),
                 PRIMARY KEY(provider,id));
             CREATE INDEX IF NOT EXISTS events_date ON events(provider,time);
             CREATE INDEX IF NOT EXISTS events_session ON events(provider,session,time);
@@ -35,6 +36,25 @@ public sealed class UsageRepository
                 time INTEGER NOT NULL, count INTEGER NOT NULL, PRIMARY KEY(provider,id));
             """;
         command.ExecuteNonQuery();
+        // Existing schemas need only a read. Serialize actual migrations and
+        // recheck after acquiring the write lock in case another startup won.
+        bool HasContext()
+        {
+            command.CommandText = "PRAGMA table_info(events)";
+            using var columns = command.ExecuteReader();
+            while (columns.Read()) if (columns.GetString(1) == "highContext") return true;
+            return false;
+        }
+        if (!HasContext())
+        {
+            using var migration = connection.BeginTransaction(); command.Transaction = migration;
+            if (!HasContext())
+            {
+                command.CommandText = "ALTER TABLE events ADD COLUMN highContext INTEGER CHECK(highContext IN (0,1))";
+                command.ExecuteNonQuery();
+            }
+            migration.Commit();
+        }
     }
 
     public IReadOnlyList<UsageEvent> Merge(string provider, IEnumerable<UsageEvent> events, IEnumerable<SessionDetails>? sessions = null)
@@ -58,14 +78,15 @@ public sealed class UsageRepository
         }
         // Inputs are disjoint in storage so revisions from copied Claude histories cannot lose cache reads/writes.
         command.CommandText = """
-            INSERT INTO events(provider,id,time,input,cached,output,written,model,project,session,projectId)
-            SELECT $provider,$id,$time,$input,$cached,$output,$written,$model,$project,$session,$projectId
+            INSERT INTO events(provider,id,time,input,cached,output,written,model,project,session,projectId,highContext)
+            SELECT $provider,$id,$time,$input,$cached,$output,$written,$model,$project,$session,$projectId,$context
             WHERE NOT EXISTS(SELECT 1 FROM exclusions WHERE provider=$provider AND id=$id) AND $time > COALESCE((SELECT time FROM cutoffs WHERE provider=$provider),-1)
             ON CONFLICT(provider,id) DO UPDATE SET
                 time=MIN(time,excluded.time), input=CASE WHEN provider='claude' THEN MAX(input,excluded.input)
                     ELSE MAX(input+cached+COALESCE(written,0),excluded.input+excluded.cached+COALESCE(excluded.written,0))
                     - MAX(cached,excluded.cached) - MAX(COALESCE(written,0),COALESCE(excluded.written,0)) END,
                 cached=MAX(cached,excluded.cached),
+                highContext=CASE WHEN provider='codex' THEN COALESCE(excluded.highContext,highContext) ELSE NULL END,
                 model=CASE WHEN provider='claude' AND session=$parent THEN excluded.model ELSE model END,
                 project=CASE WHEN provider='claude' AND session=$parent THEN excluded.project ELSE project END,
                 projectId=CASE WHEN provider='claude' AND session=$parent THEN excluded.projectId ELSE projectId END,
@@ -88,6 +109,8 @@ public sealed class UsageRepository
             command.Parameters.AddWithValue("$cached", usageEvent.Usage.CachedInputTokens);
             command.Parameters.AddWithValue("$output", usageEvent.Usage.OutputTokens);
             command.Parameters.AddWithValue("$written", (object?)usageEvent.Usage.CacheWriteInputTokens ?? DBNull.Value);
+            command.Parameters.AddWithValue("$context", provider == "codex" && usageEvent.PricingContext is PricingContext.Standard or PricingContext.HighContext
+                ? (object)(int)usageEvent.PricingContext.Value : DBNull.Value);
             command.Parameters.AddWithValue("$model", usageEvent.Model);
             command.Parameters.AddWithValue("$project", usageEvent.Project);
             command.Parameters.AddWithValue("$session", usageEvent.SessionId);
@@ -161,13 +184,14 @@ public sealed class UsageRepository
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "SELECT id,time,input,cached,output,written,model,project,session,projectId FROM events WHERE provider=$provider ORDER BY time";
+        command.CommandText = "SELECT id,time,input,cached,output,written,model,project,session,projectId,highContext FROM events WHERE provider=$provider ORDER BY time";
         command.Parameters.AddWithValue("$provider", provider);
         using var reader = command.ExecuteReader();
         var result = new List<UsageEvent>();
         while (reader.Read()) result.Add(new UsageEvent(reader.GetString(0), DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(1)),
             new TokenUsage(reader.GetInt64(2) + reader.GetInt64(3) + (reader.IsDBNull(5) ? 0 : reader.GetInt64(5)), reader.GetInt64(3), reader.GetInt64(4), reader.IsDBNull(5) ? null : reader.GetInt64(5)),
-            reader.GetString(6), reader.GetString(7), reader.GetString(8), provider, reader.GetString(9)));
+            reader.GetString(6), reader.GetString(7), reader.GetString(8), provider, reader.GetString(9)) {
+                PricingContext = reader.IsDBNull(10) ? null : reader.GetInt64(10) switch { 0 => PricingContext.Standard, 1 => PricingContext.HighContext, _ => null } });
         return result;
     }
 
