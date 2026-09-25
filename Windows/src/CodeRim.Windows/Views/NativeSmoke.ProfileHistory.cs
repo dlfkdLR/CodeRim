@@ -52,7 +52,20 @@ internal static partial class NativeSmoke
             Require(Descendants<AnimatedMetric>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.period.total").DisplayedValue == localStore.Usage["codex"].AllTime.TotalTokens,
                 "Local history link displayed account totals.");
             Button("usage.navigation.back").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+            var todayMetric = Descendants<AnimatedMetric>(pane).Single(x => x.FontSize == 42);
+            var expectedToday = localStore.Usage["codex"].Today.TotalTokens;
+            Require(todayMetric.DisplayedValue == expectedToday
+                && todayMetric.Text == TokenFormatter.Format(expectedToday, settings.Current.NumberStyle),
+                "Account history navigation changed the Today total or its formatted text.");
             Capture(window, Path.Combine(directory, "windows-account-history-overview.png"));
+            var screenBounds = CaptureScreen(window, Path.Combine(directory, "windows-account-history-overview.screen.png"));
+            File.WriteAllText(Path.Combine(directory, "windows-account-history-overview-render.json"), JsonSerializer.Serialize(new
+            {
+                expectedToday, todayMetric.DisplayedValue, todayMetric.Text, window.IsActive, screenBounds,
+                dpi = System.Windows.Media.VisualTreeHelper.GetDpi(window).PixelsPerInchX,
+                metricBounds = todayMetric.TransformToAncestor(window).TransformBounds(new Rect(todayMetric.RenderSize)),
+                todayMetric.DesiredSize, todayMetric.RenderSize, todayMetric.ActualWidth, todayMetric.ActualHeight
+            }, JsonOptions));
 
             var ownerA = current; var oldCompletion = Pause(); var old = profile.RefreshAsync(true); tasks.Add(old); await Idle();
             current = Credential("b"); response = _ => Task.FromResult(Reading(current, 2000000));
