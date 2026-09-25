@@ -299,7 +299,13 @@ public sealed class UsageScanner
                     _ => "Unable to read local usage"
                 };
         return new ScanResult(snapshot, sources.Count, status.Replace("Codex", provider == "claude" ? "Claude Code" : "Codex", StringComparison.Ordinal), hasMoreWork) { Events = events,
-            Sessions = cache.Values.Where(x => x.Details is not null).Select(x => x.Details! with {
+            Sessions = provider == "claude" ? events.GroupBy(x => x.SessionId, StringComparer.Ordinal).Select(group =>
+            {
+                var named = group.Where(x => x.ProjectId != "unknown").OrderByDescending(x => x.OccurredAt)
+                    .ThenBy(x => x.Project, StringComparer.Ordinal).FirstOrDefault();
+                return new SessionDetails(group.Key, null, []) { StartedAt = group.Min(x => x.OccurredAt),
+                    ProjectName = named?.Project, ProjectObservedAt = named?.OccurredAt };
+            }).ToArray() : cache.Values.Where(x => x.Details is not null).Select(x => x.Details! with {
                 Attachments = x.Details!.Attachments.Where(a => a.OccurredAt <= now).ToArray() }).ToArray() };
     }
 
@@ -400,6 +406,7 @@ public sealed class UsageScanner
         var model = "unknown";
         var project = "Unknown project";
         var projectId = "unknown";
+        DateTimeOffset? projectObservedAt = null;
         var sawCompleteRecord = false;
 
         using var stream = new FileStream(
@@ -494,9 +501,18 @@ public sealed class UsageScanner
                 try
                 {
                     using var document = System.Text.Json.JsonDocument.Parse(line);
-                    var payload = JsonFields.Object(document.RootElement, "payload");
-                    model = JsonFields.Text(payload, "model") ?? model;
-                    if (JsonFields.Text(payload, "cwd") is { } cwd) { project = JsonFields.Folder(cwd); projectId = ClaudeJsonlParser.ProjectIdentity(cwd, projectKey); }
+                    var root = document.RootElement; var type = JsonFields.Text(root, "type");
+                    if (type == "turn_context" || type == "session_meta" && !sawSessionMetadata)
+                    {
+                        var payload = JsonFields.Object(root, "payload");
+                        model = JsonFields.Text(payload, "model") ?? model;
+                        if (JsonFields.Text(payload, "cwd") is { } cwd)
+                        {
+                            project = JsonFields.Folder(cwd); projectId = ClaudeJsonlParser.ProjectIdentity(cwd, projectKey);
+                            projectObservedAt = DateTimeOffset.TryParse(JsonFields.Text(root, "timestamp"), CultureInfo.InvariantCulture,
+                                DateTimeStyles.AssumeUniversal, out var observed) ? observed : null;
+                        }
+                    }
                 }
                 catch (System.Text.Json.JsonException) { partial = true; }
             }
@@ -612,7 +628,8 @@ public sealed class UsageScanner
         }
 
         return new ParsedFile(events, partial || requireCompleteSources && !sawCompleteRecord, false, prefixHash.GetHashAndReset(), identity,
-            provider == "codex" ? new SessionDetails(sessionId, parentSession, attachments) : null);
+            provider == "codex" ? new SessionDetails(sessionId, parentSession, attachments) { StartedAt = sessionStartedAt,
+                ProjectName = projectId == "unknown" ? null : project, ProjectObservedAt = projectObservedAt } : null);
     }
 
     private static bool VerifyPrefix(string path, long length, ParsedFile parsed, CancellationToken cancellationToken)

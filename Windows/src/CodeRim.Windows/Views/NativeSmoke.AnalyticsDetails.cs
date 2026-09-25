@@ -19,13 +19,15 @@ internal static partial class NativeSmoke
         try
         {
             settings.Save(previousSettings with { UsageProvider = "codex", CostEstimatesEnabled = true, AgentDetailsEnabled = true, AttachmentMetadataEnabled = true });
-            var now = DateTimeOffset.Now;
+            var now = DateTimeOffset.Now; var started = now.AddDays(-40);
             store.Events["codex"] = [
                 new("detail-parent", now, new(100, 20, 27, 0), "gpt-5.6-sol", "Reference project", "parent", "codex", "reference"),
                 new("detail-unknown", now, new(10, 0, 0, 0), "unpriced-fixture", "Reference project", "parent", "codex", "reference"),
                 new("detail-child", now.AddDays(-1), new(20, 0, 5, 0), "gpt-5.6-sol", "Child project", "child", "codex", "child-project"),
                 new("detail-old-child", now.AddDays(-9), new(3, 0, 0, 0), "gpt-5.6-sol", "Older child", "old-child", "codex", "older")];
-            store.SessionDetails["codex"] = [new("parent", null, [new("attachment", now.AddDays(-15), 4)]), new("child", "parent", []), new("old-child", "parent", [])];
+            store.SessionDetails["codex"] = [new("parent", null, [new("attachment", now.AddDays(-15), 4)]) {
+                StartedAt = started, ProjectName = "Session reference", ProjectObservedAt = now.AddDays(-10) },
+                new("child", "parent", []) { ProjectName = "Child reference" }, new("old-child", "parent", [])];
             store.Usage["codex"] = UsageScanner.Aggregate(store.Events["codex"], now, settings.Current.WeekStart, false) with { Quality = DataQuality.Partial };
             var pane = new UsagePane(store, settings, "codex", _ => { }) { Width = 500 };
             window = new Window { Content = pane, Width = 550, Height = 800, Title = "Analytics details fixture" }; window.Show(); await Idle();
@@ -38,11 +40,11 @@ internal static partial class NativeSmoke
                 Require(Texts(row)[1] == expected, "Entity value does not match " + label);
             }
             async Task Click(string id) { FindButton(id).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle(); }
-            void ReferenceDetail()
+            void ReferenceDetail(string expectedName)
             {
                 Require(!Descendants<Button>(pane).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.", StringComparison.Ordinal))
                     && !Descendants<RadioButton>(pane).Any(x => x.GroupName == "UsageRange"), "Entity detail retained extra charts or a period picker");
-                Require(Texts(Element("usage.entity.header")) is ["Reference project", "137", "tokens"], "Entity header did not retain its name and own exact usage");
+                Require(Texts(Element("usage.entity.header")) is [var entityName, "137", "tokens"] && entityName == expectedName, "Entity header did not retain its name and own exact usage");
                 var cost = Texts(Element("usage.entity.cost"));
                 Require(cost.Any(x => x.StartsWith("Estimated API cost subtotal · ~", StringComparison.Ordinal) && x.EndsWith(" · partial history", StringComparison.Ordinal))
                     && cost.Contains("Excludes 10 tokens · unpriced-fixture", StringComparer.Ordinal), "Entity cost lost its partial history or pricing exclusions");
@@ -50,15 +52,18 @@ internal static partial class NativeSmoke
                 Require(Texts(Element("usage.entity.model.gpt-5.6-sol")) is ["gpt-5.6-sol", "127"]
                     && Texts(Element("usage.entity.model.unpriced-fixture")) is ["unpriced-fixture", "10"], "Entity model totals include another entity or omit a model");
             }
-            await Click("usage.destination.projects"); await Click("usage.project.reference"); ReferenceDetail();
+            await Click("usage.destination.projects"); await Click("usage.project.reference"); ReferenceDetail("Reference project");
             Value("Sessions", "1");
             Require(!Texts(pane).Contains("Last activity", StringComparer.Ordinal), "Project metadata is not project-specific");
             Capture(pane, System.IO.Path.Combine(directory, "windows-project-detail-reference.png"));
             pane.Back(); await Idle(); pane.Back(); await Idle();
-            await Click("usage.destination.sessions"); await Click("usage.session.parent"); ReferenceDetail();
+            await Click("usage.destination.sessions");
+            Require(Texts(FindButton("usage.session.parent")).Contains("Session reference", StringComparer.Ordinal), "Session list ignored metadata from outside the selected range");
+            await Click("usage.session.parent"); ReferenceDetail("Session reference");
+            Value("Started", AnalyticsDateText.Format(started, AnalyticsDateStyle.DayAndTime));
             Value("Last activity", AnalyticsDateText.Format(now, AnalyticsDateStyle.DayAndTime)); Value("Direct sub-agents", "1"); Value("Whole-session images", "4");
             var agents = Descendants<Button>(pane).Where(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.subagent.", StringComparison.Ordinal)).ToArray();
-            Require(agents.Length == 1 && AutomationProperties.GetName(agents[0]) == "Child project: 25 tokens", "Sub-agent row lost its range, project name or separate token total");
+            Require(agents.Length == 1 && AutomationProperties.GetName(agents[0]) == "Child reference: 25 tokens", "Sub-agent row lost its range, project name or separate token total");
             foreach (var width in new[] { 360d, 450d, 650d })
             {
                 window.Width = width + 50; pane.Width = width; pane.UpdateLayout(); await Idle();
@@ -71,8 +76,10 @@ internal static partial class NativeSmoke
                 Capture(pane, System.IO.Path.Combine(directory, "windows-session-detail-width-" + width.ToString(CultureInfo.InvariantCulture) + ".png"));
             }
             await Click("usage.subagent.child");
-            Require(Texts(Element("usage.entity.header")) is ["Child project", "25", "tokens"], "Sub-agent navigation did not isolate its own usage");
-            pane.Back(); await Idle(); ReferenceDetail();
+            Require(Texts(Element("usage.entity.header")) is ["Child reference", "25", "tokens"], "Sub-agent navigation did not isolate its own usage");
+            Require(!Texts(pane).Contains("Started", StringComparer.Ordinal), "Missing session start fabricated a detail value");
+            pane.Back(); await Idle(); ReferenceDetail("Session reference");
+            Value("Started", AnalyticsDateText.Format(started, AnalyticsDateStyle.DayAndTime));
             settings.Save(settings.Current with { CostEstimatesEnabled = false, AgentDetailsEnabled = false, AttachmentMetadataEnabled = false }); pane.Update(); await Idle();
             Require(!Descendants<FrameworkElement>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.entity.cost")
                 && !Texts(pane).Any(x => x is "Direct sub-agents" or "Sub-agents" or "Whole-session images"), "Disabled detail fields remain visible");
@@ -90,7 +97,7 @@ internal static partial class NativeSmoke
             System.IO.File.WriteAllText(System.IO.Path.Combine(directory, "windows-analytics-details.json"), System.Text.Json.JsonSerializer.Serialize(new { completed = true,
                 checks = new List<string> { "Project/session reference headers and exact own totals", "Compact partial cost and excluded pricing", "Inherited range without extra charts or picker",
                     "Project sessions and session activity/image metadata", "Direct child names, own totals, range filtering and Back", "Model breakdown isolates the entity",
-                    "Detail visibility preferences and unavailable pricing", "Mounted 360/450/650 horizontal text bounds", "Large entity total and 0.75 minimum scale" } }, JsonOptions));
+                    "Detail visibility preferences and unavailable pricing", "Mounted 360/450/650 horizontal text bounds", "Large entity total and 0.75 minimum scale", "Global metadata names and original start outside selected range; missing start hidden" } }, JsonOptions));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally

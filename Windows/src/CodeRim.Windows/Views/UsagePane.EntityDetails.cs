@@ -61,6 +61,7 @@ internal sealed partial class UsagePane
             Add(EntityTextRow("Last activity", AnalyticsDateText.Format(events.Max(x => x.OccurredAt), AnalyticsDateStyle.DayAndTime)));
             var metadata = store.SessionDetails.GetValueOrDefault(provider) ?? [];
             var detail = metadata.FirstOrDefault(x => x.Id == session);
+            if (detail?.StartedAt is { } started) Add(EntityTextRow("Started", AnalyticsDateText.Format(started, AnalyticsDateStyle.DayAndTime)));
             if (settings.Current.AgentDetailsEnabled)
             {
                 var childIds = metadata.Where(x => x.ParentId == session).Select(x => x.Id).ToHashSet(StringComparer.Ordinal);

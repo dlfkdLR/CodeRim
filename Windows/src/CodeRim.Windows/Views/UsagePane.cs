@@ -34,6 +34,7 @@ internal sealed partial class UsagePane : StackPanel
     private TextBlock? detailTitle;
     private readonly Stack<NavigationState> history = new();
     private readonly Dictionary<string, string> analyticsRanges = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, SessionDetails> analyticsMetadata = new(StringComparer.Ordinal);
     private bool IsAnalyticsList => destination is "projects" or "sessions" && project is null && session is null;
     private bool searchVisible;
     private DateTimeOffset? analyticsSelectedBucket;
@@ -404,6 +405,9 @@ internal sealed partial class UsagePane : StackPanel
     private void Detail()
     {
         if (!AnalyticsReady()) return;
+        analyticsMetadata.Clear();
+        if (destination is "projects" or "sessions")
+            foreach (var item in store.SessionDetails.GetValueOrDefault(provider) ?? []) analyticsMetadata[item.Id] = item;
         var events = Filter().ToArray();
         if (destination == "activity")
         {
@@ -462,8 +466,10 @@ internal sealed partial class UsagePane : StackPanel
         }
         if (project is not null || session is not null) EntityDetail(events);
     }
-    private static string AnalyticsEntityName(IEnumerable<UsageEvent> events, string id, bool isSession)
+    private string AnalyticsEntityName(IEnumerable<UsageEvent> events, string id, bool isSession)
     {
+        if (isSession && analyticsMetadata.GetValueOrDefault(id)?.ProjectName is { Length: > 0 } name)
+            return name;
         // A session can acquire metadata after its first event. Import order
         // must not choose the name in either the list or its detail.
         var named = events.OrderByDescending(HasProjectName).ThenByDescending(x => x.OccurredAt)

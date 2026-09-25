@@ -25,9 +25,12 @@ public sealed class UsageRepository
                 model TEXT NOT NULL, project TEXT NOT NULL, session TEXT NOT NULL, projectId TEXT NOT NULL,
                 PRIMARY KEY(provider,id));
             CREATE INDEX IF NOT EXISTS events_date ON events(provider,time);
+            CREATE INDEX IF NOT EXISTS events_session ON events(provider,session,time);
             CREATE TABLE IF NOT EXISTS exclusions(provider TEXT NOT NULL, id TEXT NOT NULL, PRIMARY KEY(provider,id));
             CREATE TABLE IF NOT EXISTS cutoffs (provider TEXT PRIMARY KEY, time INTEGER NOT NULL);
             CREATE TABLE IF NOT EXISTS session_links(provider TEXT NOT NULL, id TEXT NOT NULL, parentId TEXT, PRIMARY KEY(provider,id));
+            CREATE TABLE IF NOT EXISTS session_metadata(provider TEXT NOT NULL, id TEXT NOT NULL,
+                started INTEGER, project TEXT, projectTime INTEGER, PRIMARY KEY(provider,id));
             CREATE TABLE IF NOT EXISTS attachments(provider TEXT NOT NULL, id TEXT NOT NULL, session TEXT NOT NULL,
                 time INTEGER NOT NULL, count INTEGER NOT NULL, PRIMARY KEY(provider,id));
             """;
@@ -50,7 +53,7 @@ public sealed class UsageRepository
         command.Transaction = transaction;
         if (replace)
         {
-            command.CommandText = "DELETE FROM events WHERE provider=$provider; DELETE FROM attachments WHERE provider=$provider; DELETE FROM session_links WHERE provider=$provider";
+            command.CommandText = "DELETE FROM events WHERE provider=$provider; DELETE FROM attachments WHERE provider=$provider; DELETE FROM session_links WHERE provider=$provider; DELETE FROM session_metadata WHERE provider=$provider";
             command.Parameters.AddWithValue("$provider", provider); command.ExecuteNonQuery(); command.Parameters.Clear();
         }
         // Inputs are disjoint in storage so revisions from copied Claude histories cannot lose cache reads/writes.
@@ -88,6 +91,31 @@ public sealed class UsageRepository
             command.CommandText = "INSERT INTO session_links VALUES($provider,$id,$parent) ON CONFLICT(provider,id) DO UPDATE SET parentId=COALESCE(excluded.parentId,parentId)";
             command.Parameters.AddWithValue("$provider", provider); command.Parameters.AddWithValue("$id", session.Id);
             command.Parameters.AddWithValue("$parent", (object?)session.ParentId ?? DBNull.Value);
+            command.ExecuteNonQuery();
+            command.Parameters.Clear();
+            command.CommandText = """
+                INSERT INTO session_metadata(provider,id,started,project,projectTime)
+                VALUES($provider,$id,CASE WHEN $provider='claude' THEN
+                    (SELECT MIN(time) FROM events WHERE provider=$provider AND session=$id) ELSE $started END,
+                    CASE WHEN $provider='claude' THEN
+                        (SELECT project FROM events WHERE provider=$provider AND session=$id AND projectId!='unknown' ORDER BY time DESC,project ASC LIMIT 1) ELSE $project END,
+                    CASE WHEN $provider='claude' THEN
+                        (SELECT MAX(time) FROM events WHERE provider=$provider AND session=$id AND projectId!='unknown') ELSE $projectTime END)
+                ON CONFLICT(provider,id) DO UPDATE SET
+                    started=CASE WHEN provider='claude' AND started IS NOT NULL AND excluded.started IS NOT NULL
+                        THEN MIN(started,excluded.started) ELSE COALESCE(started,excluded.started) END,
+                    project=CASE WHEN excluded.project IS NOT NULL AND (project IS NULL OR
+                        COALESCE(excluded.projectTime,-9223372036854775808)>COALESCE(projectTime,-9223372036854775808) OR
+                        COALESCE(excluded.projectTime,-9223372036854775808)=COALESCE(projectTime,-9223372036854775808) AND excluded.project<project)
+                        THEN excluded.project ELSE project END,
+                    projectTime=CASE WHEN excluded.project IS NOT NULL AND (project IS NULL OR
+                        COALESCE(excluded.projectTime,-9223372036854775808)>COALESCE(projectTime,-9223372036854775808))
+                        THEN excluded.projectTime ELSE projectTime END;
+                """;
+            command.Parameters.AddWithValue("$provider", provider); command.Parameters.AddWithValue("$id", session.Id);
+            command.Parameters.AddWithValue("$started", (object?)session.StartedAt?.ToUnixTimeMilliseconds() ?? DBNull.Value);
+            command.Parameters.AddWithValue("$project", (object?)session.ProjectName ?? DBNull.Value);
+            command.Parameters.AddWithValue("$projectTime", (object?)session.ProjectObservedAt?.ToUnixTimeMilliseconds() ?? DBNull.Value);
             command.ExecuteNonQuery();
             foreach (var attachment in session.Attachments)
             {
@@ -133,11 +161,14 @@ public sealed class UsageRepository
     {
         using var connection = Open();
         using var command = connection.CreateCommand();
-        command.CommandText = "SELECT id,parentId FROM session_links WHERE provider=$provider";
+        command.CommandText = "SELECT links.id,links.parentId,metadata.started,metadata.project,metadata.projectTime FROM session_links links LEFT JOIN session_metadata metadata ON metadata.provider=links.provider AND metadata.id=links.id WHERE links.provider=$provider";
         command.Parameters.AddWithValue("$provider", provider);
-        var links = new List<(string Id, string? Parent)>();
+        var links = new List<SessionDetails>();
         using (var reader = command.ExecuteReader())
-            while (reader.Read()) links.Add((reader.GetString(0), reader.IsDBNull(1) ? null : reader.GetString(1)));
+            while (reader.Read()) links.Add(new(reader.GetString(0), reader.IsDBNull(1) ? null : reader.GetString(1), []) {
+                StartedAt = reader.IsDBNull(2) ? null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(2)),
+                ProjectName = reader.IsDBNull(3) ? null : reader.GetString(3),
+                ProjectObservedAt = reader.IsDBNull(4) ? null : DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(4)) });
         command.CommandText = "SELECT id,session,time,count FROM attachments WHERE provider=$provider";
         var images = new Dictionary<string, List<AttachmentObservation>>(StringComparer.Ordinal);
         using (var reader = command.ExecuteReader())
@@ -147,7 +178,7 @@ public sealed class UsageRepository
                 if (!images.TryGetValue(session, out var list)) images[session] = list = [];
                 list.Add(new AttachmentObservation(reader.GetString(0), DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(2)), reader.GetInt32(3)));
             }
-        return links.Select(x => new SessionDetails(x.Id, x.Parent, images.GetValueOrDefault(x.Id) ?? [])).ToArray();
+        return links.Select(x => x with { Attachments = images.GetValueOrDefault(x.Id) ?? [] }).ToArray();
     }
 
     public void Clear(string provider, DateTimeOffset cutoff)
@@ -156,7 +187,7 @@ public sealed class UsageRepository
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "INSERT OR IGNORE INTO exclusions SELECT provider,id FROM events WHERE provider=$provider; INSERT OR IGNORE INTO exclusions SELECT provider,id FROM attachments WHERE provider=$provider; DELETE FROM events WHERE provider=$provider; DELETE FROM attachments WHERE provider=$provider; DELETE FROM session_links WHERE provider=$provider; INSERT INTO cutoffs VALUES($provider,$time) ON CONFLICT(provider) DO UPDATE SET time=excluded.time";
+        command.CommandText = "INSERT OR IGNORE INTO exclusions SELECT provider,id FROM events WHERE provider=$provider; INSERT OR IGNORE INTO exclusions SELECT provider,id FROM attachments WHERE provider=$provider; DELETE FROM events WHERE provider=$provider; DELETE FROM attachments WHERE provider=$provider; DELETE FROM session_links WHERE provider=$provider; DELETE FROM session_metadata WHERE provider=$provider; INSERT INTO cutoffs VALUES($provider,$time) ON CONFLICT(provider) DO UPDATE SET time=excluded.time";
         command.Parameters.AddWithValue("$provider", provider);
         command.Parameters.AddWithValue("$time", cutoff.ToUnixTimeMilliseconds());
         command.ExecuteNonQuery();

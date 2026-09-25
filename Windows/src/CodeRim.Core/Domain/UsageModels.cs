@@ -69,7 +69,12 @@ public sealed record UsageEvent(
     string ProjectId = "unknown");
 
 public sealed record AttachmentObservation(string Id, DateTimeOffset OccurredAt, int Count);
-public sealed record SessionDetails(string Id, string? ParentId, IReadOnlyList<AttachmentObservation> Attachments);
+public sealed record SessionDetails(string Id, string? ParentId, IReadOnlyList<AttachmentObservation> Attachments)
+{
+    public DateTimeOffset? StartedAt { get; init; }
+    public string? ProjectName { get; init; }
+    public DateTimeOffset? ProjectObservedAt { get; init; }
+}
 
 public sealed record ScanResult(
     UsageSnapshot Snapshot,
