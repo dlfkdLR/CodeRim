@@ -90,27 +90,73 @@ internal static partial class NativeSmoke
                     notchDpi = VisualTreeHelper.GetDpi(notch).PixelsPerInchX, target, settings.Current.Edge, settings.Current.Offset,
                     settings.Current.Scale, settings.Current.ReduceMotion, Motion.Enabled,
                     centerScreenPixel = child is { IsLoaded: true } ? child.PointToScreen(new Point(child.ActualWidth / 2, child.ActualHeight / 2)) : (Point?)null });
-                File.WriteAllText(Path.Combine(directory, "windows-motion-popup-state.json"), JsonSerializer.Serialize(popupDiagnostics, JsonOptions));
             }
             RecordPopup("codex before switch");
+            File.WriteAllText(Path.Combine(directory, "windows-motion-popup-state.json"), JsonSerializer.Serialize(popupDiagnostics, JsonOptions));
             Require(notch.PopupIsOpen && !notch.AccountMenuIsOpen && notch.PopupContent is { } sourceCard
                 && Descendants<ProviderMark>(sourceCard).FirstOrDefault()?.ProviderId == "codex",
                 "Source popup is not Codex before the provider-switch motion fixture.");
-            notch.OpenProvider("claude"); await MotionFrame();
-            RecordPopup("claude first layout");
-            Require(notch.PopupIsOpen && notch.PopupContent is not null, "Provider change lost popup");
-            var popupPositions = new List<double>();
-            for (var frame = 0; frame < 6; frame++)
+            var sourceAnchorY = notch.PopupAnchor.Y;
+            var sourceCenterY = notch.PopupContent!.PointToScreen(new Point(0, notch.PopupContent.ActualHeight / 2)).Y;
+            var destinationButton = Descendants<Button>(notch).Single(button => AutomationProperties.GetAutomationId(button) == "notch.provider.claude");
+            var destinationAnchorY = destinationButton.TranslatePoint(new Point(destinationButton.ActualWidth / 2, NotchMetrics.Ring / 2), notch).Y;
+            var destinationCenterY = destinationButton.PointToScreen(new Point(destinationButton.ActualWidth / 2, NotchMetrics.Ring / 2)).Y;
+            var renderSamples = new List<(double Milliseconds, double AnchorY, double CenterY)>();
+            void ObservePopupFrame(object? sender, EventArgs args)
             {
-                var child = notch.PopupContent!;
-                var y = child.PointToScreen(new Point(0, child.ActualHeight / 2)).Y;
-                popupPositions.Add(y); samples.Add(new { kind = "popup", frame, y });
-                RecordPopup("sample " + frame);
-                RequirePopupClearOfNotch(notch, "animated provider transition");
-                Capture(child, Path.Combine(directory, $"windows-motion-popup-{frame:D2}.png"));
-                await Task.Delay(75); await MotionFrame();
+                // Observe from the first render opportunity. Waiting for ApplicationIdle
+                // can skip the entire visible part of a spring on a busy native runner.
+                if (notch.PopupIsOpen && notch.PopupContent is { IsLoaded: true } child)
+                    renderSamples.Add((System.Diagnostics.Stopwatch.GetElapsedTime(popupStarted).TotalMilliseconds,
+                        notch.PopupAnchor.Y, child.PointToScreen(new Point(0, child.ActualHeight / 2)).Y));
             }
-            Require(popupPositions.Distinct().Count() > 1, "Provider tooltip skipped its position transition");
+            Exception? popupVerificationError = null; var receiptErrors = new List<Exception>();
+            void WritePopupReceipt(string file, object value)
+            {
+                try { File.WriteAllText(Path.Combine(directory, file), JsonSerializer.Serialize(value, JsonOptions)); }
+                catch (Exception error) { receiptErrors.Add(error); }
+            }
+            CompositionTarget.Rendering += ObservePopupFrame;
+            try
+            {
+                notch.OpenProvider("claude");
+                RecordPopup("claude synchronous return"); await MotionFrame();
+                RecordPopup("claude first idle");
+                Require(notch.PopupIsOpen && notch.PopupContent is not null, "Provider change lost popup");
+                for (var frame = 0; frame < 6; frame++)
+                {
+                    var child = notch.PopupContent!;
+                    var y = child.PointToScreen(new Point(0, child.ActualHeight / 2)).Y;
+                    samples.Add(new { kind = "popup", frame, y });
+                    RecordPopup("sample " + frame);
+                    RequirePopupClearOfNotch(notch, "animated provider transition");
+                    Capture(child, Path.Combine(directory, $"windows-motion-popup-{frame:D2}.png"));
+                    await Task.Delay(75); await MotionFrame();
+                }
+            }
+            catch (Exception error) { popupVerificationError = error; }
+            finally
+            {
+                CompositionTarget.Rendering -= ObservePopupFrame;
+                // Disk serialization runs after observation, never before the first render.
+                WritePopupReceipt("windows-motion-popup-state.json", popupDiagnostics);
+                WritePopupReceipt("windows-motion-popup-render-frames.json",
+                    new { sourceCenterY, destinationCenterY, sourceAnchorY, destinationAnchorY, frames = renderSamples.Select(frame => new
+                        { milliseconds = frame.Milliseconds, anchorLocalDipY = frame.AnchorY, centerScreenPixelY = frame.CenterY }) });
+            }
+            if (receiptErrors.Count > 0)
+            {
+                if (popupVerificationError is not null) receiptErrors.Insert(0, popupVerificationError);
+                throw new AggregateException("Popup motion verification or diagnostic recording failed", receiptErrors);
+            }
+            if (popupVerificationError is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(popupVerificationError).Throw();
+            Require(renderSamples.Any(frame => frame.CenterY > Math.Min(sourceCenterY, destinationCenterY) + 1
+                && frame.CenterY < Math.Max(sourceCenterY, destinationCenterY) - 1
+                && frame.AnchorY > Math.Min(sourceAnchorY, destinationAnchorY) + 1
+                && frame.AnchorY < Math.Max(sourceAnchorY, destinationAnchorY) - 1),
+                "Provider tooltip has no rendered intermediate screen position");
+            Require(Math.Abs(notch.PopupContent!.PointToScreen(new Point(0, notch.PopupContent.ActualHeight / 2)).Y - destinationCenterY) <= 2,
+                "Provider tooltip did not settle at the destination provider");
             checks.Add("Provider tooltip moves through native intermediate positions without covering the notch");
 
             dashboard.Navigate("notch"); await Idle();
