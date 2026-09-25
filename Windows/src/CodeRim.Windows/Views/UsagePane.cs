@@ -18,7 +18,12 @@ internal sealed partial class UsagePane : StackPanel
     private readonly Action<string?> navigate;
     private readonly StackPanel readings = new() { Margin = new Thickness(24, 16, 24, 16) };
     private readonly StackPanel accountRow = new() { Margin = new Thickness(24, 0, 24, 4), MinHeight = 44 };
-    private readonly System.Windows.Controls.ComboBox selector;
+    private readonly UsageProviderPicker selector;
+    private string? displayedOwner;
+    private bool displayedAvailable = true;
+    private bool ProviderAvailable => provider != "claude" || store.ClaudeAvailable;
+    private ProviderDefinition[] ProviderChoices() => store.AvailableUsageProviders
+        .Concat(provider == "claude" && !store.ClaudeAvailable ? ["claude"] : Array.Empty<string>()).Select(id => ProviderCatalog.Find(id)!).ToArray();
     private readonly Grid header;
     private System.Windows.Controls.Button? refreshAction;
     private TextBlock? detailTitle;
@@ -44,7 +49,7 @@ internal sealed partial class UsagePane : StackPanel
             if (modifiers.HasFlag(ModifierKeys.Shift))
             {
                 var id = key == Key.D1 ? "codex" : "claude";
-                if (settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) selector.SelectedValue = id;
+                if (store.AvailableUsageProviders.Contains(id, StringComparer.Ordinal)) selector.SelectedValue = id;
             }
             else { mode = key == Key.D1 ? "Token usage" : "Limits"; destination = "overview"; history.Clear(); BuildControls(); Update(); }
             return true;
@@ -56,7 +61,7 @@ internal sealed partial class UsagePane : StackPanel
     private bool updatingChoices;
     internal void SelectProvider(string id)
     {
-        if (settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) selector.SelectedValue = id;
+        if (store.AvailableUsageProviders.Contains(id, StringComparer.Ordinal)) selector.SelectedValue = id;
     }
     private string provider;
     private string period = "today";
@@ -88,47 +93,50 @@ internal sealed partial class UsagePane : StackPanel
     }
     internal void RefreshReadings()
     {
-        var choices = settings.Current.EnabledProviders.Select(id => ProviderCatalog.Find(id)!).ToArray();
-        if (!selector.Items.Cast<object>().SequenceEqual(choices))
+        var preferred = settings.Current.UsageProvider;
+        if (provider != preferred && preferred is "codex" or "claude")
         {
-            updatingChoices = true;
-            selector.ItemsSource = choices;
-            var nextProvider = choices.Any(x => x.Id == provider) ? provider : choices.FirstOrDefault()?.Id ?? "codex";
-            if (provider != nextProvider)
-            {
-                provider = nextProvider; destination = "overview"; project = session = null;
-                period = "today"; search = ""; visibleRows = 40; history.Clear(); BuildControls();
-                try { settings.Save(settings.Current with { UsageProvider = provider }); }
-                catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException) { }
-            }
-            selector.SelectedValue = provider;
-            updatingChoices = false;
+            provider = preferred; destination = "overview"; project = session = null;
+            period = "today"; search = ""; visibleRows = 40; history.Clear(); BuildControls();
         }
-        var changedAccount = displayedProfileAccountKey != store.ProfileHistory.Snapshot?.AccountKey || displayedProfileEnabled != store.ProfileHistory.Enabled;
+        RefreshProviderChoices();
+        var changedAccount = displayedOwner != store.AccountDisplay(provider).OwnerKey || displayedAvailable != ProviderAvailable || displayedProfileAccountKey != store.ProfileHistory.Snapshot?.AccountKey || displayedProfileEnabled != store.ProfileHistory.Enabled;
         if (!changedAccount && (readings.IsKeyboardFocusWithin || accountRow.IsKeyboardFocusWithin)) { pendingRefresh = true; return; }
         pendingRefresh = false; Update();
     }
+    private void RefreshProviderChoices()
+    {
+        var choices = ProviderChoices(); updatingChoices = true;
+        try
+        {
+            selector.UnavailableId = store.ClaudeAvailable ? null : "claude";
+            if (!selector.Items.Cast<object>().SequenceEqual(choices)) selector.ItemsSource = choices;
+            selector.SelectedValue = provider;
+        }
+        finally { updatingChoices = false; }
+    }
     internal UsagePane(DashboardStore store, AppSettingsStore settings, string provider, Action<string?> navigate)
     {
-        this.store = store; this.settings = settings; this.provider = provider; this.navigate = navigate;
-        var choices = settings.Current.EnabledProviders.Select(id => ProviderCatalog.Find(id)!).ToArray();
-        if (!choices.Any(x => x.Id == provider)) this.provider = choices.FirstOrDefault()?.Id ?? "codex";
+        this.store = store; this.settings = settings; this.provider = provider is "codex" or "claude" ? provider : "codex"; this.navigate = navigate;
+        var choices = ProviderChoices();
         header = new Grid { Margin = new Thickness(24, 16, 24, 6) };
         header.Children.Add(controls);
-        selector = new UsageProviderPicker { ItemsSource = choices, ItemTemplate = ProviderTemplate(), SelectedValuePath = "Id",
+        selector = new UsageProviderPicker { UnavailableId = store.ClaudeAvailable ? null : "claude", ItemsSource = choices, ItemTemplate = ProviderTemplate(), SelectedValuePath = "Id",
             SelectedValue = this.provider, MinHeight = 34, Height = 34, Width = 142, MaxWidth = 190, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Left,
             Style = (Style)System.Windows.Application.Current.FindResource("UsageProviderPicker") };
         TextSearch.SetTextPath(selector, "Name");
         System.Windows.Automation.AutomationProperties.SetName(selector, "Usage provider");
         selector.SelectionChanged += (_, _) =>
         {
-            if (!updatingChoices && selector.SelectedValue is string id)
+            if (updatingChoices) return;
+            if (selector.SelectedValue is string id && store.AvailableUsageProviders.Contains(id, StringComparer.Ordinal))
             {
                 this.provider = id; destination = "overview"; project = session = null; search = ""; period = "today"; visibleRows = 40; history.Clear();
                 try { settings.Save(settings.Current with { UsageProvider = id }); }
                 catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException) { }
-                BuildControls(); Update();
+                RefreshProviderChoices(); BuildControls(); Update();
             }
+            else RefreshProviderChoices(); // Reject base ComboBox keyboard/text-search selection of an unavailable item.
         };
         header.Children.Add(selector); AdaptHeader(header, controls); Children.Add(header);
         Children.Add(filters); Children.Add(accountRow); Children.Add(SettingsUi.Divider()); Children.Add(readings);
@@ -252,6 +260,7 @@ internal sealed partial class UsagePane : StackPanel
         }
         accountRow.Children.Clear();
         var display = store.AccountDisplay(provider);
+        displayedOwner = display.OwnerKey; displayedAvailable = ProviderAvailable;
         var identity = display.Label;
         var account = new DockPanel();
         var change = Ui.Button("Switch", () => navigate(provider is "codex" or "claude" ? provider + "-accounts" : provider));
@@ -264,6 +273,12 @@ internal sealed partial class UsagePane : StackPanel
         account.Children.Add(accountLabel); accountRow.Children.Add(account); account.VerticalAlignment = VerticalAlignment.Center; account.Margin = new Thickness(0, 12, 0, 12);
         readings.Children.Clear(); limitClockUpdates.Clear();
         readings.Margin = mode == "Limits" && destination == "overview" ? new Thickness(16) : new Thickness(24, 16, 24, 16);
+        if (!ProviderAvailable)
+        {
+            accountRow.Children.Clear();
+            readings.Children.Add(Ui.Text(store.Claude.Message, color: "#A6A6AA"));
+            readings.Children.Add(Ui.Button("Open Claude Settings", () => navigate("claude"))); return;
+        }
         if (destination is "account-period" or "local-period") { PeriodDetail(); return; }
         if (destination != "overview") { Detail(); return; }
         if (mode == "Limits") { limitClockOwnerKey = display.OwnerKey; Limits(display.Reading); return; }

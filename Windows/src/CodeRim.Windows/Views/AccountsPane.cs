@@ -145,7 +145,14 @@ internal sealed class AccountsPane : DockPanel
                     {
                         if (store.Sessions.Any(x => x.Provider == provider && x.State is "busy" or "waiting")) throw new InvalidOperationException("Close the provider's active sessions first.");
                         store.InvalidateAccount(provider);
-                        await accounts.SwitchAsync(account, Executable(), waitForRefresh: () => store.WaitForProviderIdleAsync(provider)).ConfigureAwait(true);
+                        if (provider == "claude") await store.Claude.BeginAccountSwitchAsync();
+                        var verifiedSwitch = false;
+                        try
+                        {
+                            await accounts.SwitchAsync(account, Executable(), waitForRefresh: () => store.WaitForProviderIdleAsync(provider)).ConfigureAwait(true);
+                            verifiedSwitch = true;
+                        }
+                        finally { if (provider == "claude") await store.Claude.FinishAccountSwitchAsync(verifiedSwitch ? account.Identity.Id : null); }
                         store.InvalidateAccount(provider); await store.RefreshProviderAsync(provider).ConfigureAwait(true);
                         await RefreshAccountsAsync(); feedback.Text = "The CLI verified the selected account.";
                     }

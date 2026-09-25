@@ -15,6 +15,13 @@ namespace CodeRim.Windows.Views;
 /// <summary>A searchable provider popover with the reference Mac's selection and keyboard behavior.</summary>
 internal sealed class UsageProviderPicker : ComboBox
 {
+    public UsageProviderPicker() => IsTextSearchEnabled = false;
+    private string? unavailableId;
+    internal string? UnavailableId
+    {
+        get => unavailableId;
+        set { if (unavailableId == value) return; unavailableId = value; if (IsDropDownOpen) BuildPopover(); }
+    }
     private string query = "";
     private string? highlighted;
     private bool keyboardNavigation;
@@ -24,7 +31,7 @@ internal sealed class UsageProviderPicker : ComboBox
     private readonly StackPanel rows = new();
     private readonly Dictionary<string, Button> buttons = new(StringComparer.Ordinal);
     private ScrollViewer? scroll;
-    private ProviderDefinition[] Matches => Items.OfType<ProviderDefinition>().Where(x => x.Name.Contains(query.Trim(), StringComparison.CurrentCultureIgnoreCase)
+    private ProviderDefinition[] Matches => Items.OfType<ProviderDefinition>().Where(x => x.Id != unavailableId).Where(x => x.Name.Contains(query.Trim(), StringComparison.CurrentCultureIgnoreCase)
         || x.Id.Contains(query.Trim(), StringComparison.CurrentCultureIgnoreCase)).ToArray();
 
     public override void OnApplyTemplate()
@@ -97,7 +104,7 @@ internal sealed class UsageProviderPicker : ComboBox
     }
     private void Select(string id)
     {
-        if (!Items.OfType<ProviderDefinition>().Any(x => x.Id == id)) return;
+        if (id == unavailableId || !Items.OfType<ProviderDefinition>().Any(x => x.Id == id)) return;
         SelectedValue = id; IsDropDownOpen = false; Focus();
     }
     private void BuildPopover()

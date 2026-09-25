@@ -77,7 +77,7 @@ internal sealed partial class DashboardWindow : Window
         }
         if (id is "codex-accounts" or "claude-accounts") { OpenAccounts(id.Split('-')[0]); return; }
         page = id ?? "general";
-        if (ProviderCatalog.Find(page) is { } provider && !settings.Current.EnabledProviders.Contains(provider.Id, StringComparer.Ordinal)) page = "providers";
+        if (ProviderCatalog.Find(page) is { } provider && page is not ("codex" or "claude") && !settings.Current.EnabledProviders.Contains(provider.Id, StringComparer.Ordinal)) page = "providers";
         refreshingSidebar = true;
         sidebar.SelectedItem = sidebar.Items.OfType<ListBoxItem>().FirstOrDefault(x => Equals(x.Tag, ProviderCatalog.Find(page) is not null ? "providers" : page));
         refreshingSidebar = false;
@@ -120,6 +120,7 @@ internal sealed partial class DashboardWindow : Window
                 "Show agent details" => settings.Current.AnalyticsEnabled && settings.Current.SessionsEnabled,
                 "Show attachment metadata" => settings.Current.AnalyticsEnabled && settings.Current.SessionsEnabled && page == "codex",
                 "Notify at 80% and 100%" => settings.Current.AlertsEnabled,
+                "Enable Claude Code" => !store.Claude.ChangingConnection,
                 _ => true
             };
     }
@@ -345,7 +346,10 @@ internal sealed partial class DashboardWindow : Window
         var accountDisplay = store.AccountDisplay(id);
         body.Children.Add(SettingsUi.Action("‹ All Providers", () => Navigate("providers")));
         var header = new DockPanel { Margin = new Thickness(14) };
-        var refresh = Ui.RefreshButton("Refresh " + provider.Name, () => store.RefreshProviderAsync(id));
+        if (id == "claude") AddClaudeHeader(header);
+        var refresh = Ui.RefreshButton("Refresh " + provider.Name, async () =>
+        { if (id == "claude") await store.Claude.RefreshAsync(); await store.RefreshProviderAsync(id); });
+        if (id == "claude") claudeRefresh = refresh;
         System.Windows.Automation.AutomationProperties.SetAutomationId(refresh, "provider.refresh");
         DockPanel.SetDock(refresh, Dock.Right); header.Children.Add(refresh);
         if (!provider.HasLocalHistory) AddProviderAlertButton(header, id, provider.Name);
@@ -359,7 +363,8 @@ internal sealed partial class DashboardWindow : Window
         header.Children.Add(headerText);
         var headerCard = new Border { Child = header, CornerRadius = new CornerRadius(12), Margin = new Thickness(18, 0, 18, 4) };
         headerCard.SetResourceReference(Border.BackgroundProperty, "CardBackground"); body.Children.Add(headerCard);
-        if (id is "codex" or "claude")
+        if (id == "claude") AddClaudeAccount();
+        if (id == "codex")
         {
             var accountRows = new List<UIElement> {
                 SettingsUi.Row("Account", ProviderValue("provider.account", accountDisplay.Label ?? "Not connected")),
@@ -390,7 +395,7 @@ internal sealed partial class DashboardWindow : Window
                 ? "Estimated from current API prices — not a bill or a quota prediction."
                 : "Comes from Claude Code session logs on this PC. Five-hour and weekly limits appear after a connected account completes a response; cost estimates aren't available yet."));
         }
-        if (id == "codex")
+        if (id is "codex" or "claude")
         {
             AddProviderLocalData(id, provider.Name);
             UpdateProviderReading(id); UpdateProviderControlStates(); return;
@@ -403,24 +408,7 @@ internal sealed partial class DashboardWindow : Window
         if (id == "copilot") body.Children.Add(Ui.Text("Uses your current GitHub CLI sign-in. Sign in with gh auth login, or provide an access token below.", 12));
         if (id == "glm") body.Children.Add(Ui.Text("Detects a GLM login from Claude Code, ZCode or OpenCode. A key entered below takes precedence.", 12));
         if (id == "codebuff") body.Children.Add(Ui.Text("Uses your current Codebuff CLI sign-in. A key entered below takes precedence.", 12));
-        if (id == "claude")
-        {
-            body.Children.Add(Ui.Text("Local history is read from Claude Code. Plan limits arrive through its status-line integration."));
-            body.Children.Add(Ui.Text("Connect the SessionStart and status-line hooks, then start a new Claude session. Only rate-limit fields are stored.", 12, "#B7B8BD"));
-            body.Children.Add(Ui.Button("Connect Claude status line", () =>
-            {
-                try
-                {
-                    if (ClaudeHookInstaller.HasOtherStatusLine() && MessageBox.Show(this, "Replace your current status line? CodeRim will keep a backup of settings.json.", "Connect Claude", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-                    ClaudeHookInstaller.Install(replaceExisting: true);
-                    MessageBox.Show(this, "Connected. Start a new Claude Code session to read limits.", "CodeRim");
-                }
-                catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException)
-                { MessageBox.Show(this, "Unable to update Claude settings safely. Check the Windows setup instructions.", "CodeRim"); }
-            }));
-            body.Children.Add(Ui.Button("Open Windows setup instructions", () => OpenUrl("https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/WINDOWS.md")));
-        }
-        else if (id == "jetbrains") body.Children.Add(Ui.Text("Reads the latest AI Assistant quota from your JetBrains IDE settings. Enable AI Assistant and refresh its usage in the IDE."));
+        if (id == "jetbrains") body.Children.Add(Ui.Text("Reads the latest AI Assistant quota from your JetBrains IDE settings. Enable AI Assistant and refresh its usage in the IDE."));
         else if (ScriptProviders.Catalog.TryGetValue(id, out var script))
         {
             foreach (var field in script.Settings)
@@ -750,6 +738,7 @@ internal sealed partial class DashboardWindow : Window
             }
         }
         RenderProviderLimits(ProviderDisplayPolicy.Apply(current, settings.Current));
+        if (id == "claude") UpdateClaude();
     }
     private void AddSettingField(string key, string id)
     {

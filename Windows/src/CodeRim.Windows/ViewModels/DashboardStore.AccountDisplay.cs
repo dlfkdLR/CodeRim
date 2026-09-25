@@ -13,6 +13,10 @@ internal sealed partial class DashboardStore
     internal (ProviderReading? Reading, string? Label, string? Plan, string? RawPlan, string? OwnerKey) AccountDisplay(string id)
     {
         var reading = Readings.GetValueOrDefault(id);
+        if (id == "claude" && !ClaudeAvailable)
+            return (new(id, Claude.Preferences.Enabled ? ReadingState.NeedsAuth : ReadingState.Disabled, [], Message: Claude.Message), null, null, null, null);
+        if (id == "claude" && Claude.HelperError is { } helperError && reading is { Windows.Count: > 0 })
+            reading = reading with { State = ReadingState.Stale, Message = helperError };
         if (Synthetic) return (reading, id is "codex" or "claude" ? SavedAccounts.CurrentAccountLabel(id, true) : reading?.Account?.Label, reading?.Plan, reading?.Plan, null);
         var capturedScope = scopes.GetValueOrDefault(id);
         if (id is "codex" or "claude")

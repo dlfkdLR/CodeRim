@@ -78,6 +78,7 @@ public partial class App : System.Windows.Application
         // saved preference. Opening/updating the app must respect OS removal.
         Motion.SetReduced(settings.Current.ReduceMotion);
         store = new DashboardStore(settings, vault, smokeTest);
+        if (!smokeTest) store.StartClaudePolling();
         notch = new NotchWindow(store, settings, ShowSettings);
         tray = new TrayIconHost(() => ShowSettings("usage"), () => _ = store.RefreshAsync(true), () => ShowSettings(null), ShutdownApplication);
         if (!smokeTest) activation = new InstanceActivation(instanceName, () => Dispatcher.BeginInvoke(() => ShowSettings("usage")));

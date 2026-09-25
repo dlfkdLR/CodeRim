@@ -40,13 +40,13 @@ internal sealed partial class ProviderConnections : IDisposable
             if (id == "claude")
             {
                 var path = Path.Combine(CompanionFile.DataDirectory, "claude-limits.json");
-                if (!File.Exists(path)) return new(id, ReadingState.NeedsAuth, [], Message: "Connect the Claude status line in Settings to read plan limits.");
+                if (!File.Exists(path)) return new(id, ReadingState.Loading, [], Message: "Use Claude Code once, then refresh");
                 if (new FileInfo(path).Length > 1_048_576) throw new InvalidDataException();
                 using var document = JsonDocument.Parse(await File.ReadAllTextAsync(path, token).ConfigureAwait(false));
                 var root = document.RootElement;
                 var scope = LoginIdentity.CurrentClaudeScope();
                 if (scope is null || ProviderParsers.Text(root, "accountScope") != scope)
-                    return new(id, ReadingState.NeedsAuth, [], Message: "Reconnect the Claude status line and run a new session for the current account.");
+                    return new(id, ReadingState.Loading, [], Message: "Start a new Claude Code session, then refresh");
                 var updated = ProviderParsers.Date(ProviderParsers.Get(root, "updatedAt"));
                 var windows = ProviderParsers.Claude(root);
                 return new ProviderReading(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, updated).Evaluated(DateTimeOffset.Now);

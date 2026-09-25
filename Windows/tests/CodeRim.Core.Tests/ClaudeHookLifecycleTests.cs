@@ -16,6 +16,18 @@ public sealed class ClaudeHookLifecycleTests : IDisposable
     private JsonObject Read() => JsonNode.Parse(File.ReadAllText(Settings))!.AsObject();
 
     [Fact]
+    public void MigrationRequiresOwnedJournalAndExactInstalledCommand()
+    {
+        Write(ClaudeHookInstaller.Configure(null, OldHelper));
+        Assert.False(ClaudeHookInstaller.HasManagedInstallationAt(Settings));
+        ClaudeHookInstaller.InstallAt(Settings, OldHelper);
+        Assert.True(ClaudeHookInstaller.HasManagedInstallationAt(Settings));
+        var changed = Read(); changed["statusLine"]!["command"] = ClaudeHookInstaller.Command("claude-status", NewHelper); Write(changed.ToJsonString());
+        Assert.False(ClaudeHookInstaller.HasManagedInstallationAt(Settings));
+        Write("[]"); Assert.False(ClaudeHookInstaller.HasManagedInstallationAt(Settings));
+        File.WriteAllText(State, "{}"); Assert.False(ClaudeHookInstaller.HasManagedInstallationAt(Settings));
+    }
+    [Fact]
     public void OriginalStatusAndUnrelatedSettingsSurviveRepeatedInstallMoveAndDisconnect()
     {
         const string initial = """{"statusLine":{"type":"command","command":"my-status","padding":2},"keep":42,"hooks":{"Stop":[{"hooks":[{"command":"my-stop"}]}],"SessionStart":[{"matcher":"startup","hooks":[{"command":"my-start"}]}]}}""";

@@ -336,6 +336,8 @@ internal static partial class NativeSmoke
         Record("Mac provider catalogue and searchable Usage popover");
         await IsolatedAccountsRegression(directory);
         Record("Isolated Add Account success, cancellation, verification and cleanup for Codex and Claude");
+        await ClaudeIntegrationRegression(settings, vault, directory);
+        await ClaudeMigrationRegression(vault, directory);
         await ProviderPreferencesRegression(dashboard, settings, directory);
         await ProviderDetailsRegression(dashboard, store, settings, directory);
         await MacReferenceRegression(dashboard, store, settings, directory);
@@ -410,12 +412,11 @@ internal static partial class NativeSmoke
         dashboard.Navigate("sessions:codex"); await Idle();
         settings.Save(settings.Current with { EnabledProviders = ["claude"] });
         dashboard.Navigate("providers"); dashboard.Navigate("usage"); await Idle();
-        Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).First().SelectedValue == "claude", "Removed provider did not select an available provider");
-        Require(Descendants<RadioButton>(dashboard).Any(), "Removed provider retained its detail navigation");
-        Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Today"), "Removed provider did not return to available provider overview");
+        Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).First().SelectedValue == "codex", "Hiding Codex from the notch removed its Usage selection");
+        Require(settings.Current.UsageProvider == "codex", "Notch visibility changed the saved Usage provider");
         settings.Save(settings.Current with { EnabledProviders = ["codex", "claude"] });
         dashboard.Navigate("usage"); Descendants<System.Windows.Controls.ComboBox>(dashboard).First().SelectedValue = "codex"; await Idle();
-        Record("Removing a provider clears its navigation and filters");
+        Record("Removing Codex from the notch preserves its Usage selection");
 
 
         dashboard.Navigate("codex"); await Idle();

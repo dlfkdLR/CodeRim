@@ -14,6 +14,8 @@ public sealed record AppSettings(
 {
     public bool AutomaticRefresh { get; init; } = true;
     public string UsageProvider { get; init; } = "codex";
+    // Null identifies legacy files. Fresh installs explicitly start disabled.
+    public ClaudeIntegrationPreferences? ClaudeIntegration { get; init; }
     public bool DebugLogging { get; init; }
     public string FinishedSound { get; init; } = "Asterisk";
     public string BlockedSound { get; init; } = "Exclamation";
@@ -60,7 +62,7 @@ public sealed record AppSettings(
         WeekStart.Monday,
         60,
         true,
-        false);
+        false) { ClaudeIntegration = new(false, null) };
 }
 
 public sealed class AppSettingsStore

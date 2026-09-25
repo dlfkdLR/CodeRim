@@ -28,10 +28,13 @@ internal static partial class NativeSmoke
         try
         {
             Directory.CreateDirectory(home); CredentialVault.RestrictDirectory(home); Environment.SetEnvironmentVariable("CODEX_HOME", home);
+            Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", home);
             var first = Credential("account-a"); GuardedFile.WritePrivate(path, first);
             settings.Save(before with { AccountLimitsEnabled = false, EnabledProviders = ["codex"] });
             // Disabled limits capture the real local ownership key without starting a CLI or network request.
-            store = new DashboardStore(settings, vault, providerConnections: new ProviderConnections(vault));
+            var claude = new ClaudeIntegration(new(true, null), new ClaudeFixtureOperations(() =>
+                LoginIdentity.CurrentClaudeScope() is null ? null : SavedAccounts.Current("claude").Identity), (_, _) => { });
+            store = new DashboardStore(settings, vault, providerConnections: new ProviderConnections(vault), claudeIntegration: claude);
             await store.RefreshProviderAsync("codex");
             store.Readings["codex"] = new("codex", ReadingState.Ready, [new("weekly", "Weekly", 85)], DateTimeOffset.Now, Plan: "Plan A");
             var row = new ProviderAccountRow("codex", store, settings, () => { }, () => { }, _ => { });
@@ -151,6 +154,7 @@ internal static partial class NativeSmoke
                     organizationUuid = "fixture-org", userRateLimitTier = "default_claude_max_" + multiple + "x" } });
                 if (File.Exists(profilePath)) GuardedFile.Replace(profilePath, GuardedFile.Read(profilePath), profile);
                 else GuardedFile.WritePrivate(profilePath, profile);
+                await store.Claude.AddCurrentAccountAsync(); await store.Claude.RefreshAsync();
                 Require(store.AccountDisplay("claude").Plan == "Max " + multiple + "x" && SavedAccounts.Current("claude").Identity.Plan == "max",
                     "Claude display tier is missing or changed stored login identity metadata.");
                 popupWindow.Content = NotchPopover.Create("claude", store, settings.Current, _ => { }); await Idle();
@@ -164,7 +168,10 @@ internal static partial class NativeSmoke
         finally
         {
             void Restore(Action action) { try { action(); } catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); } }
-            Restore(() => accountNotch?.Close()); Restore(() => popupWindow?.Close()); Restore(() => store?.Dispose()); Restore(() => Environment.SetEnvironmentVariable("CODEX_HOME", previousHome));
+            Restore(() => accountNotch?.Close()); Restore(() => popupWindow?.Close());
+            try { var idle = store?.WaitForLocalIdleAsync() ?? Task.CompletedTask; var remote = store?.WaitForProviderIdleAsync("claude") ?? Task.CompletedTask; store?.Dispose(); await Task.WhenAll(idle, remote); }
+            catch (Exception error) { cleanup.Add(error); }
+            Restore(() => Environment.SetEnvironmentVariable("CODEX_HOME", previousHome));
             Restore(() => Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", previousClaude));
             Restore(() => settings.Save(before)); Restore(() => Directory.Delete(home, true));
         }

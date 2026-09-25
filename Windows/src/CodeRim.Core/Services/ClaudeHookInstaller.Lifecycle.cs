@@ -12,6 +12,23 @@ public static partial class ClaudeHookInstaller
     private static string? StatusCommand(JsonNode? status) => status is JsonObject value
         && value["command"] is JsonValue command && command.TryGetValue<string>(out var text) ? text : null;
 
+    // Migration evidence, not a new link approval: both the owned journal and
+    // the currently installed command must agree. A cache alone proves nothing.
+    public static bool HasManagedInstallation() => HasManagedInstallationAt(SettingsPath);
+    internal static bool HasManagedInstallationAt(string settingsPath)
+    {
+        try
+        {
+            var state = ReadState(ReadOptional(settingsPath + StateSuffix));
+            var json = ReadOptional(settingsPath);
+            return state is not null && json is not null
+                && StatusCommand(ParseSettings(json)["statusLine"]) is { } command
+                && state.Commands.Contains(command, StringComparer.Ordinal);
+        }
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or InvalidOperationException)
+        { return false; }
+    }
+
     public static void Uninstall()
     {
         if (!OperatingSystem.IsWindows()) throw new InvalidOperationException("This installer requires Windows.");
