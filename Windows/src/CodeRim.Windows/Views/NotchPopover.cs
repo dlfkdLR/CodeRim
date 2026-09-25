@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Shapes;
 using CodeRim.Core.Domain;
@@ -41,11 +42,8 @@ internal static class NotchPopover
             accountLabel.TextTrimming = TextTrimming.CharacterEllipsis; accountLabel.ToolTip = "CLI login file · " + identity;
             content.Children.Add(accountLabel);
         }
-        if (store.Usage.TryGetValue(id, out var local))
-        {
-            var quality = local.Quality == DataQuality.Exact ? "" : " (partial)";
-            content.Children.Add(Row("Today · This PC", TokenFormatter.Format(local.Today.TotalTokens, settings.NumberStyle) + " tokens" + quality));
-        }
+        if (id is "codex" or "claude" || store.Usage.ContainsKey(id))
+            content.Children.Add(LocalTokens(id, store.Usage.GetValueOrDefault(id), settings.NumberStyle));
         string? group = null;
         foreach (var window in reading?.Windows ?? [])
         {
@@ -165,6 +163,22 @@ internal static class NotchPopover
             Grid.SetRow(tail, tailFirst ? 0 : 1); layout.Children.Add(tail);
         }
         return layout;
+    }
+    private static StackPanel LocalTokens(string id, UsageSnapshot? snapshot, TokenNumberStyle style)
+    {
+        var block = new StackPanel { Margin = new Thickness(0, NotchMetrics.HeaderToBlock, 0, 0) };
+        var line = Text("", NotchMetrics.CardBodyFontSize); line.Margin = new Thickness(0); line.TextWrapping = TextWrapping.NoWrap;
+        line.Inlines.Add(new Run("Today  ") { Foreground = Secondary });
+        line.Inlines.Add(new Run(LocalTokenPresentation.Text(snapshot, style)) { Foreground = Brushes.White });
+        System.Windows.Automation.AutomationProperties.SetAutomationId(line, "notch.tokens." + id);
+        block.Children.Add(new Viewbox { Child = line, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly,
+            HorizontalAlignment = HorizontalAlignment.Left });
+        var scope = Text(LocalTokenPresentation.Scope, NotchMetrics.CardBodyFontSize, Secondary);
+        scope.Margin = new Thickness(0); scope.TextWrapping = TextWrapping.NoWrap; scope.ToolTip = LocalTokenPresentation.ScopeHelp;
+        System.Windows.Automation.AutomationProperties.SetAutomationId(scope, "notch.tokens.scope." + id);
+        block.Children.Add(new Viewbox { Child = scope, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly,
+            HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, NotchMetrics.LocalTokenScopeGap, 0, 0) });
+        return block;
     }
     private static void ConfigureSessionLine(Grid row)
     {

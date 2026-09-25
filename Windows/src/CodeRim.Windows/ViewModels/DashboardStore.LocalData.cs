@@ -39,7 +39,7 @@ internal sealed partial class DashboardStore
                 generations[id] = Generation(id) + 1;
                 var cutoff = DateTimeOffset.Now;
                 await Task.Run(() => repository.Clear(id, cutoff), cancellation.Token).ConfigureAwait(true); committed = true;
-                scanners[id].InvalidateCachedSources(); Usage.Remove(id); Events.Remove(id); SessionDetails.Remove(id);
+                scanners[id].InvalidateCachedSources(); Usage[id] = UsageSnapshot.Empty; Events.Remove(id); SessionDetails.Remove(id);
                 DataStatistics[id] = await Task.Run(() => repository.Statistics(id), lifetime.Token).ConfigureAwait(true);
                 DataOperationMessages[id] = "Local history cleared."; Persist(); return;
             }

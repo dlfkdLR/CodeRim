@@ -55,7 +55,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
             {
                 var history = repository.Read(id);
                 Events[id] = history; SessionDetails[id] = repository.ReadSessionDetails(id);
-                Usage[id] = UsageScanner.Aggregate(history, DateTimeOffset.Now, settings.Current.WeekStart, true);
+                Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(history, DateTimeOffset.Now, settings.Current.WeekStart, true));
             }
         }
         try
@@ -93,7 +93,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
             .Select(RefreshProviderAsync).ToArray();
         await Task.WhenAll(remote.Append(local).Append(activity).Append(profile)).ConfigureAwait(true);
     }
-    private async Task RefreshLocalAsync()
+    internal async Task RefreshLocalAsync()
     {
         if (!await refreshLock.WaitAsync(0).ConfigureAwait(true)) { pendingRefresh = true; return; }
         try
@@ -108,19 +108,29 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                 foreach (var id in enabled.Where(scanners.ContainsKey))
                 {
                     var generation = Generation(id);
-                    var scan = await scanners[id].ScanAsync(settings.Current.WeekStart, lifetime.Token).ConfigureAwait(true);
-                    if (generation != Generation(id)) continue;
-                    var imported = await Task.Run(() => (Events: repository.Merge(id, scan.Events, scan.Sessions),
-                        Sessions: repository.ReadSessionDetails(id), Statistics: repository.Statistics(id)), lifetime.Token).ConfigureAwait(true);
-                    if (generation != Generation(id)) continue;
-                    pendingRefresh |= scan.HasMoreWork;
-                    var events = imported.Events;
-                    Events[id] = events; SessionDetails[id] = imported.Sessions;
-                    SourceCounts[id] = scan.SourceCount;
-                    DataStatistics[id] = imported.Statistics;
-                    Usage[id] = UsageScanner.Aggregate(events, DateTimeOffset.Now, settings.Current.WeekStart, scan.Snapshot.Quality == DataQuality.Partial || scan.HasMoreWork);
-                    Status = scan.StatusMessage;
-                    if (settings.Current.DebugLogging) AppDiagnostics.Record(id, scan.Snapshot.Quality.ToString(), events.Count);
+                    try
+                    {
+                        var scan = await scanners[id].ScanAsync(settings.Current.WeekStart, lifetime.Token).ConfigureAwait(true);
+                        if (generation != Generation(id)) continue;
+                        var imported = await Task.Run(() => (Events: repository.Merge(id, scan.Events, scan.Sessions),
+                            Sessions: repository.ReadSessionDetails(id), Statistics: repository.Statistics(id)), lifetime.Token).ConfigureAwait(true);
+                        if (generation != Generation(id)) continue;
+                        pendingRefresh |= scan.HasMoreWork;
+                        var events = imported.Events;
+                        Events[id] = events; SessionDetails[id] = imported.Sessions;
+                        SourceCounts[id] = scan.SourceCount;
+                        DataStatistics[id] = imported.Statistics;
+                        Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(events, DateTimeOffset.Now, settings.Current.WeekStart, scan.Snapshot.Quality == DataQuality.Partial || scan.HasMoreWork));
+                        Status = scan.StatusMessage;
+                        if (settings.Current.DebugLogging) AppDiagnostics.Record(id, scan.Snapshot.Quality.ToString(), events.Count);
+                    }
+                    catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException
+                        or System.Security.SecurityException or Microsoft.Data.Sqlite.SqliteException)
+                    {
+                        if (generation != Generation(id)) continue;
+                        Usage[id] = LocalTokenPresentation.AfterFailure(Usage.GetValueOrDefault(id));
+                        Status = "Local history could not be refreshed. Your existing reading is retained.";
+                    }
                     Changed();
                 }
                 Persist();
