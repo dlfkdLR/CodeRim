@@ -40,12 +40,13 @@ internal static partial class NotchPopover
         content.Children.Add(AccountRow(id, accountDisplay.Plan, navigate));
         if (id is "codex" or "claude" || store.Usage.ContainsKey(id))
             content.Children.Add(LocalTokens(id, store.Usage.GetValueOrDefault(id), settings.NumberStyle));
-        AddLimitGroups(content, reading?.Windows ?? [], settings);
-        if (reading is null) content.Children.Add(Text("Waiting for a reading…", 10.5, Secondary));
-        else if (reading.State != ReadingState.Ready)
+        if (reading is { Windows.Count: > 0 }) AddLimitGroups(content, reading.Windows, settings);
+        else
         {
-            content.Children.Add(Text(reading.Message ?? reading.State.ToString(), 10.5, Ui.Brush("#F2FF00")));
-            if (reading.State == ReadingState.NeedsAuth) content.Children.Add(PlainButton("Connect " + (ProviderCatalog.Find(id)?.Name ?? id), () => navigate(id)));
+            var status = Text(StatusMessage(id, reading), NotchMetrics.CardBodyFontSize, Secondary);
+            status.Margin = new Thickness(0, NotchMetrics.HeaderToBlock, 0, 0);
+            System.Windows.Automation.AutomationProperties.SetAutomationId(status, "notch.status." + id);
+            content.Children.Add(status);
         }
         var sessions = store.Sessions.Where(x => x.Provider == id && (settings.ShowUnknownSessions || x.State != "unavailable")).ToArray();
         var groups = SessionPresentation.Groups(sessions);
@@ -112,7 +113,6 @@ internal static partial class NotchPopover
             }
             RenderSessions();
         }
-        if (settings.ShowLastUpdated && reading?.UpdatedAt is { } updated) content.Children.Add(Text("Updated " + Age(updated), 9.5, Secondary));
         var scroll = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
             HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, MaxHeight = Math.Max(1, (availableHeight ?? SystemParameters.WorkArea.Height) - 40) };
         var card = new Border { Width = NotchMetrics.CardWidth, CornerRadius = new CornerRadius(NotchMetrics.CardCorner),
@@ -221,10 +221,4 @@ internal static partial class NotchPopover
         button.Click += (_, _) => action(); return button;
     }
     private static string Reset(DateTimeOffset? reset, string format) => ResetCopy.Text(reset, format, DateTimeOffset.Now);
-    private static string Age(DateTimeOffset date)
-    {
-        var age = DateTimeOffset.Now - date;
-        return age.TotalHours >= 1 ? (int)age.TotalHours + "h " + age.Minutes + "m ago" :
-            age.TotalMinutes >= 1 ? (int)age.TotalMinutes + "m ago" : "just now";
-    }
 }

@@ -29,7 +29,7 @@ internal static partial class NativeSmoke
                 new("remaining", "Remaining requests", RemainingCount: 3, Group: "Plan")], now, Plan: "team_plan");
             string? destination = null;
             var preferences = settings.Current with { AccountLimitsEnabled = true, AdditionalLimitsEnabled = true,
-                NumberStyle = TokenNumberStyle.Detailed, ShowUsagePace = true, Edge = NotchEdge.Right };
+                NumberStyle = TokenNumberStyle.Detailed, ShowUsagePace = true, ShowLastUpdated = true, Edge = NotchEdge.Right };
             var card = NotchPopover.Create("codex", store, preferences, route => destination = route, 680);
             card.HorizontalAlignment = HorizontalAlignment.Left; card.VerticalAlignment = VerticalAlignment.Top;
             host = new Window { Width = 320, Height = 680, ShowInTaskbar = false, Content = card }; host.Show(); await Idle();
@@ -71,10 +71,37 @@ internal static partial class NativeSmoke
                 && titleBounds.Right <= NotchMetrics.CardWidth - NotchMetrics.CardPadding + 1,
                 "Long provider title skips the reference's minimum-scale behavior or clips its card.");
             Capture(longTitleCard, Path.Combine(directory, "windows-notch-long-title.png"));
+            foreach (var (state, message, expected) in new[]
+            {
+                (ReadingState.Ready, (string?)null, "Connected; this account did not report usage or a quota."),
+                (ReadingState.Loading, null, "Waiting for the first reading…"),
+                (ReadingState.Stale, null, "Waiting for the first reading…"),
+                (ReadingState.NeedsAuth, null, "Sign in to Codex to read your usage"),
+                (ReadingState.Error, "Fixture could not read usage.", "Couldn't read usage — Fixture could not read usage."),
+                (ReadingState.Disabled, "Account limits are turned off in Settings.", "Account limits are turned off in Settings.")
+            })
+            {
+                store.Readings["codex"] = new("codex", state, [], now, message);
+                // Keep limits enabled in the presentation policy so each supplied
+                // state, including an explicitly disabled reading, reaches the view.
+                var stateCard = NotchPopover.Create("codex", store, preferences, _ => { }); host.Content = stateCard; await Idle();
+                var status = Descendants<TextBlock>(stateCard).Single(x => AutomationProperties.GetAutomationId(x) == "notch.status.codex");
+                Require(status.Text == expected && status.Foreground is SolidColorBrush statusBrush && statusBrush.Color == Color.FromRgb(128, 128, 128),
+                    "Empty quota state or neutral reference styling differs: " + state);
+                Require(!Descendants<TextBlock>(stateCard).Any(x => RenderedText(x).StartsWith("Updated ", StringComparison.Ordinal)
+                    || RenderedText(x).StartsWith("Connect Codex", StringComparison.Ordinal)), "Non-reference footer or extra connection action returned.");
+                Capture(stateCard, Path.Combine(directory, "windows-notch-status-" + state + ".png"));
+            }
+            store.Readings["codex"] = new("codex", ReadingState.Stale, [new("last-known", "Weekly", 40)], now.AddHours(-1));
+            host.Content = NotchPopover.Create("codex", store, preferences, _ => { }); await Idle();
+            Require(!Descendants<TextBlock>(host).Any(x => AutomationProperties.GetAutomationId(x) == "notch.status.codex")
+                && Descendants<TextBlock>(host).Any(x => RenderedText(x) == "40% Used · 60% left"),
+                "A retained quota was replaced with an empty-state message.");
             File.WriteAllText(Path.Combine(directory, "windows-notch-limit-groups.json"), JsonSerializer.Serialize(new { completed = true,
                 checks = new List<string> { "Reference title, plan row and account-switch route", "Consecutive groups retain separate outlined sections",
                     "Zero and exceeded quota bars preserve reported values", "Count-only row and unknown-denominator handling",
-                    "Inline pace, deficit color, minimum scale and disabled preference", "Long catalogue title scales before ellipsis" } }, JsonOptions));
+                    "Inline pace, deficit color, minimum scale and disabled preference", "Long catalogue title scales before ellipsis",
+                    "Six empty quota states and retained stale windows; no extra freshness footer" } }, JsonOptions));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally
