@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Shell;
 using CodeRim.Core.Services;
@@ -19,6 +20,12 @@ internal sealed partial class DashboardWindow
     private System.Windows.Controls.Button? sidebarToggle;
     private double sidebarWidth = 224;
     private bool sidebarHidden;
+    private bool fittingFrame;
+    private bool shellClosed;
+    private HwndSource? frameSource;
+    private string? frameMonitor;
+    private bool frameDragging;
+    private bool frameFitPending;
 
     private void ConfigureShell(Grid layout, GridSplitter splitter)
     {
@@ -53,17 +60,89 @@ internal sealed partial class DashboardWindow
         root.Children.Add(toolbar); Grid.SetRow(layout, 1); root.Children.Add(layout); Content = root;
         Width = 980; Height = 680 + 48; MinWidth = 840; MinHeight = 560 + 48;
         RestoreSettingsFrame();
-        Loaded += (_, _) =>
+        SourceInitialized += (_, _) =>
         {
-            var caption = PointToScreen(new Point(100, 24));
-            if (!System.Windows.Forms.Screen.AllScreens.Any(screen => screen.WorkingArea.Contains((int)caption.X, (int)caption.Y)))
-            { Left = SystemParameters.WorkArea.Left + Math.Max(0, (SystemParameters.WorkArea.Width - Width) / 2); Top = SystemParameters.WorkArea.Top; }
+            frameSource = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
+            frameSource?.AddHook(SettingsFrameMessage);
+        };
+        Loaded += (_, _) => FitSettingsFrame();
+        StateChanged += (_, _) => QueueFitSettingsFrame();
+        LocationChanged += (_, _) =>
+        {
+            if (IsLoaded && !shellClosed && !frameDragging && frameSource is { } source
+                && System.Windows.Forms.Screen.FromHandle(source.Handle).DeviceName != frameMonitor)
+                QueueFitSettingsFrame(); // Keyboard/programmatic monitor moves.
+        };
+        Microsoft.Win32.SystemEvents.DisplaySettingsChanged += SettingsDisplaysChanged;
+        SystemParameters.StaticPropertyChanged += SettingsWorkAreaChanged;
+        Closed += (_, _) =>
+        {
+            shellClosed = true;
+            frameSource?.RemoveHook(SettingsFrameMessage); frameSource = null;
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= SettingsDisplaysChanged;
+            SystemParameters.StaticPropertyChanged -= SettingsWorkAreaChanged;
         };
         Closing += (_, _) => SaveSettingsFrame();
         PreviewKeyDown += (_, e) =>
         {
             if (e.Key == Key.S && Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Alt)) { ToggleSidebar(); e.Handled = true; }
         };
+    }
+
+    private IntPtr SettingsFrameMessage(IntPtr handle, int message, IntPtr word, IntPtr parameter, ref bool handled)
+    {
+        // Equal-DPI monitor moves do not raise DpiChanged. Fit after dragging
+        // finishes, never while the user is positioning a window on a monitor.
+        if (message == 0x0231) frameDragging = true; // WM_ENTERSIZEMOVE
+        if (message == 0x0232) // WM_EXITSIZEMOVE
+        {
+            frameDragging = false;
+            if (frameFitPending || System.Windows.Forms.Screen.FromHandle(handle).DeviceName != frameMonitor)
+                QueueFitSettingsFrame();
+        }
+        return IntPtr.Zero;
+    }
+
+    private void SettingsDisplaysChanged(object? sender, EventArgs args) => QueueFitSettingsFrame();
+    private void SettingsWorkAreaChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(SystemParameters.WorkArea)) QueueFitSettingsFrame();
+    }
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi); QueueFitSettingsFrame();
+    }
+    private void QueueFitSettingsFrame()
+    {
+        if (!Dispatcher.HasShutdownStarted) Dispatcher.BeginInvoke(FitSettingsFrame);
+    }
+    private void FitSettingsFrame()
+    {
+        if (shellClosed || !IsLoaded || fittingFrame || WindowState != WindowState.Normal) return;
+        if (frameDragging) { frameFitPending = true; return; }
+        frameFitPending = false;
+        fittingFrame = true;
+        try
+        {
+            var monitor = System.Windows.Forms.Screen.FromHandle(new WindowInteropHelper(this).Handle);
+            var area = monitor.WorkingArea;
+            var dpi = VisualTreeHelper.GetDpi(this);
+            if (area.Width <= 0 || area.Height <= 0) return;
+            var width = area.Width / dpi.DpiScaleX; var height = area.Height / dpi.DpiScaleY;
+            // A smaller or higher-DPI display must not trap the caption or footer
+            // outside its usable area. Larger screens retain the normal minimum.
+            MinWidth = Math.Min(840, width); MinHeight = Math.Min(608, height);
+            Width = Math.Clamp(ActualWidth, MinWidth, width); Height = Math.Clamp(ActualHeight, MinHeight, height);
+            UpdateLayout();
+            var origin = PointToScreen(new Point());
+            var left = Math.Clamp(origin.X, area.Left, Math.Max(area.Left, area.Right - ActualWidth * dpi.DpiScaleX));
+            var top = Math.Clamp(origin.Y, area.Top, Math.Max(area.Top, area.Bottom - ActualHeight * dpi.DpiScaleY));
+            // Apply a device-pixel delta at this HWND's DPI; dividing global
+            // monitor coordinates by the primary display's DPI misplaces it.
+            Left += (left - origin.X) / dpi.DpiScaleX; Top += (top - origin.Y) / dpi.DpiScaleY;
+            frameMonitor = monitor.DeviceName;
+        }
+        finally { fittingFrame = false; }
     }
 
     private static System.Windows.Controls.Button WindowButton(string name, string color, string symbol, Action action)

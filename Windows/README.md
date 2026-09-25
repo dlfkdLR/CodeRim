@@ -13,3 +13,5 @@ The companion snapshot now keeps display limits separate from an optional `cache
 Provider details now show available account/plan/source metadata and fixed usage-page links for script readers, Copilot and GLM. Copilot names remain tied to the selected credential; GLM retains the borrowed tool and console region. Account fields update in place, and long values fit the minimum window. Display-only identity stays out of public companion limits and CLI output. Other provider-specific account routes and full native visual comparison remain tracked work.
 
 Local-token popups distinguish Loading, Unavailable, measured zero and stale readings. Today is this PC’s transcript total since local midnight, across accounts and sessions, and includes cached input. Local scans update it independently from account quota requests; failed reads retain previously measured values with a stale marker.
+
+Settings window placement now fits the current monitor’s working area when opened or restored, including a smaller usable area after display or DPI changes. The verification record distinguishes automated single-monitor coverage from untested physical multi-monitor transitions.
