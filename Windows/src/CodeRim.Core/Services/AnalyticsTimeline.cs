@@ -24,6 +24,7 @@ public static class AnalyticsTimeline
     {
         var start = Start(range, now, zone);
         var events = source.Where(e => e.OccurredAt >= start && e.OccurredAt <= now).OrderBy(e => e.OccurredAt).ToArray();
+        var excludedModels = UsageAnalytics.Estimate(events).ExcludedModels.ToHashSet(StringComparer.Ordinal);
         var output = new List<AnalyticsBucket>(); var index = 0;
         for (var cursor = start; cursor <= now;)
         {
@@ -33,8 +34,8 @@ public static class AnalyticsTimeline
             var rows = new List<UsageEvent>();
             while (index < events.Length && events[index].OccurredAt < end) rows.Add(events[index++]);
             var usage = rows.Aggregate(TokenUsage.Zero, (sum, e) => sum.Add(e.Usage));
-            // A missing price is a gap. Empty intervals remain zero usage without an invented price.
-            output.Add(new(cursor, end, usage, UsageAnalytics.Estimate(rows)));
+            // Missing coverage is a gap; an actually empty measured interval is zero.
+            output.Add(new(cursor, end, usage, UsageAnalytics.Estimate(rows, excludedModels)));
             if (next <= cursor || next > now) break;
             cursor = next;
         }

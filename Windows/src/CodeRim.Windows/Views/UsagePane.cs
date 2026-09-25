@@ -414,7 +414,7 @@ internal sealed partial class UsagePane : StackPanel
         readings.Children.Add(Ui.Text("Estimated from bundled API pricing · not a bill", 11, "#A6A6AA"));
         if (cost.IsPartial) readings.Children.Add(Ui.Text($"Excludes {cost.ExcludedTokens:N0} tokens · " + string.Join(", ", cost.ExcludedModels), 11, "#A6A6AA"));
         }
-        Timeline(events);
+        Timeline(events, cost);
     }
     private sealed record PeriodChoice(string Id, string Name);
 }
