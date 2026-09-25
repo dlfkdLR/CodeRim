@@ -549,6 +549,20 @@ internal static partial class NativeSmoke
             Require(notch.PopupContent is { ActualWidth: > 0, ActualHeight: > 0 }, "Provider popup did not open");
             notch.OpenProvider("codex"); await Idle();
             RequirePopupClearOfNotch(notch, edge + "/" + scale);
+            var tail = Descendants<System.Windows.Shapes.Path>(notch.PopupContent!).Single(x => AutomationProperties.GetAutomationId(x) == "notch.tail");
+            var figure = PathGeometry.CreateFromGeometry(tail.Data).Figures.Single();
+            var verticalTail = edge is NotchEdge.Left or NotchEdge.Right;
+            // WPF can coalesce adjacent cubics into a PolyBezierSegment.
+            var cubicCount = figure.Segments.Sum(segment => segment switch
+            {
+                BezierSegment => 1,
+                PolyBezierSegment curves when curves.Points.Count % 3 == 0 => curves.Points.Count / 3,
+                _ => -100
+            });
+            Require(figure.IsClosed && cubicCount == 2
+                && Math.Abs(tail.ActualWidth - (verticalTail ? NotchMetrics.Tail : NotchMetrics.TailHeight)) < 1
+                && Math.Abs(tail.ActualHeight - (verticalTail ? NotchMetrics.TailHeight : NotchMetrics.Tail)) < 1,
+                "Popup tail is not the reference's bounded curved silhouette: " + edge);
             Require(!Descendants<TextBlock>(notch.PopupContent!).Any(x => x.Text == "Reset credits" || x.Text.Contains("2 resets", StringComparison.Ordinal)),
                 "Reset credits leaked from Usage into the reference's quota-only notch popup");
             if (scale == 1) Capture(notch.PopupContent!, Path.Combine(directory, "windows-popup-" + edge + ".png"));

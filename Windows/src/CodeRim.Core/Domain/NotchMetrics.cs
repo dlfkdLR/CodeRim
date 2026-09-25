@@ -25,6 +25,7 @@ public static class NotchMetrics
     public const double StatusDotStroke = 3.4 * Unit;
     public const double StatusDotGap = 11 * Unit;
     public const double Tail = 75 * Unit;
+    public const double TailHeight = 87 * Unit;
     public const double TailGap = 28 * Unit;
     public const double Control = 96 * Unit;
     public const double OrbStroke = 18 * Unit;

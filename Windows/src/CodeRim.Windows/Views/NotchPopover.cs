@@ -148,8 +148,7 @@ internal static class NotchPopover
             layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(tailFirst ? NotchMetrics.Tail : NotchMetrics.CardWidth) });
             layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(tailFirst ? NotchMetrics.CardWidth : NotchMetrics.Tail) });
             Grid.SetColumn(card, tailFirst ? 1 : 0); layout.Children.Add(card);
-            var tail = new Polygon { Fill = Brushes.Black, Width = NotchMetrics.Tail, Height = 28, VerticalAlignment = VerticalAlignment.Center,
-                Points = tailFirst ? new PointCollection([new(0, 14), new(NotchMetrics.Tail, 0), new(NotchMetrics.Tail, 28)]) : new PointCollection([new(0, 0), new(NotchMetrics.Tail, 14), new(0, 28)]) };
+            var tail = Tail(settings.Edge);
             Grid.SetColumn(tail, tailFirst ? 0 : 1); layout.Children.Add(tail);
         }
         else
@@ -158,11 +157,36 @@ internal static class NotchPopover
             layout.RowDefinitions.Add(new RowDefinition { Height = tailFirst ? new GridLength(NotchMetrics.Tail) : GridLength.Auto });
             layout.RowDefinitions.Add(new RowDefinition { Height = tailFirst ? GridLength.Auto : new GridLength(NotchMetrics.Tail) });
             Grid.SetRow(card, tailFirst ? 1 : 0); layout.Children.Add(card);
-            var tail = new Polygon { Fill = Brushes.Black, Width = 28, Height = NotchMetrics.Tail, HorizontalAlignment = HorizontalAlignment.Center,
-                Points = tailFirst ? new PointCollection([new(14, 0), new(28, NotchMetrics.Tail), new(0, NotchMetrics.Tail)]) : new PointCollection([new(0, 0), new(28, 0), new(14, NotchMetrics.Tail)]) };
+            var tail = Tail(settings.Edge);
             Grid.SetRow(tail, tailFirst ? 0 : 1); layout.Children.Add(tail);
         }
         return layout;
+    }
+    private static Path Tail(NotchEdge edge)
+    {
+        var length = NotchMetrics.Tail; var height = NotchMetrics.TailHeight;
+        var vertical = edge is NotchEdge.Left or NotchEdge.Right;
+        // The reference's two cubic shoulders are tangent to the card edge.
+        // Transform a right-pointing tail for each of the other three edges.
+        Point P(double x, double y) => edge switch
+        {
+            NotchEdge.Left => new(length - x, y),
+            NotchEdge.Top => new(y, length - x),
+            NotchEdge.Bottom => new(y, x),
+            _ => new(x, y)
+        };
+        var geometry = new StreamGeometry();
+        using (var drawing = geometry.Open())
+        {
+            drawing.BeginFigure(P(0, 0), true, true);
+            drawing.BezierTo(P(0, height * .25), P(length * .58, height * .38), P(length, height * .5), true, false);
+            drawing.BezierTo(P(length * .58, height * .62), P(0, height * .75), P(0, height), true, false);
+        }
+        geometry.Freeze();
+        var tail = new Path { Fill = Brushes.Black, Data = geometry, Width = vertical ? length : height,
+            Height = vertical ? height : length, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(tail, "notch.tail");
+        return tail;
     }
     private static StackPanel LocalTokens(string id, UsageSnapshot? snapshot, TokenNumberStyle style)
     {
