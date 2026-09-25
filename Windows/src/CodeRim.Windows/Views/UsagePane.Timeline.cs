@@ -5,6 +5,7 @@ using System.Windows.Automation;
 using System.Windows.Media;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
+using CodeRim.Windows.Services;
 
 namespace CodeRim.Windows.Views;
 internal sealed partial class UsagePane
@@ -87,7 +88,7 @@ internal sealed partial class UsagePane
             selectedBucket = bucket.Start; details.Children.Clear();
             if (destination == "activity") analyticsSelectedBucket = bucket.Start;
             detailCard.Visibility = Visibility.Visible;
-            details.Children.Add(Ui.Text(BucketLabel(bucket.Start), 11, weight: FontWeights.SemiBold));
+            details.Children.Add(Ui.Text(AnalyticsDateText.Format(bucket.Start, period == "today" ? AnalyticsDateStyle.Time : AnalyticsDateStyle.Day), 11, weight: FontWeights.SemiBold));
             AnalyticsSummary(details, bucket.Usage, bucket.Cost, compact: true, quality);
             AnalyticsBreakdown(details, bucket.Usage);
             AutomationProperties.SetName(details, "Selected usage interval");

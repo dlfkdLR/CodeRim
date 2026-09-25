@@ -56,7 +56,7 @@ internal static partial class NativeSmoke
             Capture(pane, System.IO.Path.Combine(directory, "windows-project-detail-reference.png"));
             pane.Back(); await Idle(); pane.Back(); await Idle();
             await Click("usage.destination.sessions"); await Click("usage.session.parent"); ReferenceDetail();
-            Value("Last activity", now.ToLocalTime().ToString("g", CultureInfo.CurrentCulture)); Value("Direct sub-agents", "1"); Value("Whole-session images", "4");
+            Value("Last activity", AnalyticsDateText.Format(now, AnalyticsDateStyle.DayAndTime)); Value("Direct sub-agents", "1"); Value("Whole-session images", "4");
             var agents = Descendants<Button>(pane).Where(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.subagent.", StringComparison.Ordinal)).ToArray();
             Require(agents.Length == 1 && AutomationProperties.GetName(agents[0]) == "Child project: 25 tokens", "Sub-agent row lost its range, project name or separate token total");
             foreach (var width in new[] { 360d, 450d, 650d })

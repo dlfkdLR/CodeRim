@@ -475,7 +475,7 @@ internal sealed partial class UsagePane : StackPanel
         && (item.Project != "Unknown project" || item.ProjectId != "unknown");
     private string SessionListDetail(string id, DateTimeOffset lastActivity, HashSet<string> visibleSessions)
     {
-        var parts = new List<string> { lastActivity.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) };
+        var parts = new List<string> { AnalyticsDateText.Format(lastActivity, AnalyticsDateStyle.DayAndTime) };
         var metadata = store.SessionDetails.GetValueOrDefault(provider) ?? [];
         if (settings.Current.AgentDetailsEnabled)
         {

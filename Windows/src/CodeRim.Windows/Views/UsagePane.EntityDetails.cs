@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
+using CodeRim.Windows.Services;
 
 namespace CodeRim.Windows.Views;
 
@@ -57,7 +58,7 @@ internal sealed partial class UsagePane
         if (session is null) Add(AnalyticsValueRow("Sessions", events.Select(x => x.SessionId).Distinct(StringComparer.Ordinal).LongCount(), 0));
         else
         {
-            Add(EntityTextRow("Last activity", events.Max(x => x.OccurredAt).ToLocalTime().ToString("g", CultureInfo.CurrentCulture)));
+            Add(EntityTextRow("Last activity", AnalyticsDateText.Format(events.Max(x => x.OccurredAt), AnalyticsDateStyle.DayAndTime)));
             var metadata = store.SessionDetails.GetValueOrDefault(provider) ?? [];
             var detail = metadata.FirstOrDefault(x => x.Id == session);
             if (settings.Current.AgentDetailsEnabled)
