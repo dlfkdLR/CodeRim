@@ -33,11 +33,23 @@ internal sealed partial class UsagePane : StackPanel
     private System.Windows.Controls.Button? refreshAction;
     private TextBlock? detailTitle;
     private readonly Stack<NavigationState> history = new();
+    private readonly Dictionary<string, string> analyticsRanges = new(StringComparer.Ordinal);
+    private DateTimeOffset? analyticsSelectedBucket;
+    private void OpenAnalytics(string target) => Forward(target, analyticsRanges.GetValueOrDefault(target, target == "projects" ? "30d" : "7d"));
+    private void ChangePeriod(string value)
+    {
+        period = value;
+        if (destination == "activity" || destination is "projects" or "sessions" && project is null && session is null)
+            analyticsRanges[destination] = value;
+        if (destination == "activity") analyticsSelectedBucket = null;
+        selectedBucket = null; visibleRows = 40; Update();
+    }
     private sealed record NavigationState(string Destination, string Period, string Search, string? Project, string? Session, int VisibleRows, string? Model, DateTimeOffset? Bucket);
     private void Forward(string target, string? selectedPeriod = null, string? selectedProject = null, string? selectedSession = null, string? model = null)
     {
         history.Push(new(destination, period, search, project, session, visibleRows, selectedModel, selectedBucket));
-        destination = target; period = selectedPeriod ?? period; project = selectedProject; session = selectedSession; selectedModel = model; selectedBucket = null;
+        destination = target; period = selectedPeriod ?? period; project = selectedProject; session = selectedSession; selectedModel = model;
+        selectedBucket = target == "activity" ? analyticsSelectedBucket : null;
         BuildControls(); Update();
     }
     internal void Back()
@@ -102,7 +114,7 @@ internal sealed partial class UsagePane : StackPanel
         if (provider != preferred && preferred is "codex" or "claude")
         {
             provider = preferred; destination = "overview"; project = session = null;
-            period = "today"; search = ""; visibleRows = 40; history.Clear(); BuildControls();
+            period = "today"; search = ""; visibleRows = 40; history.Clear(); analyticsRanges.Clear(); analyticsSelectedBucket = null; BuildControls();
         }
         RefreshProviderChoices();
         var changedAccount = displayedOwner != store.AccountDisplay(provider).OwnerKey || displayedAvailable != ProviderAvailable || displayedProfileAccountKey != store.ProfileHistory.Snapshot?.AccountKey || displayedProfileEnabled != store.ProfileHistory.Enabled;
@@ -137,7 +149,7 @@ internal sealed partial class UsagePane : StackPanel
             if (updatingChoices) return;
             if (selector.SelectedValue is string id && store.AvailableUsageProviders.Contains(id, StringComparer.Ordinal))
             {
-                this.provider = id; destination = "overview"; project = session = null; search = ""; period = "today"; visibleRows = 40; history.Clear();
+                this.provider = id; destination = "overview"; project = session = null; search = ""; period = "today"; visibleRows = 40; history.Clear(); analyticsRanges.Clear(); analyticsSelectedBucket = null;
                 try { settings.Save(settings.Current with { UsageProvider = id }); }
                 catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException) { }
                 RefreshProviderChoices(); BuildControls(); Update();
@@ -181,7 +193,7 @@ internal sealed partial class UsagePane : StackPanel
         row.AppendChild(name);
         return new DataTemplate { VisualTree = row };
     }
-    internal void ShowSessions() => Forward("sessions", "all-time");
+    internal void ShowSessions() => OpenAnalytics("sessions");
     private void BuildControls()
     {
         controls.Children.Clear(); filters.Children.Clear(); detailTitle = null; refreshAction = null;
@@ -229,7 +241,7 @@ internal sealed partial class UsagePane : StackPanel
             var periods = new[] { ("today", "Today"), ("7d", "7D"), ("30d", "30D"), ("week", "This week"), ("month", "This month"), ("all-time", "All time") };
             var select = new System.Windows.Controls.ComboBox { ItemsSource = periods.Select(x => new PeriodChoice(x.Item1, x.Item2)), DisplayMemberPath = "Name", SelectedValuePath = "Id", SelectedValue = period, MinWidth = 145, Margin = new Thickness(0, 4, 8, 4) };
             System.Windows.Automation.AutomationProperties.SetName(select, "Usage period");
-            select.SelectionChanged += (_, _) => { if (select.SelectedValue is string value) { period = value; selectedBucket = null; visibleRows = 40; Update(); } }; bar.Children.Add(select);
+            select.SelectionChanged += (_, _) => { if (select.SelectedValue is string value) ChangePeriod(value); }; bar.Children.Add(select);
         }
         var refresh = Ui.RefreshButton("Refresh usage", () => store.RefreshAsync(true));
         refresh.Margin = new Thickness(16, 0, 0, 0);

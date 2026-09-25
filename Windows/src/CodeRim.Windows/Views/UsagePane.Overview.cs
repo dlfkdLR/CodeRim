@@ -123,7 +123,7 @@ internal sealed partial class UsagePane
         })
         {
             if (!settings.Current.AnalyticsEnabled || id == "projects" && !settings.Current.ProjectsEnabled || id == "sessions" && !settings.Current.SessionsEnabled) continue;
-            var link = Ui.Button(label, () => Forward(id, "7d"));
+            var link = Ui.Button(label, () => OpenAnalytics(id));
             AutomationProperties.SetAutomationId(link, "usage.destination." + id);
             AutomationProperties.SetName(link, "Open " + label);
             link.BorderThickness = new Thickness(0); link.SetResourceReference(Control.BackgroundProperty, "ControlBackground");

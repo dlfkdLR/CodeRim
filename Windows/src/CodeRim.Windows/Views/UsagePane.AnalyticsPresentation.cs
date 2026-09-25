@@ -22,7 +22,7 @@ internal sealed partial class UsagePane
             var choice = new RadioButton { Content = title, Tag = id, IsChecked = period == id, GroupName = "UsageRange",
                 Style = (Style)FindResource("UsageModeButton") };
             AutomationProperties.SetName(choice, title); AutomationProperties.SetAutomationId(choice, "usage.range." + id);
-            choice.Checked += (_, _) => { period = id; selectedBucket = null; visibleRows = 40; Update(); };
+            choice.Checked += (_, _) => ChangePeriod(id);
             segments.Children.Add(choice);
         }
         return group;

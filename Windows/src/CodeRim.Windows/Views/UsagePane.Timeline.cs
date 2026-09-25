@@ -85,6 +85,7 @@ internal sealed partial class UsagePane
         void Select(AnalyticsBucket bucket)
         {
             selectedBucket = bucket.Start; details.Children.Clear();
+            if (destination == "activity") analyticsSelectedBucket = bucket.Start;
             detailCard.Visibility = Visibility.Visible;
             details.Children.Add(Ui.Text(BucketLabel(bucket.Start), 11, weight: FontWeights.SemiBold));
             AnalyticsSummary(details, bucket.Usage, bucket.Cost, compact: true, quality);

@@ -84,9 +84,44 @@ internal static partial class NativeSmoke
             Require(Descendants<TextBlock>(pane).Any(x => x.Text == "Estimate unavailable"), "An unavailable zero-valued range priced its model detail");
             pane.Back(); await Idle();
             store.Usage["codex"] = UsageSnapshot.Empty; store.Events.Remove("codex"); pane.Update(); await Idle(); EmptyRange();
+            Descendants<Button>(pane).First(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.tokens.", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+            var retainedDetails = Descendants<TextBlock>(Descendants<StackPanel>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.bucket-details")).Select(x => x.Text).ToArray();
+            pane.Back(); await Idle();
+            async Task Open(string id)
+            {
+                Descendants<Button>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination." + id).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+            }
+            ComboBox ListPeriod() => Descendants<ComboBox>(pane).Single(x => AutomationProperties.GetName(x) == "Usage period");
+            await Open("projects"); Require(Equals(ListPeriod().SelectedValue, "30d"), "Projects lost the initial 30D range");
+            ListPeriod().SelectedValue = "today"; pane.Back(); await Idle(); await Open("activity");
+            Require(Descendants<RadioButton>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.30d").IsChecked == true,
+                "Returning to Usage reset its range or adopted the Projects range");
+            Require(Has("usage.bucket-details"), "Returning to Usage discarded its selected interval");
+            Require(Descendants<TextBlock>(Descendants<StackPanel>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.bucket-details")).Select(x => x.Text).SequenceEqual(retainedDetails),
+                "Returning to Usage restored a different interval date or value");
+            Descendants<RadioButton>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.7d").IsChecked = true; await Idle();
+            Require(!Has("usage.bucket-details"), "Changing the Usage range retained its prior interval selection");
+            pane.Back(); await Idle(); await Open("projects"); Require(Equals(ListPeriod().SelectedValue, "today"), "Projects did not preserve its own range");
+            pane.Back(); await Idle(); await Open("sessions"); Require(Equals(ListPeriod().SelectedValue, "7d"), "Sessions did not keep its independent 7D default");
+            pane.Back(); await Idle(); await Open("activity");
+            Descendants<RadioButton>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.30d").IsChecked = true; await Idle();
+            Descendants<Button>(pane).First(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.tokens.", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+            Require(Has("usage.bucket-details"), "Provider-reset fixture did not establish a selected interval");
+            Require(store.AvailableUsageProviders.Contains("claude", StringComparer.Ordinal), "Provider-reset fixture requires its synthetic Claude connection");
+            pane.SelectProvider("claude"); await Idle();
+            Require(Equals(Descendants<ComboBox>(pane).Single(x => AutomationProperties.GetName(x) == "Usage provider").SelectedValue, "claude"), "Provider-reset fixture did not switch to Claude");
+            pane.SelectProvider("codex"); await Idle(); await Open("activity");
+            Require(Descendants<RadioButton>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.7d").IsChecked == true && !Has("usage.bucket-details"),
+                "Provider round trip retained another provider's analytics navigation");
+            pane.Back(); await Idle(); await Open("projects"); Require(Equals(ListPeriod().SelectedValue, "30d"), "Provider round trip did not reset Projects to 30D");
+            ListPeriod().SelectedValue = "today";
+            settings.Save(settings.Current with { UsageProvider = "claude" }); pane.RefreshReadings(); await Idle();
+            settings.Save(settings.Current with { UsageProvider = "codex" }); pane.RefreshReadings(); await Idle(); await Open("projects");
+            Require(Equals(ListPeriod().SelectedValue, "30d"), "External provider preference changes retained an old Projects range");
             System.IO.File.WriteAllText(System.IO.Path.Combine(directory, "windows-analytics-states.json"), System.Text.Json.JsonSerializer.Serialize(new { completed = true,
                 checks = new List<string> { "Pending without numbers and motion cleanup", "Empty range and selected interval without invented cost", "Older data recovers on range change",
-                    "Focused refresh retains partial snapshot with stale warning", "Model and activity errors independent of quota refresh", "Zero-valued model coverage", "Recovery and clear" } }, JsonOptions));
+                    "Focused refresh retains partial snapshot with stale warning", "Model and activity errors independent of quota refresh", "Zero-valued model coverage", "Recovery and clear",
+                    "Independent retained Usage/Projects/Sessions ranges and reference defaults", "Exact interval restoration and direct/external provider reset" } }, JsonOptions));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally

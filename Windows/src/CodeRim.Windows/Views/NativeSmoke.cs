@@ -410,6 +410,7 @@ internal static partial class NativeSmoke
         var projects = Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.projects");
         projects.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         var periodSelector = Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period");
+        Require(Equals(periodSelector.SelectedValue, "30d"), "Projects did not use the reference initial 30D range");
         periodSelector.SelectedValue = "month";
         var filter = Descendants<System.Windows.Controls.TextBox>(dashboard).Single(); filter.Text = "CodeRim"; await Idle();
         var projectRow = Descendants<System.Windows.Controls.Button>(dashboard).FirstOrDefault(x => (AutomationProperties.GetName(x) ?? "").StartsWith("CodeRim:", StringComparison.Ordinal));
