@@ -318,3 +318,9 @@ No total match percentage is assigned while the inventory and open functional di
 - `NativeSmoke.WindowFrame.cs` adds isolated default/offscreen/oversized/restored frame cases with exact size/origin/DPI diagnostics and both visual-tree and desktop captures. It preserves the original saved frame and reports cleanup failures with the original failure. Build141 passes with zero warnings/errors after the native move-completion hook and keyboard/programmatic monitor-change additions. DPI/work-area fitting is deferred while a native move/resize loop is active, then applied after it ends. Core34 remains the latest successful Core run; this batch changes WPF only. Native execution, mixed-DPI physical transitions and taskbar movement remain unverified.
 
 - Preservation check17 still reports the same six pre-existing Mac-reference differences; none of the five September 25 read-only local-token reference files changed after they were observed. This task continues to write only Windows and this comparison record.
+
+
+## Native CI23 failure under investigation
+
+- CI23 (`36149057421`, `180168d`) failed the installed x64 smoke at the new local-token Loading text assertion. Direct x64 and ARM64 UI did not run. Earlier local-data fixtures completed; this is not a complete regression pass. The failure occurred before the new state capture was written, so it does not yet distinguish a product text mismatch from a fixture's text-reading assumption.
+- The fixture now records the expected text, TextBlock.Text, TextRange content, each Run, supplied/current snapshot quality, culture, dimensions and a visual-tree PNG before asserting. It keeps the exact assertion. The independent frame fixture runs before the token fixture so that a later token failure does not erase its evidence. No product text was changed on an unverified assumption. Build142 checks this diagnostics-only delta.
