@@ -42,6 +42,9 @@ internal static partial class NativeSmoke
             var text = string.Join("|", Descendants<TextBlock>(row).Select(x => x.Text));
             Require(text.Contains("account-b@example.invalid", StringComparison.Ordinal) && text.Contains("Pro 20x", StringComparison.Ordinal)
                 && !text.Contains("Plan A", StringComparison.Ordinal) && !text.Contains("85%", StringComparison.Ordinal), "Provider row rendered mixed account data or lost the current plan.");
+            var switchedSnapshot = store.CreateCompanionSnapshot(DateTimeOffset.Now).Providers.Single();
+            Require(switchedSnapshot.Limits.Windows.Count == 0 && switchedSnapshot.RestartLimits.Windows.Single().UsedPercent == 85,
+                "Companion mixed the new login with old quotas or discarded the owner-scoped restart cache.");
             var popup = NotchPopover.Create("codex", store, settings.Current, _ => { });
             // ScrollViewer materializes its content only after its control template is
             // loaded. Checking an unattached popup made every negative check vacuous.
@@ -57,6 +60,50 @@ internal static partial class NativeSmoke
             store.Readings["codex"] = new("codex", ReadingState.Ready,
                 [new("session", "5 hours", 95, now.AddMinutes(-1), 300), new("weekly", "Weekly", 40, now.AddDays(3), 10080)], now, Plan: "Cached plan is not authoritative");
             settings.Save(settings.Current with { AccountLimitsEnabled = true, Visibility = NotchVisibility.AlwaysShow, ReduceMotion = true });
+            var companionPath = Path.Combine(home, "companion.json");
+            CompanionFile.Write(store.CreateCompanionSnapshot(now), companionPath);
+            var published = CompanionFile.Read(companionPath).Providers.Single();
+            Require(published.Limits is { State: ReadingState.Ready, Windows.Count: 1, Headline.Id: "weekly" }
+                && published.RestartLimits.Windows.Count == 2, "Published Pro quota or retained restart data is incorrect.");
+            var beforeCompanionPreferences = settings.Current; var beforeCompanionReading = store.Readings["codex"];
+            var savedCompanion = File.Exists(CompanionFile.SnapshotPath) ? File.ReadAllBytes(CompanionFile.SnapshotPath) : null;
+            Exception? restartFailure = null; var restartCleanup = new List<Exception>();
+            try
+            {
+                settings.Save(settings.Current with { AdditionalLimitsEnabled = false, ResetCreditsEnabled = false });
+                store.Readings["codex"] = beforeCompanionReading with { Windows = [.. beforeCompanionReading.Windows,
+                    new("codex_bengalfox.secondary", "Weekly", 12, now.AddDays(3), 10080)] };
+                Require(store.CreateCompanionSnapshot(now).Providers.Single().Limits.Windows.Any(window => window.Id == "codex_bengalfox.secondary"),
+                    "Usage-only additional-window preference hid companion quotas.");
+                store.Readings["codex"] = beforeCompanionReading; settings.Save(beforeCompanionPreferences);
+                CompanionFile.Write(store.CreateCompanionSnapshot(now));
+                using (var restarted = new DashboardStore(settings, vault, providerConnections: new ProviderConnections(vault)))
+                    Require(restarted.Readings.GetValueOrDefault("codex") is { State: ReadingState.Stale, Windows.Count: 2 },
+                        "Restart restored filtered Pro quotas instead of the full owned cache.");
+                GuardedFile.Replace(path, Credential("account-b"), Credential("account-a"));
+                using (var otherAccount = new DashboardStore(settings, vault, providerConnections: new ProviderConnections(vault)))
+                    Require(!otherAccount.Readings.ContainsKey("codex"), "Restart restored another account's cached limits.");
+            }
+            catch (Exception error) { restartFailure = error; }
+            finally
+            {
+                try { store.Readings["codex"] = beforeCompanionReading; settings.Save(beforeCompanionPreferences); }
+                catch (Exception error) { restartCleanup.Add(error); }
+                try { GuardedFile.Replace(path, GuardedFile.Read(path), Credential("account-b")); }
+                catch (Exception error) { restartCleanup.Add(error); }
+                try
+                {
+                    if (savedCompanion is null) File.Delete(CompanionFile.SnapshotPath);
+                    else File.WriteAllBytes(CompanionFile.SnapshotPath, savedCompanion);
+                }
+                catch (Exception error) { restartCleanup.Add(error); }
+            }
+            if (restartCleanup.Count > 0)
+            {
+                if (restartFailure is not null) restartCleanup.Insert(0, restartFailure);
+                throw new AggregateException("Companion restart verification or cleanup failed", restartCleanup);
+            }
+            if (restartFailure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(restartFailure).Throw();
             accountNotch = new NotchWindow(store, settings, _ => { }); accountNotch.Show(); await Idle();
             var ring = Descendants<ProviderRing>(accountNotch).Single(x => x.ProviderId == "codex");
             Require(store.AccountDisplay("codex").RawPlan == "pro" && ring.Reading is { State: ReadingState.Ready, Windows.Count: 1, Headline.Id: "weekly" },
@@ -70,6 +117,8 @@ internal static partial class NativeSmoke
             GuardedFile.Replace(path, Credential("account-b"), Credential("account-b", "prolite")); row.Refresh();
             Require(store.AccountDisplay("codex").Plan == "Pro 5x"
                 && Descendants<TextBlock>(row).Any(x => x.Text.Contains("Pro 5x", StringComparison.Ordinal)), "Pro 5x was not mapped from current login metadata.");
+            Require(store.CreateCompanionSnapshot(now).Providers.Single().Limits.Windows.Count == 2,
+                "Published Pro 5x companion data lost the five-hour quota.");
             // A normal store notification must update the existing ring without rebuilding it.
             store.UpdateSessionActivity([new("plan-fixture", "codex", "Plan changed", "idle", now)]); await Idle();
             Require(ring.Reading is { Windows.Count: 2, Headline.Id: "session" }, "Live ring update hid the real Pro 5x five-hour quota.");
@@ -109,7 +158,7 @@ internal static partial class NativeSmoke
                 Capture(popupWindow, Path.Combine(directory, "windows-claude-plan-" + multiple + "x.png"));
             }
             File.WriteAllText(Path.Combine(directory, "windows-account-reading-ownership.json"), JsonSerializer.Serialize(new { completed = true,
-                checks = new List<string> { "Real local auth identity matches captured reading scope", "External same-workspace switch hides old plan and limits before provider polling", "Provider row and notch popup never pair new email with old quota", "Pro hides the five-hour notch quota using raw login metadata; Pro 5x keeps it on a live ring update", "Only-quota fallback and Usage data are retained", "Sign-out hides account data", "Matching Claude Max 5x/20x profile tier reaches popup without changing stored identity" } }));
+                checks = new List<string> { "Real local auth identity matches captured reading scope", "External same-workspace switch hides old plan and limits before provider polling", "Provider row and notch popup never pair new email with old quota", "Pro hides the five-hour notch quota using raw login metadata; Pro 5x keeps it on a live ring update", "Only-quota fallback and Usage data are retained", "Companion display follows live Pro policy and ownership while preserving restart quotas", "Sign-out hides account data", "Matching Claude Max 5x/20x profile tier reaches popup without changing stored identity" } }));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally

@@ -65,7 +65,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                 {
                     var scope = connections.Scope(provider.Id); scopes[provider.Id] = scope;
                     if (scope is not null && connections.CanCache(provider.Id) && provider.AccountScope == scope)
-                        Readings[provider.Id] = provider.Limits with { State = provider.Limits.Windows.Count > 0 ? ReadingState.Stale : provider.Limits.State };
+                        Readings[provider.Id] = provider.RestartLimits with { State = provider.RestartLimits.Windows.Count > 0 ? ReadingState.Stale : provider.RestartLimits.State };
                 }
         }
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException) { }
@@ -188,11 +188,29 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     private void Persist()
     {
         if (disposed || Synthetic) return;
-        var now = DateTimeOffset.Now;
-        CompanionFile.Write(new CompanionSnapshot(1, now, settings.Current.EnabledProviders.Select(id => new CompanionProvider(id,
-            ProviderCatalog.Find(id)!.Name, true, Usage.TryGetValue(id, out var usage) ? CompanionFile.Local(usage, now) : null,
-            Readings.GetValueOrDefault(id) ?? new(id, ReadingState.Loading, []), scopes.GetValueOrDefault(id))).ToArray()));
+        CompanionFile.Write(CreateCompanionSnapshot(DateTimeOffset.Now));
     }
+    internal CompanionSnapshot CreateCompanionSnapshot(DateTimeOffset now) => new(1, now,
+        settings.Current.EnabledProviders.Select(id =>
+        {
+            var raw = Readings.GetValueOrDefault(id) ?? new(id, ReadingState.Loading, []);
+            var display = raw;
+            if (id is "codex" or "claude")
+            {
+                // Capture ownership and raw plan together; a newly selected login must
+                // never be paired with the previous account's cached quota or plan.
+                var account = AccountDisplay(id);
+                var owned = account.Reading ?? new(id, ReadingState.NeedsAuth, []);
+                if (id == "codex" && !settings.Current.AccountLimitsEnabled)
+                    owned = owned with { State = ReadingState.Disabled, Windows = [], Message = "Account limits are turned off in Settings." };
+                // Additional-window visibility is a Usage UI preference on Mac;
+                // the companion retains every reported bucket before Pro filtering.
+                display = CompanionLimitPresentation.ForDisplay(owned, account.RawPlan);
+            }
+            return new CompanionProvider(id, ProviderCatalog.Find(id)!.Name, true,
+                Usage.TryGetValue(id, out var usage) ? CompanionFile.Local(usage, now) : null,
+                display, scopes.GetValueOrDefault(id), id is "codex" or "claude" ? raw : null);
+        }).ToArray());
     private void SeedPreview()
     {
         Events["codex"] = [new("preview-event", DateTimeOffset.Now.AddMinutes(-2), new(123456, 24000, 56000, 0),

@@ -109,3 +109,38 @@ with tempfile.TemporaryDirectory(prefix="coderim-cli-unicode-") as directory:
     assert data["providers"][0]["name"] == name
     assert data["providers"][0]["limits"]["windows"][0]["displayValue"] == value
 print("PASS: CLI redirected text and JSON preserve Korean, Japanese, emoji and currency as BOM-free UTF-8")
+
+
+# The public Limits surface is separate from the account-scoped restart cache.
+with tempfile.TemporaryDirectory(prefix="coderim-cli-quota-cache-") as directory:
+    path = pathlib.Path(directory) / "snapshot.json"
+    weekly = {"id": "codex.secondary", "name": "Weekly", "usedPercent": 40,
+              "durationMinutes": 10080, "resetsAt": (now + datetime.timedelta(days=3)).isoformat()}
+    five_hour = {"id": "codex.primary", "name": "5 hours", "usedPercent": 95,
+                 "durationMinutes": 300, "resetsAt": (now - datetime.timedelta(minutes=1)).isoformat()}
+    credits = {"id": "rate-limit-reset-credits", "name": "Reset credits", "remainingCount": 2,
+               "durationMinutes": 0}
+    display = {"id": "codex", "state": "ready", "updatedAt": now.isoformat(), "windows": [weekly]}
+    cached = {**display, "windows": [five_hour, weekly, credits]}
+    snapshot = {"schemaVersion": 1, "generatedAt": now.isoformat(), "providers": [
+        {"id": "codex", "name": "Codex", "enabled": True, "accountScope": "synthetic-owner",
+         "limits": display, "cachedLimits": cached}]}
+    path.write_text(json.dumps(snapshot), encoding="utf-8")
+    before = path.read_bytes()
+    for command in ("usage", "limits"):
+        output = subprocess.run(runner + [command, "--snapshot", str(path)], check=True,
+                                capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+        assert "Weekly" in output and "5 hours" not in output and "Reset credits" not in output, output
+        data = json.loads(subprocess.run(runner + [command, "--snapshot", str(path), "--format", "json"],
+                                         check=True, capture_output=True, timeout=10).stdout)
+        provider = data["providers"][0]
+        assert provider["limits"]["state"] == "ready", provider
+        assert [w["id"] for w in provider["limits"]["windows"]] == ["codex.secondary"], provider
+        assert "cachedLimits" not in provider and "accountScope" not in provider, provider
+    assert path.read_bytes() == before, "CLI modified the desktop restart cache"
+    snapshot["providers"][0]["limits"] = {"id": "codex", "state": "needsAuth", "windows": []}
+    path.write_text(json.dumps(snapshot), encoding="utf-8")
+    output = subprocess.run(runner + ["limits", "--snapshot", str(path)], check=True,
+                            capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+    assert "Weekly" not in output and "5 hours" not in output and "Reset credits" not in output, output
+print("PASS: CLI publishes only visible quotas and never falls back to the retained restart cache")

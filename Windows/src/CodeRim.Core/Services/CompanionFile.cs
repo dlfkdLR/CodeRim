@@ -5,11 +5,18 @@ using CodeRim.Core.Domain;
 namespace CodeRim.Core.Services;
 
 public sealed record CompanionSnapshot(int SchemaVersion, DateTimeOffset GeneratedAt, IReadOnlyList<CompanionProvider> Providers);
-public sealed record CompanionProvider(string Id, string Name, bool Enabled, LocalUsage? LocalUsage, ProviderReading Limits, string? AccountScope = null);
+public sealed record CompanionProvider(string Id, string Name, bool Enabled, LocalUsage? LocalUsage, ProviderReading Limits, string? AccountScope = null,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ProviderReading? CachedLimits = null)
+{
+    // Older snapshots stored raw quotas in Limits. Only the desktop restart path
+    // reads this cache; public CLI output continues to use the display Limits.
+    [JsonIgnore] public ProviderReading RestartLimits => CachedLimits ?? Limits;
+}
 public sealed record LocalUsage(string Scope, string State, DateTimeOffset? UpdatedAt, DateTimeOffset PeriodsAsOf,
     string TimeZoneIdentifier, Dictionary<string, TokenUsage> Totals);
 public static class CompanionFile
 {
+    private const int MaximumBytes = 8 * 1024 * 1024;
     public static JsonSerializerOptions JsonOptions { get; } = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true, Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) } };
     public static string DataDirectory => Environment.GetEnvironmentVariable("CODERIM_DATA_DIR")
@@ -18,7 +25,7 @@ public static class CompanionFile
     public static CompanionSnapshot Read(string? path = null)
     {
         path ??= SnapshotPath;
-        if (new FileInfo(path).Length > 8 * 1024 * 1024) throw new InvalidDataException("Snapshot is too large.");
+        if (new FileInfo(path).Length > MaximumBytes) throw new InvalidDataException("Snapshot is too large.");
         var result = JsonSerializer.Deserialize<CompanionSnapshot>(File.ReadAllText(path), JsonOptions)
             ?? throw new InvalidDataException("Snapshot is empty.");
         Validate(result);
@@ -29,10 +36,12 @@ public static class CompanionFile
     public static void Write(CompanionSnapshot snapshot, string? path = null)
     {
         Validate(snapshot);
+        var payload = JsonSerializer.SerializeToUtf8Bytes(snapshot, JsonOptions);
+        if (payload.Length > MaximumBytes) throw new InvalidDataException("Snapshot is too large.");
         path ??= SnapshotPath;
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try { File.WriteAllText(temporary, JsonSerializer.Serialize(snapshot, JsonOptions)); File.Move(temporary, path, true); }
+        try { File.WriteAllBytes(temporary, payload); File.Move(temporary, path, true); }
         finally { File.Delete(temporary); }
     }
     private static void Validate(CompanionSnapshot snapshot)
@@ -47,18 +56,25 @@ public static class CompanionFile
                 || provider.Limits is null || provider.Limits.Id != provider.Id || !Enum.IsDefined(provider.Limits.State)
                 || provider.Limits.Windows is null || provider.Limits.Windows.Count > 512)
                 throw new InvalidDataException("Invalid provider reading.");
-            provider.Limits.CostUsage?.Validate();
-            var windows = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var window in provider.Limits.Windows)
-                if (window is null || string.IsNullOrWhiteSpace(window.Id) || !windows.Add(window.Id) || string.IsNullOrWhiteSpace(window.Name)
-                    || window.DurationMinutes < 0 || window.UsedCount < 0 || window.RemainingCount < 0
-                    || window.AccountLimitName is { } name && (string.IsNullOrWhiteSpace(name) || System.Text.Encoding.UTF8.GetByteCount(name) > 256 || name.Any(char.IsControl))
-                    || window.UsedPercent is { } percent && (!double.IsFinite(percent) || percent < 0))
-                    throw new InvalidDataException("Invalid quota window.");
+            ValidateReading(provider.Id, provider.Limits);
+            if (provider.CachedLimits is { } cached) ValidateReading(provider.Id, cached);
             if (provider.LocalUsage is { } local && (local.Scope != "this-pc" || local.Totals is null || local.Totals.Count > 4
                 || local.Totals.Any(x => x.Key is not ("today" or "week" or "month" or "all-time") || !x.Value.IsValid)))
                 throw new InvalidDataException("Invalid local usage.");
         }
+    }
+    private static void ValidateReading(string id, ProviderReading reading)
+    {
+        if (reading.Id != id || !Enum.IsDefined(reading.State) || reading.Windows is null || reading.Windows.Count > 512)
+            throw new InvalidDataException("Invalid provider cache.");
+        reading.CostUsage?.Validate();
+        var windows = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var window in reading.Windows)
+            if (window is null || string.IsNullOrWhiteSpace(window.Id) || !windows.Add(window.Id) || string.IsNullOrWhiteSpace(window.Name)
+                || window.DurationMinutes < 0 || window.UsedCount < 0 || window.RemainingCount < 0
+                || window.AccountLimitName is { } name && (string.IsNullOrWhiteSpace(name) || System.Text.Encoding.UTF8.GetByteCount(name) > 256 || name.Any(char.IsControl))
+                || window.UsedPercent is { } percent && (!double.IsFinite(percent) || percent < 0))
+                throw new InvalidDataException("Invalid quota window.");
     }
     public static LocalUsage Local(UsageSnapshot snapshot, DateTimeOffset now) => new("this-pc", snapshot.Quality == DataQuality.Exact ? "ready" : snapshot.Quality == DataQuality.Partial ? "partial" : "unavailable", snapshot.UpdatedAt,
         now, TimeZoneInfo.Local.Id, new Dictionary<string, TokenUsage>(StringComparer.Ordinal) { ["today"] = snapshot.Today, ["week"] = snapshot.Week, ["month"] = snapshot.Month, ["all-time"] = snapshot.AllTime });
