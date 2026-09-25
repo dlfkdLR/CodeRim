@@ -375,6 +375,7 @@ internal static partial class NativeSmoke
         Record("macOS reference shell, refresh modes and Usage states");
         await AnalyticsRegression(store, settings, directory);
         await AnalyticsStateRegression(store, settings, directory);
+        await AnalyticsDetailsRegression(store, settings, directory);
         ActivityRegression(store);
         await SessionPresentationRegression(dashboard, store, settings, directory);
         await ActivityGroupsRegression(notch, store, settings, directory);
@@ -477,13 +478,13 @@ internal static partial class NativeSmoke
         if (todaySession is not null)
         {
             todaySession.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
-            Require(!Descendants<System.Windows.Controls.Button>(dashboard).Any(x => (x.Content as string ?? "").StartsWith("Sub-agent preview-", StringComparison.Ordinal)), "Out-of-period child links lead to empty detail");
+            Require(!Descendants<System.Windows.Controls.Button>(dashboard).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.subagent.", StringComparison.Ordinal)), "Out-of-period child links lead to empty detail");
             Descendants<UsagePane>(dashboard).Single().Back(); await Idle();
         }
         else Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "No sessions in this range."), "A midnight range without the preview session lost its empty state");
         ListRange("7d").IsChecked = true; await Idle();
         Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.session.preview-session").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
-        var childButton = Descendants<System.Windows.Controls.Button>(dashboard).Single(x => (x.Content as string ?? "").StartsWith("Sub-agent preview-", StringComparison.Ordinal));
+        var childButton = Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.subagent.", StringComparison.Ordinal));
         Capture(dashboard, Path.Combine(directory, "windows-session-details.png"));
         childButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "120"), "Sub-agent navigation did not show its own total");

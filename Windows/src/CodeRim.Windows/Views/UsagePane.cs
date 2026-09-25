@@ -309,7 +309,7 @@ internal sealed partial class UsagePane : StackPanel
         account.Children.Add(accountLabel); accountRow.Children.Add(account); account.VerticalAlignment = VerticalAlignment.Center; account.Margin = new Thickness(0, 12, 0, 12);
         readings.Children.Clear(); limitClockUpdates.Clear();
         readings.Margin = IsAnalyticsList ? new Thickness(0)
-            : mode == "Limits" && destination == "overview" || destination is "activity" or "model" ? new Thickness(16) : new Thickness(24, 16, 24, 16);
+            : mode == "Limits" && destination == "overview" || destination is "activity" or "model" or "projects" or "sessions" ? new Thickness(16) : new Thickness(24, 16, 24, 16);
         if (!ProviderAvailable)
         {
             accountRow.Children.Clear();
@@ -436,13 +436,7 @@ internal sealed partial class UsagePane : StackPanel
             var visibleSessions = events.Select(x => x.SessionId).ToHashSet(StringComparer.Ordinal);
             var rows = events.GroupBy(x => destination == "projects" ? x.ProjectId : x.SessionId).Select(g =>
             {
-                // A session can move between directories or acquire metadata
-                // after its first event. Never let import order choose its name.
-                var named = g.OrderByDescending(HasProjectName).ThenByDescending(x => x.OccurredAt)
-                    .ThenBy(x => x.EventKey, StringComparer.Ordinal).ThenBy(x => x.ProjectId, StringComparer.Ordinal)
-                    .ThenBy(x => x.Project, StringComparer.Ordinal).First();
-                return new { Id = g.Key, Name = destination == "projects" ? named.Project
-                        : HasProjectName(named) ? named.Project : "Session " + g.Key[..Math.Min(8, g.Key.Length)],
+                return new { Id = g.Key, Name = AnalyticsEntityName(g, g.Key, destination == "sessions"),
                     Total = g.Aggregate(TokenUsage.Zero, (sum, x) => sum.Add(x.Usage)).TotalTokens, LastActivity = g.Max(x => x.OccurredAt),
                     Sessions = g.Select(x => x.SessionId).Distinct(StringComparer.Ordinal).LongCount(), Cost = UsageAnalytics.Estimate(g) };
             }).Where(g => g.Name.Contains(search, StringComparison.OrdinalIgnoreCase) || g.Id.Contains(search, StringComparison.OrdinalIgnoreCase));
@@ -466,40 +460,16 @@ internal sealed partial class UsagePane : StackPanel
             if (groups.Length > visibleRows) readings.Children.Add(Ui.Button("Show more (" + (groups.Length - visibleRows) + " remaining)", () => { visibleRows += 40; Update(); }));
             return;
         }
-        readings.Children.Add(Ui.Text(selectedModel is not null ? selectedModel : session is not null ? "Session details" : project is not null ? "Project details" : destination switch { "projects" => "Projects", "sessions" => "Sessions", _ => "Usage history" }, 20, weight: FontWeights.SemiBold));
-        if (events.Length == 0) { readings.Children.Add(Ui.Text("No local usage observed for this period.", color: "#A6A6AA")); return; }
-        if (session is not null)
-        {
-            var detail = store.SessionDetails.GetValueOrDefault(provider)?.FirstOrDefault(x => x.Id == session);
-            if (settings.Current.AgentDetailsEnabled)
-            {
-                var visibleSessions = Filter(includeSelection: false).Select(x => x.SessionId).ToHashSet(StringComparer.Ordinal);
-                var children = (store.SessionDetails.GetValueOrDefault(provider) ?? []).Where(x => x.ParentId == session && visibleSessions.Contains(x.Id)).ToArray();
-                readings.Children.Add(Ui.Row("Direct sub-agents", children.Length.ToString(CultureInfo.CurrentCulture)));
-                foreach (var child in children)
-                {
-                    var target = child.Id;
-                    readings.Children.Add(Ui.Button("Sub-agent " + target[..Math.Min(12, target.Length)],
-                        () => Forward("sessions", selectedSession: target)));
-                }
-                if (children.Length > 0) readings.Children.Add(Ui.Text("Sub-agent tokens are separate from this total.", 11, "#A6A6AA"));
-            }
-            if (settings.Current.AttachmentMetadataEnabled && provider == "codex")
-            {
-                readings.Children.Add(Ui.Row("Whole-session images", detail is null ? "Unavailable" : detail.Attachments.Sum(x => (long)x.Count).ToString(CultureInfo.CurrentCulture)));
-                readings.Children.Add(Ui.Text("Whole-session metadata after the history cutoff; image contents are never stored. Local metadata may be incomplete.", 11, "#A6A6AA"));
-            }
-        }
-        var totals = events.Aggregate(TokenUsage.Zero, (sum, x) => sum.Add(x.Usage)); MetricSummary(readings, totals);
-        var cost = UsageAnalytics.Estimate(events);
-        if (settings.Current.CostEstimatesEnabled && provider == "codex")
-        {
-        Ui.Section(readings, cost.Label);
-        readings.Children.Add(Ui.Text(cost.Amount is { } amount ? "$" + amount.ToString("N4", CultureInfo.CurrentCulture) : "Unavailable", 24));
-        readings.Children.Add(Ui.Text("Estimated from bundled API pricing · not a bill", 11, "#A6A6AA"));
-        if (cost.IsPartial) readings.Children.Add(Ui.Text($"Excludes {cost.ExcludedTokens:N0} tokens · " + string.Join(", ", cost.ExcludedModels), 11, "#A6A6AA"));
-        }
-        Timeline(events, cost);
+        if (project is not null || session is not null) EntityDetail(events);
+    }
+    private static string AnalyticsEntityName(IEnumerable<UsageEvent> events, string id, bool isSession)
+    {
+        // A session can acquire metadata after its first event. Import order
+        // must not choose the name in either the list or its detail.
+        var named = events.OrderByDescending(HasProjectName).ThenByDescending(x => x.OccurredAt)
+            .ThenBy(x => x.EventKey, StringComparer.Ordinal).ThenBy(x => x.ProjectId, StringComparer.Ordinal)
+            .ThenBy(x => x.Project, StringComparer.Ordinal).First();
+        return !isSession || HasProjectName(named) ? named.Project : "Session " + id[..Math.Min(8, id.Length)];
     }
     private static bool HasProjectName(UsageEvent item) => !string.IsNullOrWhiteSpace(item.Project)
         && (item.Project != "Unknown project" || item.ProjectId != "unknown");
