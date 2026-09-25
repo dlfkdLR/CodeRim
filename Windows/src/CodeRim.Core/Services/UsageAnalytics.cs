@@ -47,5 +47,5 @@ public static class UsageAnalytics
     public static IReadOnlyList<AnalyticsRow> Group(IEnumerable<UsageEvent> events, string dimension) => events
         .GroupBy(x => dimension switch { "project" => x.ProjectId, "session" => x.SessionId[..Math.Min(12, x.SessionId.Length)], "day" => x.OccurredAt.LocalDateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), _ => x.Model })
         .Select(group => { var cost = Estimate(group); return new AnalyticsRow(dimension == "project" ? group.First().Project + " · " + group.Key[..Math.Min(6, group.Key.Length)] : group.Key, group.Aggregate(TokenUsage.Zero, (sum, x) => sum.Add(x.Usage)).TotalTokens, cost.Amount, cost.IsPartial); })
-        .OrderByDescending(x => x.Tokens).ToArray();
+        .OrderByDescending(x => x.Tokens).ThenBy(x => x.Name, StringComparer.Ordinal).ToArray();
 }

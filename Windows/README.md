@@ -27,3 +27,5 @@ Usage analytics now follows the Mac reference's Today/7D/30D control, exact two-
 Usage analytics distinguishes an empty selected range from a failed local read. Empty ranges show zero tokens with unavailable cost; failed refreshes label retained analytics as the last snapshot. First-read failures and initial loading do not fabricate numeric values. Account quota refresh stays independent from those local-history states.
 
 Analytics navigation keeps independent ranges while you return to the overview and reopen a list: Usage starts at 7D, Projects at 30D and Sessions at 7D. Usage also keeps the selected chart interval until its range or provider changes. Existing project/session list options remain available while the remaining presentation comparison continues.
+
+Analytics lists now keep stable project/model ties and show sessions by their latest activity. Sessions use project names with a short-ID fallback; filtering still accepts the full session ID. Mixed metadata uses a stable known-project choice. The comparison record tracks the remaining difference from Mac's persisted session metadata and full list/detail presentation.

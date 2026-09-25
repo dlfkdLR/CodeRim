@@ -413,12 +413,25 @@ internal sealed partial class UsagePane : StackPanel
         if (events.Length == 0) { readings.Children.Add(Ui.Text("No local usage observed for this period.", color: "#A6A6AA")); return; }
         if (destination is "projects" or "sessions" && project is null && session is null)
         {
-            var groups = events.GroupBy(x => destination == "projects" ? x.ProjectId : x.SessionId).Select(g => new { Id = g.Key, Name = destination == "projects" ? g.First().Project : g.Key, Total = g.Aggregate(TokenUsage.Zero, (sum, x) => sum.Add(x.Usage)).TotalTokens })
-                .Where(g => g.Name.Contains(search, StringComparison.OrdinalIgnoreCase)).OrderByDescending(g => g.Total).ToArray();
+            var rows = events.GroupBy(x => destination == "projects" ? x.ProjectId : x.SessionId).Select(g =>
+            {
+                // A session can move between directories or acquire metadata
+                // after its first event. Never let import order choose its name.
+                var named = g.OrderByDescending(HasProjectName).ThenByDescending(x => x.OccurredAt)
+                    .ThenBy(x => x.EventKey, StringComparer.Ordinal).ThenBy(x => x.ProjectId, StringComparer.Ordinal)
+                    .ThenBy(x => x.Project, StringComparer.Ordinal).First();
+                return new { Id = g.Key, Name = destination == "projects" ? named.Project
+                        : HasProjectName(named) ? named.Project : "Session " + g.Key[..Math.Min(8, g.Key.Length)],
+                    Total = g.Aggregate(TokenUsage.Zero, (sum, x) => sum.Add(x.Usage)).TotalTokens, LastActivity = g.Max(x => x.OccurredAt) };
+            }).Where(g => g.Name.Contains(search, StringComparison.OrdinalIgnoreCase) || g.Id.Contains(search, StringComparison.OrdinalIgnoreCase));
+            var groups = (destination == "projects"
+                ? rows.OrderByDescending(g => g.Total).ThenBy(g => g.Name, StringComparer.Ordinal).ThenBy(g => g.Id, StringComparer.Ordinal)
+                : rows.OrderByDescending(g => g.LastActivity).ThenBy(g => g.Id, StringComparer.Ordinal)).ToArray();
             foreach (var group in groups.Take(visibleRows))
             {
                 var button = Ui.Button("", () => Forward(destination, selectedProject: destination == "projects" ? group.Id : null, selectedSession: destination == "sessions" ? group.Id : null));
                 System.Windows.Automation.AutomationProperties.SetName(button, group.Name + ": " + group.Total.ToString(CultureInfo.CurrentCulture) + " tokens");
+                System.Windows.Automation.AutomationProperties.SetAutomationId(button, "usage." + (destination == "projects" ? "project." : "session.") + group.Id);
                 button.Content = Ui.Row(group.Name, TokenFormatter.Format(group.Total, settings.Current.NumberStyle) + "  ›");
                 button.HorizontalContentAlignment = HorizontalAlignment.Stretch; readings.Children.Add(button);
             }
@@ -458,5 +471,7 @@ internal sealed partial class UsagePane : StackPanel
         }
         Timeline(events, cost);
     }
+    private static bool HasProjectName(UsageEvent item) => !string.IsNullOrWhiteSpace(item.Project)
+        && (item.Project != "Unknown project" || item.ProjectId != "unknown");
     private sealed record PeriodChoice(string Id, string Name);
 }

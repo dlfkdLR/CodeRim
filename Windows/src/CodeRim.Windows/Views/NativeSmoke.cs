@@ -444,7 +444,7 @@ internal static partial class NativeSmoke
         settings.Save(settings.Current with { AdditionalLimitsEnabled = true, ResetCreditsEnabled = true });
         Record("Codex limit switches filter all surfaces and dependent controls follow parent setting");
         dashboard.Navigate("sessions:codex"); await Idle();
-        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => (AutomationProperties.GetName(x) ?? "").StartsWith("preview-session:", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.session.preview-session").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
         await Idle();
         Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Whole-session images"), "Session image metadata is absent");
         Require(!Descendants<System.Windows.Controls.TextBox>(dashboard).Any(), "List filter leaked into session detail");
@@ -459,7 +459,7 @@ internal static partial class NativeSmoke
         Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "120"), "Sub-agent navigation did not show its own total");
         settings.Save(settings.Current with { AgentDetailsEnabled = false, AttachmentMetadataEnabled = false });
         dashboard.Navigate("providers"); dashboard.Navigate("sessions:codex"); await Idle();
-        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => (AutomationProperties.GetName(x) ?? "").StartsWith("preview-session:", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.session.preview-session").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         Require(!Descendants<TextBlock>(dashboard).Any(x => x.Text is "Whole-session images" or "Direct sub-agents"), "Disabled session metadata remained visible");
         settings.Save(settings.Current with { AgentDetailsEnabled = true, AttachmentMetadataEnabled = true });
         dashboard.Navigate("usage"); await Idle();

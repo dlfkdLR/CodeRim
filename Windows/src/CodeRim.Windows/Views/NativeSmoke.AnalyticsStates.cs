@@ -124,8 +124,8 @@ internal static partial class NativeSmoke
             var listSnapshot = new UsageSnapshot(new(127, 0, 0, 0), new(127, 0, 0, 0), new(127, 0, 0, 0), new(127, 0, 0, 0), DataQuality.Exact, listTime);
             foreach (var route in new[] { "projects", "sessions" })
             {
-                var rowPrefix = (route == "projects" ? "State project" : "state-session") + ":";
-                Button? DataRow() => Descendants<Button>(pane).SingleOrDefault(x => AutomationProperties.GetName(x).StartsWith(rowPrefix, StringComparison.Ordinal));
+                var rowId = route == "projects" ? "usage.project.state-project" : "usage.session.state-session";
+                Button? DataRow() => Descendants<Button>(pane).SingleOrDefault(x => AutomationProperties.GetAutomationId(x) == rowId);
                 store.Usage.Remove("codex"); await Open(route);
                 Require(Has("usage.analytics.loading") && DataRow() is null, route + " exposed cached events before the first local snapshot");
                 store.Usage["codex"] = UsageSnapshot.Empty with { Quality = DataQuality.Error }; pane.RefreshReadings(); await Idle();
@@ -146,11 +146,57 @@ internal static partial class NativeSmoke
                 Capture(pane, System.IO.Path.Combine(directory, "windows-analytics-" + route + "-stale.png"));
                 pane.Back(); await Idle();
             }
+            store.Events["codex"] = [
+                new("order-z-old", listTime.AddMinutes(-2), new(19, 0, 0, 0), "gpt-5.6-sol", "Zulu", "old-session", "codex", "z-project"),
+                new("order-b", listTime.AddMinutes(-1), new(20, 0, 0, 0), "gpt-5.6-sol", "Alpha", "b-session", "codex", "b-project"),
+                new("order-a", listTime.AddMinutes(-1), new(20, 0, 0, 0), "gpt-5.6-sol", "Alpha", "a-session", "codex", "a-project"),
+                new("order-new", listTime, new(1, 0, 0, 0), "gpt-5.6-sol", "Zulu", "new-session", "codex", "z-project"),
+                new("order-unknown", listTime.AddMinutes(-3), new(1, 0, 0, 0), "gpt-5.6-sol", SessionId: "opaque-123456"),
+                new("order-literal", listTime.AddMinutes(-4), new(2, 0, 0, 0), "gpt-5.6-sol", "Unknown project", "literal-session", "codex", "literal-project")];
+            store.Usage["codex"] = UsageScanner.Aggregate(store.Events["codex"], listTime, settings.Current.WeekStart, false);
+            Button[] ListRows(string kind) => Descendants<Button>(pane).Where(x => AutomationProperties.GetAutomationId(x).StartsWith("usage." + kind + ".", StringComparison.Ordinal)).ToArray();
+            await Open("projects");
+            string[] projectOrder = ["a-project", "b-project", "z-project", "literal-project", "unknown"];
+            string[] sessionOrder = ["new-session", "a-session", "b-session", "old-session", "opaque-123456", "literal-session"];
+            for (var pass = 0; pass < 2; pass++)
+            {
+                Require(ListRows("project").Select(x => AutomationProperties.GetAutomationId(x)).SequenceEqual(projectOrder.Select(id => "usage.project." + id)),
+                    "Project ties did not sort by name and stable identity");
+                pane.Back(); await Idle(); await Open("sessions");
+                Require(ListRows("session").Select(x => AutomationProperties.GetAutomationId(x)).SequenceEqual(sessionOrder.Select(id => "usage.session." + id)),
+                    "Sessions did not sort by recent activity and stable identity");
+                Require(AutomationProperties.GetName(ListRows("session")[0]).StartsWith("Zulu:", StringComparison.Ordinal)
+                    && AutomationProperties.GetName(ListRows("session")[4]).StartsWith("Session opaque-1:", StringComparison.Ordinal)
+                    && AutomationProperties.GetName(ListRows("session")[5]).StartsWith("Unknown project:", StringComparison.Ordinal),
+                    "Session names lost their project, short fallback or legitimate Unknown project folder");
+                Capture(pane, System.IO.Path.Combine(directory, "windows-analytics-session-order.png"));
+                pane.Back(); await Idle();
+                if (pass == 0) { store.Events["codex"] = store.Events["codex"].Reverse().ToArray(); await Open("projects"); }
+            }
+            store.Events["codex"] = [
+                new("mixed-missing", listTime, new(1, 0, 0, 0), "gpt-5.6-sol", SessionId: "mixed-session"),
+                new("mixed-old", listTime.AddMinutes(-2), new(2, 0, 0, 0), "gpt-5.6-sol", "Old project", "mixed-session", "codex", "mixed-project"),
+                new("mixed-current", listTime.AddMinutes(-1), new(3, 0, 0, 0), "gpt-5.6-sol", "Current project", "mixed-session", "codex", "mixed-project")];
+            for (var pass = 0; pass < 2; pass++)
+            {
+                await Open("projects");
+                Require(AutomationProperties.GetName(ListRows("project").Single(x => AutomationProperties.GetAutomationId(x) == "usage.project.mixed-project")).StartsWith("Current project:", StringComparison.Ordinal),
+                    "Mixed project metadata changed its name with event order");
+                pane.Back(); await Idle(); await Open("sessions");
+                Require(AutomationProperties.GetName(ListRows("session").Single()).StartsWith("Current project:", StringComparison.Ordinal),
+                    "Mixed session metadata chose an unknown or older project name");
+                var searchBox = Descendants<TextBox>(pane).Single(); searchBox.Text = "mixed-session"; await Idle();
+                Require(ListRows("session").Length == 1, "Project display names removed full session-id search");
+                searchBox.Text = ""; pane.Back(); await Idle();
+                store.Events["codex"] = store.Events["codex"].Reverse().ToArray();
+            }
             System.IO.File.WriteAllText(System.IO.Path.Combine(directory, "windows-analytics-states.json"), System.Text.Json.JsonSerializer.Serialize(new { completed = true,
                 checks = new List<string> { "Pending without numbers and motion cleanup", "Empty range and selected interval without invented cost", "Older data recovers on range change",
                     "Focused refresh retains partial snapshot with stale warning", "Model and activity errors independent of quota refresh", "Zero-valued model coverage", "Recovery and clear",
                     "Independent retained Usage/Projects/Sessions ranges and reference defaults", "Exact interval restoration and direct/external provider reset",
-                    "Projects/Sessions list and detail loading, first error, recovery and retained snapshot warnings" } }, JsonOptions));
+                    "Projects/Sessions list and detail loading, first error, recovery and retained snapshot warnings",
+                    "Stable project ties and recent-session order across reversed input", "Project session names and short fallback without hiding a real Unknown project folder",
+                    "Mixed metadata chooses a stable known project and retains full-id search" } }, JsonOptions));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally
