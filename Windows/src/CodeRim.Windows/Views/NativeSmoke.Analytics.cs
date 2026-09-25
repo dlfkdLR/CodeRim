@@ -75,13 +75,20 @@ internal static partial class NativeSmoke
             pane.UpdateLayout(); await Idle();
             var chart = (Grid)costButtons[0].Parent;
             Require(chart.ActualHeight == 80, "Cost-enabled charts lost the reference compact height");
+            var axis = Descendants<Grid>(chart).Single(x => AutomationProperties.GetAutomationId(x) == "usage.chart.axis.cost");
+            var axisBounds = axis.TransformToAncestor(chart).TransformBounds(new Rect(axis.RenderSize));
+            Require(axisBounds.Bottom <= chart.ActualHeight + .1 && axisBounds.Top >= chart.ActualHeight - 18.1
+                && Descendants<TextBlock>(axis).All(x => x.FontSize == 11 && x.FontWeight == FontWeights.Normal),
+                "Chart axis exceeds its reference frame or retains bold summary typography");
             var bottoms = costButtons.TakeLast(2).Select(x => {
                 var fill = Descendants<Border>((Grid)x.Content).Single();
                 return fill.TransformToAncestor(chart).Transform(new Point(0, fill.ActualHeight)).Y;
             }).ToArray();
             Require(Math.Abs(bottoms[0] - bottoms[1]) < 1, "Cost bars do not share a common baseline");
+            Require(bottoms.All(bottom => bottom <= axisBounds.Top + .1), "Cost bars overlap their date axis");
             var heights = costButtons.Select(x => Descendants<Border>((Grid)x.Content).Single().Height).ToArray();
-            Require(heights[^1] > 60 && heights[^2] > 5 && Math.Abs(heights[^1] / heights[^2] - 10) < 0.01, "Sub-dollar costs lost their ten-to-one bar ratio");
+            Require(Math.Abs(heights[^1] - (chart.ActualHeight - 22)) < .1 && heights[^2] > 5
+                && Math.Abs(heights[^1] / heights[^2] - 10) < 0.01, "Sub-dollar costs lost their ten-to-one bar ratio or exceed the plot area");
             Require(heights.Take(5).All(x => x == 0), "Measured zero cost intervals were drawn as nonzero usage");
             Require(costButtons.All(x => ((SolidColorBrush)Descendants<Border>((Grid)x.Content).Single().Background).Color == ((SolidColorBrush)pane.FindResource("UsageAmple")).Color),
                 "Cost bars do not use the reference green theme resource");
@@ -113,6 +120,22 @@ internal static partial class NativeSmoke
                 var costBounds = estimate.TransformToAncestor(metrics).TransformBounds(new Rect(estimate.RenderSize));
                 Require(totalBounds.Right + 19 <= costBounds.Left && costBounds.Right <= metrics.ActualWidth + 1,
                     "Analytics metric columns overlap or exceed a narrow content width");
+                var tickAxes = Descendants<Grid>(pane).Where(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.chart.axis.", StringComparison.Ordinal)).ToArray();
+                Require(tickAxes.Length == 2, "Narrow chart check requires both token and cost axes");
+                foreach (var tickAxis in tickAxes)
+                {
+                    var frame = (Grid)tickAxis.Parent;
+                    var bounds = tickAxis.TransformToAncestor(frame).TransformBounds(new Rect(tickAxis.RenderSize));
+                    Require(frame.ActualHeight == 80 && bounds.Bottom <= frame.ActualHeight + .1 && bounds.Right <= frame.ActualWidth + .1,
+                        "Narrow chart date axis extends outside the shared frame");
+                    foreach (var bucketButton in frame.Children.OfType<Button>())
+                    {
+                        var fill = Descendants<Border>((Grid)bucketButton.Content).Single();
+                        var fillBounds = fill.TransformToAncestor(frame).TransformBounds(new Rect(fill.RenderSize));
+                        Require(fillBounds.Top >= -.1 && fillBounds.Bottom <= bounds.Top + .1 && fillBounds.Left >= -.1 && fillBounds.Right <= frame.ActualWidth + .1,
+                            "Narrow chart bar overlaps its axis or exceeds the plot");
+                    }
+                }
                 Capture(pane, System.IO.Path.Combine(directory, "windows-analytics-width-" + width.ToString(CultureInfo.InvariantCulture) + ".png"));
             }
             costButtons = Descendants<Button>(pane).Where(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.cost.", StringComparison.Ordinal)).ToArray();
@@ -124,6 +147,17 @@ internal static partial class NativeSmoke
             var tokenBar = Descendants<Button>(pane).First(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.tokens.", StringComparison.Ordinal));
             Require(((Grid)tokenBar.Parent).ActualHeight == 112 && !Descendants<Button>(pane).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.cost.", StringComparison.Ordinal)),
                 "Token-only chart did not restore its full height");
+            var tokenFrame = (Grid)tokenBar.Parent;
+            var tokenAxis = Descendants<Grid>(tokenFrame).Single(x => AutomationProperties.GetAutomationId(x) == "usage.chart.axis.tokens");
+            var tokenAxisBounds = tokenAxis.TransformToAncestor(tokenFrame).TransformBounds(new Rect(tokenAxis.RenderSize));
+            Require(tokenAxisBounds.Bottom <= 112.1,
+                "Token-only date axis exceeds its full chart frame");
+            foreach (var bucketButton in tokenFrame.Children.OfType<Button>())
+            {
+                var fill = Descendants<Border>((Grid)bucketButton.Content).Single();
+                var fillBounds = fill.TransformToAncestor(tokenFrame).TransformBounds(new Rect(fill.RenderSize));
+                Require(fillBounds.Top >= -.1 && fillBounds.Bottom <= tokenAxisBounds.Top + .1, "Token-only bar exceeds its plot or overlaps the axis");
+            }
             settings.Save(settings.Current with { CostEstimatesEnabled = true });
             store.Events["codex"] = [
                 new("complete", now.AddDays(-1), new(1000, 0, 0, 0), "gpt-5.6-sol"),
@@ -157,7 +191,8 @@ internal static partial class NativeSmoke
             System.IO.File.WriteAllText(System.IO.Path.Combine(directory, "windows-analytics-cost.json"), System.Text.Json.JsonSerializer.Serialize(new { completed = true,
                 checks = new List<string> { "Mounted Today/7d/30d totals and selected values", "Common baseline and ten-to-one fractional cost ratio", "Reference compact/full chart heights and green costs",
                     "Measured empty intervals are zero, unpriced coverage is a gap", "Model-wide range/bucket exclusions", "Selected interval card", "Unavailable cost explanation",
-                    "Three-segment range and exact summary", "Model detail and Back", "Two-column summary at 360/450/650 widths", "Long-number bounds and 0.65 minimum scale" } }, JsonOptions));
+                    "Three-segment range and exact summary", "Model detail and Back", "Two-column summary at 360/450/650 widths", "Long-number bounds and 0.65 minimum scale",
+                    "Regular date axes inside 80/112 frames and clear of bars at all tested widths" } }, JsonOptions));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally

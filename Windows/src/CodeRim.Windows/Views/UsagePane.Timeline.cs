@@ -102,7 +102,12 @@ internal sealed partial class UsagePane
                 readings.Children.Add(Ui.Text("No cost estimate is available for the recorded usage in this range.", 11, "#A6A6AA"));
                 return;
             }
-            var chart = new Grid { Height = showsCost ? 80 : 112, Margin = new Thickness(0, 8, 0, 2) };
+            // Swift Charts' frame includes the X axis. Keep labels inside the
+            // same 80/112-point frame instead of appending another content row.
+            const double axisHeight = 18;
+            var chart = new Grid { Height = showsCost ? 80 : 112 };
+            chart.RowDefinitions.Add(new RowDefinition());
+            chart.RowDefinitions.Add(new RowDefinition { Height = new GridLength(axisHeight) });
             AutomationProperties.SetName(chart, title + " by " + (period == "today" ? "hour" : "day"));
             var values = buckets.Select(b => cost ? b.Cost.Amount.HasValue ? (double?)b.Cost.Amount.Value : null : b.Usage.TotalTokens).ToArray();
             var maximum = values.Where(v => v.HasValue).Select(v => v!.Value).DefaultIfEmpty(0).Max();
@@ -110,7 +115,7 @@ internal sealed partial class UsagePane
             {
                 var bucket = buckets[i]; var value = values[i]; chart.ColumnDefinitions.Add(new ColumnDefinition());
                 var label = BucketLabel(bucket.Start) + ": " + (cost ? CostText(bucket.Cost) : bucket.Usage.TotalTokens.ToString("N0", CultureInfo.CurrentCulture) + " tokens");
-                var fill = new Border { Height = BarHeight(value, maximum, chart.Height - 16),
+                var fill = new Border { Height = BarHeight(value, maximum, chart.Height - axisHeight - 4),
                     VerticalAlignment = VerticalAlignment.Bottom, CornerRadius = new CornerRadius(3) };
                 fill.SetResourceReference(Border.BackgroundProperty, cost ? "UsageAmple" : "AccentBrush");
                 var content = new Grid(); content.Children.Add(fill);
@@ -122,11 +127,25 @@ internal sealed partial class UsagePane
                 AutomationProperties.SetAutomationId(button, "usage.bucket." + (cost ? "cost." : "tokens.") + bucket.Start.ToUnixTimeSeconds());
                 Grid.SetColumn(button, i); chart.Children.Add(button);
             }
+            if (buckets.Count > 0)
+            {
+                var axis = new Grid();
+                AutomationProperties.SetAutomationId(axis, "usage.chart.axis." + (cost ? "cost" : "tokens"));
+                axis.ColumnDefinitions.Add(new ColumnDefinition()); axis.ColumnDefinitions.Add(new ColumnDefinition());
+                var first = Ui.Text(BucketLabel(buckets[0].Start), 11, "#A6A6AA"); first.Margin = new Thickness(0);
+                var last = Ui.Text(BucketLabel(buckets[^1].Start), 11, "#A6A6AA"); last.Margin = new Thickness(0);
+                first.VerticalAlignment = last.VerticalAlignment = VerticalAlignment.Bottom;
+                first.TextWrapping = last.TextWrapping = TextWrapping.NoWrap;
+                first.TextTrimming = last.TextTrimming = TextTrimming.CharacterEllipsis;
+                last.TextAlignment = TextAlignment.Right;
+                axis.Children.Add(first);
+                // A single hour has one tick, not duplicate labels at both ends.
+                if (buckets.Count > 1) { Grid.SetColumn(last, 1); axis.Children.Add(last); }
+                Grid.SetRow(axis, 1); Grid.SetColumnSpan(axis, buckets.Count); chart.Children.Add(axis);
+            }
             readings.Children.Add(chart);
             if (cost && values.Any(v => !v.HasValue))
                 readings.Children.Add(Ui.Text("Gaps indicate intervals without a cost estimate.", 11, "#A6A6AA"));
-            if (buckets.Count > 0)
-                readings.Children.Add(Ui.Row(BucketLabel(buckets[0].Start), BucketLabel(buckets[^1].Start)));
         }
         Chart(false);
         if (showsCost) Chart(true);
