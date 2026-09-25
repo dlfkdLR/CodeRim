@@ -66,11 +66,20 @@ public sealed class UsageRepository
                     ELSE MAX(input+cached+COALESCE(written,0),excluded.input+excluded.cached+COALESCE(excluded.written,0))
                     - MAX(cached,excluded.cached) - MAX(COALESCE(written,0),COALESCE(excluded.written,0)) END,
                 cached=MAX(cached,excluded.cached),
+                model=CASE WHEN provider='claude' AND session=$parent THEN excluded.model ELSE model END,
+                project=CASE WHEN provider='claude' AND session=$parent THEN excluded.project ELSE project END,
+                projectId=CASE WHEN provider='claude' AND session=$parent THEN excluded.projectId ELSE projectId END,
+                session=CASE WHEN provider='claude' AND session=$parent THEN excluded.session ELSE session END,
                 output=MAX(output,excluded.output), written=CASE WHEN written IS NULL THEN excluded.written WHEN excluded.written IS NULL THEN written ELSE MAX(written,excluded.written) END;
             """;
+        var importedLinks = new Dictionary<string, string?>(StringComparer.Ordinal);
         foreach (var usageEvent in events)
         {
             if (usageEvent.Provider != provider || !usageEvent.Usage.IsValid) continue;
+            if (provider == "claude" && usageEvent.ImportParentSessionId is { } parent)
+            {
+                importedLinks[usageEvent.SessionId] = parent; importedLinks.TryAdd(parent, null);
+            }
             command.Parameters.Clear();
             command.Parameters.AddWithValue("$provider", provider);
             command.Parameters.AddWithValue("$id", usageEvent.EventKey);
@@ -82,10 +91,16 @@ public sealed class UsageRepository
             command.Parameters.AddWithValue("$model", usageEvent.Model);
             command.Parameters.AddWithValue("$project", usageEvent.Project);
             command.Parameters.AddWithValue("$session", usageEvent.SessionId);
+            command.Parameters.AddWithValue("$parent", (object?)usageEvent.ImportParentSessionId ?? DBNull.Value);
             command.Parameters.AddWithValue("$projectId", usageEvent.ProjectId);
             command.ExecuteNonQuery();
         }
-        foreach (var session in sessions ?? [])
+        IEnumerable<SessionDetails> ImportedSessions()
+        {
+            foreach (var item in sessions ?? []) { importedLinks.Remove(item.Id); yield return item; }
+            foreach (var (id, parent) in importedLinks) yield return new SessionDetails(id, parent, []);
+        }
+        foreach (var session in ImportedSessions())
         {
             command.Parameters.Clear();
             command.CommandText = "INSERT INTO session_links VALUES($provider,$id,$parent) ON CONFLICT(provider,id) DO UPDATE SET parentId=COALESCE(excluded.parentId,parentId)";
@@ -102,13 +117,12 @@ public sealed class UsageRepository
                     CASE WHEN $provider='claude' THEN
                         (SELECT MAX(time) FROM events WHERE provider=$provider AND session=$id AND projectId!='unknown') ELSE $projectTime END)
                 ON CONFLICT(provider,id) DO UPDATE SET
-                    started=CASE WHEN provider='claude' AND started IS NOT NULL AND excluded.started IS NOT NULL
-                        THEN MIN(started,excluded.started) ELSE COALESCE(started,excluded.started) END,
-                    project=CASE WHEN excluded.project IS NOT NULL AND (project IS NULL OR
+                    started=CASE WHEN provider='claude' THEN excluded.started ELSE COALESCE(started,excluded.started) END,
+                    project=CASE WHEN provider='claude' THEN excluded.project WHEN excluded.project IS NOT NULL AND (project IS NULL OR
                         COALESCE(excluded.projectTime,-9223372036854775808)>COALESCE(projectTime,-9223372036854775808) OR
                         COALESCE(excluded.projectTime,-9223372036854775808)=COALESCE(projectTime,-9223372036854775808) AND excluded.project<project)
                         THEN excluded.project ELSE project END,
-                    projectTime=CASE WHEN excluded.project IS NOT NULL AND (project IS NULL OR
+                    projectTime=CASE WHEN provider='claude' THEN excluded.projectTime WHEN excluded.project IS NOT NULL AND (project IS NULL OR
                         COALESCE(excluded.projectTime,-9223372036854775808)>COALESCE(projectTime,-9223372036854775808))
                         THEN excluded.projectTime ELSE projectTime END;
                 """;

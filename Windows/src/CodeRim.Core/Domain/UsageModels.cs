@@ -66,7 +66,13 @@ public sealed record UsageEvent(
     string Project = "Unknown project",
     string SessionId = "unknown",
     string Provider = "codex",
-    string ProjectId = "unknown");
+    string ProjectId = "unknown")
+{
+    // Transient import evidence. Durable relationships live in session_links;
+    // this is not a new field in exported numeric history.
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string? ImportParentSessionId { get; init; }
+}
 
 public sealed record AttachmentObservation(string Id, DateTimeOffset OccurredAt, int Count);
 public sealed record SessionDetails(string Id, string? ParentId, IReadOnlyList<AttachmentObservation> Attachments)

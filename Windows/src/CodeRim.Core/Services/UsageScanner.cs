@@ -303,7 +303,7 @@ public sealed class UsageScanner
             {
                 var named = group.Where(x => x.ProjectId != "unknown").OrderByDescending(x => x.OccurredAt)
                     .ThenBy(x => x.Project, StringComparer.Ordinal).FirstOrDefault();
-                return new SessionDetails(group.Key, null, []) { StartedAt = group.Min(x => x.OccurredAt),
+                return new SessionDetails(group.Key, group.Select(x => x.ImportParentSessionId).FirstOrDefault(x => x is not null), []) { StartedAt = group.Min(x => x.OccurredAt),
                     ProjectName = named?.Project, ProjectObservedAt = named?.OccurredAt };
             }).ToArray() : cache.Values.Where(x => x.Details is not null).Select(x => x.Details! with {
                 Attachments = x.Details!.Attachments.Where(a => a.OccurredAt <= now).ToArray() }).ToArray() };
@@ -408,6 +408,7 @@ public sealed class UsageScanner
         var projectId = "unknown";
         DateTimeOffset? projectObservedAt = null;
         var sawCompleteRecord = false;
+        var sourceName = Path.GetFileNameWithoutExtension(path);
 
         using var stream = new FileStream(
             path,
@@ -442,7 +443,7 @@ public sealed class UsageScanner
             }
             if (provider == "claude")
             {
-                if (ClaudeJsonlParser.Parse(line, projectKey) is { } claudeEvent)
+                if (ClaudeJsonlParser.Parse(line, projectKey, sourceName) is { } claudeEvent)
                 {
                     if (events.Count + attachments.Count >= maximumEvents) return new ParsedFile([], true, true);
                     events.Add(claudeEvent);

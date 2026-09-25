@@ -8,7 +8,7 @@ namespace CodeRim.Core.Parsing;
 /// Projects only accounting metadata. Prompts and response bodies never leave the parser.
 public static class ClaudeJsonlParser
 {
-    public static UsageEvent? Parse(ReadOnlyMemory<byte> line, byte[]? projectKey = null)
+    public static UsageEvent? Parse(ReadOnlyMemory<byte> line, byte[]? projectKey = null, string? sourceName = null)
     {
         if (line.Length > CodexJsonlParser.MaximumLineBytes) return null;
         try
@@ -21,7 +21,7 @@ public static class ClaudeJsonlParser
             var id = JsonFields.Text(message, "id");
             var session = JsonFields.Text(root, "sessionId");
             var model = JsonFields.Text(message, "model");
-            if (id is null || session is null || model is null || !model.StartsWith("claude-", StringComparison.Ordinal)) return null;
+            if (id is null || session is null || !ValidIdentifier(session) || model is null || !model.StartsWith("claude-", StringComparison.Ordinal)) return null;
             if (!DateTimeOffset.TryParse(JsonFields.Text(root, "timestamp"), System.Globalization.CultureInfo.InvariantCulture,
                     System.Globalization.DateTimeStyles.AssumeUniversal, out var date)) return null;
             var usage = JsonFields.Object(message, "usage");
@@ -30,8 +30,13 @@ public static class ClaudeJsonlParser
             var read = JsonFields.OptionalCount(usage, "cache_read_input_tokens");
             var write = JsonFields.OptionalCount(usage, "cache_creation_input_tokens");
             if (input is null || output is null || read is null || write is null) return null;
+            var agent = AgentIdentifier(JsonFields.Text(root, "agentId"));
+            if (agent is null && sourceName?.StartsWith("agent-", StringComparison.Ordinal) == true) agent = AgentIdentifier(sourceName);
+            var parent = Hash(session);
+            var owner = agent is null ? parent : Hash("claude-agent|" + session + "|" + agent);
             return new UsageEvent(Hash(id), date, new TokenUsage(input.Value + read.Value + write.Value, read.Value, output.Value, write.Value),
-                model.ToLowerInvariant(), JsonFields.Folder(JsonFields.Text(root, "cwd")), Hash(session), "claude", ProjectIdentity(JsonFields.Text(root, "cwd"), projectKey));
+                model.ToLowerInvariant(), JsonFields.Folder(JsonFields.Text(root, "cwd")), owner, "claude", ProjectIdentity(JsonFields.Text(root, "cwd"), projectKey))
+                { ImportParentSessionId = agent is null ? null : parent };
         }
         catch (JsonException) { return null; }
     }
@@ -42,12 +47,24 @@ public static class ClaudeJsonlParser
         var read = Math.Max(first.Usage.CachedInputTokens, next.Usage.CachedInputTokens);
         var write = Math.Max(first.Usage.CacheWriteInputTokens ?? 0, next.Usage.CacheWriteInputTokens ?? 0);
         var input = Math.Max(first.Usage.UncachedInputTokens, next.Usage.UncachedInputTokens);
-        return first with
+        // An agent transcript can also occur in a copied parent history. Explicit
+        // agent ownership wins only over that exact parent, never an unrelated task.
+        var owner = first.ImportParentSessionId is null && next.ImportParentSessionId == first.SessionId ? next : first;
+        return owner with
         {
             OccurredAt = first.OccurredAt < next.OccurredAt ? first.OccurredAt : next.OccurredAt,
             Usage = new TokenUsage(input + read + write, read, Math.Max(first.Usage.OutputTokens, next.Usage.OutputTokens), write)
         };
     }
+
+    private static string? AgentIdentifier(string? value)
+    {
+        if (value is null || !ValidIdentifier(value)) return null;
+        return value.StartsWith("agent-", StringComparison.Ordinal) ? value : "agent-" + value;
+    }
+
+    private static bool ValidIdentifier(string value) => value is { Length: > 0 and <= 128 }
+        && value.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '.' or '_');
 
     private static readonly byte[] ProcessProjectKey = RandomNumberGenerator.GetBytes(32);
     internal static string ProjectIdentity(string? path, byte[]? key) => path is null ? "unknown" :
