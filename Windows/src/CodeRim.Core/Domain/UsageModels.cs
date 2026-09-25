@@ -23,6 +23,9 @@ public sealed record UsageSnapshot(
     DataQuality Quality,
     DateTimeOffset? UpdatedAt)
 {
+    // A failed refresh changes freshness, not the completeness of retained data.
+    public bool RetainsPartialHistory { get; init; }
+
     public static UsageSnapshot Empty { get; } = new(
         TokenUsage.Zero,
         TokenUsage.Zero,

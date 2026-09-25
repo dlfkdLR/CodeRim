@@ -51,7 +51,7 @@ internal sealed partial class UsagePane
                 if (cost.Amount is { } amount)
                 {
                     var text = Ui.Text(cost.Label + " · ~$" + amount.ToString("N2", CultureInfo.CurrentCulture)
-                        + (snapshot.Quality == DataQuality.Partial ? " · partial history" : ""), 11, "#A6A6AA");
+                        + (snapshot.Quality == DataQuality.Partial || snapshot.RetainsPartialHistory ? " · partial history" : ""), 11, "#A6A6AA");
                     text.Margin = new Thickness(0, 0, 0, 16);
                     text.ToolTip = "Estimated from bundled API pricing; not a bill." + (cost.IsPartial ? $" Excludes {cost.ExcludedTokens:N0} tokens: " + string.Join(", ", cost.ExcludedModels) : "");
                     AutomationProperties.SetAutomationId(text, "usage.today.cost"); readings.Children.Add(text);

@@ -21,6 +21,11 @@ internal sealed partial class UsagePane : StackPanel
     private readonly UsageProviderPicker selector;
     private string? displayedOwner;
     private bool displayedAvailable = true;
+    private (DataQuality? Quality, bool Partial) displayedLocalState;
+    private (DataQuality? Quality, bool Partial) LocalState
+    {
+        get { var snapshot = store.Usage.GetValueOrDefault(provider); return (snapshot?.Quality, snapshot?.RetainsPartialHistory ?? false); }
+    }
     private bool ProviderAvailable => provider != "claude" || store.ClaudeAvailable;
     private ProviderDefinition[] ProviderChoices() => store.AvailableUsageProviders
         .Concat(provider == "claude" && !store.ClaudeAvailable ? ["claude"] : Array.Empty<string>()).Select(id => ProviderCatalog.Find(id)!).ToArray();
@@ -101,7 +106,8 @@ internal sealed partial class UsagePane : StackPanel
         }
         RefreshProviderChoices();
         var changedAccount = displayedOwner != store.AccountDisplay(provider).OwnerKey || displayedAvailable != ProviderAvailable || displayedProfileAccountKey != store.ProfileHistory.Snapshot?.AccountKey || displayedProfileEnabled != store.ProfileHistory.Enabled;
-        if (!changedAccount && (readings.IsKeyboardFocusWithin || accountRow.IsKeyboardFocusWithin)) { pendingRefresh = true; return; }
+        var changedLocalState = displayedLocalState != LocalState;
+        if (!changedAccount && !changedLocalState && (readings.IsKeyboardFocusWithin || accountRow.IsKeyboardFocusWithin)) { pendingRefresh = true; return; }
         pendingRefresh = false; Update();
     }
     private void RefreshProviderChoices()
@@ -243,6 +249,7 @@ internal sealed partial class UsagePane : StackPanel
     }
     internal void Update()
     {
+        displayedLocalState = LocalState;
         displayedProfileEnabled = store.ProfileHistory.Enabled;
         var profileAccountKey = store.ProfileHistory.Snapshot?.AccountKey;
         if (displayedProfileAccountKey != profileAccountKey)
@@ -369,19 +376,22 @@ internal sealed partial class UsagePane : StackPanel
     private void Detail()
     {
         var events = Filter().ToArray();
+        if (destination is "activity" or "model" && !AnalyticsReady()) return;
         if (destination == "activity")
         {
-            if (events.Length == 0) { readings.Children.Add(Ui.Text("No local usage observed for this period.", color: "#A6A6AA")); return; }
             var total = events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
-            var estimate = UsageAnalytics.Estimate(events);
-            AnalyticsSummary(readings, total, estimate, compact: false); Timeline(events, estimate); return;
+            var quality = AnalyticsQuality(total);
+            var estimate = quality == DataQuality.Unavailable ? new CostSummary(null, 0, []) : UsageAnalytics.Estimate(events);
+            AnalyticsSummary(readings, total, estimate, compact: false, quality); Timeline(events, estimate, quality); return;
         }
         if (destination == "model" && selectedModel is not null)
         {
             var name = Ui.Text(selectedModel, 13, weight: FontWeights.SemiBold); name.Margin = new Thickness(0, 0, 0, 14); readings.Children.Add(name);
             if (events.Length == 0) { readings.Children.Add(Ui.Text("No local usage observed for this period.", color: "#A6A6AA")); return; }
             var total = events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
-            AnalyticsSummary(readings, total, UsageAnalytics.Estimate(events), compact: false);
+            var quality = AnalyticsQuality(Filter(includeSelection: false).Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage)));
+            var estimate = quality == DataQuality.Unavailable ? new CostSummary(null, 0, []) : UsageAnalytics.Estimate(events);
+            AnalyticsSummary(readings, total, estimate, compact: false, quality);
             var breakdown = new StackPanel { Margin = new Thickness(0, 8, 0, 0) }; AnalyticsBreakdown(breakdown, total); readings.Children.Add(breakdown);
             readings.Children.Add(AnalyticsValueRow("Projects", events.Select(x => x.ProjectId).Distinct(StringComparer.Ordinal).LongCount(), 14));
             readings.Children.Add(AnalyticsValueRow("Sessions", events.Select(x => x.SessionId).Distinct(StringComparer.Ordinal).LongCount(), 14));

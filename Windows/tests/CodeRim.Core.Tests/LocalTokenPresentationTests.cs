@@ -47,6 +47,24 @@ public sealed class LocalTokenPresentationTests
     }
 
     [Fact]
+    public void RepeatedFailedRefreshesRetainPartialHistoryUntilACompletedRead()
+    {
+        var now = DateTimeOffset.Now;
+        UsageEvent[] events = [new("partial", now, new(100, 80, 10))];
+        var partial = UsageScanner.Aggregate(events, now, WeekStart.Monday, true);
+        var stale = LocalTokenPresentation.AfterFailure(partial);
+        Assert.Equal(DataQuality.Stale, stale.Quality);
+        Assert.True(stale.RetainsPartialHistory);
+        Assert.Equal(partial.Today, stale.Today);
+        Assert.True(LocalTokenPresentation.AfterFailure(stale).RetainsPartialHistory);
+        var recovered = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(events, now, WeekStart.Monday, false));
+        Assert.Equal(DataQuality.Exact, recovered.Quality);
+        Assert.False(recovered.RetainsPartialHistory);
+        Assert.False(LocalTokenPresentation.AfterFailure(recovered).RetainsPartialHistory);
+        Assert.False(UsageSnapshot.Empty.RetainsPartialHistory);
+    }
+
+    [Fact]
     public void CompletedEmptyPartialInventoryIsNotMeasuredZero()
     {
         var aggregate = UsageScanner.Aggregate([], DateTimeOffset.Now, WeekStart.Monday, true);

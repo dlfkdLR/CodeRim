@@ -67,7 +67,7 @@ internal sealed partial class UsagePane
     }
     private string? selectedModel;
     private DateTimeOffset? selectedBucket;
-    private void Timeline(UsageEvent[] events, CostSummary totalCost)
+    private void Timeline(UsageEvent[] events, CostSummary totalCost, DataQuality? quality = null)
     {
         var now = DateTimeOffset.Now;
         var showsCost = settings.Current.CostEstimatesEnabled && provider == "codex";
@@ -78,6 +78,7 @@ internal sealed partial class UsagePane
             : events.GroupBy(e => e.OccurredAt.LocalDateTime.Date).OrderBy(g => g.Key).TakeLast(30)
                 .Select(g => new AnalyticsBucket(new DateTimeOffset(g.Key), new DateTimeOffset(g.Key.AddDays(1)),
                     g.Aggregate(TokenUsage.Zero, (sum, e) => sum.Add(e.Usage)), UsageAnalytics.Estimate(g, excludedModels))).ToArray();
+        if (quality == DataQuality.Unavailable) buckets = buckets.Select(bucket => bucket with { Cost = new CostSummary(null, 0, []) }).ToArray();
         var details = new StackPanel { Margin = new Thickness(10) };
         var detailCard = new Border { Child = details, CornerRadius = new CornerRadius(8), Margin = new Thickness(0, 12, 0, 12), Visibility = Visibility.Collapsed };
         detailCard.SetResourceReference(Border.BackgroundProperty, "LimitCardBackground");
@@ -86,7 +87,7 @@ internal sealed partial class UsagePane
             selectedBucket = bucket.Start; details.Children.Clear();
             detailCard.Visibility = Visibility.Visible;
             details.Children.Add(Ui.Text(BucketLabel(bucket.Start), 11, weight: FontWeights.SemiBold));
-            AnalyticsSummary(details, bucket.Usage, bucket.Cost, compact: true);
+            AnalyticsSummary(details, bucket.Usage, bucket.Cost, compact: true, quality);
             AnalyticsBreakdown(details, bucket.Usage);
             AutomationProperties.SetName(details, "Selected usage interval");
             AutomationProperties.SetAutomationId(details, "usage.bucket-details");
@@ -132,10 +133,11 @@ internal sealed partial class UsagePane
         readings.Children.Add(detailCard);
         if (selectedBucket is { } selected && buckets.FirstOrDefault(b => b.Start == selected) is { } current) Select(current);
         AnalyticsHeading(readings, "Models");
+        if (events.Length == 0) readings.Children.Add(Ui.Text("No model-tagged usage in this range.", 11, "#A6A6AA"));
         foreach (var row in UsageAnalytics.Group(events, "model"))
         {
             var button = Ui.Button("", () => Forward("model", selectedProject: project, selectedSession: session, model: row.Name));
-            var costText = showsCost && row.Cost is { } amount ? "~" + AnalyticsCurrency(amount) + (row.Partial ? " · subtotal" : "") : "";
+            var costText = showsCost && quality != DataQuality.Unavailable && row.Cost is { } amount ? "~" + AnalyticsCurrency(amount) + (row.Partial ? " · subtotal" : "") : "";
             var content = new DockPanel();
             var arrow = Ui.Text("›", 11, "#98989D"); arrow.Margin = new Thickness(10, 0, 0, 0); arrow.VerticalAlignment = VerticalAlignment.Center;
             DockPanel.SetDock(arrow, Dock.Right); content.Children.Add(arrow);

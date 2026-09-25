@@ -28,7 +28,7 @@ internal sealed partial class UsagePane
         return group;
     }
 
-    private void AnalyticsSummary(Panel parent, TokenUsage tokens, CostSummary cost, bool compact)
+    private void AnalyticsSummary(Panel parent, TokenUsage tokens, CostSummary cost, bool compact, DataQuality? quality = null)
     {
         var group = new StackPanel();
         var metrics = new Grid(); metrics.ColumnDefinitions.Add(new ColumnDefinition());
@@ -61,7 +61,8 @@ internal sealed partial class UsagePane
             Grid.SetColumn(estimate, 1); metrics.Children.Add(estimate);
         }
         group.Children.Add(metrics);
-        if (store.Usage.GetValueOrDefault(provider)?.Quality == DataQuality.Partial)
+        var snapshot = store.Usage.GetValueOrDefault(provider);
+        if ((quality ?? (snapshot?.RetainsPartialHistory == true ? DataQuality.Partial : snapshot?.Quality)) == DataQuality.Partial)
         { var partial = Ui.Text("Partial local history", 11, "#A6A6AA"); partial.Margin = new Thickness(0, 8, 0, 0); group.Children.Add(partial); }
         if (showsCost && cost.IsPartial)
         { var missing = Ui.Text("Pricing unavailable: " + string.Join(", ", cost.ExcludedModels), 11, "#A6A6AA"); missing.Margin = new Thickness(0, 8, 0, 0); group.Children.Add(missing); }

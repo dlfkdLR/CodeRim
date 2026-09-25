@@ -37,6 +37,7 @@ internal static partial class NativeSmoke
             os = System.Runtime.InteropServices.RuntimeInformation.OSDescription
         }, JsonOptions));
         Require(store.Synthetic, "Smoke must use synthetic data");
+        await CaptureOffsetRegression(directory);
         Require(typeof(ReleaseUpdates).Assembly.GetType("CodeRim.Core.Services.MsiUpdateQa") is null, "QA updater entry leaked into the release binary");
         Record("Release assembly excludes the conditional MSI QA entry");
         var worker = Path.Combine(AppContext.BaseDirectory, "CodeRim.UpdateWorker.exe");
@@ -353,6 +354,7 @@ internal static partial class NativeSmoke
         await MacReferenceRegression(dashboard, store, settings, directory);
         Record("macOS reference shell, refresh modes and Usage states");
         await AnalyticsRegression(store, settings, directory);
+        await AnalyticsStateRegression(store, settings, directory);
         ActivityRegression(store);
         await SessionPresentationRegression(dashboard, store, settings, directory);
         await ActivityGroupsRegression(notch, store, settings, directory);
@@ -744,7 +746,11 @@ internal static partial class NativeSmoke
         var bounds = new Rect(0, 0, width, height);
         // A scroller's offscreen children expand VisualBrush's automatic content
         // bounds. Capture the actual viewport instead of shrinking all 70 rows.
-        var brush = new VisualBrush(view) { ViewboxUnits = BrushMappingMode.Absolute, Viewbox = bounds,
+        // A mounted child retains its parent-relative visual offset. Normalize
+        // that source origin so a centered child is not shifted/cropped again.
+        var offset = VisualTreeHelper.GetOffset(view);
+        var sourceBounds = new Rect(offset.X, offset.Y, width, height);
+        var brush = new VisualBrush(view) { ViewboxUnits = BrushMappingMode.Absolute, Viewbox = sourceBounds,
             ViewportUnits = BrushMappingMode.Absolute, Viewport = bounds, Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top };
         using (var context = background.RenderOpen()) { context.DrawRectangle((Brush)view.FindResource("WindowBackground"), null, bounds); context.DrawRectangle(brush, null, bounds); }
         image.Render(background); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));

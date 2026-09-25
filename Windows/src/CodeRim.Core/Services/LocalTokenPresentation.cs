@@ -21,7 +21,8 @@ public static class LocalTokenPresentation
     public static UsageSnapshot AfterFailure(UsageSnapshot? snapshot)
     {
         var retained = snapshot ?? UsageSnapshot.Empty;
-        return retained with { Quality = retained.UpdatedAt is null ? DataQuality.Error : DataQuality.Stale };
+        return retained with { Quality = retained.UpdatedAt is null ? DataQuality.Error : DataQuality.Stale,
+            RetainsPartialHistory = retained.RetainsPartialHistory || retained.Quality == DataQuality.Partial };
     }
 
     // Aggregate can report Partial for an incomplete/empty source inventory.
