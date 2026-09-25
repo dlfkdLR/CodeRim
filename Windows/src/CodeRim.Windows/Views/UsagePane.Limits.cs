@@ -82,9 +82,7 @@ internal sealed partial class UsagePane
     }
 
     private static bool LimitsAreStale(ProviderReading reading, DateTimeOffset now)
-        => reading.State != ReadingState.Ready || reading.UpdatedAt is not { } fetched || fetched - now > TimeSpan.FromMinutes(1)
-            || now - fetched >= TimeSpan.FromMinutes(reading.Id == "claude" ? 15 : 5)
-            || reading.Id == "claude" && reading.Windows.Any(window => window.ResetsAt <= now);
+        => reading.State != ReadingState.Ready || reading.IsStale(now);
 
     private void AddLimitBlock(FrameworkElement block)
     {

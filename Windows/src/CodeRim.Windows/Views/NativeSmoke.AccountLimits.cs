@@ -17,13 +17,14 @@ internal static partial class NativeSmoke
     private static async Task AccountLimitsRegression(DashboardWindow dashboard, DashboardStore store, AppSettingsStore settings, string directory)
     {
         var before = settings.Current; var previous = store.Readings["codex"];
+        var previousClaude = store.Readings.GetValueOrDefault("claude");
         var dark = SettingsTheme.IsDark; var contrast = SettingsTheme.IsHighContrast;
         var size = new Size(dashboard.Width, dashboard.Height); UsagePane? pane = null; var wasLimits = false;
         Expander? originalAbout = null; var aboutWasExpanded = false;
         Exception? failure = null; var cleanup = new List<Exception>();
         try
         {
-            settings.Save(before with { EnabledProviders = ["codex"], AccountLimitsEnabled = true, ResetCreditsEnabled = true, AdditionalLimitsEnabled = true });
+            settings.Save(before with { EnabledProviders = ["codex", "claude"], AccountLimitsEnabled = true, ResetCreditsEnabled = true, AdditionalLimitsEnabled = true });
             var now = DateTimeOffset.Now;
             using var payload = JsonDocument.Parse(JsonSerializer.Serialize(new { rateLimitsByLimitId = new {
                 codex = new { limitName = "Codex", primary = new { usedPercent = 75, windowDurationMins = 300, resetsAt = now.AddMinutes(150).ToUnixTimeSeconds() },
@@ -82,14 +83,32 @@ internal static partial class NativeSmoke
             store.Readings["codex"] = new("codex", ReadingState.Unavailable, [], Message: "Fixture unavailable"); pane.Update(); await Idle();
             Require(!spinner.IsRunning, "Removed loading indicator retained its animation timer.");
             Require(Descendants<TextBlock>(pane).Any(x => x.Text == "Fixture unavailable"), "Unavailable limits lost their safe error copy.");
+            store.Readings["codex"] = new("codex", ReadingState.Ready,
+                [new("codex.primary", "5 hours", 20, now.AddMinutes(-1), 300)], now);
+            pane.Update(); await Idle(); pane.RefreshLimitClock(now);
+            Require(Descendants<TextBlock>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.limits.freshness" && x.Text == "Updated just now"),
+                "A reported Codex reset invalidated a fresh server reading.");
+            store.Readings["claude"] = new("claude", ReadingState.Ready,
+                [new("five_hour", "5 hours", 50, now.AddMinutes(150), 300)], now.AddMinutes(-6));
+            pane.SelectProvider("claude"); pane.HandleShortcut(Key.D2, ModifierKeys.Control); await Idle(); pane.RefreshLimitClock(now);
+            Require(Descendants<TextBlock>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.limits.freshness" && x.Text == "Updated 6 min ago")
+                && Descendants<TextBlock>(pane).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.limit.pace.", StringComparison.Ordinal) && x.IsVisible),
+                "Claude limits became stale at the generic five-minute cutoff.");
+            Capture(dashboard, Path.Combine(directory, "windows-claude-limits-freshness.png"));
+            pane.RefreshLimitClock(now.AddMinutes(10));
+            Require(Descendants<TextBlock>(pane).Any(x => x.Text == "Last known · updated 16 min ago")
+                && Descendants<TextBlock>(pane).Where(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.limit.pace.", StringComparison.Ordinal)).All(x => !x.IsVisible),
+                "Claude limits did not age after their own fifteen-minute cutoff.");
             File.WriteAllText(Path.Combine(directory, "windows-account-limits.json"), JsonSerializer.Serialize(new { completed = true,
-                checks = new List<string> { "Parser-to-card metadata and primary-weekly ordering", "Rendered remaining progress and retained Pro five-hour Usage data", "Pace and 30-second clock callback without replacing disclosure", "Minimum-width dark/light/high-contrast cards", "Additional quota preference", "Empty/loading/unavailable states" } }, JsonOptions));
+                checks = new List<string> { "Parser-to-card metadata and primary-weekly ordering", "Rendered remaining progress and retained Pro five-hour Usage data", "Pace and 30-second clock callback without replacing disclosure", "Minimum-width dark/light/high-contrast cards", "Additional quota preference", "Empty/loading/unavailable states", "Codex fresh reset and Claude fifteen-minute freshness policy" } }, JsonOptions));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally
         {
             void Restore(Action action) { try { action(); } catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); } }
-            Restore(() => store.Readings["codex"] = previous); Restore(() => settings.Save(before));
+            Restore(() => store.Readings["codex"] = previous);
+            Restore(() => { if (previousClaude is null) store.Readings.Remove("claude"); else store.Readings["claude"] = previousClaude; });
+            Restore(() => pane?.SelectProvider("codex")); Restore(() => settings.Save(before));
             Restore(() => { if (originalAbout is not null) originalAbout.IsExpanded = aboutWasExpanded; });
             Restore(() => pane?.HandleShortcut(wasLimits ? Key.D2 : Key.D1, ModifierKeys.Control));
             Restore(() => { dashboard.Width = size.Width; dashboard.Height = size.Height; });

@@ -40,8 +40,17 @@ public sealed record ProviderReading(string Id, ReadingState State, IReadOnlyLis
     public LimitWindow? Headline => Windows.Count == 0 ? null : Id is "codex" or "claude"
         ? Windows.Where(x => x.UsedPercent is { } used && double.IsFinite(used)).MaxBy(x => x.UsedPercent) ?? Windows[0]
         : Windows[0];
-    public bool IsStale(DateTimeOffset now) => UpdatedAt is null || UpdatedAt > now.AddMinutes(1)
-        || now - UpdatedAt > TimeSpan.FromMinutes(5) || Windows.Any(x => x.ResetsAt <= now);
+    public bool IsStale(DateTimeOffset now)
+    {
+        if (UpdatedAt is not { } updated) return true;
+        var age = now - updated;
+        // Account stores have distinct source-clock policies on Mac. Codex
+        // quota resets do not invalidate an otherwise recent server reading.
+        if (Id == "codex") return age >= TimeSpan.FromMinutes(5) || age < -TimeSpan.FromMinutes(1);
+        if (Id == "claude") return age > TimeSpan.FromMinutes(15) || age < -TimeSpan.FromMinutes(5)
+            || Windows.Any(window => window.ResetsAt <= now);
+        return age > TimeSpan.FromMinutes(5) || age < -TimeSpan.FromMinutes(1) || Windows.Any(window => window.ResetsAt <= now);
+    }
     public ProviderReading Evaluated(DateTimeOffset now) => State == ReadingState.Ready && IsStale(now) ? this with { State = ReadingState.Stale } : this;
 }
 public sealed record ProviderDefinition(string Id, string Name, string Summary, string[] EnvironmentKeys)
