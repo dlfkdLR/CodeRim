@@ -11,6 +11,39 @@ namespace CodeRim.Windows.Views;
 
 internal sealed partial class UsagePane
 {
+    private static Button AnalyticsRowButton(string title, string? detail, long total, string costText, string id, double padding, Action action)
+    {
+        var button = Ui.Button("", action);
+        var content = new DockPanel();
+        var arrow = Ui.Text("›", 11, "#98989D"); arrow.Margin = new Thickness(10, 0, 0, 0); arrow.VerticalAlignment = VerticalAlignment.Center;
+        DockPanel.SetDock(arrow, Dock.Right); content.Children.Add(arrow);
+        var values = new StackPanel();
+        var top = new Grid(); top.ColumnDefinitions.Add(new ColumnDefinition()); top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var name = Ui.Text(title, 13, weight: FontWeights.Medium); name.Margin = new Thickness(0, 0, 8, 0);
+        name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis; name.ToolTip = title; top.Children.Add(name);
+        var tokens = Ui.Text(total.ToString("N0", CultureInfo.CurrentCulture)); tokens.Margin = new Thickness(0);
+        System.Windows.Documents.Typography.SetNumeralAlignment(tokens, FontNumeralAlignment.Tabular);
+        Grid.SetColumn(tokens, 1); top.Children.Add(tokens); values.Children.Add(top);
+        if (detail is not null || costText.Length > 0)
+        {
+            var lower = new Grid { Margin = new Thickness(0, 4, 0, 0) };
+            lower.ColumnDefinitions.Add(new ColumnDefinition()); lower.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            if (detail is not null)
+            {
+                var text = Ui.Text(detail, 11, "#A6A6AA"); text.Margin = new Thickness(0, 0, 8, 0);
+                text.TextWrapping = TextWrapping.NoWrap; text.TextTrimming = TextTrimming.CharacterEllipsis; text.ToolTip = detail; lower.Children.Add(text);
+            }
+            var estimate = Ui.Text(costText, 11, "#A6A6AA"); estimate.Margin = new Thickness(0); Grid.SetColumn(estimate, 1); lower.Children.Add(estimate);
+            values.Children.Add(lower);
+        }
+        content.Children.Add(values); button.Content = content;
+        button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Margin = new Thickness(0); button.Padding = new Thickness(padding, 10, padding, 10);
+        button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        AutomationProperties.SetName(button, title + ": " + total.ToString("N0", CultureInfo.CurrentCulture) + " tokens"
+            + (detail is null ? "" : ", " + detail) + (costText.Length == 0 ? "" : ", " + costText));
+        AutomationProperties.SetAutomationId(button, id); return button;
+    }
+
     private Border AnalyticsRangeControl()
     {
         var segments = new UniformGrid { Columns = 3 };

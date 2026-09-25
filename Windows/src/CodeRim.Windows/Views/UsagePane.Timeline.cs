@@ -156,26 +156,9 @@ internal sealed partial class UsagePane
         if (events.Length == 0) readings.Children.Add(Ui.Text("No model-tagged usage in this range.", 11, "#A6A6AA"));
         foreach (var row in UsageAnalytics.Group(events, "model"))
         {
-            var button = Ui.Button("", () => Forward("model", selectedProject: project, selectedSession: session, model: row.Name));
             var costText = showsCost && quality != DataQuality.Unavailable && row.Cost is { } amount ? "~" + AnalyticsCurrency(amount) + (row.Partial ? " · subtotal" : "") : "";
-            var content = new DockPanel();
-            var arrow = Ui.Text("›", 11, "#98989D"); arrow.Margin = new Thickness(10, 0, 0, 0); arrow.VerticalAlignment = VerticalAlignment.Center;
-            DockPanel.SetDock(arrow, Dock.Right); content.Children.Add(arrow);
-            var values = new StackPanel();
-            var top = new Grid(); top.ColumnDefinitions.Add(new ColumnDefinition()); top.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            var name = Ui.Text(row.Name, 13, weight: FontWeights.Medium); name.Margin = new Thickness(0, 0, 8, 0);
-            name.TextWrapping = TextWrapping.NoWrap; name.TextTrimming = TextTrimming.CharacterEllipsis; name.ToolTip = row.Name; top.Children.Add(name);
-            var tokens = Ui.Text(row.Tokens.ToString("N0", CultureInfo.CurrentCulture)); tokens.Margin = new Thickness(0);
-            System.Windows.Documents.Typography.SetNumeralAlignment(tokens, FontNumeralAlignment.Tabular);
-            Grid.SetColumn(tokens, 1); top.Children.Add(tokens); values.Children.Add(top);
-            if (costText.Length > 0)
-            { var estimate = Ui.Text(costText, 11, "#A6A6AA"); estimate.Margin = new Thickness(0, 4, 0, 0); estimate.HorizontalAlignment = HorizontalAlignment.Right; values.Children.Add(estimate); }
-            content.Children.Add(values); button.Content = content;
-            button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Margin = new Thickness(0); button.Padding = new Thickness(8, 10, 8, 10);
-            button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-            AutomationProperties.SetName(button, row.Name + ": " + row.Tokens.ToString("N0", CultureInfo.CurrentCulture) + " tokens" + (costText.Length == 0 ? "" : ", " + costText));
-            AutomationProperties.SetAutomationId(button, "usage.model." + row.Name);
-            readings.Children.Add(button);
+            readings.Children.Add(AnalyticsRowButton(row.Name, null, row.Tokens, costText, "usage.model." + row.Name, 8,
+                () => Forward("model", selectedProject: project, selectedSession: session, model: row.Name)));
         }
     }
     internal static double BarHeight(double? value, double maximum, double height = 96) => value is > 0 && maximum > 0

@@ -30,6 +30,26 @@ internal static partial class NativeSmoke
             checks.Add(message);
             File.WriteAllText(Path.Combine(directory, "windows-ui-progress.json"), JsonSerializer.Serialize(checks, JsonOptions));
         }
+        async Task<string> ClaudeCommand(string stage, string executable, IEnumerable<string> arguments, string? input = null, int timeoutSeconds = 20)
+        {
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            void Write(string state) => File.WriteAllText(Path.Combine(directory, "windows-claude-command.json"),
+                JsonSerializer.Serialize(new { stage, state, elapsedMilliseconds = timer.ElapsedMilliseconds, timeoutSeconds }, JsonOptions));
+            Write("running");
+            try
+            {
+                var result = await BoundedProcess.RunAsync(executable, arguments, input, timeout: TimeSpan.FromSeconds(timeoutSeconds));
+                Write("completed"); return result;
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                Exception failure = error;
+                try { Write("failed"); }
+                catch (Exception receiptError) when (receiptError is IOException or UnauthorizedAccessException)
+                { failure = new AggregateException(error, receiptError); }
+                throw new InvalidOperationException("Native Claude command failed: " + stage, failure);
+            }
+        }
         File.WriteAllText(Path.Combine(directory, "windows-native-host.json"), JsonSerializer.Serialize(new {
             os_architecture = System.Runtime.InteropServices.RuntimeInformation.OSArchitecture.ToString(),
             process_architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
@@ -164,9 +184,9 @@ internal static partial class NativeSmoke
             var hooks = installed.RootElement.GetProperty("hooks");
             Require(hooks.GetProperty("Stop").GetArrayLength() == 1 && hooks.GetProperty("SessionStart").GetArrayLength() == 1, "Claude setup duplicated or discarded hooks");
             var command = ClaudeHookInstaller.Command("claude-status").Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var result = await BoundedProcess.RunAsync(Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"),
+            var result = await ClaudeCommand("installed-status-stdin", Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"),
                 command.Skip(1), """{"session_id":"synthetic-unregistered","rate_limits":{"five_hour":{"used_percentage":53}}}""",
-                timeout: TimeSpan.FromSeconds(45));
+                timeoutSeconds: 45);
             Require(result.Contains("53%", StringComparison.Ordinal), "Installed Claude command did not read stdin");
             ClaudeHookInstaller.Uninstall(); ClaudeHookInstaller.Uninstall();
             using var removed = JsonDocument.Parse(File.ReadAllText(ClaudeHookInstaller.SettingsPath));
@@ -179,8 +199,8 @@ internal static partial class NativeSmoke
             userSettings["statusLine"] = System.Text.Json.Nodes.JsonNode.Parse(originalStatus);
             File.WriteAllText(ClaudeHookInstaller.SettingsPath, userSettings.ToJsonString());
             var helper = Path.Combine(AppContext.BaseDirectory, "CodeRimCLI.exe");
-            await BoundedProcess.RunAsync(helper, ["claude-connect", "--replace-statusline"], timeout: TimeSpan.FromSeconds(20));
-            await BoundedProcess.RunAsync(helper, ["claude-disconnect"], timeout: TimeSpan.FromSeconds(20));
+            await ClaudeCommand("connect-replace-statusline", helper, ["claude-connect", "--replace-statusline"]);
+            await ClaudeCommand("disconnect-restore-statusline", helper, ["claude-disconnect"]);
             var restored = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(ClaudeHookInstaller.SettingsPath))!;
             Require(System.Text.Json.Nodes.JsonNode.DeepEquals(restored["statusLine"], System.Text.Json.Nodes.JsonNode.Parse(originalStatus)),
                 "CLI disconnect failed to restore the user's original status line.");
@@ -409,16 +429,18 @@ internal static partial class NativeSmoke
 
         var projects = Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.projects");
         projects.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
-        var periodSelector = Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period");
-        Require(Equals(periodSelector.SelectedValue, "30d"), "Projects did not use the reference initial 30D range");
-        periodSelector.SelectedValue = "month";
+        RadioButton ListRange(string id) => Descendants<RadioButton>(dashboard).Single(x => x.GroupName == "UsageRange" && Equals(x.Tag, id));
+        Require(ListRange("30d").IsChecked == true, "Projects did not use the reference initial 30D range");
+        Require(!Descendants<System.Windows.Controls.TextBox>(dashboard).Any(), "List find must stay out of the default reference layout");
+        ListRange("7d").IsChecked = true;
+        Require(Descendants<UsagePane>(dashboard).Single().HandleShortcut(System.Windows.Input.Key.F, System.Windows.Input.ModifierKeys.Control), "Projects find shortcut failed"); await Idle();
         var filter = Descendants<System.Windows.Controls.TextBox>(dashboard).Single(); filter.Text = "CodeRim"; await Idle();
         var projectRow = Descendants<System.Windows.Controls.Button>(dashboard).FirstOrDefault(x => (AutomationProperties.GetName(x) ?? "").StartsWith("CodeRim:", StringComparison.Ordinal));
         Require(projectRow is not null, "Synthetic project row missing");
         projectRow!.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.navigation.back").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         Require(Descendants<System.Windows.Controls.TextBox>(dashboard).Single().Text == "CodeRim", "Back lost project search");
-        Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period").SelectedValue == "month", "Back lost selected period");
+        Require(ListRange("7d").IsChecked == true, "Back lost selected period");
         Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.navigation.back").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         Record("Project detail Back restores list search and period");
 
@@ -449,10 +471,18 @@ internal static partial class NativeSmoke
         Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Whole-session images"), "Session image metadata is absent");
         Require(!Descendants<System.Windows.Controls.TextBox>(dashboard).Any(), "List filter leaked into session detail");
         Require(Descendants<ListBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Settings sections").SelectedItem is ListBoxItem { Tag: "usage" }, "Session route left the wrong sidebar section selected");
-        var sessionPeriod = Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period");
-        sessionPeriod.SelectedValue = "today"; await Idle();
-        Require(!Descendants<System.Windows.Controls.Button>(dashboard).Any(x => (x.Content as string ?? "").StartsWith("Sub-agent preview-", StringComparison.Ordinal)), "Out-of-period child links lead to empty detail");
-        sessionPeriod.SelectedValue = "all-time"; await Idle();
+        Require(!Descendants<RadioButton>(dashboard).Any(x => x.GroupName == "UsageRange"), "Session detail retained a period control instead of inheriting its list range");
+        Descendants<UsagePane>(dashboard).Single().Back(); await Idle(); ListRange("today").IsChecked = true; await Idle();
+        var todaySession = Descendants<System.Windows.Controls.Button>(dashboard).SingleOrDefault(x => AutomationProperties.GetAutomationId(x) == "usage.session.preview-session");
+        if (todaySession is not null)
+        {
+            todaySession.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+            Require(!Descendants<System.Windows.Controls.Button>(dashboard).Any(x => (x.Content as string ?? "").StartsWith("Sub-agent preview-", StringComparison.Ordinal)), "Out-of-period child links lead to empty detail");
+            Descendants<UsagePane>(dashboard).Single().Back(); await Idle();
+        }
+        else Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "No sessions in this range."), "A midnight range without the preview session lost its empty state");
+        ListRange("7d").IsChecked = true; await Idle();
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.session.preview-session").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         var childButton = Descendants<System.Windows.Controls.Button>(dashboard).Single(x => (x.Content as string ?? "").StartsWith("Sub-agent preview-", StringComparison.Ordinal));
         Capture(dashboard, Path.Combine(directory, "windows-session-details.png"));
         childButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();

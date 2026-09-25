@@ -40,7 +40,7 @@ internal sealed partial class UsagePane
         }
         if (snapshot.Quality is DataQuality.Stale or DataQuality.Error)
         {
-            var row = new DockPanel { Margin = new Thickness(0, 0, 0, 16) };
+            var row = new DockPanel { Margin = IsAnalyticsList ? new Thickness(16, 8, 16, 8) : new Thickness(0, 0, 0, 16) };
             var icon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M6,1 L11,11 H1 Z M6,4 V7 M6,9 V9.2"),
                 Width = 12, Height = 12, StrokeThickness = 1, StrokeLineJoin = PenLineJoin.Round, Margin = new Thickness(0, 0, 6, 0) };
             icon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); DockPanel.SetDock(icon, Dock.Left); row.Children.Add(icon);

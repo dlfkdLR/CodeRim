@@ -34,6 +34,8 @@ internal sealed partial class UsagePane : StackPanel
     private TextBlock? detailTitle;
     private readonly Stack<NavigationState> history = new();
     private readonly Dictionary<string, string> analyticsRanges = new(StringComparer.Ordinal);
+    private bool IsAnalyticsList => destination is "projects" or "sessions" && project is null && session is null;
+    private bool searchVisible;
     private DateTimeOffset? analyticsSelectedBucket;
     private void OpenAnalytics(string target) => Forward(target, analyticsRanges.GetValueOrDefault(target, target == "projects" ? "30d" : "7d"));
     private void ChangePeriod(string value)
@@ -44,11 +46,12 @@ internal sealed partial class UsagePane : StackPanel
         if (destination == "activity") analyticsSelectedBucket = null;
         selectedBucket = null; visibleRows = 40; Update();
     }
-    private sealed record NavigationState(string Destination, string Period, string Search, string? Project, string? Session, int VisibleRows, string? Model, DateTimeOffset? Bucket);
+    private sealed record NavigationState(string Destination, string Period, string Search, bool SearchVisible, string? Project, string? Session, int VisibleRows, string? Model, DateTimeOffset? Bucket);
     private void Forward(string target, string? selectedPeriod = null, string? selectedProject = null, string? selectedSession = null, string? model = null)
     {
-        history.Push(new(destination, period, search, project, session, visibleRows, selectedModel, selectedBucket));
+        history.Push(new(destination, period, search, searchVisible, project, session, visibleRows, selectedModel, selectedBucket));
         destination = target; period = selectedPeriod ?? period; project = selectedProject; session = selectedSession; selectedModel = model;
+        search = ""; searchVisible = false;
         selectedBucket = target == "activity" ? analyticsSelectedBucket : null;
         BuildControls(); Update();
     }
@@ -56,10 +59,18 @@ internal sealed partial class UsagePane : StackPanel
     {
         if (!history.TryPop(out var previous)) return;
         (destination, period, search, project, session, visibleRows, selectedModel, selectedBucket) = (previous.Destination, previous.Period, previous.Search, previous.Project, previous.Session, previous.VisibleRows, previous.Model, previous.Bucket);
+        searchVisible = previous.SearchVisible;
         BuildControls(); Update();
     }
     internal bool HandleShortcut(Key key, ModifierKeys modifiers)
     {
+        if (key == Key.F && modifiers == ModifierKeys.Control && IsAnalyticsList)
+        {
+            searchVisible = true; BuildControls();
+            var field = filters.Children.OfType<TextBox>().Single();
+            Dispatcher.BeginInvoke(new Action(() => { field.Focus(); field.SelectAll(); }));
+            return true;
+        }
         if (key == Key.OemOpenBrackets) { Back(); return true; }
         if (key is Key.D1 or Key.D2)
         {
@@ -197,7 +208,7 @@ internal sealed partial class UsagePane : StackPanel
     private void BuildControls()
     {
         controls.Children.Clear(); filters.Children.Clear(); detailTitle = null; refreshAction = null;
-        filters.Margin = destination == "activity" ? new Thickness(16, 12, 16, 12) : new Thickness(24, 0, 24, 0);
+        filters.Margin = destination == "activity" || IsAnalyticsList ? new Thickness(16, 12, 16, 12) : new Thickness(24, 0, 24, 0);
         var bar = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
         selector.Visibility = destination == "overview" ? Visibility.Visible : Visibility.Collapsed;
         accountRow.Visibility = destination == "overview" ? Visibility.Visible : Visibility.Collapsed;
@@ -218,8 +229,27 @@ internal sealed partial class UsagePane : StackPanel
             System.Windows.Automation.AutomationProperties.SetAutomationId(heading, "usage.detail.title"); detailTitle = heading; detail.Children.Add(heading);
             controls.Children.Add(detail);
         }
-        if (destination is "account-period" or "local-period" or "model") return;
-        if (destination == "activity") { filters.Children.Add(AnalyticsRangeControl()); return; }
+        if (destination == "activity" || IsAnalyticsList)
+        {
+            filters.Children.Add(AnalyticsRangeControl());
+            if (IsAnalyticsList && searchVisible)
+            {
+                var filter = new TextBox { Text = search, Padding = new Thickness(8), Margin = new Thickness(0, 10, 0, 0), ToolTip = "Find " + destination + " (Ctrl+F, Escape to close)" };
+                System.Windows.Automation.AutomationProperties.SetName(filter, "Filter " + destination);
+                filter.TextChanged += (_, _) => { search = filter.Text; visibleRows = 40; Update(); };
+                filter.PreviewKeyDown += (_, e) =>
+                {
+                    if (e.Key != Key.Escape) return;
+                    search = ""; searchVisible = false; visibleRows = 40; BuildControls(); Update(); e.Handled = true;
+                    var range = filters.Children.OfType<Border>().FirstOrDefault()?.Child as System.Windows.Controls.Primitives.UniformGrid;
+                    var selected = range?.Children.OfType<RadioButton>().FirstOrDefault(x => x.IsChecked == true);
+                    Dispatcher.BeginInvoke(new Action(() => selected?.Focus()));
+                };
+                filters.Children.Add(filter);
+            }
+            return;
+        }
+        if (destination != "overview") return;
         if (destination == "overview")
         {
             var segments = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
@@ -236,28 +266,13 @@ internal sealed partial class UsagePane : StackPanel
                 button.Checked += (_, _) => { mode = choice; Update(); }; segments.Children.Add(button);
             }
         }
-        else
-        {
-            var periods = new[] { ("today", "Today"), ("7d", "7D"), ("30d", "30D"), ("week", "This week"), ("month", "This month"), ("all-time", "All time") };
-            var select = new System.Windows.Controls.ComboBox { ItemsSource = periods.Select(x => new PeriodChoice(x.Item1, x.Item2)), DisplayMemberPath = "Name", SelectedValuePath = "Id", SelectedValue = period, MinWidth = 145, Margin = new Thickness(0, 4, 8, 4) };
-            System.Windows.Automation.AutomationProperties.SetName(select, "Usage period");
-            select.SelectionChanged += (_, _) => { if (select.SelectedValue is string value) ChangePeriod(value); }; bar.Children.Add(select);
-        }
         var refresh = Ui.RefreshButton("Refresh usage", () => store.RefreshAsync(true));
         refresh.Margin = new Thickness(16, 0, 0, 0);
         refreshAction = refresh; refresh.IsEnabled = !store.IsRefreshing;
         refresh.ToolTip = "Refresh usage and limits (Ctrl+R)";
         System.Windows.Automation.AutomationProperties.SetAutomationId(refresh, "usage.refresh");
         bar.Children.Add(refresh);
-        if (destination == "overview") controls.Children.Add(bar);
-        else { bar.HorizontalAlignment = HorizontalAlignment.Right; filters.Children.Add(bar); }
-        if (destination is "projects" or "sessions" && project is null && session is null)
-        {
-            var filter = new System.Windows.Controls.TextBox { Text = search, Padding = new Thickness(8), Margin = new Thickness(0, 10, 0, 12), ToolTip = "Filter " + destination };
-            System.Windows.Automation.AutomationProperties.SetName(filter, "Filter " + destination);
-            filter.TextChanged += (_, _) => { search = filter.Text; visibleRows = 40; Update(); };
-            filters.Children.Add(filter);
-        }
+        controls.Children.Add(bar);
     }
     internal void Update()
     {
@@ -293,7 +308,8 @@ internal sealed partial class UsagePane : StackPanel
         identityIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); DockPanel.SetDock(identityIcon, Dock.Left); account.Children.Add(identityIcon);
         account.Children.Add(accountLabel); accountRow.Children.Add(account); account.VerticalAlignment = VerticalAlignment.Center; account.Margin = new Thickness(0, 12, 0, 12);
         readings.Children.Clear(); limitClockUpdates.Clear();
-        readings.Margin = mode == "Limits" && destination == "overview" || destination is "activity" or "model" ? new Thickness(16) : new Thickness(24, 16, 24, 16);
+        readings.Margin = IsAnalyticsList ? new Thickness(0)
+            : mode == "Limits" && destination == "overview" || destination is "activity" or "model" ? new Thickness(16) : new Thickness(24, 16, 24, 16);
         if (!ProviderAvailable)
         {
             accountRow.Children.Clear();
@@ -409,10 +425,15 @@ internal sealed partial class UsagePane : StackPanel
             readings.Children.Add(AnalyticsValueRow("Sessions", events.Select(x => x.SessionId).Distinct(StringComparer.Ordinal).LongCount(), 14));
             return;
         }
-        readings.Children.Add(Ui.Text(selectedModel is not null ? selectedModel : session is not null ? "Session details" : project is not null ? "Project details" : destination switch { "projects" => "Projects", "sessions" => "Sessions", _ => "Usage history" }, 20, weight: FontWeights.SemiBold));
-        if (events.Length == 0) { readings.Children.Add(Ui.Text("No local usage observed for this period.", color: "#A6A6AA")); return; }
         if (destination is "projects" or "sessions" && project is null && session is null)
         {
+            if (events.Length == 0)
+            {
+                var empty = Ui.Text(destination == "projects" ? "No project-tagged usage in this range." : "No sessions in this range.", 11, "#A6A6AA");
+                empty.Margin = new Thickness(24); readings.Children.Add(empty); return;
+            }
+            var quality = AnalyticsQuality(events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage)));
+            var visibleSessions = events.Select(x => x.SessionId).ToHashSet(StringComparer.Ordinal);
             var rows = events.GroupBy(x => destination == "projects" ? x.ProjectId : x.SessionId).Select(g =>
             {
                 // A session can move between directories or acquire metadata
@@ -422,22 +443,31 @@ internal sealed partial class UsagePane : StackPanel
                     .ThenBy(x => x.Project, StringComparer.Ordinal).First();
                 return new { Id = g.Key, Name = destination == "projects" ? named.Project
                         : HasProjectName(named) ? named.Project : "Session " + g.Key[..Math.Min(8, g.Key.Length)],
-                    Total = g.Aggregate(TokenUsage.Zero, (sum, x) => sum.Add(x.Usage)).TotalTokens, LastActivity = g.Max(x => x.OccurredAt) };
+                    Total = g.Aggregate(TokenUsage.Zero, (sum, x) => sum.Add(x.Usage)).TotalTokens, LastActivity = g.Max(x => x.OccurredAt),
+                    Sessions = g.Select(x => x.SessionId).Distinct(StringComparer.Ordinal).LongCount(), Cost = UsageAnalytics.Estimate(g) };
             }).Where(g => g.Name.Contains(search, StringComparison.OrdinalIgnoreCase) || g.Id.Contains(search, StringComparison.OrdinalIgnoreCase));
             var groups = (destination == "projects"
                 ? rows.OrderByDescending(g => g.Total).ThenBy(g => g.Name, StringComparer.Ordinal).ThenBy(g => g.Id, StringComparer.Ordinal)
                 : rows.OrderByDescending(g => g.LastActivity).ThenBy(g => g.Id, StringComparer.Ordinal)).ToArray();
+            if (groups.Length == 0)
+            {
+                var empty = Ui.Text("No matching " + destination + ".", 11, "#A6A6AA"); empty.Margin = new Thickness(24); readings.Children.Add(empty);
+            }
             foreach (var group in groups.Take(visibleRows))
             {
-                var button = Ui.Button("", () => Forward(destination, selectedProject: destination == "projects" ? group.Id : null, selectedSession: destination == "sessions" ? group.Id : null));
-                System.Windows.Automation.AutomationProperties.SetName(button, group.Name + ": " + group.Total.ToString(CultureInfo.CurrentCulture) + " tokens");
-                System.Windows.Automation.AutomationProperties.SetAutomationId(button, "usage." + (destination == "projects" ? "project." : "session.") + group.Id);
-                button.Content = Ui.Row(group.Name, TokenFormatter.Format(group.Total, settings.Current.NumberStyle) + "  ›");
-                button.HorizontalContentAlignment = HorizontalAlignment.Stretch; readings.Children.Add(button);
+                var detail = destination == "projects" ? group.Sessions.ToString("N0", CultureInfo.CurrentCulture) + (group.Sessions == 1 ? " session" : " sessions")
+                    : SessionListDetail(group.Id, group.LastActivity, visibleSessions);
+                var costText = settings.Current.CostEstimatesEnabled && provider == "codex" && quality != DataQuality.Unavailable && group.Cost.Amount is { } amount
+                    ? "~" + AnalyticsCurrency(amount) + (group.Cost.IsPartial ? " · subtotal" : "") : "";
+                readings.Children.Add(AnalyticsRowButton(group.Name, detail, group.Total, costText,
+                    "usage." + (destination == "projects" ? "project." : "session.") + group.Id, 16,
+                    () => Forward(destination, selectedProject: destination == "projects" ? group.Id : null, selectedSession: destination == "sessions" ? group.Id : null)));
             }
             if (groups.Length > visibleRows) readings.Children.Add(Ui.Button("Show more (" + (groups.Length - visibleRows) + " remaining)", () => { visibleRows += 40; Update(); }));
             return;
         }
+        readings.Children.Add(Ui.Text(selectedModel is not null ? selectedModel : session is not null ? "Session details" : project is not null ? "Project details" : destination switch { "projects" => "Projects", "sessions" => "Sessions", _ => "Usage history" }, 20, weight: FontWeights.SemiBold));
+        if (events.Length == 0) { readings.Children.Add(Ui.Text("No local usage observed for this period.", color: "#A6A6AA")); return; }
         if (session is not null)
         {
             var detail = store.SessionDetails.GetValueOrDefault(provider)?.FirstOrDefault(x => x.Id == session);
@@ -473,5 +503,20 @@ internal sealed partial class UsagePane : StackPanel
     }
     private static bool HasProjectName(UsageEvent item) => !string.IsNullOrWhiteSpace(item.Project)
         && (item.Project != "Unknown project" || item.ProjectId != "unknown");
-    private sealed record PeriodChoice(string Id, string Name);
+    private string SessionListDetail(string id, DateTimeOffset lastActivity, HashSet<string> visibleSessions)
+    {
+        var parts = new List<string> { lastActivity.ToLocalTime().ToString("g", CultureInfo.CurrentCulture) };
+        var metadata = store.SessionDetails.GetValueOrDefault(provider) ?? [];
+        if (settings.Current.AgentDetailsEnabled)
+        {
+            var count = metadata.Count(x => x.ParentId == id && visibleSessions.Contains(x.Id));
+            if (count > 0) parts.Add(count.ToString("N0", CultureInfo.CurrentCulture) + (count == 1 ? " agent" : " agents"));
+        }
+        if (settings.Current.AttachmentMetadataEnabled)
+        {
+            var count = metadata.FirstOrDefault(x => x.Id == id)?.Attachments.Sum(x => (long)x.Count) ?? 0;
+            if (count > 0) parts.Add(count.ToString("N0", CultureInfo.CurrentCulture) + (count == 1 ? " whole-session image" : " whole-session images"));
+        }
+        return string.Join(" · ", parts);
+    }
 }
