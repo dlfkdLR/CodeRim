@@ -42,9 +42,9 @@ The reference includes local Mac changes beyond the published 2.1.8 source, incl
 | WP-32 | Medium | Analytics dates differ in locale joining words, spacing, year and clock format | Explicit Foundation patterns, overrides and fallbacks implemented; twelve fixed locales and five other date groups pass installed/direct x64/ARM64 in CI43 and CI45; every OS locale data set is not verified |
 | WP-33 | Medium | Session Started and folder names are lost or change with selected range | Durable provider-isolated metadata and detail/list wiring implemented; ten native detail groups pass installed/direct x64/ARM64 in CI43 and CI45 |
 | WP-34 | Medium | Analytics omits local Codex desktop task titles and generic-project name enrichment | Read-only in-memory labels implemented; five title groups and six local-data groups pass installed/direct x64/ARM64 in CI45 (36179678176); bounded fallback cases remain explicit |
-| WP-35 | Medium | Proven high-context requests are excluded from cost estimates | Request-level proof, nullable storage and tiered estimator implemented; eleven focused cases included in Core52 (2,044 passes); native pricing execution pending in CI46 (36181235816) |
+| WP-35 | Medium | Proven high-context requests are excluded from cost estimates | Request-level proof, nullable storage and tiered estimator implemented; eleven focused cases included in Core52 (2,044 passes); thirteen cost groups pass installed/direct x64/ARM64 in CI46 (36181235816) |
 | WP-36 | Medium | Claude agent transcript usage collapses into the parent session | Scoped child identities, copied-history migration and safe parent IDs implemented; four installed/direct native import/navigation groups pass x64/ARM64 in CI44 and CI45 |
-| WP-37 | Medium | Projects/Sessions required a Show more action after 40 rows | Removed page state; full reference lists and mounted long-list regressions; native execution pending |
+| WP-37 | Medium | Projects/Sessions required a Show more action after 40 rows | Removed page state and quadratic metadata scans; seven installed/direct list groups pass x64/ARM64 in CI47 (36183247683); arbitrary-size performance remains unmeasured |
 
 ## First change batch
 
@@ -612,3 +612,34 @@ No total match percentage is assigned while the inventory and open functional di
 - Independent review also identified **PERF-047 / Medium**: once paging was removed, SessionListDetail's per-row Count/FirstOrDefault over all session metadata produced quadratic dispatcher work. Mac builds direct-child counts once. Windows now builds the visible-child count map once per render and reads images from the existing metadata dictionary. The native fixture now supplies122 metadata records, verifies60 recent children versus61 in30D and whole-session images from outside the selected range, and instruments the metadata source to require exactly one enumeration during a list update. No measured latency claim is made. Build238 passes with zero warnings/errors; native execution and final rereview remain pending.
 
 - Final independent source rereview marks both QA-047 and PERF-047 resolved, verifies build238 and records no new actionable source blocker. Harness worker67/batch66 passes with no scope violations. Long-list native execution is pending; no latency improvement percentage or full visual parity is inferred. CI46 is now fully successful on x64 and actual ARM64; the new ARM pricing artifacts are being retrieved separately before asserting their contents.
+
+
+## CI46 completion and final checks for the continuous-list candidate
+
+- CI46 (`36181235816`, `322fafb`) ARM artifacts have been read directly. Installed/direct hosts report Arm64 OS/process on .NET10.0.12; both cost receipts complete thirteen groups and MSI lifecycle completes seven. Primary and independent review opened installed/direct high-context PNGs and confirmed300100/~$1.70 with the expected breakdown. These artifacts do not validate the later continuous-list delta (`7d3ac5a`, CI47 `36183247683`). The separate msi-handoff job remains skipped.
+- The six-project NuGet audit command, `dotnet list Windows/CodeRim.Windows.sln package --vulnerable --include-transitive --format json --no-restore`, exits0 with no reported vulnerable packages using the configured NuGet advisory source. This is known-package advisory coverage, not a claim that application code has no security defects. No dependency manifest or lockfile changes. Evidence: `/private/tmp/coderim-mac-parity-dependency-audit47.json`.
+- Mac preservation check27 exactly equals check26:383 of389 locked files match the original baseline and the same six previously recorded external changes remain. This task adds no Mac changes. Harness summary returns **INCONCLUSIVE** (`summary-c807edb3543f4df9b435d7849a8edae1`); successful patch workers and independent native evidence are not formal ACCEPT.
+
+- CI47 (`36183247683`, `7d3ac5a`) x64 job is successful. Downloaded installed/direct `windows-analytics-lists.json` each complete seven groups, including all122/121 rows, detail/Back, range/Find, final-row geometry and one metadata-source enumeration. MSI lifecycle completes seven groups. Primary directly opened installed narrow project/session end captures and the direct650-width session capture: Task000 retains1 token and Task120 retains121 with whole-session images, and neither final row is clipped. ARM64 execution remains in progress. Captures show a scrolled viewport, so a partially visible preceding row at the top is expected and is not full-content clipping.
+
+
+## CI47 completion and remaining evidence limits
+
+- CI47 (`36183247683`, product commit `7d3ac5a`) completes both x64 and native ARM64 jobs successfully. ARM Core log reports **2,077 succeeded, zero failed, zero skipped**. Downloaded installed/direct host receipts identify Arm64 OS/process. ARM MSI lifecycle completes the same seven install/rollback/upgrade/preservation groups. Primary opened installed session-list-end and direct project-list-end PNGs and confirmed the final row values and image metadata without observed clipping.
+- The following receipt groups complete in all four executions (x64 installed/direct and ARM64 installed/direct). Counts are assertion groups, not independent requirements or a match-rate denominator.
+
+| Receipt | Completed groups per execution |
+| --- | ---: |
+| Continuous analytics lists | 7 |
+| Cost coverage and chart | 13 |
+| Desktop task labels | 5 |
+| Project/session details | 10 |
+| Localized dates | 17 |
+| Analytics state/navigation | 15 |
+| Claude agent usage | 4 |
+| Local data operations | 6 |
+
+- **Actual pointer input is not fully verified.** x64 installed/direct pointer hover and native wheel receipts report PASS. ARM64 installed/direct pointer receipts report INCONCLUSIVE: WindowFromPoint identified the foreign WWAHost window at the target position; the native wheel fixture consequently submitted zero inputs. The ARM UI log has73 entries, including these two inconclusive records, so it must not be described as73 passes. WPF routed-handler/motion assertions and programmatic list scrolling/focus are separate evidence. Neither these results nor a successful workflow establish physical-PC mouse/DPI/multimonitor parity.
+- The current `msi-handoff` job is skipped. The separate dispatch downloads the signed v2.1.10 draft; it was not run or relabeled as evidence for this candidate. No public release, signed update index or user's installed application is updated. Remaining comparison work includes Swift Charts automatic axes/continuous selection, the desktop account-switch lifecycle, other provider identity/routes and real-account/physical-display validation. Full parity and a100% completion rate remain unproven.
+
+- Final independent ARM review confirms the receipt table, Core2077/0/0, MSI7, final-row PNGs and product source hashes bound to7d3ac5a. It separately records the WWAHost pointer obstruction and zero submitted wheel inputs, with no blanket73-pass claim. No new actionable source or sampled final-row rendering defect was found. Harness worker69 passes with no scope violations; the refreshed summary `summary-c581d8bb94d248a79520dcfa83b99469` remains INCONCLUSIVE.
