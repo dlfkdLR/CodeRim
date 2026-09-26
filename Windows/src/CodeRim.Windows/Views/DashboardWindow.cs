@@ -403,7 +403,7 @@ internal sealed partial class DashboardWindow : Window
         DockPanel.SetDock(mark, Dock.Left); header.Children.Add(mark);
         var headerText = new StackPanel();
         headerText.Children.Add(Ui.Text(provider.Name, 16, weight: FontWeights.SemiBold));
-        headerText.Children.Add(ProviderValue("provider.status", ProviderStatus(id, accountDisplay.Reading), 12));
+        headerText.Children.Add(ProviderValue("provider.status", ProviderStatus(id, ProviderDisplayPolicy.ForSettings(accountDisplay.Reading)), 12));
         header.Children.Add(headerText);
         var headerCard = new Border { Child = header, CornerRadius = new CornerRadius(12), Margin = new Thickness(18, 0, 18, 4) };
         headerCard.SetResourceReference(Border.BackgroundProperty, "CardBackground"); body.Children.Add(headerCard);
@@ -761,12 +761,12 @@ internal sealed partial class DashboardWindow : Window
         System.Windows.Automation.AutomationProperties.SetAutomationId(label, identifier);
         return label;
     }
-    private void UpdateProviderReading(string id)
+    internal void UpdateProviderReading(string id)
     {
         UpdateProviderLocalData(id);
         // Update the existing labels so credential drafts and keyboard focus survive a poll.
         var display = store.AccountDisplay(id);
-        var current = display.Reading?.Evaluated(DateTimeOffset.Now);
+        var current = ProviderDisplayPolicy.ForSettings(display.Reading)?.Evaluated(DateTimeOffset.Now);
         UpdateProviderAlerts(id, current);
         UpdateProviderAccount();
         foreach (var label in VisualChildren<TextBlock>(body))

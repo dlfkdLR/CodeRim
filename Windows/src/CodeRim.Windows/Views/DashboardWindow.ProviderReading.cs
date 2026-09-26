@@ -4,6 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
+using CodeRim.Windows.Services;
 
 namespace CodeRim.Windows.Views;
 
@@ -64,6 +65,7 @@ internal sealed partial class DashboardWindow
     private void UpdateProviderAlerts(string id, ProviderReading? reading)
     {
         if (providerAlert is null) return;
+        reading = ProviderDisplayPolicy.ForSettings(reading);
         var name = ProviderCatalog.Find(id)?.Name ?? id; var muted = settings.Current.MutedAlertProviders.Contains(id, StringComparer.Ordinal);
         providerAlert.Visibility = reading is { State: ReadingState.Ready } or { Windows.Count: > 0 } ? Visibility.Visible : Visibility.Collapsed;
         providerAlert.IsEnabled = settings.Current.AlertsEnabled;

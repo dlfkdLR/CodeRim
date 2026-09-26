@@ -3,6 +3,16 @@ namespace CodeRim.Windows.Services;
 internal static class ProviderDisplayPolicy
 {
     internal const string ResetCreditsId = "rate-limit-reset-credits";
+    internal static ProviderReading? ForSettings(ProviderReading? reading)
+    {
+        // Mac removes these providers' snapshot on a failed fetch. Keep the
+        // stored failure for notch presence/diagnostics, but present that same
+        // absent snapshot in Settings without discarding independent Account.
+        return reading is not null && ProviderAvailability.HidesWhenAbsent(reading.Id)
+            && reading.State is ReadingState.NeedsAuth or ReadingState.Unsupported
+                or ReadingState.Unavailable or ReadingState.Error or ReadingState.Disabled
+            ? null : reading;
+    }
     internal static ProviderReading? ForNotch(ProviderReading? reading, AppSettings settings, string? rawPlan = null)
     {
         var displayed = Apply(reading, settings);

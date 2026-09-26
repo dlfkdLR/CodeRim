@@ -66,6 +66,7 @@ internal static partial class NativeSmoke
                 });
             var claude = new ClaudeIntegration(new(false, null), new ClaudeFixtureOperations(() => null), (_, _) => { });
             store = new DashboardStore(settings, vault, providerConnections: connections, claudeIntegration: claude);
+            foreach (var id in ids) store.Readings.Remove(id);
             await store.RefreshProviderAccountsAsync();
             Require(requests == 0 && ids.All(id => store.ProviderAccountDisplay(id).Account == summaries[id].Account), "Account detection sent HTTP or depended on a quota result.");
             window = new DashboardWindow(store, settings, vault); window.Show();
@@ -73,19 +74,35 @@ internal static partial class NativeSmoke
             {
                 window.Navigate(id); await Idle();
                 Require(Identity().IsVisible && IdentityValue("label") == id + "@example.invalid", id + " initial Account is missing before HTTP.");
+                Require(ProviderHeaderStatus(window) == "Not connected", id + " initial Settings invented a connection before HTTP.");
+                var connectionDraft = Descendants<PasswordBox>(window).First(); connectionDraft.Password = "preserved-display-fixture";
                 foreach (var state in new[] { HttpStatusCode.ServiceUnavailable, HttpStatusCode.Unauthorized })
                 {
                     responseStatus = state; await store.RefreshProviderAsync(id); await Idle();
                     Require(store.Readings[id].Windows.Count == 0 && store.Readings[id].State is ReadingState.Error or ReadingState.NeedsAuth
                         && Identity().IsVisible && IdentityValue("label") == id + "@example.invalid", id + " failed request erased Account or retained quota.");
                     Require(!ProviderAvailability.ShowsInNotch(id, store.Readings[id], true), id + " failed quota left a notch ring solely because Account exists.");
+                    RequireAbsentProviderPresentation(window, store.Readings[id]);
                 }
                 timeout = true; await store.RefreshProviderAsync(id); timeout = false; await Idle();
                 Require(store.Readings[id].Windows.Count == 0 && Identity().IsVisible, id + " timeout erased its detected account.");
+                RequireAbsentProviderPresentation(window, store.Readings[id]);
                 Capture(window, Path.Combine(directory, "windows-independent-account-" + id + "-failed.png"));
                 var row = new ProviderAccountRow(id, store, settings, () => { }, () => { }, _ => { });
                 Require(Descendants<TextBlock>(row).Any(x => x.Text.Contains("via " + summaries[id].Account!.Source, StringComparison.Ordinal)), id + " provider list lost the independent account source.");
                 checks.Add(id + " initial Account without HTTP, first 503/401/timeout retains Account and removes quota");
+                foreach (var state in new[] { HttpStatusCode.ServiceUnavailable, HttpStatusCode.Unauthorized })
+                {
+                    responseStatus = HttpStatusCode.OK; await store.RefreshProviderAsync(id); await Idle();
+                    Require(ProviderHeaderStatus(window) == "Connected" && Descendants<ProgressBar>(window).Any()
+                        && Identity().IsVisible, id + " successful request did not recover the mounted Settings quota.");
+                    responseStatus = state; await store.RefreshProviderAsync(id); await Idle();
+                    RequireAbsentProviderPresentation(window, store.Readings[id]);
+                    Require(Identity().IsVisible && IdentityValue("label") == id + "@example.invalid"
+                        && ReferenceEquals(connectionDraft, Descendants<PasswordBox>(window).First())
+                        && connectionDraft.Password == "preserved-display-fixture", id + " failure presentation rebuilt Account or credential inputs.");
+                }
+                checks.Add(id + " actual 503/401 Settings projection removes duplicate error copy and recovers without replacing Account or drafts");
             }
 
             window.Navigate("commandcode"); responseStatus = HttpStatusCode.OK;
