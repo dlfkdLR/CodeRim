@@ -16,6 +16,7 @@ internal sealed partial class UsagePane : StackPanel
     private readonly DashboardStore store;
     private readonly AppSettingsStore settings;
     private readonly Action<string?> navigate;
+    private readonly TimeProvider clock;
     private readonly StackPanel readings = new() { Margin = new Thickness(24, 16, 24, 16) };
     private readonly StackPanel accountRow = new() { Margin = new Thickness(24, 0, 24, 4), MinHeight = 44 };
     private readonly UsageProviderPicker selector;
@@ -130,8 +131,25 @@ internal sealed partial class UsagePane : StackPanel
         RefreshProviderChoices();
         var changedAccount = displayedOwner != store.AccountDisplay(provider).OwnerKey || displayedAvailable != ProviderAvailable || displayedProfileAccountKey != store.ProfileHistory.Snapshot?.AccountKey || displayedProfileEnabled != store.ProfileHistory.Enabled;
         var changedLocalState = displayedLocalState != LocalState;
-        if (!changedAccount && !changedLocalState && (readings.IsKeyboardFocusWithin || accountRow.IsKeyboardFocusWithin)) { pendingRefresh = true; return; }
+        var focusedChart = destination == "activity" && readings.IsKeyboardFocusWithin
+            ? timelineButtons.FirstOrDefault(pair => pair.Value.IsKeyboardFocusWithin) : default;
+        var chartFocus = focusedChart.Key;
+        var focusDate = focusedChart.Value?.Tag as DateTimeOffset?;
+        if (!changedAccount && !changedLocalState && chartFocus is null && (readings.IsKeyboardFocusWithin || accountRow.IsKeyboardFocusWithin)) { pendingRefresh = true; return; }
         pendingRefresh = false; Update();
+        // Rebuild changing values without indefinitely freezing a focused chart.
+        // Preserve its actual keyboard target; never restore across account changes.
+        if (!changedAccount && chartFocus is not null)
+        {
+            if (!timelineButtons.TryGetValue(chartFocus, out var replacement))
+            {
+                var kind = chartFocus.StartsWith("usage.bucket.cost.", StringComparison.Ordinal) ? "usage.bucket.cost." : "usage.bucket.tokens.";
+                replacement = timelineButtons.Where(pair => pair.Key.StartsWith(kind, StringComparison.Ordinal))
+                    .OrderBy(pair => focusDate is { } selected && pair.Value.Tag is DateTimeOffset start ? Math.Abs((start - selected).Ticks) : 0)
+                    .Select(pair => pair.Value).FirstOrDefault();
+            }
+            replacement?.Focus();
+        }
     }
     private void RefreshProviderChoices()
     {
@@ -144,8 +162,9 @@ internal sealed partial class UsagePane : StackPanel
         }
         finally { updatingChoices = false; }
     }
-    internal UsagePane(DashboardStore store, AppSettingsStore settings, string provider, Action<string?> navigate)
+    internal UsagePane(DashboardStore store, AppSettingsStore settings, string provider, Action<string?> navigate, TimeProvider? clock = null)
     {
+        this.clock = clock ?? TimeProvider.System;
         this.store = store; this.settings = settings; this.provider = provider is "codex" or "claude" ? provider : "codex"; this.navigate = navigate;
         var choices = ProviderChoices();
         header = new Grid { Margin = new Thickness(24, 16, 24, 6) };
@@ -307,7 +326,7 @@ internal sealed partial class UsagePane : StackPanel
         var identityIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M8,1 A7,7 0 1 0 8,15 A7,7 0 1 0 8,1 M5,6 A3,3 0 1 0 11,6 A3,3 0 1 0 5,6 M3,13 Q8,8 13,13"), Width = 13, Height = 13, StrokeThickness = 1, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
         identityIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); DockPanel.SetDock(identityIcon, Dock.Left); account.Children.Add(identityIcon);
         account.Children.Add(accountLabel); accountRow.Children.Add(account); account.VerticalAlignment = VerticalAlignment.Center; account.Margin = new Thickness(0, 12, 0, 12);
-        readings.Children.Clear(); limitClockUpdates.Clear();
+        readings.Children.Clear(); limitClockUpdates.Clear(); timelineButtons.Clear();
         readings.Margin = IsAnalyticsList ? new Thickness(0)
             : mode == "Limits" && destination == "overview" || destination is "activity" or "model" or "projects" or "sessions" ? new Thickness(16) : new Thickness(24, 16, 24, 16);
         if (!ProviderAvailable)
@@ -394,11 +413,11 @@ internal sealed partial class UsagePane : StackPanel
         parent.Children.Add(Ui.Row("Output", TokenFormatter.Format(tokens.OutputTokens, settings.Current.NumberStyle)));
         parent.ToolTip = "Cached input is already included in Input. Total equals Input plus Output.";
     }
-    private IEnumerable<UsageEvent> Filter(bool includeSelection = true)
+    private IEnumerable<UsageEvent> Filter(DateTimeOffset through, bool includeSelection = true)
     {
-        var now = DateTimeOffset.Now; var day = DateTime.Today;
+        var day = through.LocalDateTime.Date;
         var since = period switch { "today" => day, "7d" => day.AddDays(-6), "30d" => day.AddDays(-29), "week" => day.AddDays(-(((int)day.DayOfWeek + (settings.Current.WeekStart == WeekStart.Monday ? 6 : 0)) % 7)), "month" => new DateTime(day.Year, day.Month, 1), _ => DateTime.MinValue };
-        return (store.Events.GetValueOrDefault(provider) ?? []).Where(x => x.OccurredAt <= now && x.OccurredAt.LocalDateTime >= since
+        return (store.Events.GetValueOrDefault(provider) ?? []).Where(x => x.OccurredAt <= through && x.OccurredAt.LocalDateTime >= since
             && (!includeSelection || (project is null || x.ProjectId == project) && (session is null || x.SessionId == session) && (selectedModel is null || x.Model == selectedModel)));
     }
     private void Detail()
@@ -407,20 +426,21 @@ internal sealed partial class UsagePane : StackPanel
         analyticsMetadata.Clear();
         if (destination is "projects" or "sessions")
             foreach (var item in store.SessionDetails.GetValueOrDefault(provider) ?? []) analyticsMetadata[item.Id] = item;
-        var events = Filter().ToArray();
+        var through = clock.GetUtcNow();
+        var events = Filter(through).ToArray();
         if (destination == "activity")
         {
             var total = events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
             var quality = AnalyticsQuality(total);
             var estimate = quality == DataQuality.Unavailable ? new CostSummary(null, 0, []) : UsageAnalytics.Estimate(events);
-            AnalyticsSummary(readings, total, estimate, compact: false, quality); Timeline(events, estimate, quality); return;
+            AnalyticsSummary(readings, total, estimate, compact: false, quality); Timeline(events, estimate, through, quality); return;
         }
         if (destination == "model" && selectedModel is not null)
         {
             var name = Ui.Text(selectedModel, 13, weight: FontWeights.SemiBold); name.Margin = new Thickness(0, 0, 0, 14); readings.Children.Add(name);
             if (events.Length == 0) { readings.Children.Add(Ui.Text("No local usage observed for this period.", color: "#A6A6AA")); return; }
             var total = events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
-            var quality = AnalyticsQuality(Filter(includeSelection: false).Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage)));
+            var quality = AnalyticsQuality(Filter(through, includeSelection: false).Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage)));
             var estimate = quality == DataQuality.Unavailable ? new CostSummary(null, 0, []) : UsageAnalytics.Estimate(events);
             AnalyticsSummary(readings, total, estimate, compact: false, quality);
             var breakdown = new StackPanel { Margin = new Thickness(0, 8, 0, 0) }; AnalyticsBreakdown(breakdown, total); readings.Children.Add(breakdown);
@@ -467,7 +487,7 @@ internal sealed partial class UsagePane : StackPanel
             }
             return;
         }
-        if (project is not null || session is not null) EntityDetail(events);
+        if (project is not null || session is not null) EntityDetail(events, through);
     }
     private string AnalyticsEntityName(IEnumerable<UsageEvent> events, string id, bool isSession)
     {

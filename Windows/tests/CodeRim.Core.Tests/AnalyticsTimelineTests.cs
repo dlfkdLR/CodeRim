@@ -36,4 +36,42 @@ public sealed class AnalyticsTimelineTests
         Assert.Null(buckets[^2].Cost.Amount); Assert.True(buckets[^2].Cost.IsPartial);
         Assert.NotNull(buckets[^1].Cost.Amount); Assert.True(buckets[^1].Cost.IsPartial);
     }
+    [Fact]
+    public void DateScaleMatchesNativeReferenceForPartialTodayAndZeroLengthMidnight()
+    {
+        var start = new DateTimeOffset(2026, 9, 26, 0, 0, 0, TimeSpan.Zero);
+        var through = start.AddMinutes(150);
+        Assert.Equal(0, AnalyticsTimeline.Position(start, start, through, 600));
+        Assert.Equal(240, AnalyticsTimeline.Position(start.AddHours(1), start, through, 600));
+        Assert.Equal(480, AnalyticsTimeline.Position(start.AddHours(2), start, through, 600));
+        Assert.Equal(300, AnalyticsTimeline.Position(start, start, start, 600));
+        Assert.Equal(288, AnalyticsTimeline.Position(start.AddHours(2), start, through, 360));
+    }
+    [Fact]
+    public void DateScaleUsesActualElapsedTimeAcrossRepeatedDstHour()
+    {
+        var zone = TimeZoneInfo.FindSystemTimeZoneById("America/Los_Angeles");
+        var through = new DateTimeOffset(2026, 11, 2, 20, 0, 0, TimeSpan.Zero);
+        var buckets = AnalyticsTimeline.Build([], AnalyticsRange.SevenDays, through, zone);
+        var positions = buckets.Select(b => AnalyticsTimeline.Position(b.Start, buckets[0].Start, through, 600)).ToArray();
+        // Measured ChartProxy positions from the native macOS reference, not equal columns.
+        double[] reference = [0, 91.71974522292993, 183.43949044585986, 275.1592356687898,
+            366.8789808917197, 458.59872611464965, 554.140127388535];
+        Assert.Equal(reference.Length, positions.Length);
+        for (var i = 0; i < reference.Length; i++) Assert.Equal(reference[i], positions[i], 8);
+        Assert.True(positions[6] - positions[5] > positions[5] - positions[4]);
+    }
+    [Fact]
+    public void SelectionUsesNearestStartWithEarlierMidpointTieAndRangeRollover()
+    {
+        var start = new DateTimeOffset(2026, 9, 26, 0, 0, 0, TimeSpan.Zero);
+        var buckets = AnalyticsTimeline.Build([], AnalyticsRange.Today, start.AddMinutes(150), TimeZoneInfo.Utc);
+        Assert.Equal(start, AnalyticsTimeline.Nearest(buckets, start.AddMinutes(30))!.Start);
+        Assert.Equal(start.AddHours(1), AnalyticsTimeline.Nearest(buckets, start.AddMinutes(30).AddTicks(1))!.Start);
+        Assert.Equal(start.AddHours(1), AnalyticsTimeline.Nearest(buckets, start.AddMinutes(55))!.Start);
+        Assert.Equal(start, AnalyticsTimeline.Nearest(buckets, start.AddDays(-1))!.Start);
+        Assert.Equal(start.AddHours(2), AnalyticsTimeline.Nearest(buckets, start.AddDays(1))!.Start);
+        Assert.Null(AnalyticsTimeline.Nearest([], start));
+    }
+
 }

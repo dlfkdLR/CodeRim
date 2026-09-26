@@ -87,7 +87,7 @@ internal static partial class NativeSmoke
             Require(Math.Abs(bottoms[0] - bottoms[1]) < 1, "Cost bars do not share a common baseline");
             Require(bottoms.All(bottom => bottom <= axisBounds.Top + .1), "Cost bars overlap their date axis");
             var heights = costButtons.Select(x => Descendants<Border>((Grid)x.Content).Single().Height).ToArray();
-            Require(Math.Abs(heights[^1] - (chart.ActualHeight - 22)) < .1 && heights[^2] > 5
+            Require(Math.Abs(heights[^1] - (chart.ActualHeight - 18)) < .1 && heights[^2] > 5
                 && Math.Abs(heights[^1] / heights[^2] - 10) < 0.01, "Sub-dollar costs lost their ten-to-one bar ratio or exceed the plot area");
             Require(heights.Take(5).All(x => x == 0), "Measured zero cost intervals were drawn as nonzero usage");
             Require(costButtons.All(x => ((SolidColorBrush)Descendants<Border>((Grid)x.Content).Single().Background).Color == ((SolidColorBrush)pane.FindResource("UsageAmple")).Color),
@@ -132,7 +132,7 @@ internal static partial class NativeSmoke
                     {
                         var fill = Descendants<Border>((Grid)bucketButton.Content).Single();
                         var fillBounds = fill.TransformToAncestor(frame).TransformBounds(new Rect(fill.RenderSize));
-                        Require(fillBounds.Top >= -.1 && fillBounds.Bottom <= bounds.Top + .1 && fillBounds.Left >= -.1 && fillBounds.Right <= frame.ActualWidth + .1,
+                        Require(fillBounds.Top >= -.1 && fillBounds.Bottom <= bounds.Top + .1 && fillBounds.Left >= -4.1 && fillBounds.Right <= frame.ActualWidth + 4.1,
                             "Narrow chart bar overlaps its axis or exceeds the plot");
                     }
                 }

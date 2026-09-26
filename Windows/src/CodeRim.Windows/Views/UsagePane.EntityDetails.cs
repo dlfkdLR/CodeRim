@@ -11,13 +11,13 @@ namespace CodeRim.Windows.Views;
 
 internal sealed partial class UsagePane
 {
-    private void EntityDetail(UsageEvent[] events)
+    private void EntityDetail(UsageEvent[] events, DateTimeOffset through)
     {
         if (events.Length == 0)
         {
             readings.Children.Add(Ui.Text("No local usage observed for this period.", 11, "#A6A6AA")); return;
         }
-        var allEvents = Filter(includeSelection: false).ToArray();
+        var allEvents = Filter(through, includeSelection: false).ToArray();
         var total = events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
         var quality = AnalyticsQuality(allEvents.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage)));
         var content = new StackPanel();
