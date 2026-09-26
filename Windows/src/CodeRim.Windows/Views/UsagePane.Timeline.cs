@@ -120,7 +120,7 @@ internal sealed partial class UsagePane
                 var label = BucketLabel(bucket.Start) + ": " + (cost ? CostText(bucket.Cost) : bucket.Usage.TotalTokens.ToString("N0", CultureInfo.CurrentCulture) + " tokens");
                 var fill = new Border { Width = 8, Height = BarHeight(value, maximum, chart.Height - axisHeight),
                     VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Left,
-                    IsHitTestVisible = false, CornerRadius = new CornerRadius(3) };
+                    IsHitTestVisible = false, CornerRadius = new CornerRadius(3, 3, 0, 0) };
                 fill.SetResourceReference(Border.BackgroundProperty, cost ? "UsageAmple" : "AccentBrush");
                 var content = new Grid(); content.Children.Add(fill);
                 var button = Ui.Button("", () => Select(bucket)); button.Content = content; button.Tag = bucket.Start;
