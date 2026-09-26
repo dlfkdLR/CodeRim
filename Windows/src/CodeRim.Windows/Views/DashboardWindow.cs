@@ -58,18 +58,26 @@ internal sealed partial class DashboardWindow : Window
         settings.SettingsChanged += SettingsChanged; store.PropertyChanged += StoreChanged; Motion.PolicyChanged += UpdateNotchMotionNote;
         Activated += (_, _) => RefreshStartupStatus();
         Closed += (_, _) => { updateWindowClosed = true; CancelUpdateOperation(); settings.SettingsChanged -= SettingsChanged; store.PropertyChanged -= StoreChanged; Motion.PolicyChanged -= UpdateNotchMotionNote; };
-        PreviewKeyDown += (_, e) =>
-        {
-            if (System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control))
-            {
-                if (e.Key == System.Windows.Input.Key.OemComma) { Present(); e.Handled = true; }
-                else if (e.Key == System.Windows.Input.Key.U) { Navigate("usage"); e.Handled = true; }
-                else if (e.Key == System.Windows.Input.Key.Q) { ((App)System.Windows.Application.Current).ShutdownApplication(); e.Handled = true; }
-                else if (e.Key == System.Windows.Input.Key.R) { _ = store.RefreshAsync(true); e.Handled = true; }
-                else if (page == "usage" && usagePane is not null) e.Handled = usagePane.HandleShortcut(e.Key, System.Windows.Input.Keyboard.Modifiers);
-            }
-        };
+        PreviewKeyDown += (_, e) => e.Handled = HandleWindowShortcut(e.Key, System.Windows.Input.Keyboard.Modifiers);
         BuildSidebar(); Navigate("usage");
+    }
+    internal bool HandleWindowShortcut(System.Windows.Input.Key key, System.Windows.Input.ModifierKeys modifiers)
+    {
+        // AltGr is represented as Ctrl+Alt on international keyboards. It must never
+        // activate Quit (AltGr+Q commonly types @) or other application commands.
+        if (modifiers is not (System.Windows.Input.ModifierKeys.Control or
+            (System.Windows.Input.ModifierKeys.Control | System.Windows.Input.ModifierKeys.Shift))) return false;
+        if (modifiers == System.Windows.Input.ModifierKeys.Control)
+        {
+            switch (key)
+            {
+                case System.Windows.Input.Key.OemComma: Present(); return true;
+                case System.Windows.Input.Key.U: Navigate("usage"); return true;
+                case System.Windows.Input.Key.Q: ((App)System.Windows.Application.Current).ShutdownApplication(); return true;
+                case System.Windows.Input.Key.R: _ = store.RefreshAsync(true); return true;
+            }
+        }
+        return page == "usage" && usagePane is not null && usagePane.HandleShortcut(key, modifiers);
     }
     internal void Present()
     {

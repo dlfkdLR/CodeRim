@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Input;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
 using CodeRim.Windows.Services;
@@ -43,6 +44,11 @@ internal static partial class NativeSmoke
             Item(0).PerformClick(); await Idle();
             Require(Descendants<UsagePane>(dashboard).Any(), "Token Usage did not open the real Usage screen");
             checks.Add("Actual application Settings restores the existing view and Token Usage navigates to Usage");
+            foreach (var modifier in new[] { ModifierKeys.None, ModifierKeys.Control | ModifierKeys.Alt, ModifierKeys.Control | ModifierKeys.Shift, ModifierKeys.Control | ModifierKeys.Windows })
+                Require(!dashboard.HandleWindowShortcut(Key.Q, modifier), "A non-Ctrl+Q combination was handled as Quit");
+            dashboard.Navigate("notch"); await Idle();
+            Require(dashboard.HandleWindowShortcut(Key.U, ModifierKeys.Control) && Descendants<UsagePane>(dashboard).Any(), "Ctrl+U did not open Usage");
+            checks.Add("Actual window shortcut routing opens Usage and rejects AltGr/extra-modifier Quit combinations");
 
             dashboard.Navigate("notch"); await Idle();
             var showToggle = Descendants<CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Show edge notch");
