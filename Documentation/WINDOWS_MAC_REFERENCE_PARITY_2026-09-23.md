@@ -45,7 +45,7 @@ The reference includes local Mac changes beyond the published 2.1.8 source, incl
 | WP-35 | Medium | Proven high-context requests are excluded from cost estimates | Request-level proof, nullable storage and tiered estimator implemented; eleven focused cases included in Core52 (2,044 passes); thirteen cost groups pass installed/direct x64/ARM64 in CI46 (36181235816) |
 | WP-36 | Medium | Claude agent transcript usage collapses into the parent session | Scoped child identities, copied-history migration and safe parent IDs implemented; four installed/direct native import/navigation groups pass x64/ARM64 in CI44 and CI45 |
 | WP-37 | Medium | Projects/Sessions required a Show more action after 40 rows | Removed page state and quadratic metadata scans; seven installed/direct list groups pass x64/ARM64 in CI47 (36183247683); arbitrary-size performance remains unmeasured |
-| WP-38 | Medium | Mac status-item C mark and Usage/Show Notch/Settings/Updates/Quit menu were absent from Windows | Implemented Windows notification-area counterpart; ten tray groups pass installed/direct x64/ARM64 in CI51 and CI52 and x64 CI54; missing Settings/Quit glyph follow-up pending native execution; physical shell-tray input and live update installation remain unverified |
+| WP-38 | Medium | Mac status-item C mark and Usage/Show Notch/Settings/Updates/Quit menu were absent from Windows | Implemented Windows notification-area counterpart; ten tray groups pass all four installed/direct executions in CI54. Settings/Quit glyph follow-up passes12 groups and light/dark rendering in CI55 installed x64, before the separate unresolved wheel failure stopped that run. All four x64/ARM64 installed/direct executions complete12 groups in CI56; physical shell-tray input and live update installation remain unverified |
 | WP-39 | Medium | Chart render clocks, focused refresh, nearest-date selection, Date-scale geometry and mark shape differ | Snapshot/focus/Date-scale/narrow hit regions pass eight groups per installed/direct x64/ARM64 in CI54; flat lower corners confirmed in native captures; automatic axis and hover behavior remain open |
 
 ## First change batch
@@ -740,3 +740,29 @@ The later wheel probe reports `reached=true`, `submitted=1`, original offset0→
 `NativeSmoke.Pointer.CheckNativeWheel` now records native/routed event delivery, original/current viewport identity and geometry, foreground/hit/capture/focus types and the read-only wheel-routing setting. Microsoft documents [SPI_GETMOUSEWHEELROUTING](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-systemparametersinfow) as selecting foreground versus pointer routing; observing it does not alter the user's setting. Hooks only observe, detach in independently guarded cleanup, and preserve the original failure. Existing input, waits and success/failure assertions are unchanged. Build260 passes with zero warnings/errors. The additional instrumentation needs native execution before the wheel failure can be classified further. No product rendering or activation policy was changed to hide the failure.
 
 Independent review caught a diagnostic error-path issue: a snapshot/write failure could occur before the original wheel assertion. The assertion is now retained first and any diagnostic exception is combined with it; cleanup failures remain independently recorded. Build262 passes with zero warnings/errors after that refinement. Build261 used an incomplete older SDK directory and failed before source compilation (`MSB4036`, missing MSBuild tasks); using the existing complete SDK cache resolved that invocation error. The routed observation covers PreviewMouseWheel, not every bubbling event.
+
+## CI56 x64 follow-up
+
+[Run36216489990](https://github.com/dlfkdLR/CodeRim/actions/runs/36216489990) executes source `1c937d837c46ebb03206426b8a2fcc5256e7458b`. The x64 job succeeds. Installed/direct tray receipts each complete12 groups and chart receipts each complete8. Primary opened installed dark and direct light menu PNGs, confirming the added glyphs and separated columns. MSI lifecycle completes. Antigravity installed/direct helpers exit0 without forced kill and with temporary-key disposal. Evidence: `/private/tmp/coderim-mac-parity-ci56-ui`.
+
+Both x64 wheel diagnostics record offset0→180, one native WM_MOUSEWHEEL delta-360 and PreviewMouseWheel observed first on the notch and then on the original ScrollViewer with Handled=true. The original/current viewport is the same mounted presentation source, routing setting2, no mouse capture, and the native foreground/target belong to CodeRim. This proves delivery in these executions. **CI55's intermittent wheel failure is not reproduced or root-caused; instrumentation is not a product fix.** Its previous FAIL remains in the record. ARM64 execution is still pending.
+
+Independent source review resolves WHEEL-DIAG-02 after preserving the original assertion before diagnostics. Worker85 reports PASS/scope violations empty; packet57 binds the exact source with digest `5ff97bfb66b8febc34a1cd0daf8895419b3ae139f880ba0c8d31b72aba920486`. Verify56 still fails because35 frozen test inputs changed, with no adapter checks executed; this does not constitute a product security finding or formal acceptance. Mac preservation check32 exactly matches check31:381/389 original hashes and the same eight external differences.
+
+## CI56 final menu evidence
+
+CI56 completes **successfully** on x64 and native ARM64 for source `1c937d837c46ebb03206426b8a2fcc5256e7458b`; the separate signed MSI update-handoff job remains skipped. The complete run metadata is `/private/tmp/coderim-mac-parity-ci56-run.json`.
+
+| Final evidence | x64 installed / direct | ARM64 installed / direct |
+| --- | --- | --- |
+| Tray reference and added glyphs | 12 / 12 groups completed | 12 / 12 groups completed |
+| Chart regression | 8 / 8 groups completed | 8 / 8 groups completed |
+| MSI lifecycle | 7 groups completed | 7 groups completed |
+| Native notch pointer / wheel | PASS / PASS in both modes | INCONCLUSIVE in both modes |
+| Antigravity helper shutdown | exit0, no forced kill, temporary keys disposed | Same evidence |
+
+The ARM Core log reports **2,080 succeeded, zero failed, zero skipped**, with host receipts confirming Arm64 OS and process. Primary opened ARM installed dark and direct light menu PNGs, observing the same complete glyphs, columns and labels without clipping. ARM evidence is `/private/tmp/coderim-mac-parity-ci56-arm/Artifacts`; the Core log is under that download's `Windows/tests/CodeRim.Core.Tests/bin/Release/net10.0/TestResults`.
+
+ARM pointer/wheel diagnostics identify **WWAHost** as target and foreground. The guarded wheel probe submits zero input and records empty native/routed arrays; no native ARM pointer or wheel pass follows from the workflow result. CI55's prior x64 wheel failure remains unexplained, even though both CI56 x64 executions deliver the native event and scroll180. No product input policy was altered and no failure assertion was relaxed.
+
+The x64 dark/light menu PNGs in both modes are byte-identical to the CI55 installed glyph captures (`/private/tmp/coderim-mac-parity-ci56-tray-image-comparison.json`). This narrowly confirms that the diagnostic follow-up did not change those menu renders; it is not full cross-platform pixel equality. Physical shell-tray clicking, all-DPI/high-contrast menu glyphs, real-account interactions and actual update installation remain outside these fixtures. No public release, signed update index or user-PC installation changed. Mac chart automatic-axis/hover comparisons remain open; **100% product parity is not established**.
