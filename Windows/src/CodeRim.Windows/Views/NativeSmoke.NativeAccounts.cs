@@ -67,7 +67,9 @@ internal static partial class NativeSmoke
             Require(saved.State == ReadingState.Ready && saved.Account is { Label: null, Source: "Cursor" } && reads == originalReads
                 && sent[^1] == "WorkosCursorSessionToken=saved::saved-fixture", "Saved Cursor credential borrowed local identity.");
             vault.Delete("provider:cursor");
-            var environmentKey = NativeProviders.CredentialKeys("commandcode")?.First() ?? ProviderCatalog.Find("commandcode")!.EnvironmentKeys.First();
+            // The reference loader reads this exact key. The catalogue also
+            // contains non-credential settings, so its first entry is not a key.
+            const string environmentKey = "COMMAND_CODE_API_KEY";
             Environment.SetEnvironmentVariable(environmentKey, "environment-fixture"); originalReads = reads;
             var ambient = await connections.FetchAsync("commandcode", settings.Current, CancellationToken.None);
             Require(ambient.State == ReadingState.Ready && ambient.Account is { Label: null, Source: "Command Code" }

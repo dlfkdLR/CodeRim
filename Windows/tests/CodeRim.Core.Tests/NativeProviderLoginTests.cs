@@ -8,6 +8,13 @@ namespace CodeRim.Core.Tests;
 
 public sealed class NativeProviderLoginTests
 {
+    [Fact]
+    public void CommandCodeEnvironmentCredentialUsesTheReferenceKeyRatherThanTheCatalogueUrl()
+    {
+        var keys = NativeProviders.CredentialKeys("commandcode");
+        Assert.NotNull(keys); Assert.Equal(["COMMAND_CODE_API_KEY"], keys);
+    }
+
     [Theory]
     [InlineData("cursor", "Cursor", "pro", "https://cursor.com/dashboard")]
     [InlineData("grok", "Grok", null, "https://grok.com/?_s=usage")]
