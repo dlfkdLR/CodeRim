@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
 using CodeRim.Windows.Services;
@@ -158,11 +159,49 @@ internal static partial class NativeSmoke
                 Require(ReferenceEquals(hit, monthBars[i]), "A narrow chart bar's edge routes input to a neighboring interval");
             }
             Capture(pane, System.IO.Path.Combine(directory, "windows-chart-narrow-hit-regions.png"));
+            // Align the last tick with the final calendar day regardless of the
+            // user's week start; preserve each date's own daylight-saving offset.
+            var endpointShift = ((int)CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek - (int)monthThrough.DayOfWeek + 7) % 7;
+            var endpointInk = new List<object>();
+            foreach (var scenario in new[] { (Width: 360d, Hour: 12), (Width: 632d, Hour: 12), (Width: 632d, Hour: 18), (Width: 632d, Hour: 23) })
+            {
+                var width = scenario.Width;
+                var endpointThrough = LocalDate(29 + endpointShift, scenario.Hour); clock.Reset(endpointThrough, endpointThrough);
+                pane.Width = width; pane.Update(); await Idle();
+                var endpointFrame = (Grid)Bars()[0].Parent;
+                var endpointAxis = Descendants<Grid>(endpointFrame).Single(x => AutomationProperties.GetAutomationId(x) == "usage.chart.axis.tokens");
+                var endpointLabel = Descendants<TextBlock>(endpointAxis).Last();
+                var from = (int)Math.Ceiling(Canvas.GetLeft(endpointLabel));
+                Require(endpointAxis.ClipToBounds && from < endpointAxis.ActualWidth,
+                    "Endpoint fixture did not establish a partially visible label inside a clipped axis");
+                var suffix = (int)endpointAxis.ActualWidth + "-h" + scenario.Hour;
+                var path = System.IO.Path.Combine(directory, "windows-chart-endpoint-axis-" + suffix + ".png");
+                Capture(endpointAxis, path);
+                using var file = System.IO.File.OpenRead(path);
+                var bitmap = new PngBitmapDecoder(file, BitmapCreateOptions.PreservePixelFormat, BitmapCacheOption.OnLoad).Frames[0];
+                var pixels = new byte[bitmap.PixelWidth * bitmap.PixelHeight * 4];
+                new FormatConvertedBitmap(bitmap, PixelFormats.Bgra32, null, 0).CopyPixels(pixels, bitmap.PixelWidth * 4, 0);
+                var background = ((SolidColorBrush)endpointAxis.FindResource("WindowBackground")).Color;
+                var ink = 0;
+                // This capture contains only labels, not the sibling gridlines;
+                // a nonzero count therefore cannot pass because of a guide line.
+                for (var y = 4; y < bitmap.PixelHeight; y++)
+                for (var x = from; x < bitmap.PixelWidth; x++)
+                {
+                    var offset = (y * bitmap.PixelWidth + x) * 4;
+                    if (Math.Abs(pixels[offset] - background.B) > 32 || Math.Abs(pixels[offset + 1] - background.G) > 32
+                        || Math.Abs(pixels[offset + 2] - background.R) > 32) ink++;
+                }
+                if (width == 632 || CultureInfo.CurrentCulture.Name == "en-US") Require(ink > 0, "Right-edge partial date glyph disappeared");
+                endpointInk.Add(new { width = endpointAxis.ActualWidth, hour = scenario.Hour, from, ink, trimming = endpointLabel.TextTrimming.ToString(), culture = CultureInfo.CurrentCulture.Name });
+                Capture(pane, System.IO.Path.Combine(directory, "windows-chart-endpoint-" + suffix + ".png"));
+            }
             System.IO.File.WriteAllText(System.IO.Path.Combine(directory, "windows-chart-refresh.json"), System.Text.Json.JsonSerializer.Serialize(new
             {
                 completed = true, checks = new List<string> { "One snapshot time across midnight", "Focused rollover refresh and nearest selection", "Exact-to-exact focused value refresh", "Clock rollback restores nearest focus",
                     "600-point Date-scale mark centers and 8-point widths", "Uninflated small values and shared baseline", "Zero-length midnight domain", "Narrow 30D mark-edge native hit testing",
-                    "Hourly date ticks and label coordinates", "Half-hour intermediate ticks independent of hourly buckets", "80 and 112 point dashed grids without input interception", "Two-day weekly axis", "Calendar week-aligned month axis at328points" },
+                    "Hourly date ticks and label coordinates", "Half-hour intermediate ticks independent of hourly buckets", "80 and 112 point dashed grids without input interception", "Two-day weekly axis", "Calendar week-aligned month axis at328points",
+                    "Rendered right-edge partial date glyphs within the clipped axis" }, endpointInk,
                 hoverSelection = "not verified", automaticAxisParity = "Measured tick dates and geometry verified; universal font, clipping and live interaction parity not established"
             }, JsonOptions));
         }

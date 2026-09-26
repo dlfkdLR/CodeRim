@@ -201,7 +201,21 @@ internal sealed partial class UsagePane
                 // Keep a right-edge tick at its date; clip its label instead of
                 // moving the date to another position merely to make the text fit.
                 Canvas.SetLeft(marks[i].Text, x + 4);
-                marks[i].Text.Width = Math.Max(0, next - x - 8);
+                if (i + 1 < marks.Length) marks[i].Text.Width = Math.Max(0, next - x - 8);
+                else
+                {
+                    var text = marks[i].Text;
+                    var remaining = Math.Max(0, chart.ActualWidth - x - 4);
+                    var ellipsis = new FormattedText("…", CultureInfo.CurrentCulture, text.FlowDirection,
+                        new Typeface(text.FontFamily, text.FontStyle, text.FontWeight, text.FontStretch), text.FontSize,
+                        text.Foreground, VisualTreeHelper.GetDpi(text).PixelsPerDip).WidthIncludingTrailingWhitespace;
+                    // Swift Charts retains a clipped glyph prefix when even an
+                    // ellipsis cannot fit. A zero-width TextBlock loses that ink.
+                    // The axis still clips at the plot boundary, including when
+                    // the tick itself is exactly at the domain's right endpoint.
+                    text.TextTrimming = remaining < ellipsis ? TextTrimming.None : TextTrimming.CharacterEllipsis;
+                    text.Width = Math.Max(remaining, ellipsis);
+                }
             }
         };
     }
