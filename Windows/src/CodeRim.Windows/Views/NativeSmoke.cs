@@ -33,12 +33,24 @@ internal static partial class NativeSmoke
         async Task<string> ClaudeCommand(string stage, string executable, IEnumerable<string> arguments, string? input = null, int timeoutSeconds = 20)
         {
             var timer = System.Diagnostics.Stopwatch.StartNew();
+            var baseline = ClaudeCommandProcesses();
+            var existing = baseline.Processes.Select(x => (x.Id, x.StartTicks)).ToHashSet();
+            var observations = new List<object>();
             void Write(string state) => File.WriteAllText(Path.Combine(directory, "windows-claude-command.json"),
-                JsonSerializer.Serialize(new { stage, state, elapsedMilliseconds = timer.ElapsedMilliseconds, timeoutSeconds }, JsonOptions));
+                JsonSerializer.Serialize(new { stage, state, elapsedMilliseconds = timer.ElapsedMilliseconds, timeoutSeconds,
+                    baselineIncomplete = baseline.Incomplete, observations }, JsonOptions));
             Write("running");
             try
             {
-                var result = await BoundedProcess.RunAsync(executable, arguments, input, timeout: TimeSpan.FromSeconds(timeoutSeconds));
+                var command = BoundedProcess.RunAsync(executable, arguments, input, timeout: TimeSpan.FromSeconds(timeoutSeconds));
+                while (!command.IsCompleted)
+                {
+                    var sample = ClaudeCommandProcesses();
+                    observations.Add(new { elapsedMilliseconds = timer.ElapsedMilliseconds,
+                        probeIncomplete = sample.Incomplete, processes = sample.Processes.Where(x => !existing.Contains((x.Id, x.StartTicks))).ToArray() });
+                    await Task.WhenAny(command, Task.Delay(1000));
+                }
+                var result = await command;
                 Write("completed"); return result;
             }
             catch (Exception error) when (error is not OutOfMemoryException)
