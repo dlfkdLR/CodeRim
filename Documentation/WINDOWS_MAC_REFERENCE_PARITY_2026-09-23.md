@@ -644,7 +644,7 @@ No total match percentage is assigned while the inventory and open functional di
 
 - Final independent ARM review confirms the receipt table, Core2077/0/0, MSI7, final-row PNGs and product source hashes bound to7d3ac5a. It separately records the WWAHost pointer obstruction and zero submitted wheel inputs, with no blanket73-pass claim. No new actionable source or sampled final-row rendering defect was found. Harness worker69 passes with no scope violations; the refreshed summary `summary-c581d8bb94d248a79520dcfa83b99469` remains INCONCLUSIVE.
 
-## Windows notification-area menu reference (2026-09-26, native evidence pending)
+## Windows notification-area menu reference and native verification (2026-09-26)
 
 The user's new screenshots request the Mac CodeRim status-item icon and menu on Windows. Mac `App/StatusItemController.swift` and `App/CodeRimMark.swift` remain the read-only reference. Windows uses its notification area (taskbar position is owned by the OS).
 
@@ -663,3 +663,24 @@ The user's new screenshots request the Mac CodeRim status-item icon and menu on 
 - Build246 passes with zero warnings/errors after window reuse. Independent source review found no new blocker in its ownership/shutdown/cancellation path. Its fixture checks inactive updater availability after reopening; cancellation of a live update is source-reviewed, not newly executed by this fixture. CI48 (`36209457279`) targets `caf4441` and CI49 (`36209644503`) targets `f5c51b5`; neither includes this later window-reuse delta. Mac preservation check28 exactly matches check27 (383/389 original matches, the same six prior external changes).
 
 - CI48 stopped before tray assertions: installed Claude status-stdin timed out at45s (`windows-claude-command.json`), without changes to CLI/hook source in this batch. CI49 x64 succeeds for installed/direct apps: all nine tray assertion groups complete, including keyboard Escape and AltGr rejection. Primary opened dark/light menu and48px mark PNGs. This is `f5c51b5` evidence, before window-reuse changes. The native capture exposed UI-TRAY-06: the selected row touched the outer menu frame. Its rounded fill is now inset4 DIP on both sides; the native capture asserts that margin and captures Show Notch checked. No full physical tray-click or real update-install claim.
+
+
+## CI51 final tray verification
+
+Product commit **`be642a8bb519c0fc317db7623a662d0317e4c8b7`**, [Windows run36210408895](https://github.com/dlfkdLR/CodeRim/actions/runs/36210408895), completes x64 and native ARM64 jobs successfully. CI50 also completed both jobs for the earlier window-reuse candidate; only CI51 validates the final selection inset and checked-state capture.
+
+| Evidence | x64 installed / direct | ARM64 installed / direct |
+| --- | --- | --- |
+| Tray reference regression | 10 / 10 completed groups | 10 / 10 completed groups |
+| Dark/light native menu capture | Checked mark, rounded inset, no observed text clipping | Checked mark, rounded inset, no observed text clipping |
+| Settings close/reopen | Existing page/control identity, owned-window close, sidebar restore | Same assertions pass |
+| Notch visibility | Toggle, persisted mode, live Settings sync, failed-save rollback | Same assertions pass |
+| Menu input | Actual app routing, exact Ctrl guard, Escape message queue | Same assertions pass |
+| MSI lifecycle | 7 groups completed | 7 groups completed |
+
+- The final ARM Core log reports **2,077 succeeded, zero failed, zero skipped**. Native host receipts identify Arm64 OS/process on .NET10.0.12. Local solution build247 passes with zero warnings/errors, including recommended analyzers. Native script execution is supplied by the repository Windows workflow (`dotnet test`, build/package, installer lifecycle, app smoke and CLI regressions); no test command or verdict is inferred from source alone.
+- x64 actual notch pointer/wheel receipts pass for installed and direct execution. ARM has73 UI receipt entries including **two inconclusive entries in each execution**: foreign WWAHost owns the pointer target, and the gated wheel probe submits zero input. These are not73 passes and are not a demonstrated tray regression. Programmatic/routed menu actions and Escape posted to the menu's native message queue remain distinct from physical shell-tray mouse/keyboard interaction.
+- `physicalTrayClick=false`, `realUpdateInstall=false` remain explicit in all four tray receipts. Update/quit callback probes establish action routing only; manual update backend, signature verification and shutdown connection were source-reviewed against existing implementations. The separate MSI handoff job remains **skipped**. An active update's cancel/withdraw-on-hide path was reviewed, but the tray fixture does not start a live update. No claim of live-account, physical-PC, multi-monitor or100% visual parity follows from this run.
+- CI48's45-second installed Claude status-stdin timeout is retained as a failed run. The same existing path passed in CI49, CI50 and CI51; no unproven root-cause repair or relaxed timeout was introduced to make it pass.
+- Primary opened final x64 and ARM64 dark/light PNGs. Source and final x64/ARM64 artifact bindings were independently reviewed with no additional actionable finding. The reviewer independently confirmed ARM Core2077/0/0, MSI7, both tray10 receipts, final PNGs and the pointer/wheel limitations. Evidence roots: `/private/tmp/coderim-mac-parity-ci51-ui` and `/private/tmp/coderim-mac-parity-ci51-arm/Artifacts`; independent review: `/private/tmp/coderim-mac-parity-tray-review.md`.
+- Mac preservation check29 exactly matches check28:383 of389 original locked hashes match, with the same six previously recorded external changes. This batch changes only Windows source/tests/README and this comparison record. No dependency manifest, database schema, Mac source/app/preferences, public release or signed update index changed. The user's installed PC application has not been replaced. Formal development-harness evidence remains **INCONCLUSIVE**, separate from successful local/native checks; it is not ACCEPT.
