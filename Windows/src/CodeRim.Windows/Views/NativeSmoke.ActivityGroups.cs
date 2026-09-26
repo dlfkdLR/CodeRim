@@ -17,10 +17,13 @@ internal static partial class NativeSmoke
     private static async Task ActivityGroupsRegression(NotchWindow notch, DashboardStore store, AppSettingsStore settings, string directory)
     {
         var before = settings.Current; var previous = store.Sessions; var events = store.Events["codex"]; var details = store.SessionDetails["codex"];
+        var previousCursor = store.Readings.GetValueOrDefault("cursor");
         Window? fixture = null; Exception? failure = null; var cleanup = new List<Exception>();
         try
         {
-            settings.Save(before with { Visibility = NotchVisibility.AlwaysShow, CompletionSound = false, PeekOnCompletion = false, ShowSessionTokens = true, ShowSessionDuration = true });
+            store.Readings["cursor"] = new("cursor", ReadingState.Ready, [new("quota", "Quota", 25)], DateTimeOffset.Now);
+            settings.Save(before with { Visibility = NotchVisibility.AlwaysShow, CompletionSound = false, PeekOnCompletion = false,
+                ShowSessionTokens = true, ShowSessionDuration = true, EnabledProviders = before.EnabledProviders.Concat(["codex", "cursor"]).Distinct(StringComparer.Ordinal).ToArray() });
             const string parent = "11111111-1111-4111-8111-111111111111";
             const string child = "22222222-2222-4222-8222-222222222222";
             static string Hash(string value) => Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(value)));
@@ -89,11 +92,25 @@ internal static partial class NativeSmoke
             }
             Require(Keyboard.FocusedElement is DependencyObject focus && AutomationProperties.GetAutomationId(focus) == "notch.sessions.showLess",
                 "Live task refresh stole disclosure keyboard focus.");
+            var preservedPopup = notch.PopupContent!; var preservedFocus = Keyboard.FocusedElement;
+            var taskScroll = Descendants<ScrollViewer>(preservedPopup).Single();
+            Require(taskScroll.ScrollableHeight > 80, "Expanded task fixture is not scrollable.");
+            taskScroll.ScrollToVerticalOffset(60); await Idle();
+            Require(Math.Abs(taskScroll.VerticalOffset - 60) < .1, "Expanded task fixture did not reach a nonzero scroll position.");
+            Require(Descendants<ProviderRing>(notch).Any(x => x.ProviderId == "cursor"), "Unrelated provider was absent before the membership change.");
+            store.Readings["cursor"] = new("cursor", ReadingState.Error, []); notch.RefreshReadings(); await Idle();
+            Require(!Descendants<ProviderRing>(notch).Any(x => x.ProviderId == "cursor")
+                && notch.PopupIsOpen && ReferenceEquals(preservedPopup, notch.PopupContent)
+                && ReferenceEquals(preservedFocus, Keyboard.FocusedElement)
+                && Descendants<Button>(notch.PopupContent!).Any(x => AutomationProperties.GetAutomationId(x) == "notch.sessions.showLess")
+                && Math.Abs(taskScroll.VerticalOffset - 60) < .1,
+                "Unrelated provider failure reset the expanded task popup, disclosure focus or nonzero scroll position.");
             Capture(notch.PopupContent!, Path.Combine(directory, "windows-task-groups-live.png"));
             File.WriteAllText(Path.Combine(directory, "windows-task-groups.json"), JsonSerializer.Serialize(new { completed = true,
                 checks = new List<string> { "Parent and children stay together", "Context parent has no live ring or duration", "Only parent displays combined tokens",
                     "Inline expansion and collapse preserve the popup", "Expansion survives content refresh", "Sub-agent accessibility includes parent title",
-                    "Production popup applies live task changes while preserving disclosure keyboard focus" } }));
+                    "Production popup applies live task changes while preserving disclosure keyboard focus",
+                    "Unrelated provider failure preserves the expanded task popup, disclosure focus and nonzero scroll position" } }));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally
@@ -103,6 +120,7 @@ internal static partial class NativeSmoke
             Restore(() => notch.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(notch), Environment.TickCount, Key.Escape)
                 { RoutedEvent = Keyboard.PreviewKeyDownEvent }));
             Restore(() => { store.Events["codex"] = events; store.SessionDetails["codex"] = details; store.UpdateSessionActivity(previous); });
+            Restore(() => { if (previousCursor is null) store.Readings.Remove("cursor"); else store.Readings["cursor"] = previousCursor; });
             Restore(() => settings.Save(before));
         }
         if (cleanup.Count > 0) throw new AggregateException("Task grouping fixture cleanup failed.", failure is null ? cleanup : cleanup.Prepend(failure));

@@ -512,7 +512,9 @@ public sealed partial class NativeProviders : IDisposable
         {
             var state = error.Status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden ? ReadingState.NeedsAuth
                 : error.Status == HttpStatusCode.TooManyRequests ? ReadingState.Unavailable : ReadingState.Error;
-            return new(id, state, [], Message: state == ReadingState.NeedsAuth ? "Sign in again or update the provider credential." : "Unable to refresh provider usage. The last reading is retained.");
+            return new(id, state, [], Message: state == ReadingState.NeedsAuth ? "Sign in again or update the provider credential."
+                : ProviderAvailability.HidesWhenAbsent(id) ? "Unable to refresh provider usage."
+                : "Unable to refresh provider usage. The last reading is retained.");
         }
         catch (Exception error) when (error is System.Text.DecoderFallbackException or HttpRequestException or IOException or InvalidDataException or JsonException or System.Text.RegularExpressions.RegexMatchTimeoutException or OverflowException or FormatException or System.Security.Cryptography.CryptographicException or OperationCanceledException)
         { token.ThrowIfCancellationRequested(); return new(id, ReadingState.Error, [], Message: "Unable to refresh provider usage. Check the connection."); }

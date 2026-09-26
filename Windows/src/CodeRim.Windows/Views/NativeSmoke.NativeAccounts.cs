@@ -31,14 +31,14 @@ internal static partial class NativeSmoke
             ["commandcode"] = new("commandcode-fixture", new("commandcode@example.invalid", "Command Code"))
         };
         const string payload = """{"usage":{"rolling":{"percent":25}},"limits":{"monthly":{"usage":0.25}},"config":{"creditUsagePercent":25},"individualUsage":{"plan":{"autoPercentUsed":25}},"membershipType":"pro","credits":{"monthlyCredits":75},"totalCost":25,"data":{"planId":"goat_monthly"},"org":{"id":"fixture-org"}}""";
-        var reads = 0; var sent = new List<string?>(); var rotate = false; var refuse = false;
+        var reads = 0; var sent = new List<string?>(); var rotate = false; var responseStatus = HttpStatusCode.OK;
         var checks = new List<string>(); Exception? failure = null; var cleanup = new List<Exception>();
         using var connections = new ProviderConnections(vault, new NativeProviders(new AmpFixtureHandler(request =>
         {
             Require(request.RequestUri!.Host is "cursor.com" or "cli-chat-proxy.grok.com" or "api.commandcode.ai" or "ollama.com" or "opencode.ai", "Native account request escaped its provider origin.");
             sent.Add(request.Headers.TryGetValues("Cookie", out var cookie) ? cookie.Single() : request.Headers.Authorization?.Parameter);
             if (rotate) { rotate = false; local["cursor"] = local["cursor"] with { Credential = "WorkosCursorSessionToken=replaced::replacement", Account = new("replacement@example.invalid", "Cursor") }; }
-            return new(refuse ? HttpStatusCode.Unauthorized : HttpStatusCode.OK) { Content = new StringContent(payload) };
+            return new(responseStatus) { Content = new StringContent(payload) };
         })), nativeCredentialReader: id => id is "ollama" or "opencode" ? id + "-fixture" : null,
             nativeAccountReader: id => { reads++; return local.GetValueOrDefault(id); });
         try
@@ -85,10 +85,21 @@ internal static partial class NativeSmoke
             var rotated = await connections.FetchAsync("cursor", settings.Current, CancellationToken.None);
             Require(rotated.State == ReadingState.Unavailable && rotated.Account is null && rotated.Windows.Count == 0, "Account rotation published the prior identity and quota.");
             local["cursor"] = originalCursor; checks.Add("Local credential rotation discards stale identity and quota");
-            refuse = true;
+            responseStatus = HttpStatusCode.Unauthorized;
             var denied = await connections.FetchAsync("cursor", settings.Current, CancellationToken.None);
             Require(denied.State == ReadingState.NeedsAuth && denied.Account is null && denied.Windows.Count == 0, "Failed authentication published account metadata.");
             checks.Add("Authentication failure publishes no identity or quota");
+            responseStatus = HttpStatusCode.ServiceUnavailable;
+            var unavailable = await connections.FetchAsync("cursor", settings.Current, CancellationToken.None);
+            Require(unavailable.State == ReadingState.Error && unavailable.Windows.Count == 0, "Failed usage fetch invented a reading.");
+            store.Readings["cursor"] = ReadingRetention.Merge(unavailable, store.Readings["cursor"]);
+            Require(store.Readings["cursor"].Windows.Count == 0 && store.Readings["cursor"].UpdatedAt is null,
+                "Cursor failure restored its previous quota or timestamp.");
+            dashboard.Navigate("cursor"); await Idle();
+            Require(!Descendants<ProgressBar>(dashboard).Any() && settings.Current.EnabledProviders.Contains("cursor", StringComparer.Ordinal),
+                "Failed Cursor retained a quota bar or disabled the selected provider.");
+            Capture(dashboard, Path.Combine(directory, "windows-native-account-cursor-failed.png"));
+            checks.Add("Borrowed-provider server failure clears quota without disabling the provider");
             File.WriteAllText(Path.Combine(directory, "windows-native-accounts.json"), JsonSerializer.Serialize(new { completed = true,
                 fixture = true, network = "in-memory only", realAccount = false, checks }, JsonOptions));
         }

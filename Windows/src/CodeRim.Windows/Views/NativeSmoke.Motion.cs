@@ -17,6 +17,7 @@ internal static partial class NativeSmoke
     private static async Task CheckMotion(DashboardWindow dashboard, NotchWindow notch, CodeRim.Windows.ViewModels.DashboardStore store, AppSettingsStore settings, string directory)
     {
         var saved = settings.Current;
+        var savedCursor = store.Readings.GetValueOrDefault("cursor");
         var originalAnimations = 0;
         Require(ReadClientAreaAnimation(0x1042, 0, ref originalAnimations, 0), "Could not read the desktop animation policy");
         var samples = new List<object>(); var checks = new List<string>();
@@ -67,6 +68,27 @@ internal static partial class NativeSmoke
                     "Folded native hit bounds remained expanded");
             }
             checks.Add("Four-edge spring geometry has intermediate frames, reverses without snapping and shrinks native hit bounds");
+            store.Readings["cursor"] = new("cursor", ReadingState.Error, []);
+            settings.Save(settings.Current with { EnabledProviders = ["codex", "claude", "cursor"] });
+            notch.SetExpanded(true);
+            await MotionUntil(() => notch.FoldProgress >= .999, "Presence reversal did not start expanded");
+            foreach (var recover in new[] { true, false })
+            {
+                notch.SetExpanded(false);
+                await MotionUntil(() => notch.FoldProgress is > .05 and < .95, "Presence reversal never entered a live closing animation");
+                Require(Motion.Enabled && !settings.Current.ReduceMotion && !notch.Expanded, "Presence reversal animation precondition failed");
+                var progress = notch.FoldProgress;
+                store.Readings["cursor"] = recover ? new("cursor", ReadingState.Ready, [new("quota", "Quota", 25)], DateTimeOffset.Now)
+                    : new("cursor", ReadingState.Error, []);
+                notch.RefreshReadings(); notch.SetExpanded(true);
+                Require(Math.Abs(notch.FoldProgress - progress) < .1, "Membership reversal restarted fold geometry from zero");
+                await MotionUntil(() => notch.FoldProgress >= .999, "Presence reversal did not settle expanded");
+                Require(Descendants<ProviderRing>(notch).Any(x => x.ProviderId == "cursor") == recover,
+                    "Membership reversal restored the wrong provider cells");
+                samples.Add(new { kind = "membership-reversal", recover, closingProgress = progress, settledProgress = notch.FoldProgress });
+            }
+            checks.Add("Provider recovery and failure during a live closing animation reconcile on reversal without resetting fold progress");
+            settings.Save(settings.Current with { EnabledProviders = ["codex", "claude"] });
             settings.Save(settings.Current with { Edge = NotchEdge.Right, Visibility = NotchVisibility.AlwaysShow }); await MotionFrame();
             var gear = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.settings");
             gear.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0) { RoutedEvent = Mouse.MouseEnterEvent }); await MotionFrame();
@@ -271,6 +293,7 @@ internal static partial class NativeSmoke
         finally
         {
             try { fixture?.Close(); } catch (Exception error) { cleanupErrors.Add(error); }
+            try { if (savedCursor is null) store.Readings.Remove("cursor"); else store.Readings["cursor"] = savedCursor; } catch (Exception error) { cleanupErrors.Add(error); }
             try { settings.Save(saved); } catch (Exception error) { cleanupErrors.Add(error); }
             try
             {

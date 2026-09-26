@@ -15,6 +15,8 @@ internal sealed partial class NotchWindow
     internal void SetExpanded(bool value)
     {
         foldTimer.Stop(); expanded = value;
+        if (value && !buttons.Keys.SequenceEqual(VisibleProviderIds(), StringComparer.Ordinal))
+        { Render(animateOpening: true, openingProgress: movingShape?.Expansion ?? 0); return; }
         if (movingShape is null) { Render(animateOpening: Expanded); return; }
         AnimateFold();
     }
