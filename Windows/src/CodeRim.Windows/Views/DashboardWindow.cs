@@ -36,6 +36,7 @@ internal sealed partial class DashboardWindow : Window
     private readonly StackPanel providerReading = new();
     private readonly Dictionary<string, Action> providerListDetails = new(StringComparer.Ordinal);
     private TextBlock? gradientMotionNote;
+    private Action? refreshNotchVisibility;
     private string page = "usage";
     private string localProvider = "codex";
     private bool refreshingSidebar;
@@ -61,12 +62,19 @@ internal sealed partial class DashboardWindow : Window
         {
             if (System.Windows.Input.Keyboard.Modifiers.HasFlag(System.Windows.Input.ModifierKeys.Control))
             {
-                if (e.Key == System.Windows.Input.Key.OemComma) { Show(); Activate(); e.Handled = true; }
+                if (e.Key == System.Windows.Input.Key.OemComma) { Present(); e.Handled = true; }
+                else if (e.Key == System.Windows.Input.Key.U) { Navigate("usage"); e.Handled = true; }
+                else if (e.Key == System.Windows.Input.Key.Q) { ((App)System.Windows.Application.Current).ShutdownApplication(); e.Handled = true; }
                 else if (e.Key == System.Windows.Input.Key.R) { _ = store.RefreshAsync(true); e.Handled = true; }
                 else if (page == "usage" && usagePane is not null) e.Handled = usagePane.HandleShortcut(e.Key, System.Windows.Input.Keyboard.Modifiers);
             }
         };
         BuildSidebar(); Navigate("usage");
+    }
+    internal void Present()
+    {
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Show(); Activate();
     }
     public void Navigate(string? id)
     {
@@ -103,7 +111,7 @@ internal sealed partial class DashboardWindow : Window
     }
     private void SettingsChanged(object? sender, EventArgs e)
     {
-        BuildSidebar(); UpdateNotchMotionNote();
+        BuildSidebar(); UpdateNotchMotionNote(); refreshNotchVisibility?.Invoke();
         if (page == "providers") UpdateProviderList();
         foreach (var ring in VisualChildren<ProviderRing>(body)) ring.Settings = settings.Current;
         RefreshStartupStatus();
@@ -164,7 +172,7 @@ internal sealed partial class DashboardWindow : Window
             : null;
         var changedPage = renderedPage != page;
         renderedPage = page; UpdateSectionTitle();
-        CancelUpdateOperation(); updateViewRevision++;
+        CancelUpdateOperation(); updateViewRevision++; manualUpdateCheck = null; refreshNotchVisibility = null;
         body.Children.Clear(); providerListDetails.Clear(); ResetProviderAlerts(); ResetProviderAccount();
         body.Margin = page == "usage" ? new Thickness(0) : new Thickness(0, 6, 0, 28);
         switch (page)
@@ -225,15 +233,21 @@ internal sealed partial class DashboardWindow : Window
         gradientMotionNote = null;
         var shown = settings.Current.Visibility != NotchVisibility.Hidden;
         var notchSections = new List<FrameworkElement>();
-        body.Children.Add(SettingsUi.Section("Edge Notch", SettingsUi.Toggle("Show edge notch", shown, x => { Save(settings.Current with {
-            LastVisibleNotchMode = x ? settings.Current.LastVisibleNotchMode : settings.Current.Visibility,
-            Visibility = x ? (settings.Current.LastVisibleNotchMode == NotchVisibility.AlwaysShow ? NotchVisibility.AlwaysShow : NotchVisibility.OnHover) : NotchVisibility.Hidden });
-            foreach (var section in notchSections) section.IsEnabled = settings.Current.Visibility != NotchVisibility.Hidden; })));
+        var syncingVisibility = false;
+        var showToggle = (CheckBox)SettingsUi.Toggle("Show edge notch", shown, x =>
+        {
+            if (syncingVisibility) return;
+            Save(settings.Current with { Visibility = x ? settings.Current.LastVisibleNotchMode : NotchVisibility.Hidden });
+            refreshNotchVisibility?.Invoke();
+        });
+        body.Children.Add(SettingsUi.Section("Edge Notch", showToggle));
         body.Children.Add(SettingsUi.Note("A floating usage ring welded to a screen edge. Alt-drag the pill to slide it along the edge; Recentre puts it back."));
         var controls = SettingsUi.Picker("Controls position", ControlOptions, settings.Current.ControlsPosition, x => Save(settings.Current with { ControlsPosition = x }));
         controls.IsEnabled = settings.Current.Edge is NotchEdge.Left or NotchEdge.Right;
-        var placement = SettingsUi.Section("Placement",
-            SettingsUi.Picker("Behaviour", new[] { NotchVisibility.OnHover, NotchVisibility.AlwaysShow }, shown ? settings.Current.Visibility : NotchVisibility.OnHover, x => Save(settings.Current with { Visibility = x })),
+        var behaviourRow = SettingsUi.Picker("Behaviour", new[] { NotchVisibility.OnHover, NotchVisibility.AlwaysShow },
+            settings.Current.LastVisibleNotchMode, x => { if (!syncingVisibility) Save(settings.Current with { Visibility = x }); });
+        var behaviour = VisualChildren<ComboBox>(behaviourRow).Single();
+        var placement = SettingsUi.Section("Placement", behaviourRow,
             SettingsUi.Picker("Edge", Enum.GetValues<NotchEdge>(), settings.Current.Edge, x => { Save(settings.Current with { Edge = x }); RenderAfterPicker(); }),
             SettingsUi.Picker("Size", ScaleOptions, settings.Current.Scale, x => Save(settings.Current with { Scale = x })),
             controls, SettingsUi.Action("Recentre", () => Save(settings.Current with { Offset = 0 })));
@@ -278,6 +292,18 @@ internal sealed partial class DashboardWindow : Window
         sessionEnd.IsEnabled = shown; notchSections.Add(sessionEnd); body.Children.Add(sessionEnd);
         var alerts = SettingsUi.Section("Usage Alerts", SettingsUi.Toggle("Notify at 80% and 100% usage", settings.Current.AlertsEnabled, x => Save(settings.Current with { AlertsEnabled = x })));
         alerts.IsEnabled = shown; notchSections.Add(alerts); body.Children.Add(alerts);
+        refreshNotchVisibility = () =>
+        {
+            syncingVisibility = true;
+            try
+            {
+                var visible = settings.Current.Visibility != NotchVisibility.Hidden;
+                showToggle.IsChecked = visible;
+                behaviour.SelectedItem = settings.Current.LastVisibleNotchMode;
+                foreach (var section in notchSections) section.IsEnabled = visible;
+            }
+            finally { syncingVisibility = false; }
+        };
         body.Children.Add(SettingsUi.Note("Mute individual providers in Providers. Alerts always follow consumed usage."));
         var displays = System.Windows.Forms.Screen.AllScreens.Select(x => x.DeviceName).ToArray();
         body.Children.Add(SettingsUi.Section("Display",

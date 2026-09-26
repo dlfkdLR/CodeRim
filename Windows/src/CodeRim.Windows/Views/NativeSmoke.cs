@@ -384,6 +384,7 @@ internal static partial class NativeSmoke
         await SessionPresentationRegression(dashboard, store, settings, directory);
         await ActivityGroupsRegression(notch, store, settings, directory);
         await SettingsReferenceRegression(dashboard, settings, directory);
+        await TrayRegression(dashboard, settings, directory);
         await ProfileHistoryRegression(settings, vault, directory);
         await LocalDataRegression(settings, vault, directory);
         await WindowFrameRegression(store, settings, vault, directory);

@@ -86,6 +86,11 @@ public sealed class AppSettingsStore
 
     public AppSettings Current { get; private set; }
 
+    public void ToggleNotch() => Save(Current with
+    {
+        Visibility = Current.Visibility == NotchVisibility.Hidden ? Current.LastVisibleNotchMode : NotchVisibility.Hidden
+    });
+
     public void RevealNotch()
     {
         if (Current.Visibility == NotchVisibility.Hidden)
