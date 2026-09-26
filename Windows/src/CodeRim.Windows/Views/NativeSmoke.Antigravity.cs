@@ -40,6 +40,19 @@ internal static partial class NativeSmoke
         var firstPort = ((IPEndPoint)first.LocalEndpoint).Port; var secondPort = ((IPEndPoint)second.LocalEndpoint).Port;
         var quotaPort = Math.Max(firstPort, secondPort); var deniedPort = Math.Min(firstPort, secondPort);
         var quotaRequests = 0; var deniedRequests = 0;
+        var evidenceLock = new object();
+        void PublishEvidence(string name, object value)
+        {
+            lock (evidenceLock)
+            {
+                var target = Path.Combine(directory, name);
+                var pending = target + ".pending";
+                // The parent polls for ready.json. Publish only after the writer
+                // has closed a complete payload, never while WriteAllText owns it.
+                File.WriteAllText(pending, JsonSerializer.Serialize(value));
+                File.Move(pending, target, overwrite: true);
+            }
+        }
         async Task Listen(TcpListener listener)
         {
             while (!lifetime.IsCancellationRequested)
@@ -61,20 +74,28 @@ internal static partial class NativeSmoke
                     if (!text.Contains("X-Codeium-Csrf-Token: native-antigravity-fixture", StringComparison.OrdinalIgnoreCase))
                         throw new InvalidOperationException("Fixture request omitted its synthetic token.");
                     var denied = ((IPEndPoint)listener.LocalEndpoint).Port == deniedPort;
-                    if (denied) Interlocked.Increment(ref deniedRequests); else Interlocked.Increment(ref quotaRequests);
                     var body = denied ? "{}" : text.StartsWith("POST /exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary ", StringComparison.Ordinal)
                         ? """{"groups":[{"displayName":"Gemini","buckets":[{"bucketId":"gemini-5h","remainingFraction":0.67},{"bucketId":"gemini-weekly","remainingFraction":0.45}]}]}"""
                         : """{"userStatus":{"userTier":{"name":"Pro"}}}""";
                     var payload = Encoding.UTF8.GetBytes("HTTP/1.1 " + (denied ? "401 Unauthorized" : "200 OK")
                         + "\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: " + Encoding.UTF8.GetByteCount(body) + "\r\n\r\n" + body);
+                    // Publish counters before acknowledging the HTTP response so
+                    // completion of the read also means its evidence is complete.
+                    lock (evidenceLock)
+                    {
+                        if (denied) deniedRequests++; else quotaRequests++;
+                        PublishEvidence("requests.json", new { quotaRequests, deniedRequests });
+                    }
                     await stream.WriteAsync(payload, lifetime.Token).ConfigureAwait(false); await stream.FlushAsync(lifetime.Token).ConfigureAwait(false);
-                    File.WriteAllText(Path.Combine(directory, "requests.json"), JsonSerializer.Serialize(new { quotaRequests, deniedRequests }));
                 }
                 catch (Exception error) when (error is IOException or AuthenticationException or OperationCanceledException)
-                { File.AppendAllText(Path.Combine(directory, "transport-errors.txt"), error.GetType().Name + ":" + error.HResult.ToString("X8", System.Globalization.CultureInfo.InvariantCulture) + "\n"); }
+                {
+                    lock (evidenceLock)
+                        File.AppendAllText(Path.Combine(directory, "transport-errors.txt"), error.GetType().Name + ":" + error.HResult.ToString("X8", System.Globalization.CultureInfo.InvariantCulture) + "\n");
+                }
             }
         }
-        File.WriteAllText(Path.Combine(directory, "ready.json"), JsonSerializer.Serialize(new { pid = Environment.ProcessId, quotaPort, deniedPort }));
+        PublishEvidence("ready.json", new { pid = Environment.ProcessId, quotaPort, deniedPort });
         async Task StopSignal()
         {
             while (!File.Exists(Path.Combine(directory, "stop"))) await Task.Delay(100, lifetime.Token).ConfigureAwait(false);
@@ -114,6 +135,13 @@ internal static partial class NativeSmoke
             using var stopping = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             try { await child.WaitForExitAsync(stopping.Token); }
             catch (OperationCanceledException) { forcedKill = true; child.Kill(); await child.WaitForExitAsync(); }
+        }
+        Exception? failure = null;
+        var cleanup = new List<Exception>();
+        void Restore(Action action)
+        {
+            try { action(); }
+            catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); }
         }
         try
         {
@@ -158,9 +186,6 @@ internal static partial class NativeSmoke
                 var direct = await AntigravityLocalUsage.FetchAsync(knownClient, "native-antigravity-fixture", process.IsCurrent);
                 File.WriteAllText(Path.Combine(directory, "windows-antigravity-direct-reading.json"), JsonSerializer.Serialize(direct, JsonOptions));
             }
-            foreach (var diagnostic in new[] { "requests.json", "transport-errors.txt" })
-                if (File.Exists(Path.Combine(root, diagnostic)))
-                    File.Copy(Path.Combine(root, diagnostic), Path.Combine(directory, "windows-antigravity-" + diagnostic), overwrite: true);
             Require(local.State == ReadingState.Ready && local.Plan == "Pro" && local.Windows.Count == 2
                 && Math.Abs(local.Windows[0].UsedPercent!.Value - 33) < 0.001 && local.Windows[0].DurationMinutes == 300
                 && local.Windows[1].DurationMinutes == 10080, "Native discovery/TLS quota reading failed.");
@@ -202,19 +227,31 @@ internal static partial class NativeSmoke
         }
         catch (Exception error) when (error is not OutOfMemoryException)
         {
-            File.WriteAllText(Path.Combine(directory, "windows-antigravity-failure.txt"), error.ToString());
-            throw;
+            failure = error;
+            Restore(() => File.WriteAllText(Path.Combine(directory, "windows-antigravity-failure.txt"), error.ToString()));
         }
         finally
         {
-            await StopChild();
-            File.WriteAllText(Path.Combine(directory, "windows-antigravity-shutdown.json"), JsonSerializer.Serialize(new
-            { launched, forcedKill, helperExitCode = launched ? child.ExitCode : (int?)null, temporaryKeyDisposal = launched && !forcedKill && child.ExitCode == 0 }));
-            child.Dispose();
-            vault.Delete("provider:gemini"); vault.Delete("setting:gemini:ANTIGRAVITY_USAGE_SOURCE");
-            settings.Save(settings.Current with { EnabledProviders = originalProviders }); dashboard.Navigate("usage");
-            try { Directory.Delete(root, recursive: true); } catch (Exception error) when (error is IOException or UnauthorizedAccessException)
-            { File.WriteAllText(Path.Combine(directory, "windows-antigravity-cleanup.json"), JsonSerializer.Serialize(new { retainedFixture = true, reason = error.GetType().Name })); }
+            try { await StopChild(); }
+            catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); }
+            // Transport diagnostics can be appended by either listener; collect
+            // them after the helper has exited and released all writer handles.
+            foreach (var diagnostic in new[] { "requests.json", "transport-errors.txt" })
+                Restore(() =>
+                {
+                    if (File.Exists(Path.Combine(root, diagnostic)))
+                        File.Copy(Path.Combine(root, diagnostic), Path.Combine(directory, "windows-antigravity-" + diagnostic), overwrite: true);
+                });
+            Restore(() => File.WriteAllText(Path.Combine(directory, "windows-antigravity-shutdown.json"), JsonSerializer.Serialize(new
+            { launched, forcedKill, helperExitCode = launched ? child.ExitCode : (int?)null, temporaryKeyDisposal = launched && !forcedKill && child.ExitCode == 0 })));
+            Restore(child.Dispose);
+            Restore(() => vault.Delete("provider:gemini"));
+            Restore(() => vault.Delete("setting:gemini:ANTIGRAVITY_USAGE_SOURCE"));
+            Restore(() => settings.Save(settings.Current with { EnabledProviders = originalProviders }));
+            Restore(() => dashboard.Navigate("usage"));
+            Restore(() => Directory.Delete(root, recursive: true));
         }
+        if (cleanup.Count > 0) throw new AggregateException("Antigravity fixture cleanup failed.", failure is null ? cleanup : cleanup.Prepend(failure));
+        if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 }
