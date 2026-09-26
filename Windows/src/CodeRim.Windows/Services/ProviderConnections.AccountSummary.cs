@@ -28,7 +28,15 @@ internal sealed partial class ProviderConnections
         if (!NativeAccountSummary.Supports(id)) return null;
         try
         {
-            // Of these five providers only Cursor supports a browser import.
+            if (id == "copilot")
+            {
+                // Match the request's trimmed saved/GH_TOKEN/GITHUB_TOKEN
+                // precedence, including blank aliases. Never borrow a CLI label.
+                var selected = GitHubAuthentication.Configured(vault.Load("provider:copilot"),
+                    Environment.GetEnvironmentVariable("GH_TOKEN"), Environment.GetEnvironmentVariable("GITHUB_TOKEN"));
+                return selected is not null ? NativeAccountSummary.FromCredential(id, selected) : readNativeSummary(id);
+            }
+            // Of these providers only Cursor supports a browser import.
             // Validate and fingerprint the same jar used by the request path.
             if (BrowserConnections.Domains(id).Length > 0 && BrowserConnections.Load(id, vault) is { } browser)
                 return NativeAccountSummary.FromCredential(id, browser.Serialize(), "browser");

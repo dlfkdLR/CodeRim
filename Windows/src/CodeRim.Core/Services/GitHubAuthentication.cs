@@ -22,6 +22,14 @@ public static class GitHubAuthentication
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException) { return null; }
     }
     public static string? ParseHosts(string? text) => ParseHosts(text, out _);
+    public static NativeAccountSummary? AccountSummary(string? text)
+    {
+        // A username can survive when gh stores its token in the OS vault.
+        // This display-only path must never supply a request credential.
+        var token = ParseHosts(text, out var username, allowUsernameOnly: true);
+        return token is null && username is null ? null
+            : NativeAccountSummary.Create(new(username, "GitHub"), null, "hosts:" + (token ?? "display-only"));
+    }
     public static string? AccountLabel(string? text, string? selectedToken)
     {
         // The CLI username is display evidence only when this very hosts entry
@@ -29,7 +37,7 @@ public static class GitHubAuthentication
         var token = ParseHosts(text, out var username);
         return token is not null && token == selectedToken ? username : null;
     }
-    private static string? ParseHosts(string? text, out string? username)
+    private static string? ParseHosts(string? text, out string? username, bool allowUsernameOnly = false)
     {
         username = null;
         if (text is null || text.Length > 262144) return null;
@@ -72,7 +80,8 @@ public static class GitHubAuthentication
             values.TryGetValue("users/" + user + "/oauth_token", out selected);
         if (rootToken is { Length: > 0 } && selected is { Length: > 0 } && rootToken != selected) return null;
         var token = Token(rootToken) ?? Token(selected);
-        if (token is not null && user is { Length: > 0 and <= 256 }
+        if ((token is not null || allowUsernameOnly && string.IsNullOrWhiteSpace(rootToken) && string.IsNullOrWhiteSpace(selected))
+            && user is { Length: > 0 and <= 256 }
             && user.All(c => char.IsAsciiLetterOrDigit(c) || c == '-')) username = user;
         return token;
     }

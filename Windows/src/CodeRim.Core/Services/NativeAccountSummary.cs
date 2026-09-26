@@ -13,7 +13,7 @@ public sealed record NativeAccountSummary(ProviderAccountMetadata? Account, stri
     [property: JsonIgnore] string Version)
 {
     public override string ToString() => "Detected provider connection";
-    public static bool Supports(string id) => id is "cursor" or "grok" or "commandcode" or "opencode" or "ollama";
+    public static bool Supports(string id) => id is "cursor" or "grok" or "commandcode" or "opencode" or "ollama" or "copilot";
 
     public static NativeAccountSummary Create(ProviderAccountMetadata? account, string? plan, string sourceIdentity)
         => new(account, plan, Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new { account, plan, sourceIdentity }))));
@@ -22,7 +22,7 @@ public sealed record NativeAccountSummary(ProviderAccountMetadata? Account, stri
     public static NativeAccountSummary? FromCredential(string id, string? credential, string source = "key")
     {
         if (string.IsNullOrWhiteSpace(credential)) return null;
-        var name = id switch { "cursor" => "Cursor", "grok" => "Grok", "commandcode" => "Command Code", "opencode" => "OpenCode", "ollama" => "Ollama", _ => null };
+        var name = id switch { "cursor" => "Cursor", "grok" => "Grok", "commandcode" => "Command Code", "opencode" => "OpenCode", "ollama" => "Ollama", "copilot" => "GitHub", _ => null };
         return name is null ? null : Create(new(null, name), id == "opencode" ? "Go" : null, source + ":" + credential);
     }
 

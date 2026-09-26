@@ -13,6 +13,7 @@ internal static class NativeCredentials
     {
         try
         {
+            if (id == "copilot") return GitHubAuthentication.AccountSummary(CopilotConnection.ScopeMarker());
             if (id == "cursor")
             {
                 var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cursor", "User", "globalStorage", "state.vscdb");
