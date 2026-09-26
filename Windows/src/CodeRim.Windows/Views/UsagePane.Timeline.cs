@@ -111,6 +111,7 @@ internal sealed partial class UsagePane
             chart.RowDefinitions.Add(new RowDefinition());
             chart.RowDefinitions.Add(new RowDefinition { Height = new GridLength(axisHeight) });
             AutomationProperties.SetName(chart, title + " by " + (period == "today" ? "hour" : "day"));
+            if (axisHeight > 0) AddChartAxis(chart, range, domainStart, through, cost);
             var values = buckets.Select(b => cost ? b.Cost.Amount.HasValue ? (double?)b.Cost.Amount.Value : null : b.Usage.TotalTokens).ToArray();
             var maximum = values.Where(v => v.HasValue).Select(v => v!.Value).DefaultIfEmpty(0).Max();
             var marks = new List<(Button Button, Border Fill, DateTimeOffset Start)>();
@@ -149,22 +150,6 @@ internal sealed partial class UsagePane
                     marks[i].Fill.Margin = new Thickness(centers[i] - left - 4, 0, 0, 0);
                 }
             };
-            if (buckets.Count > 0 && axisHeight > 0)
-            {
-                var axis = new Grid();
-                AutomationProperties.SetAutomationId(axis, "usage.chart.axis." + (cost ? "cost" : "tokens"));
-                axis.ColumnDefinitions.Add(new ColumnDefinition()); axis.ColumnDefinitions.Add(new ColumnDefinition());
-                var first = Ui.Text(BucketLabel(buckets[0].Start), 11, "#A6A6AA"); first.Margin = new Thickness(0);
-                var last = Ui.Text(BucketLabel(buckets[^1].Start), 11, "#A6A6AA"); last.Margin = new Thickness(0);
-                first.VerticalAlignment = last.VerticalAlignment = VerticalAlignment.Bottom;
-                first.TextWrapping = last.TextWrapping = TextWrapping.NoWrap;
-                first.TextTrimming = last.TextTrimming = TextTrimming.CharacterEllipsis;
-                last.TextAlignment = TextAlignment.Right;
-                axis.Children.Add(first);
-                // A single hour has one tick, not duplicate labels at both ends.
-                if (buckets.Count > 1) { Grid.SetColumn(last, 1); axis.Children.Add(last); }
-                Grid.SetRow(axis, 1); chart.Children.Add(axis);
-            }
             readings.Children.Add(chart);
             if (cost && values.Any(v => !v.HasValue))
                 readings.Children.Add(Ui.Text("Gaps indicate intervals without a cost estimate.", 11, "#A6A6AA"));
@@ -182,6 +167,43 @@ internal sealed partial class UsagePane
             readings.Children.Add(AnalyticsRowButton(row.Name, null, row.Tokens, costText, "usage.model." + row.Name, 8,
                 () => Forward("model", selectedProject: project, selectedSession: session, model: row.Name)));
         }
+    }
+    private static void AddChartAxis(Grid chart, AnalyticsRange range, DateTimeOffset start, DateTimeOffset through, bool cost)
+    {
+        // Axis dates are independent of recorded buckets: at 00:30 the reference
+        // has 15-minute ticks even though there is only one hourly usage bucket.
+        var ticks = AnalyticsAxis.Build(range, start, through, TimeZoneInfo.Local, CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek);
+        var lines = new Canvas { IsHitTestVisible = false };
+        Grid.SetRowSpan(lines, 2); chart.Children.Add(lines);
+        var axis = new Grid { IsHitTestVisible = false, ClipToBounds = true };
+        AutomationProperties.SetAutomationId(axis, "usage.chart.axis." + (cost ? "cost" : "tokens"));
+        var labels = new Canvas { IsHitTestVisible = false }; axis.Children.Add(labels);
+        Grid.SetRow(axis, 1); chart.Children.Add(axis);
+        var marks = ticks.Select(tick =>
+        {
+            var line = new System.Windows.Shapes.Line { StrokeThickness = 1, StrokeDashArray = new DoubleCollection([3, 3]), IsHitTestVisible = false, Tag = tick.Date };
+            line.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "DividerBrush"); lines.Children.Add(line);
+            var style = tick.Unit switch { AnalyticsAxisUnit.Second => AnalyticsDateStyle.AxisSecond,
+                AnalyticsAxisUnit.Minute => AnalyticsDateStyle.Time, AnalyticsAxisUnit.Hour => AnalyticsDateStyle.AxisHour, _ => AnalyticsDateStyle.AxisDay };
+            var text = Ui.Text(AnalyticsDateText.Format(tick.Date, style), 11, "#A6A6AA");
+            text.Margin = new Thickness(0); text.Tag = tick.Date; text.IsHitTestVisible = false;
+            text.TextWrapping = TextWrapping.NoWrap; text.TextTrimming = TextTrimming.CharacterEllipsis;
+            labels.Children.Add(text); Canvas.SetTop(text, 4);
+            return (tick.Date, Line: line, Text: text);
+        }).ToArray();
+        chart.SizeChanged += (_, _) =>
+        {
+            for (var i = 0; i < marks.Length; i++)
+            {
+                var x = AnalyticsTimeline.Position(marks[i].Date, start, through, chart.ActualWidth);
+                var next = i + 1 < marks.Length ? AnalyticsTimeline.Position(marks[i + 1].Date, start, through, chart.ActualWidth) : chart.ActualWidth;
+                marks[i].Line.X1 = marks[i].Line.X2 = x; marks[i].Line.Y2 = chart.ActualHeight;
+                // Keep a right-edge tick at its date; clip its label instead of
+                // moving the date to another position merely to make the text fit.
+                Canvas.SetLeft(marks[i].Text, x + 4);
+                marks[i].Text.Width = Math.Max(0, next - x - 8);
+            }
+        };
     }
     internal static double BarHeight(double? value, double maximum, double height = 96) => value is > 0 && maximum > 0
         ? Math.Min(1, value.Value / maximum) * height : 0;

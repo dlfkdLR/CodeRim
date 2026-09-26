@@ -3,9 +3,9 @@ using System.Runtime.InteropServices;
 
 namespace CodeRim.Windows.Services;
 
-internal enum AnalyticsDateStyle { Day, Time, DayAndTime }
+internal enum AnalyticsDateStyle { Day, Time, DayAndTime, AxisSecond, AxisHour, AxisDay }
 
-/// <summary>ICU medium-date/short-time styles used by the Mac analytics reference.</summary>
+/// <summary>ICU date styles and axis templates exported from the Mac analytics reference.</summary>
 internal static class AnalyticsDateText
 {
     private static readonly Dictionary<string, string[]> ReferencePatterns = LoadReferencePatterns();
@@ -36,6 +36,9 @@ internal static class AnalyticsDateText
             AnalyticsDateStyle.Day => (-1, 2),
             AnalyticsDateStyle.Time => (3, -1),
             AnalyticsDateStyle.DayAndTime => (3, 2),
+            AnalyticsDateStyle.AxisSecond => (2, -1),
+            AnalyticsDateStyle.AxisHour => (3, -1),
+            AnalyticsDateStyle.AxisDay => (-1, 2),
             _ => throw new ArgumentOutOfRangeException(nameof(style))
         };
         // Supply the offset at this instant, rather than ICU's cached default
@@ -73,10 +76,14 @@ internal static class AnalyticsDateText
         try { standard = CultureInfo.GetCultureInfo(culture.Name).DateTimeFormat; }
         catch (CultureNotFoundException) { return true; }
         var current = culture.DateTimeFormat;
-        if (style != AnalyticsDateStyle.Time && (current.ShortDatePattern != standard.ShortDatePattern
+        var includesDate = style is AnalyticsDateStyle.Day or AnalyticsDateStyle.DayAndTime or AnalyticsDateStyle.AxisDay;
+        var includesTime = style is not (AnalyticsDateStyle.Day or AnalyticsDateStyle.AxisDay);
+        if (style == AnalyticsDateStyle.AxisSecond && current.LongTimePattern != standard.LongTimePattern
+            || style == AnalyticsDateStyle.AxisDay && current.MonthDayPattern != standard.MonthDayPattern) return true;
+        if (includesDate && (current.ShortDatePattern != standard.ShortDatePattern
             || current.DateSeparator != standard.DateSeparator || current.Calendar.GetType() != standard.Calendar.GetType()
             || current.Calendar is HijriCalendar hijri && standard.Calendar is HijriCalendar baseHijri && hijri.HijriAdjustment != baseHijri.HijriAdjustment)) return true;
-        return style != AnalyticsDateStyle.Day && (current.ShortTimePattern != standard.ShortTimePattern
+        return includesTime && (current.ShortTimePattern != standard.ShortTimePattern
             || current.TimeSeparator != standard.TimeSeparator || current.AMDesignator != standard.AMDesignator || current.PMDesignator != standard.PMDesignator);
     }
 
@@ -85,7 +92,9 @@ internal static class AnalyticsDateText
         try
         {
             var local = TimeZoneInfo.ConvertTime(date, timeZone);
-            return local.ToString(style switch { AnalyticsDateStyle.Day => "d", AnalyticsDateStyle.Time => "t", _ => "g" }, culture);
+            if (style == AnalyticsDateStyle.AxisDay) return CodeRim.Core.Domain.CalendarDateText.MonthDay(local.DateTime, culture) ?? "Date unavailable";
+            return local.ToString(style switch { AnalyticsDateStyle.Day => "d", AnalyticsDateStyle.Time or AnalyticsDateStyle.AxisHour => "t",
+                AnalyticsDateStyle.AxisSecond => "T", _ => "g" }, culture);
         }
         catch (ArgumentOutOfRangeException) { return "Date unavailable"; }
         catch (FormatException) { return "Date unavailable"; }

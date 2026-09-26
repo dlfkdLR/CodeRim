@@ -15,10 +15,12 @@ for (const locale of locales) {
  f.dateStyle = 2;
  const key = locale.replace(/_/g, '-');
  const value = [day,time,ObjC.unwrap(f.dateFormat)];
+ for (const template of ['jms','j','MMMd'])
+   value.push(ObjC.unwrap($.NSDateFormatter.dateFormatFromTemplateOptionsLocale(template, 0, f.locale)));
  if (patterns[key] && JSON.stringify(patterns[key]) !== JSON.stringify(value)) throw new Error('Conflicting locale alias: ' + key);
  patterns[key] = value;
 }
 const rows = Object.keys(patterns).sort().map(key => '    ' + JSON.stringify(key) + ': ' + JSON.stringify(patterns[key]));
-'{\n  "source": "macOS Foundation NSDateFormatter medium date / short time",\n  "sourceOS": '
+'{\n  "source": "macOS Foundation NSDateFormatter medium date / short time and chart jms, j, MMMd templates",\n  "sourceOS": '
  + JSON.stringify(ObjC.unwrap($.NSProcessInfo.processInfo.operatingSystemVersionString))
  + ',\n  "patterns": {\n' + rows.join(',\n') + '\n  }\n}';

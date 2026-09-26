@@ -31,6 +31,9 @@ internal static partial class NativeSmoke
         {
             settings.Save(settings.Current with { CostEstimatesEnabled = true });
             var day = new DateTimeOffset(new DateTime(2026, 9, 26, 0, 0, 0, DateTimeKind.Local));
+            // Construct each local date anew: DateTimeOffset.AddDays preserves
+            // September's offset even after an October daylight-saving change.
+            DateTimeOffset LocalDate(int days, int hour = 0) => new(DateTime.SpecifyKind(day.Date.AddDays(days).AddHours(hour), DateTimeKind.Local));
             var before = day.AddTicks(-1); var after = day.AddSeconds(1);
             var clock = new AnalyticsBoundaryClock(); clock.Reset(before, after);
             void SetEvents(params UsageEvent[] events)
@@ -47,6 +50,24 @@ internal static partial class NativeSmoke
             Descendants<Button>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.activity").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
             Descendants<RadioButton>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.today").IsChecked = true;
             Button[] Bars() => Descendants<Button>(pane).Where(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.tokens.", StringComparison.Ordinal)).ToArray();
+            void Axis(DateTimeOffset[] dates, double[] positions, double height)
+            {
+                var frame = (Grid)Bars()[0].Parent;
+                var labels = Descendants<TextBlock>(Descendants<Grid>(frame).Single(x => AutomationProperties.GetAutomationId(x) == "usage.chart.axis.tokens")).ToArray();
+                var lines = Descendants<System.Windows.Shapes.Line>(frame).ToArray();
+                Require(lines.Length == dates.Length && labels.Length == dates.Length && frame.ActualHeight == height,
+                    "Axis fixture is missing expected tick lines, labels or its chart height");
+                for (var i = 0; i < dates.Length; i++)
+                {
+                    Require(Equals(lines[i].Tag, dates[i]) && Equals(labels[i].Tag, dates[i])
+                        && Math.Abs(lines[i].X1 - positions[i]) < .1 && lines[i].X1 == lines[i].X2
+                        && Math.Abs(Canvas.GetLeft(labels[i]) - positions[i] - 4) < .1 && lines[i].Y2 == height,
+                        "Axis tick, label and date coordinates disagree with the native reference");
+                    Require(!lines[i].IsHitTestVisible && !labels[i].IsHitTestVisible && !lines[i].Focusable && !labels[i].Focusable,
+                        "Decorative chart axes intercept pointer or keyboard input");
+                    Require(lines[i].StrokeDashArray.SequenceEqual(new double[] { 3, 3 }), "Axis lost its reference dashed grid");
+                }
+            }
             void Total(long expected, string id)
             {
                 var panel = Descendants<StackPanel>(pane).First(x => AutomationProperties.GetAutomationId(x) == id);
@@ -87,6 +108,7 @@ internal static partial class NativeSmoke
                     "Windows chart differs from the measured native Date-scale mark geometry");
             }
             Require(Math.Abs(UsagePane.BarHeight(1, 1000000, 62) - .000062) < .0000001, "A very small value was inflated to a two-pixel minimum");
+            Axis([day, day.AddHours(1), day.AddHours(2)], centers, 80);
             Capture(pane, System.IO.Path.Combine(directory, "windows-chart-native-geometry.png"));
             bars[^1].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Require(bars[^1].Focus(), "Cannot focus the final partial-hour fixture");
@@ -101,14 +123,31 @@ internal static partial class NativeSmoke
                 && !Descendants<Grid>(midnightChart).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.chart.axis.", StringComparison.Ordinal)),
                 "Zero-length midnight domain is not centered with the reference's axis-free full height");
             Capture(pane, System.IO.Path.Combine(directory, "windows-chart-midnight.png"));
-            var monthThrough = day.AddHours(12); clock.Reset(monthThrough, monthThrough);
+            var halfHour = day.AddMinutes(30); clock.Reset(halfHour, halfHour); pane.Update(); await Idle();
+            Require(Bars().Length == 1, "Half-hour axis fixture has unexpected hourly buckets");
+            Axis([day, day.AddMinutes(15), halfHour], [0, 300, 600], 80);
+            Capture(pane, System.IO.Path.Combine(directory, "windows-chart-half-hour-axis.png"));
+            settings.Save(settings.Current with { CostEstimatesEnabled = false }); pane.Update(); await Idle();
+            Axis([day, day.AddMinutes(15), halfHour], [0, 300, 600], 112);
+            Capture(pane, System.IO.Path.Combine(directory, "windows-chart-token-only-axis.png"));
+            settings.Save(settings.Current with { CostEstimatesEnabled = true });
+            var weekThrough = LocalDate(6, 12); clock.Reset(weekThrough, weekThrough);
+            Descendants<RadioButton>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.7d").IsChecked = true; await Idle();
+            DateTimeOffset[] weekDates = [day, LocalDate(2), LocalDate(4), LocalDate(6)];
+            Axis(weekDates, weekDates.Select(date => 600 * (date - day).TotalSeconds / (weekThrough - day).TotalSeconds).ToArray(), 80);
+            Capture(pane, System.IO.Path.Combine(directory, "windows-chart-week-axis.png"));
+            var monthThrough = LocalDate(29, 12); clock.Reset(monthThrough, monthThrough);
             store.Events["codex"] = Enumerable.Range(0, 30).Select(i => new UsageEvent("month-" + i,
-                day.AddDays(i - 29), new(10, 0, 0, 0), "gpt-5.6-sol")).ToArray();
+                LocalDate(i), new(10, 0, 0, 0), "gpt-5.6-sol")).ToArray();
             Descendants<RadioButton>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.30d").IsChecked = true;
             pane.Width = 360; await Idle(); pane.UpdateLayout();
             var monthBars = Bars(); var monthChart = (Grid)monthBars[0].Parent;
             Require(monthBars.Length == 30 && Math.Abs(monthChart.ActualWidth - 328) < .1,
                 "Narrow hit-test fixture did not establish thirty marks in a328point plot");
+            var first = ((int)CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek - (int)day.DayOfWeek + 7) % 7;
+            var days = Enumerable.Range(0, 5).Select(i => first + i * 7).Where(offset => offset <= 29).ToArray();
+            var monthDates = days.Select(offset => LocalDate(offset)).ToArray();
+            Axis(monthDates, monthDates.Select(date => 328 * (date - day).TotalSeconds / (monthThrough - day).TotalSeconds).ToArray(), 80);
             for (var i = 0; i < monthBars.Length; i++)
             {
                 var fill = Descendants<Border>((Grid)monthBars[i].Content).Single();
@@ -122,8 +161,9 @@ internal static partial class NativeSmoke
             System.IO.File.WriteAllText(System.IO.Path.Combine(directory, "windows-chart-refresh.json"), System.Text.Json.JsonSerializer.Serialize(new
             {
                 completed = true, checks = new List<string> { "One snapshot time across midnight", "Focused rollover refresh and nearest selection", "Exact-to-exact focused value refresh", "Clock rollback restores nearest focus",
-                    "600-point Date-scale mark centers and 8-point widths", "Uninflated small values and shared baseline", "Zero-length midnight domain", "Narrow 30D mark-edge native hit testing" },
-                hoverSelection = "not verified", automaticAxisParity = "pending"
+                    "600-point Date-scale mark centers and 8-point widths", "Uninflated small values and shared baseline", "Zero-length midnight domain", "Narrow 30D mark-edge native hit testing",
+                    "Hourly date ticks and label coordinates", "Half-hour intermediate ticks independent of hourly buckets", "80 and 112 point dashed grids without input interception", "Two-day weekly axis", "Calendar week-aligned month axis at328points" },
+                hoverSelection = "not verified", automaticAxisParity = "Measured tick dates and geometry verified; universal font, clipping and live interaction parity not established"
             }, JsonOptions));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }

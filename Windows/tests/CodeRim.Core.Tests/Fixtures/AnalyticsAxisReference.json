@@ -1,0 +1,1422 @@
+{
+  "source": "macOS 26.6.2 Swift Charts ImageRenderer, 2026-09-26; supported analytics ranges only; tick candidates do not imply visible labels",
+  "observations": [
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 0.01,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 0.5,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 0.99,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 1,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        1
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 5,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 5.99,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 6,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        5
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 25,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        25
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 29,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        25
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 29.99,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        25
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 30,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        15,
+        30
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 74.99,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        15,
+        30,
+        45,
+        60
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 75,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        30,
+        60
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 149.99,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        30,
+        60,
+        90,
+        120
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 150,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        60,
+        120
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 300,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        60,
+        120,
+        180,
+        240,
+        300
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 301,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        60,
+        120,
+        180,
+        240,
+        300
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 359,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        60,
+        120,
+        180,
+        240,
+        300
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 359.99,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        60,
+        120,
+        180,
+        240,
+        300
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 360,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        300
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 1500,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        300,
+        600,
+        900,
+        1200,
+        1500
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 1799,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        300,
+        600,
+        900,
+        1200,
+        1500
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 1799.99,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        300,
+        600,
+        900,
+        1200,
+        1500
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 1800,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        900,
+        1800
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 4499.99,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        900,
+        1800,
+        2700,
+        3600
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 4500,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        1800,
+        3600
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 8999.99,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        1800,
+        3600,
+        5400,
+        7200
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 9000,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        3600,
+        7200
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 18000,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        3600,
+        7200,
+        10800,
+        14400,
+        18000
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 21599,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        3600,
+        7200,
+        10800,
+        14400,
+        18000
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 21599.99,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        3600,
+        7200,
+        10800,
+        14400,
+        18000
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 21600,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        10800,
+        21600
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 53999.99,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        10800,
+        21600,
+        32400,
+        43200
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 54000,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        21600,
+        43200
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 86399.99,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        21600,
+        43200,
+        64800
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 86400,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        21600,
+        43200,
+        64800,
+        86400
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 90000,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        21600,
+        43200,
+        64800,
+        86400
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 0.01,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 0.5,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 0.99,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 1,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        1
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 5,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 5.99,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 6,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        5
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 25,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        25
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 29,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        25
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 29.99,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        5,
+        10,
+        15,
+        20,
+        25
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 30,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        15,
+        30
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 74.99,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        15,
+        30,
+        45,
+        60
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 75,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        30,
+        60
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 149.99,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        30,
+        60,
+        90,
+        120
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 150,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        60,
+        120
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 300,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        60,
+        120,
+        180,
+        240,
+        300
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 301,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        60,
+        120,
+        180,
+        240,
+        300
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 359,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        60,
+        120,
+        180,
+        240,
+        300
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 359.99,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        60,
+        120,
+        180,
+        240,
+        300
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 360,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        300
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 1500,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        300,
+        600,
+        900,
+        1200,
+        1500
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 1799,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        300,
+        600,
+        900,
+        1200,
+        1500
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 1799.99,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        300,
+        600,
+        900,
+        1200,
+        1500
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 1800,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        900,
+        1800
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 4499.99,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        900,
+        1800,
+        2700,
+        3600
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 4500,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        1800,
+        3600
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 8999.99,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        1800,
+        3600,
+        5400,
+        7200
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 9000,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        3600,
+        7200
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 18000,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        3600,
+        7200,
+        10800,
+        14400,
+        18000
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 21599,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        3600,
+        7200,
+        10800,
+        14400,
+        18000
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 21599.99,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        3600,
+        7200,
+        10800,
+        14400,
+        18000
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 21600,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        10800,
+        21600
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 53999.99,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        10800,
+        21600,
+        32400,
+        43200
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 54000,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        21600,
+        43200
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 86399.99,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        21600,
+        43200,
+        64800
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 86400,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        21600,
+        43200,
+        64800,
+        86400
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1793516400,
+      "seconds": 90000,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        21600,
+        43200,
+        64800,
+        86400
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1788188400,
+      "seconds": 561600.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1788188400,
+      "seconds": 2548800.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        432000,
+        1036800,
+        1641600,
+        2246400
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1788274800,
+      "seconds": 561600.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1788274800,
+      "seconds": 2548800.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        345600,
+        950400,
+        1555200,
+        2160000
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1788361200,
+      "seconds": 561600.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1788361200,
+      "seconds": 2548800.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        259200,
+        864000,
+        1468800,
+        2073600
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1789743600,
+      "seconds": 561600.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1789743600,
+      "seconds": 2548800.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        86400,
+        691200,
+        1296000,
+        1900800,
+        2505600
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1789830000,
+      "seconds": 561600.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1789830000,
+      "seconds": 2548800.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        604800,
+        1209600,
+        1814400,
+        2419200
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1789916400,
+      "seconds": 561600.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1789916400,
+      "seconds": 2548800.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        518400,
+        1123200,
+        1728000,
+        2332800
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1790262000,
+      "seconds": 561600.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1790262000,
+      "seconds": 2548800.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        172800,
+        777600,
+        1382400,
+        1987200
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1790348400,
+      "seconds": 561600.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1790348400,
+      "seconds": 2548800.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        86400,
+        691200,
+        1296000,
+        1900800,
+        2505600
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1790434800,
+      "seconds": 561600.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1790434800,
+      "seconds": 2548800.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        604800,
+        1209600,
+        1814400,
+        2419200
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1790521200,
+      "seconds": 561600.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1790521200,
+      "seconds": 2548800.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        518400,
+        1123200,
+        1728000,
+        2332800
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1790607600,
+      "seconds": 561600.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1790607600,
+      "seconds": 2548800.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        432000,
+        1036800,
+        1641600,
+        2246400
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1790694000,
+      "seconds": 561600.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1790694000,
+      "seconds": 2548800.0,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        345600,
+        950400,
+        1555200,
+        2160000
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 9000,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        3600,
+        7200
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1790348400,
+      "seconds": 561600,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1790348400,
+      "seconds": 2548800,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 0,
+      "ticks": [
+        86400,
+        691200,
+        1296000,
+        1900800,
+        2505600
+      ]
+    },
+    {
+      "range": "Today",
+      "start": 1790348400,
+      "seconds": 9000,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 1,
+      "ticks": [
+        0,
+        3600,
+        7200
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1790348400,
+      "seconds": 561600,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 1,
+      "ticks": [
+        0,
+        172800,
+        345600,
+        518400
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1790348400,
+      "seconds": 2548800,
+      "zone": "Asia/Seoul",
+      "firstWeekday": 1,
+      "ticks": [
+        172800,
+        777600,
+        1382400,
+        1987200
+      ]
+    },
+    {
+      "range": "SevenDays",
+      "start": 1793516400,
+      "seconds": 561600,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        176400,
+        349200,
+        522000
+      ]
+    },
+    {
+      "range": "ThirtyDays",
+      "start": 1793516400,
+      "seconds": 2548800,
+      "zone": "America/Los_Angeles",
+      "firstWeekday": 0,
+      "ticks": [
+        0,
+        608400,
+        1213200,
+        1818000,
+        2422800
+      ]
+    }
+  ],
+  "provenance": {
+    "edges.json": "033778413a230bcbd8b940df7cf78c7f5ddf8fbd8b89a5d6872f3f316275a10c",
+    "dst/edges.json": "54d9281114a4f8251f3b4d2d1947e2b6316d84fa5fada746565408862dbad1f7",
+    "tick-matrix.json": "a3c731067e1034b1b7922ba565e8508395f3f294b5cda15a6601cf05f650fd46",
+    "contexts.json": "3149472252cf5e795e057d2cea94e9a579025cf35bc4b434b995bb75ce5854d9",
+    "dst/axes.json": "40dc7b84315e5a71ea59be47ddf263a4eaa59c5b3c974ddc70970ab5b9dd93db"
+  }
+}

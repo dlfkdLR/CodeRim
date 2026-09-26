@@ -30,7 +30,7 @@ public static class AnalyticsTimeline
         var days = range switch { AnalyticsRange.SevenDays => 6, AnalyticsRange.ThirtyDays => 29, _ => 0 };
         return LocalMidnight(TimeZoneInfo.ConvertTime(now, zone).Date.AddDays(-days), zone);
     }
-    private static DateTimeOffset LocalMidnight(DateTime day, TimeZoneInfo zone)
+    internal static DateTimeOffset LocalMidnight(DateTime day, TimeZoneInfo zone)
     {
         day = DateTime.SpecifyKind(day, DateTimeKind.Unspecified);
         // Some zones advance the clock at midnight. Start at the first valid local instant.
