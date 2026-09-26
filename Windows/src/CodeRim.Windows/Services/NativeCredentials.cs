@@ -40,22 +40,9 @@ internal static class NativeCredentials
                         .Concat((Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim('"')));
                     return GeminiAuthentication.Read(home, npmRoots);
                 case "grok":
-                    using (var document = JsonDocument.Parse(GuardedFile.Read(Path.Combine(home, ".grok", "auth.json"))))
-                    {
-                        var root = document.RootElement;
-                        if (root.ValueKind != JsonValueKind.Object) return null;
-                        foreach (var item in root.EnumerateObject())
-                        {
-                            if (!(item.Name == "https://auth.x.ai" || item.Name.StartsWith("https://auth.x.ai::", StringComparison.Ordinal)
-                                || Text(item.Value, "oidc_issuer") == "https://auth.x.ai")) continue;
-                            if (Date(Get(item.Value, "expires_at")) is { } expires && expires <= DateTimeOffset.Now) continue;
-                            if (Text(item.Value, "key") is { Length: > 0 } key) return key;
-                        }
-                    }
-                    return null;
                 case "commandcode":
-                    if (Environment.GetEnvironmentVariable("COMMAND_CODE_API_KEY") is { Length: > 0 } commandKey) return commandKey;
-                    using (var document = JsonDocument.Parse(GuardedFile.Read(Path.Combine(home, ".commandcode", "auth.json")))) return Text(document.RootElement, "apiKey");
+                case "cursor":
+                    return ReadAccount(id)?.Credential;
                 case "kilo":
                     using (var document = JsonDocument.Parse(GuardedFile.Read(Path.Combine(home, ".local", "share", "kilo", "auth.json"))))
                         return Text(Get(document.RootElement, "kilo"), "access");
@@ -68,25 +55,37 @@ internal static class NativeCredentials
                         foreach (var key in new[] { "key", "apiKey", "api_key", "token", "accessToken" }) if (Text(entry, key) is { Length: > 0 } token) return token;
                     }
                     return null;
-                case "cursor":
-                    var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cursor", "User", "globalStorage", "state.vscdb");
-                    {
-                        var values = LocalStateDatabase.Read(path, "cursorAuth/accessToken", "cursorAuth/stripeMembershipAuthId");
-                        string? Value(string key) => values.TryGetValue(key, out var bytes) ? new UTF8Encoding(false, true).GetString(bytes) : null;
-                        var access = Value("cursorAuth/accessToken"); var subject = Value("cursorAuth/stripeMembershipAuthId");
-                        if (string.IsNullOrEmpty(access) || access.Length > 65536) return null;
-                        if (string.IsNullOrEmpty(subject))
-                        {
-                            var parts = access.Split('.');
-                            if (parts.Length < 2) return null;
-                            var payload = parts[1].Replace('-', '+').Replace('_', '/'); payload = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
-                            using var claims = JsonDocument.Parse(Encoding.UTF8.GetString(Convert.FromBase64String(payload))); subject = Text(claims.RootElement, "sub");
-                        }
-                        return string.IsNullOrEmpty(subject) ? null : "WorkosCursorSessionToken=" + subject + "::" + access;
-                    }
                 default: return null;
             }
         }
         catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or DecoderFallbackException or System.Text.RegularExpressions.RegexMatchTimeoutException or SqliteException) { return null; }
+    }
+
+    internal static NativeProviderLogin? ReadAccount(string id)
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        try
+        {
+            if (id == "cursor")
+            {
+                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cursor", "User", "globalStorage", "state.vscdb");
+                return NativeProviderLogin.Cursor(LocalStateDatabase.ReadWithOptionalValues(path, ["cursorAuth/accessToken", "cursorAuth/stripeMembershipAuthId"],
+                    "cursorAuth/cachedEmail", "cursorAuth/stripeMembershipType"));
+            }
+            if (id == "grok")
+            {
+                using var document = JsonDocument.Parse(GuardedFile.Read(Path.Combine(home, ".grok", "auth.json")));
+                return NativeProviderLogin.Grok(document.RootElement, DateTimeOffset.Now);
+            }
+            if (id == "commandcode")
+            {
+                if (Environment.GetEnvironmentVariable("COMMAND_CODE_API_KEY") is { Length: > 0 } key)
+                    return new(key, new(null, "Command Code"));
+                using var document = JsonDocument.Parse(GuardedFile.Read(Path.Combine(home, ".commandcode", "auth.json")));
+                return NativeProviderLogin.CommandCode(document.RootElement);
+            }
+            return null;
+        }
+        catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or DecoderFallbackException or SqliteException) { return null; }
     }
 }

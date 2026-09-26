@@ -30,6 +30,11 @@ public static class ProviderAccountLinks
     private static readonly Dictionary<string, string> Addresses = new(StringComparer.Ordinal)
     {
         ["copilot"] = "https://github.com/settings/copilot",
+        ["cursor"] = "https://cursor.com/dashboard",
+        ["grok"] = "https://grok.com/?_s=usage",
+        ["commandcode"] = "https://commandcode.ai",
+        ["ollama"] = "https://ollama.com/settings",
+        ["opencode"] = "https://opencode.ai",
         ["t3chat"] = "https://t3.chat/settings/customization",
         ["xai"] = "https://console.x.ai",
         ["venice"] = "https://venice.ai/settings/api",

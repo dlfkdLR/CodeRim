@@ -67,6 +67,29 @@ public sealed class LocalStateDatabaseTests : IDisposable
         Assert.Throws<InvalidDataException>(() => LocalStateDatabase.Read(path, "windsurf.settings.cachedPlanInfo"));
         Assert.Empty(WindsurfLocalUsage.Read(path).Windows);
     }
+    [Theory]
+    [InlineData("cursorAuth/cachedEmail")]
+    [InlineData("cursorAuth/stripeMembershipType")]
+    public void OversizedOptionalDisplayValuePreservesTheSameSnapshotCredentials(string oversizedKey)
+    {
+        using var connection = Create(Quota);
+        using var insert = connection.CreateCommand();
+        insert.CommandText = "INSERT INTO ItemTable VALUES('cursorAuth/accessToken','fixture-token'),('cursorAuth/stripeMembershipAuthId','fixture-owner'),('cursorAuth/cachedEmail','fixture@example.invalid'),('cursorAuth/stripeMembershipType','pro'); UPDATE ItemTable SET value=$value WHERE key=$key";
+        insert.Parameters.AddWithValue("$value", new string('x', 262145)); insert.Parameters.AddWithValue("$key", oversizedKey); insert.ExecuteNonQuery();
+        var path = Path.Combine(directory, "state.vscdb");
+        var db = SharedBytes(path); var wal = SharedBytes(path + "-wal");
+        string[] required = ["cursorAuth/accessToken", "cursorAuth/stripeMembershipAuthId"];
+        string[] optional = ["cursorAuth/cachedEmail", "cursorAuth/stripeMembershipType"];
+        var values = LocalStateDatabase.ReadWithOptionalValues(path, required, optional);
+        Assert.DoesNotContain(oversizedKey, values.Keys);
+        var login = NativeProviderLogin.Cursor(values);
+        Assert.NotNull(login); Assert.Equal("WorkosCursorSessionToken=fixture-owner::fixture-token", login.Credential);
+        Assert.Equal(oversizedKey == optional[0] ? null : "fixture@example.invalid", login.Account.Label);
+        Assert.Equal(oversizedKey == optional[1] ? null : "pro", login.Plan);
+        Assert.Equal(db, SharedBytes(path)); Assert.Equal(wal, SharedBytes(path + "-wal"));
+        Assert.Throws<InvalidDataException>(() => LocalStateDatabase.Read(path, [..required, ..optional]));
+        Assert.Throws<InvalidDataException>(() => LocalStateDatabase.ReadWithOptionalValues(path, [oversizedKey], oversizedKey));
+    }
     [Fact]
     public void MissingFilesAndInvalidEncodingFailWithoutCreatingData()
     {

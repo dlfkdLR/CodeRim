@@ -371,6 +371,7 @@ internal static partial class NativeSmoke
         await ClaudeMigrationRegression(vault, directory);
         await ProviderPreferencesRegression(dashboard, settings, directory);
         await ProviderDetailsRegression(dashboard, store, settings, directory);
+        await NativeAccountRegression(dashboard, store, settings, vault, directory);
         await MacReferenceRegression(dashboard, store, settings, directory);
         Record("macOS reference shell, refresh modes and Usage states");
         await AnalyticsRegression(store, settings, directory);

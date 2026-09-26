@@ -6,6 +6,17 @@ public static class LocalStateDatabase
 {
     private const int MaximumValueBytes = 262144;
     public static IReadOnlyDictionary<string, byte[]> Read(string path, params string[] keys)
+        => ReadCore(path, keys, null);
+
+    // Optional display metadata shares the credential's transaction, but must not
+    // invalidate usable credentials merely because its value exceeds the limit.
+    public static IReadOnlyDictionary<string, byte[]> ReadWithOptionalValues(string path, IReadOnlyList<string> requiredKeys, params string[] optionalKeys)
+    {
+        var optional = optionalKeys.Except(requiredKeys, StringComparer.Ordinal).ToHashSet(StringComparer.Ordinal);
+        return ReadCore(path, requiredKeys.Concat(optionalKeys).Distinct(StringComparer.Ordinal).ToArray(), optional);
+    }
+
+    private static Dictionary<string, byte[]> ReadCore(string path, string[] keys, HashSet<string>? optionalKeys)
     {
         if (!Path.IsPathFullyQualified(path) || path.StartsWith(@"\\", StringComparison.Ordinal) || keys.Length is < 1 or > 16)
             throw new InvalidDataException("Select a local editor state database.");
@@ -24,7 +35,11 @@ public static class LocalStateDatabase
             command.Parameters.AddWithValue("$key", key); command.Parameters.AddWithValue("$limit", MaximumValueBytes);
             using var reader = command.ExecuteReader();
             if (!reader.Read() || reader.IsDBNull(0)) continue;
-            if (reader.GetInt64(0) > MaximumValueBytes) throw new InvalidDataException("Editor state value exceeds its safety limit.");
+            if (reader.GetInt64(0) > MaximumValueBytes)
+            {
+                if (optionalKeys?.Contains(key) == true) continue;
+                throw new InvalidDataException("Editor state value exceeds its safety limit.");
+            }
             if (!reader.IsDBNull(1)) result[key] = (byte[])reader.GetValue(1);
         }
         transaction.Commit(); return result;

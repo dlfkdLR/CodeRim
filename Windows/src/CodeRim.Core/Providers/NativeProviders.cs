@@ -551,6 +551,7 @@ public sealed partial class NativeProviders : IDisposable
         switch (id)
         {
             case "opencode":
+                plan = "Go";
                 foreach (var (key, name, minutes) in new[] { ("rolling", "5h limit", 300), ("weekly", "Weekly limit", 10080), ("monthly", "Monthly limit", 0) })
                 {
                     var value = Get(Get(root, "usage"), key); var reset = Date(Get(value, "resetsAt"));
@@ -604,7 +605,9 @@ public sealed partial class NativeProviders : IDisposable
                     var value = Get(Get(credits, "windowLimits"), key);
                     if (Number(value, "cap") is > 0 and var cap) Percent(key, name, (Number(value, "used") ?? 0) / cap * 100, FlexibleDate(Get(value, "resetAt")));
                 }
-                plan = Text(subscription, "planId"); break;
+                plan = Text(subscription, "planId");
+                if (plan?.Contains("goat", StringComparison.OrdinalIgnoreCase) == true) plan = "GOAT";
+                break;
             case "fireworks":
                 string? currency = null; double total = 0;
                 var rows = Get(root, "lineItems");
@@ -657,8 +660,10 @@ public sealed partial class NativeProviders : IDisposable
                 Amount("balance", "Prepaid balance", remainingCredits); Amount("month", "Current month cost", Number(Get(Get(root, "usage"), "current_month"), "cost_usd"));
                 plan = Text(subscriptionQuota, "plan"); break;
         }
+        var source = id switch { "cursor" => "Cursor", "grok" => "Grok", "commandcode" => "Command Code", "ollama" => "Ollama", "opencode" => "OpenCode", _ => null };
         return new(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows.DistinctBy(x => x.Id).ToArray(), DateTimeOffset.Now,
-            windows.Count > 0 ? null : "No metered usage was returned for this account.", plan);
+            windows.Count > 0 ? null : "No metered usage was returned for this account.", source is null ? plan : ProviderAccountMetadata.DisplayText(plan),
+            Account: source is null ? null : new(null, source));
     }
     private static double? Numeric(JsonElement root, string key) => Number(root, key) ??
         (double.TryParse(Text(root, key), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number) ? number : null);

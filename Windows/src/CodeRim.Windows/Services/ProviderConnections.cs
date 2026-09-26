@@ -13,10 +13,16 @@ internal sealed partial class ProviderConnections : IDisposable
     private readonly ScriptProviders scripts;
     private readonly NativeProviders native;
     private readonly Func<string, string?> readCredential;
+    private readonly Func<string, NativeProviderLogin?> readNativeAccount;
     private readonly Func<CancellationToken, Task<string?>> readCopilotCli;
     private readonly Func<string, string, CancellationToken, Task<ProviderReading>> readAlibabaCli;
-    public ProviderConnections(CredentialVault vault, NativeProviders? native = null, HttpProviders? http = null, Func<string, string?>? nativeCredentialReader = null, ScriptProviders? scripts = null, Func<CancellationToken, Task<string?>>? copilotCliReader = null, Func<string, string, CancellationToken, Task<ProviderReading>>? alibabaCliReader = null)
-    { this.vault = vault; this.native = native ?? new(); this.http = http ?? new(); this.scripts = scripts ?? new(); readCredential = nativeCredentialReader ?? NativeCredentials.Read; readCopilotCli = copilotCliReader ?? CopilotConnection.ReadCliAsync; readAlibabaCli = alibabaCliReader ?? AlibabaTokenPlanCliUsage.ReadAsync; }
+    public ProviderConnections(CredentialVault vault, NativeProviders? native = null, HttpProviders? http = null, Func<string, string?>? nativeCredentialReader = null, ScriptProviders? scripts = null, Func<CancellationToken, Task<string?>>? copilotCliReader = null, Func<string, string, CancellationToken, Task<ProviderReading>>? alibabaCliReader = null, Func<string, NativeProviderLogin?>? nativeAccountReader = null)
+    {
+        this.vault = vault; this.native = native ?? new(); this.http = http ?? new(); this.scripts = scripts ?? new();
+        readCredential = nativeCredentialReader ?? NativeCredentials.Read;
+        readNativeAccount = nativeAccountReader ?? (nativeCredentialReader is null ? NativeCredentials.ReadAccount : _ => null);
+        readCopilotCli = copilotCliReader ?? CopilotConnection.ReadCliAsync; readAlibabaCli = alibabaCliReader ?? AlibabaTokenPlanCliUsage.ReadAsync;
+    }
     public void Dispose() { http.Dispose(); scripts.Dispose(); native.Dispose(); }
     public Task<ProviderReading> FetchAsync(string id, AppSettings settings, CancellationToken token)
         => FetchAsync(id, settings, null, null, token);
@@ -209,7 +215,15 @@ internal sealed partial class ProviderConnections : IDisposable
                 { return new(id, ReadingState.NeedsAuth, [], Message: "AWS profile could not be loaded. Check the profile name and sign in to AWS CLI again."); }
             }
             if (NativeProviders.Supported.Contains(id))
-                return await native.FetchAsync(id, browser is null ? secret ?? readCredential(id) : null, NativeSetting, browser is null ? null : BrowserCookie, token).ConfigureAwait(false);
+            {
+                var local = secret is null && browser is null ? readNativeAccount(id) : null;
+                var selected = browser is null ? secret ?? local?.Credential ?? readCredential(id) : null;
+                var reading = await native.FetchAsync(id, selected, NativeSetting, browser is null ? null : BrowserCookie, token).ConfigureAwait(false);
+                if (local is not null && local != readNativeAccount(id))
+                    return new(id, ReadingState.Unavailable, [], Message: "The connection changed. Refresh the selected account.");
+                return local is not null && reading.Account is not null
+                    ? reading with { Account = local.Account, Plan = reading.Plan ?? local.Plan } : reading;
+            }
             return await http.FetchAsync(id, secret, token).ConfigureAwait(false);
         }
         catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or System.Security.Cryptography.CryptographicException
