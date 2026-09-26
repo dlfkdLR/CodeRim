@@ -41,13 +41,20 @@ internal sealed class TrayMenuRenderer : ToolStripProfessionalRenderer
     }
     protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
     {
-        e.TextColor = !e.Item.Enabled ? SystemColors.GrayText : e.Item.Selected ? (Contrast ? SystemColors.HighlightText : Color.White) : Foreground;
+        e.TextColor = ItemColor(e.Item);
         base.OnRenderItemText(e);
+    }
+    private static Color ItemColor(ToolStripItem item) => !item.Enabled ? SystemColors.GrayText
+        : item.Selected ? (Contrast ? SystemColors.HighlightText : Color.White) : Foreground;
+    protected override void OnRenderItemImage(ToolStripItemImageRenderEventArgs e)
+    {
+        if (e.Item.Tag is TrayMenuSymbol symbol) TrayMenuGlyph.Draw(e.Graphics, e.ImageRectangle, symbol, ItemColor(e.Item));
+        else base.OnRenderItemImage(e);
     }
     protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e)
     {
         var scale = Scale(e.ToolStrip); var center = new PointF(e.ImageRectangle.Left + e.ImageRectangle.Width / 2f, e.Item.Height / 2f);
-        using var pen = new Pen(e.Item.Selected ? (Contrast ? SystemColors.HighlightText : Color.White) : Foreground, 1.7f * scale)
+        using var pen = new Pen(ItemColor(e.Item), 1.7f * scale)
             { StartCap = LineCap.Round, EndCap = LineCap.Round, LineJoin = LineJoin.Round };
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
         e.Graphics.DrawLines(pen, new[] { new PointF(center.X - 4 * scale, center.Y), new PointF(center.X - scale, center.Y + 3 * scale), new PointF(center.X + 5 * scale, center.Y - 4 * scale) });

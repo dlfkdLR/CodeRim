@@ -36,6 +36,15 @@ internal static partial class NativeSmoke
             Require(Item(0).ShortcutKeys == (Forms.Keys.Control | Forms.Keys.U) && Item(3).ShortcutKeys == (Forms.Keys.Control | Forms.Keys.Oemcomma)
                 && Item(6).ShortcutKeys == (Forms.Keys.Control | Forms.Keys.Q), "Tray shortcuts lost Windows equivalents");
             checks.Add("Mac menu order, labels, groups, and Windows shortcut equivalents");
+            Require(menu.ShowCheckMargin && menu.ShowImageMargin
+                && Item(3).Tag is TrayMenuSymbol.Settings && Item(3).Image is Drawing.Bitmap
+                && Item(6).Tag is TrayMenuSymbol.Quit && Item(6).Image is Drawing.Bitmap
+                && Item(0).Image is null && Item(2).Image is null && Item(4).Image is null,
+                "Settings/Quit glyphs or their separate check/image columns are missing");
+            Require(((Drawing.Bitmap)Item(3).Image!).GetPixel(8, 8).A == 0
+                && ((Drawing.Bitmap)Item(6).Image!).GetPixel(8, 8).A > 0,
+                "Settings/Quit glyph assets lost their distinct shapes");
+            checks.Add("Settings gear and Quit frame glyphs occupy a separate image column from Show Notch checks");
 
             dashboard.Navigate("notch"); await Idle();
             var before = Descendants<CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Show edge notch");
@@ -114,10 +123,30 @@ internal static partial class NativeSmoke
                 Require(Item(2).Checked && capture.GetPixel(2, selected.Top + selected.Height / 2).ToArgb() != Drawing.Color.FromArgb(30, 88, 190).ToArgb(),
                     "Tray selection touches the menu's outer frame or the checked state was not captured");
                 capture.Save(Path.Combine(directory, dark ? "windows-tray-dark.png" : "windows-tray-light.png"));
+                // Reserving an Image is insufficient if the custom renderer never
+                // paints it. Compare each mounted row with its same-size blank slot.
+                foreach (var index in new[] { 3, 6 })
+                {
+                    var item = Item(index); var originalImage = item.Image; var bounds = item.Bounds;
+                    try
+                    {
+                        item.Image = null; menu.Refresh();
+                        Require(menu.Size == capture.Size && item.Bounds == bounds, "Removing a glyph changed the reserved menu layout");
+                        using var blank = new Drawing.Bitmap(menu.Width, menu.Height);
+                        menu.DrawToBitmap(blank, new Drawing.Rectangle(Drawing.Point.Empty, menu.Size));
+                        var changedPixels = 0;
+                        for (var y = bounds.Top; y < bounds.Bottom; y++)
+                            for (var x = bounds.Left; x < bounds.Right; x++)
+                                if (capture.GetPixel(x, y) != blank.GetPixel(x, y)) changedPixels++;
+                        Require(changedPixels > 3, "The mounted tray renderer omitted a Settings/Quit glyph");
+                    }
+                    finally { item.Image = originalImage; menu.Refresh(); }
+                }
                 tray.ShowMenu(Drawing.Point.Empty); await Idle();
                 Require(!menu.Visible, "Repeated tray activation did not close the popup");
             }
             checks.Add("Mounted dark/light menus render selected row and remain inside the screen at its lower-right edge");
+            checks.Add("Both glyphs visibly paint in mounted dark/light menus, including selected Settings, without shifting the reserved layout");
             Forms.ToolStripDropDownCloseReason? closeReason = null;
             void Closed(object? sender, Forms.ToolStripDropDownClosedEventArgs args) => closeReason = args.CloseReason;
             menu.Closed += Closed;

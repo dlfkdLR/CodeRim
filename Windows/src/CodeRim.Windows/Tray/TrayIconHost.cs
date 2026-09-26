@@ -12,6 +12,8 @@ internal sealed class TrayIconHost : IDisposable
     private readonly Func<bool> canCheckUpdates;
     private readonly ToolStripMenuItem notchItem;
     private readonly ToolStripMenuItem updateItem;
+    private readonly Bitmap settingsGlyph = TrayMenuGlyph.Render(TrayMenuSymbol.Settings);
+    private readonly Bitmap quitGlyph = TrayMenuGlyph.Render(TrayMenuSymbol.Quit);
     private Icon? icon;
     private bool disposed;
     internal ContextMenuStrip Menu { get; }
@@ -20,15 +22,17 @@ internal sealed class TrayIconHost : IDisposable
         Action quit, Func<bool> notchVisible, Func<bool> canCheckUpdates)
     {
         this.notchVisible = notchVisible; this.canCheckUpdates = canCheckUpdates;
-        Menu = new TrayContextMenu { Font = menuFont, ShowImageMargin = false, ShowCheckMargin = true,
+        Menu = new TrayContextMenu { Font = menuFont, ShowImageMargin = true, ShowCheckMargin = true,
             Padding = new Padding(5), AccessibleName = "CodeRim", Renderer = new TrayMenuRenderer() };
         Menu.Items.Add(Item("Token Usage…", showUsage, Keys.Control | Keys.U));
         Menu.Items.Add(new ToolStripSeparator());
         notchItem = Item("Show Notch", toggleNotch); Menu.Items.Add(notchItem);
-        Menu.Items.Add(Item("Settings…", showSettings, Keys.Control | Keys.Oemcomma, "Ctrl+,"));
+        var settingsItem = Item("Settings…", showSettings, Keys.Control | Keys.Oemcomma, "Ctrl+,");
+        settingsItem.Tag = TrayMenuSymbol.Settings; settingsItem.Image = settingsGlyph; Menu.Items.Add(settingsItem);
         updateItem = Item("Check for Updates…", checkUpdates); Menu.Items.Add(updateItem);
         Menu.Items.Add(new ToolStripSeparator());
-        Menu.Items.Add(Item("Quit CodeRim", quit, Keys.Control | Keys.Q));
+        var quitItem = Item("Quit CodeRim", quit, Keys.Control | Keys.Q);
+        quitItem.Tag = TrayMenuSymbol.Quit; quitItem.Image = quitGlyph; Menu.Items.Add(quitItem);
         Menu.Opening += (_, _) => RefreshState();
         // The left-click path uses the same popup as right click. Foreground activation
         // lets the framework dismiss it on an outside click, even without a dashboard.
@@ -68,6 +72,7 @@ internal sealed class TrayIconHost : IDisposable
     {
         if (disposed) return;
         disposed = true; notifyIcon.Visible = false; notifyIcon.Dispose(); Menu.Dispose(); icon?.Dispose(); menuFont.Dispose();
+        settingsGlyph.Dispose(); quitGlyph.Dispose();
     }
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
