@@ -30,6 +30,7 @@ public partial class App : System.Windows.Application
     private readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(1) };
     private readonly ThresholdTracker thresholds = new();
     private bool smokeTest;
+    private bool shuttingDown;
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -172,13 +173,15 @@ public partial class App : System.Windows.Application
         if (settings is null || store is null || vault is null) return;
         if (dashboard is null)
         {
-            dashboard = new DashboardWindow(store, settings, vault); dashboard.Closed += (_, _) => dashboard = null;
-            dashboard.Navigate(page ?? "general");
+            var window = new DashboardWindow(store, settings, vault); dashboard = window;
+            window.Closing += (_, e) => { if (!shuttingDown) { e.Cancel = true; window.HideToTray(); } };
+            window.Closed += (_, _) => dashboard = null;
+            window.Navigate(page ?? "general"); window.Present();
         }
-        else if (page is not null) dashboard.Navigate(page);
+        else if (page is not null) { dashboard.Navigate(page); dashboard.Present(); }
         else dashboard.Present();
     }
-    internal void ShutdownApplication() { dashboard?.Close(); notch?.Close(); Shutdown(); }
+    internal void ShutdownApplication() { shuttingDown = true; dashboard?.Close(); notch?.Close(); Shutdown(); }
     protected override void OnExit(ExitEventArgs e)
     {
         Microsoft.Win32.SystemEvents.UserPreferenceChanged -= AppearanceChanged;

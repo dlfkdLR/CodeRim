@@ -58,7 +58,7 @@ internal sealed partial class DashboardWindow : Window
         settings.SettingsChanged += SettingsChanged; store.PropertyChanged += StoreChanged; Motion.PolicyChanged += UpdateNotchMotionNote;
         Activated += (_, _) => RefreshStartupStatus();
         Closed += (_, _) => { updateWindowClosed = true; CancelUpdateOperation(); settings.SettingsChanged -= SettingsChanged; store.PropertyChanged -= StoreChanged; Motion.PolicyChanged -= UpdateNotchMotionNote; };
-        PreviewKeyDown += (_, e) => e.Handled = HandleWindowShortcut(e.Key, System.Windows.Input.Keyboard.Modifiers);
+        PreviewKeyDown += (_, e) => { if (!e.Handled) e.Handled = HandleWindowShortcut(e.Key, System.Windows.Input.Keyboard.Modifiers); };
         BuildSidebar(); Navigate("usage");
     }
     internal bool HandleWindowShortcut(System.Windows.Input.Key key, System.Windows.Input.ModifierKeys modifiers)
@@ -72,15 +72,24 @@ internal sealed partial class DashboardWindow : Window
             switch (key)
             {
                 case System.Windows.Input.Key.OemComma: Present(); return true;
-                case System.Windows.Input.Key.U: Navigate("usage"); return true;
+                case System.Windows.Input.Key.U: Navigate("usage"); Present(); return true;
                 case System.Windows.Input.Key.Q: ((App)System.Windows.Application.Current).ShutdownApplication(); return true;
                 case System.Windows.Input.Key.R: _ = store.RefreshAsync(true); return true;
             }
         }
         return page == "usage" && usagePane is not null && usagePane.HandleShortcut(key, modifiers);
     }
+    internal void HideToTray()
+    {
+        // Closing Settings still cancels updater work and closes owned account windows.
+        // Keep the reusable view and its revision alive, as the Mac controller does.
+        CancelUpdateOperation();
+        foreach (Window owned in OwnedWindows.Cast<Window>().ToArray()) owned.Close();
+        Hide();
+    }
     internal void Present()
     {
+        if (sidebarHidden) ToggleSidebar();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         Show(); Activate();
     }

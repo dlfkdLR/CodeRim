@@ -41,6 +41,22 @@ internal static partial class NativeSmoke
             var before = Descendants<CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Show edge notch");
             dashboard.WindowState = WindowState.Minimized; Item(3).PerformClick(); await Idle();
             Require(dashboard.WindowState != WindowState.Minimized && Descendants<CheckBox>(dashboard).Contains(before), "Settings reopened a different page or rebuilt the active view");
+            var sidebarToggle = Descendants<Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "settings.sidebar.toggle");
+            sidebarToggle.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+            Require(AutomationProperties.GetName(sidebarToggle) == "Show Sidebar", "Sidebar did not collapse before the reopen check");
+            var childClosed = false;
+            var child = new Window { Owner = dashboard, Width = 160, Height = 100, ShowInTaskbar = false };
+            child.Closed += (_, _) => childClosed = true; child.Show();
+            try
+            {
+                dashboard.Close(); await Idle();
+                Require(!dashboard.IsVisible && childClosed, "Closing Settings did not hide it and close owned windows");
+                Item(3).PerformClick(); await Idle();
+                Require(dashboard.IsVisible && dashboard.CanCheckForUpdates && Descendants<CheckBox>(dashboard).Contains(before)
+                    && AutomationProperties.GetName(sidebarToggle) == "Hide Sidebar", "Settings close/reopen discarded state, sidebar or manual update availability");
+            }
+            finally { if (!childClosed) child.Close(); }
+            checks.Add("Closing Settings retains its page, closes owned windows and restores the sidebar on reopening");
             Item(0).PerformClick(); await Idle();
             Require(Descendants<UsagePane>(dashboard).Any(), "Token Usage did not open the real Usage screen");
             checks.Add("Actual application Settings restores the existing view and Token Usage navigates to Usage");
