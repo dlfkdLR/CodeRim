@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Input;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
 using CodeRim.Windows.Services;
@@ -43,12 +44,30 @@ internal static partial class NativeSmoke
         var old = ids.Append("codebuff").ToDictionary(id => id, id => store.Readings.GetValueOrDefault(id));
         Exception? failure = null; var cleanup = new List<Exception>(); var checks = new List<string>();
         var observations = new List<object>();
+        var checkpoints = new List<object>();
         bool RingPresent(string id) => Descendants<ProviderRing>(notch).Any(x => x.ProviderId == id);
+        string? PopupProvider() => !notch.AccountMenuIsOpen && notch.PopupContent is { } current
+            ? Descendants<ProviderMark>(current).FirstOrDefault()?.ProviderId : null;
+        bool RemovedPopupAbsent(string id) => !notch.PopupIsOpen || !notch.AccountMenuIsOpen
+            && PopupProvider() is { } owner && owner != id && RingPresent(owner);
+        void Checkpoint(string stage, string id, ReadingState phase, ProviderReading expected)
+        {
+            checkpoints.Add(new { stage, id, phase = phase.ToString(), status = ProviderHeaderStatus(dashboard),
+                rawPhase = store.Readings.GetValueOrDefault(id)?.State.ToString(), rawFailurePreserved = ReferenceEquals(store.Readings.GetValueOrDefault(id), expected),
+                rings = Descendants<ProviderRing>(notch).Select(x => x.ProviderId).ToArray(),
+                enabled = settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal), popup = notch.PopupIsOpen,
+                popupProvider = PopupProvider(), accountMenu = notch.AccountMenuIsOpen,
+                pointerTargets = Descendants<Button>(notch).Where(x => x.IsMouseOver).Select(AutomationProperties.GetAutomationId).ToArray(),
+                focusedTargets = Descendants<Button>(notch).Where(x => x.IsKeyboardFocusWithin).Select(AutomationProperties.GetAutomationId).ToArray() });
+            try { File.WriteAllText(Path.Combine(directory, "windows-provider-failure-checkpoints.json"), JsonSerializer.Serialize(checkpoints, JsonOptions)); }
+            catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); }
+        }
         ProviderReading Ready(string id) => new(id, ReadingState.Ready, [new("quota", "Quota", 25)], DateTimeOffset.Now,
             Account: new("presentation@example.invalid", "Fixture"));
         try
         {
             foreach (var id in ids) store.Readings.Remove(id);
+            store.Readings["codebuff"] = Ready("codebuff");
             settings.Save(before with { EnabledProviders = [..ids, "codebuff"], Visibility = NotchVisibility.AlwaysShow });
             foreach (var id in ids)
             {
@@ -61,16 +80,37 @@ internal static partial class NativeSmoke
                     dashboard.UpdateProviderReading(id); notch.RefreshReadings(); await Idle();
                     Require(ProviderHeaderStatus(dashboard) == "Connected" && RingPresent(id)
                         && Descendants<ProgressBar>(dashboard).Any(), id + " recovery did not restore quota and ring.");
-                    notch.OpenProvider(id); await Idle(); Require(notch.PopupIsOpen, id + " failure fixture did not open a real popup.");
+                    notch.OpenProvider(id); await Idle();
+                    Require(notch.PopupIsOpen && !notch.AccountMenuIsOpen && PopupProvider() == id,
+                        id + " failure fixture did not open the intended provider popup.");
                     var failed = new ProviderReading(id, state, [], Message: "Fixture " + id + " " + state,
                         Account: new("presentation@example.invalid", "Fixture"));
+                    Checkpoint("before-failure", id, state, failed);
                     store.Readings[id] = ReadingRetention.Merge(failed, store.Readings[id]);
-                    dashboard.UpdateProviderReading(id); notch.RefreshReadings(); await Idle();
+                    dashboard.UpdateProviderReading(id); notch.RefreshReadings();
+                    Checkpoint("reconciled", id, state, failed);
+                    Require(RemovedPopupAbsent(id), id + " reconciliation retained the removed provider popup.");
+                    await Idle(); Checkpoint("settled", id, state, failed);
                     RequireAbsentProviderPresentation(dashboard, failed);
-                    Require(ReferenceEquals(store.Readings[id], failed) && !RingPresent(id) && !notch.PopupIsOpen
-                        && settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal), id + " Settings projection changed failure storage or resurrected its ring/popup.");
+                    Require(ReferenceEquals(store.Readings.GetValueOrDefault(id), failed), id + " Settings projection replaced the stored failure.");
+                    Require(!RingPresent(id), id + " failure restored its rejected notch ring.");
+                    Require(settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal), id + " failure disabled the provider.");
+                    // A surviving button may receive MouseEnter or restored
+                    // keyboard focus after reconciliation. Its valid popup is
+                    // independent of removal of the failed provider's popup.
+                    Require(RemovedPopupAbsent(id), id + " settled popup still belongs to the failed or an absent provider.");
                     observations.Add(new { id, phase = state.ToString(), status = ProviderHeaderStatus(dashboard), ring = RingPresent(id),
-                        rawFailurePreserved = ReferenceEquals(store.Readings[id], failed), popup = notch.PopupIsOpen });
+                        rawFailurePreserved = ReferenceEquals(store.Readings[id], failed), popup = notch.PopupIsOpen,
+                        popupProvider = PopupProvider(), removedPopupAbsent = RemovedPopupAbsent(id) });
+                    if (id == "copilot" && state == ReadingState.Error)
+                    {
+                        var survivor = Descendants<Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.provider.codebuff");
+                        survivor.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0) { RoutedEvent = Mouse.MouseEnterEvent });
+                        Checkpoint("surviving-hover", id, state, failed);
+                        Require(notch.PopupIsOpen && PopupProvider() == "codebuff" && RemovedPopupAbsent(id),
+                            "A surviving provider's routed hover was confused with the rejected popup.");
+                        checks.Add("A surviving provider's routed hover can open its own popup after the failed provider is removed");
+                    }
                 }
                 dashboard.Navigate("providers"); await Idle();
                 RequireFailedProviderListRow(dashboard, store.Readings[id]);
@@ -92,7 +132,16 @@ internal static partial class NativeSmoke
             File.WriteAllText(Path.Combine(directory, "windows-provider-failure-presentation.json"), JsonSerializer.Serialize(new
                 { completed = true, fixture = true, realAccount = false, checks, observations }, JsonOptions));
         }
-        catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
+        catch (Exception error) when (error is not OutOfMemoryException)
+        {
+            failure = error;
+            try
+            {
+                Capture(dashboard, Path.Combine(directory, "windows-provider-presentation-failure.png"));
+                Capture(notch, Path.Combine(directory, "windows-provider-presentation-notch-failure.png"));
+            }
+            catch (Exception captureError) when (captureError is not OutOfMemoryException) { cleanup.Add(captureError); }
+        }
         finally
         {
             void Restore(Action action) { try { action(); } catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); } }
