@@ -92,25 +92,51 @@ internal static partial class NativeSmoke
             }
             Require(Keyboard.FocusedElement is DependencyObject focus && AutomationProperties.GetAutomationId(focus) == "notch.sessions.showLess",
                 "Live task refresh stole disclosure keyboard focus.");
-            var preservedPopup = notch.PopupContent!; var preservedFocus = Keyboard.FocusedElement;
-            var taskScroll = Descendants<ScrollViewer>(preservedPopup).Single();
+            var taskScroll = Descendants<ScrollViewer>(notch.PopupContent!).Single();
             Require(taskScroll.ScrollableHeight > 80, "Expanded task fixture is not scrollable.");
             taskScroll.ScrollToVerticalOffset(60); await Idle();
-            Require(Math.Abs(taskScroll.VerticalOffset - 60) < .1, "Expanded task fixture did not reach a nonzero scroll position.");
+            // The production ten-second tick may replace the popup across any
+            // await. Exercise that path explicitly and reacquire live controls;
+            // a detached old ScrollViewer is not evidence of preserved state.
+            var beforeClock = notch.PopupContent!;
+            string? PopupProvider() => notch.PopupContent is { } current ? Descendants<ProviderMark>(current).FirstOrDefault()?.ProviderId : null;
+            Require(PopupProvider() == "codex" && Math.Abs(Descendants<ScrollViewer>(beforeClock).Single().VerticalOffset - 60) < .1,
+                "Expanded task fixture did not reach a nonzero scroll position in the current popup.");
+            notch.RefreshPopupClock(); await Idle();
+            var clockReplaced = !ReferenceEquals(beforeClock, notch.PopupContent);
+            var preservedPopup = notch.PopupContent!; var preservedFocus = Keyboard.FocusedElement;
+            taskScroll = Descendants<ScrollViewer>(preservedPopup).Single();
+            string? FocusId() => Keyboard.FocusedElement is DependencyObject focused ? AutomationProperties.GetAutomationId(focused) : null;
+            var clockState = new { replaced = clockReplaced, open = notch.PopupIsOpen, provider = PopupProvider(), focusId = FocusId(), offset = taskScroll.VerticalOffset };
+            File.WriteAllText(Path.Combine(directory, "windows-task-groups-membership-state.json"), JsonSerializer.Serialize(new { clockState }));
+            Require(clockReplaced && notch.PopupIsOpen && clockState.provider == "codex" && FocusId() == "notch.sessions.showLess" && Math.Abs(taskScroll.VerticalOffset - 60) < .1,
+                "Production clock refresh lost disclosure focus or the current popup scroll position.");
             Require(Descendants<ProviderRing>(notch).Any(x => x.ProviderId == "cursor"), "Unrelated provider was absent before the membership change.");
-            store.Readings["cursor"] = new("cursor", ReadingState.Error, []); notch.RefreshReadings(); await Idle();
-            Require(!Descendants<ProviderRing>(notch).Any(x => x.ProviderId == "cursor")
-                && notch.PopupIsOpen && ReferenceEquals(preservedPopup, notch.PopupContent)
-                && ReferenceEquals(preservedFocus, Keyboard.FocusedElement)
-                && Descendants<Button>(notch.PopupContent!).Any(x => AutomationProperties.GetAutomationId(x) == "notch.sessions.showLess")
-                && Math.Abs(taskScroll.VerticalOffset - 60) < .1,
+            store.Readings["cursor"] = new("cursor", ReadingState.Error, []); notch.RefreshReadings();
+            // No dispatcher yield here: membership itself must retain the
+            // mounted popup and focused control, independently of the clock.
+            var membershipState = new { removed = !Descendants<ProviderRing>(notch).Any(x => x.ProviderId == "cursor"), open = notch.PopupIsOpen,
+                samePopup = ReferenceEquals(preservedPopup, notch.PopupContent), sameFocus = ReferenceEquals(preservedFocus, Keyboard.FocusedElement),
+                provider = PopupProvider(), focusId = FocusId(), offset = taskScroll.VerticalOffset };
+            File.WriteAllText(Path.Combine(directory, "windows-task-groups-membership-state.json"), JsonSerializer.Serialize(new { clockState, membershipState }));
+            Require(membershipState.removed && membershipState.open && membershipState.provider == "codex" && membershipState.samePopup && membershipState.sameFocus
+                && Math.Abs(membershipState.offset - 60) < .1,
+                "Membership reconciliation synchronously replaced the popup, focus or scroll state.");
+            await Idle();
+            var settledPopup = notch.PopupContent;
+            var settledState = new { open = notch.PopupIsOpen, provider = PopupProvider(), focusId = FocusId(),
+                expanded = settledPopup is not null && Descendants<Button>(settledPopup).Any(x => AutomationProperties.GetAutomationId(x) == "notch.sessions.showLess"),
+                offset = settledPopup is null ? -1 : Descendants<ScrollViewer>(settledPopup).Single().VerticalOffset };
+            File.WriteAllText(Path.Combine(directory, "windows-task-groups-membership-state.json"), JsonSerializer.Serialize(new { clockState, membershipState, settledState }));
+            Require(settledState.open && settledState.expanded && settledState.provider == "codex" && settledState.focusId == "notch.sessions.showLess" && Math.Abs(settledState.offset - 60) < .1,
                 "Unrelated provider failure reset the expanded task popup, disclosure focus or nonzero scroll position.");
             Capture(notch.PopupContent!, Path.Combine(directory, "windows-task-groups-live.png"));
             File.WriteAllText(Path.Combine(directory, "windows-task-groups.json"), JsonSerializer.Serialize(new { completed = true,
                 checks = new List<string> { "Parent and children stay together", "Context parent has no live ring or duration", "Only parent displays combined tokens",
                     "Inline expansion and collapse preserve the popup", "Expansion survives content refresh", "Sub-agent accessibility includes parent title",
                     "Production popup applies live task changes while preserving disclosure keyboard focus",
-                    "Unrelated provider failure preserves the expanded task popup, disclosure focus and nonzero scroll position" } }));
+                    "Unrelated provider failure preserves the expanded task popup, disclosure focus and nonzero scroll position",
+                    "Production clock replacement preserves disclosure focus and the current popup nonzero scroll position" } }));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally

@@ -66,7 +66,7 @@ internal sealed partial class NotchWindow : Window
         hoverClear.Tick += (_, _) => DismissProviderCard();
         popup.Closed += (_, _) => { accountMenu = false; if (!closed) foldTimer.Start(); };
         foldTimer.Tick += (_, _) => TryFold();
-        clock.Tick += (_, _) => { if (CanRefreshProviderPopup()) RefreshPopup(); };
+        clock.Tick += (_, _) => RefreshPopupClock();
         PreviewMouseLeftButtonDown += (_, e) =>
         {
             if ((Keyboard.Modifiers & ModifierKeys.Alt) == 0) return;
@@ -314,6 +314,7 @@ internal sealed partial class NotchWindow : Window
         hoverClear.Stop(); hovered = null; FadeProviderPopup();
     }
     private readonly SessionExpansionState sessionExpansion = new();
+    internal void RefreshPopupClock() { if (CanRefreshProviderPopup()) RefreshPopup(); }
     private bool CanRefreshProviderPopup()
     {
         if (accountMenu || !popup.IsOpen || popup.Child is not UIElement child) return false;
