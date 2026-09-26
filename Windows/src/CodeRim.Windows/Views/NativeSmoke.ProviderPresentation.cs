@@ -15,6 +15,18 @@ internal static partial class NativeSmoke
     private static string ProviderHeaderStatus(DashboardWindow window) => Descendants<TextBlock>(window)
         .Single(x => AutomationProperties.GetAutomationId(x) == "provider.status").Text;
 
+    private static TextBlock ProviderListStatus(DashboardWindow window, string id) => Descendants<TextBlock>(window)
+        .Single(x => AutomationProperties.GetAutomationId(x) == "provider-list." + id);
+
+    private static void RequireFailedProviderListRow(DashboardWindow window, ProviderReading failure)
+    {
+        var label = ProviderListStatus(window, failure.Id);
+        Require(!label.Text.Contains('%')
+            && (string.IsNullOrEmpty(failure.Message) || !label.Text.Contains(failure.Message, StringComparison.Ordinal))
+            && !Descendants<Button>(window).Single(x => AutomationProperties.GetAutomationId(x) == "settings.providers.alerts." + failure.Id).IsVisible,
+            failure.Id + " failed provider list retained quota, raw error copy or the connected bell.");
+    }
+
     private static void RequireAbsentProviderPresentation(DashboardWindow window, ProviderReading failure)
     {
         Require(ProviderHeaderStatus(window) == "Not connected" && !Descendants<ProgressBar>(window).Any()
@@ -60,6 +72,9 @@ internal static partial class NativeSmoke
                     observations.Add(new { id, phase = state.ToString(), status = ProviderHeaderStatus(dashboard), ring = RingPresent(id),
                         rawFailurePreserved = ReferenceEquals(store.Readings[id], failed), popup = notch.PopupIsOpen });
                 }
+                dashboard.Navigate("providers"); await Idle();
+                RequireFailedProviderListRow(dashboard, store.Readings[id]);
+                dashboard.Navigate(id); await Idle();
                 // A remembered reading is still presented; failure projection
                 // must not mistake ordinary aging for a failed fetch.
                 store.Readings[id] = Ready(id) with { State = ReadingState.Stale, UpdatedAt = DateTimeOffset.Now.AddMinutes(-10) };

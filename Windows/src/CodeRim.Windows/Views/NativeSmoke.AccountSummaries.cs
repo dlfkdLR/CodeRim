@@ -88,8 +88,6 @@ internal static partial class NativeSmoke
                 Require(store.Readings[id].Windows.Count == 0 && Identity().IsVisible, id + " timeout erased its detected account.");
                 RequireAbsentProviderPresentation(window, store.Readings[id]);
                 Capture(window, Path.Combine(directory, "windows-independent-account-" + id + "-failed.png"));
-                var row = new ProviderAccountRow(id, store, settings, () => { }, () => { }, _ => { });
-                Require(Descendants<TextBlock>(row).Any(x => x.Text.Contains("via " + summaries[id].Account!.Source, StringComparison.Ordinal)), id + " provider list lost the independent account source.");
                 checks.Add(id + " initial Account without HTTP, first 503/401/timeout retains Account and removes quota");
                 foreach (var state in new[] { HttpStatusCode.ServiceUnavailable, HttpStatusCode.Unauthorized })
                 {
@@ -103,6 +101,18 @@ internal static partial class NativeSmoke
                         && connectionDraft.Password == "preserved-display-fixture", id + " failure presentation rebuilt Account or credential inputs.");
                 }
                 checks.Add(id + " actual 503/401 Settings projection removes duplicate error copy and recovers without replacing Account or drafts");
+                window.Navigate("providers"); await Idle();
+                var listLabel = ProviderListStatus(window, id);
+                RequireFailedProviderListRow(window, store.Readings[id]);
+                responseStatus = HttpStatusCode.OK; await store.RefreshProviderAsync(id); await Idle();
+                Require(ReferenceEquals(listLabel, ProviderListStatus(window, id)) && listLabel.Text.Contains("25%", StringComparison.Ordinal),
+                    id + " provider list failed to recover quota in place.");
+                responseStatus = HttpStatusCode.ServiceUnavailable; await store.RefreshProviderAsync(id); await Idle();
+                RequireFailedProviderListRow(window, store.Readings[id]);
+                Require(ReferenceEquals(listLabel, ProviderListStatus(window, id)) && listLabel.Text.Contains(id + "@example.invalid", StringComparison.Ordinal)
+                    && listLabel.Text.Contains("via " + summaries[id].Account!.Source, StringComparison.Ordinal), id + " provider list lost its stable label or independent account source.");
+                Capture(window, Path.Combine(directory, "windows-independent-account-" + id + "-list-failed.png"));
+                checks.Add(id + " mounted provider list recovers quota and retains Account/source through a later failure without rebuilding its row");
             }
 
             window.Navigate("commandcode"); responseStatus = HttpStatusCode.OK;

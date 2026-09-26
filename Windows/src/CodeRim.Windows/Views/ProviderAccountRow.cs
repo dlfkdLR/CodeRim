@@ -57,7 +57,7 @@ internal sealed class ProviderAccountRow : DockPanel
     internal void Refresh()
     {
         var display = store.AccountDisplay(id);
-        var reading = display.Reading?.Evaluated(DateTimeOffset.Now);
+        var reading = ProviderDisplayPolicy.ForSettings(display.Reading)?.Evaluated(DateTimeOffset.Now);
         var identity = display.Label;
         var connected = id is "codex" or "claude" && identity is not null || reading?.Windows.Count > 0;
         string? headline = null;
