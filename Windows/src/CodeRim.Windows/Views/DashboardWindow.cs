@@ -56,7 +56,7 @@ internal sealed partial class DashboardWindow : Window
         Grid.SetColumn(scroll, 1); layout.Children.Add(scroll); ConfigureShell(layout, splitter);
         sidebar.SelectionChanged += (_, _) => { if (!refreshingSidebar && sidebar.SelectedItem is ListBoxItem item && item.Tag is string id) Navigate(id); };
         settings.SettingsChanged += SettingsChanged; store.PropertyChanged += StoreChanged; Motion.PolicyChanged += UpdateNotchMotionNote;
-        Activated += (_, _) => RefreshStartupStatus();
+        Activated += (_, _) => { RefreshStartupStatus(); _ = store.RefreshProviderAccountsAsync(); };
         Closed += (_, _) => { updateWindowClosed = true; CancelUpdateOperation(); settings.SettingsChanged -= SettingsChanged; store.PropertyChanged -= StoreChanged; Motion.PolicyChanged -= UpdateNotchMotionNote; };
         PreviewKeyDown += (_, e) => { if (!e.Handled) e.Handled = HandleWindowShortcut(e.Key, System.Windows.Input.Keyboard.Modifiers); };
         BuildSidebar(); Navigate("usage");
@@ -107,6 +107,7 @@ internal sealed partial class DashboardWindow : Window
         sidebar.SelectedItem = sidebar.Items.OfType<ListBoxItem>().FirstOrDefault(x => Equals(x.Tag, ProviderCatalog.Find(page) is not null ? "providers" : page));
         refreshingSidebar = false;
         Render(); Show(); Activate();
+        if (NativeAccountSummary.Supports(page)) _ = store.RefreshProviderAccountAsync(page);
     }
     private void BuildSidebar()
     {
@@ -767,7 +768,7 @@ internal sealed partial class DashboardWindow : Window
         var display = store.AccountDisplay(id);
         var current = display.Reading?.Evaluated(DateTimeOffset.Now);
         UpdateProviderAlerts(id, current);
-        UpdateProviderAccount(current);
+        UpdateProviderAccount();
         foreach (var label in VisualChildren<TextBlock>(body))
         {
             switch (System.Windows.Automation.AutomationProperties.GetAutomationId(label))

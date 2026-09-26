@@ -9,6 +9,26 @@ namespace CodeRim.Windows.Services;
 
 internal static class NativeCredentials
 {
+    internal static NativeAccountSummary? ReadSummary(string id)
+    {
+        try
+        {
+            if (id == "cursor")
+            {
+                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cursor", "User", "globalStorage", "state.vscdb");
+                return NativeAccountSummary.Cursor(LocalStateDatabase.ReadWithOptionalValues(path, [], "cursorAuth/accessToken",
+                    "cursorAuth/stripeMembershipAuthId", "cursorAuth/cachedEmail", "cursorAuth/stripeMembershipType"));
+            }
+            if (id == "grok")
+            {
+                using var document = JsonDocument.Parse(GuardedFile.Read(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".grok", "auth.json")));
+                return NativeAccountSummary.Grok(document.RootElement, DateTimeOffset.Now);
+            }
+            return NativeAccountSummary.FromLogin(ReadAccount(id)) ?? NativeAccountSummary.FromCredential(id, Read(id), "local");
+        }
+        catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or DecoderFallbackException or SqliteException) { return null; }
+    }
+
     internal static string? Read(string id)
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

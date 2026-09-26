@@ -52,21 +52,22 @@ internal sealed partial class DashboardWindow
         AutomationProperties.SetAutomationId(providerAccountSection, "provider.identity");
         body.Children.Add(providerAccountSection);
     }
-    private void UpdateProviderAccount(ProviderReading? reading)
+    private void UpdateProviderAccount()
     {
         if (providerAccountSection is null) return;
-        var account = reading?.Account;
+        var display = store.ProviderAccountDisplay(providerAccountId!);
+        var account = display.Account;
         providerAccountDestination = account is null ? null : ProviderAccountLinks.UsagePage(providerAccountId!, account.Region);
         if (providerAccountManage is not null) providerAccountManage.NavigateUri = providerAccountDestination;
         providerAccountSection.Visibility = account is null ? Visibility.Collapsed : Visibility.Visible;
         providerAccountLabel!.Text = account?.Label ?? "";
-        providerAccountPlan!.Text = account is not null && reading?.Plan is { } plan
+        providerAccountPlan!.Text = account is not null && display.Plan is { } plan
             ? CultureInfo.CurrentCulture.TextInfo.ToTitleCase(plan.ToLower(CultureInfo.CurrentCulture)) : "";
         providerAccountSource!.Text = account?.Source ?? "";
         providerAccountLabel.ToolTip = providerAccountLabel.Text; providerAccountPlan.ToolTip = providerAccountPlan.Text;
         providerAccountSource.ToolTip = providerAccountSource.Text;
         providerAccountLabelRow!.Visibility = account?.Label is null ? Visibility.Collapsed : Visibility.Visible;
-        providerAccountPlanRow!.Visibility = account is null || reading?.Plan is null ? Visibility.Collapsed : Visibility.Visible;
+        providerAccountPlanRow!.Visibility = account is null || display.Plan is null ? Visibility.Collapsed : Visibility.Visible;
         // Optional account/plan rows must not leave a divider above the first
         // visible row. Do not rebuild the link or any connection input on polls.
         var content = (StackPanel)((Border)providerAccountSection.Children[1]).Child;

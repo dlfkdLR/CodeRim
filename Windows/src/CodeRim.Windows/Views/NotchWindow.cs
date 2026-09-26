@@ -141,7 +141,7 @@ internal sealed partial class NotchWindow : Window
     private string[] VisibleProviderIds() => settings.Current.EnabledProviders.Where(id =>
     {
         var reading = store.AccountDisplay(id).Reading;
-        return ProviderAvailability.ShowsInNotch(id, reading, reading?.Account is not null);
+        return ProviderAvailability.ShowsInNotch(id, reading, store.ProviderAccountDisplay(id).Account is not null);
     }).ToArray();
     private void Update(object? sender, PropertyChangedEventArgs e) => RefreshReadings();
     internal void RefreshReadings()

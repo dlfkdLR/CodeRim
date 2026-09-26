@@ -76,7 +76,7 @@ internal sealed class ProviderAccountRow : DockPanel
             ReadingState.Error or ReadingState.Unavailable or ReadingState.Unsupported => reading.Message ?? "Unavailable",
             _ => identity is not null ? "Signed in" : reading?.Message ?? "Not connected"
         };
-        var account = string.Join(" · ", new[] { identity, display.Plan, reading?.Account is { } metadata ? "via " + metadata.Source : null }.Where(x => !string.IsNullOrWhiteSpace(x)));
+        var account = string.Join(" · ", new[] { identity, display.Plan, store.ProviderAccountDisplay(id).Account is { } metadata ? "via " + metadata.Source : null }.Where(x => !string.IsNullOrWhiteSpace(x)));
         secondary.Text = account.Length == 0 ? state : state is "Connected" or "Signed in" or "Not connected" ? account : account + " · " + state;
         secondary.ToolTip = secondary.Text;
         name.SetResourceReference(TextBlock.ForegroundProperty, connected ? "PrimaryText" : "SecondaryText");

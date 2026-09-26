@@ -14,13 +14,16 @@ internal sealed partial class ProviderConnections : IDisposable
     private readonly NativeProviders native;
     private readonly Func<string, string?> readCredential;
     private readonly Func<string, NativeProviderLogin?> readNativeAccount;
+    private readonly Func<string, NativeAccountSummary?> readNativeSummary;
     private readonly Func<CancellationToken, Task<string?>> readCopilotCli;
     private readonly Func<string, string, CancellationToken, Task<ProviderReading>> readAlibabaCli;
-    public ProviderConnections(CredentialVault vault, NativeProviders? native = null, HttpProviders? http = null, Func<string, string?>? nativeCredentialReader = null, ScriptProviders? scripts = null, Func<CancellationToken, Task<string?>>? copilotCliReader = null, Func<string, string, CancellationToken, Task<ProviderReading>>? alibabaCliReader = null, Func<string, NativeProviderLogin?>? nativeAccountReader = null)
+    public ProviderConnections(CredentialVault vault, NativeProviders? native = null, HttpProviders? http = null, Func<string, string?>? nativeCredentialReader = null, ScriptProviders? scripts = null, Func<CancellationToken, Task<string?>>? copilotCliReader = null, Func<string, string, CancellationToken, Task<ProviderReading>>? alibabaCliReader = null, Func<string, NativeProviderLogin?>? nativeAccountReader = null, Func<string, NativeAccountSummary?>? nativeSummaryReader = null)
     {
         this.vault = vault; this.native = native ?? new(); this.http = http ?? new(); this.scripts = scripts ?? new();
         readCredential = nativeCredentialReader ?? NativeCredentials.Read;
         readNativeAccount = nativeAccountReader ?? (nativeCredentialReader is null ? NativeCredentials.ReadAccount : _ => null);
+        readNativeSummary = nativeSummaryReader ?? (nativeCredentialReader is null && nativeAccountReader is null
+            ? NativeCredentials.ReadSummary : id => NativeAccountSummary.FromLogin(readNativeAccount(id)) ?? NativeAccountSummary.FromCredential(id, readCredential(id), "local"));
         readCopilotCli = copilotCliReader ?? CopilotConnection.ReadCliAsync; readAlibabaCli = alibabaCliReader ?? AlibabaTokenPlanCliUsage.ReadAsync;
     }
     public void Dispose() { http.Dispose(); scripts.Dispose(); native.Dispose(); }
@@ -160,15 +163,7 @@ internal sealed partial class ProviderConnections : IDisposable
                         definitionSettings.GetValueOrDefault("Z_AI_REGION") ?? "global") };
                 return reading;
             }
-            var definition = ProviderCatalog.Find(id);
-            var secret = vault.Load("provider:" + id);
-            if (id == "groq" && secret is null) secret = NativeProviders.GroqEnvironmentCredential(Environment.GetEnvironmentVariable);
-            if (secret is null && definition is not null)
-            {
-                var keys = NativeProviders.CredentialKeys(id) ?? (id == "copilot" ? ["GH_TOKEN", "GITHUB_TOKEN"] : definition.EnvironmentKeys.Where(k => k.EndsWith("KEY", StringComparison.Ordinal) || k.EndsWith("TOKEN", StringComparison.Ordinal) || k.EndsWith("COOKIE", StringComparison.Ordinal)).ToArray());
-                foreach (var key in keys)
-                    if (Environment.GetEnvironmentVariable(key) is { Length: > 0 } value) { secret = value; break; }
-            }
+            var secret = ConfiguredCredential(id);
             if (id == "factory" && browser is null && secret?.TrimStart().StartsWith('{') == true && vault.LoadVersioned("provider:factory") is { })
             {
                 // Serialize network refreshes separately from short storage commits. A user

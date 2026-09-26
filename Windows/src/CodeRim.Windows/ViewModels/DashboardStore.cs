@@ -94,6 +94,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
         claudeHost = new ClaudeIntegrationHost(settings, synthetic, claudeIntegration);
         Claude.Changed += ClaudeChanged;
         settings.SettingsChanged += SessionTokenSettingsChanged;
+        settings.SettingsChanged += NativeAccountsSettingsChanged;
     }
     public void Invalidate(IReadOnlyCollection<string>? paths)
     {
@@ -204,12 +205,21 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
         string? requestScope = null;
         try
         {
+            await RefreshProviderAccountAsync(id).ConfigureAwait(true);
+            if (disposed || !CanReadProvider(id)) return;
             await remoteSlots.WaitAsync(lifetime.Token).ConfigureAwait(true); entered = true;
-            if (PausedForAccount(id)) return;
+            if (disposed || PausedForAccount(id) || !CanReadProvider(id)) return;
             EnsureScope(id); generation = Generation(id); requestScope = scopes.GetValueOrDefault(id);
+            // EnsureScope can invalidate an earlier summary after a credential
+            // switch. Capture the selected display owner before sending HTTP.
+            if (!accountSummaries.ContainsKey(id)) await RefreshProviderAccountAsync(id).ConfigureAwait(true);
+            if (disposed || PausedForAccount(id) || !CanReadProvider(id) || generation != Generation(id)
+                || requestScope != scopes.GetValueOrDefault(id)) return;
+            var accountVersion = accountSummaries.GetValueOrDefault(id)?.Version;
             lastRefresh[id] = DateTimeOffset.Now;
             if (Synthetic) { SeedPreview(); return; }
             var result = await connections.FetchForStoreAsync(id, settings.Current, requestScope, lifetime.Token).ConfigureAwait(true);
+            await RefreshProviderAccountAsync(id).ConfigureAwait(true);
             // No await between the request/generation checks, exact rotation-version
             // acceptance and the normal current-scope guard on this owning UI context.
             if (generation == Generation(id) && requestScope == scopes.GetValueOrDefault(id)
@@ -217,8 +227,11 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
             { scopes[id] = rotatedScope; requestScope = rotatedScope; }
             EnsureScope(id);
             var reading = result.Reading;
-            if (generation != Generation(id) || requestScope != scopes.GetValueOrDefault(id) || !CanReadProvider(id)) return;
+            if (disposed || generation != Generation(id) || requestScope != scopes.GetValueOrDefault(id) || !CanReadProvider(id)
+                || accountVersion != accountSummaries.GetValueOrDefault(id)?.Version) return;
             Readings[id] = ReadingRetention.Merge(reading, requestScope is null || !connections.CanCache(id) ? null : Readings.GetValueOrDefault(id));
+            if (id == "commandcode" && accountVersion is not null && reading.State is ReadingState.Ready or ReadingState.Partial && reading.Plan is { } plan)
+                accountPlans[id] = plan;
             if (settings.Current.DebugLogging) AppDiagnostics.Record(id, Readings[id].State.ToString(), Readings[id].Windows.Count);
             ReadingUpdated?.Invoke(Readings[id]);
             Persist();
@@ -367,6 +380,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     public void InvalidateAccount(string id)
     {
         generations[id] = Generation(id) + 1; Readings.Remove(id); lastRefresh.Remove(id);
+        accountSummaries.Remove(id); accountPlans.Remove(id);
         try { Persist(); }
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or System.Security.SecurityException)
         { Status = "The latest reading could not be saved. Retry refresh."; }
@@ -374,5 +388,5 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
         Changed();
     }
     private void Changed() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
-    public void Dispose() { disposed = true; Claude.Changed -= ClaudeChanged; claudeHost.Dispose(); ProfileHistory.Changed -= Changed; ProfileHistory.Dispose(); settings.SettingsChanged -= SessionTokenSettingsChanged; lifetime.Cancel(); CancelSessionTokenReads(); sessionTokens.Clear(); connections.Dispose(); }
+    public void Dispose() { disposed = true; Claude.Changed -= ClaudeChanged; claudeHost.Dispose(); ProfileHistory.Changed -= Changed; ProfileHistory.Dispose(); settings.SettingsChanged -= SessionTokenSettingsChanged; settings.SettingsChanged -= NativeAccountsSettingsChanged; lifetime.Cancel(); CancelSessionTokenReads(); sessionTokens.Clear(); accountSummaries.Clear(); accountPlans.Clear(); connections.Dispose(); }
 }

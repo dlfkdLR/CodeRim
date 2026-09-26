@@ -18,6 +18,12 @@ internal sealed partial class DashboardStore
         if (id == "claude" && Claude.HelperError is { } helperError && reading is { Windows.Count: > 0 })
             reading = reading with { State = ReadingState.Stale, Message = helperError };
         if (Synthetic) return (reading, id is "codex" or "claude" ? SavedAccounts.CurrentAccountLabel(id, true) : reading?.Account?.Label, reading?.Plan, reading?.Plan, null);
+        if (NativeAccountSummary.Supports(id))
+        {
+            var account = ProviderAccountDisplay(id);
+            return (CanReadProvider(id) && accountSummaries.ContainsKey(id) ? reading : null,
+                account.Account?.Label, account.Plan, account.Plan, accountSummaries.GetValueOrDefault(id)?.Version);
+        }
         var capturedScope = scopes.GetValueOrDefault(id);
         if (id is "codex" or "claude")
         {
