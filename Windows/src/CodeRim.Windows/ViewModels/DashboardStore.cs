@@ -230,8 +230,13 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
             if (disposed || generation != Generation(id) || requestScope != scopes.GetValueOrDefault(id) || !CanReadProvider(id)
                 || accountVersion != accountSummaries.GetValueOrDefault(id)?.Version) return;
             Readings[id] = ReadingRetention.Merge(reading, requestScope is null || !connections.CanCache(id) ? null : Readings.GetValueOrDefault(id));
-            if (id == "commandcode" && accountVersion is not null && reading.State is ReadingState.Ready or ReadingState.Partial && reading.Plan is { } plan)
-                accountPlans[id] = plan;
+            if (id is "commandcode" or "glm" && accountVersion is not null && reading.State is ReadingState.Ready or ReadingState.Partial)
+            {
+                if (reading.Plan is { } plan) accountPlans[id] = plan;
+                // GLM's latest successful response owns its optional level.
+                // Only a failed fetch may retain the last known plan.
+                else if (id == "glm") accountPlans.Remove(id);
+            }
             if (settings.Current.DebugLogging) AppDiagnostics.Record(id, Readings[id].State.ToString(), Readings[id].Windows.Count);
             ReadingUpdated?.Invoke(Readings[id]);
             Persist();

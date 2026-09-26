@@ -19,7 +19,7 @@ internal sealed partial class DashboardStore
         }
         if (!CanReadProvider(id)) return (null, null);
         var summary = accountSummaries.GetValueOrDefault(id);
-        return (summary?.Account, summary?.Plan ?? (id == "commandcode" ? accountPlans.GetValueOrDefault(id) : null));
+        return (summary?.Account, summary?.Plan ?? (id is "commandcode" or "glm" ? accountPlans.GetValueOrDefault(id) : null));
     }
 
     internal Task RefreshProviderAccountsAsync() => Task.WhenAll(ReadableProviders.Where(NativeAccountSummary.Supports).Select(RefreshProviderAccountAsync));

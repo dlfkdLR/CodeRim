@@ -28,6 +28,14 @@ internal sealed partial class ProviderConnections
         if (!NativeAccountSummary.Supports(id)) return null;
         try
         {
+            if (id == "glm")
+            {
+                // Use exactly the script connector's effective key selection.
+                // An explicit key suppresses local tool metadata and its region.
+                return EffectiveSetting(vault, id, "Z_AI_API_KEY") is { } key
+                    ? NativeAccountSummary.Glm(new(key, EffectiveSetting(vault, id, "Z_AI_REGION") ?? "global", "api"))
+                    : NativeAccountSummary.Glm(GlmAuthentication.Profile(readCredential(id)));
+            }
             if (id == "copilot")
             {
                 // Match the request's trimmed saved/GH_TOKEN/GITHUB_TOKEN

@@ -13,12 +13,17 @@ public sealed record NativeAccountSummary(ProviderAccountMetadata? Account, stri
     [property: JsonIgnore] string Version)
 {
     public override string ToString() => "Detected provider connection";
-    public static bool Supports(string id) => id is "cursor" or "grok" or "commandcode" or "opencode" or "ollama" or "copilot";
+    public static bool Supports(string id) => id is "cursor" or "grok" or "commandcode" or "opencode" or "ollama" or "copilot" or "glm";
 
     public static NativeAccountSummary Create(ProviderAccountMetadata? account, string? plan, string sourceIdentity)
         => new(account, plan, Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(new { account, plan, sourceIdentity }))));
     public static NativeAccountSummary? FromLogin(NativeProviderLogin? login)
         => login is null ? null : Create(login.Account, login.Plan, login.Credential);
+    public static NativeAccountSummary? Glm(GlmCredential? credential)
+        => credential is not null && GlmAuthentication.Clean(credential.Token) is { } token
+            && credential.Region is "global" or "bigmodel-cn"
+            && credential.Source is "Claude Code" or "ZCode" or "OpenCode" or "api"
+            ? Create(new(null, credential.Source, credential.Region), null, "glm:" + token) : null;
     public static NativeAccountSummary? FromCredential(string id, string? credential, string source = "key")
     {
         if (string.IsNullOrWhiteSpace(credential)) return null;

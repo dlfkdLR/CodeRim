@@ -83,4 +83,32 @@ public sealed class NativeAccountSummaryTests
         Assert.Equal("Go", NativeAccountSummary.FromCredential("opencode", "fixture")!.Plan);
         Assert.Null(NativeAccountSummary.FromCredential("opencode", " "));
     }
+
+    [Fact]
+    public void GlmDisplayRetainsSourceAndRegionButNotTheCredentialOrAnUnverifiedPlan()
+    {
+        var local = NativeAccountSummary.Glm(new("fixture-secret", "bigmodel-cn", "OpenCode"))!;
+        Assert.Equal("OpenCode", local.Account?.Source); Assert.Equal("bigmodel-cn", local.Account?.Region);
+        Assert.Null(local.Account?.Label); Assert.Null(local.Plan);
+        Assert.Equal("https://open.bigmodel.cn/usage", CodeRim.Core.Domain.ProviderAccountLinks.UsagePage("glm", local.Account?.Region)?.AbsoluteUri);
+        var selected = NativeAccountSummary.Glm(new("fixture-secret", "global", "api"))!;
+        Assert.Equal("api", selected.Account?.Source); Assert.Equal("global", selected.Account?.Region);
+        Assert.NotEqual(local.Version, selected.Version);
+        Assert.NotEqual(local.Version, NativeAccountSummary.Glm(new("replacement", "bigmodel-cn", "OpenCode"))!.Version);
+        Assert.NotEqual(local.Version, NativeAccountSummary.Glm(new("fixture-secret", "global", "OpenCode"))!.Version);
+        Assert.NotEqual(local.Version, NativeAccountSummary.Glm(new("fixture-secret", "bigmodel-cn", "Claude Code"))!.Version);
+        var json = JsonSerializer.Serialize(local);
+        Assert.DoesNotContain("fixture-secret", json, StringComparison.Ordinal);
+        Assert.DoesNotContain(local.Version, json, StringComparison.Ordinal);
+        Assert.Equal("Detected provider connection", local.ToString());
+    }
+
+    [Theory]
+    [InlineData("", "global", "api")]
+    [InlineData("bad\nkey", "global", "api")]
+    [InlineData("key", "unsupported", "api")]
+    [InlineData("key", "https://untrusted.invalid", "api")]
+    [InlineData("key", "global", "untrusted")]
+    public void GlmDisplayRejectsInvalidCredentialsRegionsAndSources(string token, string region, string source)
+        => Assert.Null(NativeAccountSummary.Glm(new(token, region, source)));
 }
