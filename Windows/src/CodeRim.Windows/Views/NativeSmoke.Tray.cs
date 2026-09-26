@@ -99,6 +99,7 @@ internal static partial class NativeSmoke
             }
             checks.Add("Five action callbacks and update availability guard (no live update or process exit)");
 
+            settings.Save(settings.Current with { Visibility = NotchVisibility.OnHover });
             foreach (var dark in new[] { true, false })
             {
                 SettingsTheme.Apply(dark); tray.RefreshAppearance();
@@ -109,6 +110,9 @@ internal static partial class NativeSmoke
                 menu.Items[3].Select(); menu.Refresh();
                 using var capture = new Drawing.Bitmap(menu.Width, menu.Height);
                 menu.DrawToBitmap(capture, new Drawing.Rectangle(Drawing.Point.Empty, menu.Size));
+                var selected = menu.Items[3].Bounds;
+                Require(Item(2).Checked && capture.GetPixel(2, selected.Top + selected.Height / 2).ToArgb() != Drawing.Color.FromArgb(30, 88, 190).ToArgb(),
+                    "Tray selection touches the menu's outer frame or the checked state was not captured");
                 capture.Save(Path.Combine(directory, dark ? "windows-tray-dark.png" : "windows-tray-light.png"));
                 tray.ShowMenu(Drawing.Point.Empty); await Idle();
                 Require(!menu.Visible, "Repeated tray activation did not close the popup");

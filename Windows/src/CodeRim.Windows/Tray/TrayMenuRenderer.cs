@@ -34,7 +34,7 @@ internal sealed class TrayMenuRenderer : ToolStripProfessionalRenderer
     protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
     {
         if (!e.Item.Selected || !e.Item.Enabled) return;
-        var scale = Scale(e.ToolStrip); var bounds = new RectangleF(0, 0, e.Item.Width, e.Item.Height);
+        var scale = Scale(e.ToolStrip); var bounds = new RectangleF(4 * scale, 0, e.Item.Width - 8 * scale, e.Item.Height);
         using var path = Rounded(bounds, 5 * scale);
         using var brush = new SolidBrush(Contrast ? SystemColors.Highlight : Color.FromArgb(30, 88, 190));
         e.Graphics.SmoothingMode = SmoothingMode.AntiAlias; e.Graphics.FillPath(brush, path);
