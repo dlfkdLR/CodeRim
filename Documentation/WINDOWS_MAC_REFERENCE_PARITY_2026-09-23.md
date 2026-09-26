@@ -781,3 +781,25 @@ Local solution builds263 and264 pass with zero warnings/errors. Focused axis tes
 Mac preservation check33 exactly matches check32:381/389 baseline hashes, with the same eight external differences. This branch modifies no Mac source, installed app or preferences. The Mac remains locked, so the new evidence is offscreen component rendering rather than live CodeRim interaction. Tick candidates are not all visible labels: the reference clips or omits end labels. Universal font/clipping parity, non-Gregorian automatic-axis semantics and hover selection are not established by these samples. The LA probe confirms tick instants; its formatter still used the host's label timezone, so it is not LA-local label proof. No100% claim, user-PC install, release or signed update-index change follows from this patch.
 
 Independent source review also found a portability error in the new mounted monthly fixture: `DateTimeOffset.AddDays` retained September's UTC offset across an October DST change (for example Australia/Sydney). The fixture now constructs each local calendar date independently and derives its expected X position from actual elapsed instants. Build265 passes with zero warnings/errors after that test-only correction. This does not change the calendar-based product tick implementation. Native label clipping is still a bounded fidelity gap: Windows contains its labels inside the axis, while the measured Mac month endpoint can paint partial text into adjacent whitespace; exact endpoint raster equality is not claimed.
+
+## CI57 final automatic-axis evidence
+
+[Run36219028031](https://github.com/dlfkdLR/CodeRim/actions/runs/36219028031) completes successfully on x64 and native ARM64 for product/test source `dcea8dcc7264066fbbbed18ffc25db5fec459df3`. The signed MSI updater handoff job remains skipped. Final metadata is `/private/tmp/coderim-mac-parity-ci57-run.json`.
+
+| Native result | x64 installed / direct | ARM64 installed / direct |
+| --- | --- | --- |
+| Chart refresh, coordinates and automatic ticks | 13 / 13 groups completed | 13 / 13 groups completed |
+| Analytics date and axis format regressions | 30 / 30 groups completed | 30 / 30 groups completed |
+| Tray reference menu and glyphs | 12 / 12 groups completed | 12 / 12 groups completed |
+| MSI lifecycle | 7 groups completed | 7 groups completed |
+| Actual notch pointer / wheel | PASS in both modes | INCONCLUSIVE in both modes |
+
+The native ARM Core log reports2,083 succeeded, zero failed and zero skipped; the saved host receipts identify Arm64 OS/process on.NET10.0.12. The complete x64 job also passes the Core, WPF/CLI build, manifest/version, packaging, installer, native app, CLI and update-worker regression steps. Evidence roots are `/private/tmp/coderim-mac-parity-ci57-ui` and `/private/tmp/coderim-mac-parity-ci57-arm/Artifacts`.
+
+Primary opened the installed02:30 chart, half-hour chart,112-point token-only chart and narrow30D chart, plus ARM geometry/narrow captures. The screenshots show hourly labels on the proper date positions and a15-minute intermediate tick even with one usage bucket. Independent review confirms the x64 source/receipts and representative rendered images. These are synthetic native Windows runs, not the user's PC or real provider-account sessions. Thirty format groups include twelve locales and user overrides; they are not thirty separately displayed locale screens.
+
+Both x64 wheel receipts again show native WM_MOUSEWHEEL−360, Preview routing into the same original viewport, and offset0→180. Both ARM receipts instead identify a foreign WWAHost target, submit zero input and contain no native/routed events. The workflow success therefore does not establish ARM pointer/wheel operation. CI55's intermittent x64 failure remains unrooted. Physical shell-tray click and actual update installation remain explicitly false in the tray fixtures.
+
+An additional24 offscreen Mac chart PDFs (six locales × seconds/minutes/hours/days) confirm the framework's visible format selection, including zero-hour padding. They are stored with `chart-labels.json` under the read-only probe output directory. This complements the Foundation pattern export; it is not evidence of identical ICU glyphs, whitespace or endpoint clipping. A fresh UI attempt still returned a locked-Mac error even though application inventory could be read. Live chart hover, endpoint raster fidelity and user-PC operation remain open. No public release, signed update index or installed user application was changed.
+
+Harness worker88 passed scope checks; verify58 failed on38 changed frozen verification inputs, with no adapter checks executed. Packet60 binds the reviewed source, and summary55 remains INCONCLUSIVE. These formal limitations are distinct from the successful direct builds/native tests; no acceptance, attestation or frozen baseline was fabricated.
