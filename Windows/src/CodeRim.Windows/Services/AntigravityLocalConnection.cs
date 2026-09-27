@@ -63,7 +63,8 @@ internal static class AntigravityLocalConnection
     private static async Task<Selection?> DiscoverAsync(CancellationToken token)
     {
         Selection? selected = null; var count = 0;
-        using var discovery = CancellationTokenSource.CreateLinkedTokenSource(token); discovery.CancelAfter(TimeSpan.FromSeconds(6));
+        // Leave time for a slow but valid WMI result without extending FetchAsync's total deadline.
+        using var discovery = CancellationTokenSource.CreateLinkedTokenSource(token); discovery.CancelAfter(TimeSpan.FromSeconds(10));
         var processes = Process.GetProcesses();
         try
         {

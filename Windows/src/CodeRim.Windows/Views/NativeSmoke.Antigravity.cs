@@ -174,6 +174,15 @@ internal static partial class NativeSmoke
             var quotaPort = ready.RootElement.GetProperty("quotaPort").GetInt32();
             var deniedPort = ready.RootElement.GetProperty("deniedPort").GetInt32();
             using var process = VerifiedLocalProcess.Open(child.Id);
+            var preCancelledRejected = false;
+            using (var cancelled = new CancellationTokenSource())
+            {
+                cancelled.Cancel();
+                try { _ = await WmiProcessCommandLine.ReadAsync(child.Id, cancelled.Token); }
+                catch (OperationCanceledException) { preCancelledRejected = true; }
+            }
+            Require(preCancelledRejected, "Pre-cancelled WMI discovery was not rejected.");
+            // The successful read immediately afterwards also checks that cancellation did not retain the query gate.
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             var command = await WmiProcessCommandLine.ReadAsync(child.Id, timeout.Token);
             Require(AntigravityLocalConnection.ReadCsrf(process.ImagePath, command) == "native-antigravity-fixture", "Native WMI command-line parsing failed.");
@@ -239,10 +248,14 @@ internal static partial class NativeSmoke
             await StopChild();
             Require(!forcedKill && child.ExitCode == 0, "Fixture did not gracefully dispose its temporary certificate key.");
             Require(!process.IsCurrent(), "Exited PID remained trusted.");
+            // Keep the original process handle alive through this query so its PID cannot be reused.
+            using (var exitedTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(10)))
+                Require(await WmiProcessCommandLine.ReadAsync(child.Id, exitedTimeout.Token) is null,
+                    "Exited process retained a discoverable command line.");
             var unavailable = await connections.FetchAsync("gemini", settings.Current, CancellationToken.None);
             Require(unavailable.Windows.Count == 0 && unavailable.State != ReadingState.Ready, "Stopped IDE restored local quota or fell back to OAuth.");
             File.WriteAllText(Path.Combine(directory, "windows-antigravity-local-evidence.json"), JsonSerializer.Serialize(new {
-                fixture = true, wmi = "PASS", currentUserSessionProcess = "PASS", reverseTcpOwnership = "PASS",
+                fixture = true, wmi = "PASS", wmiPreCancelled = "PASS", wmiExitedProcess = "PASS", currentUserSessionProcess = "PASS", reverseTcpOwnership = "PASS",
                 wrongPidNoHttp = "PASS", multipleOwnedListeners = "PASS", actualConnectorStoreWpf = "PASS",
                 stoppedProcessInvalidation = "PASS", gracefulShutdown = !forcedKill, helperExitCode = child.ExitCode, cadence = local.Windows.Select(window => window.DurationMinutes).ToArray(), quotaPort, deniedPort
             }, JsonOptions));

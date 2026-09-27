@@ -43,7 +43,9 @@ internal static class WmiProcessCommandLine
             while (true)
             {
                 token.ThrowIfCancellationRequested();
-                if (Stopwatch.GetElapsedTime(started) > TimeSpan.FromSeconds(4)) throw new IOException("IDE discovery timed out.");
+                // A loaded Windows host can take over four seconds even for one owned PID.
+                // Keep a bounded query budget inside the caller's discovery/overall deadlines.
+                if (Stopwatch.GetElapsedTime(started) > TimeSpan.FromSeconds(8)) throw new IOException("IDE discovery timed out.");
                 var result = rows.Next(100, 1, out row, out var count);
                 Check(result, "enumerate");
                 if (count == 0) { if (result == 1) return null; continue; }
