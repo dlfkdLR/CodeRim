@@ -34,7 +34,8 @@
           <Directory Id="CliBinDirectory" Name="bin">
             <Component Id="CliPath" Guid="32650566-E6E9-41E4-9CBC-609E877CC7D9">
               <RegistryValue Root="HKCU" Key="Software\CodeRim\Installer" Name="CliPath" Value="[CliBinDirectory]" Type="string" KeyPath="yes" />
-              <Environment Id="CliUserPath" Name="PATH" Value="[CliBinDirectory]" Action="set" Part="first" System="no" Permanent="no" />
+              <!-- Match the portable installer path (no trailing separator), so MSI reuses it. -->
+              <Environment Id="CliUserPath" Name="PATH" Value="[INSTALLFOLDER]bin" Action="set" Part="first" System="no" Permanent="no" />
               <RemoveFolder Id="RemoveCliFolder" On="uninstall" />
             </Component>
           </Directory>
