@@ -176,6 +176,35 @@
   <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource NotchButton}">
    <Setter Property="Width" Value="36"/><Setter Property="Height" Value="36"/>
   </Style>
+  <Style x:Key="NotchProviderButton" TargetType="Button" BasedOn="{StaticResource NotchButton}">
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Grid Background="{TemplateBinding Background}">
+     <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+      <ContentPresenter/>
+      <Ellipse x:Name="Focus" Width="44" Height="44" VerticalAlignment="Top" Stroke="Transparent" StrokeThickness="1" IsHitTestVisible="False"/>
+     </Grid>
+    </Grid>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Stroke" Value="#808080"/></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="NotchSettingsButton" TargetType="Button" BasedOn="{StaticResource NotchButton}">
+   <!-- The orb owns its hover drawing. Its larger hit region must not paint a
+        second rectangular surface outside the black rail. -->
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Grid>
+     <Ellipse Fill="{TemplateBinding Background}"/>
+     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+     <Ellipse x:Name="Focus" Stroke="Transparent" StrokeThickness="1" Margin="4" IsHitTestVisible="False"/>
+    </Grid>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Stroke" Value="#808080"/></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
   <Style TargetType="ComboBoxItem">
    <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
    <Setter Property="Background" Value="Transparent"/><Setter Property="Padding" Value="10,6"/>

@@ -50,6 +50,8 @@ internal sealed partial class NotchWindow
         var glyph = new NotchSettingsGlyph(settings.Current.Edge, atStart) { Width = NotchSettingsGlyph.Extent, Height = NotchSettingsGlyph.Extent,
             IsHitTestVisible = false, LayoutTransform = new ScaleTransform(scale, scale) };
         var gear = Control("", "Open Settings", () => openSettings(null));
+        gear.Style = (Style)FindResource("NotchSettingsButton");
+        gear.ToolTip = null;
         gear.Width = gear.Height = NotchMetrics.OrbHotZone * scale; gear.Margin = new(0); gear.Content = glyph;
         // A one-alpha hit surface keeps the resting arc's center reachable on a layered
         // native window; fully transparent pixels otherwise pass through to the desktop.

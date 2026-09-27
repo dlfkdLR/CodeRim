@@ -603,6 +603,8 @@ internal static partial class NativeSmoke
         Descendants<System.Windows.Controls.CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Show edge notch").IsChecked = true; await Idle();
         Require(settings.Current.Visibility == NotchVisibility.AlwaysShow, "Hide and show lost the saved notch behavior");
         Record("Picker selection preserves keyboard focus and hiding preserves Always show");
+        await NotchShellRegression(dashboard, notch, settings, directory);
+        Record("Notch tool-window styles survive hide/show; four-edge native bounds and transparent orb hot zones match the reference");
         foreach (var edge in Enum.GetValues<NotchEdge>())
         foreach (var scale in new[] { 0.8, 1d, 1.25 })
         {

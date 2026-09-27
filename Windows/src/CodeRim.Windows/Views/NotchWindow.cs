@@ -89,7 +89,9 @@ internal sealed partial class NotchWindow : Window
         };
         SourceInitialized += (_, _) =>
         {
-            HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowMessage);
+            var handle = new WindowInteropHelper(this).Handle;
+            ExcludeFromWindowSwitcher(handle);
+            HwndSource.FromHwnd(handle)?.AddHook(WindowMessage);
             Render();
         };
         Closed += (_, _) =>
@@ -220,7 +222,7 @@ internal sealed partial class NotchWindow : Window
                 Waiting = store.Sessions.Any(x => x.Provider == id && x.State == "waiting"),
                 Refreshing = store.RefreshingProviders.Contains(id) };
             rings.Add(ring);
-            var button = new Button { Content = ring, Style = (Style)FindResource("NotchButton"),
+            var button = new Button { Content = ring, Style = (Style)FindResource("NotchProviderButton"),
                 Width = Vertical ? NotchMetrics.SideDepth : NotchMetrics.Ring,
                 Height = Vertical ? NotchMetrics.CellHeight : NotchMetrics.SideDepth - NotchMetrics.Ring + NotchMetrics.CellHeight,
                 Margin = Vertical ? new Thickness(0, 0, 0, NotchMetrics.CellGap) : new Thickness(0, 0, NotchMetrics.CellGap, 0) };
@@ -444,11 +446,12 @@ internal sealed partial class NotchWindow : Window
     private void Position(double? temporaryOffset = null)
     {
         var screen = SelectedScreen(); var area = screen.WorkingArea; var dpi = ScreenScale(screen);
-        var position = NotchGeometry.Place(new ScreenArea(area.X, area.Y, area.Width, area.Height), Width * dpi, Height * dpi,
+        var pixelWidth = (int)Math.Ceiling(Width * dpi); var pixelHeight = (int)Math.Ceiling(Height * dpi);
+        var position = NotchGeometry.Place(new ScreenArea(area.X, area.Y, area.Width, area.Height), pixelWidth, pixelHeight,
             settings.Current.Edge, ((temporaryOffset ?? settings.Current.Offset) + (Content is Canvas
                 ? (Vertical ? Height : Width) / 2 - bodyStart - bodyLength / 2 : 0)) * dpi);
         var handle = new WindowInteropHelper(this).Handle;
-        if (handle != IntPtr.Zero) SetWindowPos(handle, new IntPtr(-1), (int)position.X, (int)position.Y, (int)Math.Ceiling(Width * dpi), (int)Math.Ceiling(Height * dpi), 0x10);
+        if (handle != IntPtr.Zero) SetWindowPos(handle, new IntPtr(-1), (int)Math.Round(position.X), (int)Math.Round(position.Y), pixelWidth, pixelHeight, 0x10);
     }
     private static double ScreenScale(Screen screen)
     {
