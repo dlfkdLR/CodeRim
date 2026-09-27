@@ -145,6 +145,19 @@ internal static partial class NativeSmoke
         }
         try
         {
+            // A real Windows deny-delete handle must exercise the retry path.
+            // This control is a one-byte fixture, not a user file or process.
+            var lockedRoot = Path.Combine(root, "cleanup-control"); Directory.CreateDirectory(lockedRoot);
+            Task controlledRemoval;
+            using (var lease = new FileStream(Path.Combine(lockedRoot, "locked.bin"), FileMode.CreateNew, FileAccess.Write, FileShare.Read))
+            {
+                lease.WriteByte(1); lease.Flush();
+                controlledRemoval = RemoveAntigravityFixtureAsync(lockedRoot, helperExited: true, directory, control: true);
+            }
+            await controlledRemoval;
+            using (var controlReceipt = JsonDocument.Parse(File.ReadAllText(Path.Combine(directory, "windows-antigravity-cleanup-control.json"))))
+                Require(controlReceipt.RootElement.GetProperty("removed").GetBoolean()
+                    && controlReceipt.RootElement.GetProperty("lockObservations").GetArrayLength() > 0, "Locked-file cleanup control did not observe and recover a real sharing violation.");
             Require(AntigravityLocalConnection.ReadCsrf(@"C:\Program Files\Antigravity\language_server_windows_x64.exe",
                 "\"C:\\Program Files\\Antigravity\\language_server_windows_x64.exe\" --csrf_token=fixture") == "fixture", "Quoted IDE path was rejected.");
             Require(AntigravityLocalConnection.ReadCsrf(@"C:\other\language_server.exe",
@@ -194,25 +207,34 @@ internal static partial class NativeSmoke
                 "An unrelated owned 401 listener blocked the quota listener.");
             settings.Save(settings.Current with { EnabledProviders = ["gemini"] });
             // Exercise the real connector -> state -> WPF path, without Synthetic SeedPreview or local history scans.
-            using (var liveStore = new DashboardStore(settings, vault, providerConnections: new ProviderConnections(vault,
-                new NativeProviders(new AmpFixtureHandler(_ => new(HttpStatusCode.Unauthorized))))))
+            var liveStore = new DashboardStore(settings, vault, providerConnections: new ProviderConnections(vault,
+                new NativeProviders(new AmpFixtureHandler(_ => new(HttpStatusCode.Unauthorized)))));
+            DashboardWindow? liveWindow = null;
+            Exception? windowFailure = null;
+            try
             {
-                var liveWindow = new DashboardWindow(liveStore, settings, vault); liveWindow.Show(); liveWindow.Navigate("gemini");
-                try
-                {
-                    await liveStore.RefreshProviderAsync("gemini"); await Idle();
-                    Require(liveStore.Readings["gemini"].State == ReadingState.Ready
-                        && Descendants<ProgressBar>(liveWindow).Any(bar => Math.Abs(bar.Value - 33) < 0.001), "Local quota did not reach the rendered WPF state.");
-                    Require(!Descendants<PasswordBox>(liveWindow).Any(), "Local source exposed unrelated OAuth fields.");
-                    Capture(liveWindow, Path.Combine(directory, "windows-antigravity-local-quota.png"));
-                    var picker = Descendants<ComboBox>(liveWindow).Single(x => AutomationProperties.GetName(x) == "Usage source");
-                    picker.SelectedItem = "OAuth"; await Idle();
-                    Require(connections.CanCache("gemini") && connections.Scope("gemini") != localScope
-                        && Descendants<PasswordBox>(liveWindow).Any(), "OAuth/source UI and scope were not restored.");
-                    // OAuth transport is an in-memory 401 handler; no external request is made.
-                }
-                finally { liveWindow.Close(); }
+                liveWindow = new DashboardWindow(liveStore, settings, vault); liveWindow.Show(); liveWindow.Navigate("gemini");
+                await liveStore.RefreshProviderAsync("gemini"); await Idle();
+                Require(liveStore.Readings["gemini"].State == ReadingState.Ready
+                    && Descendants<ProgressBar>(liveWindow).Any(bar => Math.Abs(bar.Value - 33) < 0.001), "Local quota did not reach the rendered WPF state.");
+                Require(!Descendants<PasswordBox>(liveWindow).Any(), "Local source exposed unrelated OAuth fields.");
+                Capture(liveWindow, Path.Combine(directory, "windows-antigravity-local-quota.png"));
+                var picker = Descendants<ComboBox>(liveWindow).Single(x => AutomationProperties.GetName(x) == "Usage source");
+                picker.SelectedItem = "OAuth"; await Idle();
+                Require(connections.CanCache("gemini") && connections.Scope("gemini") != localScope
+                    && Descendants<PasswordBox>(liveWindow).Any(), "OAuth/source UI and scope were not restored.");
+                // OAuth transport is an in-memory 401 handler; no external request is made.
             }
+            catch (Exception error) when (error is not OutOfMemoryException) { windowFailure = error; }
+            finally
+            {
+                Restore(() => liveWindow?.Close()); Restore(liveStore.Dispose);
+                // A source-picker refresh can still be unwinding after the
+                // window closes. Drain its native process readers first.
+                try { await liveStore.WaitForAccountWorkIdleAsync().WaitAsync(TimeSpan.FromSeconds(15)); }
+                catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); }
+            }
+            if (windowFailure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(windowFailure).Throw();
             vault.Save("setting:gemini:ANTIGRAVITY_USAGE_SOURCE", "local");
             await StopChild();
             Require(!forcedKill && child.ExitCode == 0, "Fixture did not gracefully dispose its temporary certificate key.");
@@ -242,16 +264,58 @@ internal static partial class NativeSmoke
                     if (File.Exists(Path.Combine(root, diagnostic)))
                         File.Copy(Path.Combine(root, diagnostic), Path.Combine(directory, "windows-antigravity-" + diagnostic), overwrite: true);
                 });
+            var helperExited = false;
+            Restore(() => helperExited = !launched || child.HasExited);
             Restore(() => File.WriteAllText(Path.Combine(directory, "windows-antigravity-shutdown.json"), JsonSerializer.Serialize(new
-            { launched, forcedKill, helperExitCode = launched ? child.ExitCode : (int?)null, temporaryKeyDisposal = launched && !forcedKill && child.ExitCode == 0 })));
+            { launched, forcedKill, helperExited, helperExitCode = launched && helperExited ? child.ExitCode : (int?)null,
+                temporaryKeyDisposal = launched && helperExited && !forcedKill && child.ExitCode == 0 })));
             Restore(child.Dispose);
             Restore(() => vault.Delete("provider:gemini"));
             Restore(() => vault.Delete("setting:gemini:ANTIGRAVITY_USAGE_SOURCE"));
             Restore(() => settings.Save(settings.Current with { EnabledProviders = originalProviders }));
             Restore(() => dashboard.Navigate("usage"));
-            Restore(() => Directory.Delete(root, recursive: true));
+            try { await RemoveAntigravityFixtureAsync(root, helperExited, directory); }
+            catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); }
         }
         if (cleanup.Count > 0) throw new AggregateException("Antigravity fixture cleanup failed.", failure is null ? cleanup : cleanup.Prepend(failure));
+        if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
+    private static async Task RemoveAntigravityFixtureAsync(string root, bool helperExited, string directory, bool control = false)
+    {
+        Require(helperExited, "A running Antigravity fixture cannot be removed.");
+        var clock = Stopwatch.StartNew(); var observations = new List<object>(); var removed = false;
+        Exception? failure = null;
+        try
+        {
+            while (true)
+            {
+                try
+                {
+                    Directory.Delete(root, recursive: true);
+                    Require(!Directory.Exists(root), "The Antigravity fixture directory remains after deletion.");
+                    removed = true; break;
+                }
+                catch (IOException error) when ((error.HResult & 0xffff) is 32 or 33)
+                {
+                    // Process exit and closing our handles do not guarantee
+                    // that every Windows image/file handle is already released.
+                    // Bound only sharing/lock retries for this owned temp tree;
+                    // persistent locks and every other error still fail QA.
+                    observations.Add(new { elapsedMs = clock.ElapsedMilliseconds, errorCode = error.HResult & 0xffff });
+                    if (clock.Elapsed >= TimeSpan.FromSeconds(5)) throw;
+                    await Task.Delay(200);
+                }
+            }
+        }
+        catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
+        try
+        {
+            File.WriteAllText(Path.Combine(directory, control ? "windows-antigravity-cleanup-control.json" : "windows-antigravity-cleanup.json"), JsonSerializer.Serialize(new
+                { helperExited, removed, elapsedMs = clock.ElapsedMilliseconds, lockObservations = observations }, JsonOptions));
+        }
+        catch (Exception error) when (failure is not null && error is not OutOfMemoryException)
+        { throw new AggregateException("Antigravity cleanup and diagnostic recording failed.", failure, error); }
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 }
