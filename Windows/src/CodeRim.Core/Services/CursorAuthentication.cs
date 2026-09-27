@@ -16,6 +16,10 @@ public sealed record CursorLocalConnection([property: JsonIgnore] NativeProvider
 // responsible for signing in and rotating it; discovery performs no HTTP/write.
 public static class CursorAuthentication
 {
+    // Match the reference credential reader without widening other providers'
+    // defaults. cli-config also holds unrelated settings beside authInfo.
+    private const int MaximumFileBytes = 1_048_576;
+
     public static CursorLocalConnection Read(string home, string applicationData, Func<string, string?> environment, DateTimeOffset now)
     {
         NativeAccountSummary? editorSummary = null;
@@ -94,7 +98,7 @@ public static class CursorAuthentication
         try
         {
             if (!IsLocalLoginPath(path)) return null;
-            return GuardedFile.ReadUtf8(path);
+            return GuardedFile.ReadUtf8(path, MaximumFileBytes);
         }
         catch (Exception error) when (ReadFailure(error)) { return null; }
     }
@@ -106,7 +110,7 @@ public static class CursorAuthentication
         or JsonException or DecoderFallbackException or ArgumentException or SqliteException or System.Security.SecurityException;
     private static JsonElement Object(string? json)
     {
-        if (json is null || json.Length > 262144) return default;
+        if (json is null || Encoding.UTF8.GetByteCount(json) > MaximumFileBytes) return default;
         try
         {
             using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 32 });

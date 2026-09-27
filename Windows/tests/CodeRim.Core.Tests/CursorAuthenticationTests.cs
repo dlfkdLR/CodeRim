@@ -155,12 +155,10 @@ public sealed class CursorAuthenticationTests : IDisposable
     { Agent("opaque", authId: subject); Assert.Null(Read().Login); }
 
     [Theory] [InlineData("auth")] [InlineData("config")]
-    public void InvalidUtf8AndOversizedFilesAreRejected(string file)
+    public void InvalidUtf8FilesAreRejected(string file)
     {
         Agent(); var path = file == "auth" ? Auth : Config;
         File.WriteAllBytes(path, [0xff, 0xfe, 0xff]);
-        if (file == "auth") Assert.Null(Read().Login); else Assert.Null(Read().Summary?.Account);
-        Write(path, new string('x', 262145));
         if (file == "auth") Assert.Null(Read().Login); else Assert.Null(Read().Summary?.Account);
     }
 
@@ -257,6 +255,43 @@ public sealed class CursorAuthenticationTests : IDisposable
             Agent(email: label); var result = Read(); Assert.NotNull(result.Login);
             Assert.Null(result.Summary?.Account?.Label); Assert.Equal("cursor-agent", result.Summary?.Account?.Source);
         }
+    }
+
+    [Theory]
+    [InlineData("config", 262145, false, true)] [InlineData("config", 1048576, false, true)]
+    [InlineData("config", 1048577, false, false)] [InlineData("auth", 262145, false, true)]
+    [InlineData("auth", 1048576, false, true)] [InlineData("auth", 1048577, false, false)]
+    [InlineData("config", 1048576, true, true)] [InlineData("config", 1048577, true, false)]
+    [InlineData("auth", 1048576, true, true)] [InlineData("auth", 1048577, true, false)]
+    public void ValidLargeFilesUseTheReferenceOneMiBByteLimit(string file, int bytes, bool unicode, bool accepted)
+    {
+        Agent(); var path = file == "auth" ? Auth : Config; var json = File.ReadAllText(path);
+        // cli-config also contains unrelated CLI settings. Account discovery
+        // must tolerate a valid bounded document regardless of those fields.
+        if (unicode) json = json[..^1] + ",\"unrelated\":\"" + new string('é', 1024) + "\"}";
+        Write(path, json + new string(' ', bytes - Encoding.UTF8.GetByteCount(json)));
+        Assert.Equal(bytes, new FileInfo(path).Length);
+        if (accepted) Assert.NotEmpty(GuardedFile.ReadUtf8(path, 1048576));
+        else Assert.Throws<InvalidDataException>(() => GuardedFile.ReadUtf8(path, 1048576));
+        var result = Read(); Assert.Equal(file == "config" || accepted, result.Login is not null);
+        Assert.Equal(file == "auth" || accepted ? "agent@example.invalid" : null, result.Summary?.Account?.Label);
+    }
+
+    [Theory] [InlineData("auth", 1048576, true)] [InlineData("auth", 1048577, false)]
+    [InlineData("config", 1048576, true)] [InlineData("config", 1048577, false)]
+    public void ParserIndependentlyBoundsUtf8BytesFromTheReader(string file, int bytes, bool accepted)
+    {
+        Agent(); var auth = File.ReadAllText(Auth); var config = File.ReadAllText(Config);
+        var json = file == "auth" ? auth : config;
+        json = json[..^1] + ",\"unrelated\":\"" + new string('é', 1024) + "\"}";
+        json += new string(' ', bytes - Encoding.UTF8.GetByteCount(json));
+        Assert.True(json.Length < 1048576); Assert.Equal(bytes, Encoding.UTF8.GetByteCount(json));
+        using var validDocument = JsonDocument.Parse(json);
+        Assert.Equal(JsonValueKind.Object, validDocument.RootElement.ValueKind);
+        if (file == "auth") auth = json; else config = json;
+        var result = CursorAuthentication.ReadAgentFiles(Auth, Config, Now, path => path == Auth ? auth : config);
+        Assert.Equal(file == "config" || accepted, result.Login is not null);
+        Assert.Equal(file == "auth" || accepted ? "agent@example.invalid" : null, result.Summary?.Account?.Label);
     }
 
     private static void CreateJunction(string path, string target)
