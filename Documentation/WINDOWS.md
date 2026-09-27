@@ -4,13 +4,13 @@ This Windows port uses WPF on .NET 10 and targets Windows 11 x64 and ARM64. It i
 
 ## Run or install
 
-Run the matching [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.11/CodeRim-Windows-2.1.11-x64-Setup.msi) or [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.11/CodeRim-Windows-2.1.11-arm64-Setup.msi). .NET is included. The installer uses `%LOCALAPPDATA%\Programs\CodeRim`, registers Start menu and uninstall entries, and adds `bin` to the current user's PATH without requiring administrator access. Open a new terminal after installation to use `coderim`.
+Run the matching [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.12/CodeRim-Windows-2.1.12-x64-Setup.msi) or [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.12/CodeRim-Windows-2.1.12-arm64-Setup.msi). .NET is included. The installer uses `%LOCALAPPDATA%\Programs\CodeRim`, registers Start menu and uninstall entries, and adds `bin` to the current user's PATH without requiring administrator access. Open a new terminal after installation to use `coderim`.
 
 Existing unsigned ZIP users should quit CodeRim and run the MSI once. Settings, accounts and usage history are stored outside the application directory and are preserved. A legacy Authenticode-managed installation must continue using its signed ZIP channel; the public MSI refuses to overwrite it. The initial MSI does not have an Authenticode publisher certificate, so Windows may show a SmartScreen warning. Automatic updates use the pinned Ed25519 release key described below.
 
 The tray icon opens the Usage dashboard and Settings. Hover the screen-edge notch to see provider rings. Add your providers in Settings → Providers.
 
-`CodeRim.exe` is the desktop app. `CodeRimCLI.exe` is the companion CLI; `bin\coderim.cmd` supplies the short command. The MSI places this bin directory first in the user PATH. The legacy PowerShell installer also removes its old GUI-directory PATH entry.
+`CodeRim.exe` is the desktop app. `CodeRimCLI.exe` is the companion CLI; `bin\coderim.cmd` supplies the short command. The MSI places this bin directory first in the user PATH. Version 2.1.12 normalizes its entry without a trailing separator, avoiding a duplicate when upgrading a portable migration from 2.1.11. Repair, rollback and uninstall preserve unrelated entries. The legacy PowerShell installer also removes its old GUI-directory PATH entry.
 
 ## Connect Codex and Claude
 
@@ -235,7 +235,7 @@ python3 Scripts/sign_windows_installer.py CodeRim-Windows-VERSION-arm64-Setup.ms
 
 Replace `VERSION` with the configured release version. The helper defaults to the existing `HechoLP` Keychain account; `--account` can select that same release key under another local account name. Never export the private key. A different key will not be accepted by installed apps.
 
-Upload each MSI plus its `.sha256`, `.manifest.json` and `.manifest.sig` to the matching GitHub release draft. The stable updater requires the expected canonical filenames and GitHub SHA-256 metadata, and independently authenticates the signed manifest. Do not change the MSI after signing. Dispatch the Windows workflow from a branch or tag pointing to the reviewed candidate commit with `msi_handoff=true`; it derives the draft tag and asset names from the validated Windows release version. This exercises both signed draft installers from an isolated old-version QA fixture before publishing. That fixture tests the production update handoff but is distinct from the ordinary lifecycle test's actual, hash-pinned public 2.1.10 MSI upgrade and rollback. Read both jobs' results before claiming delivery. This manual-only job needs repository content write permission because GitHub hides drafts from read-only tokens; it does not publish or edit the release and checkout credentials are not persisted.
+Upload each MSI plus its `.sha256`, `.manifest.json` and `.manifest.sig` to the matching GitHub release draft. The stable updater requires the expected canonical filenames and GitHub SHA-256 metadata, and independently authenticates the signed manifest. Do not change the MSI after signing. Dispatch the Windows workflow from a branch or tag pointing to the reviewed candidate commit with `msi_handoff=true`; it derives the draft tag and asset names from the validated Windows release version. This exercises both signed draft installers from an isolated old-version QA fixture before publishing. That fixture tests the production update handoff but is distinct from the ordinary lifecycle test's actual, hash-pinned public 2.1.11 MSI upgrade and rollback. Read both jobs' results before claiming delivery. This manual-only job needs repository content write permission because GitHub hides drafts from read-only tokens; it does not publish or edit the release and checkout credentials are not persisted.
 
 ## Audit history and verification limits
 

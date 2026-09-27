@@ -42,7 +42,7 @@ Windows에도 노치 접힘·펼침, 공급자·컨트롤 순차 등장, 사용�
 
 ## 설치
 
-**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.11](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.11)
+**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.12](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.12)
 
 ### macOS
 
@@ -65,13 +65,13 @@ Homebrew에서 cask를 사용할 수 없다는 메시지가 표시되거나 이�
 
 **Windows 11 · x64 및 ARM64 · .NET 포함.**
 
-[x64 설치 파일 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.11/CodeRim-Windows-2.1.11-x64-Setup.msi) · [ARM64 설치 파일 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.11/CodeRim-Windows-2.1.11-arm64-Setup.msi)
+[x64 설치 파일 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.12/CodeRim-Windows-2.1.12-x64-Setup.msi) · [ARM64 설치 파일 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.12/CodeRim-Windows-2.1.12-arm64-Setup.msi)
 
 `Setup.msi`를 실행하면 관리자 권한 없이 설치되며 시작 메뉴, 제거 프로그램과 CLI 경로를 등록합니다. 기존 ZIP 사용자는 설치 파일을 한 번 실행하면 됩니다. 계정·설정·로컬 사용 기록은 유지됩니다.
 
 설치 후에는 업데이트를 자동 확인·다운로드합니다. **Settings → Information → Check for updates**에서 서명 검증을 마친 새 버전을 재시작하여 적용합니다. **General → Automatically check for updates**에서 자동 다운로드를 끌 수 있습니다. Windows Authenticode 인증서는 없어 최초 설치 시 SmartScreen 경고가 나타날 수 있습니다. 업데이트는 앱에 고정된 Ed25519 공개 키와 SHA-256으로 검증합니다. [설치 및 업데이트 안내](Documentation/WINDOWS.md#updates).
 
-Windows 2.1.11에서는 노치의 Alt+Tab 노출, 사각형 버튼 배경과 화면 가장자리 위치 계산을 수정했습니다. 알림 영역의 CodeRim 메뉴에서 사용량·설정·노치 표시·업데이트를 사용할 수 있습니다. 네이티브 테스트 결과와 아직 확인하지 못한 실제 화면 환경은 [Windows 검증 기록](Documentation/WINDOWS_MAC_REFERENCE_PARITY_2026-09-23.md)에 구분해 적었습니다.
+Windows 2.1.12에서는 이전 ZIP 설치에서 MSI로 전환한 뒤 생기는 CLI 경로 중복과 느린 로컬 IDE 탐색의 시간 초과를 수정했습니다. 2.1.11의 노치 Alt+Tab 노출·사각형 버튼 배경·화면 가장자리 위치 수정도 포함합니다. 알림 영역의 CodeRim 메뉴에서 사용량·설정·노치 표시·업데이트를 사용할 수 있습니다. 네이티브 테스트 결과와 아직 확인하지 못한 실제 화면 환경은 [Windows 검증 기록](Documentation/WINDOWS_MAC_REFERENCE_PARITY_2026-09-23.md)에 구분해 적었습니다.
 
 ## macOS 지원 제공업체
 
