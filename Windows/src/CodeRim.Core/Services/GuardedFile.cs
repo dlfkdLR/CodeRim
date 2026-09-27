@@ -4,6 +4,10 @@ namespace CodeRim.Core.Services;
 public static class GuardedFile
 {
     public static string Read(string path, int maximumBytes = 262144)
+        => ReadCore(path, maximumBytes, strictUtf8: false);
+    public static string ReadUtf8(string path, int maximumBytes = 262144)
+        => ReadCore(path, maximumBytes, strictUtf8: true);
+    private static string ReadCore(string path, int maximumBytes, bool strictUtf8)
     {
         Check(path);
         ArgumentOutOfRangeException.ThrowIfNegative(maximumBytes);
@@ -15,6 +19,11 @@ public static class GuardedFile
         {
             if (output.Length + count > maximumBytes) throw new InvalidDataException("The login file is too large.");
             output.Write(buffer, 0, count);
+        }
+        if (strictUtf8)
+        {
+            var text = new System.Text.UTF8Encoding(false, true).GetString(output.ToArray());
+            return text.StartsWith('\uFEFF') ? text[1..] : text;
         }
         output.Position = 0;
         using var reader = new StreamReader(output);

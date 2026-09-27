@@ -21,6 +21,7 @@ internal static partial class NativeSmoke
         try
         {
             Environment.SetEnvironmentVariable("GH_CONFIG_DIR", root);
+            File.WriteAllText(Path.Combine(root, "hosts.yml"), "github.com:\n  user: fixture-host-owner\n  oauth_token: hosts\n");
             Environment.SetEnvironmentVariable("GH_TOKEN", " "); Environment.SetEnvironmentVariable("GITHUB_TOKEN", "environment");
             using var connections = new ProviderConnections(vault,
                 http: new HttpProviders(new AmpFixtureHandler(request =>
@@ -33,24 +34,25 @@ internal static partial class NativeSmoke
                 })), nativeCredentialReader: id => id == "copilot" ? hostsToken : null,
                 copilotCliReader: token => { token.ThrowIfCancellationRequested(); cliCalls++; return Task.FromResult<string?>(cliToken); });
             vault.Save("provider:copilot", "saved");
-            Require((await connections.FetchAsync("copilot", settings, CancellationToken.None)).Headline?.UsedPercent == 33
+            var saved = await connections.FetchAsync("copilot", settings, CancellationToken.None);
+            Require(saved.Headline?.UsedPercent == 33 && saved.Account is { Label: null, Source: "GitHub" }
                 && calls[^1] == "saved" && cliCalls == 0, "Saved Copilot token lost precedence.");
             vault.Delete("provider:copilot");
-            await connections.FetchAsync("copilot", settings, CancellationToken.None);
-            Require(calls[^1] == "environment" && cliCalls == 0, "Blank GH_TOKEN suppressed GITHUB_TOKEN.");
+            var ambient = await connections.FetchAsync("copilot", settings, CancellationToken.None);
+            Require(ambient.Account is { Label: null, Source: "GitHub" } && calls[^1] == "environment" && cliCalls == 0, "Blank GH_TOKEN suppressed GITHUB_TOKEN.");
             Environment.SetEnvironmentVariable("GITHUB_TOKEN", null);
-            await connections.FetchAsync("copilot", settings, CancellationToken.None);
-            Require(calls[^1] == "hosts" && connections.CanCache("copilot") && cliCalls == 0, "GitHub CLI hosts token was not used.");
+            var hosts = await connections.FetchAsync("copilot", settings, CancellationToken.None);
+            Require(hosts.Account is { Label: "fixture-host-owner", Source: "GitHub" } && calls[^1] == "hosts" && connections.CanCache("copilot") && cliCalls == 0, "GitHub CLI hosts token was not used.");
             hostsToken = null;
             Require(!connections.CanCache("copilot") && connections.Scope("copilot") is { Length: > 0 }, "CLI-only credentials were eligible for persisted quota.");
-            await connections.FetchAsync("copilot", settings, CancellationToken.None);
-            Require(calls[^1] == "cli" && cliCalls == 2, "CLI credential was not rechecked before publishing.");
+            var cli = await connections.FetchAsync("copilot", settings, CancellationToken.None);
+            Require(cli.Account is { Label: null, Source: "GitHub" } && calls[^1] == "cli" && cliCalls == 2, "CLI credential was not rechecked before publishing.");
             switchDuringFetch = true;
             var changed = await connections.FetchAsync("copilot", settings, CancellationToken.None);
-            Require(changed.State == ReadingState.Unavailable && changed.Windows.Count == 0, "Copilot account replacement published stale quota.");
+            Require(changed.State == ReadingState.Unavailable && changed.Windows.Count == 0 && changed.Account is null, "Copilot account replacement published stale quota.");
             File.WriteAllText(Path.Combine(directory, "windows-copilot-auth-evidence.json"), JsonSerializer.Serialize(new {
                 fixture = true, network = "in-memory only", cli = "injected reader only", savedEnvironmentHostsCli = "PASS",
-                endpointAndVersion = "PASS", cliNoPersistentCache = "PASS", accountReplacementInvalidation = "PASS"
+                endpointAndVersion = "PASS", cliNoPersistentCache = "PASS", accountReplacementInvalidation = "PASS", tokenBoundAccountLabel = "PASS", unrelatedEnvironmentKeyHasNoHostsLabel = "PASS"
             }, JsonOptions));
         }
         finally

@@ -7,6 +7,15 @@ namespace CodeRim.Windows.Views;
 
 internal sealed partial class DashboardWindow
 {
+    private System.Windows.Controls.Button? manualUpdateCheck;
+    internal bool CanCheckForUpdates => !updateWindowClosed && updateOperation is null && !updateHandedOff;
+    internal void RequestUpdateCheck()
+    {
+        if (!CanCheckForUpdates) return;
+        if (page != "about") Navigate("about"); else Present();
+        if (manualUpdateCheck is { IsEnabled: true } check)
+            check.RaiseEvent(new RoutedEventArgs(System.Windows.Controls.Primitives.ButtonBase.ClickEvent));
+    }
     private CancellationTokenSource? updateOperation;
     private bool updateWindowClosed;
     private long updateViewRevision;
@@ -88,6 +97,7 @@ internal sealed partial class DashboardWindow
             catch (Exception error) when (error is not OutOfMemoryException) { status.Text = "Could not complete the Windows update. Try again or open the releases page."; }
             finally { if (!updateHandedOff) { CancelUpdateOperation(); pendingRestart = null; pendingMsiRestart = null; } if (ReferenceEquals(updateOperation, cancellation)) updateOperation = null; cancel.Visibility = Visibility.Collapsed; }
         });
+        manualUpdateCheck = check;
         check.HorizontalAlignment = HorizontalAlignment.Left; check.Margin = new Thickness(14, 9, 14, 9);
         cancel.HorizontalAlignment = HorizontalAlignment.Left; cancel.Margin = new Thickness(14, 0, 14, 9);
         body.Children.Add(SettingsUi.Section("Updates", check, cancel));

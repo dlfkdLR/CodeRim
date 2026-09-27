@@ -10,6 +10,37 @@
   <SolidColorBrush x:Key="SecondaryText" Color="#A6A6AA"/>
   <SolidColorBrush x:Key="DividerBrush" Color="#414141"/>
   <SolidColorBrush x:Key="AccentBrush" Color="#0A84FF"/>
+  <SolidColorBrush x:Key="LimitCardBackground" Color="#292929"/>
+  <Style x:Key="UsageLimitsDisclosure" TargetType="Expander">
+   <Setter Property="FontSize" Value="11"/><Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Expander">
+    <StackPanel>
+     <ToggleButton x:Name="HeaderSite" IsChecked="{Binding IsExpanded, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" HorizontalAlignment="Left"
+                   AutomationProperties.Name="About these limits" Foreground="{TemplateBinding Foreground}">
+      <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
+       <Border Background="Transparent" Padding="0,2"><StackPanel Orientation="Horizontal">
+        <Path x:Name="Chevron" Data="M 1 1 L 5 5 L 1 9" Width="6" Height="10" Stroke="{TemplateBinding Foreground}" StrokeThickness="1.2" Margin="0,0,6,0" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"><Path.RenderTransform><RotateTransform/></Path.RenderTransform></Path>
+        <ContentPresenter VerticalAlignment="Center"/>
+       </StackPanel></Border>
+       <ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="Chevron" Property="RenderTransform"><Setter.Value><RotateTransform Angle="90"/></Setter.Value></Setter></Trigger></ControlTemplate.Triggers>
+      </ControlTemplate></ToggleButton.Template>
+      <ContentPresenter ContentSource="Header" RecognizesAccessKey="True"/>
+     </ToggleButton>
+     <ContentPresenter x:Name="Details" ContentSource="Content" Visibility="Collapsed"/>
+    </StackPanel>
+    <ControlTemplate.Triggers><Trigger Property="IsExpanded" Value="True"><Setter TargetName="Details" Property="Visibility" Value="Visible"/></Trigger></ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="ProviderUsageProgress" TargetType="ProgressBar">
+   <Setter Property="Height" Value="4"/><Setter Property="Minimum" Value="0"/><Setter Property="Maximum" Value="100"/>
+   <Setter Property="Background" Value="{DynamicResource ControlBackground}"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ProgressBar">
+    <Grid SnapsToDevicePixels="True">
+     <Border x:Name="PART_Track" Background="{TemplateBinding Background}" CornerRadius="2"/>
+     <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="2" HorizontalAlignment="Left"/>
+    </Grid>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
   <Style TargetType="ScrollBar">
    <Setter Property="Width" Value="8"/><Setter Property="Background" Value="Transparent"/>
    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ScrollBar">
@@ -123,6 +154,7 @@
    </Setter.Value></Setter>
   </Style>
   <Style x:Key="NotchButton" TargetType="Button">
+   <Setter Property="HorizontalContentAlignment" Value="Center"/>
    <Setter Property="views:Motion.Feedback" Value="True"/>
    <Setter Property="Background" Value="Transparent"/><Setter Property="Foreground" Value="White"/>
    <Setter Property="Padding" Value="0"/><Setter Property="BorderThickness" Value="0"/>
@@ -131,7 +163,7 @@
     <ControlTemplate TargetType="Button">
      <Grid Background="{TemplateBinding Background}">
       <Border Background="#18FFFFFF" CornerRadius="12" Opacity="{Binding Path=(views:Motion.Hover), RelativeSource={RelativeSource TemplatedParent}}" IsHitTestVisible="False"/>
-      <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+      <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" VerticalAlignment="Center"/>
       <Border x:Name="Focus" CornerRadius="12" BorderThickness="1" BorderBrush="Transparent" IsHitTestVisible="False"/>
      </Grid>
      <ControlTemplate.Triggers>
@@ -143,6 +175,35 @@
   </Style>
   <Style x:Key="IconButton" TargetType="Button" BasedOn="{StaticResource NotchButton}">
    <Setter Property="Width" Value="36"/><Setter Property="Height" Value="36"/>
+  </Style>
+  <Style x:Key="NotchProviderButton" TargetType="Button" BasedOn="{StaticResource NotchButton}">
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Grid Background="{TemplateBinding Background}">
+     <Grid HorizontalAlignment="Center" VerticalAlignment="Center">
+      <ContentPresenter/>
+      <Ellipse x:Name="Focus" Width="44" Height="44" VerticalAlignment="Top" Stroke="Transparent" StrokeThickness="1" IsHitTestVisible="False"/>
+     </Grid>
+    </Grid>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Stroke" Value="#808080"/></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="NotchSettingsButton" TargetType="Button" BasedOn="{StaticResource NotchButton}">
+   <!-- The orb owns its hover drawing. Its larger hit region must not paint a
+        second rectangular surface outside the black rail. -->
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Grid>
+     <Ellipse Fill="{TemplateBinding Background}"/>
+     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+     <Ellipse x:Name="Focus" Stroke="Transparent" StrokeThickness="1" Margin="4" IsHitTestVisible="False"/>
+    </Grid>
+    <ControlTemplate.Triggers>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Stroke" Value="#808080"/></Trigger>
+     <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+    </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
   </Style>
   <Style TargetType="ComboBoxItem">
    <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
@@ -218,23 +279,29 @@
     <Grid>
      <ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}" ClickMode="Press">
       <ToggleButton.Template><ControlTemplate TargetType="ToggleButton">
-       <Border x:Name="Surface" CornerRadius="6" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"/>
+       <Border x:Name="Surface" CornerRadius="8" Background="{DynamicResource CardBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1"/>
        <ControlTemplate.Triggers><Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Surface" Property="Background" Value="{DynamicResource ControlBackground}"/></Trigger></ControlTemplate.Triggers>
       </ControlTemplate></ToggleButton.Template>
      </ToggleButton>
      <ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" Margin="10,4,28,4" VerticalAlignment="Center" IsHitTestVisible="False"/>
      <Path Data="M 0 3 L 3 0 L 6 3 M 0 7 L 3 10 L 6 7" Stroke="{DynamicResource SecondaryText}" StrokeThickness="1.2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0" IsHitTestVisible="False"/>
-     <Border x:Name="Focus" CornerRadius="6" BorderThickness="1" BorderBrush="Transparent" IsHitTestVisible="False"/>
+     <Border x:Name="Focus" CornerRadius="8" BorderThickness="1" BorderBrush="Transparent" IsHitTestVisible="False"/>
      <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" Placement="Bottom" PopupAnimation="None">
-      <Border Background="{DynamicResource PanelBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="6" Padding="4" MinWidth="{TemplateBinding ActualWidth}">
-       <ScrollViewer MaxHeight="{TemplateBinding MaxDropDownHeight}" CanContentScroll="True" HorizontalScrollBarVisibility="Disabled"><ItemsPresenter KeyboardNavigation.DirectionalNavigation="Contained"/></ScrollViewer>
-      </Border>
+      <Border x:Name="PART_ProviderContent" Width="272" Background="{DynamicResource WindowBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="12" Padding="10"/>
      </Popup>
     </Grid>
     <ControlTemplate.Triggers>
      <Trigger Property="IsKeyboardFocusWithin" Value="True"><Setter TargetName="Focus" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/></Trigger>
      <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
     </ControlTemplate.Triggers>
+   </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="UsageProviderOption" TargetType="Button">
+   <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/><Setter Property="BorderThickness" Value="1"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Border x:Name="Surface" CornerRadius="8" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" Padding="{TemplateBinding Padding}">
+     <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
+    </Border>
    </ControlTemplate></Setter.Value></Setter>
   </Style>
   <Style x:Key="UsageModeButton" TargetType="RadioButton">

@@ -254,7 +254,11 @@ public sealed class ScriptProviders : IDisposable
             foreach (var row in rows.EnumerateArray().Take(100))
                 if (Text(row, "value") is { } display) windows.Add(new("detail-" + windows.Count, Text(row, "label") ?? Text(detail, "title") ?? "Usage", DisplayValue: display + (Text(row, "secondaryValue") is { } secondary ? " · " + secondary : "")));
         }
-        return new(id, windows.Count > 0 ? Text(root, "dataConfidence") == "estimated" ? ReadingState.Partial : ReadingState.Ready : ReadingState.Unavailable, windows, DateTimeOffset.Now, Plan: Text(Get(root, "identity"), "loginMethod"), CostUsage: activity);
+        var identity = Get(root, "identity");
+        var account = Catalog.TryGetValue(id, out var definition)
+            ? new ProviderAccountMetadata(ProviderAccountMetadata.DisplayText(Text(identity, "accountEmail")),
+                definition.CookieDomains.Length > 0 ? "web" : "api") : null;
+        return new(id, windows.Count > 0 ? Text(root, "dataConfidence") == "estimated" ? ReadingState.Partial : ReadingState.Ready : ReadingState.Unavailable, windows, DateTimeOffset.Now, Plan: ProviderAccountMetadata.DisplayText(Text(identity, "loginMethod")), CostUsage: activity, Account: account);
     }
     private static ProviderCostUsage? ReadCostUsage(JsonElement value)
     {

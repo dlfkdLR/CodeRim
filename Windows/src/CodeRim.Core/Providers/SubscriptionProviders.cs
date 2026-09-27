@@ -12,6 +12,7 @@ public sealed partial class NativeProviders
     private static readonly HashSet<string> SubscriptionIds = new(StringComparer.Ordinal) { "kilo", "devin", "minimax" };
     public static string[]? CredentialKeys(string id) => id switch
     {
+        "commandcode" => ["COMMAND_CODE_API_KEY"],
         "kimi" => ["KIMI_CODE_API_KEY"], "minimax" => ["MINIMAX_CODING_API_KEY", "MINIMAX_API_KEY"],
         "devin" => ["DEVIN_BEARER_TOKEN", "DEVIN_AUTHORIZATION"],
         "longcat" => ["LONGCAT_MANUAL_COOKIE", "longcat_manual_cookie"],

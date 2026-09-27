@@ -71,8 +71,18 @@ internal static partial class NativeSmoke
                             && texts.Any(text => text.Contains("12", StringComparison.Ordinal) && text.Contains("USD", StringComparison.Ordinal)),
                             "Moonshot balance was replaced with synthetic percentage quota.");
                     }
-                    else Require(texts.Any(text => text.Contains(id == "codebuff" ? "12% used" : "33% used", StringComparison.Ordinal)),
+                    else Require(Descendants<ProgressBar>(window).Any(bar => Math.Abs(bar.Value - (id == "codebuff" ? 12 : 33)) < 0.001),
                         "Provider quota did not reach its native view.");
+                    if (id is "copilot" or "glm")
+                    {
+                        var source = id == "copilot" ? "GitHub" : "OpenCode";
+                        Require(reading.Account is { Label: null } && reading.Account.Source == source
+                            && Descendants<TextBlock>(window).Any(text => System.Windows.Automation.AutomationProperties.GetAutomationId(text) == "provider.identity.source" && text.Text == source),
+                            "Provider transport account source did not reach the mounted detail view.");
+                        if (id == "glm") Require(Descendants<TextBlock>(window).SelectMany(text => text.Inlines.OfType<System.Windows.Documents.Hyperlink>())
+                            .Any(link => System.Windows.Automation.AutomationProperties.GetName(link) == "Open usage page" && link.NavigateUri.AbsoluteUri == "https://open.bigmodel.cn/usage"),
+                            "GLM native account view uses another region's management page.");
+                    }
                     Capture(window, Path.Combine(directory, "windows-auth-view-" + id + ".png"));
                     evidence.Add(new { provider = id, requests = count, reading.State, reading.Plan,
                         reading.Windows, connectorStoreWpf = "PASS", syntheticPreview = false });

@@ -30,6 +30,38 @@ internal static partial class NativeSmoke
             checks.Add(message);
             File.WriteAllText(Path.Combine(directory, "windows-ui-progress.json"), JsonSerializer.Serialize(checks, JsonOptions));
         }
+        async Task<string> ClaudeCommand(string stage, string executable, IEnumerable<string> arguments, string? input = null, int timeoutSeconds = 20)
+        {
+            var timer = System.Diagnostics.Stopwatch.StartNew();
+            var baseline = ClaudeCommandProcesses();
+            var existing = baseline.Processes.Select(x => (x.Id, x.StartTicks)).ToHashSet();
+            var observations = new List<object>();
+            void Write(string state) => File.WriteAllText(Path.Combine(directory, "windows-claude-command.json"),
+                JsonSerializer.Serialize(new { stage, state, elapsedMilliseconds = timer.ElapsedMilliseconds, timeoutSeconds,
+                    baselineIncomplete = baseline.Incomplete, observations }, JsonOptions));
+            Write("running");
+            try
+            {
+                var command = BoundedProcess.RunAsync(executable, arguments, input, timeout: TimeSpan.FromSeconds(timeoutSeconds));
+                while (!command.IsCompleted)
+                {
+                    var sample = ClaudeCommandProcesses();
+                    observations.Add(new { elapsedMilliseconds = timer.ElapsedMilliseconds,
+                        probeIncomplete = sample.Incomplete, processes = sample.Processes.Where(x => !existing.Contains((x.Id, x.StartTicks))).ToArray() });
+                    await Task.WhenAny(command, Task.Delay(1000));
+                }
+                var result = await command;
+                Write("completed"); return result;
+            }
+            catch (Exception error) when (error is not OutOfMemoryException)
+            {
+                Exception failure = error;
+                try { Write("failed"); }
+                catch (Exception receiptError) when (receiptError is IOException or UnauthorizedAccessException)
+                { failure = new AggregateException(error, receiptError); }
+                throw new InvalidOperationException("Native Claude command failed: " + stage, failure);
+            }
+        }
         File.WriteAllText(Path.Combine(directory, "windows-native-host.json"), JsonSerializer.Serialize(new {
             os_architecture = System.Runtime.InteropServices.RuntimeInformation.OSArchitecture.ToString(),
             process_architecture = System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture.ToString(),
@@ -37,6 +69,7 @@ internal static partial class NativeSmoke
             os = System.Runtime.InteropServices.RuntimeInformation.OSDescription
         }, JsonOptions));
         Require(store.Synthetic, "Smoke must use synthetic data");
+        await CaptureOffsetRegression(directory);
         Require(typeof(ReleaseUpdates).Assembly.GetType("CodeRim.Core.Services.MsiUpdateQa") is null, "QA updater entry leaked into the release binary");
         Record("Release assembly excludes the conditional MSI QA entry");
         var worker = Path.Combine(AppContext.BaseDirectory, "CodeRim.UpdateWorker.exe");
@@ -163,11 +196,34 @@ internal static partial class NativeSmoke
             var hooks = installed.RootElement.GetProperty("hooks");
             Require(hooks.GetProperty("Stop").GetArrayLength() == 1 && hooks.GetProperty("SessionStart").GetArrayLength() == 1, "Claude setup duplicated or discarded hooks");
             var command = ClaudeHookInstaller.Command("claude-status").Split(' ', StringSplitOptions.RemoveEmptyEntries);
-            var result = await BoundedProcess.RunAsync(Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"),
+            var result = await ClaudeCommand("installed-status-stdin", Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe"),
                 command.Skip(1), """{"session_id":"synthetic-unregistered","rate_limits":{"five_hour":{"used_percentage":53}}}""",
-                timeout: TimeSpan.FromSeconds(45));
+                timeoutSeconds: 45);
             Require(result.Contains("53%", StringComparison.Ordinal), "Installed Claude command did not read stdin");
-            Record("Claude installation preserves settings, is idempotent, and executes its Windows command with stdin");
+            ClaudeHookInstaller.Uninstall(); ClaudeHookInstaller.Uninstall();
+            using var removed = JsonDocument.Parse(File.ReadAllText(ClaudeHookInstaller.SettingsPath));
+            Require(!removed.RootElement.TryGetProperty("statusLine", out _) && removed.RootElement.GetProperty("unrelated").GetBoolean()
+                && !removed.RootElement.GetProperty("hooks").TryGetProperty("SessionStart", out _)
+                && removed.RootElement.GetProperty("hooks").GetProperty("Stop").GetArrayLength() == 1,
+                "Claude disconnect did not remove only its owned settings.");
+            var originalStatus = """{"type":"command","command":"fixture-user-status","padding":3}""";
+            var userSettings = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(ClaudeHookInstaller.SettingsPath))!;
+            userSettings["statusLine"] = System.Text.Json.Nodes.JsonNode.Parse(originalStatus);
+            File.WriteAllText(ClaudeHookInstaller.SettingsPath, userSettings.ToJsonString());
+            var helper = Path.Combine(AppContext.BaseDirectory, "CodeRimCLI.exe");
+            await ClaudeCommand("connect-replace-statusline", helper, ["claude-connect", "--replace-statusline"]);
+            await ClaudeCommand("disconnect-restore-statusline", helper, ["claude-disconnect"]);
+            var restored = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(ClaudeHookInstaller.SettingsPath))!;
+            Require(System.Text.Json.Nodes.JsonNode.DeepEquals(restored["statusLine"], System.Text.Json.Nodes.JsonNode.Parse(originalStatus)),
+                "CLI disconnect failed to restore the user's original status line.");
+            ClaudeHookInstaller.Install(replaceExisting: true);
+            var edited = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(ClaudeHookInstaller.SettingsPath))!;
+            edited["statusLine"]!["command"] = "fixture-new-user-status";
+            File.WriteAllText(ClaudeHookInstaller.SettingsPath, edited.ToJsonString());
+            ClaudeHookInstaller.Uninstall();
+            var preserved = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(ClaudeHookInstaller.SettingsPath))!;
+            Require(preserved["statusLine"]!["command"]!.GetValue<string>() == "fixture-new-user-status", "Disconnect overwrote a status line edited since install.");
+            Record("Claude installation is idempotent, executes stdin, restores original settings through CLI disconnect and preserves later user edits");
         }
         finally { Environment.SetEnvironmentVariable("CLAUDE_CONFIG_DIR", previousClaudeConfig); }
 
@@ -180,11 +236,11 @@ internal static partial class NativeSmoke
         settings.Save(settings.Current with { Visibility = NotchVisibility.OnHover });
         dashboard.Navigate("providers"); await Idle();
         var listPlan = Descendants<TextBlock>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "provider-list.codex");
-        Require(listPlan.Text == "Preview account", "Provider list fixture was not loaded");
+        Require(listPlan.Text.Contains("Preview account", StringComparison.Ordinal), "Provider list fixture was not loaded");
         store.InvalidateAccount("codex"); await Idle();
-        Require(listPlan.Text != "Preview account", "Provider list kept stale plan after account invalidation");
+        Require(!listPlan.Text.Contains("Preview account", StringComparison.Ordinal), "Provider list kept stale plan after account invalidation");
         await store.RefreshProviderAsync("codex"); await Idle();
-        Require(listPlan.Text == "Preview account" && Descendants<TextBlock>(dashboard).Contains(listPlan), "Provider list did not refresh its existing row");
+        Require(listPlan.Text.Contains("Preview account", StringComparison.Ordinal) && Descendants<TextBlock>(dashboard).Contains(listPlan), "Provider list did not refresh its existing row");
         dashboard.Navigate("usage"); await Idle();
         Require(Descendants<Button>(dashboard).Any(x => AutomationProperties.GetAutomationId(x) == "usage.refresh"), "Usage header has no refresh action");
         var providerPicker = Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage provider");
@@ -193,8 +249,18 @@ internal static partial class NativeSmoke
             new System.Windows.Input.TextComposition(System.Windows.Input.InputManager.Current, providerPicker, "Claude"))
             { RoutedEvent = System.Windows.Input.TextCompositionManager.TextInputEvent });
         await Idle();
-        Require(providerPicker.SelectedValue is string selectedProvider && selectedProvider == "claude", "Provider name typing no longer selects Claude");
-        Require(Descendants<ProviderMark>(providerPicker).Any(x => x.ProviderId == "claude"), "Provider typing left a stale logo");
+        Require(Equals(providerPicker.SelectedValue, "codex") && settings.Current.UsageProvider == "codex", "Closed provider button changed selection through ComboBox text search");
+        foreach (var key in new[] { System.Windows.Input.Key.Space, System.Windows.Input.Key.Down, System.Windows.Input.Key.Enter })
+        {
+            var input = new System.Windows.Input.KeyEventArgs(System.Windows.Input.Keyboard.PrimaryDevice,
+                PresentationSource.FromVisual(providerPicker)!, 0, key) { RoutedEvent = System.Windows.Input.Keyboard.PreviewKeyDownEvent };
+            providerPicker.RaiseEvent(input);
+            if (!input.Handled) { input.RoutedEvent = System.Windows.Input.Keyboard.KeyDownEvent; providerPicker.RaiseEvent(input); }
+            await Idle();
+        }
+        Require(Equals(providerPicker.SelectedValue, "claude") && settings.Current.UsageProvider == "claude" && !providerPicker.IsDropDownOpen,
+            "Opening the provider list and confirming Claude did not update Usage");
+        Require(Descendants<ProviderMark>(providerPicker).Any(x => x.ProviderId == "claude"), "Provider selection left a stale logo");
         Descendants<UsagePane>(dashboard).Single().SelectProvider("codex");
         System.Windows.Input.Keyboard.ClearFocus(); await Idle();
         var usageModes = Descendants<RadioButton>(dashboard).Where(x => x.GroupName == "UsageMode").ToArray();
@@ -202,6 +268,12 @@ internal static partial class NativeSmoke
         Require(usageModes.Select(VisualTreeHelper.GetParent).Distinct().Count() == 1, "Usage modes are not one segmented control");
         var refreshAction = Descendants<Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.refresh");
         Require(refreshAction.Content is System.Windows.Shapes.Path && AutomationProperties.GetName(refreshAction) == "Refresh usage", "Usage refresh icon has no accessible action name");
+        var refreshGlyph = (System.Windows.Shapes.Path)refreshAction.Content;
+        var glyphBounds = refreshGlyph.RenderedGeometry.GetRenderBounds(new Pen(Brushes.Black, refreshGlyph.StrokeThickness));
+        Require(glyphBounds.Left >= -0.1 && glyphBounds.Top >= -0.1 && glyphBounds.Right <= refreshGlyph.ActualWidth + 0.1 && glyphBounds.Bottom <= refreshGlyph.ActualHeight + 0.1,
+            "Refresh icon stroke extends outside its arranged bounds.");
+        Require(refreshAction.ActualWidth - refreshAction.Padding.Left - refreshAction.Padding.Right - refreshAction.BorderThickness.Left - refreshAction.BorderThickness.Right >= refreshGlyph.ActualWidth,
+            "Refresh button padding clips its icon.");
         Require(Descendants<ProviderMark>(dashboard).Any(x => x.ProviderId == "codex"), "Usage provider selector is missing its glyph");
         usageModes[1].IsChecked = true; await Idle();
         Require(usageModes[1].IsChecked == true && usageModes[0].IsChecked == false, "Limits segment failed to select exclusively");
@@ -219,7 +291,7 @@ internal static partial class NativeSmoke
         store.InvalidateAccount("codex"); await Idle();
         Require(planLabel.Text == "Unavailable" && stateLabel.Text == "Available", "Account invalidation kept old provider identity metadata");
         await store.RefreshProviderAsync("codex"); await Idle();
-        Require(planLabel.Text == "Preview account" && stateLabel.Text == "Ready", "Provider metadata did not refresh in place");
+        Require(planLabel.Text == "Preview account" && stateLabel.Text == "Available", "Provider metadata did not refresh in place");
         Require(Descendants<TextBlock>(dashboard).Contains(planLabel), "Provider refresh rebuilt the account card");
         Record("Provider plan and connection state follow account invalidation and refresh without rebuilding controls");
         dashboard.Navigate("usage"); await Idle();
@@ -251,8 +323,8 @@ internal static partial class NativeSmoke
 
         Descendants<Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.activity").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
         await Idle();
-        var analyticsPeriod = Descendants<ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period");
-        Require(Equals(analyticsPeriod.SelectedValue, "7d"), "Usage analytics did not default to the rolling seven-day range");
+        var analyticsPeriod = Descendants<RadioButton>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.7d");
+        Require(analyticsPeriod.IsChecked == true, "Usage analytics did not default to the rolling seven-day range");
         var bucketButton = Descendants<Button>(dashboard).Last(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.tokens.", StringComparison.Ordinal));
         bucketButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
         var bucketDetails = Descendants<StackPanel>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.bucket-details");
@@ -301,8 +373,43 @@ internal static partial class NativeSmoke
         await AdditionalBrowserConnectionsRegression(dashboard, settings, vault, directory);
         Record("Five additional Firefox readers verify scoped login and render native quota");
         Record("Moonshot regional endpoints, DPAPI key isolation, environment aliases and source UI");
+        await ProviderRowsRegression(dashboard, store, settings, directory);
+        await ProviderAccountOwnershipRegression(settings, vault, directory);
+        await ProviderPickersRegression(dashboard, store, settings, directory);
+        Record("Mac provider catalogue and searchable Usage popover");
+        await IsolatedAccountsRegression(directory);
+        Record("Isolated Add Account success, cancellation, verification and cleanup for Codex and Claude");
+        await ClaudeIntegrationRegression(settings, vault, directory);
+        await ClaudeMigrationRegression(vault, directory);
+        await ProviderPreferencesRegression(dashboard, settings, directory);
+        await ProviderDetailsRegression(dashboard, store, settings, directory);
+        await NativeAccountRegression(dashboard, store, settings, vault, directory);
+        await IndependentAccountSummaryRegression(settings, vault, directory);
+        await CursorAgentRegression(settings, vault, directory);
+        await CopilotAccountSummaryRegression(settings, vault, directory);
+        await GlmAccountSummaryRegression(settings, vault, directory);
+        await ProviderPresenceRegression(notch, store, settings, directory);
+        await ProviderFailurePresentationRegression(dashboard, notch, store, settings, directory);
+        await MacReferenceRegression(dashboard, store, settings, directory);
+        Record("macOS reference shell, refresh modes and Usage states");
         await AnalyticsRegression(store, settings, directory);
+        await AnalyticsStateRegression(store, settings, directory);
+        await ChartRefreshRegression(store, settings, directory);
+        await AnalyticsDetailsRegression(store, settings, directory);
+        await ClaudeAgentUsageRegression(store, settings, directory);
+        await AnalyticsLabelsRegression(store, settings, directory);
+        await AnalyticsListsRegression(store, settings, directory);
+        AnalyticsDateRegression(directory);
         ActivityRegression(store);
+        await SessionPresentationRegression(dashboard, store, settings, directory);
+        await ActivityGroupsRegression(notch, store, settings, directory);
+        await SettingsReferenceRegression(dashboard, settings, directory);
+        await TrayRegression(dashboard, settings, directory);
+        await ProfileHistoryRegression(settings, vault, directory);
+        await LocalDataRegression(settings, vault, directory);
+        await WindowFrameRegression(store, settings, vault, directory);
+        await LocalTokenRegression(store, settings, vault, directory);
+        await NotchLimitsRegression(store, settings, directory);
         Record("Live Claude transcript completion and duplicate registry selection; provider-specific turn entry timing");
         Record("Narrow usage layout, proportional sub-dollar cost, cost gaps and Today/7D/30D totals");
 
@@ -348,27 +455,29 @@ internal static partial class NativeSmoke
 
         var projects = Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.projects");
         projects.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
-        var periodSelector = Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period");
-        periodSelector.SelectedValue = "month";
+        RadioButton ListRange(string id) => Descendants<RadioButton>(dashboard).Single(x => x.GroupName == "UsageRange" && Equals(x.Tag, id));
+        Require(ListRange("30d").IsChecked == true, "Projects did not use the reference initial 30D range");
+        Require(!Descendants<System.Windows.Controls.TextBox>(dashboard).Any(), "List find must stay out of the default reference layout");
+        ListRange("7d").IsChecked = true;
+        Require(Descendants<UsagePane>(dashboard).Single().HandleShortcut(System.Windows.Input.Key.F, System.Windows.Input.ModifierKeys.Control), "Projects find shortcut failed"); await Idle();
         var filter = Descendants<System.Windows.Controls.TextBox>(dashboard).Single(); filter.Text = "CodeRim"; await Idle();
         var projectRow = Descendants<System.Windows.Controls.Button>(dashboard).FirstOrDefault(x => (AutomationProperties.GetName(x) ?? "").StartsWith("CodeRim:", StringComparison.Ordinal));
         Require(projectRow is not null, "Synthetic project row missing");
         projectRow!.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
-        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => Equals(x.Content, "‹ Back")).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.navigation.back").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         Require(Descendants<System.Windows.Controls.TextBox>(dashboard).Single().Text == "CodeRim", "Back lost project search");
-        Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period").SelectedValue == "month", "Back lost selected period");
-        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => Equals(x.Content, "‹ Back")).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        Require(ListRange("7d").IsChecked == true, "Back lost selected period");
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.navigation.back").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         Record("Project detail Back restores list search and period");
 
         dashboard.Navigate("sessions:codex"); await Idle();
         settings.Save(settings.Current with { EnabledProviders = ["claude"] });
         dashboard.Navigate("providers"); dashboard.Navigate("usage"); await Idle();
-        Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).First().SelectedValue == "claude", "Removed provider did not select an available provider");
-        Require(Descendants<RadioButton>(dashboard).Any(), "Removed provider retained its detail navigation");
-        Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Today"), "Removed provider did not return to available provider overview");
+        Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).First().SelectedValue == "codex", "Hiding Codex from the notch removed its Usage selection");
+        Require(settings.Current.UsageProvider == "codex", "Notch visibility changed the saved Usage provider");
         settings.Save(settings.Current with { EnabledProviders = ["codex", "claude"] });
         dashboard.Navigate("usage"); Descendants<System.Windows.Controls.ComboBox>(dashboard).First().SelectedValue = "codex"; await Idle();
-        Record("Removing a provider clears its navigation and filters");
+        Record("Removing Codex from the notch preserves its Usage selection");
 
 
         dashboard.Navigate("codex"); await Idle();
@@ -383,22 +492,30 @@ internal static partial class NativeSmoke
         settings.Save(settings.Current with { AdditionalLimitsEnabled = true, ResetCreditsEnabled = true });
         Record("Codex limit switches filter all surfaces and dependent controls follow parent setting");
         dashboard.Navigate("sessions:codex"); await Idle();
-        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => (AutomationProperties.GetName(x) ?? "").StartsWith("preview-session:", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.session.preview-session").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
         await Idle();
         Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Whole-session images"), "Session image metadata is absent");
         Require(!Descendants<System.Windows.Controls.TextBox>(dashboard).Any(), "List filter leaked into session detail");
         Require(Descendants<ListBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Settings sections").SelectedItem is ListBoxItem { Tag: "usage" }, "Session route left the wrong sidebar section selected");
-        var sessionPeriod = Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage period");
-        sessionPeriod.SelectedValue = "today"; await Idle();
-        Require(!Descendants<System.Windows.Controls.Button>(dashboard).Any(x => (x.Content as string ?? "").StartsWith("Sub-agent preview-", StringComparison.Ordinal)), "Out-of-period child links lead to empty detail");
-        sessionPeriod.SelectedValue = "all-time"; await Idle();
-        var childButton = Descendants<System.Windows.Controls.Button>(dashboard).Single(x => (x.Content as string ?? "").StartsWith("Sub-agent preview-", StringComparison.Ordinal));
+        Require(!Descendants<RadioButton>(dashboard).Any(x => x.GroupName == "UsageRange"), "Session detail retained a period control instead of inheriting its list range");
+        Descendants<UsagePane>(dashboard).Single().Back(); await Idle(); ListRange("today").IsChecked = true; await Idle();
+        var todaySession = Descendants<System.Windows.Controls.Button>(dashboard).SingleOrDefault(x => AutomationProperties.GetAutomationId(x) == "usage.session.preview-session");
+        if (todaySession is not null)
+        {
+            todaySession.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+            Require(!Descendants<System.Windows.Controls.Button>(dashboard).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.subagent.", StringComparison.Ordinal)), "Out-of-period child links lead to empty detail");
+            Descendants<UsagePane>(dashboard).Single().Back(); await Idle();
+        }
+        else Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "No sessions in this range."), "A midnight range without the preview session lost its empty state");
+        ListRange("7d").IsChecked = true; await Idle();
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.session.preview-session").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        var childButton = Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.subagent.", StringComparison.Ordinal));
         Capture(dashboard, Path.Combine(directory, "windows-session-details.png"));
         childButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "120"), "Sub-agent navigation did not show its own total");
         settings.Save(settings.Current with { AgentDetailsEnabled = false, AttachmentMetadataEnabled = false });
         dashboard.Navigate("providers"); dashboard.Navigate("sessions:codex"); await Idle();
-        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => (AutomationProperties.GetName(x) ?? "").StartsWith("preview-session:", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.session.preview-session").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         Require(!Descendants<TextBlock>(dashboard).Any(x => x.Text is "Whole-session images" or "Direct sub-agents"), "Disabled session metadata remained visible");
         settings.Save(settings.Current with { AgentDetailsEnabled = true, AttachmentMetadataEnabled = true });
         dashboard.Navigate("usage"); await Idle();
@@ -487,6 +604,8 @@ internal static partial class NativeSmoke
         Descendants<System.Windows.Controls.CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Show edge notch").IsChecked = true; await Idle();
         Require(settings.Current.Visibility == NotchVisibility.AlwaysShow, "Hide and show lost the saved notch behavior");
         Record("Picker selection preserves keyboard focus and hiding preserves Always show");
+        await NotchShellRegression(dashboard, notch, settings, directory);
+        Record("Notch tool-window styles survive hide/show; four-edge native bounds and transparent orb hot zones match the reference");
         foreach (var edge in Enum.GetValues<NotchEdge>())
         foreach (var scale in new[] { 0.8, 1d, 1.25 })
         {
@@ -503,25 +622,29 @@ internal static partial class NativeSmoke
             Require(notch.PopupContent is { ActualWidth: > 0, ActualHeight: > 0 }, "Provider popup did not open");
             notch.OpenProvider("codex"); await Idle();
             RequirePopupClearOfNotch(notch, edge + "/" + scale);
-            Require(Descendants<TextBlock>(notch.PopupContent!).Count(x => x.Text.Contains("2 resets", StringComparison.Ordinal)) == 1,
-                "Reset credit balance was duplicated in the popup");
+            var tail = Descendants<System.Windows.Shapes.Path>(notch.PopupContent!).Single(x => AutomationProperties.GetAutomationId(x) == "notch.tail");
+            var figure = PathGeometry.CreateFromGeometry(tail.Data).Figures.Single();
+            var verticalTail = edge is NotchEdge.Left or NotchEdge.Right;
+            // WPF can coalesce adjacent cubics into a PolyBezierSegment.
+            var cubicCount = figure.Segments.Sum(segment => segment switch
+            {
+                BezierSegment => 1,
+                PolyBezierSegment curves when curves.Points.Count % 3 == 0 => curves.Points.Count / 3,
+                _ => -100
+            });
+            Require(figure.IsClosed && cubicCount == 2
+                && Math.Abs(tail.ActualWidth - (verticalTail ? NotchMetrics.Tail : NotchMetrics.TailHeight)) < 1
+                && Math.Abs(tail.ActualHeight - (verticalTail ? NotchMetrics.TailHeight : NotchMetrics.Tail)) < 1,
+                "Popup tail is not the reference's bounded curved silhouette: " + edge);
+            Require(!Descendants<TextBlock>(notch.PopupContent!).Any(x => x.Text == "Reset credits" || x.Text.Contains("2 resets", StringComparison.Ordinal)),
+                "Reset credits leaked from Usage into the reference's quota-only notch popup");
             if (scale == 1) Capture(notch.PopupContent!, Path.Combine(directory, "windows-popup-" + edge + ".png"));
             Record($"{edge} at {scale:0.00}: no clipped single provider or native scroll chrome");
         }
-        var originalCreditReading = store.Readings["codex"];
-        try
-        {
-            foreach (var creditText in new[] { "Unlimited resets", "Reset count unavailable" })
-            {
-                store.Readings["codex"] = originalCreditReading with { Windows =
-                    [new("rate-limit-reset-credits", "Reset credits", Unit: "resets", DisplayValue: creditText)] };
-                notch.OpenProvider("codex"); await Idle();
-                Require(Descendants<TextBlock>(notch.PopupContent!).Any(x => x.Text == creditText), "Non-numeric reset credit status disappeared");
-            }
-        }
-        finally { store.Readings["codex"] = originalCreditReading; }
+        await ResetCreditsRegression(dashboard, notch, store, settings, directory);
+        await AccountLimitsRegression(dashboard, store, settings, directory);
         notch.OpenProvider("codex"); await Idle();
-        Record("Reset credit balance is shown once and unlimited/unavailable states remain visible");
+        Record("Reset credits remain in Usage with numeric, unlimited, available and hidden states; notch matches the quota-only reference");
         System.Windows.Input.Keyboard.ClearFocus();
         // This is pre-hover cleanup. A popup retains its Child after closing, so
         // PopupContent alone does not imply an attached presentation source.
@@ -679,7 +802,16 @@ internal static partial class NativeSmoke
         Require(width > 0 && height > 0, "Empty capture");
         var image = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);
         var background = new DrawingVisual();
-        using (var context = background.RenderOpen()) { context.DrawRectangle((Brush)view.FindResource("WindowBackground"), null, new Rect(0, 0, width, height)); context.DrawRectangle(new VisualBrush(view), null, new Rect(0, 0, width, height)); }
+        var bounds = new Rect(0, 0, width, height);
+        // A scroller's offscreen children expand VisualBrush's automatic content
+        // bounds. Capture the actual viewport instead of shrinking all 70 rows.
+        // A mounted child retains its parent-relative visual offset. Normalize
+        // that source origin so a centered child is not shifted/cropped again.
+        var offset = VisualTreeHelper.GetOffset(view);
+        var sourceBounds = new Rect(offset.X, offset.Y, width, height);
+        var brush = new VisualBrush(view) { ViewboxUnits = BrushMappingMode.Absolute, Viewbox = sourceBounds,
+            ViewportUnits = BrushMappingMode.Absolute, Viewport = bounds, Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top };
+        using (var context = background.RenderOpen()) { context.DrawRectangle((Brush)view.FindResource("WindowBackground"), null, bounds); context.DrawRectangle(brush, null, bounds); }
         image.Render(background); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
         using var file = File.Create(output); encoder.Save(file);
     }

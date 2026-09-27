@@ -57,4 +57,49 @@ public sealed class GitHubAuthenticationTests
         env["GH_CONFIG_DIR"] = Path.Combine(root, "gh"); Assert.Equal(Path.Combine(root, "gh"), Config());
         env["GH_CONFIG_DIR"] = "relative"; Assert.Equal(Path.Combine(root, "xdg", "gh"), Config());
     }
+
+    [Fact]
+    public void UsernameOnlyAccountDoesNotAuthorizeRequestsOrBorrowTokenIdentity()
+    {
+        const string hosts = "github.com:\n  user: fixture-user\n";
+        var account = GitHubAuthentication.AccountSummary(hosts)!;
+        Assert.Equal("fixture-user", account.Account?.Label);
+        Assert.Equal("GitHub", account.Account?.Source);
+        Assert.Null(account.Plan);
+        Assert.Null(GitHubAuthentication.ParseHosts(hosts));
+        Assert.Null(GitHubAuthentication.AccountLabel(hosts, "external-token"));
+        Assert.NotEqual(account.Version, GitHubAuthentication.AccountSummary(hosts.Replace("fixture-user", "other-user", StringComparison.Ordinal))!.Version);
+        Assert.NotEqual(account.Version, GitHubAuthentication.AccountSummary(hosts + "  oauth_token: fixture-token\n")!.Version);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("enterprise.invalid:\n  user: fixture-user\n")]
+    [InlineData("github.com:\n  user: fixture-user\n  user: other\n")]
+    [InlineData("github.com:\n  user: fixture-user\ngithub.com:\n  user: other\n")]
+    [InlineData("github.com:\n  user: fixture-user\n    oauth_token: wrong-indent\n")]
+    [InlineData("github.com:\n\tuser: fixture-user\n")]
+    [InlineData("github.com:\n  user: *alias\n")]
+    [InlineData("github.com:\n  user: \"bad\\nname\"\n")]
+    [InlineData("github.com:\n  user: fixture-user\n  oauth_token: root-token\n  users:\n    fixture-user:\n      oauth_token: conflicting-token\n")]
+    [InlineData("github.com:\n  user: fixture-user\n  oauth_token: \"bad\\ntoken\"\n")]
+    public void DisplaySummaryRejectsMalformedOrAmbiguousHosts(string? hosts)
+        => Assert.Null(GitHubAuthentication.AccountSummary(hosts));
+
+    [Fact]
+    public void DisplaySummaryIsBoundedAndDoesNotSerializeCredentialOrVersion()
+    {
+        Assert.Null(GitHubAuthentication.AccountSummary("github.com:\n  user: " + new string('x', 257)));
+        Assert.Null(GitHubAuthentication.AccountSummary("github.com:\n  user: fixture\n#" + new string('x', 262144)));
+        var summary = GitHubAuthentication.AccountSummary("github.com:\n  user: fixture\n  oauth_token: fixture-secret")!;
+        var serialized = System.Text.Json.JsonSerializer.Serialize(summary);
+        Assert.DoesNotContain("fixture-secret", serialized, StringComparison.Ordinal);
+        Assert.DoesNotContain(summary.Version, serialized, StringComparison.Ordinal);
+        Assert.Equal("Detected provider connection", summary.ToString());
+        var configured = NativeAccountSummary.FromCredential("copilot", "fixture-secret")!;
+        Assert.Null(configured.Account?.Label);
+        Assert.Equal("GitHub", configured.Account?.Source);
+        Assert.NotEqual(summary.Version, configured.Version);
+    }
 }

@@ -24,6 +24,7 @@ public sealed class UsageScanner
     private readonly IReadOnlyList<string> roots;
     private string provider = "codex";
     private byte[]? projectKey;
+    private readonly bool requireCompleteSources;
     private readonly Dictionary<string, CachedFile> cache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentQueue<string> invalidatedPaths = new();
     private readonly int maximumSourceCount;
@@ -50,11 +51,12 @@ public sealed class UsageScanner
     {
     }
 
-    public UsageScanner(string provider, IEnumerable<string>? roots = null, byte[]? projectKey = null) : this(roots ?? DefaultRoots(provider))
+    public UsageScanner(string provider, IEnumerable<string>? roots = null, byte[]? projectKey = null, bool requireCompleteSources = false) : this(roots ?? DefaultRoots(provider))
     {
         if (provider is not ("codex" or "claude")) throw new ArgumentException("Unknown local provider", nameof(provider));
         this.provider = provider;
         this.projectKey = projectKey;
+        this.requireCompleteSources = requireCompleteSources;
     }
 
     internal UsageScanner(
@@ -192,7 +194,7 @@ public sealed class UsageScanner
                     source,
                     Math.Min(maximumEventsPerSource, remainingEventCapacity),
                     before.Length,
-                    cancellationToken, provider, projectKey);
+                    cancellationToken, provider, projectKey, requireCompleteSources);
                 scannedBytes += before.Length;
                 if (parsed.ResourceLimitReached)
                 {
@@ -263,11 +265,12 @@ public sealed class UsageScanner
                 if (eventIndices.TryGetValue(usageEvent.EventKey, out var existingIndex))
                 {
                     var existing = events[existingIndex];
-                    if (existing.Usage.CacheWriteInputTokens is null && usageEvent.Usage.CacheWriteInputTokens is not null
-                        && existing.Usage.InputTokens == usageEvent.Usage.InputTokens
+                    if (existing.Usage.InputTokens == usageEvent.Usage.InputTokens
                         && existing.Usage.CachedInputTokens == usageEvent.Usage.CachedInputTokens
                         && existing.Usage.OutputTokens == usageEvent.Usage.OutputTokens)
-                        events[existingIndex] = existing with { Usage = usageEvent.Usage };
+                        events[existingIndex] = existing with {
+                            Usage = existing.Usage.CacheWriteInputTokens is null && usageEvent.Usage.CacheWriteInputTokens is not null ? usageEvent.Usage : existing.Usage,
+                            PricingContext = usageEvent.PricingContext ?? existing.PricingContext };
                     continue;
                 }
 
@@ -297,7 +300,13 @@ public sealed class UsageScanner
                     _ => "Unable to read local usage"
                 };
         return new ScanResult(snapshot, sources.Count, status.Replace("Codex", provider == "claude" ? "Claude Code" : "Codex", StringComparison.Ordinal), hasMoreWork) { Events = events,
-            Sessions = cache.Values.Where(x => x.Details is not null).Select(x => x.Details! with {
+            Sessions = provider == "claude" ? events.GroupBy(x => x.SessionId, StringComparer.Ordinal).Select(group =>
+            {
+                var named = group.Where(x => x.ProjectId != "unknown").OrderByDescending(x => x.OccurredAt)
+                    .ThenBy(x => x.Project, StringComparer.Ordinal).FirstOrDefault();
+                return new SessionDetails(group.Key, group.Select(x => x.ImportParentSessionId).FirstOrDefault(x => x is not null), []) { StartedAt = group.Min(x => x.OccurredAt),
+                    ProjectName = named?.Project, ProjectObservedAt = named?.OccurredAt };
+            }).ToArray() : cache.Values.Where(x => x.Details is not null).Select(x => x.Details! with {
                 Attachments = x.Details!.Attachments.Where(a => a.OccurredAt <= now).ToArray() }).ToArray() };
     }
 
@@ -310,7 +319,7 @@ public sealed class UsageScanner
         var options = new EnumerationOptions
         {
             RecurseSubdirectories = true,
-            IgnoreInaccessible = true,
+            IgnoreInaccessible = !requireCompleteSources,
             AttributesToSkip = FileAttributes.Hidden
                 | FileAttributes.System
                 | FileAttributes.ReparsePoint,
@@ -322,6 +331,15 @@ public sealed class UsageScanner
         foreach (var root in roots)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (requireCompleteSources)
+            {
+                try
+                {
+                    if ((File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0)
+                        throw new IOException("Local session root is a reparse point.");
+                }
+                catch (Exception error) when (error is DirectoryNotFoundException or FileNotFoundException) { continue; }
+            }
             if (!Directory.Exists(root) || (File.GetAttributes(root) & FileAttributes.ReparsePoint) != 0)
             {
                 continue;
@@ -373,7 +391,7 @@ public sealed class UsageScanner
         string path,
         int maximumEvents,
         long maximumBytes,
-        CancellationToken cancellationToken, string provider = "codex", byte[]? projectKey = null)
+        CancellationToken cancellationToken, string provider = "codex", byte[]? projectKey = null, bool requireCompleteSources = false)
     {
         var events = new List<UsageEvent>();
         var attachments = new List<AttachmentObservation>();
@@ -389,6 +407,9 @@ public sealed class UsageScanner
         var model = "unknown";
         var project = "Unknown project";
         var projectId = "unknown";
+        DateTimeOffset? projectObservedAt = null;
+        var sawCompleteRecord = false;
+        var sourceName = Path.GetFileNameWithoutExtension(path);
 
         using var stream = new FileStream(
             path,
@@ -409,12 +430,32 @@ public sealed class UsageScanner
             }
 
             var line = boundedLine.Bytes!;
+            if (requireCompleteSources && line.AsSpan().IndexOfAnyExcept((byte)' ', (byte)'\t', (byte)'\r') < 0) continue;
+            if (requireCompleteSources)
+            {
+                try
+                {
+                    using var document = System.Text.Json.JsonDocument.Parse(line);
+                    if (document.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object || JsonFields.Text(document.RootElement, "type") is null)
+                    { partial = true; continue; }
+                    sawCompleteRecord = true;
+                }
+                catch (System.Text.Json.JsonException) { partial = true; continue; }
+            }
             if (provider == "claude")
             {
-                if (ClaudeJsonlParser.Parse(line, projectKey) is { } claudeEvent)
+                if (ClaudeJsonlParser.Parse(line, projectKey, sourceName) is { } claudeEvent)
                 {
                     if (events.Count + attachments.Count >= maximumEvents) return new ParsedFile([], true, true);
                     events.Add(claudeEvent);
+                }
+                else if (requireCompleteSources)
+                {
+                    using var document = System.Text.Json.JsonDocument.Parse(line);
+                    var root = document.RootElement; var message = JsonFields.Object(root, "message");
+                    if (JsonFields.Text(root, "type") == "assistant" && !JsonFields.Flag(root, "isApiErrorMessage")
+                        && (JsonFields.Text(message, "model")?.StartsWith("claude-", StringComparison.Ordinal) == true
+                            || JsonFields.Object(message, "usage").ValueKind != System.Text.Json.JsonValueKind.Undefined)) partial = true;
                 }
                 continue;
             }
@@ -462,13 +503,22 @@ public sealed class UsageScanner
                 try
                 {
                     using var document = System.Text.Json.JsonDocument.Parse(line);
-                    var payload = JsonFields.Object(document.RootElement, "payload");
-                    model = JsonFields.Text(payload, "model") ?? model;
-                    if (JsonFields.Text(payload, "cwd") is { } cwd) { project = JsonFields.Folder(cwd); projectId = ClaudeJsonlParser.ProjectIdentity(cwd, projectKey); }
+                    var root = document.RootElement; var type = JsonFields.Text(root, "type");
+                    if (type == "turn_context" || type == "session_meta" && !sawSessionMetadata)
+                    {
+                        var payload = JsonFields.Object(root, "payload");
+                        model = JsonFields.Text(payload, "model") ?? model;
+                        if (JsonFields.Text(payload, "cwd") is { } cwd)
+                        {
+                            project = JsonFields.Folder(cwd); projectId = ClaudeJsonlParser.ProjectIdentity(cwd, projectKey);
+                            projectObservedAt = DateTimeOffset.TryParse(JsonFields.Text(root, "timestamp"), CultureInfo.InvariantCulture,
+                                DateTimeStyles.AssumeUniversal, out var observed) ? observed : null;
+                        }
+                    }
                 }
                 catch (System.Text.Json.JsonException) { partial = true; }
             }
-            if (!ContainsRelevantMarker(line))
+            if (!requireCompleteSources && !ContainsRelevantMarker(line))
             {
                 continue;
             }
@@ -570,7 +620,9 @@ public sealed class UsageScanner
                     events.Add(new UsageEvent(
                         EventKey(sessionId, observation),
                         observation.OccurredAt,
-                        delta, model, project, sessionId, "codex", projectId));
+                        delta, model, project, sessionId, "codex", projectId) {
+                            PricingContext = delta.InputTokens <= UsageAnalytics.HighContextInputThreshold ? PricingContext.Standard
+                                : observation.LastUsage == delta ? PricingContext.HighContext : null });
                     break;
 
                 case ParsedLineKind.Malformed:
@@ -579,8 +631,9 @@ public sealed class UsageScanner
             }
         }
 
-        return new ParsedFile(events, partial, false, prefixHash.GetHashAndReset(), identity,
-            provider == "codex" ? new SessionDetails(sessionId, parentSession, attachments) : null);
+        return new ParsedFile(events, partial || requireCompleteSources && !sawCompleteRecord, false, prefixHash.GetHashAndReset(), identity,
+            provider == "codex" ? new SessionDetails(sessionId, parentSession, attachments) { StartedAt = sessionStartedAt,
+                ProjectName = projectId == "unknown" ? null : project, ProjectObservedAt = projectObservedAt } : null);
     }
 
     private static bool VerifyPrefix(string path, long length, ParsedFile parsed, CancellationToken cancellationToken)
@@ -702,7 +755,7 @@ public sealed class UsageScanner
         ? "none"
         : $"{usage.Value.InputTokens},{usage.Value.CachedInputTokens},{usage.Value.OutputTokens}";
 
-    private static string? SessionIdentifierFromFilename(string path)
+    internal static string? SessionIdentifierFromFilename(string path)
     {
         var stem = Path.GetFileNameWithoutExtension(path);
         if (stem.Length < 36)

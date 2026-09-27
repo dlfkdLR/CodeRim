@@ -26,6 +26,30 @@ public sealed class ReadingRetentionTests
     [Fact]
     public void DifferentProviderIsNeverRetained() => Assert.Empty(ReadingRetention.Merge(new("claude", ReadingState.Error, []), Previous).Windows);
     [Theory]
+    [InlineData("copilot")] [InlineData("cursor")] [InlineData("grok")]
+    [InlineData("commandcode")] [InlineData("opencode")] [InlineData("glm")]
+    [InlineData("ollama")] [InlineData("gemini")] [InlineData("ollama-local")]
+    public void BorrowedReferenceProvidersDiscardFailedQuotaIndependentlyOfDetectedAccount(string id)
+    {
+        var previous = Previous with { Id = id, Account = new("previous@example.invalid", "Local") };
+        foreach (var state in new[] { ReadingState.Error, ReadingState.Unavailable, ReadingState.NeedsAuth, ReadingState.Unsupported, ReadingState.Disabled })
+        {
+            var incoming = new ProviderReading(id, state, [], Message: "Current failure", Account: new("current@example.invalid", "Local"));
+            var result = ReadingRetention.Merge(incoming, previous);
+            Assert.Same(incoming, result); Assert.Empty(result.Windows); Assert.Null(result.UpdatedAt);
+            Assert.Equal("current@example.invalid", result.Account!.Label);
+        }
+    }
+    [Theory]
+    [InlineData("codex")] [InlineData("claude")] [InlineData("poe")] [InlineData("openrouter")]
+    public void UnrelatedProvidersKeepTheirTransientFailureHistory(string id)
+    {
+        var previous = Previous with { Id = id };
+        var result = ReadingRetention.Merge(new(id, ReadingState.Error, []), previous);
+        Assert.Equal(ReadingState.Stale, result.State); Assert.Equal(previous.Windows, result.Windows);
+        Assert.Equal(previous.UpdatedAt, result.UpdatedAt);
+    }
+    [Theory]
     [InlineData(NotchEdge.Left)]
     [InlineData(NotchEdge.Right)]
     [InlineData(NotchEdge.Top)]

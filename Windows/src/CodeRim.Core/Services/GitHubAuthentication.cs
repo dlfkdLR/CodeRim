@@ -21,8 +21,25 @@ public static class GitHubAuthentication
         try { return GuardedFile.Read(Path.Combine(directory, "hosts.yml")); }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidDataException) { return null; }
     }
-    public static string? ParseHosts(string? text)
+    public static string? ParseHosts(string? text) => ParseHosts(text, out _);
+    public static NativeAccountSummary? AccountSummary(string? text)
     {
+        // A username can survive when gh stores its token in the OS vault.
+        // This display-only path must never supply a request credential.
+        var token = ParseHosts(text, out var username, allowUsernameOnly: true);
+        return token is null && username is null ? null
+            : NativeAccountSummary.Create(new(username, "GitHub"), null, "hosts:" + (token ?? "display-only"));
+    }
+    public static string? AccountLabel(string? text, string? selectedToken)
+    {
+        // The CLI username is display evidence only when this very hosts entry
+        // supplied the selected token. Never borrow it for an environment key.
+        var token = ParseHosts(text, out var username);
+        return token is not null && token == selectedToken ? username : null;
+    }
+    private static string? ParseHosts(string? text, out string? username, bool allowUsernameOnly = false)
+    {
+        username = null;
         if (text is null || text.Length > 262144) return null;
         var active = false; var seenHost = false; var stack = new List<(int Indent, string Key, bool Container)>();
         var childIndents = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -62,7 +79,11 @@ public static class GitHubAuthentication
         if (user is { Length: > 0 } && user.All(c => char.IsAsciiLetterOrDigit(c) || c == '-'))
             values.TryGetValue("users/" + user + "/oauth_token", out selected);
         if (rootToken is { Length: > 0 } && selected is { Length: > 0 } && rootToken != selected) return null;
-        return Token(rootToken) ?? Token(selected);
+        var token = Token(rootToken) ?? Token(selected);
+        if ((token is not null || allowUsernameOnly && string.IsNullOrWhiteSpace(rootToken) && string.IsNullOrWhiteSpace(selected))
+            && user is { Length: > 0 and <= 256 }
+            && user.All(c => char.IsAsciiLetterOrDigit(c) || c == '-')) username = user;
+        return token;
     }
     public static string? Token(string? text) => text?.Trim() is { Length: > 0 and <= 65536 } value && !value.Any(char.IsControl) ? value : null;
     private static string? Scalar(string raw)

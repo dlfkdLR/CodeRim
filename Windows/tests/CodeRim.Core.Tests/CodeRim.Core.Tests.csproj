@@ -12,6 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <EmbeddedResource Include="Fixtures/AnalyticsAxisReference.json" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\CodeRim.Core\CodeRim.Core.csproj" />

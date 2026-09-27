@@ -13,10 +13,19 @@ internal sealed partial class ProviderConnections : IDisposable
     private readonly ScriptProviders scripts;
     private readonly NativeProviders native;
     private readonly Func<string, string?> readCredential;
+    private readonly Func<string, NativeProviderLogin?> readNativeAccount;
+    private readonly Func<string, NativeAccountSummary?> readNativeSummary;
     private readonly Func<CancellationToken, Task<string?>> readCopilotCli;
     private readonly Func<string, string, CancellationToken, Task<ProviderReading>> readAlibabaCli;
-    public ProviderConnections(CredentialVault vault, NativeProviders? native = null, HttpProviders? http = null, Func<string, string?>? nativeCredentialReader = null, ScriptProviders? scripts = null, Func<CancellationToken, Task<string?>>? copilotCliReader = null, Func<string, string, CancellationToken, Task<ProviderReading>>? alibabaCliReader = null)
-    { this.vault = vault; this.native = native ?? new(); this.http = http ?? new(); this.scripts = scripts ?? new(); readCredential = nativeCredentialReader ?? NativeCredentials.Read; readCopilotCli = copilotCliReader ?? CopilotConnection.ReadCliAsync; readAlibabaCli = alibabaCliReader ?? AlibabaTokenPlanCliUsage.ReadAsync; }
+    public ProviderConnections(CredentialVault vault, NativeProviders? native = null, HttpProviders? http = null, Func<string, string?>? nativeCredentialReader = null, ScriptProviders? scripts = null, Func<CancellationToken, Task<string?>>? copilotCliReader = null, Func<string, string, CancellationToken, Task<ProviderReading>>? alibabaCliReader = null, Func<string, NativeProviderLogin?>? nativeAccountReader = null, Func<string, NativeAccountSummary?>? nativeSummaryReader = null)
+    {
+        this.vault = vault; this.native = native ?? new(); this.http = http ?? new(); this.scripts = scripts ?? new();
+        readCredential = nativeCredentialReader ?? NativeCredentials.Read;
+        readNativeAccount = nativeAccountReader ?? (nativeCredentialReader is null ? NativeCredentials.ReadAccount : _ => null);
+        readNativeSummary = nativeSummaryReader ?? (nativeCredentialReader is null && nativeAccountReader is null
+            ? NativeCredentials.ReadSummary : id => NativeAccountSummary.FromLogin(readNativeAccount(id)) ?? NativeAccountSummary.FromCredential(id, readCredential(id), "local"));
+        readCopilotCli = copilotCliReader ?? CopilotConnection.ReadCliAsync; readAlibabaCli = alibabaCliReader ?? AlibabaTokenPlanCliUsage.ReadAsync;
+    }
     public void Dispose() { http.Dispose(); scripts.Dispose(); native.Dispose(); }
     public Task<ProviderReading> FetchAsync(string id, AppSettings settings, CancellationToken token)
         => FetchAsync(id, settings, null, null, token);
@@ -40,13 +49,13 @@ internal sealed partial class ProviderConnections : IDisposable
             if (id == "claude")
             {
                 var path = Path.Combine(CompanionFile.DataDirectory, "claude-limits.json");
-                if (!File.Exists(path)) return new(id, ReadingState.NeedsAuth, [], Message: "Connect the Claude status line in Settings to read plan limits.");
+                if (!File.Exists(path)) return new(id, ReadingState.Loading, [], Message: "Use Claude Code once, then refresh");
                 if (new FileInfo(path).Length > 1_048_576) throw new InvalidDataException();
                 using var document = JsonDocument.Parse(await File.ReadAllTextAsync(path, token).ConfigureAwait(false));
                 var root = document.RootElement;
                 var scope = LoginIdentity.CurrentClaudeScope();
                 if (scope is null || ProviderParsers.Text(root, "accountScope") != scope)
-                    return new(id, ReadingState.NeedsAuth, [], Message: "Reconnect the Claude status line and run a new session for the current account.");
+                    return new(id, ReadingState.Loading, [], Message: "Start a new Claude Code session, then refresh");
                 var updated = ProviderParsers.Date(ProviderParsers.Get(root, "updatedAt"));
                 var windows = ProviderParsers.Claude(root);
                 return new ProviderReading(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, updated).Evaluated(DateTimeOffset.Now);
@@ -60,8 +69,14 @@ internal sealed partial class ProviderConnections : IDisposable
                     ?? readCredential("copilot") ?? await readCopilotCli(token).ConfigureAwait(false);
                 var selected = await Resolve().ConfigureAwait(false);
                 var reading = await http.FetchAsync(id, selected, token).ConfigureAwait(false);
-                return selected == await Resolve().ConfigureAwait(false) ? reading
-                    : new(id, ReadingState.Unavailable, [], Message: "The GitHub account changed. Refresh the selected account.");
+                // Bind optional hosts identity to the same token that produced the
+                // reading, then verify it did not change while the request ran.
+                var configured = GitHubAuthentication.Configured(vault.Load("provider:copilot"),
+                    Environment.GetEnvironmentVariable("GH_TOKEN"), Environment.GetEnvironmentVariable("GITHUB_TOKEN"));
+                var label = configured is null ? GitHubAuthentication.AccountLabel(CopilotConnection.ScopeMarker(), selected) : null;
+                if (selected != await Resolve().ConfigureAwait(false))
+                    return new(id, ReadingState.Unavailable, [], Message: "The GitHub account changed. Refresh the selected account.");
+                return reading.State == ReadingState.Ready ? reading with { Account = new(label, "GitHub") } : reading;
             }
             if (id == "codebuff")
             {
@@ -141,18 +156,14 @@ internal sealed partial class ProviderConnections : IDisposable
                     }
                 }
                 var reading = await scripts.FetchAsync(id, key => definitionSettings.GetValueOrDefault(key), vault.Load("cookie:" + id), browser is null ? null : BrowserCookie, token).ConfigureAwait(false);
-                return glmProfile is null || glmProfile == readCredential("glm") ? reading
-                    : new(id, ReadingState.Unavailable, [], Message: "The connection changed. Refresh the selected account.");
+                if (glmProfile is not null && glmProfile != readCredential("glm"))
+                    return new(id, ReadingState.Unavailable, [], Message: "The connection changed. Refresh the selected account.");
+                if (id == "glm" && reading.Account is not null)
+                    reading = reading with { Account = new(null, GlmAuthentication.Profile(glmProfile)?.Source ?? "api",
+                        definitionSettings.GetValueOrDefault("Z_AI_REGION") ?? "global") };
+                return reading;
             }
-            var definition = ProviderCatalog.Find(id);
-            var secret = vault.Load("provider:" + id);
-            if (id == "groq" && secret is null) secret = NativeProviders.GroqEnvironmentCredential(Environment.GetEnvironmentVariable);
-            if (secret is null && definition is not null)
-            {
-                var keys = NativeProviders.CredentialKeys(id) ?? (id == "copilot" ? ["GH_TOKEN", "GITHUB_TOKEN"] : definition.EnvironmentKeys.Where(k => k.EndsWith("KEY", StringComparison.Ordinal) || k.EndsWith("TOKEN", StringComparison.Ordinal) || k.EndsWith("COOKIE", StringComparison.Ordinal)).ToArray());
-                foreach (var key in keys)
-                    if (Environment.GetEnvironmentVariable(key) is { Length: > 0 } value) { secret = value; break; }
-            }
+            var secret = ConfiguredCredential(id);
             if (id == "factory" && browser is null && secret?.TrimStart().StartsWith('{') == true && vault.LoadVersioned("provider:factory") is { })
             {
                 // Serialize network refreshes separately from short storage commits. A user
@@ -199,7 +210,15 @@ internal sealed partial class ProviderConnections : IDisposable
                 { return new(id, ReadingState.NeedsAuth, [], Message: "AWS profile could not be loaded. Check the profile name and sign in to AWS CLI again."); }
             }
             if (NativeProviders.Supported.Contains(id))
-                return await native.FetchAsync(id, browser is null ? secret ?? readCredential(id) : null, NativeSetting, browser is null ? null : BrowserCookie, token).ConfigureAwait(false);
+            {
+                var local = secret is null && browser is null ? readNativeAccount(id) : null;
+                var selected = browser is null ? secret ?? local?.Credential ?? readCredential(id) : null;
+                var reading = await native.FetchAsync(id, selected, NativeSetting, browser is null ? null : BrowserCookie, token).ConfigureAwait(false);
+                if (local is not null && local != readNativeAccount(id))
+                    return new(id, ReadingState.Unavailable, [], Message: "The connection changed. Refresh the selected account.");
+                return local is not null && reading.Account is not null
+                    ? reading with { Account = local.Account, Plan = reading.Plan ?? local.Plan } : reading;
+            }
             return await http.FetchAsync(id, secret, token).ConfigureAwait(false);
         }
         catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or System.Security.Cryptography.CryptographicException

@@ -102,5 +102,26 @@ public sealed class ActivityReaderTests : IDisposable
         using var cancellation = new CancellationTokenSource(); cancellation.Cancel();
         Assert.Throws<OperationCanceledException>(() => ActivityReader.ReadCodex(path, DateTimeOffset.UtcNow, cancellation.Token));
     }
+    [Theory]
+    [InlineData("renamed", true)]
+    [InlineData("rollout-AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE", true)]
+    [InlineData("rollout-AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE", false)]
+    [InlineData("no-uuid", false)]
+    public async Task ActivityIdentityMatchesTheImporterForMetadataAndFilenameFallback(string filename, bool hasMetadata)
+    {
+        var now = DateTimeOffset.UtcNow; var path = FilePath(filename);
+        const string metadataId = "11111111-2222-3333-4444-555555555555";
+        var metadata = hasMetadata ? JsonSerializer.Serialize(new { type = "session_meta", payload = new { id = metadataId } }) + "\n" : "";
+        var tokens = JsonSerializer.Serialize(new { type = "event_msg", timestamp = now.AddSeconds(-1), payload = new {
+            type = "token_count", info = new { total_token_usage = new { input_tokens = 100, cached_input_tokens = 0, output_tokens = 20 },
+                last_token_usage = new { input_tokens = 100, cached_input_tokens = 0, output_tokens = 20 } } } });
+        File.WriteAllText(path, metadata + Codex("task_started", now.AddSeconds(-2)) + tokens + "\n");
+        var imported = await new UsageScanner([directory]).ScanAsync(CodeRim.Core.Domain.WeekStart.Monday, TestContext.Current.CancellationToken);
+        var activity = Assert.IsType<SessionActivity>(ActivityReader.ReadCodex(path, now, TestContext.Current.CancellationToken));
+        Assert.Equal(Assert.Single(imported.Events).SessionId, activity.UsageSessionId);
+        Assert.Equal(120, SessionPresentation.TokenTotals([activity], "codex", imported.Events, imported.Sessions, TestContext.Current.CancellationToken)[activity.Id]);
+        if (hasMetadata) Assert.Equal("codex://threads/" + metadataId, activity.CodexThreadUri!.AbsoluteUri);
+        if (filename == "no-uuid") Assert.Null(activity.CodexThreadUri);
+    }
     public void Dispose() => Directory.Delete(directory, true);
 }

@@ -7,11 +7,12 @@ using CodeRim.Windows.Services;
 
 namespace CodeRim.Windows.ViewModels;
 
-internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
+internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposable
 {
     private readonly AppSettingsStore settings;
     private readonly ProviderConnections connections;
     private readonly UsageRepository repository;
+    private readonly byte[] projectKey;
     private readonly Dictionary<string, UsageScanner> scanners = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim refreshLock = new(1, 1);
     private readonly SemaphoreSlim remoteSlots = new(4, 4);
@@ -20,6 +21,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     private readonly Dictionary<string, DateTimeOffset> lastRefresh = new(StringComparer.Ordinal);
     private bool pendingRefresh;
     private bool localRefreshing;
+    private Task? localScanTask;
     private Task? activityTask;
     private bool disposed;
     private readonly Dictionary<string, string?> scopes = new(StringComparer.Ordinal);
@@ -28,22 +30,45 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     public Dictionary<string, UsageSnapshot> Usage { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, IReadOnlyList<UsageEvent>> Events { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, IReadOnlyList<SessionDetails>> SessionDetails { get; } = new(StringComparer.Ordinal);
+    internal IReadOnlyDictionary<string, CodexAnalyticsLabel> CodexAnalyticsLabels { get; set; } = new Dictionary<string, CodexAnalyticsLabel>(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, ProviderReading> Readings { get; } = new(StringComparer.Ordinal);
     public HashSet<string> RefreshingProviders { get; } = new(StringComparer.Ordinal);
     public IReadOnlyList<SessionActivity> Sessions { get; private set; } = [];
-    public bool IsRefreshing => localRefreshing || RefreshingProviders.Count > 0;
+    public bool IsRefreshing => localRefreshing || RebuildingProviders.Count > 0 || RefreshingProviders.Count > 0;
     public string Status { get; private set; } = "Reading local usage…";
     public event PropertyChangedEventHandler? PropertyChanged;
     public event Action<ProviderReading>? ReadingUpdated;
     public event Action<SessionActivity>? SessionAttentionRequested;
     public bool Synthetic { get; }
-    public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false, ProviderConnections? providerConnections = null)
+    private readonly ClaudeIntegrationHost claudeHost;
+    internal ClaudeIntegration Claude => claudeHost.Integration;
+    internal bool ClaudeAvailable => Claude.Available;
+    internal string[] AvailableUsageProviders => ClaudeAvailable ? ["codex", "claude"] : ["codex"];
+    private string[] ReadableProviders => settings.Current.EnabledProviders.Where(id => id is not ("codex" or "claude"))
+        .Concat(AvailableUsageProviders).Distinct(StringComparer.Ordinal).ToArray();
+    private bool CanReadProvider(string id) => id == "codex" || (id == "claude" ? ClaudeAvailable : settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal));
+    private string? claudeAvailabilityKey;
+    internal void StartClaudePolling() => claudeHost.Start();
+    private void ClaudeChanged()
+    {
+        if (disposed) return;
+        var next = ClaudeAvailable ? Claude.Account?.Id : null;
+        if (next != claudeAvailabilityKey)
+        {
+            claudeAvailabilityKey = next; InvalidateAccount("claude");
+            if (next is not null) { _ = RefreshLocalAsync(); _ = RefreshProviderAsync("claude"); }
+        }
+        Changed();
+    }
+    internal ProfileUsageStore ProfileHistory { get; }
+    public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false, ProviderConnections? providerConnections = null, ProfileUsageStore? profileHistory = null, UsageRepository? usageRepository = null, ClaudeIntegration? claudeIntegration = null)
     {
         this.settings = settings; Synthetic = synthetic; connections = providerConnections ?? new ProviderConnections(vault);
-        repository = new UsageRepository(Path.Combine(CompanionFile.DataDirectory, "usage.sqlite"));
+        ProfileHistory = profileHistory ?? new ProfileUsageStore(settings, synthetic || providerConnections is not null); ProfileHistory.Changed += Changed;
+        repository = usageRepository ?? new UsageRepository(Path.Combine(CompanionFile.DataDirectory, "usage.sqlite"));
         var keyPath = Path.Combine(CompanionFile.DataDirectory, "project-key.bin");
         if (!File.Exists(keyPath)) File.WriteAllBytes(keyPath, System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
-        var projectKey = File.ReadAllBytes(keyPath);
+        projectKey = File.ReadAllBytes(keyPath);
         if (projectKey.Length != 32) throw new InvalidDataException("Project identity key is invalid.");
         foreach (var id in new[] { "codex", "claude" })
         {
@@ -52,7 +77,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
             {
                 var history = repository.Read(id);
                 Events[id] = history; SessionDetails[id] = repository.ReadSessionDetails(id);
-                Usage[id] = UsageScanner.Aggregate(history, DateTimeOffset.Now, settings.Current.WeekStart, true);
+                Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(history, DateTimeOffset.Now, settings.Current.WeekStart, true));
             }
         }
         try
@@ -62,10 +87,14 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
                 {
                     var scope = connections.Scope(provider.Id); scopes[provider.Id] = scope;
                     if (scope is not null && connections.CanCache(provider.Id) && provider.AccountScope == scope)
-                        Readings[provider.Id] = provider.Limits with { State = provider.Limits.Windows.Count > 0 ? ReadingState.Stale : provider.Limits.State };
+                        Readings[provider.Id] = provider.RestartLimits with { State = provider.RestartLimits.Windows.Count > 0 ? ReadingState.Stale : provider.RestartLimits.State };
                 }
         }
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException) { }
+        claudeHost = new ClaudeIntegrationHost(settings, synthetic, claudeIntegration);
+        Claude.Changed += ClaudeChanged;
+        settings.SettingsChanged += SessionTokenSettingsChanged;
+        settings.SettingsChanged += NativeAccountsSettingsChanged;
     }
     public void Invalidate(IReadOnlyCollection<string>? paths)
     {
@@ -80,17 +109,27 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         if (disposed) return;
         if (userInitiated) foreach (var scanner in scanners.Values) scanner.InvalidateCachedSources();
         // Local scans never wait for provider network requests.
-        foreach (var id in settings.Current.EnabledProviders) EnsureScope(id);
+        foreach (var id in ReadableProviders) EnsureScope(id);
+        var claude = userInitiated || Synthetic ? Claude.RefreshAsync() : Task.CompletedTask;
+        var profile = ProfileHistory.RefreshAsync(userInitiated);
         var activity = RefreshActivityAsync();
         var local = RefreshLocalAsync();
-        var remote = settings.Current.EnabledProviders.Where(id => userInitiated
+        var remote = ReadableProviders.Where(id => userInitiated
             || DateTimeOffset.Now - lastRefresh.GetValueOrDefault(id) >= TimeSpan.FromSeconds(60))
             .Select(RefreshProviderAsync).ToArray();
-        await Task.WhenAll(remote.Append(local).Append(activity)).ConfigureAwait(true);
+        await Task.WhenAll(remote.Append(local).Append(activity).Append(profile).Append(claude)).ConfigureAwait(true);
     }
-    private async Task RefreshLocalAsync()
+    internal Task WaitForLocalIdleAsync() => localScanTask ?? Task.CompletedTask;
+    internal Task RefreshLocalAsync()
     {
-        if (!await refreshLock.WaitAsync(0).ConfigureAwait(true)) { pendingRefresh = true; return; }
+        if (disposed) return Task.CompletedTask;
+        if (localScanTask is { } running) { pendingRefresh = true; return running; }
+        return localScanTask = RunLocalRefreshAsync();
+    }
+    private async Task RunLocalRefreshAsync()
+    {
+        await Task.Yield();
+        if (!await refreshLock.WaitAsync(0).ConfigureAwait(true)) { pendingRefresh = true; localScanTask = null; return; }
         try
         {
             localRefreshing = true; Changed();
@@ -98,20 +137,39 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
             do
             {
                 pendingRefresh = false;
-                var enabled = settings.Current.EnabledProviders.ToArray();
+                var enabled = ReadableProviders;
                 if (Synthetic) { SeedPreview(); return; }
                 foreach (var id in enabled.Where(scanners.ContainsKey))
                 {
                     var generation = Generation(id);
-                    var scan = await scanners[id].ScanAsync(settings.Current.WeekStart, lifetime.Token).ConfigureAwait(true);
-                    if (generation != Generation(id)) continue;
-                    var events = await Task.Run(() => repository.Merge(id, scan.Events, scan.Sessions), lifetime.Token).ConfigureAwait(true);
-                    if (generation != Generation(id)) continue;
-                    pendingRefresh |= scan.HasMoreWork;
-                    Events[id] = events; SessionDetails[id] = repository.ReadSessionDetails(id);
-                    Usage[id] = UsageScanner.Aggregate(events, DateTimeOffset.Now, settings.Current.WeekStart, scan.Snapshot.Quality == DataQuality.Partial || scan.HasMoreWork);
-                    Status = scan.StatusMessage;
-                    if (settings.Current.DebugLogging) AppDiagnostics.Record(id, scan.Snapshot.Quality.ToString(), events.Count);
+                    try
+                    {
+                        var scan = await scanners[id].ScanAsync(settings.Current.WeekStart, lifetime.Token).ConfigureAwait(true);
+                        if (generation != Generation(id)) continue;
+                        var imported = await Task.Run(() =>
+                        {
+                            var retained = repository.Merge(id, scan.Events, scan.Sessions);
+                            return (Events: retained, Sessions: repository.ReadSessionDetails(id), Statistics: repository.Statistics(id),
+                                Labels: id == "codex" ? ReadAnalyticsLabels(retained, lifetime.Token) : null);
+                        }, lifetime.Token).ConfigureAwait(true);
+                        if (generation != Generation(id)) continue;
+                        pendingRefresh |= scan.HasMoreWork;
+                        var events = imported.Events;
+                        Events[id] = events; SessionDetails[id] = imported.Sessions;
+                        if (imported.Labels is { } labels) CodexAnalyticsLabels = labels;
+                        SourceCounts[id] = scan.SourceCount;
+                        DataStatistics[id] = imported.Statistics;
+                        Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(events, DateTimeOffset.Now, settings.Current.WeekStart, scan.Snapshot.Quality == DataQuality.Partial || scan.HasMoreWork));
+                        Status = scan.StatusMessage;
+                        if (settings.Current.DebugLogging) AppDiagnostics.Record(id, scan.Snapshot.Quality.ToString(), events.Count);
+                    }
+                    catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException
+                        or System.Security.SecurityException or Microsoft.Data.Sqlite.SqliteException)
+                    {
+                        if (generation != Generation(id)) continue;
+                        Usage[id] = LocalTokenPresentation.AfterFailure(Usage.GetValueOrDefault(id));
+                        Status = "Local history could not be refreshed. Your existing reading is retained.";
+                    }
                     Changed();
                 }
                 Persist();
@@ -124,13 +182,13 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         catch (OperationCanceledException) { }
         catch (Exception e) when (e is IOException or InvalidDataException or UnauthorizedAccessException or Microsoft.Data.Sqlite.SqliteException)
         { Status = "Local history could not be refreshed. Your existing reading is retained."; }
-        finally { localRefreshing = false; refreshLock.Release(); Changed(); }
+        finally { localRefreshing = false; localScanTask = null; refreshLock.Release(); Changed(); }
     }
     public Task WaitForProviderIdleAsync(string id) => remoteTasks.GetValueOrDefault(id) ?? Task.CompletedTask;
     private static bool PausedForAccount(string id) => id is "codex" or "claude" && SavedAccounts.OperationInProgress;
     public Task RefreshProviderAsync(string id)
     {
-        if (disposed || PausedForAccount(id) || !settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return Task.CompletedTask;
+        if (disposed || PausedForAccount(id) || !CanReadProvider(id)) return Task.CompletedTask;
         EnsureScope(id);
         if (remoteTasks.TryGetValue(id, out var running)) return running;
         var task = FetchProviderAsync(id);
@@ -147,12 +205,21 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         string? requestScope = null;
         try
         {
+            await RefreshProviderAccountAsync(id).ConfigureAwait(true);
+            if (disposed || !CanReadProvider(id)) return;
             await remoteSlots.WaitAsync(lifetime.Token).ConfigureAwait(true); entered = true;
-            if (PausedForAccount(id)) return;
+            if (disposed || PausedForAccount(id) || !CanReadProvider(id)) return;
             EnsureScope(id); generation = Generation(id); requestScope = scopes.GetValueOrDefault(id);
+            // EnsureScope can invalidate an earlier summary after a credential
+            // switch. Capture the selected display owner before sending HTTP.
+            if (!accountSummaries.ContainsKey(id)) await RefreshProviderAccountAsync(id).ConfigureAwait(true);
+            if (disposed || PausedForAccount(id) || !CanReadProvider(id) || generation != Generation(id)
+                || requestScope != scopes.GetValueOrDefault(id)) return;
+            var accountVersion = accountSummaries.GetValueOrDefault(id)?.Version;
             lastRefresh[id] = DateTimeOffset.Now;
             if (Synthetic) { SeedPreview(); return; }
             var result = await connections.FetchForStoreAsync(id, settings.Current, requestScope, lifetime.Token).ConfigureAwait(true);
+            await RefreshProviderAccountAsync(id).ConfigureAwait(true);
             // No await between the request/generation checks, exact rotation-version
             // acceptance and the normal current-scope guard on this owning UI context.
             if (generation == Generation(id) && requestScope == scopes.GetValueOrDefault(id)
@@ -160,8 +227,23 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
             { scopes[id] = rotatedScope; requestScope = rotatedScope; }
             EnsureScope(id);
             var reading = result.Reading;
-            if (generation != Generation(id) || requestScope != scopes.GetValueOrDefault(id) || !settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return;
+            if (disposed || generation != Generation(id) || requestScope != scopes.GetValueOrDefault(id) || !CanReadProvider(id)
+                || accountVersion != accountSummaries.GetValueOrDefault(id)?.Version) return;
             Readings[id] = ReadingRetention.Merge(reading, requestScope is null || !connections.CanCache(id) ? null : Readings.GetValueOrDefault(id));
+            // Command Code refreshes Account after subscription succeeds, even
+            // if the later usage request fails. Consume only this response's
+            // transient update after all account/generation guards above.
+            var planUpdate = id switch
+            {
+                "commandcode" => reading.AccountPlanUpdate,
+                "glm" when reading.State is ReadingState.Ready or ReadingState.Partial => new ProviderAccountPlanUpdate(reading.Plan),
+                _ => null
+            };
+            if (accountVersion is not null && planUpdate is not null)
+            {
+                if (planUpdate.Plan is { } plan) accountPlans[id] = plan;
+                else accountPlans.Remove(id);
+            }
             if (settings.Current.DebugLogging) AppDiagnostics.Record(id, Readings[id].State.ToString(), Readings[id].Windows.Count);
             ReadingUpdated?.Invoke(Readings[id]);
             Persist();
@@ -179,16 +261,37 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     private void Persist()
     {
         if (disposed || Synthetic) return;
-        var now = DateTimeOffset.Now;
-        CompanionFile.Write(new CompanionSnapshot(1, now, settings.Current.EnabledProviders.Select(id => new CompanionProvider(id,
-            ProviderCatalog.Find(id)!.Name, true, Usage.TryGetValue(id, out var usage) ? CompanionFile.Local(usage, now) : null,
-            Readings.GetValueOrDefault(id) ?? new(id, ReadingState.Loading, []), scopes.GetValueOrDefault(id))).ToArray()));
+        CompanionFile.Write(CreateCompanionSnapshot(DateTimeOffset.Now));
     }
+    internal CompanionSnapshot CreateCompanionSnapshot(DateTimeOffset now) => new(1, now,
+        settings.Current.EnabledProviders.Select(id =>
+        {
+            var raw = Readings.GetValueOrDefault(id) ?? new(id, ReadingState.Loading, []);
+            var display = raw;
+            if (id is "codex" or "claude")
+            {
+                // Capture ownership and raw plan together; a newly selected login must
+                // never be paired with the previous account's cached quota or plan.
+                var account = AccountDisplay(id);
+                var owned = account.Reading ?? new(id, ReadingState.NeedsAuth, []);
+                if (id == "codex" && !settings.Current.AccountLimitsEnabled)
+                    owned = owned with { State = ReadingState.Disabled, Windows = [], Message = "Account limits are turned off in Settings." };
+                // Additional-window visibility is a Usage UI preference on Mac;
+                // the companion retains every reported bucket before Pro filtering.
+                display = CompanionLimitPresentation.ForDisplay(owned, account.RawPlan);
+            }
+            return new CompanionProvider(id, ProviderCatalog.Find(id)!.Name, true,
+                Usage.TryGetValue(id, out var usage) ? CompanionFile.Local(usage, now) : null,
+                // Account display metadata stays in the owner-scoped restart cache,
+                // not the public quota projection used by companion consumers.
+                display with { Account = null }, scopes.GetValueOrDefault(id),
+                id is "codex" or "claude" || raw.Account is not null ? raw : null);
+        }).ToArray());
     private void SeedPreview()
     {
-        Events["codex"] = [new("preview-event", DateTimeOffset.Now.AddMinutes(-2), new(123456, 24000, 56000),
+        Events["codex"] = [new("preview-event", DateTimeOffset.Now.AddMinutes(-2), new(123456, 24000, 56000, 0),
             "gpt-5.6-sol", "CodeRim", "preview-session", "codex", "preview-project"),
-            new("preview-child-event", DateTimeOffset.Now.AddDays(-1), new(100, 0, 20),
+            new("preview-child-event", DateTimeOffset.Now.AddDays(-1), new(100, 0, 20, 0),
                 "gpt-5.6-sol", "CodeRim", "preview-child", "codex", "preview-project")];
         SessionDetails["codex"] = [new("preview-session", null, [new("preview-image", DateTimeOffset.Now.AddMinutes(-3), 2)]),
             new("preview-child", "preview-session", [])];
@@ -196,7 +299,7 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
             "claude-sonnet-4-6", "CodeRim", "preview-claude-session", "claude", "preview-project")];
         Usage["claude"] = UsageScanner.Aggregate(Events["claude"], DateTimeOffset.Now, settings.Current.WeekStart, false);
         Usage["codex"] = new(new(123456, 24000, 56000), new(340000, 70000, 120000), new(1100000, 250000, 700000), new(4800000, 1000000, 1200000), DataQuality.Exact, DateTimeOffset.Now);
-        foreach (var id in settings.Current.EnabledProviders)
+        foreach (var id in ReadableProviders)
             Readings[id] = new(id, ReadingState.Ready, [new("session", "5 hours", 32, DateTimeOffset.Now.AddHours(2), 300), new("weekly", "Weekly", 66, DateTimeOffset.Now.AddDays(3), 10080)], DateTimeOffset.Now, Plan: "Preview account");
         if (Readings.TryGetValue("codex", out var codex))
             Readings["codex"] = codex with { Windows = [..codex.Windows,
@@ -212,17 +315,16 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
     private async Task ReadActivityAsync()
     {
         await Task.Yield();
-        var enabled = settings.Current.EnabledProviders.ToArray();
+        var enabled = ReadableProviders;
         var versions = enabled.ToDictionary(id => id, Generation, StringComparer.Ordinal);
         try
         {
-            var current = await Task.Run(() => ReadSessions(enabled, lifetime.Token), lifetime.Token).ConfigureAwait(true);
+            var includeUnknown = settings.Current.ShowUnknownSessions;
+            var current = await Task.Run(() => ReadSessions(enabled, includeUnknown, lifetime.Token), lifetime.Token).ConfigureAwait(true);
             if (disposed) return;
-            var valid = current.Where(item => settings.Current.EnabledProviders.Contains(item.Provider, StringComparer.Ordinal)
+            var valid = current.Where(item => CanReadProvider(item.Provider)
                 && versions.GetValueOrDefault(item.Provider, -1) == Generation(item.Provider)).ToArray();
-            var previous = Sessions;
             UpdateSessionActivity(valid);
-            if (!previous.SequenceEqual(Sessions)) Changed();
         }
         catch (OperationCanceledException) { }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException)
@@ -249,14 +351,18 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
             SessionAttentionRequested?.Invoke(current.Where(x => x.State is "idle" or "waiting"
                 && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"))
                 .OrderByDescending(x => x.Since).First());
+        // Publish at the mutation boundary. Every caller, including updates that
+        // only change a task title/state and reuse the token cache, needs this.
+        if (!previous.SequenceEqual(Sessions)) Changed();
     }
 
-    private static List<SessionActivity> ReadSessions(string[] enabled, CancellationToken cancellationToken)
+    private static List<SessionActivity> ReadSessions(string[] enabled, bool includeUnknown, CancellationToken cancellationToken)
     {
         var sessions = new List<SessionActivity>();
         if (enabled.Contains("claude", StringComparer.Ordinal)) sessions.AddRange(ClaudeSessions.Read(cancellationToken));
         if (!enabled.Contains("codex", StringComparer.Ordinal)) return sessions;
         var root = UsageScanner.DefaultRoots()[0];
+        if (includeUnknown) sessions.AddRange(CodexRemoteActivity.Read(Path.Combine(Path.GetDirectoryName(root)!, "sqlite", "codex-dev.db"), DateTimeOffset.Now, cancellationToken));
         if (!Directory.Exists(root)) return sessions;
         var files = Directory.EnumerateFiles(root, "*.jsonl", new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint, MaxRecursionDepth = 32 })
             .Take(50000).OrderByDescending(File.GetLastWriteTimeUtc).Take(64);
@@ -266,12 +372,14 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
             if (DateTimeOffset.Now - File.GetLastWriteTimeUtc(path) <= TimeSpan.FromHours(6)
                 && ActivityReader.ReadCodex(path, DateTimeOffset.Now, cancellationToken) is { } activity) sessions.Add(activity);
         }
-        return sessions;
+        return CodexActivityCatalogue.Enrich(sessions, Path.Combine(Path.GetDirectoryName(root)!, "state_5.sqlite"),
+            Path.Combine(Path.GetDirectoryName(root)!, "sqlite", "codex-dev.db"), cancellationToken).ToList();
     }
-    public void Clear(string id)
+    private static IReadOnlyDictionary<string, CodexAnalyticsLabel> ReadAnalyticsLabels(IReadOnlyList<UsageEvent> events, CancellationToken token)
     {
-        if (!scanners.TryGetValue(id, out var scanner)) return;
-        generations[id] = Generation(id) + 1; repository.Clear(id, DateTimeOffset.Now); scanner.InvalidateCachedSources(); Usage.Remove(id); Events.Remove(id); SessionDetails.Remove(id); Persist(); Changed();
+        var root = Path.GetDirectoryName(UsageScanner.DefaultRoots()[0])!;
+        return CodexActivityCatalogue.ReadAnalyticsLabels(events.Select(x => x.SessionId).Distinct(StringComparer.Ordinal).ToArray(),
+            Path.Combine(root, "state_5.sqlite"), Path.Combine(root, "sqlite", "codex-dev.db"), token);
     }
     private void EnsureScope(string id)
     {
@@ -281,7 +389,16 @@ internal sealed class DashboardStore : INotifyPropertyChanged, IDisposable
         scopes[id] = scope;
         if (scope is null) Readings.Remove(id);
     }
-    public void InvalidateAccount(string id) { generations[id] = Generation(id) + 1; Readings.Remove(id); lastRefresh.Remove(id); Persist(); Changed(); }
+    public void InvalidateAccount(string id)
+    {
+        generations[id] = Generation(id) + 1; Readings.Remove(id); lastRefresh.Remove(id);
+        accountSummaries.Remove(id); accountPlans.Remove(id);
+        try { Persist(); }
+        catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or System.Security.SecurityException)
+        { Status = "The latest reading could not be saved. Retry refresh."; }
+        // In-memory ownership invalidation must complete even on a read-only disk.
+        Changed();
+    }
     private void Changed() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
-    public void Dispose() { disposed = true; lifetime.Cancel(); connections.Dispose(); }
+    public void Dispose() { disposed = true; Claude.Changed -= ClaudeChanged; claudeHost.Dispose(); ProfileHistory.Changed -= Changed; ProfileHistory.Dispose(); settings.SettingsChanged -= SessionTokenSettingsChanged; settings.SettingsChanged -= NativeAccountsSettingsChanged; lifetime.Cancel(); CancelSessionTokenReads(); sessionTokens.Clear(); accountSummaries.Clear(); accountPlans.Clear(); connections.Dispose(); }
 }

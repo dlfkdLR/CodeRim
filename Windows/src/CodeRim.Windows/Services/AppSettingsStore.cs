@@ -12,30 +12,39 @@ public sealed record AppSettings(
     bool ShowCachedInput,
     bool LaunchAtLogin)
 {
+    public bool AutomaticRefresh { get; init; } = true;
     public string UsageProvider { get; init; } = "codex";
+    // Null identifies legacy files. Fresh installs explicitly start disabled.
+    public ClaudeIntegrationPreferences? ClaudeIntegration { get; init; }
     public bool DebugLogging { get; init; }
     public string FinishedSound { get; init; } = "Asterisk";
     public string BlockedSound { get; init; } = "Exclamation";
+    public bool ProfileSyncEnabled { get; init; } = true;
     public bool AccountLimitsEnabled { get; init; } = true;
     public bool AdditionalLimitsEnabled { get; init; } = true;
     public bool ResetCreditsEnabled { get; init; } = true;
     public bool AgentDetailsEnabled { get; init; } = true;
     public bool AttachmentMetadataEnabled { get; init; } = true;
     public bool AnalyticsEnabled { get; init; } = true;
-    public bool CostEstimatesEnabled { get; init; }
+    public bool CostEstimatesEnabled { get; init; } = true;
     public bool ProjectsEnabled { get; init; } = true;
     public bool SessionsEnabled { get; init; } = true;
+    public bool ShowUnknownSessions { get; init; }
+    public bool ShowSessionDuration { get; init; }
+    public bool ShowSessionTokens { get; init; }
     public string[] MutedAlertProviders { get; init; } = [];
     public string[] EnabledProviders { get; init; } = ["codex"];
     public NotchEdge Edge { get; init; } = NotchEdge.Right;
     public NotchVisibility Visibility { get; init; } = NotchVisibility.OnHover;
     public NotchVisibility LastVisibleNotchMode { get; init; } = NotchVisibility.OnHover;
     public RingColorMode RingColor { get; init; } = RingColorMode.Usage;
-    public string Accent { get; init; } = "#00FF88";
+    public string Accent { get; init; } = "system";
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string AccentColor => Accent == "system" ? "#00FF88" : Accent;
     public string Gradient { get; init; } = "Aurora";
     public bool AnimateGradient { get; init; }
     public bool ShowRemaining { get; init; }
-    public string ResetTime { get; init; } = "Relative";
+    public string ResetTime { get; init; } = "Absolute";
     public string ControlsPosition { get; init; } = "Auto";
     public bool ShowUsagePace { get; init; }
     public bool PeekOnCompletion { get; init; } = true;
@@ -43,7 +52,7 @@ public sealed record AppSettings(
     public bool CheckForUpdates { get; init; } = true;
     public bool ShowLastUpdated { get; init; } = true;
     public bool AlertsEnabled { get; init; } = true;
-    public bool CompletionSound { get; init; }
+    public bool CompletionSound { get; init; } = true;
     public double Scale { get; init; } = 1;
     public double Offset { get; init; }
     public string? Display { get; init; }
@@ -53,7 +62,7 @@ public sealed record AppSettings(
         WeekStart.Monday,
         60,
         true,
-        false);
+        false) { ClaudeIntegration = new(false, null) };
 }
 
 public sealed class AppSettingsStore
@@ -77,13 +86,18 @@ public sealed class AppSettingsStore
 
     public AppSettings Current { get; private set; }
 
+    public void ToggleNotch() => Save(Current with
+    {
+        Visibility = Current.Visibility == NotchVisibility.Hidden ? Current.LastVisibleNotchMode : NotchVisibility.Hidden
+    });
+
     public void RevealNotch()
     {
         if (Current.Visibility == NotchVisibility.Hidden)
             Save(Current with { Visibility = Current.LastVisibleNotchMode });
     }
 
-    public void Save(AppSettings settings)
+    public void Save(AppSettings settings, bool synchronizeStartup = false)
     {
         ArgumentNullException.ThrowIfNull(settings);
         settings = Normalize(settings);
@@ -93,11 +107,13 @@ public sealed class AppSettingsStore
             settings = settings with { LastVisibleNotchMode = Current.Visibility };
         var temporaryPath = settingsPath + ".new";
         var previous = Current;
-        var startupChanged = settings.LaunchAtLogin != previous.LaunchAtLogin;
+        var startupChanged = synchronizeStartup || settings.LaunchAtLogin != previous.LaunchAtLogin;
+        StartupService.Registration? startupBefore = null;
         try
         {
             if (startupChanged)
             {
+                startupBefore = StartupService.ReadRegistration();
                 StartupService.SetEnabled(settings.LaunchAtLogin);
             }
 
@@ -109,11 +125,11 @@ public sealed class AppSettingsStore
         }
         catch
         {
-            if (startupChanged)
+            if (startupBefore is not null)
             {
                 try
                 {
-                    StartupService.SetEnabled(previous.LaunchAtLogin);
+                    StartupService.Restore(startupBefore);
                 }
                 catch (Exception error) when (error is not OutOfMemoryException)
                 {
@@ -165,14 +181,15 @@ public sealed class AppSettingsStore
         var weekStart = Enum.IsDefined(settings.WeekStart)
             ? settings.WeekStart
             : AppSettings.Default.WeekStart;
-        var refreshInterval = settings.RefreshIntervalSeconds is 0 or 30 or 60 or 300
+        var refreshInterval = settings.RefreshIntervalSeconds is 0 or 30 or 60 or 120 or 300 or 900 or 1800
             ? settings.RefreshIntervalSeconds
             : AppSettings.Default.RefreshIntervalSeconds;
         return settings with
         {
+            AutomaticRefresh = settings.AutomaticRefresh && refreshInterval == 60,
             UsageProvider = ProviderCatalog.Find(settings.UsageProvider) is not null ? settings.UsageProvider : "codex",
             MutedAlertProviders = (settings.MutedAlertProviders ?? []).Where(id => ProviderCatalog.Find(id) is not null).Distinct(StringComparer.Ordinal).ToArray(),
-            ResetTime = settings.ResetTime is "Relative" or "Absolute" ? settings.ResetTime : "Relative",
+            ResetTime = settings.ResetTime is "Relative" or "Absolute" ? settings.ResetTime : AppSettings.Default.ResetTime,
             ControlsPosition = settings.ControlsPosition is "Auto" or "Start" or "End" ? settings.ControlsPosition : "Auto",
             NumberStyle = numberStyle,
             WeekStart = weekStart,
@@ -180,7 +197,7 @@ public sealed class AppSettingsStore
             EnabledProviders = (settings.EnabledProviders ?? ["codex"]).Where(id => ProviderCatalog.Find(id) is not null).Distinct(StringComparer.Ordinal).Take(70).ToArray(),
             Edge = Enum.IsDefined(settings.Edge) ? settings.Edge : NotchEdge.Right,
             RingColor = Enum.IsDefined(settings.RingColor) ? settings.RingColor : RingColorMode.Usage,
-            Accent = settings.Accent is { Length: 7 } accent && accent[0] == '#' && uint.TryParse(accent.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _) ? accent : "#00FF88",
+            Accent = settings.Accent == "system" ? "system" : settings.Accent is { Length: 7 } accent && accent[0] == '#' && uint.TryParse(accent.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _) ? accent : "#00FF88",
             Gradient = settings.Gradient is "Aurora" or "Ocean" or "Sunset" or "Spectrum" ? settings.Gradient : "Aurora",
             Visibility = Enum.IsDefined(settings.Visibility) ? settings.Visibility : NotchVisibility.OnHover,
             LastVisibleNotchMode = settings.LastVisibleNotchMode == NotchVisibility.AlwaysShow ? NotchVisibility.AlwaysShow : NotchVisibility.OnHover,

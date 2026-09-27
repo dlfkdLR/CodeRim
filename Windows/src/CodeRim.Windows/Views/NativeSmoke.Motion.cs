@@ -17,10 +17,13 @@ internal static partial class NativeSmoke
     private static async Task CheckMotion(DashboardWindow dashboard, NotchWindow notch, CodeRim.Windows.ViewModels.DashboardStore store, AppSettingsStore settings, string directory)
     {
         var saved = settings.Current;
+        var savedCursor = store.Readings.GetValueOrDefault("cursor");
         var originalAnimations = 0;
         Require(ReadClientAreaAnimation(0x1042, 0, ref originalAnimations, 0), "Could not read the desktop animation policy");
         var samples = new List<object>(); var checks = new List<string>();
         Window? fixture = null;
+        Exception? verificationError = null;
+        var cleanupErrors = new List<Exception>();
         try
         {
             // This path is only invoked by the explicitly requested, isolated synthetic smoke run.
@@ -65,6 +68,27 @@ internal static partial class NativeSmoke
                     "Folded native hit bounds remained expanded");
             }
             checks.Add("Four-edge spring geometry has intermediate frames, reverses without snapping and shrinks native hit bounds");
+            store.Readings["cursor"] = new("cursor", ReadingState.Error, []);
+            settings.Save(settings.Current with { EnabledProviders = ["codex", "claude", "cursor"] });
+            notch.SetExpanded(true);
+            await MotionUntil(() => notch.FoldProgress >= .999, "Presence reversal did not start expanded");
+            foreach (var recover in new[] { true, false })
+            {
+                notch.SetExpanded(false);
+                await MotionUntil(() => notch.FoldProgress is > .05 and < .95, "Presence reversal never entered a live closing animation");
+                Require(Motion.Enabled && !settings.Current.ReduceMotion && !notch.Expanded, "Presence reversal animation precondition failed");
+                var progress = notch.FoldProgress;
+                store.Readings["cursor"] = recover ? new("cursor", ReadingState.Ready, [new("quota", "Quota", 25)], DateTimeOffset.Now)
+                    : new("cursor", ReadingState.Error, []);
+                notch.RefreshReadings(); notch.SetExpanded(true);
+                Require(Math.Abs(notch.FoldProgress - progress) < .1, "Membership reversal restarted fold geometry from zero");
+                await MotionUntil(() => notch.FoldProgress >= .999, "Presence reversal did not settle expanded");
+                Require(Descendants<ProviderRing>(notch).Any(x => x.ProviderId == "cursor") == recover,
+                    "Membership reversal restored the wrong provider cells");
+                samples.Add(new { kind = "membership-reversal", recover, closingProgress = progress, settledProgress = notch.FoldProgress });
+            }
+            checks.Add("Provider recovery and failure during a live closing animation reconcile on reversal without resetting fold progress");
+            settings.Save(settings.Current with { EnabledProviders = ["codex", "claude"] });
             settings.Save(settings.Current with { Edge = NotchEdge.Right, Visibility = NotchVisibility.AlwaysShow }); await MotionFrame();
             var gear = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.settings");
             gear.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0) { RoutedEvent = Mouse.MouseEnterEvent }); await MotionFrame();
@@ -73,19 +97,88 @@ internal static partial class NativeSmoke
             await MotionUntil(() => account.Opacity >= 0.999, "Account entrance did not settle");
             checks.Add("Settings reveal retains the account control's delayed fade/scale entrance");
             notch.OpenProvider("codex"); await Task.Delay(200); await MotionFrame();
-            notch.OpenProvider("claude"); await MotionFrame();
-            Require(notch.PopupIsOpen && notch.PopupContent is not null, "Provider change lost popup");
-            var popupPositions = new List<double>();
-            for (var frame = 0; frame < 6; frame++)
+            var popupDiagnostics = new List<object>(); var popupStarted = System.Diagnostics.Stopwatch.GetTimestamp();
+            void RecordPopup(string stage)
             {
-                var child = notch.PopupContent!;
-                var y = child.PointToScreen(new Point(0, child.ActualHeight / 2)).Y;
-                popupPositions.Add(y); samples.Add(new { kind = "popup", frame, y });
-                RequirePopupClearOfNotch(notch, "animated provider transition");
-                Capture(child, Path.Combine(directory, $"windows-motion-popup-{frame:D2}.png"));
-                await Task.Delay(75); await MotionFrame();
+                var target = Descendants<Button>(notch).Where(button => AutomationProperties.GetAutomationId(button) is "notch.provider.codex" or "notch.provider.claude")
+                    .Select(button => new { id = AutomationProperties.GetAutomationId(button),
+                        localDip = button.TranslatePoint(new Point(button.ActualWidth / 2, NotchMetrics.Ring / 2), notch),
+                        screenPixel = button.PointToScreen(new Point(button.ActualWidth / 2, NotchMetrics.Ring / 2)) }).ToArray();
+                var child = notch.PopupContent;
+                popupDiagnostics.Add(new { stage, milliseconds = System.Diagnostics.Stopwatch.GetElapsedTime(popupStarted).TotalMilliseconds,
+                    notch.PopupIsOpen, notch.AccountMenuIsOpen,
+                    renderedProvider = child is null ? null : Descendants<ProviderMark>(child).FirstOrDefault()?.ProviderId,
+                    anchorLocalDip = notch.PopupAnchor, anchorScreenPixel = notch.PointToScreen(notch.PopupAnchor),
+                    notchDpi = VisualTreeHelper.GetDpi(notch).PixelsPerInchX, target, settings.Current.Edge, settings.Current.Offset,
+                    settings.Current.Scale, settings.Current.ReduceMotion, Motion.Enabled,
+                    centerScreenPixel = child is { IsLoaded: true } ? child.PointToScreen(new Point(child.ActualWidth / 2, child.ActualHeight / 2)) : (Point?)null });
             }
-            Require(popupPositions.Distinct().Count() > 1, "Provider tooltip skipped its position transition");
+            RecordPopup("codex before switch");
+            File.WriteAllText(Path.Combine(directory, "windows-motion-popup-state.json"), JsonSerializer.Serialize(popupDiagnostics, JsonOptions));
+            Require(notch.PopupIsOpen && !notch.AccountMenuIsOpen && notch.PopupContent is { } sourceCard
+                && Descendants<ProviderMark>(sourceCard).FirstOrDefault()?.ProviderId == "codex",
+                "Source popup is not Codex before the provider-switch motion fixture.");
+            var sourceAnchorY = notch.PopupAnchor.Y;
+            var sourceCenterY = notch.PopupContent!.PointToScreen(new Point(0, notch.PopupContent.ActualHeight / 2)).Y;
+            var destinationButton = Descendants<Button>(notch).Single(button => AutomationProperties.GetAutomationId(button) == "notch.provider.claude");
+            var destinationAnchorY = destinationButton.TranslatePoint(new Point(destinationButton.ActualWidth / 2, NotchMetrics.Ring / 2), notch).Y;
+            var destinationCenterY = destinationButton.PointToScreen(new Point(destinationButton.ActualWidth / 2, NotchMetrics.Ring / 2)).Y;
+            var renderSamples = new List<(double Milliseconds, double AnchorY, double CenterY)>();
+            void ObservePopupFrame(object? sender, EventArgs args)
+            {
+                // Observe from the first render opportunity. Waiting for ApplicationIdle
+                // can skip the entire visible part of a spring on a busy native runner.
+                if (notch.PopupIsOpen && notch.PopupContent is { IsLoaded: true } child)
+                    renderSamples.Add((System.Diagnostics.Stopwatch.GetElapsedTime(popupStarted).TotalMilliseconds,
+                        notch.PopupAnchor.Y, child.PointToScreen(new Point(0, child.ActualHeight / 2)).Y));
+            }
+            Exception? popupVerificationError = null; var receiptErrors = new List<Exception>();
+            void WritePopupReceipt(string file, object value)
+            {
+                try { File.WriteAllText(Path.Combine(directory, file), JsonSerializer.Serialize(value, JsonOptions)); }
+                catch (Exception error) { receiptErrors.Add(error); }
+            }
+            CompositionTarget.Rendering += ObservePopupFrame;
+            try
+            {
+                notch.OpenProvider("claude");
+                RecordPopup("claude synchronous return"); await MotionFrame();
+                RecordPopup("claude first idle");
+                Require(notch.PopupIsOpen && notch.PopupContent is not null, "Provider change lost popup");
+                for (var frame = 0; frame < 6; frame++)
+                {
+                    var child = notch.PopupContent!;
+                    var y = child.PointToScreen(new Point(0, child.ActualHeight / 2)).Y;
+                    samples.Add(new { kind = "popup", frame, y });
+                    RecordPopup("sample " + frame);
+                    RequirePopupClearOfNotch(notch, "animated provider transition");
+                    Capture(child, Path.Combine(directory, $"windows-motion-popup-{frame:D2}.png"));
+                    await Task.Delay(75); await MotionFrame();
+                }
+            }
+            catch (Exception error) { popupVerificationError = error; }
+            finally
+            {
+                CompositionTarget.Rendering -= ObservePopupFrame;
+                // Disk serialization runs after observation, never before the first render.
+                WritePopupReceipt("windows-motion-popup-state.json", popupDiagnostics);
+                WritePopupReceipt("windows-motion-popup-render-frames.json",
+                    new { sourceCenterY, destinationCenterY, sourceAnchorY, destinationAnchorY, frames = renderSamples.Select(frame => new
+                        { milliseconds = frame.Milliseconds, anchorLocalDipY = frame.AnchorY, centerScreenPixelY = frame.CenterY }) });
+            }
+            if (receiptErrors.Count > 0)
+            {
+                if (popupVerificationError is not null) receiptErrors.Insert(0, popupVerificationError);
+                throw new AggregateException("Popup motion verification or diagnostic recording failed", receiptErrors);
+            }
+            if (popupVerificationError is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(popupVerificationError).Throw();
+            Require(renderSamples.Any(frame => frame.CenterY > Math.Min(sourceCenterY, destinationCenterY) + 1
+                && frame.CenterY < Math.Max(sourceCenterY, destinationCenterY) - 1
+                && frame.AnchorY > Math.Min(sourceAnchorY, destinationAnchorY) + 1
+                && frame.AnchorY < Math.Max(sourceAnchorY, destinationAnchorY) - 1),
+                "Provider tooltip has no rendered intermediate screen position");
+            Require(Math.Abs(notch.PopupContent!.PointToScreen(new Point(0, notch.PopupContent.ActualHeight / 2)).Y - destinationCenterY) <= 2,
+                "Provider tooltip did not settle at the destination provider");
             checks.Add("Provider tooltip moves through native intermediate positions without covering the notch");
 
             dashboard.Navigate("notch"); await Idle();
@@ -128,8 +221,19 @@ internal static partial class NativeSmoke
             var toggle = new CheckBox { Content = "Synthetic motion toggle", IsChecked = false };
             var content = new StackPanel { Margin = new Thickness(20), Background = Brushes.Black };
             content.Children.Add(ring); content.Children.Add(toggle);
+            var taskRing = new SessionStatusRing("busy", Brushes.LimeGreen);
+            var waitingRing = new SessionStatusRing("waiting", Brushes.Yellow);
+            var idleRing = new SessionStatusRing("idle", Brushes.Gray);
+            var taskIndicators = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 0) };
+            taskIndicators.Children.Add(taskRing); taskIndicators.Children.Add(waitingRing); taskIndicators.Children.Add(idleRing); content.Children.Add(taskIndicators);
             fixture = new Window { Content = content, Width = 320, Height = 200, ShowActivated = false, Topmost = true, Title = "Synthetic motion verification" };
             fixture.Show(); await MotionFrame();
+            await MotionUntil(() => taskRing.IsTicking, "Working task indicator did not start");
+            var taskAngle = taskRing.Angle;
+            Capture(taskIndicators, Path.Combine(directory, "windows-task-motion-first.png"));
+            await Task.Delay(180); await MotionFrame();
+            Require(Math.Abs(taskRing.Angle - taskAngle) > 1 && !waitingRing.IsTicking && !idleRing.IsTicking, "Task indicators do not distinguish animated working from static waiting/idle");
+            Capture(taskIndicators, Path.Combine(directory, "windows-task-motion-second.png"));
             ring.Reading = Reading(90);
             await MotionUntil(() => ring.Sweep is > 0.1 and < 0.89, "Reading jumps directly to the new value");
             for (var i = 0; i < 5; i++)
@@ -159,35 +263,53 @@ internal static partial class NativeSmoke
             checks.Add("Finite refresh rotation stops at a complete turn even after rapid retrigger");
             ring.Active = true; await MotionFrame(); Require(ring.ClockRunning, "Working arc has no render clock");
             ring.Waiting = true; await MotionFrame(); Capture(content, Path.Combine(directory, "windows-motion-waiting.png"));
-            fixture.Hide(); await MotionFrame(); Require(!ring.ClockRunning, "Hidden ring retained its render subscription");
-            fixture.Show(); await MotionFrame(); Require(ring.ClockRunning, "Visible activity did not resume");
+            fixture.Hide(); await MotionFrame(); Require(!ring.ClockRunning && !taskRing.IsTicking, "Hidden ring retained its render subscription");
+            fixture.Show(); await MotionFrame(); Require(ring.ClockRunning && taskRing.IsTicking, "Visible activity did not resume");
             checks.Add("Working/waiting animation pauses while hidden and resumes on visibility");
             Require(SetClientAreaAnimation(0x1043, 0, IntPtr.Zero, 3), "Could not disable the native animation policy");
             var disabledValue = 1;
             Require(ReadClientAreaAnimation(0x1042, 0, ref disabledValue, 0) && disabledValue == 0, "Native animation preference failed to disable");
             await MotionUntil(() => !Motion.Enabled, "OS disable broadcast did not reach the production motion policy");
-            Require(!ring.ClockRunning, "Disabled OS motion policy left the activity render clock running");
+            Require(!ring.ClockRunning && !taskRing.IsTicking && taskRing.Angle == 0, "Disabled OS motion policy left the activity render clock running");
             Require(SetClientAreaAnimation(0x1043, 0, new IntPtr(1), 3), "Could not restore the native animation policy");
             Require(ReadClientAreaAnimation(0x1042, 0, ref nativeEnabled, 0) && nativeEnabled != 0, "Native animation preference failed to restore");
             await MotionUntil(() => Motion.Enabled, "OS enable broadcast did not reach the production motion policy");
-            Require(ring.ClockRunning, "Restored OS motion policy did not resume the activity render clock");
+            Require(ring.ClockRunning && taskRing.IsTicking, "Restored OS motion policy did not resume the activity render clock");
             checks.Add("Live native OS animation preference disables and restores motion without stale WPF cache");
             toggle.IsChecked = true;
             await MotionUntil(() => Motion.GetToggleOffset(toggle) is > 0 and < 16, "Toggle thumb skipped its transition");
             settings.Save(settings.Current with { ReduceMotion = true }); await MotionFrame();
-            Require(Motion.GetToggleOffset(toggle) == 16 && !ring.ClockRunning, "Reduce Motion did not settle active animations");
+            Require(Motion.GetToggleOffset(toggle) == 16 && !ring.ClockRunning && !taskRing.IsTicking && taskRing.Angle == 0, "Reduce Motion did not settle active animations");
             ring.Reading = Reading(37); Require(Math.Abs(ring.Sweep - 0.37) < 0.0001, "Reduced motion reading was delayed");
             toggle.IsChecked = false; Require(Motion.GetToggleOffset(toggle) == 0, "Reduced motion toggle was delayed");
             checks.Add("Reduced motion immediately settles in-flight readings, toggles and activity clocks");
-            fixture.Close(); fixture = null; await MotionFrame(); Require(!ring.ClockRunning, "Closed ring retained render subscription");
+            settings.Save(settings.Current with { ReduceMotion = false }); await MotionFrame();
+            Require(ring.ClockRunning && taskRing.IsTicking, "Unload fixture did not resume active render subscriptions");
+            fixture.Close(); fixture = null; await MotionFrame(); Require(!ring.ClockRunning && !taskRing.IsTicking, "Closed ring retained render subscription");
+            checks.Add("Task status uses a rotating three-quarter working ring, static waiting/idle rings and immediate reduced-motion/hidden/unload cleanup");
             File.WriteAllText(Path.Combine(directory, "windows-motion.json"), JsonSerializer.Serialize(new { kind = "Native WPF animation frames", systemAnimationsBefore = originalAnimations, checks, samples }, JsonOptions));
         }
+        catch (Exception error) { verificationError = error; }
         finally
         {
-            fixture?.Close(); settings.Save(saved);
-            SetClientAreaAnimation(0x1043, 0, new IntPtr(originalAnimations), 3);
-            await MotionFrame(); Motion.RefreshPolicy();
+            try { fixture?.Close(); } catch (Exception error) { cleanupErrors.Add(error); }
+            try { if (savedCursor is null) store.Readings.Remove("cursor"); else store.Readings["cursor"] = savedCursor; } catch (Exception error) { cleanupErrors.Add(error); }
+            try { settings.Save(saved); } catch (Exception error) { cleanupErrors.Add(error); }
+            try
+            {
+                Require(SetClientAreaAnimation(0x1043, 0, new IntPtr(originalAnimations), 3), "Could not restore the original desktop animation policy");
+                var restored = 0;
+                Require(ReadClientAreaAnimation(0x1042, 0, ref restored, 0) && restored == originalAnimations, "Original desktop animation policy was not restored");
+            }
+            catch (Exception error) { cleanupErrors.Add(error); }
+            try { await MotionFrame(); Motion.RefreshPolicy(); } catch (Exception error) { cleanupErrors.Add(error); }
         }
+        if (cleanupErrors.Count > 0)
+        {
+            if (verificationError is not null) cleanupErrors.Insert(0, verificationError);
+            throw new AggregateException("Native motion verification or cleanup failed", cleanupErrors);
+        }
+        if (verificationError is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(verificationError).Throw();
     }
     private static async Task MotionFrame() => await System.Windows.Application.Current.Dispatcher.InvokeAsync(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
     private static async Task MotionUntil(Func<bool> condition, string failure)

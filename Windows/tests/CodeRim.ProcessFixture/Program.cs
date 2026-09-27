@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using System.Text.Json;
 using System.Runtime.InteropServices;
 
 namespace CodeRim.ProcessFixture;
@@ -13,6 +14,21 @@ internal static class Program
         if (args.FirstOrDefault() != "child") File.WriteAllText(Path.Combine(root, "root.pid"), Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
         switch (args.FirstOrDefault())
         {
+            case "app-server":
+                while (await Console.In.ReadLineAsync().ConfigureAwait(false) is { } line)
+                {
+                    using var request = JsonDocument.Parse(line);
+                    if (!request.RootElement.TryGetProperty("id", out var id)) continue;
+                    if (id.GetInt32() == 1) Console.WriteLine("{\"id\":1,\"result\":{}}");
+                    else
+                    {
+                        Console.WriteLine(JsonSerializer.Serialize(new { id = 2, result = new {
+                            home = Environment.GetEnvironmentVariable("CODEX_HOME"),
+                            inherited = Environment.GetEnvironmentVariable("SYNTHETIC_PARENT_SECRET") is not null
+                        } }));
+                    }
+                }
+                return 0;
             case "echo":
                 Console.OutputEncoding = new UTF8Encoding(false);
                 foreach (var argument in args.Skip(1)) Console.WriteLine(argument);

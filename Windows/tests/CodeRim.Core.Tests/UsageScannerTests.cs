@@ -21,7 +21,7 @@ public sealed class UsageScannerTests
             var length = new FileInfo(source).Length;
             var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
             var parsed = typeof(UsageScanner).GetMethod("ParseFile", flags)!.Invoke(null,
-                [source, 100, length, TestContext.Current.CancellationToken, "codex", null]);
+                [source, 100, length, TestContext.Current.CancellationToken, "codex", null, false]);
             var replacement = source + ".replacement";
             File.Copy(source, replacement); File.Move(replacement, source, overwrite: true);
             var accepted = typeof(UsageScanner).GetMethod("VerifyPrefix", flags)!.Invoke(null,

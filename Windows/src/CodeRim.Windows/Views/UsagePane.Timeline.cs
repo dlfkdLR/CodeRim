@@ -5,6 +5,7 @@ using System.Windows.Automation;
 using System.Windows.Media;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
+using CodeRim.Windows.Services;
 
 namespace CodeRim.Windows.Views;
 internal sealed partial class UsagePane
@@ -14,9 +15,11 @@ internal sealed partial class UsagePane
         AutomationProperties.SetAutomationId(grid, "usage.header");
         AutomationProperties.SetAutomationId(actions, "usage.controls");
         bool? compact = null;
-        grid.SizeChanged += (_, _) =>
+        void Layout()
         {
+            var detail = !grid.Children.OfType<System.Windows.Controls.ComboBox>().Any(x => x.Visibility == Visibility.Visible);
             var next = grid.ActualWidth < 480;
+            if (detail) { compact = null; grid.ColumnDefinitions.Clear(); grid.RowDefinitions.Clear(); Grid.SetRow(actions, 0); Grid.SetColumn(actions, 0); actions.Margin = new Thickness(0); return; }
             if (compact == next) return;
             compact = next; grid.ColumnDefinitions.Clear(); grid.RowDefinitions.Clear();
             grid.ColumnDefinitions.Add(new ColumnDefinition());
@@ -25,21 +28,23 @@ internal sealed partial class UsagePane
             else grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             Grid.SetRow(actions, next ? 1 : 0); Grid.SetColumn(actions, next ? 0 : 1);
             actions.Margin = next ? new Thickness(0, 12, 0, 0) : new Thickness(12, 0, 0, 0);
-        };
+        }
+        grid.SizeChanged += (_, _) => Layout();
+        foreach (var picker in grid.Children.OfType<System.Windows.Controls.ComboBox>()) picker.IsVisibleChanged += (_, _) => Layout();
     }
     private static void AdaptOverview(Grid grid, FrameworkElement total, FrameworkElement breakdown)
     {
         bool? compact = null;
         grid.SizeChanged += (_, _) =>
         {
-            var next = grid.ActualWidth < 470;
+            var next = grid.ActualWidth < 492;
             if (compact == next) return;
             compact = next; grid.ColumnDefinitions.Clear(); grid.RowDefinitions.Clear();
             grid.ColumnDefinitions.Add(new ColumnDefinition());
             if (next) { grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); }
-            else grid.ColumnDefinitions.Add(new ColumnDefinition());
+            else grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(240) });
             Grid.SetColumn(breakdown, next ? 0 : 1); Grid.SetRow(breakdown, next ? 1 : 0);
-            total.Margin = next ? new Thickness(0, 0, 0, 16) : new Thickness(0, 0, 24, 0);
+            total.Margin = next ? new Thickness(0, 0, 0, 16) : new Thickness(0, 0, 32, 0);
         };
     }
     private static void AdaptHistory(Grid grid)
@@ -56,83 +61,182 @@ internal sealed partial class UsagePane
             for (var i = 0; i < buttons.Length; i++)
             {
                 Grid.SetColumn(buttons[i], next ? 0 : i); Grid.SetRow(buttons[i], next ? i : 0);
-                buttons[i].Padding = next ? new Thickness(0, 8, 0, 8) : new Thickness(i == 0 ? 0 : 16, 0, 16, 0);
+                buttons[i].Padding = next ? new Thickness(0, 8, 0, 8) : new Thickness(i == 0 ? 0 : 16, 4, 16, 4);
             }
             foreach (var separator in grid.Children.OfType<Border>()) separator.Visibility = next ? Visibility.Collapsed : Visibility.Visible;
         };
     }
     private string? selectedModel;
     private DateTimeOffset? selectedBucket;
-    private void Timeline(UsageEvent[] events)
+    private readonly Dictionary<string, Button> timelineButtons = new(StringComparer.Ordinal);
+    private void Timeline(UsageEvent[] events, CostSummary totalCost, DateTimeOffset through, DataQuality? quality = null)
     {
-        var now = DateTimeOffset.Now;
+        var showsCost = settings.Current.CostEstimatesEnabled && provider == "codex";
+        var excludedModels = totalCost.ExcludedModels.ToHashSet(StringComparer.Ordinal);
         var range = period switch { "today" => AnalyticsRange.Today, "30d" => AnalyticsRange.ThirtyDays, _ => AnalyticsRange.SevenDays };
         var buckets = period is "today" or "7d" or "30d"
-            ? AnalyticsTimeline.Build(events, range, now, TimeZoneInfo.Local)
+            ? AnalyticsTimeline.Build(events, range, through, TimeZoneInfo.Local)
             : events.GroupBy(e => e.OccurredAt.LocalDateTime.Date).OrderBy(g => g.Key).TakeLast(30)
                 .Select(g => new AnalyticsBucket(new DateTimeOffset(g.Key), new DateTimeOffset(g.Key.AddDays(1)),
-                    g.Aggregate(TokenUsage.Zero, (sum, e) => sum.Add(e.Usage)), UsageAnalytics.Estimate(g))).ToArray();
-        var details = new StackPanel { Margin = new Thickness(0, 12, 0, 12) };
-        void Select(AnalyticsBucket bucket)
+                    g.Aggregate(TokenUsage.Zero, (sum, e) => sum.Add(e.Usage)), UsageAnalytics.Estimate(g, excludedModels))).ToArray();
+        if (quality == DataQuality.Unavailable) buckets = buckets.Select(bucket => bucket with { Cost = new CostSummary(null, 0, []) }).ToArray();
+        var domainStart = AnalyticsTimeline.Start(range, through, TimeZoneInfo.Local);
+        var details = new StackPanel { Margin = new Thickness(10) };
+        var detailCard = new Border { Child = details, CornerRadius = new CornerRadius(8), Margin = new Thickness(0, 12, 0, 12), Visibility = Visibility.Collapsed };
+        detailCard.SetResourceReference(Border.BackgroundProperty, "LimitCardBackground");
+        void Select(AnalyticsBucket bucket, DateTimeOffset? rawSelection = null)
         {
-            selectedBucket = bucket.Start; details.Children.Clear();
-            details.Children.Add(Ui.Text(BucketLabel(bucket.Start), 13, weight: FontWeights.SemiBold));
-            MetricSummary(details, bucket.Usage);
-            if (settings.Current.CostEstimatesEnabled && provider == "codex")
-                details.Children.Add(Ui.Row(bucket.Cost.Label, CostText(bucket.Cost)));
+            selectedBucket = rawSelection ?? bucket.Start; details.Children.Clear();
+            if (destination == "activity") analyticsSelectedBucket = selectedBucket;
+            detailCard.Visibility = Visibility.Visible;
+            details.Children.Add(Ui.Text(AnalyticsDateText.Format(bucket.Start, period == "today" ? AnalyticsDateStyle.Time : AnalyticsDateStyle.Day), 11, weight: FontWeights.SemiBold));
+            AnalyticsSummary(details, bucket.Usage, bucket.Cost, compact: true, quality);
+            AnalyticsBreakdown(details, bucket.Usage);
             AutomationProperties.SetName(details, "Selected usage interval");
             AutomationProperties.SetAutomationId(details, "usage.bucket-details");
         }
         void Chart(bool cost)
         {
-            var title = cost ? "Estimated API cost" : "Token activity";
-            Ui.Section(readings, title);
-            var chart = new Grid { Height = 112, Margin = new Thickness(0, 8, 0, 2) };
+            var title = cost ? totalCost.IsPartial ? "Estimated cost of priced usage" : "Estimated API cost" : "Token activity";
+            AnalyticsHeading(readings, title);
+            if (cost && totalCost.Amount is null)
+            {
+                readings.Children.Add(Ui.Text("No cost estimate is available for the recorded usage in this range.", 11, "#A6A6AA"));
+                return;
+            }
+            // Swift Charts' frame includes the X axis. Keep labels inside the
+            // same 80/112-point frame instead of appending another content row.
+            var axisHeight = domainStart == through ? 0d : 18d;
+            var chart = new Grid { Height = showsCost ? 80 : 112 };
+            chart.RowDefinitions.Add(new RowDefinition());
+            chart.RowDefinitions.Add(new RowDefinition { Height = new GridLength(axisHeight) });
             AutomationProperties.SetName(chart, title + " by " + (period == "today" ? "hour" : "day"));
+            if (axisHeight > 0) AddChartAxis(chart, range, domainStart, through, cost);
             var values = buckets.Select(b => cost ? b.Cost.Amount.HasValue ? (double?)b.Cost.Amount.Value : null : b.Usage.TotalTokens).ToArray();
             var maximum = values.Where(v => v.HasValue).Select(v => v!.Value).DefaultIfEmpty(0).Max();
+            var marks = new List<(Button Button, Border Fill, DateTimeOffset Start)>();
             for (var i = 0; i < buckets.Count; i++)
             {
-                var bucket = buckets[i]; var value = values[i]; chart.ColumnDefinitions.Add(new ColumnDefinition());
+                var bucket = buckets[i]; var value = values[i];
                 var label = BucketLabel(bucket.Start) + ": " + (cost ? CostText(bucket.Cost) : bucket.Usage.TotalTokens.ToString("N0", CultureInfo.CurrentCulture) + " tokens");
-                var fill = new Border { Height = BarHeight(value, maximum),
-                    VerticalAlignment = VerticalAlignment.Bottom, CornerRadius = new CornerRadius(3) };
-                fill.SetResourceReference(Border.BackgroundProperty, "AccentBrush");
+                var fill = new Border { Width = 8, Height = BarHeight(value, maximum, chart.Height - axisHeight),
+                    VerticalAlignment = VerticalAlignment.Bottom, HorizontalAlignment = HorizontalAlignment.Left,
+                    IsHitTestVisible = false, CornerRadius = new CornerRadius(3, 3, 0, 0) };
+                fill.SetResourceReference(Border.BackgroundProperty, cost ? "UsageAmple" : "AccentBrush");
                 var content = new Grid(); content.Children.Add(fill);
-                var button = Ui.Button("", () => Select(bucket)); button.Content = content;
-                button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Padding = new Thickness(1);
-                button.Margin = new Thickness(1); button.MinWidth = 0;
+                var button = Ui.Button("", () => Select(bucket)); button.Content = content; button.Tag = bucket.Start;
+                button.Template = ChartBarTemplate(); Motion.SetFeedback(button, false);
+                button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Padding = new Thickness(0);
+                button.Margin = new Thickness(0); button.MinWidth = 0; button.MinHeight = 0;
+                button.HorizontalAlignment = HorizontalAlignment.Left; button.Cursor = System.Windows.Input.Cursors.Arrow;
                 button.HorizontalContentAlignment = HorizontalAlignment.Stretch; button.VerticalContentAlignment = VerticalAlignment.Stretch;
                 button.ToolTip = label; AutomationProperties.SetName(button, label);
                 AutomationProperties.SetAutomationId(button, "usage.bucket." + (cost ? "cost." : "tokens.") + bucket.Start.ToUnixTimeSeconds());
-                Grid.SetColumn(button, i); chart.Children.Add(button);
+                timelineButtons[AutomationProperties.GetAutomationId(button)] = button;
+                chart.Children.Add(button);
+                marks.Add((button, fill, bucket.Start));
             }
+            chart.SizeChanged += (_, _) =>
+            {
+                var centers = marks.Select(mark => AnalyticsTimeline.Position(mark.Start, domainStart, through, chart.ActualWidth)).ToArray();
+                for (var i = 0; i < marks.Count; i++)
+                {
+                    // Hit regions end halfway between dates. Fixed-width hit boxes
+                    // overlap in narrow 30D charts and can select the next interval.
+                    var left = i == 0 ? 0 : (centers[i - 1] + centers[i]) / 2;
+                    var right = i == marks.Count - 1 ? chart.ActualWidth : (centers[i] + centers[i + 1]) / 2;
+                    marks[i].Button.Width = Math.Max(0, right - left);
+                    marks[i].Button.Margin = new Thickness(left, 0, 0, 0);
+                    marks[i].Fill.Margin = new Thickness(centers[i] - left - 4, 0, 0, 0);
+                }
+            };
             readings.Children.Add(chart);
             if (cost && values.Any(v => !v.HasValue))
                 readings.Children.Add(Ui.Text("Gaps indicate intervals without a cost estimate.", 11, "#A6A6AA"));
-            if (buckets.Count > 0)
-                readings.Children.Add(Ui.Row(BucketLabel(buckets[0].Start), BucketLabel(buckets[^1].Start)));
         }
         Chart(false);
-        if (settings.Current.CostEstimatesEnabled && provider == "codex") Chart(true);
+        if (showsCost) Chart(true);
         if (period is not ("today" or "7d" or "30d")) readings.Children.Add(Ui.Text("Chart shows up to 30 recent active days in this period.", 11, "#A6A6AA"));
-        readings.Children.Add(details);
-        if (selectedBucket is { } selected && buckets.FirstOrDefault(b => b.Start == selected) is { } current) Select(current);
-        Ui.Section(readings, "Models");
+        readings.Children.Add(detailCard);
+        if (selectedBucket is { } selected && AnalyticsTimeline.Nearest(buckets, selected) is { } current) Select(current, selected);
+        AnalyticsHeading(readings, "Models");
+        if (events.Length == 0) readings.Children.Add(Ui.Text("No model-tagged usage in this range.", 11, "#A6A6AA"));
         foreach (var row in UsageAnalytics.Group(events, "model"))
         {
-            var button = Ui.Button("", () => Forward("model", selectedProject: project, selectedSession: session, model: row.Name));
-            var costText = settings.Current.CostEstimatesEnabled && provider == "codex"
-                ? " · " + (row.Cost is { } amount ? "$" + amount.ToString("N4", CultureInfo.CurrentCulture) + (row.Partial ? " · partial" : "") : "Unavailable") : "";
-            button.Content = Ui.Row(row.Name, TokenFormatter.Format(row.Tokens, settings.Current.NumberStyle) + costText + "  ›");
-            button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-            AutomationProperties.SetName(button, row.Name + ": " + row.Tokens.ToString("N0", CultureInfo.CurrentCulture) + " tokens" + costText);
-            AutomationProperties.SetAutomationId(button, "usage.model." + row.Name);
-            readings.Children.Add(button);
+            var costText = showsCost && quality != DataQuality.Unavailable && row.Cost is { } amount ? "~" + AnalyticsCurrency(amount) + (row.Partial ? " · subtotal" : "") : "";
+            readings.Children.Add(AnalyticsRowButton(row.Name, null, row.Tokens, costText, "usage.model." + row.Name, 8,
+                () => Forward("model", selectedProject: project, selectedSession: session, model: row.Name)));
         }
     }
-    internal static double BarHeight(double? value, double maximum) => value is > 0 && maximum > 0
-        ? Math.Max(2, Math.Min(1, value.Value / maximum) * 96) : 0;
+    private static void AddChartAxis(Grid chart, AnalyticsRange range, DateTimeOffset start, DateTimeOffset through, bool cost)
+    {
+        // Axis dates are independent of recorded buckets: at 00:30 the reference
+        // has 15-minute ticks even though there is only one hourly usage bucket.
+        var ticks = AnalyticsAxis.Build(range, start, through, TimeZoneInfo.Local, CultureInfo.CurrentCulture.DateTimeFormat.FirstDayOfWeek);
+        var lines = new Canvas { IsHitTestVisible = false };
+        Grid.SetRowSpan(lines, 2); chart.Children.Add(lines);
+        var axis = new Grid { IsHitTestVisible = false, ClipToBounds = true };
+        AutomationProperties.SetAutomationId(axis, "usage.chart.axis." + (cost ? "cost" : "tokens"));
+        var labels = new Canvas { IsHitTestVisible = false }; axis.Children.Add(labels);
+        Grid.SetRow(axis, 1); chart.Children.Add(axis);
+        var marks = ticks.Select(tick =>
+        {
+            var line = new System.Windows.Shapes.Line { StrokeThickness = 1, StrokeDashArray = new DoubleCollection([3, 3]), IsHitTestVisible = false, Tag = tick.Date };
+            line.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "DividerBrush"); lines.Children.Add(line);
+            var style = tick.Unit switch { AnalyticsAxisUnit.Second => AnalyticsDateStyle.AxisSecond,
+                AnalyticsAxisUnit.Minute => AnalyticsDateStyle.Time, AnalyticsAxisUnit.Hour => AnalyticsDateStyle.AxisHour, _ => AnalyticsDateStyle.AxisDay };
+            var text = Ui.Text(AnalyticsDateText.Format(tick.Date, style), 11, "#A6A6AA");
+            text.Margin = new Thickness(0); text.Tag = tick.Date; text.IsHitTestVisible = false;
+            text.TextWrapping = TextWrapping.NoWrap; text.TextTrimming = TextTrimming.CharacterEllipsis;
+            labels.Children.Add(text); Canvas.SetTop(text, 4);
+            return (tick.Date, Line: line, Text: text);
+        }).ToArray();
+        chart.SizeChanged += (_, _) =>
+        {
+            for (var i = 0; i < marks.Length; i++)
+            {
+                var x = AnalyticsTimeline.Position(marks[i].Date, start, through, chart.ActualWidth);
+                var next = i + 1 < marks.Length ? AnalyticsTimeline.Position(marks[i + 1].Date, start, through, chart.ActualWidth) : chart.ActualWidth;
+                marks[i].Line.X1 = marks[i].Line.X2 = x; marks[i].Line.Y2 = chart.ActualHeight;
+                // Keep a right-edge tick at its date; clip its label instead of
+                // moving the date to another position merely to make the text fit.
+                Canvas.SetLeft(marks[i].Text, x + 4);
+                if (i + 1 < marks.Length) marks[i].Text.Width = Math.Max(0, next - x - 8);
+                else
+                {
+                    var text = marks[i].Text;
+                    var remaining = Math.Max(0, chart.ActualWidth - x - 4);
+                    var ellipsis = new FormattedText("…", CultureInfo.CurrentCulture, text.FlowDirection,
+                        new Typeface(text.FontFamily, text.FontStyle, text.FontWeight, text.FontStretch), text.FontSize,
+                        text.Foreground, VisualTreeHelper.GetDpi(text).PixelsPerDip).WidthIncludingTrailingWhitespace;
+                    // Swift Charts retains a clipped glyph prefix when even an
+                    // ellipsis cannot fit. A zero-width TextBlock loses that ink.
+                    // The axis still clips at the plot boundary, including when
+                    // the tick itself is exactly at the domain's right endpoint.
+                    text.TextTrimming = remaining < ellipsis ? TextTrimming.None : TextTrimming.CharacterEllipsis;
+                    text.Width = Math.Max(remaining, ellipsis);
+                }
+            }
+        };
+    }
+    internal static double BarHeight(double? value, double maximum, double height = 96) => value is > 0 && maximum > 0
+        ? Math.Min(1, value.Value / maximum) * height : 0;
+    private static ControlTemplate ChartBarTemplate()
+    {
+        var root = new FrameworkElementFactory(typeof(Grid));
+        root.SetValue(Panel.BackgroundProperty, Brushes.Transparent);
+        root.AppendChild(new FrameworkElementFactory(typeof(ContentPresenter)));
+        var focus = new FrameworkElementFactory(typeof(Border), "Focus");
+        focus.SetValue(Border.BorderThicknessProperty, new Thickness(1));
+        focus.SetValue(Border.CornerRadiusProperty, new CornerRadius(3));
+        focus.SetValue(UIElement.IsHitTestVisibleProperty, false);
+        root.AppendChild(focus);
+        var template = new ControlTemplate(typeof(Button)) { VisualTree = root };
+        var focused = new Trigger { Property = UIElement.IsKeyboardFocusedProperty, Value = true };
+        focused.Setters.Add(new Setter(Border.BorderBrushProperty, new DynamicResourceExtension("AccentBrush"), "Focus"));
+        template.Triggers.Add(focused);
+        return template;
+    }
     private void MetricSummary(Panel parent, TokenUsage tokens)
     {
         parent.Children.Add(Ui.Row("Total tokens", TokenFormatter.Format(tokens.TotalTokens, settings.Current.NumberStyle)));
@@ -140,7 +244,7 @@ internal sealed partial class UsagePane
     }
     private string BucketLabel(DateTimeOffset date) => period == "today"
         ? date.ToLocalTime().ToString("HH:mm zzz", CultureInfo.CurrentCulture)
-        : date.ToLocalTime().ToString("MMM d", CultureInfo.CurrentCulture);
+        : CalendarDateText.MonthDay(date.LocalDateTime) ?? "Date unavailable";
     private static string CostText(CostSummary cost) => cost.Amount is { } amount
         ? "$" + amount.ToString("N4", CultureInfo.CurrentCulture) + (cost.IsPartial ? " · partial" : "") : "Unavailable";
 }

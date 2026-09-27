@@ -7,7 +7,8 @@ namespace CodeRim.Core.Domain;
 public enum ReadingState { Ready, Loading, Partial, Stale, NeedsAuth, Unsupported, Unavailable, Error, Disabled }
 public sealed record LimitWindow(string Id, string Name, double? UsedPercent = null, DateTimeOffset? ResetsAt = null,
     int DurationMinutes = 0, long? UsedCount = null, long? RemainingCount = null, string? Unit = null, string? DisplayValue = null,
-    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Group = null)
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? Group = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] string? AccountLimitName = null)
 {
     public double? RemainingPercent => UsedPercent is { } value ? Math.Clamp(100 - value, 0, 100) : null;
 }
@@ -33,12 +34,29 @@ public sealed record ProviderCostUsage(string Currency, int HistoryDays, string 
     private static bool ValidDate(string value) => DateOnly.TryParseExact(value, "yyyy-MM-dd",
         CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
 }
+// An in-flight, successful account response can update (or clear) the plan even
+// when a later usage request fails. Null update means no new account evidence.
+public sealed record ProviderAccountPlanUpdate(string? Plan);
 public sealed record ProviderReading(string Id, ReadingState State, IReadOnlyList<LimitWindow> Windows,
-    DateTimeOffset? UpdatedAt = null, string? Message = null, string? Plan = null, ProviderCostUsage? CostUsage = null)
+    DateTimeOffset? UpdatedAt = null, string? Message = null, string? Plan = null, ProviderCostUsage? CostUsage = null,
+    [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)] ProviderAccountMetadata? Account = null)
 {
-    public LimitWindow? Headline => Windows.Count == 0 ? null : Windows[0];
-    public bool IsStale(DateTimeOffset now) => UpdatedAt is null || UpdatedAt > now.AddMinutes(1)
-        || now - UpdatedAt > TimeSpan.FromMinutes(5) || Windows.Any(x => x.ResetsAt <= now);
+    [System.Text.Json.Serialization.JsonIgnore]
+    public ProviderAccountPlanUpdate? AccountPlanUpdate { get; init; }
+    public LimitWindow? Headline => Windows.Count == 0 ? null : Id is "codex" or "claude"
+        ? Windows.Where(x => x.UsedPercent is { } used && double.IsFinite(used)).MaxBy(x => x.UsedPercent) ?? Windows[0]
+        : Windows[0];
+    public bool IsStale(DateTimeOffset now)
+    {
+        if (UpdatedAt is not { } updated) return true;
+        var age = now - updated;
+        // Account stores have distinct source-clock policies on Mac. Codex
+        // quota resets do not invalidate an otherwise recent server reading.
+        if (Id == "codex") return age >= TimeSpan.FromMinutes(5) || age < -TimeSpan.FromMinutes(1);
+        if (Id == "claude") return age > TimeSpan.FromMinutes(15) || age < -TimeSpan.FromMinutes(5)
+            || Windows.Any(window => window.ResetsAt <= now);
+        return age > TimeSpan.FromMinutes(5) || age < -TimeSpan.FromMinutes(1) || Windows.Any(window => window.ResetsAt <= now);
+    }
     public ProviderReading Evaluated(DateTimeOffset now) => State == ReadingState.Ready && IsStale(now) ? this with { State = ReadingState.Stale } : this;
 }
 public sealed record ProviderDefinition(string Id, string Name, string Summary, string[] EnvironmentKeys)
@@ -77,7 +95,7 @@ public static class NotchGeometry
         };
     }
     private static double Clamp(double value, double min, double max) => max < min ? min : Math.Clamp(value, min, max);
-    public static string BandColor(double? used) => used is >= 70 ? "#FF3F00" : used is >= 50 ? "#F2FF00" : "#00FF88";
+    public static string BandColor(double? used, string accent = "#00FF88") => used is >= 70 ? "#FF3F00" : used is >= 50 ? "#F2FF00" : accent;
 }
 
 public sealed class ThresholdTracker

@@ -3,7 +3,7 @@ using System.Text.Json.Nodes;
 
 namespace CodeRim.Core.Services;
 
-public static class ClaudeHookInstaller
+public static partial class ClaudeHookInstaller
 {
     private const string CommandPrefix = "powershell.exe -NoProfile -NonInteractive -EncodedCommand ";
     private const string InputScript = "[Console]::InputEncoding=[Text.UTF8Encoding]::new($false); $OutputEncoding=[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false); "
@@ -15,9 +15,8 @@ public static class ClaudeHookInstaller
     public static bool HasOtherStatusLine()
     {
         if (!File.Exists(SettingsPath)) return false;
-        var root = JsonNode.Parse(GuardedFile.Read(SettingsPath));
-        var command = root?["statusLine"]?["command"]?.GetValue<string>();
-        return !string.IsNullOrEmpty(command) && !IsOwned(command, "claude-status");
+        var root = ParseSettings(GuardedFile.Read(SettingsPath));
+        return root?["statusLine"] is { } status && !IsOwned(StatusCommand(status), "claude-status");
     }
     public static string Command(string operation, string? executable = null)
     {
@@ -48,9 +47,8 @@ public static class ClaudeHookInstaller
     }
     public static string Configure(string? before, string executable, bool replaceExisting = false)
     {
-        var root = before is null ? new JsonObject() : JsonNode.Parse(before)!.AsObject();
-        var previous = root["statusLine"]?["command"]?.GetValue<string>();
-        if (!string.IsNullOrEmpty(previous) && !IsOwned(previous, "claude-status") && !replaceExisting)
+        var root = before is null ? new JsonObject() : ParseSettings(before);
+        if (root["statusLine"] is { } previous && !IsOwned(StatusCommand(previous), "claude-status") && !replaceExisting)
             throw new InvalidOperationException("An existing status line needs explicit replacement approval.");
         root["statusLine"] = new JsonObject { ["type"] = "command", ["command"] = Command("claude-status", executable) };
         var hooks = root["hooks"]?.AsObject() ?? new JsonObject();
@@ -73,15 +71,6 @@ public static class ClaudeHookInstaller
     {
         if (!OperatingSystem.IsWindows()) throw new InvalidOperationException("This installer requires Windows.");
         if (!File.Exists(Executable)) throw new FileNotFoundException("Install the complete CodeRim Windows package first.");
-        var path = SettingsPath; Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        var before = File.Exists(path) ? GuardedFile.Read(path) : null;
-        var after = Configure(before, Executable, replaceExisting);
-        if (before == after) return;
-        if (before is not null)
-        {
-            var backup = path + ".coderim-backup-" + Guid.NewGuid().ToString("N");
-            GuardedFile.WritePrivate(backup, before); GuardedFile.Replace(path, before, after);
-        }
-        else GuardedFile.WritePrivate(path, after);
+        InstallAt(SettingsPath, Executable, replaceExisting);
     }
 }

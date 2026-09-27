@@ -66,7 +66,7 @@ internal sealed partial class NotchWindow : Window
         hoverClear.Tick += (_, _) => DismissProviderCard();
         popup.Closed += (_, _) => { accountMenu = false; if (!closed) foldTimer.Start(); };
         foldTimer.Tick += (_, _) => TryFold();
-        clock.Tick += (_, _) => { if (popup.IsOpen && popup.Child is UIElement child && !child.IsKeyboardFocusWithin) RefreshPopup(); };
+        clock.Tick += (_, _) => RefreshPopupClock();
         PreviewMouseLeftButtonDown += (_, e) =>
         {
             if ((Keyboard.Modifiers & ModifierKeys.Alt) == 0) return;
@@ -89,7 +89,9 @@ internal sealed partial class NotchWindow : Window
         };
         SourceInitialized += (_, _) =>
         {
-            HwndSource.FromHwnd(new WindowInteropHelper(this).Handle)?.AddHook(WindowMessage);
+            var handle = new WindowInteropHelper(this).Handle;
+            ExcludeFromWindowSwitcher(handle);
+            HwndSource.FromHwnd(handle)?.AddHook(WindowMessage);
             Render();
         };
         Closed += (_, _) =>
@@ -138,29 +140,53 @@ internal sealed partial class NotchWindow : Window
         foldTimer.Stop(); foldTimer.Interval = TimeSpan.FromMilliseconds(450); popup.IsOpen = false; hovered = null;
         if (!pinned && settings.Current.Visibility != NotchVisibility.AlwaysShow) { SetExpanded(false); }
     }
-    private void Update(object? sender, PropertyChangedEventArgs e)
+    private string[] VisibleProviderIds() => settings.Current.EnabledProviders.Where(id =>
     {
+        var reading = store.AccountDisplay(id).Reading;
+        return ProviderAvailability.ShowsInNotch(id, reading, store.ProviderAccountDisplay(id).Account is not null);
+    }).ToArray();
+    private void Update(object? sender, PropertyChangedEventArgs e) => RefreshReadings();
+    internal void RefreshReadings()
+    {
+        if (closed) return;
+        var visibleProviders = VisibleProviderIds();
+        if (Expanded && !buttons.Keys.SequenceEqual(visibleProviders, StringComparer.Ordinal))
+        {
+            var horizontal = viewport?.HorizontalOffset ?? 0; var vertical = viewport?.VerticalOffset ?? 0;
+            var focused = buttons.FirstOrDefault(pair => pair.Value.IsKeyboardFocusWithin).Key;
+            var preservePopup = popup.IsOpen && (accountMenu || hovered is not null && visibleProviders.Contains(hovered, StringComparer.Ordinal));
+            var revealed = ControlsRevealed;
+            Render(preservePopup: preservePopup); UpdateLayout();
+            viewport?.ScrollToHorizontalOffset(horizontal); viewport?.ScrollToVerticalOffset(vertical);
+            if (hovered is not null && !buttons.ContainsKey(hovered)) hovered = null;
+            if (focused is not null && buttons.TryGetValue(focused, out var surviving)) surviving.Focus();
+            if (revealed) RevealControls();
+            if (preservePopup) UpdatePopupAnchor(false);
+            return;
+        }
         foreach (var ring in rings)
         {
-            ring.Reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(ring.ProviderId)?.Evaluated(DateTimeOffset.Now), settings.Current);
+            var display = store.AccountDisplay(ring.ProviderId);
+            ring.Reading = ProviderDisplayPolicy.ForNotch(display.Reading, settings.Current, display.RawPlan)?.Evaluated(DateTimeOffset.Now);
             ring.Active = store.Sessions.Any(x => x.Provider == ring.ProviderId && x.State == "busy");
             ring.Waiting = store.Sessions.Any(x => x.Provider == ring.ProviderId && x.State == "waiting");
             ring.Refreshing = store.RefreshingProviders.Contains(ring.ProviderId);
             ring.InvalidateVisual();
             if (buttons.TryGetValue(ring.ProviderId, out var button)) UpdateRingAccessibility(button, ring);
         }
-        if (popup.IsOpen && popup.Child is UIElement child && !child.IsKeyboardFocusWithin) RefreshPopup();
+        if (CanRefreshProviderPopup()) RefreshPopup();
     }
     private static void UpdateRingAccessibility(Button button, ProviderRing ring)
     {
         AutomationProperties.SetName(button, (ProviderCatalog.Find(ring.ProviderId)?.Name ?? ring.ProviderId) + "; " + ring.AccessibleReading());
         AutomationProperties.SetHelpText(button, "Show usage details. Activate to refresh or open the session needing attention.");
     }
-    internal void Render(bool animateOpening = false)
+    internal void Render(bool animateOpening = false, bool preservePopup = false, double openingProgress = 0)
     {
         if (closed) return;
         foldRevision++; movingShape = null;
-        rings.Clear(); buttons.Clear(); popup.IsOpen = false; Motion.Stop(popupFrame);
+        rings.Clear(); buttons.Clear();
+        if (!preservePopup) { popup.IsOpen = false; Motion.Stop(popupFrame); }
         ResetControls();
         var config = settings.Current; var scale = config.Scale;
         if (!Expanded)
@@ -171,7 +197,8 @@ internal sealed partial class NotchWindow : Window
         }
         var screen = SelectedScreen(); var dpi = ScreenScale(screen);
         var available = (Vertical ? screen.WorkingArea.Height : screen.WorkingArea.Width) / dpi - 16;
-        var fit = NotchMetrics.Fit(config.Edge, config.EnabledProviders.Length, scale, available);
+        var visibleProviders = VisibleProviderIds();
+        var fit = NotchMetrics.Fit(config.Edge, visibleProviders.Length, scale, available);
         bodyLength = fit.Length; bodyDepth = fit.Depth;
         var controlsFirst = NotchMetrics.ControlsAtStart(config.Edge, config.ControlsPosition, bodyLength, scale, available, config.Offset);
         bodyStart = controlsFirst ? NotchMetrics.ControlExtent * scale : 0;
@@ -182,19 +209,20 @@ internal sealed partial class NotchWindow : Window
         var body = new Grid { Width = Vertical ? bodyDepth : bodyLength, Height = Vertical ? bodyLength : bodyDepth };
         var shape = new NotchShape { Edge = config.Edge, DesignScale = scale, Fill = Brushes.Black };
         movingShape = shape;
-        if (animateOpening && Animates) shape.Expansion = 0;
+        if (animateOpening && Animates) shape.Expansion = Math.Clamp(openingProgress, 0, 1);
         shape.FrameChanged += () => body.Clip = shape.GeometryFor(new Size(body.Width, body.Height));
         body.Clip = shape.GeometryFor(new Size(body.Width, body.Height));
         body.Children.Add(shape);
         var cells = new StackPanel { Orientation = Vertical ? Orientation.Vertical : Orientation.Horizontal };
-        foreach (var id in config.EnabledProviders)
+        foreach (var id in visibleProviders)
         {
-            var ring = new ProviderRing { ProviderId = id, Settings = config, Reading = ProviderDisplayPolicy.Apply(store.Readings.GetValueOrDefault(id), config),
+            var display = store.AccountDisplay(id);
+            var ring = new ProviderRing { ProviderId = id, Settings = config, Reading = ProviderDisplayPolicy.ForNotch(display.Reading, config, display.RawPlan)?.Evaluated(DateTimeOffset.Now),
                 Active = store.Sessions.Any(x => x.Provider == id && x.State == "busy"),
                 Waiting = store.Sessions.Any(x => x.Provider == id && x.State == "waiting"),
                 Refreshing = store.RefreshingProviders.Contains(id) };
             rings.Add(ring);
-            var button = new Button { Content = ring, Style = (Style)FindResource("NotchButton"),
+            var button = new Button { Content = ring, Style = (Style)FindResource("NotchProviderButton"),
                 Width = Vertical ? NotchMetrics.SideDepth : NotchMetrics.Ring,
                 Height = Vertical ? NotchMetrics.CellHeight : NotchMetrics.SideDepth - NotchMetrics.Ring + NotchMetrics.CellHeight,
                 Margin = Vertical ? new Thickness(0, 0, 0, NotchMetrics.CellGap) : new Thickness(0, 0, NotchMetrics.CellGap, 0) };
@@ -245,7 +273,7 @@ internal sealed partial class NotchWindow : Window
         if (Vertical) Canvas.SetTop(body, bodyStart); else Canvas.SetLeft(body, bodyStart);
         if (config.Edge == NotchEdge.Right) Canvas.SetLeft(body, outerDepth - bodyDepth);
         if (config.Edge == NotchEdge.Bottom) Canvas.SetTop(body, outerDepth - bodyDepth);
-        if (config.EnabledProviders.Length > 0) RenderControls(canvas, controlsFirst);
+        if (visibleProviders.Length > 0) RenderControls(canvas, controlsFirst);
         var menu = new ContextMenu();
         menu.Opened += (_, _) => { trackingMenu = true; foldTimer.Stop(); };
         menu.Closed += (_, _) => { trackingMenu = false; foldTimer.Start(); };
@@ -277,6 +305,7 @@ internal sealed partial class NotchWindow : Window
     {
         if (accountMenu && popup.IsOpen || !buttons.ContainsKey(id)) return;
         var transition = !popup.IsOpen || hovered != id;
+        if (transition) sessionExpansion.Expanded = false;
         hoverClear.Stop(); popup.StaysOpen = true; hovered = id; RefreshPopup(); RevealPopup(transition); foldTimer.Stop();
     }
     internal void DismissProviderCard()
@@ -286,14 +315,40 @@ internal sealed partial class NotchWindow : Window
         if (popup.IsOpen && popup.Child is UIElement child && (child.IsMouseOver || child.IsKeyboardFocusWithin)) return;
         hoverClear.Stop(); hovered = null; FadeProviderPopup();
     }
+    private readonly SessionExpansionState sessionExpansion = new();
+    internal void RefreshPopupClock() { if (CanRefreshProviderPopup()) RefreshPopup(); }
+    private bool CanRefreshProviderPopup()
+    {
+        if (accountMenu || !popup.IsOpen || popup.Child is not UIElement child) return false;
+        if (!child.IsKeyboardFocusWithin) return true;
+        if (Mouse.LeftButton == MouseButtonState.Pressed || Keyboard.IsKeyDown(Key.Space) || Keyboard.IsKeyDown(Key.Return)) return false;
+        var id = Keyboard.FocusedElement is DependencyObject focused ? AutomationProperties.GetAutomationId(focused) : "";
+        return id.StartsWith("notch.session.", StringComparison.Ordinal) || id.StartsWith("notch.sessions.", StringComparison.Ordinal);
+    }
     private void RefreshPopup()
     {
         if (hovered is null || !buttons.ContainsKey(hovered)) return;
         var scrollOffset = FindScroll(popup.Child)?.VerticalOffset ?? 0;
+        var focusedId = popup.Child is UIElement child && child.IsKeyboardFocusWithin && Keyboard.FocusedElement is DependencyObject focused
+            ? AutomationProperties.GetAutomationId(focused) : null;
         var screen = SelectedScreen();
-        var card = NotchPopover.Create(hovered, store, settings.Current, page => { popup.IsOpen = false; openSettings(page); }, screen.WorkingArea.Height / ScreenScale(screen));
+        var card = NotchPopover.Create(hovered, store, settings.Current, page => { popup.IsOpen = false; openSettings(page); }, screen.WorkingArea.Height / ScreenScale(screen), sessionExpansion);
+        card.Loaded += (_, _) =>
+        {
+            if (!ReferenceEquals(popupFrame.Child, card)) return;
+            if (!string.IsNullOrEmpty(focusedId))
+                (FindPopupControl(card, focusedId) ?? FindPopupControl(card, sessionExpansion.Expanded ? "notch.sessions.showLess" : "notch.sessions.showAll")
+                    ?? buttons.GetValueOrDefault(hovered ?? ""))?.Focus();
+            FindScroll(card)?.ScrollToVerticalOffset(scrollOffset);
+        };
         AttachPopup(card); popupFrame.Child = card; UpdatePopupAnchor(popup.IsOpen);
-        card.Loaded += (_, _) => FindScroll(card)?.ScrollToVerticalOffset(scrollOffset);
+    }
+    private static Control? FindPopupControl(DependencyObject root, string id)
+    {
+        if (root is Control control && AutomationProperties.GetAutomationId(control) == id) return control;
+        for (var index = 0; index < VisualTreeHelper.GetChildrenCount(root); index++)
+            if (FindPopupControl(VisualTreeHelper.GetChild(root, index), id) is { } found) return found;
+        return null;
     }
     private static ScrollViewer? FindScroll(DependencyObject? root)
     {
@@ -327,9 +382,10 @@ internal sealed partial class NotchWindow : Window
         list.Children.Add(NotchPopover.Text("Accounts", 14, Brushes.White, FontWeights.SemiBold));
         foreach (var id in settings.Current.EnabledProviders.Where(x => x != "ollama-local"))
         {
-            var reading = store.Readings.GetValueOrDefault(id)?.Evaluated(DateTimeOffset.Now);
+            var display = store.AccountDisplay(id);
+            var reading = display.Reading?.Evaluated(DateTimeOffset.Now);
             var name = ProviderCatalog.Find(id)?.Name ?? id;
-            var account = SavedAccounts.CurrentAccountLabel(id, store.Synthetic);
+            var account = display.Label;
             var state = reading?.State is ReadingState.Ready or ReadingState.Partial or ReadingState.Stale ? "Connected" : "Connect account";
             var button = Ui.Button(name, () => { popup.IsOpen = false; openSettings(id is "codex" or "claude" ? id + "-accounts" : id); });
             button.BorderThickness = new Thickness(0); button.Background = Ui.Brush("#202020"); button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
@@ -390,11 +446,12 @@ internal sealed partial class NotchWindow : Window
     private void Position(double? temporaryOffset = null)
     {
         var screen = SelectedScreen(); var area = screen.WorkingArea; var dpi = ScreenScale(screen);
-        var position = NotchGeometry.Place(new ScreenArea(area.X, area.Y, area.Width, area.Height), Width * dpi, Height * dpi,
+        var pixelWidth = (int)Math.Ceiling(Width * dpi); var pixelHeight = (int)Math.Ceiling(Height * dpi);
+        var position = NotchGeometry.Place(new ScreenArea(area.X, area.Y, area.Width, area.Height), pixelWidth, pixelHeight,
             settings.Current.Edge, ((temporaryOffset ?? settings.Current.Offset) + (Content is Canvas
                 ? (Vertical ? Height : Width) / 2 - bodyStart - bodyLength / 2 : 0)) * dpi);
         var handle = new WindowInteropHelper(this).Handle;
-        if (handle != IntPtr.Zero) SetWindowPos(handle, new IntPtr(-1), (int)position.X, (int)position.Y, (int)Math.Ceiling(Width * dpi), (int)Math.Ceiling(Height * dpi), 0x10);
+        if (handle != IntPtr.Zero) SetWindowPos(handle, new IntPtr(-1), (int)Math.Round(position.X), (int)Math.Round(position.Y), pixelWidth, pixelHeight, 0x10);
     }
     private static double ScreenScale(Screen screen)
     {

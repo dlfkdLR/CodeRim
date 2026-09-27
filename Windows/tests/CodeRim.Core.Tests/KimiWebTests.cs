@@ -4,6 +4,13 @@ using CodeRim.Core.Domain;
 using CodeRim.Core.Providers;
 using CodeRim.Core.Services;
 namespace CodeRim.Core.Tests;
+
+// These assertions measure real cancellation deadlines. Concurrent CPU/process
+// stress cases otherwise measure runner scheduling instead of the transport bound.
+[CollectionDefinition("Transport deadlines", DisableParallelization = true)]
+public sealed class TransportDeadlinesDefinition;
+
+[Collection("Transport deadlines")]
 public sealed class KimiWebTests
 {
     private const string Usage = """{"usages":[{"scope":"FEATURE_CODING","detail":{"limit":"100","used":"25","resetTime":"2026-10-01T00:00:00Z"},"limits":[{"window":{"duration":5,"timeUnit":"TIME_UNIT_HOUR"},"detail":{"limit":"20","remaining":"15"}}]}]}""";

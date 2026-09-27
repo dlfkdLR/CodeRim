@@ -30,6 +30,7 @@ public partial class App : System.Windows.Application
     private readonly DispatcherTimer updateTimer = new() { Interval = TimeSpan.FromHours(1) };
     private readonly ThresholdTracker thresholds = new();
     private bool smokeTest;
+    private bool shuttingDown;
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
@@ -62,6 +63,7 @@ public partial class App : System.Windows.Application
             await UpdateBootstrap.RunEntryAsync(e.Args, typeof(App).Assembly).ConfigureAwait(true);
             Shutdown(); return;
         }
+        System.Windows.Forms.Integration.WindowsFormsHost.EnableWindowsFormsInterop();
         SettingsTheme.Apply();
         Microsoft.Win32.SystemEvents.UserPreferenceChanged += AppearanceChanged;
         smokeTest = e.Args.Contains("--smoke-test", StringComparer.Ordinal);
@@ -74,18 +76,19 @@ public partial class App : System.Windows.Application
         instance = new Mutex(true, "Local\\" + instanceName, out var created);
         if (!created) { await InstanceActivation.NotifyAsync(instanceName); Shutdown(); return; }
         settings = new AppSettingsStore(); CredentialVault.RestrictDirectory(CompanionFile.DataDirectory); vault = new CredentialVault();
-        if (!smokeTest && InstallerUpdateCoordinator.IsManaged && settings.Current.LaunchAtLogin)
-            try { StartupService.SetEnabled(true); }
-            catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.SecurityException or InvalidOperationException) { /* Login registration must not prevent the app from opening. */ }
+        // Startup registration is owned by the user's explicit action, not the
+        // saved preference. Opening/updating the app must respect OS removal.
         Motion.SetReduced(settings.Current.ReduceMotion);
         store = new DashboardStore(settings, vault, smokeTest);
+        if (!smokeTest) store.StartClaudePolling();
         notch = new NotchWindow(store, settings, ShowSettings);
-        tray = new TrayIconHost(() => ShowSettings("usage"), () => _ = store.RefreshAsync(true), () => ShowSettings(null), ShutdownApplication);
+        tray = new TrayIconHost(() => ShowSettings("usage"), ToggleNotch, () => ShowSettings(null), CheckForUpdates,
+            ShutdownApplication, () => settings.Current.Visibility != NotchVisibility.Hidden,
+            () => dashboard?.CanCheckForUpdates ?? true);
         if (!smokeTest) activation = new InstanceActivation(instanceName, () => Dispatcher.BeginInvoke(() => ShowSettings("usage")));
-        tray.ShowNotchRequested += () => { settings.RevealNotch(); notch.Peek(); };
         store.SessionAttentionRequested += session => { if (settings.Current.PeekOnCompletion) notch.Peek(session); };
         store.ReadingUpdated += reading => { if (settings.Current.AlertsEnabled && !settings.Current.MutedAlertProviders.Contains(reading.Id, StringComparer.Ordinal)) foreach (var threshold in thresholds.Observe(reading, DateTimeOffset.Now)) tray.Notify(ProviderCatalog.Find(reading.Id)?.Name ?? reading.Id, threshold == 100 ? "Usage limit reached." : "Usage has reached 80%."); };
-        settings.SettingsChanged += (_, _) => { Motion.SetReduced(settings.Current.ReduceMotion); ConfigureTimer(); };
+        settings.SettingsChanged += (_, _) => { Motion.SetReduced(settings.Current.ReduceMotion); ConfigureTimer(); tray.RefreshState(); };
         timer.Tick += (_, _) => { watcher?.Rebuild(); _ = store.RefreshAsync(); };
         activityTimer.Tick += (_, _) => _ = store.RefreshActivityAsync();
         if (!smokeTest) activityTimer.Start();
@@ -93,7 +96,7 @@ public partial class App : System.Windows.Application
         if (!smokeTest) { updateTimer.Tick += async (_, _) => await CheckUpdatesAsync(); updateTimer.Start(); _ = CheckUpdatesAsync(); }
         _ = StartAsync(e.Args);
     }
-    private void AppearanceChanged(object sender, Microsoft.Win32.UserPreferenceChangedEventArgs e) => Dispatcher.BeginInvoke(() => { SettingsTheme.Apply(); Motion.RefreshPolicy(); });
+    private void AppearanceChanged(object sender, Microsoft.Win32.UserPreferenceChangedEventArgs e) => Dispatcher.BeginInvoke(() => { SettingsTheme.Apply(); Motion.RefreshPolicy(); tray?.RefreshAppearance(); });
     private async Task StartAsync(string[] args)
     {
         if (store is null) return;
@@ -139,21 +142,46 @@ public partial class App : System.Windows.Application
         {
             watcher?.Dispose(); watcher = null; return;
         }
-        if (!smokeTest && watcher is null)
+        if (!settings.Current.AutomaticRefresh) { watcher?.Dispose(); watcher = null; }
+        if (!smokeTest && settings.Current.AutomaticRefresh && watcher is null)
             watcher = new SessionWatcher(paths => Dispatcher.BeginInvoke(() =>
             {
-                if (settings.Current.RefreshIntervalSeconds <= 0 || store is null) return;
+                if (!settings.Current.AutomaticRefresh || settings.Current.RefreshIntervalSeconds <= 0 || store is null) return;
                 store.Invalidate(paths); _ = store.RefreshAsync();
             }));
         timer.Interval = TimeSpan.FromSeconds(settings.Current.RefreshIntervalSeconds); timer.Start();
     }
-    private void ShowSettings(string? page)
+    internal TrayIconHost? Tray => tray;
+    private void ToggleNotch()
+    {
+        if (settings is null) return;
+        try
+        {
+            settings.ToggleNotch();
+            if (settings.Current.Visibility != NotchVisibility.Hidden) notch?.Peek();
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        { tray?.Notify("CodeRim", "Could not save notch visibility. Try again from Settings."); }
+    }
+    private void CheckForUpdates()
+    {
+        if (dashboard?.CanCheckForUpdates == false) return;
+        ShowSettings(null); dashboard?.RequestUpdateCheck();
+    }
+    internal void ShowSettings(string? page)
     {
         if (settings is null || store is null || vault is null) return;
-        if (dashboard is null) { dashboard = new DashboardWindow(store, settings, vault); dashboard.Closed += (_, _) => dashboard = null; }
-        dashboard.Navigate(page ?? "general");
+        if (dashboard is null)
+        {
+            var window = new DashboardWindow(store, settings, vault); dashboard = window;
+            window.Closing += (_, e) => { if (!shuttingDown) { e.Cancel = true; window.HideToTray(); } };
+            window.Closed += (_, _) => dashboard = null;
+            window.Navigate(page ?? "general"); window.Present();
+        }
+        else if (page is not null) { dashboard.Navigate(page); dashboard.Present(); }
+        else dashboard.Present();
     }
-    internal void ShutdownApplication() { dashboard?.Close(); notch?.Close(); Shutdown(); }
+    internal void ShutdownApplication() { shuttingDown = true; dashboard?.Close(); notch?.Close(); Shutdown(); }
     protected override void OnExit(ExitEventArgs e)
     {
         Microsoft.Win32.SystemEvents.UserPreferenceChanged -= AppearanceChanged;

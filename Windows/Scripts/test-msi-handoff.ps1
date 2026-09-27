@@ -1,8 +1,16 @@
-param([ValidateSet('x64','arm64')][string]$Architecture='x64',[Parameter(Mandatory)][string]$ReleaseDirectory)
+param([ValidateSet('x64','arm64')][string]$Architecture='x64',[Parameter(Mandatory)][string]$ReleaseDirectory,
+    [ValidatePattern('^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$')][string]$PreviousVersion='2.1.10')
 $ErrorActionPreference='Stop'
-if($env:CI -ne 'true'){throw 'Requires a disposable CI runner.'}
-$ReleaseDirectory=(Resolve-Path $ReleaseDirectory).Path
 $windowsRoot=Split-Path -Parent $PSScriptRoot
+$version=& (Join-Path $PSScriptRoot 'package.ps1') -CheckVersionOnly
+if ($version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$' -or
+    [version]$PreviousVersion -ge [version]$version) { throw 'Handoff requires a canonical release version newer than the previous fixture version.' }
+if($env:CI -ne 'true'){throw 'Requires a disposable CI runner.'}
+$ReleaseDirectory=(Resolve-Path -LiteralPath $ReleaseDirectory).Path
+$manifestPath=Join-Path $ReleaseDirectory "CodeRim-Windows-$version-$Architecture-Setup.msi.manifest.json"
+if((Get-Item -LiteralPath $manifestPath).Length -gt 4096){throw 'Release manifest is too large.'}
+$manifest=Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+if($manifest.version -cne $version -or $manifest.architecture -cne $Architecture){throw 'The manifest does not describe the requested release version and architecture.'}
 $qa=Join-Path $env:TEMP ('CodeRim-Handoff-'+[Guid]::NewGuid().ToString('N'))
 $publish=Join-Path $qa 'publish';$worker=Join-Path $qa 'worker'
 $app=Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'Programs\CodeRim'
@@ -12,7 +20,7 @@ $env:CODERIM_DATA_DIR=Join-Path $qa 'Data 한글'
 New-Item -ItemType Directory $env:CODERIM_DATA_DIR | Out-Null
 [IO.File]::WriteAllText((Join-Path $env:CODERIM_DATA_DIR 'settings.json'),'{"CheckForUpdates":false,"EnabledProviders":[]}')
 $sentinel=Join-Path $env:CODERIM_DATA_DIR 'preserve-sentinel';[IO.File]::WriteAllText($sentinel,'settings and credentials stay outside MSI')
-$argsCommon=@('--configuration','Release','--runtime',"win-$Architecture",'--self-contained','true','-p:Version=2.1.9','-p:AssemblyVersion=2.1.9.0','-p:FileVersion=2.1.9.0','-p:DebugType=None','-p:DebugSymbols=false','-p:CodeRimPublisherSpkiSha256=','-p:CodeRimUpdateWin32Resource=')
+$argsCommon=@('--configuration','Release','--runtime',"win-$Architecture",'--self-contained','true',"-p:Version=$PreviousVersion","-p:AssemblyVersion=$PreviousVersion.0","-p:FileVersion=$PreviousVersion.0",'-p:DebugType=None','-p:DebugSymbols=false','-p:CodeRimPublisherSpkiSha256=','-p:CodeRimUpdateWin32Resource=')
 # QA source uses the same production worker; only the old GUI/Core fixture includes the test entry.
 dotnet publish (Join-Path $windowsRoot 'src\CodeRim.UpdateWorker\CodeRim.UpdateWorker.csproj') @argsCommon --output $worker
 if($LASTEXITCODE -ne 0){throw 'Old worker fixture publish failed.'}
@@ -24,14 +32,15 @@ if($LASTEXITCODE -ne 0){throw 'Old CLI fixture publish failed.'}
 Copy-Item (Join-Path $worker 'CodeRim.UpdateWorker.exe') $publish
 New-Item -ItemType Directory (Join-Path $publish 'bin') | Out-Null
 Copy-Item (Join-Path $PSScriptRoot 'coderim.cmd') (Join-Path $publish 'bin')
-[IO.File]::WriteAllText((Join-Path $publish 'CodeRim.install.json'),'{"product":"CodeRim.Windows","version":"2.1.9","format":"msi"}')
+[IO.File]::WriteAllText((Join-Path $publish 'CodeRim.install.json'),(@{product='CodeRim.Windows';version=$PreviousVersion;format='msi'} | ConvertTo-Json -Compress))
 $tools=Join-Path $qa 'tools';dotnet tool install wix --version 5.0.2 --allow-roll-forward --tool-path $tools
 if($LASTEXITCODE -ne 0){throw 'WiX restore failed.'}
 $payload=Join-Path $qa 'payload.wxs';python (Join-Path $PSScriptRoot 'generate_msi_payload.py') $publish $payload
 if($LASTEXITCODE -ne 0){throw 'Payload generation failed.'}
-$code=python -c 'import uuid,sys;print(uuid.uuid5(uuid.UUID("ab0d9f06-26bd-4cae-9d30-de386b872e81"),"2.1.9-"+sys.argv[1]))' $Architecture
+$code=python -c 'import uuid,sys;print(uuid.uuid5(uuid.UUID("ab0d9f06-26bd-4cae-9d30-de386b872e81"),sys.argv[1]+"-"+sys.argv[2]))' $PreviousVersion $Architecture
+if($LASTEXITCODE -ne 0){throw 'Old MSI product identity generation failed.'}
 $oldMsi=Join-Path $qa 'old.msi'
-& (Join-Path $tools 'wix.exe') build (Join-Path $windowsRoot 'Installer\Package.wxs') $payload -arch $Architecture -d Version=2.1.9 -d "ProductCode=$code" -d "IconFile=$windowsRoot\src\CodeRim.Windows\Assets\CodeRim.ico" -o $oldMsi
+& (Join-Path $tools 'wix.exe') build (Join-Path $windowsRoot 'Installer\Package.wxs') $payload -arch $Architecture -d "Version=$PreviousVersion" -d "ProductCode=$code" -d "IconFile=$windowsRoot\src\CodeRim.Windows\Assets\CodeRim.ico" -o $oldMsi
 if($LASTEXITCODE -ne 0){throw 'Old MSI fixture build failed.'}
 $msi=Join-Path $env:WINDIR 'System32\msiexec.exe'
 $install=Start-Process $msi -ArgumentList @('/i',('"'+$oldMsi+'"'),'/qn','/norestart','LAUNCHAPP=0',('/l*v "'+(Join-Path $ReleaseDirectory 'old-install.log')+'"')) -PassThru
@@ -57,7 +66,6 @@ if(-not(Test-Path $result)){throw 'Worker did not finish; no success or rollback
 Copy-Item $result (Join-Path $ReleaseDirectory 'worker-result.json')
 $outcome=Get-Content $result -Raw | ConvertFrom-Json
 if($outcome.Status -ne 0 -or $outcome.ExitCode -ne 0){throw 'Worker did not verify an applied update.'}
-$manifest=Get-Content (Join-Path $ReleaseDirectory "CodeRim-Windows-2.1.10-$Architecture-Setup.msi.manifest.json") -Raw | ConvertFrom-Json
 $deadline=[DateTime]::UtcNow.AddSeconds(30);$relaunched=$null
 $database=Join-Path $env:CODERIM_DATA_DIR 'usage.sqlite'
 while([DateTime]::UtcNow -lt $deadline){
@@ -67,11 +75,11 @@ while([DateTime]::UtcNow -lt $deadline){
     Start-Sleep -Milliseconds 250
 }
 if(-not $relaunched -or $relaunched.HasExited){throw 'The automatically relaunched app did not finish initializing its isolated data directory.'}
-if([Diagnostics.FileVersionInfo]::GetVersionInfo($relaunched.Path).FileVersion -ne '2.1.10.0'){throw 'Relaunch used the old binary.'}
-if((Get-ItemProperty 'HKCU:\Software\CodeRim\Installer').Version -ne '2.1.10'){throw 'Registration was not upgraded.'}
+if([Diagnostics.FileVersionInfo]::GetVersionInfo($relaunched.Path).FileVersion -cne "$version.0"){throw 'Relaunch used the old binary.'}
+if((Get-ItemProperty 'HKCU:\Software\CodeRim\Installer').Version -cne $version){throw 'Registration was not upgraded.'}
 if([IO.File]::ReadAllText($sentinel) -cne 'settings and credentials stay outside MSI'){throw 'User data was changed.'}
 if(-not(Test-Path (Join-Path $env:CODERIM_DATA_DIR 'usage.sqlite'))){throw 'Relaunched app did not retain the isolated data-directory environment.'}
 # This is the process started by this test on an ephemeral runner, not a user application.
 $relaunched | Stop-Process
-$receipt=@{architecture=$Architecture;version='2.1.10';sha256=$manifest.sha256;operation=$id;verified=@('real-release-Ed25519-signature','cached-MSI-rehash','compiled-worker-pin','anonymous-pipe-environment','parent-ready-confirm-exit','MSI-service-completion','registered-version-and-product','automatic-new-version-relaunch','separate-user-data-preserved');status='PASS'}
+$receipt=@{architecture=$Architecture;previousFixtureVersion=$PreviousVersion;version=$version;sha256=$manifest.sha256;operation=$id;verified=@('real-release-Ed25519-signature','cached-MSI-rehash','compiled-worker-pin','anonymous-pipe-environment','parent-ready-confirm-exit','MSI-service-completion','registered-version-and-product','automatic-new-version-relaunch','separate-user-data-preserved');status='PASS'}
 $receipt | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $ReleaseDirectory 'handoff-result.json')

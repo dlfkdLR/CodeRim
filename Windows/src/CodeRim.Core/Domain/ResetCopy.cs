@@ -21,6 +21,11 @@ public static class ResetCopy
         zone ??= TimeZoneInfo.Local; culture ??= CultureInfo.CurrentCulture;
         var localReset = TimeZoneInfo.ConvertTime(reset.Value, zone);
         var localNow = TimeZoneInfo.ConvertTime(now, zone);
-        return "Resets " + localReset.ToString((localReset.Date - localNow.Date).TotalDays >= 7 ? "MMM d" : "ddd h:mm tt", culture);
+        if ((localReset.Date - localNow.Date).TotalDays >= 7)
+            return CalendarDateText.MonthDay(localReset.DateTime, culture) is { } date ? "Resets " + date : "Reset time unavailable";
+        try { return "Resets " + localReset.ToString("ddd h':'mm tt", culture); }
+        catch (ArgumentOutOfRangeException) { return "Reset time unavailable"; }
+        catch (FormatException) { return "Reset time unavailable"; }
     }
+
 }
