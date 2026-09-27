@@ -16,9 +16,7 @@ internal static class NativeCredentials
             if (id == "copilot") return GitHubAuthentication.AccountSummary(CopilotConnection.ScopeMarker());
             if (id == "cursor")
             {
-                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cursor", "User", "globalStorage", "state.vscdb");
-                return NativeAccountSummary.Cursor(LocalStateDatabase.ReadWithOptionalValues(path, [], "cursorAuth/accessToken",
-                    "cursorAuth/stripeMembershipAuthId", "cursorAuth/cachedEmail", "cursorAuth/stripeMembershipType"));
+                return ReadCursor().Summary;
             }
             if (id == "grok")
             {
@@ -89,9 +87,7 @@ internal static class NativeCredentials
         {
             if (id == "cursor")
             {
-                var path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Cursor", "User", "globalStorage", "state.vscdb");
-                return NativeProviderLogin.Cursor(LocalStateDatabase.ReadWithOptionalValues(path, ["cursorAuth/accessToken", "cursorAuth/stripeMembershipAuthId"],
-                    "cursorAuth/cachedEmail", "cursorAuth/stripeMembershipType"));
+                return ReadCursor().Login;
             }
             if (id == "grok")
             {
@@ -109,4 +105,10 @@ internal static class NativeCredentials
         }
         catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or DecoderFallbackException or SqliteException) { return null; }
     }
+
+    internal static CursorLocalConnection ReadCursor() => ReadCursor(
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), Environment.GetEnvironmentVariable, DateTimeOffset.UtcNow);
+    internal static CursorLocalConnection ReadCursor(string home, string applicationData, Func<string, string?> environment, DateTimeOffset now)
+        => CursorAuthentication.Read(home, applicationData, environment, now);
 }

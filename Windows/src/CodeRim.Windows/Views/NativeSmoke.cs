@@ -385,6 +385,7 @@ internal static partial class NativeSmoke
         await ProviderDetailsRegression(dashboard, store, settings, directory);
         await NativeAccountRegression(dashboard, store, settings, vault, directory);
         await IndependentAccountSummaryRegression(settings, vault, directory);
+        await CursorAgentRegression(settings, vault, directory);
         await CopilotAccountSummaryRegression(settings, vault, directory);
         await GlmAccountSummaryRegression(settings, vault, directory);
         await ProviderPresenceRegression(notch, store, settings, directory);
