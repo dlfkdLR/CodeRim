@@ -144,17 +144,17 @@ internal static partial class NativeSmoke
             foreach (var plan in new string?[] { "goat_monthly", null })
             {
                 commandPlan = plan; await store.RefreshProviderAsync("commandcode"); await Idle();
-                Require(store.Readings["commandcode"].State == ReadingState.Error && store.Readings["commandcode"].Windows.Count == 0
-                    && store.ProviderAccountDisplay("commandcode").Plan == (plan is null ? null : "GOAT")
-                    && IdentityValue("plan") == (plan is null ? "" : "GOAT"), "A failed usage request discarded the current successful subscription's Account plan.");
-                RequireAbsentProviderPresentation(window, store.Readings["commandcode"]);
                 RecordCommandPlan(plan is null ? "late-failure-with-cleared-plan" : "late-failure-with-known-plan");
                 Capture(window, Path.Combine(directory, "windows-commandcode-plan-" + (plan is null ? "cleared" : "known") + "-usage-failed.png"));
+                Require(store.Readings["commandcode"].State == ReadingState.Error && store.Readings["commandcode"].Windows.Count == 0
+                    && store.ProviderAccountDisplay("commandcode").Plan == (plan is null ? null : "GOAT")
+                    && IdentityValue("plan") == (plan is null ? "" : "Goat"), "A failed usage request discarded the current successful subscription's Account plan.");
+                RequireAbsentProviderPresentation(window, store.Readings["commandcode"]);
             }
             checks.Add("Successful Command Code subscription updates or clears Account while later usage failure keeps quota absent");
             failCommandUsage = false; commandPlan = "goat_monthly";
             await store.RefreshProviderAsync("commandcode"); await Idle();
-            Require(store.ProviderAccountDisplay("commandcode").Plan == "GOAT" && IdentityValue("plan") == "GOAT"
+            Require(store.ProviderAccountDisplay("commandcode").Plan == "GOAT" && IdentityValue("plan") == "Goat"
                 && store.Readings["commandcode"].Windows.Count > 0, "Command Code rotation test did not restore its known-plan precondition.");
             commandSubscriptionBody = "not JSON";
             await store.RefreshProviderAsync("commandcode"); await Idle();
@@ -164,13 +164,13 @@ internal static partial class NativeSmoke
             RecordCommandPlan("malformed-optional-subscription");
             commandSubscriptionBody = null; commandCreditsBody = "not JSON";
             await store.RefreshProviderAsync("commandcode"); await Idle();
-            Require(store.ProviderAccountDisplay("commandcode").Plan == "GOAT" && IdentityValue("plan") == "GOAT"
+            Require(store.ProviderAccountDisplay("commandcode").Plan == "GOAT" && IdentityValue("plan") == "Goat"
                 && store.Readings["commandcode"].State == ReadingState.Error && store.Readings["commandcode"].Windows.Count == 0,
                 "Malformed credits prevented the later valid subscription update or invented quota.");
             RecordCommandPlan("malformed-credits-with-known-plan");
             checks.Add("Command Code optional subscription and required credits follow the reference body-validation order");
             commandCreditsBody = null; await store.RefreshProviderAsync("commandcode"); await Idle();
-            Require(store.ProviderAccountDisplay("commandcode").Plan == "GOAT" && IdentityValue("plan") == "GOAT"
+            Require(store.ProviderAccountDisplay("commandcode").Plan == "GOAT" && IdentityValue("plan") == "Goat"
                 && store.Readings["commandcode"].Windows.Count > 0, "Command Code rotation test lost its positive known-plan precondition.");
             responseStatus = HttpStatusCode.ServiceUnavailable;
             var draft = Descendants<PasswordBox>(window).First(); draft.Password = "unsaved-fixture-draft";
@@ -270,6 +270,8 @@ internal static partial class NativeSmoke
                 var reading = store.Readings.GetValueOrDefault("commandcode");
                 planObservations.Add(new { stage, plan = store.ProviderAccountDisplay("commandcode").Plan,
                     displayedPlan = IdentityValue("plan"), state = reading?.State.ToString(), windows = reading?.Windows.Count ?? 0 });
+                File.WriteAllText(Path.Combine(directory, "windows-commandcode-plan.json"), JsonSerializer.Serialize(new
+                    { completed = false, fixture = true, realAccount = false, network = "in-memory only", observations = planObservations }, JsonOptions));
             }
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
