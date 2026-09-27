@@ -34,6 +34,12 @@ function Compare-State($Before,$After) {
     if ($Before.version -cne $After.version -or $Before.product -cne $After.product -or $Before.path -cne $After.path -or $Before.shortcut -cne $After.shortcut) { throw 'MSI rollback did not restore registration, PATH or shortcut.' }
     foreach($name in $Before.files.Keys){if($Before.files[$name] -cne $After.files[$name]){throw "MSI rollback did not restore $name"}}
 }
+function Require-InjectedRollback {
+    $rollbackLog=Get-Content (Join-Path $repo "Artifacts/windows-msi-$Architecture-$script:logIndex.log") -Raw
+    foreach($required in @('Intentional QA rollback fixture','Action start [^\r\n]*: QaFail\.','Action ended [^\r\n]*: InstallExecute\. Return value 1\.','Action start [^\r\n]*: InstallFiles\.','Action start [^\r\n]*: RemoveExistingProducts\.','ScriptType=2','Executing op: FileCopy\(SourceName=[^\r\n]*\.rbf')) {
+        if($rollbackLog -notmatch $required){throw "Rollback fixture did not reach the expected transaction stage: $required"}
+    }
+}
 function Build-Fixture([string]$Version,[string]$Publish,[string]$Template,[string]$Output) {
     $tools=Join-Path $windowsRoot 'artifacts\wix-5.0.2'
     if(-not(Test-Path (Join-Path $tools 'wix.exe'))){dotnet tool install wix --version 5.0.2 --allow-roll-forward --tool-path $tools;if($LASTEXITCODE -ne 0){throw 'WiX restore failed'}}
@@ -73,10 +79,7 @@ try {
     $current=Join-Path $windowsRoot "artifacts\publish\win-$Architecture"
     $failedMsi=Join-Path $qa 'failure.msi';Build-Fixture $version $current $failureTemplate $failedMsi
     [void](Invoke-Msi @('/i',('"'+$failedMsi+'"'),'LAUNCHAPP=0') $false)
-    $rollbackLog=Get-Content (Join-Path $repo "Artifacts/windows-msi-$Architecture-$script:logIndex.log") -Raw
-    foreach($required in @('Intentional QA rollback fixture','Action start [^\r\n]*: QaFail\.','Action ended [^\r\n]*: InstallExecute\. Return value 1\.','Action start [^\r\n]*: InstallFiles\.','Action start [^\r\n]*: RemoveExistingProducts\.','ScriptType=2','Executing op: FileCopy\(SourceName=[^\r\n]*\.rbf')) {
-        if($rollbackLog -notmatch $required){throw "Rollback fixture did not reach the expected transaction stage: $required"}
-    }
+    Require-InjectedRollback
     Compare-State $before (Product-State);$results.Add('injected-upgrade-failure-restores-binaries-registration-path-shortcut')
     [void](Invoke-Msi @('/i',('"'+$Installer+'"'),'LAUNCHAPP=0'))
     $after=Product-State
@@ -97,6 +100,35 @@ try {
     $remaining=[string][Environment]::GetEnvironmentVariable('Path','User')
     if($remaining.TrimEnd(';') -cne $originalPath.TrimEnd(';')){throw 'Uninstall changed unrelated PATH values'}
     $results.Add('uninstall-preserves-user-data-and-unrelated-path')
+    # Retain the earlier ZIP-to-MSI migration regression above, and also exercise
+    # the real installed public MSI identity rather than a rebuilt old fixture.
+    if ([version]$version -le [version]'2.1.10') { throw 'Public MSI upgrade requires a version newer than 2.1.10.' }
+    $publicMsi=Join-Path $qa 'public-2.1.10.msi'
+    Invoke-WebRequest "https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.10/CodeRim-Windows-2.1.10-$Architecture-Setup.msi" -OutFile $publicMsi
+    $publicHash=if($Architecture -eq 'x64'){'907a8a376294efcac2ac0121c90c68b08c74922b926af3577f6d2743a9dd6cac'}else{'cae6eb3905d0a42d7760823f9b4a20ca9536a567045e9ca7b8bf5c276e9c906d'}
+    if((Get-FileHash $publicMsi -Algorithm SHA256).Hash.ToLowerInvariant() -cne $publicHash){throw 'Public 2.1.10 MSI hash mismatch.'}
+    [void](Invoke-Msi @('/i',('"'+$publicMsi+'"'),'LAUNCHAPP=0'))
+    $publicBefore=Product-State
+    if($publicBefore.version -cne '2.1.10'){throw 'Public MSI initial version mismatch.'}
+    $results.Add('public-2.1.10-msi-install')
+    [void](Invoke-Msi @('/i',('"'+$failedMsi+'"'),'LAUNCHAPP=0') $false)
+    Require-InjectedRollback
+    Compare-State $publicBefore (Product-State)
+    $results.Add('public-2.1.10-failed-upgrade-restores-installation')
+    [void](Invoke-Msi @('/i',('"'+$Installer+'"'),'LAUNCHAPP=0'))
+    $publicAfter=Product-State
+    if($publicAfter.version -cne $version -or $publicAfter.product -eq $publicBefore.product){throw 'Public MSI upgrade retained its previous version or product identity.'}
+    foreach($name in $publicAfter.files.Keys){
+        if($publicAfter.files[$name] -cne (Get-FileHash (Join-Path $current $name) -Algorithm SHA256).Hash){throw "Public MSI upgrade did not replace $name with the candidate."}
+    }
+    if([IO.File]::ReadAllText($sentinel) -cne 'preserve'){throw 'Public MSI upgrade changed user data.'}
+    $results.Add('public-2.1.10-upgrade-replaces-all-candidate-binaries')
+    [void](Invoke-Msi @('/x',$publicAfter.product))
+    if(Test-Path (Join-Path $app 'CodeRim.exe')){throw 'Public upgrade uninstall left the application binary.'}
+    if([IO.File]::ReadAllText($sentinel) -cne 'preserve'){throw 'Public upgrade uninstall changed user data.'}
+    $remaining=[string][Environment]::GetEnvironmentVariable('Path','User')
+    if($remaining.TrimEnd(';') -cne $originalPath.TrimEnd(';')){throw 'Public upgrade uninstall changed unrelated PATH values.'}
+    $results.Add('public-upgrade-uninstall-preserves-user-data-and-path')
 } finally {
-    @{architecture=$Architecture;passed=@($results);completed=($results.Count -eq 7);qaDirectory=$qa} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $repo 'Artifacts/windows-msi-lifecycle.json')
+    @{architecture=$Architecture;passed=@($results);completed=($results.Count -eq 11);qaDirectory=$qa} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $repo 'Artifacts/windows-msi-lifecycle.json')
 }

@@ -20,13 +20,17 @@ $project = [xml](Get-Content $projectPath)
 $projectVersion = [string]$project.Project.PropertyGroup.Version
 $sharedProps = [xml](Get-Content (Join-Path $windowsRoot 'Directory.Build.props') -Raw)
 $applicationManifest = [xml](Get-Content (Join-Path $windowsRoot 'src\CodeRim.Windows\app.manifest') -Raw)
-$releaseVersions = @(Get-Content (Join-Path $projectRoot 'Config\Release.env') | ForEach-Object {
+$releaseVersionPath = Join-Path $windowsRoot 'Release.env'
+if (-not (Test-Path -LiteralPath $releaseVersionPath -PathType Leaf)) {
+    throw 'The Windows release version file is missing: Windows/Release.env.'
+}
+$releaseVersions = @(Get-Content -LiteralPath $releaseVersionPath | ForEach-Object {
     if ($_ -match '^MARKETING_VERSION=(.*)$') { $Matches[1] }
 })
 if ($projectVersion -notmatch '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$' -or
     [string]$sharedProps.Project.PropertyGroup.Version -cne $projectVersion -or
     $releaseVersions.Count -ne 1 -or $releaseVersions[0] -cne $projectVersion) {
-    throw 'Release version declarations disagree: check Release.env, Directory.Build.props and the application project.'
+    throw 'Release version declarations disagree: check Windows/Release.env, Directory.Build.props and the application project.'
 }
 $binaryVersion = [regex]::Match($projectVersion, '^[0-9]+\.[0-9]+\.[0-9]+').Value + '.0'
 if ([string]$project.Project.PropertyGroup.AssemblyVersion -cne $binaryVersion -or
