@@ -94,6 +94,7 @@ public sealed partial class NativeProviders : IDisposable
         foreach (var expired in retryAfter.Where(pair => pair.Value <= DateTimeOffset.Now)) retryAfter.TryRemove(expired.Key, out _);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token); deadline.CancelAfter(TimeSpan.FromSeconds(45));
         var documents = new Dictionary<string, JsonElement>(StringComparer.Ordinal);
+        ProviderAccountPlanUpdate? accountPlanUpdate = null;
         string? tokenPlanSec = setting(id == "qwencloud" ? "QWEN_CLOUD_SEC_TOKEN" : "ALIBABA_TOKEN_PLAN_SEC_TOKEN");
         JsonElement googleAuth = default; string? googleProject = null; string? googleOnboardTier = null;
         string? kiroProfile = setting("KIRO_PROFILE_ARN");
@@ -307,6 +308,14 @@ public sealed partial class NativeProviders : IDisposable
             }
             if (id == "opencode-zen") return JsonSerializer.SerializeToElement(new { text = new System.Text.UTF8Encoding(false, true).GetString(bytes) });
             if (id == "windsurf") return JsonSerializer.SerializeToElement(new { protobuf = Convert.ToBase64String(bytes) });
+            if (id == "commandcode")
+            {
+                // The reference accepts UTF-8 response bodies first, then parses
+                // optional subscription metadata before validating usage data.
+                var body = new System.Text.UTF8Encoding(false, true).GetString(bytes);
+                try { using var document = JsonDocument.Parse(body); return document.RootElement.Clone(); }
+                catch (JsonException) { return default; }
+            }
             using var json = id == "sakana" || id is "alibabatokenplan" or "qwencloud" && request.RequestUri!.AbsolutePath is not "/data/api.json" and not "/tool/user/info.json" ? JsonDocument.Parse(JsonSerializer.Serialize(new { html = System.Text.Encoding.UTF8.GetString(bytes) })) : JsonDocument.Parse(bytes);
             return json.RootElement.Clone();
         }
@@ -477,6 +486,7 @@ public sealed partial class NativeProviders : IDisposable
                 documents["subscription"] = await GetJson("https://api.commandcode.ai/alpha/billing/subscriptions" + query).ConfigureAwait(false);
                 var subscription = Get(documents["subscription"], "data");
                 if (subscription.ValueKind != JsonValueKind.Object) subscription = documents["subscription"];
+                accountPlanUpdate = new(CommandCodePlan(subscription));
                 if (Date(Get(subscription, "currentPeriodStart")) is { } since) query += (query.Length == 0 ? "?" : "&") + "since=" + Uri.EscapeDataString(since.ToString("O", CultureInfo.InvariantCulture));
                 documents["usage"] = await GetJson("https://api.commandcode.ai/alpha/usage/summary" + query).ConfigureAwait(false);
             }
@@ -500,7 +510,7 @@ public sealed partial class NativeProviders : IDisposable
                 catch (Exception error) when (error is ProviderRequestException or HttpRequestException or IOException or InvalidDataException or JsonException or OperationCanceledException)
                 { token.ThrowIfCancellationRequested(); partial = true; }
             }
-            var reading = Parse(id, documents);
+            var reading = Parse(id, documents) with { AccountPlanUpdate = accountPlanUpdate };
             return partial && reading.Windows.Count > 0 ? reading with { State = ReadingState.Partial, Message = "Primary usage is current. Additional billing details could not be refreshed." } : reading;
         }
         catch (GeminiMigrationException)
@@ -514,10 +524,10 @@ public sealed partial class NativeProviders : IDisposable
                 : error.Status == HttpStatusCode.TooManyRequests ? ReadingState.Unavailable : ReadingState.Error;
             return new(id, state, [], Message: state == ReadingState.NeedsAuth ? "Sign in again or update the provider credential."
                 : ProviderAvailability.HidesWhenAbsent(id) ? "Unable to refresh provider usage."
-                : "Unable to refresh provider usage. The last reading is retained.");
+                : "Unable to refresh provider usage. The last reading is retained.") { AccountPlanUpdate = accountPlanUpdate };
         }
         catch (Exception error) when (error is System.Text.DecoderFallbackException or HttpRequestException or IOException or InvalidDataException or JsonException or System.Text.RegularExpressions.RegexMatchTimeoutException or OverflowException or FormatException or System.Security.Cryptography.CryptographicException or OperationCanceledException)
-        { token.ThrowIfCancellationRequested(); return new(id, ReadingState.Error, [], Message: "Unable to refresh provider usage. Check the connection."); }
+        { token.ThrowIfCancellationRequested(); return new(id, ReadingState.Error, [], Message: "Unable to refresh provider usage. Check the connection.") { AccountPlanUpdate = accountPlanUpdate }; }
     }
     public static ProviderReading Parse(string id, IReadOnlyDictionary<string, JsonElement> payloads)
     {
@@ -598,17 +608,21 @@ public sealed partial class NativeProviders : IDisposable
                 plan = Text(root, "membershipType"); break;
             case "commandcode":
                 var credits = payloads.GetValueOrDefault("credits"); var summary = payloads.GetValueOrDefault("usage");
+                if (credits.ValueKind != JsonValueKind.Object || summary.ValueKind != JsonValueKind.Object)
+                    throw new InvalidDataException("Command Code returned invalid usage data.");
                 var subscription = Get(payloads.GetValueOrDefault("subscription"), "data");
                 if (subscription.ValueKind != JsonValueKind.Object) subscription = payloads.GetValueOrDefault("subscription");
-                var used = Number(summary, "totalCost"); var remaining = Number(Get(credits, "credits"), "monthlyCredits");
-                if (used + remaining is > 0) Percent("monthly", "Monthly limit", used / (used + remaining) * 100, Date(Get(subscription, "currentPeriodEnd")));
-                foreach (var (key, name) in new[] { ("fiveHour", "5h limit"), ("weekly", "Weekly limit") })
+                var used = Number(summary, "totalCost") ?? 0; var remaining = Number(Get(credits, "credits"), "monthlyCredits") ?? 0;
+                if (used + remaining is > 0)
                 {
-                    var value = Get(Get(credits, "windowLimits"), key);
-                    if (Number(value, "cap") is > 0 and var cap) Percent(key, name, (Number(value, "used") ?? 0) / cap * 100, FlexibleDate(Get(value, "resetAt")));
+                    Percent("monthly", "Monthly limit", used / (used + remaining) * 100, FlexibleDate(Get(subscription, "currentPeriodEnd")));
+                    foreach (var (key, name) in new[] { ("fiveHour", "5h limit"), ("weekly", "Weekly limit") })
+                    {
+                        var value = Get(Get(credits, "windowLimits"), key);
+                        if (Number(value, "cap") is > 0 and var cap) Percent(key, name, (Number(value, "used") ?? 0) / cap * 100, FlexibleDate(Get(value, "resetAt")));
+                    }
                 }
-                plan = Text(subscription, "planId");
-                if (plan?.Contains("goat", StringComparison.OrdinalIgnoreCase) == true) plan = "GOAT";
+                plan = CommandCodePlan(subscription);
                 break;
             case "fireworks":
                 string? currency = null; double total = 0;
@@ -666,6 +680,11 @@ public sealed partial class NativeProviders : IDisposable
         return new(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows.DistinctBy(x => x.Id).ToArray(), DateTimeOffset.Now,
             windows.Count > 0 ? null : "No metered usage was returned for this account.", source is null ? plan : ProviderAccountMetadata.DisplayText(plan),
             Account: source is null ? null : new(null, source));
+    }
+    private static string? CommandCodePlan(JsonElement subscription)
+    {
+        var plan = Text(subscription, "planId");
+        return plan?.Contains("goat", StringComparison.OrdinalIgnoreCase) == true ? "GOAT" : ProviderAccountMetadata.DisplayText(plan);
     }
     private static double? Numeric(JsonElement root, string key) => Number(root, key) ??
         (double.TryParse(Text(root, key), NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && double.IsFinite(number) ? number : null);

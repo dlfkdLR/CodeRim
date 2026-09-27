@@ -34,6 +34,9 @@ internal static partial class NativeSmoke
         }
         const string payload = """{"usage":{"rolling":{"percent":25}},"limits":{"monthly":{"usage":0.25}},"config":{"creditUsagePercent":25},"individualUsage":{"plan":{"autoPercentUsed":25}},"membershipType":"pro","credits":{"monthlyCredits":75},"totalCost":25,"data":{"planId":"goat_monthly"},"org":{"id":"fixture-org"}}""";
         var responseStatus = HttpStatusCode.ServiceUnavailable; var timeout = false; var requests = 0; var pause = false;
+        string? commandPlan = "goat_monthly"; var failCommandUsage = false;
+        string? commandSubscriptionBody = null; string? commandCreditsBody = null;
+        var planObservations = new List<object>();
         var staleCommandReplies = 0;
         TaskCompletionSource? entered = null; TaskCompletionSource? release = null;
         using var summaryRelease = new ManualResetEventSlim(true);
@@ -53,7 +56,13 @@ internal static partial class NativeSmoke
                 if (staleReady) staleCommandReplies--;
                 if (pause) { pause = false; entered!.TrySetResult(); await release!.Task.WaitAsync(TimeSpan.FromSeconds(10)); }
                 if (timeout) throw new OperationCanceledException("Synthetic provider timeout");
-                return new(staleReady ? HttpStatusCode.OK : responseStatus) { Content = new StringContent(payload) };
+                var status = staleReady ? HttpStatusCode.OK : responseStatus;
+                if (request.RequestUri.AbsolutePath == "/alpha/usage/summary" && failCommandUsage) status = HttpStatusCode.ServiceUnavailable;
+                var body = request.RequestUri.AbsolutePath == "/alpha/billing/subscriptions"
+                    ? commandPlan is null ? """{"data":{}}""" : JsonSerializer.Serialize(new { data = new { planId = commandPlan } }) : payload;
+                if (request.RequestUri.AbsolutePath == "/alpha/billing/subscriptions" && commandSubscriptionBody is not null) body = commandSubscriptionBody;
+                if (request.RequestUri.AbsolutePath == "/alpha/billing/credits" && commandCreditsBody is not null) body = commandCreditsBody;
+                return new(status) { Content = new StringContent(body) };
             })), nativeCredentialReader: id => logins.GetValueOrDefault(id)?.Credential,
                 nativeAccountReader: id => logins.GetValueOrDefault(id), nativeSummaryReader: id =>
                 {
@@ -120,6 +129,50 @@ internal static partial class NativeSmoke
             Require(store.ProviderAccountDisplay("commandcode").Plan == "GOAT" && store.Readings["commandcode"].Windows.Count > 0, "Command Code success did not bind its known plan.");
             responseStatus = HttpStatusCode.ServiceUnavailable; await store.RefreshProviderAsync("commandcode");
             Require(store.ProviderAccountDisplay("commandcode").Plan == "GOAT" && store.Readings["commandcode"].Windows.Count == 0, "Same-owner failure lost the known plan or restored quota.");
+            responseStatus = HttpStatusCode.OK; commandPlan = null;
+            await store.RefreshProviderAsync("commandcode"); await Idle();
+            Require(store.ProviderAccountDisplay("commandcode").Plan is null && store.Readings["commandcode"].State == ReadingState.Ready
+                && store.Readings["commandcode"].Headline?.UsedPercent == 25 && IdentityValue("plan") == "", "Successful missing Command Code plan retained GOAT or lost current quota.");
+            RecordCommandPlan("success-without-plan");
+            responseStatus = HttpStatusCode.ServiceUnavailable; await store.RefreshProviderAsync("commandcode"); await Idle();
+            Require(store.ProviderAccountDisplay("commandcode").Plan is null && IdentityValue("plan") == ""
+                && store.Readings["commandcode"].Windows.Count == 0, "A later failure resurrected the cleared Command Code plan.");
+            RecordCommandPlan("early-failure-after-cleared-plan");
+            checks.Add("Successful missing Command Code plan clears GOAT without losing quota, and a later failure cannot resurrect it");
+
+            responseStatus = HttpStatusCode.OK; failCommandUsage = true;
+            foreach (var plan in new string?[] { "goat_monthly", null })
+            {
+                commandPlan = plan; await store.RefreshProviderAsync("commandcode"); await Idle();
+                Require(store.Readings["commandcode"].State == ReadingState.Error && store.Readings["commandcode"].Windows.Count == 0
+                    && store.ProviderAccountDisplay("commandcode").Plan == (plan is null ? null : "GOAT")
+                    && IdentityValue("plan") == (plan is null ? "" : "GOAT"), "A failed usage request discarded the current successful subscription's Account plan.");
+                RequireAbsentProviderPresentation(window, store.Readings["commandcode"]);
+                RecordCommandPlan(plan is null ? "late-failure-with-cleared-plan" : "late-failure-with-known-plan");
+                Capture(window, Path.Combine(directory, "windows-commandcode-plan-" + (plan is null ? "cleared" : "known") + "-usage-failed.png"));
+            }
+            checks.Add("Successful Command Code subscription updates or clears Account while later usage failure keeps quota absent");
+            failCommandUsage = false; commandPlan = "goat_monthly";
+            await store.RefreshProviderAsync("commandcode"); await Idle();
+            Require(store.ProviderAccountDisplay("commandcode").Plan == "GOAT" && IdentityValue("plan") == "GOAT"
+                && store.Readings["commandcode"].Windows.Count > 0, "Command Code rotation test did not restore its known-plan precondition.");
+            commandSubscriptionBody = "not JSON";
+            await store.RefreshProviderAsync("commandcode"); await Idle();
+            Require(store.ProviderAccountDisplay("commandcode").Plan is null && IdentityValue("plan") == ""
+                && store.Readings["commandcode"].State == ReadingState.Ready && store.Readings["commandcode"].Headline?.UsedPercent == 25,
+                "A successful malformed optional subscription retained an old plan or discarded valid quota.");
+            RecordCommandPlan("malformed-optional-subscription");
+            commandSubscriptionBody = null; commandCreditsBody = "not JSON";
+            await store.RefreshProviderAsync("commandcode"); await Idle();
+            Require(store.ProviderAccountDisplay("commandcode").Plan == "GOAT" && IdentityValue("plan") == "GOAT"
+                && store.Readings["commandcode"].State == ReadingState.Error && store.Readings["commandcode"].Windows.Count == 0,
+                "Malformed credits prevented the later valid subscription update or invented quota.");
+            RecordCommandPlan("malformed-credits-with-known-plan");
+            checks.Add("Command Code optional subscription and required credits follow the reference body-validation order");
+            commandCreditsBody = null; await store.RefreshProviderAsync("commandcode"); await Idle();
+            Require(store.ProviderAccountDisplay("commandcode").Plan == "GOAT" && IdentityValue("plan") == "GOAT"
+                && store.Readings["commandcode"].Windows.Count > 0, "Command Code rotation test lost its positive known-plan precondition.");
+            responseStatus = HttpStatusCode.ServiceUnavailable;
             var draft = Descendants<PasswordBox>(window).First(); draft.Password = "unsaved-fixture-draft";
             logins["commandcode"] = new("replacement-command-key", new("replacement@example.invalid", "Command Code"));
             summaries["commandcode"] = NativeAccountSummary.FromLogin(logins["commandcode"])!;
@@ -127,6 +180,7 @@ internal static partial class NativeSmoke
             Require(store.AccountDisplay("commandcode") is { Label: "replacement@example.invalid", Plan: null, Reading: null }
                 && IdentityValue("label") == "replacement@example.invalid" && IdentityValue("plan") == ""
                 && ReferenceEquals(draft, Descendants<PasswordBox>(window).First()) && draft.Password == "unsaved-fixture-draft", "Account rotation mixed owners or replaced the credential draft.");
+            RecordCommandPlan("owner-rotation");
             checks.Add("Command Code known plan survives same-owner failure and clears on rotation without replacing inputs");
 
             window.Navigate("cursor");
@@ -161,22 +215,28 @@ internal static partial class NativeSmoke
             checks.Add("Expired Grok never sends HTTP and distinguishes changed owners even when request scopes match");
 
             window.Navigate("commandcode"); await store.RefreshProviderAccountAsync("commandcode");
-            entered = new(TaskCreationOptions.RunContinuationsAsynchronously); release = new(TaskCreationOptions.RunContinuationsAsynchronously); pause = true;
-            // The old operation must actually produce quota and GOAT; only the
-            // retry fails. Otherwise an always-empty 503 would hide a broken guard.
-            staleCommandReplies = 4;
-            var committed = new List<ProviderReading>();
-            void Record(ProviderReading reading) { if (reading.Id == "commandcode") committed.Add(reading); }
-            store.ReadingUpdated += Record;
-            var pending = store.RefreshProviderAsync("commandcode"); await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
-            summaries["commandcode"] = NativeAccountSummary.Create(new("metadata-changed@example.invalid", "Command Code"), null, logins["commandcode"].Credential);
-            await store.RefreshProviderAccountAsync("commandcode"); release.TrySetResult(); await pending;
-            await store.WaitForProviderIdleAsync("commandcode"); await Idle();
-            store.ReadingUpdated -= Record;
-            Require(staleCommandReplies == 0 && committed.Count > 0 && committed.All(reading => reading.Windows.Count == 0 && reading.Plan is null)
-                && store.AccountDisplay("commandcode").Label == "metadata-changed@example.invalid" && store.Readings["commandcode"].Windows.Count == 0 && store.ProviderAccountDisplay("commandcode").Plan is null,
-                "An old in-flight response restored another display owner's quota or plan.");
-            checks.Add("Metadata-only rotation invalidates a pending response through the production store generation guard");
+            foreach (var lateFailure in new[] { false, true })
+            {
+                entered = new(TaskCreationOptions.RunContinuationsAsynchronously); release = new(TaskCreationOptions.RunContinuationsAsynchronously); pause = true;
+                // The old operation must produce GOAT, with either real quota
+                // or a later usage error. Only the new owner's retry fails early.
+                staleCommandReplies = 4; failCommandUsage = lateFailure;
+                var committed = new List<ProviderReading>();
+                void Record(ProviderReading reading) { if (reading.Id == "commandcode") committed.Add(reading); }
+                store.ReadingUpdated += Record;
+                var pending = store.RefreshProviderAsync("commandcode"); await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                var replacementLabel = lateFailure ? "late-error-owner@example.invalid" : "metadata-changed@example.invalid";
+                summaries["commandcode"] = NativeAccountSummary.Create(new(replacementLabel, "Command Code"), null, logins["commandcode"].Credential);
+                await store.RefreshProviderAccountAsync("commandcode"); release.TrySetResult(); await pending;
+                await store.WaitForProviderIdleAsync("commandcode"); await Idle();
+                store.ReadingUpdated -= Record;
+                Require(staleCommandReplies == 0 && committed.Count > 0 && committed.All(reading => reading.Windows.Count == 0 && reading.Plan is null && reading.AccountPlanUpdate is null)
+                    && store.AccountDisplay("commandcode").Label == replacementLabel && store.Readings["commandcode"].Windows.Count == 0 && store.ProviderAccountDisplay("commandcode").Plan is null,
+                    "An old in-flight response restored another display owner's quota or plan.");
+                RecordCommandPlan(lateFailure ? "stale-late-error-rejected" : "stale-ready-response-rejected");
+            }
+            failCommandUsage = false;
+            checks.Add("Metadata-only rotation rejects pending successful quota and late-error account updates through the production store generation guard");
 
             // Exercise the first-read cache check, not only changes between two
             // already published summaries. The credential/email stay identical.
@@ -200,9 +260,17 @@ internal static partial class NativeSmoke
 
             File.WriteAllText(Path.Combine(directory, "windows-independent-accounts.json"), JsonSerializer.Serialize(new
                 { completed = true, fixture = true, realAccount = false, network = "in-memory only", checks }, JsonOptions));
+            File.WriteAllText(Path.Combine(directory, "windows-commandcode-plan.json"), JsonSerializer.Serialize(new
+                { completed = true, fixture = true, realAccount = false, network = "in-memory only", observations = planObservations }, JsonOptions));
 
             StackPanel Identity() => Descendants<StackPanel>(window).Single(x => AutomationProperties.GetAutomationId(x) == "provider.identity");
             string IdentityValue(string field) => Descendants<TextBlock>(Identity()).Single(x => AutomationProperties.GetAutomationId(x) == "provider.identity." + field).Text;
+            void RecordCommandPlan(string stage)
+            {
+                var reading = store.Readings.GetValueOrDefault("commandcode");
+                planObservations.Add(new { stage, plan = store.ProviderAccountDisplay("commandcode").Plan,
+                    displayedPlan = IdentityValue("plan"), state = reading?.State.ToString(), windows = reading?.Windows.Count ?? 0 });
+            }
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally
