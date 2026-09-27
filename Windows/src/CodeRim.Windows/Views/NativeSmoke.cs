@@ -377,6 +377,8 @@ internal static partial class NativeSmoke
         await ProviderAccountOwnershipRegression(settings, vault, directory);
         await ProviderPickersRegression(dashboard, store, settings, directory);
         Record("Mac provider catalogue and searchable Usage popover");
+        await SavedAccountsRegression(vault, directory);
+        Record("Saved account selection reloads current credentials, preserves active logins and retains committed Codex auth on failed verification");
         await IsolatedAccountsRegression(directory);
         Record("Isolated Add Account success, cancellation, verification and cleanup for Codex and Claude");
         await ClaudeIntegrationRegression(settings, vault, directory);

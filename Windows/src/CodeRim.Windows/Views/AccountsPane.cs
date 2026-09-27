@@ -159,7 +159,9 @@ internal sealed class AccountsPane : DockPanel
                     catch (Exception e) when (e is not OutOfMemoryException)
                     {
                         store.InvalidateAccount(provider); await store.RefreshProviderAsync(provider).ConfigureAwait(true);
-                        feedback.Text = "The switch could not be verified. Close running provider sessions, sign in through the official CLI, and retry.";
+                        feedback.Text = e is AccountSwitchCommittedException
+                            ? "The Codex login changed, but verification did not finish. Check the current account in the official CLI before retrying."
+                            : "The switch could not be verified. Refresh the account list, close running provider sessions, sign in through the official CLI, and retry.";
                     }
                     finally { SetBusy(false); }
                 });
