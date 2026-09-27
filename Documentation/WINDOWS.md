@@ -4,7 +4,7 @@ This Windows port uses WPF on .NET 10 and targets Windows 11 x64 and ARM64. It i
 
 ## Run or install
 
-Run the matching [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.10/CodeRim-Windows-2.1.10-x64-Setup.msi) or [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.10/CodeRim-Windows-2.1.10-arm64-Setup.msi). .NET is included. The installer uses `%LOCALAPPDATA%\Programs\CodeRim`, registers Start menu and uninstall entries, and adds `bin` to the current user's PATH without requiring administrator access. Open a new terminal after installation to use `coderim`.
+Run the matching [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.11/CodeRim-Windows-2.1.11-x64-Setup.msi) or [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.11/CodeRim-Windows-2.1.11-arm64-Setup.msi). .NET is included. The installer uses `%LOCALAPPDATA%\Programs\CodeRim`, registers Start menu and uninstall entries, and adds `bin` to the current user's PATH without requiring administrator access. Open a new terminal after installation to use `coderim`.
 
 Existing unsigned ZIP users should quit CodeRim and run the MSI once. Settings, accounts and usage history are stored outside the application directory and are preserved. A legacy Authenticode-managed installation must continue using its signed ZIP channel; the public MSI refuses to overwrite it. The initial MSI does not have an Authenticode publisher certificate, so Windows may show a SmartScreen warning. Automatic updates use the pinned Ed25519 release key described below.
 
@@ -41,7 +41,7 @@ The notch follows the macOS spring/stagger vocabulary for unfolding, provider re
 - MSI installations automatically check and download the matching architecture's signed update and offer restart installation. Windows Installer rolls back failed upgrades. Legacy Authenticode-managed builds keep their signed ZIP channel; see [Updates](#updates).
 - API keys, explicit cookies, and provider settings are stored with Windows DPAPI CurrentUser and a user-only directory ACL. Supported Firefox profiles can import provider sign-in cookies. Each cookie retains its host, path, expiry and HTTPS scope. The selected connection is verified before its encrypted replacement is saved; closing or canceling leaves the previous connection intact. If another window replaces or removes that connection during verification, the later import cannot overwrite it. Chrome/Edge protected-cookie decryption is not implemented.
 - A bounded JavaScript host runs 16 CodexBar-derived provider scripts. Unmodified upstream input hashes are recorded in `Windows/ThirdParty/provider-hashes.json`. The host exposes declared HTTP origins and settings only, disables redirects/cookie persistence, and has request/size/time/memory/statement bounds. This is for bundled scripts, not arbitrary user plugins.
-- Companion snapshot and CLI (`usage`, `tokens`, `limits`, `path`, `version`, `claude-status`, `claude-connect`; provider, period, JSON, watch options). Snapshots carry their schema, source scope and timestamps; stale readings remain marked. This Windows schema is documented by `CompanionFile.cs`, not a binary drop-in for macOS WidgetKit.
+- Companion snapshot and CLI (`usage`, `tokens`, `limits`, `path`, `version`, `claude-status`, `claude-connect`, `claude-disconnect`; provider, period, JSON, watch options). The current source's disconnect command restores the saved original Claude status line and removes CodeRim hooks while preserving later user edits. Snapshots carry their schema, source scope and timestamps; stale readings remain marked. This Windows schema is documented by `CompanionFile.cs`, not a binary drop-in for macOS WidgetKit.
 
 ```powershell
 coderim tokens --provider codex --period today
@@ -66,7 +66,7 @@ Remaining verification includes automatic Kimi Desktop discovery, live provider 
 | Codex (`codex`) | Local JSONL + Codex app-server |
 | Claude Code (`claude`) | Local JSONL + status-line bridge |
 | GitHub Copilot (`copilot`) | Saved token, GH_TOKEN/GITHUB_TOKEN, selected github.com GitHub CLI account or bounded gh auth token lookup |
-| Cursor (`cursor`) | Cursor local IDE sign-in or session cookie |
+| Cursor (`cursor`) | Current Cursor editor sign-in, native Windows agent fallback, or explicit session cookie; editor and agent identities stay separate |
 | Grok (`grok`) | Grok CLI sign-in or CLI access token |
 | OpenCode Go (`opencode`) | OpenCode Go local sign-in or API key |
 | Command Code (`commandcode`) | Command Code local sign-in or API key |
@@ -209,7 +209,10 @@ Clear history in a provider page clears CodeRim's numeric records and prevents e
 
 ## Build and verify
 
+Windows release versions are declared in `Windows/Release.env`, `Windows/Directory.Build.props`, the WPF project and its application manifest. The packaging preflight rejects missing, duplicate or inconsistent declarations before changing publish artifacts. The Mac `Config/Release.env` is independent. `-CheckVersionOnly` validates and returns the Windows version without publishing or accessing a signing certificate.
+
 ```powershell
+./Windows/Scripts/test_release_version.ps1
 dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
 dotnet build Windows/CodeRim.Windows.sln --configuration Release
 ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-x64 -ResetManifest
@@ -232,7 +235,7 @@ python3 Scripts/sign_windows_installer.py CodeRim-Windows-VERSION-arm64-Setup.ms
 
 Replace `VERSION` with the configured release version. The helper defaults to the existing `HechoLP` Keychain account; `--account` can select that same release key under another local account name. Never export the private key. A different key will not be accepted by installed apps.
 
-Upload each MSI plus its `.sha256`, `.manifest.json` and `.manifest.sig` to the matching GitHub release draft. The stable updater requires the expected canonical filenames and GitHub SHA-256 metadata, and independently authenticates the signed manifest. Do not change the MSI after signing. For 2.1.10, dispatch the Windows workflow with `msi_handoff=true` to exercise both signed draft installers from an isolated old-version fixture before publishing. This manual-only job needs repository content write permission because GitHub hides drafts from read-only tokens; it does not publish or edit the release and checkout credentials are not persisted.
+Upload each MSI plus its `.sha256`, `.manifest.json` and `.manifest.sig` to the matching GitHub release draft. The stable updater requires the expected canonical filenames and GitHub SHA-256 metadata, and independently authenticates the signed manifest. Do not change the MSI after signing. Dispatch the Windows workflow from a branch or tag pointing to the reviewed candidate commit with `msi_handoff=true`; it derives the draft tag and asset names from the validated Windows release version. This exercises both signed draft installers from an isolated old-version QA fixture before publishing. That fixture tests the production update handoff but is distinct from the ordinary lifecycle test's actual, hash-pinned public 2.1.10 MSI upgrade and rollback. Read both jobs' results before claiming delivery. This manual-only job needs repository content write permission because GitHub hides drafts from read-only tokens; it does not publish or edit the release and checkout credentials are not persisted.
 
 ## Audit history and verification limits
 

@@ -42,7 +42,7 @@ Windows now animates notch folding, staggered provider/control entrances, usage 
 
 ## Install
 
-**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.10](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.10)
+**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.11](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.11)
 
 ### macOS
 
@@ -65,11 +65,13 @@ Open **Settings → Providers → Add Provider**, connect your tools, and hover 
 
 **Windows 11 · x64 and ARM64 · .NET included.**
 
-[Download x64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.10/CodeRim-Windows-2.1.10-x64-Setup.msi) · [Download ARM64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.10/CodeRim-Windows-2.1.10-arm64-Setup.msi)
+[Download x64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.11/CodeRim-Windows-2.1.11-x64-Setup.msi) · [Download ARM64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.11/CodeRim-Windows-2.1.11-arm64-Setup.msi)
 
 Run `Setup.msi` to install without administrator access. Setup registers Start menu and uninstall entries and adds the `coderim` CLI to your user PATH. Existing ZIP users run Setup once to enable automatic updates. Accounts, settings and local usage history are preserved.
 
 The installed app automatically checks and downloads updates. Open **Settings → Information → Check for updates** to restart into the verified release. Disable automatic downloads with **General → Automatically check for updates**. The installer does not have an Authenticode certificate, so Windows SmartScreen may warn on first installation. Updates are verified against the pinned Ed25519 release key and SHA-256. [Installation and update details](Documentation/WINDOWS.md#updates).
+
+Windows 2.1.11 corrects the notch’s Alt+Tab visibility, rectangular control backgrounds and edge alignment. The CodeRim notification-area menu provides Usage, Settings, notch visibility and update actions. Native test results and remaining physical-display limitations are recorded in the [Windows verification notes](Documentation/WINDOWS_MAC_REFERENCE_PARITY_2026-09-23.md).
 
 ## macOS providers
 
