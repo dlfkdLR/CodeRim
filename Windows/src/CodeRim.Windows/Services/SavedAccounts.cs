@@ -10,9 +10,10 @@ namespace CodeRim.Windows.Services;
 internal sealed record SavedLogin(string Provider, LoginIdentity Identity, string Credential, string? Profile);
 internal sealed class AccountSwitchCommittedException() : InvalidOperationException(
     "The Codex login was changed, but verification did not finish. Check the current account in the official CLI before retrying.");
-internal sealed class SavedAccounts(CredentialVault vault)
+internal sealed class SavedAccounts(CredentialVault vault, Func<AccountOperationLease>? operationLease = null)
 {
     internal delegate Task<JsonElement> CodexRpc(string executable, string method, CancellationToken token);
+    private readonly Func<AccountOperationLease> acquireOperation = operationLease ?? AccountOperationLease.Acquire;
     private static int switching;
     internal static bool OperationInProgress => Volatile.Read(ref switching) != 0;
     internal IReadOnlyList<SavedLogin> Read(string provider)
@@ -50,12 +51,20 @@ internal sealed class SavedAccounts(CredentialVault vault)
         try { return Current(provider).Identity.Email; }
         catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or InvalidOperationException) { return null; }
     }
-    internal void SaveCurrent(string provider) => Save(Current(provider));
+    internal void SaveCurrent(string provider)
+    {
+        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new AccountOperationBusyException();
+        try { using var lease = acquireOperation(); Save(Current(provider)); }
+        finally { Interlocked.Exchange(ref switching, 0); }
+    }
     internal async Task SaveCurrentAsync(string provider, string executable, Func<Task>? waitForRefresh = null, CancellationToken token = default)
     {
-        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new InvalidOperationException("An account operation is already in progress.");
+        token.ThrowIfCancellationRequested();
+        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new AccountOperationBusyException();
         try
         {
+            using var lease = acquireOperation();
+            token.ThrowIfCancellationRequested();
             if (waitForRefresh is not null) await waitForRefresh().ConfigureAwait(true);
             token.ThrowIfCancellationRequested();
             var before = Current(provider);
@@ -74,9 +83,12 @@ internal sealed class SavedAccounts(CredentialVault vault)
     }
     internal async Task AddAsync(string provider, string executable, CancellationToken token)
     {
-        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new InvalidOperationException("An account operation is already in progress.");
+        token.ThrowIfCancellationRequested();
+        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new AccountOperationBusyException();
         try
         {
+            using var lease = acquireOperation();
+            token.ThrowIfCancellationRequested();
             CheckPolicy(provider, Paths(provider).Credential);
             if (provider == "codex")
             {
@@ -127,15 +139,18 @@ internal sealed class SavedAccounts(CredentialVault vault)
     }
     internal void Remove(string provider, string id)
     {
-        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new InvalidOperationException("Wait for the current account operation to finish.");
-        try { vault.Save("accounts:" + provider, JsonSerializer.Serialize(Read(provider).Where(x => x.Identity.Id != id).ToArray())); }
+        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new AccountOperationBusyException();
+        try { using var lease = acquireOperation(); vault.Save("accounts:" + provider, JsonSerializer.Serialize(Read(provider).Where(x => x.Identity.Id != id).ToArray())); }
         finally { Interlocked.Exchange(ref switching, 0); }
     }
     internal async Task SwitchAsync(SavedLogin selected, string executable, Func<Task>? waitForRefresh = null, CodexRpc? codexRpc = null, CancellationToken token = default)
     {
-        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new InvalidOperationException("An account operation is already in progress.");
+        token.ThrowIfCancellationRequested();
+        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new AccountOperationBusyException();
         try
         {
+            using var lease = acquireOperation();
+            token.ThrowIfCancellationRequested();
             if (waitForRefresh is not null) await waitForRefresh().ConfigureAwait(true);
             token.ThrowIfCancellationRequested();
             // A displayed row identifies the selection; only the current vault owns

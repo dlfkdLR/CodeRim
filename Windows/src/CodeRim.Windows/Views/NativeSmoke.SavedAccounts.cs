@@ -125,6 +125,7 @@ internal static partial class NativeSmoke
                 checks.Add(new { scenario, passed = true, policyCalls, verifyCalls, committedFailure = error is AccountSwitchCommittedException });
             }
             await SavedAccountFileRegression(home, checks);
+            await SavedAccountOperationRegression(vault, home, a, fresh, checks);
             completed = true;
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
