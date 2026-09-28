@@ -2,8 +2,6 @@
 
 **English** · [한국어](README.ko.md)
 
-**Website:** [codrim.dlfkd.dev](https://codrim.dlfkd.dev/?lang=en)
-
 > Coding-assistant limits at the edge of your screen.
 
 [![macOS CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/dlfkdLR/CodeRim?color=181a1e)](https://github.com/dlfkdLR/CodeRim/releases/latest) [![Windows CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/windows.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/windows.yml) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-181a1e) ![Windows 11 preview](https://img.shields.io/badge/Windows-11_preview-181a1e)

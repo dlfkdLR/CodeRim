@@ -2,8 +2,6 @@
 
 [English](README.md) · **한국어**
 
-**공식 웹사이트:** [codrim.dlfkd.dev](https://codrim.dlfkd.dev/)
-
 > 화면 가장자리에서 확인하는 코딩 도우미 사용 한도.
 
 [![macOS CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml) [![릴리스](https://img.shields.io/github/v/release/dlfkdLR/CodeRim?color=181a1e)](https://github.com/dlfkdLR/CodeRim/releases/latest) [![Windows CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/windows.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/windows.yml) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-181a1e) ![Windows 11 preview](https://img.shields.io/badge/Windows-11_preview-181a1e)
