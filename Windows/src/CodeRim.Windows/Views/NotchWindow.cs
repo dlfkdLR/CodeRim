@@ -166,7 +166,6 @@ internal sealed partial class NotchWindow : Window
             var preservePopup = popup.IsOpen;
             var revealed = ControlsRevealed;
             Render(preservePopup: preservePopup); UpdateLayout();
-            viewport?.ScrollToHorizontalOffset(horizontal); viewport?.ScrollToVerticalOffset(vertical);
             if (revealed) RevealControls();
             if (preservePopup)
             {
@@ -176,6 +175,9 @@ internal sealed partial class NotchWindow : Window
             }
             if (!string.IsNullOrEmpty(focusedId))
                 (FindPopupControl(this, focusedId) ?? (popup.Child is DependencyObject popupChild ? FindPopupControl(popupChild, focusedId) : null))?.Focus();
+            if (!preservePopup) popup.IsOpen = false;
+            // Focus queues MakeVisible; saved offsets must be restored after it.
+            viewport?.ScrollToHorizontalOffset(horizontal); viewport?.ScrollToVerticalOffset(vertical);
         }));
     }
     internal void TryFold()
@@ -203,11 +205,13 @@ internal sealed partial class NotchWindow : Window
             var preservePopup = popup.IsOpen && (accountMenu || hovered is not null && visibleProviders.Contains(hovered, StringComparer.Ordinal));
             var revealed = ControlsRevealed;
             Render(preservePopup: preservePopup); UpdateLayout();
-            viewport?.ScrollToHorizontalOffset(horizontal); viewport?.ScrollToVerticalOffset(vertical);
             if (hovered is not null && !buttons.ContainsKey(hovered)) hovered = null;
             if (focused is not null && buttons.TryGetValue(focused, out var surviving)) surviving.Focus();
             if (revealed) RevealControls();
             if (preservePopup) UpdatePopupAnchor(false);
+            if (!preservePopup) popup.IsOpen = false;
+            // Preserve scrolling after the focused provider's MakeVisible command.
+            viewport?.ScrollToHorizontalOffset(horizontal); viewport?.ScrollToVerticalOffset(vertical);
             return;
         }
         foreach (var ring in rings)
