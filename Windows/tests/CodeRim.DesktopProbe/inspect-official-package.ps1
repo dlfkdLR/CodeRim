@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$Probe, [Parameter(Mandatory=$true)][string]$OutputDirectory)
+param([Parameter(Mandatory=$true)][string]$Probe, [Parameter(Mandatory=$true)][string]$OutputDirectory, [switch]$QuitReopen)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:GITHUB_REPOSITORY -ne 'dlfkdLR/CodeRim') {
@@ -67,9 +67,10 @@ try {
     if ($installed.Publisher -ne $publisher -or $installed.SignatureKind -ne 'Store' -or $installed.IsDevelopmentMode -or $installed.Status -ne 'Ok') {
         throw 'Installed package trust/status check failed.'
     }
-    # A disposable account has no login. Only inspect the exact activated package's
-    # own UIA tree; do not send keys, click a sign-in button or make a model request.
+    # Signed-out inspection is read-only by default. A separate opt-in permits one
+    # standard Quit shortcut and reopen in this disposable VM; no account/model calls.
     $arguments = @($installed.PackageFullName, ($installed.PackageFamilyName + '!App'), ('"' + $output + '"'))
+    if ($QuitReopen) { $arguments += '--quit-reopen-probe' }
     $process = Start-Process -FilePath ([IO.Path]::GetFullPath($Probe)) -ArgumentList $arguments -PassThru
     if (-not $process.WaitForExit(90000)) {
         $process.Kill() # only our hung read-only recorder, not the official app

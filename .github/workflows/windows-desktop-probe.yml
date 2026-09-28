@@ -20,7 +20,7 @@ jobs:
         run: dotnet publish Windows/tests/CodeRim.DesktopProbe --configuration Release --runtime win-x64 --self-contained true --output Artifacts/desktop-probe
       - name: Inspect signed official app on fresh runner
         shell: powershell
-        run: ./Windows/tests/CodeRim.DesktopProbe/inspect-official-package.ps1 -Probe Artifacts/desktop-probe/CodeRim.DesktopProbe.exe -OutputDirectory Artifacts/official-desktop
+        run: ./Windows/tests/CodeRim.DesktopProbe/inspect-official-package.ps1 -Probe Artifacts/desktop-probe/CodeRim.DesktopProbe.exe -OutputDirectory Artifacts/official-desktop -QuitReopen
       - name: Upload bounded UI evidence
         uses: actions/upload-artifact@v4
         if: always()

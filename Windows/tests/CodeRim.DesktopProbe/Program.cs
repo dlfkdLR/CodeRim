@@ -5,7 +5,8 @@ using System.Text.Json;
 using System.Windows.Automation;
 
 // Read-only AX discovery on a fresh GitHub-hosted Windows VM. This probe does not
-// invoke menus, type keys, sign in, call models, or terminate the app.
+// invoke menus or type keys by default. A separate explicit disposable-VM flag
+// requests one standard Quit shortcut and reopen; no sign-in or model calls.
 internal static class Program
 {
     [STAThread]
@@ -13,7 +14,7 @@ internal static class Program
     {
         if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" ||
             Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted" ||
-            args.Length != 3) return 2;
+            (args.Length != 3 && (args.Length != 4 || args[3] != "--quit-reopen-probe"))) return 2;
         var fullName = args[0]; var appId = args[1]; var output = Path.GetFullPath(args[2]);
         Directory.CreateDirectory(output);
         try
@@ -64,9 +65,18 @@ internal static class Program
                 if (sample < 2) Thread.Sleep(2000);
             }
             if (contentSamples == 0) throw new InvalidOperationException("No hydrated app document with controls was observed.");
+            if (args.Length == 4)
+            {
+                QuitReopenProbe.Run(process, fullName, () =>
+                {
+                    var manager = (IApplicationActivationManager)new ApplicationActivationManager();
+                    try { Marshal.ThrowExceptionForHR(manager.ActivateApplication(appId, "--force-renderer-accessibility", 2, out var reopened)); return reopened; }
+                    finally { Marshal.FinalReleaseComObject(manager); }
+                }, output);
+            }
             File.WriteAllText(Path.Combine(output, "result.json"), JsonSerializer.Serialize(new {
                 inspectionCompleted = true, quitVerified = false, accountSwitchVerified = false,
-                contentSamples, physicalUserPc = false, actionsInvoked = false
+                contentSamples, physicalUserPc = false, actionsInvoked = args.Length == 4, quitReopenProbe = args.Length == 4
             }, Options));
             return 0;
         }
