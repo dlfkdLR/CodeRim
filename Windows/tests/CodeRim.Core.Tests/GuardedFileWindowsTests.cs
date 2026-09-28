@@ -31,14 +31,20 @@ public sealed class GuardedFileWindowsTests : IDisposable
             if (rule.AccessControlType == AccessControlType.Allow) Assert.Equal(identity.User, rule.IdentityReference);
     }
     [Fact(Skip = "Requires Windows directory handles", SkipUnless = nameof(IsWindows))]
-    public void PrivateStagingAndPublicationWorkWhileAncestorsArePinned()
+    public void PathMoveIsBlockedButGuardedPublicationWorksWhileAncestorsArePinned()
     {
         var file = Login(); var temporary = file + ".fixture.tmp";
         using (Acquire(file))
         {
             GuardedFile.WritePrivate(temporary, "synthetic-staging");
             Assert.Equal("synthetic-staging", GuardedFile.Read(temporary));
-            File.Move(temporary, file, overwrite: false);
+            // Native baseline 742ee11: MoveFile reopens the destination parent
+            // for FILE_ADD_FILE, conflicting with the intentional deny-write lease.
+            var error = Assert.Throws<IOException>(() => File.Move(temporary, file, overwrite: false));
+            Assert.Equal(32, error.HResult & 0xffff); // ERROR_SHARING_VIOLATION, not an unrelated failure.
+            Assert.False(File.Exists(file)); Assert.Equal("synthetic-staging", GuardedFile.Read(temporary));
+            GuardedFile.CreateIfAbsent(file, "synthetic-staging");
+            File.Delete(temporary);
         }
         Assert.Equal("synthetic-staging", GuardedFile.Read(file));
     }
@@ -60,6 +66,21 @@ public sealed class GuardedFileWindowsTests : IDisposable
         var file = Login(); GuardedFile.WritePrivate(file, "other-login");
         Assert.ThrowsAny<IOException>(() => GuardedFile.CreateIfAbsent(file, "stale-login"));
         Assert.Equal("other-login", GuardedFile.Read(file));
+        Assert.Empty(Directory.EnumerateFiles(Path.GetDirectoryName(file)!, "*.tmp"));
+    }
+    [Fact(Skip = "Requires Windows native rename semantics", SkipUnless = nameof(IsWindows))]
+    public async Task ConcurrentPublishersKeepExactlyOneCompleteUnicodeLogin()
+    {
+        var file = Path.Combine(Path.GetDirectoryName(Login())!, "로그인-😀.json");
+        var values = Enumerable.Range(0, 8).Select(index => index + new string('한', 16384)).ToArray();
+        using var start = new ManualResetEventSlim(false);
+        var writers = values.Select(value => Task.Run(() => {
+            start.Wait();
+            try { GuardedFile.CreateIfAbsent(file, value); return value; }
+            catch (IOException) { return null; }
+        })).ToArray();
+        start.Set(); var results = await Task.WhenAll(writers);
+        Assert.Equal(Assert.Single(results, value => value is not null), GuardedFile.Read(file));
         Assert.Empty(Directory.EnumerateFiles(Path.GetDirectoryName(file)!, "*.tmp"));
     }
     private static IDisposable Acquire(string file)
