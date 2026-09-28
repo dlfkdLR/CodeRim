@@ -59,6 +59,20 @@ public static class NotchMetrics
     public const double PillDepth = 26 * Unit;
     public const double PillLength = 210 * Unit;
 
+    /// <summary>Preserve the selected size unless the minimum complete notch cannot fit its work area.</summary>
+    public static double FitScale(NotchEdge edge, double requested, double availableAlong, double availableDepth, bool expanded)
+    {
+        if (!double.IsFinite(requested) || requested <= 0) requested = 1;
+        if (!double.IsFinite(availableAlong) || availableAlong <= 0) throw new ArgumentOutOfRangeException(nameof(availableAlong));
+        if (!double.IsFinite(availableDepth) || availableDepth <= 0) throw new ArgumentOutOfRangeException(nameof(availableDepth));
+        var vertical = edge is NotchEdge.Left or NotchEdge.Right;
+        var minimumAlong = expanded ? 2 * Curl + PadStart + PadEnd + (vertical ? CellHeight : Ring) + ControlExtent : PillLength;
+        var minimumDepth = expanded
+            ? Math.Max(vertical ? SideDepth : SideDepth - Ring + CellHeight, Curl + OrbArcRadius + OrbStroke / 2)
+            : PillDepth;
+        return Math.Min(requested, Math.Min(availableAlong / minimumAlong, availableDepth / minimumDepth));
+    }
+
     public static (double Depth, double Length, int Capacity) Fit(NotchEdge edge, int count, double scale, double availableAlong)
     {
         if (!double.IsFinite(scale) || scale <= 0) scale = 1;

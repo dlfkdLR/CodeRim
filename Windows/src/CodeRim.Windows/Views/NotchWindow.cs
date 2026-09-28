@@ -39,7 +39,8 @@ internal sealed partial class NotchWindow : Window
     private Point dragStart;
     private double dragOffset;
     private ScrollViewer? viewport;
-    private double bodyLength, bodyDepth, bodyStart;
+    private double bodyLength, bodyDepth, bodyStart, renderScale = 1;
+    private bool displayLayoutPending;
     private bool Vertical => settings.Current.Edge is NotchEdge.Left or NotchEdge.Right;
     internal bool Expanded => expanded || pinned || settings.Current.Visibility == NotchVisibility.AlwaysShow;
     internal bool PopupIsOpen => popup.IsOpen;
@@ -80,6 +81,7 @@ internal sealed partial class NotchWindow : Window
             Position(dragOffset + (Vertical ? point.Y - dragStart.Y : point.X - dragStart.X) / ScreenScale(SelectedScreen()));
             e.Handled = true;
         };
+        LostMouseCapture += (_, _) => dragging = false;
         PreviewMouseLeftButtonUp += (_, e) =>
         {
             if (!dragging) return;
@@ -108,7 +110,6 @@ internal sealed partial class NotchWindow : Window
     private IntPtr WindowMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (message == 0x0021) { handled = true; return new IntPtr(3); } // MA_NOACTIVATE: refresh does not steal the active editor.
-        if (message == 0x02E0) Dispatcher.BeginInvoke(() => Render());
         return IntPtr.Zero;
     }
     private SessionActivity? attentionSession;
@@ -129,9 +130,54 @@ internal sealed partial class NotchWindow : Window
         if (settings.Current.Visibility == NotchVisibility.Hidden) { popup.IsOpen = false; Hide(); }
         else { if (!IsVisible) Show(); Render(); }
     }
-    private void SettingsChanged(object? sender, EventArgs e) => ApplyVisibility();
-    private void DisplayChanged(object? sender, PropertyChangedEventArgs e) { if (!closed) Dispatcher.BeginInvoke(() => Render()); }
-    private void DisplaysChanged(object? sender, EventArgs e) { if (!closed) Dispatcher.BeginInvoke(() => Render()); }
+    private void CancelDrag()
+    {
+        dragging = false;
+        if (IsMouseCaptured) ReleaseMouseCapture();
+    }
+    private void SettingsChanged(object? sender, EventArgs e) { CancelDrag(); ApplyVisibility(); }
+    private void DisplayChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(SystemParameters.WorkArea)) QueueDisplayLayout();
+    }
+    private void DisplaysChanged(object? sender, EventArgs e) => QueueDisplayLayout();
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi); QueueDisplayLayout();
+    }
+    internal void QueueDisplayLayout()
+    {
+        if (closed || Dispatcher.HasShutdownStarted) return;
+        if (!Dispatcher.CheckAccess()) { Dispatcher.InvokeAsync(QueueDisplayLayout); return; }
+        if (displayLayoutPending) return;
+        displayLayoutPending = true;
+        // Run after WPF updates this HWND's DPI and layout, coalescing the OS's
+        // display/work-area notifications without throwing away active controls.
+        Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() =>
+        {
+            displayLayoutPending = false;
+            if (closed || !IsVisible) return;
+            CancelDrag();
+            var horizontal = viewport?.HorizontalOffset ?? 0;
+            var vertical = viewport?.VerticalOffset ?? 0;
+            var focusedId = Keyboard.FocusedElement is DependencyObject focused
+                && (IsKeyboardFocusWithin || popup.Child is UIElement child && child.IsKeyboardFocusWithin)
+                ? AutomationProperties.GetAutomationId(focused) : null;
+            var preservePopup = popup.IsOpen;
+            var revealed = ControlsRevealed;
+            Render(preservePopup: preservePopup); UpdateLayout();
+            viewport?.ScrollToHorizontalOffset(horizontal); viewport?.ScrollToVerticalOffset(vertical);
+            if (revealed) RevealControls();
+            if (preservePopup)
+            {
+                if (accountMenu) UpdatePopupAnchor(false);
+                else if (hovered is not null && buttons.ContainsKey(hovered)) RefreshPopup();
+                else { hovered = null; popup.IsOpen = false; }
+            }
+            if (!string.IsNullOrEmpty(focusedId))
+                (FindPopupControl(this, focusedId) ?? (popup.Child is DependencyObject popupChild ? FindPopupControl(popupChild, focusedId) : null))?.Focus();
+        }));
+    }
     internal void TryFold()
     {
         if (accountMenu && popup.IsOpen) return;
@@ -188,15 +234,17 @@ internal sealed partial class NotchWindow : Window
         rings.Clear(); buttons.Clear();
         if (!preservePopup) { popup.IsOpen = false; Motion.Stop(popupFrame); }
         ResetControls();
-        var config = settings.Current; var scale = config.Scale;
+        var config = settings.Current;
+        var screen = SelectedScreen(); var dpi = ScreenScale(screen);
+        var available = Math.Max(1 / dpi, (Vertical ? screen.WorkingArea.Height : screen.WorkingArea.Width) / dpi - 16);
+        var availableDepth = Math.Max(1 / dpi, ((Vertical ? screen.WorkingArea.Width : screen.WorkingArea.Height) - 1) / dpi);
+        var scale = renderScale = NotchMetrics.FitScale(config.Edge, config.Scale, available, availableDepth, Expanded);
         if (!Expanded)
         {
             Width = Vertical ? NotchMetrics.PillDepth * scale : NotchMetrics.PillLength * scale;
             Height = Vertical ? NotchMetrics.PillLength * scale : NotchMetrics.PillDepth * scale;
             Content = new NotchShape { Edge = config.Edge, DesignScale = scale, Fill = Brushes.Black }; Position(); return;
         }
-        var screen = SelectedScreen(); var dpi = ScreenScale(screen);
-        var available = (Vertical ? screen.WorkingArea.Height : screen.WorkingArea.Width) / dpi - 16;
         var visibleProviders = VisibleProviderIds();
         var fit = NotchMetrics.Fit(config.Edge, visibleProviders.Length, scale, available);
         bodyLength = fit.Length; bodyDepth = fit.Depth;
@@ -451,7 +499,8 @@ internal sealed partial class NotchWindow : Window
             settings.Current.Edge, ((temporaryOffset ?? settings.Current.Offset) + (Content is Canvas
                 ? (Vertical ? Height : Width) / 2 - bodyStart - bodyLength / 2 : 0)) * dpi);
         var handle = new WindowInteropHelper(this).Handle;
-        if (handle != IntPtr.Zero) SetWindowPos(handle, new IntPtr(-1), (int)Math.Round(position.X), (int)Math.Round(position.Y), pixelWidth, pixelHeight, 0x10);
+        if (handle != IntPtr.Zero && !SetWindowPos(handle, new IntPtr(-1), (int)Math.Round(position.X), (int)Math.Round(position.Y), pixelWidth, pixelHeight, 0x10))
+            throw new Win32Exception(Marshal.GetLastPInvokeError(), "Could not position the notch window.");
     }
     private static double ScreenScale(Screen screen)
     {
