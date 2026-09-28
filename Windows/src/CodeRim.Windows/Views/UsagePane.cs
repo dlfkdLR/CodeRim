@@ -87,7 +87,7 @@ internal sealed partial class UsagePane : StackPanel
         }
         return false;
     }
-    private readonly StackPanel controls = new();
+    private readonly StackPanel controls = new() { VerticalAlignment = VerticalAlignment.Center };
     private readonly StackPanel filters = new() { Margin = new Thickness(24, 0, 24, 0) };
     private bool updatingChoices;
     internal void SelectProvider(string id)
