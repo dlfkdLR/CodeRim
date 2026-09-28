@@ -14,6 +14,13 @@ public sealed class CompanionFileConcurrencyTests : IDisposable
         var now = DateTimeOffset.Now;
         return new(1, now, [new("codex", "Codex", true, null, new("codex", ReadingState.Ready, [], now, Message: text))]);
     }
+    private static void AssertNativeRenameFailure(Exception error)
+        => Assert.True(error switch
+        {
+            UnauthorizedAccessException => (error.HResult & 0xffff) == 5,
+            IOException => (error.HResult & 0xffff) is 32 or 33,
+            _ => false
+        }, "The native rename exception type and error code must remain paired.");
 
     [Theory(Skip = "Requires Windows rename sharing semantics", SkipUnless = nameof(IsWindows))]
     [InlineData(false)] [InlineData(true)]
@@ -26,7 +33,7 @@ public sealed class CompanionFileConcurrencyTests : IDisposable
         var conflicts = 0;
         CompanionFile.Publish(temporary, PathName, error =>
         {
-            Assert.Equal(32, error.HResult & 0xffff);
+            AssertNativeRenameFailure(error);
             Assert.Equal("before", Assert.Single(CompanionFile.Read(PathName).Providers).Limits.Message);
             conflicts++;
             reader.Dispose();
@@ -46,6 +53,16 @@ public sealed class CompanionFileConcurrencyTests : IDisposable
         Assert.Equal(0, observed);
     }
 
+    [Fact]
+    public void MissingStagingFileIsNotRetried()
+    {
+        CompanionFile.Write(Snapshot("before"), PathName);
+        var observed = 0;
+        Assert.Throws<FileNotFoundException>(() => CompanionFile.Publish(Path.Combine(directory, "missing.tmp"), PathName, _ => observed++));
+        Assert.Equal(0, observed);
+        Assert.Equal("before", Assert.Single(CompanionFile.Read(PathName).Providers).Limits.Message);
+    }
+
     [Theory]
     [InlineData("utf8")] [InlineData("utf16")] [InlineData("utf16be")]
     public void ExistingBomEncodedSnapshotsRemainReadable(string format)
@@ -56,17 +73,51 @@ public sealed class CompanionFileConcurrencyTests : IDisposable
         Assert.Equal("한국어 😀", Assert.Single(CompanionFile.Read(PathName).Providers).Limits.Message);
     }
 
-    [Fact(Skip = "Requires Windows rename sharing semantics", SkipUnless = nameof(IsWindows))]
-    public void PersistentReaderLockIsBoundedAndPreservesPreviousSnapshot()
+    [Theory(Skip = "Requires Windows rename sharing semantics", SkipUnless = nameof(IsWindows))]
+    [InlineData(false)] [InlineData(true)]
+    public void PersistentReaderLockIsBoundedAndPreservesPreviousSnapshot(bool sourceLocked)
     {
         CompanionFile.Write(Snapshot("before"), PathName);
-        using var reader = new FileStream(PathName, FileMode.Open, FileAccess.Read, FileShare.Read);
+        // Write owns and cleans its randomly named staging file. For a source
+        // lock, publish an explicitly held staging file and retain it on failure.
+        var temporary = Path.Combine(directory, "staging.tmp");
+        if (sourceLocked) File.WriteAllText(temporary, "complete staging bytes");
+        using var reader = new FileStream(sourceLocked ? temporary : PathName, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var conflicts = 0;
         var timer = Stopwatch.StartNew();
-        var error = Assert.Throws<IOException>(() => CompanionFile.Write(Snapshot("after"), PathName));
-        Assert.Equal(32, error.HResult & 0xffff);
+        var error = Record.Exception(() =>
+        {
+            if (sourceLocked) CompanionFile.Publish(temporary, PathName, _ => conflicts++);
+            else CompanionFile.Write(Snapshot("after"), PathName);
+        });
+        Assert.NotNull(error);
+        AssertNativeRenameFailure(error);
         Assert.True(timer.Elapsed < TimeSpan.FromSeconds(3), "Publication must have a finite retry bound.");
         Assert.Equal("before", Assert.Single(CompanionFile.Read(PathName).Providers).Limits.Message);
-        Assert.Empty(Directory.EnumerateFiles(directory, "*.tmp"));
+        if (sourceLocked)
+        {
+            Assert.Equal(7, conflicts);
+            Assert.Equal("complete staging bytes", File.ReadAllText(temporary));
+        }
+        else Assert.Empty(Directory.EnumerateFiles(directory, "*.tmp"));
+    }
+
+    [Fact(Skip = "Windows read-only replacement permissions", SkipUnless = nameof(IsWindows))]
+    public void PermanentReadOnlyDestinationRemainsProtectedAfterBoundedFailure()
+    {
+        CompanionFile.Write(Snapshot("before"), PathName);
+        File.SetAttributes(PathName, File.GetAttributes(PathName) | FileAttributes.ReadOnly);
+        try
+        {
+            var timer = Stopwatch.StartNew();
+            var error = Assert.Throws<UnauthorizedAccessException>(() => CompanionFile.Write(Snapshot("after"), PathName));
+            Assert.Equal(5, error.HResult & 0xffff);
+            Assert.True(timer.Elapsed < TimeSpan.FromSeconds(3));
+            Assert.Equal("before", Assert.Single(CompanionFile.Read(PathName).Providers).Limits.Message);
+            Assert.True(File.GetAttributes(PathName).HasFlag(FileAttributes.ReadOnly));
+            Assert.Empty(Directory.EnumerateFiles(directory, "*.tmp"));
+        }
+        finally { File.SetAttributes(PathName, File.GetAttributes(PathName) & ~FileAttributes.ReadOnly); }
     }
 
     [Fact]

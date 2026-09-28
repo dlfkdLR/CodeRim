@@ -58,16 +58,19 @@ public static class CompanionFile
         try { File.WriteAllBytes(temporary, payload); Publish(temporary, path); }
         finally { File.Delete(temporary); }
     }
-    // Native scanners and external readers may briefly deny rename. Keep the
-    // complete staging file and prior snapshot intact; unrelated errors fail now.
-    internal static void Publish(string temporary, string path, Action<IOException>? sharingConflict = null)
+    // A blocked Windows rename can report sharing (32), lock (33) or access denied (5).
+    // The latter can also be permanent permission denial: never alter permissions
+    // or bypass it. Keep complete snapshots and stop after seven 50 ms waits.
+    internal static void Publish(string temporary, string path, Action<Exception>? publicationBlocked = null)
     {
         for (var attempt = 0; ; attempt++)
         {
             try { File.Move(temporary, path, true); return; }
-            catch (IOException error) when (OperatingSystem.IsWindows() && attempt < 7 && (error.HResult & 0xffff) is 32 or 33)
+            catch (Exception error) when (OperatingSystem.IsWindows() && attempt < 7
+                && (error is IOException && (error.HResult & 0xffff) is 32 or 33
+                    || error is UnauthorizedAccessException && (error.HResult & 0xffff) == 5))
             {
-                sharingConflict?.Invoke(error);
+                publicationBlocked?.Invoke(error);
                 Thread.Sleep(50); // at most seven waits (350 ms); never an unbounded retry
             }
         }
