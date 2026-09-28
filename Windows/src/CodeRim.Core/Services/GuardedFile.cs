@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace CodeRim.Core.Services;
 
 /// <summary>Atomic replacement with version checks. Callers must first require the provider to be quiescent.</summary>
@@ -29,6 +31,56 @@ public static class GuardedFile
         using var reader = new StreamReader(output);
         return reader.ReadToEnd();
     }
+    /// <summary>Only a missing leaf is signed out. Missing/linked/inaccessible parents still fail.</summary>
+    public static string? ReadIfPresent(string path)
+    {
+        path = Path.GetFullPath(path);
+        using var directory = LoginDirectoryLease.Acquire(path);
+        var parent = Path.GetDirectoryName(path) ?? throw new IOException("The login directory is unavailable.");
+        Check(parent);
+        try { return Read(path); }
+        catch (FileNotFoundException)
+        {
+            // On Windows the retained ancestor handles also prevent directory
+            // replacement while distinguishing a missing file from an unsafe path.
+            Check(parent); return null;
+        }
+    }
+    /// <summary>Publish a private, complete login only if the destination is still absent.</summary>
+    public static void CreateIfAbsent(string path, string value)
+    {
+        path = Path.GetFullPath(path);
+        using var directory = LoginDirectoryLease.Acquire(path);
+        if (ReadIfPresent(path) is not null) throw new IOException("The provider changed its login. Nothing was overwritten.");
+        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        var published = false;
+        try
+        {
+            WritePrivate(temporary, value);
+            // No overwrite flag: an external sign-in (including a new symlink)
+            // wins even if it appears after the absence check above.
+            PublishWithoutReplacement(temporary, path); published = true;
+        }
+        // No fallible filesystem work after commit: report it as committed even
+        // if another process immediately changes directory permissions.
+        finally { if (!published) File.Delete(temporary); }
+    }
+    private static void PublishWithoutReplacement(string source, string destination)
+    {
+        if (OperatingSystem.IsWindows()) File.Move(source, destination, overwrite: false);
+        else if (OperatingSystem.IsMacOS())
+        {
+            // Portable Windows-source probes also run on macOS. The Unix .NET
+            // Move(false) implementation can check then rename, replacing a racer.
+            // RENAME_EXCL makes absence part of the atomic filesystem operation.
+            var utf8 = new System.Text.UTF8Encoding(false, true);
+            if (RenameExclusive(utf8.GetBytes(source + "\0"), utf8.GetBytes(destination + "\0"), 4) != 0)
+                throw new IOException("The login could not be published without replacement.", new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error()));
+        }
+        else throw new PlatformNotSupportedException("Exclusive login publication requires Windows or macOS.");
+    }
+    [DllImport("/usr/lib/libSystem.B.dylib", EntryPoint = "renamex_np", SetLastError = true)]
+    private static extern int RenameExclusive(byte[] source, byte[] destination, uint flags);
     public static void Replace(string path, string expected, string replacement)
     {
         if (Read(path) != expected) throw new IOException("The provider changed its login. Nothing was overwritten.");

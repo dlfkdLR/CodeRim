@@ -150,9 +150,9 @@ internal sealed class SavedAccounts(CredentialVault vault)
             }
             CheckPolicy(selected.Provider, paths.Credential);
             token.ThrowIfCancellationRequested();
-            var before = GuardedFile.Read(paths.Credential); var profileBefore = paths.Profile is { } file ? GuardedFile.Read(file) : null;
-            var departing = ParseLogin(selected.Provider, before, profileBefore);
-            if (selected.Provider == "codex" && departing.Identity.Id == selected.Identity.Id)
+            var before = selected.Provider == "codex" ? GuardedFile.ReadIfPresent(paths.Credential) : GuardedFile.Read(paths.Credential); var profileBefore = paths.Profile is { } file ? GuardedFile.Read(file) : null;
+            var departing = before is null ? null : ParseLogin(selected.Provider, before, profileBefore);
+            if (selected.Provider == "codex" && departing?.Identity.Id == selected.Identity.Id)
             {
                 // Selecting an already-active login must never restore an older
                 // refresh token from the saved list or require closing idle clients.
@@ -165,13 +165,15 @@ internal sealed class SavedAccounts(CredentialVault vault)
             try { if (processes.Any(x => !x.HasExited)) throw new InvalidOperationException("Close the provider's CLI and editor sessions before switching accounts."); }
             finally { foreach (var process in processes) process.Dispose(); }
             // Save the same snapshot used by compare-and-swap, not a second file read.
-            Save(departing);
-            var after = selected.Provider == "claude" ? Merge(before, selected.Credential, "claudeAiOauth") : selected.Credential;
+            if (departing is not null) Save(departing);
+            var after = selected.Provider == "claude" ? Merge(before!, selected.Credential, "claudeAiOauth") : selected.Credential;
             var profileAfter = selected.Provider == "claude" ? Merge(profileBefore!, selected.Profile!, "oauthAccount") : null;
             var credentialWritten = false; var profileWritten = false;
             try
             {
-                GuardedFile.Replace(paths.Credential, before, after); credentialWritten = true;
+                if (before is null) GuardedFile.CreateIfAbsent(paths.Credential, after);
+                else GuardedFile.Replace(paths.Credential, before, after);
+                credentialWritten = true;
                 if (paths.Profile is { } profilePath) { GuardedFile.Replace(profilePath, profileBefore!, profileAfter!); profileWritten = true; }
                 await VerifyAsync(selected, executable, token, codexRpc).ConfigureAwait(true);
                 var current = Current(selected.Provider);
@@ -190,7 +192,7 @@ internal sealed class SavedAccounts(CredentialVault vault)
                 if (credentialStillOurs && profileStillOurs)
                 {
                     if (profileWritten && paths.Profile is { } profilePath) GuardedFile.Replace(profilePath, profileAfter!, profileBefore!);
-                    if (credentialWritten) GuardedFile.Replace(paths.Credential, after, before);
+                    if (credentialWritten) GuardedFile.Replace(paths.Credential, after, before!);
                 }
                 throw;
             }
