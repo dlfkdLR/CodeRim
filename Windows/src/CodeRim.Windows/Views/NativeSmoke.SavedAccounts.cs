@@ -34,6 +34,24 @@ internal static partial class NativeSmoke
         {
             Directory.CreateDirectory(home); CredentialVault.RestrictDirectory(home);
             foreach (var key in variables) Environment.SetEnvironmentVariable(key, key == "CODEX_HOME" ? home : null);
+            var defaultHome = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".codex");
+            foreach (var configuredHome in new string?[] { null, "" })
+            {
+                Environment.SetEnvironmentVariable("CODEX_HOME", configuredHome);
+                Require(Environment.GetEnvironmentVariable("CODEX_HOME") == configuredHome, "Codex home fixture did not retain its exact environment value.");
+                Require(SavedAccounts.Paths("codex").Credential == Path.Combine(defaultHome, "auth.json"), "Empty Codex home selected a working-directory login.");
+                Require(UsageScanner.DefaultRoots().SequenceEqual(new[] { Path.Combine(defaultHome, "sessions"), Path.Combine(defaultHome, "archived_sessions") }), "Login and statistics default homes differ.");
+                checks.Add(new { scenario = configuredHome is null ? "home-unset" : "home-empty", passed = true });
+            }
+            foreach (var relativeHome in new[] { "relative", "C:relative", @"\relative", "/relative" })
+            {
+                Environment.SetEnvironmentVariable("CODEX_HOME", relativeHome);
+                var rejected = false;
+                try { _ = SavedAccounts.Paths("codex"); } catch (InvalidOperationException) { rejected = true; }
+                Require(rejected, "A relative Codex home selected a login file.");
+                checks.Add(new { scenario = "home-relative-" + relativeHome, passed = true });
+            }
+            Environment.SetEnvironmentVariable("CODEX_HOME", home);
             var a = Login("switch-a", "current"); var old = Login("switch-b", "old"); var fresh = Login("switch-b", "rotated");
             var renewed = Login("switch-b", "newly-renewed"); var other = Login("switch-c", "external");
             var accounts = new SavedAccounts(vault);

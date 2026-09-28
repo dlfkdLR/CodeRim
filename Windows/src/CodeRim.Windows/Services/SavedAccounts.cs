@@ -207,7 +207,7 @@ internal sealed class SavedAccounts(CredentialVault vault)
     internal static (string Credential, string? Profile) Paths(string provider)
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (provider == "codex") return (Path.Combine(Environment.GetEnvironmentVariable("CODEX_HOME") ?? Path.Combine(home, ".codex"), "auth.json"), null);
+        if (provider == "codex") return (CodexHomeDirectory.CredentialPath(Environment.GetEnvironmentVariable("CODEX_HOME"), home), null);
         if (provider != "claude") throw new ArgumentException("Unknown account provider.", nameof(provider));
         var config = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
         return (Path.Combine(config ?? Path.Combine(home, ".claude"), ".credentials.json"), Path.Combine(config ?? home, ".claude.json"));
