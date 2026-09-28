@@ -1,0 +1,21 @@
+{
+  "identity": "codexbar",
+  "revision": "51ed16bdd3abe35ec53af99818e1b5f0d2a631d3",
+  "patch_sha256": "24ec5cb21ac52a051b81ee5ccd338ab27b30da74c015e8ec6141a435f72135f8",
+  "files": {
+    "Sources/CodexBarCore/Providers/Cursor/CursorLocalCSVReader.swift": {
+      "before": "761946f280f63d18ae8b61529e98f69c6c0649d74aae2fd9f20b8c6787a5737f",
+      "after": "6c120b41037902f80eaa8d3e8aeb71efbbba4cd2ecf9f0c07ca29ac03e589f51"
+    },
+    "Sources/CodexBarCore/Vendored/CostUsage/CostUsageClaudeJSON.swift": {
+      "before": "a5b2a72d2834abdc0a2c3a1350c44310ba831daa4048be3eb665d714bcea9994",
+      "after": "1d7ae839262934f3d2b8f9c2247b8cb72a05942ba6494402b5408a8be8a018e6"
+    }
+  },
+  "binary_cache": {
+    "identity": "sparkle",
+    "revision": "ac2def288cbff5cfc7df3ffef6abdf45b72bcb0a",
+    "url": "https://github.com/sparkle-project/Sparkle/releases/download/2.9.6/Sparkle-for-Swift-Package-Manager.zip",
+    "sha256": "8d5fb41d960b43f4a68aa14126bf62b098544ec8d191cdcc73eb14e63a8e7606"
+  }
+}

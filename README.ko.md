@@ -154,6 +154,8 @@ macOS 목록에는 **70개 제공업체**가 있으며, 각각의 설정 안내�
 
 [전체 문서](docs/README.md) · [변경 이력](CHANGELOG.md) · [보안](SECURITY.md)
 
+소스 빌드는 [기여 안내](CONTRIBUTING.ko.md)에 따라 고정된 의존성의 수정본을 준비한 뒤 Swift 테스트를 실행합니다. CI와 릴리스 빌드는 Swift 컴파일 경고가 있으면 실패합니다.
+
 ## 크레딧 및 라이선스
 
 [MIT](LICENSE). 화면 가장자리의 노치 인터페이스와 관련 코드에는 [Codenotch](https://github.com/vinzdg/codenotch)의 일부 코드가 포함되어 있으며, 해당 부분에는 **MIT © 2026 Vinz**가 적용됩니다. 제공업체 연동에는 [CodexBar](https://github.com/steipete/CodexBar)를, 업데이트에는 [Sparkle](https://sparkle-project.org/)을 사용합니다. 재배포 시 [LICENSE](LICENSE)와 [NOTICE](NOTICE)를 보존해야 합니다.

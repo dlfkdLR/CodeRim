@@ -284,7 +284,7 @@ final class SafeBrowserProviderCacheTests: XCTestCase {
     }
     func testRotationKeepsCurrentRevisionAndClearRejectsLateCommit() async throws {
         // Upstream's explicit test store prevents Keychain calls even in an unusual test host.
-        try await KeychainCacheStore.withImplicitTestStoreForTesting {
+        await KeychainCacheStore.withImplicitTestStoreForTesting {
             for clearDuringFetch in [false, true] {
                 let holder = Holder()
                 var config = ExtendedProviderConfiguration(providerID: .factory); config.provider.cookieSource = .auto

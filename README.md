@@ -154,6 +154,8 @@ Windows 2.1.12 fixes duplicate CLI PATH entries after portable-to-MSI upgrades a
 
 [All documentation](docs/README.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
 
+For source builds, follow [Contributing](CONTRIBUTING.md) to prepare the pinned dependency fixes before running Swift tests. CI and release builds reject Swift compiler warnings.
+
 ## Credits and license
 
 [MIT](LICENSE). The edge-notch interface and supporting code include portions from [Codenotch](https://github.com/vinzdg/codenotch), **MIT © 2026 Vinz**. Provider integrations use [CodexBar](https://github.com/steipete/CodexBar), and updates use [Sparkle](https://sparkle-project.org/). Preserve [LICENSE](LICENSE) and [NOTICE](NOTICE) when redistributing.

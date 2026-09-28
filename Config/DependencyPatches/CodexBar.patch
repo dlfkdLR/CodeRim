@@ -1,0 +1,31 @@
+--- a/Sources/CodexBarCore/Providers/Cursor/CursorLocalCSVReader.swift
++++ b/Sources/CodexBarCore/Providers/Cursor/CursorLocalCSVReader.swift
+@@ -91,7 +91,7 @@
+         for row in rows {
+             let key = CostUsageLocalDay.key(from: row.date, calendar: calendar)
+             let existing = byDay[key]
+-            var e = existing ?? CostUsageDailyReport.Entry(
++            let e = existing ?? CostUsageDailyReport.Entry(
+                 date: key,
+                 inputTokens: 0,
+                 outputTokens: 0,
+--- a/Sources/CodexBarCore/Vendored/CostUsage/CostUsageClaudeJSON.swift
++++ b/Sources/CodexBarCore/Vendored/CostUsage/CostUsageClaudeJSON.swift
+@@ -143,7 +143,7 @@
+         #if canImport(Darwin)
+         if let decoded {
+             guard CFGetTypeID(decoded) == Self.dictionaryID else { return nil }
+-            return ClaudeJSONObject(decoded: unsafeBitCast(decoded, to: NSDictionary.self))
++            return ClaudeJSONObject(decoded: unsafeDowncast(decoded, to: NSDictionary.self))
+         }
+         #endif
+         return ClaudeJSONObject(self.value)
+@@ -154,7 +154,7 @@
+         if let decoded {
+             guard CFGetTypeID(decoded) == Self.arrayID else { return false }
+             return withExtendedLifetime(decoded) {
+-                let array = unsafeBitCast(decoded, to: CFArray.self)
++                let array = unsafeDowncast(decoded, to: CFArray.self)
+                 for index in 0..<CFArrayGetCount(array) {
+                     guard let pointer = CFArrayGetValueAtIndex(array, index),
+                           let dictionary = Self(decoded: ClaudeJSONObject.object(pointer)).dictionary
