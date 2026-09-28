@@ -56,10 +56,22 @@ public static class GuardedFile
         var published = false;
         try
         {
-            WritePrivate(temporary, value);
-            // No overwrite flag: an external sign-in (including a new symlink)
-            // wins even if it appears after the absence check above.
-            PublishWithoutReplacement(temporary, path); published = true;
+            if (OperatingSystem.IsWindows())
+            {
+                // Retain the private staging handle from creation through commit.
+                // A full-path MoveFile reopens the parent for write access and
+                // conflicts with the directory lease; rename in that parent instead.
+                using var stream = CreatePrivateFile(temporary);
+                WriteAndFlush(stream, value);
+                WindowsFileRename.InSameDirectory(stream.SafeFileHandle, Path.GetFileName(path));
+                published = true;
+            }
+            else
+            {
+                WritePrivate(temporary, value);
+                PublishWithoutReplacement(temporary, path);
+                published = true;
+            }
         }
         // No fallible filesystem work after commit: report it as committed even
         // if another process immediately changes directory permissions.
@@ -67,8 +79,7 @@ public static class GuardedFile
     }
     private static void PublishWithoutReplacement(string source, string destination)
     {
-        if (OperatingSystem.IsWindows()) File.Move(source, destination, overwrite: false);
-        else if (OperatingSystem.IsMacOS())
+        if (OperatingSystem.IsMacOS())
         {
             // Portable Windows-source probes also run on macOS. The Unix .NET
             // Move(false) implementation can check then rename, replacing a racer.
@@ -96,6 +107,16 @@ public static class GuardedFile
     }
     public static void WritePrivate(string path, string value)
     {
+        using var stream = CreatePrivateFile(path);
+        WriteAndFlush(stream, value);
+    }
+    private static void WriteAndFlush(FileStream stream, string value)
+    {
+        using var writer = new StreamWriter(stream, new System.Text.UTF8Encoding(false, true), 1024, leaveOpen: true);
+        writer.Write(value); writer.Flush(); stream.Flush(true);
+    }
+    private static FileStream CreatePrivateFile(string path)
+    {
         if (OperatingSystem.IsWindows())
         {
             using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
@@ -103,13 +124,11 @@ public static class GuardedFile
             var security = new System.Security.AccessControl.FileSecurity();
             security.SetAccessRuleProtection(true, false);
             security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(sid, System.Security.AccessControl.FileSystemRights.FullControl, System.Security.AccessControl.AccessControlType.Allow));
-            using var stream = System.IO.FileSystemAclExtensions.Create(new FileInfo(path), FileMode.CreateNew, System.Security.AccessControl.FileSystemRights.FullControl, FileShare.None, 4096, FileOptions.WriteThrough, security);
-            using var writer = new StreamWriter(stream); writer.Write(value); writer.Flush(); stream.Flush(true);
+            return System.IO.FileSystemAclExtensions.Create(new FileInfo(path), FileMode.CreateNew, System.Security.AccessControl.FileSystemRights.FullControl, FileShare.None, 4096, FileOptions.WriteThrough, security);
         }
         else
         {
-            using var stream = new FileStream(path, new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite });
-            using var writer = new StreamWriter(stream); writer.Write(value); writer.Flush(); stream.Flush(true);
+            return new FileStream(path, new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite });
         }
     }
     private static void Check(string path)
