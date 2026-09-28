@@ -1,8 +1,11 @@
 using System.IO;
+using System.ComponentModel;
+using System.Reflection;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using CodeRim.Core.Domain;
 using CodeRim.Windows.Services;
@@ -15,8 +18,9 @@ internal static partial class NativeSmoke
     private static async Task NotchReflowRegression(NotchWindow notch, DashboardStore store, AppSettingsStore settings, string directory)
     {
         var observations = new List<object>();
+        using var trace = new NotchReflowTrace(notch);
         void Receipt(bool completed) => File.WriteAllText(Path.Combine(directory, "windows-notch-reflow.json"),
-            JsonSerializer.Serialize(new { completed, physicalInput = false, observations }, JsonOptions));
+            JsonSerializer.Serialize(new { completed, physicalInput = false, observations, events = trace.Events, eventsDropped = trace.DroppedEvents }, JsonOptions));
         string FocusId() => Keyboard.FocusedElement is DependencyObject focused ? AutomationProperties.GetAutomationId(focused) : "";
         Receipt(false);
         settings.Save(settings.Current with { Edge = NotchEdge.Right, Offset = 0, Scale = 1,
@@ -28,6 +32,21 @@ internal static partial class NativeSmoke
             provider.IsKeyboardFocusWithin, provider.IsLoaded, provider.IsVisible, notch.IsActive, focusId = FocusId(), notch.PopupIsOpen }); Receipt(false);
         Require(provider.IsKeyboardFocused, "Reflow fixture did not acquire actual provider keyboard focus.");
         Require(notch.PopupIsOpen, "Reflow fixture has no open provider card.");
+        var gear = Descendants<Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.settings");
+        void HoverGear() => gear.RaiseEvent(new MouseEventArgs(Mouse.PrimaryDevice, 0) { RoutedEvent = Mouse.MouseEnterEvent });
+        HoverGear(); await Idle();
+        observations.Add(new { stage = "focused-provider-control-hover", provider.IsKeyboardFocused, notch.PopupIsOpen }); Receipt(false);
+        Require(provider.IsKeyboardFocused && notch.PopupIsOpen, "Control hover dismissed a keyboard-focused provider card.");
+        var gearFocusAccepted = gear.Focus(); await Idle();
+        observations.Add(new { stage = "control-keyboard-focus", gearFocusAccepted, gear.IsKeyboardFocused, notch.PopupIsOpen }); Receipt(false);
+        Require(gear.IsKeyboardFocused && !notch.PopupIsOpen, "Actual control keyboard focus did not dismiss its provider card.");
+        Keyboard.ClearFocus(); notch.OpenProvider("codex");
+        Require(Keyboard.FocusedElement is null && notch.PopupIsOpen, "Pointer-hover control fixture did not establish an unfocused card.");
+        HoverGear(); await Idle();
+        observations.Add(new { stage = "unfocused-provider-control-hover", focusId = FocusId(), notch.PopupIsOpen }); Receipt(false);
+        Require(!notch.PopupIsOpen, "Control hover failed to dismiss an unfocused provider card.");
+        provider.Focus(); await Idle();
+        Require(provider.IsKeyboardFocused && notch.PopupIsOpen, "Reflow fixture did not restore its actual focused open card.");
         var content = notch.Content;
         notch.QueueDisplayLayout(); notch.QueueDisplayLayout(); notch.QueueDisplayLayout();
         Require(ReferenceEquals(content, notch.Content), "Display reflow ran inline before the DPI/layout change completed.");
@@ -126,5 +145,58 @@ internal static partial class NativeSmoke
             Keyboard.ClearFocus();
         }
         Receipt(true);
+    }
+
+    // Observer only: record popup and control events in memory, without moving
+    // the pointer, dispatching input or changing timing with per-event file I/O.
+    private sealed class NotchReflowTrace : IDisposable
+    {
+        private readonly NotchWindow notch;
+        private readonly Popup popup;
+        private readonly DependencyPropertyDescriptor content;
+        private readonly List<Button> attached = [];
+        private readonly List<FrameworkElement> roots = [];
+        private int generation;
+        internal List<object> Events { get; } = [];
+        internal int DroppedEvents { get; private set; }
+        internal NotchReflowTrace(NotchWindow notch)
+        {
+            this.notch = notch;
+            popup = typeof(NotchWindow).GetField("popup", BindingFlags.Instance | BindingFlags.NonPublic)?.GetValue(notch) as Popup
+                ?? throw new InvalidOperationException("Reflow trace has no native popup.");
+            content = DependencyPropertyDescriptor.FromProperty(ContentControl.ContentProperty, typeof(NotchWindow))
+                ?? throw new InvalidOperationException("Reflow trace has no content descriptor.");
+            popup.Opened += Opened; popup.Closed += Closed;
+            notch.GotKeyboardFocus += Focused; notch.LostKeyboardFocus += Focused;
+            content.AddValueChanged(notch, Changed); Attach();
+        }
+        private void Record(string stage, string source = "")
+        {
+            if (Events.Count >= 96) { DroppedEvents++; return; }
+            var focusedId = Keyboard.FocusedElement is DependencyObject focused ? AutomationProperties.GetAutomationId(focused) : "";
+            Events.Add(new { stage, source, generation, focusedId, notch.PopupIsOpen,
+                notch.IsActive, pointer = Mouse.GetPosition(notch) });
+        }
+        private void Opened(object? sender, EventArgs e) => Record("popup-opened");
+        private void Closed(object? sender, EventArgs e) => Record("popup-closed");
+        private void Focused(object sender, KeyboardFocusChangedEventArgs e) => Record("keyboard-focus", e.OriginalSource is DependencyObject source ? AutomationProperties.GetAutomationId(source) : "");
+        private void Entered(object sender, MouseEventArgs e) => Record("control-mouse-enter", AutomationProperties.GetAutomationId((DependencyObject)sender));
+        private void Changed(object? sender, EventArgs e) { generation++; Record("content-changed"); Attach(); }
+        private void Loaded(object sender, RoutedEventArgs e) => Attach();
+        private void Attach()
+        {
+            if (notch.Content is not FrameworkElement root) return;
+            if (!roots.Contains(root)) { roots.Add(root); root.Loaded += Loaded; }
+            foreach (var button in Descendants<Button>(root).Where(x => AutomationProperties.GetAutomationId(x) is "notch.settings" or "notch.switchAccount"))
+                if (!attached.Contains(button)) { attached.Add(button); button.MouseEnter += Entered; }
+        }
+        public void Dispose()
+        {
+            content.RemoveValueChanged(notch, Changed);
+            popup.Opened -= Opened; popup.Closed -= Closed;
+            notch.GotKeyboardFocus -= Focused; notch.LostKeyboardFocus -= Focused;
+            foreach (var button in attached) button.MouseEnter -= Entered;
+            foreach (var root in roots) root.Loaded -= Loaded;
+        }
     }
 }

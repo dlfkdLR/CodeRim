@@ -345,7 +345,14 @@ internal sealed partial class NotchWindow : Window
             Margin = new Thickness(0, 2, 0, 2), ToolTip = label };
         AutomationProperties.SetName(button, label);
         void ClearProviderCard() { if (!accountMenu) { hoverClear.Stop(); popup.IsOpen = false; hovered = null; } }
-        button.MouseEnter += (_, _) => ClearProviderCard();
+        button.MouseEnter += (_, _) =>
+        {
+            // A relayout can raise MouseEnter under a stationary pointer. Keep
+            // an explicitly keyboard-owned card until focus moves to a control.
+            if (hovered is not null && buttons.TryGetValue(hovered, out var owner) && owner.IsKeyboardFocusWithin
+                || popup.IsOpen && popup.Child is UIElement child && child.IsKeyboardFocusWithin) return;
+            ClearProviderCard();
+        };
         button.GotKeyboardFocus += (_, _) => ClearProviderCard();
         button.Click += (_, _) => action(); return button;
     }
