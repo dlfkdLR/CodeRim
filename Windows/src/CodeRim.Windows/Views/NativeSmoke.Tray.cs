@@ -160,6 +160,10 @@ internal static partial class NativeSmoke
             // Exercise the real WPF right-click surfaces as well as the Forms
             // tray. An app-wide TextBlock style must not recolor native headers.
             var notchWindow = Application.Current.Windows.OfType<NotchWindow>().Single();
+            // The collapsed pill intentionally has no menu. Mount the actual
+            // expanded surface before probing its Windows context commands.
+            settings.Save(settings.Current with { Visibility = NotchVisibility.AlwaysShow }); await Idle();
+            Require(notchWindow.Expanded, "The context-menu fixture did not expand the notch");
             var notchSurface = (FrameworkElement)notchWindow.Content;
             var notchMenu = notchSurface.ContextMenu ?? throw new InvalidOperationException("The notch has no context menu");
             dashboard.Navigate("providers"); await Idle();
