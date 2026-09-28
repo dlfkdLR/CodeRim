@@ -70,7 +70,8 @@ internal static partial class NativeSmoke
             Require(picker.IsVisible && picker.SelectedValue as string == "codex", "Back failed to restore provider selection.");
             checks.Add("Reference provider size, Today cost and overview/detail/Back hierarchy");
 
-            store.Usage["claude"] = UsageSnapshot.Empty; pane.SelectProvider("claude"); await Idle();
+            store.Usage["claude"] = UsageSnapshot.Empty; pane.SelectProvider("claude");
+            pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
             Require(Descendants<StackPanel>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.empty"), "Unavailable local usage was rendered as a numeric zero.");
             Require(!Descendants<Grid>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.history"), "An empty Claude source showed fabricated history.");
             Capture(dashboard, Path.Combine(directory, "windows-reference-empty.png"));

@@ -19,6 +19,8 @@ namespace CodeRim.Windows.Views;
 /// <summary>Runs only with --smoke-test and isolated synthetic data, using production WPF views.</summary>
 internal static partial class NativeSmoke
 {
+    private static readonly string[] SettingsUsageTabIds = ["settings.usage.tab.overview", "settings.usage.tab.analytics", "settings.usage.tab.limits"];
+    private static readonly string[] SettingsUsageTabTitles = ["Overview", "Usage analytics", "Codex Limits"];
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
     internal static async Task RunAsync(DashboardWindow dashboard, NotchWindow notch, DashboardStore store, AppSettingsStore settings, string output)
     {
@@ -264,8 +266,10 @@ internal static partial class NativeSmoke
         Descendants<UsagePane>(dashboard).Single().SelectProvider("codex");
         System.Windows.Input.Keyboard.ClearFocus(); await Idle();
         var usageModes = Descendants<RadioButton>(dashboard).Where(x => x.GroupName == "UsageMode").ToArray();
-        Require(usageModes.Length == 2 && usageModes.All(x => x.ActualHeight <= 26), "Usage mode controls lost their compact height");
-        Require(usageModes.Select(VisualTreeHelper.GetParent).Distinct().Count() == 1, "Usage modes are not one segmented control");
+        Require(usageModes.Length == 3 && usageModes.Select(x => AutomationProperties.GetAutomationId(x)).SequenceEqual(SettingsUsageTabIds)
+            && usageModes.Select(x => AutomationProperties.GetName(x)).SequenceEqual(SettingsUsageTabTitles)
+            && usageModes[1].IsChecked == true, "Usage must default to the three reference tabs with analytics selected");
+        Require(usageModes.Select(VisualTreeHelper.GetParent).Distinct().Count() == 1, "Usage tabs do not share their own row");
         var refreshAction = Descendants<Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.refresh");
         Require(refreshAction.Content is System.Windows.Shapes.Path && AutomationProperties.GetName(refreshAction) == "Refresh usage", "Usage refresh icon has no accessible action name");
         var refreshGlyph = (System.Windows.Shapes.Path)refreshAction.Content;
@@ -275,11 +279,20 @@ internal static partial class NativeSmoke
         Require(refreshAction.ActualWidth - refreshAction.Padding.Left - refreshAction.Padding.Right - refreshAction.BorderThickness.Left - refreshAction.BorderThickness.Right >= refreshGlyph.ActualWidth,
             "Refresh button padding clips its icon.");
         Require(Descendants<ProviderMark>(dashboard).Any(x => x.ProviderId == "codex"), "Usage provider selector is missing its glyph");
-        usageModes[1].IsChecked = true; await Idle();
-        Require(usageModes[1].IsChecked == true && usageModes[0].IsChecked == false, "Limits segment failed to select exclusively");
-        usageModes[0].IsChecked = true; await Idle();
-        Require(usageModes[0].IsChecked == true && usageModes[1].IsChecked == false, "Token Usage segment failed to select exclusively");
-        Record("Compact Usage segments, provider glyph and accessible icon refresh preserve selection behavior");
+        var tabTop = usageModes[0].TransformToAncestor(dashboard).Transform(new Point()).Y;
+        Require(tabTop >= refreshAction.TransformToAncestor(dashboard).Transform(new Point(0, refreshAction.ActualHeight)).Y - 1
+            && Math.Abs(providerPicker.TransformToAncestor(dashboard).Transform(new Point(0, providerPicker.ActualHeight / 2)).Y
+                - refreshAction.TransformToAncestor(dashboard).Transform(new Point(0, refreshAction.ActualHeight / 2)).Y) < 3,
+            "Settings provider/refresh must share the first row and tabs must occupy the second row");
+        var usagePaneForTabs = Descendants<UsagePane>(dashboard).Single();
+        foreach (var (key, id) in new[] { (System.Windows.Input.Key.D3, "limits"), (System.Windows.Input.Key.D2, "analytics"), (System.Windows.Input.Key.D1, "overview") })
+        {
+            Require(usagePaneForTabs.HandleShortcut(key, System.Windows.Input.ModifierKeys.Control), "Usage tab shortcut was not handled"); await Idle();
+            var selected = Descendants<RadioButton>(usagePaneForTabs).Where(x => x.GroupName == "UsageMode" && x.IsChecked == true).ToArray();
+            Require(selected.Length == 1 && AutomationProperties.GetAutomationId(selected[0]) == "settings.usage.tab." + id,
+                "Usage shortcut selected the wrong reference tab");
+        }
+        Record("Three Settings tabs, analytics default, header rows and Ctrl+1/2/3 preserve reference navigation");
         var shortCard = NotchPopover.Create("codex", store, settings.Current, _ => { }, 140);
         shortCard.Measure(new Size(500, 1000)); shortCard.Arrange(new Rect(0, 0, 500, shortCard.DesiredSize.Height));
         Require(Descendants<ScrollViewer>(shortCard).Single().MaxHeight == 100, "Popover ignored the selected monitor viewport");
@@ -394,6 +407,7 @@ internal static partial class NativeSmoke
         await ProviderFailurePresentationRegression(dashboard, notch, store, settings, directory);
         await MacReferenceRegression(dashboard, store, settings, directory);
         Record("macOS reference shell, refresh modes and Usage states");
+        await SettingsAnalyticsRegression(store, settings, directory);
         await AnalyticsRegression(store, settings, directory);
         await AnalyticsStateRegression(store, settings, directory);
         await ChartRefreshRegression(store, settings, directory);
@@ -436,6 +450,7 @@ internal static partial class NativeSmoke
         Capture(glyphGrid, Path.Combine(directory, "windows-provider-logos.png")); Record("Every provider logo loads and renders");
         SettingsTheme.Apply(dark: true, highContrast: false);
         await Idle(); Capture(dashboard, output); Record("Usage window renders");
+        Descendants<UsagePane>(dashboard).Single().HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
         var shortcuts = Descendants<System.Windows.Controls.Button>(dashboard).Where(x => (AutomationProperties.GetAutomationId(x) ?? "").StartsWith("usage.destination.", StringComparison.Ordinal)).ToArray();
         Require(shortcuts.Length == 3, "Usage analytics shortcuts are missing");
         var positions = shortcuts.Select(x => x.TransformToAncestor(dashboard).Transform(new Point())).ToArray();
@@ -448,13 +463,14 @@ internal static partial class NativeSmoke
         Require(original.IsKeyboardFocusWithin, "Refresh stole usage keyboard focus"); Record("Refresh preserves usage selector and keyboard focus");
         original.SelectedValue = "claude"; await Idle();
         dashboard.Navigate("general"); dashboard.Navigate("usage"); await Idle();
-        Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).First().SelectedValue == "claude", "Sidebar navigation lost selected usage provider");
+        Require((string?)Descendants<System.Windows.Controls.ComboBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Usage provider").SelectedValue == "claude", "Sidebar navigation lost selected usage provider");
         Require(settings.Current.UsageProvider == "claude", "Usage provider selection was not persisted");
         original.SelectedValue = "codex"; await Idle();
-        var mode = Descendants<RadioButton>(dashboard).First();
+        var mode = Descendants<RadioButton>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "settings.usage.tab.analytics");
         Require(mode.IsChecked == true && new System.Windows.Automation.Peers.RadioButtonAutomationPeer(mode).GetPattern(System.Windows.Automation.Peers.PatternInterface.SelectionItem) is not null, "Usage mode has no accessible selection state");
         Record("Selected provider survives sidebar navigation and mode exposes selected state");
 
+        Descendants<UsagePane>(dashboard).Single().HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
         var projects = Descendants<System.Windows.Controls.Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.projects");
         projects.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
         RadioButton ListRange(string id) => Descendants<RadioButton>(dashboard).Single(x => x.GroupName == "UsageRange" && Equals(x.Tag, id));
@@ -573,7 +589,7 @@ internal static partial class NativeSmoke
                     Require(viewport.ScrollableHeight < 1, "Usage overview hides analytics links below the minimum-size viewport: " + theme);
                     var selectedMode = Descendants<RadioButton>(pane).Single(x => x.GroupName == "UsageMode" && x.IsChecked == true);
                     var selectedText = Descendants<TextBlock>(selectedMode).Single();
-                    Require(selectedText.Foreground is SolidColorBrush selectedForeground && selectedForeground.Color == ((SolidColorBrush)System.Windows.Application.Current.FindResource("AccentText")).Color,
+                    Require(selectedText.Foreground is SolidColorBrush selectedForeground && selectedForeground.Color == ((SolidColorBrush)System.Windows.Application.Current.FindResource("PrimaryText")).Color,
                         "Selected Usage text lost theme contrast: " + theme);
                 }
                 Require(Descendants<ScrollViewer>(dashboard).All(x => x.ScrollableWidth < 1), "Horizontal overflow: " + theme + "/" + section);

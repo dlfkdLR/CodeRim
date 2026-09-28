@@ -18,7 +18,7 @@ internal sealed partial class UsagePane : StackPanel
     private readonly Action<string?> navigate;
     private readonly TimeProvider clock;
     private readonly StackPanel readings = new() { Margin = new Thickness(24, 16, 24, 16) };
-    private readonly StackPanel accountRow = new() { Margin = new Thickness(24, 0, 24, 4), MinHeight = 44 };
+    private readonly StackPanel accountRow = new() { Margin = new Thickness(12, 0, 12, 0), MinHeight = 34 };
     private readonly UsageProviderPicker selector;
     private string? displayedOwner;
     private bool displayedAvailable = true;
@@ -42,6 +42,7 @@ internal sealed partial class UsagePane : StackPanel
     private void OpenAnalytics(string target) => Forward(target, analyticsRanges.GetValueOrDefault(target, target == "projects" ? "30d" : "7d"));
     private void ChangePeriod(string value)
     {
+        if (destination == "activity" && SettingsRangeKey != (value == "30d" ? "30d" : "7d")) ResetSettingsRangeSelection();
         period = value;
         if (destination == "activity" || destination is "projects" or "sessions" && project is null && session is null)
             analyticsRanges[destination] = value;
@@ -74,14 +75,14 @@ internal sealed partial class UsagePane : StackPanel
             return true;
         }
         if (key == Key.OemOpenBrackets) { Back(); return true; }
-        if (key is Key.D1 or Key.D2)
+        if (key is Key.D1 or Key.D2 or Key.D3)
         {
-            if (modifiers.HasFlag(ModifierKeys.Shift))
+            if (modifiers.HasFlag(ModifierKeys.Shift) && key != Key.D3)
             {
                 var id = key == Key.D1 ? "codex" : "claude";
                 if (store.AvailableUsageProviders.Contains(id, StringComparer.Ordinal)) selector.SelectedValue = id;
             }
-            else { mode = key == Key.D1 ? "Token usage" : "Limits"; destination = "overview"; history.Clear(); BuildControls(); Update(); }
+            else { SelectSettingsSection(key == Key.D1 ? SettingsUsageSection.Overview : key == Key.D2 ? SettingsUsageSection.Analytics : SettingsUsageSection.Limits); }
             return true;
         }
         return false;
@@ -101,6 +102,8 @@ internal sealed partial class UsagePane : StackPanel
     private string? project;
     private string? session;
     private bool pendingRefresh;
+    private long displayedAnalyticsEpoch;
+    private AnalyticsSourceFrame? displayedAnalyticsSource;
     private string? lastView;
     private string? displayedProfileAccountKey;
     private bool displayedProfileEnabled;
@@ -126,24 +129,30 @@ internal sealed partial class UsagePane : StackPanel
         if (provider != preferred && preferred is "codex" or "claude")
         {
             provider = preferred; destination = "overview"; project = session = null;
-            period = "today"; search = ""; history.Clear(); analyticsRanges.Clear(); analyticsSelectedBucket = null; BuildControls();
+            period = "today"; search = ""; history.Clear(); analyticsRanges.Clear(); analyticsSelectedBucket = null; ResetSettingsAnalytics(); BuildControls();
         }
         RefreshProviderChoices();
         var changedAccount = displayedOwner != store.AccountDisplay(provider).OwnerKey || displayedAvailable != ProviderAvailable || displayedProfileAccountKey != store.ProfileHistory.Snapshot?.AccountKey || displayedProfileEnabled != store.ProfileHistory.Enabled;
         var changedLocalState = displayedLocalState != LocalState;
-        var focusedChart = destination == "activity" && readings.IsKeyboardFocusWithin
+        var changedSource = displayedAnalyticsEpoch != store.LocalAnalyticsEpochs.GetValueOrDefault(provider)
+            || !ReferenceEquals(displayedAnalyticsSource, store.AnalyticsSources.GetValueOrDefault(provider));
+        var controlFocus = changedSource && !changedAccount ? FocusedAnalyticsControlId() : null;
+        var focusedChart = (destination == "activity" || destination == "overview" && EffectiveSettingsSection == SettingsUsageSection.Analytics) && readings.IsKeyboardFocusWithin
             ? timelineButtons.FirstOrDefault(pair => pair.Value.IsKeyboardFocusWithin) : default;
         var chartFocus = focusedChart.Key;
         var focusDate = focusedChart.Value?.Tag as DateTimeOffset?;
-        if (!changedAccount && !changedLocalState && chartFocus is null && (readings.IsKeyboardFocusWithin || accountRow.IsKeyboardFocusWithin)) { pendingRefresh = true; return; }
+        if (!changedAccount && !changedLocalState && !changedSource && chartFocus is null && (readings.IsKeyboardFocusWithin || accountRow.IsKeyboardFocusWithin)) { pendingRefresh = true; return; }
         pendingRefresh = false; Update();
+        if (chartFocus is null && controlFocus is not null) RestoreAnalyticsControlFocus(controlFocus);
         // Rebuild changing values without indefinitely freezing a focused chart.
         // Preserve its actual keyboard target; never restore across account changes.
         if (!changedAccount && chartFocus is not null)
         {
             if (!timelineButtons.TryGetValue(chartFocus, out var replacement))
             {
-                var kind = chartFocus.StartsWith("usage.bucket.cost.", StringComparison.Ordinal) ? "usage.bucket.cost." : "usage.bucket.tokens.";
+                var kind = chartFocus.StartsWith("settings.usage.modelBucket.", StringComparison.Ordinal) ? "settings.usage.modelBucket."
+                    : chartFocus.StartsWith("settings.usage.bucket.", StringComparison.Ordinal) ? "settings.usage.bucket."
+                    : chartFocus.StartsWith("usage.bucket.cost.", StringComparison.Ordinal) ? "usage.bucket.cost." : "usage.bucket.tokens.";
                 replacement = timelineButtons.Where(pair => pair.Key.StartsWith(kind, StringComparison.Ordinal))
                     .OrderBy(pair => focusDate is { } selected && pair.Value.Tag is DateTimeOffset start ? Math.Abs((start - selected).Ticks) : 0)
                     .Select(pair => pair.Value).FirstOrDefault();
@@ -162,13 +171,18 @@ internal sealed partial class UsagePane : StackPanel
         }
         finally { updatingChoices = false; }
     }
-    internal UsagePane(DashboardStore store, AppSettingsStore settings, string provider, Action<string?> navigate, TimeProvider? clock = null)
+    internal UsagePane(DashboardStore store, AppSettingsStore settings, string provider, Action<string?> navigate, TimeProvider? clock = null, SettingsUsageSection? initialSection = null)
     {
+        requestedSettingsSection = initialSection ?? SettingsUsageSection.Analytics;
         this.clock = clock ?? TimeProvider.System;
         this.store = store; this.settings = settings; this.provider = provider is "codex" or "claude" ? provider : "codex"; this.navigate = navigate;
         var choices = ProviderChoices();
-        header = new Grid { Margin = new Thickness(24, 16, 24, 6) };
-        header.Children.Add(controls);
+        header = new Grid { Margin = new Thickness(24, 8, 24, 0) };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.ColumnDefinitions.Add(new ColumnDefinition());
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(controls, 2); header.Children.Add(controls);
+        Grid.SetColumn(accountRow, 1); header.Children.Add(accountRow);
         selector = new UsageProviderPicker { UnavailableId = store.ClaudeAvailable ? null : "claude", ItemsSource = choices, ItemTemplate = ProviderTemplate(), SelectedValuePath = "Id",
             SelectedValue = this.provider, MinHeight = 34, Height = 34, Width = 142, MaxWidth = 190, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Left,
             Style = (Style)System.Windows.Application.Current.FindResource("UsageProviderPicker") };
@@ -179,15 +193,19 @@ internal sealed partial class UsagePane : StackPanel
             if (updatingChoices) return;
             if (selector.SelectedValue is string id && store.AvailableUsageProviders.Contains(id, StringComparer.Ordinal))
             {
-                this.provider = id; destination = "overview"; project = session = null; search = ""; period = "today"; history.Clear(); analyticsRanges.Clear(); analyticsSelectedBucket = null;
+                this.provider = id; destination = "overview"; project = session = null; search = ""; period = "today"; history.Clear(); analyticsRanges.Clear(); analyticsSelectedBucket = null; ResetSettingsAnalytics();
                 try { settings.Save(settings.Current with { UsageProvider = id }); }
                 catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException) { }
                 RefreshProviderChoices(); BuildControls(); Update();
             }
             else RefreshProviderChoices(); // Reject base ComboBox keyboard/text-search selection of an unavailable item.
         };
-        header.Children.Add(selector); AdaptHeader(header, controls); Children.Add(header);
-        Children.Add(filters); Children.Add(accountRow); Children.Add(SettingsUi.Divider()); Children.Add(readings);
+        header.Children.Add(selector);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(header, "usage.header");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(controls, "usage.controls");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(selector, "settings.usage.provider");
+        Children.Add(header); Children.Add(settingsTabs);
+        Children.Add(filters); Children.Add(SettingsUi.Divider()); Children.Add(readings);
         limitClock.Tick += (_, _) => RefreshLimitClock(DateTimeOffset.Now);
         Loaded += (_, _) => { limitClock.Start(); RefreshLimitClock(DateTimeOffset.Now); };
         Unloaded += (_, _) => limitClock.Stop();
@@ -227,11 +245,13 @@ internal sealed partial class UsagePane : StackPanel
     private void BuildControls()
     {
         controls.Children.Clear(); filters.Children.Clear(); detailTitle = null; refreshAction = null;
+        BuildSettingsTabs();
+        Grid.SetColumn(controls, destination == "overview" ? 2 : 0); Grid.SetColumnSpan(controls, destination == "overview" ? 1 : 3);
         filters.Margin = destination == "activity" || IsAnalyticsList ? new Thickness(16, 12, 16, 12) : new Thickness(24, 0, 24, 0);
         var bar = new WrapPanel { VerticalAlignment = VerticalAlignment.Center };
         selector.Visibility = destination == "overview" ? Visibility.Visible : Visibility.Collapsed;
         accountRow.Visibility = destination == "overview" ? Visibility.Visible : Visibility.Collapsed;
-        header.Margin = destination == "overview" ? new Thickness(24, 16, 24, 6) : new Thickness(18, 8, 18, 8);
+        header.Margin = destination == "overview" ? new Thickness(24, 8, 24, 0) : new Thickness(18, 8, 18, 8);
         if (destination != "overview")
         {
             var detail = new DockPanel { LastChildFill = true, MinHeight = 28 };
@@ -269,24 +289,8 @@ internal sealed partial class UsagePane : StackPanel
             return;
         }
         if (destination != "overview") return;
-        if (destination == "overview")
-        {
-            var segments = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2 };
-            var group = new Border { Child = segments, CornerRadius = new CornerRadius(6), Padding = new Thickness(2), Height = 28, Width = 246, VerticalAlignment = VerticalAlignment.Center };
-            group.SetResourceReference(Border.BackgroundProperty, "PanelBackground");
-            System.Windows.Automation.AutomationProperties.SetAutomationId(group, "usage.mode");
-            System.Windows.Automation.AutomationProperties.SetName(group, "Usage view");
-            bar.Children.Add(group);
-            foreach (var choice in new[] { "Token usage", "Limits" })
-            {
-                var button = new RadioButton { Content = choice == "Limits" ? (provider == "codex" ? "Codex Limits" : provider == "claude" ? "Claude Limits" : "Limits") : "Token Usage",
-                    IsChecked = mode == choice, GroupName = "UsageMode", Style = (Style)System.Windows.Application.Current.FindResource("UsageModeButton") };
-                System.Windows.Automation.AutomationProperties.SetName(button, button.Content.ToString());
-                button.Checked += (_, _) => { mode = choice; Update(); }; segments.Children.Add(button);
-            }
-        }
         var refresh = Ui.RefreshButton("Refresh usage", () => store.RefreshAsync(true));
-        refresh.Margin = new Thickness(16, 0, 0, 0);
+        refresh.Margin = new Thickness(0);
         refreshAction = refresh; refresh.IsEnabled = !store.IsRefreshing;
         refresh.ToolTip = "Refresh usage and limits (Ctrl+R)";
         System.Windows.Automation.AutomationProperties.SetAutomationId(refresh, "usage.refresh");
@@ -295,6 +299,10 @@ internal sealed partial class UsagePane : StackPanel
     }
     internal void Update()
     {
+        RefreshSettingsTabs();
+        mode = EffectiveSettingsSection == SettingsUsageSection.Limits ? "Limits" : "Token usage";
+        displayedAnalyticsEpoch = store.LocalAnalyticsEpochs.GetValueOrDefault(provider);
+        displayedAnalyticsSource = store.AnalyticsSources.GetValueOrDefault(provider);
         displayedLocalState = LocalState;
         displayedProfileEnabled = store.ProfileHistory.Enabled;
         var profileAccountKey = store.ProfileHistory.Snapshot?.AccountKey;
@@ -305,7 +313,7 @@ internal sealed partial class UsagePane : StackPanel
         }
         if (detailTitle is not null) detailTitle.Text = DetailTitle();
         if (refreshAction is not null) refreshAction.IsEnabled = !store.IsRefreshing;
-        var view = provider + ":" + mode + ":" + destination;
+        var view = provider + ":" + EffectiveSettingsSection + ":" + destination;
         var changedView = lastView is not null && lastView != view; lastView = view;
         if (changedView)
         {
@@ -325,7 +333,7 @@ internal sealed partial class UsagePane : StackPanel
         accountLabel.FontWeight = FontWeights.SemiBold; accountLabel.Margin = new Thickness(0); accountLabel.TextWrapping = TextWrapping.NoWrap; accountLabel.TextTrimming = TextTrimming.CharacterEllipsis; accountLabel.ToolTip = identity; accountLabel.VerticalAlignment = VerticalAlignment.Center;
         var identityIcon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M8,1 A7,7 0 1 0 8,15 A7,7 0 1 0 8,1 M5,6 A3,3 0 1 0 11,6 A3,3 0 1 0 5,6 M3,13 Q8,8 13,13"), Width = 13, Height = 13, StrokeThickness = 1, Margin = new Thickness(0, 0, 8, 0), VerticalAlignment = VerticalAlignment.Center };
         identityIcon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); DockPanel.SetDock(identityIcon, Dock.Left); account.Children.Add(identityIcon);
-        account.Children.Add(accountLabel); accountRow.Children.Add(account); account.VerticalAlignment = VerticalAlignment.Center; account.Margin = new Thickness(0, 12, 0, 12);
+        account.Children.Add(accountLabel); accountRow.Children.Add(account); account.VerticalAlignment = VerticalAlignment.Center; account.Margin = new Thickness(0, 6, 0, 6);
         readings.Children.Clear(); limitClockUpdates.Clear(); timelineButtons.Clear();
         readings.Margin = IsAnalyticsList ? new Thickness(0)
             : mode == "Limits" && destination == "overview" || destination is "activity" or "model" or "projects" or "sessions" ? new Thickness(16) : new Thickness(24, 16, 24, 16);
@@ -341,8 +349,9 @@ internal sealed partial class UsagePane : StackPanel
         if (provider is not ("codex" or "claude"))
         {
             readings.Children.Add(Ui.Text("Local token history is available for Codex and Claude Code.", color: "#A6A6AA"));
-            readings.Children.Add(Ui.Button("View provider limits", () => { mode = "Limits"; BuildControls(); Update(); })); return;
+            readings.Children.Add(Ui.Button("View provider limits", () => SelectSettingsSection(SettingsUsageSection.Limits))); return;
         }
+        if (EffectiveSettingsSection == SettingsUsageSection.Analytics) { SettingsAnalytics(); return; }
         Overview();
     }
     private static DockPanel Heading(string title, string scopeTitle = "This PC")
@@ -417,7 +426,7 @@ internal sealed partial class UsagePane : StackPanel
     {
         var day = through.LocalDateTime.Date;
         var since = period switch { "today" => day, "7d" => day.AddDays(-6), "30d" => day.AddDays(-29), "week" => day.AddDays(-(((int)day.DayOfWeek + (settings.Current.WeekStart == WeekStart.Monday ? 6 : 0)) % 7)), "month" => new DateTime(day.Year, day.Month, 1), _ => DateTime.MinValue };
-        return (store.Events.GetValueOrDefault(provider) ?? []).Where(x => x.OccurredAt <= through && x.OccurredAt.LocalDateTime >= since
+        return (detailAnalyticsFrame?.Events ?? []).Where(x => x.OccurredAt <= through && x.OccurredAt.LocalDateTime >= since
             && (!includeSelection || (project is null || x.ProjectId == project) && (session is null || x.SessionId == session) && (selectedModel is null || x.Model == selectedModel)));
     }
     private void Detail()
@@ -426,7 +435,12 @@ internal sealed partial class UsagePane : StackPanel
         analyticsMetadata.Clear();
         if (destination is "projects" or "sessions")
             foreach (var item in store.SessionDetails.GetValueOrDefault(provider) ?? []) analyticsMetadata[item.Id] = item;
-        var through = clock.GetUtcNow();
+        detailAnalyticsFrame = ReadAnalyticsFrame(period);
+        if (detailAnalyticsFrame is null)
+        {
+            readings.Children.Add(Ui.Text("Analytics are unavailable for this range. Refresh to read local usage.", 13, "#A6A6AA")); return;
+        }
+        var through = detailAnalyticsFrame.Through;
         var events = Filter(through).ToArray();
         if (destination == "activity")
         {

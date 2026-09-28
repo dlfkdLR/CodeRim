@@ -36,10 +36,25 @@ internal static partial class NativeSmoke
             localStore = new DashboardStore(settings, vault, true, profileHistory: profile); await localStore.RefreshAsync();
             window = new DashboardWindow(localStore, settings, vault); window.Show(); await Idle();
             var pane = Descendants<UsagePane>(window).Single();
+            pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
             Require(calls == 0 && profile.Snapshot is null, "Disabled profile history fetched or retained account totals.");
             Button Button(string id) => Descendants<Button>(window).Single(x => AutomationProperties.GetAutomationId(x) == id);
             Button("history.account.enable").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await profile.RefreshAsync(); await Idle();
             Require(profile.Status == ProfileUsageStatus.Ready && calls == 1 && new AppSettingsStore().Current.ProfileSyncEnabled, "Account history enable did not persist or fetch exactly once.");
+            pane.HandleShortcut(System.Windows.Input.Key.D2, System.Windows.Input.ModifierKeys.Control); await Idle();
+            var analyticsHistory = Descendants<FrameworkElement>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "settings.usage.history");
+            var localLifetime = Descendants<Expander>(analyticsHistory).Single(x => AutomationProperties.GetAutomationId(x) == "settings.usage.period.all-time");
+            Require(Descendants<TextBlock>(localLifetime).Any(x => x.Text == localStore.Usage["codex"].AllTime.TotalTokens.ToString("N0", System.Globalization.CultureInfo.CurrentCulture))
+                && !Descendants<TextBlock>(analyticsHistory).Any(x => x.Text == 1000000L.ToString("N0", System.Globalization.CultureInfo.CurrentCulture)),
+                "Analytics local calendar history adopted enabled server-account totals");
+            localLifetime.IsExpanded = true; await Idle();
+            Button("settings.usage.periodDetails.all-time").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+            Require(Descendants<AnimatedMetric>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.period.total").DisplayedValue == localStore.Usage["codex"].AllTime.TotalTokens,
+                "Analytics local history detail navigated to account scope");
+            pane.Back(); await Idle();
+            Require(Descendants<Expander>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "settings.usage.period.all-time").IsExpanded,
+                "Analytics local calendar detail Back lost its disclosure");
+            pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
             Require(Descendants<TextBlock>(pane).Any(x => x.Text == "ChatGPT account") && Descendants<TextBlock>(pane).Any(x => x.Text == "Lifetime"), "History lacks account scope or Lifetime label.");
             Require(Descendants<AnimatedMetric>(pane).Single(x => x.FontSize == 42).DisplayedValue != 99999999, "Server's last reported day replaced local Today.");
             Button("usage.history.all-time").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
@@ -138,7 +153,7 @@ internal static partial class NativeSmoke
             profile.Dispose(); await Task.Run(profile.CalendarContextChangedAsync);
             Require(calls == beforeDisabledTimeChange, "Disposed history reacted to a queued time-context signal.");
             File.WriteAllText(Path.Combine(directory, "windows-profile-history.json"), JsonSerializer.Serialize(new { completed = true, calls,
-                checks = new List<string> { "Explicit enable persists; previews remain offline", "Today stays local; server history is never double-counted", "Account and local period details are distinct",
+                checks = new List<string> { "Explicit enable persists; previews remain offline", "Today stays local; server history is never double-counted", "Account and local period details are distinct", "Settings analytics calendar history and details remain local while account history is enabled",
                     "Same-workspace account switch rejects late response", "Transient error retains only same-account snapshot", "Missing credentials and account operations clear history", "Week/day changes invalidate old totals", "Background clock/resume signals marshal to UI and reject late totals", "Disabled/disposed history ignores time signals", "Disable rejects in-flight response" } }));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }

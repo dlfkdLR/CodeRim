@@ -15,7 +15,7 @@ internal static partial class NativeSmoke
     {
         foreach (var width in new[] { 360d, 450d, 600d })
         {
-            var pane = new UsagePane(store, settings, "codex", _ => { }) { Width = width };
+            var pane = new UsagePane(store, settings, "codex", _ => { }, initialSection: CodeRim.Core.Services.SettingsUsageSection.Overview) { Width = width };
             pane.Measure(new Size(width, double.PositiveInfinity)); pane.Arrange(new Rect(0, 0, width, pane.DesiredSize.Height));
             pane.UpdateLayout(); await Idle(); pane.UpdateLayout();
             var header = Descendants<Grid>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.header");
@@ -38,6 +38,7 @@ internal static partial class NativeSmoke
                 }
             Capture(pane, System.IO.Path.Combine(directory, "windows-usage-width-" + width.ToString(CultureInfo.InvariantCulture) + ".png"));
         }
+        using var publicationState = new AnalyticsPublicationFixture(store, "codex");
         var previousEvents = store.Events.GetValueOrDefault("codex");
         var previousCost = settings.Current.CostEstimatesEnabled;
         Window? analyticsWindow = null;
@@ -50,7 +51,8 @@ internal static partial class NativeSmoke
                 new("small", now.AddDays(-1), new(100, 0, 0, 0), "gpt-5.6-sol", "Fixture", "session", "codex", "project"),
                 new("large", now, new(1000, 0, 0, 0), "gpt-5.6-sol", "Fixture", "session", "codex", "project"),
                 new("unknown", now, new(10, 0, 0, 0), "unpriced-model", "Fixture", "session", "codex", "project")];
-            var pane = new UsagePane(store, settings, "codex", _ => { }) { Width = 650 };
+            store.RecordLocalAnalyticsRead("codex", now);
+            var pane = new UsagePane(store, settings, "codex", _ => { }, initialSection: CodeRim.Core.Services.SettingsUsageSection.Overview) { Width = 650 };
             analyticsWindow = new Window { Content = pane, Width = 700, Height = 760, Title = "Analytics parity fixture" };
             analyticsWindow.Show(); await Idle();
             Descendants<Button>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.activity").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -163,29 +165,30 @@ internal static partial class NativeSmoke
                 new("complete", now.AddDays(-1), new(1000, 0, 0, 0), "gpt-5.6-sol"),
                 new("missing", now, new(2000, 0, 0), "gpt-5.6-sol"),
                 new("other", now, new(1000, 0, 0, 0), "gpt-6-astra")];
-            pane.Update(); await Idle();
+            store.RecordLocalAnalyticsRead("codex", now); pane.Update(); await Idle();
             costButtons = Descendants<Button>(pane).Where(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.cost.", StringComparison.Ordinal)).ToArray();
             Require(Descendants<Border>((Grid)costButtons[^2].Content).Single().Height == 0 && AutomationProperties.GetName(costButtons[^2]).Contains("Unavailable", StringComparison.Ordinal),
                 "A model excluded from the range subtotal remained in an earlier cost bar");
             Require(Descendants<TextBlock>(pane).Any(x => x.Text == "Gaps indicate intervals without a cost estimate."), "An actual coverage gap has no explanation");
             Capture(pane, System.IO.Path.Combine(directory, "windows-analytics-cost-coverage.png"));
             store.Events["codex"] = [new("unknown-only", now, new(10, 0, 0, 0), "unpriced-model")];
-            pane.Update(); await Idle();
+            store.RecordLocalAnalyticsRead("codex", now); pane.Update(); await Idle();
             Require(!Descendants<Button>(pane).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.cost.", StringComparison.Ordinal))
                 && Descendants<TextBlock>(pane).Any(x => x.Text == "No cost estimate is available for the recorded usage in this range."), "Unavailable cost range renders an empty chart instead of its explanation");
             Capture(pane, System.IO.Path.Combine(directory, "windows-analytics-cost-unavailable.png"));
             store.Events["codex"] = [new("known-high-context", now, new(300000, 100000, 100, 10000), "gpt-5.6-sol") { PricingContext = PricingContext.HighContext }];
-            pane.Update(); await Idle();
+            store.RecordLocalAnalyticsRead("codex", now); pane.Update(); await Idle();
             var highCost = Descendants<StackPanel>(pane).First(x => AutomationProperties.GetAutomationId(x) == "analytics.summary.cost");
             Require(Descendants<TextBlock>(highCost).Any(x => x.Text == "~$" + 1.703m.ToString("N2", CultureInfo.CurrentCulture)), "Known high-context request did not render its tiered cost");
             var highBucket = Descendants<Button>(pane).Last(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.cost.", StringComparison.Ordinal));
             Require(!AutomationProperties.GetName(highBucket).Contains("Unavailable", StringComparison.Ordinal)
                 && Descendants<Border>((Grid)highBucket.Content).Single().Height > 0, "Known high-context cost remained a chart gap");
             Capture(pane, System.IO.Path.Combine(directory, "windows-analytics-high-context.png"));
-            store.Events["codex"] = store.Events["codex"].Select(x => x with { PricingContext = null }).ToArray(); pane.Update(); await Idle();
+            store.Events["codex"] = store.Events["codex"].Select(x => x with { PricingContext = null }).ToArray(); store.RecordLocalAnalyticsRead("codex", now); pane.Update(); await Idle();
             Require(!Descendants<Button>(pane).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.cost.", StringComparison.Ordinal)),
                 "Unknown high-context request was priced without request proof");
             store.Events["codex"] = [new("large-unpriced", now, new(long.MaxValue, 0, 0, 0), "unpriced-model")];
+            store.RecordLocalAnalyticsRead("codex", now);
             pane.Width = 360; pane.Update(); await Idle();
             Descendants<Button>(pane).Last(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.tokens.", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
             var largeSummaries = Descendants<StackPanel>(pane).Where(x => AutomationProperties.GetAutomationId(x) == "analytics.summary.tokens").ToArray();
@@ -210,7 +213,7 @@ internal static partial class NativeSmoke
         {
             try { analyticsWindow?.Close(); } catch (Exception error) { cleanup.Add(error); }
             try { if (previousEvents is null) store.Events.Remove("codex"); else store.Events["codex"] = previousEvents; } catch (Exception error) { cleanup.Add(error); }
-            try { settings.Save(settings.Current with { CostEstimatesEnabled = previousCost }); } catch (Exception error) { cleanup.Add(error); }
+            try { publicationState.Dispose(); settings.Save(settings.Current with { CostEstimatesEnabled = previousCost }); } catch (Exception error) { cleanup.Add(error); }
         }
         if (failure is not null && cleanup.Count > 0) throw new AggregateException("Analytics fixture and cleanup failed", cleanup.Prepend(failure));
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
