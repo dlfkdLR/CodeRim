@@ -115,6 +115,14 @@ internal static partial class NativeSmoke
             void Restore(Action action) { try { action(); } catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); } }
             foreach (var (key, value) in previous) Restore(() => Environment.SetEnvironmentVariable(key, value));
             Restore(() => { if (saved is null) vault.Delete("accounts:codex"); else vault.Save("accounts:codex", saved); });
+            // A failed junction assertion must unwind and release its directory
+            // lease before cleanup. Preserve both the assertion and cleanup errors.
+            Restore(() =>
+            {
+                var fixtureRoot = Path.Combine(home, "file-cases-한글-😀");
+                if (Directory.Exists(fixtureRoot) && (File.GetAttributes(fixtureRoot) & FileAttributes.ReparsePoint) != 0)
+                    Directory.Delete(fixtureRoot);
+            });
             Restore(() => { if (Directory.Exists(home)) Directory.Delete(home, true); });
             Restore(() => { if (Directory.Exists(home + "-moved")) Directory.Delete(home + "-moved", true); });
             Restore(() => File.WriteAllText(Path.Combine(directory, "windows-saved-account-switch.json"), JsonSerializer.Serialize(new {
@@ -181,6 +189,15 @@ internal static partial class NativeSmoke
         }
         Require(!Directory.EnumerateFiles(root, "*.tmp").Any(), "A private staging file leaked.");
         File.Delete(file); Checked("signed-out-concurrent-publication");
+        // Negative control: the old metadata-only access really permits rename.
+        // Keep a real open handle during both moves, so a passing protection test
+        // cannot be explained by a directory which was already immovable.
+        using (var metadata = SavedAccountJunction.OpenMetadataOnly(root))
+        {
+            Directory.Move(root, root + "-metadata");
+            Directory.Move(root + "-metadata", root);
+        }
+        Checked("signed-out-metadata-only-rename-control");
         // Probe the production lease without expanding Core's public API for QA.
         var leaseType = typeof(GuardedFile).Assembly.GetType("CodeRim.Core.Services.LoginDirectoryLease", throwOnError: true)!;
         var acquire = leaseType.GetMethod("Acquire", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!;
@@ -188,6 +205,10 @@ internal static partial class NativeSmoke
         {
             Rejected(() => Directory.Move(root, root + "-moved"), "The login directory was moved while pinned.");
             Rejected(() => Directory.Move(home, home + "-moved"), "A login ancestor was moved while pinned.");
+            var redirect = Path.Combine(home, "junction-redirection-target"); Directory.CreateDirectory(redirect);
+            Rejected(() => SavedAccountJunction.CreateJunction(root, redirect), "The pinned login directory became a junction.");
+            Require((File.GetAttributes(root) & FileAttributes.ReparsePoint) == 0, "The login directory was redirected.");
+            Require(!Directory.EnumerateFileSystemEntries(redirect).Any(), "A credential escaped the pinned directory.");
             GuardedFile.CreateIfAbsent(file, "pinned-private");
         }
         Require(GuardedFile.Read(file) == "pinned-private", "Pinned directory publication failed.");
@@ -210,6 +231,13 @@ internal static partial class NativeSmoke
 
     private static class SavedAccountJunction
     {
+    internal static SafeFileHandle OpenMetadataOnly(string path)
+    {
+        var handle = CreateFileW(path, 0x80, 1, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero);
+        if (!handle.IsInvalid) return handle;
+        var code = Marshal.GetLastWin32Error(); handle.Dispose();
+        throw new IOException("Fixture metadata handle failed", new Win32Exception(code));
+    }
     internal static void CreateJunction(string path, string target)
     {
         Directory.CreateDirectory(path);

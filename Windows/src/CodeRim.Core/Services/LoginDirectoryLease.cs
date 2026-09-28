@@ -20,10 +20,12 @@ internal sealed class LoginDirectoryLease : IDisposable
                 ancestors.Push(path);
             while (ancestors.TryPop(out var path))
             {
-                // READ_ATTRIBUTES, SHARE_READ, OPEN_EXISTING, BACKUP_SEMANTICS |
+                // LIST_DIRECTORY | READ_ATTRIBUTES, SHARE_READ, OPEN_EXISTING, BACKUP_SEMANTICS |
                 // OPEN_REPARSE_POINT. Deny write/delete handles for the lifetime
                 // of publication, including attempts to replace an ancestor.
-                var handle = CreateFile(path, 0x80, 1, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero);
+                // Attribute-only access does not participate in Windows sharing
+                // checks and therefore cannot prevent a directory rename.
+                var handle = CreateFile(path, 0x81, 1, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero);
                 if (handle.IsInvalid)
                 {
                     var code = Marshal.GetLastWin32Error(); handle.Dispose();
