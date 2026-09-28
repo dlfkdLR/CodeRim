@@ -36,15 +36,15 @@ internal static partial class NativeSmoke
             Require(Item(0).ShortcutKeys == (Forms.Keys.Control | Forms.Keys.U) && Item(3).ShortcutKeys == (Forms.Keys.Control | Forms.Keys.Oemcomma)
                 && Item(6).ShortcutKeys == (Forms.Keys.Control | Forms.Keys.Q), "Tray shortcuts lost Windows equivalents");
             checks.Add("Mac menu order, labels, groups, and Windows shortcut equivalents");
-            Require(menu.ShowCheckMargin && menu.ShowImageMargin
+            Require(!menu.ShowCheckMargin && menu.ShowImageMargin
                 && Item(3).Tag is TrayMenuSymbol.Settings && Item(3).Image is Drawing.Bitmap
                 && Item(6).Tag is TrayMenuSymbol.Quit && Item(6).Image is Drawing.Bitmap
                 && Item(0).Image is null && Item(2).Image is null && Item(4).Image is null,
-                "Settings/Quit glyphs or their separate check/image columns are missing");
+                "Windows shared check/image column or command glyphs are missing");
             Require(((Drawing.Bitmap)Item(3).Image!).GetPixel(8, 8).A == 0
                 && ((Drawing.Bitmap)Item(6).Image!).GetPixel(8, 8).A > 0,
                 "Settings/Quit glyph assets lost their distinct shapes");
-            checks.Add("Settings gear and Quit frame glyphs occupy a separate image column from Show Notch checks");
+            checks.Add("Windows menu uses one shared column for command glyphs and the Show Notch check");
 
             dashboard.Navigate("notch"); await Idle();
             var before = Descendants<CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Show edge notch");
@@ -119,9 +119,19 @@ internal static partial class NativeSmoke
                 menu.Items[3].Select(); menu.Refresh();
                 using var capture = new Drawing.Bitmap(menu.Width, menu.Height);
                 menu.DrawToBitmap(capture, new Drawing.Rectangle(Drawing.Point.Empty, menu.Size));
-                var selected = menu.Items[3].Bounds;
-                Require(Item(2).Checked && capture.GetPixel(2, selected.Top + selected.Height / 2).ToArgb() != Drawing.Color.FromArgb(30, 88, 190).ToArgb(),
-                    "Tray selection touches the menu's outer frame or the checked state was not captured");
+                Require(Item(2).Checked, "The native Show Notch check was lost before capture");
+                try
+                {
+                    Item(2).Checked = false; menu.Refresh();
+                    using var uncheckedCapture = new Drawing.Bitmap(menu.Width, menu.Height);
+                    menu.DrawToBitmap(uncheckedCapture, new Drawing.Rectangle(Drawing.Point.Empty, menu.Size));
+                    var bounds = Item(2).Bounds; var changedPixels = 0;
+                    for (var y = bounds.Top; y < bounds.Bottom; y++)
+                        for (var x = bounds.Left; x < bounds.Right; x++)
+                            if (capture.GetPixel(x, y) != uncheckedCapture.GetPixel(x, y)) changedPixels++;
+                    Require(changedPixels > 3, "The mounted Windows menu did not paint the Show Notch check");
+                }
+                finally { Item(2).Checked = true; menu.Refresh(); }
                 capture.Save(Path.Combine(directory, dark ? "windows-tray-dark.png" : "windows-tray-light.png"));
                 // Reserving an Image is insufficient if the custom renderer never
                 // paints it. Compare each mounted row with its same-size blank slot.
@@ -145,8 +155,53 @@ internal static partial class NativeSmoke
                 tray.ShowMenu(Drawing.Point.Empty); await Idle();
                 Require(!menu.Visible, "Repeated tray activation did not close the popup");
             }
-            checks.Add("Mounted dark/light menus render selected row and remain inside the screen at its lower-right edge");
-            checks.Add("Both glyphs visibly paint in mounted dark/light menus, including selected Settings, without shifting the reserved layout");
+            checks.Add("Windows system menus render selection and checks under both application themes and stay inside the working area");
+            checks.Add("Both command glyphs visibly paint in Windows menus, including selected Settings, without shifting the shared column");
+            // Exercise the real WPF right-click surfaces as well as the Forms
+            // tray. An app-wide TextBlock style must not recolor native headers.
+            var notchWindow = Application.Current.Windows.OfType<NotchWindow>().Single();
+            var notchSurface = (FrameworkElement)notchWindow.Content;
+            var notchMenu = notchSurface.ContextMenu ?? throw new InvalidOperationException("The notch has no context menu");
+            dashboard.Navigate("providers"); await Idle();
+            var reorderHandle = Descendants<Button>(dashboard).First(x => x.ContextMenu is not null);
+            foreach (var surface in new[] { (Name: "notch", Target: notchSurface, Menu: notchMenu),
+                (Name: "providers", Target: (FrameworkElement)reorderHandle, Menu: reorderHandle.ContextMenu!) })
+            {
+                var command = surface.Menu.Items.OfType<MenuItem>().First();
+                var enabledBefore = command.IsEnabled;
+                try
+                {
+                    foreach (var dark in new[] { true, false })
+                    {
+                        command.IsEnabled = true;
+                        SettingsTheme.Apply(dark); surface.Menu.PlacementTarget = surface.Target;
+                        surface.Menu.IsOpen = true; await Idle();
+                        NativeForeground();
+                        var suffix = surface.Name + (dark ? "-dark" : "-light");
+                        Capture(surface.Menu, Path.Combine(directory, "windows-wpf-context-" + suffix + ".png"));
+                        Require(command.Focus(), "The native context command cannot receive keyboard focus");
+                        await Idle(); Require(command.IsHighlighted, "Keyboard focus did not select the Windows menu command"); NativeForeground();
+                        Capture(surface.Menu, Path.Combine(directory, "windows-wpf-context-" + suffix + "-selected.png"));
+                        command.IsEnabled = false; await Idle(); NativeForeground();
+                        Capture(surface.Menu, Path.Combine(directory, "windows-wpf-context-" + suffix + "-disabled.png"));
+                        command.IsEnabled = enabledBefore; surface.Menu.IsOpen = false; await Idle();
+
+                        void NativeForeground()
+                        {
+                            var header = Descendants<AccessText>(command).Single(x => x.Text == (string)command.Header);
+                            var text = Descendants<TextBlock>(header).Single();
+                            var presenter = System.Windows.Media.VisualTreeHelper.GetParent(header)
+                                ?? throw new InvalidOperationException("The native header has no presenter");
+                            Require(text.Foreground is System.Windows.Media.SolidColorBrush painted
+                                && System.Windows.Documents.TextElement.GetForeground(presenter) is System.Windows.Media.SolidColorBrush native
+                                && painted.Color == native.Color,
+                                "WPF context header lost its native enabled/selected/disabled template foreground: " + surface.Name);
+                        }
+                    }
+                }
+                finally { command.IsEnabled = enabledBefore; surface.Menu.IsOpen = false; }
+            }
+            checks.Add("Mounted notch and provider right-click headers inherit Windows template foreground in dark/light app themes and enabled, keyboard-selected and disabled states");
             Forms.ToolStripDropDownCloseReason? closeReason = null;
             void Closed(object? sender, Forms.ToolStripDropDownClosedEventArgs args) => closeReason = args.CloseReason;
             menu.Closed += Closed;

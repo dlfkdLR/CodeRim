@@ -101,27 +101,46 @@
     </ControlTemplate.Triggers>
    </ControlTemplate></Setter.Value></Setter>
   </Style>
-  <Style TargetType="ContextMenu">
+  <!-- Windows caption controls keep their symbols visible and use rectangular hit targets. -->
+  <Style x:Key="WindowCaptionButton" TargetType="Button">
+   <Setter Property="views:Motion.Feedback" Value="False"/>
+   <Setter Property="Width" Value="46"/><Setter Property="Height" Value="48"/>
+   <Setter Property="MinHeight" Value="0"/><Setter Property="Padding" Value="0"/>
    <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
-   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ContextMenu">
-    <Border Background="{DynamicResource PanelBackground}" BorderBrush="{DynamicResource DividerBrush}" BorderThickness="1" CornerRadius="8" Padding="5"><ItemsPresenter/></Border>
-   </ControlTemplate></Setter.Value></Setter>
-  </Style>
-  <Style TargetType="MenuItem">
-   <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>
-   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="MenuItem">
-    <Border x:Name="Row" Background="Transparent" CornerRadius="4" Padding="7,5">
-     <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="18"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-      <TextBlock x:Name="Check" Text="✓" Visibility="Hidden" VerticalAlignment="Center"/>
-      <ContentPresenter Grid.Column="1" ContentSource="Header" RecognizesAccessKey="True"/>
-     </Grid>
-    </Border>
+   <Setter Property="Background" Value="Transparent"/><Setter Property="BorderThickness" Value="0"/>
+   <Setter Property="HorizontalContentAlignment" Value="Center"/><Setter Property="VerticalContentAlignment" Value="Center"/>
+   <Setter Property="Cursor" Value="Arrow"/>
+   <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
+    <Grid Background="{TemplateBinding Background}">
+     <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+     <Border x:Name="Focus" Margin="3" BorderThickness="1" BorderBrush="Transparent" IsHitTestVisible="False"/>
+    </Grid>
     <ControlTemplate.Triggers>
-     <Trigger Property="IsChecked" Value="True"><Setter TargetName="Check" Property="Visibility" Value="Visible"/></Trigger>
-     <Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Row" Property="Background" Value="{DynamicResource AccentBrush}"/><Setter Property="Foreground" Value="{DynamicResource AccentText}"/></Trigger>
+     <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource ControlHover}"/></Trigger>
+     <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource ControlHover}"/></Trigger>
+     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="BorderBrush" Value="{DynamicResource AccentBrush}"/></Trigger>
      <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
     </ControlTemplate.Triggers>
    </ControlTemplate></Setter.Value></Setter>
+  </Style>
+  <Style x:Key="WindowCloseButton" TargetType="Button" BasedOn="{StaticResource WindowCaptionButton}">
+   <Style.Triggers>
+    <Trigger Property="IsMouseOver" Value="True"><Setter Property="Background" Value="{DynamicResource CaptionCloseHover}"/><Setter Property="Foreground" Value="{DynamicResource CaptionCloseHoverText}"/></Trigger>
+    <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource CaptionCloseHover}"/><Setter Property="Foreground" Value="{DynamicResource CaptionCloseHoverText}"/></Trigger>
+   </Style.Triggers>
+  </Style>
+  <!-- Keep Windows menu templates and let header text inherit the native
+       enabled/selected/disabled foreground instead of the app TextBlock style. -->
+  <Style TargetType="ContextMenu">
+   <Style.Resources>
+    <Style TargetType="MenuItem">
+     <Setter Property="HeaderTemplate"><Setter.Value><DataTemplate>
+      <AccessText Text="{Binding}">
+       <AccessText.Resources><Style TargetType="TextBlock"/></AccessText.Resources>
+      </AccessText>
+     </DataTemplate></Setter.Value></Setter>
+    </Style>
+   </Style.Resources>
   </Style>
   <Style TargetType="TextBlock">
    <Setter Property="Foreground" Value="{DynamicResource PrimaryText}"/>

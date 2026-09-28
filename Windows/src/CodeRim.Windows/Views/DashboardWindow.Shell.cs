@@ -37,26 +37,33 @@ internal sealed partial class DashboardWindow
         surface.SetResourceReference(Border.BackgroundProperty, "PanelBackground"); sidebarSurface = surface; layout.Children.Insert(0, surface);
 
         // Keep native drag, resize, double-click maximize and system-menu behavior
-        // while matching the reference app's unified toolbar and window controls.
+        // with Windows-style caption controls on the right and the shared page toolbar.
         WindowChrome.SetWindowChrome(this, new WindowChrome { CaptionHeight = 48, GlassFrameThickness = new Thickness(0),
             ResizeBorderThickness = SystemParameters.WindowResizeBorderThickness, CornerRadius = new CornerRadius(12), UseAeroCaptionButtons = false });
         var root = new Grid(); root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(48) }); root.RowDefinitions.Add(new RowDefinition());
-        var toolbar = new Grid { Margin = new Thickness(18, 0, 14, 0) };
-        toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(84) }); toolbar.ColumnDefinitions.Add(new ColumnDefinition()); toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var toolbar = new Grid();
+        toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto }); toolbar.ColumnDefinitions.Add(new ColumnDefinition()); toolbar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var windowButtons = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        windowButtons.Children.Add(WindowButton("Close", "WindowCloseBrush", "×", () => SystemCommands.CloseWindow(this)));
-        windowButtons.Children.Add(WindowButton("Minimize", "WindowMinimizeBrush", "−", () => SystemCommands.MinimizeWindow(this)));
-        var maximize = WindowButton("Maximize", "WindowMaximizeBrush", "+", () => { if (WindowState == WindowState.Maximized) SystemCommands.RestoreWindow(this); else SystemCommands.MaximizeWindow(this); });
-        StateChanged += (_, _) => { var name = WindowState == WindowState.Maximized ? "Restore" : "Maximize"; AutomationProperties.SetName(maximize, name); maximize.ToolTip = name; };
-        windowButtons.Children.Add(maximize); toolbar.Children.Add(windowButtons);
-        sectionTitle.Margin = new Thickness(0); sectionTitle.VerticalAlignment = VerticalAlignment.Center; Grid.SetColumn(sectionTitle, 1); toolbar.Children.Add(sectionTitle);
-        sidebarToggle = Ui.Button("", ToggleSidebar); sidebarToggle.Width = sidebarToggle.Height = 32; sidebarToggle.Margin = new Thickness(0); sidebarToggle.Padding = new Thickness(8);
+        windowButtons.Children.Add(WindowButton("Minimize", "M1,7 H11", () => SystemCommands.MinimizeWindow(this)));
+        var maximize = WindowButton("Maximize", "M1,1 H11 V11 H1 Z", () => { if (WindowState == WindowState.Maximized) SystemCommands.RestoreWindow(this); else SystemCommands.MaximizeWindow(this); });
+        StateChanged += (_, _) =>
+        {
+            var restored = WindowState == WindowState.Maximized;
+            var name = restored ? "Restore" : "Maximize"; AutomationProperties.SetName(maximize, name); maximize.ToolTip = name;
+            ((System.Windows.Shapes.Path)maximize.Content).Data = Geometry.Parse(restored ? "M3,1 H11 V9 M1,3 H9 V11 H1 Z" : "M1,1 H11 V11 H1 Z");
+        };
+        windowButtons.Children.Add(maximize);
+        windowButtons.Children.Add(WindowButton("Close", "M1,1 L11,11 M11,1 L1,11", () => SystemCommands.CloseWindow(this), close: true));
+        Grid.SetColumn(windowButtons, 2); toolbar.Children.Add(windowButtons);
+        sectionTitle.Margin = new Thickness(0); sectionTitle.VerticalAlignment = VerticalAlignment.Center;
+        sectionTitle.TextWrapping = TextWrapping.NoWrap; sectionTitle.TextTrimming = TextTrimming.CharacterEllipsis; Grid.SetColumn(sectionTitle, 1); toolbar.Children.Add(sectionTitle);
+        sidebarToggle = Ui.Button("", ToggleSidebar); sidebarToggle.Width = sidebarToggle.Height = 32; sidebarToggle.Margin = new Thickness(12, 0, 12, 0); sidebarToggle.Padding = new Thickness(8);
         sidebarToggle.Background = Brushes.Transparent; sidebarToggle.BorderThickness = new Thickness(0);
         sidebarToggle.Content = new System.Windows.Shapes.Path { Data = Geometry.Parse("M1,1 H15 V15 H1 Z M6,1 V15 M3,4 H4 M3,7 H4 M3,10 H4"),
             Width = 16, Height = 16, StrokeThickness = 1.2, Stretch = Stretch.Uniform };
         ((System.Windows.Shapes.Path)sidebarToggle.Content).SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText");
         AutomationProperties.SetAutomationId(sidebarToggle, "settings.sidebar.toggle"); UpdateSidebarButton();
-        WindowChrome.SetIsHitTestVisibleInChrome(sidebarToggle, true); Grid.SetColumn(sidebarToggle, 2); toolbar.Children.Add(sidebarToggle);
+        WindowChrome.SetIsHitTestVisibleInChrome(sidebarToggle, true); toolbar.Children.Add(sidebarToggle);
         root.Children.Add(toolbar); Grid.SetRow(layout, 1); root.Children.Add(layout); Content = root;
         Width = 980; Height = 680 + 48; MinWidth = 840; MinHeight = 560 + 48;
         RestoreSettingsFrame();
@@ -145,19 +152,16 @@ internal sealed partial class DashboardWindow
         finally { fittingFrame = false; }
     }
 
-    private static System.Windows.Controls.Button WindowButton(string name, string color, string symbol, Action action)
+    private static System.Windows.Controls.Button WindowButton(string name, string geometry, Action action, bool close = false)
     {
-        var glyph = new TextBlock { Text = symbol, FontSize = 12, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        glyph.SetResourceReference(TextBlock.ForegroundProperty, "WindowButtonText"); glyph.SetResourceReference(OpacityProperty, "WindowButtonSymbolOpacity");
-        var button = Ui.Button("", action); button.Width = button.Height = button.MinHeight = 14;
-        button.Padding = new Thickness(0); button.Margin = new Thickness(0, 0, 9, 0); button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0);
-        var grid = new Grid(); var circle = new System.Windows.Shapes.Ellipse { StrokeThickness = 1 };
-        circle.SetResourceReference(System.Windows.Shapes.Shape.FillProperty, color); circle.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "WindowButtonOutline");
-        grid.Children.Add(circle); grid.Children.Add(glyph); button.Content = grid;
-        button.HorizontalContentAlignment = HorizontalAlignment.Stretch; button.VerticalContentAlignment = VerticalAlignment.Stretch;
-        void UpdateGlyph() { if (button.IsMouseOver || button.IsKeyboardFocusWithin) glyph.Opacity = 1; else glyph.SetResourceReference(OpacityProperty, "WindowButtonSymbolOpacity"); }
-        button.MouseEnter += (_, _) => UpdateGlyph(); button.MouseLeave += (_, _) => UpdateGlyph(); button.IsKeyboardFocusWithinChanged += (_, _) => UpdateGlyph();
-        button.ToolTip = name; AutomationProperties.SetName(button, name); AutomationProperties.SetAutomationId(button, "settings.window." + name.ToLowerInvariant());
+        var button = new System.Windows.Controls.Button(); button.SetResourceReference(StyleProperty, close ? "WindowCloseButton" : "WindowCaptionButton");
+        button.Click += (_, _) => action();
+        button.Margin = new Thickness(0);
+        var glyph = new System.Windows.Shapes.Path { Data = Geometry.Parse(geometry), Width = 12, Height = 12,
+            Stretch = Stretch.Uniform, StrokeThickness = 1, IsHitTestVisible = false };
+        glyph.SetBinding(System.Windows.Shapes.Shape.StrokeProperty, new System.Windows.Data.Binding(nameof(Control.Foreground)) { Source = button });
+        button.Content = glyph; button.ToolTip = name; AutomationProperties.SetName(button, name);
+        AutomationProperties.SetAutomationId(button, "settings.window." + name.ToLowerInvariant());
         WindowChrome.SetIsHitTestVisibleInChrome(button, true); return button;
     }
 
