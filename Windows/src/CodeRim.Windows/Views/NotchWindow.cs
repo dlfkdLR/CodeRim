@@ -41,6 +41,7 @@ internal sealed partial class NotchWindow : Window
     private ScrollViewer? viewport;
     private double bodyLength, bodyDepth, bodyStart, renderScale = 1;
     private bool displayLayoutPending;
+    private System.Drawing.Point? providerHoverSuppressedAt;
     private bool Vertical => settings.Current.Edge is NotchEdge.Left or NotchEdge.Right;
     internal bool Expanded => expanded || pinned || settings.Current.Visibility == NotchVisibility.AlwaysShow;
     internal bool PopupIsOpen => popup.IsOpen;
@@ -157,7 +158,7 @@ internal sealed partial class NotchWindow : Window
         {
             displayLayoutPending = false;
             if (closed || !IsVisible) return;
-            CancelDrag();
+            CancelDrag(); SuppressStationaryProviderHover();
             var horizontal = viewport?.HorizontalOffset ?? 0;
             var vertical = viewport?.VerticalOffset ?? 0;
             var focusedId = Keyboard.FocusedElement is DependencyObject focused
@@ -200,6 +201,7 @@ internal sealed partial class NotchWindow : Window
         var visibleProviders = VisibleProviderIds();
         if (Expanded && !buttons.Keys.SequenceEqual(visibleProviders, StringComparer.Ordinal))
         {
+            SuppressStationaryProviderHover();
             var horizontal = viewport?.HorizontalOffset ?? 0; var vertical = viewport?.VerticalOffset ?? 0;
             var focused = buttons.FirstOrDefault(pair => pair.Value.IsKeyboardFocusWithin).Key;
             var preservePopup = popup.IsOpen && (accountMenu || hovered is not null && visibleProviders.Contains(hovered, StringComparer.Ordinal));
@@ -297,7 +299,8 @@ internal sealed partial class NotchWindow : Window
                 }
                 else await store.RefreshProviderAsync(id).ConfigureAwait(true);
             };
-            button.MouseEnter += (_, _) => OpenProvider(id);
+            button.MouseEnter += (_, _) => HoverProvider(id, button);
+            button.MouseMove += (_, _) => { if (providerHoverSuppressedAt is not null) HoverProvider(id, button); };
             button.MouseLeave += (_, _) => hoverClear.Start();
             button.LostKeyboardFocus += (_, _) => hoverClear.Start();
             button.GotKeyboardFocus += (_, _) => OpenProvider(id);
@@ -315,10 +318,12 @@ internal sealed partial class NotchWindow : Window
             LayoutTransform = new ScaleTransform(scale, scale),
             Margin = Vertical ? new Thickness(0, (NotchMetrics.Curl + NotchMetrics.PadStart) * scale, 0, (NotchMetrics.Curl + NotchMetrics.PadEnd) * scale)
                 : new Thickness((NotchMetrics.Curl + NotchMetrics.StartPadding(config.Edge)) * scale, 0, (NotchMetrics.Curl + NotchMetrics.EndPadding(config.Edge)) * scale, 0) };
-        viewport.PreviewMouseWheel += (_, e) =>
+        viewport.PreviewMouseWheel += (sender, e) =>
         {
-            if (Vertical) viewport.ScrollToVerticalOffset(viewport.VerticalOffset - e.Delta / 2d);
-            else viewport.ScrollToHorizontalOffset(viewport.HorizontalOffset - e.Delta / 2d);
+            if (sender is not ScrollViewer target || !ReferenceEquals(target, viewport)) return;
+            SuppressStationaryProviderHover();
+            if (Vertical) target.ScrollToVerticalOffset(target.VerticalOffset - e.Delta / 2d);
+            else target.ScrollToHorizontalOffset(target.HorizontalOffset - e.Delta / 2d);
             popup.IsOpen = false; e.Handled = true;
         };
         body.Children.Add(viewport); canvas.Children.Add(body);
@@ -359,6 +364,16 @@ internal sealed partial class NotchWindow : Window
     private static void AddMenu(ContextMenu menu, string label, Action action)
     {
         var item = new MenuItem { Header = label }; item.Click += (_, _) => action(); menu.Items.Add(item);
+    }
+    private void SuppressStationaryProviderHover() => providerHoverSuppressedAt = System.Windows.Forms.Cursor.Position;
+    private void HoverProvider(string id, Button sender)
+    {
+        if (!buttons.TryGetValue(id, out var current) || !ReferenceEquals(sender, current)) return;
+        // Scrolling/reflow can retarget hover without moving the pointer. Screen
+        // coordinates remain stable when the notch's origin or DPI changes.
+        if (providerHoverSuppressedAt == System.Windows.Forms.Cursor.Position) return;
+        providerHoverSuppressedAt = null;
+        OpenProvider(id);
     }
     internal void OpenProvider(string id)
     {

@@ -89,9 +89,44 @@ internal static partial class NativeSmoke
             var outcome = reached && submitted == 1 ? after > before ? "PASS" : "FAIL" : "INCONCLUSIVE";
             try { Require(!reached || submitted != 1 || after > before, "Native wheel reached the notch but did not scroll providers"); }
             catch (InvalidOperationException error) { failure = error; }
+            // Keep the wheel snapshot separate from the subsequent resume probe.
+            var afterState = State();
+            string? CardProvider()
+            {
+                if (!notch.PopupIsOpen || notch.PopupContent is not { } child) return null;
+                const string prefix = "notch.title.";
+                var id = Descendants<System.Windows.Controls.TextBlock>(child)
+                    .Select(System.Windows.Automation.AutomationProperties.GetAutomationId)
+                    .FirstOrDefault(x => x.StartsWith(prefix, StringComparison.Ordinal));
+                return id is null ? null : id[prefix.Length..];
+            }
+            var resumeBeforePoint = System.Windows.Forms.Cursor.Position;
+            var resumeBeforePopupOpen = notch.PopupIsOpen;
+            var resumeBeforeCardProvider = CardProvider();
+            var wheelVerified = outcome == "PASS";
+            try { Require(!wheelVerified || !resumeBeforePopupOpen, "Native wheel did not retain its dismissed provider card"); }
+            catch (InvalidOperationException error) { failure = failure is null ? error : new AggregateException(failure, error); }
+            var resumePoint = new System.Drawing.Point(resumeBeforePoint.X, resumeBeforePoint.Y + 2);
+            var resumeMoved = MoveCursor(resumePoint.X, resumePoint.Y); await Idle();
+            var resumeObserved = System.Windows.Forms.Cursor.Position;
+            var resumeProvider = Descendants<System.Windows.Controls.Button>(notch).FirstOrDefault(x => x.IsMouseOver
+                && System.Windows.Automation.AutomationProperties.GetAutomationId(x).StartsWith("notch.provider.", StringComparison.Ordinal));
+            var resumeProviderId = resumeProvider is null ? null
+                : System.Windows.Automation.AutomationProperties.GetAutomationId(resumeProvider)["notch.provider.".Length..];
+            var resumeCardProvider = CardProvider();
+            var resumeReached = wheelVerified && !resumeBeforePopupOpen && resumeMoved && resumeObserved == resumePoint
+                && resumeObserved != resumeBeforePoint
+                && WindowAtPoint(new PointerPoint { X = resumeObserved.X, Y = resumeObserved.Y }) == own && resumeProvider is not null;
+            var resumeOutcome = wheelVerified && resumeBeforePopupOpen ? "FAIL"
+                : resumeReached ? notch.PopupIsOpen && resumeCardProvider == resumeProviderId ? "PASS" : "FAIL" : "INCONCLUSIVE";
+            try { Require(resumeOutcome != "FAIL", "Native provider pointer movement failed to resume its hovered card after wheel"); }
+            catch (InvalidOperationException error) { failure = failure is null ? error : new AggregateException(failure, error); }
             File.WriteAllText(Path.Combine(directory, "windows-wheel-input.json"),
                 System.Text.Json.JsonSerializer.Serialize(new { reached, submitted, sendError, before, after, outcome,
-                    beforeState, afterState = State(), native, routed,
+                    beforeState, afterState, native, routed,
+                    resumeBeforePoint, resumeBeforePopupOpen, resumeBeforeCardProvider,
+                    resumePoint, resumeObserved, resumeMoved, resumeReached, resumeProviderId, resumeCardProvider,
+                    resumeOutcome, resumePopupOpen = notch.PopupIsOpen, resumeAfterState = State(),
                     method = "Native SendInput mouse-wheel queue, following WindowFromPoint owner verification" }, JsonOptions));
             passed = outcome == "PASS";
         }
