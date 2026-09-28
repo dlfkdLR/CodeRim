@@ -201,10 +201,13 @@ internal sealed partial class NotchWindow : Window
         var visibleProviders = VisibleProviderIds();
         if (Expanded && !buttons.Keys.SequenceEqual(visibleProviders, StringComparer.Ordinal))
         {
-            SuppressStationaryProviderHover();
             var horizontal = viewport?.HorizontalOffset ?? 0; var vertical = viewport?.VerticalOffset ?? 0;
             var focused = buttons.FirstOrDefault(pair => pair.Value.IsKeyboardFocusWithin).Key;
             var preservePopup = popup.IsOpen && (accountMenu || hovered is not null && visibleProviders.Contains(hovered, StringComparer.Ordinal));
+            // Protect dismissed or surviving cards. Removing an open card's
+            // provider must still let a surviving provider receive fresh hover.
+            if (!popup.IsOpen || preservePopup) SuppressStationaryProviderHover();
+            else providerHoverSuppressedAt = null;
             var revealed = ControlsRevealed;
             Render(preservePopup: preservePopup); UpdateLayout();
             if (hovered is not null && !buttons.ContainsKey(hovered)) hovered = null;
