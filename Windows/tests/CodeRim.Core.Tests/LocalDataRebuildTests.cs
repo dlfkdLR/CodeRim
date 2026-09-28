@@ -60,9 +60,15 @@ public sealed class LocalDataRebuildTests : IDisposable
     public async Task RebuildScannerRejectsRedirectedRootWithoutReplacingItsData()
     {
         var source = Path.Combine(directory, "source"); var redirected = Path.Combine(directory, "redirected"); Directory.CreateDirectory(source);
-        Directory.CreateSymbolicLink(redirected, source);
-        var scanner = new UsageScanner("codex", [redirected], requireCompleteSources: true);
-        await Assert.ThrowsAsync<IOException>(() => scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken));
+        if (OperatingSystem.IsWindows()) InstallTransactionTests.CreateJunction(redirected, source);
+        else Directory.CreateSymbolicLink(redirected, source);
+        try
+        {
+            Assert.True((File.GetAttributes(redirected) & FileAttributes.ReparsePoint) != 0);
+            var scanner = new UsageScanner("codex", [redirected], requireCompleteSources: true);
+            await Assert.ThrowsAsync<IOException>(() => scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken));
+        }
+        finally { Directory.Delete(redirected); }
     }
     [Theory]
     [InlineData("codex", "malformed fixture line")]

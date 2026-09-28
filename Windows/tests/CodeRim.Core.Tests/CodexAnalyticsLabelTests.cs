@@ -81,13 +81,28 @@ public sealed class CodexAnalyticsLabelTests : IDisposable
     }
 
     [Fact]
-    public void MissingInvalidOrLinkedStateSafelyLeavesFallbackNames()
+    public void MissingInvalidStateSafelyLeavesFallbackNames()
     {
         Assert.Empty(Read(First));
         Execute(State, $"CREATE VIEW threads AS SELECT '{First}' id,'fake' title,'fake' cwd,'fake' rollout_path");
-        Assert.Empty(Read(First)); File.Delete(State);
-        var target = Path.Combine(directory, "target.sqlite"); Execute(target, "CREATE TABLE example(id TEXT)");
-        File.CreateSymbolicLink(State, target); Assert.Empty(Read(First));
+        Assert.Empty(Read(First));
+    }
+
+    [Fact]
+    public void LinkedStateSafelyLeavesFallbackNamesAndTargetUnchanged()
+    {
+        Schema(); Thread(First, "Synthetic protected title");
+        var target = Path.Combine(directory, "target.sqlite"); File.Move(State, target);
+        var before = File.ReadAllBytes(target);
+        Assert.Single(CodexActivityCatalogue.ReadAnalyticsLabels([ClaudeJsonlParser.Hash(First)], target, Desktop, TestContext.Current.CancellationToken));
+        try { File.CreateSymbolicLink(State, target); }
+        catch (IOException error) when (OperatingSystem.IsWindows() && error.HResult == unchecked((int)0x80070522))
+        {
+            Assert.Skip("Windows file symlink creation requires privilege 1314; directory junction tests still run.");
+            return;
+        }
+        Assert.True((File.GetAttributes(State) & FileAttributes.ReparsePoint) != 0);
+        Assert.Empty(Read(First)); Assert.Equal(before, File.ReadAllBytes(target));
     }
 
     [Fact]

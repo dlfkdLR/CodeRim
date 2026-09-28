@@ -25,7 +25,7 @@ internal sealed class LoginDirectoryLease : IDisposable
                 // of publication, including attempts to replace an ancestor.
                 // Attribute-only access does not participate in Windows sharing
                 // checks and therefore cannot prevent a directory rename.
-                var handle = CreateFile(path, 0x81, 1, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero);
+                var handle = CreateFile(WindowsNativePath.ForApi(path), 0x81, 1, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero);
                 if (handle.IsInvalid)
                 {
                     var code = Marshal.GetLastWin32Error(); handle.Dispose();

@@ -16,6 +16,22 @@ public sealed class GuardedFileWindowsTests : IDisposable
         var directory = Path.Combine(root, "로그인-😀"); Directory.CreateDirectory(directory);
         return Path.Combine(directory, "auth.json");
     }
+    [Fact(Skip = "Requires Windows directory handles and file ACL semantics", SkipUnless = nameof(IsWindows))]
+    public void LongUnicodeLoginPathsRetainPublicationAndDirectoryProtection()
+    {
+        var directory = Path.Combine(root, new string('a', 120), new string('b', 120), "로그인-😀");
+        Directory.CreateDirectory(directory);
+        var file = Path.Combine(directory, "auth.json"); Assert.True(directory.Length > 260);
+        Assert.Null(GuardedFile.ReadIfPresent(file));
+        using (Acquire(file))
+        {
+            GuardedFile.CreateIfAbsent(file, "synthetic-private-login");
+            Assert.Equal("synthetic-private-login", GuardedFile.Read(file));
+            Assert.ThrowsAny<IOException>(() => Directory.Move(directory, directory + "-moved"));
+        }
+        Directory.Move(directory, directory + "-moved"); Directory.Move(directory + "-moved", directory);
+        Assert.Equal("synthetic-private-login", GuardedFile.Read(file));
+    }
     [Fact(Skip = "Requires Windows sharing and file ACL semantics", SkipUnless = nameof(IsWindows))]
     public void SignedOutPublicationCreatesTheCompletePrivateLogin()
     {

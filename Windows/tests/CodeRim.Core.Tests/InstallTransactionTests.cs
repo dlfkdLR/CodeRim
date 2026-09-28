@@ -10,6 +10,27 @@ namespace CodeRim.Core.Tests;
 
 public sealed class InstallTransactionTests
 {
+    public static bool IsWindows => OperatingSystem.IsWindows();
+    [Theory(Skip = "Requires native Windows long-path and alternate-stream semantics", SkipUnless = nameof(IsWindows))]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void WindowsLongPathsStillRejectUnknownAlternateStreams(bool directoryStream)
+    {
+        if (!OperatingSystem.IsWindows()) { Assert.Skip("Requires native Windows alternate streams."); return; }
+        using var fixture = new InstallFixture();
+        var directory = Path.Combine(fixture.Root, new string('a', 120), new string('b', 120), "한글-😀");
+        Directory.CreateDirectory(directory);
+        var file = Path.Combine(directory, "payload.exe"); File.WriteAllText(file, "original payload");
+        Assert.True(directory.Length > 260);
+        InstallFileSystem.CheckStreams(directory); InstallFileSystem.CheckStreams(file);
+        Assert.Equal(Path.GetFullPath(file), InstallFileSystem.LongWindowsPath(file), ignoreCase: true);
+        var target = directoryStream ? directory : file;
+        File.WriteAllText(target + ":unowned", "preserve alternate stream");
+        Assert.Throws<InvalidDataException>(() => InstallFileSystem.CheckStreams(target));
+        Assert.Equal("preserve alternate stream", File.ReadAllText(target + ":unowned"));
+        Assert.Equal("original payload", File.ReadAllText(file));
+    }
+
     [Fact]
     public void InstallsThenUpdatesOnlyBinariesAndCleansOwnedWork()
     {
@@ -197,7 +218,7 @@ public sealed class InstallTransactionTests
         Assert.Throws<InvalidDataException>(() => InstallTransaction.Apply(fixture.InstallRoot, fixture.Archive(), InstallFixture.Manifest("2.2.1"), previous, token: TestContext.Current.CancellationToken));
         Assert.Equal("synthetic user-owned alternate stream", File.ReadAllText(stream));
     }
-    private static void CreateJunction(string path, string target)
+    internal static void CreateJunction(string path, string target)
     {
         Directory.CreateDirectory(path);
         using var handle = CreateFileW(path, 0x40000000, 7, IntPtr.Zero, 3, 0x02200000, IntPtr.Zero);
