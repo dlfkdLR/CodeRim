@@ -22,7 +22,23 @@ internal static class Program
                     if (id.GetInt32() == 1) Console.WriteLine("{\"id\":1,\"result\":{}}");
                     else
                     {
-                        Console.WriteLine(JsonSerializer.Serialize(new { id = 2, result = new {
+                        var method = request.RootElement.GetProperty("method").GetString();
+                        var hasParameters = request.RootElement.TryGetProperty("params", out var parameters);
+                        var valid = method switch
+                        {
+                            "account/read" => hasParameters && parameters.ValueKind == JsonValueKind.Object
+                                && (!parameters.TryGetProperty("refreshToken", out var refresh) || refresh.ValueKind == JsonValueKind.False),
+                            "config/read" => hasParameters && parameters.ValueKind == JsonValueKind.Object,
+                            "account/rateLimits/read" => !hasParameters || parameters.ValueKind == JsonValueKind.Null,
+                            _ => false
+                        };
+                        if (!valid)
+                        {
+                            Console.WriteLine(JsonSerializer.Serialize(new { id = id.GetInt32(), error = new { code = -32600, message = "Invalid read-only request params" } }));
+                            continue;
+                        }
+                        Console.WriteLine(JsonSerializer.Serialize(new { id = id.GetInt32(), result = new {
+                            method, parameters = hasParameters ? (object)parameters : null,
                             home = Environment.GetEnvironmentVariable("CODEX_HOME"),
                             inherited = Environment.GetEnvironmentVariable("SYNTHETIC_PARENT_SECRET") is not null
                         } }));

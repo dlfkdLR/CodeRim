@@ -197,6 +197,7 @@ public static class AppServerClient
                     {
                         await process.StandardInput.WriteLineAsync("""{"method":"initialized","params":{}}""").ConfigureAwait(false);
                         if (method == "config/read") await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { id = 2, method, @params = new { includeLayers = false } })).ConfigureAwait(false);
+                        else if (method == "account/read") await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { id = 2, method, @params = new { refreshToken = false } })).ConfigureAwait(false);
                         else await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { id = 2, method })).ConfigureAwait(false);
                     }
                     else if (number == 2 && root.TryGetProperty("result", out var result)) return result.Clone();
