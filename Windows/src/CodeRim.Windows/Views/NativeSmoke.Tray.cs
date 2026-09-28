@@ -35,7 +35,7 @@ internal static partial class NativeSmoke
             Require(menu.Items.OfType<Forms.ToolStripMenuItem>().Select(x => x.Text).SequenceEqual(TrayLabels), "Tray menu labels or order differ from Mac");
             Require(Item(0).ShortcutKeys == (Forms.Keys.Control | Forms.Keys.U) && Item(3).ShortcutKeys == (Forms.Keys.Control | Forms.Keys.Oemcomma)
                 && Item(6).ShortcutKeys == (Forms.Keys.Control | Forms.Keys.Q), "Tray shortcuts lost Windows equivalents");
-            checks.Add("Mac menu order, labels, groups, and Windows shortcut equivalents");
+            checks.Add("Shared command order, labels and groups with Windows shortcut equivalents");
             Require(!menu.ShowCheckMargin && menu.ShowImageMargin
                 && Item(3).Tag is TrayMenuSymbol.Settings && Item(3).Image is Drawing.Bitmap
                 && Item(6).Tag is TrayMenuSymbol.Quit && Item(6).Image is Drawing.Bitmap

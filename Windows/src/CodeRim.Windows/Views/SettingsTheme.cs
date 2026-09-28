@@ -6,10 +6,12 @@ namespace CodeRim.Windows.Views;
 
 internal static class SettingsTheme
 {
+    private const string FluentPrefix = "pack://application:,,,/PresentationFramework.Fluent;component/Themes/";
     internal static bool IsDark { get; private set; }
     internal static bool IsHighContrast { get; private set; }
     internal static void Apply(bool? dark = null, bool? highContrast = null)
     {
+        var followsSystem = dark is null;
         var contrast = highContrast ?? SystemParameters.HighContrast;
         IsHighContrast = contrast;
         if (dark is null)
@@ -18,43 +20,53 @@ internal static class SettingsTheme
             catch (Exception e) when (e is System.Security.SecurityException or System.IO.IOException or UnauthorizedAccessException) { dark = false; }
         }
         IsDark = dark.Value;
-        var colors = new Dictionary<string, Color>
+        var resources = Application.Current.Resources;
+        var source = new Uri(FluentPrefix + (followsSystem ? "Fluent.xaml" : IsDark ? "Fluent.Dark.xaml" : "Fluent.Light.xaml"));
+        var dictionary = resources.MergedDictionaries.Single(x => x.Source?.OriginalString.StartsWith(FluentPrefix, StringComparison.Ordinal) == true);
+        if (dictionary.Source != source)
         {
-            ["WindowBackground"] = Color(IsDark ? "#202020" : "#FFFFFF"),
-            ["PanelBackground"] = Color(IsDark ? "#292929" : "#F0F0F0"),
-            ["CardBackground"] = Color(IsDark ? "#202020" : "#FFFFFF"),
-            ["LimitCardBackground"] = Color(IsDark ? "#292929" : "#F5F5F5"),
-            ["ControlBackground"] = Color(IsDark ? "#303030" : "#F3F3F3"),
-            ["ControlHover"] = Color(IsDark ? "#414141" : "#E5E5E5"),
-            ["SelectedControl"] = Color(IsDark ? "#4D4D4D" : "#FFFFFF"),
-            ["PrimaryText"] = Color(IsDark ? "#E6E6E6" : "#262626"),
-            ["SecondaryText"] = Color(IsDark ? "#9E9E9E" : "#707070"),
-            ["DividerBrush"] = Color(IsDark ? "#383838" : "#E3E3E3"),
-            ["AccentBrush"] = Color(IsDark ? "#0A84FF" : "#007AFF"),
-            ["AccentText"] = Colors.White,
-            ["UsageAmple"] = Color(IsDark ? "#30D158" : "#34C759"),
-            ["UsageWatch"] = Color(IsDark ? "#FFD60A" : "#FFCC00"),
-            ["UsageCritical"] = Color(IsDark ? "#FF9F0A" : "#FF9500"),
-            ["AccentBorderBrush"] = Color("#660A84FF"),
-            ["AccentSubtleBrush"] = Color(IsDark ? "#19314A" : "#E6F2FF"),
-            ["CaptionCloseHover"] = Color("#E81123"),
-            ["CaptionCloseHoverText"] = Colors.White
+            var index = resources.MergedDictionaries.IndexOf(dictionary);
+            resources.MergedDictionaries[index] = new ResourceDictionary { Source = source };
+        }
+        // Alias the framework's brushes for custom charts/cards. Ordinary controls
+        // keep the native styles, including disabled/selected/keyboard-focus states.
+        Brush Native(string key, Brush fallback) => Application.Current.TryFindResource(key) as Brush ?? fallback;
+        var accent = Native("AccentFillColorDefaultBrush", SystemColors.AccentColorBrush);
+        var brushes = new Dictionary<string, Brush>
+        {
+            ["WindowBackground"] = Native("ApplicationBackgroundBrush", Solid(IsDark ? "#202020" : "#FAFAFA")),
+            ["PanelBackground"] = Native("LayerFillColorDefaultBrush", Solid(IsDark ? "#2B2B2B" : "#F3F3F3")),
+            ["ProviderPopupBackground"] = Native("ComboBoxDropDownBackground", Solid(IsDark ? "#2C2C2C" : "#F9F9F9")),
+            ["CardBackground"] = Native("CardBackgroundFillColorDefaultBrush", Solid(IsDark ? "#2B2B2B" : "#FFFFFF")),
+            ["LimitCardBackground"] = Native("CardBackgroundFillColorSecondaryBrush", Solid(IsDark ? "#2B2B2B" : "#F6F6F6")),
+            ["ControlBackground"] = Native("ControlFillColorDefaultBrush", Solid(IsDark ? "#333333" : "#FFFFFF")),
+            ["ControlHover"] = Native("SubtleFillColorSecondaryBrush", Solid(IsDark ? "#3B3B3B" : "#EAEAEA")),
+            ["SelectedControl"] = Native("ControlFillColorInputActiveBrush", Solid(IsDark ? "#1F1F1F" : "#FFFFFF")),
+            ["PrimaryText"] = Native("TextFillColorPrimaryBrush", Solid(IsDark ? "#FFFFFF" : "#202020")),
+            ["SecondaryText"] = Native("TextFillColorSecondaryBrush", Solid(IsDark ? "#CFCFCF" : "#616161")),
+            ["DividerBrush"] = Native("DividerStrokeColorDefaultBrush", Solid(IsDark ? "#444444" : "#D6D6D6")),
+            ["AccentBrush"] = accent,
+            ["AccentText"] = Native("TextOnAccentFillColorPrimaryBrush", Brushes.White),
+            ["UsageAmple"] = Solid(IsDark ? "#6CCB5F" : "#0F7B0F"),
+            ["UsageWatch"] = Solid(IsDark ? "#FCE100" : "#9D5D00"),
+            ["UsageCritical"] = Solid(IsDark ? "#FFB900" : "#C42B1C"),
+            ["AccentBorderBrush"] = Tint(accent, 0.4),
+            ["AccentSubtleBrush"] = Tint(accent, 0.12),
+            ["CaptionCloseHover"] = Solid("#E81123"),
+            ["CaptionCloseHoverText"] = Brushes.White
         };
         if (contrast)
         {
-            foreach (var name in new[] { "WindowBackground", "PanelBackground", "CardBackground", "LimitCardBackground", "ControlBackground", "SelectedControl" }) colors[name] = SystemColors.WindowColor;
-            colors["PrimaryText"] = colors["SecondaryText"] = SystemColors.WindowTextColor;
-            colors["DividerBrush"] = SystemColors.WindowTextColor;
-            colors["AccentBrush"] = SystemColors.HighlightColor;
-            colors["UsageAmple"] = colors["UsageWatch"] = colors["UsageCritical"] = SystemColors.HighlightColor;
-            colors["AccentText"] = SystemColors.HighlightTextColor;
-            colors["AccentBorderBrush"] = SystemColors.HighlightColor;
-            colors["AccentSubtleBrush"] = SystemColors.WindowColor;
-            colors["ControlHover"] = SystemColors.WindowColor;
-            colors["CaptionCloseHover"] = SystemColors.HighlightColor;
-            colors["CaptionCloseHoverText"] = SystemColors.HighlightTextColor;
+            foreach (var name in new[] { "WindowBackground", "PanelBackground", "ProviderPopupBackground", "CardBackground", "LimitCardBackground", "ControlBackground", "SelectedControl", "ControlHover", "AccentSubtleBrush" }) brushes[name] = SystemColors.WindowBrush;
+            brushes["PrimaryText"] = brushes["SecondaryText"] = brushes["DividerBrush"] = SystemColors.WindowTextBrush;
+            brushes["AccentBrush"] = brushes["UsageAmple"] = brushes["UsageWatch"] = brushes["UsageCritical"] = brushes["AccentBorderBrush"] = brushes["CaptionCloseHover"] = SystemColors.HighlightBrush;
+            brushes["AccentText"] = brushes["CaptionCloseHoverText"] = SystemColors.HighlightTextBrush;
         }
-        foreach (var (key, color) in colors) Application.Current.Resources[key] = new SolidColorBrush(color);
+        foreach (var (key, brush) in brushes) resources[key] = brush;
     }
-    private static Color Color(string value) => (Color)ColorConverter.ConvertFromString(value);
+    private static SolidColorBrush Solid(string value) => new((Color)ColorConverter.ConvertFromString(value));
+    private static Brush Tint(Brush brush, double opacity)
+    {
+        var tinted = brush.CloneCurrentValue(); tinted.Opacity *= opacity; tinted.Freeze(); return tinted;
+    }
 }

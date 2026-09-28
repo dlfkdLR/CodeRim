@@ -12,7 +12,7 @@ using TextBox = System.Windows.Controls.TextBox;
 
 namespace CodeRim.Windows.Views;
 
-/// <summary>A searchable provider popover with the reference Mac's selection and keyboard behavior.</summary>
+/// <summary>A native Windows selector with provider search and explicit keyboard selection.</summary>
 internal sealed class UsageProviderPicker : ComboBox
 {
     public UsageProviderPicker() => IsTextSearchEnabled = false;
@@ -26,6 +26,7 @@ internal sealed class UsageProviderPicker : ComboBox
     private string? highlighted;
     private bool keyboardNavigation;
     private Border? host;
+    internal Border? DropdownHost => host;
     private TextBox? search;
     private Button? clearSearchButton;
     private readonly StackPanel rows = new();
@@ -36,7 +37,17 @@ internal sealed class UsageProviderPicker : ComboBox
 
     public override void OnApplyTemplate()
     {
-        base.OnApplyTemplate(); host = GetTemplateChild("PART_ProviderContent") as Border;
+        base.OnApplyTemplate();
+        // Preserve the framework selector, arrow, focus and disabled states. Only
+        // the popup content is specialized to retain provider search/navigation.
+        host = null;
+        if (GetTemplateChild("PART_Popup") is Popup popup)
+        {
+            host = new Border { Width = 272, Padding = new Thickness(8), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4) };
+            host.SetResourceReference(Border.BackgroundProperty, "ProviderPopupBackground");
+            host.SetResourceReference(Border.BorderBrushProperty, "DividerBrush");
+            popup.Child = host;
+        }
         if (IsDropDownOpen) BuildPopover();
     }
     protected override void OnItemsChanged(NotifyCollectionChangedEventArgs e)
@@ -150,9 +161,7 @@ internal sealed class UsageProviderPicker : ComboBox
             var selected = Equals(SelectedValue, option.Id);
             var button = Ui.Button("", () => Select(option.Id)); button.Height = 40; button.Margin = new Thickness(2, 0, 2, 4); button.Padding = new Thickness(10, 0, 10, 0);
             button.Style = (Style)FindResource("UsageProviderOption"); button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-            button.SetResourceReference(BackgroundProperty, selected ? "AccentSubtleBrush" : "WindowBackground");
-            button.MouseEnter += (_, _) => { if (!selected) button.SetResourceReference(BackgroundProperty, "ControlHover"); };
-            button.MouseLeave += (_, _) => button.SetResourceReference(BackgroundProperty, selected ? "AccentSubtleBrush" : "WindowBackground");
+            button.SetResourceReference(BackgroundProperty, selected ? "AccentSubtleBrush" : "ProviderPopupBackground");
             var line = new DockPanel();
             var check = Ui.Text(selected ? "✓" : "", 11); check.Width = 14; check.Margin = new Thickness(8, 0, 0, 0); check.VerticalAlignment = VerticalAlignment.Center; check.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush"); DockPanel.SetDock(check, Dock.Right); line.Children.Add(check);
             var mark = new ProviderMark { ProviderId = option.Id, Width = 20, Height = 20, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center }; mark.SetResourceReference(ProviderMark.ForegroundProperty, "PrimaryText"); DockPanel.SetDock(mark, Dock.Left); line.Children.Add(mark);

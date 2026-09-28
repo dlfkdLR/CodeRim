@@ -51,11 +51,16 @@ internal static partial class NativeSmoke
             try
             {
                 fixture.Show(); fixture.Activate(); await Idle(); picker.IsDropDownOpen = true; await Idle();
-                var host = (Border)picker.Template.FindName("PART_ProviderContent", picker);
-                Require(Math.Abs(host.ActualWidth - 272) < 1, "Provider popover width differs from the reference.");
+                var host = picker.DropdownHost ?? throw new InvalidOperationException("Native provider selector has no search popup.");
+                Require(Math.Abs(host.ActualWidth - 272) < 1, "Provider search popup lost its bounded width.");
+                Require(host.Background is System.Windows.Media.SolidColorBrush popupBrush && popupBrush.Color.A == 255 && popupBrush.Opacity == 1,
+                    "The provider popup must have an opaque native surface.");
                 var query = Descendants<TextBox>(host).Single(x => AutomationProperties.GetAutomationId(x) == "usage.provider.search");
                 Require(Descendants<Button>(host).Single(x => AutomationProperties.GetAutomationId(x) == "menu.provider.codex") is { } selected
                     && AutomationProperties.GetItemStatus(selected) == "Selected", "Current provider has no selected state.");
+                var selectedRow = Descendants<Button>(host).Single(x => AutomationProperties.GetAutomationId(x) == "menu.provider.codex");
+                Require(selectedRow.Parent is Panel rowPanel && Math.Abs(selectedRow.ActualWidth + selectedRow.Margin.Left + selectedRow.Margin.Right - rowPanel.ActualWidth) < 1,
+                    "Provider rows must keep their full-width selection and click targets.");
                 query.Text = "codex"; await Idle();
                 var clear = Descendants<Button>(host).Single(x => AutomationProperties.GetName(x) == "Clear search"); clear.Focus();
                 clear.RaiseEvent(new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(clear)!, 0, Key.Space) { RoutedEvent = Keyboard.PreviewKeyDownEvent }); await Idle();
@@ -64,6 +69,8 @@ internal static partial class NativeSmoke
                 try
                 {
                     SettingsTheme.Apply(dark: false, highContrast: false); await Idle();
+                    Require(host.Background is System.Windows.Media.SolidColorBrush lightPopupBrush && lightPopupBrush.Color.A == 255 && lightPopupBrush.Opacity == 1,
+                        "The light provider popup exposes content behind its window.");
                     Require(Descendants<ProviderMark>(host).All(x => x.Foreground is System.Windows.Media.SolidColorBrush brush
                         && brush.Color == ((System.Windows.Media.SolidColorBrush)Application.Current.FindResource("PrimaryText")).Color), "Light mode provider marks retained a white foreground.");
                     Capture(host, Path.Combine(directory, "windows-usage-provider-popover-light.png"));

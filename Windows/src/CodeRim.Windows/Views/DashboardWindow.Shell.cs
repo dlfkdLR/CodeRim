@@ -33,7 +33,7 @@ internal sealed partial class DashboardWindow
         sidebarColumn.Width = new GridLength(sidebarWidth); sidebarColumn.MinWidth = 208; sidebarColumn.MaxWidth = 268;
         layout.Children.Remove(sidebar);
         sidebar.Margin = new Thickness(10, 8, 10, 8); sidebar.Padding = new Thickness(0); sidebar.BorderThickness = new Thickness(0); sidebar.Background = Brushes.Transparent;
-        var surface = new Border { CornerRadius = new CornerRadius(18), Margin = new Thickness(8, 8, 0, 8), Child = sidebar };
+        var surface = new Border { Child = sidebar };
         surface.SetResourceReference(Border.BackgroundProperty, "PanelBackground"); sidebarSurface = surface; layout.Children.Insert(0, surface);
 
         // Keep native drag, resize, double-click maximize and system-menu behavior

@@ -8,7 +8,7 @@ using Button = System.Windows.Controls.Button;
 
 namespace CodeRim.Windows.Views;
 
-/// <summary>Mirrors SettingsMetrics and grouped row structure on macOS.</summary>
+/// <summary>Shared settings rows with Windows control metrics and navigation glyphs.</summary>
 internal static class SettingsUi
 {
     internal static void Resource(FrameworkElement element, DependencyProperty property, string key) => element.SetResourceReference(property, key);
@@ -33,7 +33,7 @@ internal static class SettingsUi
             }
             content.Children.Add(row);
         }
-        var card = new Border { CornerRadius = new CornerRadius(10), BorderThickness = new Thickness(1), Child = content };
+        var card = new Border { CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(1), Child = content };
         Resource(card, Border.BackgroundProperty, "CardBackground"); Resource(card, Border.BorderBrushProperty, "DividerBrush");
         section.Children.Add(card); return section;
     }
@@ -61,7 +61,7 @@ internal static class SettingsUi
     }
     internal static FrameworkElement Picker<T>(string title, IEnumerable<T> values, T selected, Action<T> changed)
     {
-        var picker = Ui.Combo(values, selected, changed); picker.MinWidth = 100; picker.MaxWidth = 250; picker.MinHeight = 22; picker.Height = 24;
+        var picker = Ui.Combo(values, selected, changed); picker.MinWidth = 100; picker.MaxWidth = 250; picker.MinHeight = 32;
         picker.HorizontalAlignment = HorizontalAlignment.Right; return Row(title, picker);
     }
     internal static FrameworkElement Action(string title, Action action)
@@ -88,16 +88,19 @@ internal static class SettingsUi
     }
     internal static FrameworkElement Icon(string id)
     {
-        var (color, path) = id switch
+        var path = id switch
         {
-            "general" => ("#808080", "M4,2 L6,2 7,0 9,0 10,2 12,2 14,4 14,6 16,7 16,9 14,10 14,12 12,14 10,14 9,16 7,16 6,14 4,14 2,12 2,10 0,9 0,7 2,6 2,4 Z M5,8 A3,3 0 1 0 11,8 A3,3 0 1 0 5,8"),
-            "usage" => ("#007AFF", "M1,1 V15 H16 M4,12 V8 M8,12 V4 M12,12 V1"),
-            "providers" => ("#5856D6", "M5,5 A3,3 0 1 0 11,5 A3,3 0 1 0 5,5 M2,15 Q2,10 8,10 Q14,10 14,15 Z"),
-            "notch" => ("#00A5AD", "M1,2 H15 V14 H1 Z M4,3 H12 V6 H4 Z"),
-            "diagnostics" => ("#E85C9D", "M1,3 H15 M1,8 H15 M1,13 H15 M5,1 V5 M11,6 V10 M6,11 V15"),
-            _ => ("#808080", "M8,1 A7,7 0 1 0 8,15 A7,7 0 1 0 8,1 M8,7 V12 M8,4 V5")
+            "general" => "M4,2 L6,2 7,0 9,0 10,2 12,2 14,4 14,6 16,7 16,9 14,10 14,12 12,14 10,14 9,16 7,16 6,14 4,14 2,12 2,10 0,9 0,7 2,6 2,4 Z M5,8 A3,3 0 1 0 11,8 A3,3 0 1 0 5,8",
+            "usage" => "M1,1 V15 H16 M4,12 V8 M8,12 V4 M12,12 V1",
+            "providers" => "M5,5 A3,3 0 1 0 11,5 A3,3 0 1 0 5,5 M2,15 Q2,10 8,10 Q14,10 14,15 Z",
+            "notch" => "M1,2 H15 V14 H1 Z M4,3 H12 V6 H4 Z",
+            "diagnostics" => "M1,3 H15 M1,8 H15 M1,13 H15 M5,1 V5 M11,6 V10 M6,11 V15",
+            _ => "M8,1 A7,7 0 1 0 8,15 A7,7 0 1 0 8,1 M8,7 V12 M8,4 V5"
         };
-        return new Border { Width = 20, Height = 20, CornerRadius = new CornerRadius(5.5), Background = Ui.Brush(color),
-            Child = new System.Windows.Shapes.Path { Data = Geometry.Parse(path), Stroke = Brushes.White, StrokeThickness = 1.3, Stretch = Stretch.Uniform, Margin = new Thickness(4) } };
+        var glyph = new System.Windows.Shapes.Path { Data = Geometry.Parse(path), Width = 18, Height = 18,
+            StrokeThickness = 1.3, Stretch = Stretch.Uniform, VerticalAlignment = VerticalAlignment.Center };
+        glyph.SetBinding(System.Windows.Shapes.Shape.StrokeProperty, new System.Windows.Data.Binding(nameof(Control.Foreground))
+        { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(ListBoxItem), 1) });
+        return glyph;
     }
 }

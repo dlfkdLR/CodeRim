@@ -74,7 +74,7 @@ internal static partial class NativeSmoke
             Require(settings.Current.UsageProvider == "claude" && !integration.Available
                 && !store.Readings.ContainsKey("claude"), "External owner change retained old quotas or forced a different selection.");
             var selector = Descendants<UsageProviderPicker>(pane).Single(); selector.IsDropDownOpen = true; await Idle();
-            var host = (Border)selector.Template.FindName("PART_ProviderContent", selector);
+            var host = selector.DropdownHost ?? throw new InvalidOperationException("Native provider selector has no search popup.");
             Require(!Descendants<Button>(host).Any(x => AutomationProperties.GetAutomationId(x) == "menu.provider.claude"), "Unavailable selected Claude remained selectable.");
             selector.IsDropDownOpen = false;
             Require(Descendants<Button>(pane).Any(x => x.Content as string == "Open Claude Settings"), "Focused Usage retained stale content after losing its owner.");

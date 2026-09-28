@@ -25,10 +25,7 @@ internal static class Ui
     public static Button Button(string label, Action action)
     {
         var button = new Button { Content = label, Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(0, 4, 8, 4),
-            MinHeight = 28, Cursor = System.Windows.Input.Cursors.Hand };
-        button.SetResourceReference(Control.ForegroundProperty, "PrimaryText");
-        button.SetResourceReference(Control.BackgroundProperty, "ControlBackground");
-        button.SetResourceReference(Control.BorderBrushProperty, "DividerBrush");
+            MinHeight = 32, HorizontalAlignment = HorizontalAlignment.Stretch };
         AutomationProperties.SetName(button, label);
         button.Click += (_, _) => action(); return button;
     }
@@ -55,7 +52,6 @@ internal static class Ui
     {
         var box = new ComboBox { ItemsSource = values, SelectedItem = selected, MinWidth = 150, Margin = new Thickness(0, 5, 0, 10),
             HorizontalAlignment = HorizontalAlignment.Left };
-        box.SetResourceReference(Control.ForegroundProperty, "PrimaryText");
         var text = new FrameworkElementFactory(typeof(TextBlock));
         text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding { Converter = new ChoiceLabel() });
         text.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding(nameof(Control.Foreground))
@@ -84,12 +80,13 @@ internal static class Ui
     public static CheckBox Toggle(string label, bool value, Action<bool> changed)
     {
         var box = new CheckBox { Content = label, IsChecked = value, Margin = new Thickness(0, 6, 0, 10) };
-        box.SetResourceReference(Control.ForegroundProperty, "PrimaryText"); AutomationProperties.SetName(box, label);
+        AutomationProperties.SetName(box, label);
         box.Checked += (_, _) => changed(true); box.Unchecked += (_, _) => changed(false); return box;
     }
     public static void Section(Panel panel, string title)
     {
-        panel.Children.Add(new Border { Height = 1, Background = Brush("#383A40"), Margin = new Thickness(0, 16, 0, 16) });
+        var divider = new Border { Height = 1, Margin = new Thickness(0, 16, 0, 16) };
+        divider.SetResourceReference(Border.BackgroundProperty, "DividerBrush"); panel.Children.Add(divider);
         panel.Children.Add(Text(title, 16, weight: FontWeights.SemiBold));
     }
     public static FrameworkElement Row(string label, string value)

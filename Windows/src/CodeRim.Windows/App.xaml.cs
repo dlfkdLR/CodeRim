@@ -16,6 +16,13 @@ namespace CodeRim.Windows;
 #pragma warning disable CA1001 // WPF owns the application lifetime; OnExit disposes owned resources.
 public partial class App : System.Windows.Application
 {
+    public App()
+    {
+        // Fluent controls should not add a DWM backdrop to the transparent notch.
+        // The switch must be set before the generated Main loads App.xaml.
+        AppContext.SetSwitch("Switch.System.Windows.Appearance.DisableFluentThemeWindowBackdrop", true);
+    }
+
     private Mutex? instance;
     private InstanceActivation? activation;
     private TrayIconHost? tray;
