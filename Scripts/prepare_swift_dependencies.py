@@ -165,7 +165,7 @@ def prepare(root, scratch):
     if not receipt.exists():
         validate_copy(checkout, spec, patched=False, independent=False)
         # Preserve SwiftPM's checkout/bare-repository relationship. Git objects
-        # are read-only inputs; only two unshared working files are patched.
+        # are read-only inputs; only the explicitly listed unshared working files are patched.
         backup = scratch / "coderim-upstream-CodexBar"
         if backup.exists() or backup.is_symlink():
             raise ValueError("An interrupted dependency preparation needs inspection")

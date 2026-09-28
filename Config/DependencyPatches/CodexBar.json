@@ -1,7 +1,7 @@
 {
   "identity": "codexbar",
   "revision": "51ed16bdd3abe35ec53af99818e1b5f0d2a631d3",
-  "patch_sha256": "24ec5cb21ac52a051b81ee5ccd338ab27b30da74c015e8ec6141a435f72135f8",
+  "patch_sha256": "f089081459dd2df760d37f2a29373dadfc7d5a554902cddc829401ce19b5ce15",
   "files": {
     "Sources/CodexBarCore/Providers/Cursor/CursorLocalCSVReader.swift": {
       "before": "761946f280f63d18ae8b61529e98f69c6c0649d74aae2fd9f20b8c6787a5737f",
@@ -10,6 +10,26 @@
     "Sources/CodexBarCore/Vendored/CostUsage/CostUsageClaudeJSON.swift": {
       "before": "a5b2a72d2834abdc0a2c3a1350c44310ba831daa4048be3eb665d714bcea9994",
       "after": "1d7ae839262934f3d2b8f9c2247b8cb72a05942ba6494402b5408a8be8a018e6"
+    },
+    "Sources/CQuickJS/dtoa.c": {
+      "before": "a8d2cf2d04db406e0c16acdd95ab0e709d309902865722f41dac07a1ba5676af",
+      "after": "66d94738507ed159ecd4225afe66b70994dbf474aa009c275371cc12ea3b2f78"
+    },
+    "Sources/CQuickJS/include/cutils.h": {
+      "before": "b93331edd1bf86e1c0b516657d0b16b95bba5f24d799d9824df16f903173b5c2",
+      "after": "1302aef886cedcac1e8117bac3312d47901ee5d4fb5f28964be7423c1a2d1f1a"
+    },
+    "Sources/CQuickJS/libregexp.c": {
+      "before": "d1e7c4280e1948a25310aaa80aedc273b6fe12322964965f9025ba1800f2c14d",
+      "after": "6398ce49a32f56507acde334896b395c42dd2f63a5770566215ea259471e7cc4"
+    },
+    "Sources/CQuickJS/libunicode.c": {
+      "before": "62bfe07a00c297d62cf89d2a147f1d0cd0e90ae7c8058e0fabb66e896950a702",
+      "after": "d88de115cd59a03558f9414beec634b3e1d8a98682194d5296e5cc5630947d9f"
+    },
+    "Sources/CQuickJS/quickjs.c": {
+      "before": "ce9a95d3c011f255c1facb7d4361c71209e71ba58d84acd3281a755d0686a285",
+      "after": "216ebe4fff99d99124123ca8062ec428deb9bf54cfb7b26966c8391238a52376"
     }
   },
   "binary_cache": {

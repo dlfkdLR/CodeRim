@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Test pin/source guards and real upstream JSON code in debug and release."""
+"""Test pin guards, JSON bridging and unchanged QuickJS conversion behavior."""
 import importlib.util
 import json
 from pathlib import Path
@@ -174,6 +174,49 @@ class DependencyPatchTests(unittest.TestCase):
                 preparation.preflight_paths(root, scratch)
             self.assertEqual(marker.read_text(), "unchanged")
             self.assertFalse((scratch / ".coderim-owner.json").exists())
+
+    def test_cquickjs_conversion_assembly_and_runtime(self):
+        # Explicit casts must preserve all generated code, not just sampled JS results.
+        fixtures = ROOT / "Tests/Scripts/fixtures"
+        units = ["CQuickJSHost.c", "dtoa.c", "libregexp.c", "libunicode.c", "quickjs.c"]
+        directory = Path(self.temp.name) / "cquickjs"
+        directory.mkdir()
+        for arch in ["arm64", "x86_64"]:
+            for unit in units:
+                assemblies = []
+                for side, source in [("original", self.original), ("patched", self.patched)]:
+                    code = source / "Sources/CQuickJS"
+                    output = directory / (side + "-" + arch + "-" + unit + ".s")
+                    flags = ["-Werror=shorten-64-to-32"] if side == "patched" else []
+                    result = subprocess.run(["xcrun", "clang", "-std=gnu11", "-D_GNU_SOURCE", "-Iinclude",
+                        "-O2", "-g0", "-arch", arch, "-mmacosx-version-min=14.0", *flags,
+                        "-S", unit, "-o", str(output)], cwd=code, capture_output=True, text=True, timeout=120)
+                    self.assertEqual(result.returncode, 0, result.stderr)
+                    if side == "patched":
+                        self.assertNotIn("warning:", result.stderr)
+                    assemblies.append(output.read_bytes())
+                self.assertTrue(assemblies[0] == assemblies[1], "QuickJS assembly changed: " + arch + "/" + unit)
+        # Both optimization levels execute on the actual host architecture.
+        # x86_64 execution on Apple Silicon is separately verified with Rosetta.
+        for optimization in ["-O0", "-O2"]:
+            for side, source in [("original", self.original), ("patched", self.patched)]:
+                code = source / "Sources/CQuickJS"
+                binary = directory / (side + optimization)
+                flags = ["-Werror=shorten-64-to-32"] if side == "patched" else []
+                build = subprocess.run(["xcrun", "clang", "-std=gnu11", "-D_GNU_SOURCE", "-Iinclude",
+                    optimization, "-mmacosx-version-min=14.0", *flags, *units,
+                    str(fixtures / "cquickjs_conversions.c"), "-o", str(binary)],
+                    cwd=code, capture_output=True, text=True, timeout=120)
+                self.assertEqual(build.returncode, 0, build.stderr)
+                if side == "patched":
+                    self.assertNotIn("warning:", build.stderr)
+                result = subprocess.run([str(binary), str(fixtures / "cquickjs_conversions.js")],
+                    capture_output=True, text=True, timeout=30)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                checks = json.loads(result.stdout)
+                self.assertEqual(checks["failed"], [])
+                self.assertEqual(checks["passed"], checks["total"])
+                self.assertEqual(checks["total"], 25)
 
     def test_real_json_code_original_and_patched_debug_and_release(self):
         main = Path(self.temp.name) / "main.swift"
