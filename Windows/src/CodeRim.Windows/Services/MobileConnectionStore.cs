@@ -41,7 +41,14 @@ internal sealed class MobileConnectionStore : INotifyPropertyChanged, IDisposabl
             }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or CryptographicException or JsonException or ArgumentException)
-        { Status = "Reconnect iPhone"; }
+        {
+            // InvalidDataException is an IOException, so malformed saved relay tokens
+            // also land here. Remove the unusable value when possible so startup does
+            // not repeat the same failure forever.
+            try { vault.Delete(Key); }
+            catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException or CryptographicException) { }
+            Status = "Reconnect iPhone";
+        }
         timer.Tick += Tick;
     }
     private void Activate(MobileCredential value)

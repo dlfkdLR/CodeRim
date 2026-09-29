@@ -101,6 +101,16 @@ internal static partial class NativeSmoke
         Require(vault.Load("smoke.fixture") == "synthetic-secret", "DPAPI round trip failed");
         vault.Delete("smoke.fixture"); Require(vault.Load("smoke.fixture") is null, "Credential removal failed");
         Record("Windows private-file ACL, atomic replacement, and user DPAPI round trip");
+        var mobileStoppedPath = Path.Combine(CompanionFile.DataDirectory, "iphone-sharing-stopped");
+        File.Delete(mobileStoppedPath);
+        vault.Save("iphone-relay", JsonSerializer.Serialize(new MobileCredential(
+            "https://relay.example.com/", "invalid-token", DateTimeOffset.UtcNow.AddDays(30).ToUnixTimeSeconds())));
+        using (var mobile = new MobileConnectionStore(vault, _ => throw new InvalidOperationException("Invalid saved relay credential started publishing"), enabled: true))
+        {
+            Require(!mobile.Connected && mobile.Status == "Reconnect iPhone", "Invalid saved relay credential did not fail closed");
+            Require(vault.Load("iphone-relay") is null, "Invalid saved relay credential was not removed");
+        }
+        Record("Invalid saved iPhone relay credential fails closed and is removed");
         var pendingImport = new TaskCompletionSource<BrowserCookieJar>(TaskCreationOptions.RunContinuationsAsynchronously);
         var importSaved = false; CancellationToken pendingReadToken = default;
         vault.Save("cookie:qoder", "manual-fixture");
