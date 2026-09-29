@@ -4,7 +4,9 @@
 
 Native WPF application for Windows 11 x64 and ARM64, built with .NET 10. The current source includes the macOS-aligned edge notch and Usage dashboard, Codex/Claude saved accounts, local token history, and 70 provider connection implementations. Widgets are outside the Windows scope.
 
-The current Windows release is [**2.1.13**](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.13), with x64 and ARM64 MSI installers. Windows version declarations use `Windows/Release.env`, independently of the macOS release configuration.
+The current Windows release is [**2.1.14**](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.14), with x64 and ARM64 MSI installers. Windows version declarations use `Windows/Release.env`, independently of the macOS release configuration.
+
+Release 2.1.14 fixes optional ChatGPT account history for an existing Codex login with read-only sandbox ACL inheritance. The reader preserves the file and its permissions, keeps ownership/size/reparse checks, and rejects foreign write, delete and ACL mutation rights. It also updates the Windows CI actions to Node.js 24. macOS remains at 2.1.13.
 
 Release 2.1.13 adds saved-login freshness checks, signed-out Codex restoration, the required official account/read RPC parameters, strict `CODEX_HOME` handling, bounded snapshot replacement retries, and optional iPhone relay settings. Earlier Windows CI [36375689807](https://github.com/dlfkdLR/CodeRim/actions/runs/36375689807) at `bcf390f` passed all 2,291 Core tests on each architecture, 33 installed/direct synthetic saved-account checks, and all 14 MSI lifecycle groups. The release CI is the authority for the final 2.1.13 tree. Native filesystem success does not establish live-provider authentication or physical display/input parity.
 
