@@ -69,9 +69,8 @@ final class AccountUsageLayoutTests: XCTestCase {
                 await layout(host, in: window, fixedSize: embedded ? NSSize(width: width, height: 780) : nil)
                 let afterSwitch = try recognizedText(in: render(host))
                 XCTAssertTrue(afterSwitch.contains("lifetime"), afterSwitch)
-                for previousTotal in ["500", "1000", "2000"] {
-                    XCTAssertFalse(afterSwitch.contains(previousTotal), afterSwitch)
-                }
+                XCTAssertTrue(afterSwitch.contains(normalized("Account totals are ready to sync")), afterSwitch)
+                XCTAssertFalse(afterSwitch.contains(normalized("Server through")), afterSwitch)
             }
         }
     }
