@@ -56,7 +56,7 @@ Scripts/release_public.sh
 
 ## Windows 릴리스
 
-Windows MSI 버전은 macOS DMG와 독립적으로 올라갈 수 있습니다. 감사한 공개 파일은 macOS 2.1.8·Windows 2.1.12입니다. 실제 공개 파일로 플랫폼별 링크를 갱신합니다. GitHub 전체 최신 릴리스는 macOS 버전의 기준이 아닙니다. x64·ARM64 설치 파일을 별도로 패키징·검사합니다. MSI 서명·manifest는 고정 Ed25519 업데이트 신뢰를 쓰며 Authenticode 게시자 서명은 별개입니다. [Windows 패키징·복구](WINDOWS.ko.md#updates)를 참고합니다.
+Windows MSI 버전은 macOS DMG와 독립적으로 올라갈 수 있습니다. CodeRim 2.1.13은 macOS·Windows 버전을 의도적으로 맞췄지만 이후 플랫폼 릴리스는 다시 달라질 수 있습니다. 실제 공개 파일로 플랫폼별 링크를 갱신합니다. GitHub 전체 최신 릴리스는 macOS 버전의 기준이 아닙니다. x64·ARM64 설치 파일을 별도로 패키징·검사합니다. MSI 서명·manifest는 고정 Ed25519 업데이트 신뢰를 쓰며 Authenticode 게시자 서명은 별개입니다. [Windows 패키징·복구](WINDOWS.ko.md#updates)를 참고합니다.
 
 ## Rollback
 

@@ -14,7 +14,7 @@ An optional source-level iPhone companion targets iOS 17.2+ with SwiftUI, Activi
 
 People using Codex or Claude Code want a quick view of locally observable tokens and separate service limits. The app imports local session events into independent durable provider snapshots, shows cached data immediately, and follows new writes asynchronously. It must avoid double-counting repeated records and remain responsive during large imports.
 
-Today, Usage analytics, notch token counts, CLI, and desktop widgets describe this computer across accounts. In the unreleased local macOS development source, a separate Codex Overview History can show current ChatGPT account totals with coverage dates. The audited main and macOS 2.1.8 have profile totals disabled. Remote totals never enter local usage tables or supplement unattributed local history. Account switches clear old remote values immediately. [Accounting](Documentation/USAGE.md).
+Today, Usage analytics, notch token counts, CLI, and desktop widgets describe this computer across accounts. CodeRim 2.1.13 adds a separate Codex Overview History that can show current ChatGPT account totals with coverage dates. Remote totals never enter local usage tables or supplement unattributed local history. Account switches clear old remote values immediately. [Accounting](Documentation/USAGE.md).
 
 ## Capabilities and constraints
 

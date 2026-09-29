@@ -40,7 +40,7 @@ components:
 
 ## Overview
 
-This document describes the current development design. Settings analytics, account-history defaults, and optional mobile sharing can be newer than audited GitHub main or macOS 2.1.8. [Source/release boundary](Documentation/README.md). Existing geometry and design tokens remain authoritative.
+This document defines the CodeRim 2.1.13 design. Settings analytics and account-history defaults ship in the macOS app; optional mobile sharing remains source-level and requires separate relay and device provisioning. [Source/release boundary](Documentation/README.md). Existing geometry and design tokens remain authoritative.
 
 **Creative North Star: "The Quiet Instrument"**
 
@@ -153,7 +153,7 @@ The palette follows macOS semantic colors so it remains correct in light, dark, 
 
 ## Layout
 
-The Settings Usage pane fills the available detail-column width. Provider/account and refresh actions stay above Overview, Usage analytics, and the selected provider’s Limits tabs. The unreleased development source opens Usage analytics by default; disabling it returns to Overview. Overview contains today’s total and breakdown, a horizontal period-summary strip, and direct analytic destinations. Limits contains quota windows and reset timing. Dividers separate these groups without enclosing the overview in a large card. The retained compact menu keeps its two modes.
+The Settings Usage pane fills the available detail-column width. Provider/account and refresh actions stay above Overview, Usage analytics, and the selected provider’s Limits tabs. Settings opens Usage analytics by default; disabling it returns to Overview. Overview contains today’s total and breakdown, a horizontal period-summary strip, and direct analytic destinations. Limits contains quota windows and reset timing. Dividers separate these groups without enclosing the overview in a large card. The retained compact menu keeps its two modes.
 
 Today's total and token breakdown sit beside one another when they fit and stack at narrower widths. The week, month, and lifetime or local-history summaries follow the same horizontal-to-vertical fitting behavior. Settings uses `settings-section` for overview padding and major section spacing; shared detailed screens retain `content` padding. The compact menu keeps its fixed `overview-popover` width, content-driven overview height, and `popover-edge` spacing.
 
@@ -193,10 +193,10 @@ Detail selections use gently rounded 8px containers, while information cards use
 ### Top-Level Modes
 
 - **Overview:** Local Today and separately sourced period/account history, with analytic destinations.
-- **Usage analytics:** This Mac token-type/model charts, ranked sessions, and expandable local calendar history in the development source.
+- **Usage analytics:** This Mac token-type/model charts, ranked sessions, and expandable local calendar history.
 - **Provider Limits:** Read-only Codex or Claude quota windows, reset timing, and pace. Reset-credit availability remains Codex-only.
 - **Provider Selection:** Settings and the compact menu share a 34pt switcher with a service mark, current provider name, and small chevrons. It opens a native popover with aligned service marks, 40pt rows, a quiet accent selection, and a trailing checkmark. Up to six providers fit naturally; larger lists expose search and scroll within a six-row viewport. Arrow keys and Return select, Escape dismisses, and existing provider shortcuts remain available. Only providers supported by the current usage data source appear. The existing Codex account switcher or Claude account row remains directly beneath the controls.
-- **Settings Mode Selection:** Underline tabs switch Overview, Usage analytics, and provider Limits in the development source. Keep their natural height and keyboard/accessibility behavior; provider/account context stays above the tabs. The retained compact presentation uses its two equal-width native mode buttons.
+- **Settings Mode Selection:** Underline tabs switch Overview, Usage analytics, and provider Limits. Keep their natural height and keyboard/accessibility behavior; provider/account context stays above the tabs. The retained compact presentation uses its two equal-width native mode buttons.
 - **Compact Mode Selection:** Two equal-width native buttons switch content in place. Native selection styling and keyboard and VoiceOver access remain part of both presentations.
 - **Feedback:** Clickable rows and utility buttons use a subtle neutral hover/pressed fill and an accent keyboard-focus outline. Feedback never changes geometry, honors Increase Contrast, and skips its short fade under Reduce Motion.
 - **Separation:** Provider and mode selection stay compact. The existing account row supplies account context without a repeated app title or generated explanatory subtitle.

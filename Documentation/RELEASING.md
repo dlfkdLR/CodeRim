@@ -56,7 +56,7 @@ Scripts/release_public.sh
 
 ## Windows releases
 
-Windows MSI versions can advance independently of the macOS DMG. The audited published assets are macOS 2.1.8 and Windows 2.1.12. Update each platform's links from actual release assets; the overall GitHub latest-release endpoint is not a macOS-version oracle. Package/test x64 and ARM64 installers separately. MSI signatures/manifests use the pinned Ed25519 update trust; Authenticode publisher signing is a distinct condition. See [Windows packaging and recovery](WINDOWS.md#updates).
+Windows MSI versions can advance independently of the macOS DMG. CodeRim 2.1.13 intentionally aligns the macOS and Windows version, but future platform releases can diverge again. Update each platform's links from actual release assets; the overall GitHub latest-release endpoint is not a macOS-version oracle. Package/test x64 and ARM64 installers separately. MSI signatures/manifests use the pinned Ed25519 update trust; Authenticode publisher signing is a distinct condition. See [Windows packaging and recovery](WINDOWS.md#updates).
 
 ## Rollback
 

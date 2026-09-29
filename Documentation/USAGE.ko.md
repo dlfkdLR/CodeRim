@@ -2,7 +2,7 @@
 
 [English](USAGE.md) · **한국어**
 
-**Settings → Usage**에서 Codex 또는 연결된 Claude Code를 선택합니다. 현재 macOS 소스에는 **Overview**, **Usage analytics**, 제공업체 **Limits**가 있습니다. 분석 화면에서 기간별 합계, 토큰 유형·모델 차트, 프로젝트, 세션, 모델·세션 상세를 봅니다. 이 소스 변경은 macOS 2.1.8 다운로드보다 최신일 수 있습니다.
+**Settings → Usage**에서 Codex 또는 연결된 Claude Code를 선택합니다. CodeRim 2.1.13에는 **Overview**, **Usage analytics**, 제공업체 **Limits**가 있습니다. 분석 화면에서 기간별 합계, 토큰 유형·모델 차트, 프로젝트, 세션, 모델·세션 상세를 봅니다.
 
 ## 로컬과 계정의 범위
 

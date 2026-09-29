@@ -40,7 +40,7 @@ components:
 
 ## 개요
 
-**방향: The Quiet Instrument.** 현재 개발 디자인을 설명합니다. Settings 분석·계정 History 기본값·선택적 모바일 공유는 감사한 GitHub main과 macOS 2.1.8보다 최신일 수 있습니다. [소스·릴리스 범위](Documentation/README.ko.md). 기존 형태·디자인 토큰이 기준입니다.
+**방향: The Quiet Instrument.** CodeRim 2.1.13 디자인을 설명합니다. Settings 분석·계정 History 기본값은 macOS 앱에 포함하고, 선택적 모바일 공유는 별도 relay·기기 프로비저닝이 필요한 소스 수준 기능입니다. [소스·릴리스 범위](Documentation/README.ko.md). 기존 형태·디자인 토큰이 기준입니다.
 
 CodeRim은 열면 준비되어 있고 작업으로 돌아가면 사라지는 작은 macOS 계기처럼 보입니다. 첫 화면은 당장 필요한 질문에 답하고 차트·프로젝트·세션·전체 한도는 한 단계 안쪽에 둡니다. 시스템 재질·의미 기반 텍스트·SF Symbols·얇은 구분선·고정 폭 숫자를 사용합니다. 밀도를 유지하되 각 영역의 목적과 읽기 간격을 분명히 합니다. 토큰 합계가 가장 강한 정보이며 상태·추정에는 설명을 붙입니다. 동작은 변화의 의미를 전달하고 조작을 막지 않습니다.
 
@@ -74,7 +74,7 @@ Settings ▸ Notch ▸ Readings의 Used / Remaining은 숫자·링 범위를 함
 
 ## 배치
 
-Settings Usage는 전체 상세 열 너비를 씁니다. 제공업체·계정·새로고침은 Overview·Usage analytics·선택 제공업체 Limits 탭 위에 유지합니다. 개발 소스는 Usage analytics를 기본으로 열고 비활성화하면 Overview로 돌아갑니다. Overview는 Today·구성·기간 합계·분석 링크, Limits는 한도·초기화 시각입니다. 큰 카드로 전체를 감싸지 않고 구분선을 씁니다. 작은 메뉴는 두 모드를 유지합니다.
+Settings Usage는 전체 상세 열 너비를 씁니다. 제공업체·계정·새로고침은 Overview·Usage analytics·선택 제공업체 Limits 탭 위에 유지합니다. Settings는 Usage analytics를 기본으로 열고 비활성화하면 Overview로 돌아갑니다. Overview는 Today·구성·기간 합계·분석 링크, Limits는 한도·초기화 시각입니다. 큰 카드로 전체를 감싸지 않고 구분선을 씁니다. 작은 메뉴는 두 모드를 유지합니다.
 
 Today와 구성을 나란히 두고 좁으면 쌓습니다. 주·월·Lifetime/Local History도 같은 방식으로 줄바꿈합니다. Settings 개요·큰 영역은 24px, 상세는 16px, 작은 메뉴는 너비372px·가장자리18px·내용에 맞는 높이입니다. 아이콘·라벨4px, 행8px, 영역 내부 컴포넌트12px 간격을 유지합니다.
 
@@ -102,13 +102,13 @@ Overview는 로컬 Today·별도 기간/계정 History·분석 링크, Usage ana
 
 공통 제공업체 switcher는34pt, 로고·현재 이름·작은 chevron입니다. 팝오버는 로고 정렬·40pt 행·선택 accent·checkmark를 씁니다. 여섯 개까지 자연 높이, 더 많으면 검색·여섯 행 viewport 스크롤입니다. 방향키·Return 선택, Escape 닫기, 기존 단축키를 유지합니다. 실제 사용량 지원 소스만 표시하고 계정 행은 바로 아래입니다.
 
-개발 Settings는 underline 탭·자연 높이·키보드·접근성을 유지합니다. 작은 화면은 같은 너비의 두 네이티브 모드 버튼을 유지합니다. 작은 메뉴는 같은 너비의 두 네이티브 버튼입니다. 행·유틸리티 hover/pressed는 약한 중립 채움, 키보드는 accent outline이며 형태를 바꾸지 않습니다. Increase Contrast·Reduce Motion을 따릅니다. 반복 앱 제목·생성 부제 대신 기존 계정 행이 맥락을 제공합니다.
+Settings는 underline 탭·자연 높이·키보드·접근성을 유지합니다. 작은 화면은 같은 너비의 두 네이티브 모드 버튼을 유지합니다. 작은 메뉴는 같은 너비의 두 네이티브 버튼입니다. 행·유틸리티 hover/pressed는 약한 중립 채움, 키보드는 accent outline이며 형태를 바꾸지 않습니다. Increase Contrast·Reduce Motion을 따릅니다. 반복 앱 제목·생성 부제 대신 기존 계정 행이 맥락을 제공합니다.
 
 ### 토큰·기간 합계
 
 Today total을 먼저, Input·Cached input·Output을 뒤에 둡니다. 캐시 포함·전체=입력+출력을 help에 설명합니다. Settings Today는 This Mac, 큰 total과 tokens·구성을 나란히 또는 좁으면 위아래로 둡니다. 캐시 표시 설정을 유지합니다. 숫자 변화는0.2–0.24초 ease-out, Reduce Motion에서 제거합니다.
 
-This Week·This Month·Lifetime은 ChatGPT snapshot이 있을 때 계정 값이며 없으면 마지막은 Local History입니다. 개발 소스 Codex History는 기본 ChatGPT account로 서버의 동기화 로컬·클라우드 합계를 표시합니다. 계정 미귀속 로컬 값을 더하지 않습니다. 범위 날짜·지연·Local History 링크, unavailable dash·상태를 표시하고 계정 전환 시 이전 값을 즉시 지웁니다. Today·분석은 로컬입니다. 감사한 main·macOS 2.1.8에서는 프로필 합계가 꺼져 있습니다. 기간 링크는 같은 너비·짧은 세로 구분선, 좁으면 쌓습니다.
+This Week·This Month·Lifetime은 ChatGPT snapshot이 있을 때 계정 값이며 없으면 마지막은 Local History입니다. Codex History는 기본 ChatGPT account로 서버의 동기화 로컬·클라우드 합계를 표시합니다. 계정 미귀속 로컬 값을 더하지 않습니다. 범위 날짜·지연·Local History 링크, unavailable dash·상태를 표시하고 계정 전환 시 이전 값을 즉시 지웁니다. Today·분석은 로컬입니다. 기간 링크는 같은 너비·짧은 세로 구분선, 좁으면 쌓습니다.
 
 ### 한도 미리보기
 
