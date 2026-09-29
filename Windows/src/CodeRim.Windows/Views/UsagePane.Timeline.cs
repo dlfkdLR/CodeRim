@@ -106,7 +106,7 @@ internal sealed partial class UsagePane
                 button.Template = ChartBarTemplate(); Motion.SetFeedback(button, false);
                 button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Padding = new Thickness(0);
                 button.Margin = new Thickness(0); button.MinWidth = 0; button.MinHeight = 0;
-                button.HorizontalAlignment = HorizontalAlignment.Left; button.Cursor = System.Windows.Input.Cursors.Arrow;
+                button.HorizontalAlignment = HorizontalAlignment.Left; button.VerticalAlignment = VerticalAlignment.Stretch; button.Cursor = System.Windows.Input.Cursors.Arrow;
                 button.HorizontalContentAlignment = HorizontalAlignment.Stretch; button.VerticalContentAlignment = VerticalAlignment.Stretch;
                 button.ToolTip = label; AutomationProperties.SetName(button, label);
                 AutomationProperties.SetAutomationId(button, "usage.bucket." + (cost ? "cost." : "tokens.") + bucket.Start.ToUnixTimeSeconds());

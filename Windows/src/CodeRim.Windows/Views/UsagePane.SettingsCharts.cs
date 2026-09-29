@@ -70,7 +70,7 @@ internal sealed partial class UsagePane
             var button = Ui.Button("", () => { settingsSelectedDate = day.Start; Update(); });
             button.Template = ChartBarTemplate(); Motion.SetFeedback(button, false);
             button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Margin = new Thickness(0); button.Padding = new Thickness(0);
-            button.MinWidth = button.MinHeight = 0; button.HorizontalAlignment = HorizontalAlignment.Left;
+            button.MinWidth = button.MinHeight = 0; button.HorizontalAlignment = HorizontalAlignment.Left; button.VerticalAlignment = VerticalAlignment.Stretch;
             button.HorizontalContentAlignment = HorizontalAlignment.Stretch; button.VerticalContentAlignment = VerticalAlignment.Stretch;
             button.Cursor = System.Windows.Input.Cursors.Arrow; button.Tag = day.Start;
             var content = new Grid(); StackPanel? stack = null;
