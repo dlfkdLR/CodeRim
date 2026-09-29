@@ -4,78 +4,56 @@
 
 > Coding-assistant limits at the edge of your screen.
 
-[![macOS CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/dlfkdLR/CodeRim?color=181a1e)](https://github.com/dlfkdLR/CodeRim/releases/latest) [![Windows CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/windows.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/windows.yml) ![macOS 14+](https://img.shields.io/badge/macOS-14%2B-181a1e) ![Windows 11 preview](https://img.shields.io/badge/Windows-11_preview-181a1e)
+[![macOS CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/dlfkdLR/CodeRim?color=181a1e)](https://github.com/dlfkdLR/CodeRim/releases/latest) [![Windows CI](https://github.com/dlfkdLR/CodeRim/actions/workflows/windows.yml/badge.svg)](https://github.com/dlfkdLR/CodeRim/actions/workflows/windows.yml)
 
 <img src="Assets/README/coderim-notch.png" alt="CodeRim with illustrative usage rings at the edge of a macOS screen" width="100%" />
 
-CodeRim keeps coding-assistant usage limits, reset times, and session activity visible in a small edge notch. It is available as a **native macOS app** and a **Windows 11 implementation preview**, with local token history for Codex and Claude Code. The Windows preview does not yet have full macOS feature parity.
+CodeRim keeps coding-assistant usage limits, reset times, and session activity visible in a small edge notch. It is a native **macOS app** and a **Windows 11 implementation preview**, with separate local token history for Codex and Claude Code.
 
 ## Features by platform
 
 | Feature | macOS | Windows preview |
 | --- | --- | --- |
-| Provider connections | 70 providers | 70 connection implementations |
-| Desktop interface | Menu bar, Settings, and edge notch | Tray, matching Settings sections, and edge notch |
-| Local Codex / Claude history | Token history, charts, and cost estimates | Token history, charts, and cost estimates |
+| Provider catalogue | 70 setup guides | 70 connection implementations; see the capability matrix |
+| Desktop interface | Menu bar, Settings, edge notch | Tray, Settings, edge notch |
+| Local Codex / Claude history | Tokens, models, projects, sessions; Codex cost estimates | Local history and analytics; platform-specific estimates |
 | Terminal CLI | Included | Included |
-| Saved account switching | Codex and Claude Code | Codex and Claude Code |
+| Saved accounts | Manual Codex and Claude Code switching | Manual Codex and Claude Code switching |
 | Widgets | macOS widgets | Outside the Windows scope |
-| Updates | Signed Sparkle updates | Setup installer; signed update downloads and restart installation |
+| Updates | Ed25519-validated Sparkle updates | Verified MSI updates for managed installs; separate legacy ZIP path |
 
-The matrix describes the current source. Local token history is scoped to this computer across accounts. See the [Windows capability matrix](Documentation/WINDOWS.md#remaining-parity-work) for individual provider status and remaining work.
-
-Both apps use the same six Settings sections and the same Usage, Projects, Sessions, and account navigation. Windows supports system light/dark themes, high contrast, manual refresh, limit visibility controls, session image counts and direct sub-agent navigation. Local images and conversation text are never copied into the usage database. Windows also supports verified Firefox cookie import for supported readers, separate Amp API/CLI/Web connections, Windsurf local-cache sources and Antigravity OAuth/Local IDE selection, Groq console sessions with refresh and 30-day activity, Factory browser sessions with consistent authentication and billing retries plus refreshable WorkOS session profiles protected against concurrent account changes, Today/7D/30D analytics, and independent Codex/Claude activity polling. OS-specific authentication and update behavior still differ; the matrix below describes those limits.
-
-Windows authentication also reuses GitHub CLI, trusted GLM Coding Plan and Codebuff local sign-ins, keeps Moonshot regional keys separate, and offers separate DeepSeek API/Web and Kimi API/CLI/Web connections. DeepSeek Web can also show optional detailed usage from that same session. Kimi can use an explicitly selected Desktop plaintext session after verification; automatic Desktop discovery remains unverified. StepFun supports password sign-in and Oasis-Token recovery. MiniMax offers separate regional API and Web connections. Alibaba Token Plan supports Bailian CLI or Web, with explicit source and region selection. Alibaba Coding Plan now separates API keys from regional Web sessions. Firefox import covers 21 supported readers, including MiMo session-cookie recovery from the selected profile, Abacus, LongCat and the Alibaba/Qwen Token Plan consoles. These paths are covered by synthetic connector tests; actual provider accounts remain a separate verification requirement.
-
-The current source adds explicit Chromium profile import for DeepSeek, Factory and MiniMax. It reads current storage records, verifies the selected account and saves the connection with Windows encryption. MiniMax requires matching session and group information; protected Chromium cookies still require a supported alternative. These additions are undergoing native regression checks.
-
-Windows Setup installations automatically check and download updates authenticated by the release signing key. Restart from Information to install; accounts, settings and local history are preserved. See the [Windows update guide](Documentation/WINDOWS.md#updates).
-
-The Windows notch now uses the same resting settings arc and revealed account controls as macOS. Repeated quota refreshes keep detail popups clear of the notch. Keyboard account selection keeps focus within the menu and returns it on Escape; redirected CLI output uses UTF-8, including Unicode provider names.
-
-The current source also bounds large notch provider lists and scrolls overflowing detail cards. xAI/Poe readers share authentication and incomplete-history handling across platforms. For audit findings and remaining verification limits, see the [2026-09-20 audit and verification limits](Documentation/FULL_AUDIT_2026-09-20.md).
-
-Current-source Windows Settings Usage follows the unchanged current Mac with a provider/account/refresh toolbar above the underlined Overview, Usage analytics and Codex Limits tabs. Analytics is the default when enabled and includes 7-day/30-day daily token/model charts, top sessions and local calendar-history disclosures. The public Windows 2.1.12 installer does not yet include these source changes; validation is tracked in the [Mac reference comparison](Documentation/WINDOWS_MAC_REFERENCE_PARITY_2026-09-23.md).
-
-Windows now animates notch folding, staggered provider/control entrances, usage readings and reset, refresh/activity indicators, tooltips, toggles and token totals. The app and Windows Reduce Motion settings stop these transitions. Settings previews update in place and navigation resets the correct scroll viewport. The Usage summary uses tighter vertical spacing so Today, History and the analytic links fit together in the standard Settings viewport. See the [motion audit](Documentation/WINDOWS_MOTION_2026-09-23.md) for native checks and remaining comparison limits.
+Local counts cover records on **this computer across accounts**. Cached input is already part of input. Missing or remote-only session records stay unavailable. Quotas, local tokens, account totals, and API-equivalent cost estimates have separate sources. [Usage scope](docs/usage.md) explains those boundaries. Optional [iPhone sharing](docs/iphone.md) has separate device, signing, relay, and APNs requirements.
 
 ## Install
 
-**macOS:** [2.1.8](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8) · **Windows:** [2.1.12](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.12)
+**macOS and Windows:** [2.1.13](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.13)
 
 ### macOS
 
 **macOS 14 or later · Apple silicon and Intel.**
 
-[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/CodeRim-2.1.8.dmg)
+[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-2.1.13.dmg)
 
 ```sh
 brew tap dlfkdLR/tap &&
 brew install --cask dlfkdLR/tap/coderim
 ```
 
-The app is **ad-hoc signed, not Apple-notarized**. See [installation and first launch](docs/installation.md) for checksum verification, macOS approval, and CodexMeter migration.
+The app is **ad-hoc signed, not Apple-notarized**. See [installation and first launch](docs/installation.md) for checksums, macOS approval, and CodexMeter migration. If Homebrew cannot find the cask or old app, use the [repair guide](docs/troubleshooting.md#homebrew-cannot-find-the-coderim-cask).
 
-If Homebrew reports an unavailable cask or cannot find the old `CodexMeter.app`, follow the [installation repair](docs/troubleshooting.md#homebrew-cannot-find-the-coderim-cask).
-
-Open **Settings → Providers → Add Provider**, connect your tools, and hover a ring. [Get started](docs/getting-started.md).
+Open **Settings → Providers → Add Provider**, connect your tools, then hover a ring. [Get started](docs/getting-started.md).
 
 ### Windows preview
 
 **Windows 11 · x64 and ARM64 · .NET included.**
 
-[Download x64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.12/CodeRim-Windows-2.1.12-x64-Setup.msi) · [Download ARM64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.12/CodeRim-Windows-2.1.12-arm64-Setup.msi)
+[Download x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-x64-Setup.msi) · [Download ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-arm64-Setup.msi) · [x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-arm64-Setup.msi.sha256)
 
-Run `Setup.msi` to install without administrator access. Setup registers Start menu and uninstall entries and adds the `coderim` CLI to your user PATH. Existing ZIP users run Setup once to enable automatic updates. Accounts, settings and local usage history are preserved.
-
-The installed app automatically checks and downloads updates. Open **Settings → Information → Check for updates** to restart into the verified release. Disable automatic downloads with **General → Automatically check for updates**. The installer does not have an Authenticode certificate, so Windows SmartScreen may warn on first installation. Updates are verified against the pinned Ed25519 release key and SHA-256. [Installation and update details](Documentation/WINDOWS.md#updates).
-
-Windows 2.1.12 fixes duplicate CLI PATH entries after portable-to-MSI upgrades and timeouts in slow local IDE discovery. It includes the 2.1.11 fixes for the notch’s Alt+Tab visibility, rectangular control backgrounds and edge alignment. The CodeRim notification-area menu provides Usage, Settings, notch visibility and update actions. Native test results and remaining physical-display limitations are recorded in the [Windows verification notes](Documentation/WINDOWS_MAC_REFERENCE_PARITY_2026-09-23.md).
+Verify the matching checksum, run the MSI, and open CodeRim. The public installer has no Authenticode publisher certificate; first-install warnings can occur. Managed updates verify the pinned Ed25519 manifest and SHA-256 before installation. [Windows installation](docs/windows.md) covers upgrades, legacy ZIP migration, CLI setup, and limitations. A connection implementation or synthetic test is not evidence that every live provider account works.
 
 ## macOS providers
 
-**70 providers** in the macOS catalogue, each with its own setup guide. Windows connection availability is listed separately in the [capability matrix](Documentation/WINDOWS.md#remaining-parity-work). [Full catalogue and connection details](docs/providers.md).
+**70 providers**, each with a setup guide. [Full catalogue](docs/providers.md) · [Windows capability matrix](Documentation/WINDOWS.md#remaining-parity-work).
 
 - [Codex](docs/providers/codex.md) — Account limits and local token history.
 - [OpenAI](docs/providers/openai.md) — API usage, spending, and available credits.
@@ -150,13 +128,12 @@ Windows 2.1.12 fixes duplicate CLI PATH entries after portable-to-MSI upgrades a
 
 ## Docs
 
-[macOS installation](docs/installation.md) · [Windows setup](Documentation/WINDOWS.md) · [Getting started](docs/getting-started.md) · [Providers](docs/providers.md) · [Token history](docs/usage.md) · [Accounts](docs/accounts.md) · [CLI](docs/cli.md) · [Widgets](docs/widgets.md) · [Privacy](docs/privacy.md) · [Troubleshooting](docs/troubleshooting.md)
-
-[All documentation](docs/README.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
+[User documentation](docs/README.md) · [Developer documentation](Documentation/README.md) · [Contributing](CONTRIBUTING.md) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
 
 For source builds, follow [Contributing](CONTRIBUTING.md) to prepare the pinned dependency fixes before running Swift tests. CI and release builds reject Swift compiler warnings.
 
 ## Credits and license
+
 
 [MIT](LICENSE). The edge-notch interface and supporting code include portions from [Codenotch](https://github.com/vinzdg/codenotch), **MIT © 2026 Vinz**. Provider integrations use [CodexBar](https://github.com/steipete/CodexBar), and updates use [Sparkle](https://sparkle-project.org/). Preserve [LICENSE](LICENSE) and [NOTICE](NOTICE) when redistributing.
 

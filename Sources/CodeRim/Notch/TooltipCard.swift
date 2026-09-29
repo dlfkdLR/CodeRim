@@ -105,6 +105,7 @@ private struct TooltipShell<Content: View>: View {
                         .frame(width: NotchLayout.cardWidth, alignment: .topLeading)
                 }
                 .frame(width: NotchLayout.cardWidth, height: height)
+                .scrollIndicators(.hidden)
                 .accessibilityIdentifier("notch.tooltip.scroll")
             } else {
                 content.fixedSize(horizontal: false, vertical: true)
@@ -151,9 +152,6 @@ private struct TooltipShell<Content: View>: View {
 
 private struct TooltipHeader<Mark: View>: View {
     let title: String
-    /// Sits on the header's own line, so saying when a reading was taken costs
-    /// the card no extra height.
-    var note: String?
     @ViewBuilder let mark: Mark
 
     var body: some View {
@@ -164,13 +162,6 @@ private struct TooltipHeader<Mark: View>: View {
                 .foregroundStyle(NotchPalette.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.85)
-            if let note {
-                Spacer(minLength: NotchDesign.px(20))
-                Text(note)
-                    .font(NotchType.cardBody)
-                    .foregroundStyle(NotchPalette.textSecondary)
-                    .lineLimit(1)
-            }
         }
     }
 }
@@ -181,6 +172,7 @@ private struct SplitRow<Accessory: View>: View {
     let leading: String
     let trailing: String
     var leadingColor: Color = NotchPalette.textPrimary
+    var leadingSymbol: String? = nil
     var trailingColor: Color = NotchPalette.textSecondary
     /// Sits immediately before the trailing text, inside the same group, so it
     /// travels with the word instead of drifting to the middle of the row.
@@ -188,7 +180,16 @@ private struct SplitRow<Accessory: View>: View {
 
     var body: some View {
         HStack(spacing: NotchDesign.px(20)) {
-            Text(leading).foregroundStyle(leadingColor)
+            HStack(spacing: NotchLayout.statusDotGap) {
+                if let leadingSymbol {
+                    Image(systemName: leadingSymbol)
+                        .font(.system(size: NotchLayout.statusDot, weight: .medium))
+                        .foregroundStyle(NotchPalette.textSecondary)
+                        .fixedSize()
+                        .accessibilityHidden(true)
+                }
+                Text(leading).foregroundStyle(leadingColor)
+            }
             Spacer(minLength: 0)
             HStack(spacing: NotchLayout.statusDotGap) {
                 accessory()
@@ -249,6 +250,8 @@ private struct StatusRing: View {
                 ring(trim: 0.5)
             case .idle:
                 ring(trim: 1)
+            case .unavailable:
+                EmptyView()
             }
         }
         .frame(width: NotchLayout.statusDot, height: NotchLayout.statusDot)
@@ -349,15 +352,6 @@ private struct ProviderTooltip: View {
     let showUsagePace: Bool
     var onSwitchAccount: (() -> Void)?
 
-    /// Only worth saying when the numbers are not current. A remembered reading
-    /// has to be dated, or it quietly passes itself off as live.
-    private var readingAge: String? {
-        guard snapshot.hasReading, let since = snapshot.status.staleSince,
-              since != .distantPast
-        else { return nil }
-        return ElapsedCopy.ago(since: since, now: now)
-    }
-
     private struct WindowGroup: Identifiable {
         let id: String
         let title: String?
@@ -378,7 +372,7 @@ private struct ProviderTooltip: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            TooltipHeader(title: "\(snapshot.displayName) Usage", note: readingAge) {
+            TooltipHeader(title: "\(snapshot.displayName) Usage") {
                 ProviderGlyphView(glyph: snapshot.glyph)
                     .foregroundStyle(NotchPalette.textPrimary)
             }
@@ -406,11 +400,12 @@ private struct ProviderTooltip: View {
             }
 
             if snapshot.showsLocalTokens {
-                (Text("Today · This Mac  ").foregroundColor(NotchPalette.textSecondary)
+                (Text("Today  ").foregroundColor(NotchPalette.textSecondary)
                  + Text(snapshot.localTokenText(style: TokenNumberStyle(rawValue: numberStyle) ?? .compact)).foregroundColor(NotchPalette.textPrimary))
                     .font(NotchType.cardBody)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
+                    .help(snapshot.localTokenScopeHelp ?? "")
                     .accessibilityIdentifier("notch.tokens.\(snapshot.id)")
                     .padding(.top, NotchLayout.headerToBlock)
             }
@@ -489,6 +484,7 @@ private struct BlockedRow: View {
 
 private struct SessionRow: View {
     let session: AgentSession
+    var tokenTotal: Int64?
     let now: Date
     var depth = 0
     var isContextOnly = false
@@ -497,12 +493,16 @@ private struct SessionRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
     @State private var isHovered = false
+    @AppStorage(AppPreferences.notchShowSessionDurationKey)
+    private var showDuration = AppPreferences.defaultNotchShowSessionDuration
+    @AppStorage(AppPreferences.notchShowSessionTokensKey)
+    private var showTokens = AppPreferences.defaultNotchShowSessionTokens
 
     private var stateColor: Color {
         switch session.state {
         case .busy:    return accentColor
         case .waiting: return NotchPalette.watch
-        case .idle:    return NotchPalette.textSecondary
+        case .idle, .unavailable: return NotchPalette.textSecondary
         }
     }
 
@@ -511,6 +511,7 @@ private struct SessionRow: View {
         case .busy:    return "working"
         case .waiting: return "waiting"
         case .idle:    return "idle"
+        case .unavailable: return "unknown"
         }
     }
 
@@ -529,12 +530,25 @@ private struct SessionRow: View {
         return session.codexThreadID != nil ? session.name : session.detail
     }
 
+    private var rowDescription: String {
+        [session.locationDescription, openLabel].compactMap { $0 }.joined(separator: ". ")
+    }
+
+    private var elapsed: String {
+        SessionDuration.text(for: session, enabled: showDuration, now: now) ?? ""
+    }
+
+    private var metrics: String {
+        [isContextOnly || elapsed.isEmpty ? nil : elapsed, SessionTokenReader.text(tokenTotal, enabled: showTokens)]
+            .compactMap { $0 }.joined(separator: " · ")
+    }
+
     private var openLabel: String {
         if let parent = session.parentThread {
             return "Open sub-agent \(session.detail) of \(parent.title) in Codex"
         }
         return session.codexThreadID != nil
-            ? "Open \(session.name): \(session.detail) in Codex"
+            ? "Open \([session.name, session.detail].filter { !$0.isEmpty }.joined(separator: ": ")) in Codex"
             : "Open \(session.name)"
     }
 
@@ -560,27 +574,33 @@ private struct SessionRow: View {
                                value: isHovered)
             }
             .onHover { isHovered = $0 }
-            .help(openLabel)
-            .accessibilityLabel(openLabel)
-            .accessibilityValue(isContextOnly ? "Parent chat" : "\(stateWord), \(ElapsedCopy.text(since: session.since, now: now))")
+            .help(rowDescription)
+            .accessibilityLabel(rowDescription)
+            .accessibilityValue([isContextOnly ? "Parent chat" : stateWord, metrics]
+                .filter { !$0.isEmpty }.joined(separator: ", "))
             .accessibilityIdentifier("notch.session.\(session.id)")
         } else {
             content
+                .help(session.locationDescription ?? "")
+                .accessibilityElement(children: .combine)
+                .accessibilityValue(session.locationDescription ?? "")
         }
     }
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 0) {
             SplitRow(leading: title, trailing: isContextOnly ? "" : stateWord,
-                     trailingColor: stateColor) {
-                if !isContextOnly { StatusRing(state: session.state, color: stateColor) }
+                     leadingSymbol: session.isRemote ? "network" : nil, trailingColor: stateColor) {
+                if !isContextOnly && session.state != .unavailable {
+                    StatusRing(state: session.state, color: stateColor)
+                }
             }
             // Stable line boxes also accommodate fallback glyphs (Korean, ↳)
             // without letting font substitution change the shared card budget.
             .frame(height: NotchLayout.cardBodyLineHeight)
             SplitRow(
                 leading: detail,
-                trailing: isContextOnly ? "" : ElapsedCopy.text(since: session.since, now: now),
+                trailing: metrics,
                 leadingColor: NotchPalette.textSecondary
             )
             .frame(height: NotchLayout.cardBodyLineHeight)
@@ -590,16 +610,55 @@ private struct SessionRow: View {
     }
 }
 
+/// Main chats own their children, even when the parent itself has finished.
+struct SessionPresentation {
+    struct Group: Identifiable {
+        let parent: ActivitySummary.Row
+        var children: [ActivitySummary.Row]
+        var id: String { parent.id }
+    }
+    let groups: [Group]
+    let hidden: Int
+    let expanded: Bool
+
+    init(summary: ActivitySummary?, cap: Int, expanded: Bool = false) {
+        var all: [Group] = []
+        for row in summary?.displayRows ?? [] {
+            if row.depth == 0 || all.isEmpty { all.append(Group(parent: row, children: [])) }
+            else { all[all.count - 1].children.append(row) }
+        }
+        groups = expanded ? all : Array(all.prefix(max(0, cap)))
+        hidden = all.count - groups.count
+        self.expanded = expanded
+    }
+    var rows: [ActivitySummary.Row] {
+        groups.flatMap { [$0.parent] + $0.children }
+    }
+    var showsDisclosure: Bool { hidden > 0 || (!groups.isEmpty && expanded) }
+    func height(snapshot: ProviderSnapshot, now: Date, accountAction: Bool) -> CGFloat {
+        NotchLayout.cardHeight(for: snapshot, sessionCount: rows.count,
+            sessionCap: Int.max, now: now, showsAccountAction: accountAction)
+            + (rows.isEmpty && hidden > 0 ? NotchLayout.blockSpacing + NotchLayout.hairline : 0)
+            + (showsDisclosure ? NotchLayout.blockSpacing + NotchLayout.cardBodyLineHeight : 0)
+    }
+}
+
 /// The live sessions for this provider, under a rule that separates them from
 /// the limit windows above — they answer a different question.
-private struct SessionList: View {
+struct SessionList: View {
     let summary: ActivitySummary
     let now: Date
     /// How many rows this screen has room for; the rest are counted.
     let cap: Int
+    var isExpanded = false
+    let onToggleExpansion: () -> Void
+    var tokenTotals: [String: Int64] = [:]
 
-    private var presentation: (rows: [ActivitySummary.Row], hidden: Int) {
-        summary.presentation(cap: cap)
+    var groups: SessionPresentation {
+        SessionPresentation(summary: summary, cap: cap, expanded: isExpanded)
+    }
+    var presentation: (rows: [ActivitySummary.Row], hidden: Int) {
+        (groups.rows, groups.hidden)
     }
 
     var body: some View {
@@ -609,21 +668,36 @@ private struct SessionList: View {
                 .frame(height: NotchLayout.hairline)
                 .padding(.top, NotchLayout.blockSpacing)
 
-            // Only as many as the card's budgeted height can hold. The rest
-            // are counted rather than drawn: the card is clipped, not scrolled,
-            // so anything past the budget silently pushes the title off the top.
-            ForEach(presentation.rows) { row in
-                SessionRow(session: row.session, now: now, depth: row.depth,
-                           isContextOnly: row.isContextOnly,
-                           inlineParent: row.inlineParent)
-                    .padding(.top, NotchLayout.blockSpacing)
+            ForEach(groups.groups) { group in
+                VStack(alignment: .leading, spacing: 0) {
+                    SessionRow(session: group.parent.session, tokenTotal: tokenTotals[group.id],
+                        now: now, depth: 0, isContextOnly: group.parent.isContextOnly)
+                        .padding(.top, NotchLayout.blockSpacing)
+                    ForEach(group.children) { row in
+                        SessionRow(session: row.session, tokenTotal: nil, now: now,
+                            depth: row.depth, isContextOnly: row.isContextOnly)
+                            .padding(.top, NotchLayout.blockSpacing)
+                    }
+                }
             }
 
-            if presentation.hidden > 0 {
-                Text("and \(presentation.hidden) more")
+            if presentation.hidden > 0 || isExpanded {
+                Button(action: onToggleExpansion) {
+                    HStack(spacing: NotchLayout.statusDotGap) {
+                        Text(isExpanded ? "Show less" : "and \(presentation.hidden) more")
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: NotchLayout.statusDot, weight: .medium))
+                            .accessibilityHidden(true)
+                    }
                     .font(NotchType.cardBody)
                     .foregroundStyle(NotchPalette.textSecondary)
-                    .padding(.top, NotchLayout.blockSpacing)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isExpanded ? "Show fewer tasks" : "Show all \(groups.groups.count + groups.hidden) tasks")
+                .accessibilityIdentifier(isExpanded ? "notch.sessions.showLess" : "notch.sessions.showAll")
+                .padding(.top, NotchLayout.blockSpacing)
             }
         }
     }
@@ -641,25 +715,29 @@ struct TooltipCard: View {
     /// rather than fixed, so a big screen hides nothing.
     var sessionCap: Int = NotchLayout.defaultSessionCap
     var maxHeight: CGFloat?
+    var tokenTotals: [String: Int64] = [:]
+    var onSessionExpansionChanged: ((Bool) -> Void)?
     var resetTimeFormat: ResetTimeFormat = .automatic
     var onSwitchAccount: (() -> Void)?
     @AppStorage("notchShowUsagePace") private var showUsagePace = false
+    @State var showsAllSessions = false
+    private var presentation: SessionPresentation {
+        SessionPresentation(summary: activity, cap: sessionCap, expanded: showsAllSessions)
+    }
 
     /// The same figure the hover region uses, so what is drawn and what is
     /// reachable can never drift apart.
     private var height: CGFloat {
-        NotchLayout.cardHeight(for: snapshot,
-            sessionCount: activity?.displayRows.count ?? 0,
-            sessionCap: sessionCap,
-            now: now,
-            showsAccountAction: onSwitchAccount != nil
-        )
+        presentation.height(snapshot: snapshot, now: now, accountAction: onSwitchAccount != nil)
     }
 
     var body: some View {
         TooltipShell(height: min(height, maxHeight ?? height), direction: direction,
                      scrolls: maxHeight.map { height > $0 } ?? false) {
             cardContent
+        }
+        .onChange(of: snapshot.id) { _, _ in
+            showsAllSessions = false
         }
     }
 
@@ -675,7 +753,11 @@ struct TooltipCard: View {
                 ProviderTooltip(snapshot: snapshot, now: now, resetTimeFormat: resetTimeFormat,
                                 showUsagePace: showUsagePace, onSwitchAccount: onSwitchAccount)
                 if let activity {
-                    SessionList(summary: activity, now: now, cap: sessionCap)
+                    SessionList(summary: activity, now: now, cap: sessionCap,
+                                isExpanded: showsAllSessions, onToggleExpansion: {
+                        showsAllSessions.toggle()
+                        onSessionExpansionChanged?(showsAllSessions)
+                    }, tokenTotals: tokenTotals)
                 }
             }
             // An identity, so one provider's rows are never interpolated

@@ -222,6 +222,7 @@ internal sealed partial class DashboardWindow : Window
     }
     private void General()
     {
+        body.Children.Add(new MobileSettingsSection(store.Mobile));
         AddStartupSection();
         body.Children.Add(SettingsUi.Section("Refresh", SettingsUi.Picker("Mode", RefreshOptions, settings.Current.AutomaticRefresh ? -1 : settings.Current.RefreshIntervalSeconds, x => Save(settings.Current with { RefreshIntervalSeconds = x == -1 ? 60 : x, AutomaticRefresh = x == -1 }))));
         body.Children.Add(SettingsUi.Note("Automatic reacts to session changes with a one-minute fallback check."));

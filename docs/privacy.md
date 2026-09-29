@@ -1,29 +1,36 @@
 # Privacy
 
-## Local usage data
+**English** · [한국어](ko/privacy.md)
 
-Codex and Claude Code token history is processed on this Mac from their known session-log locations. CodeRim stores aggregate counts and the metadata needed for local history, including timestamps, model IDs, hashed identifiers, and project-folder basenames. The two providers use separate local databases.
+## Local data
 
-Prompts, responses, reasoning text, source code, tool contents, raw session paths, and full project paths are not stored in the usage database. Local token accounting does not use browser sessions or account credentials.
+Codex and Claude Code histories are processed on this computer from known session-log roots. They use separate local databases. Aggregate counts, timestamps, canonical model IDs, keyed project identifiers, hashed session relationships, project-folder basenames, numeric Codex image counts, and parser checkpoints support local analytics.
 
-## Credentials and accounts
+Prompts, responses, reasoning, source code, tool contents, image bytes, raw session paths, and full project paths are not stored in usage tables. Local accounting does not use browser sessions or account credentials. CLI and desktop widgets read an aggregate snapshot without account emails, credentials, conversation titles, or source paths.
 
-Provider monitoring may reuse the original tool's credentials or a connection you configure in CodeRim. Browser-session import is optional for each additional provider. Its connection settings are stored in CodeRim-specific local Keychain items.
+## Credentials and requests
 
-Saved Codex and Claude subscription accounts use separate local Keychain items. Adding or switching an account is an explicit action; there is no automatic quota-based account rotation. Credentials are kept out of usage storage and diagnostics. See [saved accounts](accounts.md) for switching requirements.
+Monitoring may reuse the original tool's login or a connection configured in CodeRim. Additional-provider settings use separate CodeRim Keychain items on macOS. Browser-session import is enabled per provider where supported; it is not blanket permission to read every browser profile. Windows uses its own protected local storage.
 
-## Network requests
+Codex account limits use the verified local Codex app-server. Claude limits use the local status-line helper. Other provider requests go to that provider or the configured endpoint. Saved-account actions are explicit; there is no automatic quota-based rotation. Credentials stay out of usage tables and diagnostics.
 
-Provider queries go to the corresponding service or configured endpoint. Codex limits are obtained through the verified local Codex app-server. Local usage totals are distinct from the provider's quota readings.
+CodeRim 2.1.13 enables separate ChatGPT profile history by default when registering new preferences and honors existing stored values. It reads only the current Codex access token and account ID and sends them to the fixed `https://chatgpt.com/backend-api/wham/profiles/me` endpoint with redirects rejected. Credentials and responses remain in memory. Account totals never enter local history tables. [Scope and freshness](usage.md).
 
-Sparkle checks for updates and downloads them from the project's GitHub release infrastructure. These requests expose normal connection metadata, such as an IP address, but do not attach prompts, token history, or credentials. Automatic update checks can be configured in **Settings → General**.
+Sparkle queries the GitHub update infrastructure; Windows Setup updates use the pinned release key and checksum. Requests expose normal connection metadata such as the IP address. They do not attach prompts, token history, or provider credentials. Configure automatic update checks in **Settings → General**.
 
-## Your controls
+## Optional iPhone sharing
 
-- Add only the providers you want to monitor; removing one stops its monitoring and leaves the original tool signed in.
-- Browser-session import must be enabled separately where that source is supported.
-- AWS Bedrock, Azure OpenAI, and some Doubao requests may be billed and require an explicit monitoring toggle.
-- Local history spans accounts on this Mac. Deleted logs and usage from other devices cannot be reconstructed.
-- Clear/rebuild actions apply to CodeRim's derived data for the selected service. They do not delete the original session logs.
+The iPhone companion and relay are a separate development feature requiring an explicitly configured relay and pairing. The desktop sends an allowlisted snapshot of provider names, remaining percentages, reading times, local Today tokens, and task states/counts. Task titles are off by default; enabling **Share task titles** sends those titles too. Service credentials, session IDs, full paths, prompts, and conversation content are not shared.
+
+The relay stores the latest snapshot, device and selection metadata, Apple subject ID, hashed bearer tokens, and APNs activity tokens needed for delivery. HTTPS protects transport; the relay can read shared usage. This is not an end-to-end encrypted transport. See [iPhone setup](iphone.md) and the [relay reference](../Documentation/IPHONE.md).
+
+## Controls
+
+- Select only providers to monitor; removing one stops monitoring and leaves the original tool signed in.
+- AWS Bedrock, Azure OpenAI, and some Doubao sources require **Allow potentially billed monitoring requests** before a potentially billed query.
+- In **Settings → Providers → Codex or Claude Code**, rebuild or clear that service's derived data. Original session logs are retained; clearing records an import cutoff.
+- Debug logging is off by default and excludes credentials and conversation content. Do not attach private transcripts to bug reports.
 
 [Providers](providers.md) · [Accounts](accounts.md) · [Security](../SECURITY.md) · [Docs](README.md)
+
+Raw quota responses are held in memory, but normalized last-known windows/read times are cached locally and exported to the owner-only CLI/widget snapshot. This cache contains no service credentials.

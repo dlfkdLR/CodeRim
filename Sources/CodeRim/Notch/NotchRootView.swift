@@ -37,6 +37,8 @@ struct NotchRootView: View {
                         direction: model.edge.tooltipDirection,
                         sessionCap: model.sessionCap,
                         maxHeight: model.cardHeight(for: snapshot),
+                        tokenTotals: model.sessionTokenTotals[snapshot.id] ?? [:],
+                        onSessionExpansionChanged: { model.expandedSessionProviderID = $0 ? snapshot.id : nil },
                         resetTimeFormat: model.resetTimeFormat,
                         onSwitchAccount: model.onSwitchAccount.map { action in { action(snapshot.id) } }
                     )

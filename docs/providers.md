@@ -1,12 +1,14 @@
 # Providers
 
+**English** · [한국어](ko/providers.md)
+
 CodeRim offers **70 entries: 69 service integrations and Ollama Local**. Every entry below has its own CodeRim setup page. The app, CLI, and widget picker share these provider IDs.
 
 ## Connect a provider
 
 1. Open **Settings → Providers → Add Provider** and search for the service.
 2. Follow the linked setup page. Native integrations usually reuse the original tool's login; additional integrations expose **Connection settings** for keys, sessions, endpoints, or regions.
-3. Refresh the provider. Browser-session import is optional for each provider. Saved additional-provider settings use CodeRim's Keychain items.
+3. Refresh the provider. Where offered, browser-session import must be enabled for each provider; StepFun uses password or Oasis-Token settings instead. Saved additional-provider settings use CodeRim's Keychain items on macOS. Windows uses protected local storage.
 
 Only added providers are monitored. Available readings depend on the account, plan, and service. Local token history is available for **Codex and Claude Code**; the other entries report their own quotas, credits, spending, or status. Ollama Local reports running models and memory, and Azure OpenAI reports a deployment check.
 

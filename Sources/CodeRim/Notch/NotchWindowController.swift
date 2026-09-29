@@ -186,6 +186,10 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in MainActor.assumeIsolated { self?.relocate() } }
             .store(in: &cancellables)
+        model.$expandedSessionProviderID
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in MainActor.assumeIsolated { self?.relocate() } }
+            .store(in: &cancellables)
         model.$sessions
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in MainActor.assumeIsolated { self?.relocate() } }

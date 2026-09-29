@@ -36,7 +36,11 @@ components:
 
 # Design System: CodeRim
 
+**English** · [한국어](DESIGN.ko.md)
+
 ## Overview
+
+This document describes the current development design. Settings analytics, account-history defaults, and optional mobile sharing can be newer than audited GitHub main or macOS 2.1.8. [Source/release boundary](Documentation/README.md). Existing geometry and design tokens remain authoritative.
 
 **Creative North Star: "The Quiet Instrument"**
 
@@ -66,8 +70,8 @@ purpose:
   than macOS materials. It lives in `Sources/CodeRim/Notch/` and is
   deliberately sealed off from the tokens below — see `NotchDesign.swift`. "똑같이"
   (make it the same as Codenotch) was the brief, and it won.
-- **The Settings window** — General, Usage, Notch, Diagnostics, Information, and
-  a pane per provider. This is where the Quiet Instrument rules below still
+- **The Settings window** — General, Usage, Providers, Notch, Diagnostics, and Information, with
+  a detail pane per provider. This is where the Quiet Instrument rules below still
   apply. The **Usage** pane shares account actions and navigation with
   `MenuPopoverView` in `embedded` mode, while `UsageSettingsOverview` supplies
   an overview that fills the available Settings column. The component rules
@@ -149,7 +153,7 @@ The palette follows macOS semantic colors so it remains correct in light, dark, 
 
 ## Layout
 
-The Settings Usage pane fills the available detail-column width. Its compact header places a native provider menu opposite the native Token Usage / provider Limits segmented picker, followed by the existing account switcher or provider account row. Token Usage contains today's total and breakdown, a horizontal period-summary strip, and direct analytic destinations. The selected provider's Limits mode contains quota windows and reset timing. Dividers separate these groups without enclosing the overview in a large card.
+The Settings Usage pane fills the available detail-column width. Provider/account and refresh actions stay above Overview, Usage analytics, and the selected provider’s Limits tabs. The unreleased development source opens Usage analytics by default; disabling it returns to Overview. Overview contains today’s total and breakdown, a horizontal period-summary strip, and direct analytic destinations. Limits contains quota windows and reset timing. Dividers separate these groups without enclosing the overview in a large card. The retained compact menu keeps its two modes.
 
 Today's total and token breakdown sit beside one another when they fit and stack at narrower widths. The week, month, and lifetime or local-history summaries follow the same horizontal-to-vertical fitting behavior. Settings uses `settings-section` for overview padding and major section spacing; shared detailed screens retain `content` padding. The compact menu keeps its fixed `overview-popover` width, content-driven overview height, and `popover-edge` spacing.
 
@@ -188,10 +192,11 @@ Detail selections use gently rounded 8px containers, while information cards use
 
 ### Top-Level Modes
 
-- **Token Usage:** Local and optional account-wide token totals, period history, and analytic destinations.
+- **Overview:** Local Today and separately sourced period/account history, with analytic destinations.
+- **Usage analytics:** This Mac token-type/model charts, ranked sessions, and expandable local calendar history in the development source.
 - **Provider Limits:** Read-only Codex or Claude quota windows, reset timing, and pace. Reset-credit availability remains Codex-only.
-- **Settings Provider Selection:** A compact native Menu shows the current provider and offers the available providers. The existing Codex account switcher or Claude account row remains directly beneath the controls.
-- **Settings Mode Selection:** A native segmented Picker switches Token Usage and the selected provider's Limits in place. It keeps its intrinsic control height and a compact 246pt width instead of stretching across the content column.
+- **Provider Selection:** Settings and the compact menu share a 34pt switcher with a service mark, current provider name, and small chevrons. It opens a native popover with aligned service marks, 40pt rows, a quiet accent selection, and a trailing checkmark. Up to six providers fit naturally; larger lists expose search and scroll within a six-row viewport. Arrow keys and Return select, Escape dismisses, and existing provider shortcuts remain available. Only providers supported by the current usage data source appear. The existing Codex account switcher or Claude account row remains directly beneath the controls.
+- **Settings Mode Selection:** Underline tabs switch Overview, Usage analytics, and provider Limits in the development source. Keep their natural height and keyboard/accessibility behavior; provider/account context stays above the tabs. The retained compact presentation uses its two equal-width native mode buttons.
 - **Compact Mode Selection:** Two equal-width native buttons switch content in place. Native selection styling and keyboard and VoiceOver access remain part of both presentations.
 - **Feedback:** Clickable rows and utility buttons use a subtle neutral hover/pressed fill and an accent keyboard-focus outline. Feedback never changes geometry, honors Increase Contrast, and skips its short fade under Reduce Motion.
 - **Separation:** Provider and mode selection stay compact. The existing account row supplies account context without a repeated app title or generated explanatory subtitle.
@@ -207,7 +212,7 @@ Detail selections use gently rounded 8px containers, while information cards use
 
 - **Character:** A horizontal supporting summary beneath today's local total.
 - **Content:** This Week, This Month, and Lifetime when an optional ChatGPT snapshot is available; otherwise the last destination is Local History. Each total opens its period detail.
-- **Source:** History displays “This Mac” for local totals or “ChatGPT · Through [date]” for account totals. The account snapshot never changes today's local source or gets added to local counts.
+- **Source:** Codex History defaults to “ChatGPT account”: the server's aggregate already includes synced local and cloud usage. Never add account-unassigned local totals a second time. Show the server coverage date and update delay, and retain a Local History link. Unavailable server totals display a dash and status; account switches clear old values immediately. Today and analytics retain their local source.
 - **Shape:** Equal-width period links separated by short vertical dividers; they stack when the available width cannot fit the strip.
 
 ### Account Limit Preview
@@ -253,8 +258,8 @@ Detail selections use gently rounded 8px containers, while information cards use
 ### Provider Monitoring List
 
 - **Character:** A native Settings list of providers the user chose to monitor.
-- **Controls:** “Added Providers” contains the selected rows and their existing detail, setup, alert, and ordering controls. A compact native “Add Provider” menu lists providers outside the selection, including distinct Ollama Cloud and Ollama Local entries. Adding a provider opens its existing setup or detail page; a borderless minus-circle button removes a row.
-- **State:** The selected list persists across relaunch, including an explicitly empty list. With no providers selected, an inline message points to Add Provider. The menu is disabled when the whole catalog is already selected.
+- **Controls:** “Added Providers” contains the selected rows and their existing detail, setup, alert, and ordering controls. A native searchable “Add Provider” sheet lists providers outside the selection, including distinct Ollama Cloud and Ollama Local entries. Adding a provider opens its existing setup or detail page; a borderless minus-circle button removes a row.
+- **State:** The selected list persists across relaunch, including an explicitly empty list. With no providers selected, an inline message points to Add Provider. The add control is disabled when the whole catalog is already selected.
 - **Selection Boundary:** Removing a provider stops its notch monitoring and leaves the original tool signed in. It can be added again. Selection remains separate from saved ring order, and a provider's local-model status does not acquire a quota ring merely by being selected.
 
 ### Notch Tooltip and Actions
@@ -278,7 +283,7 @@ Detail selections use gently rounded 8px containers, while information cards use
 
 ### Don't:
 
-- **Don't** copy CodexBar branding or assets; reuse only mode separation and information-architecture ideas that improve scanning for CodeRim's real features.
+- **Don't** replace CodeRim’s independent app identity with CodexBar branding. Licensed provider-identification artwork and adapters retain their upstream attribution in `NOTICE`; service marks do not imply endorsement.
 - **Don't** place charts, projects, sessions, credits, every provider, and every limit on the overview.
 - **Don't** show empty or speculative provider tabs.
 - **Don't** use purple/blue AI gradients, neon, decorative glass, giant cards, or custom dashboard chrome.
@@ -289,3 +294,13 @@ The notch Settings and account controls share a slim black capsule instead of se
 ### Claude Accounts
 
 Claude inherits the Codex Accounts utility window: 560 × 400 pt by default, 500 × 300 pt minimum, system type and colors, native controls, and dividers. Only the saved list scrolls; Save Current Account, Add Account, Cancel during sign-in, status, and session guidance stay fixed. Rows show email, the reported plan, Current or Switch, and removal. A failed identity refresh removes the unverified Current badge. Switching and removal require confirmation. This extension adds no design tokens.
+
+
+### Settings Usage Analytics
+
+- **Reference:** The supplied GPT Usage screenshots guide the Settings analytics layout: understated underline tabs, chart cards, a ranked table and expandable history rows. The compact menu keeps its two existing sections.
+- **Navigation:** Settings opens Usage analytics, with Overview and provider Limits beside it. Disabling Analytics hides its tab and returns the content to Overview. Provider/account and refresh actions remain above the tabs.
+- **Content:** A 7/30-day stacked token chart switches between token type and model. Its legend shows a selected day's shares or the full range. The top five sessions expand to their token breakdown and existing detail destination; Show more reveals the rest. Local calendar history expands separately; model activity uses a line chart with a consistent model legend.
+- **Truth:** These charts, sessions and breakdowns are labeled This Mac. Server account totals remain in Overview, with their source and coverage footer. Cached input is removed from the uncached-input segment before stacking. No unsupported server feature shares, credits, plugin counts or message counts are fabricated.
+- **Style:** Native semantic backgrounds and text; 14pt rounded cards, 18pt internal padding, 28pt section gaps, 24pt page inset and a 960pt maximum content width. Categorical chart colors have text legends and accessible values. Native segmented range controls and menu pickers retain keyboard behavior.
+- **Viewport:** Only the Settings pane scrolls. Analytics intentionally forms a longer page; the overview remains compact. Controls wrap at narrow widths, and long session/model names retain full text in help and accessibility labels.

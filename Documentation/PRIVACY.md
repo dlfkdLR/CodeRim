@@ -1,27 +1,48 @@
-# Privacy
+# Privacy and storage boundaries
 
-Claude Code local usage is supported alongside Codex, in a separate owner-only database. The reader visits JSONL transcripts only under `~/.claude/projects` (or `CLAUDE_CONFIG_DIR/projects` when configured in the app environment). It projects message/session IDs, timestamps, model IDs, counts, and a keyed project identity plus folder basename. Local token accounting does not access credentials or browser state. Explicit Claude integration setup updates the status-line configuration, and the separate Claude Accounts feature accesses only its supported subscription login as described below. Message content is not decoded into the accounting model or persisted. Data-management actions affect only the provider named in Settings. Clearing Claude history retains hashed response identities and the cutoff so later blocks cannot re-import a cleared response; that exclusion list contains no token counts, conversation content, or raw identifiers.
+**English** · [한국어](PRIVACY.ko.md)
 
-CodeRim processes local Codex usage on-device. The bundled Sparkle updater checks an HTTPS appcast and downloads updates from GitHub Releases. Automatic checks run at most once per day by default and can be disabled in **Settings → General**.
+## Local data
 
-Update requests contain the normal connection metadata needed to reach GitHub, such as the user's IP address and HTTP client information. CodeRim does not add token totals, prompts, responses, source paths, project metadata, cache contents, Codex credentials, or machine profile data to a request. Update archives and the appcast are verified with the public Ed25519 key embedded in the app before extraction or installation.
+Codex and Claude Code histories are processed on this computer from known session-log roots. They use separate local databases. Aggregate counts, timestamps, canonical model IDs, keyed project identifiers, hashed session relationships, project-folder basenames, numeric Codex image counts, and parser checkpoints support local analytics.
 
-It discovers only JSONL files within `~/.codex/sessions` and `~/.codex/archived_sessions`. The reader projects only the metadata needed to locate token-count events. The database stores normalized counts, timestamps, canonical model IDs, keyed project identifiers, hashed session identifiers, final project-folder names, numeric image counts, and incremental parser checkpoints. Raw session paths and full project working directories are not persisted.
+Prompts, responses, reasoning, source code, tool contents, image bytes, raw session paths, and full project paths are not stored in usage tables. Local accounting does not use browser sessions or account credentials. CLI and desktop widgets read an aggregate snapshot without account emails, credentials, conversation titles, or source paths.
 
-The Application Support directory is restricted to the current user (`0700`), and SQLite, lock, and fingerprint-key files are restricted to the current user (`0600`). Clearing local history enables SQLite secure deletion, truncates the write-ahead log, and vacuums the database.
+## Credentials and requests
 
-**Use ChatGPT account totals** is off by default. When the user enables it, CodeRim opens `~/.codex/auth.json` with no-follow protections and projects only `tokens.access_token` and `tokens.account_id`. It sends those values only in a fixed HTTPS GET to `https://chatgpt.com/backend-api/wham/profiles/me`. The app uses only aggregate lifetime, daily-bucket, and snapshot-date fields from the response. It does not refresh credentials or modify the authentication file. Credentials and remote responses exist only for the in-memory request and are never written to UserDefaults, SQLite, Keychain, or diagnostics. The endpoint is not a public API and may change. Disabling the option removes the in-memory profile snapshot.
+Monitoring may reuse the original tool's login or a connection configured in CodeRim. Additional-provider settings use separate CodeRim Keychain items on macOS. Browser-session import is enabled per provider where supported; it is not blanket permission to read every browser profile. Windows uses its own protected local storage.
 
-CodeRim does not store or log prompts, responses, reasoning text, source code, tool input or output, terminal output, or remote profile responses. Credentials never enter the usage database or diagnostics. An explicit **Save Current Account** or **Add Account** action stores the selected Codex or Claude subscription login in separate, dedicated, non-synchronizing local Keychain items. This opt-in account vault is separate from profile retrieval and local accounting.
+Codex account limits use the verified local Codex app-server. Claude limits use the local status-line helper. Other provider requests go to that provider or the configured endpoint. Saved-account actions are explicit; there is no automatic quota-based rotation. Credentials stay out of usage tables and diagnostics.
 
-Account limits are read from a locally installed Codex app-server only after its code signature and vendor team are verified. Requests are read-only and responses remain in memory. The limit provider does not store limit responses, consume reset credits, make purchases, or change the signed-in account. If the app-server is unavailable, local usage, project, session, and cost analytics continue without it.
+The unreleased macOS development source enables separate ChatGPT profile history by default when registering new preferences, honoring existing stored values. It reads only the current Codex access token and account ID and sends them to the fixed `https://chatgpt.com/backend-api/wham/profiles/me` endpoint with redirects rejected. Credentials and responses remain in memory. GitHub main at the audited commit disables profile totals; the development behavior is not a promise about the macOS 2.1.8 release. Account totals never enter local history tables. [Scope and freshness](USAGE.md).
 
-The separate **Accounts** feature delegates browser sign-in to a verified Codex CLI in an owner-only temporary home. **Switch** requires confirmation, a verified running desktop using the supported default login location, normal desktop termination, and stopped Codex clients before private atomic replacement of the active login. The departing login is preserved in Keychain. A saved credential is never refreshed in a disposable process; the reopened official Codex app owns renewal. Keychain access prompts can recur across ad-hoc signed builds. See [account handling and limitations](ACCOUNTS.md). No automatic quota-based switching is performed.
+Sparkle queries the GitHub update infrastructure; Windows Setup updates use the pinned release key and checksum. Requests expose normal connection metadata such as the IP address. They do not attach prompts, token history, or provider credentials. Configure automatic update checks in **Settings → General**.
 
-Session attachment analytics store only a detected image count and timestamp from unambiguous user `input_image` metadata. The UI labels this as a whole-session count after the local-history cutoff; it is not presented as a count for only the selected chart range. CodeRim does not retain image data, file data, MIME payloads, thumbnails, prompt text, or local attachment references. Oversized records remain subject to the parser safety limit and are labeled as potentially incomplete rather than guessed.
+## Optional iPhone sharing
 
-Debug logging is off by default. When enabled, it records only timestamps, fixed operational event names, data-quality state, source counts, and processed-byte totals. It never records source paths or raw error descriptions, and rotates at 1 MiB.
+The iPhone companion and relay are a separate development feature requiring an explicitly configured relay and pairing. The desktop sends an allowlisted snapshot of provider names, remaining percentages, reading times, local Today tokens, and task states/counts. Task titles are off by default; enabling **Share task titles** sends those titles too. Service credentials, session IDs, full paths, prompts, and conversation content are not shared.
 
-“Local History” is limited to records observable in local Codex session history. Deleted logs and usage from other computers are not recoverable locally. Optional account totals remain a separate, memory-only overlay and are never inserted into the local usage database.
+The relay stores the latest snapshot, device and selection metadata, Apple subject ID, hashed bearer tokens, and APNs activity tokens needed for delivery. HTTPS protects transport; the relay can read shared usage. This is not an end-to-end encrypted transport. See [iPhone setup](IPHONE.md) and the [relay reference](IPHONE.md).
 
-Explicit **Claude Accounts** actions read the supported default Claude OAuth Keychain record and account identity. Add Account delegates browser sign-in to the official CLI using a private temporary configuration and a distinct Keychain service; the temporary item and configuration are removed afterward. Switch requires confirmation and closed Claude Code sessions. It preserves the departing login, changes only the OAuth record and profile identity, and invalidates old quota snapshots; unrelated configuration remains intact. Saved credentials never enter the usage database, logs, or UI. Removing a saved entry does not log out of Claude Code. The account manager does not support managed/API-key/custom-home authentication and does not stop user sessions.
+## Controls
+
+- Select only providers to monitor; removing one stops monitoring and leaves the original tool signed in.
+- AWS Bedrock, Azure OpenAI, and some Doubao sources require **Allow potentially billed monitoring requests** before a potentially billed query.
+- In **Settings → Providers → Codex or Claude Code**, rebuild or clear that service's derived data. Original session logs are retained; clearing records an import cutoff.
+- Debug logging is off by default and excludes credentials and conversation content. Do not attach private transcripts to bug reports.
+
+[Providers](PROVIDERS.md) · [Accounts](ACCOUNTS.md) · [Security](../SECURITY.md) · [Docs](README.md)
+
+## Storage map
+
+| Data | Storage / boundary |
+| --- | --- |
+| Normalized local token events/checkpoints | Separate owner-only SQLite databases; no source text or full paths |
+| Last-known normalized quota windows/read times | `UsageArchive` in `notchLastGoodReadings` UserDefaults; daily local totals excluded |
+| Aggregate CLI/widget data | Atomic owner-only `snapshot.json`; local-file or authorized App Group transport |
+| Raw app-server responses | In-memory store; credentials excluded from exports |
+| ChatGPT profile credentials/response | In-memory fixed-endpoint request; never SQLite, UserDefaults, Keychain, or diagnostics |
+| Saved subscription/additional-provider credentials | Dedicated non-synchronizing macOS Keychain items; Windows DPAPI CurrentUser |
+| Opt-in mobile projection | HTTPS relay's per-device last snapshot; task titles only with explicit sharing |
+
+Application Support uses `0700`; SQLite/lock/fingerprint/snapshot files use `0600`. Discovery/opening checks containment, ownership, links, and bounded input. Clear uses SQLite secure deletion, WAL truncation, and vacuum for local derived data; it retains the cutoff and Claude hashed exclusions. Debug logging defaults off, writes fixed operational events/counts rather than raw errors/content, and rotates at 1 MiB. Local accounting has no network dependency and no telemetry. Explicit provider/profile/update/relay requests have their separately documented boundaries.

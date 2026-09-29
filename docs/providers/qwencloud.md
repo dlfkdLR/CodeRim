@@ -1,6 +1,6 @@
-[Docs](../README.md) · [All providers](../providers.md)
-
 # Qwen Cloud
+
+**English** · [한국어](../ko/providers/qwencloud.md)
 
 Individual Token Plan limits.
 
@@ -11,7 +11,7 @@ CLI provider ID: `qwencloud`.
 Sign in to the individual Qwen Cloud Token Plan. Import the browser session or provide a manual Cookie header.
 
 1. Add **Qwen Cloud** in **Settings → Providers → Add Provider**.
-2. Open its **Connection settings** and fill in the fields for the source above. Browser-session import is optional and must be enabled for this provider when using that source.
+2. Open its **Connection settings** and fill in the fields for the source above. Where browser-session import is offered, enable it explicitly for this provider when using that source.
 3. Choose **Save and refresh**. Credentials are stored in CodeRim's own Keychain item.
 
 ### Additional settings
@@ -28,4 +28,4 @@ A missing reading can mean the session expired, the account lacks the required p
 
 Connection protocols are supplied by CodeRim's pinned CodexBar integration. [Upstream source guide](https://github.com/steipete/CodexBar/blob/51ed16bdd3abe35ec53af99818e1b5f0d2a631d3/docs/qwen-cloud.md). Configure the connection in **CodeRim**; CodexBar-specific UI or config-file instructions do not apply directly.
 
-[Connection troubleshooting](../troubleshooting.md) · [Privacy](../privacy.md)
+[Connection troubleshooting](../troubleshooting.md) · [Privacy](../privacy.md) · [Docs](../README.md) · [All providers](../providers.md)

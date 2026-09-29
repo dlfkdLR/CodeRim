@@ -52,12 +52,21 @@ struct ChatGPTProfileClient: Sendable {
             throw ProfileUsageError.invalidHTTPResponse
         }
 
-        return try ProfileResponseDecoder.decode(
+        var snapshot = try ProfileResponseDecoder.decode(
             loaded.data,
             now: now,
             calendar: calendar,
             weekStart: weekStart
         )
+        // A login changed outside CodeRim must not attach an old response to the new account.
+        let currentCredential = try credentialLoader()
+        guard currentCredential.accountID == credential.accountID,
+              currentCredential.accountKey == credential.accountKey,
+              credential.accountKey != nil || currentCredential.accessToken == credential.accessToken else {
+            throw ProfileUsageError.invalidCredentials
+        }
+        snapshot.accountKey = credential.accountKey
+        return snapshot
     }
 
     func makeRequest(credential: ProfileCredential) throws -> URLRequest {
@@ -144,10 +153,10 @@ private enum ProfileResponseDecoder {
             if day == statsAsOfDay {
                 today = bucket.tokens
             }
-            if currentWeek.contains(date) {
+            if date >= currentWeek.start, date < currentWeek.end {
                 week = try checkedAdd(week, bucket.tokens)
             }
-            if currentMonth.contains(date) {
+            if date >= currentMonth.start, date < currentMonth.end {
                 month = try checkedAdd(month, bucket.tokens)
             }
         }

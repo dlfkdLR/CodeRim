@@ -1,9 +1,10 @@
 import SwiftUI
 
 /// A window-sized summary. Totals use the same display policy as the compact
-/// menu: every token total uses the live local session history.
+/// menu: History reconciles account totals; Today keeps its local breakdown.
 struct UsageSettingsOverview: View {
     @EnvironmentObject private var store: UsageStore
+    @EnvironmentObject private var profileStore: ProfileUsageStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("numberStyle") private var numberStyle = TokenNumberStyle.compact.rawValue
     @AppStorage("showCachedInput") private var showCachedInput = true
@@ -120,29 +121,39 @@ struct UsageSettingsOverview: View {
 
     private var history: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionHeading("History", context: "This Mac")
-                .help(UsageDisplayPolicy.localHistoryHelp)
+            sectionHeading("History", context: historyScope == .account ? "ChatGPT account" : "This Mac")
+                .help(historyScope == .account ? UsageDisplayPolicy.accountHistoryHelp : UsageDisplayPolicy.localHistoryHelp)
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 16) {
                     periodLink("This Week", period: .week)
                     Divider().frame(height: 64)
                     periodLink("This Month", period: .month)
                     Divider().frame(height: 64)
-                    periodLink("Local History", period: .allTime)
+                    periodLink(historyScope == .account ? "Lifetime" : "Local History", period: .allTime)
                 }
                 VStack(alignment: .leading, spacing: 12) {
                     periodLink("This Week", period: .week)
                     periodLink("This Month", period: .month)
-                    periodLink("Local History", period: .allTime)
+                    periodLink(historyScope == .account ? "Lifetime" : "Local History", period: .allTime)
                 }
             }
+            AccountHistoryFooter(provider: store.provider)
         }
     }
 
+    private var historyScope: UsageHistoryScope {
+        store.provider.supportsAccountTotals && profileStore.isEnabled ? .account : .local
+    }
+
+    private func historyTotal(_ period: UsagePeriod) -> Int64? {
+        UsageDisplayPolicy.displayedTotal(for: period, scope: historyScope,
+            localSnapshot: store.snapshot, profileSnapshot: profileStore.snapshot)
+    }
+
     private func periodLink(_ title: String, period: UsagePeriod) -> some View {
-        let total = store.snapshot.totals(for: period).totalTokens
-        let text = formatted(total)
-        return MenuLink(destination: .period(period)) {
+        let total = historyTotal(period)
+        let text = total.map(formatted) ?? "—"
+        return MenuLink(destination: .period(period, scope: historyScope)) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Text(title).font(.callout).foregroundStyle(.secondary)
@@ -161,8 +172,8 @@ struct UsageSettingsOverview: View {
             .padding(.vertical, 4)
             .frame(minWidth: 140, maxWidth: .infinity, alignment: .leading)
         }
-        .disabled(store.snapshot.updatedAt == nil)
-        .accessibilityLabel("This Mac \(title), \(text) tokens")
+        .disabled(historyScope == .local && store.snapshot.updatedAt == nil)
+        .accessibilityLabel("\(historyScope.title) \(title), \(text) tokens")
         .accessibilityHint("Open \(title.lowercased()) details")
         .accessibilityIdentifier("settings.usage.local.\(period.rawValue)")
     }

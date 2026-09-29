@@ -1,65 +1,26 @@
 # Architecture
 
-CodeRim is a native SwiftUI accessory app for macOS. Through 1.x it was a `MenuBarExtra` popover with a diamond meter; 2.0 replaced that with a floating **edge notch** (a usage ring per provider, ported from the MIT-licensed [Codenotch](https://github.com/vinzdg/codenotch); see `Sources/CodeRim/Notch/` and `NOTICE`) plus a Settings window, with a minimal `NSStatusItem` (`StatusItemController`) as the always-present entry point. Local usage accounting has no network dependency. The code retains a memory-only account-total adapter, but production constructs ProfileUsageStore with allowsAccountTotals: false; account-wide profile totals are not currently exposed. Sparkle 2.9.6 is bundled for signed application updates.
+**English** · [한국어](ARCHITECTURE.ko.md)
+
+CodeRim is a macOS SwiftUI accessory app. `CodeRimApp` constructs provider stores, `SettingsEnvironment` shares them, `StatusItemController` owns the menu-bar entry, and `NotchController` owns the floating panel and `NotchUsageStore` fan-in. Windows uses a separate WPF/.NET implementation. The iPhone/relay source is an unreleased companion.
+
+## Local accounting pipeline
 
 ```text
-Codex session JSONL
-  -> contained source discovery
-  -> FSEvents refresh hint
-  -> bounded incremental reader
-  -> tolerant metadata projection
-  -> cumulative usage normalizer
-  -> SQLite checkpoints
-  -> cached UsageSnapshot
-  -> UI store
-  -> Settings ▸ Usage pane (the ported MenuPopoverView, embedded)
+known JSONL roots -> contained discovery -> FSEvents refresh hint
+ -> bounded incremental source snapshot -> metadata-only parser
+ -> provider normalizer -> SQLite events/checkpoints
+ -> UsageStore snapshots/analytics -> menu, Settings, notch
+ -> CompanionSnapshotPublisher -> CLI / WidgetKit snapshot
 ```
 
-The edge notch runs its own fan-in beside this. `NotchController` owns a
-`NotchUsageStore` polling `[NotchProvider]` adapters — the Codex and Claude
-adapters reflect the stores above without new fetches; the rest
-(`CopilotNotchProvider`, `CursorNotchProvider`, …) borrow a credential the
-owning CLI or editor already holds and appear only when it is present. Session
-monitors (`ClaudeSessionMonitor`, `CodexActivityMonitor`) light the activity
-arcs and drive the completion peek; `ThresholdNotifier` fires the 80% / 100%
-notifications.
+`UsageProvider` selects the source roots and database. Codex reads `~/.codex/sessions` and `~/.codex/archived_sessions`; Claude reads `<CLAUDE_CONFIG_DIR or ~/.claude>/projects`. `CodexMeter.sqlite` and `Claude.sqlite` retain independent token events and cutoffs. Filesystem events are refresh hints, not token events. A frozen prefix is parsed when a file grows during import; concurrent appends must not erase accepted data. Rewrites/replacements invalidate checkpoints.
 
-Codex activity reads `task_started`, `task_complete`, and `turn_aborted` from
-local rollouts. A background actor scans up to 64 recent unarchived threads,
-caches unchanged files, and searches at most 8 MiB backwards per changed file.
-Silent reasoning and long tools retain the turn's original start time; file or
-catalogue modification alone never creates activity. Finished sessions remain
-idle for 90 seconds so completion transitions can be observed. A six-hour
-silence limit expires orphaned turns whose client exited without an end event.
-The local thread catalogue supplies project and task names for the notch.
+Only the production bundle identity opens `~/Library/Application Support/CodexMeter`. Development/test hosts use `CodexMeter-Development`. This separates unreleased schema migration from installed production data. Schema 17 preserves token events and version-16 replay repairs, indexes parsing-state session IDs, and repairs image counts transactionally from the maximum matching full-log/prefix checkpoint. It does not union unrelated image fragments.
 
-The disabled profile-total adapter retains this separate boundary for isolated tests:
+The `usageProvider` selection scopes the Usage pane's readings and analytics destinations; switching providers resets detail navigation. Codex and Claude have separate account-switch and quota paths. `SettingsEnvironment` owns their stores. The six sidebar sections are General, Usage, Providers, Notch, Diagnostics, and Information; provider details live under Providers. The Usage pane hosts `MenuPopoverView` in embedded mode with its own header refresh action (Command-R) and status-only footer. Detail panes use flat `SettingsSection`/`SettingsRow` primitives rather than a boxed form.
 
-```text
-~/.codex/auth.json credential projection
-  -> fixed HTTPS GET to chatgpt.com/backend-api/wham/profiles/me
-  -> validated aggregate daily/lifetime fields
-  -> memory-only ProfileUsageStore
-  -> ChatGPT account totals in the UI
-```
-
-The profile response is not merged into `UsageSnapshot` or SQLite. Remote failure cannot change local parser state, and local input/cached-input/output values are always presented as a separate **This Mac** breakdown.
-
-Phase 2 analytics reuse each provider's token pipeline:
-
-```text
-normalized usage_events
-  -> database-side Today / 7D / 30D buckets
-  -> model / keyed-project / session groupings
-  -> one PricingCatalog + CostEstimator
-  -> Usage / Projects / Sessions drill-down views
-```
-
-`UsageProvider` selects the local roots and an independent `UsageStore`/database. Codex keeps `CodexMeter.sqlite` unchanged; Claude uses `Claude.sqlite` under the same owner-only Application Support directory. The shared bounded reader/checkpoint machinery dispatches to `ClaudeJSONLParser` for Claude records. Claude messages are identified by hashed `message.id` across files, repeated blocks, restarts, and copied history. Conflict updates take maxima of the disjoint uncached-input/cache-read/cache-write/output components and retain the earliest observation date. Codex's cumulative normalizer and conflict behavior remain unchanged. See [Claude accounting](CLAUDE.md).
-
-The usageProvider selection scopes the Usage pane's readings and analytics destinations; switching providers resets detail navigation. Codex and Claude have separate account-switch and quota paths. SettingsEnvironment owns their stores. The six sidebar sections are General, Usage, Providers, Notch, Diagnostics, and Information; provider details live under Providers. The Usage pane hosts MenuPopoverView in embedded mode with its own header refresh action (Command-R) and status-only footer. Detail panes use flat SettingsSection/SettingsRow primitives rather than a boxed Form.
-
-`UsageStore` refreshes every requested analytics range after an import or calendar recalculation. Maintenance invalidates the analytics cache before starting; revision/request identifiers discard older in-flight results. Claude's optional `claude_message_exclusions` table retains only hashed response identities across clear/rebuild to reject later copies of pre-cutoff messages, without changing the Codex schema or retaining cleared usage values.
+## State and rendering
 
 Canonical model IDs are retained for pricing. Full working directories are immediately projected to a keyed HMAC plus their final folder name; raw paths never enter SQLite. Parent-session IDs are hashed with the existing storage identifier. Image attachment records contribute only a timestamped numeric count when the local schema is unambiguous; the retained whole-session count respects the local-history cutoff and attachment payloads are never copied. Inherited parent replay remains excluded before events reach aggregation, so parent and sub-agent rows are not added twice.
 
@@ -83,19 +44,21 @@ signed Codex app-server
   -> Limits view
 ```
 
-CodeRim verifies the local vendor binary signature before launch, never runs it through a shell, bounds output and execution time, and polls at a low frequency. A failed refresh retains the last in-memory limit snapshot and cannot change local token analytics. Reset credits are displayed only; no consume or account mutation RPC exists in the app.
+`SettingsNavigation` is parent-owned so selection survives window closure. The six sections are General, Usage, Providers, Notch, Diagnostics, and Information. Provider details own account/analytics/data actions. Embedded `MenuPopoverView` has a header refresh and status footer; the compact menu stays independently sized. Embedded Overview/Usage analytics/Limits share connected-provider navigation and `SettingsUsageAnalyticsState` preserves grouping, selected date, and disclosure state.
 
-The UI derives an optional pace indicator from each fresh, realistically bounded reported limit window. It compares the observed used percentage with an even-use schedule between the inferred window start and reported reset time. A run-out time uses only the current window's average consumption rate. Neither value is persisted, both are hidden for stale snapshots, and both are labeled as estimates rather than quota guarantees.
+`UsageStore` invalidates requested analytics ranges after import, maintenance, or calendar changes. Revision/request identity rejects old asynchronous results. `UsageAnalyticsPresentation` subtracts cached input from the uncached chart component; model grouping keeps leading models and an Other bucket. Full paths become keyed project IDs and basenames before persistence; title joins use the local catalog in memory.
 
-Estimated cost is a derived metric, not a stored bill. The catalog records one reviewed current API-pricing snapshot. The estimator uses Decimal, separates ordinary/cached/cache-write/output tokens, applies supported high-context request multipliers only where a qualifying request boundary was observed, safely treats input at or below the published threshold as standard pricing, and returns unavailable for unknown models or metadata that can change the amount.
+## Quotas and account history
 
-The updater is isolated from token ingestion. It reads a signed HTTPS appcast, verifies the feed and GitHub Release archive with an embedded Ed25519 public key, and verifies the archive before extraction. No usage state is passed to Sparkle.
+Codex limits use a vendor-verified app-server's read-only `account/rateLimits/read`. Raw responses stay in memory. Normalized provider windows/read times can be cached by `UsageArchive` and exported to the owner-only CLI/widget snapshot; no local Today value is restored from the quota archive. Account changes clear old quota/profile state and reject stale responses. Reset credits are display-only.
 
-Token-count events are cumulative snapshots. The normalizer ignores identical snapshots, derives component-wise increases, counts a fresh first counter only when `last_token_usage` equals `total_token_usage`, and treats unresolved baselines or ambiguous decreases as partial accuracy. Cached input is a subset of input, so the displayed local activity total is input plus output; all three observed components remain independently stored and auditable. Account totals come from the separate profile boundary and are never reconstructed from or merged into those local rows.
+The app constructs `ProfileUsageStore()`, registers profile sync as enabled by default, and starts automatic refresh. Overview History can use the active account's dated week/month/lifetime profile totals; Today, local analytics, notch, CLI, and widgets remain local. `ChatGPTProfileClient` uses a fixed HTTPS endpoint, rejects redirects, and never inserts the remote response into SQLite.
 
-The committed byte offset is the first byte after the last complete newline whose parser state and normalized events have been committed together. An ordinary unfinished final line leaves the offset unchanged and is retried after a later append. A line exceeding the 1 MiB safety limit is quarantined through the observed end of file so it cannot be reread indefinitely. Same-inode rewrites are detected with metadata plus a keyed, streaming HMAC of the committed prefix; long verification work resumes only while file identity, size, modification time, and status-change time remain stable.
+## Activity and external boundaries
 
-One refresh processes at most 32 MiB or roughly five seconds of new data before committing progress. Source discovery fails closed above 50,000 files.
+Codex activity recognizes explicit turn start/complete/abort events; catalog or file modification alone does not mean working. Local and remote catalogs preserve provenance and unavailable token counts. Child sessions display under their parent, with child tokens added only to the main chat. Duration derives from supported activity evidence, excluding waiting as defined by the session model.
+
+Provider adapters preserve quotas, counts, currencies, periods, and unavailable states. Extended settings are provider-scoped; potentially billed sources require explicit opt-in. Browser import verifies current profile/account identity and rejects stale or replaced source data before saving. Shared script resources remain pinned and bundled.
 
 File-system notifications are only refresh hints. Startup, manual refresh, watcher events, and the fallback timer reconcile source state again. The app also reconciles committed offsets and keyed continuity fingerprints against SQLite.
 
@@ -109,3 +72,5 @@ The corrected xAI and Poe scripts under Sources/CodeRim/Resources/ProviderScript
 ## Notch viewport
 
 The model retains all provider snapshots and derives a screen-sized visible slice. Rendering, hover, refresh hit testing and tooltips all use local indices in that slice. Wheel events over the notch body, context-menu entries and named accessibility actions navigate pages; tooltip wheel events reach the card's ScrollView. Actual card rows determine its natural height, bounded by screen space. The panel stays on screen, including its card reserve, when repositioned. Animation completion has a generation-checked fallback so an occluded WindowServer cannot indefinitely defer an edge change.
+
+The mobile publisher is an independent allowlisted projection, with per-device snapshots and titles off by default. Relay/API and APNs scheduling do not change local accounting. [Accounting](USAGE.md) · [Provider boundary](PROVIDERS.md) · [CLI contract](CLI_WIDGETS.md) · [Mobile contract](IPHONE.md).

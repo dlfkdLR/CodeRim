@@ -1,8 +1,102 @@
+import CSQLite
 import Foundation
 import XCTest
 @testable import CodeRim
 
 final class SQLiteDatabaseTests: XCTestCase {
+    func testSchema17ReopenPreservesSavedUsage() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("usage.sqlite")
+        try await writeSchemaRecoveryFixture(at: url)
+        XCTAssertEqual(try recoveryScalar("PRAGMA user_version", at: url), 17)
+
+        let reopened = try SQLiteDatabase(url: url)
+        let count = try await reopened.eventCount()
+        let snapshot = try await reopened.usageSnapshot(
+            now: Date(timeIntervalSince1970: 1_800_000_060),
+            calendar: Calendar(identifier: .gregorian), weekStart: .monday
+        )
+        XCTAssertEqual(count, 1)
+        XCTAssertEqual(snapshot.allTime, TokenUsage(inputTokens: 100, cachedInputTokens: 60, outputTokens: 35))
+        XCTAssertEqual(snapshot.quality, .exact)
+        XCTAssertEqual(try recoveryScalar("PRAGMA user_version", at: url), 17)
+        XCTAssertEqual(try recoveryScalar("SELECT committed_offset FROM parsing_state", at: url), 100)
+    }
+
+    func testFutureSchemaRejectionPreservesSavedUsage() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("usage.sqlite")
+        try await writeSchemaRecoveryFixture(at: url)
+        try executeRecoverySQL("PRAGMA user_version = 18", at: url)
+
+        do {
+            _ = try SQLiteDatabase(url: url)
+            XCTFail("A newer usage schema must require an app update")
+        } catch let SQLiteDatabaseError.unsupportedSchema(found, supported) {
+            XCTAssertEqual(found, 18)
+            XCTAssertEqual(supported, 17)
+        }
+        XCTAssertEqual(try recoveryScalar("PRAGMA user_version", at: url), 18)
+        XCTAssertEqual(try recoveryScalar("SELECT COUNT(*) FROM usage_events", at: url), 1)
+        XCTAssertEqual(try recoveryScalar("SELECT SUM(input_tokens + output_tokens) FROM usage_events", at: url), 135)
+        XCTAssertEqual(try recoveryScalar("SELECT SUM(cached_input_tokens) FROM usage_events", at: url), 60)
+        XCTAssertEqual(try recoveryScalar("SELECT committed_offset FROM parsing_state", at: url), 100)
+    }
+
+    private func writeSchemaRecoveryFixture(at url: URL) async throws {
+        let database = try SQLiteDatabase(url: url)
+        let checkpoint = SourceCheckpoint(
+            sourcePath: "synthetic-source", fileIdentity: "1:2", generation: 0,
+            committedOffset: 100, sessionID: "synthetic-session", inheritsHistory: false,
+            model: nil, projectPath: nil
+        )
+        let usage = TokenUsage(inputTokens: 100, cachedInputTokens: 60, outputTokens: 35)
+        let event = UsageEvent(
+            eventKey: "synthetic-event", occurredAt: Date(timeIntervalSince1970: 1_800_000_000),
+            sessionID: checkpoint.sessionID, model: nil, projectPath: nil, usage: usage,
+            sourcePath: checkpoint.sourcePath, sourcePosition: 10
+        )
+        try await database.commit(events: [event], checkpoint: checkpoint,
+                                  normalizationState: UsageNormalizationState(cumulativeHighWaterMark: usage, quality: .exact))
+    }
+
+    private func recoveryScalar(_ sql: String, at url: URL) throws -> Int64 {
+        var connection: OpaquePointer?
+        guard sqlite3_open_v2(url.path, &connection, SQLITE_OPEN_READONLY, nil) == SQLITE_OK,
+              let connection else {
+            if let connection { sqlite3_close(connection) }
+            throw NSError(domain: "SchemaRecoveryTests", code: 2)
+        }
+        defer { sqlite3_close(connection) }
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(connection, sql, -1, &statement, nil) == SQLITE_OK,
+              let statement else {
+            throw NSError(domain: "SchemaRecoveryTests", code: 3)
+        }
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW else {
+            throw NSError(domain: "SchemaRecoveryTests", code: 4)
+        }
+        return sqlite3_column_int64(statement, 0)
+    }
+
+    private func executeRecoverySQL(_ sql: String, at url: URL) throws {
+        var connection: OpaquePointer?
+        guard sqlite3_open_v2(url.path, &connection, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK,
+              let connection else {
+            if let connection { sqlite3_close(connection) }
+            throw NSError(domain: "SchemaRecoveryTests", code: 5)
+        }
+        defer { sqlite3_close(connection) }
+        guard sqlite3_exec(connection, sql, nil, nil, nil) == SQLITE_OK else {
+            throw NSError(domain: "SchemaRecoveryTests", code: 6)
+        }
+    }
+
     func testMigrationReopenDuplicateInsertAndSnapshot() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

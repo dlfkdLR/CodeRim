@@ -15,6 +15,8 @@ final class ProfileUsageStore: ObservableObject {
 
     private let defaults: UserDefaults
     private let fetcher: ProfileUsageFetching
+    private var pollingTask: Task<Void, Never>?
+    private var identityTask: Task<Void, Never>?
     private var defaultsTask: Task<Void, Never>?
     private var automaticRefreshTask: Task<Void, Never>?
     private var clockChangeTask: Task<Void, Never>?
@@ -45,8 +47,6 @@ final class ProfileUsageStore: ObservableObject {
         isEnabled = enabled
         status = enabled ? .idle : .disabled
         observedWeekStartRawValue = Self.storedWeekStartRawValue(in: defaults)
-        // The live usage interface never fetches delayed profile totals, even
-        // when a previous version left profile sync enabled in saved preferences.
         guard allowsAccountTotals else { return }
         defaultsTask = Task { [weak self] in
             let notifications = NotificationCenter.default.notifications(
@@ -88,7 +88,34 @@ final class ProfileUsageStore: ObservableObject {
         scheduleCalendarBoundary()
     }
 
+    /// Started only by the production app; fixture stores remain offline.
+    func startAutomaticRefresh() {
+        guard allowsAccountTotals, pollingTask == nil else { return }
+        pollingTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(300))
+                guard !Task.isCancelled, let self else { return }
+                await self.refresh(weekStart: self.selectedWeekStart)
+            }
+        }
+        identityTask = Task { [weak self] in
+            var previous = try? ProfileCredential.currentAccountKey()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(2))
+                guard !Task.isCancelled, let self else { return }
+                let current = try? ProfileCredential.currentAccountKey()
+                if current != previous {
+                    self.clearForAccountSwitch()
+                    self.scheduleAutomaticRefresh()
+                }
+                previous = current
+            }
+        }
+    }
+
     deinit {
+        pollingTask?.cancel()
+        identityTask?.cancel()
         defaultsTask?.cancel()
         automaticRefreshTask?.cancel()
         clockChangeTask?.cancel()
@@ -100,7 +127,7 @@ final class ProfileUsageStore: ObservableObject {
 
     func setEnabled(_ enabled: Bool) {
         defaults.set(enabled, forKey: Self.enabledPreferenceKey)
-        applyEnabledState(enabled)
+        applyEnabledState(allowsAccountTotals && enabled)
     }
 
     func synchronizeEnabledPreference() {

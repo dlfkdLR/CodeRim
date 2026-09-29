@@ -18,6 +18,7 @@ enum ElapsedCopy {
 
         let hours = minutes / 60
         let rest = minutes % 60
+        if hours >= 24 { return "\(hours / 24) d \(hours % 24) hr \(rest) min" }
         if rest == 0 { return "\(hours) hr" }
         return "\(hours) hr \(rest) min"
     }

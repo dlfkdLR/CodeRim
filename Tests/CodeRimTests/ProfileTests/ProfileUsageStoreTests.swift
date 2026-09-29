@@ -4,7 +4,7 @@ import XCTest
 
 @MainActor
 final class ProfileUsageStoreTests: XCTestCase {
-    func testDefaultIsOptInAndRefreshDoesNotAccessFetcher() async throws {
+    func testDisabledPreferenceDoesNotAccessFetcher() async throws {
         let fixture = try DefaultsFixture()
         defer { fixture.remove() }
         let counter = StoreInvocationCounter()
@@ -356,9 +356,8 @@ private struct DefaultsFixture {
     init(enabled: Bool? = nil) throws {
         name = "CodeRimProfileTests.\(UUID().uuidString)"
         defaults = try XCTUnwrap(UserDefaults(suiteName: name))
-        if let enabled {
-            defaults.set(enabled, forKey: ProfileUsageStore.enabledPreferenceKey)
-        }
+        // Registration defaults are shared across suites in a test process.
+        defaults.set(enabled ?? false, forKey: ProfileUsageStore.enabledPreferenceKey)
     }
 
     func remove() {

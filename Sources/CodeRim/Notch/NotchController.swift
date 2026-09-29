@@ -47,6 +47,8 @@ final class NotchController: ObservableObject {
     private var whileVisible = Set<AnyCancellable>()
     private var configured = false
     private var visible = false
+    private var sessionTokenTimer: Timer?
+    private var sessionTokenFetch: Task<Void, Never>?
 
     /// Upstream stores also feed the CLI and WidgetKit while the notch is hidden.
     private var codexLimits: AccountLimitStore?
@@ -199,6 +201,9 @@ final class NotchController: ObservableObject {
         ) ?? .used
         store.start()
         wireLimitBridge()
+        sessionTokenTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshSessionTokens() }
+        }
     }
 
     func lastUpdatedAt(providerID: String) -> Date? {
@@ -280,6 +285,41 @@ final class NotchController: ObservableObject {
     func apply(resetTimeFormat: ResetTimeFormat) {
         guard configured else { return }
         window.model.resetTimeFormat = resetTimeFormat
+    }
+
+    func apply(showSessionTokens: Bool) {
+        if showSessionTokens { refreshSessionTokens() }
+        else {
+            sessionTokenFetch?.cancel()
+            window.model.sessionTokenTotals = [:]
+        }
+    }
+
+    private func refreshSessionTokens() {
+        guard visible, sessionTokenFetch == nil,
+              UserDefaults.standard.bool(forKey: AppPreferences.notchShowSessionTokensKey) else { return }
+        let sessions = window.model.sessions
+        sessionTokenFetch = Task { [weak self] in
+            let totals = await Task.detached(priority: .utility) {
+                var result: [String: [String: Int64]] = [:]
+                for provider in UsageProvider.allCases {
+                    result[provider.rawValue] = SessionTokenReader.totals(
+                        for: sessions[provider.rawValue] ?? [], provider: provider,
+                        databaseURL: provider.databaseURL)
+                }
+                return result
+            }.value
+            guard let self else { return }
+            defer { self.sessionTokenFetch = nil }
+            guard !Task.isCancelled, self.visible,
+                  UserDefaults.standard.bool(forKey: AppPreferences.notchShowSessionTokensKey) else { return }
+            self.window.model.sessionTokenTotals = totals
+        }
+    }
+
+    func apply(showUnknownSessions: Bool) {
+        window.model.showUnknownSessions = showUnknownSessions
+        if configured { window.relocate() }
     }
 
     func apply(percentageMode: NotchPercentageMode) {

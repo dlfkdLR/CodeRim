@@ -7,6 +7,7 @@ struct ProfileUsageSnapshot: Equatable, Sendable {
     let lifetime: Int64
     let statsAsOf: Date
     let generatedAt: Date
+    var accountKey: String? = nil
 }
 
 enum ProfileUsageStatus: Equatable, Sendable {

@@ -1,8 +1,10 @@
 # Install CodeRim
 
+**English** · [한국어](ko/installation.md)
+
 **macOS 14 or later · Apple silicon and Intel.**
 
-[![Download for macOS](../Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/CodeRim-2.1.7.dmg)
+[![Download for macOS](../Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-2.1.13.dmg)
 
 [All releases](https://github.com/dlfkdLR/CodeRim/releases/latest) · [Changelog](../CHANGELOG.md)
 
@@ -19,11 +21,11 @@ The app is **ad-hoc signed, not Apple-notarized**. Homebrew verifies the downloa
 
 ## Direct download and macOS first-launch help
 
-Save the DMG and [SHA256SUMS.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.7/SHA256SUMS.txt) in the same folder and verify the download:
+Save the DMG and [SHA256SUMS.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/SHA256SUMS.txt) in the same folder and verify the download:
 
 ```sh
 cd ~/Downloads
-grep ' CodeRim-2.1.7.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
+grep ' CodeRim-2.1.13.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
 ```
 
 After the checksum reports `OK`, open the DMG and drag CodeRim to Applications. If macOS blocks the verified app, remove quarantine from **CodeRim only**, then launch it:
@@ -58,3 +60,7 @@ This reinstalls the current release as `CodeRim.app` and refreshes Homebrew's in
 Settings, usage history, and saved accounts are retained: do not add `--zap` or delete the CodexMeter Application Support folder. Relaunch `CodeRim.app` after installation completes, following the verified first-launch instructions above if needed. [Migration details](../Documentation/REBRANDING.md) · [Homebrew troubleshooting](troubleshooting.md#homebrew-upgrade-cannot-find-codexmeterapp).
 
 [Next: get started](getting-started.md) · [Docs](README.md)
+
+## Windows 11
+
+The current installers are [2.1.13 x64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-x64-Setup.msi) and [2.1.13 ARM64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-arm64-Setup.msi). See [Windows installation and updates](windows.md).

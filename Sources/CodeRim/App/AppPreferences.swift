@@ -1,7 +1,7 @@
 import Foundation
 
 enum AppPreferences {
-    static let defaultProfileSyncEnabled = false
+    static let defaultProfileSyncEnabled = true
     static let defaultAccountLimitsEnabled = true
     static let defaultAnalyticsEnabled = true
     static let defaultCostEstimatesEnabled = true
@@ -28,6 +28,12 @@ enum AppPreferences {
     static let defaultNotchResetTimeFormat = ResetTimeFormat.automatic.rawValue
     static let defaultNotchPercentageMode = NotchPercentageMode.used.rawValue
     static let defaultNotchShowUsagePace = false
+    static let notchShowUnknownSessionsKey = "notchShowUnknownSessions"
+    static let defaultNotchShowUnknownSessions = false
+    static let notchShowSessionDurationKey = "notchShowSessionDuration"
+    static let defaultNotchShowSessionDuration = false
+    static let notchShowSessionTokensKey = "notchShowSessionTokens"
+    static let defaultNotchShowSessionTokens = false
 
     // MARK: Threshold alerts
 
@@ -83,7 +89,10 @@ enum AppPreferences {
                 "notchAnimateGradient": defaultNotchAnimateGradient,
                 "notchResetTimeFormat": defaultNotchResetTimeFormat,
                 "notchPercentageMode": defaultNotchPercentageMode,
-                "notchShowUsagePace": defaultNotchShowUsagePace
+                "notchShowUsagePace": defaultNotchShowUsagePace,
+                notchShowUnknownSessionsKey: defaultNotchShowUnknownSessions,
+                notchShowSessionDurationKey: defaultNotchShowSessionDuration,
+                notchShowSessionTokensKey: defaultNotchShowSessionTokens
             ]
         )
     }

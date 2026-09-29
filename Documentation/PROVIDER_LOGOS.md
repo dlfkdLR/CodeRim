@@ -1,24 +1,16 @@
-# Provider logos
+# Provider artwork contract
 
-The 70-provider catalog uses existing native marks for the original integrations and dedicated bundled vendor SVGs for extended providers. The picker, settings detail, live snapshots and notch share `NotchProviderCatalog.glyph(for:)`. Old cached readings with the `third` placeholder resolve their logo by provider ID on load. Unknown or missing marks use a neutral dashed square, never another provider's logo.
+**English** · [한국어](PROVIDER_LOGOS.ko.md)
 
-Provider artwork follows `branding.iconResourceName` from pinned CodexBar revision `51ed16bdd3abe35ec53af99818e1b5f0d2a631d3`. Shared vendor brands (for example OpenAI/Azure, Alibaba plans and Kimi/Moonshot) deliberately share a mark. The vendor SVGs are in `Sources/CodeRim/Resources/ProviderLogos`, with attribution in `NOTICE` and the existing bundled CodexBar MIT license. Existing CodeRim branding, native marks and layout remain unchanged.
+The 70-provider catalog uses native original marks and bundled vendor SVGs for extended integrations. Picker, Settings, snapshots, and notch resolve `NotchProviderCatalog.glyph(for:)`. Archived `third` placeholders resolve by provider ID. Unknown/missing marks use a neutral dashed square, never another service's logo.
 
-Verification (2026-09-17):
+Artwork follows pinned CodexBar `branding.iconResourceName` at `51ed16bdd3abe35ec53af99818e1b5f0d2a631d3`. Shared brands intentionally share artwork, including OpenAI/Azure, Alibaba plans, and Kimi/Moonshot. `Sources/CodeRim/Resources/ProviderLogos` contains vendor SVGs; `NOTICE` and the bundled MIT license retain attribution and trademarks. CodeRim's Open Rim app mark is independent of these service marks.
 
-- 39 focused tests passed, 0 failures (`/tmp/coderim-provider-logos-tests.log`): all 70 catalog mappings, all 59 extended-provider snapshot marks, asset loading and actual SwiftUI alpha-mask rendering, backward-compatible archived identifiers, picker layout/search and provider regressions.
-- Light and dark contact sheets render all 70 entries at `/tmp/coderim-provider-logos-evidence/provider-logos-light.png` and `provider-logos-dark.png`.
-- The initial contact sheet exposed a second issue: four SVG files with CSS `1em` dimensions appeared as gray squares. Setting the loaded NSImage logical size before SwiftUI rendering fixes MiniMax, Kimi/Moonshot, Perplexity and Poe. The regression check renders `ProviderGlyphView` itself; checking only `tiffRepresentation` neither proves nor matches the displayed vector representation.
-- 55 added vendor SVGs match the pinned upstream bytes except trailing-newline normalization; shared brands deliberately reuse artwork. Existing Gemini CLI keeps its native sparkle.
-- Independent source, image and log review: `/tmp/coderim-provider-logos-independent.md`.
-- Harness run `run-00d9d9963682430e993f1c1f4191960b` records scoped patches and asset provenance. Swift execution and native UI capture are external local checks; the harness has no Swift adapter or formal review attestation, so its gate is not an ACCEPT result.
-- The release integration copy includes concurrent CodeRim branding changes from the current worktree. No credentials, provider selections, network fetch behavior or account state are intentionally changed by this patch.
+SVG CSS `1em` dimensions need an explicit NSImage logical size before SwiftUI rendering. Validate `ProviderGlyphView` alpha-mask output itself; `tiffRepresentation` alone does not establish the displayed vector. Check light/dark, unknown assets, legacy cache resolution, picker search/layout, native and all extended snapshot marks, and packaged resource hashes.
 
-Installed release verification (2026-09-17, 17:33–17:36 KST):
+```sh
+swift test --filter ProviderGlyph
+swift test --filter ProviderLogo
+```
 
-- The latest integration copy also passed the same 39 focused tests with zero failures (`/tmp/coderim-provider-logos-integration-tests.log`). All 300 captured build inputs matched the checkout before installation.
-- `Scripts/build_release.sh` completed the universal release, including the widget (`/tmp/coderim-provider-logos-warm-release.log`). An existing SwiftPM cache avoided a prolonged fresh dependency compile; no optimization flags or source settings were changed. The build reports an existing unused `try?` result warning in `CodeRimApp.swift`.
-- The packaged app, CLI and widget contain arm64 and x86_64. All 55 added SVGs match the source hashes; deep/strict ad-hoc signature verification passed. The packaged resource smoke returned `CODEXBAR_RESOURCE_SMOKE_OK`, and the packaged CLI listed 70 providers. Evidence: `/tmp/coderim-provider-logos-release-verification.json`; independently checked packaging evidence: `/tmp/coderim-provider-logos-independent-release-evidence.json`.
-- Installed at the existing `/Applications/CodexMeter.app` location and relaunched as CodeRim. Executable SHA-256: `d6c43811bbc88c883b010d32449ad8fb52a2a3daa5ee841cdcb9e37a72e1efba`. The previous app is preserved at `/Users/dlfkd/Library/Caches/dev.codexmeter.release/provider-logos-backup-20260917-173338/CodexMeter.app`.
-- Operated the installed Settings → Providers → Add Provider screen and visually confirmed distinct LLM Proxy, LiteLLM, Deepgram and Poe marks. Poe displays its intended outline, not a solid square. Screenshots: `/tmp/coderim-provider-logos-installed-evidence/llm-proxy-litellm.png`, `deepgram.png`, and `poe.png`.
-- Closed the picker with the same two selected providers, Codex and Claude Code. No provider was added, removed or signed in during these checks. This is local logo validation, not a claim that all remote provider accounts were exercised. No push or deployment was performed.
+Inspect synthetic captures as well as actual packaged UI if claiming installation success. The [2026-09-17 logo verification record](PROVIDER_LOGOS_2026-09-17.md) preserves the prior 39-test/build/install evidence and its limits. It is not a fresh result from this docs audit. [Providers](PROVIDERS.md).

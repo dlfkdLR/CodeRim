@@ -1,6 +1,8 @@
 # Saved accounts
 
-Use the notch's account control to open Codex Accounts or Claude Accounts. Add, save, switch, and remove accounts there. Switching is manual; CodeRim does not rotate accounts when quotas run low.
+**English** · [한국어](ko/accounts.md)
+
+On macOS, use the notch's account control to open Codex Accounts or Claude Accounts. Add, save, switch, and remove accounts there. Switching is manual; CodeRim does not rotate accounts when quotas run low.
 
 ## Codex
 
@@ -15,3 +17,5 @@ Sign in through the official Claude CLI, then add the account in CodeRim. **Add 
 Local token history remains a per-Mac ledger across accounts. Credentials are kept out of usage storage and diagnostics. Removing a saved entry does not delete the original session logs. Keychain permission prompts may recur after an ad-hoc signed app update.
 
 [Supported configurations and switching details](../Documentation/ACCOUNTS.md) · [Claude setup](providers/claude.md) · [Privacy](privacy.md) · [Docs](README.md)
+
+Windows uses its own protected account vault and switching implementation. See [Windows setup](windows.md).

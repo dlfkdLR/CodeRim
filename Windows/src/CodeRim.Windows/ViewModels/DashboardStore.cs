@@ -64,6 +64,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
         Changed();
     }
     internal ProfileUsageStore ProfileHistory { get; }
+    public MobileConnectionStore Mobile { get; }
     public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false, ProviderConnections? providerConnections = null, ProfileUsageStore? profileHistory = null, UsageRepository? usageRepository = null, ClaudeIntegration? claudeIntegration = null)
     {
         this.settings = settings; Synthetic = synthetic; connections = providerConnections ?? new ProviderConnections(vault);
@@ -85,6 +86,16 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                 RecordLocalAnalyticsRead(id, through);
             }
         }
+        Mobile = new MobileConnectionStore(
+            vault,
+            shareTitles => MobileSnapshotBuilder.Create(
+                CreateCompanionSnapshot(DateTimeOffset.Now),
+                Sessions,
+                shareTitles,
+                DateTimeOffset.Now
+            ),
+            !synthetic
+        );
         try
         {
             if (File.Exists(CompanionFile.SnapshotPath))
@@ -414,5 +425,5 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
         Changed();
     }
     private void Changed() => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(null));
-    public void Dispose() { disposed = true; Claude.Changed -= ClaudeChanged; claudeHost.Dispose(); ProfileHistory.Changed -= Changed; ProfileHistory.Dispose(); settings.SettingsChanged -= SessionTokenSettingsChanged; settings.SettingsChanged -= NativeAccountsSettingsChanged; lifetime.Cancel(); CancelSessionTokenReads(); sessionTokens.Clear(); accountSummaries.Clear(); accountPlans.Clear(); connections.Dispose(); }
+    public void Dispose() { disposed = true; Claude.Changed -= ClaudeChanged; claudeHost.Dispose(); ProfileHistory.Changed -= Changed; ProfileHistory.Dispose(); settings.SettingsChanged -= SessionTokenSettingsChanged; settings.SettingsChanged -= NativeAccountsSettingsChanged; lifetime.Cancel(); CancelSessionTokenReads(); sessionTokens.Clear(); accountSummaries.Clear(); accountPlans.Clear(); Mobile.Dispose(); connections.Dispose(); }
 }

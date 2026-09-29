@@ -1,6 +1,6 @@
-[Docs](../README.md) · [All providers](../providers.md)
-
 # Ollama Local
+
+**English** · [한국어](../ko/providers/ollama-local.md)
 
 Loaded models and local memory usage.
 
@@ -18,4 +18,4 @@ Hover the provider in the notch, or read the latest app snapshot with `coderim u
 
 An empty model list means no models are currently loaded; it does not mean a cloud quota has been exhausted.
 
-[Connection troubleshooting](../troubleshooting.md) · [Privacy](../privacy.md)
+[Connection troubleshooting](../troubleshooting.md) · [Privacy](../privacy.md) · [Docs](../README.md) · [All providers](../providers.md)

@@ -95,6 +95,7 @@ enum SQLiteDatabaseError: Error, LocalizedError {
     case statement(String)
     case step(String)
     case migration(String)
+    case unsupportedSchema(found: Int, supported: Int)
     case resourceLimit(String)
     case staleScan
 
@@ -104,6 +105,8 @@ enum SQLiteDatabaseError: Error, LocalizedError {
         case let .statement(message): "Database statement failed: \(message)"
         case let .step(message): "Database operation failed: \(message)"
         case let .migration(message): "Database migration failed: \(message)"
+        case let .unsupportedSchema(found, supported):
+            "Local usage database version \(found) requires a newer CodeRim app (supports up to \(supported)). Update CodeRim to read the saved usage."
         case let .resourceLimit(message): message
         case .staleScan: "The source scan was superseded by a data maintenance operation"
         }
@@ -112,11 +115,33 @@ enum SQLiteDatabaseError: Error, LocalizedError {
 
 actor SQLiteDatabase {
     static let maximumDatabaseBytes: Int64 = 1_073_741_824
+    static let supportedSchemaVersion = 17
 
     private let databaseURL: URL
     private let databaseByteLimit: Int64
     private let sourceFingerprintKeyData: Data
     private var connection: SQLiteConnection?
+
+    private struct ReadRevision: Equatable {
+        let localChanges: Int64
+        let externalChanges: Int64
+    }
+    private struct UsageCache {
+        let revision: ReadRevision
+        let today: Date
+        let week: Date
+        let month: Date
+        let asOf: Date
+        let nextEvent: TimeInterval?
+        let snapshot: UsageSnapshot
+    }
+    private struct EventBoundsCache {
+        let revision: ReadRevision
+        let oldest: Date?
+        let newest: Date?
+    }
+    private var usageCache: UsageCache?
+    private var eventBoundsCache: EventBoundsCache?
 
     init(url: URL, maximumDatabaseBytes: Int64 = SQLiteDatabase.maximumDatabaseBytes) throws {
         sqliteProcessStartupLock.lock()
@@ -565,6 +590,13 @@ actor SQLiteDatabase {
 
         try execute("BEGIN DEFERRED")
         do {
+            let revision = try readRevision()
+            if let cached = usageCache, cached.revision == revision,
+               cached.today == today, cached.week == week, cached.month == month,
+               now >= cached.asOf, cached.nextEvent.map({ now.timeIntervalSince1970 < $0 }) ?? true {
+                try execute("COMMIT")
+                return cached.snapshot
+            }
             let todayUsage = try sum(from: today, through: now)
             let weekUsage = try sum(from: week, through: now)
             let monthUsage = try sum(from: month, through: now)
@@ -579,7 +611,10 @@ actor SQLiteDatabase {
                 quality: quality,
                 updatedAt: lastUpdated
             )
+            let nextEvent = try minimumEventTimestamp(after: now)
             try execute("COMMIT")
+            usageCache = UsageCache(revision: revision, today: today, week: week, month: month,
+                                    asOf: now, nextEvent: nextEvent, snapshot: snapshot)
             return snapshot
         } catch {
             try? execute("ROLLBACK")
@@ -967,21 +1002,50 @@ actor SQLiteDatabase {
     }
 
     func dataStatistics() throws -> DataStatistics {
-        let statement = try prepare("SELECT MIN(occurred_at), MAX(occurred_at) FROM usage_events")
-        defer { sqlite3_finalize(statement) }
-        guard sqlite3_step(statement) == SQLITE_ROW else {
-            throw SQLiteDatabaseError.step(errorMessage)
+        let revision = try readRevision()
+        let bounds: EventBoundsCache
+        if let cached = eventBoundsCache, cached.revision == revision {
+            bounds = cached
+        } else {
+            let statement = try prepare("SELECT MIN(occurred_at), MAX(occurred_at) FROM usage_events")
+            defer { sqlite3_finalize(statement) }
+            guard sqlite3_step(statement) == SQLITE_ROW else {
+                throw SQLiteDatabaseError.step(errorMessage)
+            }
+            bounds = EventBoundsCache(revision: revision,
+                oldest: sqlite3_column_type(statement, 0) == SQLITE_NULL
+                    ? nil : Date(timeIntervalSince1970: sqlite3_column_double(statement, 0)),
+                newest: sqlite3_column_type(statement, 1) == SQLITE_NULL
+                    ? nil : Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)))
+            eventBoundsCache = bounds
         }
-        let oldest = sqlite3_column_type(statement, 0) == SQLITE_NULL
-            ? nil
-            : Date(timeIntervalSince1970: sqlite3_column_double(statement, 0))
-        let newest = sqlite3_column_type(statement, 1) == SQLITE_NULL
-            ? nil
-            : Date(timeIntervalSince1970: sqlite3_column_double(statement, 1))
         let size = [databaseURL.path, databaseURL.path + "-wal", databaseURL.path + "-shm"]
             .compactMap { try? FileManager.default.attributesOfItem(atPath: $0)[.size] as? NSNumber }
             .reduce(Int64(0)) { $0 + $1.int64Value }
-        return DataStatistics(databaseBytes: size, oldestRecord: oldest, newestRecord: newest)
+        return DataStatistics(databaseBytes: size, oldestRecord: bounds.oldest, newestRecord: bounds.newest)
+    }
+
+    /// data_version observes other connections; total_changes observes this
+    /// connection, including history deletion, exclusions and metadata writes.
+    private func readRevision() throws -> ReadRevision {
+        let statement = try prepare("PRAGMA data_version")
+        defer { sqlite3_finalize(statement) }
+        guard let connection, sqlite3_step(statement) == SQLITE_ROW else {
+            throw SQLiteDatabaseError.step(errorMessage)
+        }
+        return ReadRevision(localChanges: sqlite3_total_changes64(connection.rawValue),
+                            externalChanges: sqlite3_column_int64(statement, 0))
+    }
+
+    private func minimumEventTimestamp(after date: Date) throws -> TimeInterval? {
+        let statement = try prepare("SELECT MIN(occurred_at) FROM usage_events WHERE occurred_at > ?1")
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_double(statement, 1, date.timeIntervalSince1970)
+        guard sqlite3_step(statement) == SQLITE_ROW else {
+            throw SQLiteDatabaseError.step(errorMessage)
+        }
+        return sqlite3_column_type(statement, 0) == SQLITE_NULL
+            ? nil : sqlite3_column_double(statement, 0)
     }
 
     func eventCount() throws -> Int64 {
@@ -1365,8 +1429,8 @@ actor SQLiteDatabase {
 
     private static func migrate(_ database: OpaquePointer) throws {
         var version = try userVersion(database)
-        guard version <= 17 else {
-            throw SQLiteDatabaseError.migration("database schema is newer than this app supports")
+        guard version <= supportedSchemaVersion else {
+            throw SQLiteDatabaseError.unsupportedSchema(found: Int(version), supported: supportedSchemaVersion)
         }
 
         if version == 0 {

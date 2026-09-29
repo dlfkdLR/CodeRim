@@ -1,6 +1,6 @@
-[Docs](../README.md) · [All providers](../providers.md)
-
 # GLM
+
+**English** · [한국어](../ko/providers/glm.md)
 
 Z.ai Coding Plan usage.
 
@@ -20,4 +20,4 @@ Hover the provider in the notch, or read the latest app snapshot with `coderim u
 
 A missing reading can mean the session expired, the account lacks the required plan or permissions, or the service did not return a usable value. Reconnect the provider and refresh; missing data is not zero usage.
 
-[Connection troubleshooting](../troubleshooting.md) · [Privacy](../privacy.md)
+[Connection troubleshooting](../troubleshooting.md) · [Privacy](../privacy.md) · [Docs](../README.md) · [All providers](../providers.md)

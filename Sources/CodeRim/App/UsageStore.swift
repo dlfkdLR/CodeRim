@@ -34,9 +34,13 @@ final class UsageStore: ObservableObject {
     private var timeZoneChangeTask: Task<Void, Never>?
     private var calendarBoundaryTask: Task<Void, Never>?
     private var refreshPending = false
+    private var pendingForceAnalytics = false
     private var requestedAnalyticsRanges: Set<AnalyticsRange> = [.today]
     private var analyticsRevision: UInt64 = 0
     private var analyticsRequests: [AnalyticsRange: UUID] = [:]
+    private var lastAutomaticAnalyticsRevision: UInt64?
+    private var analyticsRefreshDates: [AnalyticsRange: Date] = [:]
+    private var analyticsCalendars: [AnalyticsRange: Calendar] = [:]
     private var previousWeekStartRawValue = WeekStart.monday.rawValue
     private var previousRefreshModeRawValue = RefreshMode.automatic.rawValue
 
@@ -117,7 +121,6 @@ final class UsageStore: ObservableObject {
             )
             for await _ in notifications {
                 guard !Task.isCancelled, let self else { return }
-                self.objectWillChange.send()
                 let weekStart = self.storedWeekStartRawValue
                 if weekStart != self.previousWeekStartRawValue {
                     self.previousWeekStartRawValue = weekStart
@@ -168,15 +171,19 @@ final class UsageStore: ObservableObject {
         calendarBoundaryTask = nil
     }
 
-    func refresh() async {
+    func refresh(forceAnalytics: Bool = true) async {
         guard !isMaintainingData else {
             refreshPending = true
+            pendingForceAnalytics = pendingForceAnalytics || forceAnalytics
             return
         }
         guard !isRefreshing else {
             refreshPending = true
+            pendingForceAnalytics = pendingForceAnalytics || forceAnalytics
             return
         }
+        let forceAnalytics = forceAnalytics || pendingForceAnalytics
+        pendingForceAnalytics = false
         isRefreshing = true
         await DiagnosticsLogger.shared.record(.refreshStarted)
         defer {
@@ -201,16 +208,21 @@ final class UsageStore: ObservableObject {
                 }
             }
             let result = try await collector.refresh(weekStart: weekStart)
-            hasLoadedSnapshot = true
-            if result.snapshot != snapshot {
+            if !hasLoadedSnapshot { hasLoadedSnapshot = true }
+            let snapshotChanged = result.snapshot != snapshot
+            if snapshotChanged {
                 snapshot = result.snapshot
             }
-            dataStatistics = result.statistics
-            sourceCount = result.sourceCount
+            if dataStatistics != result.statistics { dataStatistics = result.statistics }
+            if sourceCount != result.sourceCount { sourceCount = result.sourceCount }
             lastSourceRefreshAt = Date()
-            isImportingHistory = result.hasMoreWork
-            invalidateAnalytics(clearSnapshots: false)
-            await refreshRequestedAnalytics(using: collector)
+            if isImportingHistory != result.hasMoreWork { isImportingHistory = result.hasMoreWork }
+            if forceAnalytics || snapshotChanged || automaticAnalyticsRefreshIsDue(revision: result.analyticsRevision) {
+                invalidateAnalytics(clearSnapshots: false)
+                if await refreshRequestedAnalytics(using: collector) {
+                    lastAutomaticAnalyticsRevision = result.analyticsRevision
+                }
+            }
             updateWatcherForRefreshMode()
             await DiagnosticsLogger.shared.record(
                 .refreshCompleted(
@@ -249,6 +261,8 @@ final class UsageStore: ObservableObject {
                 "Too many \(provider.title) session files to scan safely"
             case SQLiteDatabaseError.resourceLimit:
                 "Local database safety limit reached"
+            case SQLiteDatabaseError.unsupportedSchema:
+                "Update CodeRim to read local usage saved by a newer version"
             default:
                 nil
             }
@@ -375,7 +389,8 @@ final class UsageStore: ObservableObject {
         }
     }
 
-    private func refreshAnalytics(range: AnalyticsRange, using collector: CodexUsageCollector) async {
+    @discardableResult
+    private func refreshAnalytics(range: AnalyticsRange, using collector: CodexUsageCollector) async -> Bool {
         let request = UUID()
         let revision = analyticsRevision
         analyticsRequests[range] = request
@@ -387,15 +402,19 @@ final class UsageStore: ObservableObject {
         do {
             let snapshot = try await collector.analyticsSnapshot(range: range)
             guard revision == analyticsRevision, analyticsRequests[range] == request,
-                  !Task.isCancelled else { return }
+                  !Task.isCancelled else { return false }
             analyticsSnapshots[range] = snapshot
+            analyticsRefreshDates[range] = snapshot.through
+            analyticsCalendars[range] = .current
             analyticsStatusMessage = "Analytics updated"
+            return true
         } catch {
             guard revision == analyticsRevision, analyticsRequests[range] == request,
-                  !Task.isCancelled else { return }
+                  !Task.isCancelled else { return false }
             analyticsStatusMessage = analyticsSnapshots[range] == nil
                 ? "Analytics are unavailable"
                 : "Showing the last analytics snapshot"
+            return false
         }
     }
 
@@ -405,14 +424,37 @@ final class UsageStore: ObservableObject {
         analyticsRevision &+= 1
         analyticsRequests.removeAll()
         isAnalyticsRefreshing = false
-        if clearSnapshots { analyticsSnapshots.removeAll() }
+        if clearSnapshots {
+            analyticsSnapshots.removeAll()
+            analyticsRefreshDates.removeAll()
+            analyticsCalendars.removeAll()
+            lastAutomaticAnalyticsRevision = nil
+        }
     }
 
-    private func refreshRequestedAnalytics(using collector: CodexUsageCollector) async {
+    @discardableResult
+    private func refreshRequestedAnalytics(using collector: CodexUsageCollector) async -> Bool {
         let revision = analyticsRevision
+        var succeeded = true
         for range in AnalyticsRange.allCases where requestedAnalyticsRanges.contains(range) {
-            guard revision == analyticsRevision, !Task.isCancelled else { return }
-            await refreshAnalytics(range: range, using: collector)
+            guard revision == analyticsRevision, !Task.isCancelled else { return false }
+            if !(await refreshAnalytics(range: range, using: collector)) { succeeded = false }
+        }
+        return succeeded
+    }
+
+    private func automaticAnalyticsRefreshIsDue(revision: UInt64, now: Date = Date(), calendar: Calendar = .current) -> Bool {
+        guard lastAutomaticAnalyticsRevision == revision else { return true }
+        return requestedAnalyticsRanges.contains { range in
+            guard analyticsSnapshots[range] != nil, let refreshedAt = analyticsRefreshDates[range],
+                  analyticsCalendars[range] == calendar else { return true }
+            // Retitles and external DB writes are not session events. Bound
+            // their cache lifetime, and rebuild buckets at hour/day rollover.
+            let elapsed = now.timeIntervalSince(refreshedAt)
+            let component: Calendar.Component = range == .today ? .hour : .day
+            return elapsed < 0 || elapsed >= 60
+                || calendar.dateInterval(of: component, for: refreshedAt)?.start
+                    != calendar.dateInterval(of: component, for: now)?.start
         }
     }
 
@@ -427,7 +469,7 @@ final class UsageStore: ObservableObject {
         ).sorted { $0.path < $1.path }
         guard !existingRoots.isEmpty else { return }
 
-        let watcher = CodexSessionWatcher(roots: existingRoots)
+        let watcher = CodexSessionWatcher(roots: existingRoots, sourceRoots: roots)
         self.watcher = watcher
         watcher.start()
         watcherTask = Task { [weak self, watcher] in
@@ -472,7 +514,7 @@ final class UsageStore: ObservableObject {
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
             self?.debounceTask = nil
-            await self?.refresh()
+            await self?.refresh(forceAnalytics: false)
         }
     }
 
@@ -493,16 +535,17 @@ final class UsageStore: ObservableObject {
     private func refreshIfScheduled(now: Date = Date()) {
         guard let seconds = currentRefreshMode.pollingInterval else { return }
         guard let lastSourceRefreshAt else {
-            Task { await refresh() }
+            Task { await refresh(forceAnalytics: false) }
             return
         }
         guard now.timeIntervalSince(lastSourceRefreshAt) >= seconds else { return }
-        Task { await refresh() }
+        Task { await refresh(forceAnalytics: false) }
     }
 
     func recalculateVisiblePeriods() async {
         guard !isMaintainingData, !isRefreshing else {
             refreshPending = true
+            pendingForceAnalytics = true
             return
         }
         do {
@@ -607,4 +650,3 @@ enum RefreshMode: String, CaseIterable, Identifiable, Sendable {
         }
     }
 }
-

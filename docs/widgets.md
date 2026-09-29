@@ -1,5 +1,7 @@
 # macOS widgets
 
+**English** · [한국어](ko/widgets.md)
+
 On macOS 14 or later, open Notification Center or right-click the desktop and choose **Edit Widgets**. Search for **CodeRim**:
 
 - **CodeRim Usage** — session/weekly or provider-specific quota bars, remaining values and reset countdowns. Small, medium and large.
