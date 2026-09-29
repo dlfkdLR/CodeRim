@@ -16,7 +16,7 @@ CodeRim retains its own Open Rim identity and Settings design while adapting MIT
 | CLI and widgets | Provider-neutral normalized snapshot; stale state and source scope preserved. macOS widgets have signing/transport requirements. |
 | Refresh | File events, bounded fallback and user-selected manual/polling intervals; late responses rejected after account/settings changes. |
 | Browser credentials | Explicit current-profile import only where supported, provider/account/origin/cookie scope verified before persistence. |
-| Account history | Audited main disables profile totals; local development Overview uses a separate fixed-endpoint memory-only aggregate boundary. |
+| Account history | CodeRim 2.1.13 Overview uses a separate fixed-endpoint, memory-only aggregate boundary; local analytics and Today remain This Mac. |
 | Mobile | Optional local development companion with provisioned iPhone and explicit relay; allowlisted snapshots and titles off by default. |
 | Documentation languages | English default guides and Korean counterparts. This does not claim full application UI localization or RTL support. |
 

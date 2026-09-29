@@ -16,7 +16,7 @@ CodeRim은 Open Rim 정체성·Settings 디자인을 유지하며 MIT CodexBar �
 | CLI·위젯 | 정규화 공통 snapshot·오래됨·출처를 보존하며 macOS 위젯은 서명·전송 조건이 있습니다. |
 | 갱신 | file event·상한 fallback·선택 manual/polling입니다. 계정·설정 변경 뒤 늦은 응답을 거부합니다. |
 | 브라우저 인증 | 지원되는 현재 프로필의 명시적 가져오기이며 저장 전 제공업체·계정·origin·쿠키 범위를 확인합니다. |
-| 계정 History | 감사한 main은 프로필 합계 off, 로컬 개발 Overview는 고정 endpoint·메모리 전용 별도 합계입니다. |
+| 계정 History | CodeRim 2.1.13 Overview는 고정 endpoint·메모리 전용 별도 합계를 사용하며 로컬 분석·Today는 This Mac입니다. |
 | 모바일 | 프로비저닝한 iPhone·명시적 relay의 선택적 개발 연동, 허용 snapshot·기본 제목 off입니다. |
 | 문서 언어 | 영어 기본 안내·한국어 사본입니다. 앱 UI 전체 현지화·RTL 지원을 주장하지 않습니다. |
 
