@@ -99,13 +99,12 @@ private struct TooltipShell<Content: View>: View {
                 .frame(width: NotchLayout.cardWidth, height: height)
 
             if scrolls {
-                ScrollView(.vertical) {
+                ScrollView(.vertical, showsIndicators: false) {
                     content.fixedSize(horizontal: false, vertical: true)
                         .padding(NotchLayout.cardPadding)
                         .frame(width: NotchLayout.cardWidth, alignment: .topLeading)
                 }
                 .frame(width: NotchLayout.cardWidth, height: height)
-                .scrollIndicators(.hidden)
                 .accessibilityIdentifier("notch.tooltip.scroll")
             } else {
                 content.fixedSize(horizontal: false, vertical: true)

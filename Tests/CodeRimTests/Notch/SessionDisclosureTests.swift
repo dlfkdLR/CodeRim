@@ -119,10 +119,7 @@ final class SessionDisclosureTests: XCTestCase {
             (view as? NSScrollView).map { [$0] } ?? view.subviews.flatMap { scrollViews(in: $0) }
         }
         let scroll = try XCTUnwrap(scrollViews(in: host).first)
-        if let indicator = scroll.verticalScroller {
-            XCTAssertTrue(indicator.isHidden || indicator.alphaValue == 0,
-                          "The hidden scroll indicator is visible")
-        }
+        XCTAssertFalse(scroll.hasVerticalScroller)
         let document = try XCTUnwrap(scroll.documentView)
         XCTAssertGreaterThan(document.frame.height, scroll.contentView.bounds.height)
 
