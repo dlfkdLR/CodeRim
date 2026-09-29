@@ -180,15 +180,46 @@ internal static partial class NativeSmoke
                         command.IsEnabled = true;
                         SettingsTheme.Apply(dark); surface.Menu.PlacementTarget = surface.Target;
                         surface.Menu.IsOpen = true; await Idle();
-                        NativeForeground();
                         var suffix = surface.Name + (dark ? "-dark" : "-light");
+                        var nativeBorder = surface.Menu.Template.FindName("Border", surface.Menu) as Border
+                            ?? throw new InvalidOperationException("The native context menu has no template border.");
+                        var translation = nativeBorder.RenderTransform as System.Windows.Media.TranslateTransform
+                            ?? throw new InvalidOperationException("The native context menu has no opening transform.");
+                        WriteFocusState("opening");
+                        // The framework storyboard is independent of CodeRim's
+                        // Motion clock; static captures must wait for its final frame.
+                        var settling = System.Diagnostics.Stopwatch.StartNew();
+                        while (surface.Menu.IsOpen && Math.Abs(translation.Y) > .1 && settling.ElapsedMilliseconds < 1000)
+                            await Task.Delay(16);
+                        WriteFocusState("ready");
+                        Require(surface.Menu.IsOpen && surface.Menu.IsLoaded && surface.Menu.IsVisible
+                            && command.IsLoaded && command.IsVisible && command.IsEnabled && command.Focusable
+                            && PresentationSource.FromVisual(command) is { } commandSource
+                            && ReferenceEquals(commandSource, PresentationSource.FromVisual(surface.Menu)),
+                            "The native context command is no longer mounted in an open menu: " + suffix);
+                        Require(Math.Abs(translation.Y) <= .1, "The native context-menu opening animation did not settle: " + suffix);
+                        NativeForeground();
                         Capture(surface.Menu, Path.Combine(directory, "windows-wpf-context-" + suffix + ".png"));
-                        Require(command.Focus(), "The native context command cannot receive keyboard focus");
+                        var focused = command.Focus();
+                        WriteFocusState("focused", focused);
+                        Require(focused, "The native context command cannot receive keyboard focus");
                         await Idle(); Require(command.IsHighlighted, "Keyboard focus did not select the Windows menu command"); NativeForeground();
                         Capture(surface.Menu, Path.Combine(directory, "windows-wpf-context-" + suffix + "-selected.png"));
                         command.IsEnabled = false; await Idle(); NativeForeground();
                         Capture(surface.Menu, Path.Combine(directory, "windows-wpf-context-" + suffix + "-disabled.png"));
                         command.IsEnabled = enabledBefore; surface.Menu.IsOpen = false; await Idle();
+
+                        void WriteFocusState(string phase, bool? accepted = null) => File.WriteAllText(
+                            Path.Combine(directory, "windows-wpf-context-" + suffix + "-focus-" + phase + ".json"),
+                            JsonSerializer.Serialize(new
+                            {
+                                phase, focusAccepted = accepted, menuOpen = surface.Menu.IsOpen, menuLoaded = surface.Menu.IsLoaded,
+                                menuVisible = surface.Menu.IsVisible, commandLoaded = command.IsLoaded, commandVisible = command.IsVisible,
+                                commandEnabled = command.IsEnabled, commandFocusable = command.Focusable,
+                                presentationMounted = PresentationSource.FromVisual(command) is not null,
+                                commandFocusWithin = command.IsKeyboardFocusWithin, highlighted = command.IsHighlighted,
+                                focusedElementType = Keyboard.FocusedElement?.GetType().Name, openingTranslationY = translation.Y
+                            }, JsonOptions));
 
                         void NativeForeground()
                         {
