@@ -4,49 +4,50 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.8</title>
-            <pubDate>Tue, 22 Sep 2026 20:02:27 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.8</link>
-            <sparkle:version>20108</sparkle:version>
-            <sparkle:shortVersionString>2.1.8</sparkle:shortVersionString>
+            <title>2.1.13</title>
+            <pubDate>Tue, 29 Sep 2026 16:40:45 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.13</link>
+            <sparkle:version>20113</sparkle:version>
+            <sparkle:shortVersionString>2.1.13</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.8
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.13
 
-This release improves Windows feature coverage and brings notch controls, account menus and usage navigation closer to the macOS app. Windows widgets remain outside scope.
+CodeRim 2.1.13 brings the current macOS and Windows work into one release and fixes the Codex account-limit failure reported after recent ChatGPT updates.
 
-## Usage and interface
+## Codex usage and account limits
 
-- Match the macOS resting settings arc, hover controls, account-menu focus, four-edge positioning and scaled notch geometry. Prevent refreshed popovers from covering their own controls, and remove native scroll chrome from provider lists.
-- Preserve provider/account selection, keyboard focus, chart ranges and Back navigation. Keep totals, unknown costs and currency/count units accurate in narrow windows.
-- Keep Codex and Claude local activity separate from account-wide quotas; preserve session, image and sub-agent accounting across appended, replaced and archived logs.
-- Preserve Unicode when Windows CLI output is redirected, without changing interactive console codepages.
+- CodeRim now discovers the signed Codex app-server executable inside current ChatGPT and Codex application bundles, including `Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex`.
+- The executable must still satisfy CodeRim's fixed identifier and developer-team requirement. Successful validation is reused only while the executable and its containing application path retain the same filesystem identity.
+- **Today · This Mac** remains local session history. Account-limit windows and optional ChatGPT profile history retain their separate source, freshness, and unavailable states.
 
-## Provider connections
+## macOS
 
-- Expand explicit API, Web, CLI and local sources, including regional MiniMax/Moonshot/Alibaba connections, DeepSeek balance and optional usage details, Kimi and StepFun recovery, Groq console refresh and Factory WorkOS sessions.
-- Add verified Firefox imports for supported readers and explicit Chromium profile imports for DeepSeek, Factory and MiniMax. Imported Windows snapshots are encrypted for the current user. Protected Chromium cookies are not decrypted.
-- Read current browser storage manifests and committed records with bounds, origin checks and stable-source verification. Reject ambiguous account/session combinations instead of reviving obsolete token bytes.
-- Preserve Factory refresh-token rotation and its first usage result while rejecting stale account changes, failed compare-and-swap writes and late responses. Keep retry cooldowns specific to the selected account.
-- On macOS, read closed Safari WAL databases from private copies, retain source-bound rotated access tokens and stop fixed-endpoint authentication requests from forwarding credentials through redirects.
+- Settings Usage includes Overview, local analytics, and provider Limits, with model, project, session, image-count, and supported cost-estimate details.
+- Token collection shares bounded refresh work across active sources, tracks analytics changes, and preserves partial-data disclosure when a source cannot be read.
+- Session activity, reset-ring motion, account switching/history, launch-at-login recovery, and settings layout receive their accumulated reliability and presentation fixes.
+- Existing `CodexMeter.app` manual installations can migrate to `CodeRim.app` while keeping the compatibility bundle identifier, settings, accounts, usage history, update trust, and notification permission. The package uses the Open Rim icon resource; macOS can retain a separately cached notification icon until the next login.
 
-## Updates and installation
+## Optional iPhone companion
 
-Windows now includes a managed, publisher-verified installation/update/recovery implementation. It activates only in packages built with a configured publisher certificate and matching public-key pin. The public Windows ZIPs in this release are unsigned: release checks work, and installation remains manual. A real signed Windows installation/update cycle has not been verified.
+The repository now includes the iPhone Live Activity app, desktop snapshot publisher, and relay service. Pairing is explicit. Task titles remain off by default, and the allowlisted snapshot excludes credentials, prompts, conversation content, session IDs, and full paths. Device signing, a configured HTTPS relay, Apple Sign In, and APNs remain deployment requirements.
 
-macOS uses its existing Sparkle update path. The macOS app is Universal 2 for Apple silicon and Intel, ad-hoc signed and not Apple-notarized. Windows 11 x64 and ARM64 packages are self-contained. Verify downloads using the matching SHA-256 manifests; settings, accounts and local history remain in their current locations.
+## Windows preview
 
-## Verification boundaries
+- Saved Codex account operations use a current-user lock across cooperating CodeRim processes and preserve account ownership through verification and rollback.
+- Official app-server account/read calls use the current RPC parameters, strict `CODEX_HOME` handling, and bounded snapshot replacement retries.
+- The Windows source includes optional iPhone relay settings alongside the existing x64/ARM64 MSI and authenticated update path.
 
-The final local macOS source suite executed 999 tests: 990 passed, 9 environment-dependent skips, and no failures. The Windows candidate passed 1,611 Core tests on each native x64 and ARM64 CI host, ten payload-manifest tests per architecture, packaged WPF/CLI checks, fourteen Factory credential-rotation scenarios, and six unsigned-updater refusal cases. These tests use synthetic provider data; they do not certify all 70 live provider accounts.
+## Install
 
-Native x64 CI confirmed pointer hover and queued mouse-wheel input. ARM64 CI's desktop was obscured by a host window, so its physical pointer/wheel checks remain inconclusive even though native rendering and routed interactions passed. Physical mixed-DPI/multimonitor, screen-reader and real-account workflows remain separate from this evidence. No claim of 100% live-provider verification or identical pixels on every display is made.
+- macOS 14 or later: universal Apple silicon and Intel DMG/ZIP, ad-hoc signed and Sparkle-signed, without Apple notarization.
+- Windows 11: separate x64 and ARM64 MSI installers. The installers are not Authenticode-signed; update manifests and payload hashes use CodeRim's pinned release key.
 
-See the [Windows guide](https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/WINDOWS.md) and [audit continuation](https://github.com/dlfkdLR/CodeRim/blob/main/Documentation/PARITY_VERIFICATION_2026-09-21.md) for supported sources and detailed boundaries.
+Checksums, signatures, and the exact validation boundary are published with the release assets.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.8/CodeRim-2.1.8.zip" length="29955862" type="application/octet-stream" sparkle:edSignature="hwBz9u+Goz+L5zzkU8zHj2y38KjCirhwzEiA//wHYdWY/ZIWhIclxYGpvOA6kMOM42XUGjvjVEmQ9Zv+MXoOAw=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-2.1.13.zip" length="31616231" type="application/octet-stream" sparkle:edSignature="/qOAsde4XuW7AKFw1PilbwlqZFLbDpmwULEl+8cgZcQwIL3V/5WfvoVNwnCijWDUF46/lVfVTu6glvARqdpSCg=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: Tolz9L6HeneY+9RDS9KqII/PNR4bQPAyFppP2QdgJBCoUETq98mocxz1ZV8VRHIfn6RHWn33HDhQDHKmB+NcDw==
-length: 5125
+edSignature: 4jyujwnVXw9pEgAXZLCMzKpcwh/NVkUG8EW1kM6qgfNTnmbA1wua9GV+BXhXuTITx5okgJIC67aiuhJnU3IkBg==
+length: 4094
 -->
