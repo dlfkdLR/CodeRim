@@ -3,27 +3,27 @@ import XCTest
 @testable import CodeRim
 
 final class AppPreferencesTests: XCTestCase {
-    func testFreshInstallIncludesServerHistoryWithoutEnablingClaudeIntegration() throws {
+    func testFreshInstallRequiresProfileHistoryOptInWithoutEnablingClaudeIntegration() throws {
         let suiteName = "CodeRimTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         defer { defaults.removePersistentDomain(forName: suiteName) }
 
         AppPreferences.registerDefaults(in: defaults)
 
-        // History includes the signed-in account; this never edits Claude config.
-        XCTAssertTrue(defaults.bool(forKey: "profileSyncEnabled"))
+        // Account history can contact ChatGPT, so a fresh install requires opt-in.
+        XCTAssertFalse(defaults.bool(forKey: "profileSyncEnabled"))
         XCTAssertFalse(defaults.bool(forKey: "claudeEnabled"))
         // The notch is not an integration — it is what the app looks like.
         XCTAssertTrue(defaults.bool(forKey: "showEdgeNotch"))
     }
 
-    func testServerHistoryDefaultPreservesExplicitOffChoice() throws {
+    func testServerHistoryDefaultPreservesExplicitOptIn() throws {
         let suite = "CodeRimTests.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        defaults.set(false, forKey: "profileSyncEnabled")
+        defaults.set(true, forKey: "profileSyncEnabled")
         AppPreferences.registerDefaults(in: defaults)
-        XCTAssertFalse(defaults.bool(forKey: "profileSyncEnabled"))
+        XCTAssertTrue(defaults.bool(forKey: "profileSyncEnabled"))
     }
 
     func testPreparingDataDirectoryEnforcesOwnerOnlyPermissions() throws {

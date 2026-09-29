@@ -1,7 +1,7 @@
 import Foundation
 
 enum AppPreferences {
-    static let defaultProfileSyncEnabled = true
+    static let defaultProfileSyncEnabled = false
     static let defaultAccountLimitsEnabled = true
     static let defaultAnalyticsEnabled = true
     static let defaultCostEstimatesEnabled = true

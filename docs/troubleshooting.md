@@ -18,7 +18,7 @@ Enable the Claude integration, add the signed-in account, and complete a Claude 
 
 Run a local Codex or Claude Code session, then use the **Settings → Usage** toolbar refresh icon or **Command-R**. CodeRim cannot recover deleted logs or other computers' records. In **Settings → Providers → Codex or Claude Code → Manage Data**, **Rebuild Statistics** reprocesses observable logs without removing the clear-history cutoff. **Clear Local History** removes only derived rows and records a new cutoff; original logs remain.
 
-Account history and local history have separate scope. CodeRim 2.1.13 can show dated ChatGPT account totals in Overview; its local charts and Today remain This Mac. New preferences enable profile history by default, while an existing stored preference is honored; no separate Settings switch is exposed. See [scope](usage.md).
+Account history and local history have separate scope. CodeRim 2.1.13 can show dated ChatGPT account totals in Overview after **Include ChatGPT history** is selected; its local charts and Today remain This Mac. Profile history is off by default, and **Stop including ChatGPT history** disables it and clears the current in-memory account snapshot. See [scope](usage.md).
 
 ## macOS blocks the app
 

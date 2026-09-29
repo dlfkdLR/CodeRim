@@ -14,7 +14,7 @@ Monitoring may reuse the original tool's login or a connection configured in Cod
 
 Codex account limits use the verified local Codex app-server. Claude limits use the local status-line helper. Other provider requests go to that provider or the configured endpoint. Saved-account actions are explicit; there is no automatic quota-based rotation. Credentials stay out of usage tables and diagnostics.
 
-CodeRim 2.1.13 enables separate ChatGPT profile history by default when registering new preferences, honoring existing stored values. It reads only the current Codex access token and account ID and sends them to the fixed `https://chatgpt.com/backend-api/wham/profiles/me` endpoint with redirects rejected. Credentials and responses remain in memory. Account totals never enter local history tables. [Scope and freshness](USAGE.md).
+ChatGPT profile history is off by default. Choosing **Include ChatGPT history** reads only the current Codex access token and account ID and sends them to the fixed `https://chatgpt.com/backend-api/wham/profiles/me` endpoint with redirects rejected. **Stop including ChatGPT history** disables refresh and clears the in-memory snapshot. Existing stored choices are honored. Credentials and responses remain in memory, and account totals never enter local history tables. [Scope and freshness](USAGE.md).
 
 Sparkle queries the GitHub update infrastructure; Windows Setup updates use the pinned release key and checksum. Requests expose normal connection metadata such as the IP address. They do not attach prompts, token history, or provider credentials. Configure automatic update checks in **Settings → General**.
 

@@ -52,7 +52,7 @@ signed Codex app-server
 
 Codex limits use a vendor-verified app-server's read-only `account/rateLimits/read`. Raw responses stay in memory. Normalized provider windows/read times can be cached by `UsageArchive` and exported to the owner-only CLI/widget snapshot; no local Today value is restored from the quota archive. Account changes clear old quota/profile state and reject stale responses. Reset credits are display-only.
 
-The app constructs `ProfileUsageStore()`, registers profile sync as enabled by default, and starts automatic refresh. Overview History can use the active account's dated week/month/lifetime profile totals; Today, local analytics, notch, CLI, and widgets remain local. `ChatGPTProfileClient` uses a fixed HTTPS endpoint, rejects redirects, and never inserts the remote response into SQLite.
+The app constructs `ProfileUsageStore()`, registers profile sync as off by default, and starts its account-change monitor. Only an explicit in-app opt-in schedules profile refresh. Overview History can use the active account's dated week/month/lifetime profile totals; Today, local analytics, notch, CLI, and widgets remain local. `ChatGPTProfileClient` uses a fixed HTTPS endpoint, rejects redirects, and never inserts the remote response into SQLite.
 
 ## Activity and external boundaries
 

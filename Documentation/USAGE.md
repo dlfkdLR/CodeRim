@@ -8,7 +8,7 @@ Open **Settings → Usage** and choose Codex or a connected Claude Code integrat
 
 - **Today · This Mac** counts local records since midnight in this Mac's current time zone. Week totals use the configured week start; month totals use the local calendar.
 - Local analytics cover observable sessions on **this computer across accounts**. Switching an account neither resets nor reassigns them. Codex and Claude histories remain separate.
-- In the current macOS source, Codex **Overview → History** uses separate **ChatGPT account** totals when profile sync is enabled; **This Week**, **This Month**, and **Lifetime** belong to the active account. New preference registrations enable profile sync. Existing stored preferences are retained. Server totals have a snapshot date and can lag local activity; an unavailable response stays unavailable.
+- Codex **Overview → History** uses separate **ChatGPT account** totals after the user chooses **Include ChatGPT history**; **This Week**, **This Month**, and **Lifetime** belong to the active account. Profile sync is off by default, existing stored choices are retained, and **Stop including ChatGPT history** turns it off and clears the in-memory snapshot. Server totals have a snapshot date and can lag local activity; an unavailable response stays unavailable.
 - With profile sync disabled, History shows **This Mac** and **Local History**. The Usage analytics charts, Today breakdown, notch, CLI, and desktop widgets keep their local scope in either mode. Account totals never enter local usage tables or get added to local totals.
 - Other providers report their own quotas, credits, spending, or status. Missing/deleted local logs and records stored only on remote computers cannot be reconstructed here.
 

@@ -22,12 +22,18 @@ struct AccountHistoryFooter: View {
                         Text("Local History on this Mac").foregroundStyle(.secondary)
                     }
                     .accessibilityIdentifier("history.local.details")
+                    Button("Stop including ChatGPT history") {
+                        profileStore.setEnabled(false)
+                    }
+                    .buttonStyle(.link)
+                    .accessibilityIdentifier("history.account.disable")
                 } else {
                     Button("Include ChatGPT history") {
                         profileStore.setEnabled(true)
                         Task { await profileStore.refresh(weekStart: WeekStart(rawValue: weekStart) ?? .monday) }
                     }
                     .buttonStyle(.link)
+                    .accessibilityIdentifier("history.account.enable")
                 }
             }
             .font(.caption)

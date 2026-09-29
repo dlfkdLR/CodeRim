@@ -18,7 +18,7 @@ Claude 연동을 켜고 로그인된 계정을 추가한 뒤 Claude Code 응답�
 
 로컬 Codex·Claude Code 세션을 실행한 뒤 **Settings → Usage** 도구 모음의 새로고침 아이콘 또는 **Command-R**을 사용합니다. 삭제된 로그·다른 컴퓨터 기록은 복구할 수 없습니다. **Settings → Providers → Codex 또는 Claude Code → Manage Data**의 **Rebuild Statistics**는 삭제 기준 시각을 유지하며 관측 가능한 로그를 다시 처리합니다. **Clear Local History**는 집계 행만 지우고 새 기준 시각을 기록하며 원본 로그를 유지합니다.
 
-계정 히스토리와 로컬 히스토리는 범위가 다릅니다. CodeRim 2.1.13은 Overview에 날짜가 있는 ChatGPT 계정 합계를 표시할 수 있으며 로컬 차트·Today는 This Mac을 유지합니다. 새 기본 설정은 프로필 히스토리를 켜지만 기존에 저장한 값은 존중하며 별도 Settings 스위치는 노출하지 않습니다. [범위](USAGE.ko.md)를 참고합니다.
+계정 히스토리와 로컬 히스토리는 범위가 다릅니다. CodeRim 2.1.13은 **Include ChatGPT history**를 선택한 뒤 Overview에 날짜가 있는 ChatGPT 계정 합계를 표시할 수 있으며 로컬 차트·Today는 This Mac을 유지합니다. 프로필 히스토리는 기본으로 꺼져 있고 **Stop including ChatGPT history**로 끄면 현재 메모리 계정 스냅샷도 지웁니다. [범위](USAGE.ko.md)를 참고합니다.
 
 ## macOS가 앱을 차단함
 

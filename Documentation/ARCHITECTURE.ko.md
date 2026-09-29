@@ -38,7 +38,7 @@ signed Codex app-server
 
 Codex 한도는 공급자 검증된 app-server의 읽기 전용 `account/rateLimits/read`를 사용합니다. 원본 응답은 메모리에 유지합니다. 정규화된 제공업체 한도·측정 시각은 `UsageArchive`에 캐시하고 소유자 전용 CLI·위젯 스냅샷에 내보낼 수 있습니다. 로컬 Today를 한도 캐시에서 복원하지 않습니다. 계정 변경은 이전 한도·프로필 상태를 지우고 오래된 응답을 버립니다. 초기화 크레딧은 표시만 합니다.
 
-앱은 `ProfileUsageStore()`를 만들고 프로필 동기화를 기본으로 켜서 자동 갱신합니다. Overview History는 현재 계정의 날짜가 있는 주간·월간·전체 프로필 합계를 사용할 수 있습니다. Today, 로컬 분석, 노치, CLI, 위젯은 로컬 범위를 유지합니다. `ChatGPTProfileClient`는 고정 HTTPS 엔드포인트를 사용하고 리다이렉트를 거부하며 원격 응답을 SQLite에 넣지 않습니다.
+앱은 `ProfileUsageStore()`를 만들고 프로필 동기화를 기본으로 끈 채 계정 변경 감시를 시작합니다. 앱에서 명시적으로 동의해야 프로필 갱신을 예약합니다. Overview History는 현재 계정의 날짜가 있는 주간·월간·전체 프로필 합계를 사용할 수 있습니다. Today, 로컬 분석, 노치, CLI, 위젯은 로컬 범위를 유지합니다. `ChatGPTProfileClient`는 고정 HTTPS 엔드포인트를 사용하고 리다이렉트를 거부하며 원격 응답을 SQLite에 넣지 않습니다.
 
 ## 활동과 외부 경계
 
