@@ -68,16 +68,18 @@ internal sealed class ProfileUsageStore : IDisposable
         }
     }
     private static ProfileCredential LoadCredential()
+        => LoadCredential(SavedAccounts.Paths("codex").Credential);
+    internal static ProfileCredential LoadCredential(string path)
     {
         try
         {
-            var path = SavedAccounts.Paths("codex").Credential;
             for (var current = Path.GetFullPath(path); !string.IsNullOrEmpty(current); current = Path.GetDirectoryName(current))
                 if ((File.GetAttributes(current) & FileAttributes.ReparsePoint) != 0) throw new ProfileCredentialException();
             using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
             if (input.Length > 262144) throw new ProfileCredentialException();
-            // CLI-created files inherit a private user profile ACL. Reject another owner
-            // or broadly readable/writable credentials without changing the CLI's file.
+            // Official CLI sandboxes may inherit read-only access to their login files.
+            // Keep the CLI ACL intact: require this user to own the file and reject
+            // foreign mutation rights, rather than rejecting existing readers.
             using var identity = WindowsIdentity.GetCurrent(); var user = identity.User;
             var security = input.GetAccessControl();
             if (user is null || !user.Equals(security.GetOwner(typeof(SecurityIdentifier)))) throw new ProfileCredentialException();
@@ -86,7 +88,7 @@ internal sealed class ProfileUsageStore : IDisposable
                 if (rule.AccessControlType != AccessControlType.Allow || rule.IdentityReference.Equals(user)) continue;
                 var sid = (SecurityIdentifier)rule.IdentityReference;
                 if (sid.IsWellKnown(WellKnownSidType.LocalSystemSid) || sid.IsWellKnown(WellKnownSidType.BuiltinAdministratorsSid)) continue;
-                if ((rule.FileSystemRights & (FileSystemRights.ReadData | FileSystemRights.WriteData | FileSystemRights.ChangePermissions | FileSystemRights.TakeOwnership)) != 0)
+                if ((rule.FileSystemRights & (FileSystemRights.Write | FileSystemRights.Delete | FileSystemRights.ChangePermissions | FileSystemRights.TakeOwnership)) != 0)
                     throw new ProfileCredentialException();
             }
             using var output = new MemoryStream(); var buffer = new byte[8192]; int count;

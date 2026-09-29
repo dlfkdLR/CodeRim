@@ -101,6 +101,8 @@ internal static partial class NativeSmoke
         Require(vault.Load("smoke.fixture") == "synthetic-secret", "DPAPI round trip failed");
         vault.Delete("smoke.fixture"); Require(vault.Load("smoke.fixture") is null, "Credential removal failed");
         Record("Windows private-file ACL, atomic replacement, and user DPAPI round trip");
+        await ProfileCredentialFileRegression(settings, directory);
+        Record("Profile credential reader accepts existing read-only ACLs and rejects foreign mutation rights");
         var mobileStoppedPath = Path.Combine(CompanionFile.DataDirectory, "iphone-sharing-stopped");
         File.Delete(mobileStoppedPath);
         vault.Save("iphone-relay", JsonSerializer.Serialize(new MobileCredential(
