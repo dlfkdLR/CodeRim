@@ -42,12 +42,20 @@ internal static class TrayMenuGlyph
             }
             else
             {
-                using var frame = TrayMenuRenderer.Rounded(new RectangleF(1, 3, 14, 10), 1.7f);
+                using var frame = Rounded(new RectangleF(1, 3, 14, 10), 1.7f);
                 graphics.DrawPath(pen, frame);
                 graphics.DrawLine(pen, 5.5f, 5.5f, 10.5f, 10.5f);
                 graphics.DrawLine(pen, 10.5f, 5.5f, 5.5f, 10.5f);
             }
         }
         finally { graphics.Restore(state); }
+    }
+    private static GraphicsPath Rounded(RectangleF bounds, float radius)
+    {
+        var path = new GraphicsPath(); var diameter = radius * 2;
+        path.AddArc(bounds.Left, bounds.Top, diameter, diameter, 180, 90);
+        path.AddArc(bounds.Right - diameter, bounds.Top, diameter, diameter, 270, 90);
+        path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+        path.AddArc(bounds.Left, bounds.Bottom - diameter, diameter, diameter, 90, 90); path.CloseFigure(); return path;
     }
 }

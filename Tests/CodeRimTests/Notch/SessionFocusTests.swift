@@ -56,10 +56,13 @@ final class SessionFocusTests: XCTestCase {
             let card = TooltipCard(snapshot: snapshot, activity: activity, now: now, sessionCap: cap)
             let natural = ImageRenderer(content: card.cardContent.frame(width: NotchLayout.cardTextWidth))
             let height = try XCTUnwrap(natural.nsImage).size.height
-            let budget = NotchLayout.cardHeight(for: snapshot, sessionCount: activity.displayRows.count,
-                                                sessionCap: cap, now: now) - 2 * NotchLayout.cardPadding
+            let presentation = SessionPresentation(summary: activity, cap: cap)
+            XCTAssertEqual(presentation.rows.count, cap == 0 ? 0 : 3,
+                           "A main-chat limit never hides that chat's children")
+            let budget = presentation.height(snapshot: snapshot, now: now, accountAction: false)
+                - 2 * NotchLayout.cardPadding
             XCTAssertLessThanOrEqual(height, budget + 1, "cap \(cap)")
-            for row in activity.presentation(cap: cap).rows where !row.isContextOnly {
+            for row in presentation.rows where !row.isContextOnly {
                 let id = try XCTUnwrap(row.session.codexThreadID)
                 XCTAssertTrue(children.contains(id))
                 XCTAssertEqual(SessionFocus.target(for: row.session),

@@ -51,19 +51,32 @@ final class NotchViewModel: ObservableObject {
     /// ring per provider, so nothing in the notch looks like a ring without
     /// being one.
     @Published var sessions: [String: [AgentSession]] = [:]
+    /// A presentation preference only: retain raw samples for state transitions.
+    @Published var showUnknownSessions: Bool
+    @Published var sessionTokenTotals: [String: [String: Int64]] = [:]
+    @Published var expandedSessionProviderID: String?
+
+    init(defaults: UserDefaults = .standard) {
+        showUnknownSessions = defaults.object(forKey: AppPreferences.notchShowUnknownSessionsKey) as? Bool
+            ?? AppPreferences.defaultNotchShowUnknownSessions
+    }
 
     /// Which cell the cursor is over, if any. Driven from the window controller
     /// rather than SwiftUI's `.onHover`: the panel ignores mouse events until
     /// the cursor is over it, so SwiftUI cannot see the crossing that turns
     /// event handling on in the first place.
-    @Published var hoveredIndex: Int?
+    @Published var hoveredIndex: Int? {
+        didSet { if hoveredIndex != oldValue { expandedSessionProviderID = nil } }
+    }
     /// Ticked on refresh so the "Resets in N min" copy stays honest.
     @Published var now: Date = Date()
     @Published var resetTimeFormat: ResetTimeFormat = .automatic
     @Published var percentageMode: NotchPercentageMode = .used
 
     /// Whether the notch is open or folded away to its pill.
-    @Published var isExpanded = false
+    @Published var isExpanded = false {
+        didSet { if !isExpanded { expandedSessionProviderID = nil } }
+    }
     /// Explicitly pinned through "Keep open" in the context menu. Plain
     /// clicks never change the visibility policy.
     @Published var isPinned = false
@@ -406,7 +419,9 @@ final class NotchViewModel: ObservableObject {
     /// A provider with no activity source gets none, rather than borrowing
     /// somebody else's.
     func activity(for providerID: String) -> ActivitySummary? {
-        ActivitySummary(sessions: sessions[providerID] ?? [])
+        ActivitySummary(sessions: (sessions[providerID] ?? []).filter {
+            showUnknownSessions || $0.state != .unavailable
+        })
     }
 
     var hoveredSnapshot: ProviderSnapshot? {
@@ -435,7 +450,7 @@ final class NotchViewModel: ObservableObject {
     var sessionCap: Int { sessionCap(cellCount: visibleSnapshots.count) }
 
     private var hasTodaysTokens: Bool {
-        snapshots.contains { $0.todaysTokens != nil }
+        snapshots.contains { $0.showsLocalTokens }
     }
 
     func sessionCap(cellCount: Int) -> Int {
@@ -446,21 +461,23 @@ final class NotchViewModel: ObservableObject {
                                            hasAccountRow: onSwitchAccount != nil || snapshots.contains { $0.accountPlanLabel != nil })
     }
 
+    func sessionPresentation(for snapshot: ProviderSnapshot, cellCount: Int) -> SessionPresentation {
+        SessionPresentation(summary: activity(for: snapshot.id), cap: sessionCap(cellCount: cellCount),
+            expanded: expandedSessionProviderID == snapshot.id)
+    }
+
     func maxCardHeight(cellCount: Int) -> CGFloat {
         let natural = visibleSnapshots.map {
-            NotchLayout.cardHeight(for: $0,
-                sessionCount: activity(for: $0.id)?.displayRows.count ?? 0,
-                sessionCap: sessionCap(cellCount: cellCount), now: now,
-                showsAccountAction: onSwitchAccount != nil)
+            sessionPresentation(for: $0, cellCount: cellCount)
+                .height(snapshot: $0, now: now, accountAction: onSwitchAccount != nil)
         }.max() ?? NotchLayout.maxCardHeight(sessionCap: sessionCap(cellCount: cellCount))
         guard screenSize != .zero else { return natural }
         return min(natural, max(1, cardBudget(cellCount: cellCount)))
     }
 
     func cardHeight(for snapshot: ProviderSnapshot) -> CGFloat {
-        min(NotchLayout.cardHeight(for: snapshot,
-                sessionCount: activity(for: snapshot.id)?.displayRows.count ?? 0,
-                sessionCap: sessionCap, now: now, showsAccountAction: onSwitchAccount != nil),
+        min(sessionPresentation(for: snapshot, cellCount: visibleSnapshots.count)
+            .height(snapshot: snapshot, now: now, accountAction: onSwitchAccount != nil),
             maxCardHeight(cellCount: visibleSnapshots.count))
     }
 

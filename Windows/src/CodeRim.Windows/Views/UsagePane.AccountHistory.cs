@@ -36,6 +36,13 @@ internal sealed partial class UsagePane
             footer.Children.Add(HistoryNote("Recent local usage appears after the next server update."));
             var local = HistoryLink("Local History on this PC", () => Forward("local-period", "all-time"));
             AutomationProperties.SetAutomationId(local, "history.local.details"); footer.Children.Add(local);
+            var disable = HistoryLink("Stop including ChatGPT history", () =>
+            {
+                try { settings.Save(settings.Current with { ProfileSyncEnabled = false }); }
+                catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException)
+                { MessageBox.Show("Unable to save the account history preference. Please try again.", "CodeRim"); }
+            });
+            AutomationProperties.SetAutomationId(disable, "history.account.disable"); footer.Children.Add(disable);
         }
         readings.Children.Add(footer);
     }

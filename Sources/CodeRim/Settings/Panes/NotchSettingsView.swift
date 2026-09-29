@@ -17,6 +17,12 @@ struct NotchSettingsView: View {
     @AppStorage("notchResetTimeFormat") private var resetTimeFormat = AppPreferences.defaultNotchResetTimeFormat
     @AppStorage("notchPercentageMode") private var percentageMode = AppPreferences.defaultNotchPercentageMode
     @AppStorage("notchShowUsagePace") private var showUsagePace = AppPreferences.defaultNotchShowUsagePace
+    @AppStorage(AppPreferences.notchShowUnknownSessionsKey)
+    private var showUnknownSessions = AppPreferences.defaultNotchShowUnknownSessions
+    @AppStorage(AppPreferences.notchShowSessionDurationKey)
+    private var showSessionDuration = AppPreferences.defaultNotchShowSessionDuration
+    @AppStorage(AppPreferences.notchShowSessionTokensKey)
+    private var showSessionTokens = AppPreferences.defaultNotchShowSessionTokens
 
     @AppStorage("notchAnnounceSessionEnd") private var announceSessionEnd = AppPreferences.defaultNotchAnnounceSessionEnd
     @AppStorage("notchSessionEndSound") private var sessionEndSound = AppPreferences.defaultNotchSessionEndSound
@@ -189,6 +195,37 @@ struct NotchSettingsView: View {
             .disabled(!showEdgeNotch)
 
             SettingsNote("The percentage and ring show the selected amount. In Usage colours mode, ring colours reflect how much of the limit has been used.")
+
+            SettingsSection(title: "Task Activity") {
+                SettingsToggleRow(
+                    "Show tasks with unknown status",
+                    caption: "Include recent tasks whose live status cannot be checked, such as remote tasks. They may already be finished.",
+                    get: { showUnknownSessions },
+                    set: { newValue in
+                        showUnknownSessions = newValue
+                        NotchController.shared.apply(showUnknownSessions: newValue)
+                    }
+                )
+                .accessibilityIdentifier("notch.showUnknownSessions")
+                SettingsToggleRow(
+                    "Show task duration",
+                    caption: "Show time spent in the current working or waiting state. Unknown tasks have no duration.",
+                    get: { showSessionDuration },
+                    set: { showSessionDuration = $0 }
+                )
+                .accessibilityIdentifier("notch.showSessionDuration")
+                SettingsToggleRow(
+                    "Show tokens per chat",
+                    caption: "Include sub-agent usage in the main chat total. Chats without usage records stay blank.",
+                    get: { showSessionTokens },
+                    set: { newValue in
+                        showSessionTokens = newValue
+                        NotchController.shared.apply(showSessionTokens: newValue)
+                    }
+                )
+                .accessibilityIdentifier("notch.showSessionTokens")
+            }
+            .disabled(!showEdgeNotch)
 
             SettingsSection(title: "When a Session Ends") {
                 SettingsToggleRow(

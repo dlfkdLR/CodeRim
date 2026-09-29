@@ -76,9 +76,12 @@ enum MenuProviderSelection {
 
 struct MenuPopoverView: View {
     @StateObject private var navigation: MenuNavigation
+    @StateObject private var analyticsState: SettingsUsageAnalyticsState
     private let accounts: CodexAccountStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var store: UsageStore
+    @EnvironmentObject private var profileStore: ProfileUsageStore
+    @AppStorage("weekStart") private var historyWeekStart = WeekStart.monday.rawValue
     @EnvironmentObject private var limitStore: AccountLimitStore
     @EnvironmentObject private var claude: ClaudeIntegrationStore
     @AppStorage("numberStyle") private var numberStyleRawValue = TokenNumberStyle.compact.rawValue
@@ -92,6 +95,7 @@ struct MenuPopoverView: View {
     @AppStorage("projectsEnabled") private var projectsEnabled = AppPreferences.defaultProjectsEnabled
     @AppStorage("sessionsEnabled") private var sessionsEnabled = AppPreferences.defaultSessionsEnabled
     @State private var selectedSection = MenuPopoverSection.overview
+    @State private var settingsSection = SettingsUsageSection.analytics
     @State private var refreshTurns = 0
     @AppStorage("usageProvider") private var usageProvider = UsageProvider.codex.rawValue
 
@@ -104,11 +108,14 @@ struct MenuPopoverView: View {
     private let embedded: Bool
 
     init(accounts: CodexAccountStore, navigation: MenuNavigation = MenuNavigation(),
-         section: MenuPopoverSection = .overview, embedded: Bool = false) {
+         section: MenuPopoverSection? = nil, embedded: Bool = false,
+         analyticsState: SettingsUsageAnalyticsState = SettingsUsageAnalyticsState()) {
         self.accounts = accounts
         self.embedded = embedded
         _navigation = StateObject(wrappedValue: navigation)
-        _selectedSection = State(initialValue: section)
+        _analyticsState = StateObject(wrappedValue: analyticsState)
+        _selectedSection = State(initialValue: section ?? .overview)
+        _settingsSection = State(initialValue: section.map { $0 == .codex ? .limits : .overview } ?? .analytics)
     }
 
     var body: some View {
@@ -121,14 +128,21 @@ struct MenuPopoverView: View {
             } else {
                 if embedded { settingsHeader } else { header }
                 Group {
-                    switch selectedSection {
-                    case .overview:
-                        if embedded { UsageSettingsOverview() } else { overviewContent }
-                    case .codex:
-                        codexContent
+                    if embedded {
+                        switch settingsSection {
+                        case .overview: UsageSettingsOverview()
+                        case .analytics:
+                            if analyticsEnabled { UsageSettingsAnalytics() } else { UsageSettingsOverview() }
+                        case .limits: codexContent
+                        }
+                    } else {
+                        switch selectedSection {
+                        case .overview: overviewContent
+                        case .codex: codexContent
+                        }
                     }
                 }
-                .id(selectedSection)
+                .id(embedded ? settingsSection.rawValue : selectedSection.rawValue)
                 .fixedSize(horizontal: false, vertical: true)
                 .transition(.opacity)
                 if !embedded || shouldShowStatus {
@@ -143,6 +157,7 @@ struct MenuPopoverView: View {
         .fixedSize(horizontal: false, vertical: true)
         .background(.background)
         .environmentObject(navigation)
+        .environmentObject(analyticsState)
         .environment(\.usageDetailUsesWindowWidth, embedded)
         .onChange(of: isRefreshing) { _, isRefreshing in
             guard isRefreshing, !reduceMotion else { return }
@@ -153,38 +168,16 @@ struct MenuPopoverView: View {
     /// Settings has room for a compact toolbar and a full-width overview.
     /// Keep the account actions and navigation owned by the existing host.
     private var settingsHeader: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 16) {
-                Menu {
-                    ForEach(availableProviders) { provider in
-                        Button {
-                            MenuProviderSelection.apply(provider, selection: &usageProvider, section: &selectedSection)
-                        } label: {
-                            Label(provider.tabTitle, systemImage: usageProvider == provider.rawValue ? "checkmark" : provider.symbol)
-                        }
-                        .keyboardShortcut(provider == .codex ? "1" : "2", modifiers: [.command, .shift])
-                        .accessibilityIdentifier("menu.provider.\(provider.rawValue)")
-                    }
-                } label: {
-                    Text(store.provider.tabTitle).fontWeight(.semibold)
-                }
-                .fixedSize()
-                .accessibilityLabel("Usage provider")
-                .accessibilityValue(store.provider.tabTitle)
-                .accessibilityIdentifier("settings.usage.provider")
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                usageProviderSwitcher
+                    .accessibilityIdentifier("settings.usage.provider")
 
-                Spacer(minLength: 0)
-
-                Picker("Usage section", selection: $selectedSection) {
-                    ForEach(MenuPopoverSection.allCases) { section in
-                        Text(section.title(for: store.provider)).tag(section)
-                            .keyboardShortcut(section == .overview ? "1" : "2", modifiers: .command)
-                    }
+                if store.provider == .codex {
+                    CodexAccountSwitcher(accounts: accounts, opensManagementDirectly: true)
+                } else {
+                    claudeAccountBadge
                 }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 246)
-                .accessibilityIdentifier("settings.usage.section")
 
                 Button {
                     Task { await refreshUsage() }
@@ -203,15 +196,39 @@ struct MenuPopoverView: View {
             .controlSize(.regular)
             .padding(.horizontal, 24)
 
-            if store.provider == .codex {
-                CodexAccountSwitcher(accounts: accounts, opensManagementDirectly: true)
-                    .padding(.horizontal, 6)
-            } else {
-                claudeAccountBadge.padding(.horizontal, 6)
+            HStack(spacing: 24) {
+                ForEach(SettingsUsageSection.allCases.filter { $0 != .analytics || analyticsEnabled }) { section in
+                    settingsTab(section)
+                }
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, 24)
             Divider()
         }
-        .padding(.top, 16)
+        .padding(.top, 8)
+    }
+
+    private func settingsTab(_ section: SettingsUsageSection) -> some View {
+        let selection = settingsSection == .analytics && !analyticsEnabled ? .overview : settingsSection
+        let title = section == .overview ? "Overview" : section == .analytics ? "Usage analytics" : "\(store.provider.tabTitle) Limits"
+        return Button {
+            settingsSection = section
+        } label: {
+            Text(title)
+                .font(.callout.weight(selection == section ? .semibold : .regular))
+                .foregroundStyle(selection == section ? Color.primary : Color.secondary)
+                .padding(.vertical, 11)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(selection == section ? Color.primary : .clear).frame(height: 2)
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .keyboardShortcut(section == .overview ? "1" : section == .analytics ? "2" : "3", modifiers: .command)
+        .accessibilityLabel(title)
+        .accessibilityValue(selection == section ? "Selected" : "Not selected")
+        .accessibilityAddTraits(selection == section ? .isSelected : [])
+        .accessibilityIdentifier("settings.usage.tab.\(section.rawValue)")
     }
 
     private func detailHeader(_ destination: MenuDestination) -> some View {
@@ -368,10 +385,10 @@ struct MenuPopoverView: View {
 
     private var header: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                ForEach(availableProviders) { provider in
-                    providerTab(provider)
-                }
+            HStack {
+                usageProviderSwitcher
+                    .accessibilityIdentifier("menu.usage.provider")
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 12)
             .padding(.top, 12)
@@ -429,36 +446,15 @@ struct MenuPopoverView: View {
         .accessibilityLabel("Claude account, \(claude.account?.displayName ?? "not connected")")
     }
 
-    private func providerTab(_ provider: UsageProvider) -> some View {
-        let isSelected = usageProvider == provider.rawValue
-        return Button {
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.18)) {
-                MenuProviderSelection.apply(provider, selection: &usageProvider, section: &selectedSection)
-            }
-        } label: {
-            VStack(spacing: 1) {
-                ProviderLogo(provider: provider)
-                    .accessibilityHidden(true)
-                Text(provider.tabTitle)
-                    .font(.subheadline.weight(isSelected ? .semibold : .medium))
-                    .lineLimit(1)
-            }
-            .foregroundStyle(
-                isSelected ? Color(nsColor: .alternateSelectedControlTextColor) : Color.secondary
-            )
-            .frame(maxWidth: .infinity, minHeight: 36)
-            .background(
-                isSelected ? Color(nsColor: .controlAccentColor) : Color.clear,
-                in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-            )
-            .contentShape(Rectangle())
+    private var usageProviderSwitcher: some View {
+        UsageProviderSwitcher(
+            options: availableProviders.map(UsageProviderOption.init(provider:)),
+            selectedID: usageProvider,
+            unavailableSelection: UsageProviderOption(provider: UsageProvider(rawValue: usageProvider) ?? store.provider)
+        ) { id in
+            guard let provider = availableProviders.first(where: { $0.rawValue == id }) else { return }
+            MenuProviderSelection.apply(provider, selection: &usageProvider, section: &selectedSection)
         }
-        .buttonStyle(MenuInteractionStyle())
-        .keyboardShortcut(provider == .codex ? "1" : "2", modifiers: [.command, .shift])
-        .accessibilityLabel(provider.title)
-        .accessibilityValue(isSelected ? "Selected" : "Not selected")
-        .accessibilityHint("Show \(provider.title) usage")
-        .accessibilityIdentifier("menu.provider.\(provider.rawValue)")
     }
 
     private func sectionTab(_ section: MenuPopoverSection) -> some View {
@@ -500,9 +496,11 @@ struct MenuPopoverView: View {
             localUsageSummary
             if store.provider == .codex || store.snapshot.updatedAt != nil {
                 Divider().padding(.leading, 18)
-                categoryHeader(.tokenHistory, context: "This Mac")
-                    .help(UsageDisplayPolicy.localHistoryHelp)
+                categoryHeader(.tokenHistory, context: historyScope == .account ? "ChatGPT account" : "This Mac")
+                    .help(historyScope == .account ? UsageDisplayPolicy.accountHistoryHelp : UsageDisplayPolicy.localHistoryHelp)
                 localPeriodLinks
+                AccountHistoryFooter(provider: store.provider)
+                    .padding(.horizontal, 18).padding(.bottom, 12)
 
             }
         }
@@ -577,7 +575,7 @@ struct MenuPopoverView: View {
         HStack(spacing: 8) {
             periodRowLink("This Week", period: .week)
             periodRowLink("This Month", period: .month)
-            periodRowLink("Local History", period: .allTime)
+            periodRowLink(historyScope == .account ? "Lifetime" : "Local History", period: .allTime)
         }
         .padding(.horizontal, 12)
         .padding(.bottom, 12)
@@ -750,7 +748,7 @@ struct MenuPopoverView: View {
     }
 
     private var isRefreshing: Bool {
-        selectedSection == .overview ? store.isRefreshing : currentLimitsRefreshing
+        selectedSection == .overview ? (store.isRefreshing || (store.provider == .codex && profileStore.isRefreshing)) : currentLimitsRefreshing
     }
 
     private func categoryHeader(
@@ -813,10 +811,15 @@ struct MenuPopoverView: View {
         .accessibilityLabel("\(title), \(formatted(value)) tokens")
     }
 
+    private var historyScope: UsageHistoryScope {
+        store.provider.supportsAccountTotals && profileStore.isEnabled ? .account : .local
+    }
+
     private func periodRowLink(_ title: String, period: UsagePeriod) -> some View {
-        let value = store.snapshot.totals(for: period).totalTokens
-        let text = formatted(value)
-        return MenuLink(destination: .period(period)) {
+        let value = UsageDisplayPolicy.displayedTotal(for: period, scope: historyScope,
+            localSnapshot: store.snapshot, profileSnapshot: profileStore.snapshot)
+        let text = value.map(formatted) ?? "—"
+        return MenuLink(destination: .period(period, scope: historyScope)) {
             VStack(alignment: .leading, spacing: 7) {
                 HStack(spacing: 4) {
                     Text(title)
@@ -836,13 +839,14 @@ struct MenuPopoverView: View {
                     .minimumScaleFactor(0.8)
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: value)
+                    .id(value == nil)
             }
             .padding(.horizontal, 6)
             .frame(maxWidth: .infinity, minHeight: 54, alignment: .leading)
             .contentShape(Rectangle())
         }
-        .disabled(store.snapshot.updatedAt == nil)
-        .accessibilityLabel("This Mac \(title), \(text) tokens")
+        .disabled(historyScope == .local && store.snapshot.updatedAt == nil)
+        .accessibilityLabel("\(historyScope.title) \(title), \(text) tokens")
         .accessibilityHint("Open \(title.lowercased()) details")
         .accessibilityIdentifier("menu.usage.local.\(period.rawValue)")
     }
@@ -893,7 +897,13 @@ struct MenuPopoverView: View {
     private func refreshUsage() async {
         async let local: Void = store.refresh()
         async let limits: Void = refreshCurrentLimits()
-        _ = await (local, limits)
+        async let history: Void = refreshAccountHistory()
+        _ = await (local, limits, history)
+    }
+
+    private func refreshAccountHistory() async {
+        guard store.provider.supportsAccountTotals else { return }
+        await profileStore.refresh(weekStart: WeekStart(rawValue: historyWeekStart) ?? .monday)
     }
 
     private func refreshCurrentLimits() async {

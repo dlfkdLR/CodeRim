@@ -196,6 +196,13 @@ struct ProviderSnapshot: Identifiable, Equatable {
         localTokenUsage != nil || todaysTokens != nil || id == "codex" || id == "claude"
     }
 
+    // Provider-reported token counts can have a different scope. Only local
+    // transcript readings (including their loading state) get the local help.
+    var localTokenScopeHelp: String? {
+        guard localTokenUsage != nil || id == "codex" || id == "claude" else { return nil }
+        return LocalTokenUsage.scopeHelp
+    }
+
     func localTokenText(style: TokenNumberStyle) -> String {
         if let localTokenUsage { return localTokenUsage.text(style: style) }
         if let todaysTokens { return NotchNumberFormatting.count(todaysTokens, style: style) + " tokens" }

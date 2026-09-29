@@ -1,0 +1,603 @@
+// !$*UTF8*$!
+{
+	"archiveVersion" = "1";
+	"classes" = {
+	};
+	"objectVersion" = "56";
+	"objects" = {
+		"F08DD2AD424A0FD5C73F4B7F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "../Sources/CodeRimShared/MobileCredentialStore.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"BA325AF2B5E9E8B564764994" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "../Sources/CodeRimShared/MobileModels.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"E779274533C1E287CB6FF303" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "../Sources/CodeRimShared/MobileRelayClient.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"D854F66B2EF654B00D6B6CF6" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodeRimLiveActivity/CodeRimActivityAttributes.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"819F24CBB8E7FEEB55614C0A" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodeRimLiveActivity/CodeRimLiveActivity.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"972FDE3AD0A44A92F006540C" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodeRimLiveActivity/CodeRimLiveViews.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"885EABAF8753719EA99D1C09" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodeRimLiveActivity/IslandNavigationIntent.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"E926E979E45D5047C5627CED" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodeRimMobile/CodeRimMobileApp.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"5A38B7F2189CDAB9C1D9DF7C" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodeRimMobile/DebugPreviewView.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"89E26E7D1533D0778BAB8A9E" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodeRimMobile/MobileAppModel.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"9B285E820CFF9FB6D83C488F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodeRimMobile/MobileProviderSelection.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"F510D2A46D2AA00F444F8054" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodeRimMobile/MobileSettingsView.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"259A5A6645516163D029A866" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodeRimMobileTests/MobileContractTests.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"6C8B4EF3D7507512A076764F" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodeRimMobileTests/MobileLifecycleTests.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"8A19F47D69446363E3462788" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "sourcecode.swift";
+			"path" = "CodeRimMobileUITests/MobileUITests.swift";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"55926207B34768151CAD735C" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "folder.assetcatalog";
+			"path" = "CodeRimMobile/Assets.xcassets";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"4C58E1194DE895E712E2B83B" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.xml";
+			"path" = "CodeRimMobile/PrivacyInfo.xcprivacy";
+			"sourceTree" = "SOURCE_ROOT";
+		};
+		"359B964DD74C4E44B6C83152" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.application";
+			"path" = "CodeRimMobile.app";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"A77729C7295E97692963ED5B" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.app-extension";
+			"path" = "CodeRimLiveActivity.appex";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"28D1D3102546042B2B4A56C5" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.cfbundle";
+			"path" = "CodeRimMobileTests.xctest";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"28A9A18CA0BF4844DD9B5428" = {
+			"isa" = "PBXFileReference";
+			"explicitFileType" = "wrapper.cfbundle";
+			"path" = "CodeRimMobileUITests.xctest";
+			"sourceTree" = "BUILT_PRODUCTS_DIR";
+		};
+		"FBDC4F23F93125BBEEAE800C" = {
+			"isa" = "PBXGroup";
+			"children" = ("359B964DD74C4E44B6C83152", "A77729C7295E97692963ED5B", "28D1D3102546042B2B4A56C5", "28A9A18CA0BF4844DD9B5428");
+			"name" = "Products";
+			"sourceTree" = "<group>";
+		};
+		"B28B7AF69320201D1CF206EB" = {
+			"isa" = "PBXGroup";
+			"children" = ("F08DD2AD424A0FD5C73F4B7F", "BA325AF2B5E9E8B564764994", "E779274533C1E287CB6FF303", "D854F66B2EF654B00D6B6CF6", "819F24CBB8E7FEEB55614C0A", "972FDE3AD0A44A92F006540C", "885EABAF8753719EA99D1C09", "E926E979E45D5047C5627CED", "5A38B7F2189CDAB9C1D9DF7C", "89E26E7D1533D0778BAB8A9E", "9B285E820CFF9FB6D83C488F", "F510D2A46D2AA00F444F8054", "259A5A6645516163D029A866", "6C8B4EF3D7507512A076764F", "8A19F47D69446363E3462788", "55926207B34768151CAD735C", "4C58E1194DE895E712E2B83B", "FBDC4F23F93125BBEEAE800C");
+			"sourceTree" = "<group>";
+		};
+		"AB52CB08E0FDF02BF6C67C33" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Debug";
+			"buildSettings" = {
+				"SDKROOT" = "iphoneos";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "17.2";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"CLANG_ENABLE_MODULES" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-Onone";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "DEBUG";
+				"ENABLE_TESTABILITY" = "YES";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf";
+				"CODERIM_RELAY_URL" = "";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"DEVELOPMENT_TEAM" = "";
+			};
+		};
+		"5283471FF90C511CFE244FFF" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Release";
+			"buildSettings" = {
+				"SDKROOT" = "iphoneos";
+				"IPHONEOS_DEPLOYMENT_TARGET" = "17.2";
+				"SWIFT_VERSION" = "6.0";
+				"SWIFT_STRICT_CONCURRENCY" = "complete";
+				"TARGETED_DEVICE_FAMILY" = "1";
+				"CLANG_ENABLE_MODULES" = "YES";
+				"SWIFT_OPTIMIZATION_LEVEL" = "-O";
+				"SWIFT_ACTIVE_COMPILATION_CONDITIONS" = "";
+				"ENABLE_TESTABILITY" = "NO";
+				"DEBUG_INFORMATION_FORMAT" = "dwarf-with-dsym";
+				"CODERIM_RELAY_URL" = "";
+				"CODE_SIGN_STYLE" = "Automatic";
+				"DEVELOPMENT_TEAM" = "";
+			};
+		};
+		"640DC9EFD529235A8D9E2727" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("AB52CB08E0FDF02BF6C67C33", "5283471FF90C511CFE244FFF");
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Release";
+		};
+		"EAA711F20C688B551490FB2A" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BA325AF2B5E9E8B564764994";
+		};
+		"D945265ACB9CA1470B7C43E6" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E779274533C1E287CB6FF303";
+		};
+		"D203616B26C385520CD082A1" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "F08DD2AD424A0FD5C73F4B7F";
+		};
+		"D265225DF7E92E250EE45B87" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "D854F66B2EF654B00D6B6CF6";
+		};
+		"842C6B7A8A954AA64B6DA38B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "972FDE3AD0A44A92F006540C";
+		};
+		"264F2C981568437AB402D36B" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "885EABAF8753719EA99D1C09";
+		};
+		"9EE4BF15CF8569BEAC6F5C96" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E926E979E45D5047C5627CED";
+		};
+		"25CC2A829CDCC9F11B57EF23" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "89E26E7D1533D0778BAB8A9E";
+		};
+		"6DA884EDA9966A07BC92CC84" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "F510D2A46D2AA00F444F8054";
+		};
+		"E0FEF5C262121C384AD304A7" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "9B285E820CFF9FB6D83C488F";
+		};
+		"955204F03695E786C1DAF7DD" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "5A38B7F2189CDAB9C1D9DF7C";
+		};
+		"B99CA07DADC7560CCDF81007" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ("EAA711F20C688B551490FB2A", "D945265ACB9CA1470B7C43E6", "D203616B26C385520CD082A1", "D265225DF7E92E250EE45B87", "842C6B7A8A954AA64B6DA38B", "264F2C981568437AB402D36B", "9EE4BF15CF8569BEAC6F5C96", "25CC2A829CDCC9F11B57EF23", "6DA884EDA9966A07BC92CC84", "E0FEF5C262121C384AD304A7", "955204F03695E786C1DAF7DD");
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"FC6AE462ECF7F8A99A09D9DA" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "55926207B34768151CAD735C";
+		};
+		"DBE11F2F66839D8AB03C6F41" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "4C58E1194DE895E712E2B83B";
+		};
+		"633ADC458758E02DE834B593" = {
+			"isa" = "PBXResourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ("FC6AE462ECF7F8A99A09D9DA", "DBE11F2F66839D8AB03C6F41");
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"96F26C35A56CF1719F5FAE0C" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "A77729C7295E97692963ED5B";
+			"settings" = {
+				"ATTRIBUTES" = ("RemoveHeadersOnCopy");
+			};
+		};
+		"BB27AD7BBFDDAC09C73BE453" = {
+			"isa" = "PBXCopyFilesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"dstPath" = "";
+			"dstSubfolderSpec" = "13";
+			"files" = ("96F26C35A56CF1719F5FAE0C");
+			"name" = "Embed App Extensions";
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"CDED9E217F64690ACC115B1F" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "98F54143AB4E86B28C3AFEE0";
+			"proxyType" = "1";
+			"remoteGlobalIDString" = "5E3B6B0510B4AE2C77DAA22E";
+			"remoteInfo" = "CodeRimLiveActivity";
+		};
+		"4E7F3D77B6C1930EC1754823" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "5E3B6B0510B4AE2C77DAA22E";
+			"targetProxy" = "CDED9E217F64690ACC115B1F";
+		};
+		"B44522242687F93EC6C41400" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Debug";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "CodeRimMobile";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "dev.coderim.mobile";
+				"MARKETING_VERSION" = "1.0.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
+				"GENERATE_INFOPLIST_FILE" = "NO";
+				"INFOPLIST_FILE" = "Config/CodeRimMobile-Info.plist";
+				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
+				"CODE_SIGN_ENTITLEMENTS" = "Config/CodeRimMobile.entitlements";
+				"APS_ENVIRONMENT" = "development";
+			};
+		};
+		"43C37746D6D7A1D46A788C8C" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Release";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "CodeRimMobile";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "dev.coderim.mobile";
+				"MARKETING_VERSION" = "1.0.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
+				"GENERATE_INFOPLIST_FILE" = "NO";
+				"INFOPLIST_FILE" = "Config/CodeRimMobile-Info.plist";
+				"ASSETCATALOG_COMPILER_APPICON_NAME" = "AppIcon";
+				"CODE_SIGN_ENTITLEMENTS" = "Config/CodeRimMobile.entitlements";
+				"APS_ENVIRONMENT" = "production";
+			};
+		};
+		"0BD5CC486FDCC426B5657CC4" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("B44522242687F93EC6C41400", "43C37746D6D7A1D46A788C8C");
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Release";
+		};
+		"46F0588A5C5DA2C04DE2B8C2" = {
+			"isa" = "PBXNativeTarget";
+			"name" = "CodeRimMobile";
+			"productName" = "CodeRimMobile";
+			"productReference" = "359B964DD74C4E44B6C83152";
+			"productType" = "com.apple.product-type.application";
+			"buildConfigurationList" = "0BD5CC486FDCC426B5657CC4";
+			"buildPhases" = ("B99CA07DADC7560CCDF81007", "633ADC458758E02DE834B593", "BB27AD7BBFDDAC09C73BE453");
+			"buildRules" = ();
+			"dependencies" = ("4E7F3D77B6C1930EC1754823");
+		};
+		"8E81614805AC0289A31F0758" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "BA325AF2B5E9E8B564764994";
+		};
+		"86D627B81C71B88B1DAEDF15" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "E779274533C1E287CB6FF303";
+		};
+		"BF84D420E177DB87A277A205" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "F08DD2AD424A0FD5C73F4B7F";
+		};
+		"75FF38A6E36F710D7B93CD6E" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "D854F66B2EF654B00D6B6CF6";
+		};
+		"62DA6B95717577C7D911E350" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "972FDE3AD0A44A92F006540C";
+		};
+		"60DAC8BCCED377A0D578F0A1" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "885EABAF8753719EA99D1C09";
+		};
+		"B07EC02ED1367E73BD1502AF" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "819F24CBB8E7FEEB55614C0A";
+		};
+		"F232AAF4C23DA47500A831B3" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "5A38B7F2189CDAB9C1D9DF7C";
+		};
+		"94410D101B106D386D75B89B" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ("8E81614805AC0289A31F0758", "86D627B81C71B88B1DAEDF15", "BF84D420E177DB87A277A205", "75FF38A6E36F710D7B93CD6E", "62DA6B95717577C7D911E350", "60DAC8BCCED377A0D578F0A1", "B07EC02ED1367E73BD1502AF", "F232AAF4C23DA47500A831B3");
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"959A98C68702C114F983454F" = {
+			"isa" = "PBXResourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ();
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"FA256B075BA61E6B54493282" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Debug";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "CodeRimLiveActivity";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "dev.coderim.mobile.liveactivity";
+				"MARKETING_VERSION" = "1.0.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks");
+				"GENERATE_INFOPLIST_FILE" = "NO";
+				"INFOPLIST_FILE" = "Config/CodeRimLiveActivity-Info.plist";
+				"APPLICATION_EXTENSION_API_ONLY" = "YES";
+				"SKIP_INSTALL" = "YES";
+			};
+		};
+		"E04C34149FA3AEBC35452CE0" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Release";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "CodeRimLiveActivity";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "dev.coderim.mobile.liveactivity";
+				"MARKETING_VERSION" = "1.0.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks");
+				"GENERATE_INFOPLIST_FILE" = "NO";
+				"INFOPLIST_FILE" = "Config/CodeRimLiveActivity-Info.plist";
+				"APPLICATION_EXTENSION_API_ONLY" = "YES";
+				"SKIP_INSTALL" = "YES";
+			};
+		};
+		"1EAB418AA512C70244EB629A" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("FA256B075BA61E6B54493282", "E04C34149FA3AEBC35452CE0");
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Release";
+		};
+		"5E3B6B0510B4AE2C77DAA22E" = {
+			"isa" = "PBXNativeTarget";
+			"name" = "CodeRimLiveActivity";
+			"productName" = "CodeRimLiveActivity";
+			"productReference" = "A77729C7295E97692963ED5B";
+			"productType" = "com.apple.product-type.app-extension";
+			"buildConfigurationList" = "1EAB418AA512C70244EB629A";
+			"buildPhases" = ("94410D101B106D386D75B89B", "959A98C68702C114F983454F");
+			"buildRules" = ();
+			"dependencies" = ();
+		};
+		"79F4BCDF1E0FC197CE0A1568" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "259A5A6645516163D029A866";
+		};
+		"D99B097FD5C95D979C9CC93A" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "6C8B4EF3D7507512A076764F";
+		};
+		"54164C70C685462BF728C67C" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ("79F4BCDF1E0FC197CE0A1568", "D99B097FD5C95D979C9CC93A");
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"FEBC551873C4AB934F82E938" = {
+			"isa" = "PBXResourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ();
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"3C03040ABACE39266C989E81" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "98F54143AB4E86B28C3AFEE0";
+			"proxyType" = "1";
+			"remoteGlobalIDString" = "46F0588A5C5DA2C04DE2B8C2";
+			"remoteInfo" = "CodeRimMobile";
+		};
+		"1B5277C72C7CBE8AC3531A72" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "46F0588A5C5DA2C04DE2B8C2";
+			"targetProxy" = "3C03040ABACE39266C989E81";
+		};
+		"5F25DA9636E2A34B8736404B" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Debug";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "CodeRimMobileTests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "dev.coderim.mobile.tests";
+				"MARKETING_VERSION" = "1.0.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"TEST_HOST" = "$(BUILT_PRODUCTS_DIR)/CodeRimMobile.app/CodeRimMobile";
+				"BUNDLE_LOADER" = "$(TEST_HOST)";
+			};
+		};
+		"E28FAF38A4CBE769C0505D68" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Release";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "CodeRimMobileTests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "dev.coderim.mobile.tests";
+				"MARKETING_VERSION" = "1.0.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"TEST_HOST" = "$(BUILT_PRODUCTS_DIR)/CodeRimMobile.app/CodeRimMobile";
+				"BUNDLE_LOADER" = "$(TEST_HOST)";
+			};
+		};
+		"6F594E202F67F92E5769ACF3" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("5F25DA9636E2A34B8736404B", "E28FAF38A4CBE769C0505D68");
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Release";
+		};
+		"51DAC21FBC3EB1462AFC9746" = {
+			"isa" = "PBXNativeTarget";
+			"name" = "CodeRimMobileTests";
+			"productName" = "CodeRimMobileTests";
+			"productReference" = "28D1D3102546042B2B4A56C5";
+			"productType" = "com.apple.product-type.bundle.unit-test";
+			"buildConfigurationList" = "6F594E202F67F92E5769ACF3";
+			"buildPhases" = ("54164C70C685462BF728C67C", "FEBC551873C4AB934F82E938");
+			"buildRules" = ();
+			"dependencies" = ("1B5277C72C7CBE8AC3531A72");
+		};
+		"AEDD35146D90E90EAA067D04" = {
+			"isa" = "PBXBuildFile";
+			"fileRef" = "8A19F47D69446363E3462788";
+		};
+		"D9D966A0ECEA19D14EE99510" = {
+			"isa" = "PBXSourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ("AEDD35146D90E90EAA067D04");
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"5EE441B0E1F73EF392B03BBC" = {
+			"isa" = "PBXResourcesBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ();
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"D41079E97F3270671BDF0EE5" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "98F54143AB4E86B28C3AFEE0";
+			"proxyType" = "1";
+			"remoteGlobalIDString" = "46F0588A5C5DA2C04DE2B8C2";
+			"remoteInfo" = "CodeRimMobile";
+		};
+		"675CBE7B0AB27DE1C48BF726" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "46F0588A5C5DA2C04DE2B8C2";
+			"targetProxy" = "D41079E97F3270671BDF0EE5";
+		};
+		"BB582C57BB933D03D0485197" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Debug";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "CodeRimMobileUITests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "dev.coderim.mobile.uitests";
+				"MARKETING_VERSION" = "1.0.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"TEST_TARGET_NAME" = "CodeRimMobile";
+			};
+		};
+		"6ADC5D12CE221D6D51B531AE" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Release";
+			"buildSettings" = {
+				"PRODUCT_NAME" = "CodeRimMobileUITests";
+				"PRODUCT_BUNDLE_IDENTIFIER" = "dev.coderim.mobile.uitests";
+				"MARKETING_VERSION" = "1.0.0";
+				"CURRENT_PROJECT_VERSION" = "1";
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SUPPORTS_MACCATALYST" = "NO";
+				"LD_RUNPATH_SEARCH_PATHS" = ("$(inherited)", "@executable_path/Frameworks");
+				"GENERATE_INFOPLIST_FILE" = "YES";
+				"TEST_TARGET_NAME" = "CodeRimMobile";
+			};
+		};
+		"F9814A3E07886F3F08A8B133" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("BB582C57BB933D03D0485197", "6ADC5D12CE221D6D51B531AE");
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Release";
+		};
+		"EF89205DB7574F6F46DA7B3E" = {
+			"isa" = "PBXNativeTarget";
+			"name" = "CodeRimMobileUITests";
+			"productName" = "CodeRimMobileUITests";
+			"productReference" = "28A9A18CA0BF4844DD9B5428";
+			"productType" = "com.apple.product-type.bundle.ui-testing";
+			"buildConfigurationList" = "F9814A3E07886F3F08A8B133";
+			"buildPhases" = ("D9D966A0ECEA19D14EE99510", "5EE441B0E1F73EF392B03BBC");
+			"buildRules" = ();
+			"dependencies" = ("675CBE7B0AB27DE1C48BF726");
+		};
+		"98F54143AB4E86B28C3AFEE0" = {
+			"isa" = "PBXProject";
+			"attributes" = {
+				"LastUpgradeCheck" = "2700";
+				"BuildIndependentTargetsInParallel" = "YES";
+			};
+			"buildConfigurationList" = "640DC9EFD529235A8D9E2727";
+			"compatibilityVersion" = "Xcode 14.0";
+			"developmentRegion" = "en";
+			"knownRegions" = ("en", "Base");
+			"mainGroup" = "B28B7AF69320201D1CF206EB";
+			"productRefGroup" = "FBDC4F23F93125BBEEAE800C";
+			"projectDirPath" = "";
+			"projectRoot" = "";
+			"targets" = ("46F0588A5C5DA2C04DE2B8C2", "5E3B6B0510B4AE2C77DAA22E", "51DAC21FBC3EB1462AFC9746", "EF89205DB7574F6F46DA7B3E");
+		};
+	};
+	"rootObject" = "98F54143AB4E86B28C3AFEE0";
+}

@@ -25,10 +25,7 @@ internal static class Ui
     public static Button Button(string label, Action action)
     {
         var button = new Button { Content = label, Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(0, 4, 8, 4),
-            MinHeight = 28, Cursor = System.Windows.Input.Cursors.Hand };
-        button.SetResourceReference(Control.ForegroundProperty, "PrimaryText");
-        button.SetResourceReference(Control.BackgroundProperty, "ControlBackground");
-        button.SetResourceReference(Control.BorderBrushProperty, "DividerBrush");
+            MinHeight = 32, HorizontalAlignment = HorizontalAlignment.Stretch };
         AutomationProperties.SetName(button, label);
         button.Click += (_, _) => action(); return button;
     }
@@ -44,7 +41,8 @@ internal static class Ui
         var icon = new System.Windows.Shapes.Path { Data = Geometry.Parse("M 14 6 A 6 6 0 1 0 15 10 M 14 2 L 14 6 L 10 6"),
             Width = 16, Height = 16, Stretch = Stretch.Uniform, StrokeThickness = 1.5,
             StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round };
-        icon.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText");
+        NativeGlyph(icon);
+        button.SetResourceReference(Control.ForegroundProperty, "SecondaryText");
         button.Content = icon; button.Width = button.Height = button.MinHeight = 28;
         button.Padding = new Thickness(5); button.BorderThickness = new Thickness(0); button.Margin = new Thickness(0);
         button.Background = Brushes.Transparent; button.BorderBrush = Brushes.Transparent;
@@ -55,13 +53,28 @@ internal static class Ui
     {
         var box = new ComboBox { ItemsSource = values, SelectedItem = selected, MinWidth = 150, Margin = new Thickness(0, 5, 0, 10),
             HorizontalAlignment = HorizontalAlignment.Left };
-        box.SetResourceReference(Control.ForegroundProperty, "PrimaryText");
         var text = new FrameworkElementFactory(typeof(TextBlock));
         text.SetBinding(TextBlock.TextProperty, new System.Windows.Data.Binding { Converter = new ChoiceLabel() });
-        text.SetBinding(TextBlock.ForegroundProperty, new System.Windows.Data.Binding(nameof(Control.Foreground))
-        { RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(Control), 1) });
         box.ItemTemplate = new DataTemplate { VisualTree = text };
         box.SelectionChanged += (_, _) => { if (box.SelectedItem is T value) changed(value); }; return box;
+    }
+    internal static void NativeGlyph(System.Windows.Shapes.Path glyph)
+    {
+        // Fluent applies pointer/pressed/disabled foreground to the presenter.
+        glyph.SetBinding(System.Windows.Shapes.Shape.StrokeProperty, new System.Windows.Data.Binding
+        {
+            Path = new PropertyPath(System.Windows.Documents.TextElement.ForegroundProperty),
+            RelativeSource = new System.Windows.Data.RelativeSource(System.Windows.Data.RelativeSourceMode.FindAncestor, typeof(ContentPresenter), 1)
+        });
+    }
+    internal static void NativeDisabledText(TextBlock text, Control owner, string enabledBrush)
+    {
+        var style = new Style(typeof(TextBlock), (Style)Application.Current.FindResource(typeof(TextBlock)));
+        style.Setters.Add(new Setter(TextBlock.ForegroundProperty, new DynamicResourceExtension(enabledBrush)));
+        var disabled = new DataTrigger { Binding = new System.Windows.Data.Binding(nameof(UIElement.IsEnabled)) { Source = owner }, Value = false };
+        disabled.Setters.Add(new Setter(TextBlock.ForegroundProperty, new System.Windows.Data.Binding(nameof(Control.Foreground)) { Source = owner }));
+        style.Triggers.Add(disabled);
+        text.ClearValue(TextBlock.ForegroundProperty); text.Style = style;
     }
     private sealed class ChoiceLabel : System.Windows.Data.IValueConverter
     {
@@ -84,12 +97,13 @@ internal static class Ui
     public static CheckBox Toggle(string label, bool value, Action<bool> changed)
     {
         var box = new CheckBox { Content = label, IsChecked = value, Margin = new Thickness(0, 6, 0, 10) };
-        box.SetResourceReference(Control.ForegroundProperty, "PrimaryText"); AutomationProperties.SetName(box, label);
+        AutomationProperties.SetName(box, label);
         box.Checked += (_, _) => changed(true); box.Unchecked += (_, _) => changed(false); return box;
     }
     public static void Section(Panel panel, string title)
     {
-        panel.Children.Add(new Border { Height = 1, Background = Brush("#383A40"), Margin = new Thickness(0, 16, 0, 16) });
+        var divider = new Border { Height = 1, Margin = new Thickness(0, 16, 0, 16) };
+        divider.SetResourceReference(Border.BackgroundProperty, "DividerBrush"); panel.Children.Add(divider);
         panel.Children.Add(Text(title, 16, weight: FontWeights.SemiBold));
     }
     public static FrameworkElement Row(string label, string value)

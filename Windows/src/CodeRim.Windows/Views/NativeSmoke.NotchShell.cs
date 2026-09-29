@@ -10,12 +10,13 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using CodeRim.Core.Domain;
 using CodeRim.Windows.Services;
+using CodeRim.Windows.ViewModels;
 
 namespace CodeRim.Windows.Views;
 
 internal static partial class NativeSmoke
 {
-    private static async Task NotchShellRegression(DashboardWindow dashboard, NotchWindow notch, AppSettingsStore settings, string directory)
+    private static async Task NotchShellRegression(DashboardWindow dashboard, NotchWindow notch, DashboardStore store, AppSettingsStore settings, string directory)
     {
         var saved = settings.Current; var observations = new List<object>();
         Exception? failure = null; var cleanup = new List<Exception>();
@@ -98,6 +99,7 @@ internal static partial class NativeSmoke
             CheckBounds("folded-after-reshow");
             settings.Save(settings.Current with { Visibility = NotchVisibility.AlwaysShow }); await Idle();
             Require(notch.IsVisible && notch.Expanded, "Reshown notch did not expand."); CheckBounds("expanded-after-reshow");
+            await NotchReflowRegression(notch, store, settings, directory);
             Receipt(true);
 
             void CheckStyle(string stage)

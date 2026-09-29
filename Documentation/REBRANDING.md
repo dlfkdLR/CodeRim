@@ -1,5 +1,7 @@
 # CodeRim name transition
 
+**English** · [한국어](REBRANDING.ko.md)
+
 CodeRim 2.1.0 continues CodexMeter with the same user data and update trust.
 Source modules, binaries, menus, CLI, documentation and release artifacts use CodeRim.
 

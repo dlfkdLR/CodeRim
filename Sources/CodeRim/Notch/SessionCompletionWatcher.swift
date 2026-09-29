@@ -72,7 +72,7 @@ struct SessionCompletionWatcher {
         switch now {
         case .idle:    return .finished
         case .waiting: return .blocked
-        case .busy:    return nil
+        case .busy, .unavailable: return nil
         }
     }
 }

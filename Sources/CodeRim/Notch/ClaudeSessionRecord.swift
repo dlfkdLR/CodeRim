@@ -72,7 +72,7 @@ struct ClaudeSessionRecord {
             // this is what holds still until it is.
             since: millis.map { Date(timeIntervalSince1970: $0 / 1000) }
                 ?? self.startedAt ?? Date(),
-            processID: pid
+            processID: pid, usageSessionID: self.sessionID
         )
     }
 
@@ -82,7 +82,7 @@ struct ClaudeSessionRecord {
     /// from the transcript, and the transcript cannot see a permission prompt.
     func session(state: AgentSession.State, since: Date) -> AgentSession {
         AgentSession(id: session.id, name: session.name, detail: session.detail,
-                     state: state, waitingFor: nil, since: since, processID: pid)
+                     state: state, waitingFor: nil, since: since, processID: pid, usageSessionID: sessionID)
     }
 
     static func surface(_ entrypoint: String?) -> String {

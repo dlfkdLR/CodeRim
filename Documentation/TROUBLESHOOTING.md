@@ -1,42 +1,82 @@
-# Troubleshooting
+# Technical troubleshooting
 
-## Codex usage not found
+**English** · [한국어](TROUBLESHOOTING.ko.md)
 
-Confirm that Codex has created local session history on this Mac. Local History cannot recover deleted logs or usage from another computer. On macOS, enable **Settings → Codex → Use ChatGPT account totals** to load the separate account-wide profile totals.
+## A provider is missing
 
-## Sessions directory is empty
+Open **Settings → Providers → Add Provider**. There are 70 catalogue entries, while the notch and default CLI output show selected providers. `coderim providers` lists all IDs. Z.ai is GLM, Factory is Droid, and Gemini CLI is Gemini. See [aliases and setup](../docs/providers.md).
 
-CodeRim reads `~/.codex/sessions` and `~/.codex/archived_sessions`. Run a local Codex session first, then choose Refresh at the bottom of **Settings ▸ Usage** (or right-click the notch → Refresh now).
+## A provider has no reading
 
-## Totals are lower than expected
+Check its [connection guide](../docs/providers.md), source sign-in, plan, permissions, endpoint, and region, then refresh. Adding a provider does not authenticate an account. Missing usage is not zero. Potentially billed AWS Bedrock, Azure OpenAI, and some Doubao paths require an explicit monitoring toggle. StepFun uses username/password or Oasis-Token without a browser-import toggle.
 
-For **This Mac** values, CodeRim excludes a cumulative baseline, malformed event, or interleaved counter when it cannot derive a safe delta. Choose Data > Rebuild Statistics after Codex has finished writing its session files. Deleted logs and usage from another computer cannot be reconstructed locally.
+## Claude limits are stale
 
-For **ChatGPT account** values, confirm that Codex is signed in and profile sync is enabled. The displayed date is the server's exact snapshot date, so these totals can lag behind live local activity. The primary Today summary remains the current Mac's live local total; delayed account totals are shown separately with their snapshot date. A sign-in-expired or temporarily-unavailable status never changes local history.
+Enable the Claude integration, add the signed-in account, and complete a Claude Code response so the status-line helper can send five-hour/weekly limits. An expired measurement is last known rather than current. [Claude setup](../docs/providers/claude.md).
 
-## Rebuild statistics
+## Local history is empty or low
 
-Settings > Data > Rebuild Statistics deletes only CodeRim's derived rows and reprocesses observable Codex JSONL. It preserves the clear-history cutoff.
+Run a local Codex or Claude Code session, then use the **Settings → Usage** toolbar refresh icon or **Command-R**. CodeRim cannot recover deleted logs or other computers' records. In **Settings → Providers → Codex or Claude Code → Manage Data**, **Rebuild Statistics** reprocesses observable logs without removing the clear-history cutoff. **Clear Local History** removes only derived rows and records a new cutoff; original logs remain.
 
-## Clear local history
+Account history and local history have separate scope. CodeRim 2.1.13 can show dated ChatGPT account totals in Overview after **Include ChatGPT history** is selected; its local charts and Today remain This Mac. Profile history is off by default, and **Stop including ChatGPT history** disables it and clears the current in-memory account snapshot. See [scope](USAGE.md).
 
-Settings > Data > Clear Local History securely clears CodeRim's local SQLite rows and records the current time as an import cutoff. It never deletes Codex session files, and events at or before the cutoff stay excluded.
+## macOS blocks the app
 
-## Update error: "An error occurred while launching the installer"
+Follow the [checksum and first-launch instructions](../docs/installation.md#direct-download-and-macos-first-launch-help). The published macOS app is ad-hoc signed and not Apple-notarized.
 
-This means the update downloaded correctly but Sparkle could not apply it from the
-still-running process — usually because an earlier automatic update already placed a
-newer build on disk while this older copy kept running. CodeRim now detects that
-case before checking and, when Sparkle does report the installer error, offers
-**Restart Now**. Restarting quits the stale process and reopens the app, which
-applies the pending update. Nothing needs to be reinstalled.
+## CLI or widgets are missing or stale
 
-## Launch at Login issue
+Install CLI from **Settings → Diagnostics → Install CLI**, add `~/.local/bin` to PATH if needed, and keep CodeRim running. Widgets also follow WidgetKit scheduling. See [CLI](../docs/cli.md) and [widgets](../docs/widgets.md).
 
-If macOS requires approval, use Settings > General > Open Login Items Settings and enable CodeRim. Launch at Login is available from a packaged app; behavior from `swift run` is not representative.
+## The app still says CodexMeter or shows the old icon
 
-## Database issue
+Older Sparkle updates could retain the installed filename `CodexMeter.app`. The migration can rename a manually installed legacy bundle in Applications and restart once; Homebrew uses its receipt-managed upgrade path. Settings, accounts, notification permissions, and compatibility storage identifiers are retained. Existing CLI links are repaired on launch.
 
-Use Settings > Data > Open Data Folder to inspect the CodeRim Application Support directory. Rebuild Statistics is the first recovery step. Before reporting a problem, enable debug logging, reproduce it, then use Settings > Advanced > Open Log Folder. Debug logs contain operational event names and aggregate counts only.
+Quit the running app and reopen `/Applications/CodeRim.app` after installation; closing Settings does not quit a menu-bar app. Custom names, other folders, an existing destination, or an unwritable folder can prevent automatic renaming. Check versions before replacing a copy. macOS notification icon caching can last until the next login; do not reset permissions or system-wide caches. [Migration details](REBRANDING.md).
 
-CodeRim stops adding rows if its local database reaches the 1 GiB safety limit, and it refuses to enumerate more than 50,000 session files in one installation. The app reports either condition instead of deleting data automatically. Clear Local History is the explicit recovery option after you have confirmed you no longer need the locally derived totals.
+## Homebrew cannot find the CodeRim cask
+
+An unavailable `dlfkdlr/tap/coderim` cask can mean the tap has not been registered. For a fresh install, follow [Installation](../docs/installation.md). To repair an existing install, quit CodeRim/CodexMeter, check any existing target app, then run:
+
+```sh
+brew update &&
+brew tap dlfkdLR/tap &&
+HOMEBREW_NO_INSTALL_CLEANUP=1 brew reinstall --cask --force dlfkdLR/tap/coderim &&
+xattr -dr com.apple.quarantine /Applications/CodeRim.app &&
+open /Applications/CodeRim.app
+```
+
+Homebrew verifies the archive SHA-256 before the app-scoped quarantine command runs. `--force` replaces an existing target app; a custom `--appdir` requires matching launch paths. Settings, accounts, and history are retained. Do not add `--zap`. Fully qualified cask installation does not require disabling tap trust checks. [Homebrew tap trust](https://docs.brew.sh/Tap-Trust).
+
+## Homebrew upgrade cannot find CodexMeter.app
+
+`It seems the App source '/Applications/CodexMeter.app' is not there` means the old installation receipt points to a missing app. A downloaded ZIP alone does not mean the upgrade succeeded. Use the reinstall repair above, without deleting receipts or the Application Support folder, then confirm the launched app's version and location.
+
+### xcrun reports an incompatible architecture
+
+`libxcrun.dylib` with `have 'arm64,arm64e', need 'x86_64'` is a separate shell/tool architecture mismatch. Inspect:
+
+```sh
+uname -m
+sysctl -in sysctl.proc_translated 2>/dev/null
+brew --prefix
+xcode-select -p
+```
+
+On Apple silicon, a translated-process value of `1` means Rosetta. Use a native terminal and native Homebrew if installed, usually `/opt/homebrew/bin/brew`. Intel and native Homebrew keep separate receipts; do not delete or switch prefixes blindly. A real Intel Mac needs matching developer tools. The [universal DMG](../docs/installation.md) does not require compilation.
+
+## Updates, login items, and databases
+
+**Settings → General → Open Login Items Settings** handles macOS approval for Launch at Login. A packaged app is required; `swift run` is not equivalent. For logs use **Settings → Diagnostics → Open Log Folder**; debug logging excludes credentials and conversation content. Data actions and **Open Data Folder** are in the selected provider's settings.
+
+For Sparkle installer restart errors, database schema/size limits, and recovery, see the [technical troubleshooting guide](TROUBLESHOOTING.md). Windows Setup/update issues have a [separate guide](WINDOWS.md).
+
+[Docs](README.md)
+
+## Database and installer diagnosis
+
+If schema validation rejects a database, preserve the files before using a destructive clear. Schema 17 has transactional compatibility/repair logic; intact events can be present even when an older build cannot open them. Rebuild is a derived-data recovery step, not proof that a rejected file was empty. Respect the selected provider's cutoff and the 1 GiB/50,000-source safety limits.
+
+A Sparkle “An error occurred while launching the installer” can occur when a newer bundle is on disk while an older process is still running. Check the installed and running versions; the updater can offer **Restart Now** for the pending installation. Preserve settings/history. A completed download alone is not installation success.
+
+Report exact version/build, selected provider, state, reproduction, and bounded diagnostic logs without credentials or transcripts. Verify source/local tests, packaged app, installed behavior, and remote CI separately. [Privacy boundary](PRIVACY.md) and [release gate](RELEASING.md) apply.

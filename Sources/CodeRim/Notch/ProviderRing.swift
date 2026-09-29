@@ -34,21 +34,13 @@ struct ProviderRing: View {
     }
     private var sweep: CGFloat { CGFloat(min(percentageMode.fraction(for: usedFraction) ?? 0, 1)) }
 
-    @ViewBuilder
     private var progressArc: some View {
-        if ringAppearance.shouldAnimate(reduceMotion: reduceMotion, isVisible: ringAnimationEnabled) {
-            TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
-                arc(rotation: NotchRingAppearance.gradientRotation(at: context.date))
-            }
-        } else {
-            arc(rotation: .zero)
-        }
-    }
-
-    private func arc(rotation: Angle) -> some View {
-        ProviderRingProgressArc(sweep: sweep,
-                                style: ringAppearance.strokeStyle(band: band, accent: accentColor),
-                                rotation: rotation)
+        ProviderRingProgressArc(
+            sweep: sweep,
+            style: ringAppearance.strokeStyle(band: band, accent: accentColor),
+            animatesGradient: ringAppearance.shouldAnimate(reduceMotion: reduceMotion,
+                                                           isVisible: ringAnimationEnabled)
+        )
     }
 
     var body: some View {
@@ -60,18 +52,17 @@ struct ProviderRing: View {
                 Circle()
                     .strokeBorder(NotchPalette.ringTrack, lineWidth: NotchLayout.trackStroke)
 
-                if usedFraction != nil {
-                    progressArc
-                        // Refreshing spins the reading itself rather than
-                        // overlaying a separate spinner: the thing being
-                        // refetched is the thing that should move, and a second
-                        // arc on the same track only competes with it.
-                        .rotationEffect(.degrees(-90 + spin))
-                        // A ring that snaps to a new value reads as a glitch; one
-                        // that sweeps reads as a measurement being taken.
-                        .animation(NotchMotion.reading, value: sweep)
-                        .animation(NotchMotion.reading, value: band)
-                }
+                // Keep the mask alive when a reading clears so its trailing
+                // endpoint can retract all the way to the fixed 12 o'clock start.
+                progressArc
+                    // Refreshing spins the reading itself rather than
+                    // overlaying a competing spinner on the same track.
+                    .rotationEffect(.degrees(-90 + spin))
+                    .animation(NotchMotion.respectingReduceMotion(
+                        sweep == 0 ? NotchMotion.readingReset : NotchMotion.reading,
+                        reduceMotion), value: sweep)
+                    .animation(NotchMotion.respectingReduceMotion(NotchMotion.reading, reduceMotion),
+                               value: band)
 
                 ProviderGlyphView(glyph: glyph)
                     .foregroundStyle(NotchPalette.textPrimary)
@@ -81,7 +72,7 @@ struct ProviderRing: View {
             }
             .opacity(isStale ? (reduceTransparency ? 0.75 : 0.45) : 1)
 
-            if let activity, activity.state != .idle {
+            if let activity, activity.state == .working || activity.state == .waiting {
                 ActivityArc(summary: activity)
             }
         }
@@ -89,7 +80,8 @@ struct ProviderRing: View {
         // Pressed in while it works, and released when the answer lands. The
         // ring is the button, so the ring is what should feel pressed.
         .scaleEffect(isRefreshing ? 0.93 : 1)
-        .animation(.spring(response: 0.3, dampingFraction: 0.62), value: isRefreshing)
+        .animation(NotchMotion.respectingReduceMotion(
+            .spring(response: 0.3, dampingFraction: 0.62), reduceMotion), value: isRefreshing)
         .onChange(of: isRefreshing) { _, refreshing in
             guard refreshing, !reduceMotion else { return }
             // Exactly one turn, and it stops by itself.
@@ -113,21 +105,46 @@ struct ProviderRing: View {
 
 /// Move the complete colour field behind a stationary usage mask. This keeps
 /// every palette colour flowing through the arc, including across the loop seam.
-struct ProviderRingProgressArc: View {
-    let sweep: CGFloat
+struct ProviderRingProgressArc: View, Animatable {
+    nonisolated var sweep: CGFloat
     let style: AnyShapeStyle
     var rotation: Angle = .zero
+    var animatesGradient: Bool = false
+
+    // Interpolate the mask independently of the gradient's timeline updates.
+    nonisolated var animatableData: CGFloat {
+        get { sweep }
+        set { sweep = newValue }
+    }
 
     var body: some View {
-        Rectangle()
-            .fill(style)
-            .rotationEffect(rotation)
+        colorField
             .mask {
                 Circle()
                     .inset(by: NotchLayout.trackStroke / 2)
-                    .trim(from: 0, to: sweep)
+                    .trim(from: 0, to: min(max(sweep, 0), 1))
                     .stroke(.white, style: StrokeStyle(lineWidth: NotchLayout.progressStroke, lineCap: .round))
+                    // A zero-length round-capped stroke can leave a dot. Apply
+                    // this to the interpolated value, only once retraction ends.
+                    .opacity(sweep > 0 ? 1 : 0)
             }
+    }
+
+    @ViewBuilder
+    private var colorField: some View {
+        if animatesGradient {
+            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: sweep <= 0)) { context in
+                colorField(rotation: NotchRingAppearance.gradientRotation(at: context.date))
+            }
+        } else {
+            colorField(rotation: rotation)
+        }
+    }
+
+    private func colorField(rotation: Angle) -> some View {
+        Rectangle()
+            .fill(style)
+            .rotationEffect(rotation)
     }
 }
 
@@ -153,7 +170,7 @@ private struct ActivityArc: View {
             switch summary.state {
             case .working: spinner
             case .waiting: pulse
-            case .idle:    EmptyView()
+            case .idle, .unavailable: EmptyView()
             }
         }
         .frame(width: NotchLayout.ringDiameter, height: NotchLayout.ringDiameter)

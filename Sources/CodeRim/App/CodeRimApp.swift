@@ -26,10 +26,11 @@ struct CodeRimApp: App {
     init() {
         AppIdentityMigration.prepareForLaunch()
         AppPreferences.registerDefaults()
-        try? CLIInstaller.repairExistingInstallation()
+        _ = try? CLIInstaller.repairExistingInstallation()
         let store = UsageStore()
         let claudeStore = UsageStore(provider: .claude, automaticallyRefresh: false)
-        let profileStore = ProfileUsageStore(allowsAccountTotals: false)
+        let profileStore = ProfileUsageStore()
+        profileStore.startAutomaticRefresh()
         let accountLimitStore = AccountLimitStore()
         let claudeIntegrationStore = ClaudeIntegrationStore(automaticallyRefresh: false)
         _store = StateObject(wrappedValue: store)

@@ -10,28 +10,6 @@ using CodeRim.Windows.Services;
 namespace CodeRim.Windows.Views;
 internal sealed partial class UsagePane
 {
-    private static void AdaptHeader(Grid grid, FrameworkElement actions)
-    {
-        AutomationProperties.SetAutomationId(grid, "usage.header");
-        AutomationProperties.SetAutomationId(actions, "usage.controls");
-        bool? compact = null;
-        void Layout()
-        {
-            var detail = !grid.Children.OfType<System.Windows.Controls.ComboBox>().Any(x => x.Visibility == Visibility.Visible);
-            var next = grid.ActualWidth < 480;
-            if (detail) { compact = null; grid.ColumnDefinitions.Clear(); grid.RowDefinitions.Clear(); Grid.SetRow(actions, 0); Grid.SetColumn(actions, 0); actions.Margin = new Thickness(0); return; }
-            if (compact == next) return;
-            compact = next; grid.ColumnDefinitions.Clear(); grid.RowDefinitions.Clear();
-            grid.ColumnDefinitions.Add(new ColumnDefinition());
-            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            if (next) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-            else grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            Grid.SetRow(actions, next ? 1 : 0); Grid.SetColumn(actions, next ? 0 : 1);
-            actions.Margin = next ? new Thickness(0, 12, 0, 0) : new Thickness(12, 0, 0, 0);
-        }
-        grid.SizeChanged += (_, _) => Layout();
-        foreach (var picker in grid.Children.OfType<System.Windows.Controls.ComboBox>()) picker.IsVisibleChanged += (_, _) => Layout();
-    }
     private static void AdaptOverview(Grid grid, FrameworkElement total, FrameworkElement breakdown)
     {
         bool? compact = null;
@@ -128,7 +106,7 @@ internal sealed partial class UsagePane
                 button.Template = ChartBarTemplate(); Motion.SetFeedback(button, false);
                 button.Background = Brushes.Transparent; button.BorderThickness = new Thickness(0); button.Padding = new Thickness(0);
                 button.Margin = new Thickness(0); button.MinWidth = 0; button.MinHeight = 0;
-                button.HorizontalAlignment = HorizontalAlignment.Left; button.Cursor = System.Windows.Input.Cursors.Arrow;
+                button.HorizontalAlignment = HorizontalAlignment.Left; button.VerticalAlignment = VerticalAlignment.Stretch; button.Cursor = System.Windows.Input.Cursors.Arrow;
                 button.HorizontalContentAlignment = HorizontalAlignment.Stretch; button.VerticalContentAlignment = VerticalAlignment.Stretch;
                 button.ToolTip = label; AutomationProperties.SetName(button, label);
                 AutomationProperties.SetAutomationId(button, "usage.bucket." + (cost ? "cost." : "tokens.") + bucket.Start.ToUnixTimeSeconds());

@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+
 namespace CodeRim.Core.Services;
 
 /// <summary>Atomic replacement with version checks. Callers must first require the provider to be quiescent.</summary>
@@ -29,6 +31,67 @@ public static class GuardedFile
         using var reader = new StreamReader(output);
         return reader.ReadToEnd();
     }
+    /// <summary>Only a missing leaf is signed out. Missing/linked/inaccessible parents still fail.</summary>
+    public static string? ReadIfPresent(string path)
+    {
+        path = Path.GetFullPath(path);
+        using var directory = LoginDirectoryLease.Acquire(path);
+        var parent = Path.GetDirectoryName(path) ?? throw new IOException("The login directory is unavailable.");
+        Check(parent);
+        try { return Read(path); }
+        catch (FileNotFoundException)
+        {
+            // On Windows the retained ancestor handles also prevent directory
+            // replacement while distinguishing a missing file from an unsafe path.
+            Check(parent); return null;
+        }
+    }
+    /// <summary>Publish a private, complete login only if the destination is still absent.</summary>
+    public static void CreateIfAbsent(string path, string value)
+    {
+        path = Path.GetFullPath(path);
+        using var directory = LoginDirectoryLease.Acquire(path);
+        if (ReadIfPresent(path) is not null) throw new IOException("The provider changed its login. Nothing was overwritten.");
+        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        var published = false;
+        try
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                // Retain the private staging handle from creation through commit.
+                // A full-path MoveFile reopens the parent for write access and
+                // conflicts with the directory lease; rename in that parent instead.
+                using var stream = CreatePrivateFile(temporary);
+                WriteAndFlush(stream, value);
+                WindowsFileRename.InSameDirectory(stream.SafeFileHandle, Path.GetFileName(path));
+                published = true;
+            }
+            else
+            {
+                WritePrivate(temporary, value);
+                PublishWithoutReplacement(temporary, path);
+                published = true;
+            }
+        }
+        // No fallible filesystem work after commit: report it as committed even
+        // if another process immediately changes directory permissions.
+        finally { if (!published) File.Delete(temporary); }
+    }
+    private static void PublishWithoutReplacement(string source, string destination)
+    {
+        if (OperatingSystem.IsMacOS())
+        {
+            // Portable Windows-source probes also run on macOS. The Unix .NET
+            // Move(false) implementation can check then rename, replacing a racer.
+            // RENAME_EXCL makes absence part of the atomic filesystem operation.
+            var utf8 = new System.Text.UTF8Encoding(false, true);
+            if (RenameExclusive(utf8.GetBytes(source + "\0"), utf8.GetBytes(destination + "\0"), 4) != 0)
+                throw new IOException("The login could not be published without replacement.", new System.ComponentModel.Win32Exception(Marshal.GetLastWin32Error()));
+        }
+        else throw new PlatformNotSupportedException("Exclusive login publication requires Windows or macOS.");
+    }
+    [DllImport("/usr/lib/libSystem.B.dylib", EntryPoint = "renamex_np", SetLastError = true)]
+    private static extern int RenameExclusive(byte[] source, byte[] destination, uint flags);
     public static void Replace(string path, string expected, string replacement)
     {
         if (Read(path) != expected) throw new IOException("The provider changed its login. Nothing was overwritten.");
@@ -44,6 +107,16 @@ public static class GuardedFile
     }
     public static void WritePrivate(string path, string value)
     {
+        using var stream = CreatePrivateFile(path);
+        WriteAndFlush(stream, value);
+    }
+    private static void WriteAndFlush(FileStream stream, string value)
+    {
+        using var writer = new StreamWriter(stream, new System.Text.UTF8Encoding(false, true), 1024, leaveOpen: true);
+        writer.Write(value); writer.Flush(); stream.Flush(true);
+    }
+    private static FileStream CreatePrivateFile(string path)
+    {
         if (OperatingSystem.IsWindows())
         {
             using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
@@ -51,13 +124,11 @@ public static class GuardedFile
             var security = new System.Security.AccessControl.FileSecurity();
             security.SetAccessRuleProtection(true, false);
             security.AddAccessRule(new System.Security.AccessControl.FileSystemAccessRule(sid, System.Security.AccessControl.FileSystemRights.FullControl, System.Security.AccessControl.AccessControlType.Allow));
-            using var stream = System.IO.FileSystemAclExtensions.Create(new FileInfo(path), FileMode.CreateNew, System.Security.AccessControl.FileSystemRights.FullControl, FileShare.None, 4096, FileOptions.WriteThrough, security);
-            using var writer = new StreamWriter(stream); writer.Write(value); writer.Flush(); stream.Flush(true);
+            return System.IO.FileSystemAclExtensions.Create(new FileInfo(path), FileMode.CreateNew, System.Security.AccessControl.FileSystemRights.FullControl, FileShare.None, 4096, FileOptions.WriteThrough, security);
         }
         else
         {
-            using var stream = new FileStream(path, new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite });
-            using var writer = new StreamWriter(stream); writer.Write(value); writer.Flush(); stream.Flush(true);
+            return new FileStream(path, new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.None, UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite });
         }
     }
     private static void Check(string path)

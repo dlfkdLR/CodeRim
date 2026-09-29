@@ -108,6 +108,7 @@ final class CompanionSnapshotPublisher {
             }
         }
         let snapshot = CompanionSnapshot(generatedAt: now, providers: providers)
+        MobileConnectionStore.shared.receive(snapshot)
         cliWriter.submit(snapshot)
         if !CompanionSnapshotFile.usesLocalFile { widgetWriter.submit(snapshot) }
     }

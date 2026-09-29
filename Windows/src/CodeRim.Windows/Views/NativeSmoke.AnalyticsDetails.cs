@@ -13,6 +13,7 @@ internal static partial class NativeSmoke
 {
     private static async Task AnalyticsDetailsRegression(DashboardStore store, AppSettingsStore settings, string directory)
     {
+        using var publicationState = new AnalyticsPublicationFixture(store, "codex");
         var previousUsage = store.Usage.GetValueOrDefault("codex"); var previousEvents = store.Events.GetValueOrDefault("codex");
         var previousMetadata = store.SessionDetails.GetValueOrDefault("codex"); var previousSettings = settings.Current;
         Window? window = null; Exception? failure = null; var cleanup = new List<Exception>();
@@ -29,7 +30,8 @@ internal static partial class NativeSmoke
                 StartedAt = started, ProjectName = "Session reference", ProjectObservedAt = now.AddDays(-10) },
                 new("child", "parent", []) { ProjectName = "Child reference" }, new("old-child", "parent", [])];
             store.Usage["codex"] = UsageScanner.Aggregate(store.Events["codex"], now, settings.Current.WeekStart, false) with { Quality = DataQuality.Partial };
-            var pane = new UsagePane(store, settings, "codex", _ => { }) { Width = 500 };
+            store.RecordLocalAnalyticsRead("codex", now);
+            var pane = new UsagePane(store, settings, "codex", _ => { }, initialSection: CodeRim.Core.Services.SettingsUsageSection.Overview) { Width = 500 };
             window = new Window { Content = pane, Width = 550, Height = 800, Title = "Analytics details fixture" }; window.Show(); await Idle();
             Button FindButton(string id) => Descendants<Button>(pane).Single(x => AutomationProperties.GetAutomationId(x) == id);
             FrameworkElement Element(string id) => Descendants<FrameworkElement>(pane).Single(x => AutomationProperties.GetAutomationId(x) == id);
@@ -84,9 +86,10 @@ internal static partial class NativeSmoke
             Require(!Descendants<FrameworkElement>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.entity.cost")
                 && !Texts(pane).Any(x => x is "Direct sub-agents" or "Sub-agents" or "Whole-session images"), "Disabled detail fields remain visible");
             settings.Save(settings.Current with { CostEstimatesEnabled = true });
-            store.Events["codex"] = [new("unpriced-only", now, new(10, 0, 0, 0), "unpriced-fixture", "Reference project", "parent", "codex", "reference")]; pane.Update(); await Idle();
+            store.Events["codex"] = [new("unpriced-only", now, new(10, 0, 0, 0), "unpriced-fixture", "Reference project", "parent", "codex", "reference")]; store.RecordLocalAnalyticsRead("codex", now); pane.Update(); await Idle();
             Require(Texts(Element("usage.entity.cost")) is ["Estimated cost unavailable"], "Unpriced detail fabricated a numeric estimate");
             store.Events["codex"] = [new("large-detail", now, new(long.MaxValue, 0, 0, 0), "unpriced-fixture", "Reference project", "parent", "codex", "reference")];
+            store.RecordLocalAnalyticsRead("codex", now);
             window.Width = 410; pane.Width = 360; pane.Update(); await Idle();
             var header = Element("usage.entity.header");
             var number = Descendants<TextBlock>(header).Single(x => x.Text == long.MaxValue.ToString("N0", CultureInfo.CurrentCulture));
@@ -106,7 +109,7 @@ internal static partial class NativeSmoke
             try { if (previousUsage is null) store.Usage.Remove("codex"); else store.Usage["codex"] = previousUsage; } catch (Exception error) { cleanup.Add(error); }
             try { if (previousEvents is null) store.Events.Remove("codex"); else store.Events["codex"] = previousEvents; } catch (Exception error) { cleanup.Add(error); }
             try { if (previousMetadata is null) store.SessionDetails.Remove("codex"); else store.SessionDetails["codex"] = previousMetadata; } catch (Exception error) { cleanup.Add(error); }
-            try { settings.Save(previousSettings); } catch (Exception error) { cleanup.Add(error); }
+            try { publicationState.Dispose(); settings.Save(previousSettings); } catch (Exception error) { cleanup.Add(error); }
         }
         if (failure is not null && cleanup.Count > 0) throw new AggregateException("Analytics detail fixture and cleanup failed", cleanup.Prepend(failure));
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();

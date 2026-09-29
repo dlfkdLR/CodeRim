@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.1.13 — Usage, analytics, companion, and account reliability
+
+- Restore Codex account-limit reads for current ChatGPT and Codex app bundles by discovering the nested signed Codex executable and caching validation only while its filesystem identity remains unchanged.
+- Add the native Usage analytics experience with local period, model, project, session, image-count, and cost-estimate drill-downs while keeping local and account totals separate.
+- Improve live session status, token collection fairness, reset-ring animation, account history, launch-at-login handling, and legacy CodexMeter name/icon migration.
+- Add the optional iPhone Live Activity companion source and relay, including privacy-bounded snapshots and provider selection.
+- Bring the Windows preview forward with saved-account operation locking, current official app-server RPC handling, safer snapshot replacement, and optional iPhone relay settings.
+- Publish one 2.1.13 release line for the universal macOS app and Windows x64/ARM64 installers. See [release notes](Documentation/ReleaseNotes/2.1.13.md).
+
 ## 2.1.10 — Windows motion and interaction
 
 - Add four-edge notch spring transitions, staggered controls, reading/reset interpolation and finite refresh feedback.

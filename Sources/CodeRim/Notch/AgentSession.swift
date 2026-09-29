@@ -13,6 +13,8 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         case busy
         case waiting
         case idle
+        /// The catalog knows the task, but no live runtime evidence is available.
+        case unavailable
     }
 
     struct ParentThread: Equatable, Sendable {
@@ -39,6 +41,16 @@ struct AgentSession: Identifiable, Equatable, Sendable {
     /// The original Codex thread ID, without the display model's profile prefix.
     let codexThreadID: String?
     let parentThread: ParentThread?
+    /// Stable host identity supplied by the collector; nil means this machine.
+    let remoteHostID: String?
+    /// Transcript identity for providers whose UI row is keyed by a process.
+    let usageSessionID: String?
+    var isRemote: Bool { remoteHostID != nil }
+    var locationDescription: String? {
+        guard isRemote else { return nil }
+        return state == .unavailable
+            ? "Remote task · live status unavailable" : "Remote task"
+    }
 
     /// Navigation metadata is optional for providers without a destination.
     init(
@@ -50,7 +62,9 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         since: Date,
         processID: pid_t? = nil,
         codexThreadID: String? = nil,
-        parentThread: ParentThread? = nil
+        parentThread: ParentThread? = nil,
+        remoteHostID: String? = nil,
+        usageSessionID: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -61,5 +75,8 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         self.processID = processID
         self.codexThreadID = codexThreadID
         self.parentThread = parentThread
+        self.usageSessionID = usageSessionID
+        let host = remoteHostID?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.remoteHostID = host == nil || host == "" || host == "local" ? nil : host
     }
 }

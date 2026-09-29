@@ -33,8 +33,9 @@ enum UsageDisplayPolicy {
         return "Through \(profileSnapshot.statsAsOf.formatted(.dateTime.month(.abbreviated).day()))"
     }
 
-    static let accountHistoryHelp = "Account totals reported by ChatGPT through the displayed snapshot date. "
-        + "Recent activity appears when ChatGPT updates its totals. This Mac's live usage is shown separately."
+    static let accountHistoryHelp = "ChatGPT's account total already includes synced local and cloud usage. "
+        + "Local totals are not added again. Recent usage appears after the server updates its totals. "
+        + "This Mac's live usage and account-unassigned history remain available separately."
 
     static let localHistoryHelp = "Local session usage on this Mac across accounts. "
         + "Switching accounts does not reset or reassign this history."

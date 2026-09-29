@@ -26,6 +26,7 @@ internal static partial class NativeSmoke
 
     private static async Task AnalyticsListsRegression(DashboardStore store, AppSettingsStore settings, string directory)
     {
+        using var publicationState = new AnalyticsPublicationFixture(store, "codex");
         var previousUsage = store.Usage.GetValueOrDefault("codex"); var previousEvents = store.Events.GetValueOrDefault("codex");
         var previousMetadata = store.SessionDetails.GetValueOrDefault("codex"); var previousLabels = store.CodexAnalyticsLabels;
         var previousSettings = settings.Current; Window? window = null; Exception? failure = null; var cleanup = new List<Exception>();
@@ -44,7 +45,8 @@ internal static partial class NativeSmoke
                 .Append(new("session-old", "session-0", [])).ToArray());
             store.SessionDetails["codex"] = metadata; store.CodexAnalyticsLabels = new Dictionary<string, CodexAnalyticsLabel>();
             store.Usage["codex"] = UsageScanner.Aggregate(store.Events["codex"], now, settings.Current.WeekStart, false);
-            var pane = new UsagePane(store, settings, "codex", _ => { }) { Width = 360 };
+            store.RecordLocalAnalyticsRead("codex", now);
+            var pane = new UsagePane(store, settings, "codex", _ => { }, initialSection: CodeRim.Core.Services.SettingsUsageSection.Overview) { Width = 360 };
             // Settings owns one outer viewport; do not introduce a popover-sized inner scrollbar.
             var viewport = new ScrollViewer { Content = pane, VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
@@ -130,6 +132,7 @@ internal static partial class NativeSmoke
             Restore(() => { if (previousUsage is null) store.Usage.Remove("codex"); else store.Usage["codex"] = previousUsage; });
             Restore(() => { if (previousEvents is null) store.Events.Remove("codex"); else store.Events["codex"] = previousEvents; });
             Restore(() => { if (previousMetadata is null) store.SessionDetails.Remove("codex"); else store.SessionDetails["codex"] = previousMetadata; });
+            Restore(publicationState.Dispose);
             Restore(() => settings.Save(previousSettings));
         }
         if (cleanup.Count > 0) throw new AggregateException("Analytics list fixture cleanup failed", failure is null ? cleanup : cleanup.Prepend(failure));

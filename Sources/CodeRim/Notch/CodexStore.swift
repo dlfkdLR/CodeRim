@@ -23,8 +23,19 @@ enum CodexStore {
         var displayTitle: String { title ?? agentName ?? "Task \(id.prefix(8))" }
         var projectName: String {
             if let savedProjectName { return savedProjectName }
+            if Self.isProjectlessWorkspace(cwd) { return "" }
             let folder = URL(fileURLWithPath: cwd).lastPathComponent
             return Self.isGeneric(folder) ? displayTitle : folder
+        }
+
+        /// Desktop projectless tasks use Documents/Codex/YYYY-MM-DD/task-folder.
+        /// Match that structure, never arbitrary short project names like "unf".
+        static func isProjectlessWorkspace(_ cwd: String) -> Bool {
+            let parts = cwd.replacingOccurrences(of: "\\", with: "/").split(separator: "/")
+            guard parts.count >= 4 else { return false }
+            let suffix = Array(parts.suffix(4))
+            return suffix[0].lowercased() == "documents" && suffix[1].lowercased() == "codex"
+                && suffix[2].range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil
         }
 
         static func isGeneric(_ name: String) -> Bool {
@@ -62,28 +73,44 @@ enum CodexStore {
             return (row[0], cleanTitle(row[3]) ?? desktopTitles[row[0]] ?? cleanTitle(row[4])
                     ?? agentNames[index] ?? "Task \(row[0].prefix(8))")
         }, uniquingKeysWith: { first, _ in first })
-        // Parents may be archived or older than the activity query's limit.
-        // Resolve only missing IDs, in bounded batches using SQL bindings.
-        let missingParents = Set(spawns.compactMap { $0?.parentID })
-            .subtracting(resolvedTitles.keys).sorted()
-        for start in stride(from: 0, to: missingParents.count, by: 128) {
-            let ids = Array(missingParents[start..<min(start + 128, missingParents.count)])
-            let placeholders = Array(repeating: "?", count: ids.count).joined(separator: ",")
-            let parents = SQLiteStore.rows(in: db,
-                sql: "SELECT id, \(name), substr(title, 1, 161), \(nickname) FROM threads WHERE id IN (\(placeholders))",
-                columns: 4, bindings: ids)
-            for parent in parents {
-                resolvedTitles[parent[0]] = cleanTitle(parent[1]) ?? desktopTitles[parent[0]]
-                    ?? cleanTitle(parent[2]) ?? cleanTitle(parent[3]) ?? "Task \(parent[0].prefix(8))"
+        // Resolve the main chat even when an intermediate agent has finished,
+        // been archived, or fallen outside the live catalogue's limit.
+        var parentIDs = Dictionary(rows.indices.compactMap { index in
+            spawns[index].map { (rows[index][0], $0.parentID) }
+        }, uniquingKeysWith: { first, _ in first })
+        var known = Set(rows.map { $0[0] })
+        for _ in 0..<64 {
+            let missing = Set(parentIDs.values).subtracting(known).sorted()
+            guard !missing.isEmpty else { break }
+            known.formUnion(missing)
+            for start in stride(from: 0, to: missing.count, by: 128) {
+                let ids = Array(missing[start..<min(start + 128, missing.count)])
+                let placeholders = Array(repeating: "?", count: ids.count).joined(separator: ",")
+                let parents = SQLiteStore.rows(in: db,
+                    sql: "SELECT id, \(name), substr(title, 1, 161), \(nickname), \(source) FROM threads WHERE id IN (\(placeholders))",
+                    columns: 5, bindings: ids)
+                for parent in parents {
+                    resolvedTitles[parent[0]] = cleanTitle(parent[1]) ?? desktopTitles[parent[0]]
+                        ?? cleanTitle(parent[2]) ?? cleanTitle(parent[3]) ?? "Task \(parent[0].prefix(8))"
+                    parentIDs[parent[0]] = spawn(in: parent[4], excluding: parent[0])?.parentID
+                }
             }
+        }
+        func mainParent(for id: String) -> AgentSession.ParentThread? {
+            guard var current = parentIDs[id] else { return nil }
+            var seen: Set<String> = [id]
+            while seen.insert(current).inserted {
+                guard let next = parentIDs[current] else {
+                    return .init(id: current, title: resolvedTitles[current] ?? desktopTitles[current]
+                        ?? "Task \(current.prefix(8))")
+                }
+                current = next
+            }
+            return nil // A corrupt cycle has no trustworthy main chat.
         }
         return rows.indices.map { index in
             let row = rows[index]
-            let parent = spawns[index].map {
-                AgentSession.ParentThread(id: $0.parentID,
-                    title: resolvedTitles[$0.parentID] ?? desktopTitles[$0.parentID]
-                        ?? "Task \($0.parentID.prefix(8))")
-            }
+            let parent = mainParent(for: row[0])
             return Thread(id: row[0], rollout: URL(fileURLWithPath: (row[1] as NSString).expandingTildeInPath),
                    cwd: row[2], title: cleanTitle(row[3]) ?? desktopTitles[row[0]] ?? cleanTitle(row[4]),
                    savedProjectName: projects[row[5]], agentName: agentNames[index], parentThread: parent)

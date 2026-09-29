@@ -1,5 +1,7 @@
 # README product imagery
 
+**English** · [한국어](README.ko.md)
+
 The source captures were taken from the installed CodexMeter 2.0.9 (build 20009) app on macOS on 2026-09-11 through native computer-use screenshot capture.
 
 - `notch-expanded-capture.png`: original, unmodified app-window screenshot (335 × 1134 pixels).

@@ -11,6 +11,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSToolbarDeleg
     private static let defaultContentSize = NSSize(width: 980, height: 680)
 
     private var settingsWindow: NSWindow?
+    private var settingsContentController: NSViewController?
+    private var viewportConstraints: [NSLayoutConstraint] = []
     private var environment: SettingsEnvironment?
     private let navigation = SettingsNavigation()
     private var navigationObservers = Set<AnyCancellable>()
@@ -29,6 +31,13 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSToolbarDeleg
         navigation.columnVisibility = .all
         let environment = self.environment ?? SettingsEnvironment()
         let window = settingsWindow ?? makeWindow(environment: environment)
+        if window.contentViewController == nil, let settingsContentController {
+            let frame = window.frame
+            window.contentViewController = settingsContentController
+            NSLayoutConstraint.activate(viewportConstraints)
+            // AppKit may resize a window when assigning its content controller.
+            window.setFrame(frame, display: false)
+        }
         // An accessory app is restricted from activating and compositing its
         // own windows, which is how "Settings…" can look like it did nothing.
         // Be a regular app for as long as the window is up; `windowWillClose`
@@ -45,6 +54,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSToolbarDeleg
     }
 
     func windowWillClose(_ notification: Notification) {
+        if let window = notification.object as? NSWindow, window === settingsWindow {
+            // Retain the same SwiftUI hierarchy and its navigation state, but
+            // disconnect the closed window's live layout/rendering surface.
+            NSLayoutConstraint.deactivate(viewportConstraints)
+            window.contentViewController = nil
+        }
         NSApplication.shared.setActivationPolicy(.accessory)
     }
 
@@ -88,6 +103,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSToolbarDeleg
         let container = NSViewController()
         container.view = NSView()
         window.contentViewController = container
+        settingsContentController = container
         container.addChild(hosting)
         let viewport = NSView()
         viewport.wantsLayer = true
@@ -97,11 +113,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSToolbarDeleg
         hosting.view.translatesAutoresizingMaskIntoConstraints = false
         viewport.addSubview(hosting.view)
         let layout = window.contentLayoutGuide as! NSLayoutGuide
-        NSLayoutConstraint.activate([
+        viewportConstraints = [
             viewport.leadingAnchor.constraint(equalTo: layout.leadingAnchor),
             viewport.trailingAnchor.constraint(equalTo: layout.trailingAnchor),
             viewport.topAnchor.constraint(equalTo: layout.topAnchor),
             viewport.bottomAnchor.constraint(equalTo: layout.bottomAnchor),
+        ]
+        NSLayoutConstraint.activate(viewportConstraints)
+        NSLayoutConstraint.activate([
             hosting.view.leadingAnchor.constraint(equalTo: viewport.leadingAnchor),
             hosting.view.trailingAnchor.constraint(equalTo: viewport.trailingAnchor),
             hosting.view.topAnchor.constraint(equalTo: viewport.topAnchor),
@@ -159,6 +178,10 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSToolbarDeleg
     }
 
     var settingsContentViewControllerForTesting: NSViewController? {
+        settingsContentController
+    }
+
+    var attachedSettingsContentViewControllerForTesting: NSViewController? {
         settingsWindow?.contentViewController
     }
 

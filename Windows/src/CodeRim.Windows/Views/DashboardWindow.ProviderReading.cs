@@ -50,7 +50,7 @@ internal sealed partial class DashboardWindow
         providerAlert.Background = Brushes.Transparent; providerAlert.BorderThickness = new Thickness(0); providerAlert.Margin = new Thickness(0, 0, 8, 0);
         providerBell = new System.Windows.Shapes.Path { Width = 16, Height = 16, Stretch = Stretch.Uniform, StrokeThickness = 1.25,
             StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round };
-        providerBell.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); providerAlert.Content = providerBell;
+        Ui.NativeGlyph(providerBell); providerAlert.SetResourceReference(Control.ForegroundProperty, "SecondaryText"); providerAlert.Content = providerBell;
         AutomationProperties.SetAutomationId(providerAlert, "provider.alerts"); AutomationProperties.SetName(providerAlert, "Mute " + name + " alerts");
         DockPanel.SetDock(providerAlert, Dock.Right); header.Children.Add(providerAlert);
     }

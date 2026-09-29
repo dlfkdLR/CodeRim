@@ -1,102 +1,63 @@
-# Releasing CodeRim
+# Building and releasing CodeRim
 
-## Certificate-free stable release
+**English** · [한국어](RELEASING.ko.md)
 
-CodeRim can publish a stable release without an Apple Developer ID. “Stable” describes the tested application and immutable release process; it does not mean the package is trusted by Apple Gatekeeper.
+## Contributor validation
 
-Required maintainer access:
+Run checks appropriate to the changed code before preparing a release. A documentation change uses `python3 Scripts/validate_docs.py`; it does not require signing or publishing. CI's source checks and build are in `.github/workflows/ci.yml` and `.github/workflows/windows.yml`.
 
-- GitHub write permission for the source repository's releases and `update-feed` branch, plus the personal Homebrew Tap repository
-- The Sparkle Ed25519 private key in the login Keychain under account `HechoLP`
-- A clean source worktree whose immutable `vVERSION` tag points exactly to `HEAD`
+```sh
+swift test
+swift build --product CodeRimCLI
+python3 Tests/Scripts/companion_cli_tests.py .build/debug/CodeRimCLI
+for test_script in Tests/Scripts/*_tests.zsh; do "$test_script"; done
+Scripts/build_release.sh
+```
 
-Never store certificate exports, Apple credentials, the Sparkle private key, notary credentials, or Keychain profiles in the repository. Only the Sparkle public key belongs in `Config/Info.plist` and `Config/Release.env`.
+`Scripts/build_release.sh` builds an ad-hoc Universal 2 app with helper, extension, framework, and resource bundles. It requires suitable Apple build tools, not an Apple signing certificate. `Scripts/release.sh` is a certificate-backed path requiring `CODE_SIGN_IDENTITY` and `CODE_SIGN_TEAM_ID`; it is not a prerequisite for every contributor PR. A build is not a notarization, installation, or release.
 
-Run the stable release gate from the tagged commit:
+## Certificate-free macOS stable gate
 
-```bash
+A maintainer needs a clean immutable tagged worktree, GitHub access to the source releases/update-feed and Homebrew tap, and the Sparkle Ed25519 private key in login Keychain under the configured account `HechoLP`. Never commit private keys, certificates, Apple credentials, or notary profiles. Only public signing keys belong in metadata.
+
+```sh
 Scripts/release_stable.sh
 ```
 
-The command verifies the matching tag, clean worktree, release notes, and public release repository. It then builds an ad-hoc-signed Universal 2 app, packages ZIP and DMG files, writes per-artifact SHA-256 files and `SHA256SUMS.txt`, verifies every packaged app, and creates a signed Sparkle appcast. Hardened Runtime is intentionally disabled because an ad-hoc-signed host cannot reliably load the separately signed Sparkle framework under library validation.
+Run from the reviewed commit where `vVERSION` points exactly to HEAD. The gate checks tag, clean tree, release notes, repository, build/package signatures, Universal 2 architectures, metadata, entitlements/transport, archive contents, byte lengths, URLs, and checksums. It creates ZIP/DMG, per-artifact SHA-256, `SHA256SUMS.txt`, and a signed appcast. Ad-hoc builds are not Apple-notarized; Hardened Runtime/library-validation behavior follows the actual build/sign scripts.
 
-The verifier requires an ad-hoc signature, rejects an Apple certificate authority, checks that Hardened Runtime is absent, and validates the app metadata, empty entitlement allowlist, embedded Sparkle framework, Universal 2 architectures, archive contents, and checksums. `Scripts/generate_appcast.sh` separately verifies the feed signature, archive signature, byte length, and download URL.
+`BUILD_NUMBER` is Sparkle's comparison value and must increase. The historical `1.4.10` value was `1410`; `2.0.0` uses `20000`, `2.0.1` uses `20001`, and `2.1.0` uses `20100`. Do not derive a smaller build number by simply concatenating new version digits.
 
-## macOS release
+1. Merge the reviewed release commit after required CI passes; tag that exact commit without rewriting an existing tag.
+2. Build and verify exact macOS artifacts, create the GitHub release, and upload ZIP, DMG, checksums, and `appcast.xml`.
+3. Verify anonymous asset access before publishing the same signed appcast on `update-feed`.
+4. Update `dlfkdLR/homebrew-tap`'s `Casks/coderim.rb` only after the exact ZIP is published; use its exact URL/version/SHA-256. Keep macOS 14, `auto_updates true`, and trust disclosure.
+5. Run tap style/audit and a clean install/uninstall check, then verify exact installed version/build, architectures, updater, status item, Settings, notch, and live totals. Keep local tests, CI, installed UI, and publication as separate evidence.
 
-The macOS app uses one immutable `vVERSION` tag and one public release in `dlfkdLR/CodeRim`.
+Public repo defaults are `dlfkdLR/CodeRim` and `update-feed`; `CODERIM_RELEASE_REPOSITORY` and `CODERIM_UPDATE_FEED_BRANCH` must be intentionally configured together for another destination. Old CodexMeter feed/repository redirects and the archived public 1.0.4 bridge remain compatibility boundaries. Do not delete/recreate legacy repositories or rewrite published assets/tags.
 
-`BUILD_NUMBER` (→ `CFBundleVersion`) is what Sparkle compares to decide whether an update is newer. It must **only ever increase**. Through 1.x it was the version digits concatenated (`1.4.10` → `1410`); `2.0.0` would have been `200`, a regression, so 2.0.0 uses `20000` and later 2.x releases continue from there (`2.0.1` → `20001`, `2.1.0` → `20100`).
+## First-install and optional Apple trust
 
-1. Merge the reviewed release commit to `main` after CI passes.
-2. Create and push `vVERSION` at that exact commit. Never move or replace a published tag.
-3. Run `Scripts/release_stable.sh` on the tagged commit for the macOS ZIP, DMG, checksums, and signed appcast.
-4. Create one stable public GitHub Release at `vVERSION` and upload the macOS ZIP, DMG, per-artifact checksums, `SHA256SUMS.txt`, and `appcast.xml`.
-5. Confirm every asset is anonymously downloadable before publishing the exact same signed `appcast.xml` on the public `update-feed` branch.
+Installation guidance must verify SHA-256 before app-scoped quarantine removal. Sparkle Ed25519 authenticates subsequent updates; a checksum or ad-hoc signature does not make the first download Apple-trusted.
 
-The configured release repository and feed branch can be overridden only when both are intentionally supplied:
-
-```bash
-export CODERIM_RELEASE_REPOSITORY="OWNER/PUBLIC-RELEASE-REPOSITORY"
-export CODERIM_UPDATE_FEED_BRANCH="update-feed"
-```
-
-### Legacy feed migration
-
-Versions through 1.0.3 have `HechoLP/CodexMeter-Releases` embedded as their Sparkle feed. For the 1.0.4 bridge release only, publish the exact same signed `appcast.xml` to both repositories' `update-feed` branches after uploading the archive to `HechoLP/CodexMeter`. The enclosure URL must point to the release in `HechoLP/CodexMeter`.
-
-After the dual feed is anonymously reachable and 1.0.4 is verified to read the source repository's feed, archive `HechoLP/CodexMeter-Releases` as a public, read-only compatibility repository. Do not delete it or make it private: an older installation may still need its static 1.0.4 bridge feed. Current releases are published only in `dlfkdLR/CodeRim`, and only its `update-feed` branch is updated. The historical owner/repository addresses remain compatibility redirects.
-
-## First-install trust disclosure
-
-The macOS build is ad-hoc signed and not Apple-notarized. Release notes and installation pages must require checksum verification before users remove quarantine.
-
-For macOS, document only this app-scoped command after the verified app is copied to Applications:
-
-```bash
+```sh
 xattr -dr com.apple.quarantine /Applications/CodeRim.app
 open /Applications/CodeRim.app
 ```
 
-Do not advertise the package as Apple-trusted. SHA-256 verifies the first download; Sparkle Ed25519 signatures authenticate later updates. Homebrew installation also verifies the exact published ZIP checksum.
+A later Developer ID path requires real certificate/team/notary credentials and validates Hardened Runtime, Team ID, notarization, stapling, and Gatekeeper. It is optional and separately authorized:
 
-## Homebrew Cask
-
-The public Cask lives in `dlfkdLR/homebrew-tap`.
-
-1. Publish the exact verified macOS ZIP at `vVERSION` before changing the Cask.
-2. Update `Casks/coderim.rb` with the published URL, version, and exact ZIP SHA-256.
-3. Keep `auto_updates true`, the macOS 14 requirement, and the certificate/notarization caveat.
-4. Run `brew style`, `brew audit --cask --online dlfkdLR/tap/coderim`, and a clean install/uninstall cycle.
-5. Verify the installed app version, build number, architecture, updater metadata, the status-bar item and its menu, the Settings window, the notch (enable it, check a ring renders), and live totals.
-
-The personal Tap provides convenient installation and checksum-based artifact integrity; it does not make the app Apple-trusted. Homebrew 6 does not provide the former `--no-quarantine` option.
-
-`Scripts/install_homebrew_local.sh` creates an ephemeral local-only Cask backed by an already verified ZIP for maintainer testing.
-
-## Optional Apple-trusted release
-
-If a Developer ID Application certificate, Team ID, and notarytool Keychain profile become available later, use:
-
-```bash
+```sh
 export CODE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
 export CODE_SIGN_TEAM_ID="TEAMID"
 export NOTARY_PROFILE="coderim-notary"
 Scripts/release_public.sh
 ```
 
-That optional path additionally enforces Developer ID signing, Hardened Runtime, Team ID, notarization, stapling, and Gatekeeper acceptance. It is not required for the certificate-free stable release.
+## Windows releases
+
+Windows MSI versions can advance independently of the macOS DMG. CodeRim 2.1.13 intentionally aligns the macOS and Windows version, but future platform releases can diverge again. Update each platform's links from actual release assets; the overall GitHub latest-release endpoint is not a macOS-version oracle. Package/test x64 and ARM64 installers separately. MSI signatures/manifests use the pinned Ed25519 update trust; Authenticode publisher signing is a distinct condition. See [Windows packaging and recovery](WINDOWS.md#updates).
 
 ## Rollback
 
-Withdraw the affected public release, restore the previous signed appcast, and document any local-database compatibility implications. Never rebuild an old version or rewrite a published tag; issue a new patch version instead.
-
-## Repository rename compatibility
-
-The repositories are now `dlfkdLR/CodeRim` and `dlfkdLR/CodeRim-Releases`.
-New builds use `RELEASE_REPOSITORY=dlfkdLR/CodeRim` and the canonical CodeRim
-raw update feed. Previously released apps retain their embedded CodexMeter URLs;
-GitHub redirects those addresses to the same repository, assets and signed feed.
-Verify both old and new feed URLs after publishing. Do not create repositories
-with the old names. Keep the legacy repository public and archived, with its
-original signed 1.0.4 bridge for the oldest installations.
+Withdraw an affected release and restore the previous signed appcast as authorized, documenting database compatibility. Never rebuild an old published version or move its tag; issue a new patch. Release, push, merge, tap writes, installation, and deployment each require the user's authorized scope.

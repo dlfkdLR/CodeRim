@@ -24,7 +24,7 @@ internal static partial class NativeSmoke
             settings.Save(before with { EnabledProviders = ["codex"], AccountLimitsEnabled = true, ResetCreditsEnabled = true });
             dashboard.Navigate("usage"); await Idle();
             var pane = usage = Descendants<UsagePane>(dashboard).Single(); wasLimits = pane.ShowsLimits;
-            pane.SelectProvider("codex"); pane.HandleShortcut(Key.D2, ModifierKeys.Control);
+            pane.SelectProvider("codex"); pane.HandleShortcut(Key.D3, ModifierKeys.Control);
             foreach (var style in new[] { TokenNumberStyle.Compact, TokenNumberStyle.Detailed })
             foreach (var variant in new[] { "zero", "numeric", "large", "unlimited", "available", "expired" })
             {
@@ -91,7 +91,7 @@ internal static partial class NativeSmoke
         {
             void Restore(Action action) { try { action(); } catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); } }
             Restore(() => store.Readings["codex"] = previous); Restore(() => settings.Save(before));
-            Restore(() => usage?.HandleShortcut(wasLimits ? Key.D2 : Key.D1, ModifierKeys.Control));
+            Restore(() => usage?.HandleShortcut(wasLimits ? Key.D3 : Key.D1, ModifierKeys.Control));
             Restore(() => dashboard.Navigate("notch"));
         }
         if (cleanup.Count > 0) throw new AggregateException("Reset credit fixture cleanup failed.", failure is null ? cleanup : cleanup.Prepend(failure));

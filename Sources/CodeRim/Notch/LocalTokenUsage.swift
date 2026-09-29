@@ -2,6 +2,8 @@ import Foundation
 
 /// Local transcript totals have a different lifetime and scope from account quotas.
 struct LocalTokenUsage: Equatable {
+    static let scopeHelp = "Tokens recorded on this Mac since midnight in its current time zone, across accounts and sessions, including background agents. Cached input is included in the total. Account quota percentages use their own reset periods."
+
     let total: Int?
     let quality: DataQuality
     let isLoading: Bool
@@ -21,7 +23,6 @@ struct LocalTokenUsage: Equatable {
         guard let total else { return isLoading ? "Loading…" : "Unavailable" }
         let value = NotchNumberFormatting.count(total, style: style) + " tokens"
         switch quality {
-        case .partial: return value + " (partial)"
         case .stale: return value + " (stale)"
         default: return value
         }

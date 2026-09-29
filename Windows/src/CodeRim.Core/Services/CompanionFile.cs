@@ -25,8 +25,22 @@ public static class CompanionFile
     public static CompanionSnapshot Read(string? path = null)
     {
         path ??= SnapshotPath;
-        if (new FileInfo(path).Length > MaximumBytes) throw new InvalidDataException("Snapshot is too large.");
-        var result = JsonSerializer.Deserialize<CompanionSnapshot>(File.ReadAllText(path), JsonOptions)
+        // Delete sharing lets an atomic replacement publish while this reader
+        // finishes the previous immutable snapshot. Size checks bind to this handle.
+        using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+        if (input.Length > MaximumBytes) throw new InvalidDataException("Snapshot is too large.");
+        using var bytes = new MemoryStream();
+        var buffer = new byte[65536];
+        int read;
+        while ((read = input.Read(buffer, 0, buffer.Length)) != 0)
+        {
+            if (bytes.Length + read > MaximumBytes) throw new InvalidDataException("Snapshot is too large.");
+            bytes.Write(buffer, 0, read);
+        }
+        bytes.Position = 0;
+        // Preserve ReadAllText's existing UTF BOM detection for legacy snapshots.
+        using var text = new StreamReader(bytes, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+        var result = JsonSerializer.Deserialize<CompanionSnapshot>(text.ReadToEnd(), JsonOptions)
             ?? throw new InvalidDataException("Snapshot is empty.");
         Validate(result);
         return result with { Providers = result.Providers.Select(p => p with { Limits = p.Limits.Evaluated(DateTimeOffset.Now), LocalUsage = p.LocalUsage is { } local &&
@@ -41,8 +55,25 @@ public static class CompanionFile
         path ??= SnapshotPath;
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try { File.WriteAllBytes(temporary, payload); File.Move(temporary, path, true); }
+        try { File.WriteAllBytes(temporary, payload); Publish(temporary, path); }
         finally { File.Delete(temporary); }
+    }
+    // A blocked Windows rename can report sharing (32), lock (33) or access denied (5).
+    // The latter can also be permanent permission denial: never alter permissions
+    // or bypass it. Keep complete snapshots and stop after seven 50 ms waits.
+    internal static void Publish(string temporary, string path, Action<Exception>? publicationBlocked = null)
+    {
+        for (var attempt = 0; ; attempt++)
+        {
+            try { File.Move(temporary, path, true); return; }
+            catch (Exception error) when (OperatingSystem.IsWindows() && attempt < 7
+                && (error is IOException && (error.HResult & 0xffff) is 32 or 33
+                    || error is UnauthorizedAccessException && (error.HResult & 0xffff) == 5))
+            {
+                publicationBlocked?.Invoke(error);
+                Thread.Sleep(50); // at most seven waits (350 ms); never an unbounded retry
+            }
+        }
     }
     private static void Validate(CompanionSnapshot snapshot)
     {

@@ -1,5 +1,7 @@
 # Windows update packaging contract
 
+**English** · [한국어](PACKAGING.ko.md)
+
 The default `Windows/Scripts/package.ps1` invocation still produces an unsigned portable ZIP. It includes an inert update worker: without the compiled publisher pin and signed manifest, the worker returns `SigningNotConfigured`. Existing manual ZIP/install.ps1 behavior remains available for portable and legacy installations. An unsigned installer refuses to overwrite a managed signed receipt. No certificate is created or added to an OS trust store.
 
 Signed managed installations are an explicit opt-in release configuration. Run the package script with `SigningMode Required`, an existing CurrentUser/My code-signing certificate thumbprint, and the exact lowercase SHA-256 of its DER SubjectPublicKeyInfo. The signing branch requires PowerShell 7 on Windows, an explicit validly signed Windows SDK signtool.exe, and an HTTPS RFC3161 timestamp server. SignTool uses SHA-256 for both the file digest and RFC3161 timestamp; the PowerShell signature API is not used for HTTPS timestamping. These are build inputs, never runtime environment trust overrides. A missing, mismatched, invalid, or untimestamped signing result stops packaging; it does not fall back to unsigned output.

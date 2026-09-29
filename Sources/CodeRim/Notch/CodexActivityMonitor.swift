@@ -66,7 +66,7 @@ actor CodexActivityReader {
         let threads = CodexStore.threads(in: stateStore, desktopStore: desktopStore, limit: 64)
         let paths = Set(threads.map { $0.rollout.path })
         cache = cache.filter { paths.contains($0.key) }
-        return threads.compactMap { thread in
+        let local: [AgentSession] = threads.compactMap { thread in
             guard let attributes = try? FileManager.default.attributesOfItem(atPath: thread.rollout.path),
                   let modified = attributes[.modificationDate] as? Date,
                   // Bound orphaned turns after a client crash with no end event.
@@ -82,5 +82,6 @@ actor CodexActivityReader {
                                 waitingFor: nil, since: event.since, codexThreadID: thread.id,
                                 parentThread: thread.parentThread)
         }
+        return local + CodexRemoteCatalog.sessions(in: desktopStore, profile: profile, now: now)
     }
 }

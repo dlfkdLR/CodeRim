@@ -26,9 +26,9 @@ internal sealed class AccountsPane : DockPanel
     private readonly AppSettingsStore settings;
     private readonly StackPanel list = new();
     private readonly TextBlock feedback = Ui.Text("", 12, "#A6A6AA");
-    internal AccountsPane(string provider, CredentialVault vault, DashboardStore store, AppSettingsStore settings)
+    internal AccountsPane(string provider, CredentialVault vault, DashboardStore store, AppSettingsStore settings, SavedAccounts? savedAccounts = null)
     {
-        this.provider = provider; this.store = store; this.settings = settings; accounts = new SavedAccounts(vault);
+        this.provider = provider; this.store = store; this.settings = settings; accounts = savedAccounts ?? new SavedAccounts(vault);
         Margin = new Thickness(24); LastChildFill = true;
         var header = new StackPanel(); DockPanel.SetDock(header, Dock.Top); Children.Add(header);
         header.Children.Add(Ui.Text((provider == "codex" ? "Codex" : "Claude") + " Accounts", 17, weight: FontWeights.SemiBold));
@@ -41,9 +41,9 @@ internal sealed class AccountsPane : DockPanel
         divider.SetResourceReference(Border.BackgroundProperty, "DividerBrush"); footer.Children.Add(divider);
         var save = Ui.AsyncButton("Save Current Account", async () =>
         {
-            SetBusy(true); await WaitForCurrentProbeAsync();
-            try { await accounts.SaveCurrentAsync(provider, Executable(), waitForRefresh: () => store.WaitForProviderIdleAsync(provider)).ConfigureAwait(true); await RefreshAccountsAsync(); feedback.Text = "Current account saved."; }
-            catch (Exception error) when (error is not OutOfMemoryException) { feedback.Text = "The official CLI could not verify a file-backed subscription login. Finish sign-in through the CLI and retry."; }
+            SetBusy(true);
+            try { await WaitForCurrentProbeAsync(); await accounts.SaveCurrentAsync(provider, Executable(), waitForRefresh: () => store.WaitForProviderIdleAsync(provider)).ConfigureAwait(true); await RefreshAccountsAsync(); feedback.Text = "Current account saved."; }
+            catch (Exception error) when (error is not OutOfMemoryException) { feedback.Text = error is AccountOperationBusyException blocked ? blocked.UserMessage : "The official CLI could not verify a file-backed subscription login. Finish sign-in through the CLI and retry."; }
             finally { SetBusy(false); }
         });
         System.Windows.Automation.AutomationProperties.SetAutomationId(save, "accounts.saveCurrent"); actions.Children.Add(save);
@@ -74,16 +74,19 @@ internal sealed class AccountsPane : DockPanel
     {
         if (busy || SavedAccounts.OperationInProgress) { feedback.Text = "Wait for the current account operation to finish."; return; }
         using var cancellation = new CancellationTokenSource(); signInCancellation = cancellation;
-        ShowSignInProgress(true); await WaitForCurrentProbeAsync();
-        feedback.Text = "Finish sign-in in your browser. Your current CLI account stays selected.";
+        string? busyMessage = null;
+        ShowSignInProgress(true);
         try
         {
+            await WaitForCurrentProbeAsync();
+            feedback.Text = "Finish sign-in in your browser. Your current CLI account stays selected.";
             await accounts.AddAsync(provider, Executable(), cancellation.Token).ConfigureAwait(true);
             await RefreshAccountsAsync(); feedback.Text = "Account added. Select Switch when you want to use it.";
         }
         catch (OperationCanceledException) { feedback.Text = "Sign-in cancelled. Your current account is unchanged."; }
+        catch (AccountOperationBusyException error) { busyMessage = error.UserMessage; feedback.Text = busyMessage; }
         catch (Exception e) when (e is not OutOfMemoryException) { feedback.Text = "The new account could not be verified. Your current CLI login and saved accounts are unchanged."; }
-        finally { signInCancellation = null; ShowSignInProgress(false); Populate(); }
+        finally { signInCancellation = null; ShowSignInProgress(false); Populate(); if (busyMessage is not null) feedback.Text = busyMessage; }
     }
     private void CancelSignIn() => signInCancellation?.Cancel();
     private void SetBusy(bool active)
@@ -140,9 +143,10 @@ internal sealed class AccountsPane : DockPanel
                 var select = Ui.AsyncButton("Switch", async () =>
                 {
                     if (MessageBox.Show(Window.GetWindow(this), "Switch the CLI to " + account.Identity.Email + "? Close its running sessions before continuing.", "Switch account", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
-                    SetBusy(true); await WaitForCurrentProbeAsync(); verifiedCurrentId = null; feedback.Text = "Verifying account…";
+                    SetBusy(true); verifiedCurrentId = null; feedback.Text = "Verifying account…";
                     try
                     {
+                        await WaitForCurrentProbeAsync();
                         if (store.Sessions.Any(x => x.Provider == provider && x.State is "busy" or "waiting")) throw new InvalidOperationException("Close the provider's active sessions first.");
                         store.InvalidateAccount(provider);
                         if (provider == "claude") await store.Claude.BeginAccountSwitchAsync();
@@ -156,10 +160,13 @@ internal sealed class AccountsPane : DockPanel
                         store.InvalidateAccount(provider); await store.RefreshProviderAsync(provider).ConfigureAwait(true);
                         await RefreshAccountsAsync(); feedback.Text = "The CLI verified the selected account.";
                     }
+                    catch (AccountOperationBusyException error) { feedback.Text = error.UserMessage; }
                     catch (Exception e) when (e is not OutOfMemoryException)
                     {
                         store.InvalidateAccount(provider); await store.RefreshProviderAsync(provider).ConfigureAwait(true);
-                        feedback.Text = "The switch could not be verified. Close running provider sessions, sign in through the official CLI, and retry.";
+                        feedback.Text = e is AccountSwitchCommittedException
+                            ? "The Codex login changed, but verification did not finish. Check the current account in the official CLI before retrying."
+                            : "The switch could not be verified. Refresh the account list, close running provider sessions, sign in through the official CLI, and retry.";
                     }
                     finally { SetBusy(false); }
                 });
@@ -177,6 +184,6 @@ internal sealed class AccountsPane : DockPanel
     {
         try { action(); }
         catch (Exception e) when (e is not OutOfMemoryException)
-        { feedback.Text = SavedAccounts.OperationInProgress ? "Wait for the current account operation to finish, then retry." : "A complete CLI subscription login is required. Finish sign-in through the official provider CLI, then retry."; }
+        { feedback.Text = e is AccountOperationBusyException blocked ? blocked.UserMessage : SavedAccounts.OperationInProgress ? "Wait for the current account operation to finish, then retry." : "A complete CLI subscription login is required. Finish sign-in through the official provider CLI, then retry."; }
     }
 }

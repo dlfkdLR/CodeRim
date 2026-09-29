@@ -8,8 +8,12 @@ using static CodeRim.Core.Providers.ProviderParsers;
 namespace CodeRim.Windows.Services;
 
 internal sealed record SavedLogin(string Provider, LoginIdentity Identity, string Credential, string? Profile);
-internal sealed class SavedAccounts(CredentialVault vault)
+internal sealed class AccountSwitchCommittedException() : InvalidOperationException(
+    "The Codex login was changed, but verification did not finish. Check the current account in the official CLI before retrying.");
+internal sealed class SavedAccounts(CredentialVault vault, Func<AccountOperationLease>? operationLease = null)
 {
+    internal delegate Task<JsonElement> CodexRpc(string executable, string method, CancellationToken token);
+    private readonly Func<AccountOperationLease> acquireOperation = operationLease ?? AccountOperationLease.Acquire;
     private static int switching;
     internal static bool OperationInProgress => Volatile.Read(ref switching) != 0;
     internal IReadOnlyList<SavedLogin> Read(string provider)
@@ -27,6 +31,10 @@ internal sealed class SavedAccounts(CredentialVault vault)
     {
         var credential = GuardedFile.Read(paths.Credential);
         var profile = paths.Profile is { } path ? GuardedFile.Read(path) : null;
+        return ParseLogin(provider, credential, profile);
+    }
+    private static SavedLogin ParseLogin(string provider, string credential, string? profile)
+    {
         var identity = Identity(provider, credential, profile);
         // Persist only Claude OAuth and account fields, never unrelated configuration.
         if (provider == "claude")
@@ -43,12 +51,20 @@ internal sealed class SavedAccounts(CredentialVault vault)
         try { return Current(provider).Identity.Email; }
         catch (Exception error) when (error is IOException or InvalidDataException or JsonException or UnauthorizedAccessException or FormatException or InvalidOperationException) { return null; }
     }
-    internal void SaveCurrent(string provider) => Save(Current(provider));
+    internal void SaveCurrent(string provider)
+    {
+        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new AccountOperationBusyException();
+        try { using var lease = acquireOperation(); Save(Current(provider)); }
+        finally { Interlocked.Exchange(ref switching, 0); }
+    }
     internal async Task SaveCurrentAsync(string provider, string executable, Func<Task>? waitForRefresh = null, CancellationToken token = default)
     {
-        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new InvalidOperationException("An account operation is already in progress.");
+        token.ThrowIfCancellationRequested();
+        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new AccountOperationBusyException();
         try
         {
+            using var lease = acquireOperation();
+            token.ThrowIfCancellationRequested();
             if (waitForRefresh is not null) await waitForRefresh().ConfigureAwait(true);
             token.ThrowIfCancellationRequested();
             var before = Current(provider);
@@ -67,9 +83,12 @@ internal sealed class SavedAccounts(CredentialVault vault)
     }
     internal async Task AddAsync(string provider, string executable, CancellationToken token)
     {
-        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new InvalidOperationException("An account operation is already in progress.");
+        token.ThrowIfCancellationRequested();
+        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new AccountOperationBusyException();
         try
         {
+            using var lease = acquireOperation();
+            token.ThrowIfCancellationRequested();
             CheckPolicy(provider, Paths(provider).Credential);
             if (provider == "codex")
             {
@@ -93,11 +112,11 @@ internal sealed class SavedAccounts(CredentialVault vault)
         if (Current(provider).Identity.Id != before.Identity.Id) throw new IOException("The current account changed during verification.");
         return before.Identity.Id;
     }
-    private static async Task VerifyAsync(SavedLogin selected, string executable, CancellationToken token)
+    private static async Task VerifyAsync(SavedLogin selected, string executable, CancellationToken token, CodexRpc? codexRpc = null)
     {
         if (selected.Provider == "codex")
         {
-            var result = await AppServerClient.ReadAsync(executable, "account/read", token).ConfigureAwait(true);
+            var result = await (codexRpc ?? AppServerClient.ReadAsync)(executable, "account/read", token).ConfigureAwait(true);
             var active = Get(result, "account");
             if (Text(active, "type") != "chatgpt" || Text(active, "email") != selected.Identity.Email)
                 throw new InvalidOperationException("The official Codex CLI could not verify the selected account.");
@@ -120,50 +139,75 @@ internal sealed class SavedAccounts(CredentialVault vault)
     }
     internal void Remove(string provider, string id)
     {
-        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new InvalidOperationException("Wait for the current account operation to finish.");
-        try { vault.Save("accounts:" + provider, JsonSerializer.Serialize(Read(provider).Where(x => x.Identity.Id != id).ToArray())); }
+        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new AccountOperationBusyException();
+        try { using var lease = acquireOperation(); vault.Save("accounts:" + provider, JsonSerializer.Serialize(Read(provider).Where(x => x.Identity.Id != id).ToArray())); }
         finally { Interlocked.Exchange(ref switching, 0); }
     }
-    internal async Task SwitchAsync(SavedLogin selected, string executable, Func<Task>? waitForRefresh = null, CancellationToken token = default)
+    internal async Task SwitchAsync(SavedLogin selected, string executable, Func<Task>? waitForRefresh = null, CodexRpc? codexRpc = null, CancellationToken token = default)
     {
-        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new InvalidOperationException("An account operation is already in progress.");
+        token.ThrowIfCancellationRequested();
+        if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new AccountOperationBusyException();
         try
         {
+            using var lease = acquireOperation();
+            token.ThrowIfCancellationRequested();
             if (waitForRefresh is not null) await waitForRefresh().ConfigureAwait(true);
             token.ThrowIfCancellationRequested();
+            // A displayed row identifies the selection; only the current vault owns
+            // its credential. Refresh may have rotated or removed it while we waited.
+            selected = Read(selected.Provider).SingleOrDefault(account => account.Identity.Id == selected.Identity.Id)
+                ?? throw new InvalidDataException("The saved account was removed. Refresh the account list and select it again.");
             var paths = Paths(selected.Provider);
             if (selected.Provider == "codex")
             {
-                var configuration = await AppServerClient.ReadAsync(executable, "config/read", token).ConfigureAwait(true);
+                var configuration = await (codexRpc ?? AppServerClient.ReadAsync)(executable, "config/read", token).ConfigureAwait(true);
                 LoginIdentity.ValidateCodexPolicy(Get(configuration, "config"), selected.Identity.Organization);
             }
             CheckPolicy(selected.Provider, paths.Credential);
+            token.ThrowIfCancellationRequested();
+            var before = selected.Provider == "codex" ? GuardedFile.ReadIfPresent(paths.Credential) : GuardedFile.Read(paths.Credential); var profileBefore = paths.Profile is { } file ? GuardedFile.Read(file) : null;
+            var departing = before is null ? null : ParseLogin(selected.Provider, before, profileBefore);
+            if (selected.Provider == "codex" && departing?.Identity.Id == selected.Identity.Id)
+            {
+                // Selecting an already-active login must never restore an older
+                // refresh token from the saved list or require closing idle clients.
+                await VerifyAsync(departing, executable, token, codexRpc).ConfigureAwait(true);
+                var active = Current(selected.Provider);
+                if (active.Identity.Id != selected.Identity.Id) throw new IOException("The provider login changed during verification.");
+                Save(active); return;
+            }
             var processes = Process.GetProcessesByName(selected.Provider);
             try { if (processes.Any(x => !x.HasExited)) throw new InvalidOperationException("Close the provider's CLI and editor sessions before switching accounts."); }
             finally { foreach (var process in processes) process.Dispose(); }
-            var before = GuardedFile.Read(paths.Credential); var profileBefore = paths.Profile is { } file ? GuardedFile.Read(file) : null;
-            SaveCurrent(selected.Provider);
-            var after = selected.Provider == "claude" ? Merge(before, selected.Credential, "claudeAiOauth") : selected.Credential;
+            // Save the same snapshot used by compare-and-swap, not a second file read.
+            if (departing is not null) Save(departing);
+            var after = selected.Provider == "claude" ? Merge(before!, selected.Credential, "claudeAiOauth") : selected.Credential;
             var profileAfter = selected.Provider == "claude" ? Merge(profileBefore!, selected.Profile!, "oauthAccount") : null;
             var credentialWritten = false; var profileWritten = false;
             try
             {
-                GuardedFile.Replace(paths.Credential, before, after); credentialWritten = true;
+                if (before is null) GuardedFile.CreateIfAbsent(paths.Credential, after);
+                else GuardedFile.Replace(paths.Credential, before, after);
+                credentialWritten = true;
                 if (paths.Profile is { } profilePath) { GuardedFile.Replace(profilePath, profileBefore!, profileAfter!); profileWritten = true; }
-                await VerifyAsync(selected, executable, token).ConfigureAwait(true);
+                await VerifyAsync(selected, executable, token, codexRpc).ConfigureAwait(true);
                 var current = Current(selected.Provider);
                 if (current.Identity.Id != selected.Identity.Id) throw new IOException("The provider login changed during verification.");
                 Save(current);
             }
-            catch
+            catch (Exception error) when (error is not OutOfMemoryException)
             {
+                // Match Mac: after committing Codex auth, keep the new login even
+                // when the probe fails. Codex may have renewed credentials remotely;
+                // rolling back can discard the only usable refresh token.
+                if (selected.Provider == "codex" && credentialWritten) throw new AccountSwitchCommittedException();
                 // Restore only our exact writes; a newer external login is never overwritten.
                 var credentialStillOurs = !credentialWritten || GuardedFile.Read(paths.Credential) == after;
                 var profileStillOurs = paths.Profile is null || GuardedFile.Read(paths.Profile) == (profileWritten ? profileAfter : profileBefore);
                 if (credentialStillOurs && profileStillOurs)
                 {
                     if (profileWritten && paths.Profile is { } profilePath) GuardedFile.Replace(profilePath, profileAfter!, profileBefore!);
-                    if (credentialWritten) GuardedFile.Replace(paths.Credential, after, before);
+                    if (credentialWritten) GuardedFile.Replace(paths.Credential, after, before!);
                 }
                 throw;
             }
@@ -178,7 +222,7 @@ internal sealed class SavedAccounts(CredentialVault vault)
     internal static (string Credential, string? Profile) Paths(string provider)
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        if (provider == "codex") return (Path.Combine(Environment.GetEnvironmentVariable("CODEX_HOME") ?? Path.Combine(home, ".codex"), "auth.json"), null);
+        if (provider == "codex") return (CodexHomeDirectory.CredentialPath(Environment.GetEnvironmentVariable("CODEX_HOME"), home), null);
         if (provider != "claude") throw new ArgumentException("Unknown account provider.", nameof(provider));
         var config = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
         return (Path.Combine(config ?? Path.Combine(home, ".claude"), ".credentials.json"), Path.Combine(config ?? home, ".claude.json"));

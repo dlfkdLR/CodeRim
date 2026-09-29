@@ -28,6 +28,18 @@ internal static partial class NativeSmoke
         var own = new System.Windows.Interop.WindowInteropHelper(notch).Handle;
         var source = System.Windows.Interop.HwndSource.FromHwnd(own);
         var native = new List<object>(); var routed = new List<object>();
+        var nativeMoves = new List<object>(); var routedMoves = new List<object>(); var popupEvents = new List<object>();
+        var moveEventsDropped = 0; var observingResume = false; var resumeMoveDelivered = false;
+        string? resumeDeliveredProviderId = null;
+        System.Drawing.Point? expectedResumePoint = null;
+        var suppression = typeof(NotchWindow).GetField("providerHoverSuppressedAt",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)
+            ?? throw new InvalidOperationException("The native hover diagnostic has no suppression state.");
+        object? SuppressionPoint() => suppression.GetValue(notch);
+        var observedPopup = typeof(NotchWindow).GetField("popup",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)?.GetValue(notch)
+            as System.Windows.Controls.Primitives.Popup
+            ?? throw new InvalidOperationException("The native hover diagnostic has no popup.");
         var timer = System.Diagnostics.Stopwatch.StartNew();
         static object Element(System.Windows.IInputElement? value) => new
         {
@@ -58,6 +70,14 @@ internal static partial class NativeSmoke
         {
             if (message == 0x020A)
                 native.Add(new { elapsedMs = timer.ElapsedMilliseconds, delta = unchecked((short)(wParam.ToInt64() >> 16)), handled });
+            if (message == 0x0200)
+            {
+                if (nativeMoves.Count < 128) nativeMoves.Add(new { elapsedMs = timer.ElapsedMilliseconds,
+                    observingResume, clientX = unchecked((short)lParam.ToInt64()),
+                    clientY = unchecked((short)(lParam.ToInt64() >> 16)),
+                    screenPoint = System.Windows.Forms.Cursor.Position, handled, suppressionPoint = SuppressionPoint() });
+                else moveEventsDropped++;
+            }
             return IntPtr.Zero; // Observation only: do not change handled or route the message.
         }
         void ObserveRouted(object sender, System.Windows.Input.MouseWheelEventArgs args) => routed.Add(new
@@ -65,14 +85,50 @@ internal static partial class NativeSmoke
             elapsedMs = timer.ElapsedMilliseconds, target = ReferenceEquals(sender, scroll) ? "original-scroll" : "notch",
             args.Delta, args.Handled, source = Element(args.OriginalSource as System.Windows.IInputElement)
         });
+        void ObserveMove(object sender, System.Windows.Input.MouseEventArgs args)
+        {
+            var screenPoint = System.Windows.Forms.Cursor.Position;
+            var eventPoint = notch.PointToScreen(args.GetPosition(notch));
+            var provider = args.OriginalSource as System.Windows.DependencyObject;
+            while (provider is not null && provider is not System.Windows.Controls.Button)
+                provider = provider is System.Windows.Media.Visual ? System.Windows.Media.VisualTreeHelper.GetParent(provider)
+                    : System.Windows.LogicalTreeHelper.GetParent(provider);
+            var providerId = provider is System.Windows.Controls.Button button && button.IsMouseOver
+                && button.IsLoaded && button.IsVisible && Descendants<System.Windows.Controls.Button>(notch).Any(x => ReferenceEquals(x, button))
+                ? System.Windows.Automation.AutomationProperties.GetAutomationId(button) : null;
+            var bubble = args.RoutedEvent == System.Windows.Input.Mouse.MouseMoveEvent;
+            var delivered = observingResume && bubble && expectedResumePoint is { } expected
+                && screenPoint == expected && Math.Abs(eventPoint.X - expected.X) <= 0.5 && Math.Abs(eventPoint.Y - expected.Y) <= 0.5
+                && providerId?.StartsWith("notch.provider.", StringComparison.Ordinal) == true;
+            if (delivered) { resumeMoveDelivered = true; resumeDeliveredProviderId = providerId!["notch.provider.".Length..]; }
+            if (routedMoves.Count < 128) routedMoves.Add(new { elapsedMs = timer.ElapsedMilliseconds,
+                observingResume, bubble, args.Handled, screenPoint, eventPoint, providerId, delivered,
+                source = Element(args.OriginalSource as System.Windows.IInputElement),
+                suppressionPoint = SuppressionPoint(), popupOpen = notch.PopupIsOpen });
+            else moveEventsDropped++;
+        }
+        void ObservePopup(object? sender, EventArgs args)
+        {
+            if (popupEvents.Count < 128) popupEvents.Add(new { elapsedMs = timer.ElapsedMilliseconds,
+                observingResume, screenPoint = System.Windows.Forms.Cursor.Position,
+                suppressionPoint = SuppressionPoint(), popupOpen = notch.PopupIsOpen });
+            else moveEventsDropped++;
+        }
         var hooked = false; var notchAttached = false; var scrollAttached = false;
+        var previewMoveAttached = false; var bubbleMoveAttached = false;
+        var popupOpenedAttached = false; var popupClosedAttached = false;
         var passed = false; Exception? failure = null; var cleanup = new List<Exception>();
         System.Windows.Input.MouseWheelEventHandler handler = ObserveRouted;
+        System.Windows.Input.MouseEventHandler moveHandler = ObserveMove;
         try
         {
             if (source is not null) { source.AddHook(ObserveNative); hooked = true; }
             notch.AddHandler(System.Windows.Input.Mouse.PreviewMouseWheelEvent, handler, handledEventsToo: true); notchAttached = true;
             scroll.AddHandler(System.Windows.Input.Mouse.PreviewMouseWheelEvent, handler, handledEventsToo: true); scrollAttached = true;
+            notch.AddHandler(System.Windows.Input.Mouse.PreviewMouseMoveEvent, moveHandler, handledEventsToo: true); previewMoveAttached = true;
+            notch.AddHandler(System.Windows.Input.Mouse.MouseMoveEvent, moveHandler, handledEventsToo: true); bubbleMoveAttached = true;
+            observedPopup.Opened += ObservePopup; popupOpenedAttached = true;
+            observedPopup.Closed += ObservePopup; popupClosedAttached = true;
             scroll.ScrollToHome(); await Idle();
             var point = scroll.PointToScreen(new System.Windows.Point(scroll.ActualWidth / 2, Math.Min(40, scroll.ActualHeight / 2)));
             var moved = MoveCursor((int)point.X, (int)point.Y); await Task.Delay(150); await Idle();
@@ -89,9 +145,59 @@ internal static partial class NativeSmoke
             var outcome = reached && submitted == 1 ? after > before ? "PASS" : "FAIL" : "INCONCLUSIVE";
             try { Require(!reached || submitted != 1 || after > before, "Native wheel reached the notch but did not scroll providers"); }
             catch (InvalidOperationException error) { failure = error; }
+            // Keep the wheel snapshot separate from the subsequent resume probe.
+            var afterState = State();
+            string? CardProvider()
+            {
+                if (!notch.PopupIsOpen || notch.PopupContent is not { } child) return null;
+                const string prefix = "notch.title.";
+                var id = Descendants<System.Windows.Controls.TextBlock>(child)
+                    .Select(System.Windows.Automation.AutomationProperties.GetAutomationId)
+                    .FirstOrDefault(x => x.StartsWith(prefix, StringComparison.Ordinal));
+                return id is null ? null : id[prefix.Length..];
+            }
+            var resumeBeforePoint = System.Windows.Forms.Cursor.Position;
+            var suppressionBeforeResume = SuppressionPoint();
+            var resumeBeforePopupOpen = notch.PopupIsOpen;
+            var resumeBeforeCardProvider = CardProvider();
+            var wheelVerified = outcome == "PASS";
+            try { Require(!wheelVerified || !resumeBeforePopupOpen, "Native wheel did not retain its dismissed provider card"); }
+            catch (InvalidOperationException error) { failure = failure is null ? error : new AggregateException(failure, error); }
+            var resumePoint = new System.Drawing.Point(resumeBeforePoint.X, resumeBeforePoint.Y + 2);
+            expectedResumePoint = resumePoint; observingResume = true;
+            var deliveryStarted = timer.ElapsedMilliseconds;
+            var resumeMoved = MoveCursor(resumePoint.X, resumePoint.Y); await Idle();
+            // ApplicationIdle settles queued WPF work, but SetCursorPos can
+            // publish its screen position before WM_MOUSEMOVE reaches WPF.
+            // Wait for this exact move's bubbled provider event, without
+            // generating another move or opening the card in the fixture.
+            var deliveryDeadline = DateTimeOffset.UtcNow.AddSeconds(5);
+            while (wheelVerified && resumeMoved && !resumeMoveDelivered && DateTimeOffset.UtcNow < deliveryDeadline)
+            { await Task.Delay(10); await Idle(); }
+            var deliveryElapsedMs = timer.ElapsedMilliseconds - deliveryStarted;
+            observingResume = false;
+            var resumeObserved = System.Windows.Forms.Cursor.Position;
+            var resumeProvider = Descendants<System.Windows.Controls.Button>(notch).FirstOrDefault(x => x.IsMouseOver
+                && System.Windows.Automation.AutomationProperties.GetAutomationId(x).StartsWith("notch.provider.", StringComparison.Ordinal));
+            var resumeProviderId = resumeProvider is null ? null
+                : System.Windows.Automation.AutomationProperties.GetAutomationId(resumeProvider)["notch.provider.".Length..];
+            var resumeCardProvider = CardProvider();
+            var resumeReached = wheelVerified && !resumeBeforePopupOpen && resumeMoved && resumeObserved == resumePoint
+                && resumeObserved != resumeBeforePoint
+                && WindowAtPoint(new PointerPoint { X = resumeObserved.X, Y = resumeObserved.Y }) == own && resumeProvider is not null;
+            var resumeOutcome = wheelVerified && resumeBeforePopupOpen ? "FAIL"
+                : resumeReached ? resumeMoveDelivered && resumeDeliveredProviderId == resumeProviderId
+                    && notch.PopupIsOpen && resumeCardProvider == resumeProviderId ? "PASS" : "FAIL" : "INCONCLUSIVE";
+            try { Require(resumeOutcome != "FAIL", "Native provider pointer movement failed to resume its hovered card after wheel"); }
+            catch (InvalidOperationException error) { failure = failure is null ? error : new AggregateException(failure, error); }
             File.WriteAllText(Path.Combine(directory, "windows-wheel-input.json"),
                 System.Text.Json.JsonSerializer.Serialize(new { reached, submitted, sendError, before, after, outcome,
-                    beforeState, afterState = State(), native, routed,
+                    beforeState, afterState, native, routed,
+                    resumeBeforePoint, resumeBeforePopupOpen, resumeBeforeCardProvider,
+                    resumePoint, resumeObserved, resumeMoved, resumeReached, resumeProviderId, resumeCardProvider,
+                    resumeMoveDelivered, resumeDeliveredProviderId, deliveryElapsedMs, suppressionBeforeResume, suppressionAfterResume = SuppressionPoint(),
+                    nativeMoves, routedMoves, popupEvents, moveEventsDropped,
+                    resumeOutcome, resumePopupOpen = notch.PopupIsOpen, resumeAfterState = State(),
                     method = "Native SendInput mouse-wheel queue, following WindowFromPoint owner verification" }, JsonOptions));
             passed = outcome == "PASS";
         }
@@ -104,6 +210,10 @@ internal static partial class NativeSmoke
             void Restore(Action action) { try { action(); } catch (Exception error) when (error is not OutOfMemoryException) { cleanup.Add(error); } }
             Restore(() => { if (scrollAttached) scroll.RemoveHandler(System.Windows.Input.Mouse.PreviewMouseWheelEvent, handler); });
             Restore(() => { if (notchAttached) notch.RemoveHandler(System.Windows.Input.Mouse.PreviewMouseWheelEvent, handler); });
+            Restore(() => { if (previewMoveAttached) notch.RemoveHandler(System.Windows.Input.Mouse.PreviewMouseMoveEvent, moveHandler); });
+            Restore(() => { if (bubbleMoveAttached) notch.RemoveHandler(System.Windows.Input.Mouse.MouseMoveEvent, moveHandler); });
+            Restore(() => { if (popupOpenedAttached) observedPopup.Opened -= ObservePopup; });
+            Restore(() => { if (popupClosedAttached) observedPopup.Closed -= ObservePopup; });
             Restore(() => { if (hooked) source!.RemoveHook(ObserveNative); });
         }
         if (cleanup.Count > 0) throw new AggregateException("Native wheel observation cleanup failed.", failure is null ? cleanup : cleanup.Prepend(failure));

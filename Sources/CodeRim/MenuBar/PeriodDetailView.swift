@@ -24,6 +24,7 @@ struct PeriodDetailView: View {
                     .monospacedDigit()
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.24), value: total)
+                    .id(total == nil)
                 Text(usesProfileTotalForPeriod ? profileTotalLabel : "This Mac total tokens")
                     .foregroundStyle(.secondary)
             }
@@ -155,7 +156,7 @@ struct PeriodDetailView: View {
 
     private var profileTotalLabel: String {
         guard let snapshot = profileSnapshot else { return "Account totals unavailable" }
-        return "Profile total through \(profileDate(snapshot.statsAsOf))"
+        return "Server total through \(profileDate(snapshot.statsAsOf))"
     }
 
     private var displayedTotal: Int64? {
