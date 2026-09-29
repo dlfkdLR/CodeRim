@@ -41,6 +41,13 @@ internal static partial class NativeSmoke
             fixture.SetResourceReference(Control.BackgroundProperty, "WindowBackground");
             fixture.SetResourceReference(Control.ForegroundProperty, "PrimaryText");
             fixture.Show(); await Idle();
+            File.WriteAllText(Path.Combine(directory, "windows-platform-style-diagnostics.json"), JsonSerializer.Serialize(controls.Select(control => new
+            {
+                type = control.GetType().Name, style_present = control.Style is not null, base_present = control.Style?.BasedOn is not null,
+                direct_setters = control.Style?.Setters.OfType<Setter>().Select(x => x.Property.Name).ToArray(),
+                application_style_matches = ReferenceEquals(control.Style, Application.Current.TryFindResource(control.GetType())),
+                template_present = control.Template is not null
+            }), JsonOptions));
             Require(action.HorizontalAlignment == HorizontalAlignment.Stretch && Math.Abs(action.ActualWidth - panel.ActualWidth) < 1,
                 "The native button theme narrowed a full-width action target.");
             foreach (var control in controls)
