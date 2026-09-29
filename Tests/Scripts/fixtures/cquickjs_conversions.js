@@ -1,0 +1,30 @@
+
+const results=[];
+function check(label,body){try{results.push({label,pass:!!body()});}catch(error){results.push({label,pass:false,error:String(error)});}}
+check('unicode JSON and decimal round-trip',()=>{const s=JSON.stringify({message:'한글😀',count:9007199254740991});return JSON.parse(s).message==='한글😀'&&JSON.parse(s).count===9007199254740991;});
+check('64-bit unsigned BigInt limbs',()=>((1n<<64n)-1n).toString()==='18446744073709551615');
+check('128-bit BigInt multiplication and division',()=>{const a=(1n<<127n)+13n;return (a*31n)/31n===a;});
+check('BigInt modular carry and signed shift',()=>{const a=(1n<<200n)-1n;return (a+1n)===(1n<<200n)&&(-a>>64n)===-((1n<<136n));});
+check('BigInt radix round-trip',()=>{const a=(1n<<100n)+12345n;return BigInt('0x'+a.toString(16))===a;});
+check('Int32 conversion modulo 2^32',()=>{const a=new Int32Array([4294967295,4294967296,4294967297]);return Array.from(a).join(',')==='-1,0,1';});
+check('Uint32 conversion modulo 2^32',()=>{const a=new Uint32Array([-1,4294967296,4294967297]);return Array.from(a).join(',')==='4294967295,0,1';});
+check('signed BigInt64 conversion',()=>new BigInt64Array([1n<<63n])[0]===-(1n<<63n));
+check('unsigned BigUint64 conversion',()=>new BigUint64Array([-1n])[0]===(1n<<64n)-1n);
+check('IEEE double formatting and smallest values',()=>[Number.MIN_VALUE,Number.MAX_VALUE,0.1,1e-6,1e21,-0].every(x=>Object.is(Number(x.toString()),x)||Object.is(x,-0)));
+check('regexp Unicode property and surrogate capture',()=>/^\p{Script=Hangul}+😀$/u.test('한글😀')&&'a😀b'.match(/(?<face>😀)/u).groups.face==='😀');
+check('regexp alternation and long buffer',()=>{const s='abcd'.repeat(10000)+'😀';return /(?:abcd)+😀$/u.test(s);});
+check('regexp indexed capture/backreference',()=>/^(\w+)-\1$/.test('same-same'));
+check('long UTF16 string and UTF8 round-trip',()=>{const x='한글😀'.repeat(50000);return JSON.parse(JSON.stringify(x))===x&&x.length===200000;});
+check('function compilation and bytecode closure',()=>{const f=Function('x','return y => x + y');return f(10)(32)===42;});
+check('date 64-bit range and ISO formatting',()=>new Date(8640000000000000).toISOString().startsWith('+275760-')&&Number.isNaN(new Date(8640000000000001).valueOf()));
+check('sort and generic negative indices',()=>['2','1','3'].sort().join('')==='123'&&Array.prototype.at.call({length:3,2:'end'},-1)==='end');
+const k=2**32;
+check('generic fill 64-bit starting index',()=>{const o={length:k+2};Array.prototype.fill.call(o,'x',k,k+1);return o[k]==='x'&&!('0' in o);});
+check('generic copyWithin 64-bit source index',()=>{const o={length:k+2,[k]:'x'};Array.prototype.copyWithin.call(o,0,k,k+1);return o[0]==='x'&&o[k]==='x';});
+check('generic includes 64-bit starting index',()=>Array.prototype.includes.call({length:k+2,[k+1]:'x'},'x',k));
+check('generic indexOf 64-bit starting index',()=>Array.prototype.indexOf.call({length:k+2,[k+1]:'x'},'x',k)===k+1);
+check('generic lastIndexOf 64-bit starting index',()=>Array.prototype.lastIndexOf.call({length:k+2,[k+1]:'x'},'x')===k+1);
+check('generic slice 64-bit starting index',()=>Array.prototype.slice.call({length:k+2,[k]:'x'},k,k+1)[0]==='x');
+check('generic at 64-bit index',()=>Array.prototype.at.call({length:k+2,[k]:'x'},k)==='x');
+check('generic splice 64-bit starting index',()=>{const o={length:k+2,[k]:'x',[k+1]:'y'};const old=Array.prototype.splice.call(o,k,1,'z');return old[0]==='x'&&o[k]==='z'&&o[k+1]==='y';});
+JSON.stringify({total:results.length,passed:results.filter(x=>x.pass).length,failed:results.filter(x=>!x.pass)});

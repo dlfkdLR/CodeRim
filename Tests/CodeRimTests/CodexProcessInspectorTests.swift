@@ -188,7 +188,7 @@ final class CodexProcessInspectorTests: XCTestCase {
         XCTAssertTrue(FileManager.default.createFile(atPath: other.path, contents: Data("{}".utf8)))
 
         let descriptor = open(held.path, O_RDONLY)
-        try XCTUnwrap(descriptor >= 0 ? descriptor : nil)
+        _ = try XCTUnwrap(descriptor >= 0 ? descriptor : nil)
         defer { close(descriptor) }
 
         var info = stat()

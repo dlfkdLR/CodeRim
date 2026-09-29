@@ -27,10 +27,6 @@ else
   swift_scratch_path=$(mktemp -d "${cache_root}/swift-build.XXXXXX")
   remove_swift_scratch=1
 fi
-binary_path="${swift_scratch_path}/apple/Products/Release/${PRODUCT_NAME}"
-claude_bridge_path="${swift_scratch_path}/apple/Products/Release/CodeRimClaudeBridge"
-cli_path="${swift_scratch_path}/apple/Products/Release/CodeRimCLI"
-sparkle_framework="${swift_scratch_path}/apple/Products/Release/Frameworks/Sparkle.framework"
 
 cleanup() {
   if [[ "${remove_swift_scratch}" == "1" \
@@ -48,8 +44,19 @@ fi
 "${script_dir}/verify_release_context.sh"
 
 cd "${project_root}"
-swift build -c release --arch arm64 --arch x86_64 \
-  --scratch-path "${swift_scratch_path}"
+for product in "${PRODUCT_NAME}" CodeRimCLI CodeRimClaudeBridge; do
+  python3 "${script_dir}/prepare_swift_dependencies.py" --scratch-path "${swift_scratch_path}" \
+    --run-swift build -c release --arch arm64 --arch x86_64 --product "${product}" -Xswiftc -warnings-as-errors
+done
+product_directory=$(python3 "${script_dir}/prepare_swift_dependencies.py" --scratch-path "${swift_scratch_path}" \
+  --show-bin-path -c release --arch arm64 --arch x86_64)
+binary_path="${product_directory}/${PRODUCT_NAME}"
+claude_bridge_path="${product_directory}/CodeRimClaudeBridge"
+cli_path="${product_directory}/CodeRimCLI"
+sparkle_framework="${product_directory}/Frameworks/Sparkle.framework"
+if [[ ! -d "${sparkle_framework}" && -d "${product_directory}/Sparkle.framework" ]]; then
+  sparkle_framework="${product_directory}/Sparkle.framework"
+fi
 
 "${script_dir}/build_widget.sh"
 widget_path="${CODERIM_WIDGET_BUILD_PATH:-${project_root}/.build/widget-extension}/Build/Products/Release/CodeRimWidget.appex"
@@ -101,7 +108,7 @@ ditto --norsrc --noextattr "${sparkle_framework}" \
 
 # CodexBarCore ships the provider parsers/scripts as SwiftPM resources.
 # Preserve every dependency resource bundle in packaged apps, including universal builds.
-for resource_bundle in "${swift_scratch_path}/apple/Products/Release/"*.bundle(N); do
+for resource_bundle in "${product_directory}/"*.bundle(N); do
   ditto --norsrc --noextattr "${resource_bundle}" "${app_path}/Contents/Resources/${resource_bundle:t}"
 done
 

@@ -12,7 +12,7 @@ using TextBox = System.Windows.Controls.TextBox;
 
 namespace CodeRim.Windows.Views;
 
-/// <summary>A searchable provider popover with the reference Mac's selection and keyboard behavior.</summary>
+/// <summary>A native Windows selector with provider search and explicit keyboard selection.</summary>
 internal sealed class UsageProviderPicker : ComboBox
 {
     public UsageProviderPicker() => IsTextSearchEnabled = false;
@@ -25,7 +25,9 @@ internal sealed class UsageProviderPicker : ComboBox
     private string query = "";
     private string? highlighted;
     private bool keyboardNavigation;
+    private int popupRevision;
     private Border? host;
+    internal Border? DropdownHost => host;
     private TextBox? search;
     private Button? clearSearchButton;
     private readonly StackPanel rows = new();
@@ -36,7 +38,18 @@ internal sealed class UsageProviderPicker : ComboBox
 
     public override void OnApplyTemplate()
     {
-        base.OnApplyTemplate(); host = GetTemplateChild("PART_ProviderContent") as Border;
+        base.OnApplyTemplate();
+        popupRevision++;
+        // Preserve the framework selector, arrow, focus and disabled states. Only
+        // the popup content is specialized to retain provider search/navigation.
+        host = null;
+        if (GetTemplateChild("PART_Popup") is Popup popup)
+        {
+            host = new Border { Width = 272, Padding = new Thickness(8), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(4) };
+            host.SetResourceReference(Border.BackgroundProperty, "ProviderPopupBackground");
+            host.SetResourceReference(Border.BorderBrushProperty, "DividerBrush");
+            popup.Child = host;
+        }
         if (IsDropDownOpen) BuildPopover();
     }
     protected override void OnItemsChanged(NotifyCollectionChangedEventArgs e)
@@ -48,17 +61,19 @@ internal sealed class UsageProviderPicker : ComboBox
     }
     protected override void OnDropDownOpened(EventArgs e)
     {
+        var revision = ++popupRevision;
         query = ""; highlighted = SelectedValue as string; keyboardNavigation = false;
         BuildPopover(); base.OnDropDownOpened(e);
         Dispatcher.BeginInvoke(() =>
         {
+            if (!IsDropDownOpen || revision != popupRevision) return;
             if (search is not null) search.Focus();
             else if (host?.Child is FrameworkElement panel) panel.Focus();
         });
     }
     protected override void OnDropDownClosed(EventArgs e)
     {
-        base.OnDropDownClosed(e); search = null;
+        popupRevision++; base.OnDropDownClosed(e); search = null;
     }
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
@@ -123,12 +138,23 @@ internal sealed class UsageProviderPicker : ComboBox
         if (Items.Count > 6 || query.Length > 0)
         {
             var searchRow = new DockPanel { Margin = new Thickness(2, 0, 2, 10) };
-            search = new TextBox { Text = query, Padding = new Thickness(8), MinHeight = 32 };
-            AutomationProperties.SetName(search, "Search providers"); AutomationProperties.SetAutomationId(search, "usage.provider.search");
-            var clear = Ui.Button("×", () => { search?.Clear(); search?.Focus(); }); clear.Margin = new Thickness(4, 0, 0, 0); clear.Visibility = query.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            var input = new TextBox { Text = query, Padding = new Thickness(8), MinHeight = 32 }; search = input;
+            AutomationProperties.SetName(input, "Search providers"); AutomationProperties.SetAutomationId(input, "usage.provider.search");
+            var clear = Ui.Button("×", () =>
+            {
+                if (!IsDropDownOpen || !ReferenceEquals(search, input)) return;
+                input.Clear(); input.Focus();
+            }); clear.Margin = new Thickness(4, 0, 0, 0); clear.Visibility = query.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             clearSearchButton = clear;
-            AutomationProperties.SetName(clear, "Clear search"); DockPanel.SetDock(clear, Dock.Right); searchRow.Children.Add(clear); searchRow.Children.Add(search); panel.Children.Add(searchRow);
-            search.TextChanged += (_, _) => { query = search.Text; clear.Visibility = query.Length > 0 ? Visibility.Visible : Visibility.Collapsed; highlighted = Matches.FirstOrDefault()?.Id; BuildRows(); };
+            AutomationProperties.SetName(clear, "Clear search"); DockPanel.SetDock(clear, Dock.Right); searchRow.Children.Add(clear); searchRow.Children.Add(input); panel.Children.Add(searchRow);
+            input.TextChanged += (_, _) =>
+            {
+                // Native theme/template changes can dismiss or remount the popup.
+                // Detached controls must not read or update a later search field.
+                if (!IsDropDownOpen || !ReferenceEquals(search, input)) return;
+                query = input.Text; clear.Visibility = query.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+                highlighted = Matches.FirstOrDefault()?.Id; BuildRows();
+            };
         }
         if (rows.Parent is ScrollViewer previous) previous.Content = null;
         scroll = new ScrollViewer { Content = rows, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, MaxHeight = 264 };
@@ -150,9 +176,7 @@ internal sealed class UsageProviderPicker : ComboBox
             var selected = Equals(SelectedValue, option.Id);
             var button = Ui.Button("", () => Select(option.Id)); button.Height = 40; button.Margin = new Thickness(2, 0, 2, 4); button.Padding = new Thickness(10, 0, 10, 0);
             button.Style = (Style)FindResource("UsageProviderOption"); button.HorizontalContentAlignment = HorizontalAlignment.Stretch;
-            button.SetResourceReference(BackgroundProperty, selected ? "AccentSubtleBrush" : "WindowBackground");
-            button.MouseEnter += (_, _) => { if (!selected) button.SetResourceReference(BackgroundProperty, "ControlHover"); };
-            button.MouseLeave += (_, _) => button.SetResourceReference(BackgroundProperty, selected ? "AccentSubtleBrush" : "WindowBackground");
+            button.SetResourceReference(BackgroundProperty, selected ? "AccentSubtleBrush" : "ProviderPopupBackground");
             var line = new DockPanel();
             var check = Ui.Text(selected ? "✓" : "", 11); check.Width = 14; check.Margin = new Thickness(8, 0, 0, 0); check.VerticalAlignment = VerticalAlignment.Center; check.SetResourceReference(TextBlock.ForegroundProperty, "AccentBrush"); DockPanel.SetDock(check, Dock.Right); line.Children.Add(check);
             var mark = new ProviderMark { ProviderId = option.Id, Width = 20, Height = 20, Margin = new Thickness(0, 0, 12, 0), VerticalAlignment = VerticalAlignment.Center }; mark.SetResourceReference(ProviderMark.ForegroundProperty, "PrimaryText"); DockPanel.SetDock(mark, Dock.Left); line.Children.Add(mark);

@@ -11,7 +11,7 @@ internal sealed partial class UsagePane
     private DataQuality AnalyticsQuality(TokenUsage rangeUsage)
     {
         if (rangeUsage.IsZero) return DataQuality.Unavailable;
-        var snapshot = store.Usage.GetValueOrDefault(provider);
+        var snapshot = detailAnalyticsFrame?.Local ?? store.Usage.GetValueOrDefault(provider);
         return snapshot?.RetainsPartialHistory == true ? DataQuality.Partial : snapshot?.Quality ?? DataQuality.Unavailable;
     }
 

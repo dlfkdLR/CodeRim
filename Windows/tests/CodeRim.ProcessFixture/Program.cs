@@ -14,6 +14,37 @@ internal static class Program
         if (args.FirstOrDefault() != "child") File.WriteAllText(Path.Combine(root, "root.pid"), Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
         switch (args.FirstOrDefault())
         {
+            case "account-mutex":
+                if (!OperatingSystem.IsWindows() || args.Length != 3 || args[2] is not ("hold" or "try")
+                    || Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true"
+                    || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted") return 12;
+                using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
+                {
+                    var sid = identity.User?.Value ?? throw new IOException("Fixture user is unavailable.");
+                    var prefix = "CodeRim.AccountOperations." + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(sid))) + ".Test.";
+                    if (!args[1].StartsWith(prefix, StringComparison.Ordinal) || !Guid.TryParseExact(args[1][prefix.Length..], "N", out _)) return 13;
+                }
+                var options = new NamedWaitHandleOptions { CurrentUserOnly = true, CurrentSessionOnly = false };
+                using (var mutex = new Mutex(false, args[1], options))
+                {
+                    var owned = false; var abandon = false;
+                    try
+                    {
+                        try { owned = mutex.WaitOne(0); }
+                        catch (AbandonedMutexException) { owned = true; }
+                        if (!owned) { Console.WriteLine("busy"); return 4; }
+                        Console.WriteLine("owned"); Console.Out.Flush();
+                        if (args[2] == "try") return 0;
+                        // Keep WaitOne/release on this thread. Only stdin is read
+                        // by a worker; the owning thread never awaits its result.
+                        var command = Task.Run(Console.ReadLine);
+                        if (!command.Wait(TimeSpan.FromSeconds(60))) return 8;
+                        if (command.Result == "abandon") { abandon = true; return 0; }
+                        if (command.Result != "release") return 9;
+                        return 0;
+                    }
+                    finally { if (owned && !abandon) mutex.ReleaseMutex(); }
+                }
             case "app-server":
                 while (await Console.In.ReadLineAsync().ConfigureAwait(false) is { } line)
                 {
@@ -22,7 +53,23 @@ internal static class Program
                     if (id.GetInt32() == 1) Console.WriteLine("{\"id\":1,\"result\":{}}");
                     else
                     {
-                        Console.WriteLine(JsonSerializer.Serialize(new { id = 2, result = new {
+                        var method = request.RootElement.GetProperty("method").GetString();
+                        var hasParameters = request.RootElement.TryGetProperty("params", out var parameters);
+                        var valid = method switch
+                        {
+                            "account/read" => hasParameters && parameters.ValueKind == JsonValueKind.Object
+                                && (!parameters.TryGetProperty("refreshToken", out var refresh) || refresh.ValueKind == JsonValueKind.False),
+                            "config/read" => hasParameters && parameters.ValueKind == JsonValueKind.Object,
+                            "account/rateLimits/read" => !hasParameters || parameters.ValueKind == JsonValueKind.Null,
+                            _ => false
+                        };
+                        if (!valid)
+                        {
+                            Console.WriteLine(JsonSerializer.Serialize(new { id = id.GetInt32(), error = new { code = -32600, message = "Invalid read-only request params" } }));
+                            continue;
+                        }
+                        Console.WriteLine(JsonSerializer.Serialize(new { id = id.GetInt32(), result = new {
+                            method, parameters = hasParameters ? (object)parameters : null,
                             home = Environment.GetEnvironmentVariable("CODEX_HOME"),
                             inherited = Environment.GetEnvironmentVariable("SYNTHETIC_PARENT_SECRET") is not null
                         } }));

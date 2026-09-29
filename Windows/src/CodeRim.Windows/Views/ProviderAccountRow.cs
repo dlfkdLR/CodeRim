@@ -33,7 +33,7 @@ internal sealed class ProviderAccountRow : DockPanel
         alert.Background = Brushes.Transparent; alert.Margin = new Thickness(0, 0, 8, 0);
         bell = new System.Windows.Shapes.Path { Width = 16, Height = 16, Stretch = Stretch.Uniform, StrokeThickness = 1.25,
             StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round };
-        bell.SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText"); alert.Content = bell;
+        Ui.NativeGlyph(bell); alert.SetResourceReference(Control.ForegroundProperty, "SecondaryText"); alert.Content = bell;
         AutomationProperties.SetAutomationId(alert, "settings.providers.alerts." + id); actions.Children.Add(alert);
         primary = Ui.Button("Details", details); primary.FontSize = 11; primary.MinHeight = primary.Height = 24;
         primary.Padding = new Thickness(8, 2, 8, 2); primary.Margin = new Thickness(0, 0, 8, 0);

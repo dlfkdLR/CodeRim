@@ -1,6 +1,8 @@
 using System.IO;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using CodeRim.Core.Services;
@@ -31,7 +33,24 @@ internal static partial class NativeSmoke
                     window.WindowState = WindowState.Maximized; await Idle();
                     window.WindowState = WindowState.Normal; await Idle(); Check("restored");
                 }
-                window.Close(); window = null;
+                if (scenario == "default")
+                {
+                    var captionWindow = window ?? throw new InvalidOperationException("Missing caption fixture.");
+                    Button Caption(string id) => Descendants<Button>(captionWindow).Single(x => AutomationProperties.GetAutomationId(x) == "settings.window." + id);
+                    Caption("minimize").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+                    Require(captionWindow.WindowState == WindowState.Minimized, "Windows caption Minimize did not minimize the window");
+                    captionWindow.WindowState = WindowState.Normal; await Idle();
+                    Caption("maximize").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+                    Require(captionWindow.WindowState == WindowState.Maximized && AutomationProperties.GetName(Caption("maximize")) == "Restore", "Windows caption Maximize did not expose Restore");
+                    Caption("maximize").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+                    Require(captionWindow.WindowState == WindowState.Normal && AutomationProperties.GetName(Caption("maximize")) == "Maximize", "Windows caption Restore did not restore the window");
+                    Check("caption-restored");
+                    var closed = false; captionWindow.Closed += (_, _) => closed = true;
+                    Caption("close").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+                    Require(closed && !captionWindow.IsVisible, "Windows caption Close did not close the fixture window");
+                }
+                else window.Close();
+                window = null;
             }
             File.WriteAllText(Path.Combine(directory, "windows-settings-frame.json"), JsonSerializer.Serialize(new { completed = true, cases }, JsonOptions));
 

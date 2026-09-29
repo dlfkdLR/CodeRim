@@ -225,7 +225,7 @@ internal static class InstallFileSystem
     [SupportedOSPlatform("windows")]
     private static void CheckWindowsStreams(string path)
     {
-        var handle = FindFirstStreamW(path, 0, out var data, 0);
+        var handle = FindFirstStreamW(WindowsNativePath.ForApi(path), 0, out var data, 0);
         if (handle == new IntPtr(-1))
         {
             var error = Marshal.GetLastPInvokeError();
@@ -242,11 +242,12 @@ internal static class InstallFileSystem
     [SupportedOSPlatform("windows")]
     internal static string LongWindowsPath(string path)
     {
-        var capacity = GetLongPathNameW(path, [], 0);
+        var nativePath = WindowsNativePath.ForApi(path);
+        var capacity = GetLongPathNameW(nativePath, [], 0);
         if (capacity is 0 or > 32768) throw new IOException("The installation path could not be canonicalized.");
-        var buffer = new char[capacity]; var length = GetLongPathNameW(path, buffer, capacity);
+        var buffer = new char[capacity]; var length = GetLongPathNameW(nativePath, buffer, capacity);
         if (length == 0 || length >= capacity) throw new IOException("The installation path changed during canonicalization.");
-        return new string(buffer, 0, (int)length);
+        return WindowsNativePath.FromApi(new string(buffer, 0, (int)length));
     }
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct StreamData

@@ -21,11 +21,13 @@ internal sealed partial class DashboardStore
         if (disposed || Synthetic || !scanners.ContainsKey(id)) return Task.CompletedTask;
         if (localDataTasks.TryGetValue(id, out var active)) return localDataClearOperations[id] == clear ? active
             : Task.FromException(new InvalidOperationException("A different local data operation is already running."));
+        var epoch = LocalAnalyticsEpochs.GetValueOrDefault(id) + 1;
+        LocalAnalyticsEpochs[id] = epoch; AnalyticsSources.Remove(id);
         RebuildingProviders.Add(id);
         DataOperationMessages[id] = clear ? "Clearing local history…" : "Rebuilding statistics…";
-        var task = RunLocalDataOperationAsync(id, clear); localDataTasks[id] = task; localDataClearOperations[id] = clear; Changed(); return task;
+        var task = RunLocalDataOperationAsync(id, clear, epoch); localDataTasks[id] = task; localDataClearOperations[id] = clear; Changed(); return task;
     }
-    private async Task RunLocalDataOperationAsync(string id, bool clear)
+    private async Task RunLocalDataOperationAsync(string id, bool clear, long epoch)
     {
         await Task.Yield(); // Register the shared task before any synchronous completion.
         var entered = false; var committed = false;
@@ -34,14 +36,18 @@ internal sealed partial class DashboardStore
         try
         {
             await refreshLock.WaitAsync(cancellation.Token).ConfigureAwait(true); entered = true;
+            if (!CanPublishLocalAnalytics(id, epoch, maintenance: true)) return;
             if (clear)
             {
                 generations[id] = Generation(id) + 1;
                 var cutoff = DateTimeOffset.Now;
                 await Task.Run(() => repository.Clear(id, cutoff), cancellation.Token).ConfigureAwait(true); committed = true;
+                var clearStatistics = await Task.Run(() => repository.Statistics(id), lifetime.Token).ConfigureAwait(true);
+                if (!CanPublishLocalAnalytics(id, epoch, maintenance: true)) return;
                 scanners[id].InvalidateCachedSources(); Usage[id] = UsageSnapshot.Empty; Events.Remove(id); SessionDetails.Remove(id);
                 if (id == "codex") CodexAnalyticsLabels = new Dictionary<string, CodexAnalyticsLabel>(StringComparer.OrdinalIgnoreCase);
-                DataStatistics[id] = await Task.Run(() => repository.Statistics(id), lifetime.Token).ConfigureAwait(true);
+                DataStatistics[id] = clearStatistics;
+                PublishLocalAnalyticsRead(id, DateTimeOffset.Now, epoch, maintenance: true);
                 DataOperationMessages[id] = "Local history cleared."; Persist(); return;
             }
             // A separate scanner preserves the last usable cache until a complete,
@@ -51,6 +57,7 @@ internal sealed partial class DashboardStore
             for (var pass = 0; pass < 4; pass++)
             {
                 scan = await scanner.ScanAsync(settings.Current.WeekStart, cancellation.Token).ConfigureAwait(true);
+                if (!CanPublishLocalAnalytics(id, epoch, maintenance: true)) return;
                 if (!scan.HasMoreWork) break;
             }
             if (scan is not null) SourceCounts[id] = scan.SourceCount;
@@ -64,14 +71,21 @@ internal sealed partial class DashboardStore
             cancellation.Token.ThrowIfCancellationRequested();
             var events = await Task.Run(() => repository.Rebuild(id, scan.Events, scan.Sessions), cancellation.Token).ConfigureAwait(true);
             committed = true;
+            if (!CanPublishLocalAnalytics(id, epoch, maintenance: true)) return;
             var labels = id == "codex" ? await Task.Run(() => ReadAnalyticsLabels(events, cancellation.Token), cancellation.Token).ConfigureAwait(true) : null;
+            if (!CanPublishLocalAnalytics(id, epoch, maintenance: true)) return;
+            var sessions = repository.ReadSessionDetails(id);
+            var statistics = await Task.Run(() => repository.Statistics(id), lifetime.Token).ConfigureAwait(true);
+            if (!CanPublishLocalAnalytics(id, epoch, maintenance: true)) return;
+            var through = DateTimeOffset.Now;
             // A rebuild's strict validation must not change ordinary incremental
             // reads. Discard the old cache but restore its tolerant source policy.
             scanners[id] = new UsageScanner(id, projectKey: projectKey); SourceCounts[id] = scan.SourceCount;
-            Events[id] = events; SessionDetails[id] = repository.ReadSessionDetails(id);
+            Events[id] = events; SessionDetails[id] = sessions;
             if (labels is not null) CodexAnalyticsLabels = labels;
-            Usage[id] = UsageScanner.Aggregate(events, DateTimeOffset.Now, settings.Current.WeekStart, false);
-            DataStatistics[id] = await Task.Run(() => repository.Statistics(id), lifetime.Token).ConfigureAwait(true);
+            Usage[id] = UsageScanner.Aggregate(events, through, settings.Current.WeekStart, false);
+            DataStatistics[id] = statistics;
+            PublishLocalAnalyticsRead(id, through, epoch, maintenance: true);
             DataOperationMessages[id] = "Statistics rebuilt."; Persist();
         }
         catch (OperationCanceledException)

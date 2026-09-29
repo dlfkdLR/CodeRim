@@ -33,7 +33,7 @@ internal static partial class NativeSmoke
                 rateLimitResetCredits = new { availableCount = 2 } }));
             store.Readings["codex"] = new("codex", ReadingState.Ready, ProviderParsers.Codex(payload.RootElement), now, Plan: "pro");
             dashboard.Navigate("usage"); await Idle(); pane = Descendants<UsagePane>(dashboard).Single(); wasLimits = pane.ShowsLimits;
-            pane.SelectProvider("codex"); pane.HandleShortcut(Key.D2, ModifierKeys.Control); await Idle();
+            pane.SelectProvider("codex"); pane.HandleShortcut(Key.D3, ModifierKeys.Control); await Idle();
             var bars = Descendants<ProgressBar>(pane).ToArray();
             Require(bars.Length == 3 && AutomationProperties.GetAutomationId(bars[0]) == "usage.limit.remaining.codex.secondary"
                 && bars[0].Value == 50 && bars[1].Value == 25 && Math.Abs(bars[2].Value - 1.6) < 0.0001,
@@ -90,7 +90,7 @@ internal static partial class NativeSmoke
                 "A reported Codex reset invalidated a fresh server reading.");
             store.Readings["claude"] = new("claude", ReadingState.Ready,
                 [new("five_hour", "5 hours", 50, now.AddMinutes(150), 300)], now.AddMinutes(-6));
-            pane.SelectProvider("claude"); pane.HandleShortcut(Key.D2, ModifierKeys.Control); await Idle(); pane.RefreshLimitClock(now);
+            pane.SelectProvider("claude"); pane.HandleShortcut(Key.D3, ModifierKeys.Control); await Idle(); pane.RefreshLimitClock(now);
             Require(Descendants<TextBlock>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.limits.freshness" && x.Text == "Updated 6 min ago")
                 && Descendants<TextBlock>(pane).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.limit.pace.", StringComparison.Ordinal) && x.IsVisible),
                 "Claude limits became stale at the generic five-minute cutoff.");
@@ -110,7 +110,7 @@ internal static partial class NativeSmoke
             Restore(() => { if (previousClaude is null) store.Readings.Remove("claude"); else store.Readings["claude"] = previousClaude; });
             Restore(() => pane?.SelectProvider("codex")); Restore(() => settings.Save(before));
             Restore(() => { if (originalAbout is not null) originalAbout.IsExpanded = aboutWasExpanded; });
-            Restore(() => pane?.HandleShortcut(wasLimits ? Key.D2 : Key.D1, ModifierKeys.Control));
+            Restore(() => pane?.HandleShortcut(wasLimits ? Key.D3 : Key.D1, ModifierKeys.Control));
             Restore(() => { dashboard.Width = size.Width; dashboard.Height = size.Height; });
             Restore(() => SettingsTheme.Apply(dark, contrast)); Restore(() => dashboard.Navigate("notch"));
         }

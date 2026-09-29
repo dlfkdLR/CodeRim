@@ -24,6 +24,7 @@ internal static partial class NativeSmoke
 
     private static async Task ChartRefreshRegression(DashboardStore store, AppSettingsStore settings, string directory)
     {
+        using var publicationState = new AnalyticsPublicationFixture(store, "codex");
         var previousEvents = store.Events.GetValueOrDefault("codex");
         var previousUsage = store.Usage.GetValueOrDefault("codex");
         var previousCost = settings.Current.CostEstimatesEnabled;
@@ -45,7 +46,8 @@ internal static partial class NativeSmoke
             var old = new UsageEvent("before-midnight", before, new(111, 0, 0, 0), "gpt-5.6-sol");
             var current = new UsageEvent("after-midnight", day, new(222, 0, 0, 0), "gpt-5.6-sol");
             SetEvents(old, current);
-            var pane = new UsagePane(store, settings, "codex", _ => { }, clock) { Width = 632 };
+            store.RecordLocalAnalyticsRead("codex", clock.GetUtcNow());
+            var pane = new UsagePane(store, settings, "codex", _ => { }, clock, initialSection: CodeRim.Core.Services.SettingsUsageSection.Overview) { Width = 632 };
             window = new Window { Content = pane, Width = 680, Height = 760, Title = "Chart snapshot boundary fixture" };
             window.Show(); await Idle();
             Descendants<Button>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.activity").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
@@ -74,19 +76,19 @@ internal static partial class NativeSmoke
                 var panel = Descendants<StackPanel>(pane).First(x => AutomationProperties.GetAutomationId(x) == id);
                 Require(Descendants<TextBlock>(panel).Any(x => x.Text == expected.ToString("N0", CultureInfo.CurrentCulture)), "Wrong chart snapshot value in " + id);
             }
-            clock.Reset(before, after); pane.Update(); await Idle();
-            Require(clock.Reads == 1, "An analytics render read more than one snapshot time");
+            clock.Reset(before, after); store.RecordLocalAnalyticsRead("codex", clock.GetUtcNow()); pane.Update(); await Idle();
+            Require(clock.Reads == 1, "Render read a clock after the explicit successful source publication");
             Total(111, "analytics.summary.tokens");
             var focused = Bars()[^1];
             Require(AutomationProperties.GetName(focused).Contains("111 tokens", StringComparison.Ordinal), "Chart used the next day while its summary still used the prior day");
             focused.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
             Require(focused.Focus(), "Cannot establish focused chart refresh fixture");
-            clock.Reset(after, after); pane.RefreshReadings(); await Idle();
+            clock.Reset(after, after); store.RecordLocalAnalyticsRead("codex", clock.GetUtcNow()); pane.RefreshReadings(); await Idle();
             Require(clock.Reads == 1 && Bars().Length == 1 && Bars()[0].IsKeyboardFocused, "Rollover refresh froze data or discarded chart keyboard focus");
             Total(222, "analytics.summary.tokens"); Total(222, "usage.bucket-details");
             var rolloverTarget = Bars()[0];
             SetEvents(old, current, new("same-quality-update", day.AddMilliseconds(1), new(111, 0, 0, 0), "gpt-5.6-sol"));
-            clock.Reset(after, after); pane.RefreshReadings(); await Idle();
+            clock.Reset(after, after); store.RecordLocalAnalyticsRead("codex", clock.GetUtcNow()); pane.RefreshReadings(); await Idle();
             Require(clock.Reads == 1 && !ReferenceEquals(rolloverTarget, Bars()[0]) && Bars()[0].IsKeyboardFocused,
                 "Exact-to-exact focused refresh did not replace values and preserve its target");
             Total(333, "analytics.summary.tokens"); Total(333, "usage.bucket-details");
@@ -96,7 +98,7 @@ internal static partial class NativeSmoke
             var through = day.AddMinutes(150);
             store.Events["codex"] = [new("a", day, new(10, 0, 0, 0), "gpt-5.6-sol"),
                 new("b", day.AddHours(1), new(20, 0, 0, 0), "gpt-5.6-sol"), new("c", day.AddHours(2), new(30, 0, 0, 0), "gpt-5.6-sol")];
-            clock.Reset(through, through); pane.Update(); await Idle();
+            clock.Reset(through, through); store.RecordLocalAnalyticsRead("codex", clock.GetUtcNow()); pane.Update(); await Idle();
             var bars = Bars(); var chart = (Grid)bars[0].Parent;
             Require(Math.Abs(chart.ActualWidth - 600) < .1 && bars.Length == 3, "Reference geometry fixture is not the native probe's size/range");
             double[] centers = [0, 240, 480]; double[] heights = [62d / 3, 124d / 3, 62];
@@ -113,10 +115,10 @@ internal static partial class NativeSmoke
             Capture(pane, System.IO.Path.Combine(directory, "windows-chart-native-geometry.png"));
             bars[^1].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             Require(bars[^1].Focus(), "Cannot focus the final partial-hour fixture");
-            var rolledBack = day.AddMinutes(90); clock.Reset(rolledBack, rolledBack); pane.RefreshReadings(); await Idle();
+            var rolledBack = day.AddMinutes(90); clock.Reset(rolledBack, rolledBack); store.RecordLocalAnalyticsRead("codex", clock.GetUtcNow()); pane.RefreshReadings(); await Idle();
             Require(Bars().Length == 2 && Bars()[^1].IsKeyboardFocused, "Clock rollback restored focus to the first rather than nearest available interval");
             Total(20, "usage.bucket-details");
-            clock.Reset(day, day); pane.Update(); await Idle();
+            clock.Reset(day, day); store.RecordLocalAnalyticsRead("codex", clock.GetUtcNow()); pane.Update(); await Idle();
             var midnight = Bars().Single(); var midnightChart = (Grid)midnight.Parent;
             var midnightFill = Descendants<Border>((Grid)midnight.Content).Single();
             var midnightBounds = midnightFill.TransformToAncestor(midnightChart).TransformBounds(new Rect(midnightFill.RenderSize));
@@ -124,7 +126,7 @@ internal static partial class NativeSmoke
                 && !Descendants<Grid>(midnightChart).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.chart.axis.", StringComparison.Ordinal)),
                 "Zero-length midnight domain is not centered with the reference's axis-free full height");
             Capture(pane, System.IO.Path.Combine(directory, "windows-chart-midnight.png"));
-            var halfHour = day.AddMinutes(30); clock.Reset(halfHour, halfHour); pane.Update(); await Idle();
+            var halfHour = day.AddMinutes(30); clock.Reset(halfHour, halfHour); store.RecordLocalAnalyticsRead("codex", clock.GetUtcNow()); pane.Update(); await Idle();
             Require(Bars().Length == 1, "Half-hour axis fixture has unexpected hourly buckets");
             Axis([day, day.AddMinutes(15), halfHour], [0, 300, 600], 80);
             Capture(pane, System.IO.Path.Combine(directory, "windows-chart-half-hour-axis.png"));
@@ -132,7 +134,7 @@ internal static partial class NativeSmoke
             Axis([day, day.AddMinutes(15), halfHour], [0, 300, 600], 112);
             Capture(pane, System.IO.Path.Combine(directory, "windows-chart-token-only-axis.png"));
             settings.Save(settings.Current with { CostEstimatesEnabled = true });
-            var weekThrough = LocalDate(6, 12); clock.Reset(weekThrough, weekThrough);
+            var weekThrough = LocalDate(6, 12); clock.Reset(weekThrough, weekThrough); store.RecordLocalAnalyticsRead("codex", clock.GetUtcNow());
             Descendants<RadioButton>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.7d").IsChecked = true; await Idle();
             DateTimeOffset[] weekDates = [day, LocalDate(2), LocalDate(4), LocalDate(6)];
             Axis(weekDates, weekDates.Select(date => 600 * (date - day).TotalSeconds / (weekThrough - day).TotalSeconds).ToArray(), 80);
@@ -140,6 +142,7 @@ internal static partial class NativeSmoke
             var monthThrough = LocalDate(29, 12); clock.Reset(monthThrough, monthThrough);
             store.Events["codex"] = Enumerable.Range(0, 30).Select(i => new UsageEvent("month-" + i,
                 LocalDate(i), new(10, 0, 0, 0), "gpt-5.6-sol")).ToArray();
+            store.RecordLocalAnalyticsRead("codex", clock.GetUtcNow());
             Descendants<RadioButton>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.30d").IsChecked = true;
             pane.Width = 360; await Idle(); pane.UpdateLayout();
             var monthBars = Bars(); var monthChart = (Grid)monthBars[0].Parent;
@@ -166,7 +169,7 @@ internal static partial class NativeSmoke
             foreach (var scenario in new[] { (Width: 360d, Hour: 12), (Width: 632d, Hour: 12), (Width: 632d, Hour: 18), (Width: 632d, Hour: 23) })
             {
                 var width = scenario.Width;
-                var endpointThrough = LocalDate(29 + endpointShift, scenario.Hour); clock.Reset(endpointThrough, endpointThrough);
+                var endpointThrough = LocalDate(29 + endpointShift, scenario.Hour); clock.Reset(endpointThrough, endpointThrough); store.RecordLocalAnalyticsRead("codex", clock.GetUtcNow());
                 pane.Width = width; pane.Update(); await Idle();
                 var endpointFrame = (Grid)Bars()[0].Parent;
                 var endpointAxis = Descendants<Grid>(endpointFrame).Single(x => AutomationProperties.GetAutomationId(x) == "usage.chart.axis.tokens");
@@ -198,7 +201,7 @@ internal static partial class NativeSmoke
             }
             System.IO.File.WriteAllText(System.IO.Path.Combine(directory, "windows-chart-refresh.json"), System.Text.Json.JsonSerializer.Serialize(new
             {
-                completed = true, checks = new List<string> { "One snapshot time across midnight", "Focused rollover refresh and nearest selection", "Exact-to-exact focused value refresh", "Clock rollback restores nearest focus",
+                completed = true, checks = new List<string> { "Explicit successful source publication time across midnight; render cannot advance it", "Focused rollover refresh and nearest selection", "Exact-to-exact focused value refresh", "Clock rollback restores nearest focus",
                     "600-point Date-scale mark centers and 8-point widths", "Uninflated small values and shared baseline", "Zero-length midnight domain", "Narrow 30D mark-edge native hit testing",
                     "Hourly date ticks and label coordinates", "Half-hour intermediate ticks independent of hourly buckets", "80 and 112 point dashed grids without input interception", "Two-day weekly axis", "Calendar week-aligned month axis at328points",
                     "Rendered right-edge partial date glyphs within the clipped axis" }, endpointInk,
@@ -211,7 +214,7 @@ internal static partial class NativeSmoke
             try { window?.Close(); } catch (Exception error) { cleanup.Add(error); }
             try { if (previousEvents is null) store.Events.Remove("codex"); else store.Events["codex"] = previousEvents; } catch (Exception error) { cleanup.Add(error); }
             try { if (previousUsage is null) store.Usage.Remove("codex"); else store.Usage["codex"] = previousUsage; } catch (Exception error) { cleanup.Add(error); }
-            try { settings.Save(settings.Current with { CostEstimatesEnabled = previousCost }); } catch (Exception error) { cleanup.Add(error); }
+            try { publicationState.Dispose(); settings.Save(settings.Current with { CostEstimatesEnabled = previousCost }); } catch (Exception error) { cleanup.Add(error); }
         }
         if (failure is not null && cleanup.Count > 0) throw new AggregateException("Chart fixture and cleanup failed", cleanup.Prepend(failure));
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();

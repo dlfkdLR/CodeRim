@@ -7,7 +7,7 @@ namespace CodeRim.Windows.Tray;
 internal sealed class TrayIconHost : IDisposable
 {
     private readonly NotifyIcon notifyIcon;
-    private readonly Font menuFont = new("Segoe UI", 10);
+    private readonly Font menuFont = (Font)(SystemFonts.MenuFont ?? SystemFonts.DefaultFont).Clone();
     private readonly Func<bool> notchVisible;
     private readonly Func<bool> canCheckUpdates;
     private readonly ToolStripMenuItem notchItem;
@@ -22,8 +22,8 @@ internal sealed class TrayIconHost : IDisposable
         Action quit, Func<bool> notchVisible, Func<bool> canCheckUpdates)
     {
         this.notchVisible = notchVisible; this.canCheckUpdates = canCheckUpdates;
-        Menu = new TrayContextMenu { Font = menuFont, ShowImageMargin = true, ShowCheckMargin = true,
-            Padding = new Padding(5), AccessibleName = "CodeRim", Renderer = new TrayMenuRenderer() };
+        Menu = new ContextMenuStrip { Font = menuFont, ShowImageMargin = true, ShowCheckMargin = false,
+            AccessibleName = "CodeRim", Renderer = new TrayMenuRenderer() };
         Menu.Items.Add(Item("Token Usage…", showUsage, Keys.Control | Keys.U));
         Menu.Items.Add(new ToolStripSeparator());
         notchItem = Item("Show Notch", toggleNotch); Menu.Items.Add(notchItem);
@@ -44,7 +44,7 @@ internal sealed class TrayIconHost : IDisposable
 
     private ToolStripMenuItem Item(string title, Action action, Keys shortcut = Keys.None, string? display = null)
     {
-        var item = new ToolStripMenuItem(title) { AccessibleName = title, ShortcutKeys = shortcut, Padding = new Padding(0, 3, 0, 3) };
+        var item = new ToolStripMenuItem(title) { AccessibleName = title, ShortcutKeys = shortcut };
         if (display is not null) item.ShortcutKeyDisplayString = display;
         item.Click += (_, _) => { action(); if (!disposed) RefreshState(); };
         return item;

@@ -14,6 +14,7 @@ internal static partial class NativeSmoke
 {
     private static async Task ClaudeAgentUsageRegression(DashboardStore store, AppSettingsStore settings, string directory)
     {
+        using var publicationState = new AnalyticsPublicationFixture(store, "claude");
         var previousUsage = store.Usage.GetValueOrDefault("claude"); var previousEvents = store.Events.GetValueOrDefault("claude");
         var previousMetadata = store.SessionDetails.GetValueOrDefault("claude"); var previousSettings = settings.Current;
         var root = Path.Combine(directory, "claude-agent-fixture-" + Guid.NewGuid().ToString("N"));
@@ -34,7 +35,8 @@ internal static partial class NativeSmoke
             Require(store.Usage["claude"].AllTime.TotalTokens == 150 && store.SessionDetails["claude"].Count == 2, "Claude import lost or duplicated agent usage");
             var child = store.SessionDetails["claude"].Single(x => x.ParentId is not null); var parent = child.ParentId!;
             settings.Save(previousSettings with { UsageProvider = "claude", AgentDetailsEnabled = true, AttachmentMetadataEnabled = true, CostEstimatesEnabled = true });
-            var pane = new UsagePane(store, settings, "claude", _ => { }) { Width = 360 };
+            store.RecordLocalAnalyticsRead("claude", DateTimeOffset.Now);
+            var pane = new UsagePane(store, settings, "claude", _ => { }, initialSection: CodeRim.Core.Services.SettingsUsageSection.Overview) { Width = 360 };
             window = new Window { Content = pane, Width = 410, Height = 720, Title = "Claude agent analytics fixture" }; window.Show(); await Idle();
             Button ButtonFor(string id) => Descendants<Button>(pane).Single(x => AutomationProperties.GetAutomationId(x) == id);
             string[] Header() => Descendants<TextBlock>(Descendants<FrameworkElement>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.entity.header")).Select(x => x.Text).ToArray();
@@ -64,7 +66,7 @@ internal static partial class NativeSmoke
             try { if (previousUsage is null) store.Usage.Remove("claude"); else store.Usage["claude"] = previousUsage; } catch (Exception error) { cleanup.Add(error); }
             try { if (previousEvents is null) store.Events.Remove("claude"); else store.Events["claude"] = previousEvents; } catch (Exception error) { cleanup.Add(error); }
             try { if (previousMetadata is null) store.SessionDetails.Remove("claude"); else store.SessionDetails["claude"] = previousMetadata; } catch (Exception error) { cleanup.Add(error); }
-            try { settings.Save(previousSettings); } catch (Exception error) { cleanup.Add(error); }
+            try { publicationState.Dispose(); settings.Save(previousSettings); } catch (Exception error) { cleanup.Add(error); }
             try { if (Directory.Exists(root)) Directory.Delete(root, true); } catch (Exception error) { cleanup.Add(error); }
         }
         if (failure is not null && cleanup.Count > 0) throw new AggregateException("Claude agent fixture and cleanup failed", cleanup.Prepend(failure));

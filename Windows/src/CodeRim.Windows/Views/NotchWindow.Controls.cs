@@ -26,7 +26,7 @@ internal sealed partial class NotchWindow
     }
     private void RenderControls(Canvas canvas, bool atStart)
     {
-        var scale = settings.Current.Scale; controlDirection = atStart ? -1 : 1;
+        var scale = renderScale; controlDirection = atStart ? -1 : 1;
         var along = bodyStart + (atStart ? 0 : bodyLength);
         var next = along + (atStart ? -1 : 1) * NotchMetrics.ControlSpacing * scale;
         Point Center(double value) => settings.Current.Edge switch
@@ -105,7 +105,7 @@ internal sealed partial class NotchWindow
         if (accountControl is not null)
         {
             var account = accountControl;
-            var shift = 24 * NotchMetrics.Unit * settings.Current.Scale;
+            var shift = 24 * NotchMetrics.Unit * renderScale;
             if (account.RenderTransform is not TransformGroup)
             {
                 var transforms = new TransformGroup(); transforms.Children.Add(new ScaleTransform(0.65, 0.65));

@@ -21,6 +21,7 @@ internal static partial class NativeSmoke
     }
     private static async Task AnalyticsLabelsRegression(DashboardStore store, AppSettingsStore settings, string directory)
     {
+        using var publicationState = new AnalyticsPublicationFixture(store, "codex");
         var previousUsage = store.Usage.GetValueOrDefault("codex"); var previousEvents = store.Events.GetValueOrDefault("codex");
         var previousMetadata = store.SessionDetails.GetValueOrDefault("codex"); var previousLabels = store.CodexAnalyticsLabels;
         var previousSettings = settings.Current; var root = Path.Combine(directory, "analytics-label-fixture-" + Guid.NewGuid().ToString("N"));
@@ -53,7 +54,8 @@ internal static partial class NativeSmoke
             store.CodexAnalyticsLabels = CodexActivityCatalogue.ReadAnalyticsLabels(keys, state, desktop);
             Require(store.CodexAnalyticsLabels.Count == 3, "Read-only label query omitted archived or local tasks");
             settings.Save(previousSettings with { UsageProvider = "codex", AgentDetailsEnabled = true, CostEstimatesEnabled = false });
-            var pane = new UsagePane(store, settings, "codex", _ => { }) { Width = 360 };
+            store.RecordLocalAnalyticsRead("codex", now);
+            var pane = new UsagePane(store, settings, "codex", _ => { }, initialSection: CodeRim.Core.Services.SettingsUsageSection.Overview) { Width = 360 };
             window = new Window { Content = pane, Width = 410, Height = 740, Title = "Analytics title fixture" }; window.Show(); await Idle();
             Button ButtonFor(string id) => Descendants<Button>(pane).Single(x => AutomationProperties.GetAutomationId(x) == id);
             string[] Texts(DependencyObject item) => Descendants<TextBlock>(item).Select(x => x.Text).ToArray();
@@ -88,6 +90,7 @@ internal static partial class NativeSmoke
             Restore(() => { if (previousUsage is null) store.Usage.Remove("codex"); else store.Usage["codex"] = previousUsage; });
             Restore(() => { if (previousEvents is null) store.Events.Remove("codex"); else store.Events["codex"] = previousEvents; });
             Restore(() => { if (previousMetadata is null) store.SessionDetails.Remove("codex"); else store.SessionDetails["codex"] = previousMetadata; });
+            Restore(publicationState.Dispose);
             Restore(() => settings.Save(previousSettings)); Restore(() => { if (Directory.Exists(root)) Directory.Delete(root, true); });
         }
         if (cleanup.Count > 0) throw new AggregateException("Analytics title fixture cleanup failed", failure is null ? cleanup : cleanup.Prepend(failure));

@@ -133,9 +133,9 @@ internal static partial class NativeSmoke
             store.UpdateSessionActivity([]); await Idle();
             Require(ring.Reading is { Windows.Count: 1, Headline.Id: "session" }, "Pro fallback blanked its only reported quota.");
             accountNotch.Close(); accountNotch = null;
-            var usage = new UsagePane(store, settings, "codex", _ => { });
+            var usage = new UsagePane(store, settings, "codex", _ => { }, initialSection: CodeRim.Core.Services.SettingsUsageSection.Overview);
             popupWindow.Width = 640; popupWindow.Height = 560; popupWindow.Content = usage;
-            usage.HandleShortcut(System.Windows.Input.Key.D2, System.Windows.Input.ModifierKeys.Control); await Idle();
+            usage.HandleShortcut(System.Windows.Input.Key.D3, System.Windows.Input.ModifierKeys.Control); await Idle();
             Require(Descendants<ProgressBar>(usage).Any(), "Owned quota did not reach the mounted Usage pane.");
             var disclosure = Descendants<System.Windows.Controls.Primitives.ToggleButton>(Descendants<Expander>(usage).Single()).Single();
             System.Windows.Input.Keyboard.Focus(disclosure);

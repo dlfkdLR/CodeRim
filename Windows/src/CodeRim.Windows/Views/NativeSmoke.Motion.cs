@@ -184,16 +184,18 @@ internal static partial class NativeSmoke
             dashboard.Navigate("notch"); await Idle();
             var realToggle = Descendants<CheckBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Show edge notch");
             realToggle.IsChecked = false;
-            await MotionUntil(() => Motion.GetToggleOffset(realToggle) is > 0 and < 16, "Notch setting toggle skipped its slide");
-            Require(realToggle.IsLoaded && !notch.IsVisible, "Notch visibility recreated the settings toggle or failed to hide");
+            await MotionFrame();
+            Require(realToggle.IsLoaded && realToggle.IsChecked == false && !notch.IsVisible && settings.Current.Visibility == NotchVisibility.Hidden,
+                "Native checkbox recreated the settings view or failed to persist hidden visibility");
             realToggle.IsChecked = true;
-            await MotionUntil(() => Motion.GetToggleOffset(realToggle) == 16, "Notch toggle did not settle after reversal");
-            Require(notch.IsVisible, "Notch toggle failed to restore visibility");
+            await MotionFrame();
+            Require(realToggle.IsChecked == true && notch.IsVisible && settings.Current.Visibility != NotchVisibility.Hidden,
+                "Native checkbox failed to restore notch visibility");
             settings.Save(settings.Current with { ShowRemaining = true, RingColor = RingColorMode.Gradient, AnimateGradient = true });
             await MotionFrame();
             var previews = Descendants<ProviderRing>(dashboard).ToArray();
             Require(previews.Length == 3 && previews.All(x => x.Settings.ShowRemaining && x.Settings.AnimateGradient && x.ClockRunning), "Settings previews kept stale appearance or motion settings");
-            checks.Add("Actual Notch settings toggle reverses without view replacement; previews update immediately");
+            checks.Add("Native Notch settings checkbox persists and reverses visibility without view replacement; previews update immediately");
 
             dashboard.Navigate("usage"); await Idle();
             var usage = Descendants<UsagePane>(dashboard).Single();
@@ -277,11 +279,11 @@ internal static partial class NativeSmoke
             Require(ring.ClockRunning && taskRing.IsTicking, "Restored OS motion policy did not resume the activity render clock");
             checks.Add("Live native OS animation preference disables and restores motion without stale WPF cache");
             toggle.IsChecked = true;
-            await MotionUntil(() => Motion.GetToggleOffset(toggle) is > 0 and < 16, "Toggle thumb skipped its transition");
+            Require(toggle.IsChecked == true && !Motion.GetFeedback(toggle), "Ordinary Windows checkbox retained the custom switch animation");
             settings.Save(settings.Current with { ReduceMotion = true }); await MotionFrame();
-            Require(Motion.GetToggleOffset(toggle) == 16 && !ring.ClockRunning && !taskRing.IsTicking && taskRing.Angle == 0, "Reduce Motion did not settle active animations");
+            Require(toggle.IsChecked == true && !ring.ClockRunning && !taskRing.IsTicking && taskRing.Angle == 0, "Reduce Motion did not settle active animations");
             ring.Reading = Reading(37); Require(Math.Abs(ring.Sweep - 0.37) < 0.0001, "Reduced motion reading was delayed");
-            toggle.IsChecked = false; Require(Motion.GetToggleOffset(toggle) == 0, "Reduced motion toggle was delayed");
+            toggle.IsChecked = false; Require(toggle.IsChecked == false, "Reduced motion checkbox was delayed");
             checks.Add("Reduced motion immediately settles in-flight readings, toggles and activity clocks");
             settings.Save(settings.Current with { ReduceMotion = false }); await MotionFrame();
             Require(ring.ClockRunning && taskRing.IsTicking, "Unload fixture did not resume active render subscriptions");

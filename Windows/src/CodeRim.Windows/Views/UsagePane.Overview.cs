@@ -43,10 +43,11 @@ internal sealed partial class UsagePane
             OverviewMetric(breakdown, "Output", snapshot.Today.OutputTokens, "M8,2 V14 M3,9 L8,14 L13,9");
             breakdown.ToolTip = "Cached input is included in Input; it is not added again to the total.";
             Grid.SetColumn(breakdown, 1); overview.Children.Add(breakdown); AdaptOverview(overview, total, breakdown); readings.Children.Add(overview);
-            if (settings.Current.AnalyticsEnabled && settings.Current.CostEstimatesEnabled && provider == "codex")
+            if (settings.Current.AnalyticsEnabled && settings.Current.CostEstimatesEnabled && provider == "codex"
+                && store.AnalyticsSources.GetValueOrDefault(provider) is { } source)
             {
-                var now = DateTimeOffset.Now;
-                var cost = UsageAnalytics.Estimate((store.Events.GetValueOrDefault(provider) ?? [])
+                var now = source.Through;
+                var cost = UsageAnalytics.Estimate(source.Events
                     .Where(e => e.OccurredAt <= now && e.OccurredAt.LocalDateTime.Date == now.LocalDateTime.Date));
                 if (cost.Amount is { } amount)
                 {

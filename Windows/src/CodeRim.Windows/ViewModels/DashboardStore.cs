@@ -27,6 +27,9 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     private readonly Dictionary<string, string?> scopes = new(StringComparer.Ordinal);
     private readonly Dictionary<string, int> generations = new(StringComparer.Ordinal);
     private int Generation(string id) => generations.GetValueOrDefault(id);
+    internal Dictionary<string, AnalyticsSourceFrame> AnalyticsSources { get; } = new(StringComparer.Ordinal);
+    internal Dictionary<string, long> LocalAnalyticsEpochs { get; } = new(StringComparer.Ordinal);
+    internal bool IsLocalReading => localRefreshing;
     public Dictionary<string, UsageSnapshot> Usage { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, IReadOnlyList<UsageEvent>> Events { get; } = new(StringComparer.Ordinal);
     public Dictionary<string, IReadOnlyList<SessionDetails>> SessionDetails { get; } = new(StringComparer.Ordinal);
@@ -77,7 +80,9 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
             {
                 var history = repository.Read(id);
                 Events[id] = history; SessionDetails[id] = repository.ReadSessionDetails(id);
-                Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(history, DateTimeOffset.Now, settings.Current.WeekStart, true));
+                var through = DateTimeOffset.Now;
+                Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(history, through, settings.Current.WeekStart, true));
+                RecordLocalAnalyticsRead(id, through);
             }
         }
         try
@@ -142,31 +147,35 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                 foreach (var id in enabled.Where(scanners.ContainsKey))
                 {
                     var generation = Generation(id);
+                    var analyticsEpoch = LocalAnalyticsEpochs.GetValueOrDefault(id);
+                    if (RebuildingProviders.Contains(id)) continue;
                     try
                     {
                         var scan = await scanners[id].ScanAsync(settings.Current.WeekStart, lifetime.Token).ConfigureAwait(true);
-                        if (generation != Generation(id)) continue;
+                        if (generation != Generation(id) || !CanPublishLocalAnalytics(id, analyticsEpoch, maintenance: false)) continue;
                         var imported = await Task.Run(() =>
                         {
                             var retained = repository.Merge(id, scan.Events, scan.Sessions);
                             return (Events: retained, Sessions: repository.ReadSessionDetails(id), Statistics: repository.Statistics(id),
                                 Labels: id == "codex" ? ReadAnalyticsLabels(retained, lifetime.Token) : null);
                         }, lifetime.Token).ConfigureAwait(true);
-                        if (generation != Generation(id)) continue;
+                        if (generation != Generation(id) || !CanPublishLocalAnalytics(id, analyticsEpoch, maintenance: false)) continue;
                         pendingRefresh |= scan.HasMoreWork;
                         var events = imported.Events;
                         Events[id] = events; SessionDetails[id] = imported.Sessions;
                         if (imported.Labels is { } labels) CodexAnalyticsLabels = labels;
                         SourceCounts[id] = scan.SourceCount;
                         DataStatistics[id] = imported.Statistics;
-                        Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(events, DateTimeOffset.Now, settings.Current.WeekStart, scan.Snapshot.Quality == DataQuality.Partial || scan.HasMoreWork));
+                        var through = DateTimeOffset.Now;
+                        Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(events, through, settings.Current.WeekStart, scan.Snapshot.Quality == DataQuality.Partial || scan.HasMoreWork));
+                        PublishLocalAnalyticsRead(id, through, analyticsEpoch, maintenance: false);
                         Status = scan.StatusMessage;
                         if (settings.Current.DebugLogging) AppDiagnostics.Record(id, scan.Snapshot.Quality.ToString(), events.Count);
                     }
                     catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException
                         or System.Security.SecurityException or Microsoft.Data.Sqlite.SqliteException)
                     {
-                        if (generation != Generation(id)) continue;
+                        if (generation != Generation(id) || !CanPublishLocalAnalytics(id, analyticsEpoch, maintenance: false)) continue;
                         Usage[id] = LocalTokenPresentation.AfterFailure(Usage.GetValueOrDefault(id));
                         Status = "Local history could not be refreshed. Your existing reading is retained.";
                     }
@@ -217,7 +226,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                 || requestScope != scopes.GetValueOrDefault(id)) return;
             var accountVersion = accountSummaries.GetValueOrDefault(id)?.Version;
             lastRefresh[id] = DateTimeOffset.Now;
-            if (Synthetic) { SeedPreview(); return; }
+            if (Synthetic) { SeedPreview(publishLocal: false); return; }
             var result = await connections.FetchForStoreAsync(id, settings.Current, requestScope, lifetime.Token).ConfigureAwait(true);
             await RefreshProviderAccountAsync(id).ConfigureAwait(true);
             // No await between the request/generation checks, exact rotation-version
@@ -287,8 +296,10 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                 display with { Account = null }, scopes.GetValueOrDefault(id),
                 id is "codex" or "claude" || raw.Account is not null ? raw : null);
         }).ToArray());
-    private void SeedPreview()
+    private void SeedPreview(bool publishLocal = true)
     {
+        if (publishLocal)
+        {
         Events["codex"] = [new("preview-event", DateTimeOffset.Now.AddMinutes(-2), new(123456, 24000, 56000, 0),
             "gpt-5.6-sol", "CodeRim", "preview-session", "codex", "preview-project"),
             new("preview-child-event", DateTimeOffset.Now.AddDays(-1), new(100, 0, 20, 0),
@@ -299,6 +310,9 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
             "claude-sonnet-4-6", "CodeRim", "preview-claude-session", "claude", "preview-project")];
         Usage["claude"] = UsageScanner.Aggregate(Events["claude"], DateTimeOffset.Now, settings.Current.WeekStart, false);
         Usage["codex"] = new(new(123456, 24000, 56000), new(340000, 70000, 120000), new(1100000, 250000, 700000), new(4800000, 1000000, 1200000), DataQuality.Exact, DateTimeOffset.Now);
+        var through = DateTimeOffset.Now;
+        RecordLocalAnalyticsRead("codex", through); RecordLocalAnalyticsRead("claude", through);
+        }
         foreach (var id in ReadableProviders)
             Readings[id] = new(id, ReadingState.Ready, [new("session", "5 hours", 32, DateTimeOffset.Now.AddHours(2), 300), new("weekly", "Weekly", 66, DateTimeOffset.Now.AddDays(3), 10080)], DateTimeOffset.Now, Plan: "Preview account");
         if (Readings.TryGetValue("codex", out var codex))

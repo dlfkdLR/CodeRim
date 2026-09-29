@@ -50,15 +50,24 @@ internal static partial class NativeSmoke
                 visibleText = Descendants<TextBlock>(pane).Select(x => x.Text).ToArray() }));
             Require(Descendants<TextBlock>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.today.cost"), "Today is missing the existing local cost estimate.");
             var pricedEvents = store.Events["codex"];
+            using var publicationState = new AnalyticsPublicationFixture(store, "codex");
+            var pricedThrough = store.AnalyticsSources["codex"].Through;
             try
             {
                 store.Events["codex"] = pricedEvents.Select(x => x with { Usage = x.Usage with { CacheWriteInputTokens = null } }).ToArray();
+                // A completed synthetic read publishes metadata at the same cutoff;
+                // rendering must not replace the trusted source with raw Events.
+                store.RecordLocalAnalyticsRead("codex", pricedThrough);
+                Require(store.AnalyticsSources["codex"].Events.Count == pricedEvents.Count
+                    && store.AnalyticsSources["codex"].Events.All(x => x.Usage.CacheWriteInputTokens is null),
+                    "Missing-cache-write fixture did not publish its changed source.");
                 pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
                 Require(!Descendants<TextBlock>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.today.cost"), "Missing cache-write data invented a Today cost.");
             }
             finally
             {
                 store.Events["codex"] = pricedEvents;
+                publicationState.Dispose();
                 pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
             }
             var picker = Descendants<System.Windows.Controls.ComboBox>(pane).Single(x => AutomationProperties.GetName(x) == "Usage provider");
@@ -70,7 +79,8 @@ internal static partial class NativeSmoke
             Require(picker.IsVisible && picker.SelectedValue as string == "codex", "Back failed to restore provider selection.");
             checks.Add("Reference provider size, Today cost and overview/detail/Back hierarchy");
 
-            store.Usage["claude"] = UsageSnapshot.Empty; pane.SelectProvider("claude"); await Idle();
+            store.Usage["claude"] = UsageSnapshot.Empty; pane.SelectProvider("claude");
+            pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle();
             Require(Descendants<StackPanel>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.empty"), "Unavailable local usage was rendered as a numeric zero.");
             Require(!Descendants<Grid>(pane).Any(x => AutomationProperties.GetAutomationId(x) == "usage.history"), "An empty Claude source showed fabricated history.");
             Capture(dashboard, Path.Combine(directory, "windows-reference-empty.png"));

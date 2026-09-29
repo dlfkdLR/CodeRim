@@ -13,6 +13,7 @@ internal static partial class NativeSmoke
 {
     private static async Task AnalyticsStateRegression(DashboardStore store, AppSettingsStore settings, string directory)
     {
+        using var publicationState = new AnalyticsPublicationFixture(store, "codex");
         var previousUsage = store.Usage.GetValueOrDefault("codex"); var previousEvents = store.Events.GetValueOrDefault("codex");
         var previousCost = settings.Current.CostEstimatesEnabled; var previousProvider = settings.Current.UsageProvider;
         var previousMetadata = store.SessionDetails.GetValueOrDefault("codex");
@@ -22,8 +23,8 @@ internal static partial class NativeSmoke
         try
         {
             settings.Save(settings.Current with { CostEstimatesEnabled = true, UsageProvider = "codex", AgentDetailsEnabled = true, AttachmentMetadataEnabled = true });
-            store.Usage.Remove("codex"); store.Events.Remove("codex");
-            var pane = new UsagePane(store, settings, "codex", _ => { }) { Width = 500 };
+            store.Usage.Remove("codex"); store.AnalyticsSources.Remove("codex"); store.Events.Remove("codex");
+            var pane = new UsagePane(store, settings, "codex", _ => { }, initialSection: CodeRim.Core.Services.SettingsUsageSection.Overview) { Width = 500 };
             window = new Window { Content = pane, Width = 550, Height = 740, Title = "Analytics state fixture" }; window.Show(); await Idle();
             Descendants<Button>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.activity").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
             bool Has(string id) => Descendants<FrameworkElement>(pane).Any(x => AutomationProperties.GetAutomationId(x) == id);
@@ -32,7 +33,7 @@ internal static partial class NativeSmoke
             Require(indicator.IsRunning == Motion.Enabled, "Analytics loading indicator ignores the motion policy");
             Capture(pane, System.IO.Path.Combine(directory, "windows-analytics-loading.png"));
 
-            store.Usage["codex"] = UsageSnapshot.Empty; store.Events["codex"] = []; pane.Update(); await Idle();
+            store.Usage["codex"] = UsageSnapshot.Empty; store.Events["codex"] = []; store.RecordLocalAnalyticsRead("codex", DateTimeOffset.Now); pane.Update(); await Idle();
             Require(!indicator.IsRunning, "Removed analytics loading indicator retained its animation timer");
             void EmptyRange()
             {
@@ -50,11 +51,11 @@ internal static partial class NativeSmoke
 
             var past = DateTimeOffset.Now.AddDays(-10);
             store.Events["codex"] = [new("old-range", past, new(123, 0, 0, 0), "gpt-5.6-sol")];
-            store.Usage["codex"] = new(TokenUsage.Zero, TokenUsage.Zero, new(123, 0, 0, 0), new(123, 0, 0, 0), DataQuality.Exact, past);
+            store.Usage["codex"] = new(TokenUsage.Zero, TokenUsage.Zero, new(123, 0, 0, 0), new(123, 0, 0, 0), DataQuality.Exact, past); store.RecordLocalAnalyticsRead("codex", DateTimeOffset.Now);
             pane.Update(); await Idle(); EmptyRange();
             Descendants<RadioButton>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.30d").IsChecked = true; await Idle();
             Require(Descendants<TextBlock>(pane).Any(x => x.FontSize == 28 && x.Text == 123L.ToString("N0", CultureInfo.CurrentCulture)), "Changing range did not recover older records");
-            store.Usage["codex"] = store.Usage["codex"] with { Quality = DataQuality.Partial }; pane.RefreshReadings(); await Idle();
+            store.Usage["codex"] = store.Usage["codex"] with { Quality = DataQuality.Partial }; store.RecordLocalAnalyticsRead("codex", DateTimeOffset.Now); pane.RefreshReadings(); await Idle();
             var focused = Descendants<Button>(pane).Last(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.tokens.", StringComparison.Ordinal));
             Require(focused.Focus() && pane.IsKeyboardFocusWithin, "Analytics fixture did not focus a chart before its refresh failure");
             store.Usage["codex"] = LocalTokenPresentation.AfterFailure(store.Usage["codex"]); pane.RefreshReadings(); await Idle();
@@ -71,21 +72,21 @@ internal static partial class NativeSmoke
             Descendants<Button>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.model.gpt-5.6-sol").RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
             Require(Has("usage.analytics.stale") && Descendants<TextBlock>(pane).Any(x => x.Text == "Partial local history"), "Model detail lost retained partial history");
 
-            store.Usage["codex"] = UsageSnapshot.Empty with { Quality = DataQuality.Error }; store.RefreshingProviders.Add("codex"); pane.RefreshReadings(); await Idle();
+            store.Usage["codex"] = UsageSnapshot.Empty with { Quality = DataQuality.Error }; store.AnalyticsSources.Remove("codex"); store.RefreshingProviders.Add("codex"); pane.RefreshReadings(); await Idle();
             Require(Has("usage.analytics.unavailable") && !Has("analytics.summary.tokens") && !Has("usage.analytics.loading"),
                 "Model detail allowed quota refresh to mask a local-history failure or displayed retained events as current");
             pane.Back(); await Idle();
             Require(Has("usage.analytics.unavailable") && !Has("analytics.summary.tokens"), "Activity allowed retained events through the first-error guard");
             Capture(pane, System.IO.Path.Combine(directory, "windows-analytics-unavailable.png"));
-            store.Usage["codex"] = new(TokenUsage.Zero, TokenUsage.Zero, new(123, 0, 0, 0), new(123, 0, 0, 0), DataQuality.Exact, past); pane.Update(); await Idle();
+            store.Usage["codex"] = new(TokenUsage.Zero, TokenUsage.Zero, new(123, 0, 0, 0), new(123, 0, 0, 0), DataQuality.Exact, past); store.RecordLocalAnalyticsRead("codex", DateTimeOffset.Now); pane.Update(); await Idle();
             Require(Has("analytics.summary.tokens") && !Has("usage.analytics.unavailable") && !Has("usage.analytics.stale"), "Analytics did not recover after a successful local read");
-            store.Events["codex"] = [new("zero-model", DateTimeOffset.Now, TokenUsage.Zero, "gpt-5.6-sol")]; pane.Update(); await Idle();
+            store.Events["codex"] = [new("zero-model", DateTimeOffset.Now, TokenUsage.Zero, "gpt-5.6-sol")]; store.RecordLocalAnalyticsRead("codex", DateTimeOffset.Now); pane.Update(); await Idle();
             var zeroModel = Descendants<Button>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.model.gpt-5.6-sol");
             Require(!AutomationProperties.GetName(zeroModel).Contains('$'), "An unavailable zero-valued range priced its model row");
             zeroModel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
             Require(Descendants<TextBlock>(pane).Any(x => x.Text == "Estimate unavailable"), "An unavailable zero-valued range priced its model detail");
             pane.Back(); await Idle();
-            store.Usage["codex"] = UsageSnapshot.Empty; store.Events.Remove("codex"); pane.Update(); await Idle(); EmptyRange();
+            store.Usage["codex"] = UsageSnapshot.Empty; store.Events.Remove("codex"); store.RecordLocalAnalyticsRead("codex", DateTimeOffset.Now); pane.Update(); await Idle(); EmptyRange();
             Descendants<Button>(pane).First(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.tokens.", StringComparison.Ordinal)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
             var retainedDetails = Descendants<TextBlock>(Descendants<StackPanel>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.bucket-details")).Select(x => x.Text).ToArray();
             pane.Back(); await Idle();
@@ -113,13 +114,13 @@ internal static partial class NativeSmoke
             Require(store.AvailableUsageProviders.Contains("claude", StringComparer.Ordinal), "Provider-reset fixture requires its synthetic Claude connection");
             pane.SelectProvider("claude"); await Idle();
             Require(Equals(Descendants<ComboBox>(pane).Single(x => AutomationProperties.GetName(x) == "Usage provider").SelectedValue, "claude"), "Provider-reset fixture did not switch to Claude");
-            pane.SelectProvider("codex"); await Idle(); await Open("activity");
+            pane.SelectProvider("codex"); await Idle(); pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle(); await Open("activity");
             Require(Descendants<RadioButton>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.7d").IsChecked == true && !Has("usage.bucket-details"),
                 "Provider round trip retained another provider's analytics navigation");
             pane.Back(); await Idle(); await Open("projects"); Require(Equals(ListPeriod(), "30d"), "Provider round trip did not reset Projects to 30D");
             SetListPeriod("today");
             settings.Save(settings.Current with { UsageProvider = "claude" }); pane.RefreshReadings(); await Idle();
-            settings.Save(settings.Current with { UsageProvider = "codex" }); pane.RefreshReadings(); await Idle(); await Open("projects");
+            settings.Save(settings.Current with { UsageProvider = "codex" }); pane.RefreshReadings(); await Idle(); pane.HandleShortcut(System.Windows.Input.Key.D1, System.Windows.Input.ModifierKeys.Control); await Idle(); await Open("projects");
             Require(Equals(ListPeriod(), "30d"), "External provider preference changes retained an old Projects range");
             pane.Back(); await Idle();
             var listTime = DateTimeOffset.Now;
@@ -129,19 +130,20 @@ internal static partial class NativeSmoke
             {
                 var rowId = route == "projects" ? "usage.project.state-project" : "usage.session.state-session";
                 Button? DataRow() => Descendants<Button>(pane).SingleOrDefault(x => AutomationProperties.GetAutomationId(x) == rowId);
-                store.Usage.Remove("codex"); await Open(route);
+                store.Usage.Remove("codex"); store.AnalyticsSources.Remove("codex"); await Open(route);
                 Require(Has("usage.analytics.loading") && DataRow() is null, route + " exposed cached events before the first local snapshot");
-                store.Usage["codex"] = UsageSnapshot.Empty with { Quality = DataQuality.Error }; pane.RefreshReadings(); await Idle();
+                store.Usage["codex"] = UsageSnapshot.Empty with { Quality = DataQuality.Error }; store.AnalyticsSources.Remove("codex"); pane.RefreshReadings(); await Idle();
                 Require(Has("usage.analytics.unavailable") && DataRow() is null
                     && Descendants<TextBlock>(pane).Any(x => x.Text == (route == "projects" ? "Projects Unavailable" : "Sessions Unavailable")),
                     route + " failed read fabricated a healthy list");
-                store.Usage["codex"] = listSnapshot; pane.RefreshReadings(); await Idle();
+                store.Usage["codex"] = listSnapshot; store.RecordLocalAnalyticsRead("codex", listTime); pane.RefreshReadings(); await Idle();
                 Require(DataRow() is not null && !Has("usage.analytics.unavailable"), route + " did not recover after a successful read");
                 DataRow()!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
-                store.Usage.Remove("codex"); pane.RefreshReadings(); await Idle();
+                store.Usage.Remove("codex"); store.AnalyticsSources.Remove("codex"); pane.RefreshReadings(); await Idle();
                 Require(Has("usage.analytics.loading") && !Descendants<TextBlock>(pane).Any(x => x.Text == "127"), route + " detail exposed values before its local snapshot");
-                store.Usage["codex"] = UsageSnapshot.Empty with { Quality = DataQuality.Error }; pane.RefreshReadings(); await Idle();
+                store.Usage["codex"] = UsageSnapshot.Empty with { Quality = DataQuality.Error }; store.AnalyticsSources.Remove("codex"); pane.RefreshReadings(); await Idle();
                 Require(Has("usage.analytics.unavailable") && !Descendants<TextBlock>(pane).Any(x => x.Text == "127"), route + " detail exposed cached values after a first-read error");
+                store.Usage["codex"] = listSnapshot; store.RecordLocalAnalyticsRead("codex", listTime); pane.RefreshReadings(); await Idle();
                 store.Usage["codex"] = LocalTokenPresentation.AfterFailure(listSnapshot); pane.RefreshReadings(); await Idle();
                 Require(Has("usage.analytics.stale") && Descendants<TextBlock>(pane).Any(x => x.Text == "127"), route + " detail lost its retained snapshot or stale warning");
                 pane.Back(); await Idle();
@@ -156,7 +158,7 @@ internal static partial class NativeSmoke
                 new("order-new", listTime, new(1, 0, 0, 0), "gpt-5.6-sol", "Zulu", "new-session", "codex", "z-project"),
                 new("order-unknown", listTime.AddMinutes(-3), new(1, 0, 0, 0), "gpt-5.6-sol", SessionId: "opaque-123456"),
                 new("order-literal", listTime.AddMinutes(-4), new(2, 0, 0, 0), "gpt-5.6-sol", "Unknown project", "literal-session", "codex", "literal-project")];
-            store.Usage["codex"] = UsageScanner.Aggregate(store.Events["codex"], listTime, settings.Current.WeekStart, false);
+            store.Usage["codex"] = UsageScanner.Aggregate(store.Events["codex"], listTime, settings.Current.WeekStart, false); store.RecordLocalAnalyticsRead("codex", listTime);
             store.SessionDetails["codex"] = [new("new-session", null, [new("list-image", listTime, 3)]), new("a-session", "new-session", [])];
             Button[] ListRows(string kind) => Descendants<Button>(pane).Where(x => AutomationProperties.GetAutomationId(x).StartsWith("usage." + kind + ".", StringComparison.Ordinal)).ToArray();
             await Open("projects");
@@ -203,12 +205,13 @@ internal static partial class NativeSmoke
                 }
                 Capture(pane, System.IO.Path.Combine(directory, "windows-analytics-session-order.png"));
                 pane.Back(); await Idle();
-                if (pass == 0) { store.Events["codex"] = store.Events["codex"].Reverse().ToArray(); await Open("projects"); }
+                if (pass == 0) { store.Events["codex"] = store.Events["codex"].Reverse().ToArray(); store.RecordLocalAnalyticsRead("codex", listTime); await Open("projects"); }
             }
             store.Events["codex"] = [
                 new("mixed-missing", listTime, new(1, 0, 0, 0), "gpt-5.6-sol", SessionId: "mixed-session"),
                 new("mixed-old", listTime.AddMinutes(-2), new(2, 0, 0, 0), "gpt-5.6-sol", "Old project", "mixed-session", "codex", "mixed-project"),
                 new("mixed-current", listTime.AddMinutes(-1), new(3, 0, 0, 0), "gpt-5.6-sol", "Current project", "mixed-session", "codex", "mixed-project")];
+            store.RecordLocalAnalyticsRead("codex", listTime);
             for (var pass = 0; pass < 2; pass++)
             {
                 await Open("projects");
@@ -227,7 +230,7 @@ internal static partial class NativeSmoke
                 Require(!Descendants<TextBox>(pane).Any() && ListRows("session").Length == 1
                     && Descendants<RadioButton>(pane).Any(x => x.GroupName == "UsageRange" && x.IsKeyboardFocused), "Closing Find did not clear the query and restore range focus");
                 pane.Back(); await Idle();
-                store.Events["codex"] = store.Events["codex"].Reverse().ToArray();
+                store.Events["codex"] = store.Events["codex"].Reverse().ToArray(); store.RecordLocalAnalyticsRead("codex", listTime);
             }
             System.IO.File.WriteAllText(System.IO.Path.Combine(directory, "windows-analytics-states.json"), System.Text.Json.JsonSerializer.Serialize(new { completed = true,
                 checks = new List<string> { "Pending without numbers and motion cleanup", "Empty range and selected interval without invented cost", "Older data recovers on range change",
@@ -246,7 +249,7 @@ internal static partial class NativeSmoke
             try { if (previousEvents is null) store.Events.Remove("codex"); else store.Events["codex"] = previousEvents; } catch (Exception error) { cleanup.Add(error); }
             try { if (previousMetadata is null) store.SessionDetails.Remove("codex"); else store.SessionDetails["codex"] = previousMetadata; } catch (Exception error) { cleanup.Add(error); }
             try { if (!wasRefreshing) store.RefreshingProviders.Remove("codex"); } catch (Exception error) { cleanup.Add(error); }
-            try { settings.Save(settings.Current with { CostEstimatesEnabled = previousCost, UsageProvider = previousProvider, AgentDetailsEnabled = previousAgents, AttachmentMetadataEnabled = previousAttachments }); } catch (Exception error) { cleanup.Add(error); }
+            try { publicationState.Dispose(); settings.Save(settings.Current with { CostEstimatesEnabled = previousCost, UsageProvider = previousProvider, AgentDetailsEnabled = previousAgents, AttachmentMetadataEnabled = previousAttachments }); } catch (Exception error) { cleanup.Add(error); }
         }
         if (failure is not null && cleanup.Count > 0) throw new AggregateException("Analytics state fixture and cleanup failed", cleanup.Prepend(failure));
         if (failure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();

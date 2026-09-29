@@ -41,8 +41,12 @@ internal static partial class NativeSmoke
             Button Button(string id) => Descendants<Button>(window).Single(x => AutomationProperties.GetAutomationId(x) == id);
             var rebuild = Button("local-data.rebuild"); var clear = Button("local-data.clear");
             Require(rebuild.IsEnabled && clear.IsEnabled, "Local data actions are unavailable before an operation.");
+            var priorEpoch = store.LocalAnalyticsEpochs.GetValueOrDefault("codex");
+            var operationStartedAt = DateTimeOffset.Now;
             rebuild.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
             activeRebuild = store.RebuildStatisticsAsync("codex");
+            Require(store.LocalAnalyticsEpochs.GetValueOrDefault("codex") == priorEpoch + 1 && !store.AnalyticsSources.ContainsKey("codex"),
+                "Admitted rebuild did not revoke old analytics before yielding");
             Require(store.RebuildingProviders.Contains("codex") && !rebuild.IsEnabled && !clear.IsEnabled, "Rebuild did not protect the UI against concurrent local data actions.");
             Require(ReferenceEquals(activeRebuild, store.RebuildStatisticsAsync("codex")), "Duplicate rebuild did not join the running operation.");
             var rejectedClear = false;
@@ -53,6 +57,10 @@ internal static partial class NativeSmoke
             await MotionUntil(() => !store.RebuildingProviders.Contains("codex"), "Local rebuild did not finish."); await Idle();
             Require(store.DataOperationMessages["codex"] == "Statistics rebuilt." && store.Usage["codex"].AllTime.TotalTokens == 120,
                 "Rebuild did not replace obsolete statistics from the actual session source.");
+            var published = store.AnalyticsSources.GetValueOrDefault("codex");
+            Require(published is not null && published.Through >= operationStartedAt && published.Local.AllTime.TotalTokens == 120
+                && published.Events.Sum(x => x.Usage.TotalTokens) == 120 && published.Through > published.Local.UpdatedAt,
+                "Rebuild did not publish a complete source at successful read time rather than last event time");
             Require(store.CodexAnalyticsLabels.Values.Single().SessionTitle == "Rebuilt task", "Rebuild did not reload Codex task labels");
             AnalyticsLabelSql(state, "UPDATE threads SET title='Renamed task'"); await store.RefreshLocalAsync();
             Require(store.CodexAnalyticsLabels.Values.Single().SessionTitle == "Renamed task" && store.Usage["codex"].AllTime.TotalTokens == 120,
@@ -69,6 +77,8 @@ internal static partial class NativeSmoke
             await store.RebuildStatisticsAsync("codex");
             Require(repository.Read("codex").Sum(x => x.Usage.TotalTokens) == 120 && store.DataOperationMessages["codex"].Contains("retained", StringComparison.Ordinal),
                 "Valid records from one file hid an empty source during rebuild.");
+            Require(!store.AnalyticsSources.ContainsKey("codex") && store.Usage["codex"].AllTime.TotalTokens == 120,
+                "Rejected incomplete rebuild resurrected analytics from old healthy local totals");
             File.Delete(emptySource);
             File.AppendAllText(source, "malformed fixture line\n"); await store.RebuildStatisticsAsync("codex");
             Require(repository.Read("codex").Sum(x => x.Usage.TotalTokens) == 120 && store.DataOperationMessages["codex"].Contains("retained", StringComparison.Ordinal),
@@ -79,12 +89,17 @@ internal static partial class NativeSmoke
             File.Delete(source); await store.RebuildStatisticsAsync("codex");
             Require(repository.Read("codex").Sum(x => x.Usage.TotalTokens) == 120 && store.SourceCounts["codex"] == 0,
                 "Missing source erased history or retained a stale source count.");
-            File.WriteAllText(source, original); await store.ClearLocalHistoryAsync("codex"); await store.RebuildStatisticsAsync("codex");
+            File.WriteAllText(source, original);
+            var preClearEpoch = store.LocalAnalyticsEpochs.GetValueOrDefault("codex");
+            var clearTask = store.ClearLocalHistoryAsync("codex");
+            Require(store.LocalAnalyticsEpochs.GetValueOrDefault("codex") == preClearEpoch + 1 && !store.AnalyticsSources.ContainsKey("codex"),
+                "Admitted clear retained analytics until after its asynchronous commit");
+            await clearTask; await store.RebuildStatisticsAsync("codex");
             Require(store.CodexAnalyticsLabels.Count == 0, "Cleared usage retained stale task titles");
             Require(repository.Read("codex").Count == 0 && store.Usage["codex"].AllTime.TotalTokens == 0 && File.ReadAllText(source) == original,
                 "Rebuild resurrected cleared history or changed original session files.");
             File.WriteAllText(Path.Combine(directory, "windows-local-data.json"), JsonSerializer.Serialize(new { completed = true,
-                checks = new List<string> { "Native action reparses real fixture JSONL into atomic derived statistics", "Duplicate rebuild and clear controls are disabled while busy", "Local size/source/date, Sources and operation status render", "Malformed/missing sources retain previous statistics", "Rebuild preserves clear exclusions and original source files", "Task title enrichment follows rebuild, ordinary refresh and clear" } }));
+                checks = new List<string> { "Native action reparses real fixture JSONL into atomic derived statistics", "Duplicate rebuild and clear controls are disabled while busy", "Local size/source/date, Sources and operation status render", "Malformed/missing sources retain previous statistics", "Rebuild preserves clear exclusions and original source files", "Task title enrichment follows rebuild, ordinary refresh and clear", "Successful rebuild publishes its read time/events, maintenance start revokes epochs, incomplete rebuild cannot resurrect a source" } }));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
         finally

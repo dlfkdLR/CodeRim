@@ -87,7 +87,7 @@ public sealed class UsageScanner
     {
         var profile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         if (provider == "claude") return [Path.Combine(Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR") ?? Path.Combine(profile, ".claude"), "projects")];
-        var codex = Environment.GetEnvironmentVariable("CODEX_HOME") ?? Path.Combine(profile, ".codex");
+        var codex = CodexHomeDirectory.Resolve(Environment.GetEnvironmentVariable("CODEX_HOME"), profile);
         return
         [
             Path.Combine(codex, "sessions"),

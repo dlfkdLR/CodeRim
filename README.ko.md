@@ -36,7 +36,7 @@ Windows 노치도 macOS와 같은 기본 설정 곡선과 마우스를 올렸을
 
 현재 소스는 공급자가 많을 때 노치 목록을 화면 크기에 맞춰 나누고, 긴 상세 카드는 스크롤로 표시합니다. xAI·Poe는 두 플랫폼이 인증 오류와 불완전한 이력을 같은 방식으로 처리합니다. [2026-09-20 감사 결과와 검증 범위](Documentation/FULL_AUDIT_2026-09-20.md)를 참고하세요.
 
-Usage 상단도 맥처럼 작은 세그먼트 탭, 공급자 로고 선택기와 새로고침 아이콘으로 정리했습니다.
+현재 Windows 소스는 기존 Mac을 변경하지 않고 Usage 상단의 공급자·계정·새로고침 도구 모음과 아래쪽 Overview·Usage analytics·Codex Limits 밑줄 탭을 맞췄습니다. 분석이 켜져 있으면 Analytics로 열리며, 7일·30일 일별 토큰·모델 차트, 상위 세션과 로컬 기간별 내역을 제공합니다. 아직 공개 Windows 2.1.12 설치본에는 이 소스 변경이 포함되지 않았으며, 검증 결과는 [Mac 기준 비교 기록](Documentation/WINDOWS_MAC_REFERENCE_PARITY_2026-09-23.md)에 구분했습니다.
 
 Windows에도 노치 접힘·펼침, 공급자·컨트롤 순차 등장, 사용량·초기화·새로고침·활동 표시, 팝업·토글·토큰 숫자 전환을 적용했습니다. 앱과 Windows의 동작 줄이기 설정을 따르며, 설정 미리보기를 즉시 갱신하고 화면 이동 시 스크롤 위치를 초기화합니다. Usage 요약의 세로 여백을 조정해 기본 설정 창에서 Today, History와 분석 버튼을 함께 볼 수 있습니다. 실제 검사와 비교 범위는 [애니메이션 점검 기록](Documentation/WINDOWS_MOTION_2026-09-23.md)에 정리했습니다.
 
@@ -153,6 +153,8 @@ macOS 목록에는 **70개 제공업체**가 있으며, 각각의 설정 안내�
 [macOS 설치](docs/installation.md) · [Windows 설치](Documentation/WINDOWS.md) · [시작하기](docs/getting-started.md) · [제공업체](docs/providers.md) · [토큰 사용 기록](docs/usage.md) · [계정](docs/accounts.md) · [CLI](docs/cli.md) · [위젯](docs/widgets.md) · [개인정보 보호](docs/privacy.md) · [문제 해결](docs/troubleshooting.md)
 
 [전체 문서](docs/README.md) · [변경 이력](CHANGELOG.md) · [보안](SECURITY.md)
+
+소스 빌드는 [기여 안내](CONTRIBUTING.ko.md)에 따라 고정된 의존성의 수정본을 준비한 뒤 Swift 테스트를 실행합니다. CI와 릴리스 빌드는 Swift 컴파일 경고가 있으면 실패합니다.
 
 ## 크레딧 및 라이선스
 
