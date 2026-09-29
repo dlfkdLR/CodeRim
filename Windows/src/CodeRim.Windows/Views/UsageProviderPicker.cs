@@ -25,6 +25,7 @@ internal sealed class UsageProviderPicker : ComboBox
     private string query = "";
     private string? highlighted;
     private bool keyboardNavigation;
+    private int popupRevision;
     private Border? host;
     internal Border? DropdownHost => host;
     private TextBox? search;
@@ -38,6 +39,7 @@ internal sealed class UsageProviderPicker : ComboBox
     public override void OnApplyTemplate()
     {
         base.OnApplyTemplate();
+        popupRevision++;
         // Preserve the framework selector, arrow, focus and disabled states. Only
         // the popup content is specialized to retain provider search/navigation.
         host = null;
@@ -59,17 +61,19 @@ internal sealed class UsageProviderPicker : ComboBox
     }
     protected override void OnDropDownOpened(EventArgs e)
     {
+        var revision = ++popupRevision;
         query = ""; highlighted = SelectedValue as string; keyboardNavigation = false;
         BuildPopover(); base.OnDropDownOpened(e);
         Dispatcher.BeginInvoke(() =>
         {
+            if (!IsDropDownOpen || revision != popupRevision) return;
             if (search is not null) search.Focus();
             else if (host?.Child is FrameworkElement panel) panel.Focus();
         });
     }
     protected override void OnDropDownClosed(EventArgs e)
     {
-        base.OnDropDownClosed(e); search = null;
+        popupRevision++; base.OnDropDownClosed(e); search = null;
     }
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
@@ -134,12 +138,23 @@ internal sealed class UsageProviderPicker : ComboBox
         if (Items.Count > 6 || query.Length > 0)
         {
             var searchRow = new DockPanel { Margin = new Thickness(2, 0, 2, 10) };
-            search = new TextBox { Text = query, Padding = new Thickness(8), MinHeight = 32 };
-            AutomationProperties.SetName(search, "Search providers"); AutomationProperties.SetAutomationId(search, "usage.provider.search");
-            var clear = Ui.Button("×", () => { search?.Clear(); search?.Focus(); }); clear.Margin = new Thickness(4, 0, 0, 0); clear.Visibility = query.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            var input = new TextBox { Text = query, Padding = new Thickness(8), MinHeight = 32 }; search = input;
+            AutomationProperties.SetName(input, "Search providers"); AutomationProperties.SetAutomationId(input, "usage.provider.search");
+            var clear = Ui.Button("×", () =>
+            {
+                if (!IsDropDownOpen || !ReferenceEquals(search, input)) return;
+                input.Clear(); input.Focus();
+            }); clear.Margin = new Thickness(4, 0, 0, 0); clear.Visibility = query.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             clearSearchButton = clear;
-            AutomationProperties.SetName(clear, "Clear search"); DockPanel.SetDock(clear, Dock.Right); searchRow.Children.Add(clear); searchRow.Children.Add(search); panel.Children.Add(searchRow);
-            search.TextChanged += (_, _) => { query = search.Text; clear.Visibility = query.Length > 0 ? Visibility.Visible : Visibility.Collapsed; highlighted = Matches.FirstOrDefault()?.Id; BuildRows(); };
+            AutomationProperties.SetName(clear, "Clear search"); DockPanel.SetDock(clear, Dock.Right); searchRow.Children.Add(clear); searchRow.Children.Add(input); panel.Children.Add(searchRow);
+            input.TextChanged += (_, _) =>
+            {
+                // Native theme/template changes can dismiss or remount the popup.
+                // Detached controls must not read or update a later search field.
+                if (!IsDropDownOpen || !ReferenceEquals(search, input)) return;
+                query = input.Text; clear.Visibility = query.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+                highlighted = Matches.FirstOrDefault()?.Id; BuildRows();
+            };
         }
         if (rows.Parent is ScrollViewer previous) previous.Content = null;
         scroll = new ScrollViewer { Content = rows, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, MaxHeight = 264 };
