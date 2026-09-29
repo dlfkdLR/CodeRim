@@ -56,6 +56,7 @@ internal static class SettingsUi
         {
             var labels = new StackPanel(); var label = Ui.Text(title); label.Margin = new Thickness(0); labels.Children.Add(label);
             var note = Ui.Text(caption, 11, "#A6A6AA"); note.Margin = new Thickness(0, 2, 0, 0); labels.Children.Add(note); toggle.Content = labels;
+            Ui.NativeDisabledText(label, toggle, "PrimaryText"); Ui.NativeDisabledText(note, toggle, "SecondaryText");
         }
         AutomationProperties.SetName(toggle, title); return toggle;
     }
