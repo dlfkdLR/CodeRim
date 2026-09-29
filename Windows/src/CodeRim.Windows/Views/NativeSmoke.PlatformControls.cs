@@ -46,6 +46,7 @@ internal static partial class NativeSmoke
                 type = control.GetType().Name, style_present = control.Style is not null, base_present = control.Style?.BasedOn is not null,
                 direct_setters = control.Style?.Setters.OfType<Setter>().Select(x => x.Property.Name).ToArray(),
                 application_style_matches = ReferenceEquals(control.Style, Application.Current.TryFindResource(control.GetType())),
+                framework_style_matches = ReferenceEquals(control.GetType() == typeof(Slider) ? control.Style : control.Style?.BasedOn, SettingsTheme.FrameworkControlStyle(control.GetType())),
                 template_present = control.Template is not null
             }), JsonOptions));
             Require(action.HorizontalAlignment == HorizontalAlignment.Stretch && Math.Abs(action.ActualWidth - panel.ActualWidth) < 1,
@@ -53,11 +54,13 @@ internal static partial class NativeSmoke
             foreach (var control in controls)
             {
                 var style = control.Style;
-                Require(style?.BasedOn is { } && !style.Setters.OfType<Setter>().Any(x => x.Property == Control.TemplateProperty),
+                var frameworkStyle = SettingsTheme.FrameworkControlStyle(control.GetType());
+                Require(control is Slider ? ReferenceEquals(style, frameworkStyle)
+                    : style?.BasedOn is { } && ReferenceEquals(style.BasedOn, frameworkStyle) && !style.Setters.OfType<Setter>().Any(x => x.Property == Control.TemplateProperty),
                     "Settings overrides the native control template: " + control.GetType().Name);
                 var probe = (Control)Activator.CreateInstance(control.GetType())!;
                 if (control is ScrollBar actualBar && probe is ScrollBar expectedBar) expectedBar.Orientation = actualBar.Orientation;
-                probe.Style = style!.BasedOn; probe.ApplyTemplate();
+                probe.Style = frameworkStyle; probe.ApplyTemplate();
                 Require(ReferenceEquals(control.Template, probe.Template), "Settings lost the inherited Fluent template: " + control.GetType().Name);
             }
             Require(checkbox.Template.FindName("Switch", checkbox) is null && !Motion.GetFeedback(checkbox),

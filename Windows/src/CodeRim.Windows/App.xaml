@@ -11,30 +11,29 @@
    <Style TargetType="TextBlock">
     <Setter Property="FontFamily" Value="Segoe UI Variable Text, Segoe UI"/>
    </Style>
-   <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+   <Style TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
     <Setter Property="Padding" Value="12,5"/><Setter Property="MinHeight" Value="32"/>
    </Style>
-   <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}"/>
-   <Style TargetType="Slider" BasedOn="{StaticResource {x:Type Slider}}"/>
-   <Style TargetType="ScrollBar" BasedOn="{StaticResource {x:Type ScrollBar}}"/>
-   <Style TargetType="ComboBoxItem" BasedOn="{StaticResource {x:Type ComboBoxItem}}"/>
-   <Style TargetType="ListBoxItem" BasedOn="{StaticResource {x:Type ListBoxItem}}">
+   <Style TargetType="CheckBox" BasedOn="{StaticResource DefaultCheckBoxStyle}"/>
+   <Style TargetType="ScrollBar" BasedOn="{StaticResource DefaultScrollBarStyle}"/>
+   <Style TargetType="ComboBoxItem" BasedOn="{StaticResource DefaultComboBoxItemStyle}"/>
+   <Style TargetType="ListBoxItem" BasedOn="{StaticResource DefaultListBoxItemStyle}">
     <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
    </Style>
-   <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+   <Style TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}">
     <Setter Property="MinHeight" Value="32"/><Setter Property="MaxDropDownHeight" Value="300"/>
     <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
    </Style>
-   <Style TargetType="TextBox" BasedOn="{StaticResource {x:Type TextBox}}">
+   <Style TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
     <Setter Property="Padding" Value="8,4"/><Setter Property="MinHeight" Value="32"/>
    </Style>
-   <Style TargetType="PasswordBox" BasedOn="{StaticResource {x:Type PasswordBox}}"/>
-   <Style x:Key="UsageLimitsDisclosure" TargetType="Expander" BasedOn="{StaticResource {x:Type Expander}}">
+   <Style TargetType="PasswordBox" BasedOn="{StaticResource DefaultPasswordBoxStyle}"/>
+   <Style x:Key="UsageLimitsDisclosure" TargetType="Expander" BasedOn="{StaticResource DefaultExpanderStyle}">
     <Setter Property="FontSize" Value="11"/>
     <Setter Property="Foreground" Value="{DynamicResource SecondaryText}"/>
    </Style>
-   <Style x:Key="UsageProviderPicker" TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}"/>
-   <Style x:Key="UsageProviderOption" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+   <Style x:Key="UsageProviderPicker" TargetType="ComboBox" BasedOn="{StaticResource DefaultComboBoxStyle}"/>
+   <Style x:Key="UsageProviderOption" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
     <Setter Property="BorderThickness" Value="1"/>
    </Style>
   <Style x:Key="ProviderUsageProgress" TargetType="ProgressBar">
@@ -74,9 +73,9 @@
     <Trigger Property="IsPressed" Value="True"><Setter Property="Background" Value="{DynamicResource CaptionCloseHover}"/><Setter Property="Foreground" Value="{DynamicResource CaptionCloseHoverText}"/></Trigger>
    </Style.Triggers>
   </Style>
-  <Style TargetType="ContextMenu" BasedOn="{StaticResource {x:Type ContextMenu}}">
+  <Style TargetType="ContextMenu" BasedOn="{StaticResource DefaultContextMenuStyle}">
    <Style.Resources>
-    <Style TargetType="MenuItem" BasedOn="{StaticResource {x:Type MenuItem}}">
+    <Style TargetType="MenuItem" BasedOn="{StaticResource DefaultMenuItemStyle}">
      <Setter Property="HeaderTemplate"><Setter.Value><DataTemplate>
       <AccessText Text="{Binding}">
        <AccessText.Resources><Style TargetType="TextBlock"/></AccessText.Resources>

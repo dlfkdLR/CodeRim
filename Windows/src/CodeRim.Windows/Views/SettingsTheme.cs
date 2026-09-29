@@ -7,6 +7,15 @@ namespace CodeRim.Windows.Views;
 internal static class SettingsTheme
 {
     private const string FluentPrefix = "pack://application:,,,/PresentationFramework.Fluent;component/Themes/";
+    private static ResourceDictionary? frameworkStyles;
+    internal static Style FrameworkControlStyle(Type type)
+    {
+        var dictionary = type == typeof(System.Windows.Controls.Slider) ? CurrentFrameworkDictionary() : frameworkStyles
+            ?? throw new InvalidOperationException("The Windows theme has not been initialized.");
+        return (Style)dictionary[type == typeof(System.Windows.Controls.Slider) ? type : "Default" + type.Name + "Style"];
+    }
+    private static ResourceDictionary CurrentFrameworkDictionary() => Application.Current.Resources.MergedDictionaries
+        .Single(x => x.Source?.OriginalString.StartsWith(FluentPrefix, StringComparison.Ordinal) == true);
     internal static bool IsDark { get; private set; }
     internal static bool IsHighContrast { get; private set; }
     internal static void Apply(bool? dark = null, bool? highContrast = null)
@@ -22,7 +31,10 @@ internal static class SettingsTheme
         IsDark = dark.Value;
         var resources = Application.Current.Resources;
         var source = new Uri(FluentPrefix + (followsSystem ? "Fluent.xaml" : IsDark ? "Fluent.Dark.xaml" : "Fluent.Light.xaml"));
-        var dictionary = resources.MergedDictionaries.Single(x => x.Source?.OriginalString.StartsWith(FluentPrefix, StringComparison.Ordinal) == true);
+        var dictionary = CurrentFrameworkDictionary();
+        // StaticResource wrappers retain their original native style objects.
+        // Preserve that dictionary once so native QA can verify their provenance.
+        frameworkStyles ??= dictionary;
         if (dictionary.Source != source)
         {
             var index = resources.MergedDictionaries.IndexOf(dictionary);
