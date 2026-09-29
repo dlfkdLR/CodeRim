@@ -33,6 +33,7 @@ internal static partial class NativeSmoke
         }
         try
         {
+            Require(!AppSettings.Default.ProfileSyncEnabled, "Fresh installs enable ChatGPT profile history without opt-in.");
             localStore = new DashboardStore(settings, vault, true, profileHistory: profile); await localStore.RefreshAsync();
             window = new DashboardWindow(localStore, settings, vault); window.Show(); await Idle();
             var pane = Descendants<UsagePane>(window).Single();
@@ -145,7 +146,8 @@ internal static partial class NativeSmoke
             }
             finally { profile.Changed -= OnProfileChanged; }
             var disabledCompletion = Pause(); var disabledTask = profile.RefreshAsync(true); tasks.Add(disabledTask); await Idle();
-            settings.Save(settings.Current with { ProfileSyncEnabled = false });
+            Button("history.account.disable").RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+            Require(!new AppSettingsStore().Current.ProfileSyncEnabled, "Account history disable did not persist.");
             disabledCompletion.SetResult(Reading(current, 8888888)); await disabledTask;
             Require(profile.Snapshot is null && profile.Status == ProfileUsageStatus.Disabled, "Disabling history accepted an in-flight response.");
             var beforeDisabledTimeChange = calls; await Task.Run(profile.CalendarContextChangedAsync);
@@ -153,7 +155,7 @@ internal static partial class NativeSmoke
             profile.Dispose(); await Task.Run(profile.CalendarContextChangedAsync);
             Require(calls == beforeDisabledTimeChange, "Disposed history reacted to a queued time-context signal.");
             File.WriteAllText(Path.Combine(directory, "windows-profile-history.json"), JsonSerializer.Serialize(new { completed = true, calls,
-                checks = new List<string> { "Explicit enable persists; previews remain offline", "Today stays local; server history is never double-counted", "Account and local period details are distinct", "Settings analytics calendar history and details remain local while account history is enabled",
+                checks = new List<string> { "Fresh installs require opt-in; explicit enable and disable persist; previews remain offline", "Today stays local; server history is never double-counted", "Account and local period details are distinct", "Settings analytics calendar history and details remain local while account history is enabled",
                     "Same-workspace account switch rejects late response", "Transient error retains only same-account snapshot", "Missing credentials and account operations clear history", "Week/day changes invalidate old totals", "Background clock/resume signals marshal to UI and reject late totals", "Disabled/disposed history ignores time signals", "Disable rejects in-flight response" } }));
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
