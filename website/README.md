@@ -46,7 +46,7 @@ node --check website/providers.js
 
 A changed catalogue count stops generation and requires a review of site copy. Provider artwork comes from bundled SVG and native `GlyphOutline` paths; retain [ASSETS](ASSETS.md) and `assets/NOTICE.txt`. Documentation links should follow the selected language where a counterpart exists.
 
-The website’s `v2.1.13` download targets are the macOS DMG and Windows x64/ARM64 MSI under the same release tag. Verify the actual published platform assets before deploying the site rather than relying on `releases/latest`. For new releases update file URLs, versions, checksums, and release notes together.
+The website pins macOS to the `v2.1.13` DMG and Windows x64/ARM64 installers to `v2.1.14`. Platform release versions are independent. Verify the actual published platform assets before deploying the site rather than relying on `releases/latest`. For new releases update file URLs, versions, checksums, and release notes together.
 
 ## Demonstration and privacy boundary
 

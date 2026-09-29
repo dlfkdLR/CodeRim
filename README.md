@@ -26,7 +26,7 @@ Local counts cover records on **this computer across accounts**. Cached input is
 
 ## Install
 
-**macOS and Windows:** [2.1.13](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.13)
+**macOS:** [2.1.13](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.13) · **Windows:** [2.1.14](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.14)
 
 ### macOS
 
@@ -47,7 +47,7 @@ Open **Settings → Providers → Add Provider**, connect your tools, then hover
 
 **Windows 11 · x64 and ARM64 · .NET included.**
 
-[Download x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-x64-Setup.msi) · [Download ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-arm64-Setup.msi) · [x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-arm64-Setup.msi.sha256)
+[Download x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.14/CodeRim-Windows-2.1.14-x64-Setup.msi) · [Download ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.14/CodeRim-Windows-2.1.14-arm64-Setup.msi) · [x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.14/CodeRim-Windows-2.1.14-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.14/CodeRim-Windows-2.1.14-arm64-Setup.msi.sha256)
 
 Verify the matching checksum, run the MSI, and open CodeRim. The public installer has no Authenticode publisher certificate; first-install warnings can occur. Managed updates verify the pinned Ed25519 manifest and SHA-256 before installation. [Windows installation](docs/windows.md) covers upgrades, legacy ZIP migration, CLI setup, and limitations. A connection implementation or synthetic test is not evidence that every live provider account works.
 
