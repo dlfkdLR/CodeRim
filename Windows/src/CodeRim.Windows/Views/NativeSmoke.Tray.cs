@@ -173,10 +173,15 @@ internal static partial class NativeSmoke
             {
                 var command = surface.Menu.Items.OfType<MenuItem>().First();
                 var enabledBefore = command.IsEnabled;
+                var openedCount = 0; var closedCount = 0;
+                void NativeOpened(object sender, RoutedEventArgs args) => openedCount++;
+                void NativeClosed(object sender, RoutedEventArgs args) => closedCount++;
+                surface.Menu.Opened += NativeOpened; surface.Menu.Closed += NativeClosed;
                 try
                 {
                     foreach (var dark in new[] { true, false })
                     {
+                        var closedBefore = closedCount;
                         command.IsEnabled = true;
                         SettingsTheme.Apply(dark); surface.Menu.PlacementTarget = surface.Target;
                         surface.Menu.IsOpen = true; await Idle();
@@ -207,7 +212,21 @@ internal static partial class NativeSmoke
                         Capture(surface.Menu, Path.Combine(directory, "windows-wpf-context-" + suffix + "-selected.png"));
                         command.IsEnabled = false; await Idle(); NativeForeground();
                         Capture(surface.Menu, Path.Combine(directory, "windows-wpf-context-" + suffix + "-disabled.png"));
-                        command.IsEnabled = enabledBefore; surface.Menu.IsOpen = false; await Idle();
+                        command.IsEnabled = enabledBefore;
+                        WriteFocusState("before-close");
+                        surface.Menu.IsOpen = false;
+                        WriteFocusState("closing");
+                        // IsOpen=false starts the parent Popup's native close lifecycle.
+                        // Do not reuse the menu until Closed and HWND detachment finish.
+                        var closing = System.Diagnostics.Stopwatch.StartNew();
+                        while ((closedCount == closedBefore || PresentationSource.FromVisual(surface.Menu) is not null)
+                            && closing.ElapsedMilliseconds < 1000)
+                            await Task.Delay(16);
+                        WriteFocusState("closed");
+                        Require(closedCount > closedBefore && !surface.Menu.IsOpen
+                            && PresentationSource.FromVisual(surface.Menu) is null,
+                            "The native context menu did not finish closing before reuse: " + suffix);
+                        await Idle();
 
                         void WriteFocusState(string phase, bool? accepted = null) => File.WriteAllText(
                             Path.Combine(directory, "windows-wpf-context-" + suffix + "-focus-" + phase + ".json"),
@@ -217,6 +236,10 @@ internal static partial class NativeSmoke
                                 menuVisible = surface.Menu.IsVisible, commandLoaded = command.IsLoaded, commandVisible = command.IsVisible,
                                 commandEnabled = command.IsEnabled, commandFocusable = command.Focusable,
                                 presentationMounted = PresentationSource.FromVisual(command) is not null,
+                                menuPresentationMounted = PresentationSource.FromVisual(surface.Menu) is not null,
+                                samePresentationSource = PresentationSource.FromVisual(command) is { } source
+                                    && ReferenceEquals(source, PresentationSource.FromVisual(surface.Menu)),
+                                openedCount, closedCount,
                                 commandFocusWithin = command.IsKeyboardFocusWithin, highlighted = command.IsHighlighted,
                                 focusedElementType = Keyboard.FocusedElement?.GetType().Name, openingTranslationY = translation.Y
                             }, JsonOptions));
@@ -234,7 +257,11 @@ internal static partial class NativeSmoke
                         }
                     }
                 }
-                finally { command.IsEnabled = enabledBefore; surface.Menu.IsOpen = false; }
+                finally
+                {
+                    command.IsEnabled = enabledBefore; surface.Menu.IsOpen = false;
+                    surface.Menu.Opened -= NativeOpened; surface.Menu.Closed -= NativeClosed;
+                }
             }
             checks.Add("Mounted notch and provider right-click headers inherit Windows template foreground in dark/light app themes and enabled, keyboard-selected and disabled states");
             Forms.ToolStripDropDownCloseReason? closeReason = null;
