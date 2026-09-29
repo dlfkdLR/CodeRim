@@ -34,20 +34,34 @@ public sealed class MobileRelayTests
     [Fact]
     public async Task PairingIsWindowsScopedAndRedirectCannotSendBearerElsewhere()
     {
+        var bearer = new string('A', 43);
         var handler = new FixtureHandler(async request => {
             if (request.RequestUri!.AbsolutePath == "/v1/pairing/claim") {
                 var body = await request.Content!.ReadAsStringAsync(); Assert.Contains("windows", body, StringComparison.Ordinal);
                 Assert.DoesNotContain("Authorization", request.Headers.ToString(), StringComparison.Ordinal);
-                return new(HttpStatusCode.OK) { Content = new StringContent("{\"token\":\"test-token\",\"expiresAt\":1790000000}", Encoding.UTF8, "application/json") };
+                var issued = JsonSerializer.Serialize(new MobileToken(bearer, DateTimeOffset.UtcNow.AddDays(30).ToUnixTimeSeconds()), Json);
+                return new(HttpStatusCode.OK) { Content = new StringContent(issued, Encoding.UTF8, "application/json") };
             }
-            Assert.Equal("test-token", request.Headers.Authorization?.Parameter);
+            Assert.Equal(bearer, request.Headers.Authorization?.Parameter);
             var response = new HttpResponseMessage(HttpStatusCode.Redirect); response.Headers.Location = new Uri("https://other.example.com"); return response;
         });
         using var client = new MobileRelayClient("https://relay.example.com", handler);
         var token = await client.PairAsync("ABCD-EFGH", "작업 PC", TestContext.Current.CancellationToken);
-        Assert.Equal("test-token", token.Token);
+        Assert.Equal(bearer, token.Token);
         await Assert.ThrowsAsync<HttpRequestException>(() => client.DisconnectAsync(token.Token, TestContext.Current.CancellationToken));
         Assert.Equal(2, handler.Count);
+    }
+    [Fact]
+    public void RelayTokensRequireBoundedBase64UrlAndSaneFutureExpiry()
+    {
+        var now = new DateTimeOffset(2026, 9, 29, 0, 0, 0, TimeSpan.Zero);
+        var valid = new string('A', 43);
+        Assert.Equal(valid, MobileRelayClient.ValidateIssuedToken(new(valid, now.AddDays(90).ToUnixTimeSeconds()), now).Token);
+        Assert.Throws<InvalidDataException>(() => MobileRelayClient.ValidateIssuedToken(new(null!, now.AddDays(90).ToUnixTimeSeconds()), now));
+        foreach (var token in new[] { "", new string('A', 31), new string('A', 129), new string('A', 42) + "+", new string('A', 42) + "\n" })
+            Assert.Throws<InvalidDataException>(() => MobileRelayClient.ValidateIssuedToken(new(token, now.AddDays(90).ToUnixTimeSeconds()), now));
+        foreach (var expiresAt in new[] { double.NaN, double.PositiveInfinity, now.ToUnixTimeSeconds(), now.AddDays(367).ToUnixTimeSeconds() })
+            Assert.Throws<InvalidDataException>(() => MobileRelayClient.ValidateIssuedToken(new(valid, expiresAt), now));
     }
     [Fact]
     public void UnsupportedOrStaleSourcesAreNeverInventedAsLive()

@@ -59,8 +59,12 @@ public sealed class MobileRelayClient : IDisposable
             throw new ArgumentException("Enter an HTTPS server origin without a path or credentials.", nameof(value));
         return uri;
     }
-    public Task<MobileToken> PairAsync(string code, string name, CancellationToken cancellationToken)
-        => SendAsync<MobileToken>(HttpMethod.Post, "/v1/pairing/claim", new MobilePairClaim(code.Trim().ToUpperInvariant().Replace("-", "", StringComparison.Ordinal), "windows", name), null, cancellationToken);
+    public async Task<MobileToken> PairAsync(string code, string name, CancellationToken cancellationToken)
+    {
+        var issued = await SendAsync<MobileToken>(HttpMethod.Post, "/v1/pairing/claim",
+            new MobilePairClaim(code.Trim().ToUpperInvariant().Replace("-", "", StringComparison.Ordinal), "windows", name), null, cancellationToken).ConfigureAwait(false);
+        return ValidateIssuedToken(issued, DateTimeOffset.UtcNow);
+    }
     public async Task PublishAsync(MobileSnapshot snapshot, string token, CancellationToken cancellationToken)
         => _ = await SendAsync<JsonElement>(HttpMethod.Post, "/v1/snapshot", snapshot, token, cancellationToken).ConfigureAwait(false);
     public async Task DisconnectAsync(string token, CancellationToken cancellationToken)
@@ -71,13 +75,35 @@ public sealed class MobileRelayClient : IDisposable
         if (bytes.Length > 262144) throw new InvalidDataException("Mobile snapshot exceeds the transfer limit.");
         using var request = new HttpRequestMessage(method, new Uri(Endpoint, path)) { Content = new ByteArrayContent(bytes) };
         request.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
-        if (token is not null) request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        if (token is not null)
+        {
+            ValidateBearerToken(token);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        }
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         if ((int)response.StatusCode is >= 300 and < 400) throw new HttpRequestException("Relay redirects are not accepted.", null, response.StatusCode);
         response.EnsureSuccessStatusCode();
         await response.Content.LoadIntoBufferAsync(262144, cancellationToken).ConfigureAwait(false);
         var result = await response.Content.ReadFromJsonAsync<T>(Json, cancellationToken).ConfigureAwait(false);
         return result ?? throw new InvalidDataException("Empty relay response.");
+    }
+    public static MobileToken ValidateIssuedToken(MobileToken issued, DateTimeOffset now)
+    {
+        ValidateBearerToken(issued.Token);
+        var nowSeconds = now.ToUnixTimeMilliseconds() / 1000d;
+        var maximum = nowSeconds + TimeSpan.FromDays(366).TotalSeconds;
+        if (!double.IsFinite(issued.ExpiresAt) || issued.ExpiresAt <= nowSeconds || issued.ExpiresAt > maximum)
+            throw new InvalidDataException("Relay token expiry is invalid.");
+        return issued;
+    }
+    private static void ValidateBearerToken(string token)
+    {
+        if (string.IsNullOrEmpty(token) || token.Length is < 32 or > 128 || token.Any(character =>
+                character is not (>= 'A' and <= 'Z')
+                    and not (>= 'a' and <= 'z')
+                    and not (>= '0' and <= '9')
+                    and not '_' and not '-'))
+            throw new InvalidDataException("Relay token format is invalid.");
     }
     public void Dispose() => http.Dispose();
 }

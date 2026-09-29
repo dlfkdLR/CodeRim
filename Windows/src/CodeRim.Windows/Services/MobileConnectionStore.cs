@@ -46,6 +46,7 @@ internal sealed class MobileConnectionStore : INotifyPropertyChanged, IDisposabl
     }
     private void Activate(MobileCredential value)
     {
+        _ = MobileRelayClient.ValidateIssuedToken(new(value.Token, value.ExpiresAt), DateTimeOffset.UtcNow);
         client = new(value.Endpoint); credential = value; Status = "Connected · waiting for update"; timer.Start(); Changed();
     }
     public async Task PairAsync(string endpoint, string code, string name)
