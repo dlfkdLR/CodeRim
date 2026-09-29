@@ -40,10 +40,9 @@ internal sealed class MobileConnectionStore : INotifyPropertyChanged, IDisposabl
                 else Activate(saved);
             }
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or CryptographicException or JsonException or ArgumentException)
+        catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException or CryptographicException or JsonException or ArgumentException)
         {
-            // InvalidDataException is an IOException, so malformed saved relay tokens
-            // also land here. Remove the unusable value when possible so startup does
+            // Remove unusable saved relay credentials when possible so startup does
             // not repeat the same failure forever.
             try { vault.Delete(Key); }
             catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException or CryptographicException) { }
@@ -68,10 +67,10 @@ internal sealed class MobileConnectionStore : INotifyPropertyChanged, IDisposabl
             var saved = new MobileCredential(pending.Endpoint.AbsoluteUri, issued.Token, issued.ExpiresAt);
             vault.Save(Key, JsonSerializer.Serialize(saved)); File.Delete(stoppedPath); Activate(saved);
         }
-        catch (Exception e) when (e is HttpRequestException or IOException or UnauthorizedAccessException or CryptographicException or JsonException or ArgumentException or OperationCanceledException)
+        catch (Exception e) when (e is HttpRequestException or InvalidDataException or IOException or UnauthorizedAccessException or CryptographicException or JsonException or ArgumentException or OperationCanceledException)
         {
             if (pending is not null && issued is not null)
-                try { await pending.DisconnectAsync(issued.Token, CancellationToken.None).ConfigureAwait(true); } catch (Exception cleanup) when (cleanup is HttpRequestException or IOException or JsonException or OperationCanceledException) { }
+                try { await pending.DisconnectAsync(issued.Token, CancellationToken.None).ConfigureAwait(true); } catch (Exception cleanup) when (cleanup is HttpRequestException or InvalidDataException or IOException or JsonException or OperationCanceledException) { }
             Status = "Connection failed. Check the server and pairing code.";
         }
         finally { pending?.Dispose(); Busy = false; Changed(); }
