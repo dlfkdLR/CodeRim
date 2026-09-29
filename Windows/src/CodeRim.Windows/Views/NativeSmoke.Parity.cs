@@ -63,7 +63,7 @@ internal static partial class NativeSmoke
                 // A completed synthetic read publishes metadata at the same cutoff;
                 // rendering must not replace the trusted source with raw Events.
                 store.RecordLocalAnalyticsRead("codex", pricedThrough);
-                Require(store.AnalyticsSources["codex"].Events.Count == pricedEvents.Count
+                Require(store.AnalyticsSources["codex"].Events.Count == pricedEvents.Length
                     && store.AnalyticsSources["codex"].Events.All(x => x.Usage.CacheWriteInputTokens is null),
                     "Missing-cache-write fixture did not publish its changed source.");
                 pane.Update(); await Idle();
