@@ -35,7 +35,6 @@ internal sealed partial class UsagePane
             var tab = new RadioButton { Content = title, Tag = section, GroupName = "UsageMode", IsChecked = EffectiveSettingsSection == section,
                 FontSize = 13, Padding = new Thickness(0, 11, 0, 11), Margin = new Thickness(0, 0, 24, 0), Cursor = System.Windows.Input.Cursors.Hand,
                 Template = SettingsTabTemplate() };
-            tab.SetResourceReference(Control.ForegroundProperty, "SecondaryText");
             AutomationProperties.SetAutomationId(tab, "settings.usage.tab." + section.ToString().ToLowerInvariant());
             AutomationProperties.SetName(tab, title);
             tab.Checked += (_, _) => { if (!updatingTabs) SelectSettingsSection(section); };
@@ -59,6 +58,9 @@ internal sealed partial class UsagePane
         var focus = new FrameworkElementFactory(typeof(Border), "Focus"); focus.SetValue(Border.BorderThicknessProperty, new Thickness(1));
         focus.SetValue(Border.CornerRadiusProperty, new CornerRadius(3)); focus.SetValue(UIElement.IsHitTestVisibleProperty, false); root.AppendChild(focus);
         var template = new ControlTemplate(typeof(RadioButton)) { VisualTree = root };
+        // Template state colors must not be shadowed by a local Foreground.
+        var unselected = new Trigger { Property = System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, Value = false };
+        unselected.Setters.Add(new Setter(Control.ForegroundProperty, new DynamicResourceExtension("SecondaryText"))); template.Triggers.Add(unselected);
         var selected = new Trigger { Property = System.Windows.Controls.Primitives.ToggleButton.IsCheckedProperty, Value = true };
         selected.Setters.Add(new Setter(Control.ForegroundProperty, new DynamicResourceExtension("PrimaryText")));
         selected.Setters.Add(new Setter(Control.FontWeightProperty, FontWeights.SemiBold));
