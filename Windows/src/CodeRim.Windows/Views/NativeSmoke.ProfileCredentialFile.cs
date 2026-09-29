@@ -68,11 +68,23 @@ internal static partial class NativeSmoke
             var foreignOwner = new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null);
             try
             {
-                var wrongOwner = Security(); wrongOwner.SetOwner(foreignOwner); Apply(wrongOwner);
-                Rejected("foreign owner");
+                var wrongOwner = Security(); wrongOwner.SetOwner(foreignOwner);
+                var assigned = false;
+                // ERROR_INVALID_OWNER can surface as InvalidOperationException on
+                // Windows. Keep assignment catches separate from the rejection assertion.
+                try { Apply(wrongOwner); assigned = true; }
+                catch (UnauthorizedAccessException) { }
+                catch (IOException error) when ((error.HResult & 0xFFFF) is 1307 or 1314) { }
+                catch (InvalidOperationException error) when (error.HResult == unchecked((int)0x80131509)
+                    && user.Equals(new FileInfo(file).GetAccessControl().GetOwner(typeof(SecurityIdentifier)))) { }
+                if (assigned) Rejected("foreign owner");
+                else
+                {
+                    Require(user.Equals(new FileInfo(file).GetAccessControl().GetOwner(typeof(SecurityIdentifier))),
+                        "The unavailable owner fixture changed the credential owner");
+                    checks.Add("Owner check skipped: caller cannot assign another owner");
+                }
             }
-            catch (UnauthorizedAccessException) { checks.Add("Owner check skipped: caller cannot assign another owner"); }
-            catch (IOException error) when ((error.HResult & 0xFFFF) == 1314) { checks.Add("Owner check skipped: caller cannot assign another owner"); }
             finally { Apply(Security()); }
             Apply(Security()); File.WriteAllText(file, new string('x', 262145)); Rejected("oversized file");
             File.WriteAllText(file, CredentialJson("original")); Apply(Security(FileSystemRights.ReadAndExecute));
