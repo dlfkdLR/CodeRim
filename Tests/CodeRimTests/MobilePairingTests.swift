@@ -1,3 +1,5 @@
+import CoreImage
+import AppKit
 import CodeRimShared
 import XCTest
 @testable import CodeRim
@@ -32,5 +34,18 @@ final class MobilePairingTests: XCTestCase {
         var changed = later
         changed.sessions = [MobileSession(providerID: "codex", phase: .working, title: "", since: nil)]
         XCTAssertTrue(MobileConnectionStore.shouldSend(changed, after: (body, now), heartbeat: 300, now: now + 20))
+    }
+}
+
+extension MobilePairingTests {
+    /// The picture the Mac shows must decode back to exactly the link the iPhone expects.
+    func testTheDrawnQRCodeDecodesBackToThePairingLink() throws {
+        let link = MobilePairingLink(relay: URL(string: "https://coderim-relay.pages.dev")!, id: id, secret: secret)
+        let image = try XCTUnwrap(MobileSettingsSection.qrImage(link.url.absoluteString))
+        let cgImage = try XCTUnwrap(image.cgImage(forProposedRect: nil, context: nil, hints: nil))
+        let detector = try XCTUnwrap(CIDetector(ofType: CIDetectorTypeQRCode, context: nil, options: [CIDetectorAccuracy: CIDetectorAccuracyHigh]))
+        let decoded = (detector.features(in: CIImage(cgImage: cgImage)) as? [CIQRCodeFeature])?.first?.messageString
+        XCTAssertEqual(decoded, link.url.absoluteString)
+        XCTAssertEqual(decoded.flatMap(MobilePairingLink.init), link)
     }
 }

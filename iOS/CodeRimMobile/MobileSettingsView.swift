@@ -105,7 +105,7 @@ struct MobileSettingsView: View {
                             Task { if model.activityActive { await model.stopActivity() } else { await model.startActivity() } }
                         }.disabled(model.busy || isSettingsPreview)
                     } header: { Text("Dynamic Island") } footer: {
-                        Text("The Island appears on its own when a task starts on a connected computer and leaves a couple of minutes after the work stops. Touch and hold it to see usage and task status, also shown on the Lock Screen.")
+                        Text("With push notifications set up, the Island appears on its own when a task starts on a connected computer and leaves a couple of minutes after the work stops. Without them, choose Show now: the Island then updates while this app is open. Touch and hold it to see usage and task status, also shown on the Lock Screen.")
                     }
                     Section {
                         Label("Full conversation transcripts and AI service credentials are not shared.", systemImage: "lock.shield")

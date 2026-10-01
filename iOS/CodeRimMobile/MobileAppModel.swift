@@ -26,6 +26,7 @@ final class MobileAppModel: ObservableObject {
     private var activityObservers: [String: Task<Void, Never>] = [:]
     private var foregroundPoll: Task<Void, Never>?
     private var restored = false
+    private var pushAvailable = true
     private var remoteActivities: [Task<Void, Never>] = []
     private let credentials: any MobileCredentialStoring
     private let makeClient: @Sendable (URL) throws -> any MobileRelayServing
@@ -265,8 +266,18 @@ final class MobileAppModel: ObservableObject {
             if let existing = Activity<CodeRimActivityAttributes>.activities.first(where: { $0.attributes.connectionID == credential.map { MobileActivityConnection.id(for: $0.token) } && ($0.activityState == .active || $0.activityState == .stale) }) {
                 observe(existing); return
             }
-            let activity = try Activity.request(attributes: CodeRimActivityAttributes(connectionID: credential.map { MobileActivityConnection.id(for: $0.token) } ?? ""),
-                content: ActivityContent(state: state, staleDate: Date(timeIntervalSince1970: state.staleAt)), pushType: .token)
+            let attributes = CodeRimActivityAttributes(connectionID: credential.map { MobileActivityConnection.id(for: $0.token) } ?? "")
+            let content = ActivityContent(state: state, staleDate: Date(timeIntervalSince1970: state.staleAt))
+            let activity: Activity<CodeRimActivityAttributes>
+            do {
+                activity = try Activity.request(attributes: attributes, content: content, pushType: .token)
+                pushAvailable = true
+            } catch {
+                // An app signed without the Push Notifications capability (a free Apple ID) cannot
+                // take push tokens. The Island still works, refreshed while this app is open.
+                activity = try Activity.request(attributes: attributes, content: content, pushType: nil)
+                pushAvailable = false
+            }
             observe(activity)
             errorMessage = nil
         } catch { errorMessage = "Could not start the Live Activity. Check permissions and your connection." }
@@ -281,6 +292,7 @@ final class MobileAppModel: ObservableObject {
     private func observe(_ activity: Activity<CodeRimActivityAttributes>) {
         activityActive = true
         guard observers[activity.id] == nil else { return }
+        guard pushAvailable else { activityStatus = "Updates while this app is open"; return observeEnd(activity) }
         activityStatus = "Connecting push updates"
         if let token = activity.pushToken { register(token, activity: activity) }
         observers[activity.id] = Task { [weak self] in
@@ -289,6 +301,11 @@ final class MobileAppModel: ObservableObject {
                 self?.register(token, activity: activity)
             }
         }
+        observeEnd(activity)
+    }
+    /// Forgets an Activity once the system or the user ends it.
+    private func observeEnd(_ activity: Activity<CodeRimActivityAttributes>) {
+        guard activityObservers[activity.id] == nil else { return }
         activityObservers[activity.id] = Task { [weak self] in
             for await status in activity.activityStateUpdates {
                 guard !Task.isCancelled else { break }
