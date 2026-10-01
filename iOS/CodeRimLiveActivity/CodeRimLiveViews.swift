@@ -410,12 +410,12 @@ private struct IslandReading {
             && ["needsAuth", "accessDenied"].contains(state.providers.first?.state ?? "")
     }
     var remaining: Double? {
-        guard !disconnected, let provider = state.providers.first, provider.state == "ready",
+        guard !disconnected, let provider = state.providers.first, Self.drawsQuota(provider.state),
               let value = provider.windows.first?.remainingPercent, value.isFinite else { return nil }
         return max(0, min(100, value))
     }
     var secondaryWindow: MobileUsageWindow? {
-        guard !disconnected, let provider = state.providers.first, provider.state == "ready", provider.windows.count > 1 else { return nil }
+        guard !disconnected, let provider = state.providers.first, Self.drawsQuota(provider.state), provider.windows.count > 1 else { return nil }
         return provider.windows[1]
     }
     var secondaryRemaining: Double? {
@@ -423,6 +423,8 @@ private struct IslandReading {
         return max(0, min(100, value))
     }
     var otherSessionCount: Int { max(0, state.sessions.count - 1) + state.additionalSessionCount }
+    /// Partial snapshots still carry real quota windows; only their coverage is incomplete.
+    static func drawsQuota(_ state: String) -> Bool { state == "ready" || state == "partial" }
     static func color(for value: Double) -> Color {
         // Mac UsageBand thresholds expressed as remaining, not consumed.
         value > 50 ? IslandPalette.ample : value > 30 ? IslandPalette.watch : IslandPalette.critical
@@ -462,7 +464,8 @@ private struct IslandReading {
         if disconnected { return "Updates when reconnected" }
         guard let provider = state.providers.first else { return state.focus == nil ? "Connect a computer" : "No usage to show" }
         switch provider.state {
-        case "ready": return provider.windows.isEmpty || remaining == nil ? "No quota data" : nil
+        case "ready", "partial": return provider.windows.isEmpty || remaining == nil ? "No quota data" : nil
+        case "disabled": return "Limits turned off"
         case "stale": return "Usage needs a refresh"
         case "needsAuth": return "Sign in required"
         case "accessDenied": return "Check permissions"

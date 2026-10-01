@@ -56,6 +56,7 @@ internal sealed partial class NotchWindow
         // A one-alpha hit surface keeps the resting arc's center reachable on a layered
         // native window; fully transparent pixels otherwise pass through to the desktop.
         gear.Background = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0));
+        gear.FocusVisualStyle = RailFocusVisual((gear.Width - diameter) / 2);
         AutomationProperties.SetAutomationId(gear, "notch.settings");
         PlaceControl(canvas, gear, gearCenter); settingsControl = gear; settingsGlyph = glyph;
         var accounts = Control("\uE895", "Switch account", OpenAccounts);
@@ -71,6 +72,17 @@ internal sealed partial class NotchWindow
             target.MouseLeave += (_, _) => controlHide.Start();
             target.LostKeyboardFocus += (_, _) => controlHide.Start();
         }
+    }
+    /// <summary>Keyboard-only focus ring on the rail's circle, not the larger hit region.</summary>
+    private static Style RailFocusVisual(double inset)
+    {
+        var ring = new FrameworkElementFactory(typeof(System.Windows.Shapes.Ellipse));
+        ring.SetValue(System.Windows.Shapes.Shape.StrokeProperty, new SolidColorBrush(Color.FromRgb(0x80, 0x80, 0x80)));
+        ring.SetValue(System.Windows.Shapes.Shape.StrokeThicknessProperty, 1d);
+        ring.SetValue(MarginProperty, new Thickness(Math.Max(0, inset)));
+        var style = new Style(typeof(System.Windows.Controls.Control));
+        style.Setters.Add(new Setter(System.Windows.Controls.Control.TemplateProperty, new ControlTemplate(typeof(System.Windows.Controls.Control)) { VisualTree = ring }));
+        style.Seal(); return style;
     }
     private static void PlaceControl(Canvas canvas, Button button, Point center)
     {

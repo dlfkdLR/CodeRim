@@ -42,7 +42,7 @@ public sealed partial class NativeProviders
                 using var request = new HttpRequestMessage(web ? HttpMethod.Post : HttpMethod.Get, uri);
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", selected);
                 request.Headers.Accept.ParseAdd(web ? "*/*" : "application/json");
-                request.Headers.UserAgent.ParseAdd(web ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/143.0.0.0 Safari/537.36" : "CodeRim/2.1.7");
+                request.Headers.UserAgent.ParseAdd(web ? "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/143.0.0.0 Safari/537.36" : "CodeRim/" + Services.ReleaseUpdates.CurrentVersion);
                 if (web)
                 {
                     request.Content = new StringContent(body ?? "{}", Encoding.UTF8, "application/json");

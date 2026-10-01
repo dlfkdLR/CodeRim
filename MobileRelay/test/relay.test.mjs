@@ -86,6 +86,12 @@ test('stale source, offline transport, waiting priority and hidden session count
   assert.equal(contentState(s, { providerIDs: ['codex'] }, epoch + 400, epoch + 400).providers[0].state, 'stale');
 });
 
+test('partial quota ages into stale like ready quota', () => {
+  const s = snapshot(); s.providers[0].state = 'partial';
+  assert.equal(contentState(s, { providerIDs: ['codex'] }, epoch, epoch).providers[0].state, 'partial');
+  assert.equal(contentState(s, { providerIDs: ['codex'] }, epoch + 400, epoch + 400).providers[0].state, 'stale');
+});
+
 test('APNs payload matches ActivityKit Unix timestamps and remains under 4 KB with Unicode', () => {
   const s = snapshot(); s.providers[0].name = '한'.repeat(32);
   s.providers[0].windows = [1, 2].map(() => ({ name: '한'.repeat(32), remainingPercent: 30, resetsAt: epoch + 500 }));

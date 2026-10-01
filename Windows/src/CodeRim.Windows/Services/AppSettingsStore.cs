@@ -27,6 +27,11 @@ public sealed record AppSettings(
     public bool AttachmentMetadataEnabled { get; init; } = true;
     public bool AnalyticsEnabled { get; init; } = true;
     public bool CostEstimatesEnabled { get; init; } = true;
+    /// <summary>
+    /// 0 for files written before cost estimates defaulted on (2026-09-19 to 09-23
+    /// builds saved an unchosen <c>false</c>); those are turned on once and marked 1.
+    /// </summary>
+    public int CostEstimatesRevision { get; init; }
     public bool ProjectsEnabled { get; init; } = true;
     public bool SessionsEnabled { get; init; } = true;
     public bool ShowUnknownSessions { get; init; }
@@ -62,7 +67,7 @@ public sealed record AppSettings(
         WeekStart.Monday,
         60,
         true,
-        false) { ClaudeIntegration = new(false, null) };
+        false) { ClaudeIntegration = new(false, null), CostEstimatesRevision = 1 };
 }
 
 public sealed class AppSettingsStore
@@ -197,14 +202,16 @@ public sealed class AppSettingsStore
             EnabledProviders = (settings.EnabledProviders ?? ["codex"]).Where(id => ProviderCatalog.Find(id) is not null).Distinct(StringComparer.Ordinal).Take(70).ToArray(),
             Edge = Enum.IsDefined(settings.Edge) ? settings.Edge : NotchEdge.Right,
             RingColor = Enum.IsDefined(settings.RingColor) ? settings.RingColor : RingColorMode.Usage,
-            Accent = settings.Accent == "system" ? "system" : settings.Accent is { Length: 7 } accent && accent[0] == '#' && uint.TryParse(accent.AsSpan(1), System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out _) ? accent : "#00FF88",
+            Accent = settings.Accent == "system" ? "system" : settings.Accent is { Length: 7 } accent && accent[0] == '#' && accent.Skip(1).All(char.IsAsciiHexDigit) ? accent : "#00FF88",
             Gradient = settings.Gradient is "Aurora" or "Ocean" or "Sunset" or "Spectrum" ? settings.Gradient : "Aurora",
             Visibility = Enum.IsDefined(settings.Visibility) ? settings.Visibility : NotchVisibility.OnHover,
             LastVisibleNotchMode = settings.LastVisibleNotchMode == NotchVisibility.AlwaysShow ? NotchVisibility.AlwaysShow : NotchVisibility.OnHover,
             FinishedSound = SessionChime.Names.Contains(settings.FinishedSound, StringComparer.Ordinal) ? settings.FinishedSound : "Asterisk",
             BlockedSound = SessionChime.Names.Contains(settings.BlockedSound, StringComparer.Ordinal) ? settings.BlockedSound : "Exclamation",
             Scale = settings.Scale is >= 0.8 and <= 1.25 ? settings.Scale : 1,
-            Offset = double.IsFinite(settings.Offset) ? settings.Offset : 0
+            Offset = double.IsFinite(settings.Offset) ? settings.Offset : 0,
+            CostEstimatesEnabled = settings.CostEstimatesRevision < 1 || settings.CostEstimatesEnabled,
+            CostEstimatesRevision = 1
         };
     }
 }

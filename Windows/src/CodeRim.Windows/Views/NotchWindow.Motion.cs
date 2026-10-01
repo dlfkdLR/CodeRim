@@ -54,12 +54,32 @@ internal sealed partial class NotchWindow
         var center = Vertical ? new Point(bodyDepth / 2, bodyStart + bodyLength / 2) : new Point(bodyStart + bodyLength / 2, bodyDepth / 2);
         if (hovered is not null && buttons.TryGetValue(hovered, out var button) && button.IsLoaded)
             center = button.TranslatePoint(new Point(button.ActualWidth / 2, NotchMetrics.Ring / 2), this);
-        Motion.To(this, PopupXProperty, center.X, NotchMotion.Glide, Motion.Spring(0.86), enabled: animate && Animates);
-        Motion.To(this, PopupYProperty, center.Y, NotchMotion.Glide, Motion.Spring(0.86), enabled: animate && Animates);
+        // SwiftUI's spring(response: 0.5) settles over about twice its response;
+        // every other notch spring here uses the same 2x duration.
+        Motion.To(this, PopupXProperty, center.X, NotchMotion.Glide * 2, Motion.Spring(0.86), enabled: animate && Animates);
+        Motion.To(this, PopupYProperty, center.Y, NotchMotion.Glide * 2, Motion.Spring(0.86), enabled: animate && Animates);
+    }
+    /// <summary>Resize the open card from its previous provider's size and crossfade only the contents.</summary>
+    private void GlideCard(Size previous)
+    {
+        if (!Animates || popupFrame.Child is not FrameworkElement card || previous.Width <= 0 || previous.Height <= 0) return;
+        Motion.Enter(card, NotchMotion.Crossfade);
+        popupFrame.ClearValue(WidthProperty); popupFrame.ClearValue(HeightProperty);
+        popupFrame.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+        var next = popupFrame.DesiredSize;
+        if (next.Width <= 0 || next.Height <= 0) return;
+        var revision = popupRevision;
+        popupFrame.ClipToBounds = true;
+        void Release() { if (revision != popupRevision) return; popupFrame.ClearValue(WidthProperty); popupFrame.ClearValue(HeightProperty); popupFrame.ClipToBounds = false; }
+        popupFrame.Width = previous.Width; popupFrame.Height = previous.Height;
+        Motion.To(popupFrame, WidthProperty, next.Width, NotchMotion.Glide * 2, Motion.Spring(0.86));
+        Motion.To(popupFrame, HeightProperty, next.Height, NotchMotion.Glide * 2, Motion.Spring(0.86), completed: Release);
     }
     private void RevealPopup(bool transition)
     {
         popupRevision++; Motion.Stop(popupFrame); popupFrame.Opacity = 1; popupFrame.IsHitTestVisible = true;
+        // An interrupted glide must not leave the frame pinned to an in-between size.
+        popupFrame.ClearValue(WidthProperty); popupFrame.ClearValue(HeightProperty); popupFrame.ClipToBounds = false;
         popup.IsOpen = true;
         if (transition && Animates) Motion.Enter(popupFrame);
     }

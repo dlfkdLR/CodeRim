@@ -70,10 +70,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
         this.settings = settings; Synthetic = synthetic; connections = providerConnections ?? new ProviderConnections(vault);
         ProfileHistory = profileHistory ?? new ProfileUsageStore(settings, synthetic || providerConnections is not null); ProfileHistory.Changed += Changed;
         repository = usageRepository ?? new UsageRepository(Path.Combine(CompanionFile.DataDirectory, "usage.sqlite"));
-        var keyPath = Path.Combine(CompanionFile.DataDirectory, "project-key.bin");
-        if (!File.Exists(keyPath)) File.WriteAllBytes(keyPath, System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
-        projectKey = File.ReadAllBytes(keyPath);
-        if (projectKey.Length != 32) throw new InvalidDataException("Project identity key is invalid.");
+        projectKey = ProjectKey(Path.Combine(CompanionFile.DataDirectory, "project-key.bin"));
         foreach (var id in new[] { "codex", "claude" })
         {
             scanners[id] = new UsageScanner(id, projectKey: projectKey);
@@ -111,6 +108,16 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
         Claude.Changed += ClaudeChanged;
         settings.SettingsChanged += SessionTokenSettingsChanged;
         settings.SettingsChanged += NativeAccountsSettingsChanged;
+    }
+    // Publish the key atomically: a crash mid-write must not leave a short file that fails every later launch.
+    private static byte[] ProjectKey(string path)
+    {
+        if (File.Exists(path) && File.ReadAllBytes(path) is { Length: 32 } existing) return existing;
+        var key = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
+        var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+        try { File.WriteAllBytes(temporary, key); File.Move(temporary, path, overwrite: true); }
+        finally { File.Delete(temporary); }
+        return key;
     }
     public void Invalidate(IReadOnlyCollection<string>? paths)
     {

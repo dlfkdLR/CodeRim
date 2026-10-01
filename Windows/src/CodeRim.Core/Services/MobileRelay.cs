@@ -38,7 +38,9 @@ public static class MobileSnapshotBuilder
     private static string Short(string value, int maximum) => string.Concat(value.EnumerateRunes().Take(maximum).Select(r => r.ToString()));
     private static string State(ReadingState state) => state switch {
         ReadingState.Ready => "ready", ReadingState.Stale => "stale", ReadingState.Loading => "loading",
-        ReadingState.NeedsAuth => "needsAuth", ReadingState.Unsupported => "unsupported", _ => "unavailable" };
+        ReadingState.NeedsAuth => "needsAuth", ReadingState.Unsupported => "unsupported",
+        // The relay and the Mac publisher use these names; collapsing them hid usable partial data on iPhone.
+        ReadingState.Partial => "partial", ReadingState.Disabled => "disabled", _ => "unavailable" };
 }
 
 /// Internet HTTPS transport; no LAN discovery, desktop listener or provider credential transfer.

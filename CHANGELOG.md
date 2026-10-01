@@ -2,8 +2,16 @@
 
 ## Unreleased
 
-- Stop a second, SwiftUI-owned "CodeRim Settings" window from reopening on its own beside the real Settings window.
+- Stop a second, SwiftUI-owned "CodeRim Settings" window from reopening on its own beside the real Settings window; it also kept redrawing the hidden Usage chart, which was most of CodeRim's idle CPU.
 - Stop the notch's cursor poll, mouse monitors and layout subscriptions while it is turned off, and keep turning it back on from stacking another set.
+- Name Claude Code sessions in the notch by their conversation title (`/rename` or Claude's generated title) on macOS and Windows, as Codex sessions are.
+- Clicking a Claude Code session brings its own tab forward: Terminal and iTerm2 by tty, Ghostty 1.3+ by working directory and title; other apps are raised. The notch no longer relies on cooperative activation, which macOS ignored from the background.
+- Adding a provider connects it: Claude turns its integration on and starts sign-in, other macOS providers open their sign-in, and Windows opens the new provider's connection settings.
+- Add Account for Claude runs `claude auth login` in the browser when nothing is signed in yet, on macOS and Windows, instead of repeating the sign-in hint.
+- After a Claude account switch, say when Claude Desktop is still signed in to another account (it keeps its own sign-in) and offer to open it on macOS.
+- Windows: the notch's provider card glides and resizes between providers with only its contents crossfading, matching macOS; the settings control no longer shows a click-triggered focus ring larger than its rail; cost estimates turn back on for settings saved by 2026-09-19 to 09-23 builds.
+- Windows: keep a corrupted `project-key.bin` from blocking launch, reject accent colours the ring cannot draw, find npm-installed Codex, escape typographic quotes in PowerShell helper paths, send the real app version, probe live Claude transcripts instead of walking every transcript every 2 seconds, and use literal paths in the install scripts.
+- iPhone: show quota rings for `partial` readings and "Limits turned off" for `disabled`; Windows now sends those states instead of "unavailable", and the relay ages `partial` readings into `stale` like `ready` ones.
 
 ## 2.1.13 — Usage, analytics, companion, and account reliability
 

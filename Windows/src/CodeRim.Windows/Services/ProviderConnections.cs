@@ -325,9 +325,12 @@ internal sealed partial class ProviderConnections : IDisposable
     public static string? ResolveCodex()
     {
         if (ResolveExecutable("codex.exe") is { } path) return path;
-        var root = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenAI", "Codex", "bin");
-        if (!Directory.Exists(root)) return null;
-        return Directory.EnumerateFiles(root, "codex.exe", new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = 3,
-            IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint }).OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
+        static string? Newest(string root, int depth) => Directory.Exists(root)
+            ? Directory.EnumerateFiles(root, "codex.exe", new EnumerationOptions { RecurseSubdirectories = true, MaxRecursionDepth = depth,
+                IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint }).OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault()
+            : null;
+        // `npm i -g @openai/codex` puts only codex.cmd on PATH; the native binary is vendored inside the package.
+        return Newest(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "OpenAI", "Codex", "bin"), 3)
+            ?? Newest(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "npm", "node_modules", "@openai", "codex"), 6);
     }
 }
