@@ -382,8 +382,15 @@ internal sealed partial class NotchWindow : Window
     {
         if (accountMenu && popup.IsOpen || !buttons.ContainsKey(id)) return;
         var transition = !popup.IsOpen || hovered != id;
+        // As on macOS the card is one object: it enters once, then glides and
+        // resizes between cells while only its contents crossfade.
+        var entering = !popup.IsOpen || !popupFrame.IsHitTestVisible;
+        var switching = !entering && hovered is not null && hovered != id;
+        var previous = new Size(popupFrame.ActualWidth, popupFrame.ActualHeight);
         if (transition) sessionExpansion.Expanded = false;
-        hoverClear.Stop(); popup.StaysOpen = true; hovered = id; RefreshPopup(); RevealPopup(transition); foldTimer.Stop();
+        hoverClear.Stop(); popup.StaysOpen = true; hovered = id; RefreshPopup(); RevealPopup(entering);
+        if (switching) GlideCard(previous);
+        foldTimer.Stop();
     }
     internal void DismissProviderCard()
     {

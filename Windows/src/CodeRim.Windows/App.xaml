@@ -128,10 +128,12 @@
     <Grid>
      <Ellipse Fill="{TemplateBinding Background}"/>
      <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
-     <Ellipse x:Name="Focus" Stroke="Transparent" StrokeThickness="1" Margin="4" IsHitTestVisible="False"/>
     </Grid>
+    <!-- No IsKeyboardFocused ring: a mouse click also sets it, which left a grey
+         circle the size of the hit region around the gear. NotchWindow.Controls
+         gives the button a FocusVisualStyle sized to the rail instead, which WPF
+         shows only for keyboard navigation. -->
     <ControlTemplate.Triggers>
-     <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Focus" Property="Stroke" Value="#808080"/></Trigger>
      <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
     </ControlTemplate.Triggers>
    </ControlTemplate></Setter.Value></Setter>

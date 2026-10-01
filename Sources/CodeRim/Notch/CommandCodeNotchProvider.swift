@@ -29,7 +29,8 @@ final class CommandCodeNotchProvider: NotchProvider {
     }
 
     var signInRoute: SignInRoute {
-        .guidance("Sign in with the Command Code app — it writes ~/.commandcode/auth.json and the notch reads it.")
+        .guided(.init(name: "Command Code", action: .browser(URL(string: "https://commandcode.ai")!),
+            note: "Sign in with Command Code. It writes ~/.commandcode/auth.json and CodeRim connects on its own."))
     }
 
     func account() -> ProviderAccount? {

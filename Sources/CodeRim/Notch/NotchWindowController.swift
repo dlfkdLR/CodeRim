@@ -16,6 +16,12 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     var panelFrameForTesting: CGRect? { panel?.frame }
     var panelAlphaForTesting: CGFloat { panel?.alphaValue ?? 0 }
 
+    /// What `show()` installs and `stop()` removes, so a test can see a
+    /// hide/show cycle leave exactly one set behind.
+    var liveObserverCountForTesting: (monitors: Int, subscriptions: Int, cursorPoll: Bool) {
+        (mouseMonitors.count, cancellables.count, cursorTimer?.isValid == true)
+    }
+
     /// Hooked up by the app delegate; drives the menu's "Refresh now".
     var onRefresh: (() -> Void)?
     /// One "Sign in to …" item per provider that needs a browser session.
@@ -77,7 +83,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     /// what keeps the two apart — without it, the *next* click on the notch,
     /// minutes later and about something else, would still be raising a
     /// terminal window.
-    private var pendingFocus: (pid: pid_t, until: Date)?
+    private var pendingFocus: (session: AgentSession, until: Date)?
     /// When the current peek's five seconds are up.
     ///
     /// The hover fold has to be told to leave it alone until then. Without
@@ -162,6 +168,10 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     }
 
     func show() {
+        // Showing again after `NotchController.setVisible(false)` must not
+        // stack a second cursor poll, mouse monitors and model subscriptions
+        // on top of the first set.
+        stop()
         relocate()
         startWatchingCursor()
         startClock()
@@ -208,6 +218,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         cursorTimer?.invalidate()
         cursorTimer = nil
         clockTimer?.invalidate()
+        clockTimer = nil
         mouseMonitors.forEach(NSEvent.removeMonitor)
         mouseMonitors.removeAll()
     }
@@ -779,7 +790,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     ///
     /// `pid` is the agent's process, used only if the peek is clicked; nil
     /// leaves the click doing what it ordinarily does.
-    func peek(for duration: TimeInterval, focusing pid: pid_t?) {
+    func peek(for duration: TimeInterval, focusing session: AgentSession?) {
         // Hidden is a standing choice that the notch is not to be on screen.
         // Something finishing is not grounds to overrule it — the chime still
         // sounds, which is the part that works with nothing visible.
@@ -787,10 +798,10 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             NotchLog.usage.debug("peek skipped: notch hidden")
             return
         }
-        NotchLog.usage.debug("peek for \(duration, privacy: .public)s, pid \(pid ?? -1, privacy: .public)")
+        NotchLog.usage.debug("peek for \(duration, privacy: .public)s, pid \(session?.processID ?? -1, privacy: .public)")
 
-        if let pid {
-            pendingFocus = (pid: pid, until: Date().addingTimeInterval(duration + Self.focusGrace))
+        if let session, SessionFocus.target(for: session) != nil {
+            pendingFocus = (session: session, until: Date().addingTimeInterval(duration + Self.focusGrace))
         }
         peekUntil = Date().addingTimeInterval(duration)
 
@@ -834,7 +845,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             return false
         }
         pendingFocus = nil
-        return SessionFocus.activateApp(owning: pending.pid)
+        return SessionFocus.activate(pending.session)
     }
 
     /// Tear down a controller whose display is gone: hide first so no panel

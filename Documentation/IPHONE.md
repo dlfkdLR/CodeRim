@@ -2,104 +2,90 @@
 
 **English** · [한국어](IPHONE.ko.md)
 
-This is unreleased source, separate from the public macOS DMG/Windows MSI. iOS 17.2+ uses a native settings app and WidgetKit Live Activity; phones without Dynamic Island use the lock screen. Apple provisioning, a real HTTPS relay, and APNs credentials are required. A simulator or local relay test does not establish real sign-in/push/Island delivery.
+This is unreleased source, separate from the public macOS DMG/Windows MSI. iOS 17.2+ uses a native settings app and a WidgetKit Live Activity; phones without Dynamic Island use the Lock Screen. A computer connects by showing a QR code that the iPhone scans; there is no sign-in. One relay serves every CodeRim user and runs on the Cloudflare Workers **Free** plan, which can never bill. A simulator or local relay test does not establish real APNs or Island delivery.
 
 ## Components and provisioning
 
-`iOS/CodeRimMobile.xcodeproj` includes app, extension, unit tests, and UI tests; use scheme `CodeRimMobile`. Select the same Apple development team for app/extension, register unique bundle IDs, and enable Sign in with Apple and Push Notifications. `NSSupportsLiveActivities` is set. `CODERIM_RELAY_URL` can supply the HTTPS origin; otherwise enter it before login. Regenerate the project/shared scheme through `iOS/generate_project.py` after source configuration changes.
+`iOS/CodeRimMobile.xcodeproj` includes the app, the Live Activity extension, unit tests, and UI tests; use scheme `CodeRimMobile`. Select the same Apple development team for app and extension, register unique bundle IDs, and enable Push Notifications. `NSSupportsLiveActivities` and `NSCameraUsageDescription` are set, and the app handles `coderim://pair` links, so the system Camera app can also open a pairing code. Regenerate the project and shared scheme through `iOS/generate_project.py` after source configuration changes.
 
 ```sh
-xcodebuild -project iOS/CodeRimMobile.xcodeproj -scheme CodeRimMobile   -sdk iphonesimulator -destination 'generic/platform=iOS Simulator'   -derivedDataPath /tmp/coderim-iphone-derived CODE_SIGN_IDENTITY=- build
+xcodebuild -project iOS/CodeRimMobile.xcodeproj -scheme CodeRimMobile -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/coderim-iphone-derived CODE_SIGN_IDENTITY=- build
 ```
 
-Use an installed simulator destination for `test`. Keep ad-hoc signing for Keychain/WidgetKit checks; `CODE_SIGNING_ALLOWED=NO` is not equivalent. The app does not add arbitrary background polling/audio; after closure, the relay updates via APNs. Development signing uses sandbox APNs, TestFlight/App Store uses production.
+Use an installed simulator destination for `test` and keep ad-hoc signing (`CODE_SIGN_IDENTITY=-`) for Keychain and WidgetKit checks; `CODE_SIGNING_ALLOWED=NO` is not equivalent and makes Keychain access fail. The Simulator has no camera, so the scanner offers the Camera app and a paste field instead. Development signing uses sandbox APNs; TestFlight and App Store use production.
 
-## Relay operations
+The relay address every computer uses is `CodeRimRelayURL` in `Config/Info.plist` (macOS) and `MobileConnectionStore.DefaultRelay` (Windows). Both point to `https://coderim-relay.pages.dev`. Either app can override it in its iPhone settings for self-hosting.
 
-`MobileRelay` is a single Node.js 24 process using built-in modules and persistent SQLite. It binds loopback HTTP behind a trusted HTTPS reverse proxy. Use a permanent database disk and one service owner; automatic multi-instance/horizontal scaling is not implemented. Do not put Apple/APNs keys or bearer tokens in Git. Clients reject HTTP, redirects, and origins containing paths.
+## Relay deployment (free only)
 
-| Environment | Contract |
-| --- | --- |
-| `APPLE_CLIENT_ID` | Required app audience/bundle ID; sample app uses `dev.coderim.mobile` |
-| `APPLE_TEAM_ID` | Apple development team |
-| `APNS_KEY_ID` | APNs key identifier |
-| `APNS_KEY_PATH` | Absolute `.p8` path outside repository |
-| `APNS_ENVIRONMENT` | `sandbox` or `production` matching signing |
-| `RELAY_DB_PATH` | Persistent SQLite absolute path |
-| `PORT` | Default `8787` |
-| `TRUST_PROXY` | `loopback` only with the validated proxy below |
-
-Set all required variables before startup; the example bundle ID must match your registered app. The key must exist outside Git, and the database parent directory must belong to the service owner. Enable loopback proxy trust only with the header-overwriting proxy below.
-
-```sh
-export APPLE_CLIENT_ID="dev.coderim.mobile"
-export APPLE_TEAM_ID="YOUR_TEAM_ID"
-export APNS_KEY_ID="YOUR_KEY_ID"
-export APNS_KEY_PATH="/absolute/private/AuthKey_YOUR_KEY_ID.p8"
-export APNS_ENVIRONMENT="sandbox"
-export RELAY_DB_PATH="$HOME/.local/share/coderim-relay/relay.sqlite"
-export PORT="8787"
-export TRUST_PROXY="loopback"
-mkdir -p "$HOME/.local/share/coderim-relay"
-```
+`MobileRelay` is a Cloudflare Worker with one SQLite-backed Durable Object that holds every account, fronted by a Pages project in `MobileRelay/pages/`. The Pages front exists because some Korean networks block every `*.workers.dev` address (they resolve to a government warning page) while `*.pages.dev` works; `workers_dev` is therefore off. Deploy it on the **Workers Free plan only**. On that plan, using up a daily allowance makes requests fail until 00:00 UTC; nothing is billed. Never add a payment method or subscribe the account to Workers Paid: that would turn the same limits into charges.
 
 ```sh
 cd MobileRelay
-npm start
-curl http://127.0.0.1:8787/health
+npx wrangler login
+npx wrangler secret put APPLE_TEAM_ID       # Apple developer team ID
+npx wrangler secret put APNS_KEY_ID         # APNs auth key ID
+npx wrangler secret put APNS_PRIVATE_KEY    # contents of AuthKey_….p8
+npx wrangler deploy
+cd pages && npx wrangler pages project create coderim-relay --production-branch main
+npx wrangler pages deploy ./public --project-name coderim-relay --branch main
+curl https://coderim-relay.pages.dev/health
 npm test
 ```
 
-```nginx
-location / {
-    client_max_body_size 256k;
-    proxy_pass http://127.0.0.1:8787;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For "";
-    proxy_read_timeout 25s;
-}
-```
+Without the three secrets the relay still starts: it pairs computers and serves usage to the iPhone app while it is open (`/health` reports `"push": false`), and only background Live Activity updates and the automatic Island start are unavailable. Add the secrets and redeploy to enable them. `wrangler.toml` sets `APPLE_BUNDLE_ID` (the app's bundle ID, which is also the APNs topic prefix) and `APNS_ENVIRONMENT` (`production`, or `sandbox` for development-signed builds). Keep the `.p8` key out of Git; `.dev.vars` is ignored for local `wrangler dev --local-protocol https` runs. Cloudflare terminates TLS and supplies the client IP in `CF-Connecting-IP`, which a caller cannot set through the edge.
 
-With `TRUST_PROXY=loopback`, accept only a validated single X-Real-IP from a loopback peer. The proxy must overwrite caller-supplied headers; otherwise clients can forge rate-limit identity. Without trusted proxy configuration, proxied users share the loopback rate limit. Service/proxy logs must exclude bodies and Authorization headers. SQLite is owner-only; restart restores sessions, devices, push registrations, and last snapshots. Node's `node:sqlite` warning is a runtime characteristic.
+### Staying inside the free allowance
 
-## Authentication and data flow
+The Free plan allows about 100,000 requests and 100,000 row writes per day for the Worker and its Durable Object. The relay counts both and degrades on purpose before Cloudflare does:
 
-1. iPhone requests a one-use 5-minute challenge, signs in with Apple, and sends the identity token bound to the server nonce. Validate signature, issuer, audience, times, subject, and JWK identity. Refresh/coalesce/rate-limit key rotation.
-2. The mobile session can create a one-use 5-minute 8-character pairing code. A desktop claims it with platform/name and receives a device-bound publishing token. Mobile tokens last 30 days, desktop tokens 90 days; read/preferences and publish permissions are separate. Up to 16 computers belong to one account.
-3. Desktop publishes an allowlisted per-device snapshot every 15 seconds while awake/running. Relay updates changed content at least 15 seconds apart and unchanged content at 60 seconds, subject to APNs/iOS throttling. No heartbeat for 90 seconds marks the device offline.
-4. Store SHA-256 bearer-token hashes on the server. Device tokens use Apple Keychain or Windows DPAPI and are tied to relay origin. APNs activity tokens, latest usage, Apple subject ID, devices, and selection state are stored; email is not. TLS protects transit but the relay can read shared data.
-5. Default payload includes provider names, at most the selected quota windows, reading time, selected-device Today tokens, and task states/counts. Titles are opt-in, at most 60 characters. Never send vendor credentials, full paths, prompts, transcript/attachment bytes, or session IDs. Unknown values remain unavailable; devices are not summed.
+| Daily use | Relay behavior |
+| --- | --- |
+| Below 70% | Normal. Computers send on change plus a 5-minute heartbeat. |
+| 70% and above | New accounts and pairings get `503 server_busy`. Responses, the Island content state, and desktop settings carry a notice; each running Island gets one alert per day. Computers are told to send heartbeats every 10 minutes. |
+| 90% and above | As above, with 30-minute heartbeats. |
 
-HTTP requests allow 256 KiB and Swift responses 512 KiB for up to 100 providers/64 sessions. The serialized APNs JSON envelope, including content state, is bounded to 3,800 UTF-8 bytes below the 4 KB limit. Use Unix seconds in ActivityKit wire dates. Selection changes bypass ordinary throttling but same-session sends/navigation serialize; tokens and revisions reject late responses.
+Heartbeats with unchanged content update only memory, never storage. A computer counts as online for 11 minutes after its last post. In practice this supports roughly 150–300 active computers per day; past that, the relay pauses until 00:00 UTC.
 
-## API and focus protocol
+## Pairing and data flow
+
+1. The computer calls `POST /v1/pairing/start` with its platform and name, and shows `coderim://pair?r=<relay origin>&i=<id>&s=<secret>` as a QR code. The 256-bit secret is stored only as a hash and expires after five minutes.
+2. On its first scan, the iPhone creates an anonymous account with `POST /v1/accounts`. The account has no Apple ID, email, or name: only a bearer token kept in the iPhone Keychain. The iPhone then claims the code with `POST /v1/pairing/claim`.
+3. The computer holds `POST /v1/pairing/poll` open for up to 20 seconds at a time and receives its own publishing token as soon as the code is claimed. Each code works once. Up to 16 computers belong to one iPhone.
+4. Tokens last a year and renew whenever they are used. The relay stores SHA-256 token hashes. Desktop tokens use Apple Keychain or Windows DPAPI and are tied to the relay origin. TLS protects transit, but the relay can read shared data.
+5. Computers build an allowlisted snapshot every 15 seconds and send it only when it changed, or when the heartbeat the relay asked for is due. The default payload includes provider names, at most two quota windows, reading time, Today tokens, and task states and counts. Titles are opt-in and capped at 60 characters. Vendor credentials, full paths, prompts, transcript or attachment bytes, and session IDs are never sent.
+
+## Dynamic Island
+
+The iPhone registers an ActivityKit push-to-start token (`POST /v1/push-to-start`). When a connected computer reports a working or waiting task and that iPhone has no Live Activity, the relay starts one with an APNs `start` event (`attributes-type: CodeRimActivityAttributes`, alert, priority 10), at most once every five minutes. iOS gives the app background time to register the new Activity's update token (`POST /v1/activities`). The relay then pushes updates on change, at most every 15 seconds. It ends the Activity two minutes after the last task stops, and iOS ends any Activity after eight hours. **Show now** in the app still starts one by hand.
+
+Live Activity updates use priority 5, except for waiting-for-input and busy-relay alerts (priority 10). The serialized APNs envelope is bounded to 3,800 UTF-8 bytes. ActivityKit wire dates are Unix seconds.
+
+## API
 
 All JSON responses use `Cache-Control: no-store`. Non-public routes require `Authorization: Bearer …`.
 
 | Method | Path | Permission / operation |
 | --- | --- | --- |
-| GET | `/health` | Public; process liveness |
-| POST | `/v1/auth/challenge` | Public; issue nonce |
-| POST | `/v1/auth/apple` | Public; verify challengeID/identityToken, issue mobile token |
-| POST | `/v1/pairing` | Mobile; issue code |
-| POST | `/v1/pairing/claim` | Public; code/platform/name -> desktop token/deviceID |
-| POST | `/v1/snapshot` | Desktop; sanitized MobileSnapshot |
-| GET | `/v1/snapshot` | Mobile; state/preferences/providers/devices/focus |
+| GET | `/health` | Public; liveness and budget level |
+| POST | `/v1/accounts` | Public; anonymous iPhone account (refused when busy) |
+| POST | `/v1/pairing/start` | Public; platform/name → id/secret/expiresAt (refused when busy) |
+| POST | `/v1/pairing/poll` | Public; id/secret → pending, or desktop token/deviceID once |
+| POST | `/v1/pairing/claim` | Mobile; id/secret → deviceID/name/platform |
+| POST | `/v1/snapshot` | Desktop; sanitized MobileSnapshot → ok/interval/notice |
+| GET | `/v1/snapshot` | Mobile; state/preferences/providers/devices/notice |
 | POST | `/v1/view` | Mobile; axis/direction/expectedRevision and optional providerID/deviceID/groupID/pickerVersion |
 | DELETE | `/v1/devices/:id` | Mobile; remove only own device |
 | PUT | `/v1/preferences` | Mobile; providerIDs, maximum 100; empty means all |
-| POST | `/v1/activities` | Mobile; activityID/pushToken, rotation |
-| DELETE | `/v1/activities` | Mobile; stop current phone activity |
-| DELETE | `/v1/session` | Current device; logout |
-| DELETE | `/v1/account` | Mobile; account/data deletion |
+| POST/DELETE | `/v1/activities` | Mobile; register or stop the current Live Activity |
+| POST/DELETE | `/v1/push-to-start` | Mobile; register or remove the push-to-start token |
+| DELETE | `/v1/session` | Current device; disconnect |
+| DELETE | `/v1/account` | Mobile; delete the account, its computers, and data |
 
-Focus belongs to each mobile session and computer. `/v1/view` direct provider selection is device-bound and requires `expectedRevision`. A stale selection returns latest focus; the phone must ask again rather than report success. Excluded/missing/other-device providers cannot be selected. An offline selected device stays selected. Deleted devices fall back to first online, otherwise registered order; a missing provider falls back to the first available one.
-
-`pickerVersion: 2` opts into `provider-picker`, `provider-all`, `provider-group`, `provider-back`, and `provider-pin`. `provider-page` and next-provider/device remain compatible. Quick access holds at most three pinned/recent providers, and All recursively offers at most three name ranges/options per ActivityKit state. A 100-provider same-initial catalog takes at most four group selections and one service selection after All. Full catalog/pins/recency remain on the relay. Selection/cancel/desktop change closes the picker; routine usage updates preserve it, while catalog/inclusion changes invalidate its revision immediately. Back moves one level then Quick access. ActivityKit buttons use supported LiveActivityIntent; custom swipe is not an app-owned gesture.
+Focus belongs to each iPhone and computer. Direct provider selection through `/v1/view` is device-bound and requires `expectedRevision`. A stale selection returns the latest focus, and the phone asks again instead of reporting success. `pickerVersion: 2` provides Quick access (at most three pinned or recent providers) and All (at most three name ranges per level); a 100-provider catalog takes at most four range choices. Selection, cancel, or a desktop change closes the picker. Catalog or inclusion changes invalidate its revision immediately.
 
 ## Deletion and verification
 
-Logout/stop/delete schedules APNs end retries. Account deletion removes sessions and snapshots, but the delivery token can remain until success/permanent error or the 8-hour activity maximum. Apple server-to-server revocation and refresh-token exchange are not implemented; app launch checks Apple credential state and server sessions expire or revoke on explicit logout.
+Disconnecting the iPhone deletes its account, computers, and stored snapshots, and schedules APNs end retries. A delivery token can remain until APNs succeeds, reports a permanent error, or the 8-hour Activity limit passes.
 
-DEBUG UI fixtures (`--ui-settings`, `--ui-empty-settings`, `--ui-no-services`, `--ui-dark`, `--ui-large-text`) use memory/fake relay and disable real account/activity actions; release excludes these paths. Test authentication, device/session isolation, persistent restore, JSON bounds/UTF-8, stale revisions, inclusion/picker invalidation, APNs errors/retries/lifetime, and multi-device state. Real Apple login, remote HTTPS availability, APNs delivery ordering, battery/latency, and physical Island interaction remain separate checks. [Privacy](PRIVACY.md).
+`npm test` covers QR pairing, anonymous accounts, isolation between phones, heartbeats that write nothing, the budget levels and notices, push-to-start and idle end, HTTP limits, the APNs provider token, and the existing focus and picker contracts. DEBUG UI fixtures (`--ui-settings`, `--ui-empty-settings`, `--ui-no-services`, `--ui-dark`, `--ui-large-text`) use a memory relay and disable real account and Activity actions. Real APNs delivery from the deployed Worker, camera scanning on a device, battery and latency, and physical Island interaction remain separate checks. [Privacy](PRIVACY.md).

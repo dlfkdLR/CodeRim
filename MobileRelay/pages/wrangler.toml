@@ -1,0 +1,11 @@
+# Pages front for the relay. Free plan only: it cannot bill; when a daily allowance is
+# used up, requests fail until 00:00 UTC. Never add a paid plan to this account.
+name = "coderim-relay"
+pages_build_output_dir = "./public"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[durable_objects.bindings]]
+name = "RELAY"
+class_name = "RelayObject"
+script_name = "coderim-relay"

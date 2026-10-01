@@ -12,6 +12,16 @@ final class MobileConnectionStore: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var lastSentAt: Date?
     @Published private(set) var serverAddress = ""
+    /// The QR code the iPhone scans, while a pairing offer is open.
+    @Published private(set) var pairingLink: MobilePairingLink?
+    @Published private(set) var pairingExpiresAt: Date?
+    /// The relay's own notice while it is rationing its free daily allowance.
+    @Published private(set) var serverNotice: String?
+    /// The relay every CodeRim connects to unless overridden for self-hosting.
+    @Published var relayAddress = UserDefaults.standard.string(forKey: "mobileRelayURL")
+        ?? Bundle.main.object(forInfoDictionaryKey: "CodeRimRelayURL") as? String ?? "" {
+        didSet { UserDefaults.standard.set(relayAddress, forKey: "mobileRelayURL") }
+    }
     @Published var deviceName = UserDefaults.standard.string(forKey: "mobileDeviceName") ?? "Mac" {
         didSet { UserDefaults.standard.set(deviceName, forKey: "mobileDeviceName") }
     }
@@ -24,6 +34,9 @@ final class MobileConnectionStore: ObservableObject {
     private var loop: Task<Void, Never>?
     private var generation = UUID()
     private var monitors: [String: any AgentActivityMonitor] = [:]
+    private var pairingTask: Task<Void, Never>?
+    private var lastSent: (body: MobileSnapshot, at: Date)?
+    private var heartbeat: TimeInterval = 300
 
     private init() {
         shareTaskTitles = UserDefaults.standard.bool(forKey: "mobileShareTaskTitles")
@@ -41,25 +54,61 @@ final class MobileConnectionStore: ObservableObject {
 
     func receive(_ snapshot: CompanionSnapshot) { latestSnapshot = snapshot }
 
-    func pair(server: String, code: String) async {
-        guard !isBusy, !isConnected else { return }
-        isBusy = true; errorMessage = nil
-        defer { isBusy = false }
+    /// Opens a five-minute pairing offer and waits for the iPhone to scan it.
+    func startPairing() {
+        guard !isBusy, !isConnected, pairingTask == nil else { return }
+        errorMessage = nil
+        pairingTask = Task { [weak self] in
+            await self?.runPairing()
+            self?.pairingTask = nil
+        }
+    }
+
+    func cancelPairing() {
+        pairingTask?.cancel(); pairingTask = nil
+        pairingLink = nil; pairingExpiresAt = nil
+        if !isConnected { status = "Not connected" }
+    }
+
+    private func runPairing() async {
         do {
-            let endpoint = try MobileRelayClient.validatedEndpoint(server)
+            let endpoint = try MobileRelayClient.validatedEndpoint(relayAddress)
             let client = try MobileRelayClient(endpoint: endpoint)
-            let normalized = code.uppercased().filter { !$0.isWhitespace && $0 != "-" }
-            guard normalized.count == 8 else { status = "Enter the eight-character code from your iPhone."; return }
-            let token: MobileSessionToken = try await client.send("POST", "/v1/pairing/claim", body: MobilePairClaim(code: normalized, platform: "macOS", name: String(deviceName.prefix(24))))
-            let saved = MobileCredential(endpoint: endpoint, session: token)
-            do { try await MobileCredentialStore.shared.save(saved) }
-            catch {
-                let _: MobileOK? = try? await client.send("DELETE", "/v1/session", token: token.token, body: MobileEmpty())
-                throw error
+            let offer: MobilePairingStart = try await client.send("POST", "/v1/pairing/start",
+                body: MobileDesktopLabel(platform: "macOS", name: String(deviceName.prefix(24))))
+            pairingLink = MobilePairingLink(relay: endpoint, id: offer.id, secret: offer.secret)
+            pairingExpiresAt = Date(timeIntervalSince1970: offer.expiresAt)
+            status = "Scan the QR code with the CodeRim iPhone app"
+            let request = MobilePairingRequest(id: offer.id, secret: offer.secret)
+            // The relay holds each poll until the iPhone scans or about 20 seconds pass.
+            while !Task.isCancelled, Date().timeIntervalSince1970 < offer.expiresAt {
+                let result: MobilePairingPoll
+                do { result = try await client.send("POST", "/v1/pairing/poll", body: request) }
+                catch MobileRelayError.rejected(401) { break }
+                catch {
+                    if Task.isCancelled { return }
+                    try? await Task.sleep(for: .seconds(3)); continue
+                }
+                guard let token = result.token, let expiresAt = result.expiresAt else { continue }
+                let saved = MobileCredential(endpoint: endpoint, session: MobileSessionToken(token: token, expiresAt: expiresAt))
+                do { try await MobileCredentialStore.shared.save(saved) }
+                catch {
+                    let _: MobileOK? = try? await client.send("DELETE", "/v1/session", token: token, body: MobileEmpty())
+                    throw error
+                }
+                UserDefaults.standard.set(true, forKey: "mobileRelayPaired")
+                pairingLink = nil; pairingExpiresAt = nil
+                try activate(saved)
+                return
             }
-            UserDefaults.standard.set(true, forKey: "mobileRelayPaired")
-            try activate(saved)
-        } catch { errorMessage = error.localizedDescription; status = "Connection failed" }
+            guard !Task.isCancelled else { return }
+            pairingLink = nil; pairingExpiresAt = nil
+            status = "The QR code expired. Connect again."
+        } catch {
+            guard !Task.isCancelled else { return }
+            pairingLink = nil; pairingExpiresAt = nil
+            errorMessage = error.localizedDescription; status = "Connection failed"
+        }
     }
 
     private func activate(_ saved: MobileCredential) throws {
@@ -72,6 +121,7 @@ final class MobileConnectionStore: ObservableObject {
         monitors = ["codex": CodexActivityMonitor(), "claude": ClaudeSessionMonitor(
             directory: home.appendingPathComponent("sessions"), projects: home.appendingPathComponent("projects"))]
         monitors.values.forEach { $0.start() }
+        lastSent = nil
         loop = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.sendSnapshot(generation: run)
@@ -86,8 +136,12 @@ final class MobileConnectionStore: ObservableObject {
             guard credential.expiresAt > Date().timeIntervalSince1970 else { throw MobileRelayError.expired }
             let sessions = monitors.mapValues(\.sessions)
             let body = Self.snapshot(latestSnapshot, sessions: sessions, shareTitles: shareTaskTitles)
-            let _: MobileOK = try await client.send("POST", "/v1/snapshot", token: credential.token, body: body)
+            // The free relay can afford changes as they happen plus a heartbeat every few minutes.
+            guard Self.shouldSend(body, after: lastSent, heartbeat: heartbeat) else { return }
+            let reply: MobileSnapshotReply = try await client.send("POST", "/v1/snapshot", token: credential.token, body: body)
             guard run == generation, !Task.isCancelled else { return }
+            lastSent = (body, Date()); heartbeat = max(60, min(3600, reply.interval ?? 300))
+            serverNotice = reply.notice
             lastSentAt = Date(); status = "Sharing with iPhone"; errorMessage = nil
         } catch {
             guard run == generation, !Task.isCancelled else { return }
@@ -120,7 +174,17 @@ final class MobileConnectionStore: ObservableObject {
     private func stopLocal() {
         generation = UUID(); loop?.cancel(); loop = nil
         monitors.values.forEach { $0.stop() }; monitors = [:]
-        credential = nil; client = nil; isConnected = false; lastSentAt = nil
+        credential = nil; client = nil; isConnected = false; lastSentAt = nil; lastSent = nil; serverNotice = nil
+    }
+
+    static func shouldSend(_ body: MobileSnapshot, after last: (body: MobileSnapshot, at: Date)?,
+                           heartbeat: TimeInterval, now: Date = Date()) -> Bool {
+        guard let last else { return true }
+        if now.timeIntervalSince(last.at) >= heartbeat { return true }
+        var previous = last.body; previous.generatedAt = body.generatedAt
+        // Sorted keys: the encoder's key order is not otherwise stable between calls.
+        let encoder = JSONEncoder(); encoder.outputFormatting = .sortedKeys
+        return (try? encoder.encode(previous)) != (try? encoder.encode(body))
     }
 
     static func snapshot(_ snapshot: CompanionSnapshot, sessions: [String: [AgentSession]], shareTitles: Bool,

@@ -8,6 +8,10 @@ struct ProviderPickerView: View {
     let onAdd: (String) -> Void
     let onConfigure: (String) -> Void
     let onClose: () -> Void
+    /// Progress of the sign-in each added provider started, so adding finishes the job.
+    var connection: (String) -> NotchController.ConnectionState? = { _ in nil }
+    var onRetry: (String) -> Void = { _ in }
+    var onCancel: (String) -> Void = { _ in }
     @State private var query = ""
     @State private var initiallyAdded: Set<String>?
 
@@ -95,8 +99,10 @@ struct ProviderPickerView: View {
                 .font(.caption).foregroundStyle(.secondary)
                 .lineLimit(2).frame(maxWidth: .infinity, minHeight: 30, alignment: .topLeading)
             HStack(spacing: 6) {
-                if added {
-                    Label("Added", systemImage: "checkmark.circle.fill")
+                if added, let state = connection(row.id), state != .connected {
+                    connectionStatus(state, id: row.id)
+                } else if added {
+                    Label(connection(row.id) == .connected ? "Connected" : "Added", systemImage: "checkmark.circle.fill")
                         .foregroundStyle(Color.accentColor)
                 } else {
                     Text(row.connected ? "Reading available" : (row.accountLine != nil ? "Sign-in detected" : "Connect after adding"))
@@ -119,6 +125,28 @@ struct ProviderPickerView: View {
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12)
             .strokeBorder(added ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.1), lineWidth: 1))
+    }
+
+    @ViewBuilder private func connectionStatus(_ state: NotchController.ConnectionState, id: String) -> some View {
+        switch state {
+        case .checking:
+            HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Connecting…").foregroundStyle(.secondary) }
+        case .waiting(let note):
+            HStack(spacing: 6) {
+                ProgressView().controlSize(.small)
+                Text("Waiting for sign-in…").foregroundStyle(.secondary).help(note)
+                Button("Cancel") { onCancel(id) }.buttonStyle(.link)
+            }
+        case .needsKey:
+            Label("Enter your key", systemImage: "key.fill").foregroundStyle(.orange)
+        case .failed(let reason):
+            HStack(spacing: 6) {
+                Label("Not connected", systemImage: "exclamationmark.circle").foregroundStyle(.orange).help(reason)
+                Button("Try again") { onRetry(id) }.buttonStyle(.link)
+            }
+        case .connected:
+            EmptyView()
+        }
     }
 
     static func description(for id: String) -> String {

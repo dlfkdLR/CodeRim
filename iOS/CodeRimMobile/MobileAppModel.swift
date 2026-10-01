@@ -1,15 +1,14 @@
 import ActivityKit
-import AuthenticationServices
 import Combine
 import Foundation
 
 @MainActor
 final class MobileAppModel: ObservableObject {
-    @Published var serverAddress = Bundle.main.object(forInfoDictionaryKey: "CodeRimRelayURL") as? String ?? ""
+    @Published private(set) var serverAddress = ""
     @Published private(set) var signedIn = false
     @Published private(set) var busy = false
-    @Published private(set) var challenge: MobileChallenge?
-    @Published private(set) var pairing: MobilePairing?
+    /// The relay's own notice while it is rationing its free daily allowance.
+    @Published private(set) var serverNotice: String?
     @Published private(set) var preferences = MobilePreferences()
     @Published private(set) var devices: [MobileDevice] = []
     @Published private(set) var providers: [MobileProviderOption] = []
@@ -21,23 +20,20 @@ final class MobileAppModel: ObservableObject {
     @Published private(set) var statusMessage: String?
     private var credential: MobileCredential?
     private var client: (any MobileRelayServing)?
-    private var loginChallenge: MobileChallenge?
     private var loginGeneration = UUID()
     private var observers: [String: Task<Void, Never>] = [:]
     private var registrations: [String: Task<Void, Never>] = [:]
     private var activityObservers: [String: Task<Void, Never>] = [:]
     private var foregroundPoll: Task<Void, Never>?
     private var restored = false
+    private var pushAvailable = true
+    private var remoteActivities: [Task<Void, Never>] = []
     private let credentials: any MobileCredentialStoring
     private let makeClient: @Sendable (URL) throws -> any MobileRelayServing
-    private let appleState: @Sendable (String) async throws -> ASAuthorizationAppleIDProvider.CredentialState
 
     init(credentials: any MobileCredentialStoring = MobileCredentialStore.shared,
-         makeClient: @escaping @Sendable (URL) throws -> any MobileRelayServing = { try MobileRelayClient(endpoint: $0) },
-         appleState: @escaping @Sendable (String) async throws -> ASAuthorizationAppleIDProvider.CredentialState = {
-             try await ASAuthorizationAppleIDProvider().credentialState(forUserID: $0)
-         }) {
-        self.credentials = credentials; self.makeClient = makeClient; self.appleState = appleState
+         makeClient: @escaping @Sendable (URL) throws -> any MobileRelayServing = { try MobileRelayClient(endpoint: $0) }) {
+        self.credentials = credentials; self.makeClient = makeClient
     }
 
     func restore() async {
@@ -49,16 +45,8 @@ final class MobileAppModel: ObservableObject {
             if let saved = try await credentials.load() {
                 guard generation == loginGeneration else { return }
                 guard saved.expiresAt > Date().timeIntervalSince1970 else { throw MobileRelayError.expired }
-                if let user = saved.appleUserID {
-                    let status = try await appleState(user)
-                    guard generation == loginGeneration else { return }
-                    guard status == .authorized else { throw MobileRelayError.expired }
-                }
                 try activate(saved)
                 await refresh()
-            } else if !serverAddress.isEmpty {
-                busy = false
-                await prepareSignIn()
             }
         } catch {
             guard generation == loginGeneration else { return }
@@ -76,51 +64,38 @@ final class MobileAppModel: ObservableObject {
         return result
     }
 
-    func prepareSignIn() async {
-        guard !busy, !signedIn else { return }
-        busy = true; challenge = nil; errorMessage = nil
+    /// Joins the computer whose QR code was scanned. The first scan also creates
+    /// this iPhone's anonymous account on that computer's relay.
+    func connect(_ link: MobilePairingLink) async {
+        guard !busy else { return }
+        busy = true; errorMessage = nil; statusMessage = nil
         defer { busy = false }
         do {
-            let endpoint = try MobileRelayClient.validatedEndpoint(serverAddress)
-            let client = try makeClient(endpoint)
-            let challenge: MobileChallenge = try await client.send("POST", "/v1/auth/challenge", token: nil, body: MobileEmpty())
-            self.client = client; self.challenge = challenge
-            serverAddress = endpoint.absoluteString
-        } catch { errorMessage = error.localizedDescription }
-    }
-
-    func changeServer() { challenge = nil; client = nil; errorMessage = nil }
-
-    func configureAppleRequest(_ request: ASAuthorizationAppleIDRequest) {
-        loginChallenge = challenge
-        request.nonce = challenge?.nonce
-        request.requestedScopes = []
-        busy = true
-    }
-
-    func completeAppleSignIn(_ result: Result<ASAuthorization, Error>) async {
-        defer { busy = false; loginChallenge = nil; challenge = nil }
-        errorMessage = nil
-        do {
-            let authorization = try result.get()
-            guard let apple = authorization.credential as? ASAuthorizationAppleIDCredential,
-                  let data = apple.identityToken, let identity = String(data: data, encoding: .utf8),
-                  let challenge = loginChallenge, challenge.expiresAt > Date().timeIntervalSince1970,
-                  let client else { throw MobileRelayError.expired }
-            let session: MobileSessionToken = try await client.send("POST", "/v1/auth/apple", token: nil,
-                body: MobileAppleLogin(challengeID: challenge.id, identityToken: identity))
-            let saved = MobileCredential(endpoint: client.endpoint, session: session, appleUserID: apple.user)
-            // Never attach a new account to a previous account's Activity/push token.
-            await clearLocalLogin()
-            do { try await credentials.save(saved) }
-            catch {
-                let _: MobileOK? = try? await client.send("DELETE", "/v1/session", token: saved.token, body: MobileEmpty())
-                throw error
+            if let credential, credential.endpoint != link.relay {
+                errorMessage = "This computer uses a different relay server. Disconnect this iPhone first to switch."
+                return
             }
-            try activate(saved)
+            if credential == nil {
+                let client = try makeClient(link.relay)
+                let session: MobileSessionToken = try await client.send("POST", "/v1/accounts", token: nil, body: MobileEmpty())
+                let saved = MobileCredential(endpoint: link.relay, session: session)
+                await clearLocalLogin()
+                do { try await credentials.save(saved) }
+                catch {
+                    let _: MobileOK? = try? await client.send("DELETE", "/v1/account", token: saved.token, body: MobileEmpty())
+                    throw error
+                }
+                try activate(saved)
+            }
+            guard let credential, let client else { return }
+            let joined: MobileClaimResult = try await client.send("POST", "/v1/pairing/claim", token: credential.token,
+                body: MobilePairingRequest(id: link.id, secret: link.secret))
+            statusMessage = "\(joined.name) is connected."
             await refresh()
-        } catch let error as ASAuthorizationError where error.code == .canceled {
-            statusMessage = "Sign-in was canceled. You can connect again."
+        } catch MobileRelayError.rejected(401) {
+            errorMessage = "This QR code has expired or was already used. Show a new one on your computer."
+        } catch MobileRelayError.rejected(409) {
+            errorMessage = "This QR code was already used. Show a new one on your computer."
         } catch { errorMessage = error.localizedDescription }
     }
 
@@ -129,6 +104,42 @@ final class MobileAppModel: ObservableObject {
         credential = saved; serverAddress = saved.endpoint.absoluteString
         signedIn = true; loginGeneration = UUID()
         observeActivities()
+        observeRemoteStarts()
+    }
+
+    /// The relay starts the Island itself when a task begins (push-to-start), so
+    /// the phone hands it a start token and adopts any Activity it was given.
+    private func observeRemoteStarts() {
+        remoteActivities.forEach { $0.cancel() }
+        let generation = loginGeneration
+        remoteActivities = [
+            Task { [weak self] in
+                for await token in Activity<CodeRimActivityAttributes>.pushToStartTokenUpdates {
+                    guard !Task.isCancelled else { break }
+                    await self?.registerStarter(token, generation: generation)
+                }
+            },
+            Task { [weak self] in
+                for await activity in Activity<CodeRimActivityAttributes>.activityUpdates {
+                    guard !Task.isCancelled, let self, self.loginGeneration == generation,
+                          activity.attributes.connectionID == self.credential.map({ MobileActivityConnection.id(for: $0.token) })
+                    else { continue }
+                    self.observe(activity)
+                }
+            },
+        ]
+    }
+    private func registerStarter(_ token: Data, generation: UUID) async {
+        guard loginGeneration == generation, let credential, let client else { return }
+        let hex = token.map { String(format: "%02x", $0) }.joined()
+        for delay in [0, 5, 30, 120] {
+            do {
+                if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
+                guard loginGeneration == generation else { return }
+                let _: MobileOK = try await client.send("POST", "/v1/push-to-start", token: credential.token, body: MobilePushToStart(pushToken: hex))
+                return
+            } catch { if Task.isCancelled { return } }
+        }
     }
 
     func setForeground(_ active: Bool) {
@@ -173,6 +184,7 @@ final class MobileAppModel: ObservableObject {
             return false
         }
         preferences = response.preferences; providers = response.availableProviders; devices = response.devices ?? []
+        serverNotice = response.notice
         displayProviders = response.displayProviders ?? []
         state = response.state
         observeActivities()
@@ -210,13 +222,6 @@ final class MobileAppModel: ObservableObject {
             if case MobileRelayError.expired = error { await clearLocalLogin() }
             return false
         }
-    }
-
-    func makePairingCode() async {
-        guard !busy, let credential, let client else { return }
-        busy = true; errorMessage = nil; defer { busy = false }
-        do { pairing = try await client.send("POST", "/v1/pairing", token: credential.token, body: MobileEmpty()) }
-        catch { errorMessage = error.localizedDescription }
     }
 
     func selectProvider(_ id: String, enabled: Bool) async {
@@ -261,8 +266,18 @@ final class MobileAppModel: ObservableObject {
             if let existing = Activity<CodeRimActivityAttributes>.activities.first(where: { $0.attributes.connectionID == credential.map { MobileActivityConnection.id(for: $0.token) } && ($0.activityState == .active || $0.activityState == .stale) }) {
                 observe(existing); return
             }
-            let activity = try Activity.request(attributes: CodeRimActivityAttributes(connectionID: credential.map { MobileActivityConnection.id(for: $0.token) } ?? ""),
-                content: ActivityContent(state: state, staleDate: Date(timeIntervalSince1970: state.staleAt)), pushType: .token)
+            let attributes = CodeRimActivityAttributes(connectionID: credential.map { MobileActivityConnection.id(for: $0.token) } ?? "")
+            let content = ActivityContent(state: state, staleDate: Date(timeIntervalSince1970: state.staleAt))
+            let activity: Activity<CodeRimActivityAttributes>
+            do {
+                activity = try Activity.request(attributes: attributes, content: content, pushType: .token)
+                pushAvailable = true
+            } catch {
+                // An app signed without the Push Notifications capability (a free Apple ID) cannot
+                // take push tokens. The Island still works, refreshed while this app is open.
+                activity = try Activity.request(attributes: attributes, content: content, pushType: nil)
+                pushAvailable = false
+            }
             observe(activity)
             errorMessage = nil
         } catch { errorMessage = "Could not start the Live Activity. Check permissions and your connection." }
@@ -271,12 +286,13 @@ final class MobileAppModel: ObservableObject {
     private func observeActivities() {
         let activities = Activity<CodeRimActivityAttributes>.activities.filter { $0.attributes.connectionID == credential.map { MobileActivityConnection.id(for: $0.token) } && ($0.activityState == .active || $0.activityState == .stale) }
         activityActive = !activities.isEmpty
-        if activities.isEmpty { activityStatus = "Off · Tap Show in Dynamic Island" }
+        if activities.isEmpty { activityStatus = "Appears while a task is running" }
         for activity in activities { observe(activity) }
     }
     private func observe(_ activity: Activity<CodeRimActivityAttributes>) {
         activityActive = true
         guard observers[activity.id] == nil else { return }
+        guard pushAvailable else { activityStatus = "Updates while this app is open"; return observeEnd(activity) }
         activityStatus = "Connecting push updates"
         if let token = activity.pushToken { register(token, activity: activity) }
         observers[activity.id] = Task { [weak self] in
@@ -285,6 +301,11 @@ final class MobileAppModel: ObservableObject {
                 self?.register(token, activity: activity)
             }
         }
+        observeEnd(activity)
+    }
+    /// Forgets an Activity once the system or the user ends it.
+    private func observeEnd(_ activity: Activity<CodeRimActivityAttributes>) {
+        guard activityObservers[activity.id] == nil else { return }
         activityObservers[activity.id] = Task { [weak self] in
             for await status in activity.activityStateUpdates {
                 guard !Task.isCancelled else { break }
@@ -349,10 +370,11 @@ final class MobileAppModel: ObservableObject {
     }
     private func clearLocalLogin() async {
         loginGeneration = UUID()
+        remoteActivities.forEach { $0.cancel() }; remoteActivities = []
         self.credential = nil; signedIn = false
         await stopActivity()
         do { try await credentials.delete() }
         catch { errorMessage = error.localizedDescription }
-        pairing = nil; preferences = MobilePreferences(); providers = []; displayProviders = []; devices = []; state = .disconnected
+        serverNotice = nil; preferences = MobilePreferences(); providers = []; displayProviders = []; devices = []; state = .disconnected
     }
 }

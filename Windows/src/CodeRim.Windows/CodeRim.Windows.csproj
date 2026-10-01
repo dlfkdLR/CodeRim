@@ -14,9 +14,9 @@
     <AssemblyName>CodeRim</AssemblyName>
     <RootNamespace>CodeRim.Windows</RootNamespace>
     <DefineConstants Condition="'$(CodeRimMsiQa)' == 'true'">$(DefineConstants);CODERIM_MSI_QA</DefineConstants>
-    <Version>2.1.14</Version>
-    <AssemblyVersion>2.1.14.0</AssemblyVersion>
-    <FileVersion>2.1.14.0</FileVersion>
+    <Version>2.1.15</Version>
+    <AssemblyVersion>2.1.15.0</AssemblyVersion>
+    <FileVersion>2.1.15.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\CodeRim.ico</ApplicationIcon>
     <PublishSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</PublishSingleFile>
@@ -34,6 +34,9 @@
     <Resource Include="Assets\CodeRim.ico" />
     <EmbeddedResource Include="Assets\Reference\AnalyticsDatePatterns.json" />
     <Resource Include="Assets\ProviderLogos\*.svg" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="QRCoder" Version="1.6.0" />
   </ItemGroup>
   <Target Name="ValidateApplicationPublisherPin" BeforeTargets="CoreCompile">
     <Error Condition="'$(CodeRimPublisherSpkiSha256)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(CodeRimPublisherSpkiSha256)', '^[0-9a-f]{64}$'))" Text="The application publisher SPKI pin must be an exact lowercase SHA-256 value." />

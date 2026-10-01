@@ -4,6 +4,7 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using CodeRim.Core.Services;
 using CodeRim.Core.Domain;
+using CodeRim.Windows.Services;
 using Button = System.Windows.Controls.Button;
 using CheckBox = System.Windows.Controls.CheckBox;
 using MessageBox = System.Windows.MessageBox;
@@ -49,11 +50,28 @@ internal sealed partial class DashboardWindow
                 replace = MessageBox.Show(this, "Replace your current status line? CodeRim will keep it for restoration when disconnected.", "Connect Claude", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes;
                 if (!replace) return;
             }
+            // Nothing signed in yet: run the CLI's own browser sign-in instead of
+            // leaving Add Account to repeat "sign in first".
+            if (!store.Synthetic && store.Claude.DetectedAccount is null && !await SignInClaudeCliAsync()) { UpdateClaude(); return; }
             await store.Claude.AddCurrentAccountAsync(replace);
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidOperationException)
         { MessageBox.Show(this, "Unable to read Claude settings safely. Check file access and retry.", "CodeRim"); }
         UpdateClaude();
+    }
+    private async Task<bool> SignInClaudeCliAsync()
+    {
+        if (ProviderConnections.ResolveExecutable("claude.exe") is not { } executable)
+        { MessageBox.Show(this, "Install Claude Code, then choose Add Account again.", "CodeRim"); return false; }
+        SetClaudeMessage("Finish signing in to Claude in your browser…");
+        try { await BoundedProcess.RunAsync(executable, ["auth", "login", "--claudeai"], timeout: TimeSpan.FromMinutes(4)); return true; }
+        catch (Exception error) when (error is IOException or TimeoutException or OperationCanceledException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        { SetClaudeMessage("Claude sign-in didn’t finish. Choose Add Account to try again."); return false; }
+    }
+    private void SetClaudeMessage(string text)
+    {
+        foreach (var label in VisualChildren<TextBlock>(body))
+            if (AutomationProperties.GetAutomationId(label) is "claude.message" or "provider.status") label.Text = text;
     }
     private static Button ClaudeAction(string title, string id, Func<Task> action)
     {
@@ -89,7 +107,7 @@ internal sealed partial class DashboardWindow
                 rows.Add(ClaudeAction("Add Account", "claude.add", AddClaudeAsync));
             }
             if (rows.Count > 0) claudeAccount.Children.Add(SettingsUi.Section("Account", rows.ToArray()));
-            if (layout == "missing") claudeAccount.Children.Add(SettingsUi.Note("Sign in with the `claude` command in your terminal, then choose Add Account."));
+            if (layout == "missing") claudeAccount.Children.Add(SettingsUi.Note("Choose Add Account to sign in to Claude in your browser."));
         }
         var display = store.AccountDisplay("claude");
         foreach (var label in VisualChildren<TextBlock>(body))

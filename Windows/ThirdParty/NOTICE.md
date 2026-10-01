@@ -21,3 +21,5 @@ Factory WorkOS session refresh uses the pinned Factory public client identifiers
 Amp Web usage follows the pinned CodexBar Amp settings-page contract and the two Svelte hydration fixtures. Syntax parsing uses Acornima, already included by Jint; downloaded page scripts are never executed. Source selection, scoped redirects, literal-data validation and resource limits are implemented separately for Windows.
 
 The bundled BouncyCastle.Cryptography 2.7.0 library verifies Ed25519 installer manifests. See BouncyCastle-LICENSE.md for its MIT license. WiX 5.0.2 is a build-time tool; the product ships a standard MSI and does not bundle the WiX Burn runtime.
+
+The bundled QRCoder 1.6.0 library draws the iPhone pairing QR code. See QRCoder-LICENSE.txt for its MIT license.

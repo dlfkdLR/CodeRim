@@ -16,8 +16,18 @@ internal static class ClaudeSessions
         var projects = UsageScanner.DefaultRoots("claude")[0];
         var directory = Path.Combine(Path.GetDirectoryName(projects)!, "sessions");
         if (!Directory.Exists(directory) || (File.GetAttributes(directory) & FileAttributes.ReparsePoint) != 0) return [];
-        var transcripts = Directory.Exists(projects) ? Directory.EnumerateFiles(projects, "*.jsonl", new EnumerationOptions
-        { RecurseSubdirectories = true, MaxRecursionDepth = 4, IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint }).Take(50000).ToLookup(Path.GetFileNameWithoutExtension, StringComparer.Ordinal) : null;
+        // Transcripts live at projects/<project>/<sessionId>.jsonl. This runs on the 2-second activity
+        // timer, so probe only the live session IDs instead of walking every transcript.
+        string[]? projectDirectories = null;
+        string? Transcript(string id)
+        {
+            if (id is "." or ".." || id.AsSpan().IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return null;
+            projectDirectories ??= Directory.Exists(projects) ? Directory.EnumerateDirectories(projects, "*", new EnumerationOptions
+                { IgnoreInaccessible = true, AttributesToSkip = FileAttributes.ReparsePoint }).Take(50000).ToArray() : [];
+            return projectDirectories.Select(project => Path.Combine(project, id + ".jsonl"))
+                .Where(path => File.Exists(path) && (File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0)
+                .OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault();
+        }
         foreach (var path in Directory.EnumerateFiles(directory, "*.json").Take(512))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -34,17 +44,21 @@ internal static class ClaudeSessions
                 state = state switch { "blocked" or "waiting" => "waiting", "active" or "busy" => "busy", "idle" => "idle", _ => null };
                 var updated = ProviderParsers.Date(ProviderParsers.Get(root, "statusUpdatedAt"), milliseconds: true)
                     ?? ProviderParsers.Date(ProviderParsers.Get(root, "updatedAt"), milliseconds: true) ?? started ?? DateTimeOffset.Now;
-                var transcript = transcripts?[id].OrderByDescending(File.GetLastWriteTimeUtc).FirstOrDefault(); var activity = transcript is null ? null : ActivityReader.ReadClaude(transcript, DateTimeOffset.Now, cancellationToken);
+                var transcript = Transcript(id); var activity = transcript is null ? null : ActivityReader.ReadClaude(transcript, DateTimeOffset.Now, cancellationToken);
                 if (state is null) { if (activity is null) continue; state = activity.State; updated = activity.Since; }
                 else if (activity is { State: "idle" } && activity.Since > updated) { state = "idle"; updated = activity.Since; }
                 var cwd = ProviderParsers.Text(root, "cwd") ?? "Claude session";
-                var name = Path.GetFileName(cwd.TrimEnd('\\', '/'));
+                var folder = Path.GetFileName(cwd.TrimEnd('\\', '/'));
+                // Lead with the conversation's title, as Codex sessions do.
+                var title = transcript is null ? null : ClaudeTranscriptTitles.Shared.Title(transcript);
+                var name = title ?? folder;
                 var processStarted = started ?? new DateTimeOffset(process.StartTime.ToUniversalTime());
                 if (starts.TryGetValue(id, out var previousStart) && (previousStart > processStarted
                     || previousStart == processStarted && results[id].Since >= updated)) continue;
                 starts[id] = processStarted;
                 results[id] = new(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(id))), "claude", name, state, updated)
                     { UsageSessionId = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(id))),
+                        Detail = title is null ? null : folder,
                         ProcessId = started.HasValue ? (int)pid : null,
                         ProcessStartedAt = started.HasValue ? new DateTimeOffset(process.StartTime.ToUniversalTime()) : null };
             }

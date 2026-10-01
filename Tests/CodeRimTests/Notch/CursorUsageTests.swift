@@ -288,12 +288,12 @@ final class NotchCursorCredentialsTests: XCTestCase {
         XCTAssertEqual(name, "Cursor")
     }
 
-    func testSignInGivesGuidanceWhenTheEditorIsMissing() {
-        guard case .guidance(let text) =
-                CursorCredentials.signInRoute(editorInstalled: false) else {
-            return XCTFail("expected guidance")
+    func testSignInRunsTheCLILoginWhenTheEditorIsMissing() {
+        guard case .guided(let guided) = CursorCredentials.signInRoute(editorInstalled: false) else {
+            return XCTFail("expected a guided sign-in")
         }
-        XCTAssertTrue(text.contains("cursor-agent") || text.contains("Cursor editor"), text)
+        XCTAssertEqual(guided.action, .terminal(command: "cursor-agent login"))
+        XCTAssertTrue(guided.note.contains("cursor-agent") || guided.note.contains("Cursor editor"), guided.note)
     }
 
     private func writeEditorStore(account: String?, token: String) throws -> URL {

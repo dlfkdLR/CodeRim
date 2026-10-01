@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Deterministically generate the dependency-free native iPhone Xcode project."""
 import hashlib
-import json
+import json, os
 from pathlib import Path
 
 root = Path(__file__).resolve().parent
@@ -21,7 +21,7 @@ attributes = 'CodeRimLiveActivity/CodeRimActivityAttributes.swift'
 views = 'CodeRimLiveActivity/CodeRimLiveViews.swift'
 intent = 'CodeRimLiveActivity/IslandNavigationIntent.swift'
 target_sources = {
-    'CodeRimMobile': shared + [attributes, views, intent] + ['CodeRimMobile/'+name+'.swift' for name in ['CodeRimMobileApp','MobileAppModel','MobileSettingsView','MobileProviderSelection','DebugPreviewView']],
+    'CodeRimMobile': shared + [attributes, views, intent] + ['CodeRimMobile/'+name+'.swift' for name in ['CodeRimMobileApp','MobileAppModel','MobileSettingsView','MobileProviderSelection','MobileQRScanner','DebugPreviewView']],
     'CodeRimLiveActivity': shared + [attributes, views, intent, 'CodeRimLiveActivity/CodeRimLiveActivity.swift', 'CodeRimMobile/DebugPreviewView.swift'],
     'CodeRimMobileTests': ['CodeRimMobileTests/MobileContractTests.swift', 'CodeRimMobileTests/MobileLifecycleTests.swift'],
     'CodeRimMobileUITests': ['CodeRimMobileUITests/MobileUITests.swift'],
@@ -71,7 +71,7 @@ for name, sources in target_sources.items():
             settings.update(GENERATE_INFOPLIST_FILE='YES',TEST_HOST='$(BUILT_PRODUCTS_DIR)/CodeRimMobile.app/CodeRimMobile',BUNDLE_LOADER='$(TEST_HOST)')
         else: settings['INFOPLIST_FILE']='Config/'+name+'-Info.plist'
         if name=='CodeRimMobile':
-            settings.update(ASSETCATALOG_COMPILER_APPICON_NAME='AppIcon',CODE_SIGN_ENTITLEMENTS='Config/CodeRimMobile.entitlements',APS_ENVIRONMENT='development' if config=='Debug' else 'production')
+            settings.update(ASSETCATALOG_COMPILER_APPICON_NAME='AppIcon',CODE_SIGN_ENTITLEMENTS='Config/CodeRimMobile-NoPush.entitlements' if os.environ.get('CODERIM_NO_PUSH') else 'Config/CodeRimMobile.entitlements',APS_ENVIRONMENT='development' if config=='Debug' else 'production')
         if name=='CodeRimLiveActivity':
             settings.update(APPLICATION_EXTENSION_API_ONLY='YES',SKIP_INSTALL='YES',LD_RUNPATH_SEARCH_PATHS=['$(inherited)','@executable_path/Frameworks','@executable_path/../../Frameworks'])
         configs.append(add(name+':config:'+config,'XCBuildConfiguration',name=config,buildSettings=settings))

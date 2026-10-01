@@ -191,7 +191,7 @@ internal sealed partial class DashboardWindow : Window
         var changedPage = renderedPage != page;
         renderedPage = page; UpdateSectionTitle();
         CancelUpdateOperation(); updateViewRevision++; manualUpdateCheck = null; refreshNotchVisibility = null;
-        body.Children.Clear(); providerListDetails.Clear(); ResetProviderAlerts(); ResetProviderAccount();
+        body.Children.Clear(); providerListDetails.Clear(); ResetProviderAlerts(); ResetProviderAccount(); ResetConnectionBanner();
         body.Margin = page == "usage" ? new Thickness(0) : new Thickness(0, 6, 0, 28);
         switch (page)
         {
@@ -376,13 +376,79 @@ internal sealed partial class DashboardWindow : Window
     }
     private void ShowProviderPicker()
     {
+        var addedIds = new List<string>();
         var picker = new ProviderPickerWindow(this, store, settings, id =>
         {
             if (settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return;
             Save(settings.Current with { EnabledProviders = [..settings.Current.EnabledProviders, id] });
-            _ = store.RefreshProviderAsync(id);
+            addedIds.Add(id);
         }, id => Navigate(id));
-        picker.ShowDialog(); Render();
+        picker.ShowDialog();
+        // Adding is connecting: each provider just added reads what is already there, and otherwise
+        // starts its own sign-in and is watched until the account appears. A provider that needs a
+        // pasted key opens on its settings, instead of leaving a second "Set up" step to find.
+        if (addedIds.Count == 0) { Render(); return; }
+        foreach (var id in addedIds) if (id != "claude") connector.Begin(id);
+        if (addedIds.Contains("claude")) { _ = ConnectAddedClaudeAsync(); return; }
+        Navigate(addedIds[^1]);
+    }
+    // One watcher for the window: a sign-in started here keeps being watched while the user moves between pages.
+    private ProviderConnector? connectorField;
+    private ProviderConnector connector => connectorField ??= CreateConnector();
+    private ProviderConnector CreateConnector()
+    {
+        var created = new ProviderConnector(async id =>
+            {
+                await store.RefreshProviderAsync(id).ConfigureAwait(true);
+                return store.Readings.GetValueOrDefault(id)?.State is ReadingState.Ready or ReadingState.Partial;
+            },
+            ProviderSignInLauncher.Launch);
+        created.Changed += () => Dispatcher.BeginInvoke(new Action(() =>
+        {
+            UpdateConnectionBanner();
+            if (page == "providers") Render();
+        }));
+        return created;
+    }
+    private StackPanel? connectionBanner; private string? connectionBannerId;
+    private void ResetConnectionBanner() { connectionBanner = null; connectionBannerId = null; }
+    /// <summary>Progress of the sign-in for this provider, with the one button that starts or retries it.</summary>
+    private void AddConnectionBanner(string id)
+    {
+        connectionBannerId = id; connectionBanner = new StackPanel { Margin = new Thickness(32, 0, 32, 6) };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(connectionBanner, "provider.signin");
+        body.Children.Add(connectionBanner); UpdateConnectionBanner();
+    }
+    private void UpdateConnectionBanner()
+    {
+        if (connectionBanner is null || connectionBannerId is not { } id) return;
+        connectionBanner.Children.Clear();
+        var state = connector.StateOf(id);
+        var connected = state?.Phase == ProviderConnector.Phase.Connected
+            || store.Readings.GetValueOrDefault(id)?.State is ReadingState.Ready or ReadingState.Partial;
+        if (connected && state is null) { connectionBanner.Visibility = Visibility.Collapsed; return; }
+        connectionBanner.Visibility = Visibility.Visible;
+        var plan = ProviderSignIn.For(id);
+        string text = state?.Phase switch
+        {
+            ProviderConnector.Phase.Checking => "Connecting…",
+            ProviderConnector.Phase.Waiting => "Waiting for sign-in… " + state.Message,
+            ProviderConnector.Phase.NeedsKey => "Enter your key below. " + state.Message,
+            ProviderConnector.Phase.Connected => "Connected.",
+            ProviderConnector.Phase.Failed => state.Message,
+            _ => plan.OpensSettings ? plan.Note : "Not connected. " + plan.Note,
+        };
+        var label = Ui.Text(text, 12, "#A6A6AA"); label.TextWrapping = TextWrapping.Wrap; connectionBanner.Children.Add(label);
+        var busy = state?.Phase is ProviderConnector.Phase.Checking or ProviderConnector.Phase.Waiting;
+        if (busy) connectionBanner.Children.Add(Ui.Button("Cancel", () => connector.Cancel(id)));
+        else if (state?.Phase != ProviderConnector.Phase.Connected && !plan.OpensSettings)
+            connectionBanner.Children.Add(Ui.Button(plan.Kind == SignInKind.Terminal ? "Sign in to " + plan.Name : "Sign in", () => connector.Begin(id)));
+    }
+    private async Task ConnectAddedClaudeAsync()
+    {
+        if (!store.Claude.Preferences.Enabled) await store.Claude.SetEnabledAsync(true);
+        Navigate("claude");
+        if (store.Claude.Preferences.Enabled && !store.ClaudeAvailable && !store.Claude.Busy) await AddClaudeAsync();
     }
     private static bool HasConnector(string id) => id is "codex" or "claude" or "jetbrains" || NativeProviders.Supported.Contains(id) || HttpProviders.Supported.Contains(id) || ScriptProviders.Catalog.ContainsKey(id);
     private void Provider(string id)
@@ -408,6 +474,7 @@ internal sealed partial class DashboardWindow : Window
         header.Children.Add(headerText);
         var headerCard = new Border { Child = header, CornerRadius = new CornerRadius(12), Margin = new Thickness(18, 0, 18, 4) };
         headerCard.SetResourceReference(Border.BackgroundProperty, "CardBackground"); body.Children.Add(headerCard);
+        if (id != "claude") AddConnectionBanner(id);
         if (id == "claude") AddClaudeAccount();
         if (id == "codex")
         {

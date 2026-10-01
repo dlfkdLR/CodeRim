@@ -167,6 +167,29 @@ enum ClaudeTranscript {
     }
 }
 
+extension ClaudeTranscript {
+    private static let titleMarker = Data("-title\"".utf8)
+
+    /// Folds every title entry in `data` into `state`, later entries winning.
+    static func titles(in data: Data, into state: inout ClaudeTranscriptReader.TitleScan) {
+        for line in data.split(separator: 0x0A) where line.range(of: titleMarker) != nil {
+            guard let json = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any] else { continue }
+            func text(_ key: String) -> String? {
+                (json[key] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty
+            }
+            switch json["type"] as? String {
+            case "custom-title": if let value = text("customTitle") { state.custom = value }
+            case "ai-title": if let value = text("aiTitle") { state.generated = value }
+            default: break
+            }
+        }
+    }
+}
+
+private extension String {
+    var nonEmpty: String? { isEmpty ? nil : self }
+}
+
 /// Reads transcripts on a timer, and remembers enough not to read them twice.
 ///
 /// One instance per monitor. A tick that finds a transcript untouched since the
@@ -198,6 +221,15 @@ final class ClaudeTranscriptReader {
     /// scan is worth doing once for a session that has moved, and never worth
     /// repeating every two seconds for one that simply has no transcript.
     private var scanned: Set<String> = []
+    private var titles: [String: TitleScan] = [:]
+
+    struct TitleScan {
+        var offset: UInt64 = 0
+        var custom: String?
+        var generated: String?
+        /// A name the user gave the session outranks the generated one.
+        var title: String? { custom ?? generated }
+    }
 
     init(projects: URL, fileManager: FileManager = .default) {
         self.projects = projects
@@ -231,6 +263,34 @@ final class ClaudeTranscriptReader {
         let since = event.timestamp ?? modified
         entered[sessionID] = (turn, since)
         return (turn, since, event.timestamp)
+    }
+
+    /// The conversation's own title — the one Claude Code shows in its
+    /// terminal tab and `/resume` list — when it has written one.
+    ///
+    /// Titles are appended as `custom-title` (set with `/rename`) and
+    /// `ai-title` entries anywhere in the transcript, so this keeps a read
+    /// offset per session and only scans what was appended since.
+    func title(sessionID: String, cwd: String) -> String? {
+        guard let url = path(sessionID: sessionID, cwd: cwd),
+              let size = (try? fileManager.attributesOfItem(atPath: url.path))?[.size] as? NSNumber
+        else { return titles[sessionID]?.title }
+        var state = titles[sessionID] ?? TitleScan()
+        let end = size.uint64Value
+        if end < state.offset { state = TitleScan() }   // rewritten from scratch
+        if end > state.offset, let handle = try? FileHandle(forReadingFrom: url) {
+            defer { try? handle.close() }
+            if (try? handle.seek(toOffset: state.offset)) != nil,
+               let data = try? handle.read(upToCount: Int(end - state.offset)) {
+                // Stop at the last complete line; a half-written one is read next time.
+                if let last = data.lastIndex(of: 0x0A) {
+                    ClaudeTranscript.titles(in: data[...last], into: &state)
+                    state.offset += UInt64(data.distance(from: data.startIndex, to: last) + 1)
+                }
+            }
+        }
+        titles[sessionID] = state
+        return state.title
     }
 
     private func path(sessionID: String, cwd: String) -> URL? {

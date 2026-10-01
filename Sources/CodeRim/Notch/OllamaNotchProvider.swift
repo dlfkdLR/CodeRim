@@ -27,7 +27,8 @@ final class OllamaNotchProvider: NotchProvider {
     }
 
     var signInRoute: SignInRoute {
-        .guidance("Export OLLAMA_API_KEY in your shell — the notch reads it.")
+        .guided(.init(name: "Ollama", action: .browser(URL(string: "https://ollama.com/settings/keys")!),
+            note: "Create a key on ollama.com, then export OLLAMA_API_KEY in your shell. CodeRim detects it."))
     }
 
     func account() -> ProviderAccount? {

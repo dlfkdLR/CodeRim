@@ -1,11 +1,9 @@
-import AuthenticationServices
 import SwiftUI
 
 struct MobileSettingsView: View {
     @ObservedObject var model: MobileAppModel
     @State private var confirmDelete = false
-    @FocusState private var serverFocused: Bool
-    @Environment(\.colorScheme) private var colorScheme
+    @State private var scanning = false
     @State private var deviceToRemove: MobileDevice?
     private var isSettingsPreview: Bool {
         #if DEBUG
@@ -34,49 +32,33 @@ struct MobileSettingsView: View {
                     .listRowInsets(EdgeInsets(top: 12, leading: 4, bottom: 8, trailing: 4))
                 if !model.signedIn {
                     Section {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Label("Connection server", systemImage: "link").font(.caption.weight(.medium)).foregroundStyle(.secondary)
-                            TextField("https://relay.example.com", text: $model.serverAddress)
-                            .keyboardType(.URL).textInputAutocapitalization(.never).autocorrectionDisabled()
-                            .disabled(model.busy || model.challenge != nil)
-                            .accessibilityLabel("Relay server address")
-                                .focused($serverFocused)
-                                .submitLabel(.go)
-                                .onSubmit(prepareSignIn)
-                        }.padding(.vertical, 4)
-                        if let challenge = model.challenge, challenge.expiresAt > Date().timeIntervalSince1970 {
-                            SignInWithAppleButton(.signIn, onRequest: model.configureAppleRequest) { result in
-                                Task { await model.completeAppleSignIn(result) }
-                            }
-                            .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black).frame(height: 50)
-                            .disabled(model.busy)
-                            Button("Change server address") { model.changeServer() }.disabled(model.busy)
-                        } else {
-                            Button(action: prepareSignIn) {
-                                HStack {
-                                    Text("Connect and sign in")
-                                    Spacer()
-                                    Image(systemName: "arrow.right")
-                                }.font(.body.weight(.semibold)).padding(.vertical, 6)
-                            }
-                            .buttonStyle(.borderedProminent).tint(.primary)
-                            .foregroundStyle(Color(.systemBackground))
-                            .disabled(model.busy)
-                            .listRowSeparator(.hidden)
+                        Button { scanning = true } label: {
+                            HStack {
+                                Label("Scan the QR code on your computer", systemImage: "qrcode.viewfinder")
+                                Spacer()
+                                Image(systemName: "arrow.right")
+                            }.font(.body.weight(.semibold)).padding(.vertical, 6)
                         }
+                        .buttonStyle(.borderedProminent).tint(.primary)
+                        .foregroundStyle(Color(.systemBackground))
+                        .disabled(model.busy)
+                        .listRowSeparator(.hidden)
                         if let error = model.errorMessage {
                             Label(error, systemImage: "exclamationmark.circle")
                                 .foregroundStyle(.red).font(.footnote)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     } header: { Text("Let's get connected") } footer: {
-                        Text("Use your CodeRim connection server’s HTTPS address. Then sign in with Apple. Your AI service accounts stay on your computers.")
+                        Text("On your Mac or Windows PC, open CodeRim → Settings → iPhone and choose Connect iPhone. No sign-in is needed, and your AI service accounts stay on your computers.")
                     }
                 } else {
                     Section {
-                        Label("Signed in with Apple", systemImage: "checkmark.seal.fill")
+                        Label("Connected", systemImage: "checkmark.seal.fill")
                         LabeledContent("Relay server", value: model.serverAddress).font(.footnote)
-                    } header: { Text("Account") }
+                    } header: { Text("Connection") }
+                    if let notice = model.serverNotice {
+                        Section { Label(notice, systemImage: "hourglass").font(.footnote).foregroundStyle(.orange) }
+                    }
 
                     Section {
                         if model.devices.isEmpty {
@@ -98,23 +80,9 @@ struct MobileSettingsView: View {
                                     .buttonStyle(.borderless).accessibilityLabel("Disconnect \(device.name)")
                             }
                         }
-                        if let pairing = model.pairing {
-                            TimelineView(.periodic(from: .now, by: 1)) { context in
-                                if pairing.expiresAt > context.date.timeIntervalSince1970 {
-                                    HStack {
-                                        Text(pairing.code).font(.title2.monospaced().weight(.semibold)).textSelection(.enabled)
-                                        Spacer()
-                                        Text(Date(timeIntervalSince1970: pairing.expiresAt), style: .timer)
-                                            .monospacedDigit().foregroundStyle(.secondary)
-                                    }.accessibilityElement(children: .combine)
-                                } else { Text("This pairing code has expired.").foregroundStyle(.secondary) }
-                            }
-                        }
-                        Button(model.pairing == nil ? "Add a computer" : "Create a new pairing code") {
-                            Task { await model.makePairingCode() }
-                        }.disabled(model.busy)
+                        Button("Add a computer") { scanning = true }.disabled(model.busy)
                     } header: { Text("Connected devices · \(model.devices.count)") } footer: {
-                        Text("On your Mac or Windows PC, open CodeRim → Settings → General → iPhone. Connect over the internet, even on different Wi-Fi networks. Each computer must stay on.")
+                        Text("On your Mac or Windows PC, open CodeRim → Settings → iPhone and scan its QR code. Connect over the internet, even on different Wi-Fi networks. Each computer must stay on.")
                     }
 
                     Section {
@@ -133,11 +101,11 @@ struct MobileSettingsView: View {
                     }
                     Section {
                         LabeledContent("Live Activity", value: model.activityStatus)
-                        Button(model.activityActive ? "Stop showing" : "Show in Dynamic Island") {
+                        Button(model.activityActive ? "Stop showing" : "Show now") {
                             Task { if model.activityActive { await model.stopActivity() } else { await model.startActivity() } }
                         }.disabled(model.busy || isSettingsPreview)
                     } header: { Text("Dynamic Island") } footer: {
-                        Text("Touch and hold the Island to see usage and task status. You can also view them on the Lock Screen. iOS ends each Live Activity after up to 8 hours; start it again here.")
+                        Text("With push notifications set up, the Island appears on its own when a task starts on a connected computer and leaves a couple of minutes after the work stops. Without them, choose Show now: the Island then updates while this app is open. Touch and hold it to see usage and task status, also shown on the Lock Screen.")
                     }
                     Section {
                         Label("Full conversation transcripts and AI service credentials are not shared.", systemImage: "lock.shield")
@@ -146,8 +114,7 @@ struct MobileSettingsView: View {
                             .font(.footnote).foregroundStyle(.secondary)
                     } header: { Text("Shared information") }
                     Section {
-                        Button("Sign out", role: .destructive) { Task { await model.signOut() } }.disabled(model.busy || isSettingsPreview)
-                        Button("Delete account and data", role: .destructive) { confirmDelete = true }.disabled(model.busy || isSettingsPreview)
+                        Button("Disconnect this iPhone", role: .destructive) { confirmDelete = true }.disabled(model.busy || isSettingsPreview)
                     }
                 }
                 if model.busy { Section { HStack { ProgressView(); Text("Checking connection…").foregroundStyle(.secondary) } } }
@@ -160,16 +127,12 @@ struct MobileSettingsView: View {
                 Button("Disconnect", role: .destructive) { if let device = deviceToRemove { Task { await model.removeDevice(device) } }; deviceToRemove = nil }
                 Button("Cancel", role: .cancel) { deviceToRemove = nil }
             }
-            .confirmationDialog("Disconnect all devices and delete saved usage?", isPresented: $confirmDelete, titleVisibility: .visible) {
-                Button("Delete account and data", role: .destructive) { Task { await model.signOut(deleteAccount: true) } }
+            .sheet(isPresented: $scanning) { MobileQRScanner { link in Task { await model.connect(link) } } }
+            .confirmationDialog("Disconnect all computers and delete saved usage?", isPresented: $confirmDelete, titleVisibility: .visible) {
+                Button("Disconnect this iPhone", role: .destructive) { Task { await model.signOut(deleteAccount: true) } }
                 Button("Cancel", role: .cancel) {}
             }
         }
-    }
-
-    private func prepareSignIn() {
-        serverFocused = false
-        Task { await model.prepareSignIn() }
     }
 
     private var welcome: some View {

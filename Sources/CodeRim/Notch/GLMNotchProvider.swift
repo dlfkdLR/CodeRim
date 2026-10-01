@@ -29,7 +29,8 @@ final class GLMNotchProvider: NotchProvider {
     }
 
     var signInRoute: SignInRoute {
-        .guidance("Usage rides on a Z.ai GLM Coding Plan key held by a coding tool — Claude Code's settings.json, ZCode or OpenCode. Set one up there and the notch reads it.")
+        .guided(.init(name: "Z.ai", action: .browser(URL(string: "https://z.ai/manage-apikey/apikey-list")!),
+            note: "Create a GLM Coding Plan key on Z.ai and add it to Claude Code's settings.json, ZCode or OpenCode. CodeRim detects it there."))
     }
 
     func account() -> ProviderAccount? {

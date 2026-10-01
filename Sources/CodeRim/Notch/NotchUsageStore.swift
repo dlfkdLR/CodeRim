@@ -424,6 +424,22 @@ final class NotchUsageStore: ObservableObject {
         return openAccountSource(providerID: providerID)
     }
 
+    /// Reads one provider now and reports whether it produced a reading. Used while a
+    /// sign-in is being watched, so adding a provider can finish on its own.
+    func connects(providerID: String) async -> Bool {
+        guard let provider = providers.first(where: { $0.id == providerID }) else { return false }
+        provider.forgetCachedCredential()
+        refresh(providerID: providerID)
+        // The refresh runs in its own task; wait for it (a queued one included) to settle.
+        for _ in 0..<300 {
+            try? await Task.sleep(for: .milliseconds(100))
+            if !refreshing.contains(providerID) { break }
+        }
+        guard let snapshot = snapshots.first(where: { $0.id == providerID }) else { return false }
+        if case .ok = snapshot.status { return snapshot.hasReading || provider.account() != nil }
+        return false
+    }
+
     /// Ask macOS for this provider's credential again.
     ///
     /// The remedy for a declined keychain prompt. Dropping the in-memory copy
@@ -461,6 +477,8 @@ final class NotchUsageStore: ObservableObject {
             // Claude Code: nothing to open. The row's guidance is the whole
             // answer, so the sheet has to show it rather than pretend.
             return false
+        case .guided:
+            return SignInLauncher.perform(provider.signInRoute)
         }
     }
 

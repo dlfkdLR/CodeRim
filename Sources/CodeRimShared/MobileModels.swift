@@ -61,6 +61,8 @@ public struct MobileActivityState: Codable, Hashable, Sendable {
     public var workingCount: Int
     public var waitingCount: Int
     public var unavailableCount: Int
+    /// Set while the free relay is rationing its daily allowance.
+    public var notice: String? = nil
     public static var disconnected: Self {
         .init(connection: "offline", updatedAt: Date().timeIntervalSince1970, staleAt: 0,
               providers: [], sessions: [], additionalSessionCount: 0, workingCount: 0, waitingCount: 0, unavailableCount: 0)
@@ -105,32 +107,84 @@ public struct MobileSnapshotResponse: Codable, Sendable {
     public var devices: [MobileDevice]? = nil
     /// Eligible services on the currently displayed computer, in Island order.
     public var displayProviders: [MobileProviderOption]? = nil
+    public var notice: String? = nil
 }
-public struct MobileChallenge: Codable, Sendable {
+/// A computer's pairing offer, shown to the iPhone as a QR code.
+public struct MobilePairingStart: Codable, Sendable {
     public var id: String
-    public var nonce: String
+    public var secret: String
     public var expiresAt: Double
 }
-public struct MobilePairing: Codable, Sendable {
-    public var code: String
-    public var expiresAt: Double
+public struct MobilePairingRequest: Codable, Sendable {
+    public var id: String
+    public var secret: String
+    public init(id: String, secret: String) { self.id = id; self.secret = secret }
+}
+/// What a computer receives once its QR code has been scanned.
+public struct MobilePairingPoll: Codable, Sendable {
+    public var pending: Bool? = nil
+    public var token: String? = nil
+    public var expiresAt: Double? = nil
+    public var deviceID: String? = nil
+}
+public struct MobileClaimResult: Codable, Sendable {
+    public var deviceID: String
+    public var name: String
+    public var platform: String
+}
+public struct MobileDesktopLabel: Codable, Sendable {
+    public var platform: String
+    public var name: String
+    public init(platform: String, name: String) { self.platform = platform; self.name = name }
+}
+public struct MobileSnapshotReply: Decodable, Sendable {
+    public var ok: Bool
+    /// Seconds until the next heartbeat the relay can afford today.
+    public var interval: Double? = nil
+    public var notice: String? = nil
+}
+
+/// `coderim://pair?r=<relay origin>&i=<id>&s=<secret>`: everything an iPhone
+/// needs to join a computer, and nothing it could reuse after five minutes.
+public struct MobilePairingLink: Equatable, Sendable {
+    public var relay: URL
+    public var id: String
+    public var secret: String
+    public init(relay: URL, id: String, secret: String) { self.relay = relay; self.id = id; self.secret = secret }
+
+    public var url: URL {
+        var components = URLComponents()
+        components.scheme = "coderim"; components.host = "pair"
+        components.queryItems = [URLQueryItem(name: "r", value: relay.absoluteString),
+                                 URLQueryItem(name: "i", value: id), URLQueryItem(name: "s", value: secret)]
+        return components.url!
+    }
+
+    public init?(_ text: String) {
+        guard text.count <= 512, let components = URLComponents(string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
+              components.scheme == "coderim", components.host == "pair",
+              let items = components.queryItems,
+              let relayText = items.first(where: { $0.name == "r" })?.value,
+              let relay = try? MobileRelayClient.validatedEndpoint(relayText),
+              let id = items.first(where: { $0.name == "i" })?.value, Self.token(id),
+              let secret = items.first(where: { $0.name == "s" })?.value, Self.token(secret)
+        else { return nil }
+        self.init(relay: relay, id: id, secret: secret)
+    }
+    private static func token(_ value: String) -> Bool {
+        (16...64).contains(value.count) && value.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") }
+    }
 }
 public struct MobileSessionToken: Codable, Sendable {
     public var token: String
     public var expiresAt: Double
+    public init(token: String, expiresAt: Double) { self.token = token; self.expiresAt = expiresAt }
 }
 public struct MobileOK: Decodable, Sendable { public var ok: Bool }
 public struct MobileEmpty: Encodable, Sendable { public init() {} }
-public struct MobileAppleLogin: Encodable, Sendable {
-    public var challengeID: String
-    public var identityToken: String
-    public init(challengeID: String, identityToken: String) { self.challengeID = challengeID; self.identityToken = identityToken }
-}
-public struct MobilePairClaim: Encodable, Sendable {
-    public var code: String
-    public var platform: String
-    public var name: String
-    public init(code: String, platform: String = "macOS", name: String = "Mac") { self.code = code; self.platform = platform; self.name = name }
+public struct MobilePushToStart: Encodable, Sendable {
+    public var pushToken: String
+    public init(pushToken: String) { self.pushToken = pushToken }
 }
 public struct MobileActivityRegistration: Encodable, Sendable {
     public var activityID: String

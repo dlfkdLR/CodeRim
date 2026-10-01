@@ -1,7 +1,7 @@
 param([switch]$AddCliToPath, [switch]$Launch, [string]$RecoverOperationId)
 $ErrorActionPreference = 'Stop'
 $source = $PSScriptRoot
-if (-not (Test-Path (Join-Path $source 'CodeRim.exe'))) { throw 'Run install.ps1 from the extracted Windows package.' }
+if (-not (Test-Path -LiteralPath (Join-Path $source 'CodeRim.exe'))) { throw 'Run install.ps1 from the extracted Windows package.' }
 $destination = Join-Path $env:LOCALAPPDATA 'Programs\CodeRim'
 if (Get-Process CodeRim -ErrorAction SilentlyContinue) { throw 'Quit CodeRim from its tray menu before installing.' }
 $signedPackage = $false # The Required signing pipeline changes this literal before signing the script.
@@ -29,12 +29,12 @@ if ($signedPackage) {
     if (Test-Path -LiteralPath (Join-Path $destination '.coderim-install.json')) {
         throw 'This is a managed signed installation. Use CodeRim Information to update/recover it, or repair with the matching signed package; an unsigned installer cannot overwrite its manifest.'
     }
-    New-Item -ItemType Directory -Force $destination | Out-Null
-    Get-ChildItem $source -File | Copy-Item -Destination $destination -Force
-    if (Test-Path (Join-Path $source 'ThirdParty')) { Copy-Item (Join-Path $source 'ThirdParty') $destination -Recurse -Force }
+    New-Item -ItemType Directory -Force -Path $destination | Out-Null
+    Get-ChildItem -LiteralPath $source -File | Copy-Item -Destination $destination -Force
+    if (Test-Path -LiteralPath (Join-Path $source 'ThirdParty')) { Copy-Item -LiteralPath (Join-Path $source 'ThirdParty') -Destination $destination -Recurse -Force }
     $cliDirectory = Join-Path $destination 'bin'
-    New-Item -ItemType Directory -Force $cliDirectory | Out-Null
-    Copy-Item (Join-Path $source 'bin\coderim.cmd') $cliDirectory -Force
+    New-Item -ItemType Directory -Force -Path $cliDirectory | Out-Null
+    Copy-Item -LiteralPath (Join-Path $source 'bin\coderim.cmd') -Destination $cliDirectory -Force
 }
 $shortcut = Join-Path ([Environment]::GetFolderPath('StartMenu')) 'Programs\CodeRim.lnk'
 $shell = New-Object -ComObject WScript.Shell

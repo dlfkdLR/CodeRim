@@ -176,7 +176,7 @@ public sealed partial class NativeProviders : IDisposable
                 request.Headers.Add("x-warp-client-id", "warp-app"); request.Headers.Add("x-warp-os-category", "Windows");
                 request.Headers.Add("x-warp-os-name", "Windows"); request.Headers.Add("x-warp-os-version", Environment.OSVersion.Version.ToString());
             }
-            request.Headers.UserAgent.ParseAdd(id == "commandcode" ? "command-code-desktop" : id == "warp" ? "Warp/1.0" : id == "gemini" ? "antigravity" : "CodeRim/2.1.6");
+            request.Headers.UserAgent.ParseAdd(id == "commandcode" ? "command-code-desktop" : id == "warp" ? "Warp/1.0" : id == "gemini" ? "antigravity" : "CodeRim/" + Services.ReleaseUpdates.CurrentVersion);
             if (id == "kilo" && setting("KILO_ORG_ID") is { Length: > 0 } kiloOrg && !kiloOrg.Any(char.IsControl))
                 request.Headers.Add("X-KILOCODE-ORGANIZATIONID", kiloOrg);
             if (id == "devin" && DevinPaths(setting).InternalId is { } devinOrg) request.Headers.Add("x-cog-org-id", devinOrg);

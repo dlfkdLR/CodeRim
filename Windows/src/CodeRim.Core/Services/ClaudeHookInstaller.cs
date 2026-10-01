@@ -18,10 +18,15 @@ public static partial class ClaudeHookInstaller
         var root = ParseSettings(GuardedFile.Read(SettingsPath));
         return root?["statusLine"] is { } status && !IsOwned(StatusCommand(status), "claude-status");
     }
+    // PowerShell also closes a single-quoted string on the typographic quotes U+2018-U+201B,
+    // so a path such as "Bob\u2019s" must double those as well as the ASCII apostrophe.
+    private const string SingleQuotes = "'\u2018\u2019\u201A\u201B";
+    internal static string EscapeSingleQuoted(string value) => string.Concat(value.Select(character =>
+        SingleQuotes.Contains(character) ? new string(character, 2) : character.ToString()));
     public static string Command(string operation, string? executable = null)
     {
         if (operation is not ("claude-status" or "claude-session-start")) throw new ArgumentException("Unknown hook operation.", nameof(operation));
-        var script = InputScript + (executable ?? Executable).Replace("'", "''", StringComparison.Ordinal) + "' " + operation + "; exit $LASTEXITCODE";
+        var script = InputScript + EscapeSingleQuoted(executable ?? Executable) + "' " + operation + "; exit $LASTEXITCODE";
         return CommandPrefix + Convert.ToBase64String(Encoding.Unicode.GetBytes(script));
     }
     private static bool IsOwned(string? command, string operation)
@@ -38,9 +43,10 @@ public static partial class ClaudeHookInstaller
             var suffix = "' " + operation + "; exit $LASTEXITCODE";
             if (!script.StartsWith(prefix, StringComparison.Ordinal) || !script.EndsWith(suffix, StringComparison.Ordinal)) return false;
             var escapedPath = script[prefix.Length..^suffix.Length];
-            // An escaped apostrophe is the only quote form our installer emits.
-            if (escapedPath.Replace("''", "", StringComparison.Ordinal).Contains('\''))
-                return false;
+            // Doubled quotes are the only quote form our installer emits.
+            var unescaped = escapedPath;
+            foreach (var quote in SingleQuotes) unescaped = unescaped.Replace(new string(quote, 2), "", StringComparison.Ordinal);
+            if (unescaped.AsSpan().IndexOfAny(SingleQuotes) >= 0) return false;
             return IsHelper(escapedPath);
         }
         catch (FormatException) { return false; }

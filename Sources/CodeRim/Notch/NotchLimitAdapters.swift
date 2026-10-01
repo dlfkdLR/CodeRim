@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import CodexBarCore
 
@@ -67,7 +68,12 @@ final class CodexNotchProvider: NotchProvider {
         self.usage = usage
     }
 
-    var signInRoute: SignInRoute { .openApp(bundleID: "com.openai.chat", name: "Codex") }
+    var signInRoute: SignInRoute {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.chat") != nil
+            ? .openApp(bundleID: "com.openai.chat", name: "Codex")
+            : .guided(.init(name: "Codex", action: .terminal(command: "codex login"),
+                note: "A Terminal window runs `codex login`. Finish it in the browser and CodeRim connects on its own."))
+    }
 
     func account() -> ProviderAccount? {
         guard let email = accounts.currentAccountEmail else { return nil }

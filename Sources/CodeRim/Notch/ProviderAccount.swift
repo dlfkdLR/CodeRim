@@ -39,12 +39,17 @@ enum SignInRoute: Equatable {
     case openApp(bundleID: String, name: String)
     /// Nothing to launch; Claude Code is a command, not an application.
     case guidance(String)
+    /// CodeRim starts the sign-in itself: a Terminal window running the tool's login
+    /// command, the provider's login page in the browser, or its key field in Settings.
+    /// Adding a provider runs this once and then watches until the account appears.
+    case guided(GuidedSignIn)
 
     var actionTitle: String? {
         switch self {
         case .modal(let name):     return "Sign in to \(name)"
         case .openApp(_, let name): return "Open \(name)"
         case .guidance:            return nil
+        case .guided(let guided):  return guided.actionTitle
         }
     }
 
@@ -53,6 +58,7 @@ enum SignInRoute: Equatable {
         case .modal(let name):      return "Sign in to \(name) to read this account."
         case .openApp(_, let name): return "Sign in with \(name) to read this account."
         case .guidance(let text):   return text
+        case .guided(let guided):   return guided.note
         }
     }
 
@@ -66,6 +72,7 @@ enum SignInRoute: Equatable {
         case .modal(let name):      return "Sign out in the \(name) window to use another account."
         case .openApp(_, let name): return "Switch accounts in \(name); the notch follows."
         case .guidance:             return "Switch accounts in the tool that owns it; the notch follows."
+        case .guided(let guided):   return "Switch accounts in \(guided.name); the notch follows."
         }
     }
 
@@ -77,7 +84,7 @@ enum SignInRoute: Equatable {
             return "Signs out of \(name) — the session belongs to CodeRim."
         case .openApp(_, let name):
             return "You stay signed in to \(name) — end that session in \(name) itself."
-        case .guidance:
+        case .guidance, .guided:
             return "You stay signed in to the tool that owns the account."
         }
     }

@@ -225,6 +225,8 @@ final class NotchController: ObservableObject {
         } else {
             monitors.values.forEach { $0.stop() }
             window.apply(.hidden)
+            // A hidden notch has no pointer to follow or clock to show.
+            window.stop()
         }
     }
 
@@ -381,15 +383,45 @@ final class NotchController: ObservableObject {
         refresh(providerID: id)
     }
 
+    // MARK: - Connecting a provider as it is added
+
+    typealias ConnectionState = ProviderConnector.State
+    var connectionStates: [String: ConnectionState] { connector.states }
+    func connectionState(for id: String) -> ConnectionState? { connector.states[id] }
+    func cancelConnecting(_ id: String) { connector.cancel(id) }
+    func beginConnecting(_ id: String) { connector.begin(id) }
+
+    private lazy var connector: ProviderConnector = {
+        let connector = ProviderConnector(
+            provider: { [weak self] id in self?.providers.first { $0.id == id } },
+            connects: { [weak self] id in await self?.store?.connects(providerID: id) ?? false })
+        connectorObservation = connector.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
+        return connector
+    }()
+    private var connectorObservation: AnyCancellable?
+
     func addProvider(_ id: String) {
         guard NotchProviderCatalog.all.contains(where: { $0.id == id }),
               selectedProviderIDs.insert(id).inserted else { return }
         applyProviderSelection()
         if visible { monitors[id]?.start() }
-        store?.refresh(providerID: id)
+        // Adding is connecting: turn the provider on and start its sign-in in
+        // the same step, instead of leaving a second switch to find.
+        if id == "claude", let claudeIntegration {
+            Task { @MainActor [weak self] in
+                if !claudeIntegration.isEnabled { await claudeIntegration.setEnabled(true) }
+                if claudeIntegration.isEnabled, !claudeIntegration.isConnected {
+                    await claudeIntegration.addCurrentAccount()
+                }
+                self?.store?.refresh(providerID: id)
+            }
+        } else {
+            beginConnecting(id)
+        }
     }
 
     func removeProvider(_ id: String) {
+        cancelConnecting(id)
         guard selectedProviderIDs.remove(id) != nil else { return }
         monitors[id]?.stop()
         window.model.sessions.removeValue(forKey: id)
@@ -440,7 +472,7 @@ final class NotchController: ObservableObject {
         }
         guard defaults.object(forKey: "notchAnnounceSessionEnd") as? Bool
             ?? AppPreferences.defaultNotchAnnounceSessionEnd else { return }
-        window.peek(for: 5, focusing: event.session.processID)
+        window.peek(for: 5, focusing: event.session)
     }
 
     private func storedEdge() -> NotchEdge {

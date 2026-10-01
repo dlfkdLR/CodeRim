@@ -10,6 +10,9 @@ const text = (v, max) => typeof v === 'string' ? v.replace(/[\p{Cc}\p{Cf}]/gu, '
 const timestamp = v => Number.isFinite(v) && v >= 0 && v <= 4102444800 ? v : null;
 const percent = v => Number.isFinite(v) && v >= 0 && v <= 100 ? v : null;
 const tokens = v => Number.isSafeInteger(v) && v >= 0 ? v : null;
+// Desktops post on change and send a heartbeat every five minutes (longer when the
+// relay is busy), so a computer counts as online for two missed heartbeats.
+export const ONLINE_WINDOW = 660;
 export const defaultPreferences = () => ({ providerIDs: [] });
 export function preferences(input) {
   requireValue(Array.isArray(input?.providerIDs) && input.providerIDs.length <= 100);
@@ -41,11 +44,11 @@ export function sanitizeSnapshot(input, now) {
   return { schemaVersion: 1, generatedAt: input.generatedAt, providers, sessions };
 }
 export function contentState(snapshot, prefs, receivedAt, now) {
-  const staleAt = receivedAt ? receivedAt + 90 : now;
+  const staleAt = receivedAt ? receivedAt + ONLINE_WINDOW : now;
   const connection = !snapshot || now >= staleAt ? 'offline' : 'connected';
   const providers = prefs.providerIDs.map(id => snapshot?.providers.find(p => p.id === id)).filter(Boolean).map(p => ({
     ...p,
-    state: p.state === 'ready' && (!p.updatedAt || now - p.updatedAt > 300 || p.windows.some(w => w.resetsAt && w.resetsAt <= now)) ? 'stale' : p.state,
+    state: (p.state === 'ready' || p.state === 'partial') && (!p.updatedAt || now - p.updatedAt > 300 || p.windows.some(w => w.resetsAt && w.resetsAt <= now)) ? 'stale' : p.state,
   }));
   const rank = { waiting: 0, working: 1, idle: 2, unavailable: 3 };
   const all = (snapshot?.sessions ?? []).filter(s => prefs.providerIDs.includes(s.providerID)).sort((a, b) => rank[a.phase] - rank[b.phase] || (b.since ?? 0) - (a.since ?? 0));
@@ -57,11 +60,14 @@ export function contentState(snapshot, prefs, receivedAt, now) {
     unavailableCount: all.filter(s => s.phase === 'unavailable').length,
   };
 }
-export function activityPayload(state, now, event = 'update') {
+export function activityPayload(state, now, event = 'update', { alert, attributes } = {}) {
   const payload = { aps: { timestamp: Math.floor(now), event, 'content-state': state, 'stale-date': Math.floor(state.staleAt) } };
   if (event === 'end') payload.aps['dismissal-date'] = Math.floor(now);
+  // push-to-start (iOS 17.2+) needs the attributes type and an alert.
+  if (attributes) { payload.aps['attributes-type'] = 'CodeRimActivityAttributes'; payload.aps.attributes = attributes; }
+  if (alert) payload.aps.alert = { title: text(alert.title, 60), body: text(alert.body, 160) };
   // Reserve space for the ActivityAttributes and APNs envelope under the 4 KB ceiling.
-  requireValue(Buffer.byteLength(JSON.stringify(payload)) <= 3800, 'activity_too_large');
+  requireValue(new TextEncoder().encode(JSON.stringify(payload)).length <= 3800, 'activity_too_large');
   return payload;
 }
 
@@ -90,7 +96,7 @@ function catalogPicker(device, list, view, current, now) {
   const history = historyFor(view, device.id);
   const pinned = history.pinned.filter(id => list.some(p => p.id === id));
   const phase = id => {
-    if (now >= device.receivedAt + 90) return undefined;
+    if (now >= device.receivedAt + ONLINE_WINDOW) return undefined;
     const sessions = (device.snapshot?.sessions ?? []).filter(s => s.providerID === id);
     return sessions.some(s => s.phase === 'waiting') ? 'waiting' : sessions.some(s => s.phase === 'working') ? 'working' : undefined;
   };
@@ -119,7 +125,7 @@ function catalogPicker(device, list, view, current, now) {
 }
 // Each display has one source. Matching provider names never imply matching accounts.
 export function desktopState(devices, prefs, view, now) {
-  const device = devices.find(d => d.id === view?.deviceID) ?? devices.find(d => d.receivedAt + 90 > now) ?? devices[0];
+  const device = devices.find(d => d.id === view?.deviceID) ?? devices.find(d => d.receivedAt + ONLINE_WINDOW > now) ?? devices[0];
   const list = eligible(device, prefs);
   const provider = list.find(p => p.id === view?.providerID) ?? list[0];
   const state = contentState(device?.snapshot, { providerIDs: provider ? [provider.id] : [] }, device?.receivedAt ?? 0, now);

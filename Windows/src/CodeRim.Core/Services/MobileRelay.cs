@@ -12,10 +12,30 @@ public sealed record MobileSession(string ProviderID, string Phase, string Title
 public sealed record MobileSnapshot(int SchemaVersion, double GeneratedAt, IReadOnlyList<MobileProvider> Providers, IReadOnlyList<MobileSession> Sessions);
 public sealed record MobileToken(string Token, double ExpiresAt);
 public sealed record MobileCredential(string Endpoint, string Token, double ExpiresAt, bool ShareTitles = false);
-public sealed record MobilePairClaim(string Code, string Platform, string Name);
+public sealed record MobileDesktopLabel(string Platform, string Name);
+public sealed record MobilePairingStart(string Id, string Secret, double ExpiresAt);
+public sealed record MobilePairingRequest(string Id, string Secret);
+public sealed record MobilePairingPoll(bool? Pending, string? Token, double? ExpiresAt, string? DeviceID);
+/// <summary>Interval is the heartbeat the free relay can afford today; Notice is set while it rations.</summary>
+public sealed record MobileSnapshotReply(bool Ok, double? Interval, string? Notice);
+
+/// <summary><c>coderim://pair?r=&lt;relay&gt;&amp;i=&lt;id&gt;&amp;s=&lt;secret&gt;</c>, shown as the QR code the iPhone scans.</summary>
+public static class MobilePairingLink
+{
+    public static string Create(Uri relay, MobilePairingStart offer) =>
+        "coderim://pair?r=" + Uri.EscapeDataString(relay.AbsoluteUri.TrimEnd('/')) + "&i=" + Uri.EscapeDataString(offer.Id) + "&s=" + Uri.EscapeDataString(offer.Secret);
+}
 
 public static class MobileSnapshotBuilder
 {
+    private static readonly JsonSerializerOptions Compare = new(JsonSerializerDefaults.Web);
+    /// <summary>The free relay can afford changes as they happen plus a heartbeat every few minutes.</summary>
+    public static bool ShouldSend(MobileSnapshot body, MobileSnapshot? last, DateTimeOffset? lastAt, TimeSpan heartbeat, DateTimeOffset now)
+    {
+        if (last is null || lastAt is not { } sent || now - sent >= heartbeat) return true;
+        return JsonSerializer.Serialize(last with { GeneratedAt = 0 }, Compare) != JsonSerializer.Serialize(body with { GeneratedAt = 0 }, Compare);
+    }
+
     public static MobileSnapshot Create(CompanionSnapshot snapshot, IReadOnlyList<SessionActivity> sessions, bool shareTitles, DateTimeOffset now)
     {
         var providers = snapshot.Providers.Where(p => p.Enabled).Take(100).Select(p =>
@@ -38,7 +58,9 @@ public static class MobileSnapshotBuilder
     private static string Short(string value, int maximum) => string.Concat(value.EnumerateRunes().Take(maximum).Select(r => r.ToString()));
     private static string State(ReadingState state) => state switch {
         ReadingState.Ready => "ready", ReadingState.Stale => "stale", ReadingState.Loading => "loading",
-        ReadingState.NeedsAuth => "needsAuth", ReadingState.Unsupported => "unsupported", _ => "unavailable" };
+        ReadingState.NeedsAuth => "needsAuth", ReadingState.Unsupported => "unsupported",
+        // The relay and the Mac publisher use these names; collapsing them hid usable partial data on iPhone.
+        ReadingState.Partial => "partial", ReadingState.Disabled => "disabled", _ => "unavailable" };
 }
 
 /// Internet HTTPS transport; no LAN discovery, desktop listener or provider credential transfer.
@@ -50,7 +72,7 @@ public sealed class MobileRelayClient : IDisposable
     public MobileRelayClient(string endpoint, HttpMessageHandler? handler = null)
     {
         Endpoint = ValidateEndpoint(endpoint);
-        http = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(15) };
+        http = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(35) };
     }
     public static Uri ValidateEndpoint(string value)
     {
@@ -59,18 +81,23 @@ public sealed class MobileRelayClient : IDisposable
             throw new ArgumentException("Enter an HTTPS server origin without a path or credentials.", nameof(value));
         return uri;
     }
-    public async Task<MobileToken> PairAsync(string code, string name, CancellationToken cancellationToken)
+    public Task<MobilePairingStart> StartPairingAsync(string name, CancellationToken cancellationToken)
+        => SendAsync<MobilePairingStart>(HttpMethod.Post, "/v1/pairing/start", new MobileDesktopLabel("windows", name), null, cancellationToken);
+    /// <summary>The relay holds this request until the iPhone scans or about 20 seconds pass.</summary>
+    public async Task<MobileToken?> PollPairingAsync(MobilePairingStart offer, CancellationToken cancellationToken)
     {
-        var issued = await SendAsync<MobileToken>(HttpMethod.Post, "/v1/pairing/claim",
-            new MobilePairClaim(code.Trim().ToUpperInvariant().Replace("-", "", StringComparison.Ordinal), "windows", name), null, cancellationToken).ConfigureAwait(false);
-        return ValidateIssuedToken(issued, DateTimeOffset.UtcNow);
+        var result = await SendAsync<MobilePairingPoll>(HttpMethod.Post, "/v1/pairing/poll", new MobilePairingRequest(offer.Id, offer.Secret),
+            null, cancellationToken, TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+        return result.Token is { } token && result.ExpiresAt is { } expiresAt ? ValidateIssuedToken(new(token, expiresAt), DateTimeOffset.UtcNow) : null;
     }
-    public async Task PublishAsync(MobileSnapshot snapshot, string token, CancellationToken cancellationToken)
-        => _ = await SendAsync<JsonElement>(HttpMethod.Post, "/v1/snapshot", snapshot, token, cancellationToken).ConfigureAwait(false);
+    public Task<MobileSnapshotReply> PublishAsync(MobileSnapshot snapshot, string token, CancellationToken cancellationToken)
+        => SendAsync<MobileSnapshotReply>(HttpMethod.Post, "/v1/snapshot", snapshot, token, cancellationToken);
     public async Task DisconnectAsync(string token, CancellationToken cancellationToken)
         => _ = await SendAsync<JsonElement>(HttpMethod.Delete, "/v1/session", new { }, token, cancellationToken).ConfigureAwait(false);
-    private async Task<T> SendAsync<T>(HttpMethod method, string path, object body, string? token, CancellationToken cancellationToken)
+    private async Task<T> SendAsync<T>(HttpMethod method, string path, object body, string? token, CancellationToken cancellationToken, TimeSpan? timeout = null)
     {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        deadline.CancelAfter(timeout ?? TimeSpan.FromSeconds(15)); cancellationToken = deadline.Token;
         var bytes = JsonSerializer.SerializeToUtf8Bytes(body, Json);
         if (bytes.Length > 262144) throw new InvalidDataException("Mobile snapshot exceeds the transfer limit.");
         using var request = new HttpRequestMessage(method, new Uri(Endpoint, path)) { Content = new ByteArrayContent(bytes) };
