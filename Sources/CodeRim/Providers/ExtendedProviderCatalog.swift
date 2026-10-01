@@ -80,13 +80,30 @@ extension ExtendedProviderCatalog {
                                         home.appendingPathComponent(".local/bin").path]
         let cli = candidates.map { $0 + "/gemini" }.first { FileManager.default.isExecutableFile(atPath: $0) }
         if let cli {
+            // A CLI set to an API key never offers Google sign-in by itself, and CodeRim cannot read
+            // usage from a key: say so up front instead of leaving the sign-in waiting forever.
+            if usesKeyAuthentication(home: home) {
+                return .guided(.init(name: displayName, action: .terminal(command: cli),
+                    note: "Your Gemini CLI is set to an API key, which CodeRim cannot read usage from. In the Terminal window type /auth, choose Login with Google, finish in your browser, then type /quit.",
+                    hint: "Gemini is using an API key. CodeRim reads the Google sign-in instead. Type /auth now, choose Login with Google, then type /quit when it is done."))
+            }
             return .guided(.init(name: displayName, action: .terminal(command: cli),
-                note: "A Terminal window opens Gemini. Choose “Login with Google”, finish in your browser, then type /quit. CodeRim connects on its own.",
-                hint: "If Gemini says Authenticated with gemini-api-key, type /auth and choose Login with Google. CodeRim reads the Google sign-in, not an API key. Then type /quit."))
+                note: "A Terminal window opens Gemini. Choose “Login with Google”, finish in your browser, then type /quit. CodeRim connects on its own."))
         }
         return .guided(.init(name: displayName,
             action: .browser(URL(string: "https://github.com/google-gemini/gemini-cli#quickstart")!),
             note: "Install the Gemini CLI from this page, then choose Sign in again: it signs in with your Google account."))
+    }
+}
+
+extension ExtendedProviderCatalog {
+    static func usesKeyAuthentication(home: URL) -> Bool {
+        let path = home.appendingPathComponent(".gemini/settings.json")
+        guard let data = try? Data(contentsOf: path),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let type = ((json["security"] as? [String: Any])?["auth"] as? [String: Any])?["selectedType"] as? String
+        else { return false }
+        return type != "oauth-personal"
     }
 }
 

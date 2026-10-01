@@ -132,10 +132,13 @@ struct ProviderPickerView: View {
         case .checking:
             HStack(spacing: 6) { ProgressView().controlSize(.small); Text("Connecting…").foregroundStyle(.secondary) }
         case .waiting(let note):
-            HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
+              HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
                 Text("Waiting for sign-in…").foregroundStyle(.secondary).help(note)
                 Button("Cancel") { onCancel(id) }.buttonStyle(.link).help("Stop signing in and remove this provider")
+              }
+              Text(note).font(.caption2).foregroundStyle(.secondary).lineLimit(4).fixedSize(horizontal: false, vertical: true)
             }
         case .needsKey:
             Label("Enter your key", systemImage: "key.fill").foregroundStyle(.orange)

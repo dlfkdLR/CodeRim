@@ -25,4 +25,17 @@ final class GeminiSignInRouteTests: XCTestCase {
         guard case .browser(let url) = guided.action else { return XCTFail("Expected the install page") }
         XCTAssertEqual(url.host, "github.com")
     }
+
+    func testAnAPIKeyConfigurationIsCalledOutBeforeSigningIn() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("gemini-home-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: home.appendingPathComponent(".gemini"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        XCTAssertFalse(ExtendedProviderCatalog.usesKeyAuthentication(home: home))
+        try #"{"security":{"auth":{"selectedType":"gemini-api-key"}}}"#.write(
+            to: home.appendingPathComponent(".gemini/settings.json"), atomically: true, encoding: .utf8)
+        XCTAssertTrue(ExtendedProviderCatalog.usesKeyAuthentication(home: home))
+        try #"{"security":{"auth":{"selectedType":"oauth-personal"}}}"#.write(
+            to: home.appendingPathComponent(".gemini/settings.json"), atomically: true, encoding: .utf8)
+        XCTAssertFalse(ExtendedProviderCatalog.usesKeyAuthentication(home: home))
+    }
 }
