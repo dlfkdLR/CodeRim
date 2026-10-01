@@ -155,6 +155,30 @@ final class NotchClaudeTranscriptReaderTests: XCTestCase {
         XCTAssertEqual(reader.activity(sessionID: "abc", cwd: "/Users/vinz/app")?.turn, .finished)
     }
 
+    func testTitleFollowsTheLatestGeneratedTitleAndPrefersACustomOne() throws {
+        let url = try write(working + #"{"type":"ai-title","aiTitle":"First idea","sessionId":"abc"}"# + "\n",
+                            folder: "-Users-vinz-app", session: "abc")
+        let reader = ClaudeTranscriptReader(projects: projects)
+        XCTAssertEqual(reader.title(sessionID: "abc", cwd: "/Users/vinz/app"), "First idea")
+
+        let handle = try FileHandle(forWritingTo: url)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data((#"{"type":"ai-title","aiTitle":"전체 코드 리뷰","sessionId":"abc"}"# + "\n").utf8))
+        XCTAssertEqual(reader.title(sessionID: "abc", cwd: "/Users/vinz/app"), "전체 코드 리뷰")
+
+        // A half-written line is left for the next read.
+        try handle.write(contentsOf: Data(#"{"type":"custom-title","customTitle":"Renamed""#.utf8))
+        XCTAssertEqual(reader.title(sessionID: "abc", cwd: "/Users/vinz/app"), "전체 코드 리뷰")
+        try handle.write(contentsOf: Data((#","sessionId":"abc"}"# + "\n" + done).utf8))
+        try handle.close()
+        XCTAssertEqual(reader.title(sessionID: "abc", cwd: "/Users/vinz/app"), "Renamed")
+    }
+
+    func testNoTitleUntilClaudeCodeWritesOne() throws {
+        try write(working, folder: "-Users-vinz-app", session: "abc")
+        XCTAssertNil(ClaudeTranscriptReader(projects: projects).title(sessionID: "abc", cwd: "/Users/vinz/app"))
+    }
+
     func testSaysNothingWhenThereIsNoTranscript() {
         let reader = ClaudeTranscriptReader(projects: projects)
         XCTAssertNil(reader.activity(sessionID: "abc", cwd: "/Users/vinz/app"))

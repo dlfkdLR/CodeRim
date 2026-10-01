@@ -2,20 +2,20 @@ import AppKit
 import Darwin
 import Foundation
 
-/// Opens a Codex conversation or brings the application hosting an agent forward.
+/// Opens a Codex conversation or brings the terminal hosting an agent forward.
 ///
-/// For process-based sessions, Claude Code publishes no
-/// window, tab or tty. What it does have is a parent: the shell that launched
-/// it, whose parent is the terminal application. So the app is found by walking
-/// up the process tree until something turns up that macOS considers an
-/// application, and that is what gets raised.
+/// For process-based sessions, Claude Code publishes no window or tab. What it
+/// does have is a parent chain — the shell that launched it, whose parent is
+/// the terminal application — and a controlling tty and working directory.
+/// The application is found by walking up the process tree; terminals with a
+/// scripting interface are then asked for the exact tab:
 ///
-/// This stops at the application. Selecting the *tab* inside it needs the
-/// terminal's own scripting interface and there is no general one: Terminal.app
-/// and iTerm2 can match a tab by tty over AppleScript, Warp and Ghostty publish
-/// no scripting dictionary at all. Rather than work for two terminals and
-/// silently do nothing in a third, the app is raised for everybody and the
-/// tooltip names the session so the last hop is one keystroke.
+/// - Terminal.app and iTerm2 match a tab by its tty.
+/// - Ghostty (1.3+) matches a terminal surface by working directory, using the
+///   session's title to choose between two sessions in the same folder.
+///
+/// Anything else, or a script the user declined, still gets the application
+/// raised, so a click is never a silent no-op.
 enum SessionFocus {
     enum Target: Equatable {
         case codexThread(URL)
@@ -40,26 +40,124 @@ enum SessionFocus {
     static func activate(_ session: AgentSession) -> Bool {
         switch target(for: session) {
         case .codexThread(let url): return NSWorkspace.shared.open(url)
-        case .application(let pid): return activateApp(owning: pid)
+        case .application(let pid):
+            return activateApp(owning: pid, workingDirectory: session.workingDirectory, title: session.name)
         case nil: return false
         }
     }
 
-    /// Raise whichever application owns this process.
+    /// Raise whichever application owns this process, at the session's tab
+    /// when the terminal can say which one that is.
     ///
     /// Returns false when the chain runs out before an application appears,
     /// which is the honest answer for an agent started by launchd, over ssh, or
     /// from a process that has since been reparented to init.
+    @MainActor
     @discardableResult
-    static func activateApp(owning pid: pid_t) -> Bool {
+    static func activateApp(owning pid: pid_t, workingDirectory: String? = nil, title: String? = nil) -> Bool {
         guard let app = owningApp(of: pid) else {
             NotchLog.usage.debug("no owning app for pid \(pid, privacy: .public)")
             return false
         }
-        // `activate()` rather than the deprecated options form: the notch's own
-        // panel is non-activating, so there is no focus of ours to hand over
-        // and nothing to co-ordinate.
+        if let source = focusScript(bundleID: app.bundleIdentifier, tty: controllingTTY(of: pid),
+                                    workingDirectory: workingDirectory, title: title) {
+            var error: NSDictionary?
+            let result = NSAppleScript(source: source)?.executeAndReturnError(&error)
+            if error == nil, result?.booleanValue == true { return true }
+            NotchLog.usage.debug("terminal focus script failed: \(String(describing: error), privacy: .public)")
+        }
+        // The notch panel never makes CodeRim the active app, and on macOS 14+
+        // `NSRunningApplication.activate()` is cooperative — ignored when the
+        // caller is not active. Launch Services activates from the background.
+        if let url = app.bundleURL {
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = true
+            NSWorkspace.shared.openApplication(at: url, configuration: configuration)
+            return true
+        }
         return app.activate()
+    }
+
+    /// The AppleScript that selects the session's tab, or nil for a terminal
+    /// without a usable scripting interface. Every interpolated value is
+    /// escaped; the script answers true only when it found the tab.
+    static func focusScript(bundleID: String?, tty: String?, workingDirectory: String?, title: String?) -> String? {
+        switch bundleID {
+        case "com.apple.Terminal":
+            guard let tty else { return nil }
+            return """
+            tell application id "com.apple.Terminal"
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        if tty of t is \(quoted(tty)) then
+                            set selected of t to true
+                            set index of w to 1
+                            activate
+                            return true
+                        end if
+                    end repeat
+                end repeat
+            end tell
+            return false
+            """
+        case "com.googlecode.iterm2":
+            guard let tty else { return nil }
+            return """
+            tell application id "com.googlecode.iterm2"
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        repeat with s in sessions of t
+                            if tty of s is \(quoted(tty)) then
+                                select w
+                                tell t to select
+                                tell s to select
+                                activate
+                                return true
+                            end if
+                        end repeat
+                    end repeat
+                end repeat
+            end tell
+            return false
+            """
+        case "com.mitchellh.ghostty":
+            guard let workingDirectory else { return nil }
+            return """
+            tell application id "com.mitchellh.ghostty"
+                set matches to every terminal whose working directory is \(quoted(workingDirectory))
+                if (count of matches) is 0 then return false
+                set chosen to item 1 of matches
+                repeat with candidate in matches
+                    if name of candidate contains \(quoted(title ?? "")) then
+                        set chosen to contents of candidate
+                        exit repeat
+                    end if
+                end repeat
+                focus chosen
+                activate
+                return true
+            end tell
+            """
+        default:
+            return nil
+        }
+    }
+
+    /// An AppleScript string literal for `text`.
+    static func quoted(_ text: String) -> String {
+        "\"" + text.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\"", with: "\\\"") + "\""
+    }
+
+    /// `/dev/ttysNNN` for the process's controlling terminal, if it has one.
+    static func controllingTTY(of pid: pid_t) -> String? {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, pid]
+        guard sysctl(&mib, u_int(mib.count), &info, &size, nil, 0) == 0, size > 0 else { return nil }
+        let device = info.kp_eproc.e_tdev
+        guard device != -1, let name = devname(device, S_IFCHR) else { return nil }
+        return "/dev/" + String(cString: name)
     }
 
     /// The nearest ancestor process that macOS knows as a running application.

@@ -30,6 +30,8 @@
 	<true/>
 	<key>LSUIElement</key>
 	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>CodeRim asks your terminal for the tab a session is running in, so clicking it in the notch brings that tab forward.</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSPrincipalClass</key>

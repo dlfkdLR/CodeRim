@@ -45,6 +45,8 @@ struct AgentSession: Identifiable, Equatable, Sendable {
     let remoteHostID: String?
     /// Transcript identity for providers whose UI row is keyed by a process.
     let usageSessionID: String?
+    /// Where a process-based session runs; lets a terminal find its tab.
+    let workingDirectory: String?
     var isRemote: Bool { remoteHostID != nil }
     var locationDescription: String? {
         guard isRemote else { return nil }
@@ -64,7 +66,8 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         codexThreadID: String? = nil,
         parentThread: ParentThread? = nil,
         remoteHostID: String? = nil,
-        usageSessionID: String? = nil
+        usageSessionID: String? = nil,
+        workingDirectory: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -76,7 +79,18 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         self.codexThreadID = codexThreadID
         self.parentThread = parentThread
         self.usageSessionID = usageSessionID
+        self.workingDirectory = workingDirectory
         let host = remoteHostID?.trimmingCharacters(in: .whitespacesAndNewlines)
         self.remoteHostID = host == nil || host == "" || host == "local" ? nil : host
+    }
+}
+
+extension AgentSession {
+    /// The same session under another display name.
+    func renamed(_ name: String) -> AgentSession {
+        AgentSession(id: id, name: name, detail: detail, state: state, waitingFor: waitingFor, since: since,
+                     processID: processID, codexThreadID: codexThreadID, parentThread: parentThread,
+                     remoteHostID: remoteHostID, usageSessionID: usageSessionID,
+                     workingDirectory: workingDirectory)
     }
 }
