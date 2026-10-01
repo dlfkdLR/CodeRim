@@ -17,7 +17,7 @@ struct ClaudeAccountsView: View {
                 }
             }
             .padding(.bottom, 8)
-            Text("Select an account for the Claude Code CLI.")
+            Text("Select an account for the Claude Code CLI. Claude Desktop keeps its own sign-in.")
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 20)
 
@@ -71,6 +71,14 @@ struct ClaudeAccountsView: View {
                 .padding(.top, 12)
                 .accessibilityElement(children: .combine)
                 .accessibilityIdentifier("accounts.status")
+            }
+            if accounts.desktopNeedsSwitch {
+                Button("Open Claude Desktop") {
+                    ClaudeDesktopAccount.open()
+                    accounts.dismissDesktopSwitch()
+                }
+                .padding(.top, 8)
+                .accessibilityIdentifier("accounts.openDesktop")
             }
 
             Text("Saved logins stay in this Mac’s Keychain. Close Claude Code sessions before switching.")

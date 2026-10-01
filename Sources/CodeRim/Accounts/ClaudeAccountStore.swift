@@ -9,6 +9,9 @@ final class ClaudeAccountStore: ObservableObject {
     @Published private(set) var isSigningIn = false
     @Published private(set) var message: String?
     @Published private(set) var isError = false
+    /// Set after a switch when Claude Desktop is still signed in to another account.
+    @Published private(set) var desktopNeedsSwitch = false
+    private let desktopAccountID: () -> String?
     var onWillSwitch: () -> Void = {}
     var onDidSwitch: () async -> Void = {}
 
@@ -23,8 +26,19 @@ final class ClaudeAccountStore: ObservableObject {
          runtime: any ClaudeAccountRuntime = LocalClaudeAccountRuntime(),
          acquireLock: @escaping () throws -> CodexAccountOperationLock? = {
              try CodexAccountOperationLock.acquire(directory: FileManager.default.homeDirectoryForCurrentUser)
-         }) {
+         },
+         desktopAccountID: @escaping () -> String? = { ClaudeDesktopAccount.accountID() }) {
         self.vault = vault; self.login = login; self.runtime = runtime; self.acquireLock = acquireLock
+        self.desktopAccountID = desktopAccountID
+    }
+
+    /// Desktop keeps its own sign-in; say so when it is not on `account`.
+    private func noteDesktop(for account: SavedClaudeAccount, _ text: String) {
+        let desktop = desktopAccountID()
+        desktopNeedsSwitch = desktop.map { $0.caseInsensitiveCompare(account.accountID) != .orderedSame } ?? false
+        succeed(desktopNeedsSwitch
+            ? text + " Claude Desktop signs in separately and is still on another account — switch it in Claude Desktop."
+            : text)
     }
 
     func load() {
@@ -102,7 +116,7 @@ final class ClaudeAccountStore: ObservableObject {
             if current?.id == id {
                 currentID = id
                 try await verifyCLIAccount(selected)
-                succeed("This account is already active for new Claude Code CLI sessions.")
+                noteDesktop(for: selected, "This account is already active for new Claude Code CLI sessions.")
                 return
             }
             try runtime.requireStopped()
@@ -114,7 +128,7 @@ final class ClaudeAccountStore: ObservableObject {
             committed = true
             currentID = selected.id
             try await verifyCLIAccount(selected)
-            succeed("Account switched for the Claude Code CLI. Start a new session to use it.")
+            noteDesktop(for: selected, "Account switched for the Claude Code CLI. Start a new session to use it.")
         } catch {
             if committed {
                 currentID = try? login.read().account()?.id
@@ -142,6 +156,7 @@ final class ClaudeAccountStore: ObservableObject {
     }
 
     private func succeed(_ text: String) { isError = false; message = text }
+    func dismissDesktopSwitch() { desktopNeedsSwitch = false }
     private func fail(_ error: Error) {
         isError = !(error is CancellationError) && error as? ClaudeAccountError != .cancelled
         message = error is CancellationError ? ClaudeAccountError.cancelled.errorDescription

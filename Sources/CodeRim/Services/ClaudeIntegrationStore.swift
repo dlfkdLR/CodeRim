@@ -80,6 +80,12 @@ enum ClaudeIntegrationError: Error, LocalizedError, Equatable {
 
 protocol ClaudeAuthenticating: Sendable {
     func accountStatus() async throws -> ClaudeAccount?
+    /// Signs the Claude Code CLI itself in, through its own browser flow.
+    func signIn() async throws
+}
+
+extension ClaudeAuthenticating {
+    func signIn() async throws { throw ClaudeIntegrationError.malformedResponse }
 }
 
 protocol ClaudeStatusLineInstalling: Sendable {
@@ -103,6 +109,19 @@ struct ClaudeCLIService: ClaudeAuthenticating {
         guard account?.subscriptionType?.lowercased() == "max",
               account?.rateLimitTier == nil else { return account }
         return try Self.account(from: data, configurationData: Self.readConfiguration())
+    }
+
+    /// `claude auth login` opens the browser and returns once the CLI holds
+    /// the new login. It writes the CLI's own credentials; CodeRim reads them
+    /// afterwards exactly as it would after a terminal sign-in.
+    func signIn() async throws {
+        _ = try await ClaudeCommandRunner.run(
+            executable: try ClaudeExecutable.resolve(),
+            arguments: ["auth", "login", "--claudeai"],
+            timeout: .seconds(240),
+            maximumOutputBytes: Self.maximumStatusBytes,
+            environment: ClaudeProcessEnvironment.sanitized
+        )
     }
 
     static func account(from data: Data, configurationData: Data? = nil) throws -> ClaudeAccount? {
@@ -593,8 +612,23 @@ final class ClaudeIntegrationStore: ObservableObject {
         statusMessage = "Checking Claude account…"
         defer { finishOperation(operation) }
         do {
-            let detected = try await authenticator.accountStatus()
+            var detected = try await authenticator.accountStatus()
             guard isCurrent(operation), isEnabled, !isDisabling else { return }
+            if detected == nil {
+                // Nothing to add yet: run the CLI's own sign-in rather than
+                // repeat "sign in first" and leave the button looking dead.
+                statusMessage = "Finish signing in to Claude in your browser…"
+                do { try await authenticator.signIn() } catch {
+                    guard isCurrent(operation) else { return }
+                    status = .needsAccount
+                    statusMessage = "Claude sign-in didn’t finish. Choose Add Account to try again."
+                    notifyAvailabilityIfNeeded()
+                    return
+                }
+                guard isCurrent(operation), isEnabled, !isDisabling else { return }
+                detected = try await authenticator.accountStatus()
+                guard isCurrent(operation), isEnabled, !isDisabling else { return }
+            }
             guard let found = detected else {
                 detectedAccount = nil
                 account = nil

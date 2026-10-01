@@ -376,13 +376,26 @@ internal sealed partial class DashboardWindow : Window
     }
     private void ShowProviderPicker()
     {
+        string? added = null;
         var picker = new ProviderPickerWindow(this, store, settings, id =>
         {
             if (settings.Current.EnabledProviders.Contains(id, StringComparer.Ordinal)) return;
             Save(settings.Current with { EnabledProviders = [..settings.Current.EnabledProviders, id] });
-            _ = store.RefreshProviderAsync(id);
+            _ = store.RefreshProviderAsync(id); added = id;
         }, id => Navigate(id));
-        picker.ShowDialog(); Render();
+        picker.ShowDialog();
+        // Adding is connecting: open the provider that was just added on its
+        // connection settings, and for Claude turn the integration on and start
+        // its sign-in, instead of leaving a second switch to find.
+        if (added is null) { Render(); return; }
+        if (added == "claude") { _ = ConnectAddedClaudeAsync(); return; }
+        Navigate(added);
+    }
+    private async Task ConnectAddedClaudeAsync()
+    {
+        if (!store.Claude.Preferences.Enabled) await store.Claude.SetEnabledAsync(true);
+        Navigate("claude");
+        if (store.Claude.Preferences.Enabled && !store.ClaudeAvailable && !store.Claude.Busy) await AddClaudeAsync();
     }
     private static bool HasConnector(string id) => id is "codex" or "claude" or "jetbrains" || NativeProviders.Supported.Contains(id) || HttpProviders.Supported.Contains(id) || ScriptProviders.Catalog.ContainsKey(id);
     private void Provider(string id)

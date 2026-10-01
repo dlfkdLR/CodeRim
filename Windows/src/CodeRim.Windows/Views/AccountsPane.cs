@@ -159,6 +159,8 @@ internal sealed class AccountsPane : DockPanel
                         finally { if (provider == "claude") await store.Claude.FinishAccountSwitchAsync(verifiedSwitch ? account.Identity.Id : null); }
                         store.InvalidateAccount(provider); await store.RefreshProviderAsync(provider).ConfigureAwait(true);
                         await RefreshAccountsAsync(); feedback.Text = "The CLI verified the selected account.";
+                        if (provider == "claude" && ClaudeDesktopAccount.Differs(ClaudeDesktopAccount.ProfileAccountId(account.Profile)))
+                            feedback.Text += " Claude Desktop signs in separately and is still on another account — switch it in Claude Desktop.";
                     }
                     catch (AccountOperationBusyException error) { feedback.Text = error.UserMessage; }
                     catch (Exception e) when (e is not OutOfMemoryException)
