@@ -4,7 +4,7 @@
 
 **Windows 11 · x64 and ARM64 · .NET included.** Windows is a preview with separate release and verification coverage.
 
-[2.1.13 x64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-x64-Setup.msi) · [2.1.13 ARM64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-arm64-Setup.msi)
+[2.1.15 x64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-x64-Setup.msi) · [2.1.15 ARM64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-arm64-Setup.msi)
 
 Run the matching `Setup.msi`. It installs per user without administrator access, registers Start menu/uninstall entries, and adds `coderim` to user PATH. Open a new terminal after installation. Existing ZIP users run Setup once to enable managed updates. Settings, saved accounts, and local history are preserved.
 
