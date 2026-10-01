@@ -23,6 +23,8 @@ The default macOS subscription OAuth Keychain record and `~/.claude.json` profil
 
 Add uses `claude auth login --claudeai` with private temporary configuration and a distinct Keychain service; require an explicit signed-out status first and remove temporary items afterward. Cancel stops only the helper. Switch requires confirmation and closed existing Claude sessions, preserves the departing login, replaces only OAuth/profile identity, and preserves unrelated settings.
 
+Claude Desktop keeps its own encrypted sign-in in `~/Library/Application Support/Claude/config.json` (`%APPDATA%\Claude\config.json` on Windows) and rewrites it while running, so switching never touches it. After a switch, CodeRim reads only its `lastKnownAccountUuid` and compares it with the selected profile's `accountUuid`. A known mismatch is reported, and macOS offers to open Desktop. A missing or unreadable file reports nothing. When the CLI has no login, the settings **Add Account** first runs `claude auth login --claudeai` against the default configuration.
+
 Recheck concurrent changes before credential and atomic profile writes. If profile replacement fails, rollback only the credential written by this operation. Run `claude auth status` after switching and match method/email/organization/full saved identity. Start a new CLI session. Expired/revoked credentials can still require official login. Existing sessions are not killed.
 
 ## State, privacy, and verification

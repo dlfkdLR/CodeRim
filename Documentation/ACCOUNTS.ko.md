@@ -24,6 +24,8 @@ Codex는 `/Applications/Codex.app`·`/Applications/ChatGPT.app`의 공급자 서
 
 추가는 개인 임시 설정과 별도 Keychain 서비스에서 `claude auth login --claudeai`를 사용합니다. 시작 전에 명시적 로그아웃 상태를 요구하고 완료 후 임시 항목을 제거합니다. Cancel은 도우미만 중지합니다. 전환은 확인과 기존 Claude 세션 종료가 필요하며 떠나는 로그인을 보관하고 OAuth·프로필 계정 정보만 교체해 무관한 설정을 유지합니다.
 
+Claude Desktop은 자체 로그인을 `~/Library/Application Support/Claude/config.json`(Windows는 `%APPDATA%\Claude\config.json`)에 암호화해 보관하고 실행 중에 다시 쓰므로, 전환은 이 파일을 건드리지 않습니다. 전환 후 CodeRim은 `lastKnownAccountUuid`만 읽어 선택한 프로필의 `accountUuid`와 비교합니다. 다르다고 확인되면 알리고, macOS에서는 Desktop을 열 수 있게 합니다. 파일이 없거나 읽을 수 없으면 아무것도 알리지 않습니다. CLI에 로그인이 없으면 설정의 **Add Account**가 먼저 기본 설정으로 `claude auth login --claudeai`를 실행합니다.
+
 자격 증명·원자 프로필 기록 전에 동시 변경을 재확인합니다. 프로필 교체가 실패하면 이번 작업이 기록한 자격 증명만 rollback합니다. 전환 후 `claude auth status`의 방식·이메일·조직·저장한 전체 ID를 확인하고 새 CLI 세션을 시작합니다. 만료·철회된 로그인은 공식 재로그인이 필요할 수 있습니다. 기존 세션은 강제 종료하지 않습니다.
 
 ## 상태·개인정보·검증

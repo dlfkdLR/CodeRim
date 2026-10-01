@@ -10,7 +10,13 @@ macOS에서 노치의 계정 버튼으로 Codex Accounts 또는 Claude Accounts�
 
 ## Claude Code
 
-공식 Claude CLI에서 로그인한 뒤 CodeRim에 계정을 추가합니다. **Add Account**는 격리된 공식 CLI 브라우저 로그인 흐름을 엽니다. 전환 전에 Claude Code 세션을 닫고 변경을 확인합니다. 공용 CLI 자격 증명과 프로필을 함께 갱신하며 `claude auth status`의 이메일·조직이 선택한 계정과 일치하는지 확인합니다. 선택한 계정을 쓰려면 새 CLI 세션을 시작합니다. 사용자 지정 설정 홈, API 키, 관리형 인증은 Claude Code 자체에서 관리해야 합니다.
+Claude 설정의 **Add Account**는 Claude CLI에 로그인된 계정을 추가합니다. CLI가 아직 로그인되어 있지 않으면 먼저 공식 `claude auth login` 브라우저 로그인을 실행합니다. Claude Accounts의 **Add Account…**는 다른 계정을 저장하기 위해 격리된 공식 CLI 브라우저 로그인 흐름을 엽니다. 전환 전에 Claude Code 세션을 닫고 변경을 확인합니다. 공용 CLI 자격 증명과 프로필을 함께 갱신하며 `claude auth status`의 이메일·조직이 선택한 계정과 일치하는지 확인합니다. 선택한 계정을 쓰려면 새 CLI 세션을 시작합니다. 사용자 지정 설정 홈, API 키, 관리형 인증은 Claude Code 자체에서 관리해야 합니다.
+
+## Claude Desktop은 따로 전환합니다
+
+CodeRim에서 Claude 계정을 전환하면 **Claude Code CLI**만 바뀝니다. Claude Desktop은 자체 로그인을 따로 유지하며, Desktop 안에서 시작한 Claude Code 세션도 마찬가지입니다. Desktop은 이 로그인을 자체 설정에 암호화해 저장하고, 실행 중에 계속 다시 씁니다. 밖에서 바꾸면 Desktop이 로그아웃되거나 설정이 손상될 수 있어서 CodeRim은 이 값을 수정하지 않습니다.
+
+전환 후 CodeRim은 Desktop이 마지막으로 기록한 계정과 새로 선택한 계정을 비교합니다. 둘이 다르면 결과에 Desktop이 아직 다른 계정이라고 표시합니다. macOS에서는 **Open Claude Desktop** 버튼이 나타나며, Desktop의 계정 메뉴에서 직접 전환하면 됩니다. Desktop이 설치되어 있지 않거나 로그인한 적이 없으면 아무것도 표시하지 않습니다.
 
 ## 히스토리와 자격 증명
 
