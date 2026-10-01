@@ -50,6 +50,7 @@ extension ExtendedProviderCatalog {
     /// a website session opens its login page, an API key opens its settings, and a
     /// tool with a login command runs it. Anything else keeps its written guidance.
     static func signInRoute(for descriptor: ProviderDescriptor, displayName: String) -> SignInRoute {
+        if descriptor.id == .gemini { return geminiSignInRoute(displayName: displayName) }
         let modes = descriptor.fetchPlan.sourceModes
         let summary = guide(for: localID(descriptor.id))?.summary ?? ""
         let page = [descriptor.metadata.dashboardURL, descriptor.metadata.subscriptionDashboardURL]
@@ -67,6 +68,24 @@ extension ExtendedProviderCatalog {
                 note: "Sign in to \(displayName), create an API key, and paste it in the provider's settings."))
         }
         return .guidance("Configure \(displayName) in its provider settings. " + summary)
+    }
+}
+
+extension ExtendedProviderCatalog {
+    /// Gemini reads the Google sign-in the Gemini CLI keeps, so there is no key to paste:
+    /// the CLI's first run offers "Login with Google" and writes that sign-in itself.
+    static func geminiSignInRoute(displayName: String, home: URL = FileManager.default.homeDirectoryForCurrentUser,
+                                  searchPath: [String] = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)) -> SignInRoute {
+        let candidates = searchPath + ["/usr/local/bin", "/opt/homebrew/bin", home.appendingPathComponent(".npm-global/bin").path,
+                                        home.appendingPathComponent(".local/bin").path]
+        let cli = candidates.map { $0 + "/gemini" }.first { FileManager.default.isExecutableFile(atPath: $0) }
+        if let cli {
+            return .guided(.init(name: displayName, action: .terminal(command: cli),
+                note: "A Terminal window opens Gemini. Choose “Login with Google”, finish in your browser, then type /quit. CodeRim connects on its own."))
+        }
+        return .guided(.init(name: displayName,
+            action: .browser(URL(string: "https://github.com/google-gemini/gemini-cli#quickstart")!),
+            note: "Install the Gemini CLI from this page, then choose Sign in again: it signs in with your Google account."))
     }
 }
 

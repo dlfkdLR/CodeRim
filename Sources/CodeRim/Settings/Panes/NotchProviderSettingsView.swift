@@ -46,6 +46,7 @@ struct NotchProviderSettingsView: View {
                let descriptor = ExtendedProviderCatalog.descriptor(for: providerID) {
                 SettingsNote("To use another account, save its credentials below, or switch the imported browser session and refresh.")
                 SettingsSection(title: "Switch account") {
+                    if let route, case .guided(let guided) = route, !guided.opensSettings { routeControl(route) }
                     SettingsButtonRow(title: "Refresh account", systemImage: "arrow.clockwise") {
                         notch.providerConfigurationDidChange(providerID)
                     }
