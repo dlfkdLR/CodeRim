@@ -135,7 +135,7 @@ struct ProviderPickerView: View {
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
                 Text("Waiting for sign-in…").foregroundStyle(.secondary).help(note)
-                Button("Cancel") { onCancel(id) }.buttonStyle(.link)
+                Button("Cancel") { onCancel(id) }.buttonStyle(.link).help("Stop signing in and remove this provider")
             }
         case .needsKey:
             Label("Enter your key", systemImage: "key.fill").foregroundStyle(.orange)
