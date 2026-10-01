@@ -416,7 +416,7 @@ internal sealed partial class DashboardWindow : Window
     private void AddConnectionBanner(string id)
     {
         connectionBannerId = id; connectionBanner = new StackPanel { Margin = new Thickness(32, 0, 32, 6) };
-        System.Windows.Automation.AutomationProperties.SetAutomationId(connectionBanner, "provider.connection");
+        System.Windows.Automation.AutomationProperties.SetAutomationId(connectionBanner, "provider.signin");
         body.Children.Add(connectionBanner); UpdateConnectionBanner();
     }
     private void UpdateConnectionBanner()
