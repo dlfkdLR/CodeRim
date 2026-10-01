@@ -29,7 +29,6 @@ final class SettingsWindowControllerTests: XCTestCase {
             XCTAssertTrue(window.styleMask.contains(.fullSizeContentView))
             XCTAssertTrue(window.titlebarAppearsTransparent)
             let viewport = try XCTUnwrap(host.subviews.first)
-            XCTAssertEqual(viewport.layer?.masksToBounds, true)
             XCTAssertEqual(viewport.frame.size.height, host.bounds.height, accuracy: 1)
             for scroll in descendants(of: NSScrollView.self, in: host) where !(scroll.documentView is NSOutlineView) {
                 XCTAssertGreaterThan(scroll.contentView.contentInsets.top + scroll.safeAreaInsets.top, 0,

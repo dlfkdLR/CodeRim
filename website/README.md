@@ -18,7 +18,7 @@ Open [http://127.0.0.1:4173](http://127.0.0.1:4173); `/?lang=en` opens English. 
 
 ## Deployment configuration
 
-The recorded 2026-09-28 deployment uses [coderim.vercel.app](https://coderim.vercel.app), project `willbrains-projects/coderim`, and public domain [codrim.dlfkd.dev](https://codrim.dlfkd.dev). Hosting is Vercel and DNS is Cloudflare with the `codrim` CNAME DNS-only. These are recorded configuration facts; this documentation audit performs no deployment or fresh production verification.
+The recorded 2026-09-28 deployment uses [coderim.vercel.app](https://coderim.vercel.app), project `willbrains-projects/coderim`, and public domain [coderim.dlfkd.dev](https://coderim.dlfkd.dev). Hosting is Vercel and DNS is Cloudflare with the `coderim` CNAME DNS-only. These are recorded configuration facts; this documentation audit performs no deployment or fresh production verification.
 
 Upload only `website`. CLI Root Directory is `.`, Framework is Other, Output Directory is `.`, Build/Install commands are empty, and no environment variables are required. [Vercel static build documentation](https://vercel.com/docs/builds/configure-a-build#skip-build-step). `vercel.json` serves static output; `.vercelignore` excludes maintenance docs, scripts and environment files. Keep `.vercel/` out of Git.
 

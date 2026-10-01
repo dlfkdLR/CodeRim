@@ -8,12 +8,23 @@ struct MobileSettingsSection: View {
     @State private var showsRelay = false
 
     /// One spring for everything that appears or leaves, so the card grows instead of jumping.
+    private static let pairingAnchor = "iphone.pairing"
     private static let motion = Animation.spring(response: 0.5, dampingFraction: 0.86)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) { content }
-            .animation(Self.motion, value: connection.pairingLink)
-            .animation(Self.motion, value: connection.isConnected)
+        ScrollViewReader { proxy in
+            VStack(alignment: .leading, spacing: 6) { content }
+                .animation(Self.motion, value: connection.pairingLink)
+                .animation(Self.motion, value: connection.isConnected)
+                .onChange(of: connection.pairingLink) { _, link in
+                    guard link != nil else { return }
+                    // Let the card grow first, then bring the code to the middle of the pane.
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(120))
+                        withAnimation(.easeInOut(duration: 0.55)) { proxy.scrollTo(Self.pairingAnchor, anchor: .center) }
+                    }
+                }
+        }
     }
 
     @ViewBuilder private var content: some View {
@@ -82,6 +93,7 @@ struct MobileSettingsSection: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 22).padding(.horizontal, SettingsMetrics.rowInset)
+        .id(Self.pairingAnchor)
         .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
     }
 

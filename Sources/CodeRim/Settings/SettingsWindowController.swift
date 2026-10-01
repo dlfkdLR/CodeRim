@@ -108,8 +108,6 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSToolbarDeleg
         settingsContentController = container
         container.addChild(hosting)
         let viewport = NSView()
-        viewport.wantsLayer = true
-        viewport.layer?.masksToBounds = true
         viewport.translatesAutoresizingMaskIntoConstraints = false
         container.view.addSubview(viewport)
         hosting.view.translatesAutoresizingMaskIntoConstraints = false

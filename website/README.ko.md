@@ -40,7 +40,7 @@ vercel deploy --prod --scope willbrains-projects
 
 Git 기반 자동 배포는 연결하지 않았습니다. 나중에 이 저장소를 Vercel에 연결한다면 Git 기준 Root Directory를 `website`로 지정하세요.
 
-운영 주소는 [https://codrim.dlfkd.dev](https://codrim.dlfkd.dev)입니다. 호스팅은 Vercel, DNS 관리는 Cloudflare를 사용합니다. `codrim` CNAME을 Vercel이 안내한 주소에 DNS 전용으로 연결했습니다. 저장소의 웹사이트 링크는 GitHub About에 둡니다.
+운영 주소는 [https://coderim.dlfkd.dev](https://coderim.dlfkd.dev)입니다. 호스팅은 Vercel, DNS 관리는 Cloudflare를 사용합니다. `coderim` CNAME을 Vercel이 안내한 주소에 DNS 전용으로 연결했습니다. 저장소의 웹사이트 링크는 GitHub About에 둡니다.
 
 초기 운영 배포는 `READY` 상태와 인증 없는 HTTPS 200 응답을 확인했습니다. 공개된 HTML·CSS·JavaScript·이미지 등 82개 파일이 로컬 최종본과 SHA-256 기준으로 모두 일치하며, 유지보수 문서와 로컬 스크립트 경로는 404입니다. 배포 ID와 상세 확인 결과는 `outputs/website-2026-09-28/deployment-verification.json`에 기록합니다. [VALIDATION.md](VALIDATION.md)는 배포 전 로컬 검증 기록입니다.
 
