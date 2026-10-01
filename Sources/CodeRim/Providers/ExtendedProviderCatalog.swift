@@ -81,7 +81,8 @@ extension ExtendedProviderCatalog {
         let cli = candidates.map { $0 + "/gemini" }.first { FileManager.default.isExecutableFile(atPath: $0) }
         if let cli {
             return .guided(.init(name: displayName, action: .terminal(command: cli),
-                note: "A Terminal window opens Gemini. Choose “Login with Google”, finish in your browser, then type /quit. CodeRim connects on its own."))
+                note: "A Terminal window opens Gemini. Choose “Login with Google”, finish in your browser, then type /quit. CodeRim connects on its own.",
+                hint: "If Gemini says Authenticated with gemini-api-key, type /auth and choose Login with Google. CodeRim reads the Google sign-in, not an API key. Then type /quit."))
         }
         return .guided(.init(name: displayName,
             action: .browser(URL(string: "https://github.com/google-gemini/gemini-cli#quickstart")!),

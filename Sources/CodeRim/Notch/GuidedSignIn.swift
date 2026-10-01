@@ -25,6 +25,9 @@ struct GuidedSignIn: Equatable {
         }
     }
 
+    /// Extra lines the Terminal window prints before the tool starts.
+    var hint: String = ""
+
     var opensSettings: Bool { action == .settings }
 }
 
@@ -44,7 +47,7 @@ enum SignInLauncher {
             switch guided.action {
             case .settings: return false
             case .browser(let url): return NSWorkspace.shared.open(url)
-            case .terminal(let command): return openTerminal(running: command, title: guided.name)
+            case .terminal(let command): return openTerminal(running: command, title: guided.name, hint: guided.hint)
             }
         }
     }
@@ -52,7 +55,7 @@ enum SignInLauncher {
     /// A `.command` file is the one way to run something in Terminal without an
     /// AppleScript permission prompt. It deletes itself, and quotes nothing from the user.
     @MainActor
-    static func openTerminal(running command: String, title: String) -> Bool {
+    static func openTerminal(running command: String, title: String, hint: String = "") -> Bool {
         guard command.allSatisfy({ $0.isLetter || $0.isNumber || " -_./".contains($0) }) else { return false }
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("coderim-login", isDirectory: true)
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
@@ -64,6 +67,7 @@ enum SignInLauncher {
         clear
         echo "Signing in to \(title.filter { $0.isLetter || $0.isNumber || $0 == " " }) for CodeRim."
         echo "When it finishes, return to CodeRim: it connects on its own."
+        \(hint.isEmpty ? "" : "echo; echo \"\(hint.filter { $0.isLetter || $0.isNumber || " .,:/-".contains($0) })\"")
         echo
         \(command)
         echo
