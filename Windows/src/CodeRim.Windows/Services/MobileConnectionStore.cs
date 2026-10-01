@@ -13,8 +13,8 @@ namespace CodeRim.Windows.Services;
 internal sealed class MobileConnectionStore : INotifyPropertyChanged, IDisposable
 {
     private const string Key = "iphone-relay";
-    /// <summary>The relay every CodeRim connects to unless overridden for self-hosting. Set when the relay is deployed.</summary>
-    internal const string DefaultRelay = "";
+    /// <summary>The relay every CodeRim connects to unless overridden for self-hosting.</summary>
+    internal const string DefaultRelay = "https://coderim-relay.pages.dev";
     private readonly string relayPath = Path.Combine(CompanionFile.DataDirectory, "iphone-relay-url");
     private CancellationTokenSource? pairing;
     private MobileSnapshot? lastSent;

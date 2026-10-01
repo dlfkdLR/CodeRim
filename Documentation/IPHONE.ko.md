@@ -14,11 +14,11 @@ xcodebuild -project iOS/CodeRimMobile.xcodeproj -scheme CodeRimMobile -sdk iphon
 
 `test`에는 설치된 시뮬레이터 destination을 쓰고, Keychain·WidgetKit 확인을 위해 ad-hoc 서명(`CODE_SIGN_IDENTITY=-`)을 유지합니다. `CODE_SIGNING_ALLOWED=NO`는 같지 않으며 Keychain 접근이 실패합니다. 시뮬레이터에는 카메라가 없어서 스캐너가 카메라 앱 안내와 붙여넣기 칸을 대신 보여 줍니다. 개발 서명은 sandbox APNs를, TestFlight·App Store는 production을 사용합니다.
 
-모든 컴퓨터가 쓰는 relay 주소는 macOS의 `Config/Info.plist` `CodeRimRelayURL`과 Windows의 `MobileConnectionStore.DefaultRelay`입니다. 둘 다 배포한 Worker의 HTTPS origin으로 설정합니다. 직접 운영하는 relay를 쓰려면 각 앱의 iPhone 설정에서 바꿀 수 있습니다.
+모든 컴퓨터가 쓰는 relay 주소는 macOS의 `Config/Info.plist` `CodeRimRelayURL`과 Windows의 `MobileConnectionStore.DefaultRelay`입니다. 둘 다 `https://coderim-relay.pages.dev`를 가리킵니다. 직접 운영하는 relay를 쓰려면 각 앱의 iPhone 설정에서 바꿀 수 있습니다.
 
 ## Relay 배포 (무료 전용)
 
-`MobileRelay`는 모든 계정을 담는 SQLite 기반 Durable Object 하나를 쓰는 Cloudflare Worker입니다. **Workers Free 플랜에서만** 배포합니다. 이 플랜에서는 하루 한도를 다 쓰면 00:00 UTC까지 요청이 실패할 뿐 요금이 청구되지 않습니다. 결제 수단을 추가하거나 계정을 Workers Paid로 바꾸지 않습니다. 그러면 같은 한도가 요금으로 바뀝니다.
+`MobileRelay`는 모든 계정을 담는 SQLite 기반 Durable Object 하나를 쓰는 Cloudflare Worker이며, `MobileRelay/pages/`의 Pages 프로젝트가 앞단을 맡습니다. 일부 국내 네트워크가 모든 `*.workers.dev` 주소를 정부 경고 페이지로 연결해 막고 `*.pages.dev`는 막지 않기 때문에 Pages 앞단을 두며, `workers_dev`는 꺼 둡니다. **Workers Free 플랜에서만** 배포합니다. 이 플랜에서는 하루 한도를 다 쓰면 00:00 UTC까지 요청이 실패할 뿐 요금이 청구되지 않습니다. 결제 수단을 추가하거나 계정을 Workers Paid로 바꾸지 않습니다. 그러면 같은 한도가 요금으로 바뀝니다.
 
 ```sh
 cd MobileRelay
@@ -27,11 +27,13 @@ npx wrangler secret put APPLE_TEAM_ID       # Apple developer team ID
 npx wrangler secret put APNS_KEY_ID         # APNs auth key ID
 npx wrangler secret put APNS_PRIVATE_KEY    # contents of AuthKey_….p8
 npx wrangler deploy
-curl https://coderim-relay.<your-subdomain>.workers.dev/health
+cd pages && npx wrangler pages project create coderim-relay --production-branch main
+npx wrangler pages deploy ./public --project-name coderim-relay --branch main
+curl https://coderim-relay.pages.dev/health
 npm test
 ```
 
-`wrangler.toml`에서 `APPLE_BUNDLE_ID`(앱 bundle ID이자 APNs topic 접두어)와 `APNS_ENVIRONMENT`(`production`, 개발 서명 빌드는 `sandbox`)를 설정합니다. `.p8` 키는 Git 밖에 둡니다. 로컬 `wrangler dev --local-protocol https` 실행용 `.dev.vars`는 Git에서 제외됩니다. TLS는 Cloudflare가 종료하며, 클라이언트 IP는 호출자가 edge를 통해 설정할 수 없는 `CF-Connecting-IP`로 받습니다.
+세 secret이 없어도 relay는 시작합니다. 컴퓨터를 연결하고, iPhone 앱이 열려 있는 동안 사용량을 보여 줍니다(`/health`가 `"push": false`를 보고). 백그라운드 Live Activity 갱신과 Island 자동 시작만 쓸 수 없습니다. secret을 추가하고 다시 배포하면 켜집니다. `wrangler.toml`에서 `APPLE_BUNDLE_ID`(앱 bundle ID이자 APNs topic 접두어)와 `APNS_ENVIRONMENT`(`production`, 개발 서명 빌드는 `sandbox`)를 설정합니다. `.p8` 키는 Git 밖에 둡니다. 로컬 `wrangler dev --local-protocol https` 실행용 `.dev.vars`는 Git에서 제외됩니다. TLS는 Cloudflare가 종료하며, 클라이언트 IP는 호출자가 edge를 통해 설정할 수 없는 `CF-Connecting-IP`로 받습니다.
 
 ### 무료 한도 안에서 운영
 

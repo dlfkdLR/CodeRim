@@ -14,11 +14,11 @@ xcodebuild -project iOS/CodeRimMobile.xcodeproj -scheme CodeRimMobile -sdk iphon
 
 Use an installed simulator destination for `test` and keep ad-hoc signing (`CODE_SIGN_IDENTITY=-`) for Keychain and WidgetKit checks; `CODE_SIGNING_ALLOWED=NO` is not equivalent and makes Keychain access fail. The Simulator has no camera, so the scanner offers the Camera app and a paste field instead. Development signing uses sandbox APNs; TestFlight and App Store use production.
 
-The relay address every computer uses is `CodeRimRelayURL` in `Config/Info.plist` (macOS) and `MobileConnectionStore.DefaultRelay` (Windows). Set both to the deployed Worker's HTTPS origin. Either app can override it in its iPhone settings for self-hosting.
+The relay address every computer uses is `CodeRimRelayURL` in `Config/Info.plist` (macOS) and `MobileConnectionStore.DefaultRelay` (Windows). Both point to `https://coderim-relay.pages.dev`. Either app can override it in its iPhone settings for self-hosting.
 
 ## Relay deployment (free only)
 
-`MobileRelay` is a Cloudflare Worker with one SQLite-backed Durable Object that holds every account. Deploy it on the **Workers Free plan only**. On that plan, using up a daily allowance makes requests fail until 00:00 UTC; nothing is billed. Never add a payment method or subscribe the account to Workers Paid: that would turn the same limits into charges.
+`MobileRelay` is a Cloudflare Worker with one SQLite-backed Durable Object that holds every account, fronted by a Pages project in `MobileRelay/pages/`. The Pages front exists because some Korean networks block every `*.workers.dev` address (they resolve to a government warning page) while `*.pages.dev` works; `workers_dev` is therefore off. Deploy it on the **Workers Free plan only**. On that plan, using up a daily allowance makes requests fail until 00:00 UTC; nothing is billed. Never add a payment method or subscribe the account to Workers Paid: that would turn the same limits into charges.
 
 ```sh
 cd MobileRelay
@@ -27,11 +27,13 @@ npx wrangler secret put APPLE_TEAM_ID       # Apple developer team ID
 npx wrangler secret put APNS_KEY_ID         # APNs auth key ID
 npx wrangler secret put APNS_PRIVATE_KEY    # contents of AuthKey_….p8
 npx wrangler deploy
-curl https://coderim-relay.<your-subdomain>.workers.dev/health
+cd pages && npx wrangler pages project create coderim-relay --production-branch main
+npx wrangler pages deploy ./public --project-name coderim-relay --branch main
+curl https://coderim-relay.pages.dev/health
 npm test
 ```
 
-`wrangler.toml` sets `APPLE_BUNDLE_ID` (the app's bundle ID, which is also the APNs topic prefix) and `APNS_ENVIRONMENT` (`production`, or `sandbox` for development-signed builds). Keep the `.p8` key out of Git; `.dev.vars` is ignored for local `wrangler dev --local-protocol https` runs. Cloudflare terminates TLS and supplies the client IP in `CF-Connecting-IP`, which a caller cannot set through the edge.
+Without the three secrets the relay still starts: it pairs computers and serves usage to the iPhone app while it is open (`/health` reports `"push": false`), and only background Live Activity updates and the automatic Island start are unavailable. Add the secrets and redeploy to enable them. `wrangler.toml` sets `APPLE_BUNDLE_ID` (the app's bundle ID, which is also the APNs topic prefix) and `APNS_ENVIRONMENT` (`production`, or `sandbox` for development-signed builds). Keep the `.p8` key out of Git; `.dev.vars` is ignored for local `wrangler dev --local-protocol https` runs. Cloudflare terminates TLS and supplies the client IP in `CF-Connecting-IP`, which a caller cannot set through the edge.
 
 ### Staying inside the free allowance
 

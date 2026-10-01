@@ -14,10 +14,16 @@ export class RelayObject extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
     const store = new Store(durableSQL(ctx.storage));
+    // Without an Apple Push key the relay still pairs computers and serves usage to the
+    // iPhone app while it is open; only background Live Activity updates are unavailable.
+    const pushReady = Boolean(env.APPLE_TEAM_ID && env.APNS_KEY_ID && env.APNS_PRIVATE_KEY);
     this.relay = new Relay({
       store,
-      push: createAPNs({ teamID: env.APPLE_TEAM_ID, keyID: env.APNS_KEY_ID, privateKey: env.APNS_PRIVATE_KEY,
-        bundleID: env.APPLE_BUNDLE_ID, environment: env.APNS_ENVIRONMENT }),
+      push: pushReady
+        ? createAPNs({ teamID: env.APPLE_TEAM_ID, keyID: env.APNS_KEY_ID, privateKey: env.APNS_PRIVATE_KEY,
+          bundleID: env.APPLE_BUNDLE_ID, environment: env.APNS_ENVIRONMENT })
+        : async () => ({ status: 0, reason: 'PushNotConfigured' }),
+      pushConfigured: pushReady,
       schedule: at => this.schedule(at),
     });
   }

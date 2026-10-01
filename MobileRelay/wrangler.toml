@@ -4,7 +4,9 @@ name = "coderim-relay"
 main = "src/worker.mjs"
 compatibility_date = "2026-09-01"
 compatibility_flags = ["nodejs_compat"]
-workers_dev = true
+# The relay is served through the Pages front in pages/, because some Korean networks
+# block *.workers.dev. Keep this off so there is one public address.
+workers_dev = false
 
 [[durable_objects.bindings]]
 name = "RELAY"

@@ -18,8 +18,8 @@ const day = now => Math.floor(now / 86400);
 
 export class Relay {
   constructor({ store, push = async () => ({ status: 200 }), now = () => Date.now() / 1000, budgets = FREE_DAILY,
-    pollWait = 20000, schedule = () => {} }) {
-    Object.assign(this, { store, push, now, budgets, pollWait, schedule });
+    pollWait = 20000, schedule = () => {}, pushConfigured = true }) {
+    Object.assign(this, { store, push, now, budgets, pollWait, schedule, pushConfigured });
     this.serialTasks = new Map();
     this.rateLimits = new Map();
     this.waiters = new Map();
@@ -67,7 +67,7 @@ export class Relay {
   async route(method, path, body, bearer, ip) {
     this.count();
     const now = this.now(), store = this.store;
-    if (method === 'GET' && path === '/health') { this.limit(`health:${ip}`, 180); return { status: 'ok', level: this.level() }; }
+    if (method === 'GET' && path === '/health') { this.limit(`health:${ip}`, 180); return { status: 'ok', level: this.level(), push: this.pushConfigured }; }
     this.limit(`ip:${ip}`, 180);
 
     // A new iPhone gets an anonymous account: no Apple ID, no email, only a token.
@@ -191,6 +191,7 @@ export class Relay {
       return { ok: true, interval: HEARTBEAT[this.level()], notice: this.notice() };
     }
     if (method === 'POST' && path === '/v1/activities') {
+      if (!this.pushConfigured) return { ok: true };
       requireValue(typeof body.activityID === 'string' && /^[a-zA-Z0-9-]{1,128}$/.test(body.activityID));
       requireValue(typeof body.pushToken === 'string' && /^[a-f0-9]{64,512}$/.test(body.pushToken));
       const id = `${session.hash}:${body.activityID}`;
@@ -213,6 +214,8 @@ export class Relay {
     }
     // iOS 17.2+: lets the relay start the Island itself when a task begins.
     if (method === 'POST' && path === '/v1/push-to-start') {
+      // Accepted but not stored while there is no push key, so no row writes are spent on it.
+      if (!this.pushConfigured) return { ok: true };
       requireValue(typeof body.pushToken === 'string' && /^[a-f0-9]{64,512}$/.test(body.pushToken));
       const existing = store.starters(session.owner).find(s => s.session === session.hash);
       if (existing?.data.token !== body.pushToken) {

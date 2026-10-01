@@ -155,3 +155,14 @@ test('APNs requests carry a valid ES256 provider token and the Live Activity hea
   assert.equal(JSON.parse(Buffer.from(p, 'base64url')).iss, 'TEAM123456');
   assert.ok(verify('sha256', Buffer.from(`${h}.${p}`), { key: publicKey, dsaEncoding: 'ieee-p1363' }, Buffer.from(s, 'base64url')));
 });
+
+test('without a push key the relay still pairs and serves usage, and stores no push registrations', async t => {
+  const c = setup(t, { pushConfigured: false }), mobile = await phone(c), mac = await connect(c, mobile);
+  assert.equal((await c.route('GET', '/health')).push, false);
+  await c.route('POST', '/v1/snapshot', snapshot(), mac.token);
+  assert.equal((await c.route('GET', '/v1/snapshot', {}, mobile)).state.workingCount, 1);
+  const writes = c.store.writes;
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) }, mobile);
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'f'.repeat(64) }, mobile);
+  assert.equal(c.store.writes, writes); assert.equal(c.store.activities().length, 0);
+});
