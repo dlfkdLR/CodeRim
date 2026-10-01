@@ -4,7 +4,9 @@
 
 Native WPF application for Windows 11 x64 and ARM64, built with .NET 10. The current source includes the macOS-aligned edge notch and Usage dashboard, Codex/Claude saved accounts, local token history, and 70 provider connection implementations. Widgets are outside the Windows scope.
 
-The current Windows release is [**2.1.14**](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.14), with x64 and ARM64 MSI installers. Windows version declarations use `Windows/Release.env`, independently of the macOS release configuration.
+The current Windows release is [**2.1.15**](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.15), with x64 and ARM64 MSI installers. Windows version declarations use `Windows/Release.env`, independently of the macOS release configuration.
+
+Release 2.1.15 connects a provider the moment it is added: it reads an existing sign-in, otherwise starts the provider's own sign-in (a terminal login command or its website) and watches until the account appears, and a provider that needs a key opens its settings. It also names Claude Code sessions by their conversation title, runs the official `claude auth login` from Add Account, glides the provider card between providers like macOS, and adds iPhone pairing by QR code.
 
 Release 2.1.14 fixes optional ChatGPT account history for an existing Codex login with read-only sandbox ACL inheritance. The reader preserves the file and its permissions, keeps ownership/size/reparse checks, and rejects foreign write, delete and ACL mutation rights. It also updates the Windows CI actions to Node.js 24. macOS remains at 2.1.13.
 

@@ -6,7 +6,7 @@ This Windows port uses WPF on .NET 10 and targets Windows 11 x64 and ARM64. It i
 
 ## Run or install
 
-Run the matching [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-x64-Setup.msi) or [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-Windows-2.1.13-arm64-Setup.msi). .NET is included. The installer uses `%LOCALAPPDATA%\Programs\CodeRim`, registers Start menu and uninstall entries, and adds `bin` to the current user's PATH without requiring administrator access. Open a new terminal after installation to use `coderim`.
+Run the matching [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-x64-Setup.msi) or [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-arm64-Setup.msi). .NET is included. The installer uses `%LOCALAPPDATA%\Programs\CodeRim`, registers Start menu and uninstall entries, and adds `bin` to the current user's PATH without requiring administrator access. Open a new terminal after installation to use `coderim`.
 
 Existing unsigned ZIP users should quit CodeRim and run the MSI once. Settings, accounts and usage history are stored outside the application directory and are preserved. A legacy Authenticode-managed installation must continue using its signed ZIP channel; the public MSI refuses to overwrite it. The initial MSI does not have an Authenticode publisher certificate, so Windows may show a SmartScreen warning. Automatic updates use the pinned Ed25519 release key described below.
 

@@ -26,13 +26,13 @@ CodeRim은 작은 가장자리 노치에서 코딩 도구의 사용 한도, 초�
 
 ## 설치
 
-**macOS:** [2.1.13](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.13) · **Windows:** [2.1.14](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.14)
+**macOS:** [2.1.15](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.15) · **Windows:** [2.1.15](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.15)
 
 ### macOS
 
 **macOS 14 이상 · Apple silicon과 Intel.**
 
-[![macOS 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.13/CodeRim-2.1.13.dmg)
+[![macOS 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-2.1.15.dmg)
 
 ```sh
 brew tap dlfkdLR/tap &&
@@ -47,7 +47,7 @@ brew install --cask dlfkdLR/tap/coderim
 
 **Windows 11 · x64·ARM64 · .NET 포함.**
 
-[x64 MSI 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.14/CodeRim-Windows-2.1.14-x64-Setup.msi) · [ARM64 MSI 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.14/CodeRim-Windows-2.1.14-arm64-Setup.msi) · [x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.14/CodeRim-Windows-2.1.14-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.14/CodeRim-Windows-2.1.14-arm64-Setup.msi.sha256)
+[x64 MSI 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-x64-Setup.msi) · [ARM64 MSI 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-arm64-Setup.msi) · [x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-arm64-Setup.msi.sha256)
 
 해당 체크섬을 검증한 뒤 MSI를 실행하고 CodeRim을 엽니다. 공개 설치 파일에는 Authenticode 게시자 인증서가 없어 첫 설치 경고가 표시될 수 있습니다. 관리형 업데이트는 설치 전 고정 Ed25519 manifest와 SHA-256을 검증합니다. [Windows 설치](docs/ko/windows.md)에서 업그레이드·이전 ZIP 마이그레이션·CLI·제한을 확인합니다. 연결 구현이나 합성 테스트만으로 모든 실제 제공업체 계정의 동작을 확인한 것은 아닙니다.
 
