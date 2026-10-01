@@ -37,8 +37,6 @@ struct AboutSettingsView: View {
                                 destination: URL(string: "https://github.com/dlfkdLR/CodeRim/releases")!)
                 SettingsLinkRow(title: "Read MIT License", systemImage: "doc.text",
                                 destination: bundledNotice("LICENSE"))
-                SettingsLinkRow(title: "Codenotch - MIT License", systemImage: "doc.text",
-                                destination: bundledNotice("NOTICE"))
             }
 
             SettingsNote("Includes code and design adapted from Codenotch. Copyright © 2026 Vinz, MIT License.")

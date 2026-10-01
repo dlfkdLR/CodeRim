@@ -178,7 +178,7 @@ struct UsageProviderList: View {
         }
         .padding(10)
         .frame(width: UsageProviderSwitcherMetrics.width)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(.background)
         .focusable()
         .focusEffectDisabled()
         .focused($listFocused)

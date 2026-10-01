@@ -40,8 +40,18 @@ struct SettingsForm<Content: View>: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(nsColor: .windowBackgroundColor))
+        // The same ground as the Usage pane. `windowBackgroundColor` is lighter than the cards
+        // in dark mode, which turned every other pane into grey cards sunk into a lighter field.
+        .background(.background)
     }
+}
+
+/// One recipe for a card's surface so every pane layers the same way. It matches the Usage
+/// analytics card: a quaternary wash over the window ground with a six percent hairline.
+enum SettingsCardStyle {
+    static let radius: CGFloat = 14
+    static var fill: some ShapeStyle { Color.primary.opacity(0.05) }
+    static var stroke: some ShapeStyle { Color.primary.opacity(0.06) }
 }
 
 /// How far a card sits in from the pane's edges, and how far its rows sit in
@@ -76,15 +86,13 @@ struct SettingsSection<Content: View>: View {
                 .accessibilityAddTraits(.isHeader)
             }
             _VariadicView.Tree(SettingsDividedRows()) { content }
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(nsColor: .controlBackgroundColor))
-                )
+                // Cards lift off the ground the way the Usage pane's do: a faint fill and a hairline.
+                .background(SettingsCardStyle.fill, in: RoundedRectangle(cornerRadius: SettingsCardStyle.radius, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(.quaternary, lineWidth: 1)
+                    RoundedRectangle(cornerRadius: SettingsCardStyle.radius, style: .continuous)
+                        .strokeBorder(SettingsCardStyle.stroke)
                 )
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: SettingsCardStyle.radius, style: .continuous))
                 .padding(.horizontal, SettingsMetrics.cardInset)
         }
         .padding(.top, 16)
@@ -225,9 +233,7 @@ struct SettingsButtonRow: View {
                 }
                 .fixedSize()
             }
-            .buttonStyle(.bordered)
-            .controlSize(.regular)
-            .tint(role == .destructive ? .red : .accentColor)
+            .buttonStyle(SettingsPillButtonStyle(tint: role == .destructive ? .red : nil))
             .disabled(!isEnabled)
             if let caption {
                 Text(caption)
@@ -338,5 +344,33 @@ struct SettingsProviderCard<Trailing: View>: View {
         .padding(.horizontal, SettingsMetrics.cardInset)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(provider.title), \(isOn ? "on" : "off"). \(statusLine)")
+    }
+}
+
+/// The soft capsule every action button in Settings uses, in place of the stock bordered
+/// rectangle: a faint wash, a hairline, and a gentle press and hover response.
+struct SettingsPillButtonStyle: ButtonStyle {
+    var tint: Color?
+    var compact = false
+    @Environment(\.isEnabled) private var isEnabled
+    @State private var hovering = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(compact ? .callout : .body)
+            .foregroundStyle(tint ?? Color.primary)
+            .padding(.horizontal, compact ? 12 : 14)
+            .padding(.vertical, compact ? 4 : 6)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color.primary.opacity(configuration.isPressed ? 0.18 : hovering ? 0.13 : 0.09))
+            )
+            .overlay(Capsule(style: .continuous).strokeBorder(Color.primary.opacity(0.08)))
+            .opacity(isEnabled ? 1 : 0.45)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeOut(duration: 0.14), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.14), value: hovering)
+            .onHover { hovering = $0 }
+            .contentShape(Capsule())
     }
 }

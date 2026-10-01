@@ -71,12 +71,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSToolbarDeleg
     private func makeWindow(environment: SettingsEnvironment) -> NSWindow {
         let window = NSWindow(
             contentRect: NSRect(origin: .zero, size: Self.defaultContentSize),
-            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
         )
         window.title = "CodeRim Settings"
-        window.titlebarAppearsTransparent = false
+        // Full-size content lets the sidebar float inset beneath the glass titlebar with the
+        // system's rounded window corners, the way the first version of this window looked.
+        window.titlebarAppearsTransparent = true
         window.toolbarStyle = .unified
         let toolbar = NSToolbar(identifier: "CodeRim.Settings.Toolbar")
         toolbar.delegate = self
@@ -112,12 +114,13 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSToolbarDeleg
         container.view.addSubview(viewport)
         hosting.view.translatesAutoresizingMaskIntoConstraints = false
         viewport.addSubview(hosting.view)
-        let layout = window.contentLayoutGuide as! NSLayoutGuide
+        // The whole window, not the area below the titlebar: pinning to `contentLayoutGuide`
+        // flattened the sidebar into a full-bleed column and squared off the window.
         viewportConstraints = [
-            viewport.leadingAnchor.constraint(equalTo: layout.leadingAnchor),
-            viewport.trailingAnchor.constraint(equalTo: layout.trailingAnchor),
-            viewport.topAnchor.constraint(equalTo: layout.topAnchor),
-            viewport.bottomAnchor.constraint(equalTo: layout.bottomAnchor),
+            viewport.leadingAnchor.constraint(equalTo: container.view.leadingAnchor),
+            viewport.trailingAnchor.constraint(equalTo: container.view.trailingAnchor),
+            viewport.topAnchor.constraint(equalTo: container.view.topAnchor),
+            viewport.bottomAnchor.constraint(equalTo: container.view.bottomAnchor),
         ]
         NSLayoutConstraint.activate(viewportConstraints)
         NSLayoutConstraint.activate([

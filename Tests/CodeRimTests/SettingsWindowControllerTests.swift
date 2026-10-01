@@ -5,7 +5,7 @@ import XCTest
 
 @MainActor
 final class SettingsWindowControllerTests: XCTestCase {
-    func testScrolledSettingsStayBelowToolbarWithSidebarVisibleAndHidden() async throws {
+    func testSettingsUseTheFullSizeGlassWindowWithSidebarVisibleAndHidden() async throws {
         _ = NSApplication.shared
         let fixture = try SettingsWindowFixture()
         defer { fixture.remove() }
@@ -23,16 +23,17 @@ final class SettingsWindowControllerTests: XCTestCase {
                 scroll.reflectScrolledClipView(scroll.contentView)
             }
             try await settle(window)
-            XCTAssertFalse(window.titlebarAppearsTransparent)
+            // The window is the rounded, full-size-content glass window: the sidebar floats inset
+            // and panes scroll under the translucent titlebar, which keeps rows legible by
+            // insetting the resting content below it rather than by clipping at the toolbar.
+            XCTAssertTrue(window.styleMask.contains(.fullSizeContentView))
+            XCTAssertTrue(window.titlebarAppearsTransparent)
             let viewport = try XCTUnwrap(host.subviews.first)
             XCTAssertEqual(viewport.layer?.masksToBounds, true)
-            let viewportFrame = viewport.convert(viewport.bounds, to: nil)
-            XCTAssertTrue(window.contentLayoutRect.insetBy(dx: -1, dy: -1).contains(viewportFrame),
-                          "The hard clipping boundary must exclude the toolbar")
-            for scroll in descendants(of: NSScrollView.self, in: host) {
-                let visibleFrame = scroll.convert(scroll.visibleRect, to: nil)
-                XCTAssertLessThanOrEqual(visibleFrame.maxY, window.contentLayoutRect.maxY + 1,
-                    "The scrolling viewport reaches the toolbar: \(visibleFrame), content \(window.contentLayoutRect)")
+            XCTAssertEqual(viewport.frame.size.height, host.bounds.height, accuracy: 1)
+            for scroll in descendants(of: NSScrollView.self, in: host) where !(scroll.documentView is NSOutlineView) {
+                XCTAssertGreaterThan(scroll.contentView.contentInsets.top + scroll.safeAreaInsets.top, 0,
+                    "Resting content must start below the titlebar")
             }
             if let directory = ProcessInfo.processInfo.environment["CODERIM_LAYOUT_CAPTURE_DIR"] {
                 let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))

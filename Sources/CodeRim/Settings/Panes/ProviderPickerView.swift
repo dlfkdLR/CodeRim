@@ -79,7 +79,7 @@ struct ProviderPickerView: View {
         }
         .padding(24)
         .frame(width: 600, height: 520)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(.background)
         .onExitCommand(perform: onClose)
         .onAppear { if initiallyAdded == nil { initiallyAdded = selectedIDs } }
     }
@@ -122,7 +122,7 @@ struct ProviderPickerView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
+        .background(SettingsCardStyle.fill, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12)
             .strokeBorder(added ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.1), lineWidth: 1))
     }
