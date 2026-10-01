@@ -176,6 +176,7 @@ struct NotchProviderSettingsView: View {
             }
             SettingsNote(route.switchHint)
             if case .guidance = route { SettingsNote(route.explanation) }
+            if case .guided = route { SettingsNote(route.explanation) }
             if let accountActionMessage { SettingsNote(accountActionMessage) }
         } else if !isConnected, let route {
             SettingsSection(title: "Connection") { routeControl(route) }
@@ -213,6 +214,10 @@ struct NotchProviderSettingsView: View {
             SettingsButtonRow(title: "Sign in to \(appName)", systemImage: "person.badge.key") {
                 accountActionMessage = notch.openAccountSource(providerID: providerID)
                     ? nil : "The sign-in window could not be opened. Try again."
+            }
+        case let .guided(guided):
+            SettingsButtonRow(title: guided.actionTitle, systemImage: "person.badge.key") {
+                if guided.opensSettings { accountActionMessage = nil } else { notch.beginConnecting(providerID) }
             }
         case .guidance:
             EmptyView()

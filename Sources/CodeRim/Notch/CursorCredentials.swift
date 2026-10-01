@@ -160,10 +160,8 @@ struct CursorCredentials {
         if editorInstalled {
             return .openApp(bundleID: bundleID, name: "Cursor")
         }
-        return .guidance(
-            "Sign in to the Cursor editor — the notch reads that session. "
-            + "`cursor-agent login` works the same way, if you use the CLI."
-        )
+        return .guided(.init(name: "Cursor", action: .terminal(command: "cursor-agent login"),
+            note: "A Terminal window runs `cursor-agent login`; or install the Cursor editor and sign in there. CodeRim connects on its own."))
     }
 
     /// `sub` claim from an unsigned JWT payload — Cursor's access token is a

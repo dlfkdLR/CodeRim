@@ -46,6 +46,14 @@ private struct ProvidersSettingsContent: View {
             dragging = nil
             return false
         }
+        // A provider that needs a pasted key goes straight to its settings, so adding it
+        // is one flow rather than "Add", then close, then "Set Up…".
+        .onChange(of: notch.connectionStates) { _, states in
+            guard showsProviderPicker, let id = states.first(where: { if case .needsKey = $0.value { true } else { false } })?.key else { return }
+            notch.cancelConnecting(id)
+            showsProviderPicker = false
+            openDetail = id
+        }
         .task {
             codexAccounts.refreshCurrentPlanType()
             notch.refreshProvidersForSettings()
@@ -58,7 +66,10 @@ private struct ProvidersSettingsContent: View {
                     showsProviderPicker = false
                     openDetail = id
                 },
-                onClose: { showsProviderPicker = false })
+                onClose: { showsProviderPicker = false },
+                connection: { notch.connectionState(for: $0) },
+                onRetry: { notch.beginConnecting($0) },
+                onCancel: { notch.cancelConnecting($0) })
         }
     }
 
@@ -223,6 +234,7 @@ private struct ProvidersSettingsContent: View {
         case let .openApp(_, name): return "Sign in with \(name)"
         case let .modal(name):      return "Sign in to \(name)"
         case let .guidance(text):   return text
+        case let .guided(guided):   return guided.note
         }
     }
 
@@ -269,6 +281,9 @@ private struct ProvidersSettingsContent: View {
                 }
             case .guidance:
                 openDetail = row.id
+            case let .guided(guided):
+                // One click does the whole sign-in: open it, then watch for the account.
+                if guided.opensSettings { openDetail = row.id } else { notch.beginConnecting(row.id) }
             }
         }
     }
@@ -417,6 +432,7 @@ private struct ProviderAccountRow: View {
         switch route {
         case let .openApp(_, name): return "Open \(name)"
         case let .modal(name):      return "Sign in to \(name)"
+        case let .guided(guided):   return guided.actionTitle
         case .guidance, .none:      return "Set Up…"
         }
     }

@@ -45,6 +45,31 @@ enum ExtendedProviderCatalog {
     }
 }
 
+extension ExtendedProviderCatalog {
+    /// How adding this provider gets the user signed in, from what the provider reads:
+    /// a website session opens its login page, an API key opens its settings, and a
+    /// tool with a login command runs it. Anything else keeps its written guidance.
+    static func signInRoute(for descriptor: ProviderDescriptor, displayName: String) -> SignInRoute {
+        let modes = descriptor.fetchPlan.sourceModes
+        let summary = guide(for: localID(descriptor.id))?.summary ?? ""
+        let page = [descriptor.metadata.dashboardURL, descriptor.metadata.subscriptionDashboardURL]
+            .compactMap { $0 }.compactMap(URL.init(string:)).first { $0.scheme == "https" }
+        if let page, modes.contains(.web) || descriptor.metadata.browserCookieOrder != nil {
+            return .guided(.init(name: displayName, action: .browser(page),
+                note: "Sign in on the \(displayName) website in your browser. CodeRim reads the signed-in session and connects on its own."))
+        }
+        if modes.contains(.api), !modes.contains(.web), !modes.contains(.oauth), !modes.contains(.cli) {
+            return .guided(.init(name: displayName, action: .settings,
+                note: "Paste your \(displayName) API key in its settings. " + summary))
+        }
+        if modes.contains(.api), let page {
+            return .guided(.init(name: displayName, action: .browser(page),
+                note: "Sign in to \(displayName), create an API key, and paste it in the provider's settings."))
+        }
+        return .guidance("Configure \(displayName) in its provider settings. " + summary)
+    }
+}
+
 struct ExtendedProviderGuide: Sendable {
     let document: String
     let summary: String

@@ -383,6 +383,23 @@ final class NotchController: ObservableObject {
         refresh(providerID: id)
     }
 
+    // MARK: - Connecting a provider as it is added
+
+    typealias ConnectionState = ProviderConnector.State
+    var connectionStates: [String: ConnectionState] { connector.states }
+    func connectionState(for id: String) -> ConnectionState? { connector.states[id] }
+    func cancelConnecting(_ id: String) { connector.cancel(id) }
+    func beginConnecting(_ id: String) { connector.begin(id) }
+
+    private lazy var connector: ProviderConnector = {
+        let connector = ProviderConnector(
+            provider: { [weak self] id in self?.providers.first { $0.id == id } },
+            connects: { [weak self] id in await self?.store?.connects(providerID: id) ?? false })
+        connectorObservation = connector.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
+        return connector
+    }()
+    private var connectorObservation: AnyCancellable?
+
     func addProvider(_ id: String) {
         guard NotchProviderCatalog.all.contains(where: { $0.id == id }),
               selectedProviderIDs.insert(id).inserted else { return }
@@ -399,11 +416,12 @@ final class NotchController: ObservableObject {
                 self?.store?.refresh(providerID: id)
             }
         } else {
-            store?.signIn(providerID: id)
+            beginConnecting(id)
         }
     }
 
     func removeProvider(_ id: String) {
+        cancelConnecting(id)
         guard selectedProviderIDs.remove(id) != nil else { return }
         monitors[id]?.stop()
         window.model.sessions.removeValue(forKey: id)

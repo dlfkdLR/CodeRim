@@ -29,7 +29,8 @@ final class OpenCodeNotchProvider: NotchProvider {
     }
 
     var signInRoute: SignInRoute {
-        .guidance("Usage rides on the opencode-go key OpenCode stores on sign-in — connect Go inside OpenCode (`opencode auth login`) and the notch reads it.")
+        .guided(.init(name: "OpenCode", action: .terminal(command: "opencode auth login"),
+            note: "A Terminal window runs `opencode auth login`. Choose OpenCode Go there and CodeRim connects on its own."))
     }
 
     func account() -> ProviderAccount? {

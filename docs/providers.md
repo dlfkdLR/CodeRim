@@ -7,8 +7,9 @@ CodeRim offers **70 entries: 69 service integrations and Ollama Local**. Every e
 ## Connect a provider
 
 1. Open **Settings → Providers → Add Provider** and search for the service.
-2. Follow the linked setup page. Native integrations usually reuse the original tool's login; additional integrations expose **Connection settings** for keys, sessions, endpoints, or regions.
-3. Refresh the provider. Where offered, browser-session import must be enabled for each provider; StepFun uses password or Oasis-Token settings instead. Saved additional-provider settings use CodeRim's Keychain items on macOS. Windows uses protected local storage.
+2. Choose **Add**. CodeRim connects it in the same step: it reads any sign-in already on this computer and otherwise starts the sign-in itself, then watches for up to ten minutes and connects on its own when the account appears. A tool with a login command (Codex, GitHub Copilot, Cursor, Grok, OpenCode, Gemini CLI, Vertex AI) runs it in a terminal window, a service with a website session opens its sign-in page in your browser, and the Antigravity app opens for Gemini. A service that needs a key opens its settings for you to paste it. Use **Cancel** or **Try again** in the Add sheet or on the provider's page.
+3. Follow the linked setup page for anything unusual. Native integrations reuse the original tool's login; additional integrations expose **Connection settings** for keys, sessions, endpoints, or regions.
+4. Refresh the provider. Where offered, browser-session import must be enabled for each provider; StepFun uses password or Oasis-Token settings instead. Saved additional-provider settings use CodeRim's Keychain items on macOS. Windows uses protected local storage.
 
 Only added providers are monitored. Available readings depend on the account, plan, and service. Local token history is available for **Codex and Claude Code**; the other entries report their own quotas, credits, spending, or status. Ollama Local reports running models and memory, and Azure OpenAI reports a deployment check.
 

@@ -22,7 +22,8 @@ final class GrokNotchProvider: NotchProvider {
     }
 
     var signInRoute: SignInRoute {
-        .guidance("Run `grok login` — it signs in and refreshes the token this reads.")
+        .guided(.init(name: "Grok", action: .terminal(command: "grok login"),
+            note: "A Terminal window runs `grok login`. Finish it in the browser and CodeRim connects on its own."))
     }
 
     func account() -> ProviderAccount? { GrokCredentials.account() }

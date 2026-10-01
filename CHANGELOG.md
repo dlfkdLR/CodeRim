@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Adding a provider now connects it in the same step on macOS and Windows: it reads an existing sign-in, otherwise opens the provider's own sign-in (a terminal login command, the website's login page, or the Antigravity app for Gemini) and watches until the account appears. Providers that need a key open their settings instead of leaving a second "Set up" step. Progress shows in the Add sheet on macOS and on the provider page on Windows.
 - iPhone: connect a computer by scanning the QR code it shows, with no Apple sign-in. The first scan creates an anonymous account kept only in the iPhone Keychain, and the Camera app can open the code too.
 - iPhone: the Dynamic Island starts on its own when a task begins on a connected computer (push-to-start) and ends two minutes after the work stops.
 - Relay: move to a Cloudflare Worker with one SQLite Durable Object, deployable only on the free plan, which cannot bill. Computers send changes plus a heartbeat every few minutes, and heartbeats with unchanged content write nothing. Near the daily allowance, the relay refuses new connections, tells connected people in the app, the Island and desktop settings, and asks computers to send less often.

@@ -27,7 +27,7 @@ final class ExtendedNotchProvider: NotchProvider {
     var displayName: String { descriptor.metadata.displayName }
     var glyph: ProviderGlyph { NotchProviderCatalog.glyph(for: id) }
     var isVisibleWhenAbsent: Bool { true }
-    var signInRoute: SignInRoute { .guidance("Configure \(displayName) in its provider settings. " + (ExtendedProviderCatalog.guide(for: id)?.summary ?? "")) }
+    var signInRoute: SignInRoute { ExtendedProviderCatalog.signInRoute(for: descriptor, displayName: displayName) }
     func account() -> ProviderAccount? { currentAccount }
     func forgetCachedCredential() {
         revision = UUID()

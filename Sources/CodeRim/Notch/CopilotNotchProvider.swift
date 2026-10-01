@@ -25,7 +25,8 @@ final class CopilotNotchProvider: NotchProvider {
     }
 
     var signInRoute: SignInRoute {
-        .guidance("Sign in with GitHub CLI using `gh auth login`, then enable GitHub Copilot.")
+        .guided(.init(name: "GitHub", action: .terminal(command: "gh auth login --web"),
+            note: "A Terminal window opens GitHub's sign-in: copy the code, approve it in the browser, and CodeRim connects on its own."))
     }
 
     func account() -> ProviderAccount? {
