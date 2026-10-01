@@ -16,6 +16,12 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     var panelFrameForTesting: CGRect? { panel?.frame }
     var panelAlphaForTesting: CGFloat { panel?.alphaValue ?? 0 }
 
+    /// What `show()` installs and `stop()` removes, so a test can see a
+    /// hide/show cycle leave exactly one set behind.
+    var liveObserverCountForTesting: (monitors: Int, subscriptions: Int, cursorPoll: Bool) {
+        (mouseMonitors.count, cancellables.count, cursorTimer?.isValid == true)
+    }
+
     /// Hooked up by the app delegate; drives the menu's "Refresh now".
     var onRefresh: (() -> Void)?
     /// One "Sign in to …" item per provider that needs a browser session.
@@ -162,6 +168,10 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     }
 
     func show() {
+        // Showing again after `NotchController.setVisible(false)` must not
+        // stack a second cursor poll, mouse monitors and model subscriptions
+        // on top of the first set.
+        stop()
         relocate()
         startWatchingCursor()
         startClock()
@@ -208,6 +218,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         cursorTimer?.invalidate()
         cursorTimer = nil
         clockTimer?.invalidate()
+        clockTimer = nil
         mouseMonitors.forEach(NSEvent.removeMonitor)
         mouseMonitors.removeAll()
     }

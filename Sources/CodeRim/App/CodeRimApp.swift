@@ -95,15 +95,16 @@ struct CodeRimApp: App {
     }
 
     var body: some Scene {
-        Settings {
-            SettingsView()
-                .environmentObject(settingsEnvironment)
-                .environmentObject(claudeIntegrationStore)
+        // The visible status item and Settings window are AppKit-owned. A
+        // SwiftUI `Settings` scene owns another restorable window that macOS
+        // reopens on its own, so it showed up beside `SettingsWindowController`.
+        // Keep only an uninserted lifecycle scene here.
+        MenuBarExtra(isInserted: .constant(false)) {
+            EmptyView()
+        } label: {
+            EmptyView()
         }
         .commands {
-            // Use the same resizable window as the status item and notch.
-            // SwiftUI's default command otherwise creates a second Settings
-            // window with independent navigation and sizing behavior.
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") {
                     SettingsWindowController.shared.present()

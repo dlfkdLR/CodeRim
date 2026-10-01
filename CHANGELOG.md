@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Stop a second, SwiftUI-owned "CodeRim Settings" window from reopening on its own beside the real Settings window.
+- Stop the notch's cursor poll, mouse monitors and layout subscriptions while it is turned off, and keep turning it back on from stacking another set.
+
 ## 2.1.13 — Usage, analytics, companion, and account reliability
 
 - Restore Codex account-limit reads for current ChatGPT and Codex app bundles by discovering the nested signed Codex executable and caching validation only while its filesystem identity remains unchanged.

@@ -225,6 +225,8 @@ final class NotchController: ObservableObject {
         } else {
             monitors.values.forEach { $0.stop() }
             window.apply(.hidden)
+            // A hidden notch has no pointer to follow or clock to show.
+            window.stop()
         }
     }
 
