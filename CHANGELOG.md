@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- iPhone: connect a computer by scanning the QR code it shows, with no Apple sign-in. The first scan creates an anonymous account kept only in the iPhone Keychain, and the Camera app can open the code too.
+- iPhone: the Dynamic Island starts on its own when a task begins on a connected computer (push-to-start) and ends two minutes after the work stops.
+- Relay: move to a Cloudflare Worker with one SQLite Durable Object, deployable only on the free plan, which cannot bill. Computers send changes plus a heartbeat every few minutes, and heartbeats with unchanged content write nothing. Near the daily allowance, the relay refuses new connections, tells connected people in the app, the Island and desktop settings, and asks computers to send less often.
 - Stop a second, SwiftUI-owned "CodeRim Settings" window from reopening on its own beside the real Settings window; it also kept redrawing the hidden Usage chart, which was most of CodeRim's idle CPU.
 - Stop the notch's cursor poll, mouse monitors and layout subscriptions while it is turned off, and keep turning it back on from stacking another set.
 - Name Claude Code sessions in the notch by their conversation title (`/rename` or Claude's generated title) on macOS and Windows, as Codex sessions are.

@@ -24,6 +24,11 @@ struct CodeRimMobileApp: App {
                     guard !usesPreview else { return }
                     model.setForeground(phase == .active)
                 }
+                // A pairing QR scanned with the Camera app opens coderim://pair?….
+                .onOpenURL { url in
+                    guard !usesPreview, let link = MobilePairingLink(url.absoluteString) else { return }
+                    Task { await model.restore(); await model.connect(link) }
+                }
         }
     }
     private var usesPreview: Bool {
@@ -57,7 +62,7 @@ private struct DebugSettingsPreview: View {
         let empty = ProcessInfo.processInfo.arguments.contains("--ui-empty-settings")
         let relay = DebugSettingsRelay(empty: empty, noServices: ProcessInfo.processInfo.arguments.contains("--ui-no-services"))
         _model = StateObject(wrappedValue: MobileAppModel(credentials: DebugSettingsCredentials(),
-            makeClient: { _ in relay }, appleState: { _ in .authorized }))
+            makeClient: { _ in relay }))
     }
     var body: some View {
         VStack(spacing: 0) {
@@ -71,8 +76,7 @@ private actor DebugSettingsCredentials: MobileCredentialStoring {
     func load() -> MobileCredential? {
         .init(endpoint: URL(string: "https://relay.example.com")!,
               // The in-memory fixture must never trigger real account-expiry cleanup.
-              session: .init(token: "ui-settings-synthetic-token", expiresAt: Date.distantFuture.timeIntervalSince1970),
-              appleUserID: "ui-settings-synthetic-user")
+              session: .init(token: "ui-settings-synthetic-token", expiresAt: Date.distantFuture.timeIntervalSince1970))
     }
     func save(_ credential: MobileCredential) {}
     func delete() {}
@@ -117,10 +121,6 @@ private actor DebugSettingsRelay: MobileRelayServing {
         if path == "/v1/preferences" {
             preferences = try JSONDecoder().decode(MobilePreferences.self, from: JSONEncoder().encode(body))
             return try JSONDecoder().decode(Response.self, from: Data(#"{"ok":true}"#.utf8))
-        }
-        if path == "/v1/pairing" {
-            return try JSONDecoder().decode(Response.self, from: JSONEncoder().encode(
-                MobilePairing(code: "ABCD1234", expiresAt: Date().addingTimeInterval(300).timeIntervalSince1970)))
         }
         throw MobileRelayError.rejected(503)
     }

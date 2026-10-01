@@ -21,7 +21,7 @@ attributes = 'CodeRimLiveActivity/CodeRimActivityAttributes.swift'
 views = 'CodeRimLiveActivity/CodeRimLiveViews.swift'
 intent = 'CodeRimLiveActivity/IslandNavigationIntent.swift'
 target_sources = {
-    'CodeRimMobile': shared + [attributes, views, intent] + ['CodeRimMobile/'+name+'.swift' for name in ['CodeRimMobileApp','MobileAppModel','MobileSettingsView','MobileProviderSelection','DebugPreviewView']],
+    'CodeRimMobile': shared + [attributes, views, intent] + ['CodeRimMobile/'+name+'.swift' for name in ['CodeRimMobileApp','MobileAppModel','MobileSettingsView','MobileProviderSelection','MobileQRScanner','DebugPreviewView']],
     'CodeRimLiveActivity': shared + [attributes, views, intent, 'CodeRimLiveActivity/CodeRimLiveActivity.swift', 'CodeRimMobile/DebugPreviewView.swift'],
     'CodeRimMobileTests': ['CodeRimMobileTests/MobileContractTests.swift', 'CodeRimMobileTests/MobileLifecycleTests.swift'],
     'CodeRimMobileUITests': ['CodeRimMobileUITests/MobileUITests.swift'],

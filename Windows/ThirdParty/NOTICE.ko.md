@@ -15,3 +15,5 @@ FactoryAuthentication·FactoryProvider는 고정 manual-header·browser origin·
 Amp Web은 고정 settings-page·Svelte hydration fixture2개의 계약입니다. script를 실행하지 않고 Jint 포함 Acornima로 구문을 읽습니다. Windows는 source·scoped redirect·literal validation·resource limit을 별도로 구현합니다.
 
 BouncyCastle.Cryptography2.7.0은 Ed25519 installer manifest를 검증하며 MIT는 BouncyCastle-LICENSE.md를 참고합니다. WiX5.0.2는 빌드 도구이고 제품에는 표준 MSI만 포함하며 WiX Burn runtime을 번들하지 않습니다. 라이선스 원문은 번역본으로 대체하지 않습니다.
+
+번들한 QRCoder 1.6.0 라이브러리는 iPhone 연결 QR 코드를 그립니다. MIT 라이선스는 QRCoder-LICENSE.txt를 참고합니다.

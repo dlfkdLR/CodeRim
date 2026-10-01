@@ -32,25 +32,47 @@ public sealed class MobileRelayTests
     public void EndpointRejectsUnsafeOrigins(string address) => Assert.Throws<ArgumentException>(() => MobileRelayClient.ValidateEndpoint(address));
 
     [Fact]
-    public async Task PairingIsWindowsScopedAndRedirectCannotSendBearerElsewhere()
+    public async Task QrPairingIsWindowsScopedAndRedirectCannotSendBearerElsewhere()
     {
         var bearer = new string('A', 43);
+        var offer = new MobilePairingStart(new string('i', 43), new string('s', 43), DateTimeOffset.UtcNow.AddMinutes(5).ToUnixTimeSeconds());
+        var polls = 0;
         var handler = new FixtureHandler(async request => {
-            if (request.RequestUri!.AbsolutePath == "/v1/pairing/claim") {
-                var body = await request.Content!.ReadAsStringAsync(); Assert.Contains("windows", body, StringComparison.Ordinal);
-                Assert.DoesNotContain("Authorization", request.Headers.ToString(), StringComparison.Ordinal);
-                var issued = JsonSerializer.Serialize(new MobileToken(bearer, DateTimeOffset.UtcNow.AddDays(30).ToUnixTimeSeconds()), Json);
-                return new(HttpStatusCode.OK) { Content = new StringContent(issued, Encoding.UTF8, "application/json") };
+            var path = request.RequestUri!.AbsolutePath;
+            if (path is "/v1/pairing/start" or "/v1/pairing/poll") Assert.Null(request.Headers.Authorization);
+            if (path == "/v1/pairing/start")
+            {
+                Assert.Contains("windows", await request.Content!.ReadAsStringAsync(), StringComparison.Ordinal);
+                return Json200(offer);
             }
+            if (path == "/v1/pairing/poll")
+                return ++polls == 1 ? Json200(new { pending = true, expiresAt = offer.ExpiresAt })
+                    : Json200(new MobileToken(bearer, DateTimeOffset.UtcNow.AddDays(365).ToUnixTimeSeconds()));
             Assert.Equal(bearer, request.Headers.Authorization?.Parameter);
             var response = new HttpResponseMessage(HttpStatusCode.Redirect); response.Headers.Location = new Uri("https://other.example.com"); return response;
         });
         using var client = new MobileRelayClient("https://relay.example.com", handler);
-        var token = await client.PairAsync("ABCD-EFGH", "작업 PC", TestContext.Current.CancellationToken);
-        Assert.Equal(bearer, token.Token);
+        var started = await client.StartPairingAsync("작업 PC", TestContext.Current.CancellationToken);
+        Assert.Equal("coderim://pair?r=https%3A%2F%2Frelay.example.com&i=" + offer.Id + "&s=" + offer.Secret,
+            MobilePairingLink.Create(client.Endpoint, started));
+        Assert.Null(await client.PollPairingAsync(started, TestContext.Current.CancellationToken));
+        var token = await client.PollPairingAsync(started, TestContext.Current.CancellationToken);
+        Assert.Equal(bearer, token!.Token);
         await Assert.ThrowsAsync<HttpRequestException>(() => client.DisconnectAsync(token.Token, TestContext.Current.CancellationToken));
-        Assert.Equal(2, handler.Count);
+        Assert.Equal(4, handler.Count);
     }
+    [Fact]
+    public void OnlyChangesAndHeartbeatsArePublished()
+    {
+        var now = DateTimeOffset.UtcNow;
+        var body = new MobileSnapshot(1, 100, [], []);
+        Assert.True(MobileSnapshotBuilder.ShouldSend(body, null, null, TimeSpan.FromMinutes(5), now));
+        Assert.False(MobileSnapshotBuilder.ShouldSend(body with { GeneratedAt = 160 }, body, now, TimeSpan.FromMinutes(5), now.AddMinutes(1)));
+        Assert.True(MobileSnapshotBuilder.ShouldSend(body with { GeneratedAt = 400 }, body, now, TimeSpan.FromMinutes(5), now.AddMinutes(5)));
+        Assert.True(MobileSnapshotBuilder.ShouldSend(body with { Sessions = [new("codex", "working", "", null)] }, body, now, TimeSpan.FromMinutes(5), now.AddSeconds(20)));
+    }
+    private static HttpResponseMessage Json200(object value) =>
+        new(HttpStatusCode.OK) { Content = new StringContent(JsonSerializer.Serialize(value, Json), Encoding.UTF8, "application/json") };
     [Fact]
     public void RelayTokensRequireBoundedBase64UrlAndSaneFutureExpiry()
     {

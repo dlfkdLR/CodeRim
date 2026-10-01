@@ -6,7 +6,8 @@ public enum MobileRelayError: LocalizedError, Sendable {
         switch self {
         case .invalidServer: "Check the relay server’s HTTPS address."
         case .invalidResponse: "The server response could not be read."
-        case .rejected(401), .expired: "Your sign-in or pairing code has expired. Connect again."
+        case .rejected(401), .expired: "This connection or QR code has expired. Connect again."
+        case .rejected(503): "The CodeRim relay is busy today, so new connections are paused until 00:00 UTC."
         case .rejected(403): "This request is not allowed on this device."
         case .rejected(429): "Too many requests. Try again shortly."
         case .rejected: "The relay server could not process the request."

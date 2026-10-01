@@ -2,8 +2,13 @@
 
 **English** · [한국어](README.ko.md)
 
-Single-process Node.js 24/SQLite relay. Configure Apple/APNs credentials outside Git, persistent storage, and a trusted HTTPS proxy before pairing. This source is not an already deployed service.
+Cloudflare Worker with one SQLite-backed Durable Object. Deploy it on the Workers **Free** plan only: it cannot bill, and when a daily allowance runs out, requests fail until 00:00 UTC. The relay rations its own use before that point, pausing new connections and notifying connected people. Keep the APNs key in Wrangler secrets, never in Git. This source is not an already deployed service.
 
-[Full provisioning, build commands, protocol, storage, picker behavior, and verification limits](../Documentation/IPHONE.md).
+```sh
+npm test                 # Node 24, no dependencies
+npx wrangler deploy      # after `wrangler login` and the secrets in the reference
+```
+
+[Deployment, free-plan limits, pairing protocol, and verification limits](../Documentation/IPHONE.md).
 
 [User setup](../docs/iphone.md) · [Privacy](../Documentation/PRIVACY.md).

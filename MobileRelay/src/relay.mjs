@@ -1,14 +1,54 @@
-import { randomInt } from 'node:crypto';
-import { secret, digest } from './auth.mjs';
-import { HTTPError, requireValue, preferences, sanitizeSnapshot, contentState, activityPayload, desktopState, navigate, selectProvider, deviceLabel } from './model.mjs';
+import { digest, secret } from './crypto.mjs';
+import { HTTPError, requireValue, preferences, sanitizeSnapshot, activityPayload, desktopState, navigate, selectProvider,
+  deviceLabel, ONLINE_WINDOW } from './model.mjs';
+
+/**
+ * The relay runs on the Cloudflare Workers Free plan, which can never bill: once a
+ * daily allowance is used up, requests simply fail until 00:00 UTC. These budgets
+ * mirror that allowance so the relay degrades on purpose before the platform does.
+ */
+export const FREE_DAILY = { requests: 100000, writes: 100000 };
+const BUSY_AT = 0.7, CRITICAL_AT = 0.9;
+export const HEARTBEAT = { normal: 300, busy: 600, critical: 1800 };
+const BUSY_NOTICE = 'The CodeRim relay is busy today. Updates may be slower, and new connections are paused until 00:00 UTC.';
+const IDLE_END = 120, START_COOLDOWN = 300, ACTIVITY_LIFETIME = 8 * 3600;
+
+const sameSnapshot = (a, b) => a && b && JSON.stringify({ ...a, generatedAt: 0 }) === JSON.stringify({ ...b, generatedAt: 0 });
+const day = now => Math.floor(now / 86400);
 
 export class Relay {
-  constructor({ store, verifyApple, push, now = () => Date.now() / 1000 }) {
-    Object.assign(this, { store, verifyApple, push, now });
-    this.running = false;
+  constructor({ store, push = async () => ({ status: 200 }), now = () => Date.now() / 1000, budgets = FREE_DAILY,
+    pollWait = 20000, schedule = () => {} }) {
+    Object.assign(this, { store, push, now, budgets, pollWait, schedule });
     this.serialTasks = new Map();
     this.rateLimits = new Map();
+    this.waiters = new Map();
+    // Heartbeats that carried no new content update only this, never storage.
+    this.seen = new Map();
+    this.usage = store.meta('usage') ?? { day: day(now()), requests: 0, writes: 0 };
+    this.writesAtLoad = store.writes;
   }
+
+  // MARK: Free-plan budget
+
+  count() {
+    const now = this.now();
+    if (this.usage.day !== day(now)) { this.usage = { day: day(now), requests: 0, writes: 0 }; this.writesAtLoad = this.store.writes; }
+    this.usage.requests++;
+    this.usage.writes += this.store.writes - this.writesAtLoad; this.writesAtLoad = this.store.writes;
+    // Persist rarely: one row per 200 requests keeps the counter cheap to keep.
+    if (this.usage.requests % 200 === 0) { this.store.saveMeta('usage', this.usage); this.writesAtLoad = this.store.writes; }
+  }
+  level() {
+    if (this.usage.day !== day(this.now())) return 'normal';
+    const ratio = Math.max(this.usage.requests / this.budgets.requests, this.usage.writes / this.budgets.writes);
+    return ratio >= CRITICAL_AT ? 'critical' : ratio >= BUSY_AT ? 'busy' : 'normal';
+  }
+  notice() { return this.level() === 'normal' ? undefined : BUSY_NOTICE; }
+  acceptingRegistrations() {
+    if (this.level() !== 'normal') throw new HTTPError(503, 'server_busy');
+  }
+
   limit(key, maximum, period = 60) {
     const now = this.now();
     const bucket = this.rateLimits.get(key);
@@ -19,91 +59,97 @@ export class Relay {
       if (this.rateLimits.size > 10000) throw new HTTPError(503, 'busy');
     }
   }
+
+  devices(owner, now) {
+    return this.store.devices(owner, now).map(d => ({ ...d, receivedAt: Math.max(d.receivedAt, d.receivedAt ? this.seen.get(d.id) ?? 0 : 0) }));
+  }
+
   async route(method, path, body, bearer, ip) {
-    const now = this.now(), db = this.store.db;
-    if (method === 'GET' && path === '/health') { this.limit(`health:${ip}`, 180); return { status: 'ok' }; }
+    this.count();
+    const now = this.now(), store = this.store;
+    if (method === 'GET' && path === '/health') { this.limit(`health:${ip}`, 180); return { status: 'ok', level: this.level() }; }
     this.limit(`ip:${ip}`, 180);
-    if (method === 'POST' && path === '/v1/auth/challenge') {
-      this.limit(`auth:${ip}`, 10);
-      const id = secret(), nonce = secret(), expiresAt = now + 300;
-      db.prepare('INSERT INTO challenges VALUES (?,?,?)').run(id, nonce, expiresAt);
-      return { id, nonce, expiresAt };
+
+    // A new iPhone gets an anonymous account: no Apple ID, no email, only a token.
+    if (method === 'POST' && path === '/v1/accounts') {
+      this.limit(`account:${ip}`, 5, 3600);
+      this.acceptingRegistrations();
+      const owner = secret();
+      return store.transaction(() => { store.saveUser(owner, store.user(owner)); return store.issue(owner, 'mobile', now); });
     }
-    if (method === 'POST' && path === '/v1/auth/apple') {
-      this.limit(`auth:${ip}`, 10);
-      requireValue(typeof body.challengeID === 'string');
-      const challenge = db.prepare('SELECT * FROM challenges WHERE id=?').get(body.challengeID);
-      if (!challenge || challenge.expires <= now) throw new HTTPError(401, 'challenge_expired');
-      const owner = await this.verifyApple(body.identityToken, challenge.nonce, now);
-      return this.store.transaction(() => {
-        const consumed = db.prepare('DELETE FROM challenges WHERE id=? AND expires>?').run(challenge.id, this.now());
-        if (consumed.changes !== 1) throw new HTTPError(401, 'challenge_expired');
-        this.store.saveUser(owner, this.store.user(owner));
-        return this.store.issue(owner, 'mobile', now);
-      });
-    }
-    if (method === 'POST' && path === '/v1/pairing/claim') {
+    // The computer shows a QR code holding this id and secret; the iPhone claims it.
+    if (method === 'POST' && path === '/v1/pairing/start') {
       this.limit(`pair:${ip}`, 5, 300);
-      requireValue(typeof body.code === 'string' && /^[A-Z2-9]{8}$/.test(body.code));
-      return this.store.transaction(() => {
-        const pair = db.prepare('SELECT * FROM pairs WHERE code=? AND expires>?').get(digest(body.code), now);
-        if (!pair) throw new HTTPError(401, 'pairing_expired');
-        db.prepare('DELETE FROM pairs WHERE owner=?').run(pair.owner);
-        const legacy = db.prepare("SELECT COUNT(*) AS count FROM sessions WHERE owner=? AND role='mac' AND expires>? AND hash NOT IN (SELECT session FROM devices)").get(pair.owner, now).count;
-        requireValue(this.store.devices(pair.owner, now).length + legacy < 16, 'device_limit');
-        const label = deviceLabel(body);
-        const token = this.store.issue(pair.owner, 'desktop', now);
-        const deviceID = secret();
-        this.store.saveDevice(pair.owner, { id: deviceID, session: digest(token.token), ...label, snapshot: null, receivedAt: 0 });
-        return { ...token, deviceID };
-      });
+      this.acceptingRegistrations();
+      const id = secret(), code = secret(), expiresAt = now + 300;
+      store.run('INSERT INTO pairs VALUES (?,?,?,?,?)', id, digest(code), null, JSON.stringify({ label: deviceLabel(body) }), expiresAt);
+      return { id, secret: code, expiresAt };
     }
+    if (method === 'POST' && path === '/v1/pairing/poll') {
+      this.limit(`poll:${ip}`, 40, 300);
+      const pair = this.pair(body, now);
+      if (!pair.owner) {
+        await new Promise(resolve => {
+          const timer = setTimeout(resolve, this.pollWait);
+          const list = this.waiters.get(pair.id) ?? new Set();
+          list.add(() => { clearTimeout(timer); resolve(); }); this.waiters.set(pair.id, list);
+        });
+      }
+      const current = this.pair(body, this.now());
+      if (!current.owner) return { pending: true, expiresAt: current.expires };
+      store.run('DELETE FROM pairs WHERE id=?', current.id);
+      const { token, expiresAt, deviceID } = JSON.parse(current.data);
+      return { token, expiresAt, deviceID };
+    }
+
     const role = path === '/v1/snapshot' && method === 'POST' ? null : path === '/v1/session' ? null : 'mobile';
-    const session = this.store.auth(bearer, role, now);
+    const session = store.auth(bearer, role, now);
     this.limit(`session:${session.hash}`, 120);
-    if (path === '/v1/snapshot' && method === 'POST' && !['mac', 'desktop'].includes(session.role)) throw new HTTPError(403, 'wrong_device_role');
-    if (session.role === 'mac') this.store.migrateDesktop(session, now);
-    const user = this.store.user(session.owner);
+    if (path === '/v1/snapshot' && method === 'POST' && session.role !== 'desktop') throw new HTTPError(403, 'wrong_device_role');
+    const user = store.user(session.owner);
+
+    if (method === 'POST' && path === '/v1/pairing/claim') {
+      this.limit(`claim:${session.hash}`, 10, 300);
+      const pair = this.pair(body, now);
+      if (pair.owner) throw new HTTPError(409, 'pairing_used');
+      requireValue(this.devices(session.owner, now).length < 16, 'device_limit');
+      const { label } = JSON.parse(pair.data);
+      const result = store.transaction(() => {
+        const token = store.issue(session.owner, 'desktop', now), deviceID = secret();
+        store.saveDevice(session.owner, { id: deviceID, session: digest(token.token), ...label, snapshot: null, receivedAt: 0 });
+        store.run('UPDATE pairs SET owner=?, data=? WHERE id=?', session.owner,
+          JSON.stringify({ label, token: token.token, expiresAt: token.expiresAt, deviceID }), pair.id);
+        return { deviceID, ...label };
+      });
+      for (const wake of this.waiters.get(pair.id) ?? []) wake();
+      this.waiters.delete(pair.id);
+      return result;
+    }
     if (method === 'DELETE' && path === '/v1/session') {
       // Mark endings durably before revoking access; tick retries APNs failures.
-      for (const a of this.store.activities(session.owner)) {
-        if (a.session === session.hash) { a.data.ending = true; this.store.saveActivity(a); }
-      }
-      db.prepare('DELETE FROM sessions WHERE hash=?').run(session.hash);
-      db.prepare('DELETE FROM devices WHERE session=?').run(session.hash);
-      db.prepare('DELETE FROM views WHERE session=?').run(session.hash);
+      for (const a of store.activities(session.owner)) if (a.session === session.hash) { a.data.ending = true; store.saveActivity(a); }
+      store.revoke(session.hash);
       this.settlePickers(session.owner);
       return { ok: true };
     }
     if (method === 'DELETE' && path === '/v1/account') {
-      for (const a of this.store.activities(session.owner)) { a.data.ending = true; this.store.saveActivity(a); }
-      this.store.transaction(() => {
-        db.prepare('DELETE FROM pairs WHERE owner=?').run(session.owner);
-        db.prepare('DELETE FROM views WHERE session IN (SELECT hash FROM sessions WHERE owner=?)').run(session.owner);
-        db.prepare('DELETE FROM devices WHERE owner=?').run(session.owner);
-        db.prepare('DELETE FROM sessions WHERE owner=?').run(session.owner);
-        db.prepare('DELETE FROM users WHERE id=?').run(session.owner);
+      for (const a of store.activities(session.owner)) { a.data.ending = true; store.saveActivity(a); }
+      store.transaction(() => {
+        for (const { hash } of store.sql.all('SELECT hash FROM sessions WHERE owner=?', session.owner)) store.revoke(hash);
+        store.run('DELETE FROM users WHERE id=?', session.owner);
       });
       return { ok: true };
-    }
-    if (method === 'POST' && path === '/v1/pairing') {
-      this.limit(`newpair:${session.owner}`, 5, 300);
-      const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      const code = Array.from({ length: 8 }, () => alphabet[randomInt(alphabet.length)]).join('');
-      db.prepare('DELETE FROM pairs WHERE owner=?').run(session.owner);
-      db.prepare('INSERT INTO pairs VALUES (?,?,?)').run(digest(code), session.owner, now + 300);
-      return { code, expiresAt: now + 300 };
     }
     if (method === 'GET' && path === '/v1/snapshot') return this.response(session, now);
     if (method === 'POST' && path === '/v1/view') {
       return this.serial(session.hash, () => {
         // Waiting for a push must not outlive revocation or reuse an old view.
-        this.store.auth(bearer, 'mobile', this.now());
-        const previous = this.store.view(session.hash);
+        store.auth(bearer, 'mobile', this.now());
+        const previous = store.view(session.hash);
         requireValue(body.expectedRevision === undefined || Number.isSafeInteger(body.expectedRevision));
         if (body.expectedRevision !== undefined && body.expectedRevision !== (previous.revision ?? 0)) return this.response(session, this.now());
-        const freshUser = this.store.user(session.owner);
-        const devices = this.store.devices(session.owner, this.now());
+        const freshUser = store.user(session.owner);
+        const devices = this.devices(session.owner, this.now());
         if (body.providerID !== undefined) requireValue(body.axis === 'provider' && Number.isSafeInteger(body.expectedRevision));
         requireValue(body.pickerVersion === undefined || body.pickerVersion === 2);
         if (body.groupID !== undefined) requireValue(body.axis === 'provider-group' && typeof body.groupID === 'string' && body.groupID.length <= 16);
@@ -111,79 +157,108 @@ export class Relay {
         const view = body.providerID === undefined
           ? navigate(devices, freshUser.preferences, previous, body.axis, body.direction, this.now(), { groupID: body.groupID, pickerVersion: body.pickerVersion })
           : selectProvider(devices, freshUser.preferences, previous, body.providerID, body.deviceID, this.now());
-        this.store.saveView(session.hash, view); return this.response(session, this.now());
+        store.saveView(session.hash, view); return this.response(session, this.now());
       });
     }
     if (method === 'DELETE' && path.startsWith('/v1/devices/')) {
       const id = path.slice('/v1/devices/'.length);
-      const device = this.store.devices(session.owner, now).find(d => d.id === id);
+      const device = store.devices(session.owner, now).find(d => d.id === id);
       if (!device) throw new HTTPError(404, 'not_found');
-      this.store.transaction(() => {
-        db.prepare('DELETE FROM sessions WHERE hash=? AND owner=?').run(device.session, session.owner);
-        db.prepare('DELETE FROM devices WHERE id=? AND owner=?').run(id, session.owner);
-      });
+      store.revoke(device.session);
       this.settlePickers(session.owner);
       return { ok: true };
     }
     if (method === 'PUT' && path === '/v1/preferences') {
-      user.preferences = preferences(body); this.store.saveUser(session.owner, user);
+      user.preferences = preferences(body); store.saveUser(session.owner, user);
       this.settlePickers(session.owner, { reset: true }); return { ok: true };
     }
     if (method === 'POST' && path === '/v1/snapshot') {
-      const device = this.store.devices(session.owner, now).find(d => d.session === session.hash);
+      const device = store.devices(session.owner, now).find(d => d.session === session.hash);
       if (!device) throw new HTTPError(401, 'pairing_required');
-      const previousCatalog = JSON.stringify(device.snapshot?.providers.map(p => [p.id, p.name]) ?? []);
-      device.snapshot = sanitizeSnapshot(body, now); device.receivedAt = now;
-      this.store.saveDevice(session.owner, device);
-      if (previousCatalog !== JSON.stringify(device.snapshot.providers.map(p => [p.id, p.name])) || device.snapshot.providers.filter(p => !user.preferences.providerIDs.length || user.preferences.providerIDs.includes(p.id)).length < 2) {
-        this.settlePickers(session.owner, { deviceID: device.id });
+      const next = sanitizeSnapshot(body, now);
+      this.seen.set(device.id, now);
+      // Unchanged content is a heartbeat: remembered in memory, never written.
+      if (!sameSnapshot(device.snapshot, next) || !device.receivedAt) {
+        const previousCatalog = JSON.stringify(device.snapshot?.providers.map(p => [p.id, p.name]) ?? []);
+        device.snapshot = next; device.receivedAt = now;
+        store.saveDevice(session.owner, device);
+        if (previousCatalog !== JSON.stringify(next.providers.map(p => [p.id, p.name]))
+            || next.providers.filter(p => !user.preferences.providerIDs.length || user.preferences.providerIDs.includes(p.id)).length < 2) {
+          this.settlePickers(session.owner, { deviceID: device.id });
+        }
+        this.later(() => this.tick(session.owner));
       }
-      return { ok: true };
+      return { ok: true, interval: HEARTBEAT[this.level()], notice: this.notice() };
     }
     if (method === 'POST' && path === '/v1/activities') {
       requireValue(typeof body.activityID === 'string' && /^[a-zA-Z0-9-]{1,128}$/.test(body.activityID));
       requireValue(typeof body.pushToken === 'string' && /^[a-f0-9]{64,512}$/.test(body.pushToken));
       const id = `${session.hash}:${body.activityID}`;
-      const existing = this.store.activities(session.owner).find(a => a.id === id);
+      const existing = store.activities(session.owner).find(a => a.id === id);
       if (existing?.data.ending) throw new HTTPError(409, 'activity_ended');
-      // One Live Activity per signed-in phone. Token rotation keeps original lifetime.
-      for (const a of this.store.activities(session.owner)) if (a.session === session.hash && a.id !== id) {
-        a.data.ending = true; this.store.saveActivity(a);
+      // One Live Activity per iPhone. Token rotation keeps the original lifetime.
+      for (const a of store.activities(session.owner)) if (a.session === session.hash && a.id !== id) {
+        a.data.ending = true; store.saveActivity(a);
       }
-      this.store.saveActivity({ id, owner: session.owner, session: session.hash,
+      store.saveActivity({ id, owner: session.owner, session: session.hash,
         data: { ...existing?.data, token: body.pushToken, createdAt: existing?.data.createdAt ?? now, sentAt: existing?.data.sentAt ?? 0,
           sentKey: existing?.data.sentKey ?? '', ending: false, needsPush: true } });
+      this.later(() => this.tick(session.owner));
       return { ok: true };
     }
     if (method === 'DELETE' && path === '/v1/activities') {
-      for (const a of this.store.activities(session.owner)) if (a.session === session.hash) {
-        a.data.ending = true; this.store.saveActivity(a);
+      for (const a of store.activities(session.owner)) if (a.session === session.hash) { a.data.ending = true; store.saveActivity(a); }
+      this.later(() => this.tick(session.owner));
+      return { ok: true };
+    }
+    // iOS 17.2+: lets the relay start the Island itself when a task begins.
+    if (method === 'POST' && path === '/v1/push-to-start') {
+      requireValue(typeof body.pushToken === 'string' && /^[a-f0-9]{64,512}$/.test(body.pushToken));
+      const existing = store.starters(session.owner).find(s => s.session === session.hash);
+      if (existing?.data.token !== body.pushToken) {
+        store.saveStarter({ session: session.hash, owner: session.owner, data: { ...existing?.data, token: body.pushToken } });
       }
+      return { ok: true };
+    }
+    if (method === 'DELETE' && path === '/v1/push-to-start') {
+      store.run('DELETE FROM starters WHERE session=?', session.hash);
       return { ok: true };
     }
     throw new HTTPError(404, 'not_found');
   }
+
+  pair(body, now) {
+    requireValue(typeof body.id === 'string' && body.id.length <= 64 && typeof body.secret === 'string' && body.secret.length <= 64);
+    const pair = this.store.one('SELECT * FROM pairs WHERE id=?', body.id);
+    if (!pair || pair.expires <= now || pair.secret !== digest(body.secret)) throw new HTTPError(401, 'pairing_expired');
+    return pair;
+  }
+
   response(session, now) {
-    const user = this.store.user(session.owner), devices = this.store.devices(session.owner, now);
+    const user = this.store.user(session.owner), devices = this.devices(session.owner, now);
     const providers = new Map();
     for (const device of devices) for (const p of device.snapshot?.providers ?? []) providers.set(p.id, { id: p.id, name: p.name });
-    const state = desktopState(devices, user.preferences, this.store.view(session.hash), now);
+    const state = this.state(session.owner, session.hash, now, devices);
     const displayProviders = (devices.find(d => d.id === state.focus.deviceID)?.snapshot?.providers ?? [])
       .filter(p => !user.preferences.providerIDs.length || user.preferences.providerIDs.includes(p.id))
       .map(p => ({ id: p.id, name: p.name }));
-    return { state, preferences: user.preferences, displayProviders,
+    return { state, preferences: user.preferences, displayProviders, notice: this.notice(),
       availableProviders: [...providers.values()].sort((a,b) => a.name.localeCompare(b.name)),
-      devices: devices.map(d => ({ id: d.id, name: d.name, platform: d.platform, online: d.receivedAt > 0 && now < d.receivedAt + 90, lastSeen: d.receivedAt })) };
+      devices: devices.map(d => ({ id: d.id, name: d.name, platform: d.platform, online: d.receivedAt > 0 && now < d.receivedAt + ONLINE_WINDOW, lastSeen: d.receivedAt })) };
+  }
+  state(owner, sessionHash, now, devices = this.devices(owner, now)) {
+    const state = desktopState(devices, this.store.user(owner).preferences, this.store.view(sessionHash), now);
+    const notice = this.notice();
+    if (notice) state.notice = notice;
+    return state;
   }
   // Invalidate immediately when the catalog/context changes, before queued taps can run.
-  // Navigation mutations are synchronous and re-read this revision after any in-flight push.
-  // tick updates activity receipts only, so its completion cannot restore an older view.
   settlePickers(owner, { reset = false, deviceID = null } = {}) {
-    const sessions = this.store.db.prepare('SELECT v.session FROM views v JOIN sessions s ON s.hash=v.session WHERE s.owner=?').all(owner);
+    const sessions = this.store.sql.all('SELECT v.session FROM views v JOIN sessions s ON s.hash=v.session WHERE s.owner=?', owner);
     for (const { session } of sessions) {
       const view = this.store.view(session);
       if (!view.pickerOpen) continue;
-      const state = desktopState(this.store.devices(owner, this.now()), this.store.user(owner).preferences, view, this.now());
+      const state = desktopState(this.devices(owner, this.now()), this.store.user(owner).preferences, view, this.now());
       if (reset || (deviceID !== null && view.deviceID === deviceID) || !state.providerPicker.isOpen) {
         this.store.saveView(session, { ...view, pickerOpen: false, pickerPage: undefined, pickerPath: undefined, revision: (view.revision ?? 0) + 1 });
       }
@@ -195,41 +270,100 @@ export class Relay {
     this.serialTasks.set(key, next);
     try { return await next; } finally { if (this.serialTasks.get(key) === next) this.serialTasks.delete(key); }
   }
-  async tick() {
-    if (this.running) return;
-    this.running = true;
+  /** Run after the response; the host keeps the work alive (`waitUntil` in the Worker). */
+  later(work) { this.pending = (this.pending ?? Promise.resolve()).then(work).catch(() => {}); }
+
+  /**
+   * Starts, updates and ends Live Activities. Triggered by changes for one owner,
+   * and by the alarm for whatever is due. Returns nothing; schedules its next run.
+   */
+  tick(owner) {
+    // One pass at a time; a pass requested meanwhile runs after it, never instead of it.
+    const run = (this.ticking ?? Promise.resolve()).then(() => this.pass(owner));
+    this.ticking = run.catch(() => {});
+    return run;
+  }
+  async pass(owner) {
+    let due = Infinity;
     try {
-      this.store.prune(this.now());
-      for (const listed of this.store.activities()) await this.serial(listed.session, async () => {
-        const activity = this.store.activities(listed.owner).find(a => a.id === listed.id);
-        if (!activity) return;
-        const now = this.now(), a = activity.data;
-        if (now - a.createdAt >= 8 * 3600) { this.store.db.prepare('DELETE FROM activities WHERE id=?').run(activity.id); return; }
-        const session = this.store.db.prepare('SELECT expires FROM sessions WHERE hash=?').get(activity.session);
-        if (!session || session.expires <= now || now - a.createdAt >= 7.9 * 3600) a.ending = true;
-        const user = this.store.user(activity.owner);
-        const state = desktopState(this.store.devices(activity.owner, now), user.preferences, this.store.view(activity.session), now);
-        const key = JSON.stringify({ ...state, updatedAt: 0, staleAt: 0 });
-        const navigated = a.sentRevision !== undefined && a.sentRevision !== state.viewRevision;
-        if (!a.ending && !a.needsPush && !navigated && (now - a.sentAt < 15 || (key === a.sentKey && now - a.sentAt < 60))) return;
-        // APNs timestamps order deliveries. Never enqueue competing content in the same second.
-        if (Math.floor(a.lastEnqueuedAt ?? a.sentAt) >= Math.floor(now)) return;
-        if (a.retryAfter && now < a.retryAfter) return;
-        try {
-          a.lastEnqueuedAt = now; this.store.saveActivity(activity);
-          const result = await this.push(a.token, activityPayload(state, now, a.ending ? 'end' : 'update'));
-          const current = this.store.activities(activity.owner).find(x => x.id === activity.id);
-          if (!current || current.data.token !== a.token) return;
-          if (result.status === 410 || (result.status === 400 && ['BadDeviceToken', 'DeviceTokenNotForTopic'].includes(result.reason))
-              || (result.status === 200 && a.ending)) this.store.db.prepare('DELETE FROM activities WHERE id=?').run(activity.id);
-          else if (result.status === 200) {
-            Object.assign(current.data, { sentAt: now, sentKey: key, sentRevision: state.viewRevision, retryAfter: 0, needsPush: false }); this.store.saveActivity(current);
-          } else { current.data.retryAfter = now + 60; this.store.saveActivity(current); }
-        } catch {
-          const current = this.store.activities(activity.owner).find(x => x.id === activity.id);
-          if (current && current.data.token === a.token) { current.data.retryAfter = now + 60; this.store.saveActivity(current); }
+      const now = this.now();
+      if (!owner) this.store.prune(now);
+      due = Math.min(due, await this.startActivities(owner, now));
+      for (const listed of this.store.activities(owner)) {
+        due = Math.min(due, await this.serial(listed.session, () => this.updateActivity(listed)));
+      }
+    } finally {
+      if (due !== Infinity) this.schedule(due);
+    }
+  }
+  async startActivities(owner, now) {
+    let due = Infinity;
+    const live = new Set(this.store.activities(owner).filter(a => !a.data.ending).map(a => a.session));
+    for (const starter of this.store.starters(owner)) {
+      if (live.has(starter.session)) continue;
+      const state = this.state(starter.owner, starter.session, now);
+      if (state.workingCount + state.waitingCount === 0) continue;
+      const next = (starter.data.startedAt ?? 0) + START_COOLDOWN;
+      if (now < next) { due = Math.min(due, next); continue; }
+      starter.data.startedAt = now; this.store.saveStarter(starter);
+      const session = state.sessions[0];
+      const name = state.providers.find(p => p.id === session?.providerID)?.name ?? 'CodeRim';
+      const payload = activityPayload(state, now, 'start', {
+        attributes: { connectionID: starter.session, displayName: 'CodeRim' },
+        alert: { title: name, body: state.waitingCount > 0 ? 'Needs your input' : 'Working on your computer' } });
+      try {
+        const result = await this.push(starter.data.token, payload, { priority: 10 });
+        if (result.status === 410 || (result.status === 400 && ['BadDeviceToken', 'DeviceTokenNotForTopic'].includes(result.reason))) {
+          this.store.run('DELETE FROM starters WHERE session=?', starter.session);
         }
-      });
-    } finally { this.running = false; }
+      } catch {}
+    }
+    return due;
+  }
+  async updateActivity(listed) {
+    const activity = this.store.activities(listed.owner).find(a => a.id === listed.id);
+    if (!activity) return Infinity;
+    const now = this.now(), a = activity.data;
+    if (now - a.createdAt >= ACTIVITY_LIFETIME) { this.store.deleteActivity(activity.id); return Infinity; }
+    const session = this.store.one('SELECT expires FROM sessions WHERE hash=?', activity.session);
+    if (!session || session.expires <= now || now - a.createdAt >= ACTIVITY_LIFETIME - 360) a.ending = true;
+    const state = this.state(activity.owner, activity.session, now);
+    // Only while work is happening: end the Island a little after the last task finishes.
+    if (!a.ending) {
+      if (state.workingCount + state.waitingCount > 0) { if (a.idleSince) { delete a.idleSince; this.store.saveActivity(activity); } }
+      else if (!a.idleSince) { a.idleSince = now; this.store.saveActivity(activity); }
+      else if (now - a.idleSince >= IDLE_END) a.ending = true;
+    }
+    const key = JSON.stringify({ ...state, updatedAt: 0, staleAt: 0 });
+    const navigated = a.sentRevision !== undefined && a.sentRevision !== state.viewRevision;
+    const changed = a.ending || a.needsPush || navigated || key !== a.sentKey;
+    const idleDue = a.idleSince && !a.ending ? a.idleSince + IDLE_END : Infinity;
+    if (!changed) return Math.min(idleDue, a.createdAt + ACTIVITY_LIFETIME - 360);
+    // APNs budgets Live Activity updates; space routine ones 15 seconds apart.
+    if (!a.ending && !a.needsPush && !navigated && now - a.sentAt < 15) return a.sentAt + 15;
+    // APNs timestamps order deliveries. Never enqueue competing content in the same second.
+    if (Math.floor(a.lastEnqueuedAt ?? a.sentAt) >= Math.floor(now)) return now + 1;
+    if (a.retryAfter && now < a.retryAfter) return a.retryAfter;
+    const alert = state.notice && a.noticeDay !== day(now) ? { title: 'CodeRim', body: state.notice } : undefined;
+    try {
+      a.lastEnqueuedAt = now; this.store.saveActivity(activity);
+      const result = await this.push(a.token, activityPayload(state, now, a.ending ? 'end' : 'update', { alert }),
+        { priority: alert || state.waitingCount > 0 ? 10 : 5 });
+      const current = this.store.activities(activity.owner).find(x => x.id === activity.id);
+      if (!current || current.data.token !== a.token) return Infinity;
+      if (result.status === 410 || (result.status === 400 && ['BadDeviceToken', 'DeviceTokenNotForTopic'].includes(result.reason))
+          || (result.status === 200 && a.ending)) { this.store.deleteActivity(activity.id); return Infinity; }
+      if (result.status === 200) {
+        Object.assign(current.data, { sentAt: now, sentKey: key, sentRevision: state.viewRevision, retryAfter: 0, needsPush: false,
+          ...(alert ? { noticeDay: day(now) } : {}) });
+        this.store.saveActivity(current);
+        return Math.min(idleDue, a.createdAt + ACTIVITY_LIFETIME - 360);
+      }
+      current.data.retryAfter = now + 60; this.store.saveActivity(current); return now + 60;
+    } catch {
+      const current = this.store.activities(activity.owner).find(x => x.id === activity.id);
+      if (current && current.data.token === a.token) { current.data.retryAfter = now + 60; this.store.saveActivity(current); }
+      return now + 60;
+    }
   }
 }

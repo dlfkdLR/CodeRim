@@ -20,9 +20,9 @@ Sparkle은 GitHub 업데이트 인프라를 조회하고 Windows Setup 업데이
 
 ## 선택적 iPhone 공유
 
-iPhone 앱과 relay는 별도의 개발 기능으로 서버 설정과 연결을 명시적으로 해야 합니다. 데스크톱은 허용 목록에 있는 제공업체명, 남은 백분율, 측정 시각, 로컬 Today 토큰, 작업 상태·개수만 전송합니다. 작업 제목 공유는 기본적으로 꺼져 있으며 **Share task titles**를 켜면 제목도 전송합니다. 서비스 자격 증명, 세션 ID, 전체 경로, 프롬프트, 대화 원문은 공유하지 않습니다.
+iPhone 앱과 relay는 별도의 개발 기능입니다. 컴퓨터는 iPhone 앱에서 그 QR 코드를 스캔해야만 연결됩니다. 데스크톱은 허용 목록에 있는 제공업체명, 남은 백분율, 측정 시각, 로컬 Today 토큰, 작업 상태·개수만 전송합니다. 작업 제목 공유는 기본적으로 꺼져 있으며 **Share task titles**를 켜면 제목도 전송합니다. 서비스 자격 증명, 세션 ID, 전체 경로, 프롬프트, 대화 원문은 공유하지 않습니다.
 
-relay는 마지막 스냅샷, 기기·선택 메타데이터, Apple subject ID, 해시된 Bearer 토큰, 전달에 필요한 APNs 활동 토큰을 저장합니다. HTTPS는 전송을 보호하지만 relay는 공유한 사용량을 읽을 수 있습니다. 종단 간 암호화 전송은 아닙니다. [iPhone 설정](IPHONE.ko.md)과 [relay 참고 문서](IPHONE.ko.md)를 확인합니다.
+relay는 마지막 스냅샷, 기기·선택 메타데이터, 해시된 Bearer 토큰, Live Activity 시작·갱신에 필요한 APNs 토큰을 저장합니다. 로그인이 없으므로 Apple ID, 이메일, 이름을 보관하지 않으며 iPhone은 익명 계정입니다. HTTPS는 전송을 보호하지만 relay는 공유한 사용량을 읽을 수 있습니다. 종단 간 암호화 전송은 아닙니다. [iPhone 설정](IPHONE.ko.md)과 [relay 참고 문서](IPHONE.ko.md)를 확인합니다.
 
 ## 제어
 

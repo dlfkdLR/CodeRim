@@ -7,17 +7,19 @@ final class MobileUITests: XCTestCase {
         app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
         XCTAssertTrue(app.navigationBars["CodeRim"].waitForExistence(timeout: 10))
-        XCTAssertTrue(app.textFields["Relay server address"].exists)
+        let scan = app.buttons["Scan the QR code on your computer"]
+        XCTAssertTrue(scan.exists)
         XCTAssertFalse(app.staticTexts["Could not save the connection details to Keychain."].exists)
         attach("settings", app.screenshot())
-        if !app.textFields["Relay server address"].isHittable { app.swipeUp() }
-        app.textFields["Relay server address"].tap()
-        app.textFields["Relay server address"].typeText("http://example.com")
-        app.buttons["Connect and sign in"].tap()
-        XCTAssertTrue(app.staticTexts["Check the relay server’s HTTPS address."].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Check the relay server’s HTTPS address."].isHittable)
-        XCTAssertFalse(app.keyboards.firstMatch.exists)
-        attach("settings-error", app.screenshot())
+        if !scan.isHittable { app.swipeUp() }
+        scan.tap()
+        // The Simulator has no camera: the scanner offers the Camera app and pasting.
+        let paste = app.textFields["coderim://pair?…"]
+        XCTAssertTrue(paste.waitForExistence(timeout: 5))
+        paste.tap(); paste.typeText("coderim://pair?r=http://example.com")
+        app.buttons["Connect"].tap()
+        XCTAssertTrue(app.staticTexts["That is not a CodeRim pairing code."].waitForExistence(timeout: 5))
+        attach("settings-scanner", app.screenshot())
         app.terminate()
         app.launchArguments += ["--ui-preview"]
         app.launch()
@@ -129,7 +131,7 @@ final class MobileUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["CodeRim"].waitForExistence(timeout: 10))
         attach("welcome-large-text", app.screenshot())
         app.swipeUp()
-        XCTAssertTrue(app.buttons["Connect and sign in"].isHittable)
+        XCTAssertTrue(app.buttons["Scan the QR code on your computer"].isHittable)
         attach("welcome-large-text-connect", app.screenshot())
         app.terminate()
         app.launchArguments = ["--ui-settings", "--ui-empty-settings"]
@@ -137,8 +139,9 @@ final class MobileUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Bring your computer along."].waitForExistence(timeout: 10))
         attach("settings-empty", app.screenshot())
         app.buttons["Add a computer"].tap()
-        XCTAssertTrue(app.staticTexts["ABCD1234"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Scan QR code"].waitForExistence(timeout: 5))
         attach("settings-pairing", app.screenshot())
+        app.buttons["Cancel"].tap()
         app.swipeUp()
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Providers")).firstMatch.tap()
         XCTAssertTrue(app.staticTexts["No services yet"].waitForExistence(timeout: 5))
@@ -170,15 +173,14 @@ final class MobileUITests: XCTestCase {
         app.launch()
         XCTAssertTrue(app.staticTexts["Personal Mac"].waitForExistence(timeout: 10))
         app.swipeUp()
-        XCTAssertFalse(app.buttons["Show in Dynamic Island"].isEnabled)
+        XCTAssertFalse(app.buttons["Show now"].isEnabled)
         app.buttons.matching(NSPredicate(format: "label BEGINSWITH %@", "Providers")).firstMatch.tap()
         XCTAssertTrue(app.staticTexts["Open CodeRim on a connected computer and check its services."].waitForExistence(timeout: 5))
         attach("providers-waiting-for-computer", app.screenshot())
         app.navigationBars.buttons.firstMatch.tap()
         app.swipeUp()
-        XCTAssertTrue(app.buttons["Sign out"].exists)
-        XCTAssertFalse(app.buttons["Sign out"].isEnabled)
-        XCTAssertFalse(app.buttons["Delete account and data"].isEnabled)
+        XCTAssertTrue(app.buttons["Disconnect this iPhone"].exists)
+        XCTAssertFalse(app.buttons["Disconnect this iPhone"].isEnabled)
     }
     @MainActor
     func testChooseFirstProviderAndSearchLongList() throws {

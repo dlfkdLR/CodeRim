@@ -299,6 +299,12 @@ struct IslandDetails: View {
                             .accessibilityLabel("Today on this device: \(tokens) tokens\(provider.localState == "partial" ? " (partial)" : "")")
                     }
                 }
+                // The free relay is rationing today: updates may arrive later than usual.
+                if !compact, let notice = state.notice {
+                    Label("Relay busy today · updates may be slower", systemImage: "hourglass")
+                        .font(.caption2).foregroundStyle(IslandPalette.secondary).lineLimit(1)
+                        .accessibilityLabel(notice)
+                }
             }.frame(maxWidth: .infinity, alignment: .leading)
         }.foregroundStyle(.white)
             .accessibilityValue(reading.disconnected ? "Check your computer’s connection" : "Working: \(state.workingCount), needs input: \(state.waitingCount), unavailable: \(state.unavailableCount)")
