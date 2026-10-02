@@ -402,13 +402,37 @@ internal sealed partial class DashboardWindow : Window
                 await store.RefreshProviderAsync(id).ConfigureAwait(true);
                 return store.Readings.GetValueOrDefault(id)?.State is ReadingState.Ready or ReadingState.Partial;
             },
-            ProviderSignInLauncher.Launch);
+            ProviderSignInLauncher.Launch,
+            openInstallPage: plan => { if (plan.InstallUrl is { } url) ProviderSignInLauncher.Launch(new SignInPlan(SignInKind.Browser, plan.Name, null, url, plan.Note)); },
+            runInApp: RunInAppSignInAsync,
+            // A reading that can never succeed by waiting longer — a plan without usage, a disabled source.
+            blocker: id => store.Readings.GetValueOrDefault(id) is { State: ReadingState.Unsupported or ReadingState.Disabled } reading
+                ? reading.Message ?? "This account cannot be read. Check its plan and settings." : null);
         created.Changed += () => Dispatcher.BeginInvoke(new Action(() =>
         {
             UpdateConnectionBanner();
             if (page == "providers") Render();
         }));
         return created;
+    }
+    private static readonly System.Net.Http.HttpClient SignInHttp = new() { Timeout = TimeSpan.FromSeconds(30) };
+    /// <summary>Sign-ins CodeRim runs itself, storing what they return in its own credential vault.</summary>
+    private async Task<InAppOutcome> RunInAppSignInAsync(InAppKind kind, Action<string> update, CancellationToken cancellation)
+    {
+        void Open(Uri url) => ProviderSignInLauncher.Launch(new SignInPlan(SignInKind.Browser, "", null, url, ""));
+        switch (kind)
+        {
+            case InAppKind.GitHubDevice:
+                return await GitHubDeviceFlow.RunAsync(SignInHttp, update, Open,
+                    code => Dispatcher.Invoke(() => { try { Clipboard.SetText(code); } catch (System.Runtime.InteropServices.COMException) { } }),
+                    token => { vault.Save("provider:copilot", token); store.InvalidateAccount("copilot"); }, cancellation).ConfigureAwait(true);
+            case InAppKind.AntigravityGoogle:
+                return await AntigravityGoogleSignIn.RunAsync(ProviderSignIn.AntigravityClient(), SignInHttp, update,
+                    url => { Open(url); return true; },
+                    json => { vault.Save("provider:gemini", json); store.InvalidateAccount("gemini"); }, cancellation).ConfigureAwait(true);
+            default:
+                return InAppOutcome.Failed("This sign-in is not available.");
+        }
     }
     private StackPanel? connectionBanner; private string? connectionBannerId;
     private void ResetConnectionBanner() { connectionBanner = null; connectionBannerId = null; }
@@ -442,7 +466,17 @@ internal sealed partial class DashboardWindow : Window
         var busy = state?.Phase is ProviderConnector.Phase.Checking or ProviderConnector.Phase.Waiting;
         if (busy) connectionBanner.Children.Add(Ui.Button("Cancel", () => connector.Cancel(id)));
         else if (state?.Phase != ProviderConnector.Phase.Connected && !plan.OpensSettings)
-            connectionBanner.Children.Add(Ui.Button(plan.Kind == SignInKind.Terminal ? "Sign in to " + plan.Name : "Sign in", () => connector.Begin(id)));
+            connectionBanner.Children.Add(Ui.Button(state?.Phase == ProviderConnector.Phase.Failed ? "Try again"
+                : plan.Kind is SignInKind.Terminal or SignInKind.InApp ? "Sign in to " + plan.Name : "Sign in", () => connector.Begin(id)));
+        // Google shut Gemini CLI sign-in for personal accounts in June 2026; Antigravity reads the same allowance.
+        if (id == "gemini-cli" && state?.Phase != ProviderConnector.Phase.Connected)
+            connectionBanner.Children.Add(Ui.Button("Use Antigravity", () =>
+            {
+                connector.Cancel("gemini-cli");
+                if (!settings.Current.EnabledProviders.Contains("gemini", StringComparer.Ordinal))
+                    Save(settings.Current with { EnabledProviders = [..settings.Current.EnabledProviders, "gemini"] });
+                Navigate("gemini"); connector.Begin("gemini");
+            }));
     }
     private async Task ConnectAddedClaudeAsync()
     {
@@ -517,7 +551,7 @@ internal sealed partial class DashboardWindow : Window
         UpdateProviderReading(id);
         var connectionStart = body.Children.Count;
         if (provider.HasLocalHistory) Ui.Section(body, "Connection");
-        if (id == "copilot") body.Children.Add(Ui.Text("Uses your current GitHub CLI sign-in. Sign in with gh auth login, or provide an access token below.", 12));
+        if (id == "copilot") body.Children.Add(Ui.Text("Uses your GitHub CLI sign-in when there is one. Otherwise choose Sign in to GitHub — CodeRim shows a code to approve on github.com — or paste an access token below.", 12));
         if (id == "glm") body.Children.Add(Ui.Text("Detects a GLM login from Claude Code, ZCode or OpenCode. A key entered below takes precedence.", 12));
         if (id == "codebuff") body.Children.Add(Ui.Text("Uses your current Codebuff CLI sign-in. A key entered below takes precedence.", 12));
         if (id == "jetbrains") body.Children.Add(Ui.Text("Reads the latest AI Assistant quota from your JetBrains IDE settings. Enable AI Assistant and refresh its usage in the IDE."));

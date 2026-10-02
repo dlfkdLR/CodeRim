@@ -11,11 +11,16 @@ public enum SignInKind
     Browser,
     /// <summary>An API key or cookie is entered in the provider's settings page.</summary>
     Settings,
+    /// <summary>CodeRim runs the sign-in itself: a GitHub device code or a Google consent.</summary>
+    InApp,
 }
 
 public sealed record SignInPlan(SignInKind Kind, string Name, string? Command, Uri? Url, string Note)
 {
     public bool OpensSettings => Kind == SignInKind.Settings;
+    public InAppKind? InApp { get; init; }
+    /// <summary>Where to get the command a terminal sign-in runs, when it is not installed.</summary>
+    public Uri? InstallUrl { get; init; }
 }
 
 /// <summary>
@@ -29,19 +34,29 @@ public static class ProviderSignIn
     private static readonly Dictionary<string, (string Command, string Note)> Terminal = new(StringComparer.Ordinal)
     {
         ["codex"] = ("codex login", "A terminal window runs `codex login`. Finish it in the browser and CodeRim connects on its own."),
-        ["copilot"] = ("gh auth login --web", "A terminal window opens GitHub's sign-in: copy the code, approve it in the browser, and CodeRim connects on its own."),
         ["cursor"] = ("cursor-agent login", "A terminal window runs `cursor-agent login`. Finish it in the browser and CodeRim connects on its own."),
         ["grok"] = ("grok login", "A terminal window runs `grok login`. Finish it in the browser and CodeRim connects on its own."),
         ["opencode"] = ("opencode auth login", "A terminal window runs `opencode auth login`. Choose OpenCode Go there and CodeRim connects on its own."),
-        ["gemini-cli"] = ("gemini", "A terminal window starts the Gemini CLI. Sign in with Google there and CodeRim connects on its own."),
+        ["gemini-cli"] = ("gemini", "Personal Google accounts (including AI Pro and Ultra) can no longer sign in to Gemini CLI — choose Use Antigravity instead. For a Workspace or education account, a terminal window starts the Gemini CLI: choose Sign in with Google, then type /quit."),
         ["vertexai"] = ("gcloud auth application-default login", "A terminal window runs Google Cloud's sign-in. Finish it in the browser and CodeRim connects on its own."),
     };
     private static readonly Dictionary<string, (string Url, string Note)> Browser = new(StringComparer.Ordinal)
     {
-        ["gemini"] = ("https://antigravity.google", "Install Antigravity and sign in with your Google account. CodeRim connects on its own."),
-        ["glm"] = ("https://z.ai/manage-apikey/apikey-list", "Create a GLM Coding Plan key on Z.ai and add it to Claude Code's settings.json, ZCode or OpenCode. CodeRim detects it there."),
-        ["ollama"] = ("https://ollama.com/settings/keys", "Create a key on ollama.com, then set OLLAMA_API_KEY. CodeRim detects it."),
     };
+    private static readonly Dictionary<string, string> InstallPages = new(StringComparer.Ordinal)
+    {
+        ["codex"] = "https://github.com/openai/codex", ["cursor"] = "https://cursor.com/cli", ["opencode"] = "https://opencode.ai",
+        ["gemini-cli"] = "https://github.com/google-gemini/gemini-cli#quickstart", ["vertexai"] = "https://cloud.google.com/sdk/docs/install",
+    };
+    private static readonly Dictionary<string, string> KeyNotes = new(StringComparer.Ordinal)
+    {
+        ["glm"] = "Paste your GLM Coding Plan API key below (create one at z.ai › API keys). CodeRim also finds a key Claude Code, ZCode or OpenCode already uses.",
+        ["ollama"] = "Paste an Ollama API key below (create one at ollama.com › Settings › Keys).",
+    };
+
+    /// <summary>Finds the Antigravity app's OAuth client; replaceable in tests.</summary>
+    public static Func<GoogleOAuthClient?> AntigravityClient { get; set; } =
+        () => AntigravityOAuthClientLocator.Discover(AntigravityOAuthClientLocator.CandidatePaths(Environment.GetEnvironmentVariable));
     private static readonly Regex CookieKey = new("COOKIE|SESSION", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex SecretKey = new("KEY|TOKEN|SECRET|PASSWORD", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
@@ -49,15 +64,55 @@ public static class ProviderSignIn
     {
         var definition = ProviderCatalog.Find(id);
         var name = definition?.Name ?? id;
+        if (id == "copilot")
+            return new(SignInKind.InApp, "GitHub", null, null,
+                "CodeRim shows a short code and opens GitHub. Enter the code, approve, and it connects — no GitHub CLI needed.") { InApp = InAppKind.GitHubDevice };
+        if (id == "gemini")
+            return AntigravityClient() is not null
+                ? new(SignInKind.InApp, "Antigravity", null, null,
+                    "Your browser opens Google's sign-in. Choose the account you use with Antigravity and allow access; CodeRim connects on its own. The Antigravity app does not need to be running.") { InApp = InAppKind.AntigravityGoogle }
+                : new(SignInKind.Browser, "Antigravity", null, new Uri("https://antigravity.google/download"),
+                    "Install the Antigravity app from this page — CodeRim signs in with its Google sign-in. Then choose Sign in again here and pick your Google account.");
+        if (KeyNotes.TryGetValue(id, out var keyNote)) return new(SignInKind.Settings, name, null, null, keyNote);
         if (Terminal.TryGetValue(id, out var terminal))
-            return new(SignInKind.Terminal, name, terminal.Command, null, terminal.Note);
+            return new(SignInKind.Terminal, name, terminal.Command, null, terminal.Note)
+                { InstallUrl = InstallPages.TryGetValue(id, out var install) ? new Uri(install) : null };
         if (Browser.TryGetValue(id, out var page))
             return new(SignInKind.Browser, name, null, new Uri(page.Url), page.Note);
         var keys = definition?.EnvironmentKeys ?? [];
         var url = ProviderAccountLinks.UsagePage(id);
         if (url is not null && (keys.Any(CookieKey.IsMatch) || !keys.Any(SecretKey.IsMatch)))
-            return new(SignInKind.Browser, name, null, url, $"Sign in on the {name} website in your browser. CodeRim reads the signed-in session and connects on its own.");
+            return new(SignInKind.Browser, name, null, url, $"Sign in on the {name} website in Firefox or a Chromium browser, then choose Import from Firefox… or Import from Chromium profile… on this page. CodeRim connects as soon as the session is imported.");
         return new(SignInKind.Settings, name, null, null, $"Enter your {name} key or session in its settings. {definition?.Summary}".Trim());
+    }
+
+    /// <summary>
+    /// Why a terminal sign-in cannot start: its command is not installed. Looked up on PATH with
+    /// the Windows executable extensions, so an empty terminal never opens.
+    /// </summary>
+    public static string? MissingTool(SignInPlan plan, Func<string, bool>? installed = null)
+    {
+        if (plan.Kind != SignInKind.Terminal || plan.Command is not { } command) return null;
+        var tool = command.Split(' ', 2)[0];
+        if ((installed ?? IsInstalled)(tool)) return null;
+        var page = plan.InstallUrl is null ? " Install it, then choose Sign in again." : " Its install page is opening; after installing, choose Sign in again.";
+        return $"{plan.Name} needs the `{tool}` command, which is not installed on this PC.{page}";
+    }
+
+    public static bool IsInstalled(string tool)
+    {
+        if (tool.Length == 0) return false;
+        if (Path.IsPathFullyQualified(tool)) return File.Exists(tool);
+        var extensions = OperatingSystem.IsWindows()
+            ? (Environment.GetEnvironmentVariable("PATHEXT") ?? ".EXE;.CMD;.BAT;.PS1").Split(';', StringSplitOptions.RemoveEmptyEntries).Prepend("")
+            : [""];
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var extra = new[] { Path.Combine(home, ".local", "bin"), Path.Combine(home, "AppData", "Roaming", "npm"), Path.Combine(home, "scoop", "shims") };
+        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries).Concat(extra))
+            foreach (var extension in extensions)
+                try { if (File.Exists(Path.Combine(directory, tool + extension))) return true; }
+                catch (ArgumentException) { }
+        return false;
     }
 
     /// <summary>The login command is safe to hand to a shell: plain words, dashes and dots only.</summary>
@@ -76,15 +131,27 @@ public sealed class ProviderConnector
 
     private readonly Func<string, Task<bool>> connects;
     private readonly Func<SignInPlan, bool> launch;
+    private readonly Func<string, SignInPlan> plan;
+    private readonly Func<SignInPlan, string?> preflight;
+    private readonly Action<SignInPlan> openInstallPage;
+    private readonly Func<InAppKind, Action<string>, CancellationToken, Task<InAppOutcome>> runInApp;
+    private readonly Func<string, string?> blocker;
     private readonly TimeSpan poll, patience;
     private readonly Dictionary<string, State> states = new(StringComparer.Ordinal);
     private readonly Dictionary<string, CancellationTokenSource> running = new(StringComparer.Ordinal);
     private readonly object gate = new();
     public event Action? Changed;
 
-    public ProviderConnector(Func<string, Task<bool>> connects, Func<SignInPlan, bool> launch, TimeSpan? poll = null, TimeSpan? patience = null)
+    public ProviderConnector(Func<string, Task<bool>> connects, Func<SignInPlan, bool> launch, TimeSpan? poll = null, TimeSpan? patience = null,
+        Func<string, SignInPlan>? plan = null, Func<SignInPlan, string?>? preflight = null, Action<SignInPlan>? openInstallPage = null,
+        Func<InAppKind, Action<string>, CancellationToken, Task<InAppOutcome>>? runInApp = null, Func<string, string?>? blocker = null)
     {
         this.connects = connects; this.launch = launch;
+        this.plan = plan ?? ProviderSignIn.For;
+        this.preflight = preflight ?? (p => ProviderSignIn.MissingTool(p));
+        this.openInstallPage = openInstallPage ?? (_ => { });
+        this.runInApp = runInApp ?? ((_, _, _) => Task.FromResult(InAppOutcome.Failed("This sign-in is not available here.")));
+        this.blocker = blocker ?? (_ => null);
         this.poll = poll ?? TimeSpan.FromSeconds(4); this.patience = patience ?? TimeSpan.FromMinutes(10);
     }
 
@@ -103,25 +170,45 @@ public sealed class ProviderConnector
         CancellationTokenSource cancellation = new();
         lock (gate) { if (running.Remove(id, out var previous)) previous.Cancel(); running[id] = cancellation; }
         var token = cancellation.Token;
+        // Only the run that currently owns the provider may write its state: a cancelled or
+        // superseded run resuming from an await must never report Connected afterwards.
         void Set(Phase phase, string message = "")
         {
-            lock (gate) { if (token.IsCancellationRequested) return; states[id] = new(phase, message); }
+            lock (gate)
+            {
+                if (token.IsCancellationRequested || running.GetValueOrDefault(id) != cancellation) return;
+                states[id] = new(phase, message);
+            }
             Changed?.Invoke();
         }
         try
         {
             Set(Phase.Checking);
-            if (await connects(id)) { Set(Phase.Connected); return; }
+            if (await connects(id).ConfigureAwait(false)) { Set(Phase.Connected); return; }
             token.ThrowIfCancellationRequested();
-            var plan = ProviderSignIn.For(id);
-            if (plan.OpensSettings) { Set(Phase.NeedsKey, plan.Note); return; }
-            if (!launch(plan)) { Set(Phase.Failed, plan.Note + " It could not be opened automatically."); return; }
-            Set(Phase.Waiting, plan.Note);
+            var signIn = plan(id);
+            if (signIn.OpensSettings) { Set(Phase.NeedsKey, signIn.Note); return; }
+            if (signIn.Kind == SignInKind.InApp && signIn.InApp is { } kind)
+            {
+                Set(Phase.Waiting, signIn.Note);
+                var outcome = await runInApp(kind, note => Set(Phase.Waiting, note), token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                if (!outcome.SignedIn) { Set(Phase.Failed, outcome.Reason ?? "Sign-in did not finish. Choose Sign in to try again."); return; }
+                if (await connects(id).ConfigureAwait(false)) { Set(Phase.Connected); return; }
+            }
+            else
+            {
+                if (preflight(signIn) is { } problem) { openInstallPage(signIn); Set(Phase.Failed, problem); return; }
+                if (!launch(signIn)) { Set(Phase.Failed, signIn.Note + " It could not be opened automatically."); return; }
+                Set(Phase.Waiting, signIn.Note);
+            }
             var deadline = DateTime.UtcNow + patience;
             while (DateTime.UtcNow < deadline)
             {
-                await Task.Delay(poll, token);
-                if (await connects(id)) { Set(Phase.Connected); return; }
+                await Task.Delay(poll, token).ConfigureAwait(false);
+                if (await connects(id).ConfigureAwait(false)) { Set(Phase.Connected); return; }
+                token.ThrowIfCancellationRequested();
+                if (blocker(id) is { } reason) { Set(Phase.Failed, reason); return; }
             }
             Set(Phase.Failed, "Sign-in was not detected. Choose Sign in to try again.");
         }
