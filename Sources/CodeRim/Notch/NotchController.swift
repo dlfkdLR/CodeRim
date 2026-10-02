@@ -396,11 +396,25 @@ final class NotchController: ObservableObject {
     private lazy var connector: ProviderConnector = {
         let connector = ProviderConnector(
             provider: { [weak self] id in self?.providers.first { $0.id == id } },
-            connects: { [weak self] id in await self?.store?.connects(providerID: id) ?? false })
+            connects: { [weak self] id in await self?.store?.connects(providerID: id) ?? false },
+            blocker: { [weak self] id in self?.connectionBlocker(id) })
         connectorObservation = connector.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
         return connector
     }()
     private var connectorObservation: AnyCancellable?
+
+    /// Why a provider that may already be signed in still cannot be read.
+    func connectionBlocker(_ id: String) -> String? {
+        guard let snapshot = store?.snapshots.first(where: { $0.id == id }) else { return nil }
+        switch snapshot.status {
+        case .accessDenied:
+            return "macOS refused CodeRim access to this sign-in. Choose Try again and pick Always Allow when macOS asks."
+        case .unsupported(let reason):
+            return reason
+        default:
+            return nil
+        }
+    }
 
     func addProvider(_ id: String) {
         guard NotchProviderCatalog.all.contains(where: { $0.id == id }),

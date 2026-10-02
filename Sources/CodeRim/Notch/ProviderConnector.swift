@@ -24,6 +24,9 @@ final class ProviderConnector: ObservableObject {
     private let preflight: (SignInRoute) -> String?
     private let runInApp: (InAppSignIn, @escaping @MainActor (String) -> Void) async -> InAppSignInRunner.Outcome
     private let allowBrowserSession: (String) -> Void
+    /// A reason the provider cannot be read even though it may be signed in — a refused
+    /// Keychain or browser prompt, a missing plan, a rejected key. Waiting would never end.
+    private let blocker: (String) -> String?
     private let openInstallPage: (SignInRoute) -> Void
     private let pollInterval: Duration
     private let patience: TimeInterval
@@ -35,10 +38,11 @@ final class ProviderConnector: ObservableObject {
          openInstallPage: @escaping (SignInRoute) -> Void = { SignInLauncher.openInstallPage(for: $0) },
          runInApp: @escaping (InAppSignIn, @escaping @MainActor (String) -> Void) async -> InAppSignInRunner.Outcome = { await InAppSignInRunner.run($0, update: $1) },
          allowBrowserSession: @escaping (String) -> Void = { ProviderConnector.enableBrowserSession(for: $0) },
+         blocker: @escaping (String) -> String? = { _ in nil },
          pollInterval: Duration = .seconds(4), patience: TimeInterval = 600) {
         self.provider = provider; self.connects = connects; self.launch = launch
         self.preflight = preflight; self.openInstallPage = openInstallPage
-        self.runInApp = runInApp; self.allowBrowserSession = allowBrowserSession
+        self.runInApp = runInApp; self.allowBrowserSession = allowBrowserSession; self.blocker = blocker
         self.pollInterval = pollInterval; self.patience = patience
     }
 
@@ -99,6 +103,7 @@ final class ProviderConnector: ObservableObject {
                 try? await Task.sleep(for: self.pollInterval)
                 guard !Task.isCancelled else { return }
                 if await self.connects(id) { self.states[id] = .connected; return }
+                if let reason = self.blocker(id) { self.states[id] = .failed(reason); return }
             }
             guard !Task.isCancelled else { return }
             self.states[id] = .failed("Sign-in was not detected. Choose Sign in to try again.")

@@ -38,14 +38,18 @@ final class HybridNotchProvider: NotchProvider {
     func account() -> ProviderAccount? { readingUpstream ? upstream.account() : native.account() }
 
     func fetchSnapshot() async throws -> ProviderSnapshot {
+        var nativeFailure: NotchProviderError = .needsAuth
         do {
             let snapshot = try await native.fetchSnapshot()
             if snapshot.status != .needsAuth { readingUpstream = false; return snapshot }
         } catch NotchProviderError.needsAuth {
             // Fall through to the reader that uses CodeRim's own sign-in.
+        } catch NotchProviderError.accessDenied {
+            // macOS refused the borrowed credential; CodeRim's own may still read.
+            nativeFailure = .accessDenied
         }
         let snapshot = try await upstream.fetchSnapshot()
-        if snapshot.status == .needsAuth { readingUpstream = false; throw NotchProviderError.needsAuth }
+        if snapshot.status == .needsAuth { readingUpstream = false; throw nativeFailure }
         readingUpstream = true
         return snapshot.relabeled(id: id, displayName: displayName, glyph: glyph)
     }

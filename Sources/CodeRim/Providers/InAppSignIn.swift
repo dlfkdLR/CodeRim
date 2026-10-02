@@ -24,35 +24,51 @@ enum InAppSignInRunner {
     /// Runs the sign-in. `update` receives what the user has to do right now, for the waiting UI.
     static func run(_ kind: InAppSignIn, update: @escaping @MainActor (String) -> Void) async -> Outcome {
         switch kind {
-        case .githubDevice: return await gitHubDevice(update: update)
-        case .antigravityGoogle: return await antigravityGoogle(update: update)
+        case .githubDevice:
+            let flow = CopilotDeviceFlow()
+            return await gitHubDevice(
+                requestCode: {
+                    let code = try await flow.requestDeviceCode()
+                    return (code.userCode, code.deviceCode, URL(string: code.verificationURLToOpen), code.interval)
+                },
+                poll: { device, interval in try await flow.pollForToken(deviceCode: device, interval: interval) },
+                save: { token in try store(for: .copilot) { $0.provider.apiKey = token } },
+                open: { NSWorkspace.shared.open($0) },
+                update: update)
+        case .antigravityGoogle:
+            return await antigravityGoogle(client: { AntigravityOAuthConfig.resolvedClient() }, update: update)
         }
     }
 
     // MARK: GitHub device flow
 
-    private static func gitHubDevice(update: @escaping @MainActor (String) -> Void) async -> Outcome {
-        let flow = CopilotDeviceFlow()
+    static func gitHubDevice(
+        requestCode: () async throws -> (user: String, device: String, verify: URL?, interval: Int),
+        poll: (String, Int) async throws -> String,
+        save: (String) throws -> Void,
+        open: (URL) -> Void,
+        update: @escaping @MainActor (String) -> Void) async -> Outcome {
         do {
-            let code = try await flow.requestDeviceCode()
+            let code = try await requestCode()
             NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(code.userCode, forType: .string)
-            update("Enter the code \(code.userCode) on GitHub (it is already copied), approve CodeRim, and it connects on its own.")
-            if let url = URL(string: code.verificationURLToOpen) { NSWorkspace.shared.open(url) }
-            let token = try await flow.pollForToken(deviceCode: code.deviceCode, interval: code.interval)
-            try store(for: .copilot) { $0.provider.apiKey = token }
+            NSPasteboard.general.setString(code.user, forType: .string)
+            update("Enter the code \(code.user) on GitHub (it is already copied), approve CodeRim, and it connects on its own.")
+            if let url = code.verify { open(url) }
+            let token = try await poll(code.device, code.interval)
+            try save(token)
             return .signedIn
         } catch is CancellationError {
             return .failed("Sign-in was cancelled.")
         } catch {
-            return .failed("GitHub sign-in did not finish: \(error.localizedDescription)")
+            return .failed("GitHub sign-in did not finish: \(error.localizedDescription) Choose Try again for a new code.")
         }
     }
 
     // MARK: Antigravity Google sign-in
 
-    private static func antigravityGoogle(update: @escaping @MainActor (String) -> Void) async -> Outcome {
-        guard let client = AntigravityOAuthConfig.resolvedClient() else {
+    static func antigravityGoogle(client resolveClient: () -> AntigravityOAuthClient?,
+                                  update: @escaping @MainActor (String) -> Void) async -> Outcome {
+        guard let client = resolveClient() else {
             return .failed("Install the Antigravity app first — CodeRim signs in with the same Google sign-in it uses. Then choose Try again.")
         }
         let state = UUID().uuidString.replacingOccurrences(of: "-", with: "")
@@ -138,7 +154,9 @@ enum InAppSignInRunner {
     /// Writes into this app's Keychain item for the provider, turning nothing else on.
     static func store(for id: CodexBarCore.UsageProvider, _ change: (inout ExtendedProviderConfiguration) -> Void) throws {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: id)
-        var configuration = (try? ExtendedProviderConfigurationStore.load(descriptor, interactive: true)) ?? .init(providerID: id)
+        // A refused or unreadable item must not be replaced by a blank one: that would erase the
+        // keys the user saved. A missing item already loads as a fresh configuration.
+        var configuration = try ExtendedProviderConfigurationStore.load(descriptor, interactive: true)
         change(&configuration)
         try ExtendedProviderConfigurationStore.save(configuration)
     }
