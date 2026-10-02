@@ -66,7 +66,14 @@ struct NotchProviderSettingsView: View {
                 ExtendedProviderSettingsView(descriptor: descriptor, isConnected: isConnected)
             } else {
                 connectionSection
+                if !["codex", "claude", "ollama-local"].contains(providerID),
+                   let descriptor = ExtendedProviderCatalog.descriptor(for: providerID) {
+                    // CodexBar's reader for the same service: a key, a token or a browser
+                    // session given to CodeRim works when no tool on this Mac holds a sign-in.
+                    ExtendedProviderSettingsView(descriptor: descriptor, isConnected: isConnected)
+                }
             }
+            connectionProgress
             alertsSection
 
             if !ExtendedProviderCatalog.isExtended(providerID) {
@@ -194,6 +201,29 @@ struct NotchProviderSettingsView: View {
         } else if !isConnected, let route {
             SettingsSection(title: "Connection") { routeControl(route) }
             SettingsNote(route.explanation)
+        }
+    }
+
+    /// What the sign-in started from this page is waiting for, in full.
+    @ViewBuilder private var connectionProgress: some View {
+        switch notch.connectionState(for: providerID) {
+        case .waiting(let note)?:
+            SettingsSection(title: "Signing in") {
+                HStack(alignment: .top, spacing: 10) {
+                    ProgressView().controlSize(.small)
+                    Text(note).font(.callout).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Button("Cancel") { notch.cancelConnecting(providerID) }.buttonStyle(SettingsPillButtonStyle(compact: true))
+                }
+                .padding(.horizontal, SettingsMetrics.rowInset).padding(.vertical, 10)
+            }
+        case .failed(let reason)?:
+            SettingsSection(title: "Signing in") {
+                SettingsInfoRow(text: reason, systemImage: "exclamationmark.circle", tint: .orange)
+                SettingsButtonRow(title: "Try again", systemImage: "arrow.clockwise") { notch.beginConnecting(providerID) }
+            }
+        default:
+            EmptyView()
         }
     }
 

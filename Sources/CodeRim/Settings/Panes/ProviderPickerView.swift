@@ -149,6 +149,11 @@ struct ProviderPickerView: View {
                             Text(Self.instruction(state)).font(.callout).fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 8)
+                        if row.id == "gemini-cli" {
+                            // Google shut Gemini CLI sign-in for personal accounts in June 2026.
+                            Button("Use Antigravity") { onCancel(row.id); onAdd("gemini") }
+                                .buttonStyle(SettingsPillButtonStyle(tint: .accentColor, compact: true))
+                        }
                         if case .failed = state {
                             Button("Try again") { onRetry(row.id) }.buttonStyle(SettingsPillButtonStyle(tint: .accentColor, compact: true))
                         }

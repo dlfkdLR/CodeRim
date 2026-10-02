@@ -22,6 +22,8 @@ final class ProviderConnector: ObservableObject {
     private let connects: (String) async -> Bool
     private let launch: (SignInRoute) -> Bool
     private let preflight: (SignInRoute) -> String?
+    private let runInApp: (InAppSignIn, @escaping @MainActor (String) -> Void) async -> InAppSignInRunner.Outcome
+    private let allowBrowserSession: (String) -> Void
     private let openInstallPage: (SignInRoute) -> Void
     private let pollInterval: Duration
     private let patience: TimeInterval
@@ -31,10 +33,20 @@ final class ProviderConnector: ObservableObject {
          launch: @escaping (SignInRoute) -> Bool = { SignInLauncher.perform($0) },
          preflight: @escaping (SignInRoute) -> String? = { SignInLauncher.problem(with: $0) },
          openInstallPage: @escaping (SignInRoute) -> Void = { SignInLauncher.openInstallPage(for: $0) },
+         runInApp: @escaping (InAppSignIn, @escaping @MainActor (String) -> Void) async -> InAppSignInRunner.Outcome = { await InAppSignInRunner.run($0, update: $1) },
+         allowBrowserSession: @escaping (String) -> Void = { ProviderConnector.enableBrowserSession(for: $0) },
          pollInterval: Duration = .seconds(4), patience: TimeInterval = 600) {
         self.provider = provider; self.connects = connects; self.launch = launch
         self.preflight = preflight; self.openInstallPage = openInstallPage
+        self.runInApp = runInApp; self.allowBrowserSession = allowBrowserSession
         self.pollInterval = pollInterval; self.patience = patience
+    }
+
+    /// Turns on browser-session import for the provider's CodeRim settings, once the user chose
+    /// to sign in on its website.
+    static func enableBrowserSession(for id: String) {
+        guard let descriptor = ExtendedProviderCatalog.descriptor(for: id) else { return }
+        try? InAppSignInRunner.store(for: descriptor.id) { $0.provider.cookieSource = .auto }
     }
 
     func cancel(_ id: String) {
@@ -59,6 +71,19 @@ final class ProviderConnector: ObservableObject {
                 self.states[id] = .failed(text); return
             case .modal:
                 provider.presentSignIn()
+            case .guided(let guided):
+                if case .inApp(let kind) = guided.action {
+                    self.states[id] = .waiting(route.explanation)
+                    let outcome = await self.runInApp(kind) { note in
+                        if !Task.isCancelled { self.states[id] = .waiting(note) }
+                    }
+                    guard !Task.isCancelled else { return }
+                    if case .failed(let reason) = outcome { self.states[id] = .failed(reason); return }
+                    if await self.connects(id) { self.states[id] = .connected; return }
+                    break
+                }
+                if guided.importsBrowserSession { self.allowBrowserSession(id) }
+                fallthrough
             default:
                 if let problem = self.preflight(route) {
                     self.openInstallPage(route)
@@ -68,7 +93,7 @@ final class ProviderConnector: ObservableObject {
                     self.states[id] = .failed("\(route.explanation) It could not be opened automatically."); return
                 }
             }
-            self.states[id] = .waiting(route.explanation)
+            if case .waiting = self.states[id] {} else { self.states[id] = .waiting(route.explanation) }
             let deadline = Date().addingTimeInterval(self.patience)
             while !Task.isCancelled, Date() < deadline {
                 try? await Task.sleep(for: self.pollInterval)

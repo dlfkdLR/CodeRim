@@ -57,7 +57,8 @@ extension ExtendedProviderCatalog {
             .compactMap { $0 }.compactMap(URL.init(string:)).first { $0.scheme == "https" }
         if let page, modes.contains(.web) || descriptor.metadata.browserCookieOrder != nil {
             return .guided(.init(name: displayName, action: .browser(page),
-                note: "Sign in on the \(displayName) website in your browser. CodeRim reads the signed-in session and connects on its own."))
+                note: "Sign in on the \(displayName) website in your browser. CodeRim then reads that browser session — if macOS asks to let CodeRim use your browser's saved data, choose Always Allow.",
+                importsBrowserSession: true))
         }
         if modes.contains(.api), !modes.contains(.web), !modes.contains(.oauth), !modes.contains(.cli) {
             return .guided(.init(name: displayName, action: .settings,
@@ -88,7 +89,7 @@ extension ExtendedProviderCatalog {
                     hint: "Gemini is set to an API key, but CodeRim reads the Google sign-in.\n1. Type /auth and press Enter.\n2. Choose Sign in with Google and finish in your browser.\n3. When it says Authentication succeeded, type /quit.\nIf Google says this client is no longer supported for individuals, personal accounts moved to Antigravity: close this window and add Antigravity in CodeRim instead."))
             }
             return .guided(.init(name: displayName, action: .terminal(command: cli),
-                note: "A Terminal window opens Gemini. Choose “Login with Google”, finish in your browser, then type /quit. CodeRim connects on its own.",
+                note: "Personal Google accounts (including AI Pro and Ultra) can no longer sign in to Gemini CLI — choose Use Antigravity instead. For a Workspace or education account, a Terminal window opens Gemini: choose Sign in with Google, then type /quit.",
                 hint: "1. Choose Sign in with Google and finish in your browser.\n2. When it says Authentication succeeded, type /quit.\nIf Google says this client is no longer supported for individuals, personal accounts moved to Antigravity: close this window and add Antigravity in CodeRim instead."))
         }
         return .guided(.init(name: displayName,

@@ -11,6 +11,9 @@ struct GuidedSignIn: Equatable {
         case browser(URL)
         /// An API key has to be pasted; CodeRim opens the provider's settings.
         case settings
+        /// CodeRim runs the provider's own sign-in itself — a GitHub device code or a Google
+        /// account consent in the browser — and stores what it returns. No tool to install.
+        case inApp(InAppSignIn)
     }
 
     let name: String
@@ -20,7 +23,7 @@ struct GuidedSignIn: Equatable {
 
     var actionTitle: String {
         switch action {
-        case .terminal, .browser: return "Sign in to \(name)"
+        case .terminal, .browser, .inApp: return "Sign in to \(name)"
         case .settings:           return "Enter \(name) key"
         }
     }
@@ -29,6 +32,10 @@ struct GuidedSignIn: Equatable {
     var hint: String = ""
     /// Where to get the command a terminal sign-in runs, when it is not installed yet.
     var installURL: URL?
+    /// Starting this sign-in is the user's go-ahead to read the provider's session from their
+    /// browser. Without it a website sign-in could never be picked up: browser import is off
+    /// until the user asks for it.
+    var importsBrowserSession = false
 
     var opensSettings: Bool { action == .settings }
 }
@@ -47,7 +54,7 @@ enum SignInLauncher {
             return true
         case .guided(let guided):
             switch guided.action {
-            case .settings: return false
+            case .settings, .inApp: return false
             case .browser(let url): return NSWorkspace.shared.open(url)
             case .terminal(let command): return openTerminal(running: command, title: guided.name, hint: guided.hint)
             }

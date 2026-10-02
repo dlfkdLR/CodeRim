@@ -74,6 +74,7 @@ final class NotchController: ObservableObject {
             ClaudeNotchProvider(claude: claudeIntegration, usage: claudeUsage),
             // Borrows a token from GitHub CLI; its ring only appears once one
             // turns up (`isVisibleWhenAbsent == false`).
+        ] + ([
             CopilotNotchProvider(),
             // Borrows the Cursor editor's session from its SQLite store.
             CursorNotchProvider(),
@@ -91,7 +92,8 @@ final class NotchController: ObservableObject {
             AntigravityNotchProvider(),
             // Local `ollama serve` model listing (no ring — a local server has no quota).
             OllamaLocalProvider(),
-        ] + ExtendedProviderCatalog.makeProviders()
+        ] as [any NotchProvider]).map(HybridNotchProvider.wrapping)
+        + ExtendedProviderCatalog.makeProviders()
         var existing = Set(UsageArchive().load().values.filter { $0.snapshot.hasReading }.map { $0.snapshot.id })
         existing.insert("codex")
         if claudeIntegration.isEnabled { existing.insert("claude") }
