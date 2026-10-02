@@ -84,11 +84,12 @@ extension ExtendedProviderCatalog {
             // usage from a key: say so up front instead of leaving the sign-in waiting forever.
             if usesKeyAuthentication(home: home) {
                 return .guided(.init(name: displayName, action: .terminal(command: cli),
-                    note: "Your Gemini CLI is set to an API key, which CodeRim cannot read usage from. In the Terminal window type /auth, choose Login with Google, finish in your browser, then type /quit.",
-                    hint: "Gemini is using an API key. CodeRim reads the Google sign-in instead. Type /auth now, choose Login with Google, then type /quit when it is done."))
+                    note: "Your Gemini CLI is set to an API key, which CodeRim cannot read usage from. In Terminal: type /auth, choose Sign in with Google, finish in your browser, then type /quit. Personal Google accounts can no longer sign in through the Gemini CLI; if Google refuses, add Antigravity instead.",
+                    hint: "Gemini is set to an API key, but CodeRim reads the Google sign-in.\n1. Type /auth and press Enter.\n2. Choose Sign in with Google and finish in your browser.\n3. When it says Authentication succeeded, type /quit.\nIf Google says this client is no longer supported for individuals, personal accounts moved to Antigravity: close this window and add Antigravity in CodeRim instead."))
             }
             return .guided(.init(name: displayName, action: .terminal(command: cli),
-                note: "A Terminal window opens Gemini. Choose “Login with Google”, finish in your browser, then type /quit. CodeRim connects on its own."))
+                note: "A Terminal window opens Gemini. Choose “Login with Google”, finish in your browser, then type /quit. CodeRim connects on its own.",
+                hint: "1. Choose Sign in with Google and finish in your browser.\n2. When it says Authentication succeeded, type /quit.\nIf Google says this client is no longer supported for individuals, personal accounts moved to Antigravity: close this window and add Antigravity in CodeRim instead."))
         }
         return .guided(.init(name: displayName,
             action: .browser(URL(string: "https://github.com/google-gemini/gemini-cli#quickstart")!),

@@ -39,3 +39,21 @@ final class GeminiSignInRouteTests: XCTestCase {
         XCTAssertFalse(ExtendedProviderCatalog.usesKeyAuthentication(home: home))
     }
 }
+
+final class GuidedSignInHintTests: XCTestCase {
+    func testTheHintPrintsAsStepsAndWaitsForReturn() throws {
+        let block = SignInLauncher.hintBlock("1. Type /auth and press Enter.\n2. Choose Sign in with Google; it's easy.\n'; rm -rf ~ #")
+        XCTAssertTrue(block.contains("DO THIS IN THIS WINDOW"))
+        XCTAssertTrue(block.contains("Press Return"))
+        XCTAssertFalse(block.contains("; rm"))
+        // The block must be valid shell that prints the steps and then proceeds on Return.
+        let script = block.replacingOccurrences(of: "read -r '?Press Return to start. '", with: "true")
+        let process = Process(); let out = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/bin/zsh"); process.arguments = ["-c", script]; process.standardOutput = out
+        try process.run(); process.waitUntilExit()
+        let text = String(decoding: out.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        XCTAssertEqual(process.terminationStatus, 0)
+        XCTAssertTrue(text.contains("1. Type /auth and press Enter."))
+        XCTAssertEqual(SignInLauncher.hintBlock(""), "")
+    }
+}

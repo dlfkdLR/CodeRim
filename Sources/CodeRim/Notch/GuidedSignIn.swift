@@ -52,6 +52,19 @@ enum SignInLauncher {
         }
     }
 
+    /// The steps the user must take inside the tool, printed large and held on screen: the tool's
+    /// own interface scrolls past a short line, so this waits for Return before starting it.
+    static func hintBlock(_ hint: String) -> String {
+        let lines = hint.split(separator: "\n").map { line in
+            String(line.filter { $0.isLetter || $0.isNumber || " .,:/-()+".contains($0) })
+        }.filter { !$0.isEmpty }
+        guard !lines.isEmpty else { return "" }
+        var out = ["echo", "printf '\\033[1;33m%s\\033[0m\\n' '=== DO THIS IN THIS WINDOW ==='"]
+        out += lines.map { "printf '\\033[1;33m%s\\033[0m\\n' '\($0)'" }
+        out += ["echo", "read -r '?Press Return to start. '"]
+        return out.joined(separator: "\n        ")
+    }
+
     /// A `.command` file is the one way to run something in Terminal without an
     /// AppleScript permission prompt. It deletes itself, and quotes nothing from the user.
     @MainActor
@@ -67,7 +80,7 @@ enum SignInLauncher {
         clear
         echo "Signing in to \(title.filter { $0.isLetter || $0.isNumber || $0 == " " }) for CodeRim."
         echo "When it finishes, return to CodeRim: it connects on its own."
-        \(hint.isEmpty ? "" : "echo; echo \"\(hint.filter { $0.isLetter || $0.isNumber || " .,:/-".contains($0) })\"")
+        \(Self.hintBlock(hint))
         echo
         \(command)
         echo
