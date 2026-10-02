@@ -44,15 +44,26 @@ struct NotchProviderSettingsView: View {
             accountSection
             if ExtendedProviderCatalog.isExtended(providerID),
                let descriptor = ExtendedProviderCatalog.descriptor(for: providerID) {
-                if let route, case .guided(let guided) = route, !guided.opensSettings { SettingsNote(route.explanation) }
-                SettingsNote("To use another account, save its credentials below, or switch the imported browser session and refresh.")
-                SettingsSection(title: "Switch account") {
-                    if let route, case .guided(let guided) = route, !guided.opensSettings { routeControl(route) }
-                    SettingsButtonRow(title: "Refresh account", systemImage: "arrow.clockwise") {
-                        notch.providerConfigurationDidChange(providerID)
+                if isConnected || account != nil {
+                    SettingsSection(title: "Switch account") {
+                        SettingsButtonRow(title: "Refresh account", systemImage: "arrow.clockwise") {
+                            notch.providerConfigurationDidChange(providerID)
+                        }
+                    }
+                    SettingsNote("To use another account, save its credentials below, or switch the imported browser session and refresh.")
+                } else if let route {
+                    // Not connected: one place that says what to do, and the button that does it.
+                    SettingsSection(title: "Connect") {
+                        SettingsInfoRow(text: route.explanation, systemImage: "info.circle", tint: nil)
+                        if case .guided(let guided) = route, guided.opensSettings {
+                            EmptyView()
+                        } else if route.actionTitle != nil {
+                            routeControl(route)
+                        }
+                        if let accountActionMessage { SettingsInfoRow(text: accountActionMessage, systemImage: "exclamationmark.circle", tint: .orange) }
                     }
                 }
-                ExtendedProviderSettingsView(descriptor: descriptor)
+                ExtendedProviderSettingsView(descriptor: descriptor, isConnected: isConnected)
             } else {
                 connectionSection
             }

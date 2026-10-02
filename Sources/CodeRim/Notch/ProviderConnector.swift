@@ -21,14 +21,19 @@ final class ProviderConnector: ObservableObject {
     private let provider: (String) -> NotchProvider?
     private let connects: (String) async -> Bool
     private let launch: (SignInRoute) -> Bool
+    private let preflight: (SignInRoute) -> String?
+    private let openInstallPage: (SignInRoute) -> Void
     private let pollInterval: Duration
     private let patience: TimeInterval
 
     init(provider: @escaping (String) -> NotchProvider?,
          connects: @escaping (String) async -> Bool,
          launch: @escaping (SignInRoute) -> Bool = { SignInLauncher.perform($0) },
+         preflight: @escaping (SignInRoute) -> String? = { SignInLauncher.problem(with: $0) },
+         openInstallPage: @escaping (SignInRoute) -> Void = { SignInLauncher.openInstallPage(for: $0) },
          pollInterval: Duration = .seconds(4), patience: TimeInterval = 600) {
         self.provider = provider; self.connects = connects; self.launch = launch
+        self.preflight = preflight; self.openInstallPage = openInstallPage
         self.pollInterval = pollInterval; self.patience = patience
     }
 
@@ -55,6 +60,10 @@ final class ProviderConnector: ObservableObject {
             case .modal:
                 provider.presentSignIn()
             default:
+                if let problem = self.preflight(route) {
+                    self.openInstallPage(route)
+                    self.states[id] = .failed(problem); return
+                }
                 guard self.launch(route) else {
                     self.states[id] = .failed("\(route.explanation) It could not be opened automatically."); return
                 }

@@ -22,8 +22,11 @@ final class ProviderConnectorTests: XCTestCase {
         .guided(.init(name: "Tool", action: action, note: "Sign in to Tool."))
     }
     private func connector(_ provider: FakeProvider, connects: @escaping (String) async -> Bool,
-                           launch: @escaping (SignInRoute) -> Bool = { _ in true }, patience: TimeInterval = 5) -> ProviderConnector {
+                           launch: @escaping (SignInRoute) -> Bool = { _ in true }, patience: TimeInterval = 5,
+                           preflight: @escaping (SignInRoute) -> String? = { _ in nil },
+                           openInstallPage: @escaping (SignInRoute) -> Void = { _ in }) -> ProviderConnector {
         ProviderConnector(provider: { $0 == provider.id ? provider : nil }, connects: connects, launch: launch,
+                          preflight: preflight, openInstallPage: openInstallPage,
                           pollInterval: .milliseconds(10), patience: patience)
     }
     private func settle(_ connector: ProviderConnector, _ id: String, until done: (ProviderConnector.State?) -> Bool) async {
@@ -48,6 +51,17 @@ final class ProviderConnectorTests: XCTestCase {
         XCTAssertEqual(connector.states["p"], .connected)
         XCTAssertEqual(launched, 1, "the login page opens once, not on every poll")
         XCTAssertGreaterThanOrEqual(checks, 4)
+    }
+
+    func testAMissingCommandFailsPlainlyInsteadOfOpeningAnEmptyTerminal() async {
+        let provider = FakeProvider("p", route: guided(.terminal(command: "nonexistent-tool login")))
+        var launched = 0, pages = 0
+        let connector = connector(provider, connects: { _ in false }, launch: { _ in launched += 1; return true },
+                                  preflight: { SignInLauncher.problem(with: $0) }, openInstallPage: { _ in pages += 1 })
+        connector.begin("p")
+        await settle(connector, "p") { if case .failed = $0 { true } else { false } }
+        guard case .failed(let reason) = connector.states["p"] else { return XCTFail("expected failure") }
+        XCTAssertTrue(reason.contains("nonexistent-tool")); XCTAssertEqual(launched, 0); XCTAssertEqual(pages, 1)
     }
 
     func testAKeyProviderGoesStraightToItsSettings() async {

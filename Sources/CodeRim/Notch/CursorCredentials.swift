@@ -161,7 +161,8 @@ struct CursorCredentials {
             return .openApp(bundleID: bundleID, name: "Cursor")
         }
         return .guided(.init(name: "Cursor", action: .terminal(command: "cursor-agent login"),
-            note: "A Terminal window runs `cursor-agent login`; or install the Cursor editor and sign in there. CodeRim connects on its own."))
+            note: "A Terminal window runs `cursor-agent login`; or install the Cursor editor and sign in there. CodeRim connects on its own.",
+            installURL: URL(string: "https://cursor.com/cli")))
     }
 
     /// `sub` claim from an unsigned JWT payload — Cursor's access token is a

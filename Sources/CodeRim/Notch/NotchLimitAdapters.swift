@@ -72,7 +72,8 @@ final class CodexNotchProvider: NotchProvider {
         NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.chat") != nil
             ? .openApp(bundleID: "com.openai.chat", name: "Codex")
             : .guided(.init(name: "Codex", action: .terminal(command: "codex login"),
-                note: "A Terminal window runs `codex login`. Finish it in the browser and CodeRim connects on its own."))
+                note: "A Terminal window runs `codex login`. Finish it in the browser and CodeRim connects on its own.",
+                installURL: URL(string: "https://github.com/openai/codex")))
     }
 
     func account() -> ProviderAccount? {

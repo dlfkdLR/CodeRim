@@ -149,6 +149,9 @@ struct ProviderPickerView: View {
                             Text(Self.instruction(state)).font(.callout).fixedSize(horizontal: false, vertical: true)
                         }
                         Spacer(minLength: 8)
+                        if case .failed = state {
+                            Button("Try again") { onRetry(row.id) }.buttonStyle(SettingsPillButtonStyle(tint: .accentColor, compact: true))
+                        }
                         Button("Cancel") { onCancel(row.id) }.buttonStyle(SettingsPillButtonStyle(compact: true))
                     }
                 }

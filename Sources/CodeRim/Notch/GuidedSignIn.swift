@@ -27,6 +27,8 @@ struct GuidedSignIn: Equatable {
 
     /// Extra lines the Terminal window prints before the tool starts.
     var hint: String = ""
+    /// Where to get the command a terminal sign-in runs, when it is not installed yet.
+    var installURL: URL?
 
     var opensSettings: Bool { action == .settings }
 }
@@ -50,6 +52,35 @@ enum SignInLauncher {
             case .terminal(let command): return openTerminal(running: command, title: guided.name, hint: guided.hint)
             }
         }
+    }
+
+    /// Folders a login shell would add and a double-clicked `.command` file does not.
+    static func toolDirectories(home: String = NSHomeDirectory()) -> [String] {
+        var dirs = ["\(home)/.local/bin", "/opt/homebrew/bin", "/usr/local/bin", "\(home)/.bun/bin",
+                    "\(home)/.cargo/bin", "\(home)/.npm-global/bin", "\(home)/.opencode/bin"]
+        let nvm = "\(home)/.nvm/versions/node"
+        for version in (try? FileManager.default.contentsOfDirectory(atPath: nvm)) ?? [] { dirs.append("\(nvm)/\(version)/bin") }
+        return dirs
+    }
+
+    /// Where the first word of `command` is installed, if it is.
+    static func installedTool(_ command: String, searchPath: [String] = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)) -> String? {
+        guard let tool = command.split(separator: " ").first.map(String.init) else { return nil }
+        if tool.hasPrefix("/") { return FileManager.default.isExecutableFile(atPath: tool) ? tool : nil }
+        return (searchPath + toolDirectories()).map { "\($0)/\(tool)" }.first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
+    /// Why a route cannot start, said plainly, when the command it runs is not on this Mac.
+    static func problem(with route: SignInRoute) -> String? {
+        guard case .guided(let guided) = route, case .terminal(let command) = guided.action,
+              installedTool(command) == nil else { return nil }
+        let tool = command.split(separator: " ").first.map(String.init) ?? command
+        let page = guided.installURL.map { _ in " Its install page is opening; after installing, choose Try again." } ?? " Install it, then choose Try again."
+        return "\(guided.name) needs the `\(tool)` command, which is not installed on this Mac.\(page)"
+    }
+
+    @MainActor static func openInstallPage(for route: SignInRoute) {
+        if case .guided(let guided) = route, let url = guided.installURL { NSWorkspace.shared.open(url) }
     }
 
     /// The steps the user must take inside the tool, printed large and held on screen: the tool's
@@ -77,14 +108,16 @@ enum SignInLauncher {
         let script = """
         #!/bin/zsh
         rm -f "$0"
+        export PATH="\(Self.toolDirectories().joined(separator: ":")):$PATH"
         clear
         echo "Signing in to \(title.filter { $0.isLetter || $0.isNumber || $0 == " " }) for CodeRim."
         echo "When it finishes, return to CodeRim: it connects on its own."
         \(Self.hintBlock(hint))
         echo
         \(command)
+        code=$?
         echo
-        echo "Done. You can close this window."
+        if [ $code -eq 0 ]; then echo "Done. Return to CodeRim: it connects on its own."; else echo "That did not finish (exit $code). Return to CodeRim and choose Try again."; fi
         """
         guard (try? script.write(to: file, atomically: true, encoding: .utf8)) != nil,
               (try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: file.path)) != nil
