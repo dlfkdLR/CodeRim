@@ -54,36 +54,44 @@ final class ProviderConnector: ObservableObject {
     }
 
     func cancel(_ id: String) {
+        runs.removeValue(forKey: id)
         tasks.removeValue(forKey: id)?.cancel()
         states.removeValue(forKey: id)
     }
 
+    /// Which run owns each provider's state. A cancelled or superseded run can still be inside an
+    /// await when it resumes; without this it would write "Connected" after the user pressed
+    /// Cancel, or overwrite the newer run's result.
+    private var runs: [String: UUID] = [:]
+
     func begin(_ id: String) {
         guard let provider = provider(id) else { return }
         tasks[id]?.cancel()
+        let run = UUID()
+        runs[id] = run
         states[id] = .checking
         tasks[id] = Task { [weak self] in
             guard let self else { return }
-            defer { if !Task.isCancelled { self.tasks.removeValue(forKey: id) } }
-            if await self.connects(id) { self.states[id] = .connected; return }
-            guard !Task.isCancelled else { return }
+            let current: @MainActor () -> Bool = { !Task.isCancelled && self.runs[id] == run }
+            let set: @MainActor (State) -> Void = { state in if current() { self.states[id] = state } }
+            defer { if self.runs[id] == run { self.tasks.removeValue(forKey: id) } }
+            if await self.connects(id) { set(.connected); return }
+            guard current() else { return }
             let route = provider.signInRoute
             switch route {
             case .guided(let guided) where guided.opensSettings:
-                self.states[id] = .needsKey(guided.note); return
+                set(.needsKey(guided.note)); return
             case .guidance(let text):
-                self.states[id] = .failed(text); return
+                set(.failed(text)); return
             case .modal:
                 provider.presentSignIn()
             case .guided(let guided):
                 if case .inApp(let kind) = guided.action {
-                    self.states[id] = .waiting(route.explanation)
-                    let outcome = await self.runInApp(kind) { note in
-                        if !Task.isCancelled { self.states[id] = .waiting(note) }
-                    }
-                    guard !Task.isCancelled else { return }
-                    if case .failed(let reason) = outcome { self.states[id] = .failed(reason); return }
-                    if await self.connects(id) { self.states[id] = .connected; return }
+                    set(.waiting(route.explanation))
+                    let outcome = await self.runInApp(kind) { note in set(.waiting(note)) }
+                    guard current() else { return }
+                    if case .failed(let reason) = outcome { set(.failed(reason)); return }
+                    if await self.connects(id) { set(.connected); return }
                     break
                 }
                 if guided.importsBrowserSession { self.allowBrowserSession(id) }
@@ -91,22 +99,23 @@ final class ProviderConnector: ObservableObject {
             default:
                 if let problem = self.preflight(route) {
                     self.openInstallPage(route)
-                    self.states[id] = .failed(problem); return
+                    set(.failed(problem)); return
                 }
                 guard self.launch(route) else {
-                    self.states[id] = .failed("\(route.explanation) It could not be opened automatically."); return
+                    set(.failed("\(route.explanation) It could not be opened automatically.")); return
                 }
             }
-            if case .waiting = self.states[id] {} else { self.states[id] = .waiting(route.explanation) }
+            guard current() else { return }
+            if case .waiting = self.states[id] {} else { set(.waiting(route.explanation)) }
             let deadline = Date().addingTimeInterval(self.patience)
-            while !Task.isCancelled, Date() < deadline {
+            while current(), Date() < deadline {
                 try? await Task.sleep(for: self.pollInterval)
-                guard !Task.isCancelled else { return }
-                if await self.connects(id) { self.states[id] = .connected; return }
-                if let reason = self.blocker(id) { self.states[id] = .failed(reason); return }
+                guard current() else { return }
+                if await self.connects(id) { set(.connected); return }
+                guard current() else { return }
+                if let reason = self.blocker(id) { set(.failed(reason)); return }
             }
-            guard !Task.isCancelled else { return }
-            self.states[id] = .failed("Sign-in was not detected. Choose Sign in to try again.")
+            set(.failed("Sign-in was not detected. Choose Sign in to try again."))
         }
     }
 }

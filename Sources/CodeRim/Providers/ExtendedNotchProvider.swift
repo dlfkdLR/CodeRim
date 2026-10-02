@@ -13,6 +13,8 @@ final class ExtendedNotchProvider: NotchProvider {
     private let configuration: () throws -> ExtendedProviderConfiguration
     private var currentAccount: ProviderAccount?
     private var revision = UUID()
+    /// Which upstream strategy produced the last reading, e.g. `antigravity.offline`.
+    private(set) var lastStrategyID: String?
     static let cacheService = "dev.codexmeter.provider-cache"
 
     init(descriptor: ProviderDescriptor,
@@ -92,6 +94,7 @@ final class ExtendedNotchProvider: NotchProvider {
             }
             try Task.checkCancellation()
             guard revision == version else { throw CancellationError() }
+            lastStrategyID = result.strategyID
             currentAccount = ProviderAccount(label: result.usage.accountEmail(for: descriptor.id),
                 plan: result.usage.loginMethod(for: descriptor.id), source: result.sourceLabel,
                 manageURL: descriptor.metadata.dashboardURL.flatMap(URL.init(string:)))

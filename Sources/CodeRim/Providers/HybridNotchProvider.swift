@@ -49,7 +49,10 @@ final class HybridNotchProvider: NotchProvider {
             nativeFailure = .accessDenied
         }
         let snapshot = try await upstream.fetchSnapshot()
-        if snapshot.status == .needsAuth { readingUpstream = false; throw nativeFailure }
+        // A cached reading left on disk by an earlier session is not a sign-in: showing it as
+        // connected would present old numbers as live ones.
+        let offline = snapshot.status == .ok && (upstream.lastStrategyID?.hasSuffix(".offline") ?? false)
+        if snapshot.status == .needsAuth || offline { readingUpstream = false; throw nativeFailure }
         readingUpstream = true
         return snapshot.relabeled(id: id, displayName: displayName, glyph: glyph)
     }

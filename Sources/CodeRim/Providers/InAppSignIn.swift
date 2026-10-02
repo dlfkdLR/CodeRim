@@ -229,6 +229,13 @@ final class OAuthLoopbackServer: @unchecked Sendable {
             if let error { self.finish(.failure(error)); connection.cancel(); return }
             var buffer = accumulated
             if let data { buffer.append(data) }
+            // A redirect is one short request line. Anything this large is not one; answer and
+            // close rather than buffering whatever a local process keeps sending.
+            if buffer.count > 16_384 {
+                connection.send(content: Data("HTTP/1.1 431 Request Header Fields Too Large\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".utf8),
+                                completion: .contentProcessed { _ in connection.cancel() })
+                return
+            }
             if buffer.range(of: Data("\r\n\r\n".utf8)) == nil, !isComplete { self.receive(connection, accumulated: buffer); return }
             let callback = self.parse(buffer)
             // Browsers also ask for /favicon.ico; only the callback path settles the sign-in.
@@ -259,7 +266,8 @@ final class OAuthLoopbackServer: @unchecked Sendable {
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               components.path == "/callback" else { return nil }
         let item = { (name: String) in components.queryItems?.first { $0.name == name }?.value }
-        if let state = item("state"), state != expectedState { return OAuthCallback(code: nil, state: state, error: "state mismatch") }
+        guard let state = item("state") else { return OAuthCallback(code: nil, state: nil, error: "missing state") }
+        if state != expectedState { return OAuthCallback(code: nil, state: state, error: "state mismatch") }
         return OAuthCallback(code: item("code"), state: item("state"), error: item("error"))
     }
 

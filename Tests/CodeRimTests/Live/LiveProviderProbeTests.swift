@@ -65,3 +65,38 @@ final class LiveDeviceFlowTests: XCTestCase {
         XCTAssertFalse(code.userCode.isEmpty)
     }
 }
+
+@MainActor
+final class LiveUnconfiguredUpstreamTests: XCTestCase {
+    /// Every native provider's CodexBar reader with no CodeRim sign-in must read as "not connected",
+    /// never as an error, or the hybrid would show a failure to someone who simply has not signed in.
+    func testUnconfiguredUpstreamsReadAsSignedOut() async throws {
+        guard ProcessInfo.processInfo.environment["CODERIM_LIVE_PROVIDERS"] != nil else { throw XCTSkip("opt-in") }
+        for id in ["copilot", "cursor", "grok", "opencode", "commandcode", "glm", "ollama", "gemini"] {
+            let descriptor = try XCTUnwrap(ExtendedProviderCatalog.descriptor(for: id))
+            let provider = ExtendedNotchProvider(descriptor: descriptor, configuration: { .init(providerID: descriptor.id) })
+            let status = (try? await provider.fetchSnapshot())?.status
+            print("LIVE upstream-empty \(id) -> \(status.map { "\($0)" } ?? "threw")")
+        }
+    }
+}
+
+final class LiveRawUpstreamTests: XCTestCase {
+    func testRawErrors() async throws {
+        guard ProcessInfo.processInfo.environment["CODERIM_LIVE_PROVIDERS"] != nil else { throw XCTSkip("opt-in") }
+        for id in ["opencode", "gemini"] {
+            let descriptor = try XCTUnwrap(ExtendedProviderCatalog.descriptor(for: id))
+            let config = ExtendedProviderConfiguration(providerID: descriptor.id)
+            let env = config.fetchEnvironment(base: ProcessInfo.processInfo.environment)
+            let browser = BrowserDetection()
+            let context = ProviderFetchContext(runtime: .app, sourceMode: config.sourceMode(environment: env), includeCredits: true,
+                includeOptionalUsage: true, webTimeout: 20, webDebugDumpHTML: false, verbose: false, env: env,
+                settings: config.settings(environment: env), fetcher: UsageFetcher(environment: env),
+                claudeFetcher: ClaudeUsageFetcher(browserDetection: browser, environment: env), browserDetection: browser)
+            do {
+                let r = try await ExtendedNotchProvider.fetchUpstream(descriptor, context: context)
+                print("LIVE raw \(id) ok source=\(r.sourceLabel) strategy=\(r.strategyID) email=\(r.usage.accountEmail(for: descriptor.id) != nil)")
+            } catch { print("LIVE raw \(id) error type=\(type(of: error)) \(String(reflecting: error).prefix(160))") }
+        }
+    }
+}
