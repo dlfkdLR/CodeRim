@@ -118,7 +118,7 @@ struct ExtendedProviderSettingsView: View {
                         .accessibilityIdentifier("provider.\(localID).save")
                     if let guide { Link("Instructions", destination: guide.url).font(.callout) }
                     if let destination = descriptor.metadata.dashboardURL.flatMap(URL.init(string:)) {
-                        Link("Dashboard", destination: destination).font(.callout)
+                        Link(!isConnected && descriptor.credentials?.supportsAPIKeyOverride == true ? "Get a key" : "Dashboard", destination: destination).font(.callout)
                     }
                 }
                 if let message { Text(message).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
@@ -147,6 +147,11 @@ struct ExtendedProviderSettingsView: View {
             }
             try ExtendedProviderConfigurationStore.save(configuration)
             NotchController.shared.providerConfigurationDidChange(localID)
+            // A provider waiting for exactly this key connects now instead of staying "Enter your key".
+            switch NotchController.shared.connectionState(for: localID) {
+            case .needsKey?, .failed?: NotchController.shared.beginConnecting(localID)
+            default: break
+            }
             message = "Saved. Refreshing this provider…"
         } catch { message = error.localizedDescription }
     }

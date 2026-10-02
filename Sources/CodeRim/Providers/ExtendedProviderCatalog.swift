@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import CodexBarCore
 
@@ -51,6 +52,20 @@ extension ExtendedProviderCatalog {
     /// tool with a login command runs it. Anything else keeps its written guidance.
     static func signInRoute(for descriptor: ProviderDescriptor, displayName: String) -> SignInRoute {
         if descriptor.id == .gemini { return geminiSignInRoute(displayName: displayName) }
+        if descriptor.id == .kiro {
+            return .guided(.init(name: displayName, action: .terminal(command: "kiro-cli login"),
+                note: "A Terminal window runs `kiro-cli login`. Finish it in your browser and CodeRim connects on its own.",
+                installURL: URL(string: "https://kiro.dev/cli/")))
+        }
+        if descriptor.id == .jetbrains {
+            let ides = ["com.jetbrains.intellij", "com.jetbrains.intellij.ce", "com.jetbrains.pycharm", "com.jetbrains.WebStorm",
+                        "com.jetbrains.goland", "com.jetbrains.CLion", "com.jetbrains.rider", "com.jetbrains.PhpStorm", "com.google.android.studio"]
+            if let ide = ides.first(where: { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) != nil }),
+               let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: ide) {
+                return .openApp(bundleID: ide, name: url.deletingPathExtension().lastPathComponent)
+            }
+            return .guidance("Install a JetBrains IDE, sign in to JetBrains AI there and use it once. CodeRim reads the IDE's own quota file.")
+        }
         let modes = descriptor.fetchPlan.sourceModes
         let summary = guide(for: localID(descriptor.id))?.summary ?? ""
         let page = [descriptor.metadata.dashboardURL, descriptor.metadata.subscriptionDashboardURL]
