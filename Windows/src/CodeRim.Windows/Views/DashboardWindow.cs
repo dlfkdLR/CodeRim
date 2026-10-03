@@ -388,12 +388,22 @@ internal sealed partial class DashboardWindow : Window
         // starts its own sign-in and is watched until the account appears. A provider that needs a
         // pasted key opens on its settings, instead of leaving a second "Set up" step to find.
         if (addedIds.Count == 0) { Render(); return; }
-        foreach (var id in addedIds) if (id != "claude") connector.Begin(id);
+        foreach (var id in addedIds) if (id != "claude") { justAdded.Add(id); connector.Begin(id); }
         if (addedIds.Contains("claude")) { _ = ConnectAddedClaudeAsync(); return; }
         Navigate(addedIds[^1]);
     }
     // One watcher for the window: a sign-in started here keeps being watched while the user moves between pages.
     private ProviderConnector? connectorField;
+    // Providers added from the picker whose first sign-in has not finished: cancelling it undoes the add,
+    // so an abandoned sign-in never leaves a provider behind.
+    private readonly HashSet<string> justAdded = new(StringComparer.Ordinal);
+    private void CancelConnecting(string id)
+    {
+        connector.Cancel(id);
+        if (!justAdded.Remove(id)) return;
+        Save(settings.Current with { EnabledProviders = settings.Current.EnabledProviders.Where(x => x != id).ToArray() });
+        if (connectionBannerId == id) Navigate("providers");
+    }
     private ProviderConnector connector => connectorField ??= CreateConnector();
     private ProviderConnector CreateConnector()
     {
@@ -410,6 +420,7 @@ internal sealed partial class DashboardWindow : Window
                 ? reading.Message ?? "This account cannot be read. Check its plan and settings." : null);
         created.Changed += () => Dispatcher.BeginInvoke(new Action(() =>
         {
+            justAdded.RemoveWhere(id => created.StateOf(id)?.Phase == ProviderConnector.Phase.Connected);
             UpdateConnectionBanner();
             if (page == "providers") Render();
         }));
@@ -417,6 +428,7 @@ internal sealed partial class DashboardWindow : Window
     }
     private static readonly System.Net.Http.HttpClient SignInHttp = new() { Timeout = TimeSpan.FromSeconds(30) };
     /// <summary>Sign-ins CodeRim runs itself, storing what they return in its own credential vault.</summary>
+    // The flows resume off the UI thread; what they store goes back through the dispatcher to the store.
     private async Task<InAppOutcome> RunInAppSignInAsync(InAppKind kind, Action<string> update, CancellationToken cancellation)
     {
         void Open(Uri url) => ProviderSignInLauncher.Launch(new SignInPlan(SignInKind.Browser, "", null, url, ""));
@@ -425,11 +437,11 @@ internal sealed partial class DashboardWindow : Window
             case InAppKind.GitHubDevice:
                 return await GitHubDeviceFlow.RunAsync(SignInHttp, update, Open,
                     code => Dispatcher.Invoke(() => { try { Clipboard.SetText(code); } catch (System.Runtime.InteropServices.COMException) { } }),
-                    token => { vault.Save("provider:copilot", token); store.InvalidateAccount("copilot"); }, cancellation).ConfigureAwait(true);
+                    token => Dispatcher.Invoke(() => { vault.Save("provider:copilot", token); store.InvalidateAccount("copilot"); }), cancellation).ConfigureAwait(true);
             case InAppKind.AntigravityGoogle:
                 return await AntigravityGoogleSignIn.RunAsync(ProviderSignIn.AntigravityClient(), SignInHttp, update,
                     url => { Open(url); return true; },
-                    json => { vault.Save("provider:gemini", json); store.InvalidateAccount("gemini"); }, cancellation).ConfigureAwait(true);
+                    json => Dispatcher.Invoke(() => { vault.Save("provider:gemini", json); store.InvalidateAccount("gemini"); }), cancellation).ConfigureAwait(true);
             default:
                 return InAppOutcome.Failed("This sign-in is not available.");
         }
@@ -464,15 +476,17 @@ internal sealed partial class DashboardWindow : Window
         };
         var label = Ui.Text(text, 12, "#A6A6AA"); label.TextWrapping = TextWrapping.Wrap; connectionBanner.Children.Add(label);
         var busy = state?.Phase is ProviderConnector.Phase.Checking or ProviderConnector.Phase.Waiting;
-        if (busy) connectionBanner.Children.Add(Ui.Button("Cancel", () => connector.Cancel(id)));
-        else if (state?.Phase != ProviderConnector.Phase.Connected && !plan.OpensSettings)
+        if (!busy && state?.Phase != ProviderConnector.Phase.Connected && !plan.OpensSettings)
             connectionBanner.Children.Add(Ui.Button(state?.Phase == ProviderConnector.Phase.Failed ? "Try again"
                 : plan.Kind is SignInKind.Terminal or SignInKind.InApp ? "Sign in to " + plan.Name : "Sign in", () => connector.Begin(id)));
+        // A provider whose first sign-in is unfinished can be abandoned, which also takes it off the list.
+        if (busy || (justAdded.Contains(id) && state?.Phase != ProviderConnector.Phase.Connected))
+            connectionBanner.Children.Add(Ui.Button("Cancel", () => CancelConnecting(id)));
         // Google shut Gemini CLI sign-in for personal accounts in June 2026; Antigravity reads the same allowance.
         if (id == "gemini-cli" && state?.Phase != ProviderConnector.Phase.Connected)
             connectionBanner.Children.Add(Ui.Button("Use Antigravity", () =>
             {
-                connector.Cancel("gemini-cli");
+                CancelConnecting("gemini-cli");
                 if (!settings.Current.EnabledProviders.Contains("gemini", StringComparer.Ordinal))
                     Save(settings.Current with { EnabledProviders = [..settings.Current.EnabledProviders, "gemini"] });
                 Navigate("gemini"); connector.Begin("gemini");

@@ -99,6 +99,23 @@ public sealed class ProviderConnectionLadderTests : IDisposable
         Assert.Equal(ProviderConnector.Phase.Connected, c.StateOf("p")!.Phase);
     }
 
+    [Fact] public async Task L13bAReadThatThrowsEndsTheSignInWithAReason()
+    {
+        var checks = 0;
+        var c = Make(Web(), _ => ++checks >= 2 ? throw new InvalidOperationException("store offline") : Task.FromResult(false));
+        await c.RunAsync("p");
+        Assert.Equal(ProviderConnector.Phase.Failed, c.StateOf("p")!.Phase);
+        Assert.Contains("store offline", c.StateOf("p")!.Message);
+    }
+
+    [Fact] public async Task L13cAnInAppSignInThatThrowsIsNotLeftWaiting()
+    {
+        var c = Make(new(SignInKind.InApp, "G", null, null, "n") { InApp = InAppKind.GitHubDevice },
+            runInApp: (_, _, _) => throw new HttpRequestException("no network"));
+        await c.RunAsync("p");
+        Assert.Equal(ProviderConnector.Phase.Failed, c.StateOf("p")!.Phase);
+    }
+
     [Fact] public async Task L14AMissingToolOpensItsInstallPageInsteadOfAnEmptyTerminal()
     {
         var pages = 0; var launched = 0;

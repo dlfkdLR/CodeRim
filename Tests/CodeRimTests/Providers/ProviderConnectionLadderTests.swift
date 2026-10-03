@@ -513,6 +513,31 @@ final class ProviderConnectionLadderTests: XCTestCase {
         XCTAssertTrue(reason.contains("Install the Antigravity app"))
     }
 
+    func test49b_CancellingTheGoogleSignInEndsItAndClosesThePort() async throws {
+        let client = AntigravityOAuthClient(clientID: "id.apps.googleusercontent.com", clientSecret: "GOCSPX-x")
+        let opened = Box<URL?>(nil)
+        let task = Task { @MainActor in
+            await InAppSignInRunner.antigravityGoogle(client: { client }, open: { opened.value = $0; return true }, update: { _ in })
+        }
+        for _ in 0..<100 where opened.value == nil { try await Task.sleep(for: .milliseconds(20)) }
+        let redirect = try XCTUnwrap(opened.value.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }?
+            .queryItems?.first { $0.name == "redirect_uri" }?.value.flatMap(URL.init(string:)))
+        task.cancel()
+        let outcome = await task.value
+        guard case .failed(let reason) = outcome else { return XCTFail() }
+        XCTAssertTrue(reason.contains("cancelled"))
+        try await Task.sleep(for: .milliseconds(200))
+        XCTAssertNil(Self.raw(port: try XCTUnwrap(redirect.port), chunks: [Data("GET /callback HTTP/1.1\r\n\r\n".utf8)], gap: 0, readTimeout: 1))
+    }
+
+    func test49c_AnUnansweredGoogleSignInTimesOut() async {
+        let client = AntigravityOAuthClient(clientID: "id.apps.googleusercontent.com", clientSecret: "GOCSPX-x")
+        let outcome = await InAppSignInRunner.antigravityGoogle(client: { client }, open: { _ in true },
+                                                               timeout: .milliseconds(300), update: { _ in })
+        guard case .failed(let reason) = outcome else { return XCTFail() }
+        XCTAssertTrue(reason.contains("timed out"))
+    }
+
     // MARK: Level 3 — hostile text and environment
 
     func test50_TerminalStepsCannotRunInjectedCommands() throws {
@@ -589,7 +614,7 @@ final class ProviderConnectionLadderTests: XCTestCase {
             guard let addr = item.pointee.ifa_addr, addr.pointee.sa_family == UInt8(AF_INET) else { continue }
             var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
             getnameinfo(addr, socklen_t(addr.pointee.sa_len), &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST)
-            let text = String(cString: host)
+            let text = String(decoding: host.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
             if text != "127.0.0.1" && !text.hasPrefix("169.254") { return text }
         }
         return "10.255.255.1"

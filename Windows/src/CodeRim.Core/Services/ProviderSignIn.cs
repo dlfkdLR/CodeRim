@@ -165,6 +165,7 @@ public sealed class ProviderConnector
 
     public void Begin(string id) => _ = RunAsync(id);
 
+    // Awaits keep the caller's context on purpose: the window's store and sign-in callbacks expect its UI thread.
     public async Task RunAsync(string id)
     {
         CancellationTokenSource cancellation = new();
@@ -184,17 +185,17 @@ public sealed class ProviderConnector
         try
         {
             Set(Phase.Checking);
-            if (await connects(id).ConfigureAwait(false)) { Set(Phase.Connected); return; }
+            if (await connects(id)) { Set(Phase.Connected); return; }
             token.ThrowIfCancellationRequested();
             var signIn = plan(id);
             if (signIn.OpensSettings) { Set(Phase.NeedsKey, signIn.Note); return; }
             if (signIn.Kind == SignInKind.InApp && signIn.InApp is { } kind)
             {
                 Set(Phase.Waiting, signIn.Note);
-                var outcome = await runInApp(kind, note => Set(Phase.Waiting, note), token).ConfigureAwait(false);
+                var outcome = await runInApp(kind, note => Set(Phase.Waiting, note), token);
                 token.ThrowIfCancellationRequested();
                 if (!outcome.SignedIn) { Set(Phase.Failed, outcome.Reason ?? "Sign-in did not finish. Choose Sign in to try again."); return; }
-                if (await connects(id).ConfigureAwait(false)) { Set(Phase.Connected); return; }
+                if (await connects(id)) { Set(Phase.Connected); return; }
             }
             else
             {
@@ -205,14 +206,16 @@ public sealed class ProviderConnector
             var deadline = DateTime.UtcNow + patience;
             while (DateTime.UtcNow < deadline)
             {
-                await Task.Delay(poll, token).ConfigureAwait(false);
-                if (await connects(id).ConfigureAwait(false)) { Set(Phase.Connected); return; }
+                await Task.Delay(poll, token);
+                if (await connects(id)) { Set(Phase.Connected); return; }
                 token.ThrowIfCancellationRequested();
                 if (blocker(id) is { } reason) { Set(Phase.Failed, reason); return; }
             }
             Set(Phase.Failed, "Sign-in was not detected. Choose Sign in to try again.");
         }
         catch (OperationCanceledException) { }
+        // Whatever goes wrong inside a sign-in ends it with a reason instead of leaving it waiting forever.
+        catch (Exception e) when (e is not OutOfMemoryException) { Set(Phase.Failed, "Sign-in stopped: " + e.Message + " Choose Try again."); }
         finally { lock (gate) { if (running.GetValueOrDefault(id) == cancellation) running.Remove(id); } cancellation.Dispose(); }
     }
 }

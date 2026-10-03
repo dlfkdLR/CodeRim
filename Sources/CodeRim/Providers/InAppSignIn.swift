@@ -67,6 +67,8 @@ enum InAppSignInRunner {
     // MARK: Antigravity Google sign-in
 
     static func antigravityGoogle(client resolveClient: () -> AntigravityOAuthClient?,
+                                  open: (URL) -> Bool = { NSWorkspace.shared.open($0) },
+                                  timeout: Duration = .seconds(300),
                                   update: @escaping @MainActor (String) -> Void) async -> Outcome {
         guard let client = resolveClient() else {
             return .failed("Install the Antigravity app first — CodeRim signs in with the same Google sign-in it uses. Then choose Try again.")
@@ -85,14 +87,16 @@ enum InAppSignInRunner {
                 URLQueryItem(name: "prompt", value: "select_account consent"),
                 URLQueryItem(name: "state", value: state),
             ]
-            guard let authURL = components.url, NSWorkspace.shared.open(authURL) else {
+            guard let authURL = components.url, open(authURL) else {
                 server.stop(); return .failed("The Google sign-in page could not be opened.")
             }
             update("Choose your Google account in the browser and allow access. CodeRim connects as soon as you finish.")
             let callback = try await withThrowingTaskGroup(of: OAuthCallback.self) { group in
                 group.addTask { try await server.waitForCallback() }
+                // Ends the wait on timeout and on Cancel alike: the callback wait is a plain
+                // continuation that ignores cancellation, and the group cannot return while it hangs.
                 group.addTask {
-                    try await Task.sleep(for: .seconds(300))
+                    try? await Task.sleep(for: timeout)
                     server.cancelCallbackWait(with: CancellationError())
                     throw CancellationError()
                 }
