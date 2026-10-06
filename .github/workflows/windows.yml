@@ -80,7 +80,9 @@ jobs:
           path: |
             Artifacts/CodeRim-Windows-*.msix
             Artifacts/CodeRim-Windows-*.msixbundle
-            Artifacts/msix-*/**
+            Artifacts/msix-*/*.json
+            Artifacts/msix-*/*.txt
+            Artifacts/msix-*/*.png
       - name: Upload MSI release candidates
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -195,7 +197,9 @@ jobs:
         with:
           name: CodeRim-Windows-ARM64-Native
           path: |
-            Artifacts/msix-*/**
+            Artifacts/msix-*/*.json
+            Artifacts/msix-*/*.txt
+            Artifacts/msix-*/*.png
             Artifacts/windows-*.png
             Artifacts/installed/**
             Artifacts/windows-*.json
