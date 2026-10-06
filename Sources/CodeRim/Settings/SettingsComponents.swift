@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // MARK: - Sidebar
@@ -30,13 +31,20 @@ struct SettingsForm<Content: View>: View {
     @ViewBuilder var content: Content
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 6) {
-                content
+        // The toolbar inset is laid out as padding inside the scroll content rather than as a scroll-view
+        // inset. As an inset, SwiftUI sized a pane that only overflowed by it as if nothing scrolled, while
+        // AppKit showed a scroller ("Show scroll bars: Always") over the content's right edge.
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 6) {
+                    content
+                }
+                .overlay(alignment: .top) { SettingsContentTopMarker().frame(height: 0) }
+                .padding(.top, 6 + proxy.safeAreaInsets.top)
+                .padding(.bottom, 28)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.top, 6)
-            .padding(.bottom, 28)
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .ignoresSafeArea(.container, edges: .top)
         }
         .scrollBounceBehavior(.basedOnSize)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -44,6 +52,14 @@ struct SettingsForm<Content: View>: View {
         // in dark mode, which turned every other pane into grey cards sunk into a lighter field.
         .background(.background)
     }
+}
+
+/// An empty AppKit view at the top edge of a pane's content, so layout tests can find where the
+/// first row rests relative to the titlebar.
+struct SettingsContentTopMarker: NSViewRepresentable {
+    static let identifier = NSUserInterfaceItemIdentifier("settings.content.top")
+    func makeNSView(context: Context) -> NSView { let view = NSView(); view.identifier = Self.identifier; return view }
+    func updateNSView(_ view: NSView, context: Context) {}
 }
 
 /// One recipe for a card's surface so every pane layers the same way. It matches the Usage

@@ -31,8 +31,18 @@ final class SettingsWindowControllerTests: XCTestCase {
             let viewport = try XCTUnwrap(host.subviews.first)
             XCTAssertEqual(viewport.frame.size.height, host.bounds.height, accuracy: 1)
             for scroll in descendants(of: NSScrollView.self, in: host) where !(scroll.documentView is NSOutlineView) {
-                XCTAssertGreaterThan(scroll.contentView.contentInsets.top + scroll.safeAreaInsets.top, 0,
-                    "Resting content must start below the titlebar")
+                // Either as a scroll inset or as padding inside the content, the first line at rest sits
+                // below the titlebar.
+                let inset = scroll.contentView.contentInsets.top + scroll.safeAreaInsets.top
+                if inset <= 0 {
+                    scroll.contentView.scroll(to: .zero); scroll.reflectScrolledClipView(scroll.contentView)
+                    try await settle(window)
+                    let titlebarBottom = window.contentLayoutRect.maxY
+                    let marker = try XCTUnwrap(descendants(of: NSView.self, in: scroll).first { $0.identifier == SettingsContentTopMarker.identifier },
+                                               "The pane has no content marker")
+                    let top = marker.convert(marker.bounds, to: nil).maxY
+                    XCTAssertLessThanOrEqual(top, titlebarBottom + 0.5, "Resting content must start below the titlebar")
+                }
             }
             if let directory = ProcessInfo.processInfo.environment["CODERIM_LAYOUT_CAPTURE_DIR"] {
                 let bitmap = try XCTUnwrap(host.bitmapImageRepForCachingDisplay(in: host.bounds))
@@ -62,6 +72,9 @@ final class SettingsWindowControllerTests: XCTestCase {
     }
 
     func testEveryCategoryStaysVisibleWhenSwitchingResizingAndReopening() async throws {
+        // Mouse users see scrollers that take layout space; check the layout as they see it.
+        UserDefaults.standard.setVolatileDomain(["AppleShowScrollBars": "Always"], forName: UserDefaults.argumentDomain)
+        defer { UserDefaults.standard.removeVolatileDomain(forName: UserDefaults.argumentDomain) }
         _ = NSApplication.shared
         let fixture = try SettingsWindowFixture()
         defer { fixture.remove() }
