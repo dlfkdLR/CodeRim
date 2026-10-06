@@ -79,6 +79,8 @@ internal static partial class NativeSmoke
                 try
                 {
                     provider.Style = (Style)notch.FindResource("NotchButton"); await Idle();
+                    // The old template paints its focus fill from the focus event; replay it under that style.
+                    System.Windows.Input.Keyboard.ClearFocus(); provider.Focus(); await Idle();
                     oldProviderAlpha = Alpha(TransparentSurface(provider), emptyCell);
                 }
                 finally { provider.Style = providerStyle; await Idle(); }
