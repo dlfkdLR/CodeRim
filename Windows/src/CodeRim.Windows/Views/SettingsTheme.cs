@@ -40,6 +40,11 @@ internal static class SettingsTheme
             var index = resources.MergedDictionaries.IndexOf(dictionary);
             resources.MergedDictionaries[index] = new ResourceDictionary { Source = source };
         }
+        // Rounder than Windows' 4 px defaults, closer to the macOS settings: controls 8 px, flyouts 12 px.
+        var framework = CurrentFrameworkDictionary();
+        framework["ControlCornerRadius"] = new CornerRadius(8);
+        framework["OverlayCornerRadius"] = new CornerRadius(12);
+        framework["PopupCornerRadius"] = new CornerRadius(12);
         // Alias the framework's brushes for custom charts/cards. Ordinary controls
         // keep the native styles, including disabled/selected/keyboard-focus states.
         Brush Native(string key, Brush fallback) => Application.Current.TryFindResource(key) as Brush ?? fallback;

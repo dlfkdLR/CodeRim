@@ -33,7 +33,7 @@ internal static class SettingsUi
             }
             content.Children.Add(row);
         }
-        var card = new Border { CornerRadius = new CornerRadius(4), BorderThickness = new Thickness(1), Child = content };
+        var card = new Border { CornerRadius = new CornerRadius(12), BorderThickness = new Thickness(1), Child = content };
         Resource(card, Border.BackgroundProperty, "CardBackground"); Resource(card, Border.BorderBrushProperty, "DividerBrush");
         section.Children.Add(card); return section;
     }

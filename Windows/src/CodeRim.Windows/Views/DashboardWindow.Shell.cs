@@ -71,6 +71,7 @@ internal sealed partial class DashboardWindow
         {
             frameSource = HwndSource.FromHwnd(new WindowInteropHelper(this).Handle);
             frameSource?.AddHook(SettingsFrameMessage);
+            Services.WindowCorners.Round(new WindowInteropHelper(this).Handle);
         };
         Loaded += (_, _) => FitSettingsFrame();
         StateChanged += (_, _) => QueueFitSettingsFrame();
