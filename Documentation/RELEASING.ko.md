@@ -65,7 +65,7 @@ Store 패키지는 인증서를 사지 않고도 "알 수 없는 게시자" 경�
 1. [Partner Center](https://partner.microsoft.com/dashboard/registration)에서 무료 개인 개발자 계정을 만들고 본인 확인을 마칩니다.
 2. **앱 및 게임 → 새 제품 → MSIX 또는 PWA 앱**에서 이름 **CodeRim**을 예약합니다.
 3. **제품 관리 → 제품 ID**의 *Package/Identity/Name*, *Package/Identity/Publisher*, *Package/Properties/PublisherDisplayName*을 `Windows/Installer/Store/store-identity.json`에 넣습니다.
-4. Windows 워크플로가 통과하면 `CodeRim-Windows-Store` 아티팩트를 받아 `CodeRim-Windows-<버전>.msixbundle`을 새 제출에 올립니다. CI는 테스트 서명한 사본을 x64·ARM64에 설치해 CLI와 네이티브 UI를 이미 실행해 봤습니다.
+4. Windows 워크플로가 통과하면 `CodeRim-Windows-Store` 아티팩트를 받아 `CodeRim-Windows-<버전>.msixbundle`을 새 제출에 올립니다. CI는 테스트 서명한 사본을 x64·ARM64에 설치해 실행 별칭을 확인하고 제거합니다. 호스팅 러너는 패키지 앱을 활성화하지 못하므로 패키지 안에서의 실제 실행은 인증 과정에서 처음 검증됩니다.
 5. **제출 옵션 → 제한된 기능**에 다음과 같이 설명합니다. *runFullTrust* — 데스크톱 WPF 앱. *unvirtualizedResources* — 모니터링하는 CLI 도구의 설정(예: Claude Code 상태줄)을 읽고 고치며, MSI 설치와 마찬가지로 자체 CLI와 데이터 폴더를 공유합니다.
 6. 개인정보 처리방침 URL은 `https://github.com/dlfkdLR/CodeRim/blob/main/PRIVACY.md`, 범주는 개발자 도구, 무료로 지정합니다.
 
