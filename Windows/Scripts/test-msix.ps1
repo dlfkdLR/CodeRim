@@ -12,7 +12,20 @@ $projectRoot = Split-Path -Parent $windowsRoot
 $identity = Get-Content (Join-Path $windowsRoot "Installer\Store\store-identity.json") -Raw | ConvertFrom-Json
 $evidence = Join-Path $projectRoot "Artifacts\msix-$Architecture"
 New-Item -ItemType Directory -Force $evidence | Out-Null
-$results = [Collections.Generic.List[string]]::new()
+$results = New-Object 'System.Collections.Generic.List[string]'
+# Runs a command with a hard limit; a hung step must fail the job with a reason, not stall it.
+function Invoke-Bounded([string]$File, [string[]]$Arguments, [int]$Seconds, [string]$Name) {
+    $out = Join-Path $evidence "$Name.out.txt"; $err = Join-Path $evidence "$Name.err.txt"
+    $process = Start-Process -FilePath $File -ArgumentList $Arguments -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
+    if (-not $process.WaitForExit($Seconds * 1000)) {
+        try { $process.Kill() } catch { }
+        Get-Content $out, $err -ErrorAction SilentlyContinue | Write-Host
+        throw "$Name did not finish within $Seconds seconds."
+    }
+    $text = (Get-Content $out -Raw -ErrorAction SilentlyContinue)
+    if ($process.ExitCode -ne 0) { Get-Content $err -ErrorAction SilentlyContinue | Write-Host; throw "$Name failed with exit code $($process.ExitCode): $text" }
+    return $text
+}
 
 $certificate = New-SelfSignedCertificate -Type CodeSigningCert -Subject $identity.Publisher -CertStoreLocation Cert:\CurrentUser\My `
     -KeyUsage DigitalSignature -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
@@ -33,15 +46,13 @@ try {
     New-Item -Path $unlock -Force | Out-Null
     Set-ItemProperty -Path $unlock -Name AllowAllTrustedApps -Value 1 -Type DWord
     Set-ItemProperty -Path $unlock -Name AllowDevelopmentWithoutDevLicense -Value 1 -Type DWord
-    $install = Start-Job { param($path) Add-AppxPackage -Path $path -ForceUpdateFromAnyVersion } -ArgumentList $signed
-    if (-not (Wait-Job $install -Timeout 300)) {
-        Stop-Job $install
-        Get-AppxLog -All -ErrorAction SilentlyContinue | Select-Object -Last 40 | Format-List | Out-String | Write-Host
+    $powershell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    try { Invoke-Bounded $powershell @('-NoProfile', '-Command', "Add-AppxPackage -Path '$signed' -ForceUpdateFromAnyVersion") 300 'add-appx' | Out-Null }
+    catch {
         Get-WinEvent -LogName 'Microsoft-Windows-AppXDeploymentServer/Operational' -MaxEvents 40 -ErrorAction SilentlyContinue |
             Format-List TimeCreated, Id, Message | Out-String | Write-Host
-        throw "Add-AppxPackage did not finish within five minutes."
+        throw
     }
-    Receive-Job $install -ErrorAction Stop
     $installed = Get-AppxPackage -Name $identity.IdentityName
     if (-not $installed) { throw "The package did not install." }
     $results.Add("installs-per-user-without-administrator")
@@ -51,11 +62,11 @@ try {
     }
     $results.Add("cli-and-app-aliases-registered")
 
-    $version = & (Join-Path $aliases "coderim.exe") version
-    if ($LASTEXITCODE -ne 0 -or ($version -join "`n") -notmatch "CodeRim CLI") { throw "The coderim alias did not run the CLI: $version" }
+    $version = Invoke-Bounded (Join-Path $aliases "coderim.exe") @('version') 60 'alias-version'
+    if ($version -notmatch "CodeRim CLI") { throw "The coderim alias did not run the CLI: $version" }
     $results.Add("coderim-alias-runs-cli")
-    python (Join-Path $windowsRoot "tests\cli_regression_tests.py") (Join-Path $aliases "CodeRimCLI.exe")
-    if ($LASTEXITCODE -ne 0) { throw "CLI regression checks failed through the package alias." }
+    $python = (Get-Command python).Source
+    Invoke-Bounded $python @((Join-Path $windowsRoot "tests\cli_regression_tests.py"), (Join-Path $aliases "CodeRimCLI.exe")) 600 'alias-cli-regressions' | Out-Null
     $results.Add("cli-regressions-through-alias")
 
     # The native UI smoke inside the package: same checks as the MSI build, with package identity.
@@ -68,7 +79,7 @@ try {
     }
     $results.Add("packaged-native-ui-smoke")
 
-    Remove-AppxPackage -Package $installed.PackageFullName
+    Invoke-Bounded $powershell @('-NoProfile', '-Command', "Remove-AppxPackage -Package '$($installed.PackageFullName)'") 300 'remove-appx' | Out-Null
     if (Get-AppxPackage -Name $identity.IdentityName) { throw "The package did not uninstall." }
     if (Test-Path (Join-Path $aliases "coderim.exe")) { throw "Uninstall left the coderim alias." }
     $results.Add("uninstall-removes-app-and-aliases")

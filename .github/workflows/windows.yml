@@ -66,7 +66,9 @@ jobs:
         shell: pwsh
         run: ./Windows/Scripts/package-msix.ps1
       - name: Install and run the Store package on x64
-        shell: pwsh
+        # Windows PowerShell loads the Appx module natively; PowerShell 7 proxies it through a
+        # compatibility session that can stall on hosted runners.
+        shell: powershell
         run: |
           $package = (Get-ChildItem Artifacts -Filter 'CodeRim-Windows-*-x64.msix').FullName
           ./Windows/Scripts/test-msix.ps1 -Package $package -Architecture x64
@@ -183,7 +185,7 @@ jobs:
           name: CodeRim-Windows-Store
           path: Artifacts/store
       - name: Install and run the Store package natively on ARM64
-        shell: pwsh
+        shell: powershell
         run: |
           $package = (Get-ChildItem Artifacts/store -Filter 'CodeRim-Windows-*-arm64.msix').FullName
           ./Windows/Scripts/test-msix.ps1 -Package $package -Architecture arm64
