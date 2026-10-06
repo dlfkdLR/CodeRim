@@ -63,4 +63,4 @@ Settings, usage history, and saved accounts are retained: do not add `--zap` or 
 
 ## Windows 11
 
-The current installers are [2.1.16 x64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-x64-Setup.msi) and [2.1.16 ARM64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-arm64-Setup.msi). See [Windows installation and updates](windows.md).
+The current installers are [2.1.17 x64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.17/CodeRim-Windows-2.1.17-x64-Setup.msi) and [2.1.17 ARM64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.17/CodeRim-Windows-2.1.17-arm64-Setup.msi). See [Windows installation and updates](windows.md).
