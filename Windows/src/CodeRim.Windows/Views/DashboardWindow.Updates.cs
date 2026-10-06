@@ -35,6 +35,11 @@ internal sealed partial class DashboardWindow
         && updateViewRevision == revision && ReferenceEquals(updateOperation, operation) && !operation.IsCancellationRequested;
     private void AddUpdateSection()
     {
+        if (PackagedApp.IsPackaged)
+        {
+            body.Children.Add(SettingsUi.Section("Updates", SettingsUi.Value("Updates", "Delivered by Microsoft Store")));
+            return;
+        }
         var status = Ui.Text("", 12, "#A6A6AA");
         var revision = updateViewRevision;
         var cancel = Ui.Button("Cancel", CancelUpdateOperation); cancel.Visibility = Visibility.Collapsed;

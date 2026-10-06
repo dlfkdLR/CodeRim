@@ -551,3 +551,30 @@ test('a downgraded phone reopens legacy catalog pages even after opting into sho
   assert.equal(legacy.state.providerPicker.mode, undefined); assert.equal(legacy.state.providerPicker.page, 2);
   assert.deepEqual(legacy.state.providerPicker.options.map(p => p.id), ['p-6', 'p-7']);
 });
+test('a computer and phone in regular use stay connected far past the token issued at pairing', async t => {
+  const c = setup(t);
+  const pc = await pairDevice(c, 'windows', 'PC');
+  // Two years of weekly use: the token issued at pairing expires after one, but use extends it.
+  for (let week = 0; week < 104; week++) {
+    c.advance(7 * 86400);
+    await c.route('POST', '/v1/snapshot', snapshot(c.now()), pc.token);
+    await c.route('GET', '/v1/snapshot');
+  }
+  assert.equal((await c.route('GET', '/v1/snapshot')).devices.length, 1);
+});
+test('a desktop restart or update keeps its pairing: the relay restarting on the same data accepts the saved token', async t => {
+  const c = setup(t);
+  const mac = await pairDevice(c, 'macOS', 'Mac');
+  await c.route('POST', '/v1/snapshot', snapshot(), mac.token);
+  // A new relay instance over the same database stands in for the process a restart creates.
+  const restarted = new Relay({ store: new Store(c.sql), now: c.now, pollWait: 0, push: async () => ({ status: 200 }) });
+  c.advance(3600);
+  await restarted.route('POST', '/v1/snapshot', snapshot(c.now()), mac.token, 'test');
+  assert.equal((await restarted.route('GET', '/v1/snapshot', {}, c.mobile, 'test')).devices.length, 1);
+});
+test('a token left unused for over a year is refused, so the desktop asks to reconnect', async t => {
+  const c = setup(t);
+  const pc = await pairDevice(c, 'windows', 'PC');
+  c.advance(366 * 86400);
+  await assert.rejects(c.route('POST', '/v1/snapshot', snapshot(c.now()), pc.token), { status: 401 });
+});

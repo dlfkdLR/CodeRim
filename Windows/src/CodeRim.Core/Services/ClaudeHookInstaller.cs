@@ -11,7 +11,9 @@ public static partial class ClaudeHookInstaller
         + "[String]::new($buffer,0,$count) | & '";
     public static string SettingsPath => Path.Combine(Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR")
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude"), "settings.json");
-    private static string Executable => Path.Combine(AppContext.BaseDirectory, "CodeRimCLI.exe");
+    // A Store package's files cannot be started by path from Claude Code; its execution alias can.
+    private static string Executable => PackagedApp.IsPackaged ? PackagedApp.AliasPath(PackagedApp.CliAlias)
+        : Path.Combine(AppContext.BaseDirectory, "CodeRimCLI.exe");
     public static bool HasOtherStatusLine()
     {
         if (!File.Exists(SettingsPath)) return false;

@@ -71,9 +71,13 @@ final class MobileAppModel: ObservableObject {
         busy = true; errorMessage = nil; statusMessage = nil
         defer { busy = false }
         do {
-            if let credential, credential.endpoint != link.relay {
-                errorMessage = "This computer uses a different relay server. Disconnect this iPhone first to switch."
-                return
+            // The QR code carries the server its computer uses: follow it rather than asking for an
+            // address. The old server's session is ended on a best-effort basis.
+            if let old = credential, old.endpoint != link.relay {
+                if let oldClient = client {
+                    let _: MobileOK? = try? await oldClient.send("DELETE", "/v1/session", token: old.token, body: MobileEmpty())
+                }
+                await clearLocalLogin()
             }
             if credential == nil {
                 let client = try makeClient(link.relay)

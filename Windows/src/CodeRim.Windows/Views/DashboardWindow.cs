@@ -226,8 +226,12 @@ internal sealed partial class DashboardWindow : Window
         AddStartupSection();
         body.Children.Add(SettingsUi.Section("Refresh", SettingsUi.Picker("Mode", RefreshOptions, settings.Current.AutomaticRefresh ? -1 : settings.Current.RefreshIntervalSeconds, x => Save(settings.Current with { RefreshIntervalSeconds = x == -1 ? 60 : x, AutomaticRefresh = x == -1 }))));
         body.Children.Add(SettingsUi.Note("Automatic reacts to session changes with a one-minute fallback check."));
-        body.Children.Add(SettingsUi.Section("Updates", SettingsUi.Toggle("Automatically check for updates", settings.Current.CheckForUpdates, x => Save(settings.Current with { CheckForUpdates = x }))));
-        body.Children.Add(SettingsUi.Note("Checks GitHub once per day and downloads verified updates for Setup installations. Restart from Information to install. Token usage data is never sent."));
+        if (PackagedApp.IsPackaged) body.Children.Add(SettingsUi.Section("Updates", SettingsUi.Value("Updates", "Delivered by Microsoft Store")));
+        else
+        {
+            body.Children.Add(SettingsUi.Section("Updates", SettingsUi.Toggle("Automatically check for updates", settings.Current.CheckForUpdates, x => Save(settings.Current with { CheckForUpdates = x }))));
+            body.Children.Add(SettingsUi.Note("Checks GitHub once per day and downloads verified updates for Setup installations. Restart from Information to install. Token usage data is never sent."));
+        }
         body.Children.Add(SettingsUi.Section("Calendar", SettingsUi.Picker("Week starts on", Enum.GetValues<WeekStart>(), settings.Current.WeekStart, x => { Save(settings.Current with { WeekStart = x }); _ = store.RefreshAsync(); })));
         body.Children.Add(SettingsUi.Section("Usage Numbers",
             SettingsUi.Picker("Number format", Enum.GetValues<TokenNumberStyle>(), settings.Current.NumberStyle, x => Save(settings.Current with { NumberStyle = x })),

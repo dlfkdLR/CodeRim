@@ -204,11 +204,36 @@ final class ExtendedNotchProvider: NotchProvider {
     static func safeError(_ error: Error, provider: String) -> String {
         if error is ProviderFetchError { return "\(provider) needs a configured account or supported local tool. Open provider settings for connection instructions." }
         if let classified = error as? ProviderFetchClassifiedError {
-            return "\(provider): \(classified.kind.rawValue). Check the account and connection settings, then refresh."
+            switch classified.kind {
+            case .rateLimited: return "\(provider) is limiting requests right now. CodeRim tries again on the next refresh."
+            case .providerUnavailable: return "\(provider) is temporarily unavailable. CodeRim tries again on the next refresh."
+            case .networkFailure: return "\(provider) could not be reached. Check your internet connection; CodeRim tries again on the next refresh."
+            case .parseFailure: return "\(provider) answered in a form CodeRim could not read. Try refreshing; if it continues, the service may have changed."
+            default: return "\(provider) returned an error. Check the account and connection settings, then refresh."
+            }
         }
         let value = error as NSError
-        if value.domain == NSURLErrorDomain { return "\(provider) could not be reached (network error \(value.code)). Try refreshing." }
+        if value.domain == NSURLErrorDomain { return Self.networkMessage(code: value.code, provider: provider) }
         return "\(provider) could not return usage. Check the configured credentials, required plan, and provider documentation."
+    }
+
+    /// Plain words for the network failures people actually meet, instead of a bare error number.
+    static func networkMessage(code: Int, provider: String) -> String {
+        switch code {
+        case NSURLErrorNotConnectedToInternet, NSURLErrorDataNotAllowed, NSURLErrorInternationalRoamingOff:
+            return "This Mac is offline, so \(provider) could not be reached. CodeRim tries again when you are back online."
+        case NSURLErrorTimedOut:
+            return "\(provider) took too long to answer. CodeRim tries again on the next refresh."
+        case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed:
+            return "\(provider)'s server could not be found. Check your internet connection or DNS, then refresh."
+        case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted, NSURLErrorServerCertificateHasBadDate,
+             NSURLErrorServerCertificateNotYetValid, NSURLErrorServerCertificateHasUnknownRoot, NSURLErrorClientCertificateRejected:
+            return "A secure connection to \(provider) could not be made. A proxy or security software may be intercepting it."
+        case NSURLErrorNetworkConnectionLost, NSURLErrorCannotConnectToHost:
+            return "The connection to \(provider) dropped. CodeRim tries again on the next refresh."
+        default:
+            return "\(provider) could not be reached. Check your internet connection, then refresh."
+        }
     }
 
     /// Native percentage renderers use integer text. Keep overflow and invalid ratios textual.

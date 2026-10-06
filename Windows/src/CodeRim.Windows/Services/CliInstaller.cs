@@ -10,6 +10,8 @@ internal static class CliInstaller
 
     internal static string Install(Func<string> readPath, Action<string> writePath)
     {
+        // The Store package registers `coderim` and `CodeRimCLI` as execution aliases; PATH already has them.
+        if (PackagedApp.IsPackaged) return Path.GetDirectoryName(PackagedApp.AliasPath(PackagedApp.CliAlias))!;
         var source = Path.Combine(AppContext.BaseDirectory, "CodeRimCLI.exe");
         if (!File.Exists(source)) throw new FileNotFoundException("Use the complete Windows release package.");
         var directory = Path.Combine(AppContext.BaseDirectory, "bin");

@@ -130,6 +130,8 @@ public partial class App : System.Windows.Application
     private async Task CheckUpdatesAsync()
     {
         if (settings?.Current.CheckForUpdates != true) return;
+        // Microsoft Store installs and updates its own package; the app must not replace itself.
+        if (PackagedApp.IsPackaged) return;
         if (InstallerUpdateCoordinator.IsManaged)
         {
             try
