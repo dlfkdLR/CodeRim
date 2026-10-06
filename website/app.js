@@ -162,7 +162,7 @@
     const title = t('CodeRim — 코딩의 흐름은 그대로. 사용량은 한눈에.', 'CodeRim — Stay in your flow. Keep usage in sight.');
     document.title = title;
     document.querySelector('meta[property="og:title"]').content = title;
-    const description = t('CodeRim은 AI 코딩 도구의 사용 한도, 초기화 시간, 로컬 토큰 기록을 화면 가장자리에서 보여주는 무료 오픈 소스 앱입니다. macOS와 Windows 미리보기에서 만나보세요.', 'CodeRim is a free, open-source app that keeps AI coding limits, reset countdowns, and local token history at the edge of your screen. For macOS and Windows preview.');
+    const description = t('CodeRim은 AI 코딩 도구의 사용 한도, 초기화 시간, 로컬 토큰 기록을 화면 가장자리에서 보여주는 무료 오픈 소스 앱입니다. macOS와 Windows에서 만나보세요.', 'CodeRim is a free, open-source app that keeps AI coding limits, reset countdowns, and local token history at the edge of your screen. For macOS and Windows.');
     document.querySelector('meta[name="description"]').content = description;
     document.querySelector('meta[property="og:description"]').content = description;
     updateThemeLabel();

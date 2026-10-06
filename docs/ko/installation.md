@@ -63,4 +63,4 @@ HOMEBREW_NO_INSTALL_CLEANUP=1 brew reinstall --cask --force dlfkdLR/tap/coderim
 [다음: 시작하기](getting-started.md) · [문서](README.md)
 ## Windows 11
 
-현재 설치 파일은 [2.1.15 x64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-x64-Setup.msi)와 [2.1.15 ARM64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-arm64-Setup.msi)입니다. [Windows 설치와 업데이트](windows.md)를 참고합니다.
+현재 설치 파일은 [2.1.16 x64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-x64-Setup.msi)와 [2.1.16 ARM64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-arm64-Setup.msi)입니다. [Windows 설치와 업데이트](windows.md)를 참고합니다.

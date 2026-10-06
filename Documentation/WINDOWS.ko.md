@@ -1,12 +1,12 @@
-# Windows용 CodeRim — 구현 미리보기
+# Windows용 CodeRim
 
 [English](WINDOWS.md) · **한국어**
 
-Windows 11 x64·ARM64용 WPF·.NET 10 포트입니다. macOS의 모든 기능과 동등하지 않은 구현 미리보기입니다. macOS에서 빌드한 것만으로 Windows desktop·인증·taskbar·배율·실제 제공업체 응답을 확인할 수 없습니다.
+Windows 11 x64·ARM64용 WPF·.NET 10 포트입니다. 제공업체 목록과 노치를 macOS와 공유하며, 플랫폼별 차이는 아래에 정리합니다. macOS에서 빌드한 것만으로 Windows desktop·인증·taskbar·배율·실제 제공업체 응답을 확인할 수 없습니다.
 
 ## 실행·설치
 
-해당 [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-x64-Setup.msi) 또는 [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-arm64-Setup.msi)를 실행합니다. .NET은 포함됩니다. 설치 위치는 `%LOCALAPPDATA%\Programs\CodeRim`이며 관리자 권한 없이 시작 메뉴·제거 항목을 등록하고 현재 사용자 PATH에 `bin`을 추가합니다. `coderim`을 사용하려면 새 터미널을 엽니다.
+해당 [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-x64-Setup.msi) 또는 [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-arm64-Setup.msi)를 실행합니다. .NET은 포함됩니다. 설치 위치는 `%LOCALAPPDATA%\Programs\CodeRim`이며 관리자 권한 없이 시작 메뉴·제거 항목을 등록하고 현재 사용자 PATH에 `bin`을 추가합니다. `coderim`을 사용하려면 새 터미널을 엽니다.
 
 기존 미서명 ZIP 사용자는 CodeRim을 종료하고 MSI를 한 번 설치합니다. 설정·계정·사용량은 앱 폴더 밖에 있어 유지됩니다. 이전 Authenticode 관리형 설치는 기존 서명 ZIP 채널을 계속 사용하며 공개 MSI는 이를 덮어쓰지 않습니다. 첫 MSI에는 Authenticode 게시자 인증서가 없어 SmartScreen 경고가 표시될 수 있습니다. 자동 업데이트는 아래 고정 Ed25519 릴리스 키를 사용합니다.
 

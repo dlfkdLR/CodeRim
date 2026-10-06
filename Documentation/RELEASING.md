@@ -65,7 +65,7 @@ The Store package removes the "unknown publisher" warning and installs where Sma
 1. Create a free individual developer account at [Partner Center](https://partner.microsoft.com/dashboard/registration) and finish identity verification.
 2. **Apps and games → New product → MSIX or PWA app**, reserve the name **CodeRim**.
 3. Open **Product management → Product identity** and copy *Package/Identity/Name*, *Package/Identity/Publisher* and *Package/Properties/PublisherDisplayName* into `Windows/Installer/Store/store-identity.json`.
-4. After the Windows workflow passes, download the `CodeRim-Windows-Store` artifact and upload `CodeRim-Windows-<version>.msixbundle` to a new submission. CI has already installed a test-signed copy and run the CLI and native UI through it on x64 and ARM64.
+4. After the Windows workflow passes, download the `CodeRim-Windows-Store` artifact and upload `CodeRim-Windows-<version>.msixbundle` to a new submission. CI installs a test-signed copy, checks the execution aliases and uninstalls it on x64 and ARM64; hosted runners cannot activate packaged apps, so certification is the first run of the packaged app itself.
 5. In **Submission options → restricted capabilities**, explain: *runFullTrust* — a desktop WPF app; *unvirtualizedResources* — CodeRim reads and edits the configuration of the CLI tools it monitors (for example Claude Code's status line) and shares its data folder with its own CLI, as the MSI installation does.
 6. Use `https://github.com/dlfkdLR/CodeRim/blob/main/PRIVACY.md` as the privacy policy URL. Category: Developer tools. Free.
 
