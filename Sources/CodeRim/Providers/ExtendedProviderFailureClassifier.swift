@@ -163,7 +163,21 @@ enum ExtendedProviderFailureClassifier {
              CodexBarCore.ZenMuxUsageError.apiError(let status),
              CodexBarCore.ZedStatusProbeError.httpError(let status):
             return status == 401 ? .needsAuth : (status == 403 ? permissions : nil)
-        default: return nil
+        default:
+            return missingSetting(error) ? .needsAuth : nil
         }
+    }
+
+    /// Upstream settings errors whose case says a credential was never configured
+    /// (`OpenCodeGoSettingsError.missingAPIKey` and its kind). The case name is code, not response
+    /// text, so reading it reveals nothing the user typed or a server returned.
+    static func missingSetting(_ error: Error) -> Bool {
+        let typeName = String(describing: type(of: error))
+        guard typeName.hasSuffix("SettingsError") || typeName.hasSuffix("UsageError") || typeName.hasSuffix("ProbeError") else { return false }
+        guard let caseName = Mirror(reflecting: error).children.first?.label ?? (Mirror(reflecting: error).displayStyle == .enum ? String(describing: error) : nil)
+        else { return false }
+        let name = caseName.split(separator: "(").first.map(String.init) ?? caseName
+        return ["missingAPIKey", "missingToken", "missingCredentials", "missingCookie", "notLoggedIn", "noSession", "noSessionCookie", "notConfigured"]
+            .contains(name)
     }
 }

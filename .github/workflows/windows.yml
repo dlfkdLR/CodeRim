@@ -16,7 +16,7 @@ jobs:
   test-and-package:
     if: ${{ inputs.msi_handoff != true }}
     runs-on: windows-2025
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -62,6 +62,27 @@ jobs:
           if ((Get-Command coderim).Source -ne (Join-Path $cliBin 'coderim.cmd')) { throw 'CLI is shadowed.' }
           $text = cmd /d /c 'coderim version'
           if ($LASTEXITCODE -ne 0 -or $text -notmatch 'CodeRim CLI') { throw 'Installed CLI failed.' }
+      - name: Build Microsoft Store packages
+        shell: pwsh
+        run: ./Windows/Scripts/package-msix.ps1
+      - name: Install and run the Store package on x64
+        # Windows PowerShell loads the Appx module natively; PowerShell 7 proxies it through a
+        # compatibility session that can stall on hosted runners.
+        shell: powershell
+        run: |
+          $package = (Get-ChildItem Artifacts -Filter 'CodeRim-Windows-*-x64.msix').FullName
+          ./Windows/Scripts/test-msix.ps1 -Package $package -Architecture x64
+      - name: Upload Store packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: CodeRim-Windows-Store
+          path: |
+            Artifacts/CodeRim-Windows-*.msix
+            Artifacts/CodeRim-Windows-*.msixbundle
+            Artifacts/msix-*/*.json
+            Artifacts/msix-*/*.txt
+            Artifacts/msix-*/*.png
       - name: Upload MSI release candidates
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -101,7 +122,7 @@ jobs:
     if: ${{ inputs.msi_handoff != true }}
     needs: test-and-package
     runs-on: windows-11-arm
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -160,12 +181,25 @@ jobs:
           if ((Get-Command coderim).Source -ne (Join-Path $cliBin 'coderim.cmd')) { throw 'CLI is shadowed.' }
           $text = cmd /d /c 'coderim version'
           if ($LASTEXITCODE -ne 0 -or $text -notmatch 'CodeRim CLI') { throw 'Installed CLI failed.' }
+      - name: Download the Store packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: CodeRim-Windows-Store
+          path: Artifacts/store
+      - name: Install and run the Store package natively on ARM64
+        shell: powershell
+        run: |
+          $package = (Get-ChildItem Artifacts/store -Filter 'CodeRim-Windows-*-arm64.msix').FullName
+          ./Windows/Scripts/test-msix.ps1 -Package $package -Architecture arm64
       - name: Upload ARM64 execution evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: CodeRim-Windows-ARM64-Native
           path: |
+            Artifacts/msix-*/*.json
+            Artifacts/msix-*/*.txt
+            Artifacts/msix-*/*.png
             Artifacts/windows-*.png
             Artifacts/installed/**
             Artifacts/windows-*.json

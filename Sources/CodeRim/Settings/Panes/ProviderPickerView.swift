@@ -51,6 +51,8 @@ struct ProviderPickerView: View {
             .padding(10)
             .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
 
+            attention
+
             let matches = Self.matching(catalogue, query: query)
             if matches.isEmpty {
                 ContentUnavailableView.search(text: query)
@@ -79,7 +81,7 @@ struct ProviderPickerView: View {
         }
         .padding(24)
         .frame(width: 600, height: 520)
-        .background(Color(nsColor: .windowBackgroundColor))
+        .background(.background)
         .onExitCommand(perform: onClose)
         .onAppear { if initiallyAdded == nil { initiallyAdded = selectedIDs } }
     }
@@ -122,9 +124,56 @@ struct ProviderPickerView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 12))
+        .background(SettingsCardStyle.fill, in: RoundedRectangle(cornerRadius: 12))
         .overlay(RoundedRectangle(cornerRadius: 12)
             .strokeBorder(added ? Color.accentColor.opacity(0.4) : Color.primary.opacity(0.1), lineWidth: 1))
+    }
+
+    /// What the user has to do next, in full and above the grid, for every provider that is still
+    /// signing in or could not be read. A card has no room for more than a status.
+    @ViewBuilder private var attention: some View {
+        let pending: [(ProviderRowModel, NotchController.ConnectionState)] = rows.compactMap { row in
+            guard selectedIDs.contains(row.id), let state = connection(row.id) else { return nil }
+            switch state {
+            case .waiting, .failed, .needsKey: return (row, state)
+            case .checking, .connected: return nil
+            }
+        }
+        if !pending.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(pending, id: \.0.id) { row, state in
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "exclamationmark.bubble.fill").foregroundStyle(.orange).font(.title3)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("\(row.name): finish signing in").font(.callout.weight(.semibold))
+                            Text(Self.instruction(state)).font(.callout).fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 8)
+                        if row.id == "gemini-cli" {
+                            // Google shut Gemini CLI sign-in for personal accounts in June 2026.
+                            Button("Use Antigravity") { onCancel(row.id); onAdd("gemini") }
+                                .buttonStyle(SettingsPillButtonStyle(tint: .accentColor, compact: true))
+                        }
+                        if case .failed = state {
+                            Button("Try again") { onRetry(row.id) }.buttonStyle(SettingsPillButtonStyle(tint: .accentColor, compact: true))
+                        }
+                        Button("Cancel") { onCancel(row.id) }.buttonStyle(SettingsPillButtonStyle(compact: true))
+                    }
+                }
+            }
+            .padding(12)
+            .background(Color.orange.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.orange.opacity(0.35)))
+            .transition(.opacity.combined(with: .move(edge: .top)))
+        }
+    }
+
+    static func instruction(_ state: NotchController.ConnectionState) -> String {
+        switch state {
+        case .waiting(let note), .failed(let note), .needsKey(let note): note
+        case .checking: "Checking…"
+        case .connected: "Connected."
+        }
     }
 
     @ViewBuilder private func connectionStatus(_ state: NotchController.ConnectionState, id: String) -> some View {
@@ -135,7 +184,7 @@ struct ProviderPickerView: View {
             HStack(spacing: 6) {
                 ProgressView().controlSize(.small)
                 Text("Waiting for sign-in…").foregroundStyle(.secondary).help(note)
-                Button("Cancel") { onCancel(id) }.buttonStyle(.link)
+                Button("Cancel") { onCancel(id) }.buttonStyle(.link).help("Stop signing in and remove this provider")
             }
         case .needsKey:
             Label("Enter your key", systemImage: "key.fill").foregroundStyle(.orange)

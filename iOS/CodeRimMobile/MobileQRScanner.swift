@@ -6,7 +6,6 @@ import VisionKit
 struct MobileQRScanner: View {
     let onLink: (MobilePairingLink) -> Void
     @Environment(\.dismiss) private var dismiss
-    @State private var pasted = ""
     @State private var invalid = false
 
     var body: some View {
@@ -21,17 +20,19 @@ struct MobileQRScanner: View {
                     .frame(maxHeight: 420)
                 } else {
                     ContentUnavailableView("Camera unavailable", systemImage: "camera",
-                        description: Text("Scan the code with the iPhone Camera app, or paste the link below."))
+                        description: Text("Scan the code with the iPhone Camera app instead — CodeRim opens and connects on its own."))
                 }
-                Text("On your computer, open CodeRim → Settings → iPhone and choose Connect iPhone.")
+                Text("On your computer, open CodeRim → Settings → iPhone and choose Connect iPhone. The code includes its server, so there is nothing to type.")
                     .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                HStack {
-                    TextField("coderim://pair?…", text: $pasted)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled().textFieldStyle(.roundedBorder)
-                    Button("Connect") {
-                        guard let link = MobilePairingLink(pasted) else { invalid = true; return }
-                        dismiss(); onLink(link)
-                    }.disabled(pasted.isEmpty)
+                if !(DataScannerViewController.isSupported && DataScannerViewController.isAvailable) {
+                    // A link copied from the computer, without typing it. PasteButton needs no paste permission prompt.
+                    PasteButton(payloadType: String.self) { strings in
+                        Task { @MainActor in
+                            guard let text = strings.first, let link = MobilePairingLink(text) else { invalid = true; return }
+                            dismiss(); onLink(link)
+                        }
+                    }
+                    .accessibilityIdentifier("pastePairingLink")
                 }
                 if invalid { Text("That is not a CodeRim pairing code.").font(.footnote).foregroundStyle(.red) }
             }

@@ -3,12 +3,16 @@ import CodexBarCore
 
 struct ExtendedProviderSettingsView: View {
     let descriptor: ProviderDescriptor
+    /// A connected provider keeps its settings tucked away; one that is not connected shows only
+    /// what it takes to connect: the key or session it reads, and one Connect button.
+    var isConnected = false
     @State private var configuration: ExtendedProviderConfiguration
     @State private var message: String?
     @State private var loaded = false
 
-    init(descriptor: ProviderDescriptor) {
+    init(descriptor: ProviderDescriptor, isConnected: Bool = false) {
         self.descriptor = descriptor
+        self.isConnected = isConnected
         _configuration = State(initialValue: .init(providerID: descriptor.id))
     }
 
@@ -16,16 +20,43 @@ struct ExtendedProviderSettingsView: View {
     private var localID: String { ExtendedProviderCatalog.localID(descriptor.id) }
     private var hasCookies: Bool { descriptor.id != .stepfun && (descriptor.metadata.browserCookieOrder != nil || descriptor.fetchPlan.sourceModes.contains(.web)) }
 
+    /// Anything the user can type or paste to connect this provider.
+    private var hasCredentialInputs: Bool {
+        descriptor.credentials?.supportsAPIKeyOverride == true || descriptor.credentials?.usesSecretKey == true
+            || descriptor.id == .stepfun || hasCookies || descriptor.credentials?.usesRegion == true
+            || descriptor.config.workspaceIDValidationOrder != nil || descriptor.id == .azureopenai || descriptor.id == .openai
+            || descriptor.config.supportsEnterpriseHost
+    }
+
     var body: some View {
-        SettingsSection(title: "Connection settings") {
-            VStack(alignment: .leading, spacing: 12) {
-                if let guide {
-                    Text(guide.summary).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-                    Link("Connection instructions", destination: guide.url)
+        Group {
+            if isConnected {
+                SettingsSection(title: "Connection settings") {
+                    DisclosureGroup("Show settings") { form.padding(.top, 8) }
+                        .padding(.horizontal, SettingsMetrics.rowInset).padding(.vertical, 10)
                 }
-                Picker("Source", selection: sourceBinding) {
-                    ForEach(ProviderSourceMode.allCases.filter { descriptor.fetchPlan.sourceModes.contains($0) }, id: \.rawValue) {
-                        Text($0.rawValue.capitalized).tag($0)
+            } else if hasCredentialInputs {
+                SettingsSection(title: "Connect") {
+                    form.padding(.horizontal, SettingsMetrics.rowInset).padding(.vertical, 12)
+                }
+            }
+        }
+        .task(id: localID) {
+            do { configuration = try ExtendedProviderConfigurationStore.load(descriptor, interactive: true); loaded = true }
+            catch { message = error.localizedDescription; loaded = false }
+        }
+    }
+
+    private var form: some View {
+        VStack(alignment: .leading, spacing: 12) {
+                if isConnected, let guide {
+                    Text(guide.summary).font(.callout).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+                if isConnected || descriptor.fetchPlan.sourceModes.count > 2 {
+                    Picker("Source", selection: sourceBinding) {
+                        ForEach(ProviderSourceMode.allCases.filter { descriptor.fetchPlan.sourceModes.contains($0) }, id: \.rawValue) {
+                            Text($0.rawValue.capitalized).tag($0)
+                        }
                     }
                 }
                 if descriptor.credentials?.supportsAPIKeyOverride == true {
@@ -82,23 +113,19 @@ struct ExtendedProviderSettingsView: View {
                     Toggle("Allow potentially billed monitoring requests", isOn: $configuration.allowBillableRequests)
                 }
                 HStack {
-                    Button("Save and refresh") { save() }.disabled(!loaded)
+                    Button(isConnected ? "Save and refresh" : "Connect") { save() }.disabled(!loaded)
+                        .buttonStyle(SettingsPillButtonStyle(tint: isConnected ? nil : .accentColor))
                         .accessibilityIdentifier("provider.\(localID).save")
+                    if let guide { Link("Instructions", destination: guide.url).font(.callout) }
                     if let destination = descriptor.metadata.dashboardURL.flatMap(URL.init(string:)) {
-                        Link("Open provider dashboard", destination: destination)
+                        Link(!isConnected && descriptor.credentials?.supportsAPIKeyOverride == true ? "Get a key" : "Dashboard", destination: destination).font(.callout)
                     }
                 }
                 if let message { Text(message).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
-                Text("Saved in this Mac's Keychain. Only added providers are refreshed; browser import is optional for each provider.")
+                Text("Saved in this Mac's Keychain.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
-            .textFieldStyle(.roundedBorder)
-            .padding(.horizontal, 20).padding(.vertical, 12)
-        }
-        .task(id: localID) {
-            do { configuration = try ExtendedProviderConfigurationStore.load(descriptor, interactive: true); loaded = true }
-            catch { message = error.localizedDescription; loaded = false }
-        }
+        .textFieldStyle(.roundedBorder)
     }
 
     private var apiKeyLabel: String { descriptor.credentials?.apiKeyDebugLabel ?? "API key or access token" }
@@ -120,6 +147,11 @@ struct ExtendedProviderSettingsView: View {
             }
             try ExtendedProviderConfigurationStore.save(configuration)
             NotchController.shared.providerConfigurationDidChange(localID)
+            // A provider waiting for exactly this key connects now instead of staying "Enter your key".
+            switch NotchController.shared.connectionState(for: localID) {
+            case .needsKey?, .failed?: NotchController.shared.beginConnecting(localID)
+            default: break
+            }
             message = "Saved. Refreshing this provider…"
         } catch { message = error.localizedDescription }
     }

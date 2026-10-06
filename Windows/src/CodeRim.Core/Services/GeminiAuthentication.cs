@@ -23,6 +23,18 @@ public static class GeminiAuthentication
             }
         return node.ToJsonString();
     }
+    /// <summary>The CLI is set to an API key (or another non-Google mode), from which no usage can be read.</summary>
+    public static bool UsesKey(string home)
+    {
+        try
+        {
+            var settings = Path.Combine(home, ".gemini", "settings.json");
+            if (!File.Exists(settings)) return false;
+            using var document = JsonDocument.Parse(GuardedFile.Read(settings), SettingsOptions);
+            return Text(Get(Get(document.RootElement, "security"), "auth"), "selectedType") is { } auth && auth != "oauth-personal";
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or InvalidDataException) { return false; }
+    }
     public static string? Read(string home, IEnumerable<string> npmRoots)
     {
         var settings = Path.Combine(home, ".gemini", "settings.json");

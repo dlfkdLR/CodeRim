@@ -69,7 +69,7 @@ private struct ProvidersSettingsContent: View {
                 onClose: { showsProviderPicker = false },
                 connection: { notch.connectionState(for: $0) },
                 onRetry: { notch.beginConnecting($0) },
-                onCancel: { notch.cancelConnecting($0) })
+                onCancel: { notch.removeProvider($0) })
         }
     }
 

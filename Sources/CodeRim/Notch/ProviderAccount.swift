@@ -56,7 +56,7 @@ enum SignInRoute: Equatable {
     var explanation: String {
         switch self {
         case .modal(let name):      return "Sign in to \(name) to read this account."
-        case .openApp(_, let name): return "Sign in with \(name) to read this account."
+        case .openApp(_, let name): return "\(name) opens next. Sign in there with your account and keep it running: CodeRim reads your usage from it and connects on its own."
         case .guidance(let text):   return text
         case .guided(let guided):   return guided.note
         }

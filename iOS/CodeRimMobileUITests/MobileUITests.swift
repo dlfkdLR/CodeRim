@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 
 final class MobileUITests: XCTestCase {
@@ -13,11 +14,13 @@ final class MobileUITests: XCTestCase {
         attach("settings", app.screenshot())
         if !scan.isHittable { app.swipeUp() }
         scan.tap()
-        // The Simulator has no camera: the scanner offers the Camera app and pasting.
-        let paste = app.textFields["coderim://pair?…"]
+        // The Simulator has no camera: the scanner points to the Camera app and offers a copied link.
+        // There is no field to type a server or link into.
+        XCTAssertFalse(app.textFields.firstMatch.exists)
+        UIPasteboard.general.string = "coderim://pair?r=http://example.com"
+        let paste = app.buttons["pastePairingLink"]
         XCTAssertTrue(paste.waitForExistence(timeout: 5))
-        paste.tap(); paste.typeText("coderim://pair?r=http://example.com")
-        app.buttons["Connect"].tap()
+        paste.tap()
         XCTAssertTrue(app.staticTexts["That is not a CodeRim pairing code."].waitForExistence(timeout: 5))
         attach("settings-scanner", app.screenshot())
         app.terminate()

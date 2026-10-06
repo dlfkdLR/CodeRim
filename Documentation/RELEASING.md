@@ -58,6 +58,19 @@ Scripts/release_public.sh
 
 Windows MSI versions can advance independently of the macOS DMG. CodeRim 2.1.13 intentionally aligns the macOS and Windows version, but future platform releases can diverge again. Update each platform's links from actual release assets; the overall GitHub latest-release endpoint is not a macOS-version oracle. Package/test x64 and ARM64 installers separately. MSI signatures/manifests use the pinned Ed25519 update trust; Authenticode publisher signing is a distinct condition. See [Windows packaging and recovery](WINDOWS.md#updates).
 
+## Microsoft Store (free signing)
+
+The Store package removes the "unknown publisher" warning and installs where Smart App Control blocks unsigned MSIs, without buying a certificate: Microsoft signs the package after certification.
+
+1. Create a free individual developer account at [Partner Center](https://partner.microsoft.com/dashboard/registration) and finish identity verification.
+2. **Apps and games → New product → MSIX or PWA app**, reserve the name **CodeRim**.
+3. Open **Product management → Product identity** and copy *Package/Identity/Name*, *Package/Identity/Publisher* and *Package/Properties/PublisherDisplayName* into `Windows/Installer/Store/store-identity.json`.
+4. After the Windows workflow passes, download the `CodeRim-Windows-Store` artifact and upload `CodeRim-Windows-<version>.msixbundle` to a new submission. CI has already installed a test-signed copy and run the CLI and native UI through it on x64 and ARM64.
+5. In **Submission options → restricted capabilities**, explain: *runFullTrust* — a desktop WPF app; *unvirtualizedResources* — CodeRim reads and edits the configuration of the CLI tools it monitors (for example Claude Code's status line) and shares its data folder with its own CLI, as the MSI installation does.
+6. Use `https://github.com/dlfkdLR/CodeRim/blob/main/PRIVACY.md` as the privacy policy URL. Category: Developer tools. Free.
+
+The Store version never runs the in-app MSI updater; later versions are new submissions of the bundle.
+
 ## Rollback
 
 Withdraw an affected release and restore the previous signed appcast as authorized, documenting database compatibility. Never rebuild an old published version or move its tag; issue a new patch. Release, push, merge, tap writes, installation, and deployment each require the user's authorized scope.

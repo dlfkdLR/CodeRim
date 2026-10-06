@@ -22,8 +22,14 @@ final class ProviderConnectorTests: XCTestCase {
         .guided(.init(name: "Tool", action: action, note: "Sign in to Tool."))
     }
     private func connector(_ provider: FakeProvider, connects: @escaping (String) async -> Bool,
-                           launch: @escaping (SignInRoute) -> Bool = { _ in true }, patience: TimeInterval = 5) -> ProviderConnector {
+                           launch: @escaping (SignInRoute) -> Bool = { _ in true }, patience: TimeInterval = 5,
+                           preflight: @escaping (SignInRoute) -> String? = { _ in nil },
+                           openInstallPage: @escaping (SignInRoute) -> Void = { _ in },
+                           runInApp: @escaping (InAppSignIn, @escaping @MainActor (String) -> Void) async -> InAppSignInRunner.Outcome = { _, _ in .failed("not in tests") },
+                           allowBrowserSession: @escaping (String) -> Void = { _ in }) -> ProviderConnector {
         ProviderConnector(provider: { $0 == provider.id ? provider : nil }, connects: connects, launch: launch,
+                          preflight: preflight, openInstallPage: openInstallPage,
+                          runInApp: runInApp, allowBrowserSession: allowBrowserSession,
                           pollInterval: .milliseconds(10), patience: patience)
     }
     private func settle(_ connector: ProviderConnector, _ id: String, until done: (ProviderConnector.State?) -> Bool) async {
@@ -48,6 +54,46 @@ final class ProviderConnectorTests: XCTestCase {
         XCTAssertEqual(connector.states["p"], .connected)
         XCTAssertEqual(launched, 1, "the login page opens once, not on every poll")
         XCTAssertGreaterThanOrEqual(checks, 4)
+    }
+
+    func testAMissingCommandFailsPlainlyInsteadOfOpeningAnEmptyTerminal() async {
+        let provider = FakeProvider("p", route: guided(.terminal(command: "nonexistent-tool login")))
+        var launched = 0, pages = 0
+        let connector = connector(provider, connects: { _ in false }, launch: { _ in launched += 1; return true },
+                                  preflight: { SignInLauncher.problem(with: $0) }, openInstallPage: { _ in pages += 1 })
+        connector.begin("p")
+        await settle(connector, "p") { if case .failed = $0 { true } else { false } }
+        guard case .failed(let reason) = connector.states["p"] else { return XCTFail("expected failure") }
+        XCTAssertTrue(reason.contains("nonexistent-tool")); XCTAssertEqual(launched, 0); XCTAssertEqual(pages, 1)
+    }
+
+    func testAnInAppSignInShowsItsStepsAndConnectsWhenItFinishes() async {
+        let provider = FakeProvider("p", route: guided(.inApp(.githubDevice)))
+        var checks = 0, notes: [String] = []
+        let connector = connector(provider, connects: { _ in checks += 1; return checks >= 2 },
+            runInApp: { _, update in update("Enter the code ABCD-1234"); notes.append("ran"); return .signedIn })
+        connector.begin("p")
+        await settle(connector, "p") { $0 == .connected }
+        XCTAssertEqual(connector.states["p"], .connected); XCTAssertEqual(notes, ["ran"])
+    }
+
+    func testAFailedInAppSignInSaysWhy() async {
+        let provider = FakeProvider("p", route: guided(.inApp(.antigravityGoogle)))
+        let connector = connector(provider, connects: { _ in false }, runInApp: { _, _ in .failed("Install the Antigravity app first") })
+        connector.begin("p")
+        await settle(connector, "p") { if case .failed = $0 { true } else { false } }
+        XCTAssertEqual(connector.states["p"], .failed("Install the Antigravity app first"))
+    }
+
+    func testAWebsiteSignInTurnsOnBrowserSessionImportFirst() async {
+        let provider = FakeProvider("p", route: .guided(.init(name: "Tool", action: .browser(URL(string: "https://example.com")!),
+                                                              note: "Sign in.", importsBrowserSession: true)))
+        var allowed: [String] = []
+        let connector = connector(provider, connects: { _ in false }, allowBrowserSession: { allowed.append($0) })
+        connector.begin("p")
+        await settle(connector, "p") { if case .waiting = $0 { true } else { false } }
+        XCTAssertEqual(allowed, ["p"])
+        connector.cancel("p")
     }
 
     func testAKeyProviderGoesStraightToItsSettings() async {

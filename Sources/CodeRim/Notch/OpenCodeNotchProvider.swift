@@ -30,7 +30,8 @@ final class OpenCodeNotchProvider: NotchProvider {
 
     var signInRoute: SignInRoute {
         .guided(.init(name: "OpenCode", action: .terminal(command: "opencode auth login"),
-            note: "A Terminal window runs `opencode auth login`. Choose OpenCode Go there and CodeRim connects on its own."))
+            note: "A Terminal window runs `opencode auth login`. Choose OpenCode Go there and CodeRim connects on its own.",
+            installURL: URL(string: "https://opencode.ai")))
     }
 
     func account() -> ProviderAccount? {

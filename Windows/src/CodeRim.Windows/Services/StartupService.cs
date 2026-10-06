@@ -11,6 +11,10 @@ internal static class StartupService
     internal sealed record Registration(object? Value, RegistryValueKind Kind);
     internal sealed record Status(bool Enabled, bool CanChange, string Text, bool ShowSystemSettings = false);
 
+    /// <summary>The Run command for this installation: the executable, or the Store package's app id.</summary>
+    internal static string? ExpectedCommand() => CodeRim.Core.Services.PackagedApp.StartupCommand
+        ?? (Environment.ProcessPath is { } processPath ? $"\"{processPath}\"" : null);
+
     internal static Registration ReadRegistration()
     {
         using var key = Registry.CurrentUser.OpenSubKey(RunKey);
@@ -32,7 +36,7 @@ internal static class StartupService
             var registration = ReadRegistration();
             if (registration.Value is null) return new(false, true, "Disabled");
             if (registration.Value is not string command || registration.Kind != RegistryValueKind.String
-                || Environment.ProcessPath is not { } processPath || !string.Equals(command.Trim(), "\"" + processPath + "\"", StringComparison.OrdinalIgnoreCase))
+                || ExpectedCommand() is not { } expected || !string.Equals(command.Trim(), expected, StringComparison.OrdinalIgnoreCase))
                 return new(false, true, "Registered to another installation", true);
             using var approval = Registry.CurrentUser.OpenSubKey(ApprovalKey);
             var value = approval?.GetValue(ValueName);
@@ -57,9 +61,8 @@ internal static class StartupService
             ?? throw new InvalidOperationException("The Windows startup registry key is unavailable.");
         if (enabled)
         {
-            var processPath = Environment.ProcessPath
+            var command = ExpectedCommand()
                 ?? throw new InvalidOperationException("The CodeRim executable path is unavailable.");
-            var command = $"\"{processPath}\"";
             if (command.Length > 260)
             {
                 throw new InvalidOperationException("The CodeRim executable path is too long for startup registration.");

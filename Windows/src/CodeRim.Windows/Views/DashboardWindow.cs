@@ -226,8 +226,12 @@ internal sealed partial class DashboardWindow : Window
         AddStartupSection();
         body.Children.Add(SettingsUi.Section("Refresh", SettingsUi.Picker("Mode", RefreshOptions, settings.Current.AutomaticRefresh ? -1 : settings.Current.RefreshIntervalSeconds, x => Save(settings.Current with { RefreshIntervalSeconds = x == -1 ? 60 : x, AutomaticRefresh = x == -1 }))));
         body.Children.Add(SettingsUi.Note("Automatic reacts to session changes with a one-minute fallback check."));
-        body.Children.Add(SettingsUi.Section("Updates", SettingsUi.Toggle("Automatically check for updates", settings.Current.CheckForUpdates, x => Save(settings.Current with { CheckForUpdates = x }))));
-        body.Children.Add(SettingsUi.Note("Checks GitHub once per day and downloads verified updates for Setup installations. Restart from Information to install. Token usage data is never sent."));
+        if (PackagedApp.IsPackaged) body.Children.Add(SettingsUi.Section("Updates", SettingsUi.Value("Updates", "Delivered by Microsoft Store")));
+        else
+        {
+            body.Children.Add(SettingsUi.Section("Updates", SettingsUi.Toggle("Automatically check for updates", settings.Current.CheckForUpdates, x => Save(settings.Current with { CheckForUpdates = x }))));
+            body.Children.Add(SettingsUi.Note("Checks GitHub once per day and downloads verified updates for Setup installations. Restart from Information to install. Token usage data is never sent."));
+        }
         body.Children.Add(SettingsUi.Section("Calendar", SettingsUi.Picker("Week starts on", Enum.GetValues<WeekStart>(), settings.Current.WeekStart, x => { Save(settings.Current with { WeekStart = x }); _ = store.RefreshAsync(); })));
         body.Children.Add(SettingsUi.Section("Usage Numbers",
             SettingsUi.Picker("Number format", Enum.GetValues<TokenNumberStyle>(), settings.Current.NumberStyle, x => Save(settings.Current with { NumberStyle = x })),
@@ -388,12 +392,22 @@ internal sealed partial class DashboardWindow : Window
         // starts its own sign-in and is watched until the account appears. A provider that needs a
         // pasted key opens on its settings, instead of leaving a second "Set up" step to find.
         if (addedIds.Count == 0) { Render(); return; }
-        foreach (var id in addedIds) if (id != "claude") connector.Begin(id);
+        foreach (var id in addedIds) if (id != "claude") { justAdded.Add(id); connector.Begin(id); }
         if (addedIds.Contains("claude")) { _ = ConnectAddedClaudeAsync(); return; }
         Navigate(addedIds[^1]);
     }
     // One watcher for the window: a sign-in started here keeps being watched while the user moves between pages.
     private ProviderConnector? connectorField;
+    // Providers added from the picker whose first sign-in has not finished: cancelling it undoes the add,
+    // so an abandoned sign-in never leaves a provider behind.
+    private readonly HashSet<string> justAdded = new(StringComparer.Ordinal);
+    private void CancelConnecting(string id)
+    {
+        connector.Cancel(id);
+        if (!justAdded.Remove(id)) return;
+        Save(settings.Current with { EnabledProviders = settings.Current.EnabledProviders.Where(x => x != id).ToArray() });
+        if (connectionBannerId == id) Navigate("providers");
+    }
     private ProviderConnector connector => connectorField ??= CreateConnector();
     private ProviderConnector CreateConnector()
     {
@@ -402,13 +416,39 @@ internal sealed partial class DashboardWindow : Window
                 await store.RefreshProviderAsync(id).ConfigureAwait(true);
                 return store.Readings.GetValueOrDefault(id)?.State is ReadingState.Ready or ReadingState.Partial;
             },
-            ProviderSignInLauncher.Launch);
+            ProviderSignInLauncher.Launch,
+            openInstallPage: plan => { if (plan.InstallUrl is { } url) ProviderSignInLauncher.Launch(new SignInPlan(SignInKind.Browser, plan.Name, null, url, plan.Note)); },
+            runInApp: RunInAppSignInAsync,
+            // A reading that can never succeed by waiting longer — a plan without usage, a disabled source.
+            blocker: id => store.Readings.GetValueOrDefault(id) is { State: ReadingState.Unsupported or ReadingState.Disabled } reading
+                ? reading.Message ?? "This account cannot be read. Check its plan and settings." : null);
         created.Changed += () => Dispatcher.BeginInvoke(new Action(() =>
         {
+            justAdded.RemoveWhere(id => created.StateOf(id)?.Phase == ProviderConnector.Phase.Connected);
             UpdateConnectionBanner();
             if (page == "providers") Render();
         }));
         return created;
+    }
+    private static readonly System.Net.Http.HttpClient SignInHttp = new() { Timeout = TimeSpan.FromSeconds(30) };
+    /// <summary>Sign-ins CodeRim runs itself, storing what they return in its own credential vault.</summary>
+    // The flows resume off the UI thread; what they store goes back through the dispatcher to the store.
+    private async Task<InAppOutcome> RunInAppSignInAsync(InAppKind kind, Action<string> update, CancellationToken cancellation)
+    {
+        void Open(Uri url) => ProviderSignInLauncher.Launch(new SignInPlan(SignInKind.Browser, "", null, url, ""));
+        switch (kind)
+        {
+            case InAppKind.GitHubDevice:
+                return await GitHubDeviceFlow.RunAsync(SignInHttp, update, Open,
+                    code => Dispatcher.Invoke(() => { try { Clipboard.SetText(code); } catch (System.Runtime.InteropServices.COMException) { } }),
+                    token => Dispatcher.Invoke(() => { vault.Save("provider:copilot", token); store.InvalidateAccount("copilot"); }), cancellation).ConfigureAwait(true);
+            case InAppKind.AntigravityGoogle:
+                return await AntigravityGoogleSignIn.RunAsync(ProviderSignIn.AntigravityClient(), SignInHttp, update,
+                    url => { Open(url); return true; },
+                    json => Dispatcher.Invoke(() => { vault.Save("provider:gemini", json); store.InvalidateAccount("gemini"); }), cancellation).ConfigureAwait(true);
+            default:
+                return InAppOutcome.Failed("This sign-in is not available.");
+        }
     }
     private StackPanel? connectionBanner; private string? connectionBannerId;
     private void ResetConnectionBanner() { connectionBanner = null; connectionBannerId = null; }
@@ -440,9 +480,22 @@ internal sealed partial class DashboardWindow : Window
         };
         var label = Ui.Text(text, 12, "#A6A6AA"); label.TextWrapping = TextWrapping.Wrap; connectionBanner.Children.Add(label);
         var busy = state?.Phase is ProviderConnector.Phase.Checking or ProviderConnector.Phase.Waiting;
-        if (busy) connectionBanner.Children.Add(Ui.Button("Cancel", () => connector.Cancel(id)));
-        else if (state?.Phase != ProviderConnector.Phase.Connected && !plan.OpensSettings)
-            connectionBanner.Children.Add(Ui.Button(plan.Kind == SignInKind.Terminal ? "Sign in to " + plan.Name : "Sign in", () => connector.Begin(id)));
+        if (!busy && state?.Phase != ProviderConnector.Phase.Connected && !plan.OpensSettings)
+            connectionBanner.Children.Add(Ui.Button(state?.Phase == ProviderConnector.Phase.Failed ? "Try again"
+                : plan.Kind is SignInKind.Terminal or SignInKind.InApp ? "Sign in to " + plan.Name
+                : plan.Kind == SignInKind.Guidance ? "Check again" : "Sign in", () => connector.Begin(id)));
+        // A provider whose first sign-in is unfinished can be abandoned, which also takes it off the list.
+        if (busy || (justAdded.Contains(id) && state?.Phase != ProviderConnector.Phase.Connected))
+            connectionBanner.Children.Add(Ui.Button("Cancel", () => CancelConnecting(id)));
+        // Google shut Gemini CLI sign-in for personal accounts in June 2026; Antigravity reads the same allowance.
+        if (id == "gemini-cli" && state?.Phase != ProviderConnector.Phase.Connected)
+            connectionBanner.Children.Add(Ui.Button("Use Antigravity", () =>
+            {
+                CancelConnecting("gemini-cli");
+                if (!settings.Current.EnabledProviders.Contains("gemini", StringComparer.Ordinal))
+                    Save(settings.Current with { EnabledProviders = [..settings.Current.EnabledProviders, "gemini"] });
+                Navigate("gemini"); connector.Begin("gemini");
+            }));
     }
     private async Task ConnectAddedClaudeAsync()
     {
@@ -517,7 +570,7 @@ internal sealed partial class DashboardWindow : Window
         UpdateProviderReading(id);
         var connectionStart = body.Children.Count;
         if (provider.HasLocalHistory) Ui.Section(body, "Connection");
-        if (id == "copilot") body.Children.Add(Ui.Text("Uses your current GitHub CLI sign-in. Sign in with gh auth login, or provide an access token below.", 12));
+        if (id == "copilot") body.Children.Add(Ui.Text("Uses your GitHub CLI sign-in when there is one. Otherwise choose Sign in to GitHub — CodeRim shows a code to approve on github.com — or paste an access token below.", 12));
         if (id == "glm") body.Children.Add(Ui.Text("Detects a GLM login from Claude Code, ZCode or OpenCode. A key entered below takes precedence.", 12));
         if (id == "codebuff") body.Children.Add(Ui.Text("Uses your current Codebuff CLI sign-in. A key entered below takes precedence.", 12));
         if (id == "jetbrains") body.Children.Add(Ui.Text("Reads the latest AI Assistant quota from your JetBrains IDE settings. Enable AI Assistant and refresh its usage in the IDE."));
@@ -785,7 +838,7 @@ internal sealed partial class DashboardWindow : Window
                 if (source == "web") { body.Children.Add(Ui.Text("Amp Web session cookie")); AddSecretField("cookie:amp", id, "Save cookie"); }
                 else if (source == "api") { body.Children.Add(Ui.Text("Amp API key")); AddSecretField("provider:amp", id, "Save credential"); }
             }
-            else if (id != "wayfinder" && (id != "gemini" || AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, "ANTIGRAVITY_USAGE_SOURCE")) == "oauth")) { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
+            else if (id != "wayfinder" && (id != "gemini" || AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, "ANTIGRAVITY_USAGE_SOURCE")) == "oauth")) { AddKeyLink(id); body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
         }
         else if (!HasConnector(id)) body.Children.Add(Ui.Text("This provider's Windows integration is still pending. Adding it does not create a live connection.", color: "#F2C66D"));
         AddChromiumConnection(id);
@@ -867,6 +920,14 @@ internal sealed partial class DashboardWindow : Window
     private static readonly string[] AlibabaRegions = ["International · Team", "International · Personal", "China · Team", "China · Personal"];
     private static readonly string[] MiniMaxRegions = ["Global", "China"];
     private static readonly string[] StepFunModes = ["Auto", "Manual"];
+    /// <summary>Until a provider connects, point at the page where its key is created, as macOS does.</summary>
+    private void AddKeyLink(string id)
+    {
+        if (store.Readings.GetValueOrDefault(id)?.State is ReadingState.Ready or ReadingState.Partial || ProviderAccountLinks.UsagePage(id) is not { } page) return;
+        var link = SettingsUi.Link("Get a key", page, "M10,2 A4,4 0 1 1 9.99,2 M7.5,8.5 L2,14 M4,12 L5.5,13.5", _ => OpenUrl(page.AbsoluteUri));
+        System.Windows.Automation.AutomationProperties.SetAutomationId(link, "provider.getKey");
+        body.Children.Add(link);
+    }
     private void AddSecretField(string key, string id, string label)
     {
         var password = new PasswordBox { MaxLength = id == "factory" ? 262144 : id == "minimax" ? 65536 : 32768, Padding = new Thickness(8), Margin = new Thickness(0, 6, 0, 8) }; body.Children.Add(password);
@@ -877,7 +938,10 @@ internal sealed partial class DashboardWindow : Window
             if (key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password.Length == 0 : string.IsNullOrWhiteSpace(password.Password)) return;
             if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal) && MiniMaxAuthentication.Parse(password.Password, key.Split(':')[^1]) is null)
             { result.Text = "Enter a valid cookie or copied request for this region."; return; }
-            try { vault.Save(key, key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password : password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal)) vault.Delete("browser:minimax:" + key.Split(':')[^1]); ClearChromiumForManual(id, key); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
+            try { vault.Save(key, key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password : password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal)) vault.Delete("browser:minimax:" + key.Split(':')[^1]); ClearChromiumForManual(id, key); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved.";
+                // A provider waiting for exactly this key connects now instead of staying "Enter your key".
+                if (connectorField?.StateOf(id)?.Phase is ProviderConnector.Phase.NeedsKey or ProviderConnector.Phase.Failed) connector.Begin(id);
+                else _ = store.RefreshProviderAsync(id); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { result.Text = "Could not save the setting."; }
         }));
         body.Children.Add(Ui.Button("Remove saved value", () =>

@@ -54,7 +54,17 @@ internal sealed class MobileSettingsSection : StackPanel
             pairing.Visibility = offering ? Visibility.Visible : Visibility.Collapsed;
             connected.Visibility = connection.Connected ? Visibility.Visible : Visibility.Collapsed;
             relayRow.Visibility = string.IsNullOrEmpty(MobileConnectionStore.DefaultRelay) || connection.RelayAddress != MobileConnectionStore.DefaultRelay ? Visibility.Visible : Visibility.Collapsed;
-            if (connection.PairingLink != shown) { shown = connection.PairingLink; code.Source = shown is null ? null : QRCode(shown); }
+            if (connection.PairingLink != shown)
+            {
+                shown = connection.PairingLink; code.Source = shown is null ? null : QRCode(shown);
+                // A new code scrolls to the middle of the page, so it is never left below the fold.
+                if (shown is not null) Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded, new Action(() =>
+                {
+                    var viewport = (FindAncestor<ScrollViewer>(this)?.ViewportHeight ?? 0) - offer.ActualHeight;
+                    var pad = Math.Max(0, viewport / 2);
+                    offer.BringIntoView(new Rect(0, -pad, offer.ActualWidth, offer.ActualHeight + 2 * pad));
+                }));
+            }
             if (offering) clock.Start(); else clock.Stop();
             IsEnabled = !connection.Busy; state.Text = connection.Status; message.Text = connection.Status;
             notice.Text = connection.ServerNotice ?? ""; notice.Visibility = connection.ServerNotice is null ? Visibility.Collapsed : Visibility.Visible;
@@ -63,6 +73,12 @@ internal sealed class MobileSettingsSection : StackPanel
         Loaded += (_, _) => { connection.PropertyChanged += handler; Refresh(); };
         Unloaded += (_, _) => { connection.PropertyChanged -= handler; clock.Stop(); };
         Refresh();
+    }
+    private static T? FindAncestor<T>(DependencyObject child) where T : DependencyObject
+    {
+        for (var node = System.Windows.Media.VisualTreeHelper.GetParent(child); node is not null; node = System.Windows.Media.VisualTreeHelper.GetParent(node))
+            if (node is T found) return found;
+        return null;
     }
     private static BitmapImage QRCode(string text)
     {

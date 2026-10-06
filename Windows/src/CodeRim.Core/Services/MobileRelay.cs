@@ -123,7 +123,7 @@ public sealed class MobileRelayClient : IDisposable
             throw new InvalidDataException("Relay token expiry is invalid.");
         return issued;
     }
-    private static void ValidateBearerToken(string token)
+    public static void ValidateBearerToken(string token)
     {
         if (string.IsNullOrEmpty(token) || token.Length is < 32 or > 128 || token.Any(character =>
                 character is not (>= 'A' and <= 'Z')

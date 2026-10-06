@@ -23,15 +23,17 @@ public sealed class ProviderSignInTests
                 case SignInKind.Settings:
                     Assert.True(plan.OpensSettings);
                     break;
+                case SignInKind.InApp:
+                    Assert.NotNull(plan.InApp);
+                    break;
             }
         }
     }
 
     [Theory]
     [InlineData("codex", SignInKind.Terminal, "codex login")]
-    [InlineData("copilot", SignInKind.Terminal, "gh auth login --web")]
+    [InlineData("copilot", SignInKind.InApp, null)]
     [InlineData("grok", SignInKind.Terminal, "grok login")]
-    [InlineData("gemini", SignInKind.Browser, null)]
     [InlineData("perplexity", SignInKind.Browser, null)]
     [InlineData("deepseek", SignInKind.Settings, null)]
     [InlineData("openai", SignInKind.Settings, null)]

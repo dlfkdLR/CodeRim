@@ -227,12 +227,17 @@ extension MobileLifecycleTests {
         XCTAssertFalse(calls.contains("POST /v1/accounts"))
         XCTAssertEqual(model.errorMessage, "This QR code has expired or was already used. Show a new one on your computer.")
     }
-    func testAComputerOnAnotherRelayIsNotJoinedSilently() async throws {
+    /// The QR code names its computer's server: scanning it connects there without typing an address.
+    func testAComputerOnAnotherRelayIsJoinedOnItsOwnServer() async throws {
         let relay = PairingRelay()
-        let model = MobileAppModel(credentials: MemoryCredentials(credential()), makeClient: { _ in relay })
+        let storage = MemoryCredentials(credential())
+        let model = MobileAppModel(credentials: storage, makeClient: { _ in relay })
         await model.restore()
-        await model.connect(MobilePairingLink(relay: URL(string: "https://other.example.com")!, id: link.id, secret: link.secret))
+        let other = URL(string: "https://other.example.com")!
+        await model.connect(MobilePairingLink(relay: other, id: link.id, secret: link.secret))
         let calls = await relay.calls
-        XCTAssertFalse(calls.contains("POST /v1/pairing/claim")); XCTAssertNotNil(model.errorMessage)
+        XCTAssertEqual(Array(calls.filter { !$0.hasPrefix("GET ") }.prefix(3)), ["DELETE /v1/session", "POST /v1/accounts", "POST /v1/pairing/claim"])
+        XCTAssertNil(model.errorMessage)
+        let stored = try await storage.load(); XCTAssertEqual(stored?.endpoint, other)
     }
 }

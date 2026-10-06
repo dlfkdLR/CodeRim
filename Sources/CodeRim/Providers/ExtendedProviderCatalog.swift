@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import CodexBarCore
 
@@ -50,13 +51,29 @@ extension ExtendedProviderCatalog {
     /// a website session opens its login page, an API key opens its settings, and a
     /// tool with a login command runs it. Anything else keeps its written guidance.
     static func signInRoute(for descriptor: ProviderDescriptor, displayName: String) -> SignInRoute {
+        if descriptor.id == .gemini { return geminiSignInRoute(displayName: displayName) }
+        if descriptor.id == .kiro {
+            return .guided(.init(name: displayName, action: .terminal(command: "kiro-cli login"),
+                note: "A Terminal window runs `kiro-cli login`. Finish it in your browser and CodeRim connects on its own.",
+                installURL: URL(string: "https://kiro.dev/cli/")))
+        }
+        if descriptor.id == .jetbrains {
+            let ides = ["com.jetbrains.intellij", "com.jetbrains.intellij.ce", "com.jetbrains.pycharm", "com.jetbrains.WebStorm",
+                        "com.jetbrains.goland", "com.jetbrains.CLion", "com.jetbrains.rider", "com.jetbrains.PhpStorm", "com.google.android.studio"]
+            if let ide = ides.first(where: { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) != nil }),
+               let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: ide) {
+                return .openApp(bundleID: ide, name: url.deletingPathExtension().lastPathComponent)
+            }
+            return .guidance("Install a JetBrains IDE, sign in to JetBrains AI there and use it once. CodeRim reads the IDE's own quota file.")
+        }
         let modes = descriptor.fetchPlan.sourceModes
         let summary = guide(for: localID(descriptor.id))?.summary ?? ""
         let page = [descriptor.metadata.dashboardURL, descriptor.metadata.subscriptionDashboardURL]
             .compactMap { $0 }.compactMap(URL.init(string:)).first { $0.scheme == "https" }
         if let page, modes.contains(.web) || descriptor.metadata.browserCookieOrder != nil {
             return .guided(.init(name: displayName, action: .browser(page),
-                note: "Sign in on the \(displayName) website in your browser. CodeRim reads the signed-in session and connects on its own."))
+                note: "Sign in on the \(displayName) website in your browser. CodeRim then reads that browser session — if macOS asks to let CodeRim use your browser's saved data, choose Always Allow.",
+                importsBrowserSession: true))
         }
         if modes.contains(.api), !modes.contains(.web), !modes.contains(.oauth), !modes.contains(.cli) {
             return .guided(.init(name: displayName, action: .settings,
@@ -67,6 +84,43 @@ extension ExtendedProviderCatalog {
                 note: "Sign in to \(displayName), create an API key, and paste it in the provider's settings."))
         }
         return .guidance("Configure \(displayName) in its provider settings. " + summary)
+    }
+}
+
+extension ExtendedProviderCatalog {
+    /// Gemini reads the Google sign-in the Gemini CLI keeps, so there is no key to paste:
+    /// the CLI's first run offers "Login with Google" and writes that sign-in itself.
+    static func geminiSignInRoute(displayName: String, home: URL = FileManager.default.homeDirectoryForCurrentUser,
+                                  searchPath: [String] = (ProcessInfo.processInfo.environment["PATH"] ?? "").split(separator: ":").map(String.init)) -> SignInRoute {
+        let candidates = searchPath + ["/usr/local/bin", "/opt/homebrew/bin", home.appendingPathComponent(".npm-global/bin").path,
+                                        home.appendingPathComponent(".local/bin").path]
+        let cli = candidates.map { $0 + "/gemini" }.first { FileManager.default.isExecutableFile(atPath: $0) }
+        if let cli {
+            // A CLI set to an API key never offers Google sign-in by itself, and CodeRim cannot read
+            // usage from a key: say so up front instead of leaving the sign-in waiting forever.
+            if usesKeyAuthentication(home: home) {
+                return .guided(.init(name: displayName, action: .terminal(command: cli),
+                    note: "Your Gemini CLI is set to an API key, which CodeRim cannot read usage from. In Terminal: type /auth, choose Sign in with Google, finish in your browser, then type /quit. Personal Google accounts can no longer sign in through the Gemini CLI; if Google refuses, add Antigravity instead.",
+                    hint: "Gemini is set to an API key, but CodeRim reads the Google sign-in.\n1. Type /auth and press Enter.\n2. Choose Sign in with Google and finish in your browser.\n3. When it says Authentication succeeded, type /quit.\nIf Google says this client is no longer supported for individuals, personal accounts moved to Antigravity: close this window and add Antigravity in CodeRim instead."))
+            }
+            return .guided(.init(name: displayName, action: .terminal(command: cli),
+                note: "Personal Google accounts (including AI Pro and Ultra) can no longer sign in to Gemini CLI — choose Use Antigravity instead. For a Workspace or education account, a Terminal window opens Gemini: choose Sign in with Google, then type /quit.",
+                hint: "1. Choose Sign in with Google and finish in your browser.\n2. When it says Authentication succeeded, type /quit.\nIf Google says this client is no longer supported for individuals, personal accounts moved to Antigravity: close this window and add Antigravity in CodeRim instead."))
+        }
+        return .guided(.init(name: displayName,
+            action: .browser(URL(string: "https://github.com/google-gemini/gemini-cli#quickstart")!),
+            note: "Install the Gemini CLI from this page, then choose Sign in again: it signs in with your Google account."))
+    }
+}
+
+extension ExtendedProviderCatalog {
+    static func usesKeyAuthentication(home: URL) -> Bool {
+        let path = home.appendingPathComponent(".gemini/settings.json")
+        guard let data = try? Data(contentsOf: path),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let type = ((json["security"] as? [String: Any])?["auth"] as? [String: Any])?["selectedType"] as? String
+        else { return false }
+        return type != "oauth-personal"
     }
 }
 

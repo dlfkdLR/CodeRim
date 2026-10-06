@@ -12,7 +12,7 @@ permissions:
 jobs:
   build-and-test:
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1f # v7
       - name: Swift version
@@ -25,6 +25,13 @@ jobs:
         env:
           CODERIM_ACCOUNT_CAPTURE_DIR: ${{ github.workspace }}/.impeccable/review/accounts
         run: python3 Scripts/prepare_swift_dependencies.py --run-swift test -Xswiftc -warnings-as-errors
+      - name: Provider matrices (one test per provider and situation)
+        run: |
+          bundle="$(find .build -type d \( -name CodeRimPackageTests.xctest -o -name CodeRimTests.xctest \) -prune -print 2>/dev/null | head -1)"
+          test -n "$bundle"
+          # swift test lists methods statically; these suites build one case per provider and situation.
+          xcrun xctest -XCTest CodeRimTests.ProviderFetchMatrixTests "$bundle"
+          xcrun xctest -XCTest CodeRimTests.ProviderAddFlowMatrixTests "$bundle"
       - name: Upload synthetic account layout captures on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

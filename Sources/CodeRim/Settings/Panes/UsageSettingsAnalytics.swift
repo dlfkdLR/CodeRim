@@ -225,7 +225,8 @@ struct UsageSettingsAnalytics: View {
             }
             if sessions.count > 5 {
                 Button(state.showsAllSessions ? "Show less" : "Show more") { state.showsAllSessions.toggle() }
-                    .controlSize(.small).accessibilityIdentifier("settings.usage.moreSessions")
+                    .buttonStyle(SettingsPillButtonStyle(compact: true))
+                    .accessibilityIdentifier("settings.usage.moreSessions")
             }
         }
     }

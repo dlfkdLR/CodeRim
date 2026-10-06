@@ -456,6 +456,14 @@ public sealed partial class NativeProviders : IDisposable
             if (LedgerIds.Contains(id)) return await FetchLedger(id, url => GetJson(url), token).ConfigureAwait(false);
             if (SubscriptionIds.Contains(id)) return await FetchSubscription(id, setting, url => GetJson(url)).ConfigureAwait(false);
             if (id == "ibmbob") return await FetchBob((url, headers) => GetJson(url, headers)).ConfigureAwait(false);
+            if (id == "wayfinder" && setting("WAYFINDER_GATEWAY_URL") is null)
+            {
+                // Nothing configured means the default gateway on this PC; when it is not running that is
+                // a setup step, not a failure.
+                try { return Parse(id, await ManagementPayloads(id, setting, url => GetJson(url)).ConfigureAwait(false)); }
+                catch (Exception error) when (error is HttpRequestException or IOException or InvalidDataException or JsonException or ProviderRequestException)
+                { return new(id, ReadingState.NeedsAuth, [], Message: "Start the Wayfinder gateway on this PC, or set its gateway URL in Settings."); }
+            }
             if (ManagementIds.Contains(id)) return Parse(id, await ManagementPayloads(id, setting, url => GetJson(url)).ConfigureAwait(false));
             var endpoint = id switch
             {

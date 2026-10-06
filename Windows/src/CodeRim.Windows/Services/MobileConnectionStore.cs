@@ -51,8 +51,9 @@ internal sealed class MobileConnectionStore : INotifyPropertyChanged, IDisposabl
         {
             if (!File.Exists(stoppedPath) && vault.Load(Key) is { } raw && JsonSerializer.Deserialize<MobileCredential>(raw) is { } saved)
             {
-                if (saved.ExpiresAt <= DateTimeOffset.UtcNow.ToUnixTimeSeconds()) { vault.Delete(Key); Status = "Reconnect iPhone"; }
-                else Activate(saved);
+                // The relay extends a token each time it is used, so the expiry saved at pairing is only
+                // where it started; the relay alone decides, with 401, when the iPhone must pair again.
+                Activate(saved);
             }
         }
         catch (Exception e) when (e is InvalidDataException or IOException or UnauthorizedAccessException or CryptographicException or JsonException or ArgumentException)
@@ -67,7 +68,7 @@ internal sealed class MobileConnectionStore : INotifyPropertyChanged, IDisposabl
     }
     private void Activate(MobileCredential value)
     {
-        _ = MobileRelayClient.ValidateIssuedToken(new(value.Token, value.ExpiresAt), DateTimeOffset.UtcNow);
+        MobileRelayClient.ValidateBearerToken(value.Token);
         client = new(value.Endpoint); credential = value; Status = "Connected · waiting for update"; timer.Start(); Changed();
     }
     /// <summary>Shows a five-minute QR offer and waits for the iPhone to scan it.</summary>
@@ -126,7 +127,6 @@ internal sealed class MobileConnectionStore : INotifyPropertyChanged, IDisposabl
         sending = true;
         try
         {
-            if (saved.ExpiresAt <= DateTimeOffset.UtcNow.ToUnixTimeSeconds()) { Stop(); Status = "Reconnect iPhone"; return; }
             var body = snapshot(saved.ShareTitles);
             var now = DateTimeOffset.UtcNow;
             if (!MobileSnapshotBuilder.ShouldSend(body, lastSent, lastSentAt, heartbeat, now)) return;

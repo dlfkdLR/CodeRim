@@ -45,8 +45,9 @@ final class MobileConnectionStore: ObservableObject {
         Task {
             defer { isBusy = false }
             do {
+                // The relay extends a token each time it is used, so the expiry saved at pairing is only
+                // where it started; the relay alone decides, with 401, when the iPhone must pair again.
                 guard let saved = try await MobileCredentialStore.shared.load() else { return }
-                guard saved.expiresAt > Date().timeIntervalSince1970 else { throw MobileRelayError.expired }
                 try activate(saved)
             } catch { errorMessage = error.localizedDescription; status = "Reconnect iPhone" }
         }
@@ -133,7 +134,6 @@ final class MobileConnectionStore: ObservableObject {
     private func sendSnapshot(generation run: UUID) async {
         guard run == generation, let credential, let client, let latestSnapshot else { return }
         do {
-            guard credential.expiresAt > Date().timeIntervalSince1970 else { throw MobileRelayError.expired }
             let sessions = monitors.mapValues(\.sessions)
             let body = Self.snapshot(latestSnapshot, sessions: sessions, shareTitles: shareTaskTitles)
             // The free relay can afford changes as they happen plus a heartbeat every few minutes.

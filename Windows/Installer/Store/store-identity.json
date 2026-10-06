@@ -1,0 +1,6 @@
+{
+  "_comment": "Replace with the Package/Identity values Partner Center shows under Product identity after reserving the name. The test values below only let CI build and install a locally signed package.",
+  "IdentityName": "CodeRim.LocalTest",
+  "Publisher": "CN=CodeRim Local Test",
+  "PublisherDisplayName": "HechoLP"
+}

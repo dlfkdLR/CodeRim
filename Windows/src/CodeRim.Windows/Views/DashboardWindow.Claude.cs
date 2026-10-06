@@ -27,12 +27,13 @@ internal sealed partial class DashboardWindow
 
     private void AddClaudeHeader(DockPanel header)
     {
-        claudeEnabled = Ui.Toggle("", store.Claude.Preferences.Enabled, async value =>
+        claudeEnabled = Ui.Toggle("Enabled", store.Claude.Preferences.Enabled, async value =>
         {
             if (updatingClaude) return;
             await store.Claude.SetEnabledAsync(value); UpdateClaude();
         });
-        claudeEnabled.Margin = new Thickness(10, 0, 0, 0); claudeEnabled.VerticalAlignment = VerticalAlignment.Center;
+        claudeEnabled.Margin = new Thickness(12, 0, 0, 0); claudeEnabled.VerticalAlignment = VerticalAlignment.Center;
+        claudeEnabled.ToolTip = "Turn Claude Code monitoring on or off";
         AutomationProperties.SetName(claudeEnabled, "Enable Claude Code"); AutomationProperties.SetAutomationId(claudeEnabled, "claude.enabled");
         DockPanel.SetDock(claudeEnabled, Dock.Right); header.Children.Add(claudeEnabled);
     }
