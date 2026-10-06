@@ -2,7 +2,7 @@
 
 [English](README.md) · **한국어**
 
-Windows 11 x64·ARM64용 .NET 10 WPF 미리보기입니다. 가장자리 노치, Settings, 로컬 Codex·Claude 히스토리, 계정 저장·전환, CLI, 70개 연결 구현과 선택적 iPhone relay 설정을 포함합니다. 위젯은 이 플랫폼 범위 밖입니다.
+Windows 11 x64·ARM64용 .NET 10 WPF 앱입니다. 가장자리 노치, Settings, 로컬 Codex·Claude 히스토리, 계정 저장·전환, CLI, 70개 연결 구현과 선택적 iPhone relay 설정을 포함합니다. 위젯은 이 플랫폼 범위 밖입니다.
 
 현재 설치 파일은 [2.1.15](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.15)이며 `Windows/Release.env`는 macOS와 독립적으로 관리합니다. Setup·인증된 업데이트는 [Windows 참고](../Documentation/WINDOWS.ko.md)에 있습니다. 소스 구현, fixture 테스트, 네이티브 설치·업데이트, 물리 화면, 실계정 검증은 별도 증거입니다.
 

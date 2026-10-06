@@ -8,11 +8,11 @@
 
 <img src="Assets/README/coderim-notch.png" alt="CodeRim with illustrative usage rings at the edge of a macOS screen" width="100%" />
 
-CodeRim keeps coding-assistant usage limits, reset times, and session activity visible in a small edge notch. It is a native **macOS app** and a **Windows 11 implementation preview**, with separate local token history for Codex and Claude Code.
+CodeRim keeps coding-assistant usage limits, reset times, and session activity visible in a small edge notch. It is a native **macOS app** and a **Windows 11 app**, with separate local token history for Codex and Claude Code.
 
 ## Features by platform
 
-| Feature | macOS | Windows preview |
+| Feature | macOS | Windows |
 | --- | --- | --- |
 | Provider catalogue | 70 setup guides | 70 connection implementations; see the capability matrix |
 | Desktop interface | Menu bar, Settings, edge notch | Tray, Settings, edge notch |
@@ -26,7 +26,7 @@ Local counts cover records on **this computer across accounts**. Cached input is
 
 ## Install
 
-**macOS:** [2.1.15](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.15) · **Windows:** [2.1.15](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.15)
+**macOS:** [2.1.15](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.15) · **Windows:** [2.1.16](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.16)
 
 ### macOS
 
@@ -43,13 +43,17 @@ The app is **ad-hoc signed, not Apple-notarized**. See [installation and first l
 
 Open **Settings → Providers → Add Provider**, connect your tools, then hover a ring. [Get started](docs/getting-started.md).
 
-### Windows preview
+### Windows
 
 **Windows 11 · x64 and ARM64 · .NET included.**
 
-[Download x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-x64-Setup.msi) · [Download ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-arm64-Setup.msi) · [x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-arm64-Setup.msi.sha256)
+[![Download for Windows](Assets/README/download-windows.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-x64-Setup.msi) [![Download for Windows on ARM](Assets/README/download-windows-arm64.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-arm64-Setup.msi)
 
-Verify the matching checksum, run the MSI, and open CodeRim. The public installer has no Authenticode publisher certificate; first-install warnings can occur. Managed updates verify the pinned Ed25519 manifest and SHA-256 before installation. [Windows installation](docs/windows.md) covers upgrades, legacy ZIP migration, CLI setup, and limitations. A connection implementation or synthetic test is not evidence that every live provider account works.
+Run the MSI and open CodeRim from the Start menu. It installs for your account without administrator access, adds the `coderim` command, and updates itself after verifying each release ([x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-arm64-Setup.msi.sha256)).
+
+The MSI is not yet signed by a publisher certificate, so Windows may say **Windows protected your PC**: choose **More info → Run anyway**. A Microsoft-signed Microsoft Store version, which also installs where Smart App Control blocks unsigned installers, is on its way. [Windows installation](docs/windows.md) covers upgrades, CLI setup and the Store version.
+
+Open **Settings → Providers → Add Provider**, sign in once, then hover a ring.
 
 ## macOS providers
 
