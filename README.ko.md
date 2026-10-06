@@ -8,11 +8,11 @@
 
 <img src="Assets/README/coderim-notch.png" alt="macOS 화면 가장자리에 예시 사용량 링을 표시한 CodeRim" width="100%" />
 
-CodeRim은 작은 가장자리 노치에서 코딩 도구의 사용 한도, 초기화 시각, 세션 활동을 보여줍니다. **네이티브 macOS 앱**과 **Windows 11 구현 미리보기**를 제공하며 Codex·Claude Code의 로컬 토큰 기록을 별도로 관리합니다.
+CodeRim은 작은 가장자리 노치에서 코딩 도구의 사용 한도, 초기화 시각, 세션 활동을 보여줍니다. **네이티브 macOS 앱**과 **Windows 11 앱**을 제공하며 Codex·Claude Code의 로컬 토큰 기록을 별도로 관리합니다.
 
 ## 플랫폼별 기능
 
-| 기능 | macOS | Windows 미리보기 |
+| 기능 | macOS | Windows |
 | --- | --- | --- |
 | 제공업체 목록 | 연결 안내 70개 | 연결 구현 70개; 기능 표 참고 |
 | 데스크톱 화면 | 메뉴 막대, Settings, 가장자리 노치 | 트레이, Settings, 가장자리 노치 |
@@ -26,7 +26,7 @@ CodeRim은 작은 가장자리 노치에서 코딩 도구의 사용 한도, 초�
 
 ## 설치
 
-**macOS:** [2.1.15](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.15) · **Windows:** [2.1.15](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.15)
+**macOS:** [2.1.15](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.15) · **Windows:** [2.1.16](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.16)
 
 ### macOS
 
@@ -43,13 +43,17 @@ brew install --cask dlfkdLR/tap/coderim
 
 **Settings → Providers → Add Provider**에서 도구를 연결하고 링에 포인터를 올립니다. [시작하기](docs/ko/getting-started.md).
 
-### Windows 미리보기
+### Windows
 
 **Windows 11 · x64·ARM64 · .NET 포함.**
 
-[x64 MSI 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-x64-Setup.msi) · [ARM64 MSI 다운로드](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-arm64-Setup.msi) · [x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-Windows-2.1.15-arm64-Setup.msi.sha256)
+[![Windows용 다운로드](Assets/README/download-windows.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-x64-Setup.msi) [![ARM 기반 Windows용 다운로드](Assets/README/download-windows-arm64.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-arm64-Setup.msi)
 
-해당 체크섬을 검증한 뒤 MSI를 실행하고 CodeRim을 엽니다. 공개 설치 파일에는 Authenticode 게시자 인증서가 없어 첫 설치 경고가 표시될 수 있습니다. 관리형 업데이트는 설치 전 고정 Ed25519 manifest와 SHA-256을 검증합니다. [Windows 설치](docs/ko/windows.md)에서 업그레이드·이전 ZIP 마이그레이션·CLI·제한을 확인합니다. 연결 구현이나 합성 테스트만으로 모든 실제 제공업체 계정의 동작을 확인한 것은 아닙니다.
+MSI를 실행한 뒤 시작 메뉴에서 CodeRim을 엽니다. 관리자 권한 없이 내 계정에 설치되고 `coderim` 명령이 추가되며, 이후 릴리스는 검증을 거쳐 자동으로 업데이트됩니다([x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-arm64-Setup.msi.sha256)).
+
+MSI에는 아직 게시자 인증서 서명이 없어 **Windows의 PC 보호** 창이 뜰 수 있습니다. **추가 정보 → 실행**을 선택하세요. 스마트 앱 컨트롤이 서명 없는 설치 파일을 막는 PC에서도 설치되는, Microsoft가 서명한 Microsoft Store 버전을 준비하고 있습니다. 업그레이드·CLI·Store 버전은 [Windows 설치](docs/ko/windows.md)에서 확인합니다.
+
+**Settings → Providers → Add Provider**에서 한 번 로그인한 뒤 링에 포인터를 올립니다.
 
 ## macOS 제공업체
 
