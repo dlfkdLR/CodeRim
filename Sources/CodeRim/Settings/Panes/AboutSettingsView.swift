@@ -18,8 +18,6 @@ struct AboutSettingsView: View {
                 if let build {
                     SettingsValueRow(title: "Build", value: build)
                 }
-                SettingsValueRow(title: "Data scope", value: "Local history + optional account totals")
-                SettingsValueRow(title: "Privacy", value: "Remote totals are memory-only")
             }
 
             SettingsSection(title: "Updates") {
