@@ -57,6 +57,9 @@ internal sealed partial class NotchWindow
         gear.Style = (Style)FindResource("NotchSettingsButton");
         gear.ToolTip = null;
         gear.Width = gear.Height = NotchMetrics.OrbHotZone * scale; gear.Margin = new(0); gear.Content = glyph;
+        // The glyph (arc included) is larger than the hit zone. WPF stops centring a child that overflows
+        // and pins it to the top-left, which put the gear off the rail's centre; negative margins re-centre it.
+        glyph.Margin = new(-Math.Max(0, NotchSettingsGlyph.Extent - NotchMetrics.OrbHotZone) * scale / 2);
         // A one-alpha hit surface keeps the resting arc's center reachable on a layered
         // native window; fully transparent pixels otherwise pass through to the desktop.
         gear.Background = new SolidColorBrush(Color.FromArgb(1, 0, 0, 0));
