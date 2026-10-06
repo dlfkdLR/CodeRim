@@ -400,7 +400,9 @@ internal sealed partial class NotchWindow : Window
         hoverClear.Stop(); hovered = null; FadeProviderPopup();
     }
     private readonly SessionExpansionState sessionExpansion = new();
-    internal void RefreshPopupClock() { if (CanRefreshProviderPopup()) RefreshPopup(); }
+    // Counts the periodic card rebuilds so verification can tell them from membership-driven replacement.
+    internal int PopupClockRefreshes { get; private set; }
+    internal void RefreshPopupClock() { if (CanRefreshProviderPopup()) { PopupClockRefreshes++; RefreshPopup(); } }
     private bool CanRefreshProviderPopup()
     {
         if (accountMenu || !popup.IsOpen || popup.Child is not UIElement child) return false;

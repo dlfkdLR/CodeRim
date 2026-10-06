@@ -51,9 +51,12 @@ internal static partial class NativeSmoke
             store.Readings["cursor"] = Ready("cursor"); notch.RefreshReadings(); await Idle();
             Require(Visible().SequenceEqual(["codex", "cursor"], StringComparer.Ordinal), "Recovered provider did not return in its saved order.");
             notch.OpenProvider("codex"); await Idle();
-            var existingPopup = notch.PopupContent;
+            var existingPopup = notch.PopupContent; var clockRefreshes = notch.PopupClockRefreshes;
             store.Readings["gemini"] = Ready("gemini"); notch.RefreshReadings(); await Idle();
-            Require(notch.PopupIsOpen && ReferenceEquals(existingPopup, notch.PopupContent), "An unrelated membership change replaced a surviving provider popup.");
+            Require(notch.PopupIsOpen, "An unrelated membership change closed a surviving provider popup.");
+            // The 10-second clock may legitimately rebuild the same provider's card while the runner is slow.
+            Require(ReferenceEquals(existingPopup, notch.PopupContent) || notch.PopupClockRefreshes != clockRefreshes,
+                "An unrelated membership change replaced a surviving provider popup.");
             checks.Add("Recovery keeps configuration and preserves a surviving provider popup");
             var accounts = Descendants<Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.switchAccount");
             accounts.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
