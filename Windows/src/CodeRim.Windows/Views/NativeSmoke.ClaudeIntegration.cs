@@ -75,11 +75,12 @@ internal static partial class NativeSmoke
                 && !store.Readings.ContainsKey("claude"), "External owner change retained old quotas or forced a different selection.");
             var selector = Descendants<UsageProviderPicker>(pane).Single(); selector.IsDropDownOpen = true; await Idle();
             var host = selector.DropdownHost ?? throw new InvalidOperationException("Native provider selector has no search popup.");
-            Require(!Descendants<Button>(host).Any(x => AutomationProperties.GetAutomationId(x) == "menu.provider.claude"), "Unavailable selected Claude remained selectable.");
+            // An added Claude Code stays in the list while it is not connected, so it can say how to connect.
+            Require(Descendants<Button>(host).Any(x => AutomationProperties.GetAutomationId(x) == "menu.provider.claude"), "Unconnected Claude Code disappeared from the Usage provider list.");
             selector.IsDropDownOpen = false;
             Require(Descendants<Button>(pane).Any(x => x.Content as string == "Open Claude Settings"), "Focused Usage retained stale content after losing its owner.");
             pane.SelectProvider("codex"); await Idle();
-            Require(selector.Items.Count == 1 && !selector.IsTextSearchEnabled, "Leaving an unavailable selection retained a base-ComboBox selection bypass.");
+            Require(selector.Items.OfType<ProviderDefinition>().First().Id == "codex" && !selector.IsTextSearchEnabled, "Leaving an unavailable selection retained a base-ComboBox selection bypass.");
             foreach (var key in new[] { Key.End, Key.Right })
             {
                 var input = new KeyEventArgs(Keyboard.PrimaryDevice, PresentationSource.FromVisual(selector)!, 0, key) { RoutedEvent = Keyboard.PreviewKeyDownEvent };

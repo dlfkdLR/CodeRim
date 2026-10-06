@@ -28,8 +28,14 @@ internal sealed partial class UsagePane : StackPanel
         get { var snapshot = store.Usage.GetValueOrDefault(provider); return (snapshot?.Quality, snapshot?.RetainsPartialHistory ?? false); }
     }
     private bool ProviderAvailable => provider != "claude" || store.ClaudeAvailable;
-    private ProviderDefinition[] ProviderChoices() => store.AvailableUsageProviders
-        .Concat(provider == "claude" && !store.ClaudeAvailable ? ["claude"] : Array.Empty<string>()).Select(id => ProviderCatalog.Find(id)!).ToArray();
+    // Every added provider is listed. Codex and Claude Code have local history here; Claude Code is
+    // listed before it connects so it can explain how to. Any other provider opens its own usage page.
+    private static readonly string[] LocalProviders = ["codex", "claude"];
+    private ProviderDefinition[] ProviderChoices() => LocalProviders
+        .Where(id => id == "codex" || store.ClaudeAvailable || provider == "claude" || settings.Current.EnabledProviders.Contains("claude", StringComparer.Ordinal))
+        .Concat(settings.Current.EnabledProviders.Where(id => id is not ("codex" or "claude")))
+        .Distinct(StringComparer.Ordinal).Select(ProviderCatalog.Find).OfType<ProviderDefinition>().ToArray();
+    private static bool HasLocalUsage(string id) => id is "codex" or "claude";
     private readonly Grid header;
     private System.Windows.Controls.Button? refreshAction;
     private TextBlock? detailTitle;
@@ -165,7 +171,7 @@ internal sealed partial class UsagePane : StackPanel
         var choices = ProviderChoices(); updatingChoices = true;
         try
         {
-            selector.UnavailableId = store.ClaudeAvailable ? null : "claude";
+            selector.UnavailableId = null;
             if (!selector.Items.Cast<object>().SequenceEqual(choices)) selector.ItemsSource = choices;
             selector.SelectedValue = provider;
         }
@@ -183,7 +189,7 @@ internal sealed partial class UsagePane : StackPanel
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         Grid.SetColumn(controls, 2); header.Children.Add(controls);
         Grid.SetColumn(accountRow, 1); header.Children.Add(accountRow);
-        selector = new UsageProviderPicker { UnavailableId = store.ClaudeAvailable ? null : "claude", ItemsSource = choices, ItemTemplate = ProviderTemplate(), SelectedValuePath = "Id",
+        selector = new UsageProviderPicker { UnavailableId = null, ItemsSource = choices, ItemTemplate = ProviderTemplate(), SelectedValuePath = "Id",
             SelectedValue = this.provider, MinHeight = 34, Height = 34, Width = 142, MaxWidth = 190, FontSize = 13, HorizontalAlignment = HorizontalAlignment.Left,
             Style = (Style)System.Windows.Application.Current.FindResource("UsageProviderPicker") };
         TextSearch.SetTextPath(selector, "Name");
@@ -191,7 +197,11 @@ internal sealed partial class UsagePane : StackPanel
         selector.SelectionChanged += (_, _) =>
         {
             if (updatingChoices) return;
-            if (selector.SelectedValue is string id && store.AvailableUsageProviders.Contains(id, StringComparer.Ordinal))
+            if (selector.SelectedValue is string other && !HasLocalUsage(other))
+            {
+                RefreshProviderChoices(); navigate(other); return; // its quota and account live on its provider page
+            }
+            if (selector.SelectedValue is string id && HasLocalUsage(id))
             {
                 this.provider = id; destination = "overview"; project = session = null; search = ""; period = "today"; history.Clear(); analyticsRanges.Clear(); analyticsSelectedBucket = null; ResetSettingsAnalytics();
                 try { settings.Save(settings.Current with { UsageProvider = id }); }
