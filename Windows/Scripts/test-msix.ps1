@@ -27,7 +27,21 @@ try {
     & $signTool.FullName sign /fd SHA256 /sha1 $certificate.Thumbprint /s My $signed
     if ($LASTEXITCODE -ne 0) { throw "Test signing failed." }
 
-    Add-AppxPackage -Path $signed
+    # Hosted Windows Server images do not allow sideloading by default, and Add-AppxPackage then waits
+    # without an error. Allow trusted packages (CI machine only) and bound the install.
+    $unlock = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
+    New-Item -Path $unlock -Force | Out-Null
+    Set-ItemProperty -Path $unlock -Name AllowAllTrustedApps -Value 1 -Type DWord
+    Set-ItemProperty -Path $unlock -Name AllowDevelopmentWithoutDevLicense -Value 1 -Type DWord
+    $install = Start-Job { param($path) Add-AppxPackage -Path $path -ForceUpdateFromAnyVersion } -ArgumentList $signed
+    if (-not (Wait-Job $install -Timeout 300)) {
+        Stop-Job $install
+        Get-AppxLog -All -ErrorAction SilentlyContinue | Select-Object -Last 40 | Format-List | Out-String | Write-Host
+        Get-WinEvent -LogName 'Microsoft-Windows-AppXDeploymentServer/Operational' -MaxEvents 40 -ErrorAction SilentlyContinue |
+            Format-List TimeCreated, Id, Message | Out-String | Write-Host
+        throw "Add-AppxPackage did not finish within five minutes."
+    }
+    Receive-Job $install -ErrorAction Stop
     $installed = Get-AppxPackage -Name $identity.IdentityName
     if (-not $installed) { throw "The package did not install." }
     $results.Add("installs-per-user-without-administrator")
