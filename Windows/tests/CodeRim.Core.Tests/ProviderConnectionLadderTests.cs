@@ -388,7 +388,9 @@ public sealed class ProviderConnectionLadderTests : IDisposable
     {
         using var server = new OAuthLoopbackServer("s"); var url = server.Start();
         var request = "GET /callback?code=PIECES&state=s HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n";
-        var reply = await Task.Run(() => Raw(url.Port, request.Select(c => new[] { (byte)c }), gapMs: 1));
+        // Byte-at-a-time sends take over a second at Windows timer resolution, and the shared CI host runs
+        // thousands of tests beside this one: allow the reply time to arrive; the content is what is checked.
+        var reply = await Task.Run(() => Raw(url.Port, request.Select(c => new[] { (byte)c }), gapMs: 1, readTimeoutMs: 15000));
         Assert.StartsWith("HTTP/1.1 200", reply);
         Assert.Equal("PIECES", (await server.WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None)).Code);
     }

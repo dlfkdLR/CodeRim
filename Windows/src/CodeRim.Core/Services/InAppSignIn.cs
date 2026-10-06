@@ -241,7 +241,18 @@ public sealed class OAuthLoopbackServer : IDisposable
                     var read = await stream.ReadAsync(buffer, timeout.Token).ConfigureAwait(false);
                     if (read == 0) break;
                     received.Write(buffer, 0, read);
-                    if (received.Length > MaxRequestBytes) { await Reply(stream, "431 Request Header Fields Too Large", null).ConfigureAwait(false); return; }
+                    if (received.Length > MaxRequestBytes)
+                    {
+                        await Reply(stream, "431 Request Header Fields Too Large", null).ConfigureAwait(false);
+                        // Closing with unread input makes Windows reset the connection, which can discard the
+                        // reply before the sender reads it. End our side, then drain briefly before closing.
+                        connection.Client.Shutdown(SocketShutdown.Send);
+                        using var drain = CancellationTokenSource.CreateLinkedTokenSource(stopping.Token);
+                        drain.CancelAfter(TimeSpan.FromSeconds(1));
+                        try { while (await stream.ReadAsync(buffer, drain.Token).ConfigureAwait(false) > 0) { } }
+                        catch (Exception e) when (e is IOException or OperationCanceledException or SocketException) { }
+                        return;
+                    }
                     if (Contains(received, "\r\n\r\n"u8)) break;
                 }
                 var callback = Parse(Encoding.UTF8.GetString(received.ToArray()));
