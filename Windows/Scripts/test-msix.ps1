@@ -17,6 +17,8 @@ $results = New-Object 'System.Collections.Generic.List[string]'
 function Invoke-Bounded([string]$File, [string[]]$Arguments, [int]$Seconds, [string]$Name) {
     $out = Join-Path $evidence "$Name.out.txt"; $err = Join-Path $evidence "$Name.err.txt"
     $process = Start-Process -FilePath $File -ArgumentList $Arguments -PassThru -NoNewWindow -RedirectStandardOutput $out -RedirectStandardError $err
+    # Windows PowerShell only records ExitCode for a process whose handle was opened before it exited.
+    $null = $process.Handle
     if (-not $process.WaitForExit($Seconds * 1000)) {
         try { $process.Kill() } catch { }
         Get-Content $out, $err -ErrorAction SilentlyContinue | Write-Host
@@ -72,6 +74,7 @@ try {
     # The native UI smoke inside the package: same checks as the MSI build, with package identity.
     $capture = Join-Path $evidence "windows-msix-dashboard.png"
     $smoke = Start-Process (Join-Path $aliases "CodeRim.exe") -ArgumentList "--smoke-test", "--capture", ('"' + $capture + '"') -PassThru
+    $null = $smoke.Handle
     if (-not $smoke.WaitForExit(240000)) { $smoke.Kill(); throw "Packaged smoke test timed out." }
     if ($smoke.ExitCode -ne 0 -or -not (Test-Path $capture)) {
         Get-Content ([IO.Path]::ChangeExtension($capture, ".error.txt")) -ErrorAction SilentlyContinue
