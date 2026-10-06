@@ -106,7 +106,9 @@ internal static partial class NativeSmoke
             Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Build")
                 && Descendants<TextBlock>(dashboard).Any(x => x.Text.Contains("not affiliated with or endorsed by", StringComparison.Ordinal)), "Information is missing build identity or the independent-project notice.");
             if (InstallerUpdateCoordinator.IsManaged)
-                Require(links.Count(x => x.NavigateUri.IsFile && File.Exists(x.NavigateUri.LocalPath)) == 2, "Installed application is missing bundled license notices.");
+                // The licence is linked; the Codenotch notice is no longer a button but must still ship with the app.
+                Require(links.Count(x => x.NavigateUri.IsFile && File.Exists(x.NavigateUri.LocalPath)) == 1
+                    && Directory.EnumerateFiles(AppContext.BaseDirectory, "NOTICE*").Any(), "Installed application is missing bundled license notices.");
             Capture(dashboard, Path.Combine(directory, "windows-information-reference.png"));
             File.WriteAllText(Path.Combine(directory, "windows-settings-reference.json"), JsonSerializer.Serialize(new { completed = true,
                 checks = new List<string> { "Actual OS startup registration refreshes on activation", "Stale saved preference cannot block explicit registration repair",
