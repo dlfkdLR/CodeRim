@@ -478,7 +478,8 @@ internal sealed partial class DashboardWindow : Window
         var busy = state?.Phase is ProviderConnector.Phase.Checking or ProviderConnector.Phase.Waiting;
         if (!busy && state?.Phase != ProviderConnector.Phase.Connected && !plan.OpensSettings)
             connectionBanner.Children.Add(Ui.Button(state?.Phase == ProviderConnector.Phase.Failed ? "Try again"
-                : plan.Kind is SignInKind.Terminal or SignInKind.InApp ? "Sign in to " + plan.Name : "Sign in", () => connector.Begin(id)));
+                : plan.Kind is SignInKind.Terminal or SignInKind.InApp ? "Sign in to " + plan.Name
+                : plan.Kind == SignInKind.Guidance ? "Check again" : "Sign in", () => connector.Begin(id)));
         // A provider whose first sign-in is unfinished can be abandoned, which also takes it off the list.
         if (busy || (justAdded.Contains(id) && state?.Phase != ProviderConnector.Phase.Connected))
             connectionBanner.Children.Add(Ui.Button("Cancel", () => CancelConnecting(id)));
@@ -833,7 +834,7 @@ internal sealed partial class DashboardWindow : Window
                 if (source == "web") { body.Children.Add(Ui.Text("Amp Web session cookie")); AddSecretField("cookie:amp", id, "Save cookie"); }
                 else if (source == "api") { body.Children.Add(Ui.Text("Amp API key")); AddSecretField("provider:amp", id, "Save credential"); }
             }
-            else if (id != "wayfinder" && (id != "gemini" || AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, "ANTIGRAVITY_USAGE_SOURCE")) == "oauth")) { body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
+            else if (id != "wayfinder" && (id != "gemini" || AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, "ANTIGRAVITY_USAGE_SOURCE")) == "oauth")) { AddKeyLink(id); body.Children.Add(Ui.Text(NativeProviders.CredentialLabel(id))); AddSecretField("provider:" + id, id, "Save credential"); }
         }
         else if (!HasConnector(id)) body.Children.Add(Ui.Text("This provider's Windows integration is still pending. Adding it does not create a live connection.", color: "#F2C66D"));
         AddChromiumConnection(id);
@@ -915,6 +916,14 @@ internal sealed partial class DashboardWindow : Window
     private static readonly string[] AlibabaRegions = ["International · Team", "International · Personal", "China · Team", "China · Personal"];
     private static readonly string[] MiniMaxRegions = ["Global", "China"];
     private static readonly string[] StepFunModes = ["Auto", "Manual"];
+    /// <summary>Until a provider connects, point at the page where its key is created, as macOS does.</summary>
+    private void AddKeyLink(string id)
+    {
+        if (store.Readings.GetValueOrDefault(id)?.State is ReadingState.Ready or ReadingState.Partial || ProviderAccountLinks.UsagePage(id) is not { } page) return;
+        var link = SettingsUi.Link("Get a key", page, "M10,2 A4,4 0 1 1 9.99,2 M7.5,8.5 L2,14 M4,12 L5.5,13.5", _ => OpenUrl(page.AbsoluteUri));
+        System.Windows.Automation.AutomationProperties.SetAutomationId(link, "provider.getKey");
+        body.Children.Add(link);
+    }
     private void AddSecretField(string key, string id, string label)
     {
         var password = new PasswordBox { MaxLength = id == "factory" ? 262144 : id == "minimax" ? 65536 : 32768, Padding = new Thickness(8), Margin = new Thickness(0, 6, 0, 8) }; body.Children.Add(password);
@@ -925,7 +934,10 @@ internal sealed partial class DashboardWindow : Window
             if (key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password.Length == 0 : string.IsNullOrWhiteSpace(password.Password)) return;
             if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal) && MiniMaxAuthentication.Parse(password.Password, key.Split(':')[^1]) is null)
             { result.Text = "Enter a valid cookie or copied request for this region."; return; }
-            try { vault.Save(key, key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password : password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal)) vault.Delete("browser:minimax:" + key.Split(':')[^1]); ClearChromiumForManual(id, key); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved."; _ = store.RefreshProviderAsync(id); }
+            try { vault.Save(key, key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password : password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal)) vault.Delete("browser:minimax:" + key.Split(':')[^1]); ClearChromiumForManual(id, key); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved.";
+                // A provider waiting for exactly this key connects now instead of staying "Enter your key".
+                if (connectorField?.StateOf(id)?.Phase is ProviderConnector.Phase.NeedsKey or ProviderConnector.Phase.Failed) connector.Begin(id);
+                else _ = store.RefreshProviderAsync(id); }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { result.Text = "Could not save the setting."; }
         }));
         body.Children.Add(Ui.Button("Remove saved value", () =>

@@ -13,6 +13,8 @@ public enum SignInKind
     Settings,
     /// <summary>CodeRim runs the sign-in itself: a GitHub device code or a Google consent.</summary>
     InApp,
+    /// <summary>Nothing to launch: the note says what to do elsewhere, and the connection is watched.</summary>
+    Guidance,
 }
 
 public sealed record SignInPlan(SignInKind Kind, string Name, string? Command, Uri? Url, string Note)
@@ -21,6 +23,8 @@ public sealed record SignInPlan(SignInKind Kind, string Name, string? Command, U
     public InAppKind? InApp { get; init; }
     /// <summary>Where to get the command a terminal sign-in runs, when it is not installed.</summary>
     public Uri? InstallUrl { get; init; }
+    /// <summary>Steps the terminal window prints before the tool starts, one per line.</summary>
+    public string Hint { get; init; } = "";
 }
 
 /// <summary>
@@ -34,7 +38,8 @@ public static class ProviderSignIn
     private static readonly Dictionary<string, (string Command, string Note)> Terminal = new(StringComparer.Ordinal)
     {
         ["codex"] = ("codex login", "A terminal window runs `codex login`. Finish it in the browser and CodeRim connects on its own."),
-        ["cursor"] = ("cursor-agent login", "A terminal window runs `cursor-agent login`. Finish it in the browser and CodeRim connects on its own."),
+        ["cursor"] = ("cursor-agent login", "A terminal window runs `cursor-agent login`; or install the Cursor editor and sign in there. CodeRim connects on its own."),
+        ["kiro"] = ("kiro-cli login", "A terminal window runs `kiro-cli login`. Finish it in your browser and CodeRim connects on its own."),
         ["grok"] = ("grok login", "A terminal window runs `grok login`. Finish it in the browser and CodeRim connects on its own."),
         ["opencode"] = ("opencode auth login", "A terminal window runs `opencode auth login`. Choose OpenCode Go there and CodeRim connects on its own."),
         ["gemini-cli"] = ("gemini", "Personal Google accounts (including AI Pro and Ultra) can no longer sign in to Gemini CLI — choose Use Antigravity instead. For a Workspace or education account, a terminal window starts the Gemini CLI: choose Sign in with Google, then type /quit."),
@@ -46,7 +51,7 @@ public static class ProviderSignIn
     private static readonly Dictionary<string, string> InstallPages = new(StringComparer.Ordinal)
     {
         ["codex"] = "https://github.com/openai/codex", ["cursor"] = "https://cursor.com/cli", ["opencode"] = "https://opencode.ai",
-        ["gemini-cli"] = "https://github.com/google-gemini/gemini-cli#quickstart", ["vertexai"] = "https://cloud.google.com/sdk/docs/install",
+        ["gemini-cli"] = "https://github.com/google-gemini/gemini-cli#quickstart", ["kiro"] = "https://kiro.dev/cli/", ["grok"] = "https://github.com/xai-org/grok-build", ["vertexai"] = "https://cloud.google.com/sdk/docs/install",
     };
     private static readonly Dictionary<string, string> KeyNotes = new(StringComparer.Ordinal)
     {
@@ -57,6 +62,11 @@ public static class ProviderSignIn
     /// <summary>Finds the Antigravity app's OAuth client; replaceable in tests.</summary>
     public static Func<GoogleOAuthClient?> AntigravityClient { get; set; } =
         () => AntigravityOAuthClientLocator.Discover(AntigravityOAuthClientLocator.CandidatePaths(Environment.GetEnvironmentVariable));
+    /// <summary>Whether the Gemini CLI is set to an API key instead of Google sign-in; replaceable in tests.</summary>
+    public static Func<bool> GeminiUsesKey { get; set; } = () => GeminiAuthentication.UsesKey(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+    private const string GeminiKeyNote = "Your Gemini CLI is set to an API key, which CodeRim cannot read usage from. In the terminal: type /auth, choose Sign in with Google, finish in your browser, then type /quit. Personal Google accounts can no longer sign in through the Gemini CLI; if Google refuses, choose Use Antigravity instead.";
+    private const string GeminiKeyHint = "Gemini is set to an API key, but CodeRim reads the Google sign-in.\n1. Type /auth and press Enter.\n2. Choose Sign in with Google and finish in your browser.\n3. When it says Authentication succeeded, type /quit.\nIf Google says this client is no longer supported for individuals, personal accounts moved to Antigravity: close this window and choose Use Antigravity in CodeRim instead.";
+    private const string GeminiHint = "1. Choose Sign in with Google and finish in your browser.\n2. When it says Authentication succeeded, type /quit.\nIf Google says this client is no longer supported for individuals, personal accounts moved to Antigravity: close this window and choose Use Antigravity in CodeRim instead.";
     private static readonly Regex CookieKey = new("COOKIE|SESSION", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     private static readonly Regex SecretKey = new("KEY|TOKEN|SECRET|PASSWORD", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
@@ -73,6 +83,14 @@ public static class ProviderSignIn
                     "Your browser opens Google's sign-in. Choose the account you use with Antigravity and allow access; CodeRim connects on its own. The Antigravity app does not need to be running.") { InApp = InAppKind.AntigravityGoogle }
                 : new(SignInKind.Browser, "Antigravity", null, new Uri("https://antigravity.google/download"),
                     "Install the Antigravity app from this page — CodeRim signs in with its Google sign-in. Then choose Sign in again here and pick your Google account.");
+        if (id == "jetbrains")
+            return new(SignInKind.Guidance, name, null, null, "Install a JetBrains IDE, sign in to JetBrains AI there and use it once. CodeRim reads the IDE's own quota file.");
+        if (id == "gemini-cli")
+        {
+            var key = GeminiUsesKey();
+            return new(SignInKind.Terminal, name, "gemini", null, key ? GeminiKeyNote : Terminal[id].Note)
+                { InstallUrl = new Uri(InstallPages[id]), Hint = key ? GeminiKeyHint : GeminiHint };
+        }
         if (KeyNotes.TryGetValue(id, out var keyNote)) return new(SignInKind.Settings, name, null, null, keyNote);
         if (Terminal.TryGetValue(id, out var terminal))
             return new(SignInKind.Terminal, name, terminal.Command, null, terminal.Note)
@@ -107,12 +125,27 @@ public static class ProviderSignIn
             ? (Environment.GetEnvironmentVariable("PATHEXT") ?? ".EXE;.CMD;.BAT;.PS1").Split(';', StringSplitOptions.RemoveEmptyEntries).Prepend("")
             : [""];
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        var extra = new[] { Path.Combine(home, ".local", "bin"), Path.Combine(home, "AppData", "Roaming", "npm"), Path.Combine(home, "scoop", "shims") };
-        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries).Concat(extra))
+        var extra = new[] { Path.Combine(home, ".local", "bin"), Path.Combine(home, "AppData", "Roaming", "npm"), Path.Combine(home, "scoop", "shims"),
+            Path.Combine(home, ".grok", "bin") };
+        foreach (var directory in CurrentPath().Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries).Concat(extra))
             foreach (var extension in extensions)
                 try { if (File.Exists(Path.Combine(directory, tool + extension))) return true; }
                 catch (ArgumentException) { }
         return false;
+    }
+
+    /// <summary>
+    /// The PATH a new terminal gets now. CodeRim's own copy is fixed at its start, so a CLI installed
+    /// afterwards would otherwise look missing until CodeRim restarts.
+    /// </summary>
+    public static string CurrentPath()
+    {
+        var process = Environment.GetEnvironmentVariable("PATH") ?? "";
+        if (!OperatingSystem.IsWindows()) return process;
+        var stored = new[] { EnvironmentVariableTarget.Machine, EnvironmentVariableTarget.User }
+            .Select(target => { try { return Environment.GetEnvironmentVariable("PATH", target); } catch (System.Security.SecurityException) { return null; } })
+            .Where(value => !string.IsNullOrEmpty(value));
+        return string.Join(Path.PathSeparator, stored.Append(process));
     }
 
     /// <summary>The login command is safe to hand to a shell: plain words, dashes and dots only.</summary>
@@ -197,6 +230,7 @@ public sealed class ProviderConnector
                 if (!outcome.SignedIn) { Set(Phase.Failed, outcome.Reason ?? "Sign-in did not finish. Choose Sign in to try again."); return; }
                 if (await connects(id)) { Set(Phase.Connected); return; }
             }
+            else if (signIn.Kind == SignInKind.Guidance) Set(Phase.Waiting, signIn.Note);
             else
             {
                 if (preflight(signIn) is { } problem) { openInstallPage(signIn); Set(Phase.Failed, problem); return; }
