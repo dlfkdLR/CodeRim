@@ -101,7 +101,7 @@ internal static partial class NativeSmoke
 
             fixture.Hide(); dashboard.Navigate("about"); await Idle();
             var links = Descendants<TextBlock>(dashboard).SelectMany(x => x.Inlines.OfType<Hyperlink>()).ToArray();
-            Require(links.Length == 4 && links.Any(x => AutomationProperties.GetName(x) == "Codenotch - MIT License"), "Information links differ from the Mac project section.");
+            Require(links.Length == 3 && !links.Any(x => AutomationProperties.GetName(x) == "Codenotch - MIT License"), "Information links differ from the Mac project section.");
             Require(links.All(x => x.NavigateUri.IsFile || x.NavigateUri.Scheme == "https" && x.NavigateUri.Host == "github.com"), "Information link has an unexpected destination.");
             Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Build")
                 && Descendants<TextBlock>(dashboard).Any(x => x.Text.Contains("not affiliated with or endorsed by", StringComparison.Ordinal)), "Information is missing build identity or the independent-project notice.");

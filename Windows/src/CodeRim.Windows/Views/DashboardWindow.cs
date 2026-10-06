@@ -1004,8 +1004,7 @@ internal sealed partial class DashboardWindow : Window
         body.Children.Add(SettingsUi.Section("Project",
             SettingsUi.Link("Open Source on GitHub", new("https://github.com/dlfkdLR/CodeRim"), "M5,2 L1,7 L5,12 M10,2 L14,7 L10,12 M9,0 L6,14", OpenUrl),
             SettingsUi.Link("View Releases", new("https://github.com/dlfkdLR/CodeRim/releases"), "M1,4 L8,1 L15,4 V12 L8,15 L1,12 Z M1,4 L8,7 L15,4 M8,7 V15", OpenUrl),
-            SettingsUi.Link("Read MIT License", BundledNotice("LICENSE"), "M3,1 H10 L14,5 V15 H3 Z M10,1 V5 H14 M5,8 H12 M5,11 H12", OpenUrl),
-            SettingsUi.Link("Codenotch - MIT License", BundledNotice("NOTICE"), "M3,1 H10 L14,5 V15 H3 Z M10,1 V5 H14 M5,8 H12 M5,11 H12", OpenUrl)));
+            SettingsUi.Link("Read MIT License", BundledNotice("LICENSE"), "M3,1 H10 L14,5 V15 H3 Z M10,1 V5 H14 M5,8 H12 M5,11 H12", OpenUrl)));
         body.Children.Add(SettingsUi.Note("Includes code and design adapted from Codenotch. Copyright © 2026 Vinz, MIT License."));
         body.Children.Add(SettingsUi.Note("CodeRim is an independent utility and is not affiliated with or endorsed by OpenAI or Anthropic."));
     }
