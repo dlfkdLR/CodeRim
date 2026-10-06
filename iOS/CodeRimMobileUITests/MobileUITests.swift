@@ -18,10 +18,9 @@ final class MobileUITests: XCTestCase {
         // There is no field to type a server or link into.
         XCTAssertFalse(app.textFields.firstMatch.exists)
         UIPasteboard.general.string = "coderim://pair?r=http://example.com"
-        let paste = app.buttons["Paste copied link"]
+        let paste = app.buttons["pastePairingLink"]
         XCTAssertTrue(paste.waitForExistence(timeout: 5))
         paste.tap()
-        if app.alerts.buttons["Allow Paste"].waitForExistence(timeout: 2) { app.alerts.buttons["Allow Paste"].tap() }
         XCTAssertTrue(app.staticTexts["That is not a CodeRim pairing code."].waitForExistence(timeout: 5))
         attach("settings-scanner", app.screenshot())
         app.terminate()

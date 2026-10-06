@@ -25,11 +25,14 @@ struct MobileQRScanner: View {
                 Text("On your computer, open CodeRim → Settings → iPhone and choose Connect iPhone. The code includes its server, so there is nothing to type.")
                     .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 if !(DataScannerViewController.isSupported && DataScannerViewController.isAvailable) {
-                    // A link copied from the computer, without typing it.
-                    Button("Paste copied link") {
-                        guard let text = UIPasteboard.general.string, let link = MobilePairingLink(text) else { invalid = true; return }
-                        dismiss(); onLink(link)
-                    }.buttonStyle(.bordered)
+                    // A link copied from the computer, without typing it. PasteButton needs no paste permission prompt.
+                    PasteButton(payloadType: String.self) { strings in
+                        Task { @MainActor in
+                            guard let text = strings.first, let link = MobilePairingLink(text) else { invalid = true; return }
+                            dismiss(); onLink(link)
+                        }
+                    }
+                    .accessibilityIdentifier("pastePairingLink")
                 }
                 if invalid { Text("That is not a CodeRim pairing code.").font(.footnote).foregroundStyle(.red) }
             }
