@@ -32,7 +32,8 @@ internal sealed class AccountsPane : DockPanel
         Margin = new Thickness(24); LastChildFill = true;
         var header = new StackPanel(); DockPanel.SetDock(header, Dock.Top); Children.Add(header);
         header.Children.Add(Ui.Text((provider == "codex" ? "Codex" : "Claude") + " Accounts", 17, weight: FontWeights.SemiBold));
-        header.Children.Add(Ui.Text("Select an account for the " + (provider == "codex" ? "Codex" : "Claude") + " CLI.", color: "#A6A6AA"));
+        header.Children.Add(Ui.Text(provider == "codex" ? "Select an account for Codex and its CLI."
+            : "Select an account for the Claude Code CLI. Claude Desktop keeps its own sign-in.", color: "#A6A6AA"));
         header.Margin = new Thickness(0, 0, 0, 14);
         var footer = new StackPanel();
         System.Windows.Automation.AutomationProperties.SetAutomationId(footer, "accounts.footer");
@@ -135,11 +136,21 @@ internal sealed class AccountsPane : DockPanel
             }
             foreach (var account in saved)
             {
-                var panel = new StackPanel { Margin = new Thickness(0, 12, 0, 12) };
-                panel.Children.Add(Ui.Text(account.Identity.Email + (current == account.Identity.Id ? " · Current ✓" : ""), 15, weight: FontWeights.SemiBold));
-                panel.Children.Add(Ui.Text((AccountPlanDisplay.Name(provider, account.Identity.Plan, account.Profile, account.Identity.Email, account.Identity.Organization)
-                    ?? "Subscription") + " · " + account.Identity.Organization, 11, "#A6A6AA"));
-                var actions = new WrapPanel();
+                // One line per account, as on macOS: who it is on the left; Current or Switch, then remove, on the right.
+                if (list.Children.Count > 0)
+                {
+                    var divider = new Border { Height = 1 }; divider.SetResourceReference(Border.BackgroundProperty, "DividerBrush"); list.Children.Add(divider);
+                }
+                var panel = new Grid { Margin = new Thickness(0, 14, 0, 14) };
+                panel.ColumnDefinitions.Add(new ColumnDefinition()); panel.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                var identity = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 12, 0) };
+                var email = Ui.Text(account.Identity.Email, 14, weight: FontWeights.Medium); email.TextWrapping = TextWrapping.Wrap; identity.Children.Add(email);
+                var plan = Ui.Text((AccountPlanDisplay.Name(provider, account.Identity.Plan, account.Profile, account.Identity.Email, account.Identity.Organization)
+                    ?? "Subscription") + " · " + account.Identity.Organization, 11, "#A6A6AA");
+                plan.Margin = new Thickness(0, 3, 0, 0); identity.Children.Add(plan);
+                panel.Children.Add(identity);
+                var actions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                Grid.SetColumn(actions, 1);
                 var select = Ui.AsyncButton("Switch", async () =>
                 {
                     if (MessageBox.Show(Window.GetWindow(this), "Switch the CLI to " + account.Identity.Email + "? Close its running sessions before continuing.", "Switch account", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
@@ -173,9 +184,22 @@ internal sealed class AccountsPane : DockPanel
                     finally { SetBusy(false); }
                 });
                 System.Windows.Automation.AutomationProperties.SetName(select, "Switch to " + account.Identity.Email);
+                select.Margin = new Thickness(0, 0, 4, 0); select.HorizontalAlignment = HorizontalAlignment.Right;
                 if (current != account.Identity.Id) actions.Children.Add(select);
+                else
+                {
+                    var marker = Ui.Text("\u2713 Current", 13, "#A6A6AA"); marker.VerticalAlignment = VerticalAlignment.Center; marker.Margin = new Thickness(0, 0, 8, 0);
+                    System.Windows.Automation.AutomationProperties.SetAutomationId(marker, "accounts.current"); actions.Children.Add(marker);
+                }
                 var remove = Ui.Button("Remove", () => Run(() => { if (MessageBox.Show(Window.GetWindow(this), "Remove the saved login for " + account.Identity.Email + "? Its current CLI session and usage history are preserved.", "Remove saved account", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) { accounts.Remove(provider, account.Identity.Id); Populate(); } }));
                 System.Windows.Automation.AutomationProperties.SetName(remove, "Remove saved account " + account.Identity.Email);
+                // A borderless minus-in-circle, as macOS draws it.
+                remove.Content = new System.Windows.Shapes.Path { Data = System.Windows.Media.Geometry.Parse("M8,1 A7,7 0 1 1 7.99,1 Z M4.5,8 H11.5"),
+                    StrokeThickness = 1.3, Width = 16, Height = 16, Stretch = System.Windows.Media.Stretch.None };
+                ((System.Windows.Shapes.Path)remove.Content).SetResourceReference(System.Windows.Shapes.Shape.StrokeProperty, "SecondaryText");
+                remove.Width = remove.Height = 32; remove.MinHeight = 32; remove.Padding = new Thickness(0); remove.Margin = new Thickness(0);
+                remove.Background = System.Windows.Media.Brushes.Transparent; remove.BorderThickness = new Thickness(0);
+                remove.ToolTip = "Remove saved account";
                 actions.Children.Add(remove);
                 panel.Children.Add(actions); list.Children.Add(panel);
             }
