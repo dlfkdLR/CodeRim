@@ -27,7 +27,7 @@ jobs:
         run: python3 Scripts/prepare_swift_dependencies.py --run-swift test -Xswiftc -warnings-as-errors
       - name: Provider matrices (one test per provider and situation)
         run: |
-          bundle="$(find .build -maxdepth 7 -type d -name CodeRimTests.xctest | head -1)"
+          bundle="$(find .build -type d -name CodeRimTests.xctest -prune -print 2>/dev/null | head -1)"
           test -n "$bundle"
           # swift test lists methods statically; these suites build one case per provider and situation.
           xcrun xctest -XCTest CodeRimTests.ProviderFetchMatrixTests "$bundle"
