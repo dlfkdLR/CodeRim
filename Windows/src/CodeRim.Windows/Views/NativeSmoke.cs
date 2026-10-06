@@ -187,9 +187,18 @@ internal static partial class NativeSmoke
         {
             var cliDirectory = CliInstaller.Install(() => fixturePath, value => fixturePath = value);
             CliInstaller.Install(() => fixturePath, value => fixturePath = value);
-            var pathEntries = fixturePath.Split(';');
-            Require(pathEntries.Count(x => string.Equals(x, cliDirectory, StringComparison.OrdinalIgnoreCase)) == 1, "CLI installation duplicated PATH");
-            Require(File.ReadAllText(Path.Combine(cliDirectory, "coderim.cmd")).Contains("CodeRimCLI.exe", StringComparison.Ordinal), "CLI wrapper is missing");
+            if (PackagedApp.IsPackaged)
+            {
+                // The Store package's execution aliases already put `coderim` on PATH; nothing is written.
+                Require(fixturePath == @"C:\fixture-existing", "The Store package edited the user PATH.");
+                Require(File.Exists(Path.Combine(cliDirectory, "coderim.exe")), "The coderim execution alias is missing.");
+            }
+            else
+            {
+                var pathEntries = fixturePath.Split(';');
+                Require(pathEntries.Count(x => string.Equals(x, cliDirectory, StringComparison.OrdinalIgnoreCase)) == 1, "CLI installation duplicated PATH");
+                Require(File.ReadAllText(Path.Combine(cliDirectory, "coderim.cmd")).Contains("CodeRimCLI.exe", StringComparison.Ordinal), "CLI wrapper is missing");
+            }
         }
         AppDiagnostics.Record("codex", "Ready", 2);
         AppDiagnostics.Record("private-unknown", "private-payload", 0);
