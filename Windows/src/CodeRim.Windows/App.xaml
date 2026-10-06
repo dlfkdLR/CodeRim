@@ -108,6 +108,9 @@
    <Setter Property="Width" Value="36"/><Setter Property="Height" Value="36"/>
   </Style>
   <Style x:Key="NotchProviderButton" TargetType="Button" BasedOn="{StaticResource NotchButton}">
+   <!-- A ring only shows its card on hover or focus, as on macOS: no press effect, no hand cursor. -->
+   <Setter Property="views:Motion.Feedback" Value="False"/>
+   <Setter Property="Cursor" Value="Arrow"/>
    <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="Button">
     <Grid Background="{TemplateBinding Background}">
      <Grid HorizontalAlignment="Center" VerticalAlignment="Center">

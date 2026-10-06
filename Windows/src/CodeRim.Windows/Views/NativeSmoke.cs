@@ -812,10 +812,14 @@ internal static partial class NativeSmoke
         Require(SessionFocus.FindOwningWindow(ownSession with { ProcessStartedAt = ownSession.ProcessStartedAt.GetValueOrDefault().AddMinutes(-1) }) == IntPtr.Zero, "Reused process identity was accepted");
         Record("Session registry activation requires original process identity and rejects reused processes");
         notch.Peek(activity with { Provider = "codex" }); await Idle();
-        var attentionButton = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.provider.codex");
-        attentionButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
-        Require(Descendants<ListBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Settings sections").SelectedItem is ListBoxItem { Tag: "usage" }, "Unavailable session target did not open local sessions");
-        Record("Session window discovery, process-reuse rejection, and unavailable-target fallback");
+        // Rings are not buttons to press, as on macOS: clicking one changes nothing.
+        var ringButton = Descendants<System.Windows.Controls.Button>(notch).Single(x => AutomationProperties.GetAutomationId(x) == "notch.provider.codex");
+        var sectionBefore = (Descendants<ListBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Settings sections").SelectedItem as ListBoxItem)?.Tag;
+        var refreshesBefore = store.RefreshingProviders.Count;
+        ringButton.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent)); await Idle();
+        Require(Equals((Descendants<ListBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Settings sections").SelectedItem as ListBoxItem)?.Tag, sectionBefore)
+            && store.RefreshingProviders.Count == refreshesBefore, "Clicking a notch ring did something");
+        Record("Session window discovery and process-reuse rejection; clicking a ring does nothing");
         Record("Blocked and finished sessions peek independently of sound, without duplicate alerts");
         await CheckMotion(dashboard, notch, store, settings, directory);
         Record("Motion parity: intermediate frames, reversal, ring reset, refresh, controls, visibility and reduced-motion policy");

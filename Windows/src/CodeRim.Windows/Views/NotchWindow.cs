@@ -113,12 +113,10 @@ internal sealed partial class NotchWindow : Window
         if (message == 0x0021) { handled = true; return new IntPtr(3); } // MA_NOACTIVATE: refresh does not steal the active editor.
         return IntPtr.Zero;
     }
-    private SessionActivity? attentionSession;
-    private DateTimeOffset attentionUntil;
     public void Peek(SessionActivity? session = null)
     {
         if (settings.Current.Visibility == NotchVisibility.Hidden) return;
-        attentionSession = session; attentionUntil = DateTimeOffset.Now.AddSeconds(5);
+        _ = session; // The peek opens the notch; sessions are opened from the provider card.
         SetExpanded(true);
         foldTimer.Interval = TimeSpan.FromSeconds(5); foldTimer.Start();
     }
@@ -234,7 +232,7 @@ internal sealed partial class NotchWindow : Window
     private static void UpdateRingAccessibility(Button button, ProviderRing ring)
     {
         AutomationProperties.SetName(button, (ProviderCatalog.Find(ring.ProviderId)?.Name ?? ring.ProviderId) + "; " + ring.AccessibleReading());
-        AutomationProperties.SetHelpText(button, "Show usage details. Activate to refresh or open the session needing attention.");
+        AutomationProperties.SetHelpText(button, "Shows usage details on hover or focus.");
     }
     internal void Render(bool animateOpening = false, bool preservePopup = false, double openingProgress = 0)
     {
@@ -293,15 +291,6 @@ internal sealed partial class NotchWindow : Window
             buttons[id] = button;
             UpdateRingAccessibility(button, ring);
             AutomationProperties.SetAutomationId(button, "notch.provider." + id);
-            button.Click += async (_, _) =>
-            {
-                if (attentionSession is { } session && session.Provider == id && DateTimeOffset.Now <= attentionUntil)
-                {
-                    attentionSession = null; popup.IsOpen = false;
-                    if (!SessionFocus.Activate(session)) openSettings("sessions:" + id);
-                }
-                else await store.RefreshProviderAsync(id).ConfigureAwait(true);
-            };
             button.MouseEnter += (_, _) => HoverProvider(id, button);
             button.MouseMove += (_, _) => { if (providerHoverSuppressedAt is not null) HoverProvider(id, button); };
             button.MouseLeave += (_, _) => hoverClear.Start();
