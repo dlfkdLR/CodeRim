@@ -96,4 +96,8 @@ public sealed record ScanResult(
 {
     public IReadOnlyList<UsageEvent> Events { get; init; } = [];
     public IReadOnlyList<SessionDetails> Sessions { get; init; } = [];
+    /// Identifies the scanner content behind Events and Sessions. Unique across scanners and only
+    /// changed when a source was read, dropped or invalidated, so a caller can skip re-storing
+    /// history that has not changed since the last scan it stored.
+    public string ContentVersion { get; init; } = "";
 }

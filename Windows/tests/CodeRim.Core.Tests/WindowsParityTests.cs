@@ -306,6 +306,29 @@ public sealed class WindowsParityTests
         Assert.Empty(tracker.Observe(reading with { Windows = [new("five", "5 hours", 0)] }, now));
         Assert.Equal([80], tracker.Observe(reading, now));
     }
+    [Fact]
+    public void ThresholdsArePerAccountRestartEachPeriodAndIgnoreNonFiniteValues()
+    {
+        var now = DateTimeOffset.Now; var tracker = new ThresholdTracker();
+        var reset = now.AddHours(2);
+        var full = new ProviderReading("claude", ReadingState.Ready, [new("five", "5 hours", 100, reset)], now);
+        Assert.Equal([80, 100], tracker.Observe(full, now, "account-a"));
+        Assert.Equal([80], tracker.Observe(full with { Windows = [new("five", "5 hours", 85, reset)] }, now, "account-b"));
+        Assert.Equal([100], tracker.Observe(full, now, "account-b"));
+        Assert.Empty(tracker.Observe(full with { Windows = [new("five", "5 hours", 100, reset.AddSeconds(20))] }, now, "account-a"));
+        // The next period, first seen already high (the PC was asleep through its low part).
+        Assert.Equal([80], tracker.Observe(full with { Windows = [new("five", "5 hours", 90, reset.AddHours(5))] }, now, "account-a"));
+        foreach (var value in new[] { double.NaN, double.PositiveInfinity, 1e300 })
+            _ = tracker.Observe(full with { Id = "copilot", Windows = [new("premium", "Premium", value)] }, now);
+    }
+    [Fact]
+    public void AnOldPartialReadingIsShownAsStale()
+    {
+        var now = DateTimeOffset.Now;
+        var partial = new ProviderReading("deepseek", ReadingState.Partial, [new("balance", "Balance", 40)], now.AddMinutes(-10));
+        Assert.Equal(ReadingState.Stale, partial.Evaluated(now).State);
+        Assert.Equal(ReadingState.Partial, (partial with { UpdatedAt = now }).Evaluated(now).State);
+    }
     [Theory]
     [InlineData("task_started", true)] [InlineData("task_complete", false)] [InlineData("turn_aborted", false)]
     public void OnlyExplicitCodexBoundariesCountAsActivity(string kind, bool expected)

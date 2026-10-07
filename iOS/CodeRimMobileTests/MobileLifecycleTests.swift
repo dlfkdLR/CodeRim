@@ -29,12 +29,20 @@ final class MobileLifecycleTests: XCTestCase {
         .init(endpoint: URL(string: "https://relay.example.com")!,
               session: .init(token: "synthetic-test-token", expiresAt: expiresAt))
     }
-    func testExpiredRestoreRemovesLocalCredential() async throws {
-        let storage = MemoryCredentials(credential(expiresAt: 1))
-        let model = MobileAppModel(credentials: storage)
+    /// The saved expiry is where the token started; the relay renews tokens in use. A phone past it
+    /// stays connected while the relay accepts the token, and signs out only on the relay's 401.
+    func testThePastSavedExpiryDoesNotSignOutButARelay401Does() async throws {
+        let renewed = MemoryCredentials(credential(expiresAt: 1))
+        let accepted = MobileAppModel(credentials: renewed, makeClient: { _ in StatusRelay(status: 200) })
+        await accepted.restore()
+        XCTAssertTrue(accepted.signedIn)
+        let kept = try await renewed.load(); XCTAssertNotNil(kept)
+
+        let ended = MemoryCredentials(credential(expiresAt: 1))
+        let model = MobileAppModel(credentials: ended, makeClient: { _ in StatusRelay(status: 401) })
         await model.restore()
         XCTAssertFalse(model.signedIn)
-        let stored = try await storage.load(); XCTAssertNil(stored)
+        let stored = try await ended.load(); XCTAssertNil(stored)
         XCTAssertFalse(model.activityActive)
     }
     func testRestoreLocksLoginUntilAsynchronousCredentialLookupCompletes() async throws {
@@ -104,6 +112,62 @@ extension MobileLifecycleTests {
     }
 }
 
+private actor StatusRelay: MobileRelayServing {
+    nonisolated let endpoint = URL(string: "https://relay.example.com")!
+    let status: Int
+    init(status: Int) { self.status = status }
+    func get<Response: Decodable & Sendable>(_ path: String, token: String) async throws -> Response {
+        guard status == 200 else { throw MobileRelayError.rejected(status) }
+        let state = MobileActivityState(viewRevision: 0, connection: "offline", updatedAt: 0, staleAt: 0,
+            providers: [], sessions: [], additionalSessionCount: 0, workingCount: 0, waitingCount: 0, unavailableCount: 0)
+        let response = MobileSnapshotResponse(state: state, preferences: MobilePreferences(), availableProviders: [])
+        return try JSONDecoder().decode(Response.self, from: JSONEncoder().encode(response))
+    }
+    func send<Response: Decodable & Sendable, Body: Encodable & Sendable>(_ method: String, _ path: String, token: String?, body: Body) throws -> Response {
+        throw URLError(.notConnectedToInternet)
+    }
+}
+
+/// Same view revision, different content times: the answer to the older request arrives last.
+private actor SameRevisionRelay: MobileRelayServing {
+    nonisolated let endpoint = URL(string: "https://relay.example.com")!
+    private var count = 0
+    func get<Response: Decodable & Sendable>(_ path: String, token: String) async throws -> Response {
+        let call = count; count += 1
+        let dataVersion: Double = call == 1 ? 100 : call == 2 ? 200 : 50
+        if call == 1 { try await Task.sleep(for: .milliseconds(120)) }
+        let state = MobileActivityState(viewRevision: 3, dataVersion: dataVersion, connection: "offline", updatedAt: dataVersion, staleAt: 0,
+            providers: [], sessions: [], additionalSessionCount: 0, workingCount: 0, waitingCount: 0, unavailableCount: 0)
+        let response = MobileSnapshotResponse(state: state, preferences: MobilePreferences(), availableProviders: [])
+        return try JSONDecoder().decode(Response.self, from: JSONEncoder().encode(response))
+    }
+    func send<Response: Decodable & Sendable, Body: Encodable & Sendable>(_ method: String, _ path: String, token: String?, body: Body) throws -> Response {
+        throw URLError(.notConnectedToInternet)
+    }
+}
+extension MobileLifecycleTests {
+    func testLateAnswerWithTheSameRevisionCannotReplaceNewerData() async throws {
+        let storage = MemoryCredentials(credential()), relay = SameRevisionRelay()
+        let model = MobileAppModel(credentials: storage, makeClient: { _ in relay })
+        await model.restore()
+        let oldRequest = Task { await model.refresh() }
+        try await Task.sleep(for: .milliseconds(20))
+        await model.refresh(); await oldRequest.value
+        XCTAssertEqual(model.state.dataVersion, 200)
+    }
+
+    func testRevisionOrdersScreensAndDataVersionOrdersContent() {
+        func state(_ revision: Int?, _ data: Double?) -> MobileActivityState {
+            MobileActivityState(viewRevision: revision, dataVersion: data, connection: "connected", updatedAt: 0, staleAt: 0,
+                providers: [], sessions: [], additionalSessionCount: 0, workingCount: 0, waitingCount: 0, unavailableCount: 0)
+        }
+        XCTAssertTrue(state(2, 1).supersedes(state(1, 99)), "a later screen wins even with older content")
+        XCTAssertFalse(state(1, 99).supersedes(state(2, 1)))
+        XCTAssertTrue(state(2, 5).supersedes(state(2, 5)))
+        XCTAssertFalse(state(2, 4).supersedes(state(2, 5)))
+        XCTAssertTrue(state(nil, nil).supersedes(state(0, nil)), "answers from an older relay still apply")
+    }
+}
 
 private actor ProviderChoiceRelay: MobileRelayServing {
     nonisolated let endpoint = URL(string: "https://relay.example.com")!

@@ -16,6 +16,8 @@ struct CommandCodeCredentials {
 
     let apiKey: String
     let userName: String?
+    /// The account the key belongs to, without the key itself.
+    var identity: String { AccountIdentity.fingerprint("commandcode", apiKey) }
 
     static func account(from url: URL = authURL) -> ProviderAccount? {
         guard let stored = try? load(from: url) else { return nil }

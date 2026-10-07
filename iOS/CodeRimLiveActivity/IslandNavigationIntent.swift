@@ -91,7 +91,8 @@ actor IslandNavigation {
             return
         }
         #endif
-        guard let credential = try await MobileCredentialStore.shared.load(), credential.expiresAt > Date().timeIntervalSince1970 else { throw MobileRelayError.expired }
+        // The relay renews tokens in use and answers 401 when one has really ended.
+        guard let credential = try await MobileCredentialStore.shared.load() else { throw MobileRelayError.expired }
         let connection = MobileActivityConnection.id(for: credential.token)
         let activities = Activity<CodeRimActivityAttributes>.activities.filter { $0.attributes.connectionID == connection && ($0.activityState == .active || $0.activityState == .stale) }
         guard !activities.isEmpty else { return }
@@ -102,7 +103,7 @@ actor IslandNavigation {
         // Logout/account changes may race the network request; never restore another login's screen.
         guard try await MobileCredentialStore.shared.load()?.token == credential.token else { return }
         for activity in activities where activity.activityState == .active || activity.activityState == .stale {
-            guard (activity.content.state.viewRevision ?? 0) <= (response.state.viewRevision ?? 0) else { continue }
+            guard response.state.supersedes(activity.content.state) else { continue }
             await activity.update(ActivityContent(state: response.state, staleDate: Date(timeIntervalSince1970: response.state.staleAt)))
         }
     }

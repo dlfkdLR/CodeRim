@@ -57,7 +57,16 @@ enum SafeBrowserProviderFetch {
         ProviderFetchResult(usage: usage, credits: nil, dashboard: nil, sourceLabel: source,
             strategyID: id + "." + source, strategyKind: source == "api" ? .apiToken : .web)
     }
-    private static func liveProfiles(_ browsers: [Browser], _ detection: BrowserDetection) throws -> [Profile] {
+    /// One browser's store that cannot be read — absent, access refused, locked, too large — is a reason
+    /// to try the next browser: nothing from it has been sent anywhere yet. Only cancellation stops the
+    /// search. The first such failure is kept, to be reported if no other browser has a session.
+    private static func readable<T>(_ read: () throws -> T, skipped: inout Error?) throws -> T? {
+        do { return try read() }
+        catch is CancellationError { throw CancellationError() }
+        catch LocalStorageReadError.missing { return nil }
+        catch { try Task.checkCancellation(); if skipped == nil { skipped = error }; return nil }
+    }
+        private static func liveProfiles(_ browsers: [Browser], _ detection: BrowserDetection) throws -> [Profile] {
         var profiles: [Profile] = []
         let roots = ChromiumProfileLocator.roots(for: browsers.browsersWithProfileData(using: detection),
             homeDirectories: BrowserCookieClient.defaultHomeDirectories())
@@ -157,6 +166,7 @@ enum SafeBrowserProviderFetch {
         guard context.sourceMode == .web || context.sourceMode == .auto else { throw MiniMaxSettingsError.missingCookie }
         let domain = cn ? "minimaxi.com" : "minimax.io"
         var lastError: Error = MiniMaxSettingsError.missingCookie
+        var skippedRead: Error?
         // An old cache contains no verifiable profile identity. It remains a cookie-only alternative;
         // no localStorage bearer/group is ever attached to a display label.
         if let cached = await cacheRead(), !cached.isEmpty {
@@ -176,9 +186,7 @@ enum SafeBrowserProviderFetch {
                 // Profile ID alone is insufficient when a crafted store names a different backing database.
                 guard let database = store.databaseURL,
                       database == profile.url.appendingPathComponent("Cookies") || database == profile.url.appendingPathComponent("Network/Cookies") else { throw LocalStorageReadError.invalid }
-                let records: [BrowserCookieRecord]
-                do { records = try dependencies.cookies(store, [domain]) }
-                catch LocalStorageReadError.missing { continue }
+                guard let records = try readable({ try dependencies.cookies(store, [domain]) }, skipped: &skippedRead) else { continue }
                 let plan = URL(string: "https://platform.\(domain)/user-center/payment/coding-plan?cycle_type=3")!
                 let header = try cookieHeader(records, for: plan)
                 guard !header.isEmpty else { continue }
@@ -223,7 +231,8 @@ enum SafeBrowserProviderFetch {
         // Safari/Firefox cookie-only paths are safe alternatives; they are not paired with Chromium storage.
         for browser in [Browser.safari, .firefox] {
             for store in dependencies.stores(browser) {
-                let records = try dependencies.cookies(store, [domain]), plan = URL(string: "https://platform.\(domain)/user-center/payment/coding-plan")!
+                guard let records = try readable({ try dependencies.cookies(store, [domain]) }, skipped: &skippedRead) else { continue }
+                let plan = URL(string: "https://platform.\(domain)/user-center/payment/coding-plan")!
                 let header = try cookieHeader(records, for: plan); if header.isEmpty { continue }
                 do {
                     let scoped = CookieTransport(base: dependencies.transport, records: records, allowedHosts: Set(["platform." + domain, "api." + domain, "www." + domain, domain]))
@@ -233,6 +242,7 @@ enum SafeBrowserProviderFetch {
                 } catch { try Task.checkCancellation(); if !isMiniMaxFallback(error) { throw error }; lastError = error }
             }
         }
+        if case MiniMaxSettingsError.missingCookie = lastError, let skippedRead { throw skippedRead }
         throw lastError
     }
     private static func isMiniMaxFallback(_ error: Error) -> Bool {
@@ -258,6 +268,7 @@ enum SafeBrowserProviderFetch {
         }
         guard [.auto, .web, .cli].contains(context.sourceMode) else { throw FactoryStatusProbeError.noSessionCookie }
         var lastError: Error = FactoryStatusProbeError.noSessionCookie
+        var skippedRead: Error?
         let cache = await cacheRead()
         // Existing explicit session cookies are usable without any localStorage pairing.
         if let cached = cache, !cached.isEmpty, !cached.hasPrefix("CodeRimFactory1:") {
@@ -325,24 +336,24 @@ enum SafeBrowserProviderFetch {
         let profiles = try dependencies.profiles([.chrome], context.browserDetection)
         for profile in profiles {
             for origin in SafeBrowserSessionCredentials.origins("factory") {
-                let credential: SafeBrowserSessionCredential
-                do { guard let value = try read("factory", profile: profile, origin: origin, dependencies: dependencies) else { continue }; credential = value }
-                catch LocalStorageReadError.missing { continue }
+                guard let found = try readable({ try read("factory", profile: profile, origin: origin, dependencies: dependencies) }, skipped: &skippedRead),
+                      let credential = found else { continue }
                 if let usage = try await factoryCredential(credential, cache: cache, probe: probe, dependencies: dependencies,
                     validate: { try unchanged(credential, provider: "factory", profile: profile, dependencies: dependencies) }) { return usage }
             }
         }
-        do {
-            let safari = try dependencies.safariFactory()
+        // Safari storage that is absent or refused (unsupported, access denied) leaves the cookie
+        // alternatives below to try; only a read of a credential that is then used can stop the search.
+        if let safari = try readable({ try dependencies.safariFactory() }, skipped: &skippedRead) {
             for credential in safari {
                 if let usage = try await factoryCredential(credential, cache: cache, probe: probe, dependencies: dependencies,
                     validate: { guard try dependencies.safariFactory() == safari else { throw LocalStorageReadError.changed } }) { return usage }
             }
-        } catch LocalStorageReadError.missing { /* No modern Safari storage: preserve cookie alternatives below. */ }
+        }
         // Browser cookies retain the existing Safari/Chromium/Firefox alternative; no raw importer is invoked.
         for browser in [Browser.safari, .chrome, .firefox] {
             for store in dependencies.stores(browser) {
-                let records = try dependencies.cookies(store, ["factory.ai"])
+                guard let records = try readable({ try dependencies.cookies(store, ["factory.ai"]) }, skipped: &skippedRead) else { continue }
                 let header = try factoryCookieHeader(records)
                 if header.isEmpty { continue }
                 do {
@@ -357,7 +368,7 @@ enum SafeBrowserProviderFetch {
         }
         for browser in [Browser.safari, .chrome, .firefox] {
             for store in dependencies.stores(browser) {
-                let records = try dependencies.cookies(store, ["workos.com"])
+                guard let records = try readable({ try dependencies.cookies(store, ["workos.com"]) }, skipped: &skippedRead) else { continue }
                 let url = URL(string: "https://api.workos.com/user_management/authenticate")!
                 let header = try cookieHeader(records, for: url); if header.isEmpty { continue }
                 do {
@@ -387,6 +398,7 @@ enum SafeBrowserProviderFetch {
                 } catch FactoryStatusProbeError.noSessionCookie { guard try cookieFingerprint(dependencies.cookies(store, ["workos.com"])) == cookieFingerprint(records) else { throw LocalStorageReadError.changed }; lastError = FactoryStatusProbeError.noSessionCookie }
             }
         }
+        if case FactoryStatusProbeError.noSessionCookie = lastError, let skippedRead { throw skippedRead }
         throw lastError
     }
     private static func factoryCookieHeader(_ records: [BrowserCookieRecord]) throws -> String {

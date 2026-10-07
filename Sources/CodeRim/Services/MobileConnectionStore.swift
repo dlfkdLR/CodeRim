@@ -118,7 +118,7 @@ final class MobileConnectionStore: ObservableObject {
         self.credential = saved; self.client = client
         generation = UUID(); let run = generation
         serverAddress = saved.endpoint.absoluteString; isConnected = true; status = "Waiting for usage"
-        let home = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".claude")
+        let home = UsageProvider.claudeConfigRoot(home: URL(fileURLWithPath: NSHomeDirectory()))
         monitors = ["codex": CodexActivityMonitor(), "claude": ClaudeSessionMonitor(
             directory: home.appendingPathComponent("sessions"), projects: home.appendingPathComponent("projects"))]
         monitors.values.forEach { $0.start() }

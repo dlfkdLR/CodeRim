@@ -67,10 +67,13 @@ public static class MobileSnapshotBuilder
 public sealed class MobileRelayClient : IDisposable
 {
     private readonly HttpClient http;
+    private readonly TimeSpan requestTimeout;
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     public Uri Endpoint { get; }
-    public MobileRelayClient(string endpoint, HttpMessageHandler? handler = null)
+    public MobileRelayClient(string endpoint, HttpMessageHandler? handler = null) : this(endpoint, handler, TimeSpan.FromSeconds(15)) { }
+    internal MobileRelayClient(string endpoint, HttpMessageHandler? handler, TimeSpan requestTimeout)
     {
+        this.requestTimeout = requestTimeout;
         Endpoint = ValidateEndpoint(endpoint);
         http = new HttpClient(handler ?? new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = TimeSpan.FromSeconds(35) };
     }
@@ -96,8 +99,11 @@ public sealed class MobileRelayClient : IDisposable
         => _ = await SendAsync<JsonElement>(HttpMethod.Delete, "/v1/session", new { }, token, cancellationToken).ConfigureAwait(false);
     private async Task<T> SendAsync<T>(HttpMethod method, string path, object body, string? token, CancellationToken cancellationToken, TimeSpan? timeout = null)
     {
+        // One deadline from the request to the decoded body. HttpClient.Timeout stops at the headers when
+        // ResponseHeadersRead is used, so a relay or proxy that sends 200 and never finishes the body
+        // would otherwise hold pairing, sharing and disconnect forever.
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        deadline.CancelAfter(timeout ?? TimeSpan.FromSeconds(15)); cancellationToken = deadline.Token;
+        deadline.CancelAfter(timeout ?? requestTimeout); cancellationToken = deadline.Token;
         var bytes = JsonSerializer.SerializeToUtf8Bytes(body, Json);
         if (bytes.Length > 262144) throw new InvalidDataException("Mobile snapshot exceeds the transfer limit.");
         using var request = new HttpRequestMessage(method, new Uri(Endpoint, path)) { Content = new ByteArrayContent(bytes) };
@@ -110,8 +116,11 @@ public sealed class MobileRelayClient : IDisposable
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
         if ((int)response.StatusCode is >= 300 and < 400) throw new HttpRequestException("Relay redirects are not accepted.", null, response.StatusCode);
         response.EnsureSuccessStatusCode();
-        await response.Content.LoadIntoBufferAsync(262144, cancellationToken).ConfigureAwait(false);
-        var result = await response.Content.ReadFromJsonAsync<T>(Json, cancellationToken).ConfigureAwait(false);
+        // Disposing the response aborts the connection, and WaitAsync returns at the deadline even if
+        // a stream does not observe cancellation itself.
+        using var abort = cancellationToken.Register(static state => ((IDisposable)state!).Dispose(), response);
+        await response.Content.LoadIntoBufferAsync(262144, cancellationToken).WaitAsync(cancellationToken).ConfigureAwait(false);
+        var result = await response.Content.ReadFromJsonAsync<T>(Json, cancellationToken).WaitAsync(cancellationToken).ConfigureAwait(false);
         return result ?? throw new InvalidDataException("Empty relay response.");
     }
     public static MobileToken ValidateIssuedToken(MobileToken issued, DateTimeOffset now)

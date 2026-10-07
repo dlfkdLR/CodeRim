@@ -19,6 +19,8 @@ public sealed class UsageScanner
     public const long MaximumSourceBytes = 512L * 1_024 * 1_024;
     public const long MaximumBytesPerScan = 4L * 1_024 * 1_024 * 1_024;
     public const long MaximumTotalSourceBytes = 32L * 1_024 * 1_024 * 1_024;
+    /// A work budget per scan, not a hard deadline: it includes discovery, no new source starts after it,
+    /// and MaximumSourceBytes bounds how far the source in progress can run past it.
     public static readonly TimeSpan MaximumScanDuration = TimeSpan.FromSeconds(30);
 
     private readonly IReadOnlyList<string> roots;
@@ -26,6 +28,8 @@ public sealed class UsageScanner
     private byte[]? projectKey;
     private readonly bool requireCompleteSources;
     private readonly Dictionary<string, CachedFile> cache = new(StringComparer.OrdinalIgnoreCase);
+    private static long contentVersions;
+    private long contentVersion = Interlocked.Increment(ref contentVersions);
     private readonly ConcurrentQueue<string> invalidatedPaths = new();
     private readonly int maximumSourceCount;
     private readonly int maximumEventCount;
@@ -119,6 +123,7 @@ public sealed class UsageScanner
         DateTimeOffset now,
         CancellationToken cancellationToken = default)
     {
+        var cacheAtStart = cache.ToArray();
         var currentInvalidationGeneration = Volatile.Read(ref invalidationGeneration);
         if (currentInvalidationGeneration != appliedInvalidationGeneration)
         {
@@ -136,6 +141,7 @@ public sealed class UsageScanner
             }
         }
 
+        var scanStartedAt = Stopwatch.GetTimestamp();
         var discovery = DiscoverSources(cancellationToken);
         var sources = discovery.Sources;
         var activePaths = new HashSet<string>(sources, StringComparer.OrdinalIgnoreCase);
@@ -143,7 +149,6 @@ public sealed class UsageScanner
         var hasMoreWork = false;
         var resourceLimitReached = discovery.ResourceLimitReached;
         var scannedBytes = 0L;
-        var scanStartedAt = Stopwatch.GetTimestamp();
 
         foreach (var stale in cache.Keys.Where(path => !activePaths.Contains(path)).ToArray())
         {
@@ -287,6 +292,11 @@ public sealed class UsageScanner
         }
 
         if (provider == "claude") events.AddRange(merged.Values.Take(maximumEventCount));
+        if (cacheAtStart.Length != cache.Count
+            || cacheAtStart.Any(entry => !cache.TryGetValue(entry.Key, out var current) || !ReferenceEquals(current, entry.Value)))
+            contentVersion = Interlocked.Increment(ref contentVersions);
+        // Attachments become visible as their time arrives, which changes the stored sessions too.
+        var dueAttachments = provider == "claude" ? 0 : cache.Values.Sum(x => x.Details?.Attachments.Count(a => a.OccurredAt <= now) ?? 0);
         var snapshot = Aggregate(events, now, weekStart, partial || hasMoreWork);
         var status = resourceLimitReached
             ? "Local session data limit reached"
@@ -300,6 +310,7 @@ public sealed class UsageScanner
                     _ => "Unable to read local usage"
                 };
         return new ScanResult(snapshot, sources.Count, status.Replace("Codex", provider == "claude" ? "Claude Code" : "Codex", StringComparison.Ordinal), hasMoreWork) { Events = events,
+            ContentVersion = contentVersion.ToString(CultureInfo.InvariantCulture) + ":" + dueAttachments.ToString(CultureInfo.InvariantCulture),
             Sessions = provider == "claude" ? events.GroupBy(x => x.SessionId, StringComparer.Ordinal).Select(group =>
             {
                 var named = group.Where(x => x.ProjectId != "unknown").OrderByDescending(x => x.OccurredAt)
@@ -659,6 +670,17 @@ public sealed class UsageScanner
                 && FileIdentity.TryRead(path) == parsed.Identity;
         }
         finally { ArrayPool<byte>.Shared.Return(buffer); }
+    }
+
+    /// The earliest start of the current week and month: the periods a snapshot reports as current.
+    public static DateTimeOffset CurrentPeriodStart(DateTimeOffset now, WeekStart weekStart)
+    {
+        var timeZone = TimeZoneInfo.Local;
+        var localNow = TimeZoneInfo.ConvertTime(now, timeZone);
+        var dayOffset = weekStart == WeekStart.Monday ? ((int)localNow.DayOfWeek + 6) % 7 : (int)localNow.DayOfWeek;
+        var week = LocalStartUtc(localNow.Date.AddDays(-dayOffset), timeZone);
+        var month = LocalStartUtc(new DateTime(localNow.Year, localNow.Month, 1), timeZone);
+        return week < month ? week : month;
     }
 
     public static UsageSnapshot Aggregate(

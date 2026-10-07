@@ -19,13 +19,12 @@ final class OpenCodeNotchProvider: NotchProvider {
 
     private let session: URLSession
     private let archive: UsageArchive
-    private var retryNoEarlierThan: Date?
-    private var consecutiveRateLimits = 0
+    private var backoff: AccountBackoff
 
     init(session: URLSession = ProviderSession.shared, archive: UsageArchive = UsageArchive()) {
         self.session = session
         self.archive = archive
-        self.retryNoEarlierThan = archive.loadBackoffUntil(providerID: "opencode")
+        self.backoff = AccountBackoff(providerID: "opencode", archive: archive)
     }
 
     var signInRoute: SignInRoute {
@@ -34,6 +33,8 @@ final class OpenCodeNotchProvider: NotchProvider {
             installURL: URL(string: "https://opencode.ai")))
     }
 
+    func accountIdentity() -> String? { OpenCodeCredentials.load()?.identity }
+
     func account() -> ProviderAccount? {
         guard OpenCodeCredentials.load() != nil else { return nil }
         return ProviderAccount(label: nil, plan: "Go", source: "OpenCode",
@@ -41,13 +42,14 @@ final class OpenCodeNotchProvider: NotchProvider {
     }
 
     func fetchSnapshot() async throws -> ProviderSnapshot {
-        if let retryNoEarlierThan, retryNoEarlierThan > Date() {
-            throw NotchProviderError.rateLimited(retryAfter: retryNoEarlierThan.timeIntervalSinceNow)
-        }
-
         // An ordinary file, not a keychain item — reading it prompts nobody.
         guard let credentials = OpenCodeCredentials.load() else {
             throw NotchProviderError.needsAuth
+        }
+        // The wait belongs to the key that earned it; a different key is read straight away.
+        let account = credentials.identity
+        if let wait = backoff.remainingWait(for: account), wait > 0 {
+            throw NotchProviderError.rateLimited(retryAfter: wait)
         }
 
         do {
@@ -57,9 +59,7 @@ final class OpenCodeNotchProvider: NotchProvider {
             }
             let read = try OpenCodeUsage.windows(fromJSON: text)
 
-            consecutiveRateLimits = 0
-            retryNoEarlierThan = nil
-            archive.saveBackoffUntil(nil, providerID: id)
+            backoff.recordSuccess(account: account)
 
             return ProviderSnapshot(
                 id: id, displayName: displayName, glyph: glyph,
@@ -69,10 +69,8 @@ final class OpenCodeNotchProvider: NotchProvider {
         } catch NotchProviderError.rateLimited(let retryAfter) {
             // Bookkeeping where the answer was, not down in `fetch`: the wait
             // has to outlive the request that earned it.
-            consecutiveRateLimits += 1
-            retryNoEarlierThan = Date().addingTimeInterval(retryAfter)
-            archive.saveBackoffUntil(retryNoEarlierThan, providerID: id)
-            NotchLog.usage.notice("opencode: rate limited (\(self.consecutiveRateLimits, privacy: .public)x), next attempt in \(retryAfter, privacy: .public)s")
+            backoff.recordLimit(retryAfter: retryAfter, account: account)
+            NotchLog.usage.notice("opencode: rate limited (\(self.backoff.consecutiveLimits, privacy: .public)x), next attempt in \(retryAfter, privacy: .public)s")
             throw NotchProviderError.rateLimited(retryAfter: retryAfter)
         }
     }
@@ -96,7 +94,7 @@ final class OpenCodeNotchProvider: NotchProvider {
         if status == 429 {
             throw NotchProviderError.rateLimited(
                 retryAfter: Self.backoff(
-                    forAttempt: consecutiveRateLimits,
+                    forAttempt: backoff.consecutiveLimits,
                     retryAfter: Self.retryAfter(from: response)
                 )
             )

@@ -17,6 +17,8 @@ struct GrokCredentials {
     let email: String?
 
     var isExpired: Bool { expiresAt <= Date() }
+    /// The signed-in account; the e-mail survives token refreshes, the token is the fallback.
+    var identity: String { AccountIdentity.fingerprint("grok", email?.lowercased() ?? accessToken) }
 
     static func account(from url: URL = authURL) -> ProviderAccount? {
         guard let stored = (try? load(from: url)) else { return nil }

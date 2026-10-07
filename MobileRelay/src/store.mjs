@@ -72,6 +72,13 @@ export class Store {
   /** Remove everything that belongs to one session. */
   revoke(hash) {
     this.transaction(() => {
+      // Keep the account's content sequence from going backwards when its newest computer goes away.
+      const device = this.one('SELECT owner, data FROM devices WHERE session=?', hash);
+      const seq = device ? JSON.parse(device.data).seq ?? 0 : 0;
+      if (device && seq > 0) {
+        const user = this.user(device.owner);
+        if (seq > (user.dataFloor ?? 0)) this.saveUser(device.owner, { ...user, dataFloor: seq });
+      }
       this.run('DELETE FROM sessions WHERE hash=?', hash);
       this.run('DELETE FROM devices WHERE session=?', hash);
       this.run('DELETE FROM views WHERE session=?', hash);
@@ -84,5 +91,13 @@ export class Store {
     if (this.one('SELECT 1 AS x FROM sessions WHERE expires<=? LIMIT 1', now)) {
       for (const { hash } of this.sql.all('SELECT hash FROM sessions WHERE expires<=?', now)) this.revoke(hash);
     }
+    // A computer whose token is gone can only pair again as a new device; its old row keeps nothing useful.
+    for (const { session } of this.sql.all('SELECT d.session FROM devices d LEFT JOIN sessions s ON d.session=s.hash WHERE s.hash IS NULL')) {
+      this.revoke(session);
+    }
+  }
+  /** Computers that can still connect: the pairing limit counts only these. */
+  activeDeviceCount(owner, now) {
+    return this.one('SELECT COUNT(*) AS n FROM devices d JOIN sessions s ON d.session=s.hash WHERE d.owner=? AND s.expires>?', owner, now).n;
   }
 }

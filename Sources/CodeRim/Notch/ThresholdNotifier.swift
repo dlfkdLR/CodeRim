@@ -16,15 +16,26 @@ struct ThresholdAlert: Equatable {
 /// limit crosses 80% or reaches 100%.
 ///
 /// Crossing, not level: a provider parked at 91% must not alert twice, so the
-/// highest threshold currently crossed is remembered per provider. The memory
-/// clears when the reading drops back below the first threshold — the window
-/// has rolled over, and the next climb is a new fact worth announcing.
+/// highest threshold currently crossed is remembered. The memory clears when
+/// the reading drops back below the first threshold, or when the window's reset
+/// moves to a later period — the next climb is a new fact worth announcing.
+///
+/// Remembered per provider and account: reaching 100% on one account says
+/// nothing about the account switched to next.
 ///
 /// The delivery is injected rather than reached for, so the whole rule is
 /// testable without ever touching the notification centre.
 @MainActor
 final class ThresholdNotifier {
-    private var crossed: [String: Int] = [:]
+    private struct Memory {
+        var level: Int
+        var window: String?
+        var resetsAt: Date?
+    }
+
+    /// A reset that moves by more than this is a new period, not clock jitter in "resets in N s".
+    private static let newPeriodShift: TimeInterval = 30 * 60
+    private var crossed: [String: Memory] = [:]
     private let isMuted: (String) -> Bool
     private let deliver: (ThresholdAlert) -> Void
 
@@ -41,22 +52,33 @@ final class ThresholdNotifier {
     }
 
     private func observe(_ snapshot: ProviderSnapshot) {
-        guard let fraction = snapshot.usedFraction else { return }
-        let percent = fraction * 100
+        // A provider can report any finite number (Copilot: used 1e100 of 1); converting that to
+        // `Int` would trap, so the percentage is bounded before anything is derived from it.
+        guard let fraction = snapshot.usedFraction, fraction.isFinite else { return }
+        let percent = min(max(fraction * 100, 0), 1_000)
         let level = percent >= 100 ? 100 : percent >= 80 ? 80 : 0
+        let headline = snapshot.headline
 
-        defer { crossed[snapshot.id] = level }
-        let previous = crossed[snapshot.id] ?? 0
+        let key = snapshot.id + "|" + (snapshot.accountIdentity ?? "")
+        var memory = crossed[key] ?? Memory(level: 0, window: nil, resetsAt: nil)
+        let sameWindow = memory.window == headline?.id
+        if sameWindow, let next = headline?.resetsAt, let last = memory.resetsAt,
+           next.timeIntervalSince(last) > Self.newPeriodShift {
+            memory.level = 0   // a new limit period began while the reading was not seen low
+        }
+        let previous = memory.level
+        crossed[key] = Memory(level: level, window: headline?.id,
+                              resetsAt: headline?.resetsAt ?? (sameWindow ? memory.resetsAt : nil))
         guard level > previous, !isMuted(snapshot.id) else { return }
 
-        guard let headline = snapshot.headline else { return }
+        guard let headline else { return }
         for threshold in [80, 100] where threshold > previous && threshold <= level {
             deliver(ThresholdAlert(
                 threshold: threshold,
                 providerID: snapshot.id,
                 providerName: snapshot.displayName,
                 windowLabel: headline.label,
-                usedPercent: Int((percent).rounded()),
+                usedPercent: Int(percent.rounded()),
                 resetsAt: headline.resetsAt
             ))
         }

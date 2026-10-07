@@ -14,8 +14,7 @@ final class CommandCodeNotchProvider: NotchProvider {
     private let session: URLSession
     private let archive: UsageArchive
     private let authURL: URL
-    private var retryNoEarlierThan: Date?
-    private var consecutiveRateLimits = 0
+    private var backoff: AccountBackoff
     private var lastKnownPlan: String?
     private var lastKnownUser: String?
 
@@ -25,13 +24,15 @@ final class CommandCodeNotchProvider: NotchProvider {
         self.session = session
         self.archive = archive
         self.authURL = authURL
-        self.retryNoEarlierThan = archive.loadBackoffUntil(providerID: "commandcode")
+        self.backoff = AccountBackoff(providerID: "commandcode", archive: archive)
     }
 
     var signInRoute: SignInRoute {
         .guided(.init(name: "Command Code", action: .browser(URL(string: "https://commandcode.ai")!),
             note: "Sign in with Command Code. It writes ~/.commandcode/auth.json and CodeRim connects on its own."))
     }
+
+    func accountIdentity() -> String? { (try? CommandCodeCredentials.load(from: authURL))?.identity }
 
     func account() -> ProviderAccount? {
         guard let base = CommandCodeCredentials.account(from: authURL) else { return nil }
@@ -44,15 +45,16 @@ final class CommandCodeNotchProvider: NotchProvider {
     }
 
     func fetchSnapshot() async throws -> ProviderSnapshot {
-        if let retryNoEarlierThan, retryNoEarlierThan > Date() {
-            throw NotchProviderError.rateLimited(retryAfter: retryNoEarlierThan.timeIntervalSinceNow)
-        }
-
         let authURL = self.authURL
         guard let credentials = try? await Task.detached(operation: {
             try CommandCodeCredentials.load(from: authURL)
         }).value else {
             throw NotchProviderError.needsAuth
+        }
+        // The wait belongs to the key that earned it; a different key is read straight away.
+        let account = credentials.identity
+        if let wait = backoff.remainingWait(for: account), wait > 0 {
+            throw NotchProviderError.rateLimited(retryAfter: wait)
         }
 
         do {
@@ -84,9 +86,7 @@ final class CommandCodeNotchProvider: NotchProvider {
                 summaryJSON: summary, creditsJSON: credits, subscriptionJSON: subscription
             )
 
-            consecutiveRateLimits = 0
-            retryNoEarlierThan = nil
-            archive.saveBackoffUntil(nil, providerID: id)
+            backoff.recordSuccess(account: account)
 
             return ProviderSnapshot(
                 id: id, displayName: displayName, glyph: glyph,
@@ -94,10 +94,8 @@ final class CommandCodeNotchProvider: NotchProvider {
                 windows: windows, headlineID: "monthly"
             )
         } catch NotchProviderError.rateLimited(let retryAfter) {
-            consecutiveRateLimits += 1
-            retryNoEarlierThan = Date().addingTimeInterval(retryAfter)
-            archive.saveBackoffUntil(retryNoEarlierThan, providerID: id)
-            NotchLog.usage.notice("commandcode: rate limited (\(self.consecutiveRateLimits, privacy: .public)x)")
+            backoff.recordLimit(retryAfter: retryAfter, account: account)
+            NotchLog.usage.notice("commandcode: rate limited (\(self.backoff.consecutiveLimits, privacy: .public)x)")
             throw NotchProviderError.rateLimited(retryAfter: retryAfter)
         }
     }

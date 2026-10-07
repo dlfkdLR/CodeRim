@@ -69,7 +69,8 @@ internal sealed partial class DashboardStore
                 return;
             }
             cancellation.Token.ThrowIfCancellationRequested();
-            var events = await Task.Run(() => repository.Rebuild(id, scan.Events, scan.Sessions), cancellation.Token).ConfigureAwait(true);
+            var periodStart = UsageScanner.CurrentPeriodStart(DateTimeOffset.Now, settings.Current.WeekStart);
+            var (events, repaired) = await Task.Run(() => (repository.Rebuild(id, scan.Events, scan.Sessions), repository.HasRepairedEventsSince(id, periodStart)), cancellation.Token).ConfigureAwait(true);
             committed = true;
             if (!CanPublishLocalAnalytics(id, epoch, maintenance: true)) return;
             var labels = id == "codex" ? await Task.Run(() => ReadAnalyticsLabels(events, cancellation.Token), cancellation.Token).ConfigureAwait(true) : null;
@@ -83,7 +84,7 @@ internal sealed partial class DashboardStore
             scanners[id] = new UsageScanner(id, projectKey: projectKey); SourceCounts[id] = scan.SourceCount;
             Events[id] = events; SessionDetails[id] = sessions;
             if (labels is not null) CodexAnalyticsLabels = labels;
-            Usage[id] = UsageScanner.Aggregate(events, through, settings.Current.WeekStart, false);
+            Usage[id] = UsageScanner.Aggregate(events, through, settings.Current.WeekStart, repaired);
             DataStatistics[id] = statistics;
             PublishLocalAnalyticsRead(id, through, epoch, maintenance: true);
             DataOperationMessages[id] = "Statistics rebuilt."; Persist();

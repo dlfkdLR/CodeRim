@@ -57,7 +57,8 @@ public sealed record ProviderReading(string Id, ReadingState State, IReadOnlyLis
             || Windows.Any(window => window.ResetsAt <= now);
         return age > TimeSpan.FromMinutes(5) || age < -TimeSpan.FromMinutes(1) || Windows.Any(window => window.ResetsAt <= now);
     }
-    public ProviderReading Evaluated(DateTimeOffset now) => State == ReadingState.Ready && IsStale(now) ? this with { State = ReadingState.Stale } : this;
+    // A partial reading ages like a complete one: an old partial number must not read as a current partial read.
+    public ProviderReading Evaluated(DateTimeOffset now) => State is ReadingState.Ready or ReadingState.Partial && IsStale(now) ? this with { State = ReadingState.Stale } : this;
 }
 public sealed record ProviderDefinition(string Id, string Name, string Summary, string[] EnvironmentKeys)
 {
@@ -98,16 +99,25 @@ public static class NotchGeometry
     public static string BandColor(double? used, string accent = "#00FF88") => used is >= 70 ? "#FF3F00" : used is >= 50 ? "#F2FF00" : accent;
 }
 
+/// Announces 80% and 100% once per climb. Remembered per provider and account: reaching 100% on one
+/// account says nothing about the account switched to next. When the same headline window's reset moves
+/// to a later period, the climb starts over even if its low readings were never seen.
 public sealed class ThresholdTracker
 {
     private static readonly int[] Thresholds = [80, 100];
-    private readonly Dictionary<string, int> levels = new(StringComparer.Ordinal);
-    public IReadOnlyList<int> Observe(ProviderReading reading, DateTimeOffset now)
+    private static readonly TimeSpan NewPeriodShift = TimeSpan.FromMinutes(30);
+    private readonly Dictionary<string, (int Level, string? Window, DateTimeOffset? ResetsAt)> levels = new(StringComparer.Ordinal);
+    public IReadOnlyList<int> Observe(ProviderReading reading, DateTimeOffset now, string? account = null)
     {
-        if (reading.State != ReadingState.Ready || reading.IsStale(now) || reading.Headline?.UsedPercent is not { } percent) return [];
+        ArgumentNullException.ThrowIfNull(reading);
+        if (reading.State != ReadingState.Ready || reading.IsStale(now) || reading.Headline is not { UsedPercent: { } percent } headline
+            || !double.IsFinite(percent)) return [];
         var level = percent >= 100 ? 100 : percent >= 80 ? 80 : 0;
-        levels.TryGetValue(reading.Id, out var old);
-        levels[reading.Id] = level;
+        var key = reading.Id + "|" + account;
+        levels.TryGetValue(key, out var memory);
+        if (memory.Window == headline.Id && headline.ResetsAt is { } next && memory.ResetsAt is { } last && next - last > NewPeriodShift) memory.Level = 0;
+        var old = memory.Level;
+        levels[key] = (level, headline.Id, headline.ResetsAt ?? (memory.Window == headline.Id ? memory.ResetsAt : null));
         return Thresholds.Where(x => x > old && x <= level).ToArray();
     }
 }

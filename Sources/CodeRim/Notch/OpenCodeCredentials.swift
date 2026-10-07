@@ -12,6 +12,8 @@ import Foundation
 enum OpenCodeCredentials {
     struct Credential {
         let token: String
+        /// The account the key belongs to, without the key itself.
+        var identity: String { AccountIdentity.fingerprint("opencode", token) }
     }
 
     static var authURL: URL {

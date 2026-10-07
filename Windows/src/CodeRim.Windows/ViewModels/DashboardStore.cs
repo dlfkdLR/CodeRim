@@ -25,6 +25,8 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     private Task? activityTask;
     private bool disposed;
     private readonly Dictionary<string, string?> scopes = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string> storedScans = new(StringComparer.Ordinal);
+    private DateTimeOffset labelsReadAt;
     private readonly Dictionary<string, int> generations = new(StringComparer.Ordinal);
     private int Generation(string id) => generations.GetValueOrDefault(id);
     internal Dictionary<string, AnalyticsSourceFrame> AnalyticsSources { get; } = new(StringComparer.Ordinal);
@@ -171,21 +173,35 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                     {
                         var scan = await scanners[id].ScanAsync(settings.Current.WeekStart, lifetime.Token).ConfigureAwait(true);
                         if (generation != Generation(id) || !CanPublishLocalAnalytics(id, analyticsEpoch, maintenance: false)) continue;
+                        // Nothing was read since the last stored scan: skip re-storing and re-reading the whole history.
+                        var unchanged = storedScans.GetValueOrDefault(id) == scan.ContentVersion
+                            && Events.ContainsKey(id) && SessionDetails.ContainsKey(id) && DataStatistics.ContainsKey(id);
+                        // Codex thread names live outside the session files, so they are re-read now and then regardless.
+                        var refreshLabels = id == "codex" && DateTimeOffset.Now - labelsReadAt >= TimeSpan.FromMinutes(1);
+                        var periodStart = UsageScanner.CurrentPeriodStart(DateTimeOffset.Now, settings.Current.WeekStart);
+                        var known = unchanged ? Events[id] : null;
                         var imported = await Task.Run(() =>
                         {
-                            var retained = repository.Merge(id, scan.Events, scan.Sessions);
-                            return (Events: retained, Sessions: repository.ReadSessionDetails(id), Statistics: repository.Statistics(id),
-                                Labels: id == "codex" ? ReadAnalyticsLabels(retained, lifetime.Token) : null);
+                            var retained = known ?? repository.Merge(id, scan.Events, scan.Sessions);
+                            return (Events: retained, Repaired: repository.HasRepairedEventsSince(id, periodStart),
+                                Sessions: known is null ? repository.ReadSessionDetails(id) : null,
+                                Statistics: known is null ? repository.Statistics(id) : null,
+                                Labels: id == "codex" && (known is null || refreshLabels) ? ReadAnalyticsLabels(retained, lifetime.Token) : null);
                         }, lifetime.Token).ConfigureAwait(true);
+                        // Recorded only once the result is published below: a scan whose result is dropped here
+                        // (account switch, maintenance) must be stored and read again next time, not skipped.
                         if (generation != Generation(id) || !CanPublishLocalAnalytics(id, analyticsEpoch, maintenance: false)) continue;
+                        storedScans[id] = scan.ContentVersion;
+                        if (imported.Labels is not null) labelsReadAt = DateTimeOffset.Now;
                         pendingRefresh |= scan.HasMoreWork;
                         var events = imported.Events;
-                        Events[id] = events; SessionDetails[id] = imported.Sessions;
+                        Events[id] = events;
+                        if (imported.Sessions is { } sessions) SessionDetails[id] = sessions;
                         if (imported.Labels is { } labels) CodexAnalyticsLabels = labels;
                         SourceCounts[id] = scan.SourceCount;
-                        DataStatistics[id] = imported.Statistics;
+                        if (imported.Statistics is { } statistics) DataStatistics[id] = statistics;
                         var through = DateTimeOffset.Now;
-                        Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(events, through, settings.Current.WeekStart, scan.Snapshot.Quality == DataQuality.Partial || scan.HasMoreWork));
+                        Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(events, through, settings.Current.WeekStart, scan.Snapshot.Quality == DataQuality.Partial || scan.HasMoreWork || imported.Repaired));
                         PublishLocalAnalyticsRead(id, through, analyticsEpoch, maintenance: false);
                         Status = scan.StatusMessage;
                         if (settings.Current.DebugLogging) AppDiagnostics.Record(id, scan.Snapshot.Quality.ToString(), events.Count);
@@ -413,6 +429,8 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
         return CodexActivityCatalogue.ReadAnalyticsLabels(events.Select(x => x.SessionId).Distinct(StringComparer.Ordinal).ToArray(),
             Path.Combine(root, "state_5.sqlite"), Path.Combine(root, "sqlite", "codex-dev.db"), token);
     }
+    /// The account a provider's readings belong to now; keeps per-account state such as alerts apart.
+    internal string? AccountScope(string id) => scopes.GetValueOrDefault(id);
     private void EnsureScope(string id)
     {
         if (Synthetic) return;

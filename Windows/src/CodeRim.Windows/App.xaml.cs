@@ -94,7 +94,7 @@ public partial class App : System.Windows.Application
             () => dashboard?.CanCheckForUpdates ?? true);
         if (!smokeTest) activation = new InstanceActivation(instanceName, () => Dispatcher.BeginInvoke(() => ShowSettings("usage")));
         store.SessionAttentionRequested += session => { if (settings.Current.PeekOnCompletion) notch.Peek(session); };
-        store.ReadingUpdated += reading => { if (settings.Current.AlertsEnabled && !settings.Current.MutedAlertProviders.Contains(reading.Id, StringComparer.Ordinal)) foreach (var threshold in thresholds.Observe(reading, DateTimeOffset.Now)) tray.Notify(ProviderCatalog.Find(reading.Id)?.Name ?? reading.Id, threshold == 100 ? "Usage limit reached." : "Usage has reached 80%."); };
+        store.ReadingUpdated += reading => { if (settings.Current.AlertsEnabled && !settings.Current.MutedAlertProviders.Contains(reading.Id, StringComparer.Ordinal)) foreach (var threshold in thresholds.Observe(reading, DateTimeOffset.Now, store.AccountScope(reading.Id))) tray.Notify(ProviderCatalog.Find(reading.Id)?.Name ?? reading.Id, threshold == 100 ? "Usage limit reached." : "Usage has reached 80%."); };
         settings.SettingsChanged += (_, _) => { Motion.SetReduced(settings.Current.ReduceMotion); ConfigureTimer(); tray.RefreshState(); };
         timer.Tick += (_, _) => { watcher?.Rebuild(); _ = store.RefreshAsync(); };
         activityTimer.Tick += (_, _) => _ = store.RefreshActivityAsync();

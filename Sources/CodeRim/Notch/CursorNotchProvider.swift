@@ -39,6 +39,9 @@ final class CursorNotchProvider: NotchProvider {
     }
 
     func account() -> ProviderAccount? { CursorCredentials.account() }
+    func accountIdentity() -> String? {
+        CursorCredentials.account()?.label.map { AccountIdentity.fingerprint("cursor", $0.lowercased()) }
+    }
 
     func fetchSnapshot() async throws -> ProviderSnapshot {
         // Reads the editor's SQLite store; keep it off the main actor.

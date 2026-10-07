@@ -166,7 +166,7 @@ final class NotchController: ObservableObject {
 
         // Live agent activity — one monitor per provider ring. Built once and
         // started/stopped with the notch's visibility.
-        let claudeHome = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".claude")
+        let claudeHome = UsageProvider.claudeConfigRoot(home: URL(fileURLWithPath: NSHomeDirectory()))
         monitors = [
             "claude": ClaudeSessionMonitor(
                 directory: claudeHome.appendingPathComponent("sessions"),

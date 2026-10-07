@@ -76,6 +76,10 @@ final class CodexNotchProvider: NotchProvider {
                 installURL: URL(string: "https://github.com/openai/codex")))
     }
 
+    func accountIdentity() -> String? {
+        accounts.currentAccountEmail.map { AccountIdentity.fingerprint("codex", $0.lowercased()) }
+    }
+
     func account() -> ProviderAccount? {
         guard let email = accounts.currentAccountEmail else { return nil }
         return ProviderAccount(label: email, plan: accounts.currentPlanName,
@@ -172,6 +176,10 @@ final class ClaudeNotchProvider: NotchProvider {
 
     var signInRoute: SignInRoute {
         .guidance("Enable Claude Code in Settings and add the account signed in to the claude CLI.")
+    }
+
+    func accountIdentity() -> String? {
+        claude.account?.email.map { AccountIdentity.fingerprint("claude", $0.lowercased()) }
     }
 
     func account() -> ProviderAccount? {

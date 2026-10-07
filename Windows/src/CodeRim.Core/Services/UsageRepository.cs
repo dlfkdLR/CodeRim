@@ -17,6 +17,11 @@ public sealed class UsageRepository
         connectionString = new SqliteConnectionStringBuilder { DataSource = path, Pooling = false }.ToString();
         using var connection = Open();
         using var command = connection.CreateCommand();
+        // The schema carries a version from now on. A database written by a newer CodeRim is read as far
+        // as its known columns allow and never written, so an older build cannot break what it does not know.
+        command.CommandText = "PRAGMA user_version";
+        var version = Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture);
+        if (version > SchemaVersion) { IsNewerSchema = true; return; }
         command.CommandText = """
             PRAGMA journal_mode=WAL;
             CREATE TABLE IF NOT EXISTS events (
@@ -32,6 +37,8 @@ public sealed class UsageRepository
             CREATE TABLE IF NOT EXISTS session_links(provider TEXT NOT NULL, id TEXT NOT NULL, parentId TEXT, PRIMARY KEY(provider,id));
             CREATE TABLE IF NOT EXISTS session_metadata(provider TEXT NOT NULL, id TEXT NOT NULL,
                 started INTEGER, project TEXT, projectTime INTEGER, PRIMARY KEY(provider,id));
+            CREATE TABLE IF NOT EXISTS repaired_events(provider TEXT NOT NULL, id TEXT NOT NULL, time INTEGER NOT NULL,
+                PRIMARY KEY(provider,id));
             CREATE TABLE IF NOT EXISTS attachments(provider TEXT NOT NULL, id TEXT NOT NULL, session TEXT NOT NULL,
                 time INTEGER NOT NULL, count INTEGER NOT NULL, PRIMARY KEY(provider,id));
             """;
@@ -55,7 +62,26 @@ public sealed class UsageRepository
             }
             migration.Commit();
         }
+        // Every version so far only adds tables or columns, which the statements above create when missing.
+        if (version < SchemaVersion)
+        {
+            command.Transaction = null;
+            command.CommandText = "PRAGMA user_version = " + SchemaVersion.ToString(CultureInfo.InvariantCulture);
+            command.ExecuteNonQuery();
+        }
     }
+
+    /// The schema this build reads and writes. Raise it with each migration added above.
+    public const long SchemaVersion = 2; // 2: repaired_events
+    /// The database was written by a newer CodeRim: readable, but every write is refused.
+    public bool IsNewerSchema { get; }
+    private void RequireWritableSchema()
+    {
+        if (IsNewerSchema) throw new InvalidDataException("Local history was saved by a newer version of CodeRim. Update CodeRim to keep it current.");
+    }
+
+    /// How many rows the last Merge/Rebuild had to correct; callers report the period as partial when it is not zero.
+    public int LastWriteRepairedEvents { get; private set; }
 
     public IReadOnlyList<UsageEvent> Merge(string provider, IEnumerable<UsageEvent> events, IEnumerable<SessionDetails>? sessions = null)
         => Write(provider, events, sessions, replace: false);
@@ -67,13 +93,14 @@ public sealed class UsageRepository
     private List<UsageEvent> Write(string provider, IEnumerable<UsageEvent> events, IEnumerable<SessionDetails>? sessions, bool replace)
     {
         ArgumentNullException.ThrowIfNull(events);
+        RequireWritableSchema();
         using var connection = Open();
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         if (replace)
         {
-            command.CommandText = "DELETE FROM events WHERE provider=$provider; DELETE FROM attachments WHERE provider=$provider; DELETE FROM session_links WHERE provider=$provider; DELETE FROM session_metadata WHERE provider=$provider";
+            command.CommandText = "DELETE FROM events WHERE provider=$provider; DELETE FROM attachments WHERE provider=$provider; DELETE FROM session_links WHERE provider=$provider; DELETE FROM session_metadata WHERE provider=$provider; DELETE FROM repaired_events WHERE provider=$provider";
             command.Parameters.AddWithValue("$provider", provider); command.ExecuteNonQuery(); command.Parameters.Clear();
         }
         // Inputs are disjoint in storage so revisions from copied Claude histories cannot lose cache reads/writes.
@@ -94,9 +121,14 @@ public sealed class UsageRepository
                 output=MAX(output,excluded.output), written=CASE WHEN written IS NULL THEN excluded.written WHEN excluded.written IS NULL THEN written ELSE MAX(written,excluded.written) END;
             """;
         var importedLinks = new Dictionary<string, string?>(StringComparer.Ordinal);
+        var repaired = 0;
+        var repairedRows = new List<(string Id, DateTimeOffset Time)>();
         foreach (var usageEvent in events)
         {
-            if (usageEvent.Provider != provider || !usageEvent.Usage.IsValid) continue;
+            if (usageEvent.Provider != provider) continue;
+            // An inconsistent row is stored as its closest valid value and reported, never dropped silently.
+            var usage = usageEvent.Usage;
+            if (!usage.IsValid) { usage = usage.ClampedToValid(); repaired++; repairedRows.Add((usageEvent.EventKey, usageEvent.OccurredAt)); }
             if (provider == "claude" && usageEvent.ImportParentSessionId is { } parent)
             {
                 importedLinks[usageEvent.SessionId] = parent; importedLinks.TryAdd(parent, null);
@@ -105,10 +137,10 @@ public sealed class UsageRepository
             command.Parameters.AddWithValue("$provider", provider);
             command.Parameters.AddWithValue("$id", usageEvent.EventKey);
             command.Parameters.AddWithValue("$time", usageEvent.OccurredAt.ToUnixTimeMilliseconds());
-            command.Parameters.AddWithValue("$input", usageEvent.Usage.UncachedInputTokens);
-            command.Parameters.AddWithValue("$cached", usageEvent.Usage.CachedInputTokens);
-            command.Parameters.AddWithValue("$output", usageEvent.Usage.OutputTokens);
-            command.Parameters.AddWithValue("$written", (object?)usageEvent.Usage.CacheWriteInputTokens ?? DBNull.Value);
+            command.Parameters.AddWithValue("$input", usage.UncachedInputTokens);
+            command.Parameters.AddWithValue("$cached", usage.CachedInputTokens);
+            command.Parameters.AddWithValue("$output", usage.OutputTokens);
+            command.Parameters.AddWithValue("$written", (object?)usage.CacheWriteInputTokens ?? DBNull.Value);
             command.Parameters.AddWithValue("$context", provider == "codex" && usageEvent.PricingContext is PricingContext.Standard or PricingContext.HighContext
                 ? (object)(int)usageEvent.PricingContext.Value : DBNull.Value);
             command.Parameters.AddWithValue("$model", usageEvent.Model);
@@ -170,9 +202,30 @@ public sealed class UsageRepository
                 command.Parameters.AddWithValue("$count", attachment.Count); command.ExecuteNonQuery();
             }
         }
+        // The correction is kept with the history it affects, so the period stays partial even after the
+        // source logs that showed the inconsistency are gone.
+        foreach (var (id, time) in repairedRows)
+        {
+            command.Parameters.Clear();
+            command.CommandText = "INSERT INTO repaired_events VALUES($provider,$id,$time) ON CONFLICT(provider,id) DO UPDATE SET time=MIN(time,excluded.time)";
+            command.Parameters.AddWithValue("$provider", provider); command.Parameters.AddWithValue("$id", id);
+            command.Parameters.AddWithValue("$time", time.ToUnixTimeMilliseconds()); command.ExecuteNonQuery();
+        }
         var result = Read(provider, connection, transaction);
         transaction.Commit();
+        LastWriteRepairedEvents = repaired;
         return result;
+    }
+
+    /// Whether a stored event at or after `since` had to be corrected when it was saved.
+    public bool HasRepairedEventsSince(string provider, DateTimeOffset since)
+    {
+        using var connection = Open();
+        using var command = connection.CreateCommand();
+        command.CommandText = "SELECT EXISTS(SELECT 1 FROM repaired_events r JOIN events e ON e.provider=r.provider AND e.id=r.id WHERE r.provider=$provider AND r.time>=$since)";
+        command.Parameters.AddWithValue("$provider", provider);
+        command.Parameters.AddWithValue("$since", since.ToUnixTimeMilliseconds());
+        return Convert.ToInt64(command.ExecuteScalar(), CultureInfo.InvariantCulture) != 0;
     }
 
     public IReadOnlyList<UsageEvent> Read(string provider)
@@ -221,11 +274,12 @@ public sealed class UsageRepository
 
     public void Clear(string provider, DateTimeOffset cutoff)
     {
+        RequireWritableSchema();
         using var connection = Open();
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "INSERT OR IGNORE INTO exclusions SELECT provider,id FROM events WHERE provider=$provider; INSERT OR IGNORE INTO exclusions SELECT provider,id FROM attachments WHERE provider=$provider; DELETE FROM events WHERE provider=$provider; DELETE FROM attachments WHERE provider=$provider; DELETE FROM session_links WHERE provider=$provider; DELETE FROM session_metadata WHERE provider=$provider; INSERT INTO cutoffs VALUES($provider,$time) ON CONFLICT(provider) DO UPDATE SET time=excluded.time";
+        command.CommandText = "INSERT OR IGNORE INTO exclusions SELECT provider,id FROM events WHERE provider=$provider; INSERT OR IGNORE INTO exclusions SELECT provider,id FROM attachments WHERE provider=$provider; DELETE FROM events WHERE provider=$provider; DELETE FROM attachments WHERE provider=$provider; DELETE FROM session_links WHERE provider=$provider; DELETE FROM session_metadata WHERE provider=$provider; DELETE FROM repaired_events WHERE provider=$provider; INSERT INTO cutoffs VALUES($provider,$time) ON CONFLICT(provider) DO UPDATE SET time=excluded.time";
         command.Parameters.AddWithValue("$provider", provider);
         command.Parameters.AddWithValue("$time", cutoff.ToUnixTimeMilliseconds());
         command.ExecuteNonQuery();

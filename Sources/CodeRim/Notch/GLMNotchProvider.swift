@@ -18,20 +18,21 @@ final class GLMNotchProvider: NotchProvider {
 
     private let session: URLSession
     private let archive: UsageArchive
-    private var retryNoEarlierThan: Date?
-    private var consecutiveRateLimits = 0
+    private var backoff: AccountBackoff
     private var lastKnownPlan: String?
 
     init(session: URLSession = ProviderSession.shared, archive: UsageArchive = UsageArchive()) {
         self.session = session
         self.archive = archive
-        self.retryNoEarlierThan = archive.loadBackoffUntil(providerID: "glm")
+        self.backoff = AccountBackoff(providerID: "glm", archive: archive)
     }
 
     var signInRoute: SignInRoute {
         .guided(.init(name: "Z.ai", action: .browser(URL(string: "https://z.ai/manage-apikey/apikey-list")!),
             note: "Create a GLM Coding Plan key on Z.ai and add it to Claude Code's settings.json, ZCode or OpenCode. CodeRim detects it there."))
     }
+
+    func accountIdentity() -> String? { GLMCredentials.load()?.identity }
 
     func account() -> ProviderAccount? {
         guard let credentials = GLMCredentials.load() else { return nil }
@@ -46,22 +47,21 @@ final class GLMNotchProvider: NotchProvider {
     }
 
     func fetchSnapshot() async throws -> ProviderSnapshot {
-        if let retryNoEarlierThan, retryNoEarlierThan > Date() {
-            throw NotchProviderError.rateLimited(retryAfter: retryNoEarlierThan.timeIntervalSinceNow)
-        }
-
         // Ordinary files, not keychain items — reading them prompts nobody.
         guard let credentials = await Task.detached(operation: { GLMCredentials.load() }).value else {
             throw NotchProviderError.needsAuth
+        }
+        // The wait belongs to the account that earned it; a different key is read straight away.
+        let account = credentials.identity
+        if let wait = backoff.remainingWait(for: account), wait > 0 {
+            throw NotchProviderError.rateLimited(retryAfter: wait)
         }
 
         do {
             let data = try await fetch(credentials: credentials)
             let payload = try GLMUsage.parse(data)
 
-            consecutiveRateLimits = 0
-            retryNoEarlierThan = nil
-            archive.saveBackoffUntil(nil, providerID: id)
+            backoff.recordSuccess(account: account)
             lastKnownPlan = payload.level
 
             return ProviderSnapshot(
@@ -70,10 +70,8 @@ final class GLMNotchProvider: NotchProvider {
                 windows: payload.windows, headlineID: "session"
             )
         } catch NotchProviderError.rateLimited(let retryAfter) {
-            consecutiveRateLimits += 1
-            retryNoEarlierThan = Date().addingTimeInterval(retryAfter)
-            archive.saveBackoffUntil(retryNoEarlierThan, providerID: id)
-            NotchLog.usage.notice("glm: rate limited (\(self.consecutiveRateLimits, privacy: .public)x)")
+            backoff.recordLimit(retryAfter: retryAfter, account: account)
+            NotchLog.usage.notice("glm: rate limited (\(self.backoff.consecutiveLimits, privacy: .public)x)")
             throw NotchProviderError.rateLimited(retryAfter: retryAfter)
         }
     }
@@ -93,7 +91,7 @@ final class GLMNotchProvider: NotchProvider {
         if status == 429 {
             throw NotchProviderError.rateLimited(
                 retryAfter: Self.backoff(
-                    forAttempt: consecutiveRateLimits,
+                    forAttempt: backoff.consecutiveLimits,
                     retryAfter: Self.retryAfter(from: response)
                 )
             )

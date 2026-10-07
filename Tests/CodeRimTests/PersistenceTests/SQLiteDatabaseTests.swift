@@ -153,7 +153,9 @@ final class SQLiteDatabaseTests: XCTestCase {
         XCTAssertNil(reopenedCutoff)
     }
 
-    func testTransactionRollsBackInvalidEventAndCheckpoint() async throws {
+    /// An inconsistent row used to fail the whole batch, roll back its checkpoint and fail again on every
+    /// refresh. It is stored as its closest valid value instead, and the source moves on.
+    func testInvalidEventIsStoredAsItsValidPartAndTheCheckpointAdvances() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -170,17 +172,12 @@ final class SQLiteDatabaseTests: XCTestCase {
             sourcePosition: 0
         )
 
-        do {
-            try await database.commit(events: [invalid], checkpoint: checkpoint, normalizationState: nil)
-            XCTFail("Expected constraint failure")
-        } catch {
-            let eventCount = try await database.eventCount()
-            let savedCheckpoint = try await database.checkpoint(for: checkpoint.sourcePath)
-            XCTAssertEqual(eventCount, 0)
-            XCTAssertNil(savedCheckpoint)
-        }
+        try await database.commit(events: [invalid], checkpoint: checkpoint, normalizationState: nil)
+        let eventCount = try await database.eventCount()
+        let savedCheckpoint = try await database.checkpoint(for: checkpoint.sourcePath)
+        XCTAssertEqual(eventCount, 1)
+        XCTAssertNotNil(savedCheckpoint)
     }
-
 
     func testClearHistoryPersistsCutoffAndRebuildPreservesIt() async throws {
         let directory = FileManager.default.temporaryDirectory

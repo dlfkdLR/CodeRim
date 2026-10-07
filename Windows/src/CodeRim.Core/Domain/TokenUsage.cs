@@ -21,6 +21,16 @@ public readonly record struct TokenUsage(
 
     public long UncachedInputTokens => Math.Max(0, InputTokens - CachedInputTokens - (CacheWriteInputTokens ?? 0));
 
+    /// The closest storable value: negative parts become zero and cache reads/writes never exceed input.
+    /// Used when a delta between two valid cumulative counters is itself inconsistent.
+    public TokenUsage ClampedToValid()
+    {
+        var input = Math.Max(0, InputTokens);
+        var cached = Math.Min(Math.Max(0, CachedInputTokens), input);
+        return new(input, cached, Math.Max(0, OutputTokens),
+            CacheWriteInputTokens is { } written ? Math.Min(Math.Max(0, written), input - cached) : null);
+    }
+
     public TokenUsage Add(TokenUsage other) => new(
         SaturatingAdd(InputTokens, other.InputTokens),
         SaturatingAdd(CachedInputTokens, other.CachedInputTokens),

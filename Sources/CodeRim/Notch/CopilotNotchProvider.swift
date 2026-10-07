@@ -34,6 +34,11 @@ final class CopilotNotchProvider: NotchProvider {
         GitHubCopilotCredentials.account()
     }
 
+    func accountIdentity() -> String? {
+        GitHubCopilotCredentials.identity(environment: ProcessInfo.processInfo.environment,
+                                          hosts: CredentialFileReader.text(at: GitHubCopilotCredentials.hostsURL))
+    }
+
     func fetchSnapshot() async throws -> ProviderSnapshot {
         // Credential discovery reads files and can start `gh`; keep that off
         // the main actor.
@@ -125,6 +130,16 @@ struct GitHubCopilotCredentials: Sendable {
 
     static func account() -> ProviderAccount? {
         account(environment: ProcessInfo.processInfo.environment, hosts: CredentialFileReader.text(at: hostsURL))
+    }
+
+    /// Which GitHub account: the user name when gh records one, else a fingerprint of the token.
+    static func identity(environment: [String: String], hosts: String?) -> String? {
+        if let raw = configuredEnvironmentToken(environment), let token = nonEmpty(raw) {
+            return AccountIdentity.fingerprint("copilot", "token", token)
+        }
+        let parsed = parseHosts(hosts)
+        if let user = parsed.username { return AccountIdentity.fingerprint("copilot", user.lowercased()) }
+        return parsed.token.map { AccountIdentity.fingerprint("copilot", "token", $0) }
     }
 
     static func account(environment: [String: String], hosts: String?) -> ProviderAccount? {

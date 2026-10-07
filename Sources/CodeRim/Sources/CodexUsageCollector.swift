@@ -168,6 +168,8 @@ private enum CollectorResourceLimits {
     // repeated discovery and aggregation while authenticating a large prefix.
     static let maximumBytesPerRefresh: Int64 = 128 * 1_024 * 1_024
     static let maximumParsingBytesPerSource: Int64 = 16 * 1_024 * 1_024
+    /// A work budget per pass, not a hard deadline: no new source is started after it, and a source in
+    /// progress stops at its next line boundary; byte limits bound how far any one read can run past it.
     static let maximumRefreshDuration: Duration = .seconds(5)
 }
 
@@ -184,6 +186,8 @@ actor CodexUsageCollector {
     private var fingerprintVerificationStates: [String: FingerprintVerificationState] = [:]
     private var readSnapshots: [String: SourceReadSnapshot] = [:]
     private var nextSourcePath: String?
+    /// The last per-source write the database rejected; kept for diagnostics, never shown as a number.
+    private(set) var lastSourceWriteFailure: String?
     private var analyticsRevision: UInt64 = 0
     private var lastImportEpoch: Int64?
 
@@ -226,6 +230,9 @@ actor CodexUsageCollector {
     }
 
     func refresh(now: Date = Date(), calendar: Calendar = .current, weekStart: WeekStart) async throws -> CollectorRefreshResult {
+        // The pass budget starts before discovery, so listing many sources counts against it too.
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: maximumRefreshDuration)
         var sources = try discovery.discover(in: roots)
         if let nextSourcePath, let start = sources.firstIndex(where: { $0.url.path == nextSourcePath }) {
             sources = Array(sources[start...]) + Array(sources[..<start])
@@ -242,8 +249,6 @@ actor CodexUsageCollector {
             analyticsRevision &+= 1
             lastImportEpoch = importPolicy.dataEpoch
         }
-        let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: maximumRefreshDuration)
         var processedBytes: Int64 = 0
         var fingerprintBytesRead: Int64 = 0
         var hasMoreWork = false
@@ -252,7 +257,8 @@ actor CodexUsageCollector {
         for (index, source) in sources.enumerated() {
             try Task.checkCancellation()
             let remainingBytes = maximumBytesPerRefresh - processedBytes - fingerprintBytesRead
-            guard remainingBytes > 0, clock.now < deadline else {
+            // The first source always gets a turn, so a slow discovery cannot stall progress for good.
+            guard remainingBytes > 0, index == 0 || clock.now < deadline else {
                 hasMoreWork = true
                 break
             }
@@ -283,6 +289,11 @@ actor CodexUsageCollector {
                 }
             } catch is CodexUsageCollectorError {
                 skippedSource = true
+            } catch let SQLiteDatabaseError.step(message) {
+                // One source's rejected write must not stop the other sources or the refresh;
+                // its checkpoint stays put and the period is reported as partial.
+                skippedSource = true
+                lastSourceWriteFailure = message
             }
         }
 

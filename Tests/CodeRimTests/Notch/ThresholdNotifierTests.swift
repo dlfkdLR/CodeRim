@@ -17,12 +17,44 @@ final class NotchThresholdNotifierTests: XCTestCase {
     )
 
     private func snapshot(_ id: String, _ name: String, _ fraction: Double,
-                          label: String = "Current session") -> ProviderSnapshot {
-        ProviderSnapshot(
+                          label: String = "Current session", account: String? = nil,
+                          resetsAt: Date? = nil) -> ProviderSnapshot {
+        var snapshot = ProviderSnapshot(
             id: id, displayName: name, glyph: .claude, fidelity: .official, status: .ok,
-            windows: [LimitWindow(id: "session", label: label, usedFraction: fraction)],
+            windows: [LimitWindow(id: "session", label: label, usedFraction: fraction, resetsAt: resetsAt)],
             headlineID: "session"
         )
+        snapshot.accountIdentity = account
+        return snapshot
+    }
+
+    func testHugeFiniteFractionsDoNotTrapAndStillAlert() {
+        notifier.observe([snapshot("copilot", "Copilot", 1e100)])
+        notifier.observe([snapshot("copilot", "Copilot", .greatestFiniteMagnitude)])
+        notifier.observe([snapshot("copilot", "Copilot", .infinity)])
+        notifier.observe([snapshot("copilot", "Copilot", .nan)])
+        notifier.observe([snapshot("copilot", "Copilot", -1e100)])
+        XCTAssertEqual(alerts.map(\.threshold), [80, 100])
+        XCTAssertEqual(alerts[1].usedPercent, 1_000)
+    }
+
+    func testAnotherAccountStartsItsOwnThresholds() {
+        notifier.observe([snapshot("claude", "Claude", 1.0, account: "a")])
+        XCTAssertEqual(alerts.map(\.threshold), [80, 100])
+        notifier.observe([snapshot("claude", "Claude", 0.85, account: "b")])
+        XCTAssertEqual(alerts.map(\.threshold), [80, 100, 80], "B's 80% is B's own news")
+        notifier.observe([snapshot("claude", "Claude", 1.0, account: "b")])
+        XCTAssertEqual(alerts.map(\.threshold), [80, 100, 80, 100])
+    }
+
+    func testANewPeriodSeenOnlyHighAlertsAgain() {
+        let reset = Date(timeIntervalSince1970: 1_800_000_000)
+        notifier.observe([snapshot("claude", "Claude", 1.0, resetsAt: reset)])
+        notifier.observe([snapshot("claude", "Claude", 1.0, resetsAt: reset.addingTimeInterval(20))])
+        XCTAssertEqual(alerts.count, 2, "reset jitter is the same period")
+        // The low part of the next period was never observed (laptop asleep).
+        notifier.observe([snapshot("claude", "Claude", 0.9, resetsAt: reset.addingTimeInterval(5 * 3600))])
+        XCTAssertEqual(alerts.map(\.threshold), [80, 100, 80])
     }
 
     func testCrossingEightyAlertsOnce() {
