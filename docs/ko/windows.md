@@ -4,7 +4,7 @@
 
 **Windows 11 · x64 및 ARM64 · .NET 포함.**
 
-[2.1.16 x64 설치 파일](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-x64-Setup.msi) · [2.1.16 ARM64 설치 파일](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.16/CodeRim-Windows-2.1.16-arm64-Setup.msi)
+[2.1.17 x64 설치 파일](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.17/CodeRim-Windows-2.1.17-x64-Setup.msi) · [2.1.17 ARM64 설치 파일](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.17/CodeRim-Windows-2.1.17-arm64-Setup.msi)
 
 아키텍처에 맞는 `Setup.msi`를 실행합니다. 관리자 권한 없이 사용자별로 설치하고 시작 메뉴·제거 항목을 등록하며 사용자 PATH에 `coderim`을 추가합니다. 설치 후 새 터미널을 엽니다. 기존 ZIP 사용자는 Setup을 한 번 실행하면 관리형 업데이트를 사용할 수 있습니다. 설정, 저장한 계정, 로컬 히스토리는 유지합니다.
 

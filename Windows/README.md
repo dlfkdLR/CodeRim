@@ -4,7 +4,11 @@
 
 Native WPF application for Windows 11 x64 and ARM64, built with .NET 10. The current source includes the macOS-aligned edge notch and Usage dashboard, Codex/Claude saved accounts, local token history, and 70 provider connection implementations. Widgets are outside the Windows scope.
 
-The current Windows release is [**2.1.15**](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.15), with x64 and ARM64 MSI installers. Windows version declarations use `Windows/Release.env`, independently of the macOS release configuration.
+The current Windows release is [**2.1.17**](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.17), with x64 and ARM64 MSI installers. Windows version declarations use `Windows/Release.env`, independently of the macOS release configuration.
+
+Release 2.1.17 centres the notch control icons, gives them the macOS spring motion, restores rounded settings corners, stops notch rings reacting to clicks, lists every added provider in Usage and lays out account switching like macOS. See [its notes](ReleaseNotes/2.1.17.md).
+
+Release 2.1.16 is the first full (non-preview) Windows release: provider sign-in parity with macOS, a provider matrix covering every reader and add flow, lasting iPhone pairing and a Microsoft Store package. See [its notes](ReleaseNotes/2.1.16.md).
 
 Release 2.1.15 connects a provider the moment it is added: it reads an existing sign-in, otherwise starts the provider's own sign-in (a terminal login command or its website) and watches until the account appears, and a provider that needs a key opens its settings. It also names Claude Code sessions by their conversation title, runs the official `claude auth login` from Add Account, glides the provider card between providers like macOS, and adds iPhone pairing by QR code.
 
