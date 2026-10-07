@@ -4,7 +4,9 @@
 
 Native WPF application for Windows 11 x64 and ARM64, built with .NET 10. The current source includes the macOS-aligned edge notch and Usage dashboard, Codex/Claude saved accounts, local token history, and 70 provider connection implementations. Widgets are outside the Windows scope.
 
-The current Windows release is [**2.1.17**](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.17), with x64 and ARM64 MSI installers. Windows version declarations use `Windows/Release.env`, independently of the macOS release configuration.
+The current Windows release is [**2.1.18**](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.18), with x64 and ARM64 MSI installers. Windows version declarations use `Windows/Release.env`, independently of the macOS release configuration.
+
+Release 2.1.18 removes the flicker when the notch opens, especially the first time after start-up. See [its notes](ReleaseNotes/2.1.18.md).
 
 Release 2.1.17 centres the notch control icons, gives them the macOS spring motion, restores rounded settings corners, stops notch rings reacting to clicks, lists every added provider in Usage and lays out account switching like macOS. See [its notes](ReleaseNotes/2.1.17.md).
 
