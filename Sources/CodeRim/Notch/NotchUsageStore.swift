@@ -310,10 +310,11 @@ final class NotchUsageStore: ObservableObject {
                 self.finishRefresh(provider.id)
             })
         }
+        let started = reads
         await withTaskCancellationHandler {
-            for read in reads { await read.value }
+            for read in started { await read.value }
         } onCancel: {
-            for read in reads { read.cancel() }
+            for read in started { read.cancel() }
         }
     }
 
