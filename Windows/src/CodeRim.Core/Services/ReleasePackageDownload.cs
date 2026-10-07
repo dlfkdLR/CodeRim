@@ -18,11 +18,23 @@ public static class ReleasePackageDownload
     public const long MaximumPackageBytes = 512L * 1024 * 1024;
     private const int MaximumRedirects = 3;
 
-    public static async Task<DownloadedReleasePackage> DownloadAsync(ReleasePackage package, string destinationDirectory, CancellationToken token = default)
+    public static Task<DownloadedReleasePackage> DownloadAsync(ReleasePackage package, string destinationDirectory, CancellationToken token = default)
+        => DownloadAsync(package, destinationDirectory, null, token);
+
+    public static async Task<DownloadedReleasePackage> DownloadAsync(ReleasePackage package, string destinationDirectory, IProgress<double>? progress,
+        CancellationToken token = default)
     {
         using var handler = CreateHandler();
-        return await DownloadAsync(package, destinationDirectory, handler, TimeSpan.FromMinutes(5), TimeSpan.FromSeconds(30), token).ConfigureAwait(false);
+        return await DownloadAsync(package, destinationDirectory, handler, TotalTimeout(package.Size), TimeSpan.FromSeconds(60), progress, token).ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Room for the whole installer on a slow line (about 64 KB/s), never less than five minutes nor more than two
+    /// hours. A fixed five minutes failed every update below roughly 470 KB/s; a stalled connection is still caught
+    /// by the idle timeout.
+    /// </summary>
+    public static TimeSpan TotalTimeout(long size) =>
+        TimeSpan.FromSeconds(Math.Clamp(size / (64d * 1024), TimeSpan.FromMinutes(5).TotalSeconds, TimeSpan.FromHours(2).TotalSeconds));
 
     internal static HttpClientHandler CreateHandler(IWebProxy? proxy = null) => new()
     {
@@ -49,8 +61,12 @@ public static class ReleasePackageDownload
         return client;
     }
 
-    internal static async Task<DownloadedReleasePackage> DownloadAsync(ReleasePackage package, string destinationDirectory,
+    internal static Task<DownloadedReleasePackage> DownloadAsync(ReleasePackage package, string destinationDirectory,
         HttpMessageHandler handler, TimeSpan timeout, TimeSpan idleTimeout, CancellationToken token)
+        => DownloadAsync(package, destinationDirectory, handler, timeout, idleTimeout, null, token);
+
+    internal static async Task<DownloadedReleasePackage> DownloadAsync(ReleasePackage package, string destinationDirectory,
+        HttpMessageHandler handler, TimeSpan timeout, TimeSpan idleTimeout, IProgress<double>? progress, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(package); ArgumentNullException.ThrowIfNull(destinationDirectory);
         Validate(package);
@@ -88,6 +104,7 @@ public static class ReleasePackageDownload
                     if (total > package.Size || total > MaximumPackageBytes) throw new InvalidDataException("The release download is too large.");
                     digest.AppendData(buffer, 0, count);
                     await output.WriteAsync(buffer.AsMemory(0, count), deadline.Token).ConfigureAwait(false);
+                    progress?.Report(package.Size > 0 ? (double)total / package.Size : 0);
                 }
                 if (total != package.Size || !CryptographicOperations.FixedTimeEquals(digest.GetHashAndReset(), Convert.FromHexString(package.Sha256)))
                     throw new InvalidDataException("The release download does not match its digest and size.");

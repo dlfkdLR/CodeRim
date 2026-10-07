@@ -34,6 +34,26 @@ public sealed class ReleasePackageDownloadTests : IDisposable
         Assert.Equal(Package(), first.Package); Assert.False(File.Exists(first.Path + ".partial"));
         Assert.Equal("preserve", await File.ReadAllTextAsync(existing, TestContext.Current.CancellationToken));
     }
+    [Theory]
+    [InlineData(1024L, 300)]                       // small files still get five minutes
+    [InlineData(144_117_760L, 2199)]               // a 140 MB installer gets about 37 minutes, not five
+    [InlineData(400L * 1024 * 1024, 6400)]         // capped well below two hours only by size
+    [InlineData(2L * 1024 * 1024 * 1024, 7200)]    // never more than two hours
+    public void TotalTimeoutFitsTheInstallerOnASlowLine(long size, int seconds) =>
+        Assert.Equal(seconds, (int)ReleasePackageDownload.TotalTimeout(size).TotalSeconds);
+
+    [Fact]
+    public async Task ReportsProgressUpToTheWholeFile()
+    {
+        var reports = new List<double>();
+        using var handler = new Handler(_ => Body(Payload, true));
+        await ReleasePackageDownload.DownloadAsync(Package(), root, handler, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(2),
+            new SynchronousProgress(reports.Add), TestContext.Current.CancellationToken);
+        Assert.NotEmpty(reports); Assert.Equal(1, reports[^1], 6);
+        Assert.True(reports.Zip(reports.Skip(1)).All(pair => pair.Second >= pair.First), "Progress went backwards.");
+    }
+    private sealed class SynchronousProgress(Action<double> report) : IProgress<double> { public void Report(double value) => report(value); }
+
     [Fact]
     public async Task ConcurrentDownloadsCommitSeparateResults()
     {
