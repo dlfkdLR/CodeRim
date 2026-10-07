@@ -4,7 +4,7 @@
 
 **Windows 11 · x64 and ARM64 · .NET included.**
 
-[2.1.17 x64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.17/CodeRim-Windows-2.1.17-x64-Setup.msi) · [2.1.17 ARM64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.17/CodeRim-Windows-2.1.17-arm64-Setup.msi)
+[2.1.18 x64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.18/CodeRim-Windows-2.1.18-x64-Setup.msi) · [2.1.18 ARM64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.18/CodeRim-Windows-2.1.18-arm64-Setup.msi)
 
 Run the matching `Setup.msi`. It installs per user without administrator access, registers Start menu/uninstall entries, and adds `coderim` to user PATH. Open a new terminal after installation. Existing ZIP users run Setup once to enable managed updates. Settings, saved accounts, and local history are preserved.
 
