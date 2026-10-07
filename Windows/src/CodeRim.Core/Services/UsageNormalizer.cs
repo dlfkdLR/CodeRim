@@ -51,10 +51,11 @@ public static class UsageNormalizer
                     "initial cumulative baseline is unresolved");
             }
 
+            var repaired = !cumulative.IsValid;
             return new UsageNormalizationResult(
-                cumulative.IsZero ? null : cumulative,
-                new UsageNormalizationState(cumulative, observation.OccurredAt, state.Quality),
-                null);
+                Storable(cumulative),
+                new UsageNormalizationState(cumulative, observation.OccurredAt, repaired ? DataQuality.Partial : state.Quality),
+                repaired ? "inconsistent token usage clamped" : null);
         }
 
         if (cumulative.HasCounterDecrease(previous))
@@ -62,7 +63,7 @@ public static class UsageNormalizer
             if (observation.LastUsage == cumulative)
             {
                 return new UsageNormalizationResult(
-                    cumulative.IsZero ? null : cumulative,
+                    Storable(cumulative),
                     new UsageNormalizationState(cumulative, observation.OccurredAt, DataQuality.Partial),
                     "cumulative counter restarted");
             }
@@ -77,9 +78,24 @@ public static class UsageNormalizer
         }
 
         var delta = cumulative.SubtractFloorAtZero(previous);
+        if (!delta.IsValid)
+        {
+            // Each counter grew, but not consistently (e.g. cached input grew more than input).
+            // Keep the tokens that are certain instead of a row storage drops, and say the period is partial.
+            return new UsageNormalizationResult(
+                Storable(delta),
+                new UsageNormalizationState(cumulative, observation.OccurredAt, DataQuality.Partial),
+                "inconsistent token delta clamped");
+        }
         return new UsageNormalizationResult(
             delta.IsZero ? null : delta,
             new UsageNormalizationState(cumulative, observation.OccurredAt, state.Quality),
             null);
+    }
+
+    private static TokenUsage? Storable(TokenUsage usage)
+    {
+        var value = usage.IsValid ? usage : usage.ClampedToValid();
+        return value.IsZero ? null : value;
     }
 }

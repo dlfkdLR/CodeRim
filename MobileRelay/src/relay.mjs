@@ -21,6 +21,8 @@ export class Relay {
     pollWait = 20000, schedule = () => {}, pushConfigured = true }) {
     Object.assign(this, { store, push, now, budgets, pollWait, schedule, pushConfigured });
     this.serialTasks = new Map();
+    this.ticking = new Map();
+    this.inflight = new Set();
     this.rateLimits = new Map();
     this.waiters = new Map();
     // Heartbeats that carried no new content update only this, never storage.
@@ -90,9 +92,15 @@ export class Relay {
       const pair = this.pair(body, now);
       if (!pair.owner) {
         await new Promise(resolve => {
-          const timer = setTimeout(resolve, this.pollWait);
           const list = this.waiters.get(pair.id) ?? new Set();
-          list.add(() => { clearTimeout(timer); resolve(); }); this.waiters.set(pair.id, list);
+          const wake = () => { clearTimeout(timer); resolve(); };
+          // A poll that times out takes its callback with it, so unclaimed QR codes leave nothing behind.
+          const timer = setTimeout(() => {
+            list.delete(wake);
+            if (list.size === 0 && this.waiters.get(pair.id) === list) this.waiters.delete(pair.id);
+            resolve();
+          }, this.pollWait);
+          list.add(wake); this.waiters.set(pair.id, list);
         });
       }
       const current = this.pair(body, this.now());
@@ -112,7 +120,8 @@ export class Relay {
       this.limit(`claim:${session.hash}`, 10, 300);
       const pair = this.pair(body, now);
       if (pair.owner) throw new HTTPError(409, 'pairing_used');
-      requireValue(this.devices(session.owner, now).length < 16, 'device_limit');
+      // Expired computers must pair again anyway, so they never hold a place under the limit.
+      requireValue(store.activeDeviceCount(session.owner, now) < 16, 'device_limit');
       const { label } = JSON.parse(pair.data);
       const result = store.transaction(() => {
         const token = store.issue(session.owner, 'desktop', now), deviceID = secret();
@@ -129,7 +138,7 @@ export class Relay {
       // Mark endings durably before revoking access; tick retries APNs failures.
       for (const a of store.activities(session.owner)) if (a.session === session.hash) { a.data.ending = true; store.saveActivity(a); }
       store.revoke(session.hash);
-      this.settlePickers(session.owner);
+      this.settlePickers(session.owner, { context: session.role === 'desktop' });
       return { ok: true };
     }
     if (method === 'DELETE' && path === '/v1/account') {
@@ -165,7 +174,7 @@ export class Relay {
       const device = store.devices(session.owner, now).find(d => d.id === id);
       if (!device) throw new HTTPError(404, 'not_found');
       store.revoke(device.session);
-      this.settlePickers(session.owner);
+      this.settlePickers(session.owner, { context: true });
       return { ok: true };
     }
     if (method === 'PUT' && path === '/v1/preferences') {
@@ -180,11 +189,14 @@ export class Relay {
       // Unchanged content is a heartbeat: remembered in memory, never written.
       if (!sameSnapshot(device.snapshot, next) || !device.receivedAt) {
         const previousCatalog = JSON.stringify(device.snapshot?.providers.map(p => [p.id, p.name]) ?? []);
+        // Written with the content it numbers, so it costs no extra row write.
+        device.seq = this.contentSequence(session.owner) + 1;
         device.snapshot = next; device.receivedAt = now;
         store.saveDevice(session.owner, device);
-        if (previousCatalog !== JSON.stringify(next.providers.map(p => [p.id, p.name]))
+        const catalogChanged = previousCatalog !== JSON.stringify(next.providers.map(p => [p.id, p.name]));
+        if (catalogChanged
             || next.providers.filter(p => !user.preferences.providerIDs.length || user.preferences.providerIDs.includes(p.id)).length < 2) {
-          this.settlePickers(session.owner, { deviceID: device.id });
+          this.settlePickers(session.owner, { deviceID: device.id, context: catalogChanged && previousCatalog !== '[]' ? device.id : false });
         }
         this.later(() => this.tick(session.owner));
       }
@@ -251,15 +263,37 @@ export class Relay {
   }
   state(owner, sessionHash, now, devices = this.devices(owner, now)) {
     const state = desktopState(devices, this.store.user(owner).preferences, this.store.view(sessionHash), now);
+    // Orders answers that share a view revision: a stored sequence that grows with every content change
+    // from any of the account's computers, survives restarts and never repeats for different content.
+    state.dataVersion = this.contentSequence(owner);
     const notice = this.notice();
     if (notice) state.notice = notice;
     return state;
   }
+  /** The newest content sequence of an account, including computers that have since been removed. */
+  contentSequence(owner) {
+    const stored = this.store.sql.all('SELECT data FROM devices WHERE owner=?', owner)
+      .reduce((latest, row) => Math.max(latest, JSON.parse(row.data).seq ?? 0), 0);
+    return Math.max(stored, this.store.user(owner).dataFloor ?? 0);
+  }
   // Invalidate immediately when the catalog/context changes, before queued taps can run.
-  settlePickers(owner, { reset = false, deviceID = null } = {}) {
-    const sessions = this.store.sql.all('SELECT v.session FROM views v JOIN sessions s ON s.hash=v.session WHERE s.owner=?', owner);
+  // A context change (filter, computer list, provider catalog) moves every phone's view revision
+  // even with the picker closed: the screen it selects has changed, and an answer computed before
+  // the change must not be able to restore it on the phone.
+  settlePickers(owner, { reset = false, deviceID = null, context = reset } = {}) {
+    const sessions = context
+      ? this.store.sql.all("SELECT hash AS session FROM sessions WHERE owner=? AND role='mobile'", owner)
+      : this.store.sql.all('SELECT v.session FROM views v JOIN sessions s ON s.hash=v.session WHERE s.owner=?', owner);
+    const devices = context ? this.devices(owner, this.now()) : [];
+    const prefs = context ? this.store.user(owner).preferences : null;
     for (const { session } of sessions) {
       const view = this.store.view(session);
+      // `context` names a computer when only phones showing that computer are affected.
+      const affected = context === true || (context && desktopState(devices, prefs, view, this.now()).focus.deviceID === context);
+      if (affected) {
+        this.store.saveView(session, { ...view, pickerOpen: false, pickerPage: undefined, pickerPath: undefined, revision: (view.revision ?? 0) + 1 });
+        continue;
+      }
       if (!view.pickerOpen) continue;
       const state = desktopState(this.devices(owner, this.now()), this.store.user(owner).preferences, view, this.now());
       if (reset || (deviceID !== null && view.deviceID === deviceID) || !state.providerPicker.isOpen) {
@@ -273,17 +307,30 @@ export class Relay {
     this.serialTasks.set(key, next);
     try { return await next; } finally { if (this.serialTasks.get(key) === next) this.serialTasks.delete(key); }
   }
-  /** Run after the response; the host keeps the work alive (`waitUntil` in the Worker). */
-  later(work) { this.pending = (this.pending ?? Promise.resolve()).then(work).catch(() => {}); }
+  /**
+   * Run after the response; the host keeps the work alive (`waitUntil` in the Worker). Work items do not
+   * wait for each other: one account's slow APNs answer must not delay another account's update.
+   */
+  later(work) {
+    const run = Promise.resolve().then(work).catch(() => {});
+    this.inflight.add(run);
+    run.finally(() => this.inflight.delete(run));
+  }
+  /** Everything started with `later` that has not finished yet, or undefined when there is none. */
+  get pending() { return this.inflight.size ? Promise.all([...this.inflight]) : undefined; }
 
   /**
    * Starts, updates and ends Live Activities. Triggered by changes for one owner,
    * and by the alarm for whatever is due. Returns nothing; schedules its next run.
    */
   tick(owner) {
-    // One pass at a time; a pass requested meanwhile runs after it, never instead of it.
-    const run = (this.ticking ?? Promise.resolve()).then(() => this.pass(owner));
-    this.ticking = run.catch(() => {});
+    // One pass at a time per account (and one for the alarm's all-accounts pass); a pass requested
+    // meanwhile runs after it, never instead of it. Accounts do not queue behind each other.
+    const key = owner ?? '*';
+    const run = (this.ticking.get(key) ?? Promise.resolve()).then(() => this.pass(owner));
+    const settled = run.catch(() => {});
+    this.ticking.set(key, settled);
+    settled.then(() => { if (this.ticking.get(key) === settled) this.ticking.delete(key); });
     return run;
   }
   async pass(owner) {
@@ -292,15 +339,18 @@ export class Relay {
       const now = this.now();
       if (!owner) this.store.prune(now);
       due = Math.min(due, await this.startActivities(owner, now));
-      for (const listed of this.store.activities(owner)) {
-        due = Math.min(due, await this.serial(listed.session, () => this.updateActivity(listed)));
-      }
+      // Each phone's updates stay in order (serial per session), but one phone's slow APNs answer
+      // no longer holds back every other phone's Island.
+      const dues = await Promise.all(this.store.activities(owner).map(listed =>
+        this.serial(listed.session, () => this.updateActivity(listed)).catch(() => now + 60)));
+      due = Math.min(due, ...dues);
     } finally {
       if (due !== Infinity) this.schedule(due);
     }
   }
   async startActivities(owner, now) {
     let due = Infinity;
+    const starts = [];
     const live = new Set(this.store.activities(owner).filter(a => !a.data.ending).map(a => a.session));
     for (const starter of this.store.starters(owner)) {
       if (live.has(starter.session)) continue;
@@ -314,13 +364,16 @@ export class Relay {
       const payload = activityPayload(state, now, 'start', {
         attributes: { connectionID: starter.session, displayName: 'CodeRim' },
         alert: { title: name, body: state.waitingCount > 0 ? 'Needs your input' : 'Working on your computer' } });
-      try {
-        const result = await this.push(starter.data.token, payload, { priority: 10 });
-        if (result.status === 410 || (result.status === 400 && ['BadDeviceToken', 'DeviceTokenNotForTopic'].includes(result.reason))) {
-          this.store.run('DELETE FROM starters WHERE session=?', starter.session);
-        }
-      } catch {}
+      starts.push((async () => {
+        try {
+          const result = await this.push(starter.data.token, payload, { priority: 10 });
+          if (result.status === 410 || (result.status === 400 && ['BadDeviceToken', 'DeviceTokenNotForTopic'].includes(result.reason))) {
+            this.store.run('DELETE FROM starters WHERE session=?', starter.session);
+          }
+        } catch {}
+      })());
     }
+    await Promise.all(starts);
     return due;
   }
   async updateActivity(listed) {
@@ -337,7 +390,7 @@ export class Relay {
       else if (!a.idleSince) { a.idleSince = now; this.store.saveActivity(activity); }
       else if (now - a.idleSince >= IDLE_END) a.ending = true;
     }
-    const key = JSON.stringify({ ...state, updatedAt: 0, staleAt: 0 });
+    const key = JSON.stringify({ ...state, updatedAt: 0, staleAt: 0, dataVersion: 0 });
     const navigated = a.sentRevision !== undefined && a.sentRevision !== state.viewRevision;
     const changed = a.ending || a.needsPush || navigated || key !== a.sentKey;
     const idleDue = a.idleSince && !a.ending ? a.idleSince + IDLE_END : Infinity;

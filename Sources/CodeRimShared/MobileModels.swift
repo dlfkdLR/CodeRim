@@ -51,6 +51,10 @@ public struct MobileSnapshot: Codable, Sendable {
 public struct MobileActivityState: Codable, Hashable, Sendable {
     public var focus: MobileFocus? = nil
     public var viewRevision: Int? = nil
+    /// The relay's stored content sequence when it answered (grows with every change, never reused).
+    /// Orders answers that share
+    /// a view revision; the revision alone orders changes of screen (filter, computer, service).
+    public var dataVersion: Double? = nil
     public var providerPicker: MobileProviderPicker? = nil
     public var connection: String
     public var updatedAt: Double
@@ -69,6 +73,13 @@ public struct MobileActivityState: Codable, Hashable, Sendable {
     }
     public func isStale(at date: Date = Date()) -> Bool {
         connection != "connected" || date.timeIntervalSince1970 >= staleAt
+    }
+    /// Whether this answer may replace `other`: a later screen, or the same screen with content at
+    /// least as new. A late answer to an earlier request never wins.
+    public func supersedes(_ other: MobileActivityState) -> Bool {
+        let revision = viewRevision ?? 0, otherRevision = other.viewRevision ?? 0
+        if revision != otherRevision { return revision > otherRevision }
+        return (dataVersion ?? 0) >= (other.dataVersion ?? 0)
     }
 }
 

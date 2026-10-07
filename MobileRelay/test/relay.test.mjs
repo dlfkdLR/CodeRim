@@ -262,7 +262,10 @@ test('direct provider selection remembers phone focus, preserves source, and bou
     await assert.rejects(c.route('POST', '/v1/view', { ...request, expectedRevision: 1, ...invalid }), { status: 400 });
   }
   await c.route('PUT', '/v1/preferences', { providerIDs: ['codex'] });
-  await assert.rejects(c.route('POST', '/v1/view', { ...request, expectedRevision: 1 }), { status: 400 });
+  // The filter change moved the revision even with the picker closed: a tap from before it is a no-op.
+  const before = await c.route('POST', '/v1/view', { ...request, expectedRevision: 1 });
+  assert.equal(before.state.viewRevision, 2); assert.equal(before.state.providers[0].id, 'codex');
+  await assert.rejects(c.route('POST', '/v1/view', { ...request, expectedRevision: 2 }), { status: 400 });
   assert.deepEqual((await c.route('GET', '/v1/snapshot')).displayProviders.map(p => p.id), ['codex']);
 });
 
@@ -391,7 +394,8 @@ test('provider removal invalidates its picker immediately during a push, without
   assert.equal((await c.route('GET', '/v1/snapshot')).state.providerPicker.isOpen, false);
   release(); await Promise.all([tick, removal, restoration]);
   const current = await c.route('GET', '/v1/snapshot');
-  assert.equal(current.state.providerPicker.isOpen, false); assert.equal(current.state.viewRevision, 2);
+  // Closed by the removal (2), then moved again when the restored catalog changed this computer's list (3).
+  assert.equal(current.state.providerPicker.isOpen, false); assert.equal(current.state.viewRevision, 3);
   const other = await c.route('GET', '/v1/snapshot', {}, otherPhone);
   assert.equal(other.state.focus.deviceID, pc.deviceID);
   assert.equal(other.state.providerPicker.isOpen, true); assert.equal(other.state.viewRevision, 2);
@@ -577,4 +581,116 @@ test('a token left unused for over a year is refused, so the desktop asks to rec
   const pc = await pairDevice(c, 'windows', 'PC');
   c.advance(366 * 86400);
   await assert.rejects(c.route('POST', '/v1/snapshot', snapshot(c.now()), pc.token), { status: 401 });
+});
+
+test('a filter change moves the view revision with the picker closed, so an earlier answer cannot restore it', async t => {
+  const c = setup(t);
+  const input = snapshot(); input.providers.push({ ...input.providers[0], id: 'claude', name: 'Claude' });
+  await c.route('POST', '/v1/snapshot', input, c.mac);
+  const before = await c.route('GET', '/v1/snapshot');
+  assert.equal(before.state.providers[0].id, 'codex'); assert.equal(before.state.providerPicker.isOpen, false);
+  await c.route('PUT', '/v1/preferences', { providerIDs: ['claude'] });
+  const after = await c.route('GET', '/v1/snapshot');
+  assert.equal(after.state.providers[0].id, 'claude');
+  // Same content time, different screen: only the revision can order these two answers.
+  assert.equal(after.state.dataVersion, before.state.dataVersion);
+  assert.ok(after.state.viewRevision > before.state.viewRevision);
+});
+
+test('answers sharing a revision are ordered by the relay data version; heartbeats do not push the Island', async t => {
+  const c = setup(t);
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.tick();
+  const first = await c.route('GET', '/v1/snapshot');
+  c.advance(30);
+  const changed = snapshot(c.now()); changed.providers[0].todayTokens = 13000;
+  await c.route('POST', '/v1/snapshot', changed, c.mac);
+  const second = await c.route('GET', '/v1/snapshot');
+  assert.equal(second.state.viewRevision, first.state.viewRevision);
+  assert.ok(second.state.dataVersion > first.state.dataVersion);
+  await c.relay.tick();
+  const pushes = c.sent.length;
+  c.advance(30);
+  await c.route('POST', '/v1/snapshot', changed, c.mac); // heartbeat: same content, same version
+  assert.equal((await c.route('GET', '/v1/snapshot')).state.dataVersion, second.state.dataVersion);
+  await c.relay.tick();
+  assert.equal(c.sent.length, pushes);
+});
+
+test('the data version survives a relay restart, separates content in the same second and never goes back', async t => {
+  const c = setup(t);
+  const first = snapshot(); first.providers[0].todayTokens = 200;
+  await c.route('POST', '/v1/snapshot', first, c.mac);
+  const v200 = (await c.route('GET', '/v1/snapshot')).state.dataVersion;
+  const second = snapshot(); second.providers[0].todayTokens = 300; // same second, different content
+  await c.route('POST', '/v1/snapshot', second, c.mac);
+  const v300 = (await c.route('GET', '/v1/snapshot')).state.dataVersion;
+  assert.ok(v300 > v200);
+  c.advance(300);
+  const heartbeat = snapshot(c.now()); heartbeat.providers[0].todayTokens = 300;
+  heartbeat.providers[0].updatedAt = second.providers[0].updatedAt; heartbeat.providers[0].windows = second.providers[0].windows;
+  heartbeat.sessions = second.sessions;
+  await c.route('POST', '/v1/snapshot', heartbeat, c.mac); // heartbeat: same content, later generatedAt
+  const restarted = new Relay({ store: c.store, now: c.now, pollWait: 0 });
+  assert.equal((await restarted.route('GET', '/v1/snapshot', {}, c.mobile, 'test')).state.dataVersion, v300);
+  // Removing the computer that held the newest content does not lower it either.
+  const pc = c.store.issue('alice', 'desktop', epoch).token;
+  c.store.saveDevice('alice', { id: 'pc', session: hash(pc), platform: 'windows', name: 'PC', snapshot: null, receivedAt: 0 });
+  c.store.revoke(hash(c.mac));
+  assert.ok((await restarted.route('GET', '/v1/snapshot', {}, c.mobile, 'test')).state.dataVersion >= v300);
+});
+
+test('a slow APNs answer for one phone does not hold back another phone', async t => {
+  let release;
+  const hold = new Promise(r => { release = r; });
+  const delivered = [];
+  const c = setup(t, { push: async token => { if (token === 'a'.repeat(64)) await hold; delivered.push(token); return { status: 200 }; } });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  const second = c.store.issue('alice', 'mobile', epoch).token;
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.route('POST', '/v1/activities', { activityID: 'two', pushToken: 'b'.repeat(64) }, second);
+  const tick = c.relay.tick();
+  for (let i = 0; i < 20 && !delivered.includes('b'.repeat(64)); i++) await new Promise(r => setImmediate(r));
+  assert.ok(delivered.includes('b'.repeat(64)), 'the second phone was pushed while the first waited');
+  release(); await tick;
+});
+
+test('expired computers do not count toward the 16-computer limit and are pruned', async t => {
+  const c = setup(t);
+  for (let i = 0; i < 16; i++) {
+    const token = c.store.issue('alice', 'desktop', epoch - 400 * 86400).token;
+    c.store.saveDevice('alice', { id: `old-${i}`, session: hash(token), platform: 'windows', name: `Old ${i}`, snapshot: null, receivedAt: 0 });
+  }
+  const offer = await c.route('POST', '/v1/pairing/start', { platform: 'windows', name: 'New PC' }, undefined);
+  const claimed = await c.route('POST', '/v1/pairing/claim', { id: offer.id, secret: offer.secret });
+  assert.ok(claimed.deviceID);
+  c.store.prune(c.now());
+  assert.equal(c.store.one('SELECT COUNT(*) AS n FROM devices').n, 1);
+});
+
+test("one account's slow APNs answer does not delay another account's update", async t => {
+  let release;
+  const hold = new Promise(r => { release = r; });
+  const calls = [];
+  const c = setup(t, { push: async token => { calls.push(token); if (token === 'a'.repeat(64)) await hold; return { status: 200 }; } });
+  const bobPhone = c.store.issue('bob', 'mobile', epoch).token, bobMac = c.store.issue('bob', 'desktop', epoch).token;
+  c.store.saveDevice('bob', { id: 'bob-mac', session: hash(bobMac), platform: 'macOS', name: 'Mac', snapshot: null, receivedAt: 0 });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.route('POST', '/v1/activities', { activityID: 'alice', pushToken: 'a'.repeat(64) });
+  for (let i = 0; i < 20 && !calls.length; i++) await new Promise(r => setImmediate(r));
+  assert.deepEqual(calls, ['a'.repeat(64)], 'Alice is waiting on APNs');
+  // Bob's events arrive afterwards, through the same paths the app uses.
+  await c.route('POST', '/v1/snapshot', snapshot(), bobMac);
+  await c.route('POST', '/v1/activities', { activityID: 'bob', pushToken: 'b'.repeat(64) }, bobPhone);
+  for (let i = 0; i < 20 && !calls.includes('b'.repeat(64)); i++) await new Promise(r => setImmediate(r));
+  assert.ok(calls.includes('b'.repeat(64)), "Bob was pushed while Alice's push was still waiting");
+  release(); await c.relay.pending;
+});
+
+test('polls of a QR code nobody scans leave no waiters behind', async t => {
+  const c = setup(t);
+  const offer = await c.route('POST', '/v1/pairing/start', { platform: 'windows', name: 'PC' }, undefined);
+  for (let i = 0; i < 3; i++) await c.route('POST', '/v1/pairing/poll', { id: offer.id, secret: offer.secret }, undefined);
+  assert.equal(c.relay.waiters.size, 0);
 });

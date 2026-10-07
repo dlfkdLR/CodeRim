@@ -71,6 +71,28 @@ public sealed class UsageScannerTests
     }
 
     [Fact]
+    public async Task ContentVersionChangesOnlyWhenASourceChanges()
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            var source = Path.Combine(root, "session.jsonl");
+            var line = """{"type":"event_msg","timestamp":"2026-09-01T00:00:01Z","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":0,"output_tokens":20},"last_token_usage":{"input_tokens":100,"cached_input_tokens":0,"output_tokens":20}}}}""";
+            File.WriteAllLines(source, ["""{"type":"session_meta","payload":{"id":"versioned"}}""", line]);
+            var scanner = new UsageScanner([root]);
+            var first = await scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            var again = await scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            Assert.Equal(first.ContentVersion, again.ContentVersion);
+            File.AppendAllText(source, line.Replace("00:00:01", "00:00:02", StringComparison.Ordinal)
+                .Replace("\"input_tokens\":100,\"cached_input_tokens\":0,\"output_tokens\":20},\"last", "\"input_tokens\":150,\"cached_input_tokens\":0,\"output_tokens\":30},\"last", StringComparison.Ordinal) + "\n");
+            var appended = await scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            Assert.NotEqual(again.ContentVersion, appended.ContentVersion);
+            Assert.NotEqual(appended.ContentVersion, (await new UsageScanner([root]).ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken)).ContentVersion);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
     public async Task RepeatedSnapshotEnrichesCacheWriteWithoutAddingTokens()
     {
         var root = CreateTemporaryDirectory();

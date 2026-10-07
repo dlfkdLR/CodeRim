@@ -31,6 +31,10 @@ final class ExtendedNotchProvider: NotchProvider {
     var isVisibleWhenAbsent: Bool { true }
     var signInRoute: SignInRoute { ExtendedProviderCatalog.signInRoute(for: descriptor, displayName: displayName) }
     func account() -> ProviderAccount? { currentAccount }
+    /// The account the last read reported, where the service names one.
+    func accountIdentity() -> String? {
+        currentAccount?.label.map { AccountIdentity.fingerprint(descriptor.id.rawValue, $0.lowercased()) }
+    }
     func forgetCachedCredential() {
         revision = UUID()
         currentAccount = nil

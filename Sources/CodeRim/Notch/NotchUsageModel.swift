@@ -210,6 +210,9 @@ struct ProviderSnapshot: Identifiable, Equatable {
     }
     /// Provider-reported plan only; absence is never inferred from usage.
     var accountPlan: String?
+    /// The account this reading was taken for (`NotchProvider.accountIdentity()`), stamped by the
+    /// store. Keeps per-account state — such as which alerts were already sent — apart.
+    var accountIdentity: String?
 
     var accountPlanLabel: String? {
         guard let plan = accountPlan?.trimmingCharacters(in: .whitespacesAndNewlines), !plan.isEmpty else { return nil }

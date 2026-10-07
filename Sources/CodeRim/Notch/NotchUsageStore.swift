@@ -34,7 +34,7 @@ final class NotchUsageStore: ObservableObject {
             // remembered forever and rebuilt from the archive at the next
             // launch, ring and all.
             for id in disconnected { lastGood.removeValue(forKey: id) }
-            archive.save(lastGood)
+            saveArchive()
             refreshNow()
         }
     }
@@ -84,6 +84,8 @@ final class NotchUsageStore: ObservableObject {
 
     private let archive: UsageArchive
     private var lastGood: [String: (snapshot: ProviderSnapshot, fetchedAt: Date)] = [:]
+    /// The account each remembered reading was taken for (`NotchProvider.accountIdentity()`).
+    private var lastGoodOwners: [String: String] = [:]
     private var localTokenReadings: [String: LocalTokenUsage] = [:]
     private var localTokenSubscriptions: [String: AnyCancellable] = [:]
     private var timer: Timer?
@@ -124,7 +126,21 @@ final class NotchUsageStore: ObservableObject {
         // a plain assignment runs the `didSet`, which sorts a `snapshots` that
         // does not exist yet and is then immediately thrown away below.
         _order = Published(initialValue: order)
-        lastGood = archive.load()
+        let remembered = archive.loadOwned()
+        lastGood = remembered.mapValues { ($0.snapshot, $0.fetchedAt) }
+        lastGoodOwners = remembered.compactMapValues { $0.accountIdentity }
+        // A reading taken for another account — one signed out while CodeRim was not running, or
+        // one archived before readings recorded their account — is not restored, not even dimmed.
+        var restoredForeignAccount = false
+        for provider in providers where !disconnected.contains(provider.id) && lastGood[provider.id] != nil {
+            guard let current = provider.accountIdentity() else { continue }
+            if lastGoodOwners[provider.id] != current {
+                lastGood.removeValue(forKey: provider.id)
+                lastGoodOwners.removeValue(forKey: provider.id)
+                restoredForeignAccount = true
+            }
+        }
+        if restoredForeignAccount { saveArchive() }
         // Pruned here as well as in `didSet`, because `didSet` cannot be relied
         // on to run: it guards against a no-op change, and the value the
         // preference binding delivers a moment later is usually identical to
@@ -132,7 +148,7 @@ final class NotchUsageStore: ObservableObject {
         // would then keep its archived reading indefinitely.
         if lastGood.keys.contains(where: disconnected.contains) {
             for id in disconnected { lastGood.removeValue(forKey: id) }
-            archive.save(lastGood)
+            saveArchive()
         }
         // Filtered here, not only in `didSet`. The store is built before the
         // preference reaches it, so an unfiltered first pass draws every
@@ -164,7 +180,7 @@ final class NotchUsageStore: ObservableObject {
     func invalidateAccount(providerID: String) {
         connectionVersions[providerID] = UUID()
         lastGood.removeValue(forKey: providerID)
-        archive.save(lastGood)
+        saveArchive()
         refusedAccess.remove(providerID)
         if let provider = providers.first(where: { $0.id == providerID }),
            let index = snapshots.firstIndex(where: { $0.id == providerID }) {
@@ -276,15 +292,28 @@ final class NotchUsageStore: ObservableObject {
     func refresh() async {
         let live = orderedProviders.filter { !disconnected.contains($0.id) }
         let versions = connectionVersions
+        // Providers are read side by side: one slow or hanging endpoint must not hold back the rest,
+        // and a full pass takes as long as the slowest read rather than the sum of all of them.
+        // Each provider still has at most one read in flight (`refreshing`).
+        var reads: [Task<Void, Never>] = []
         for provider in live {
             // A targeted refresh may already own this provider. Preserve its result.
             guard !refreshing.contains(provider.id), isCurrent(provider.id, version: versions[provider.id]) else { continue }
             refreshing.insert(provider.id)
-            let fresh = await snapshot(from: provider, version: versions[provider.id])
-            if isCurrent(provider.id, version: versions[provider.id]) {
-                apply(fresh, providerID: provider.id)
-            }
-            finishRefresh(provider.id)
+            // Inherits the main actor; the reads interleave at their network waits.
+            reads.append(Task { [weak self] in
+                guard let self else { return }
+                let fresh = await self.snapshot(from: provider, version: versions[provider.id])
+                if self.isCurrent(provider.id, version: versions[provider.id]) {
+                    self.apply(fresh, providerID: provider.id)
+                }
+                self.finishRefresh(provider.id)
+            })
+        }
+        await withTaskCancellationHandler {
+            for read in reads { await read.value }
+        } onCancel: {
+            for read in reads { read.cancel() }
         }
     }
 
@@ -482,21 +511,41 @@ final class NotchUsageStore: ObservableObject {
         }
     }
 
+    private func saveArchive() {
+        lastGoodOwners = lastGoodOwners.filter { lastGood[$0.key] != nil }
+        archive.save(lastGood, owners: lastGoodOwners)
+    }
+
     private func isCurrent(_ providerID: String, version: UUID?) -> Bool {
         !Task.isCancelled && !disconnected.contains(providerID)
             && connectionVersions[providerID] == version
     }
 
     private func snapshot(from provider: NotchProvider, version: UUID?) async -> ProviderSnapshot? {
-        // A provider may have been switched off while waiting behind another
-        // provider in the serial refresh. Do not read its credential at all.
+        // A provider may have been switched off before its read started.
+        // Do not read its credential at all.
         guard isCurrent(provider.id, version: version) else { return nil }
         do {
+            // An HTTP 200 only says the request worked, not that it was for the account signed in
+            // now: another tool can switch accounts while the request is in flight. Compare the
+            // account before and after, and read once more for the new account on a mismatch.
+            var owner = provider.accountIdentity()
             var fresh = try await provider.fetchSnapshot()
             guard isCurrent(provider.id, version: version) else { return nil }
+            var after = provider.accountIdentity()
+            if after != owner {
+                NotchLog.usage.notice("\(provider.id, privacy: .public): account changed during a read; reading again")
+                owner = after
+                fresh = try await provider.fetchSnapshot()
+                guard isCurrent(provider.id, version: version) else { return nil }
+                after = provider.accountIdentity()
+                guard after == owner else { return nil }
+            }
             fresh.accountPlan = fresh.accountPlan ?? provider.account()?.plan
+            fresh.accountIdentity = owner
             lastGood[provider.id] = (fresh, Date())
-            archive.save(lastGood)
+            lastGoodOwners[provider.id] = owner
+            saveArchive()
             refusedAccess.remove(provider.id)
             NotchLog.usage.debug("\(provider.id, privacy: .public): \(fresh.windows.count) window(s)")
             return fresh
@@ -512,7 +561,7 @@ final class NotchUsageStore: ObservableObject {
     private func degraded(provider: NotchProvider, error: Error) -> ProviderSnapshot? {
         if !provider.isVisibleWhenAbsent {
             lastGood[provider.id] = nil
-            archive.save(lastGood)
+            saveArchive()
             return nil
         }
 
@@ -537,12 +586,17 @@ final class NotchUsageStore: ObservableObject {
         // longer read. So the remembered reading is dropped, not dimmed.
         if Self.supersedesHistory(status) {
             lastGood[provider.id] = nil
-            archive.save(lastGood)
+            saveArchive()
             var empty = Self.placeholder(provider)
             empty.status = status
             return empty
         }
 
+        // A reading kept for an account that is no longer signed in is not re-shown for the new one.
+        if let owner = lastGoodOwners[provider.id], let current = provider.accountIdentity(), owner != current {
+            lastGood[provider.id] = nil
+            saveArchive()
+        }
         guard let previous = lastGood[provider.id] else {
             var empty = Self.placeholder(provider)
             empty.status = status

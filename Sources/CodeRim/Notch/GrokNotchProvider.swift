@@ -28,6 +28,8 @@ final class GrokNotchProvider: NotchProvider {
 
     func account() -> ProviderAccount? { GrokCredentials.account() }
 
+    func accountIdentity() -> String? { (try? GrokCredentials.load(from: authURL))?.identity }
+
     func fetchSnapshot() async throws -> ProviderSnapshot {
         let authURL = self.authURL
         let credentials = try await Task.detached { try GrokCredentials.load(from: authURL) }.value

@@ -44,7 +44,8 @@ final class MobileAppModel: ObservableObject {
         do {
             if let saved = try await credentials.load() {
                 guard generation == loginGeneration else { return }
-                guard saved.expiresAt > Date().timeIntervalSince1970 else { throw MobileRelayError.expired }
+                // The relay extends a token each time it is used, so the expiry saved at sign-in is only
+                // where it started; the relay alone decides, with 401, when this phone must sign in again.
                 try activate(saved)
                 await refresh()
             }
@@ -161,7 +162,6 @@ final class MobileAppModel: ObservableObject {
         guard let credential, let client else { return }
         let generation = loginGeneration
         do {
-            guard credential.expiresAt > Date().timeIntervalSince1970 else { throw MobileRelayError.expired }
             let response: MobileSnapshotResponse = try await client.get("/v1/snapshot", token: credential.token)
             guard generation == loginGeneration else { return }
             _ = try await apply(response, token: credential.token)
@@ -174,11 +174,11 @@ final class MobileAppModel: ObservableObject {
     }
 
     private func apply(_ response: MobileSnapshotResponse, token: String, retryStale: Bool = true) async throws -> Bool {
-        guard credential?.token == token, (response.state.viewRevision ?? 0) >= (state.viewRevision ?? 0) else { return false }
+        guard credential?.token == token, response.state.supersedes(state) else { return false }
         let connection = MobileActivityConnection.id(for: token)
         let current = Activity<CodeRimActivityAttributes>.activities.filter { $0.attributes.connectionID == connection }
-            .map(\.content.state).max { ($0.viewRevision ?? 0) < ($1.viewRevision ?? 0) }
-        if let current, (current.viewRevision ?? 0) > (response.state.viewRevision ?? 0) {
+            .map(\.content.state).max { !$0.supersedes($1) }
+        if let current, !response.state.supersedes(current) {
             // Keep the coherent state/list pair until the relay catches up with the Island.
             // One fresh request handles an in-flight old response without a retry loop.
             if retryStale, let client {
@@ -193,7 +193,7 @@ final class MobileAppModel: ObservableObject {
         state = response.state
         observeActivities()
         for activity in Activity<CodeRimActivityAttributes>.activities where activity.attributes.connectionID == connection && (activity.activityState == .active || activity.activityState == .stale) {
-            guard (activity.content.state.viewRevision ?? 0) <= (response.state.viewRevision ?? 0) else { continue }
+            guard response.state.supersedes(activity.content.state) else { continue }
             await activity.update(ActivityContent(state: response.state, staleDate: Date(timeIntervalSince1970: response.state.staleAt)))
         }
         return true
@@ -207,7 +207,6 @@ final class MobileAppModel: ObservableObject {
         let generation = loginGeneration
         defer { busy = false }
         do {
-            guard credential.expiresAt > Date().timeIntervalSince1970 else { throw MobileRelayError.expired }
             let request = MobileNavigation(axis: "provider", direction: 1, expectedRevision: state.viewRevision ?? 0,
                                            providerID: id, deviceID: deviceID)
             let response: MobileSnapshotResponse = try await client.send("POST", "/v1/view", token: credential.token, body: request)
@@ -235,29 +234,43 @@ final class MobileAppModel: ObservableObject {
         if !enabled { ids.removeAll { $0 == id } }
         guard (1...100).contains(ids.count) else { errorMessage = "Select at least one provider to display."; return }
         busy = true; errorMessage = nil; defer { busy = false }
+        let generation = loginGeneration
         do {
             let next = MobilePreferences(providerIDs: ids)
             let _: MobileOK = try await client.send("PUT", "/v1/preferences", token: credential.token, body: next)
+            // A sign-out (or a 401 from a foreground refresh) while this was in flight wins.
+            guard generation == loginGeneration else { return }
             preferences = next
             await refresh()
-        } catch { errorMessage = error.localizedDescription }
+        } catch { settingsFailed(error, generation: generation) }
     }
 
     func showAllProviders() async {
         guard !busy, let credential, let client else { return }
         busy = true; defer { busy = false }
+        let generation = loginGeneration
         do {
             let _: MobileOK = try await client.send("PUT", "/v1/preferences", token: credential.token, body: MobilePreferences())
+            guard generation == loginGeneration else { return }
             await refresh()
-        } catch { errorMessage = error.localizedDescription }
+        } catch { settingsFailed(error, generation: generation) }
     }
     func removeDevice(_ device: MobileDevice) async {
         guard !busy, let credential, let client else { return }
         busy = true; defer { busy = false }
+        let generation = loginGeneration
         do {
             let _: MobileOK = try await client.send("DELETE", "/v1/devices/" + device.id, token: credential.token, body: MobileEmpty())
+            guard generation == loginGeneration else { return }
             await refresh()
-        } catch { errorMessage = error.localizedDescription }
+        } catch { settingsFailed(error, generation: generation) }
+    }
+
+    /// A late failure from an earlier login says nothing about the current one.
+    private func settingsFailed(_ error: Error, generation: UUID) {
+        guard generation == loginGeneration else { return }
+        errorMessage = error.localizedDescription
+        if case MobileRelayError.rejected(401) = error { Task { await clearLocalLogin() } }
     }
 
     func startActivity() async {

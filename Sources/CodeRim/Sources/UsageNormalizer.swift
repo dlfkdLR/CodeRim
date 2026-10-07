@@ -68,21 +68,22 @@ struct UsageNormalizer: Sendable {
                 )
             }
 
+            let initial = storable(cumulative)
             return UsageNormalizationResult(
-                delta: cumulative.isZero ? nil : cumulative,
+                delta: initial.usage,
                 state: UsageNormalizationState(
                     cumulativeHighWaterMark: cumulative,
                     lastObservedAt: observation.occurredAt,
-                    quality: state.quality
+                    quality: initial.repaired ? .partial : state.quality
                 ),
-                diagnostic: nil
+                diagnostic: initial.repaired ? "inconsistent token usage clamped" : nil
             )
         }
 
         guard !cumulative.hasCounterDecrease(comparedTo: previous) else {
             if observation.lastUsage == cumulative {
                 return UsageNormalizationResult(
-                    delta: cumulative.isZero ? nil : cumulative,
+                    delta: storable(cumulative).usage,
                     state: UsageNormalizationState(
                         cumulativeHighWaterMark: cumulative,
                         lastObservedAt: observation.occurredAt,
@@ -104,6 +105,20 @@ struct UsageNormalizer: Sendable {
         }
 
         let delta = cumulative.subtractingFloorAtZero(previous)
+        guard delta.isValid else {
+            // Each counter grew, but not consistently (e.g. cached input grew more than input).
+            // Keep the tokens that are certain instead of a row storage rejects, and say the period is partial.
+            let repaired = delta.clampedToValid
+            return UsageNormalizationResult(
+                delta: repaired.isZero ? nil : repaired,
+                state: UsageNormalizationState(
+                    cumulativeHighWaterMark: cumulative,
+                    lastObservedAt: observation.occurredAt,
+                    quality: .partial
+                ),
+                diagnostic: "inconsistent token delta clamped"
+            )
+        }
         return UsageNormalizationResult(
             delta: delta.isZero ? nil : delta,
             state: UsageNormalizationState(
@@ -113,5 +128,11 @@ struct UsageNormalizer: Sendable {
             ),
             diagnostic: nil
         )
+    }
+
+    /// A cumulative value used as a delta (first snapshot, counter restart) must be storable as well.
+    private func storable(_ usage: TokenUsage) -> (usage: TokenUsage?, repaired: Bool) {
+        let value = usage.isValid ? usage : usage.clampedToValid
+        return (value.isZero ? nil : value, !usage.isValid)
     }
 }

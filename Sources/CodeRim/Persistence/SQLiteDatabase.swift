@@ -193,6 +193,16 @@ actor SQLiteDatabase {
         do {
             try Self.configure(database)
             try Self.migrate(database)
+            // A legacy "partial" marker has no time of its own. Pin it once to the newest event that existed
+            // when it was first seen, so it marks the periods that hold that history and expires with them.
+            try Self.execute(
+                """
+                INSERT OR IGNORE INTO app_metadata(key, value)
+                SELECT 'legacy_partial_quality_through', CAST(COALESCE((SELECT MAX(occurred_at) FROM usage_events), 0) AS TEXT)
+                WHERE EXISTS (SELECT 1 FROM app_metadata WHERE key = 'legacy_partial_quality' AND value = '1')
+                """,
+                on: database
+            )
             try Self.protectDatabaseFiles(at: url)
         } catch {
             sqlite3_close(database)
@@ -379,19 +389,22 @@ actor SQLiteDatabase {
             for event in events {
                 sqlite3_reset(insert)
                 sqlite3_clear_bindings(insert)
+                // The table's CHECK constraints reject inconsistent rows; a rejected row would roll back the
+                // whole batch and fail the same read again on every refresh.
+                let usage = event.usage.isValid ? event.usage : event.usage.clampedToValid
                 try bind(event.eventKey, at: 1, to: insert)
                 sqlite3_bind_double(insert, 2, event.occurredAt.timeIntervalSince1970)
                 try bind(event.sessionID, at: 3, to: insert)
                 try bind(event.model, at: 4, to: insert)
                 try bind(event.projectPath, at: 5, to: insert)
-                sqlite3_bind_int64(insert, 6, event.usage.inputTokens)
-                sqlite3_bind_int64(insert, 7, event.usage.cachedInputTokens)
-                if let cacheWrite = event.usage.cacheWriteInputTokens {
+                sqlite3_bind_int64(insert, 6, usage.inputTokens)
+                sqlite3_bind_int64(insert, 7, usage.cachedInputTokens)
+                if let cacheWrite = usage.cacheWriteInputTokens {
                     sqlite3_bind_int64(insert, 8, cacheWrite)
                 } else {
                     sqlite3_bind_null(insert, 8)
                 }
-                sqlite3_bind_int64(insert, 9, event.usage.outputTokens)
+                sqlite3_bind_int64(insert, 9, usage.outputTokens)
                 if let pricingContext = event.pricingContext {
                     sqlite3_bind_int64(insert, 10, Int64(pricingContext.rawValue))
                 } else {
@@ -602,14 +615,18 @@ actor SQLiteDatabase {
             let monthUsage = try sum(from: month, through: now)
             let allTimeUsage = try sum(from: nil, through: now)
             let lastUpdated = try maximumEventDate(through: now)
-            let quality = try databaseQuality(hasEvents: lastUpdated != nil)
+            // The current periods are judged by the sessions seen in them; a partly read session from
+            // months ago, or old files still waiting for a re-read, is reported separately.
+            let quality = try databaseQuality(hasEvents: lastUpdated != nil, since: min(week, month), includesBackfill: false)
+            let historyIncomplete = try databaseQuality(hasEvents: lastUpdated != nil) == .partial
             let snapshot = UsageSnapshot(
                 today: todayUsage,
                 week: weekUsage,
                 month: monthUsage,
                 allTime: allTimeUsage,
                 quality: quality,
-                updatedAt: lastUpdated
+                updatedAt: lastUpdated,
+                historyIncomplete: historyIncomplete
             )
             let nextEvent = try minimumEventTimestamp(after: now)
             try execute("COMMIT")
@@ -642,7 +659,7 @@ actor SQLiteDatabase {
                 interval: interval,
                 through: end,
                 usage: usage,
-                quality: try databaseQuality(hasEvents: !usage.isZero),
+                quality: try databaseQuality(hasEvents: !usage.isZero, since: interval.start),
                 buckets: buckets,
                 models: models,
                 projects: projects,
@@ -1172,7 +1189,7 @@ actor SQLiteDatabase {
             try execute("DELETE FROM session_counters")
             try execute("DELETE FROM session_metadata")
             try execute("DELETE FROM analytics_backfill_sources")
-            try execute("DELETE FROM app_metadata WHERE key = 'legacy_partial_quality'")
+            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through')")
             try execute("COMMIT")
         } catch {
             try? execute("ROLLBACK")
@@ -1202,7 +1219,7 @@ actor SQLiteDatabase {
             try execute("DELETE FROM session_counters")
             try execute("DELETE FROM session_metadata")
             try execute("DELETE FROM analytics_backfill_sources")
-            try execute("DELETE FROM app_metadata WHERE key = 'legacy_partial_quality'")
+            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through')")
             do {
                 let statement = try prepare(
                     """
@@ -1395,21 +1412,37 @@ actor SQLiteDatabase {
         return Date(timeIntervalSince1970: sqlite3_column_double(statement, 0))
     }
 
-    private func databaseQuality(hasEvents: Bool) throws -> DataQuality {
+    /// Partial when a session observed since `since` (any time when nil; a session whose time is unknown
+    /// counts, conservatively) was read only partly, or —
+    /// with `includesBackfill` — when sources still wait for an analytics re-read.
+    private func databaseQuality(hasEvents: Bool, since: Date? = nil, includesBackfill: Bool = true) throws -> DataQuality {
         guard hasEvents else { return .unavailable }
+        let historyWide = since == nil
         let statement = try prepare(
             """
             SELECT 1
-            WHERE EXISTS (SELECT 1 FROM analytics_backfill_sources)
-               OR EXISTS (
+            WHERE (?1 AND EXISTS (SELECT 1 FROM analytics_backfill_sources))
+               OR (EXISTS (
                     SELECT 1 FROM app_metadata
                     WHERE key = 'legacy_partial_quality' AND value = '1'
+               ) AND (?2 OR COALESCE((
+                    SELECT CAST(value AS REAL) FROM app_metadata WHERE key = 'legacy_partial_quality_through'
+               ), ?3 + 1) >= ?3))
+               OR EXISTS (
+                    SELECT 1 FROM session_counters
+                    WHERE quality != 'exact' AND (?3 IS NULL OR last_observed_at IS NULL OR last_observed_at >= ?3)
                )
-               OR EXISTS (SELECT 1 FROM session_counters WHERE quality != 'exact')
             LIMIT 1
             """
         )
         defer { sqlite3_finalize(statement) }
+        sqlite3_bind_int(statement, 1, includesBackfill ? 1 : 0)
+        sqlite3_bind_int(statement, 2, historyWide ? 1 : 0)
+        if let since {
+            sqlite3_bind_double(statement, 3, since.timeIntervalSince1970)
+        } else {
+            sqlite3_bind_null(statement, 3)
+        }
         switch sqlite3_step(statement) {
         case SQLITE_ROW: return .partial
         case SQLITE_DONE: return .exact

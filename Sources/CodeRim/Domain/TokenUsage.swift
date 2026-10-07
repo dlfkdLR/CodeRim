@@ -50,6 +50,19 @@ struct TokenUsage: Codable, Equatable, Sendable {
             && knownCacheWriteIsValid
     }
 
+    /// The closest storable value: negative parts become zero and cache reads/writes never exceed input.
+    /// Used when a delta between two valid cumulative counters is itself inconsistent.
+    var clampedToValid: TokenUsage {
+        let input = max(0, inputTokens)
+        let cached = min(max(0, cachedInputTokens), input)
+        return TokenUsage(
+            inputTokens: input,
+            cachedInputTokens: cached,
+            cacheWriteInputTokens: cacheWriteInputTokens.map { min(max(0, $0), input - cached) },
+            outputTokens: max(0, outputTokens)
+        )
+    }
+
     func adding(_ other: TokenUsage) -> TokenUsage {
         TokenUsage(
             inputTokens: inputTokens.saturatedAdding(other.inputTokens),

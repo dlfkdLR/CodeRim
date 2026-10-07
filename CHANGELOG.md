@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.20 — Accurate usage across accounts, reliable iPhone updates
+
+- Count the certain part of inconsistent token logs and mark the period partial, instead of failing every refresh (macOS) or silently dropping usage (Windows); judge current periods by their own sessions and flag incomplete older history separately.
+- Never show one account's answer, remembered reading, rate-limit wait or alert state for another account; read providers side by side; skip unreadable browsers; follow `CLAUDE_CONFIG_DIR` for live sessions.
+- Relay: order iPhone answers by view revision and a stored content sequence, keep accounts' Island updates independent, free places held by expired computers, and stop leaking QR waiters. Windows: bound relay answers end to end.
+- macOS catches up with the Windows 2.1.16–2.1.19 provider sign-in and settings work. See the [release notes](Documentation/ReleaseNotes/2.1.20.md).
+
 ## 2.1.15 — Provider sign-in on add, iPhone QR pairing, and notch fixes
 
 - Adding a provider now connects it in the same step on macOS and Windows: it reads an existing sign-in, otherwise opens the provider's own sign-in (a terminal login command, the website's login page, or the Antigravity app for Gemini) and watches until the account appears. Providers that need a key open their settings instead of leaving a second "Set up" step. Progress shows in the Add sheet on macOS and on the provider page on Windows.

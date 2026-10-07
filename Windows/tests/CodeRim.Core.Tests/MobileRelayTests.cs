@@ -95,6 +95,39 @@ public sealed class MobileRelayTests
         Assert.Equal("stale", result.Providers[0].State); Assert.Null(result.Providers[0].TodayTokens);
         Assert.Null(result.Providers[0].Windows[0].RemainingPercent); Assert.Equal("unavailable", result.Sessions[0].Phase);
     }
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ABodyThatNeverFinishesEndsAtTheRequestDeadline(bool observesCancellation)
+    {
+        // 200 and headers arrive, then the body stalls: HttpClient.Timeout no longer applies here.
+        var handler = new FixtureHandler(_ => Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+        { Content = new StreamContent(new StalledStream(observesCancellation)) }));
+        using var client = new MobileRelayClient("https://relay.example.com", handler, TimeSpan.FromMilliseconds(300));
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => client.PublishAsync(
+            new MobileSnapshot(1, 0, [], []), new string('A', 43), TestContext.Current.CancellationToken));
+        Assert.True(watch.Elapsed < TimeSpan.FromSeconds(10), $"took {watch.Elapsed}");
+    }
+    private sealed class StalledStream(bool observesCancellation) : Stream
+    {
+        private readonly TaskCompletionSource never = new();
+        public override bool CanRead => true; public override bool CanSeek => false; public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => 0; set => throw new NotSupportedException(); }
+        public override void Flush() { }
+        public override int Read(byte[] buffer, int offset, int count) { never.Task.Wait(); return 0; }
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            await (observesCancellation ? never.Task.WaitAsync(cancellationToken) : never.Task).ConfigureAwait(false);
+            return 0;
+        }
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
     private sealed class FixtureHandler(Func<HttpRequestMessage, Task<HttpResponseMessage>> response) : HttpMessageHandler
     {
         public int Count { get; private set; }

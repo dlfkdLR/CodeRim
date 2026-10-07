@@ -182,6 +182,64 @@ final class UsageNormalizerTests: XCTestCase {
         SessionMetadata(id: "root", model: nil, workingDirectory: nil)
     }
 
+    /// 100/20/10 then 110/40/15: both snapshots are valid, their difference (10 input, 20 cached) is not.
+    /// It must neither reach storage (whose CHECK rejects it) nor be dropped while the period says exact.
+    func testInconsistentDeltaBetweenValidCountersIsClampedAndPartial() {
+        let first = normalizer.normalize(observation(cumulative: usage(100, cached: 20, output: 10)), metadata: nil, state: .empty)
+        let next = normalizer.normalize(
+            CodexTokenObservation(occurredAt: timestamp.addingTimeInterval(1), ordinal: 2,
+                                  lastUsage: usage(10, cached: 20, output: 5), cumulativeUsage: usage(110, cached: 40, output: 15)),
+            metadata: nil, state: first.state)
+        XCTAssertEqual(next.delta, usage(10, cached: 10, output: 5))
+        XCTAssertTrue(next.delta?.isValid == true)
+        XCTAssertEqual(next.state.quality, .partial)
+        XCTAssertEqual(next.state.cumulativeHighWaterMark, usage(110, cached: 40, output: 15))
+    }
+
+    func testInconsistentRowIsStoredAsItsValidPartInsteadOfFailingTheBatch() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let database = try SQLiteDatabase(url: directory.appendingPathComponent("usage.sqlite"))
+        let now = Date()
+        let bad = usage(10, cached: 20, output: 5)
+        XCTAssertFalse(bad.isValid)
+        let event = UsageEvent(eventKey: "bad", occurredAt: now.addingTimeInterval(-60), sessionID: "s", model: nil,
+                               projectPath: nil, usage: bad, sourcePath: "fixture", sourcePosition: 0)
+        _ = try await database.commit(events: [event], checkpoint: .fresh(sourcePath: "fixture", fileIdentity: "1:2"),
+                                      normalizationState: nil)
+        let snapshot = try await database.usageSnapshot(now: now, calendar: .current, weekStart: .monday)
+        XCTAssertEqual(snapshot.today.totalTokens, 15)
+        XCTAssertEqual(snapshot.today.cachedInputTokens, 10)
+    }
+
+    /// A session read only partly months ago does not make today partial; it is reported as old history.
+    func testCurrentPeriodQualityIgnoresAnOldPartialSession() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let database = try SQLiteDatabase(url: directory.appendingPathComponent("usage.sqlite"))
+        let now = Date()
+        func commit(_ key: String, at date: Date, quality: DataQuality) async throws {
+            var checkpoint = SourceCheckpoint.fresh(sourcePath: key, fileIdentity: "1:2")
+            checkpoint.sessionID = key
+            let value = usage(100, cached: 0, output: 10)
+            _ = try await database.commit(
+                events: [UsageEvent(eventKey: key, occurredAt: date, sessionID: key, model: nil, projectPath: nil,
+                                    usage: value, sourcePath: key, sourcePosition: 0)],
+                checkpoint: checkpoint,
+                normalizationState: UsageNormalizationState(cumulativeHighWaterMark: value, lastObservedAt: date, quality: quality))
+        }
+        try await commit("old", at: now.addingTimeInterval(-120 * 86_400), quality: .partial)
+        try await commit("today", at: now.addingTimeInterval(-60), quality: .exact)
+        var snapshot = try await database.usageSnapshot(now: now, calendar: .current, weekStart: .monday)
+        XCTAssertEqual(snapshot.quality, .exact)
+        XCTAssertTrue(snapshot.historyIncomplete)
+        try await commit("recent", at: now.addingTimeInterval(-30), quality: .partial)
+        snapshot = try await database.usageSnapshot(now: now.addingTimeInterval(1), calendar: .current, weekStart: .monday)
+        XCTAssertEqual(snapshot.quality, .partial)
+    }
+
     private func observation(cumulative: TokenUsage) -> CodexTokenObservation {
         CodexTokenObservation(
             occurredAt: timestamp,

@@ -193,6 +193,35 @@ final class SafeBrowserProviderFetchTests: XCTestCase, @unchecked Sendable {
         XCTAssertEqual(result.usage.primary?.usedPercent, 10)
         XCTAssertFalse(state.calls.isEmpty)
     }
+    /// Safari's store refusing access must not end the search before Chrome's working session is tried;
+    /// with no other session anywhere, the refusal is what gets reported.
+    func testFactoryUnreadableFirstBrowserFallsThroughToTheNextBrowser() async throws {
+        struct Refused: Error {}
+        let safari = BrowserCookieStore(browser: .safari, profile: .init(id: "safari", name: "Safari"), kind: .primary,
+                                        label: "safari", databaseURL: URL(fileURLWithPath: "/fixture/Safari/Cookies.binarycookies"))
+        let chrome = BrowserCookieStore(browser: .chrome, profile: .init(id: "/fixture/Default", name: "Default"), kind: .primary,
+                                        label: "chrome", databaseURL: URL(fileURLWithPath: "/fixture/Default/Cookies"))
+        var deps = dependencies()
+        deps.stores = { browser in browser == .safari ? [safari] : browser == .chrome ? [chrome] : [] }
+        deps.cookies = { store, domains in
+            if store.browser == .safari { throw Refused() }
+            return domains == ["factory.ai"] ? [.init(domain: "app.factory.ai", name: "access-token", path: "/",
+                value: Self.token, expires: nil, isSecure: true, isHTTPOnly: true)] : []
+        }
+        deps.transport = Transport { request in Self.factoryReply(request) }
+        let result = try await fetch(.factory, dependencies: deps)
+        XCTAssertEqual(result.usage.primary?.usedPercent, 10)
+
+        // Safari's local storage refusing access is skipped the same way.
+        deps.safariFactory = { throw LocalStorageReadError.unsupported }
+        let afterRefusedStorage = try await fetch(.factory, dependencies: deps)
+        XCTAssertEqual(afterRefusedStorage.usage.primary?.usedPercent, 10)
+        deps.safariFactory = { [] }
+
+        deps.cookies = { store, _ in if store.browser == .safari { throw Refused() }; return [] }
+        do { _ = try await fetch(.factory, dependencies: deps); XCTFail("expected the refusal") }
+        catch { XCTAssertTrue(error is Refused, "\(error)") }
+    }
     private func factoryRecoveryDependencies(_ state: State, stored: Bool, secondStatus: Int, changeSource: Bool = false) -> SafeBrowserProviderFetch.Dependencies {
         var deps = dependencies()
         deps.storedFactoryRefresh = { stored ? (state.changed ? Self.nextRefresh : Self.refresh) : nil }
