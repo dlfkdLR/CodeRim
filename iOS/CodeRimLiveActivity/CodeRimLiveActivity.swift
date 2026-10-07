@@ -18,7 +18,7 @@ struct CodeRimLiveActivity: Widget {
             .activityBackgroundTint(.black)
             .activitySystemActionForegroundColor(.white)
             .foregroundStyle(.white)
-            .widgetURL(URL(string: "coderim://settings"))
+            .widgetURL(URL(string: "coderim://dashboard"))
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -38,7 +38,7 @@ struct CodeRimLiveActivity: Widget {
             } minimal: {
                 IslandProviderRim(state: context.state, stale: stale(context))
             }
-            .widgetURL(URL(string: "coderim://settings"))
+            .widgetURL(URL(string: "coderim://dashboard"))
             .keylineTint(.white)
         }
     }
