@@ -13,12 +13,22 @@ internal static class InstallerUpdateCoordinator
     private static InstallerAuthorization? authorization;
     internal static bool IsManaged => File.Exists(Path.Combine(AppContext.BaseDirectory, "CodeRim.install.json"));
     internal static string? ReadyVersion => ready?.Package.Version.ToString(3);
+    // Whoever is waiting to see progress — the Information page — even when a background check started the download.
+    private static IProgress<double>? watcher;
+    private static readonly IProgress<double> Relay = new RelayProgress();
+    private sealed class RelayProgress : IProgress<double> { public void Report(double value) => Volatile.Read(ref watcher)?.Report(value); }
 
-    internal static async Task<string?> CheckAndDownloadAsync(bool automatic, CancellationToken token = default)
+    internal static async Task<string?> CheckAndDownloadAsync(bool automatic, IProgress<double>? progress = null, CancellationToken token = default)
     {
         if (!IsManaged) return null;
         if (automatic) { if (!await Gate.WaitAsync(0, token).ConfigureAwait(false)) return null; }
-        else await Gate.WaitAsync(token).ConfigureAwait(false);
+        else
+        {
+            // A manual check while the background download runs follows that download instead of sitting silent.
+            if (progress is not null) Volatile.Write(ref watcher, progress);
+            try { await Gate.WaitAsync(token).ConfigureAwait(false); }
+            catch { if (progress is not null) Interlocked.CompareExchange(ref watcher, null, progress); throw; }
+        }
         try
         {
             var age = DateTimeOffset.UtcNow - lastCheck;
@@ -31,13 +41,13 @@ internal static class InstallerUpdateCoordinator
             if (ready?.Package == package) { lastCheck = DateTimeOffset.UtcNow; return ReadyVersion; }
             var directory = UpdateBootstrap.DownloadDirectory();
             var downloaded = InstallerUpdates.FindCached(package, directory)
-                ?? InstallerUpdates.Cache(await ReleasePackageDownload.DownloadAsync(package, directory, token).ConfigureAwait(false));
+                ?? InstallerUpdates.Cache(await ReleasePackageDownload.DownloadAsync(package, directory, Relay, token).ConfigureAwait(false));
             InstallerUpdates.CleanCache(directory, downloaded.Path);
             var previous = ready; ready = downloaded; lastCheck = DateTimeOffset.UtcNow;
             if (previous is not null && previous.Path != downloaded.Path) DeleteDownload(previous.Path);
             return ReadyVersion;
         }
-        finally { Gate.Release(); }
+        finally { if (progress is not null) Interlocked.CompareExchange(ref watcher, null, progress); Gate.Release(); }
     }
 
     internal static async Task<string> PrepareRestartAsync(CancellationToken token)

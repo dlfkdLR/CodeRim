@@ -31,6 +31,17 @@ internal sealed partial class DashboardWindow
             try { UpdateBootstrap.WithdrawRestart(restart.Operation, restart.Launcher); }
             catch (Exception error) when (error is not OutOfMemoryException) { }
     }
+    /// <summary>Why an update did not complete, in words that say what to do next.</summary>
+    internal static string UpdateFailure(Exception error) => error switch
+    {
+        System.Net.Http.HttpRequestException { StatusCode: System.Net.HttpStatusCode.Forbidden or System.Net.HttpStatusCode.TooManyRequests } =>
+            "GitHub is limiting update checks from this network right now. Try again in an hour, or download the installer from the releases page.",
+        System.Net.Http.HttpRequestException => "GitHub could not be reached. Check your internet connection or proxy, then try again.",
+        OperationCanceledException or TimeoutException => "The download stopped responding. Check your connection and try again; the update resumes from the start.",
+        System.IO.InvalidDataException => "The downloaded update did not pass verification, so it was not installed. Try again, or download the installer from the releases page.",
+        System.IO.IOException or UnauthorizedAccessException => "The update could not be saved on this PC. Check free disk space, then try again.",
+        _ => "Could not complete the Windows update. Try again or open the releases page.",
+    };
     private bool IsCurrentUpdate(CancellationTokenSource operation, long revision) => !updateWindowClosed && page == "about"
         && updateViewRevision == revision && ReferenceEquals(updateOperation, operation) && !operation.IsCancellationRequested;
     private void AddUpdateSection()
@@ -53,8 +64,11 @@ internal sealed partial class DashboardWindow
             {
                 if (InstallerUpdateCoordinator.IsManaged)
                 {
-                    status.Text = "Checking and downloading a verified update…";
-                    var ready = await InstallerUpdateCoordinator.CheckAndDownloadAsync(automatic: false, cancellation.Token).ConfigureAwait(true);
+                    status.Text = "Checking for a newer Windows release…";
+                    // Progress<T> reports on this (UI) thread; only a live check updates the text.
+                    var progress = new Progress<double>(fraction => { if (IsCurrentUpdate(cancellation, revision))
+                        status.Text = $"Downloading the verified update… {Math.Clamp(fraction, 0, 1):P0}"; });
+                    var ready = await InstallerUpdateCoordinator.CheckAndDownloadAsync(automatic: false, progress, cancellation.Token).ConfigureAwait(true);
                     if (!IsCurrentUpdate(cancellation, revision)) return;
                     status.Text = ready is null ? "You are using the latest Windows release." : "CodeRim " + ready + " is ready to install.";
                     if (ready is not null && MessageBox.Show(this, "Restart CodeRim and install version " + ready + "? Your settings and accounts will be preserved.", "CodeRim update", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
@@ -98,8 +112,8 @@ internal sealed partial class DashboardWindow
                         OpenUrl(update.Download.AbsoluteUri);
                 }
             }
-            catch (OperationCanceledException) { status.Text = "Update check cancelled."; }
-            catch (Exception error) when (error is not OutOfMemoryException) { status.Text = "Could not complete the Windows update. Try again or open the releases page."; }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { status.Text = "Update check cancelled."; }
+            catch (Exception error) when (error is not OutOfMemoryException) { status.Text = UpdateFailure(error); }
             finally { if (!updateHandedOff) { CancelUpdateOperation(); pendingRestart = null; pendingMsiRestart = null; } if (ReferenceEquals(updateOperation, cancellation)) updateOperation = null; cancel.Visibility = Visibility.Collapsed; }
         });
         manualUpdateCheck = check;
