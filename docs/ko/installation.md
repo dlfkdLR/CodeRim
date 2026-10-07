@@ -4,7 +4,7 @@
 
 **macOS 14 이상 · Apple silicon 및 Intel.**
 
-[![macOS 다운로드](../../Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-2.1.15.dmg)
+[![macOS 다운로드](../../Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-2.1.20.dmg)
 
 [전체 릴리스](https://github.com/dlfkdLR/CodeRim/releases/latest) · [변경 이력](../../CHANGELOG.md)
 
@@ -22,11 +22,11 @@ brew install --cask dlfkdLR/tap/coderim
 <a id="direct-download-and-macos-first-launch-help"></a>
 ## 직접 다운로드와 macOS 첫 실행
 
-DMG와 [SHA256SUMS.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/SHA256SUMS.txt)를 같은 폴더에 저장하고 검증합니다.
+DMG와 [SHA256SUMS.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/SHA256SUMS.txt)를 같은 폴더에 저장하고 검증합니다.
 
 ```sh
 cd ~/Downloads
-grep ' CodeRim-2.1.15.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
+grep ' CodeRim-2.1.20.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
 ```
 
 체크섬 결과가 `OK`이면 DMG를 열고 CodeRim을 Applications에 넣습니다. 검증한 앱을 macOS가 차단하면 **CodeRim에만** 격리 속성을 제거한 뒤 실행합니다.
@@ -63,4 +63,4 @@ HOMEBREW_NO_INSTALL_CLEANUP=1 brew reinstall --cask --force dlfkdLR/tap/coderim
 [다음: 시작하기](getting-started.md) · [문서](README.md)
 ## Windows 11
 
-현재 설치 파일은 [2.1.19 x64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.19/CodeRim-Windows-2.1.19-x64-Setup.msi)와 [2.1.19 ARM64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.19/CodeRim-Windows-2.1.19-arm64-Setup.msi)입니다. [Windows 설치와 업데이트](windows.md)를 참고합니다.
+현재 설치 파일은 [2.1.20 x64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-x64-Setup.msi)와 [2.1.20 ARM64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-arm64-Setup.msi)입니다. [Windows 설치와 업데이트](windows.md)를 참고합니다.

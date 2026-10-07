@@ -6,7 +6,7 @@ Windows 11 x64·ARM64용 WPF·.NET 10 포트입니다. 제공업체 목록과 �
 
 ## 실행·설치
 
-해당 [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.19/CodeRim-Windows-2.1.19-x64-Setup.msi) 또는 [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.19/CodeRim-Windows-2.1.19-arm64-Setup.msi)를 실행합니다. .NET은 포함됩니다. 설치 위치는 `%LOCALAPPDATA%\Programs\CodeRim`이며 관리자 권한 없이 시작 메뉴·제거 항목을 등록하고 현재 사용자 PATH에 `bin`을 추가합니다. `coderim`을 사용하려면 새 터미널을 엽니다.
+해당 [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-x64-Setup.msi) 또는 [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-arm64-Setup.msi)를 실행합니다. .NET은 포함됩니다. 설치 위치는 `%LOCALAPPDATA%\Programs\CodeRim`이며 관리자 권한 없이 시작 메뉴·제거 항목을 등록하고 현재 사용자 PATH에 `bin`을 추가합니다. `coderim`을 사용하려면 새 터미널을 엽니다.
 
 기존 미서명 ZIP 사용자는 CodeRim을 종료하고 MSI를 한 번 설치합니다. 설정·계정·사용량은 앱 폴더 밖에 있어 유지됩니다. 이전 Authenticode 관리형 설치는 기존 서명 ZIP 채널을 계속 사용하며 공개 MSI는 이를 덮어쓰지 않습니다. 첫 MSI에는 Authenticode 게시자 인증서가 없어 SmartScreen 경고가 표시될 수 있습니다. 자동 업데이트는 아래 고정 Ed25519 릴리스 키를 사용합니다.
 
