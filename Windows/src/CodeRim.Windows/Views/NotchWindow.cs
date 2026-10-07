@@ -59,6 +59,7 @@ internal sealed partial class NotchWindow : Window
         popup.Child = popupFrame;
         controlHide.Tick += (_, _) => HideControlsIfUnused();
         popup.CustomPopupPlacementCallback = PlacePopup;
+        Loaded += (_, _) => Dispatcher.BeginInvoke(PrewarmOpenNotch, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         store.PropertyChanged += Update; settings.SettingsChanged += SettingsChanged;
         MouseEnter += (_, _) => { foldTimer.Stop(); if (!Expanded) SetExpanded(true); };
         MouseLeave += (_, _) => foldTimer.Start();
@@ -250,7 +251,7 @@ internal sealed partial class NotchWindow : Window
         {
             Width = Vertical ? NotchMetrics.PillDepth * scale : NotchMetrics.PillLength * scale;
             Height = Vertical ? NotchMetrics.PillLength * scale : NotchMetrics.PillDepth * scale;
-            Content = new NotchShape { Edge = config.Edge, DesignScale = scale, Fill = Brushes.Black }; Position(); return;
+            Content = new NotchShape { Edge = config.Edge, DesignScale = scale, Fill = Brushes.Black }; PositionWithNextFrame(); return;
         }
         var visibleProviders = VisibleProviderIds();
         var fit = NotchMetrics.Fit(config.Edge, visibleProviders.Length, scale, available);
@@ -332,7 +333,7 @@ internal sealed partial class NotchWindow : Window
         AddMenu(menu, "Recentre", () => settings.Save(config with { Offset = 0 }));
         AddMenu(menu, "Settings…", () => openSettings(null));
         AddMenu(menu, "Hide notch", () => settings.Save(config with { Visibility = NotchVisibility.Hidden }));
-        canvas.ContextMenu = menu; Content = canvas; Position();
+        canvas.ContextMenu = menu; Content = canvas; PositionWithNextFrame();
         if (animateOpening) { if (settingsControl is not null && Animates) settingsControl.Opacity = 0; AnimateFold(); }
     }
     private Button Control(string glyph, string label, Action action)
@@ -518,6 +519,51 @@ internal sealed partial class NotchWindow : Window
         return [new CustomPopupPlacement(point, Vertical ? PopupPrimaryAxis.Vertical : PopupPrimaryAxis.Horizontal)];
     }
     private Screen SelectedScreen() => Screen.AllScreens.FirstOrDefault(x => x.DeviceName == settings.Current.Display) ?? Screen.PrimaryScreen ?? Screen.AllScreens[0];
+    private bool positionPending;
+    /// <summary>
+    /// Moves and resizes the window together with the frame that draws its new content. A layered window
+    /// keeps showing its previous bitmap until WPF presents the next one, so moving it first flashed the old
+    /// pill or card at the new place — most visibly on the first open, while that frame is still slow.
+    /// </summary>
+    private void PositionWithNextFrame()
+    {
+        if (!IsVisible || !Motion.Enabled) { Position(); return; }
+        if (positionPending) return;
+        positionPending = true;
+        void Present(object? sender, EventArgs e)
+        {
+            CompositionTarget.Rendering -= Present; positionPending = false;
+            if (!closed) Position();
+        }
+        CompositionTarget.Rendering += Present;
+    }
+    /// <summary>
+    /// Draws the open notch once off screen while the app is idle after start-up, so the first real opening
+    /// does not stall on first-use work (code, fonts, provider artwork) in the middle of its animation.
+    /// </summary>
+    private void PrewarmOpenNotch()
+    {
+        if (closed) return;
+        try
+        {
+            var config = settings.Current; var scale = renderScale > 0 ? renderScale : 1;
+            var host = new StackPanel { Orientation = Orientation.Horizontal };
+            host.Children.Add(new NotchShape { Edge = config.Edge, DesignScale = scale, Fill = Brushes.Black, Width = 120, Height = 60 });
+            foreach (var id in VisibleProviderIds())
+            {
+                var display = store.AccountDisplay(id);
+                host.Children.Add(new ProviderRing { ProviderId = id, Settings = config, Width = NotchMetrics.Ring, Height = NotchMetrics.CellHeight,
+                    Reading = ProviderDisplayPolicy.ForNotch(display.Reading, config, display.RawPlan)?.Evaluated(DateTimeOffset.Now) });
+            }
+            host.Children.Add(new NotchSettingsGlyph(config.Edge, false) { Width = NotchSettingsGlyph.Extent, Height = NotchSettingsGlyph.Extent });
+            host.Children.Add(new CenteredGlyph("\uE895", NotchMetrics.OrbGlyph) { Width = 40, Height = 40 });
+            host.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity)); host.Arrange(new Rect(host.DesiredSize));
+            var bitmap = new System.Windows.Media.Imaging.RenderTargetBitmap(Math.Max(1, (int)Math.Ceiling(host.DesiredSize.Width)),
+                Math.Max(1, (int)Math.Ceiling(host.DesiredSize.Height)), 96, 96, PixelFormats.Pbgra32);
+            bitmap.Render(host);
+        }
+        catch (Exception error) when (error is not OutOfMemoryException) { } // Warming is an optimisation only.
+    }
     private void Position(double? temporaryOffset = null)
     {
         var screen = SelectedScreen(); var area = screen.WorkingArea; var dpi = ScreenScale(screen);
