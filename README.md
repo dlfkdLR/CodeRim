@@ -26,13 +26,13 @@ Local counts cover records on **this computer across accounts**. Cached input is
 
 ## Install
 
-**macOS:** [2.1.15](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.15) · **Windows:** [2.1.19](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.19)
+**macOS:** [2.1.20](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.20) · **Windows:** [2.1.20](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.20)
 
 ### macOS
 
 **macOS 14 or later · Apple silicon and Intel.**
 
-[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.15/CodeRim-2.1.15.dmg)
+[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-2.1.20.dmg)
 
 ```sh
 brew tap dlfkdLR/tap &&
@@ -47,9 +47,9 @@ Open **Settings → Providers → Add Provider**, connect your tools, then hover
 
 **Windows 11 · x64 and ARM64 · .NET included.**
 
-[![Download for Windows](Assets/README/download-windows.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.19/CodeRim-Windows-2.1.19-x64-Setup.msi) [![Download for Windows on ARM](Assets/README/download-windows-arm64.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.19/CodeRim-Windows-2.1.19-arm64-Setup.msi)
+[![Download for Windows](Assets/README/download-windows.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-x64-Setup.msi) [![Download for Windows on ARM](Assets/README/download-windows-arm64.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-arm64-Setup.msi)
 
-Run the MSI and open CodeRim from the Start menu. It installs for your account without administrator access, adds the `coderim` command, and updates itself after verifying each release ([x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.19/CodeRim-Windows-2.1.19-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.19/CodeRim-Windows-2.1.19-arm64-Setup.msi.sha256)).
+Run the MSI and open CodeRim from the Start menu. It installs for your account without administrator access, adds the `coderim` command, and updates itself after verifying each release ([x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-arm64-Setup.msi.sha256)).
 
 The MSI is not yet signed by a publisher certificate, so Windows may say **Windows protected your PC**: choose **More info → Run anyway**. A Microsoft-signed Microsoft Store version, which also installs where Smart App Control blocks unsigned installers, is on its way. [Windows installation](docs/windows.md) covers upgrades, CLI setup and the Store version.
 
