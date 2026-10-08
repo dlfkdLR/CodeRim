@@ -122,6 +122,36 @@ public sealed class UsageScannerTests
         finally { Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); Directory.Delete(root, true); }
     }
 
+    /// Two copies of one session reach the same later counters from different earlier ones: one copy's
+    /// delta is consistent, the other's had to be repaired. The event is marked repaired whichever copy
+    /// is read first.
+    [Theory]
+    [InlineData("a-consistent.jsonl", "b-repaired.jsonl")]
+    [InlineData("b-consistent.jsonl", "a-repaired.jsonl")]
+    public async Task ARepairInEitherCopyMarksTheMergedEvent(string consistentName, string repairedName)
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            static string Line(string time, string total, string last) =>
+                """{"type":"event_msg","timestamp":"2026-09-01T00:00:0""" + time + """Z","payload":{"type":"token_count","info":{"total_token_usage":"""
+                + total + ""","last_token_usage":""" + last + "}}}";
+            const string meta = """{"type":"session_meta","payload":{"id":"copied"}}""";
+            const string later = """{"input_tokens":110,"cached_input_tokens":40,"output_tokens":15}""";
+            const string laterLast = """{"input_tokens":10,"cached_input_tokens":10,"output_tokens":5}""";
+            File.WriteAllLines(Path.Combine(root, consistentName), [meta,
+                Line("1", """{"input_tokens":100,"cached_input_tokens":30,"output_tokens":10}""", """{"input_tokens":100,"cached_input_tokens":30,"output_tokens":10}"""),
+                Line("2", later, laterLast)]);
+            File.WriteAllLines(Path.Combine(root, repairedName), [meta,
+                Line("1", """{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10}""", """{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10}"""),
+                Line("2", later, laterLast)]);
+            var scan = await new UsageScanner([root]).ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            var merged = Assert.Single(scan.Events, e => e.Usage == new TokenUsage(10, 10, 5));
+            Assert.True(merged.Repaired);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     [Fact]
     public async Task RepeatedSnapshotEnrichesCacheWriteWithoutAddingTokens()
     {

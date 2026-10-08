@@ -11,7 +11,7 @@ export const FREE_DAILY = { requests: 100000, writes: 100000 };
 const BUSY_AT = 0.7, CRITICAL_AT = 0.9;
 export const HEARTBEAT = { normal: 300, busy: 600, critical: 1800 };
 const BUSY_NOTICE = 'The CodeRim relay is busy today. Updates may be slower, and new connections are paused until 00:00 UTC.';
-const IDLE_END = 120, START_COOLDOWN = 300, ACTIVITY_LIFETIME = 8 * 3600;
+const IDLE_END = 120, START_COOLDOWN = 300, START_RETRY = 60, ACTIVITY_LIFETIME = 8 * 3600;
 
 const sameSnapshot = (a, b) => a && b && JSON.stringify({ ...a, generatedAt: 0 }) === JSON.stringify({ ...b, generatedAt: 0 });
 const day = now => Math.floor(now / 86400);
@@ -272,6 +272,9 @@ export class Relay {
     // Orders answers that share a view revision: a stored sequence that grows with every content change
     // from any of the account's computers, survives restarts and never repeats for different content.
     state.dataVersion = this.contentSequence(owner);
+    // Some of an answer changes with time alone: a limit that reset turns stale, a computer that went quiet
+    // turns offline. Among answers with the same content, the one evaluated later is the newer one.
+    state.evaluatedAt = now;
     const notice = this.notice();
     if (notice) state.notice = notice;
     return state;
@@ -365,6 +368,14 @@ export class Relay {
       const next = (starter.data.startedAt ?? 0) + START_COOLDOWN;
       if (now < next) { due = Math.min(due, next); continue; }
       starter.data.startedAt = now; this.store.saveStarter(starter);
+      const retry = () => {
+        // Not refused, just not delivered: try again in a minute rather than after the full cooldown,
+        // and make sure something wakes the relay then. A newer token registered meanwhile is not touched.
+        const current = this.store.starters(starter.owner).find(s => s.session === starter.session);
+        if (current?.data.token !== starter.data.token || current.data.startedAt !== now) return Infinity;
+        current.data.startedAt = now - START_COOLDOWN + START_RETRY; this.store.saveStarter(current);
+        return now + START_RETRY;
+      };
       const session = state.sessions[0];
       const name = state.providers.find(p => p.id === session?.providerID)?.name ?? 'CodeRim';
       const payload = activityPayload(state, now, 'start', {
@@ -377,12 +388,13 @@ export class Relay {
             // Only the token APNs refused. The phone may have registered a new one while this was in flight.
             const current = this.store.starters(starter.owner).find(s => s.session === starter.session);
             if (current?.data.token === starter.data.token) this.store.run('DELETE FROM starters WHERE session=?', starter.session);
+            return Infinity;
           }
-        } catch {}
+          return result.status === 200 ? Infinity : retry();
+        } catch { return retry(); }
       })());
     }
-    await Promise.all(starts);
-    return due;
+    return Math.min(due, ...await Promise.all(starts));
   }
   async updateActivity(listed) {
     const activity = this.store.activities(listed.owner).find(a => a.id === listed.id);
@@ -398,10 +410,14 @@ export class Relay {
       else if (!a.idleSince) { a.idleSince = now; this.store.saveActivity(activity); }
       else if (now - a.idleSince >= IDLE_END) a.ending = true;
     }
-    const key = JSON.stringify({ ...state, updatedAt: 0, staleAt: 0, dataVersion: 0 });
+    const key = JSON.stringify({ ...state, updatedAt: 0, staleAt: 0, dataVersion: 0, evaluatedAt: 0 });
     const navigated = a.sentRevision !== undefined && a.sentRevision !== state.viewRevision;
     const changed = a.ending || a.needsPush || navigated || key !== a.sentKey;
-    const idleDue = a.idleSince && !a.ending ? a.idleSince + IDLE_END : Infinity;
+    // A computer that goes quiet sends nothing more, so nothing else wakes the relay when its connection
+    // lapses. Wake then, so the idle clock starts and the Island ends IDLE_END later.
+    const idleDue = a.ending ? Infinity
+      : a.idleSince ? a.idleSince + IDLE_END
+      : working(state) ? state.staleAt : Infinity;
     if (!changed) return Math.min(idleDue, a.createdAt + ACTIVITY_LIFETIME - 360);
     // APNs budgets Live Activity updates; space routine ones 15 seconds apart.
     if (!a.ending && !a.needsPush && !navigated && now - a.sentAt < 15) return a.sentAt + 15;

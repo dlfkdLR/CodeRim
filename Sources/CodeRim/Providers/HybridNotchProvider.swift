@@ -40,8 +40,11 @@ final class HybridNotchProvider: NotchProvider {
     /// CodeRim's own sign-in answers instead, the reading is that sign-in's, not the borrowed one's.
     /// The store compares this before and after a read, so a read that changes which sign-in
     /// answered is read once more and owned by the sign-in that answered both times.
+    ///
+    /// Never one sign-in's account for the other's answer: a native reader that cannot name its account
+    /// (Antigravity's local IDE) answers as unknown, not as the account CodeRim's own sign-in read before.
     func accountIdentity() -> String? {
-        readingUpstream ? upstream.accountIdentity() : (native.accountIdentity() ?? upstream.accountIdentity())
+        readingUpstream ? upstream.accountIdentity() : native.accountIdentity()
     }
 
     func fetchSnapshot() async throws -> ProviderSnapshot {

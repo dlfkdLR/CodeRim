@@ -763,3 +763,55 @@ test('a computer that went quiet neither starts an Island nor keeps one from end
   c.advance(20); await c.relay.tick();
   assert.ok(c.sent.some(s => s.token === 'b'.repeat(64) && s.payload.aps.event === 'end'), 'the Island ends after the idle delay');
 });
+
+test('the relay wakes itself when a working computer goes quiet, so its Island ends on time', async t => {
+  const alarms = [];
+  const c = setup(t, { schedule: at => alarms.push(at) });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.pending;
+  const quiet = epoch + 660;
+  assert.ok(alarms.length && Math.min(...alarms) <= quiet, `woken by ${quiet}, not ${Math.min(...alarms)}`);
+  // Follow the alarms only; nothing else happens.
+  for (let i = 0; i < 5 && !c.sent.some(s => s.payload.aps.event === 'end'); i++) {
+    const next = Math.min(...alarms.splice(0));
+    c.advance(Math.max(0, next - c.now())); await c.relay.tick();
+  }
+  assert.ok(c.sent.some(s => s.payload.aps.event === 'end'), 'the Island ended');
+  assert.ok(c.now() <= quiet + 120 + 15, `ended at +${c.now() - epoch}s`);
+});
+
+test('a start APNs did not deliver is retried in a minute by an alarm', async t => {
+  const alarms = [];
+  let status = 503;
+  const starts = [];
+  const c = setup(t, { schedule: at => alarms.push(at), push: async (token, payload) => {
+    if (payload.aps.event === 'start') starts.push(c.now()); return { status }; } });
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'a'.repeat(64) });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.relay.pending;
+  assert.equal(starts.length, 1);
+  assert.ok(alarms.includes(epoch + 60), `retry scheduled: ${alarms}`);
+  status = 200;
+  c.advance(60); await c.relay.tick();
+  assert.equal(starts.length, 2);
+  // Delivered: the usual cooldown applies again.
+  c.advance(60); await c.relay.tick();
+  assert.equal(starts.length, 2);
+  assert.equal(c.store.starters('alice')[0].data.token, 'a'.repeat(64));
+});
+
+test('answers with the same content are ordered by when the relay evaluated them', async t => {
+  const c = setup(t);
+  const limited = snapshot(); limited.providers[0].windows[0].resetsAt = epoch + 300;
+  await c.route('POST', '/v1/snapshot', limited, c.mac);
+  c.advance(299);
+  const before = await c.route('GET', '/v1/snapshot');
+  c.advance(2);
+  const after = await c.route('GET', '/v1/snapshot');
+  assert.equal(before.state.providers[0].state, 'ready');
+  assert.equal(after.state.providers[0].state, 'stale');
+  assert.equal(after.state.dataVersion, before.state.dataVersion);
+  assert.equal(after.state.staleAt, before.state.staleAt);
+  assert.ok(after.state.evaluatedAt > before.state.evaluatedAt);
+});

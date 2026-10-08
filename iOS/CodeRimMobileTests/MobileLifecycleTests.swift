@@ -179,6 +179,20 @@ extension MobileLifecycleTests {
         XCTAssertTrue(after.supersedes(before))
         XCTAssertFalse(before.supersedes(after))
     }
+
+    /// A limit that reset between two answers changes neither the content version nor the last contact.
+    /// The answer evaluated later wins, so "needs a refresh" is not undone by spent numbers.
+    func testALateAnswerFromBeforeALimitResetCannotRestoreIt() {
+        func state(_ providerState: String, evaluatedAt: Double?) -> MobileActivityState {
+            let provider = MobileProvider(id: "codex", name: "Codex", state: providerState, windows: [], todayTokens: nil, localState: "ready", updatedAt: 0)
+            return MobileActivityState(viewRevision: 0, dataVersion: 1, evaluatedAt: evaluatedAt, connection: "connected", updatedAt: 0, staleAt: 1_660,
+                providers: [provider], sessions: [], additionalSessionCount: 0, workingCount: 0, waitingCount: 0, unavailableCount: 0)
+        }
+        let ready = state("ready", evaluatedAt: 1_299), stale = state("stale", evaluatedAt: 1_301)
+        XCTAssertTrue(stale.supersedes(ready))
+        XCTAssertFalse(ready.supersedes(stale))
+        XCTAssertTrue(state("ready", evaluatedAt: nil).supersedes(stale), "an older relay falls back to last contact")
+    }
 }
 
 private actor ProviderChoiceRelay: MobileRelayServing {
@@ -312,7 +326,10 @@ extension MobileLifecycleTests {
         let other = URL(string: "https://other.example.com")!
         await model.connect(MobilePairingLink(relay: other, id: link.id, secret: link.secret))
         let calls = await relay.calls
-        XCTAssertEqual(Array(calls.filter { !$0.hasPrefix("GET ") }.prefix(3)), ["DELETE /v1/session", "POST /v1/accounts", "POST /v1/pairing/claim"])
+        // The restored connection may register its push-to-start token in the background at any point; only
+        // the order of leaving, creating and joining matters here.
+        XCTAssertEqual(Array(calls.filter { !$0.hasPrefix("GET ") && !$0.hasSuffix("/v1/push-to-start") }.prefix(3)),
+                       ["DELETE /v1/session", "POST /v1/accounts", "POST /v1/pairing/claim"])
         XCTAssertNil(model.errorMessage)
         let stored = try await storage.load(); XCTAssertEqual(stored?.endpoint, other)
     }

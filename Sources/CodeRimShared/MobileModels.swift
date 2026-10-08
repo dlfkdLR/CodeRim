@@ -55,6 +55,9 @@ public struct MobileActivityState: Codable, Hashable, Sendable {
     /// Orders answers that share
     /// a view revision; the revision alone orders changes of screen (filter, computer, service).
     public var dataVersion: Double? = nil
+    /// When the relay computed this answer. Orders answers with the same content whose time-dependent
+    /// parts differ: a limit that reset in between, or a computer that went quiet or came back.
+    public var evaluatedAt: Double? = nil
     public var providerPicker: MobileProviderPicker? = nil
     public var connection: String
     public var updatedAt: Double
@@ -77,15 +80,17 @@ public struct MobileActivityState: Codable, Hashable, Sendable {
     /// Whether this answer may replace `other`: a later screen, or the same screen with content at
     /// least as new. A late answer to an earlier request never wins.
     ///
-    /// A heartbeat with unchanged content moves no content version, only the computer's last contact
-    /// and so `staleAt`. Among answers with the same content, the one that heard from the computer
-    /// later wins: an "offline" answer from before the computer came back cannot replace the
-    /// "connected" one from after it. Going offline by time alone needs no answer; `isStale` sees it.
+    /// Among answers with the same content, the one the relay evaluated later wins: a heartbeat moves no
+    /// content version, and neither does a limit resetting, yet both change the answer. Without an
+    /// evaluation time (an older relay), the one that heard from the computer later wins.
     public func supersedes(_ other: MobileActivityState) -> Bool {
         let revision = viewRevision ?? 0, otherRevision = other.viewRevision ?? 0
         if revision != otherRevision { return revision > otherRevision }
         let version = dataVersion ?? 0, otherVersion = other.dataVersion ?? 0
         if version != otherVersion { return version > otherVersion }
+        if let evaluatedAt, let otherEvaluated = other.evaluatedAt, evaluatedAt != otherEvaluated {
+            return evaluatedAt > otherEvaluated
+        }
         return staleAt >= other.staleAt
     }
 }

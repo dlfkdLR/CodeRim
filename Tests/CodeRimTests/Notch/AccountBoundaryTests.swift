@@ -71,6 +71,34 @@ final class NotchAccountBoundaryTests: XCTestCase {
         await store.refresh()
         XCTAssertEqual(store.snapshots.first?.accountIdentity, AccountIdentity.fingerprint("grok", "c@example.invalid"))
         XCTAssertEqual(store.snapshots.first?.windows.first?.usedFraction ?? 0, 0.7, accuracy: 0.001)
+
+        // The local reader answers again but cannot name its account (Antigravity's IDE): the answer is
+        // nobody's, not C's that CodeRim's own sign-in read before.
+        native.refuses = false
+        native.identity = nil
+        await store.refresh()
+        XCTAssertNil(wrapped.accountIdentity())
+        XCTAssertNil(store.snapshots.first?.accountIdentity)
+        XCTAssertEqual(store.snapshots.first?.windows.first?.usedFraction, native.fraction(for: ""))
+    }
+
+    /// The account changed during the first read, and the read again failed, forgetting the account.
+    /// The cell stays with the failure instead of disappearing, and nothing of the old account is kept.
+    func testAFailedReadAgainAfterAnAccountChangeStillShowsTheCell() async throws {
+        let provider = SwitchingProvider()
+        let archive = UsageArchive(defaults: defaults)
+        let store = NotchUsageStore(providers: [provider], archive: archive)
+        await store.refresh()
+        XCTAssertNotNil(store.snapshots.first?.windows.first)
+        provider.onFetch = { count in
+            if count == 2 { provider.identity = "b" }
+            if count == 3 { provider.identity = nil; provider.answers = .error("Network unavailable") }
+        }
+        await store.refresh()
+        let cell = try XCTUnwrap(store.snapshots.first, "the ring stays")
+        XCTAssertEqual(cell.status, .error("Network unavailable"))
+        XCTAssertTrue(cell.windows.allSatisfy { $0.usedFraction == nil })
+        XCTAssertNil(archive.loadOwned()["switching"], "A's reading is not kept for whoever is signed in now")
     }
 
     func testBuiltInProvidersNameTheirAccount() {
@@ -133,24 +161,29 @@ final class NotchAccountBoundaryTests: XCTestCase {
         init(id: String = "switching") { self.id = id }
         var displayName: String { "Switching" }
         var glyph: ProviderGlyph { .openai }
-        var identity = "a"
+        var identity: String? = "a"
         var refuses = false
+        /// When set, the read answers with this status and no windows, as an error snapshot does.
+        var answers: ProviderStatus?
         var fetchCount = 0
         var onFetch: (Int) -> Void = { _ in }
 
         func fraction(for account: String) -> Double { account == "a" ? 0.9 : 0.2 }
 
         func fetchSnapshot() async throws -> ProviderSnapshot {
-            let account = identity
+            let account = identity ?? ""
             fetchCount += 1
             onFetch(fetchCount)
             await Task.yield()
             if refuses { throw NotchProviderError.needsAuth }
+            if let answers {
+                return ProviderSnapshot(id: id, displayName: displayName, glyph: glyph, fidelity: .official, status: answers, windows: [])
+            }
             return ProviderSnapshot(id: id, displayName: displayName, glyph: glyph, fidelity: .official, status: .ok,
                                     windows: [LimitWindow(id: "weekly", label: "Weekly", usedFraction: fraction(for: account))])
         }
 
-        func account() -> ProviderAccount? { ProviderAccount(label: identity, plan: nil, source: "test", manageURL: nil) }
+        func account() -> ProviderAccount? { identity.map { ProviderAccount(label: $0, plan: nil, source: "test", manageURL: nil) } }
         func accountIdentity() -> String? { identity }
         var signInRoute: SignInRoute { .guidance("") }
         func signOut() async {}

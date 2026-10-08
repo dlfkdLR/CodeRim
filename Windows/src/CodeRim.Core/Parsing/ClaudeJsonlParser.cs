@@ -53,7 +53,8 @@ public static class ClaudeJsonlParser
         return owner with
         {
             OccurredAt = first.OccurredAt < next.OccurredAt ? first.OccurredAt : next.OccurredAt,
-            Usage = new TokenUsage(input + read + write, read, Math.Max(first.Usage.OutputTokens, next.Usage.OutputTokens), write)
+            Usage = new TokenUsage(input + read + write, read, Math.Max(first.Usage.OutputTokens, next.Usage.OutputTokens), write),
+            Repaired = first.Repaired || next.Repaired
         };
     }
 

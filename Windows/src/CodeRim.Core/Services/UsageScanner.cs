@@ -270,6 +270,9 @@ public sealed class UsageScanner
                 if (eventIndices.TryGetValue(usageEvent.EventKey, out var existingIndex))
                 {
                     var existing = events[existingIndex];
+                    // A copy that had to be repaired marks the event whichever copy was read first, so the
+                    // stored quality does not depend on file or cache order.
+                    if (usageEvent.Repaired && !existing.Repaired) existing = events[existingIndex] = existing with { Repaired = true };
                     if (existing.Usage.InputTokens == usageEvent.Usage.InputTokens
                         && existing.Usage.CachedInputTokens == usageEvent.Usage.CachedInputTokens
                         && existing.Usage.OutputTokens == usageEvent.Usage.OutputTokens)
