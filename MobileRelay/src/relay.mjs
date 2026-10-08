@@ -16,6 +16,12 @@ const IDLE_END = 120, START_COOLDOWN = 300, ACTIVITY_LIFETIME = 8 * 3600;
 const sameSnapshot = (a, b) => a && b && JSON.stringify({ ...a, generatedAt: 0 }) === JSON.stringify({ ...b, generatedAt: 0 });
 const day = now => Math.floor(now / 86400);
 
+/**
+ * Work is happening on a computer the relay still hears from. The last snapshot of a computer that went
+ * quiet keeps whatever it showed then; that neither starts an Island nor keeps one from ending.
+ */
+const working = state => state.connection === 'connected' && state.workingCount + state.waitingCount > 0;
+
 export class Relay {
   constructor({ store, push = async () => ({ status: 200 }), now = () => Date.now() / 1000, budgets = FREE_DAILY,
     pollWait = 20000, schedule = () => {}, pushConfigured = true }) {
@@ -338,12 +344,12 @@ export class Relay {
     try {
       const now = this.now();
       if (!owner) this.store.prune(now);
-      due = Math.min(due, await this.startActivities(owner, now));
-      // Each phone's updates stay in order (serial per session), but one phone's slow APNs answer
-      // no longer holds back every other phone's Island.
-      const dues = await Promise.all(this.store.activities(owner).map(listed =>
-        this.serial(listed.session, () => this.updateActivity(listed)).catch(() => now + 60)));
-      due = Math.min(due, ...dues);
+      // Starts and updates run side by side. Each phone's updates stay in order (serial per session),
+      // but one phone's slow APNs answer, a start included, holds back no other phone's Island.
+      const updates = this.store.activities(owner).map(listed =>
+        this.serial(listed.session, () => this.updateActivity(listed)).catch(() => now + 60));
+      const [startDue, dues] = await Promise.all([this.startActivities(owner, now), Promise.all(updates)]);
+      due = Math.min(due, startDue, ...dues);
     } finally {
       if (due !== Infinity) this.schedule(due);
     }
@@ -355,7 +361,7 @@ export class Relay {
     for (const starter of this.store.starters(owner)) {
       if (live.has(starter.session)) continue;
       const state = this.state(starter.owner, starter.session, now);
-      if (state.workingCount + state.waitingCount === 0) continue;
+      if (!working(state)) continue;
       const next = (starter.data.startedAt ?? 0) + START_COOLDOWN;
       if (now < next) { due = Math.min(due, next); continue; }
       starter.data.startedAt = now; this.store.saveStarter(starter);
@@ -368,7 +374,9 @@ export class Relay {
         try {
           const result = await this.push(starter.data.token, payload, { priority: 10 });
           if (result.status === 410 || (result.status === 400 && ['BadDeviceToken', 'DeviceTokenNotForTopic'].includes(result.reason))) {
-            this.store.run('DELETE FROM starters WHERE session=?', starter.session);
+            // Only the token APNs refused. The phone may have registered a new one while this was in flight.
+            const current = this.store.starters(starter.owner).find(s => s.session === starter.session);
+            if (current?.data.token === starter.data.token) this.store.run('DELETE FROM starters WHERE session=?', starter.session);
           }
         } catch {}
       })());
@@ -386,7 +394,7 @@ export class Relay {
     const state = this.state(activity.owner, activity.session, now);
     // Only while work is happening: end the Island a little after the last task finishes.
     if (!a.ending) {
-      if (state.workingCount + state.waitingCount > 0) { if (a.idleSince) { delete a.idleSince; this.store.saveActivity(activity); } }
+      if (working(state)) { if (a.idleSince) { delete a.idleSince; this.store.saveActivity(activity); } }
       else if (!a.idleSince) { a.idleSince = now; this.store.saveActivity(activity); }
       else if (now - a.idleSince >= IDLE_END) a.ending = true;
     }

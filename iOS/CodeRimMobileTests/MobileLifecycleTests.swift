@@ -167,6 +167,18 @@ extension MobileLifecycleTests {
         XCTAssertFalse(state(2, 4).supersedes(state(2, 5)))
         XCTAssertTrue(state(nil, nil).supersedes(state(0, nil)), "answers from an older relay still apply")
     }
+
+    /// A heartbeat with unchanged content brings a computer back without a new content version. The
+    /// "offline" answer from before it must not replace the "connected" answer from after it.
+    func testALateOfflineAnswerCannotUndoAHeartbeat() {
+        func state(_ connection: String, staleAt: Double) -> MobileActivityState {
+            MobileActivityState(viewRevision: 0, dataVersion: 1, connection: connection, updatedAt: 0, staleAt: staleAt,
+                providers: [], sessions: [], additionalSessionCount: 0, workingCount: 0, waitingCount: 0, unavailableCount: 0)
+        }
+        let before = state("offline", staleAt: 1_000), after = state("connected", staleAt: 1_700)
+        XCTAssertTrue(after.supersedes(before))
+        XCTAssertFalse(before.supersedes(after))
+    }
 }
 
 private actor ProviderChoiceRelay: MobileRelayServing {

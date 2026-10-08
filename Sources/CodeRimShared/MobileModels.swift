@@ -76,10 +76,17 @@ public struct MobileActivityState: Codable, Hashable, Sendable {
     }
     /// Whether this answer may replace `other`: a later screen, or the same screen with content at
     /// least as new. A late answer to an earlier request never wins.
+    ///
+    /// A heartbeat with unchanged content moves no content version, only the computer's last contact
+    /// and so `staleAt`. Among answers with the same content, the one that heard from the computer
+    /// later wins: an "offline" answer from before the computer came back cannot replace the
+    /// "connected" one from after it. Going offline by time alone needs no answer; `isStale` sees it.
     public func supersedes(_ other: MobileActivityState) -> Bool {
         let revision = viewRevision ?? 0, otherRevision = other.viewRevision ?? 0
         if revision != otherRevision { return revision > otherRevision }
-        return (dataVersion ?? 0) >= (other.dataVersion ?? 0)
+        let version = dataVersion ?? 0, otherVersion = other.dataVersion ?? 0
+        if version != otherVersion { return version > otherVersion }
+        return staleAt >= other.staleAt
     }
 }
 

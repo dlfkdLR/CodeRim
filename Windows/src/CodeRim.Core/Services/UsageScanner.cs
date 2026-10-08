@@ -632,6 +632,7 @@ public sealed class UsageScanner
                         EventKey(sessionId, observation),
                         observation.OccurredAt,
                         delta, model, project, sessionId, "codex", projectId) {
+                            Repaired = normalized.Repaired,
                             PricingContext = delta.InputTokens <= UsageAnalytics.HighContextInputThreshold ? PricingContext.Standard
                                 : observation.LastUsage == delta ? PricingContext.HighContext : null });
                     break;

@@ -128,7 +128,11 @@ public sealed class UsageRepository
             if (usageEvent.Provider != provider) continue;
             // An inconsistent row is stored as its closest valid value and reported, never dropped silently.
             var usage = usageEvent.Usage;
-            if (!usage.IsValid) { usage = usage.ClampedToValid(); repaired++; repairedRows.Add((usageEvent.EventKey, usageEvent.OccurredAt)); }
+            // The parser may have repaired it already; it says so, since the numbers no longer can.
+            if (!usage.IsValid || usageEvent.Repaired)
+            {
+                usage = usage.ClampedToValid(); repaired++; repairedRows.Add((usageEvent.EventKey, usageEvent.OccurredAt));
+            }
             if (provider == "claude" && usageEvent.ImportParentSessionId is { } parent)
             {
                 importedLinks[usageEvent.SessionId] = parent; importedLinks.TryAdd(parent, null);

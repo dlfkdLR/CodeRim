@@ -92,6 +92,36 @@ public sealed class UsageScannerTests
         finally { Directory.Delete(root, true); }
     }
 
+    /// The normalizer turns an inconsistent delta into a valid one before the repository sees it. The
+    /// repair still has to reach repaired_events through the real path, so the period stays partial
+    /// once the log that showed it is gone.
+    [Fact]
+    public async Task ADeltaRepairedWhileParsingIsStoredAsRepaired()
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            static string Line(string time, string total, string last) =>
+                """{"type":"event_msg","timestamp":"2026-09-01T00:00:0""" + time + """Z","payload":{"type":"token_count","info":{"total_token_usage":"""
+                + total + ""","last_token_usage":""" + last + "}}}";
+            var source = Path.Combine(root, "session.jsonl");
+            File.WriteAllLines(source, ["""{"type":"session_meta","payload":{"id":"repaired"}}""",
+                Line("1", """{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10}""", """{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10}"""),
+                // Cached input grew by 20 while input grew by 10: the delta (10,20,5) is inconsistent.
+                Line("2", """{"input_tokens":110,"cached_input_tokens":40,"output_tokens":15}""", """{"input_tokens":10,"cached_input_tokens":20,"output_tokens":5}""")]);
+            var scan = await new UsageScanner([root]).ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            Assert.Contains(scan.Events, e => e.Repaired && e.Usage == new TokenUsage(10, 10, 5));
+            var repository = new UsageRepository(Path.Combine(root, "usage.sqlite"));
+            repository.Merge("codex", scan.Events);
+            Assert.Equal(1, repository.LastWriteRepairedEvents);
+
+            File.Delete(source);
+            var reopened = new UsageRepository(Path.Combine(root, "usage.sqlite"));
+            Assert.True(reopened.HasRepairedEventsSince("codex", new DateTimeOffset(2026, 8, 31, 0, 0, 0, TimeSpan.Zero)));
+        }
+        finally { Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); Directory.Delete(root, true); }
+    }
+
     [Fact]
     public async Task RepeatedSnapshotEnrichesCacheWriteWithoutAddingTokens()
     {

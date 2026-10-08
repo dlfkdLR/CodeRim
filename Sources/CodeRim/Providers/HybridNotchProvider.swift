@@ -36,9 +36,13 @@ final class HybridNotchProvider: NotchProvider {
     var isVisibleWhenAbsent: Bool { native.isVisibleWhenAbsent }
 
     func account() -> ProviderAccount? { readingUpstream ? upstream.account() : native.account() }
-    /// The borrowed credential's account when there is one, else the account CodeRim's own sign-in
-    /// last read. Not switched with `readingUpstream`, which changes during a read.
-    func accountIdentity() -> String? { native.accountIdentity() ?? upstream.accountIdentity() }
+    /// The account of the sign-in that answered last. When the borrowed credential is refused and
+    /// CodeRim's own sign-in answers instead, the reading is that sign-in's, not the borrowed one's.
+    /// The store compares this before and after a read, so a read that changes which sign-in
+    /// answered is read once more and owned by the sign-in that answered both times.
+    func accountIdentity() -> String? {
+        readingUpstream ? upstream.accountIdentity() : (native.accountIdentity() ?? upstream.accountIdentity())
+    }
 
     func fetchSnapshot() async throws -> ProviderSnapshot {
         var nativeFailure: NotchProviderError = .needsAuth

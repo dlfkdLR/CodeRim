@@ -1,4 +1,5 @@
 import XCTest
+import CodexBarCore
 @testable import CodeRim
 
 /// A successful answer is only the current account's answer if the account did not change while it was
@@ -42,6 +43,34 @@ final class NotchAccountBoundaryTests: XCTestCase {
         XCTAssertEqual(native.fetchCount, 2)
         XCTAssertEqual(store.snapshots.first?.accountIdentity, "b")
         XCTAssertEqual(store.snapshots.first?.windows.first?.usedFraction, native.fraction(for: "b"))
+    }
+
+    /// The borrowed CLI credential (A) is expired, so CodeRim's own sign-in answers. The reading is
+    /// that sign-in's (B), and a later switch of that sign-in to C is noticed though A is still on disk.
+    func testAFallbackAnswerBelongsToTheSignInThatAnswered() async throws {
+        let native = SwitchingProvider(id: "grok")
+        native.refuses = true
+        let signedIn = SignedInEmail("b@example.invalid")
+        let upstream = ExtendedNotchProvider(descriptor: ProviderDescriptorRegistry.descriptor(for: .grok),
+                                             configuration: { .init(providerID: .grok) }, fetch: { descriptor, _ in
+            ProviderFetchResult(usage: .init(primary: .init(usedPercent: signedIn.email.hasPrefix("b") ? 20 : 70,
+                                                            windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+                                             secondary: nil, updatedAt: Date(),
+                                             identity: .init(providerID: descriptor.id.instanceID, accountEmail: signedIn.email,
+                                                             accountOrganization: nil, loginMethod: nil)),
+                                credits: nil, dashboard: nil, sourceLabel: "fixture", strategyID: "fixture", strategyKind: .apiToken)
+        })
+        let wrapped = HybridNotchProvider(native: native, upstream: upstream)
+        let store = NotchUsageStore(providers: [wrapped], archive: UsageArchive(defaults: defaults))
+        await store.refresh()
+        let b = AccountIdentity.fingerprint("grok", "b@example.invalid")
+        XCTAssertEqual(store.snapshots.first?.accountIdentity, b, "not A, whose credential was refused")
+        XCTAssertEqual(wrapped.accountIdentity(), b)
+
+        signedIn.email = "c@example.invalid"
+        await store.refresh()
+        XCTAssertEqual(store.snapshots.first?.accountIdentity, AccountIdentity.fingerprint("grok", "c@example.invalid"))
+        XCTAssertEqual(store.snapshots.first?.windows.first?.usedFraction ?? 0, 0.7, accuracy: 0.001)
     }
 
     func testBuiltInProvidersNameTheirAccount() {
@@ -105,6 +134,7 @@ final class NotchAccountBoundaryTests: XCTestCase {
         var displayName: String { "Switching" }
         var glyph: ProviderGlyph { .openai }
         var identity = "a"
+        var refuses = false
         var fetchCount = 0
         var onFetch: (Int) -> Void = { _ in }
 
@@ -115,6 +145,7 @@ final class NotchAccountBoundaryTests: XCTestCase {
             fetchCount += 1
             onFetch(fetchCount)
             await Task.yield()
+            if refuses { throw NotchProviderError.needsAuth }
             return ProviderSnapshot(id: id, displayName: displayName, glyph: glyph, fidelity: .official, status: .ok,
                                     windows: [LimitWindow(id: "weekly", label: "Weekly", usedFraction: fraction(for: account))])
         }
@@ -125,5 +156,10 @@ final class NotchAccountBoundaryTests: XCTestCase {
         func signOut() async {}
         func presentSignIn() {}
         func forgetCachedCredential() {}
+    }
+
+    private final class SignedInEmail: @unchecked Sendable {
+        var email: String
+        init(_ email: String) { self.email = email }
     }
 }

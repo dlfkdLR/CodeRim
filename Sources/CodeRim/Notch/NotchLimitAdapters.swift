@@ -76,8 +76,10 @@ final class CodexNotchProvider: NotchProvider {
                 installURL: URL(string: "https://github.com/openai/codex")))
     }
 
+    /// The workspace and the person, as the account switcher keys them: one email can sign in to a
+    /// personal plan and to team workspaces, and each has its own limits.
     func accountIdentity() -> String? {
-        accounts.currentAccountEmail.map { AccountIdentity.fingerprint("codex", $0.lowercased()) }
+        accounts.currentID.map { AccountIdentity.fingerprint("codex", $0) }
     }
 
     func account() -> ProviderAccount? {
@@ -178,8 +180,9 @@ final class ClaudeNotchProvider: NotchProvider {
         .guidance("Enable Claude Code in Settings and add the account signed in to the claude CLI.")
     }
 
+    /// The organization and the email together, so one email in two organizations is two accounts.
     func accountIdentity() -> String? {
-        claude.account?.email.map { AccountIdentity.fingerprint("claude", $0.lowercased()) }
+        claude.account.map { AccountIdentity.fingerprint("claude", $0.linkIdentifier) }
     }
 
     func account() -> ProviderAccount? {

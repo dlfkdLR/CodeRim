@@ -694,3 +694,72 @@ test('polls of a QR code nobody scans leave no waiters behind', async t => {
   for (let i = 0; i < 3; i++) await c.route('POST', '/v1/pairing/poll', { id: offer.id, secret: offer.secret }, undefined);
   assert.equal(c.relay.waiters.size, 0);
 });
+
+test('a heartbeat after an outage moves the last-contact time, so the earlier offline answer orders before it', async t => {
+  const c = setup(t);
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  c.advance(700);
+  const before = await c.route('GET', '/v1/snapshot');
+  assert.equal(before.state.connection, 'offline');
+  const heartbeat = { ...snapshot(), generatedAt: c.now() }; // same content: a heartbeat, no new version
+  await c.route('POST', '/v1/snapshot', heartbeat, c.mac);
+  const after = await c.route('GET', '/v1/snapshot');
+  assert.equal(after.state.connection, 'connected');
+  assert.equal(after.state.viewRevision, before.state.viewRevision);
+  assert.equal(after.state.dataVersion, before.state.dataVersion);
+  assert.ok(after.state.staleAt > before.state.staleAt, 'the phone orders equal content by staleAt');
+});
+
+test('a refusal of the previous push-to-start token keeps the token registered meanwhile', async t => {
+  let release;
+  const hold = new Promise(r => { release = r; });
+  const c = setup(t, { push: async token => { if (token === 'a'.repeat(64)) { await hold; return { status: 410 }; } return { status: 200 }; } });
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'a'.repeat(64) });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac); // work begins: the relay starts the Island with A
+  for (let i = 0; i < 20 && !c.store.starters('alice')[0]?.data.startedAt; i++) await new Promise(r => setImmediate(r));
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'b'.repeat(64) });
+  release(); await c.relay.pending;
+  assert.deepEqual(c.store.starters('alice').map(s => s.data.token), ['b'.repeat(64)]);
+  // A refusal of the token still registered does remove it.
+  c.advance(400);
+  const d = setup(t, { push: async () => ({ status: 410 }) });
+  await d.route('POST', '/v1/push-to-start', { pushToken: 'a'.repeat(64) });
+  await d.route('POST', '/v1/snapshot', snapshot(), d.mac); await d.relay.pending;
+  assert.equal(d.store.starters('alice').length, 0);
+});
+
+test("in the alarm's pass, a slow start for one account does not hold back another account's update", async t => {
+  let release;
+  const hold = new Promise(r => { release = r; });
+  const calls = [];
+  const c = setup(t, { push: async (token, payload) => { calls.push(`${token[0]}:${payload.aps.event}`); if (token === 'a'.repeat(64)) await hold; return { status: 200 }; } });
+  const bobPhone = c.store.issue('bob', 'mobile', epoch).token, bobMac = c.store.issue('bob', 'desktop', epoch).token;
+  c.store.saveDevice('bob', { id: 'bob-mac', session: hash(bobMac), platform: 'macOS', name: 'Mac', snapshot: null, receivedAt: 0 });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.route('POST', '/v1/snapshot', snapshot(), bobMac);
+  await c.relay.pending;
+  // Due work the alarm finds: Alice's computer is working with no Island yet; Bob's Island needs an update.
+  c.store.saveStarter({ session: hash(c.mobile), owner: 'alice', data: { token: 'a'.repeat(64) } });
+  c.store.saveActivity({ id: `${hash(bobPhone)}:bob`, owner: 'bob', session: hash(bobPhone),
+    data: { token: 'b'.repeat(64), createdAt: c.now(), sentAt: 0, sentKey: '', ending: false, needsPush: true } });
+  const alarm = c.relay.tick();
+  for (let i = 0; i < 20 && !calls.includes('b:update'); i++) await new Promise(r => setImmediate(r));
+  assert.deepEqual(calls, ['a:start', 'b:update'], "Bob was updated while Alice's start was still waiting");
+  release(); await alarm;
+});
+
+test('a computer that went quiet neither starts an Island nor keeps one from ending', async t => {
+  const c = setup(t);
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac); // last snapshot: a task is working
+  await c.relay.pending;
+  c.advance(661);
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'a'.repeat(64) });
+  await c.relay.tick();
+  assert.equal(c.sent.filter(s => s.payload.aps.event === 'start').length, 0, 'no "Working on your computer" from an offline one');
+
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'b'.repeat(64) });
+  await c.relay.pending; await c.relay.tick();
+  c.advance(130); await c.relay.tick();
+  c.advance(20); await c.relay.tick();
+  assert.ok(c.sent.some(s => s.token === 'b'.repeat(64) && s.payload.aps.event === 'end'), 'the Island ends after the idle delay');
+});
