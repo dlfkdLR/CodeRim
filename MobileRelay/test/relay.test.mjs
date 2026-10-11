@@ -815,3 +815,51 @@ test('answers with the same content are ordered by when the relay evaluated them
   assert.equal(after.state.staleAt, before.state.staleAt);
   assert.ok(after.state.evaluatedAt > before.state.evaluatedAt);
 });
+
+test('a token registered during a failed start is tried next, by an alarm, after a short wait', async t => {
+  for (const failure of [503, 410, 'throw']) {
+    let release;
+    const hold = new Promise(r => { release = r; });
+    const alarms = [], starts = [];
+    const c = setup(t, { schedule: at => alarms.push(at), push: async (token, payload) => {
+      if (payload.aps.event !== 'start') return { status: 200 };
+      starts.push(token[0]);
+      if (token === 'a'.repeat(64)) { await hold; if (failure === 'throw') throw new Error('network'); return { status: failure }; }
+      return { status: 200 };
+    } });
+    await c.route('POST', '/v1/push-to-start', { pushToken: 'a'.repeat(64) });
+    await c.route('POST', '/v1/snapshot', snapshot(), c.mac); // work begins: the start goes out with A
+    for (let i = 0; i < 20 && !starts.length; i++) await new Promise(r => setImmediate(r));
+    await c.route('POST', '/v1/push-to-start', { pushToken: 'b'.repeat(64) });
+    release(); await c.relay.pending;
+    assert.equal(c.store.starters('alice')[0].data.token, 'b'.repeat(64), `${failure}: B is kept`);
+    // Follow the alarms only, as the Durable Object would.
+    for (let i = 0; i < 4 && !starts.includes('b') && alarms.length; i++) {
+      const next = Math.min(...alarms.splice(0));
+      c.advance(Math.max(0, next - c.now())); await c.relay.tick();
+    }
+    assert.deepEqual(starts, ['a', 'b'], `${failure}: B was started`);
+    assert.ok(c.now() <= epoch + 60 + 1, `${failure}: within a minute, not after the cooldown (+${c.now() - epoch}s)`);
+  }
+});
+
+test('alarm runs, the alarms set and the rows they write count toward the free allowance', async t => {
+  const c = setup(t, { budgets: { requests: 4, writes: 1000 } });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.relay.settle();
+  const before = { ...c.relay.usage };
+  await c.relay.alarm();
+  await c.relay.alarm();
+  assert.equal(c.relay.usage.requests, before.requests + 2, 'each alarm run is a request');
+  c.relay.alarmSet();
+  assert.equal(c.relay.usage.writes, before.writes + 1, 'setting an alarm is a row write');
+  // Rows written by an alarm's pass are counted without any HTTP request.
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.settle();
+  const counted = c.relay.usage.writes;
+  c.advance(30); const changed = snapshot(c.now()); changed.providers[0].todayTokens = 999;
+  c.store.saveDevice('alice', { ...c.store.devices('alice', c.now())[0], snapshot: changed, receivedAt: c.now() });
+  await c.relay.alarm();
+  assert.ok(c.relay.usage.writes > counted);
+  assert.notEqual(c.relay.level(), 'normal', 'alarm runs alone moved the relay toward its limit');
+});

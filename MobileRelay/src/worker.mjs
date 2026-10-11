@@ -30,14 +30,18 @@ export class RelayObject extends DurableObject {
   async schedule(at) {
     const current = await this.ctx.storage.getAlarm();
     const next = Math.max(Date.now() + 1000, at * 1000);
-    if (current === null || next < current) await this.ctx.storage.setAlarm(next);
+    if (current === null || next < current) {
+      await this.ctx.storage.setAlarm(next);
+      this.relay.alarmSet();
+    }
   }
   async fetch(request) {
     const response = await handle(this.relay, request);
-    if (this.relay.pending) this.ctx.waitUntil(this.relay.pending);
+    // Rows written after the response (pushes, activity bookkeeping) are counted once that work ends.
+    if (this.relay.pending) this.ctx.waitUntil(this.relay.settle());
     return response;
   }
-  async alarm() { await this.relay.tick(); if (this.relay.pending) await this.relay.pending; }
+  async alarm() { await this.relay.alarm(); }
 }
 
 export default {

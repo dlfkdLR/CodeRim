@@ -39,13 +39,32 @@ export class Relay {
 
   // MARK: Free-plan budget
 
-  count() {
+  /**
+   * Counts what Cloudflare counts. Each entry point counts itself once: an HTTP request (in `route`),
+   * an alarm run (`request` from the host's alarm handler), and each alarm the host sets (`writes: 1`,
+   * a row write on SQLite-backed objects). With `request: false` it only adds the rows written since the
+   * last count, such as by work that ran after a response or during an alarm.
+   */
+  count({ request = true, writes = 0 } = {}) {
     const now = this.now();
     if (this.usage.day !== day(now)) { this.usage = { day: day(now), requests: 0, writes: 0 }; this.writesAtLoad = this.store.writes; }
-    this.usage.requests++;
-    this.usage.writes += this.store.writes - this.writesAtLoad; this.writesAtLoad = this.store.writes;
-    // Persist rarely: one row per 200 requests keeps the counter cheap to keep.
-    if (this.usage.requests % 200 === 0) { this.store.saveMeta('usage', this.usage); this.writesAtLoad = this.store.writes; }
+    if (request) this.usage.requests++;
+    this.usage.writes += writes + this.store.writes - this.writesAtLoad; this.writesAtLoad = this.store.writes;
+    if (!request) return;
+    // Persist rarely: one row per 200 requests keeps the counter cheap to keep. That row counts too, next time.
+    if (this.usage.requests % 200 === 0) this.store.saveMeta('usage', this.usage);
+  }
+  /** The host's alarm handler: an alarm run is a Durable Object request of its own. */
+  async alarm() {
+    this.count();
+    try { await this.tick(); await this.settle(); } finally { this.count({ request: false }); }
+  }
+  /** The host set an alarm: a row write on SQLite-backed Durable Objects. */
+  alarmSet() { this.count({ request: false, writes: 1 }); }
+  /** Waits for work started after a response, then counts the rows it wrote. */
+  async settle() {
+    while (this.pending) await this.pending;
+    this.count({ request: false });
   }
   level() {
     if (this.usage.day !== day(this.now())) return 'normal';
@@ -237,7 +256,13 @@ export class Relay {
       requireValue(typeof body.pushToken === 'string' && /^[a-f0-9]{64,512}$/.test(body.pushToken));
       const existing = store.starters(session.owner).find(s => s.session === session.hash);
       if (existing?.data.token !== body.pushToken) {
-        store.saveStarter({ session: session.hash, owner: session.owner, data: { ...existing?.data, token: body.pushToken } });
+        // A new token has not been tried yet: it may start an Island within START_RETRY even if the old
+        // token's attempt began the cooldown, and a pass runs now so it is tried (or scheduled) without
+        // waiting for new content from a computer.
+        const startedAt = existing?.data.startedAt === undefined ? undefined
+          : Math.min(existing.data.startedAt, now - START_COOLDOWN + START_RETRY);
+        store.saveStarter({ session: session.hash, owner: session.owner, data: { ...existing?.data, token: body.pushToken, startedAt } });
+        this.later(() => this.tick(session.owner));
       }
       return { ok: true };
     }
@@ -368,11 +393,15 @@ export class Relay {
       const next = (starter.data.startedAt ?? 0) + START_COOLDOWN;
       if (now < next) { due = Math.min(due, next); continue; }
       starter.data.startedAt = now; this.store.saveStarter(starter);
+      // A token registered while this start was in flight is left as it is, but still gets its turn:
+      // the pass returns when that token may be tried, so an alarm wakes the relay then.
+      const replaced = current => current ? Math.max(now + 1, (current.data.startedAt ?? 0) + START_COOLDOWN) : Infinity;
       const retry = () => {
         // Not refused, just not delivered: try again in a minute rather than after the full cooldown,
-        // and make sure something wakes the relay then. A newer token registered meanwhile is not touched.
+        // and make sure something wakes the relay then.
         const current = this.store.starters(starter.owner).find(s => s.session === starter.session);
-        if (current?.data.token !== starter.data.token || current.data.startedAt !== now) return Infinity;
+        if (current?.data.token !== starter.data.token) return replaced(current);
+        if (current.data.startedAt !== now) return Infinity;
         current.data.startedAt = now - START_COOLDOWN + START_RETRY; this.store.saveStarter(current);
         return now + START_RETRY;
       };
@@ -387,7 +416,8 @@ export class Relay {
           if (result.status === 410 || (result.status === 400 && ['BadDeviceToken', 'DeviceTokenNotForTopic'].includes(result.reason))) {
             // Only the token APNs refused. The phone may have registered a new one while this was in flight.
             const current = this.store.starters(starter.owner).find(s => s.session === starter.session);
-            if (current?.data.token === starter.data.token) this.store.run('DELETE FROM starters WHERE session=?', starter.session);
+            if (current?.data.token !== starter.data.token) return replaced(current);
+            this.store.run('DELETE FROM starters WHERE session=?', starter.session);
             return Infinity;
           }
           return result.status === 200 ? Infinity : retry();
