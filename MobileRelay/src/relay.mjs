@@ -35,6 +35,7 @@ export class Relay {
     this.seen = new Map();
     this.usage = store.meta('usage') ?? { day: day(now()), requests: 0, writes: 0 };
     this.writesAtLoad = store.writes;
+    this.saved = { ...this.usage, level: this.level() };
   }
 
   // MARK: Free-plan budget
@@ -47,12 +48,26 @@ export class Relay {
    */
   count({ request = true, writes = 0 } = {}) {
     const now = this.now();
-    if (this.usage.day !== day(now)) { this.usage = { day: day(now), requests: 0, writes: 0 }; this.writesAtLoad = this.store.writes; }
+    // Rows written but not yet counted go to the new day: when in the old day they were written is not
+    // known, and over-counting the new day is the safe side.
+    if (this.usage.day !== day(now)) this.usage = { day: day(now), requests: 0, writes: 0 };
     if (request) this.usage.requests++;
     this.usage.writes += writes + this.store.writes - this.writesAtLoad; this.writesAtLoad = this.store.writes;
-    if (!request) return;
-    // Persist rarely: one row per 200 requests keeps the counter cheap to keep. That row counts too, next time.
-    if (this.usage.requests % 200 === 0) this.store.saveMeta('usage', this.usage);
+    this.persistUsage();
+  }
+  /**
+   * The object's memory can be discarded whenever it is idle, so what the budget has seen is kept in
+   * storage: at every change of level (busy, critical) at once, and otherwise every 1% of either allowance.
+   * One row each time, cheap next to what it guards; that row counts too, at the next count.
+   */
+  persistUsage() {
+    const level = this.level(), saved = this.saved;
+    const step = allowance => Math.max(1, Math.floor(allowance / 100));
+    if (saved.day === this.usage.day && saved.level === level
+        && this.usage.requests - saved.requests < step(this.budgets.requests)
+        && this.usage.writes - saved.writes < step(this.budgets.writes)) return;
+    this.store.saveMeta('usage', this.usage);
+    this.saved = { ...this.usage, level };
   }
   /** The host's alarm handler: an alarm run is a Durable Object request of its own. */
   async alarm() {
@@ -379,7 +394,9 @@ export class Relay {
       const [startDue, dues] = await Promise.all([this.startActivities(owner, now), Promise.all(updates)]);
       due = Math.min(due, startDue, ...dues);
     } finally {
-      if (due !== Infinity) this.schedule(due);
+      // Awaited: the host's alarm handler finishes only once the next alarm is set, and a failure to set
+      // it fails the handler, which Cloudflare retries.
+      if (due !== Infinity) await this.schedule(due);
     }
   }
   async startActivities(owner, now) {

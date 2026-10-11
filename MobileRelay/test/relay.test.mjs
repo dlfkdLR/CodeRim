@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Store } from '../src/store.mjs';
+import { alarmScheduler } from '../src/alarms.mjs';
 import { Relay } from '../src/relay.mjs';
 import { nodeSQL } from '../src/node-sql.mjs';
 import { handle } from '../src/http.mjs';
@@ -847,12 +848,13 @@ test('alarm runs, the alarms set and the rows they write count toward the free a
   const c = setup(t, { budgets: { requests: 4, writes: 1000 } });
   await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
   await c.relay.settle();
-  const before = { ...c.relay.usage };
+  const before = { ...c.relay.usage }, storeBefore = c.store.writes;
   await c.relay.alarm();
   await c.relay.alarm();
   assert.equal(c.relay.usage.requests, before.requests + 2, 'each alarm run is a request');
   c.relay.alarmSet();
-  assert.equal(c.relay.usage.writes, before.writes + 1, 'setting an alarm is a row write');
+  // Every row the store wrote meanwhile is counted, and the alarm set adds one more.
+  assert.equal(c.relay.usage.writes, before.writes + (c.store.writes - storeBefore) + 1, 'setting an alarm is a row write');
   // Rows written by an alarm's pass are counted without any HTTP request.
   await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
   await c.relay.settle();
@@ -862,4 +864,58 @@ test('alarm runs, the alarms set and the rows they write count toward the free a
   await c.relay.alarm();
   assert.ok(c.relay.usage.writes > counted);
   assert.notEqual(c.relay.level(), 'normal', 'alarm runs alone moved the relay toward its limit');
+});
+
+test('the budget level survives the object being recreated', async t => {
+  const budgets = { requests: 100000, writes: 40 };
+  const c = setup(t, { budgets });
+  for (let i = 0; i < 60 && c.relay.level() !== 'critical'; i++) {
+    const next = snapshot(); next.providers[0].todayTokens = 1000 + i; // new content: a stored row
+    await c.route('POST', '/v1/snapshot', next, c.mac);
+    await c.relay.settle();
+  }
+  assert.equal(c.relay.level(), 'critical');
+  // Cloudflare may discard an idle object's memory; the next request builds it again from storage.
+  const rebuilt = new Relay({ store: c.store, now: c.now, budgets, pollWait: 0 });
+  assert.equal(rebuilt.level(), 'critical');
+  assert.ok(rebuilt.usage.writes >= budgets.writes * 0.9);
+});
+
+test('rows written after midnight UTC are counted for the new day', async t => {
+  const c = setup(t);
+  const midnight = (Math.floor(c.now() / 86400) + 1) * 86400;
+  c.advance(midnight - 1 - c.now());
+  await c.route('GET', '/health'); // counted on the old day
+  c.advance(2);
+  c.store.saveMeta('probe', 1); c.store.saveMeta('probe', 2); c.store.saveMeta('probe', 3); // after midnight
+  c.relay.count({ request: false });
+  assert.equal(c.relay.usage.day, Math.floor(c.now() / 86400));
+  assert.ok(c.relay.usage.writes >= 3, `the three rows count for the new day, not ${c.relay.usage.writes}`);
+});
+
+test('the alarm is set to the earliest time asked, one decision at a time, and failures reach the caller', async () => {
+  const storage = { alarm: null, sets: [], gate: null,
+    async getAlarm() { if (this.gate) await this.gate; return this.alarm; },
+    async setAlarm(at) { this.alarm = at; this.sets.push(at); } };
+  let open; storage.gate = new Promise(r => { open = r; });
+  let set = 0;
+  const schedule = alarmScheduler(storage, { now: () => 0, onSet: () => set++ });
+  const first = schedule(60), second = schedule(120);
+  open(); await Promise.all([first, second]);
+  assert.equal(storage.alarm, 60_000, 'the later request does not replace the earlier alarm');
+  assert.deepEqual(storage.sets, [60_000]);
+  assert.equal(set, 1, 'one row write counted');
+  storage.gate = Promise.reject(new Error('storage unavailable')); storage.gate.catch(() => {});
+  await assert.rejects(schedule(30), /storage unavailable/);
+  storage.gate = null;
+  await schedule(30);
+  assert.equal(storage.alarm, 30_000, 'a failure does not block the next call');
+});
+
+test("a failure to set the next alarm fails the alarm handler, so Cloudflare retries it", async t => {
+  const c = setup(t, { schedule: async () => { throw new Error('storage unavailable'); } });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.settle();
+  await assert.rejects(c.relay.alarm(), /storage unavailable/);
 });

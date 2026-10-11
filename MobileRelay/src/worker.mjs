@@ -4,6 +4,7 @@ import { Store } from './store.mjs';
 import { durableSQL } from './sql.mjs';
 import { createAPNs } from './apns.mjs';
 import { handle } from './http.mjs';
+import { alarmScheduler } from './alarms.mjs';
 
 /**
  * One Durable Object holds every account. A single instance keeps the relay's
@@ -27,13 +28,10 @@ export class RelayObject extends DurableObject {
       schedule: at => this.schedule(at),
     });
   }
-  async schedule(at) {
-    const current = await this.ctx.storage.getAlarm();
-    const next = Math.max(Date.now() + 1000, at * 1000);
-    if (current === null || next < current) {
-      await this.ctx.storage.setAlarm(next);
-      this.relay.alarmSet();
-    }
+  schedule(at) {
+    // setAlarm is a row write on SQLite-backed objects.
+    this.scheduleAlarm ??= alarmScheduler(this.ctx.storage, { onSet: () => this.relay.alarmSet() });
+    return this.scheduleAlarm(at);
   }
   async fetch(request) {
     const response = await handle(this.relay, request);
