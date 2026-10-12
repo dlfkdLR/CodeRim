@@ -136,4 +136,28 @@ final class CompanionPublisherTests: XCTestCase {
         XCTAssertTrue(json.contains("this-mac"))
     }
 
+
+    /// Copilot can report 1e307 used of an allowance of 1: finite as a fraction, infinite as a percentage.
+    /// That window is unknown; the provider and everyone else's numbers are still written. Overuse stays.
+    func testANumberJSONCannotHoldMakesOnlyThatValueUnknown() throws {
+        let source = ProviderSnapshot(id: "copilot", displayName: "Copilot", glyph: .copilot, fidelity: .official, status: .ok,
+            windows: [LimitWindow(id: "premium", label: "Premium", usedFraction: 1e307, duration: 1e300),
+                      LimitWindow(id: "chat", label: "Chat", usedFraction: 1.25, duration: 30 * 86_400)],
+            headlineID: "premium")
+        let copilot = CompanionSnapshotPublisher.provider(.copilot, snapshot: source, updatedAt: Date())
+        XCTAssertNil(copilot.limits.windows[0].usedPercent)
+        XCTAssertEqual(copilot.limits.windows[0].durationMinutes, 0)
+        XCTAssertEqual(copilot.limits.windows[1].usedPercent ?? 0, 125, accuracy: 0.001, "overuse is not cut to 100")
+        let other = CompanionSnapshotPublisher.disabled(.cursor)
+        let snapshot = CompanionSnapshot(providers: [copilot, other].map(CompanionSnapshotPublisher.encodable))
+        XCTAssertNoThrow(try CompanionSnapshotFile.encode(snapshot))
+
+        // Anything else no JSON holds takes only its own provider out.
+        let broken = CompanionProvider(id: "copilot", name: "Copilot", localUsage: nil,
+            limits: CompanionLimits(state: .ready, updatedAt: Date(), windows: [CompanionLimitWindow(id: "x", name: "X", usedPercent: .infinity)]))
+        let kept = [broken, other].map(CompanionSnapshotPublisher.encodable)
+        XCTAssertEqual(kept[0].limits.state, .unavailable)
+        XCTAssertEqual(kept[1].id, other.id)
+        XCTAssertNoThrow(try CompanionSnapshotFile.encode(CompanionSnapshot(providers: kept)))
+    }
 }

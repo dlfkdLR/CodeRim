@@ -107,7 +107,7 @@ final class CompanionSnapshotPublisher {
                                      updatedAt: notch.lastUpdatedAt(providerID: id.rawValue))
             }
         }
-        let snapshot = CompanionSnapshot(generatedAt: now, providers: providers)
+        let snapshot = CompanionSnapshot(generatedAt: now, providers: providers.map(Self.encodable))
         MobileConnectionStore.shared.receive(snapshot)
         cliWriter.submit(snapshot)
         if !CompanionSnapshotFile.usesLocalFile { widgetWriter.submit(snapshot) }
@@ -181,8 +181,8 @@ final class CompanionSnapshotPublisher {
         let windows: [CompanionLimitWindow] = (state == .ready || state == .stale) ? snapshot.windows.map {
             CompanionLimitWindow(id: $0.id,
                 name: [$0.group, $0.label].compactMap { $0 }.joined(separator: " · "),
-                durationMinutes: Int(($0.duration ?? 0) / 60),
-                usedPercent: $0.usedFraction.map { $0 * 100 }, resetsAt: $0.resetsAt,
+                durationMinutes: Self.minutes($0.duration),
+                usedPercent: Self.percent($0.usedFraction), resetsAt: $0.resetsAt,
                 remainingCount: $0.remaining, usedCount: $0.used,
                 unit: id == .ollamaLocal ? ($0.id == "loaded" ? "models" : "MB") : nil, displayValue: $0.displayValue)
         } : []
@@ -190,6 +190,33 @@ final class CompanionSnapshotPublisher {
             limits: CompanionLimits(state: state, updatedAt: updatedAt, windows: windows,
                 staleAfterSeconds: 900, message: message, headlineID: snapshot.headlineID),
             fidelity: snapshot.fidelity.rawValue, plan: snapshot.accountPlan)
+    }
+
+    /// A provider's reported fraction as a percentage, as reported: over 100 stays over 100 (overuse is real).
+    /// One that is no number at all once scaled (Copilot can report 1e307 used of 1) is unknown, not a value
+    /// JSON cannot hold.
+    static func percent(_ fraction: Double?) -> Double? {
+        guard let fraction else { return nil }
+        let percent = fraction * 100
+        return percent.isFinite ? percent : nil
+    }
+
+    /// Whole minutes of a window, or 0 (unknown) for a length no Int holds.
+    static func minutes(_ duration: TimeInterval?) -> Int {
+        guard let duration, duration.isFinite, duration > 0 else { return 0 }
+        let minutes = duration / 60
+        return minutes < Double(Int32.max) ? Int(minutes) : 0
+    }
+
+    /// A provider whose projection still cannot be written is replaced by an unavailable entry, so it alone
+    /// is missing from the CLI and widgets, never everyone else's numbers.
+    static func encodable(_ provider: CompanionProvider) -> CompanionProvider {
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601
+        if (try? encoder.encode(provider)) != nil { return provider }
+        return CompanionProvider(id: provider.id, name: provider.name, localUsage: nil,
+            limits: CompanionLimits(state: .unavailable, updatedAt: nil, windows: [],
+                                    message: "Usage is temporarily unavailable."),
+            enabled: provider.enabled)
     }
 
     static func localUsage(_ store: UsageStore, calculatedAt: Date?) -> CompanionLocalUsage? {
