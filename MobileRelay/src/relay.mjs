@@ -9,6 +9,8 @@ import { HTTPError, requireValue, preferences, sanitizeSnapshot, activityPayload
  */
 export const FREE_DAILY = { requests: 100000, writes: 100000 };
 const BUSY_AT = 0.7, CRITICAL_AT = 0.9;
+// Requests and rows claimed ahead in storage; see `persistUsage`.
+const USAGE_RESERVE = 20;
 export const HEARTBEAT = { normal: 300, busy: 600, critical: 1800 };
 const BUSY_NOTICE = 'The CodeRim relay is busy today. Updates may be slower, and new connections are paused until 00:00 UTC.';
 const IDLE_END = 120, START_COOLDOWN = 300, START_RETRY = 60, ACTIVITY_LIFETIME = 8 * 3600;
@@ -36,6 +38,10 @@ export class Relay {
     this.usage = store.meta('usage') ?? { day: day(now()), requests: 0, writes: 0 };
     this.writesAtLoad = store.writes;
     this.saved = { ...this.usage, level: this.level() };
+    // A fresh object does not know whether the alarm its predecessor needed was ever set (a failed
+    // setAlarm in work after a response leaves nothing behind), so its first request runs a full pass,
+    // which sets it again. A pass that fails to set its alarm asks for the same.
+    this.recovery = true;
   }
 
   // MARK: Free-plan budget
@@ -56,22 +62,24 @@ export class Relay {
     this.persistUsage();
   }
   /**
-   * The object's memory can be discarded whenever it is idle, so what the budget has seen is kept in
-   * storage: at every change of level (busy, critical) at once, and otherwise every 1% of either allowance.
-   * One row each time, cheap next to what it guards; that row counts too, at the next count.
+   * The object's memory can be discarded whenever it is idle, and rebuilt any number of times a day. So
+   * storage always holds at least what has been used: it is written ahead, claiming USAGE_RESERVE more
+   * requests and rows than counted so far, and written again when the count passes the claim or the level
+   * changes. A rebuilt object starts from the claim, never below the truth; it over-counts by at most the
+   * unused reserve, the safe side for a free allowance. One row per USAGE_RESERVE, counted like any other.
    */
   persistUsage() {
     const level = this.level(), saved = this.saved;
-    const step = allowance => Math.max(1, Math.floor(allowance / 100));
     if (saved.day === this.usage.day && saved.level === level
-        && this.usage.requests - saved.requests < step(this.budgets.requests)
-        && this.usage.writes - saved.writes < step(this.budgets.writes)) return;
-    this.store.saveMeta('usage', this.usage);
-    this.saved = { ...this.usage, level };
+        && this.usage.requests <= saved.requests && this.usage.writes <= saved.writes) return;
+    const claim = { day: this.usage.day, requests: this.usage.requests + USAGE_RESERVE, writes: this.usage.writes + USAGE_RESERVE };
+    this.store.saveMeta('usage', claim);
+    this.saved = { ...claim, level };
   }
   /** The host's alarm handler: an alarm run is a Durable Object request of its own. */
   async alarm() {
     this.count();
+    this.recovery = false; // this pass covers every account; it asks again if it cannot set its alarm
     try { await this.tick(); await this.settle(); } finally { this.count({ request: false }); }
   }
   /** The host set an alarm: a row write on SQLite-backed Durable Objects. */
@@ -108,6 +116,8 @@ export class Relay {
 
   async route(method, path, body, bearer, ip) {
     this.count();
+    // Its own queue: a recovery pass waiting on a slow APNs answer must not hold back the alarm's pass.
+    if (this.recovery) { this.recovery = false; this.later(() => this.tick(undefined, { queue: 'recovery' })); }
     const now = this.now(), store = this.store;
     if (method === 'GET' && path === '/health') { this.limit(`health:${ip}`, 180); return { status: 'ok', level: this.level(), push: this.pushConfigured }; }
     this.limit(`ip:${ip}`, 180);
@@ -372,10 +382,10 @@ export class Relay {
    * Starts, updates and ends Live Activities. Triggered by changes for one owner,
    * and by the alarm for whatever is due. Returns nothing; schedules its next run.
    */
-  tick(owner) {
+  tick(owner, { queue } = {}) {
     // One pass at a time per account (and one for the alarm's all-accounts pass); a pass requested
     // meanwhile runs after it, never instead of it. Accounts do not queue behind each other.
-    const key = owner ?? '*';
+    const key = queue ?? owner ?? '*';
     const run = (this.ticking.get(key) ?? Promise.resolve()).then(() => this.pass(owner));
     const settled = run.catch(() => {});
     this.ticking.set(key, settled);
@@ -396,7 +406,11 @@ export class Relay {
     } finally {
       // Awaited: the host's alarm handler finishes only once the next alarm is set, and a failure to set
       // it fails the handler, which Cloudflare retries.
-      if (due !== Infinity) await this.schedule(due);
+      if (due !== Infinity) {
+        // Work after a response swallows this failure, and an unchanged heartbeat runs no pass: without
+        // asking for recovery, nothing would set the alarm again.
+        try { await this.schedule(due); } catch (error) { this.recovery = true; throw error; }
+      }
     }
   }
   async startActivities(owner, now) {

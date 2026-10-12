@@ -919,3 +919,48 @@ test("a failure to set the next alarm fails the alarm handler, so Cloudflare ret
   await c.relay.settle();
   await assert.rejects(c.relay.alarm(), /storage unavailable/);
 });
+
+test('usage below any saving step is not lost when the object is rebuilt again and again', async t => {
+  const sql = nodeSQL(); t.after(() => sql.close());
+  const store = new Store(sql);
+  let truth = 0, relay;
+  for (let i = 0; i < 101; i++) {
+    relay = new Relay({ store, now: () => epoch + i * 60, pollWait: 0 }); // memory discarded between alarms
+    relay.count(); // the alarm run
+    const before = store.writes;
+    for (let w = 0; w < 998; w++) store.saveMeta('fixture', w);
+    truth += store.writes - before + 1;
+    relay.alarmSet();
+    relay.count({ request: false });
+  }
+  assert.ok(relay.usage.writes >= truth, `counted ${relay.usage.writes} of ${truth}`);
+  assert.equal(relay.level(), 'critical');
+  assert.ok(relay.usage.writes <= truth + 101 * 2 * 20 + 101, 'over-counts by at most the reserve per rebuild');
+});
+
+test('an alarm that could not be set after a response is set again by the next request, even a heartbeat', async t => {
+  const storage = { alarm: null, attempts: 0,
+    async getAlarm() { return this.alarm; },
+    async setAlarm(at) { if (++this.attempts === 1) throw new Error('storage unavailable'); this.alarm = at; } };
+  let c;
+  const schedule = alarmScheduler(storage, { now: () => c.now() * 1000 });
+  c = setup(t, { schedule });
+  await c.route('GET', '/v1/snapshot'); await c.relay.settle(); // the fresh object's own recovery pass is done
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.relay.settle();
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.settle();
+  assert.equal(storage.attempts, 1);
+  assert.equal(storage.alarm, null, 'the failure was swallowed with the work after the response');
+  c.advance(300);
+  await c.route('POST', '/v1/snapshot', { ...snapshot(), generatedAt: c.now() }, c.mac); // unchanged: a heartbeat
+  await c.relay.settle();
+  assert.ok(storage.alarm, 'the alarm is set again');
+
+  // A rebuilt object does not know whether its predecessor's alarm was set; its first request sets it.
+  storage.alarm = null;
+  const rebuilt = new Relay({ store: c.store, now: c.now, pollWait: 0, schedule });
+  await rebuilt.route('GET', '/v1/snapshot', {}, c.mobile, 'test');
+  await rebuilt.settle();
+  assert.ok(storage.alarm, 'the rebuilt object set it');
+});

@@ -36,7 +36,8 @@ export class RelayObject extends DurableObject {
   async fetch(request) {
     const response = await handle(this.relay, request);
     // Rows written after the response (pushes, activity bookkeeping) are counted once that work ends.
-    if (this.relay.pending) this.ctx.waitUntil(this.relay.settle());
+    // Rows the request wrote are counted (and claimed in storage) before the object can go idle.
+    if (this.relay.pending) this.ctx.waitUntil(this.relay.settle()); else this.relay.count({ request: false });
     return response;
   }
   async alarm() { await this.relay.alarm(); }
