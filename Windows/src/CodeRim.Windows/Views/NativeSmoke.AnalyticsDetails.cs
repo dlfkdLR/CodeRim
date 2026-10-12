@@ -29,7 +29,7 @@ internal static partial class NativeSmoke
             store.SessionDetails["codex"] = [new("parent", null, [new("attachment", now.AddDays(-15), 4)]) {
                 StartedAt = started, ProjectName = "Session reference", ProjectObservedAt = now.AddDays(-10) },
                 new("child", "parent", []) { ProjectName = "Child reference" }, new("old-child", "parent", [])];
-            store.Usage["codex"] = UsageScanner.Aggregate(store.Events["codex"], now, settings.Current.WeekStart, false) with { Quality = DataQuality.Partial };
+            store.Usage["codex"] = UsageScanner.Aggregate(store.Events["codex"], now, settings.Current.WeekStart, false) with { Quality = DataQuality.Partial, SourcesPartial = true };
             store.RecordLocalAnalyticsRead("codex", now);
             var pane = new UsagePane(store, settings, "codex", _ => { }, initialSection: CodeRim.Core.Services.SettingsUsageSection.Overview) { Width = 500 };
             window = new Window { Content = pane, Width = 550, Height = 800, Title = "Analytics details fixture" }; window.Show(); await Idle();

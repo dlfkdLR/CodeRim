@@ -455,7 +455,7 @@ internal sealed partial class UsagePane : StackPanel
         if (destination == "activity")
         {
             var total = events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
-            var quality = AnalyticsQuality(total);
+            var quality = AnalyticsQuality(events);
             var estimate = quality == DataQuality.Unavailable ? new CostSummary(null, 0, []) : UsageAnalytics.Estimate(events);
             AnalyticsSummary(readings, total, estimate, compact: false, quality); Timeline(events, estimate, through, quality); return;
         }
@@ -464,7 +464,7 @@ internal sealed partial class UsagePane : StackPanel
             var name = Ui.Text(selectedModel, 13, weight: FontWeights.SemiBold); name.Margin = new Thickness(0, 0, 0, 14); readings.Children.Add(name);
             if (events.Length == 0) { readings.Children.Add(Ui.Text("No local usage observed for this period.", color: "#A6A6AA")); return; }
             var total = events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
-            var quality = AnalyticsQuality(Filter(through, includeSelection: false).Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage)));
+            var quality = AnalyticsQuality(Filter(through, includeSelection: false).ToArray());
             var estimate = quality == DataQuality.Unavailable ? new CostSummary(null, 0, []) : UsageAnalytics.Estimate(events);
             AnalyticsSummary(readings, total, estimate, compact: false, quality);
             var breakdown = new StackPanel { Margin = new Thickness(0, 8, 0, 0) }; AnalyticsBreakdown(breakdown, total); readings.Children.Add(breakdown);
@@ -479,7 +479,7 @@ internal sealed partial class UsagePane : StackPanel
                 var empty = Ui.Text(destination == "projects" ? "No project-tagged usage in this range." : "No sessions in this range.", 11, "#A6A6AA");
                 empty.Margin = new Thickness(24); readings.Children.Add(empty); return;
             }
-            var quality = AnalyticsQuality(events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage)));
+            var quality = AnalyticsQuality(events);
             var visibleSessions = events.Select(x => x.SessionId).ToHashSet(StringComparer.Ordinal);
             var childCounts = new Dictionary<string, int>(StringComparer.Ordinal);
             if (destination == "sessions" && settings.Current.AgentDetailsEnabled)

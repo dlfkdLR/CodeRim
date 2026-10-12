@@ -30,19 +30,37 @@ internal sealed class SessionWatcher : IDisposable
 
             DisposeWatchers();
 
+            var failed = false;
             foreach (var root in UsageScanner.DefaultRoots().Concat(UsageScanner.DefaultRoots("claude")).Distinct(StringComparer.OrdinalIgnoreCase))
             {
-                if (Directory.Exists(root)) watchers.Add(CreateWatcher(root, "*.jsonl", includeSubdirectories: true));
-                else
+                // A folder removed or moved between the check and the watcher, or one this account may not
+                // watch, costs only its own watcher: the others keep running, and the periodic refresh still
+                // reads it. This runs from timers and thread-pool callbacks, where an exception ends the app.
+                try
                 {
-                    var missing = root;
-                    var parent = Path.GetDirectoryName(missing);
-                    while (parent is not null && !Directory.Exists(parent)) { missing = parent; parent = Path.GetDirectoryName(parent); }
-                    if (parent is not null) watchers.Add(CreateWatcher(parent, Path.GetFileName(missing), includeSubdirectories: false));
+                    if (Directory.Exists(root)) watchers.Add(CreateWatcher(root, "*.jsonl", includeSubdirectories: true));
+                    else
+                    {
+                        var missing = root;
+                        var parent = Path.GetDirectoryName(missing);
+                        while (parent is not null && !Directory.Exists(parent)) { missing = parent; parent = Path.GetDirectoryName(parent); }
+                        if (parent is not null) watchers.Add(CreateWatcher(parent, Path.GetFileName(missing), includeSubdirectories: false));
+                    }
+                }
+                catch (Exception error) when (error is ArgumentException or IOException or UnauthorizedAccessException
+                    or System.Security.SecurityException or PlatformNotSupportedException or InvalidOperationException)
+                {
+                    _ = error; failed = true;
                 }
             }
+            UnwatchedRoots = failed;
         }
+        // What a failed watcher would have reported is read by a full refresh instead.
+        if (UnwatchedRoots) ScheduleRefresh(null);
     }
+
+    /// <summary>Some folder could not be watched at the last rebuild; it is read only by refreshes.</summary>
+    public bool UnwatchedRoots { get; private set; }
 
     public void Dispose()
     {
@@ -61,23 +79,33 @@ internal sealed class SessionWatcher : IDisposable
         string filter,
         bool includeSubdirectories)
     {
-        var watcher = new FileSystemWatcher(root, filter)
+        var watcher = new FileSystemWatcher(root, filter);
+        try
         {
-            IncludeSubdirectories = includeSubdirectories,
-            NotifyFilter = NotifyFilters.DirectoryName
-                | NotifyFilters.FileName
-                | NotifyFilters.LastWrite
-                | NotifyFilters.Size,
-            InternalBufferSize = 16 * 1024,
-            EnableRaisingEvents = false
-        };
+            Configure(watcher, includeSubdirectories);
+            return watcher;
+        }
+        catch
+        {
+            watcher.Dispose();
+            throw;
+        }
+    }
+
+    private void Configure(FileSystemWatcher watcher, bool includeSubdirectories)
+    {
+        watcher.IncludeSubdirectories = includeSubdirectories;
+        watcher.NotifyFilter = NotifyFilters.DirectoryName
+            | NotifyFilters.FileName
+            | NotifyFilters.LastWrite
+            | NotifyFilters.Size;
+        watcher.InternalBufferSize = 16 * 1024;
         watcher.Changed += HandleChange;
         watcher.Created += HandleChange;
         watcher.Deleted += HandleChange;
         watcher.Renamed += HandleChange;
         watcher.Error += HandleError;
         watcher.EnableRaisingEvents = true;
-        return watcher;
     }
 
     private void DisposeWatchers()

@@ -113,7 +113,8 @@ public sealed class UsageScannerTests
             Assert.Contains(scan.Events, e => e.Repaired && e.Usage == new TokenUsage(10, 10, 5));
             var repository = new UsageRepository(Path.Combine(root, "usage.sqlite"));
             repository.Merge("codex", scan.Events);
-            Assert.Equal(1, repository.LastWriteRepairedEvents);
+            // The file that needed the repair was read only in part, so its other record is marked too.
+            Assert.Equal(2, repository.LastWriteRepairedEvents);
 
             File.Delete(source);
             var reopened = new UsageRepository(Path.Combine(root, "usage.sqlite"));
@@ -516,6 +517,49 @@ public sealed class UsageScannerTests
         var path = Path.Combine(Path.GetTempPath(), $"CodeRimTests-{Guid.NewGuid():N}");
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    /// A file read only in part marks what it yielded; the mark is stored, so the period stays partial after
+    /// the file is gone, and a range that does not hold those records is not made partial by them.
+    [Fact]
+    public async Task IncompleteHistoryStaysPartialAfterItsFileIsGoneAndOnlyInItsOwnRange()
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            var source = Path.Combine(root, "decreasing.jsonl");
+            File.WriteAllLines(source, [
+                "{\"timestamp\":\"2026-09-20T01:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"partial-file\"}}",
+                TokenLineWithLast("2026-09-20T01:00:01Z", 100, 60, 20, 100, 60, 20, 1),
+                TokenLineWithLast("2026-09-20T01:00:02Z", 80, 40, 10, 10, 5, 2, 2)]);
+            var scan = await new UsageScanner("codex", [root]).ScanAsync(WeekStart.Monday,
+                new DateTimeOffset(2026, 9, 20, 12, 0, 0, TimeSpan.Zero), CancellationToken.None).ConfigureAwait(true);
+            Assert.Equal(DataQuality.Partial, scan.Snapshot.Quality);
+            Assert.NotEmpty(scan.Events);
+            Assert.All(scan.Events, e => Assert.True(e.Repaired, "the records of a file read in part are marked"));
+
+            var repository = new UsageRepository(Path.Combine(root, "usage.sqlite"));
+            repository.Merge("codex", scan.Events);
+            File.Delete(source);
+            var stored = repository.Read("codex");
+            Assert.All(stored, e => Assert.True(e.Repaired));
+
+            // Still September: the month holding the records is partial though no file says so any more.
+            var september = UsageScanner.Aggregate(stored, new DateTimeOffset(2026, 9, 25, 12, 0, 0, TimeSpan.Zero), WeekStart.Monday, partial: false);
+            Assert.Equal(DataQuality.Partial, september.Quality);
+            // October 12: the current week and month are exact, the 30-day range (from September 13) is partial,
+            // the 7-day range is not.
+            var now = new DateTimeOffset(2026, 10, 12, 12, 0, 0, TimeSpan.Zero);
+            var october = UsageScanner.Aggregate(stored, now, WeekStart.Monday, partial: false);
+            Assert.Equal(DataQuality.Exact, october.Quality);
+            var zone = TimeZoneInfo.Utc;
+            var thirty = SettingsUsageAnalytics.Build(new AnalyticsSourceFrame(now, october, stored), AnalyticsRange.ThirtyDays, zone);
+            Assert.Equal(DataQuality.Partial, thirty.Quality);
+            var recent = stored.Select(e => e with { EventKey = "recent", OccurredAt = now.AddDays(-1), Repaired = false }).Take(1).ToArray();
+            var seven = SettingsUsageAnalytics.Build(new AnalyticsSourceFrame(now, october, [.. stored, .. recent]), AnalyticsRange.SevenDays, zone);
+            Assert.Equal(DataQuality.Exact, seven.Quality);
+        }
+        finally { Directory.Delete(root, true); }
     }
 
     private static string TokenLine(

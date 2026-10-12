@@ -83,6 +83,10 @@ public sealed class UsageRepository
     /// How many rows the last Merge/Rebuild had to correct; callers report the period as partial when it is not zero.
     public int LastWriteRepairedEvents { get; private set; }
 
+    /// A stored row (uncached input, cache reads, output, cache writes) that a TokenUsage can be rebuilt from.
+    internal static bool IsValidRow(long uncached, long cached, long output, long? written)
+        => uncached >= 0 && cached >= 0 && output >= 0 && written is null or >= 0;
+
     public IReadOnlyList<UsageEvent> Merge(string provider, IEnumerable<UsageEvent> events, IEnumerable<SessionDetails>? sessions = null)
         => Write(provider, events, sessions, replace: false);
 
@@ -104,22 +108,36 @@ public sealed class UsageRepository
             command.Parameters.AddWithValue("$provider", provider); command.ExecuteNonQuery(); command.Parameters.Clear();
         }
         // Inputs are disjoint in storage so revisions from copied Claude histories cannot lose cache reads/writes.
+        // Elsewhere two copies of one event (logs copied with different baselines) each carry a whole, valid
+        // split of their input; the larger total keeps its split as it is (ties: more cache reads, then writes).
+        // Mixing the two copies' maxima would pair one copy's cache reads with the other's cache writes and
+        // could leave less than nothing uncached.
+        const string takesNew = "(excluded.input+excluded.cached+COALESCE(excluded.written,0) > input+cached+COALESCE(written,0)"
+            + " OR (excluded.input+excluded.cached+COALESCE(excluded.written,0) = input+cached+COALESCE(written,0)"
+            + " AND (excluded.cached > cached OR (excluded.cached = cached AND COALESCE(excluded.written,0) > COALESCE(written,0)))))";
         command.CommandText = """
             INSERT INTO events(provider,id,time,input,cached,output,written,model,project,session,projectId,highContext)
             SELECT $provider,$id,$time,$input,$cached,$output,$written,$model,$project,$session,$projectId,$context
             WHERE NOT EXISTS(SELECT 1 FROM exclusions WHERE provider=$provider AND id=$id) AND $time > COALESCE((SELECT time FROM cutoffs WHERE provider=$provider),-1)
             ON CONFLICT(provider,id) DO UPDATE SET
-                time=MIN(time,excluded.time), input=CASE WHEN provider='claude' THEN MAX(input,excluded.input)
-                    ELSE MAX(input+cached+COALESCE(written,0),excluded.input+excluded.cached+COALESCE(excluded.written,0))
-                    - MAX(cached,excluded.cached) - MAX(COALESCE(written,0),COALESCE(excluded.written,0)) END,
-                cached=MAX(cached,excluded.cached),
+                time=MIN(time,excluded.time),
+                input=CASE WHEN provider='claude' THEN MAX(input,excluded.input) WHEN TAKES_NEW THEN excluded.input ELSE input END,
+                cached=CASE WHEN provider='claude' THEN MAX(cached,excluded.cached) WHEN TAKES_NEW THEN excluded.cached ELSE cached END,
                 highContext=CASE WHEN provider='codex' THEN COALESCE(excluded.highContext,highContext) ELSE NULL END,
                 model=CASE WHEN provider='claude' AND session=$parent THEN excluded.model ELSE model END,
                 project=CASE WHEN provider='claude' AND session=$parent THEN excluded.project ELSE project END,
                 projectId=CASE WHEN provider='claude' AND session=$parent THEN excluded.projectId ELSE projectId END,
                 session=CASE WHEN provider='claude' AND session=$parent THEN excluded.session ELSE session END,
-                output=MAX(output,excluded.output), written=CASE WHEN written IS NULL THEN excluded.written WHEN excluded.written IS NULL THEN written ELSE MAX(written,excluded.written) END;
-            """;
+                output=MAX(output,excluded.output),
+                written=CASE WHEN provider!='claude' THEN CASE WHEN TAKES_NEW THEN excluded.written ELSE written END
+                    WHEN written IS NULL THEN excluded.written WHEN excluded.written IS NULL THEN written ELSE MAX(written,excluded.written) END
+            RETURNING input, cached, output, written;
+            """.Replace("TAKES_NEW", takesNew, StringComparison.Ordinal);
+        // The stored row, not only each input, has to be a valid split; one that is not is replaced by the
+        // incoming (valid) value and reported like any other repair.
+        using var fix = connection.CreateCommand();
+        fix.Transaction = transaction;
+        fix.CommandText = "UPDATE events SET input=$input, cached=$cached, output=$output, written=$written WHERE provider=$provider AND id=$id";
         var importedLinks = new Dictionary<string, string?>(StringComparer.Ordinal);
         var repaired = 0;
         var repairedRows = new List<(string Id, DateTimeOffset Time)>();
@@ -152,7 +170,22 @@ public sealed class UsageRepository
             command.Parameters.AddWithValue("$session", usageEvent.SessionId);
             command.Parameters.AddWithValue("$parent", (object?)usageEvent.ImportParentSessionId ?? DBNull.Value);
             command.Parameters.AddWithValue("$projectId", usageEvent.ProjectId);
-            command.ExecuteNonQuery();
+            bool stored;
+            using (var reader = command.ExecuteReader())
+            {
+                stored = !reader.Read() || IsValidRow(reader.GetInt64(0), reader.GetInt64(1), reader.GetInt64(2), reader.IsDBNull(3) ? null : reader.GetInt64(3));
+            }
+            if (!stored)
+            {
+                fix.Parameters.Clear();
+                foreach (var name in new[] { "$provider", "$id", "$input", "$cached", "$output", "$written" })
+                    fix.Parameters.AddWithValue(name, command.Parameters[name].Value);
+                fix.ExecuteNonQuery();
+                if (!repairedRows.Contains((usageEvent.EventKey, usageEvent.OccurredAt)))
+                {
+                    repaired++; repairedRows.Add((usageEvent.EventKey, usageEvent.OccurredAt));
+                }
+            }
         }
         IEnumerable<SessionDetails> ImportedSessions()
         {
@@ -241,14 +274,18 @@ public sealed class UsageRepository
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "SELECT id,time,input,cached,output,written,model,project,session,projectId,highContext FROM events WHERE provider=$provider ORDER BY time";
+        // A row marked when it was saved keeps the mark: every range that holds it reads as partial, whenever
+        // that range is looked at and whether or not its source files still exist.
+        command.CommandText = "SELECT e.id,e.time,e.input,e.cached,e.output,e.written,e.model,e.project,e.session,e.projectId,e.highContext,"
+            + "EXISTS(SELECT 1 FROM repaired_events r WHERE r.provider=e.provider AND r.id=e.id) FROM events e WHERE e.provider=$provider ORDER BY e.time";
         command.Parameters.AddWithValue("$provider", provider);
         using var reader = command.ExecuteReader();
         var result = new List<UsageEvent>();
         while (reader.Read()) result.Add(new UsageEvent(reader.GetString(0), DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(1)),
             new TokenUsage(reader.GetInt64(2) + reader.GetInt64(3) + (reader.IsDBNull(5) ? 0 : reader.GetInt64(5)), reader.GetInt64(3), reader.GetInt64(4), reader.IsDBNull(5) ? null : reader.GetInt64(5)),
             reader.GetString(6), reader.GetString(7), reader.GetString(8), provider, reader.GetString(9)) {
-                PricingContext = reader.IsDBNull(10) ? null : reader.GetInt64(10) switch { 0 => PricingContext.Standard, 1 => PricingContext.HighContext, _ => null } });
+                PricingContext = reader.IsDBNull(10) ? null : reader.GetInt64(10) switch { 0 => PricingContext.Standard, 1 => PricingContext.HighContext, _ => null },
+                Repaired = reader.GetInt64(11) != 0 });
         return result;
     }
 
