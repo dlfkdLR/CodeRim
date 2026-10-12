@@ -171,3 +171,14 @@ test('without a push key the relay still pairs and serves usage, and stores no p
   await c.route('POST', '/v1/push-to-start', { pushToken: 'f'.repeat(64) }, mobile);
   assert.equal(c.store.writes, writes); assert.equal(c.store.activities().length, 0);
 });
+
+test('a computer the iPhone added that never used its token goes when the code expires', async t => {
+  const c = setup(t), mobile = await phone(c);
+  const pair = await c.route('POST', '/v1/pairing/start', { platform: 'macOS', name: 'Cancelled' });
+  await c.route('POST', '/v1/pairing/claim', { id: pair.id, secret: pair.secret }, mobile);
+  const used = await connect(c, mobile, 'Used');
+  await c.route('POST', '/v1/snapshot', snapshot(), used.token);
+  assert.equal((await c.route('GET', '/v1/snapshot', {}, mobile)).devices.length, 2);
+  c.advance(301); await c.relay.tick();
+  assert.deepEqual((await c.route('GET', '/v1/snapshot', {}, mobile)).devices.map(d => d.name), ['Used']);
+});

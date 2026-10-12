@@ -25,7 +25,11 @@ final class MobileAppModel: ObservableObject {
     private var registrations: [String: Task<Void, Never>] = [:]
     private var activityObservers: [String: Task<Void, Never>] = [:]
     private var foregroundPoll: Task<Void, Never>?
-    private var restored = false
+    /// The one restore of the saved connection. The app's launch task and a QR link that opened the app
+    /// both wait for it, so a link never finds the model busy restoring and is never dropped.
+    private var restoring: Task<Void, Never>?
+    /// The error a failed refresh showed; a later successful refresh takes back only that one.
+    private var refreshError: String?
     private var pushAvailable = true
     private var remoteActivities: [Task<Void, Never>] = []
     private let credentials: any MobileCredentialStoring
@@ -37,7 +41,10 @@ final class MobileAppModel: ObservableObject {
     }
 
     func restore() async {
-        guard !restored else { return }; restored = true
+        if restoring == nil { restoring = Task { await self.restoreSaved() } }
+        await restoring?.value
+    }
+    private func restoreSaved() async {
         busy = true
         let generation = loginGeneration
         defer { busy = false }
@@ -68,33 +75,39 @@ final class MobileAppModel: ObservableObject {
     /// Joins the computer whose QR code was scanned. The first scan also creates
     /// this iPhone's anonymous account on that computer's relay.
     func connect(_ link: MobilePairingLink) async {
+        // A QR code that opened the app arrives while the saved connection is still being restored.
+        await restore()
         guard !busy else { return }
         busy = true; errorMessage = nil; statusMessage = nil
         defer { busy = false }
+        let request = MobilePairingRequest(id: link.id, secret: link.secret)
         do {
-            // The QR code carries the server its computer uses: follow it rather than asking for an
-            // address. The old server's session is ended on a best-effort basis.
-            if let old = credential, old.endpoint != link.relay {
-                if let oldClient = client {
-                    let _: MobileOK? = try? await oldClient.send("DELETE", "/v1/session", token: old.token, body: MobileEmpty())
-                }
-                await clearLocalLogin()
+            if let current = credential, let client, MobileRelayClient.sameOrigin(current.endpoint, link.relay) {
+                let joined: MobileClaimResult = try await client.send("POST", "/v1/pairing/claim", token: current.token, body: request)
+                statusMessage = "\(joined.name) is connected."
+                await refresh()
+                return
             }
-            if credential == nil {
-                let client = try makeClient(link.relay)
-                let session: MobileSessionToken = try await client.send("POST", "/v1/accounts", token: nil, body: MobileEmpty())
-                let saved = MobileCredential(endpoint: link.relay, session: session)
-                await clearLocalLogin()
-                do { try await credentials.save(saved) }
-                catch {
-                    let _: MobileOK? = try? await client.send("DELETE", "/v1/account", token: saved.token, body: MobileEmpty())
-                    throw error
-                }
-                try activate(saved)
+            // The QR code carries the server its computer uses: follow it rather than asking for an address.
+            // The account there is made and the computer joined before anything of the current connection is
+            // let go, so an unreachable server or a used code leaves the working connection as it was.
+            let client = try makeClient(link.relay)
+            let session: MobileSessionToken = try await client.send("POST", "/v1/accounts", token: nil, body: MobileEmpty())
+            let saved = MobileCredential(endpoint: link.relay, session: session)
+            let joined: MobileClaimResult
+            do {
+                joined = try await client.send("POST", "/v1/pairing/claim", token: saved.token, body: request)
+                try await credentials.save(saved)
+            } catch {
+                let _: MobileOK? = try? await client.send("DELETE", "/v1/account", token: saved.token, body: MobileEmpty())
+                throw error
             }
-            guard let credential, let client else { return }
-            let joined: MobileClaimResult = try await client.send("POST", "/v1/pairing/claim", token: credential.token,
-                body: MobilePairingRequest(id: link.id, secret: link.secret))
+            // Joined and saved: now the previous server's session is ended, on a best-effort basis.
+            if let old = credential, let oldClient = self.client {
+                let _: MobileOK? = try? await oldClient.send("DELETE", "/v1/session", token: old.token, body: MobileEmpty())
+            }
+            await clearLocalLogin(forgetSaved: false)
+            try activate(saved)
             statusMessage = "\(joined.name) is connected."
             await refresh()
         } catch MobileRelayError.rejected(401) {
@@ -165,9 +178,14 @@ final class MobileAppModel: ObservableObject {
             let response: MobileSnapshotResponse = try await client.get("/v1/snapshot", token: credential.token)
             guard generation == loginGeneration else { return }
             _ = try await apply(response, token: credential.token)
+            guard generation == loginGeneration else { return }
+            // The relay answered again: the error its last failure showed no longer holds. An error some
+            // other action showed since then stays.
+            if let shown = refreshError, errorMessage == shown { errorMessage = nil }
+            refreshError = nil
         } catch {
             guard generation == loginGeneration else { return }
-            errorMessage = error.localizedDescription
+            errorMessage = error.localizedDescription; refreshError = errorMessage
             if case MobileRelayError.rejected(401) = error { await clearLocalLogin() }
             if case MobileRelayError.expired = error { await clearLocalLogin() }
         }
@@ -385,13 +403,16 @@ final class MobileAppModel: ObservableObject {
                 : "Signed out on your iPhone. The server could not be reached; the remote session will be removed when it expires."
         }
     }
-    private func clearLocalLogin() async {
+    /// `forgetSaved: false` when the saved connection was already replaced by the one taking over.
+    private func clearLocalLogin(forgetSaved: Bool = true) async {
         loginGeneration = UUID()
         remoteActivities.forEach { $0.cancel() }; remoteActivities = []
         self.credential = nil; signedIn = false
         await stopActivity()
-        do { try await credentials.delete() }
-        catch { errorMessage = error.localizedDescription }
+        if forgetSaved {
+            do { try await credentials.delete() }
+            catch { errorMessage = error.localizedDescription }
+        }
         serverNotice = nil; preferences = MobilePreferences(); providers = []; displayProviders = []; devices = []; state = .disconnected
     }
 }

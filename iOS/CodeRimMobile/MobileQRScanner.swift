@@ -62,7 +62,8 @@ private struct LiveScanner: UIViewControllerRepresentable {
         init(onCode: @escaping (String) -> Void) { self.onCode = onCode }
         func dataScanner(_ scanner: DataScannerViewController, didAdd items: [RecognizedItem], allItems: [RecognizedItem]) {
             for case .barcode(let code) in items {
-                guard !delivered, let text = code.payloadStringValue, text.hasPrefix("coderim://") else { continue }
+                // Only a code that is a whole pairing link ends the scan; anything else leaves it scanning.
+                guard !delivered, let text = code.payloadStringValue, MobilePairingLink(text) != nil else { continue }
                 delivered = true; onCode(text); return
             }
         }

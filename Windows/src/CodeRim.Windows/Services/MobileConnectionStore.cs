@@ -91,12 +91,20 @@ internal sealed class MobileConnectionStore : INotifyPropertyChanged, IDisposabl
                 catch (Exception e) when (!cancellation.IsCancellationRequested && e is HttpRequestException or IOException or OperationCanceledException)
                 { await Task.Delay(TimeSpan.FromSeconds(3), cancellation.Token).ConfigureAwait(true); }
             }
+            // An answer that arrives as Cancel is pressed is not used: cancelling stops the poll's request, not
+            // a response that already completed. The catch below takes back the computer the iPhone added.
+            cancellation.Token.ThrowIfCancellationRequested();
             if (issued is null) { Status = "The QR code expired. Connect again."; return; }
             if (disposed) throw new OperationCanceledException();
             var saved = new MobileCredential(pending.Endpoint.AbsoluteUri, issued.Token, issued.ExpiresAt);
             vault.Save(Key, JsonSerializer.Serialize(saved)); File.Delete(stoppedPath); Activate(saved);
         }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { if (!Connected) Status = "Not connected"; }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+            if (pending is not null && issued is not null)
+                try { await pending.DisconnectAsync(issued.Token, CancellationToken.None).ConfigureAwait(true); } catch (Exception cleanup) when (cleanup is HttpRequestException or InvalidDataException or IOException or JsonException or OperationCanceledException) { }
+            if (!Connected) Status = "Not connected";
+        }
         catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.ServiceUnavailable)
         { Status = "The CodeRim relay is busy today, so new connections are paused until 00:00 UTC."; }
         catch (Exception e) when (e is HttpRequestException or InvalidDataException or IOException or UnauthorizedAccessException or CryptographicException or JsonException or ArgumentException or OperationCanceledException)

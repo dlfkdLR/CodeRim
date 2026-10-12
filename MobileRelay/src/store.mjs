@@ -108,7 +108,16 @@ export class Store {
   }
   prune(now) {
     // Only rows that are actually stale, so an idle maintenance pass costs no writes.
-    if (this.one('SELECT 1 AS x FROM pairs WHERE expires<=? LIMIT 1', now)) this.run('DELETE FROM pairs WHERE expires<=?', now);
+    if (this.one('SELECT 1 AS x FROM pairs WHERE expires<=? LIMIT 1', now)) {
+      // A computer the iPhone added but that never used its token (it was cancelled, or never got the answer)
+      // goes with its expired code, rather than staying listed until the token expires a year later.
+      for (const pair of this.sql.all('SELECT data FROM pairs WHERE expires<=? AND owner IS NOT NULL', now)) {
+        const { session } = JSON.parse(pair.data);
+        const device = session && this.one('SELECT data FROM devices WHERE session=?', session);
+        if (device && !JSON.parse(device.data).receivedAt) this.revoke(session);
+      }
+      this.run('DELETE FROM pairs WHERE expires<=?', now);
+    }
     if (this.one('SELECT 1 AS x FROM limits WHERE until<=? LIMIT 1', now)) this.run('DELETE FROM limits WHERE until<=?', now);
     if (this.one('SELECT 1 AS x FROM sessions WHERE expires<=? LIMIT 1', now)) {
       for (const { hash } of this.sql.all('SELECT hash FROM sessions WHERE expires<=?', now)) this.revoke(hash);
