@@ -41,7 +41,8 @@ final class MobileAppModel: ObservableObject {
     }
 
     func restore() async {
-        if restoring == nil { restoring = Task { await self.restoreSaved() } }
+        // Busy from the moment restoring begins, not from when its task first runs.
+        if restoring == nil { busy = true; restoring = Task { await self.restoreSaved() } }
         await restoring?.value
     }
     private func restoreSaved() async {
