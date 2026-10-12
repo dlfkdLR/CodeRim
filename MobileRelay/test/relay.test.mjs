@@ -964,3 +964,138 @@ test('an alarm that could not be set after a response is set again by the next r
   await rebuilt.settle();
   assert.ok(storage.alarm, 'the rebuilt object set it');
 });
+
+const twoProviders = (now, sessions) => ({ schemaVersion: 1, generatedAt: now,
+  providers: [
+    { id: 'codex', name: 'Codex', state: 'ready', windows: [{ name: 'Weekly', remainingPercent: 75, resetsAt: now + 6000 }], todayTokens: 1, localState: 'ready', updatedAt: now },
+    { id: 'claude', name: 'Claude', state: 'ready', windows: [{ name: 'Weekly', remainingPercent: 50, resetsAt: now + 6000 }], todayTokens: 1, localState: 'ready', updatedAt: now }],
+  sessions });
+
+test('an Island stopped by hand is not started again for the same work, but is for later work', async t => {
+  const c = setup(t);
+  const starts = () => c.sent.filter(s => s.payload.aps.event === 'start').length;
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'a'.repeat(64) });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.relay.pending;
+  assert.equal(starts(), 1);
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'b'.repeat(64) });
+  await c.relay.pending;
+  // Well past the cooldown, the same task still working.
+  c.advance(400); await c.route('POST', '/v1/snapshot', snapshot(c.now()), c.mac); await c.relay.pending;
+  c.advance(1); // APNs orders by the second; an end in the same second as an update waits for the next
+  await c.route('DELETE', '/v1/activities');
+  await c.relay.pending;
+  assert.ok(c.sent.some(s => s.token === 'b'.repeat(64) && s.payload.aps.event === 'end'));
+  c.advance(400); await c.route('POST', '/v1/snapshot', snapshot(c.now()), c.mac); await c.relay.pending; await c.relay.tick();
+  assert.equal(starts(), 1, 'the work the person stopped it for does not bring it back');
+  // That work ends, and new work begins: the Island may start again.
+  const idle = snapshot(c.now() + 10); idle.sessions = [];
+  c.advance(10); await c.route('POST', '/v1/snapshot', idle, c.mac); await c.relay.pending;
+  c.advance(10); await c.route('POST', '/v1/snapshot', snapshot(c.now()), c.mac); await c.relay.pending;
+  assert.equal(starts(), 2);
+});
+
+test('a filter change, a removed computer and a deleted account are acted on without waiting for the next alarm', async t => {
+  const alarms = [];
+  const c = setup(t, { schedule: at => alarms.push(at) });
+  await c.route('POST', '/v1/snapshot', twoProviders(epoch, [{ providerID: 'codex', phase: 'working', title: '', since: epoch }]), c.mac);
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.pending;
+  alarms.length = 0;
+  // Only Claude, which is idle, is shown now: the Island's idle clock starts and the relay wakes to end it.
+  c.advance(20);
+  await c.route('PUT', '/v1/preferences', { providerIDs: ['claude'] });
+  await c.relay.pending;
+  assert.equal(c.store.activities('alice')[0].data.idleSince, c.now());
+  assert.ok(alarms.length && Math.min(...alarms) <= c.now() + 120, `woken by +120s, not ${Math.min(...alarms) - c.now()}`);
+
+  // Deleting the account ends the Island now, not at the next alarm.
+  const before = c.sent.length;
+  c.advance(1);
+  await c.route('DELETE', '/v1/account');
+  await c.relay.pending;
+  assert.ok(c.sent.slice(before).some(s => s.payload.aps.event === 'end'), 'the end is pushed straight away');
+  assert.equal(c.store.activities('alice').length, 0);
+});
+
+test('a removed computer ends the Island it was showing straight away', async t => {
+  const c = setup(t);
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.pending;
+  const before = c.sent.length;
+  c.advance(1);
+  await c.route('DELETE', '/v1/devices/fixture-mac');
+  await c.relay.pending;
+  const after = c.sent.slice(before);
+  assert.ok(after.length >= 1, 'pushed without a tick');
+  assert.equal(after.at(-1).payload.aps['content-state'].connection, 'offline');
+});
+
+test('the relay wakes when a shown limit resets or its reading grows old, though the computer sends nothing', async t => {
+  const alarms = [];
+  const c = setup(t, { schedule: at => alarms.push(at) });
+  const input = snapshot(); input.providers[0].windows[0].resetsAt = epoch + 30;
+  await c.route('POST', '/v1/snapshot', input, c.mac);
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.pending;
+  assert.equal(Math.min(...alarms), epoch + 30, 'woken when the limit resets, not when the computer goes quiet');
+  alarms.length = 0;
+  c.advance(30); await c.relay.tick();
+  assert.equal(c.sent.at(-1).payload.aps['content-state'].providers[0].state, 'stale');
+  // A reading with no reset in sight still ages out after READING_AGE.
+  const c2 = setup(t, { schedule: at => alarms.push(at) });
+  const later = snapshot(); later.providers[0].windows[0].resetsAt = epoch + 6000;
+  alarms.length = 0;
+  await c2.route('POST', '/v1/snapshot', later, c2.mac);
+  await c2.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c2.relay.pending;
+  assert.equal(Math.min(...alarms), epoch + 301);
+});
+
+test('a body over the limit is abandoned while it streams in, and every request is counted, malformed ones too', async t => {
+  const c = setup(t);
+  const chunk = new Uint8Array(65536).fill(32);
+  let pulled = 0;
+  const stream = new ReadableStream({ pull(controller) {
+    if (pulled >= 16 * chunk.length) return controller.close();
+    pulled += chunk.length; controller.enqueue(chunk);
+  } });
+  const big = await handle(c.relay, new Request('https://relay.test/v1/snapshot', { method: 'POST', body: stream, duplex: 'half',
+    headers: { 'content-type': 'application/json' } }));
+  assert.equal(big.status, 413);
+  assert.ok(pulled <= 262144 + 2 * chunk.length, `read ${pulled} bytes of 1 MiB`);
+
+  const before = c.relay.usage.requests;
+  for (const init of [{ method: 'POST', body: '{', headers: { 'content-type': 'application/json' } },
+    { method: 'POST', body: '{}', headers: { 'content-type': 'text/plain' } }, {}]) {
+    const response = await handle(c.relay, new Request('https://relay.test/v1/snapshot' + (init.method ? '' : '?x=1'), init));
+    assert.ok(response.status >= 400);
+  }
+  assert.equal(c.relay.usage.requests - before, 3);
+});
+
+test('the hourly limit on new accounts from one address survives the object being rebuilt', async t => {
+  const c = setup(t);
+  for (let i = 0; i < 5; i++) await c.relay.route('POST', '/v1/accounts', {}, null, 'same');
+  await assert.rejects(c.relay.route('POST', '/v1/accounts', {}, null, 'same'), { status: 429 });
+  c.advance(60);
+  const rebuilt = new Relay({ store: c.store, now: c.now, push: async () => ({ status: 200 }) });
+  await assert.rejects(rebuilt.route('POST', '/v1/accounts', {}, null, 'same'), { status: 429 });
+  assert.ok((await rebuilt.route('POST', '/v1/accounts', {}, null, 'other')).token);
+  assert.equal(c.store.one("SELECT COUNT(*) AS n FROM limits WHERE key LIKE '%same%'").n, 0, 'addresses are kept only as digests');
+  c.advance(3600);
+  assert.ok((await rebuilt.route('POST', '/v1/accounts', {}, null, 'same')).token);
+});
+
+test("one account's rows are read through indexes, and rows read count toward the free allowance", async t => {
+  const c = setup(t, { budgets: { requests: 1e9, writes: 1e9, reads: 1000 } });
+  for (const [table, query] of [['activities', 'SELECT * FROM activities WHERE owner=?'], ['devices', 'SELECT data FROM devices WHERE owner=?'],
+    ['starters', 'SELECT * FROM starters WHERE owner=?'], ['sessions', "SELECT hash FROM sessions WHERE owner=? AND role='mobile'"]]) {
+    const plan = c.sql.all('EXPLAIN QUERY PLAN ' + query, 'alice').map(r => r.detail).join(' ');
+    assert.match(plan, /USING (COVERING )?INDEX/, `${table}: ${plan}`);
+  }
+  assert.equal(c.relay.level(), 'normal');
+  while (c.relay.usage.reads < 950) { c.advance(1); await c.route('GET', '/v1/snapshot'); }
+  assert.equal(c.relay.level(), 'critical');
+});

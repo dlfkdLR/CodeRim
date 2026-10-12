@@ -4,7 +4,9 @@ export function nodeSQL(path = ':memory:') {
   const db = new DatabaseSync(path);
   const sql = {
     writes: 0,
-    all: (query, ...params) => db.prepare(query).all(...params),
+    // node:sqlite does not report rows scanned; rows returned stand in for them in tests.
+    reads: 0,
+    all(query, ...params) { const rows = db.prepare(query).all(...params); sql.reads += rows.length; return rows; },
     run(query, ...params) {
       const result = db.prepare(query).run(...params);
       sql.writes += Math.max(1, Number(result.changes));

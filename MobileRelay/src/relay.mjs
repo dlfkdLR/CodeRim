@@ -1,16 +1,17 @@
 import { digest, secret } from './crypto.mjs';
 import { HTTPError, requireValue, preferences, sanitizeSnapshot, activityPayload, desktopState, navigate, selectProvider,
-  deviceLabel, ONLINE_WINDOW } from './model.mjs';
+  deviceLabel, ONLINE_WINDOW, READING_AGE } from './model.mjs';
 
 /**
  * The relay runs on the Cloudflare Workers Free plan, which can never bill: once a
  * daily allowance is used up, requests simply fail until 00:00 UTC. These budgets
  * mirror that allowance so the relay degrades on purpose before the platform does.
  */
-export const FREE_DAILY = { requests: 100000, writes: 100000 };
+export const FREE_DAILY = { requests: 100000, writes: 100000, reads: 5000000 };
 const BUSY_AT = 0.7, CRITICAL_AT = 0.9;
-// Requests and rows claimed ahead in storage; see `persistUsage`.
-const USAGE_RESERVE = 20;
+// Requests and rows claimed ahead in storage; see `persistUsage`. Reads come in thousands per pass, so
+// they are claimed in larger steps: at most one row write per READ_RESERVE rows read.
+const USAGE_RESERVE = 20, READ_RESERVE = 5000;
 export const HEARTBEAT = { normal: 300, busy: 600, critical: 1800 };
 const BUSY_NOTICE = 'The CodeRim relay is busy today. Updates may be slower, and new connections are paused until 00:00 UTC.';
 const IDLE_END = 120, START_COOLDOWN = 300, START_RETRY = 60, ACTIVITY_LIFETIME = 8 * 3600;
@@ -23,6 +24,11 @@ const day = now => Math.floor(now / 86400);
  * quiet keeps whatever it showed then; that neither starts an Island nor keeps one from ending.
  */
 const working = state => state.connection === 'connected' && state.workingCount + state.waitingCount > 0;
+/** When the first reading shown as current turns stale by time alone. */
+const freshUntil = (state, now) => Math.min(Infinity, ...state.providers
+  .filter(p => p.state === 'ready' || p.state === 'partial')
+  .flatMap(p => [p.updatedAt ? p.updatedAt + READING_AGE + 1 : Infinity, ...p.windows.map(w => w.resetsAt ?? Infinity)])
+  .filter(at => at > now));
 
 export class Relay {
   constructor({ store, push = async () => ({ status: 200 }), now = () => Date.now() / 1000, budgets = FREE_DAILY,
@@ -35,8 +41,8 @@ export class Relay {
     this.waiters = new Map();
     // Heartbeats that carried no new content update only this, never storage.
     this.seen = new Map();
-    this.usage = store.meta('usage') ?? { day: day(now()), requests: 0, writes: 0 };
-    this.writesAtLoad = store.writes;
+    this.usage = { reads: 0, ...(store.meta('usage') ?? { day: day(now()), requests: 0, writes: 0 }) };
+    this.writesAtLoad = store.writes; this.readsAtLoad = store.reads;
     this.saved = { ...this.usage, level: this.level() };
     // A fresh object does not know whether the alarm its predecessor needed was ever set (a failed
     // setAlarm in work after a response leaves nothing behind), so its first request runs a full pass,
@@ -56,9 +62,10 @@ export class Relay {
     const now = this.now();
     // Rows written but not yet counted go to the new day: when in the old day they were written is not
     // known, and over-counting the new day is the safe side.
-    if (this.usage.day !== day(now)) this.usage = { day: day(now), requests: 0, writes: 0 };
+    if (this.usage.day !== day(now)) this.usage = { day: day(now), requests: 0, writes: 0, reads: 0 };
     if (request) this.usage.requests++;
     this.usage.writes += writes + this.store.writes - this.writesAtLoad; this.writesAtLoad = this.store.writes;
+    this.usage.reads += this.store.reads - this.readsAtLoad; this.readsAtLoad = this.store.reads;
     this.persistUsage();
   }
   /**
@@ -71,8 +78,9 @@ export class Relay {
   persistUsage() {
     const level = this.level(), saved = this.saved;
     if (saved.day === this.usage.day && saved.level === level
-        && this.usage.requests <= saved.requests && this.usage.writes <= saved.writes) return;
-    const claim = { day: this.usage.day, requests: this.usage.requests + USAGE_RESERVE, writes: this.usage.writes + USAGE_RESERVE };
+        && this.usage.requests <= saved.requests && this.usage.writes <= saved.writes && this.usage.reads <= (saved.reads ?? 0)) return;
+    const claim = { day: this.usage.day, requests: this.usage.requests + USAGE_RESERVE, writes: this.usage.writes + USAGE_RESERVE,
+      reads: this.usage.reads + READ_RESERVE };
     this.store.saveMeta('usage', claim);
     this.saved = { ...claim, level };
   }
@@ -91,7 +99,8 @@ export class Relay {
   }
   level() {
     if (this.usage.day !== day(this.now())) return 'normal';
-    const ratio = Math.max(this.usage.requests / this.budgets.requests, this.usage.writes / this.budgets.writes);
+    const ratio = Math.max(this.usage.requests / this.budgets.requests, this.usage.writes / this.budgets.writes,
+      this.budgets.reads ? this.usage.reads / this.budgets.reads : 0);
     return ratio >= CRITICAL_AT ? 'critical' : ratio >= BUSY_AT ? 'busy' : 'normal';
   }
   notice() { return this.level() === 'normal' ? undefined : BUSY_NOTICE; }
@@ -99,6 +108,18 @@ export class Relay {
     if (this.level() !== 'normal') throw new HTTPError(503, 'server_busy');
   }
 
+  /**
+   * Limits that span longer than an idle object lives are kept in storage (by the address's digest), so
+   * rebuilding the object does not start them over. A request turned away writes nothing.
+   */
+  durableLimit(key, maximum, period) {
+    const now = this.now(), id = digest(key);
+    const row = this.store.one('SELECT count, until FROM limits WHERE key=?', id);
+    if (row && now < row.until) {
+      if (row.count >= maximum) throw new HTTPError(429, 'try_again_later');
+      this.store.run('UPDATE limits SET count=count+1 WHERE key=?', id);
+    } else this.store.run('INSERT OR REPLACE INTO limits VALUES (?,?,?)', id, 1, now + period);
+  }
   limit(key, maximum, period = 60) {
     const now = this.now();
     const bucket = this.rateLimits.get(key);
@@ -114,24 +135,35 @@ export class Relay {
     return this.store.devices(owner, now).map(d => ({ ...d, receivedAt: Math.max(d.receivedAt, d.receivedAt ? this.seen.get(d.id) ?? 0 : 0) }));
   }
 
-  async route(method, path, body, bearer, ip) {
+  /**
+   * Every HTTP request comes through here exactly once, before its body is read: it is counted (a request
+   * turned away as malformed still counts), and the per-address limit applies before any body is read.
+   */
+  enter(method, path, ip) {
     this.count();
     // Its own queue: a recovery pass waiting on a slow APNs answer must not hold back the alarm's pass.
     if (this.recovery) { this.recovery = false; this.later(() => this.tick(undefined, { queue: 'recovery' })); }
+    if (method === 'GET' && path === '/health') this.limit(`health:${ip}`, 180);
+    else this.limit(`ip:${ip}`, 180);
+  }
+  async route(method, path, body, bearer, ip) {
+    this.enter(method, path, ip);
+    return this.dispatch(method, path, body, bearer, ip);
+  }
+  async dispatch(method, path, body, bearer, ip) {
     const now = this.now(), store = this.store;
-    if (method === 'GET' && path === '/health') { this.limit(`health:${ip}`, 180); return { status: 'ok', level: this.level(), push: this.pushConfigured }; }
-    this.limit(`ip:${ip}`, 180);
+    if (method === 'GET' && path === '/health') return { status: 'ok', level: this.level(), push: this.pushConfigured };
 
     // A new iPhone gets an anonymous account: no Apple ID, no email, only a token.
     if (method === 'POST' && path === '/v1/accounts') {
-      this.limit(`account:${ip}`, 5, 3600);
+      this.durableLimit(`account:${ip}`, 5, 3600);
       this.acceptingRegistrations();
       const owner = secret();
       return store.transaction(() => { store.saveUser(owner, store.user(owner)); return store.issue(owner, 'mobile', now); });
     }
     // The computer shows a QR code holding this id and secret; the iPhone claims it.
     if (method === 'POST' && path === '/v1/pairing/start') {
-      this.limit(`pair:${ip}`, 5, 300);
+      this.durableLimit(`pair:${ip}`, 5, 300);
       this.acceptingRegistrations();
       const id = secret(), code = secret(), expiresAt = now + 300;
       store.run('INSERT INTO pairs VALUES (?,?,?,?,?)', id, digest(code), null, JSON.stringify({ label: deviceLabel(body) }), expiresAt);
@@ -155,7 +187,8 @@ export class Relay {
       }
       const current = this.pair(body, this.now());
       if (!current.owner) return { pending: true, expiresAt: current.expires };
-      store.run('DELETE FROM pairs WHERE id=?', current.id);
+      // Kept until the computer uses the token (its first snapshot) or the code expires: an answer lost on
+      // the way, or a poll the computer gave up on, is answered again with the same token.
       const { token, expiresAt, deviceID } = JSON.parse(current.data);
       return { token, expiresAt, deviceID };
     }
@@ -177,7 +210,7 @@ export class Relay {
         const token = store.issue(session.owner, 'desktop', now), deviceID = secret();
         store.saveDevice(session.owner, { id: deviceID, session: digest(token.token), ...label, snapshot: null, receivedAt: 0 });
         store.run('UPDATE pairs SET owner=?, data=? WHERE id=?', session.owner,
-          JSON.stringify({ label, token: token.token, expiresAt: token.expiresAt, deviceID }), pair.id);
+          JSON.stringify({ label, token: token.token, expiresAt: token.expiresAt, deviceID, session: digest(token.token) }), pair.id);
         return { deviceID, ...label };
       });
       for (const wake of this.waiters.get(pair.id) ?? []) wake();
@@ -189,6 +222,7 @@ export class Relay {
       for (const a of store.activities(session.owner)) if (a.session === session.hash) { a.data.ending = true; store.saveActivity(a); }
       store.revoke(session.hash);
       this.settlePickers(session.owner, { context: session.role === 'desktop' });
+      this.later(() => this.tick(session.owner));
       return { ok: true };
     }
     if (method === 'DELETE' && path === '/v1/account') {
@@ -197,6 +231,8 @@ export class Relay {
         for (const { hash } of store.sql.all('SELECT hash FROM sessions WHERE owner=?', session.owner)) store.revoke(hash);
         store.run('DELETE FROM users WHERE id=?', session.owner);
       });
+      // The endings go out now, not whenever the next alarm happens to run.
+      this.later(() => this.tick(session.owner));
       return { ok: true };
     }
     if (method === 'GET' && path === '/v1/snapshot') return this.response(session, now);
@@ -216,7 +252,10 @@ export class Relay {
         const view = body.providerID === undefined
           ? navigate(devices, freshUser.preferences, previous, body.axis, body.direction, this.now(), { groupID: body.groupID, pickerVersion: body.pickerVersion })
           : selectProvider(devices, freshUser.preferences, previous, body.providerID, body.deviceID, this.now());
-        store.saveView(session.hash, view); return this.response(session, this.now());
+        store.saveView(session.hash, view);
+        // The relay's own bookkeeping for the new screen (its idle clock, its next wake) follows now.
+        this.later(() => this.tick(session.owner));
+        return this.response(session, this.now());
       });
     }
     if (method === 'DELETE' && path.startsWith('/v1/devices/')) {
@@ -225,16 +264,25 @@ export class Relay {
       if (!device) throw new HTTPError(404, 'not_found');
       store.revoke(device.session);
       this.settlePickers(session.owner, { context: true });
+      this.later(() => this.tick(session.owner));
       return { ok: true };
     }
     if (method === 'PUT' && path === '/v1/preferences') {
       user.preferences = preferences(body); store.saveUser(session.owner, user);
-      this.settlePickers(session.owner, { reset: true }); return { ok: true };
+      this.settlePickers(session.owner, { reset: true });
+      this.later(() => this.tick(session.owner));
+      return { ok: true };
     }
     if (method === 'POST' && path === '/v1/snapshot') {
       const device = store.devices(session.owner, now).find(d => d.session === session.hash);
       if (!device) throw new HTTPError(401, 'pairing_required');
       const next = sanitizeSnapshot(body, now);
+      // The computer has its token: the pairing that handed it over is finished.
+      if (!device.receivedAt) {
+        for (const p of store.sql.all('SELECT id, data FROM pairs WHERE owner=?', session.owner)) {
+          if (JSON.parse(p.data).session === session.hash) store.run('DELETE FROM pairs WHERE id=?', p.id);
+        }
+      }
       this.seen.set(device.id, now);
       // Unchanged content is a heartbeat: remembered in memory, never written.
       if (!sameSnapshot(device.snapshot, next) || !device.receivedAt) {
@@ -271,6 +319,10 @@ export class Relay {
     }
     if (method === 'DELETE' && path === '/v1/activities') {
       for (const a of store.activities(session.owner)) if (a.session === session.hash) { a.data.ending = true; store.saveActivity(a); }
+      // Stopped by hand: the work it showed does not start it again. Work that begins after this
+      // computer's work has gone quiet does (see `startActivities`).
+      const starter = store.starter(session.hash);
+      if (starter && !starter.data.dismissed) { starter.data.dismissed = true; store.saveStarter(starter); }
       this.later(() => this.tick(session.owner));
       return { ok: true };
     }
@@ -279,7 +331,7 @@ export class Relay {
       // Accepted but not stored while there is no push key, so no row writes are spent on it.
       if (!this.pushConfigured) return { ok: true };
       requireValue(typeof body.pushToken === 'string' && /^[a-f0-9]{64,512}$/.test(body.pushToken));
-      const existing = store.starters(session.owner).find(s => s.session === session.hash);
+      const existing = store.starter(session.hash);
       if (existing?.data.token !== body.pushToken) {
         // A new token has not been tried yet: it may start an Island within START_RETRY even if the old
         // token's attempt began the cooldown, and a pass runs now so it is tried (or scheduled) without
@@ -420,7 +472,12 @@ export class Relay {
     for (const starter of this.store.starters(owner)) {
       if (live.has(starter.session)) continue;
       const state = this.state(starter.owner, starter.session, now);
-      if (!working(state)) continue;
+      if (!working(state)) {
+        // The work the person stopped the Island for is over; the next work may start one again.
+        if (starter.data.dismissed) { delete starter.data.dismissed; this.store.saveStarter(starter); }
+        continue;
+      }
+      if (starter.data.dismissed) continue;
       const next = (starter.data.startedAt ?? 0) + START_COOLDOWN;
       if (now < next) { due = Math.min(due, next); continue; }
       starter.data.startedAt = now; this.store.saveStarter(starter);
@@ -430,7 +487,7 @@ export class Relay {
       const retry = () => {
         // Not refused, just not delivered: try again in a minute rather than after the full cooldown,
         // and make sure something wakes the relay then.
-        const current = this.store.starters(starter.owner).find(s => s.session === starter.session);
+        const current = this.store.starter(starter.session);
         if (current?.data.token !== starter.data.token) return replaced(current);
         if (current.data.startedAt !== now) return Infinity;
         current.data.startedAt = now - START_COOLDOWN + START_RETRY; this.store.saveStarter(current);
@@ -446,7 +503,7 @@ export class Relay {
           const result = await this.push(starter.data.token, payload, { priority: 10 });
           if (result.status === 410 || (result.status === 400 && ['BadDeviceToken', 'DeviceTokenNotForTopic'].includes(result.reason))) {
             // Only the token APNs refused. The phone may have registered a new one while this was in flight.
-            const current = this.store.starters(starter.owner).find(s => s.session === starter.session);
+            const current = this.store.starter(starter.session);
             if (current?.data.token !== starter.data.token) return replaced(current);
             this.store.run('DELETE FROM starters WHERE session=?', starter.session);
             return Infinity;
@@ -458,7 +515,7 @@ export class Relay {
     return Math.min(due, ...await Promise.all(starts));
   }
   async updateActivity(listed) {
-    const activity = this.store.activities(listed.owner).find(a => a.id === listed.id);
+    const activity = this.store.activity(listed.id);
     if (!activity) return Infinity;
     const now = this.now(), a = activity.data;
     if (now - a.createdAt >= ACTIVITY_LIFETIME) { this.store.deleteActivity(activity.id); return Infinity; }
@@ -476,9 +533,10 @@ export class Relay {
     const changed = a.ending || a.needsPush || navigated || key !== a.sentKey;
     // A computer that goes quiet sends nothing more, so nothing else wakes the relay when its connection
     // lapses. Wake then, so the idle clock starts and the Island ends IDLE_END later.
+    // A reading also turns stale with time alone, when its limit resets or it grows old; a computer asleep
+    // sends nothing then either, so the relay wakes to show it.
     const idleDue = a.ending ? Infinity
-      : a.idleSince ? a.idleSince + IDLE_END
-      : working(state) ? state.staleAt : Infinity;
+      : Math.min(a.idleSince ? a.idleSince + IDLE_END : working(state) ? state.staleAt : Infinity, freshUntil(state, now));
     if (!changed) return Math.min(idleDue, a.createdAt + ACTIVITY_LIFETIME - 360);
     // APNs budgets Live Activity updates; space routine ones 15 seconds apart.
     if (!a.ending && !a.needsPush && !navigated && now - a.sentAt < 15) return a.sentAt + 15;
@@ -490,7 +548,7 @@ export class Relay {
       a.lastEnqueuedAt = now; this.store.saveActivity(activity);
       const result = await this.push(a.token, activityPayload(state, now, a.ending ? 'end' : 'update', { alert }),
         { priority: alert || state.waitingCount > 0 ? 10 : 5 });
-      const current = this.store.activities(activity.owner).find(x => x.id === activity.id);
+      const current = this.store.activity(activity.id);
       if (!current || current.data.token !== a.token) return Infinity;
       if (result.status === 410 || (result.status === 400 && ['BadDeviceToken', 'DeviceTokenNotForTopic'].includes(result.reason))
           || (result.status === 200 && a.ending)) { this.store.deleteActivity(activity.id); return Infinity; }
@@ -502,7 +560,7 @@ export class Relay {
       }
       current.data.retryAfter = now + 60; this.store.saveActivity(current); return now + 60;
     } catch {
-      const current = this.store.activities(activity.owner).find(x => x.id === activity.id);
+      const current = this.store.activity(activity.id);
       if (current && current.data.token === a.token) { current.data.retryAfter = now + 60; this.store.saveActivity(current); }
       return now + 60;
     }
