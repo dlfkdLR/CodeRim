@@ -57,6 +57,12 @@ final class HybridNotchProvider: NotchProvider {
         } catch NotchProviderError.accessDenied {
             // macOS refused the borrowed credential; CodeRim's own may still read.
             nativeFailure = .accessDenied
+        } catch NotchProviderError.credentialExpired {
+            // The borrowed token is past its expiry on disk, which is the same as a refused one for
+            // reading now. Without a sign-in of CodeRim's own, the cell keeps waiting for the tool that
+            // owns the token to refresh it. A rate limit or a server error is not a sign-in problem and
+            // is not handed to another sign-in: it propagates from the native reader as before.
+            nativeFailure = .credentialExpired
         }
         let snapshot = try await upstream.fetchSnapshot()
         // A cached reading left on disk by an earlier session is not a sign-in: showing it as
