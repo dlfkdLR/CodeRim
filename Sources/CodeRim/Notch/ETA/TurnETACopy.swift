@@ -12,10 +12,10 @@ enum TurnETACopy {
     }
 
     static func line(for snapshot: TurnETATracker.Snapshot, now: Date,
-                     locale: Locale = .current, calendar: Calendar = .current) -> Line? {
+                     locale: Locale = Locale(identifier: "en_US"), calendar: Calendar = .current) -> Line? {
         switch snapshot.phase {
-        case .waiting:    return Line(headline: "waiting for you", detail: nil)
-        case .compacting: return Line(headline: "compacting context", detail: nil)
+        case .waiting:    return Line(headline: "waiting for you", detail: "clock paused")
+        case .compacting: return Line(headline: "compacting context", detail: "no progress")
         case .finished:   return nil
         case .working:    break
         }
@@ -24,7 +24,7 @@ enum TurnETACopy {
         let prefix = snapshot.extended ? "now " : ""
         switch estimate.basis {
         case .overrun:
-            return Line(headline: "\(prefix)running long", detail: nil)
+            return Line(headline: "\(prefix)running long", detail: "no estimate")
         case .prior, .agent, .project:
             break
         }
@@ -62,12 +62,13 @@ enum TurnETACopy {
     private static func finish(at median: TimeInterval, now: Date, locale: Locale,
                                calendar: Calendar) -> String? {
         guard median >= 60 else { return nil }
+        // The copy around it is English, so the time is too; a Korean "오전"
+        // in the middle of an English sentence reads as a bug.
         let formatter = DateFormatter()
         formatter.locale = locale
         formatter.calendar = calendar
         formatter.timeZone = calendar.timeZone
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
+        formatter.setLocalizedDateFormatFromTemplate("jmm")
         return "around \(formatter.string(from: now.addingTimeInterval(median)))"
     }
 }

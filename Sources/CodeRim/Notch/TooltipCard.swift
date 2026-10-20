@@ -590,7 +590,7 @@ private struct SessionRow: View {
         .overlay(alignment: .topTrailing) {
             if isHovered, let eta {
                 TurnETAPill(snapshot: eta, now: now)
-                    .frame(width: NotchLayout.cardTextWidth * 0.58, alignment: .leading)
+                    .frame(width: NotchLayout.cardTextWidth * 0.55, alignment: .leading)
                     .transition(.opacity)
             }
         }

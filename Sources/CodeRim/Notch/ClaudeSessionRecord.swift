@@ -73,7 +73,8 @@ struct ClaudeSessionRecord {
             since: millis.map { Date(timeIntervalSince1970: $0 / 1000) }
                 ?? self.startedAt ?? Date(),
             processID: pid,
-            projectKey: folder
+            projectKey: folder,
+            transcriptID: json["sessionId"] as? String
         )
     }
 
@@ -84,7 +85,8 @@ struct ClaudeSessionRecord {
     func session(state: AgentSession.State, since: Date, followUps: Int = 0) -> AgentSession {
         AgentSession(id: session.id, name: session.name, detail: session.detail,
                      state: state, waitingFor: nil, since: since, processID: pid,
-                     projectKey: session.projectKey, followUps: followUps)
+                     projectKey: session.projectKey, followUps: followUps,
+                     transcriptID: session.transcriptID)
     }
 
     static func surface(_ entrypoint: String?) -> String {

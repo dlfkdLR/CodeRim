@@ -252,11 +252,22 @@ final class NotchController: ObservableObject {
                       self.window.model.sessions.values.contains(where: { $0.contains { $0.state != .idle } })
                 else { return }
                 self.window.model.now = Date()
+                self.turnETA.setCompacting(self.compactingSessionKeys())
                 self.turnETA.absorb(self.window.model.sessions)
             }
         }
         RunLoop.main.add(timer, forMode: .common)
         etaTimer = timer
+    }
+
+    /// Claude sessions that the compaction hook says are summarising right now.
+    private func compactingSessionKeys() -> Set<String> {
+        let compacting = ClaudeCompactionHook.standard.compactingSessionIDs()
+        guard !compacting.isEmpty else { return [] }
+        return Set((window.model.sessions["claude"] ?? []).compactMap { session in
+            guard let id = session.transcriptID, compacting.contains(id) else { return nil }
+            return TurnETACoordinator.key("claude", session.id)
+        })
     }
 
     /// Refresh on quota or freshness changes, but ignore timestamps/defaults

@@ -45,6 +45,9 @@ struct AgentSession: Identifiable, Equatable, Sendable {
     /// Instructions the person added while this turn was already running.
     /// The turn-time estimate widens each time this goes up.
     let followUps: Int
+    /// The id the agent files its own transcript and hooks under, when it
+    /// differs from `id`. Claude Code's hooks name sessions this way.
+    let transcriptID: String?
 
     /// Navigation metadata is optional for providers without a destination.
     init(
@@ -58,7 +61,8 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         codexThreadID: String? = nil,
         parentThread: ParentThread? = nil,
         projectKey: String? = nil,
-        followUps: Int = 0
+        followUps: Int = 0,
+        transcriptID: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -71,5 +75,6 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         self.parentThread = parentThread
         self.projectKey = projectKey
         self.followUps = followUps
+        self.transcriptID = transcriptID
     }
 }
