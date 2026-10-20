@@ -41,15 +41,18 @@ final class TurnETAStore: ObservableObject {
     /// Reads past turn lengths from the agents' logs once per launch, off the
     /// main thread, then merges them in. Safe to call again; duplicates are
     /// ignored by `TurnHistory`.
-    func importPastTurns(claudeProjects: URL, codexSessions: URL) {
+    func importPastTurns(claudeProjects: URL, codexSessions: URL,
+                         openCodeDatabase: URL = OpenCodeActivityMonitor.defaultDatabase) {
         guard importTask == nil else { return }
         importTask = Task.detached(priority: .utility) { [weak self] in
             let claude = TurnHistoryImporter.claudeSamples(projects: claudeProjects)
             let codex = TurnHistoryImporter.codexSamples(sessions: codexSessions)
+            let openCode = TurnHistoryImporter.openCodeSamples(database: openCodeDatabase)
             await MainActor.run {
                 guard let self else { return }
                 self.coordinator.merge(imported: claude, agent: "claude")
                 self.coordinator.merge(imported: codex, agent: "codex")
+                self.coordinator.merge(imported: openCode, agent: "opencode")
                 self.scheduleSave()
             }
         }

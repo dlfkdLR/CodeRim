@@ -1,3 +1,4 @@
+import CSQLite
 import Foundation
 
 /// Reads how long past turns took out of the agents' own logs, so the first
@@ -76,6 +77,33 @@ enum TurnHistoryImporter {
         guard let json = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any],
               let payload = json["payload"] as? [String: Any] else { return nil }
         return payload["cwd"] as? String
+    }
+
+    // MARK: - OpenCode
+
+    /// One turn per user message: from when it was sent to the last step the
+    /// assistant finished in answer to it.
+    static func openCodeSamples(database: URL, now: Date = Date()) -> [TurnHistory.Sample] {
+        guard let db = SQLiteStore.open(database) else { return [] }
+        defer { sqlite3_close(db) }
+        let cutoff = Int((now.timeIntervalSince1970 - lookback) * 1000)
+        let rows = SQLiteStore.rows(in: db, sql: """
+            SELECT s.directory, json_extract(u.data,'$.time.created'),
+                   MAX(json_extract(a.data,'$.time.completed'))
+            FROM message u
+            JOIN message a ON json_extract(a.data,'$.parentID') = u.id
+            JOIN session s ON s.id = u.session_id
+            WHERE json_extract(u.data,'$.role') = 'user'
+              AND json_extract(a.data,'$.time.completed') IS NOT NULL
+              AND u.time_created > ?
+            GROUP BY u.id
+            """, columns: 3, bindings: [String(cutoff)])
+        return rows.compactMap { row in
+            guard let started = Double(row[1]), let ended = Double(row[2]), ended > started else { return nil }
+            return TurnHistory.Sample(seconds: (ended - started) / 1000,
+                                      project: (row[0] as NSString).lastPathComponent,
+                                      recordedAt: Date(timeIntervalSince1970: ended / 1000))
+        }
     }
 
     // MARK: - Files

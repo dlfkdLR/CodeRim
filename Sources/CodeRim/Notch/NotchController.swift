@@ -171,6 +171,7 @@ final class NotchController: ObservableObject {
                 projects: claudeHome.appendingPathComponent("projects")
             ),
             "codex": CodexActivityMonitor(),
+            "opencode": OpenCodeActivityMonitor(),
         ]
         for (id, monitor) in monitors {
             monitor.sessionsPublisher

@@ -50,7 +50,7 @@ struct TurnETACoordinator {
                 seen.insert(key)
                 let phase: TurnETATracker.Phase
                 switch session.state {
-                case .busy:    phase = compacting.contains(key) ? .compacting : .working
+                case .busy:    phase = compacting.contains(key) || session.isCompacting ? .compacting : .working
                 case .waiting: phase = .waiting
                 case .idle:    phase = .finished
                 }

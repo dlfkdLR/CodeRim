@@ -48,6 +48,8 @@ struct AgentSession: Identifiable, Equatable, Sendable {
     /// The id the agent files its own transcript and hooks under, when it
     /// differs from `id`. Claude Code's hooks name sessions this way.
     let transcriptID: String?
+    /// The agent says it is summarising its own context right now.
+    let isCompacting: Bool
 
     /// Navigation metadata is optional for providers without a destination.
     init(
@@ -62,7 +64,8 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         parentThread: ParentThread? = nil,
         projectKey: String? = nil,
         followUps: Int = 0,
-        transcriptID: String? = nil
+        transcriptID: String? = nil,
+        isCompacting: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -76,5 +79,6 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         self.projectKey = projectKey
         self.followUps = followUps
         self.transcriptID = transcriptID
+        self.isCompacting = isCompacting
     }
 }
