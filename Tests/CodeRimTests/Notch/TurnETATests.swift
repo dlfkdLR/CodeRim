@@ -4,67 +4,88 @@ import XCTest
 final class TurnETATests: XCTestCase {
     private let t0 = Date(timeIntervalSince1970: 1_800_000_000)
     private func at(_ seconds: TimeInterval) -> Date { t0.addingTimeInterval(seconds) }
-    /// 20 turns between 60 and 250 seconds.
-    private let history = (0..<20).map { 60.0 + Double($0) * 10 }
+    private func sample(_ seconds: Double, _ project: String = "p") -> TurnHistory.Sample {
+        TurnHistory.Sample(seconds: seconds, project: project, recordedAt: t0)
+    }
+    /// 20 turns between 60 and 250 seconds, all in project "p".
+    private var samples: [TurnHistory.Sample] { (0..<20).map { sample(60.0 + Double($0) * 10) } }
+
+    // MARK: - Estimator
 
     func testRemainingConditionsOnSurvival() {
-        let early = TurnETAEstimator.estimate(elapsed: 0, projectDurations: history, agentDurations: [])
-        let later = TurnETAEstimator.estimate(elapsed: 100, projectDurations: history, agentDurations: [])
+        let early = TurnETAEstimator.estimate(elapsed: 0, samples: samples, project: "p")
+        let later = TurnETAEstimator.estimate(elapsed: 100, samples: samples, project: "p")
         XCTAssertEqual(early.basis, .project)
         // At 100s only the turns longer than 100s remain in play.
-        XCTAssertEqual(later.median, TurnETAEstimator.quantile(
-            history.filter { $0 > 100 }.map { $0 - 100 }, 0.5), accuracy: 0.001)
+        let remaining = samples.map(\.seconds).filter { $0 > 100 }.map { $0 - 100 }
+        XCTAssertEqual(later.median, remaining.sorted()[remaining.count / 2 - 1], accuracy: 10.001)
         XCTAssertLessThanOrEqual(later.low, later.median)
         XCTAssertLessThanOrEqual(later.median, later.high)
     }
 
+    func testOtherProjectsCountForLessThanThisOne() {
+        // Ten quick turns here, ten slow turns elsewhere: the estimate leans quick.
+        let here = (0..<10).map { _ in sample(30, "here") }
+        let elsewhere = (0..<10).map { _ in sample(600, "elsewhere") }
+        let estimate = TurnETAEstimator.estimate(elapsed: 0, samples: here + elsewhere, project: "here")
+        XCTAssertEqual(estimate.median, 30)
+        XCTAssertEqual(estimate.basis, .project)
+    }
+
     func testFallsBackFromProjectToAgentToPrior() {
-        XCTAssertEqual(TurnETAEstimator.estimate(elapsed: 0, projectDurations: [30, 40],
-                                                 agentDurations: history).basis, .agent)
-        XCTAssertEqual(TurnETAEstimator.estimate(elapsed: 0, projectDurations: [],
-                                                 agentDurations: []).basis, .prior)
+        let few = [sample(30, "here"), sample(40, "here")] + samples
+        XCTAssertEqual(TurnETAEstimator.estimate(elapsed: 0, samples: few, project: "here").basis, .agent)
+        XCTAssertEqual(TurnETAEstimator.estimate(elapsed: 0, samples: [], project: "here").basis, .prior)
     }
 
     func testPastEverythingOnRecordScalesWithElapsed() {
-        let estimate = TurnETAEstimator.estimate(elapsed: 10_000, projectDurations: history,
-                                                 agentDurations: history)
+        let estimate = TurnETAEstimator.estimate(elapsed: 10_000, samples: samples, project: "p")
         XCTAssertEqual(estimate.basis, .overrun)
         XCTAssertEqual(estimate.median, 5_000, accuracy: 0.001)
     }
 
+    func testEstimateIsOrderedAndFiniteForHostileInput() {
+        for elapsed in [-5, 0, .infinity, .nan, 1e12] as [Double] {
+            let estimate = TurnETAEstimator.estimate(elapsed: elapsed, samples: samples + [sample(.nan)], project: nil)
+            XCTAssertTrue(estimate.low.isFinite && estimate.median.isFinite && estimate.high.isFinite)
+            XCTAssertLessThanOrEqual(estimate.low, estimate.median)
+            XCTAssertLessThanOrEqual(estimate.median, estimate.high)
+        }
+    }
+
+    // MARK: - Tracker
+
     func testWaitingStopsTheClockAndHoldsTheBar() {
         var tracker = TurnETATracker()
-        _ = tracker.update(phase: .working, now: at(0), projectDurations: history, agentDurations: [])
-        let before = tracker.update(phase: .working, now: at(8), projectDurations: history, agentDurations: [])
-        let waiting = tracker.update(phase: .waiting, now: at(9), projectDurations: history, agentDurations: [])
+        _ = tracker.update(phase: .working, now: at(0), samples: samples, project: "p")
+        let before = tracker.update(phase: .working, now: at(8), samples: samples, project: "p")
+        let waiting = tracker.update(phase: .waiting, now: at(9), samples: samples, project: "p")
         XCTAssertNil(waiting.estimate)
         XCTAssertEqual(waiting.progress, before.progress)
         // A long wait adds nothing once work resumes.
-        _ = tracker.update(phase: .waiting, now: at(3_000), projectDurations: history, agentDurations: [])
-        let resumed = tracker.update(phase: .working, now: at(3_002), projectDurations: history, agentDurations: [])
+        _ = tracker.update(phase: .waiting, now: at(3_000), samples: samples, project: "p")
+        let resumed = tracker.update(phase: .working, now: at(3_002), samples: samples, project: "p")
         XCTAssertLessThan(resumed.elapsed, 30)
     }
 
     func testAsleepGapIsNotCountedAsWork() {
         var tracker = TurnETATracker()
-        _ = tracker.update(phase: .working, now: at(0), projectDurations: history, agentDurations: [])
-        let after = tracker.update(phase: .working, now: at(7_200), projectDurations: history, agentDurations: [])
+        _ = tracker.update(phase: .working, now: at(0), samples: samples, project: "p")
+        let after = tracker.update(phase: .working, now: at(7_200), samples: samples, project: "p")
         XCTAssertEqual(after.elapsed, TurnETATracker.tickCeiling, accuracy: 0.001)
     }
 
     func testCompactionShowsNoEstimate() {
         var tracker = TurnETATracker()
-        _ = tracker.update(phase: .working, now: at(0), projectDurations: history, agentDurations: [])
-        XCTAssertNil(tracker.update(phase: .compacting, now: at(2), projectDurations: history,
-                                    agentDurations: []).estimate)
+        _ = tracker.update(phase: .working, now: at(0), samples: samples, project: "p")
+        XCTAssertNil(tracker.update(phase: .compacting, now: at(2), samples: samples, project: "p").estimate)
     }
 
     func testBarNeverGoesBackwards() {
         var tracker = TurnETATracker()
         var last = 0.0
         for second in stride(from: 0.0, through: 400, by: 2) {
-            let snapshot = tracker.update(phase: .working, now: at(second),
-                                          projectDurations: history, agentDurations: [])
+            let snapshot = tracker.update(phase: .working, now: at(second), samples: samples, project: "p")
             XCTAssertGreaterThanOrEqual(snapshot.progress, last)
             XCTAssertLessThanOrEqual(snapshot.progress, TurnETATracker.progressCeiling)
             last = snapshot.progress
@@ -73,23 +94,30 @@ final class TurnETATests: XCTestCase {
 
     func testFollowUpWidensTheEstimateButNotTheBar() {
         var tracker = TurnETATracker()
-        var before = tracker.update(phase: .working, now: at(0), projectDurations: history, agentDurations: [])
+        var before = tracker.update(phase: .working, now: at(0), samples: samples, project: "p")
         for second in stride(from: 2.0, through: 90, by: 2) {
-            before = tracker.update(phase: .working, now: at(second), projectDurations: history, agentDurations: [])
+            before = tracker.update(phase: .working, now: at(second), samples: samples, project: "p")
         }
         tracker.noteFollowUp()
-        let after = tracker.update(phase: .working, now: at(92), projectDurations: history, agentDurations: [])
+        let after = tracker.update(phase: .working, now: at(92), samples: samples, project: "p")
         XCTAssertTrue(after.extended)
         XCTAssertGreaterThan(after.estimate!.median, before.estimate!.median)
         XCTAssertGreaterThanOrEqual(after.progress, before.progress)
     }
 
+    func testTurnFirstSeenMidwayStartsFromWhatHasAlreadyPassed() {
+        var tracker = TurnETATracker(alreadyRunning: 120)
+        let snapshot = tracker.update(phase: .working, now: at(0), samples: samples, project: "p")
+        XCTAssertEqual(snapshot.elapsed, 120, accuracy: 0.001)
+    }
+
     func testFinishedFillsTheBar() {
         var tracker = TurnETATracker()
-        _ = tracker.update(phase: .working, now: at(0), projectDurations: history, agentDurations: [])
-        XCTAssertEqual(tracker.update(phase: .finished, now: at(5), projectDurations: history,
-                                      agentDurations: []).progress, 1)
+        _ = tracker.update(phase: .working, now: at(0), samples: samples, project: "p")
+        XCTAssertEqual(tracker.update(phase: .finished, now: at(5), samples: samples, project: "p").progress, 1)
     }
+
+    // MARK: - History
 
     func testHistoryIgnoresImplausibleAndDuplicateTurns() {
         var turns = TurnHistory()
@@ -97,10 +125,97 @@ final class TurnETATests: XCTestCase {
         turns.record(agent: "claude", project: "p", seconds: .nan, at: t0)
         turns.record(agent: "claude", project: "p", seconds: 100_000, at: t0)
         XCTAssertTrue(turns.durations(agent: "claude").isEmpty)
-        let sample = TurnHistory.Sample(seconds: 90, project: "p", recordedAt: t0)
-        turns.absorb(agent: "claude", [sample, sample])
-        turns.absorb(agent: "claude", [sample])
+        turns.absorb(agent: "claude", [sample(90), sample(90)])
+        turns.absorb(agent: "claude", [sample(90)])
         XCTAssertEqual(turns.durations(agent: "claude"), [90])
         XCTAssertTrue(turns.durations(agent: "claude", project: "other").isEmpty)
+    }
+
+    // MARK: - Coordinator
+
+    private func session(_ id: String, _ state: AgentSession.State, since: Date,
+                         project: String = "p", followUps: Int = 0) -> AgentSession {
+        AgentSession(id: id, name: id, detail: "", state: state, waitingFor: nil, since: since,
+                     projectKey: project, followUps: followUps)
+    }
+
+    func testTurnThatWasWatchedToTheEndIsLearned() {
+        var coordinator = TurnETACoordinator()
+        _ = coordinator.absorb(["claude": [session("a", .busy, since: at(0))]], now: at(0))
+        for second in stride(from: 2.0, through: 40, by: 2) {
+            _ = coordinator.absorb(["claude": [session("a", .busy, since: at(0))]], now: at(second))
+        }
+        let done = coordinator.absorb(["claude": [session("a", .idle, since: at(41))]], now: at(41))
+        XCTAssertTrue(done.learned)
+        XCTAssertEqual(coordinator.history.durations(agent: "claude", project: "p").first ?? 0, 40, accuracy: 1)
+    }
+
+    func testTurnAlreadyFinishedOnFirstSightTeachesNothing() {
+        var coordinator = TurnETACoordinator()
+        let result = coordinator.absorb(["claude": [session("a", .idle, since: at(0))]], now: at(5))
+        XCTAssertFalse(result.learned)
+        XCTAssertTrue(coordinator.history.durations(agent: "claude").isEmpty)
+    }
+
+    func testSessionThatVanishesMidTurnTeachesNothing() {
+        var coordinator = TurnETACoordinator()
+        _ = coordinator.absorb(["claude": [session("a", .busy, since: at(0))]], now: at(10))
+        let gone = coordinator.absorb(["claude": []], now: at(12))
+        XCTAssertFalse(gone.learned)
+        XCTAssertTrue(coordinator.history.durations(agent: "claude").isEmpty)
+    }
+
+    func testFollowUpCountWidensTheSessionsEstimate() {
+        var coordinator = TurnETACoordinator()
+        coordinator.merge(imported: samples, agent: "claude")
+        let key = TurnETACoordinator.key("claude", "a")
+        var last: TurnETATracker.Snapshot?
+        for second in stride(from: 0.0, through: 60, by: 2) {
+            last = coordinator.absorb(["claude": [session("a", .busy, since: at(0))]], now: at(second)).snapshots[key]
+        }
+        let next = coordinator.absorb(["claude": [session("a", .busy, since: at(0), followUps: 1)]], now: at(62)).snapshots[key]
+        XCTAssertEqual(next?.extended, true)
+        XCTAssertGreaterThan(next?.estimate?.median ?? 0, last?.estimate?.median ?? .infinity)
+    }
+
+    func testCompactingSessionsShowNoEstimate() {
+        var coordinator = TurnETACoordinator()
+        let key = TurnETACoordinator.key("claude", "a")
+        let result = coordinator.absorb(["claude": [session("a", .busy, since: at(0))]],
+                                        compacting: [key], now: at(5))
+        XCTAssertEqual(result.snapshots[key]?.phase, .compacting)
+        XCTAssertNil(result.snapshots[key]?.estimate)
+    }
+
+    // MARK: - Importer
+
+    func testClaudeTurnDurationRecordIsRead() throws {
+        let line = #"{"type":"system","subtype":"turn_duration","durationMs":95000,"timestamp":"2026-10-06T17:08:35.420Z","cwd":"/Users/x/app","isSidechain":false}"#
+        let imported = try XCTUnwrap(TurnHistoryImporter.claudeSample(fromLine: Data(line.utf8)))
+        XCTAssertEqual(imported.seconds, 95)
+        XCTAssertEqual(imported.project, "app")
+    }
+
+    func testCodexTaskCompleteRecordIsRead() throws {
+        let line = #"{"timestamp":"2026-10-07T03:17:06.739Z","type":"event_msg","payload":{"type":"task_complete","duration_ms":94478}}"#
+        let imported = try XCTUnwrap(TurnHistoryImporter.codexSample(fromLine: Data(line.utf8), project: "app"))
+        XCTAssertEqual(imported.seconds, 94.478, accuracy: 0.001)
+        XCTAssertEqual(imported.project, "app")
+    }
+
+    func testImporterReadsOnlyDurationsFromALogDirectory() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("eta-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let log = """
+        {"type":"user","message":{"content":"secret prompt"},"timestamp":"2026-10-06T17:00:00.000Z"}
+        {"type":"system","subtype":"turn_duration","durationMs":42000,"timestamp":"2026-10-06T17:01:00.000Z","cwd":"/a/b/app"}
+        {"type":"system","subtype":"turn_duration","durationMs":1000,"timestamp":"2026-10-06T17:02:00.000Z","isSidechain":true}
+        """
+        try log.write(to: root.appendingPathComponent("s.jsonl"), atomically: true, encoding: .utf8)
+        let found = TurnHistoryImporter.claudeSamples(projects: root,
+            now: TurnHistoryImporter.parse("2026-10-07T00:00:00.000Z")!)
+        XCTAssertEqual(found.map(\.seconds), [42])
+        XCTAssertEqual(found.first?.project, "app")
     }
 }

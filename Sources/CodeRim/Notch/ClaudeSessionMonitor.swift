@@ -146,7 +146,8 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
                   eventAt > record.session.since else { return record.session }
         }
         return record.session(state: activity.turn == .inFlight ? .busy : .idle,
-                              since: activity.since)
+                              since: activity.since,
+                              followUps: activity.turn == .inFlight ? activity.followUps : 0)
     }
 
     /// One session can hold two registry records at once: resuming after a

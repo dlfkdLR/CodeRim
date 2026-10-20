@@ -30,7 +30,12 @@ struct TurnETATracker {
     }
 
     private(set) var phase: Phase = .working
-    private(set) var activeElapsed: TimeInterval = 0
+    private(set) var activeElapsed: TimeInterval
+
+    /// A turn already under way when it was first seen has spent `alreadyRunning`.
+    init(alreadyRunning: TimeInterval = 0) {
+        activeElapsed = alreadyRunning.isFinite ? max(0, alreadyRunning) : 0
+    }
     private var lastTick: Date?
     private var shownProgress: Double = 0
     private var lastRemaining: (low: Double, median: Double, high: Double)?
@@ -46,8 +51,8 @@ struct TurnETATracker {
     mutating func update(
         phase: Phase,
         now: Date,
-        projectDurations: [Double],
-        agentDurations: [Double]
+        samples: [TurnHistory.Sample],
+        project: String?
     ) -> Snapshot {
         if let last = lastTick, self.phase == .working {
             activeElapsed += min(max(0, now.timeIntervalSince(last)), Self.tickCeiling)
@@ -69,8 +74,7 @@ struct TurnETATracker {
 
         let episodeStart = carried?.since ?? 0
         let fresh = TurnETAEstimator.estimate(
-            elapsed: activeElapsed - episodeStart,
-            projectDurations: projectDurations, agentDurations: agentDurations)
+            elapsed: activeElapsed - episodeStart, samples: samples, project: project)
         var low = fresh.low, median = fresh.median, high = fresh.high
         if let carried {
             // What was still owed before the follow-up shrinks as time passes;

@@ -39,6 +39,12 @@ struct AgentSession: Identifiable, Equatable, Sendable {
     /// The original Codex thread ID, without the display model's profile prefix.
     let codexThreadID: String?
     let parentThread: ParentThread?
+    /// The folder the work is in, for grouping turns whose lengths resemble
+    /// each other. Nil when the tool does not say.
+    let projectKey: String?
+    /// Instructions the person added while this turn was already running.
+    /// The turn-time estimate widens each time this goes up.
+    let followUps: Int
 
     /// Navigation metadata is optional for providers without a destination.
     init(
@@ -50,7 +56,9 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         since: Date,
         processID: pid_t? = nil,
         codexThreadID: String? = nil,
-        parentThread: ParentThread? = nil
+        parentThread: ParentThread? = nil,
+        projectKey: String? = nil,
+        followUps: Int = 0
     ) {
         self.id = id
         self.name = name
@@ -61,5 +69,7 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         self.processID = processID
         self.codexThreadID = codexThreadID
         self.parentThread = parentThread
+        self.projectKey = projectKey
+        self.followUps = followUps
     }
 }

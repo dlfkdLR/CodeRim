@@ -80,7 +80,8 @@ actor CodexActivityReader {
             return AgentSession(id: "\(profile.id).\(thread.id)", name: thread.projectName,
                                 detail: thread.displayTitle, state: event.isRunning ? .busy : .idle,
                                 waitingFor: nil, since: event.since, codexThreadID: thread.id,
-                                parentThread: thread.parentThread)
+                                parentThread: thread.parentThread,
+                                projectKey: URL(fileURLWithPath: thread.cwd).lastPathComponent)
         }
     }
 }

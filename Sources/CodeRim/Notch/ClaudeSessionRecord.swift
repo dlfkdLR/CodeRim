@@ -72,7 +72,8 @@ struct ClaudeSessionRecord {
             // this is what holds still until it is.
             since: millis.map { Date(timeIntervalSince1970: $0 / 1000) }
                 ?? self.startedAt ?? Date(),
-            processID: pid
+            processID: pid,
+            projectKey: folder
         )
     }
 
@@ -80,9 +81,10 @@ struct ClaudeSessionRecord {
     ///
     /// `waitingFor` is dropped on purpose: the only states that reach here come
     /// from the transcript, and the transcript cannot see a permission prompt.
-    func session(state: AgentSession.State, since: Date) -> AgentSession {
+    func session(state: AgentSession.State, since: Date, followUps: Int = 0) -> AgentSession {
         AgentSession(id: session.id, name: session.name, detail: session.detail,
-                     state: state, waitingFor: nil, since: since, processID: pid)
+                     state: state, waitingFor: nil, since: since, processID: pid,
+                     projectKey: session.projectKey, followUps: followUps)
     }
 
     static func surface(_ entrypoint: String?) -> String {

@@ -38,6 +38,12 @@ enum TurnETAEstimator {
     /// until the user has enough of their own.
     static let prior: [Double] = [8, 12, 20, 35, 55, 80, 110, 160, 240, 400, 700, 1200, 2400]
 
+    /// How much a turn from another project counts next to one from this
+    /// project. Backtested on this Mac's transcripts, blending beat both "this
+    /// project only" and "everything equally": it keeps the project's habits
+    /// without going blind when the project has few turns.
+    static let otherProjectWeight = 0.25
+
     /// Estimate the time left in a turn that has been working for `elapsed`.
     ///
     /// Conditional on survival: only turns that lasted longer than `elapsed`
@@ -47,23 +53,45 @@ enum TurnETAEstimator {
     /// minutes really is likely to go on for a while.
     static func estimate(
         elapsed: TimeInterval,
-        projectDurations: [Double],
-        agentDurations: [Double]
+        samples: [TurnHistory.Sample],
+        project: String?
     ) -> TurnETAEstimate {
         let elapsed = elapsed.isFinite ? max(0, elapsed) : 0
-        let sources: [(TurnETAEstimate.Basis, [Double])] = [
-            (.project, projectDurations), (.agent, agentDurations), (.prior, prior),
-        ]
-        for (basis, durations) in sources {
-            let tail = durations.filter { $0.isFinite && $0 > elapsed }.map { $0 - elapsed }
-            guard tail.count >= minimumTail else { continue }
-            return TurnETAEstimate(low: quantile(tail, 0.10), median: quantile(tail, 0.50),
-                                   high: quantile(tail, 0.90), basis: basis)
+        let tail = samples.filter { $0.seconds.isFinite && $0.seconds > elapsed }
+        let local = tail.filter { project != nil && $0.project == project }
+
+        if tail.count >= minimumTail {
+            let weighted = tail.map { sample -> (Double, Double) in
+                let isLocal = project != nil && sample.project == project
+                return (sample.seconds - elapsed, isLocal ? 1 : otherProjectWeight)
+            }
+            return TurnETAEstimate(
+                low: weightedQuantile(weighted, 0.10), median: weightedQuantile(weighted, 0.50),
+                high: weightedQuantile(weighted, 0.90),
+                basis: local.count >= minimumTail ? .project : .agent)
+        }
+        let priorTail = prior.filter { $0 > elapsed }.map { $0 - elapsed }
+        if priorTail.count >= minimumTail {
+            return TurnETAEstimate(low: quantile(priorTail, 0.10), median: quantile(priorTail, 0.50),
+                                   high: quantile(priorTail, 0.90), basis: .prior)
         }
         // Past everything on record. Remaining time scales with the time
         // already spent, because nothing else is known.
         return TurnETAEstimate(low: elapsed * 0.15, median: elapsed * 0.5, high: elapsed * 1.5,
                                basis: .overrun)
+    }
+
+    /// The smallest value whose cumulative weight reaches `p`; `values` must
+    /// not be empty.
+    static func weightedQuantile(_ values: [(value: Double, weight: Double)], _ p: Double) -> Double {
+        let sorted = values.sorted { $0.value < $1.value }
+        let total = sorted.reduce(0) { $0 + $1.weight }
+        var running = 0.0
+        for entry in sorted {
+            running += entry.weight
+            if running / total >= p { return entry.value }
+        }
+        return sorted[sorted.count - 1].value
     }
 
     /// Linear interpolation between order statistics; `values` must not be empty.
