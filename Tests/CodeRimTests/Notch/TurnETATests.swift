@@ -309,3 +309,31 @@ final class TurnETAStoreTests: XCTestCase {
         XCTAssertGreaterThan(snapshot.elapsed, 90)
     }
 }
+
+final class TurnETACardLayoutTests: XCTestCase {
+    /// The time-left card is drawn in the panel's transparent margin, so the
+    /// panel has to reach past the usage card by exactly its width and gap —
+    /// clipped otherwise — on every edge.
+    func testThePanelReachesPastTheUsageCardForTheTimeCard() {
+        for edge in NotchEdge.allCases {
+            let card = NotchLayout.defaultMaxCardHeight
+            let depth = NotchLayout.tooltipDepth(for: edge, maxCardHeight: card)
+            let usageOnly = (edge.isVertical ? NotchLayout.cardWidth : card)
+                + NotchLayout.tailLength + NotchLayout.tailGap
+            if edge.isVertical {
+                XCTAssertEqual(depth - usageOnly, NotchLayout.etaReach, accuracy: 0.001, "\(edge)")
+            } else {
+                // Along a horizontal edge the card sits beside the usage card instead.
+                XCTAssertEqual(depth, usageOnly, accuracy: 0.001, "\(edge)")
+                XCTAssertGreaterThanOrEqual(
+                    NotchLayout.slack(for: edge, maxCardHeight: card),
+                    NotchLayout.cardWidth / 2 + NotchLayout.cardCorner + NotchLayout.etaReach, "\(edge)")
+            }
+        }
+    }
+
+    func testTheCardHeightHoldsItsThreeLines() {
+        XCTAssertGreaterThan(NotchLayout.etaCardHeight, 2 * NotchLayout.cardBodyLineHeight)
+        XCTAssertLessThan(NotchLayout.etaCardHeight, NotchLayout.defaultMaxCardHeight / 2)
+    }
+}

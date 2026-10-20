@@ -52,9 +52,21 @@ struct NotchRootView: View {
                             x: model.edge.outward.x * NotchDesign.px(24),
                             y: model.edge.outward.y * NotchDesign.px(24)
                         )))
+
+                    // The time-left card: its own box beside the usage card,
+                    // level with the working session being hovered.
+                    if let hover = model.hoveredSession, let eta = model.turnETA[hover.id] {
+                        TurnETACard(snapshot: eta, now: model.now)
+                            .position(etaCardCentre(hover: hover, panel: proxy.size))
+                            .transition(.opacity)
+                            .allowsHitTesting(false)
+                    }
                 }
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
+            .coordinateSpace(name: NotchPanelSpace.name)
+            .onChange(of: model.hoveredIndex) { _, _ in model.hoveredSession = nil }
+            .onChange(of: model.isExpanded) { _, _ in model.hoveredSession = nil }
             // Swapping cards is a movement like any other here.
             .animation(motion(NotchMotion.glide), value: model.hoveredIndex)
         }
@@ -62,6 +74,9 @@ struct NotchRootView: View {
         .tint(model.accentColor.color)
         .environment(\.notchAccentColor, model.accentColor.color)
         .environment(\.notchTurnETA, model.turnETA)
+        .environment(\.notchSessionHover) { [model] hover in
+            if model.hoveredSession != hover { model.hoveredSession = hover }
+        }
         .environment(\.notchRingAppearance, model.ringAppearance)
         .environment(\.notchRingAnimationEnabled, model.isExpanded)
         .accessibilityValue(model.visibleRangeDescription)
@@ -291,6 +306,25 @@ struct NotchRootView: View {
             along: model.slack + model.orbAlong * model.sizeScale,
             across: model.orbInset * model.sizeScale
         )
+    }
+
+    /// Where the time-left card sits: on the far side of the usage card from
+    /// the notch, level with the hovered row. Where the card could go either
+    /// way (a notch on the top or bottom edge) it takes the side with room.
+    private func etaCardCentre(hover: SessionHover, panel: CGSize) -> CGPoint {
+        let width = NotchLayout.etaCardWidth, height = NotchLayout.etaCardHeight
+        let cardLeft = hover.frame.minX - NotchLayout.cardPadding
+        let cardRight = hover.frame.maxX + NotchLayout.cardPadding
+        let onLeft: Bool
+        switch model.edge.tooltipDirection {
+        case .leading:       onLeft = true
+        case .trailing:      onLeft = false
+        case .up, .down:     onLeft = cardLeft - NotchLayout.etaCardGap - width >= 0
+        }
+        let x = onLeft ? cardLeft - NotchLayout.etaCardGap - width / 2
+                       : cardRight + NotchLayout.etaCardGap + width / 2
+        let y = min(max(hover.frame.minY + height / 2, height / 2), max(panel.height - height / 2, height / 2))
+        return CGPoint(x: x, y: y)
     }
 
     /// The tooltip is the card plus its tail; `position` centres that pair, so

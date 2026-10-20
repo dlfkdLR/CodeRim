@@ -53,6 +53,8 @@ final class NotchViewModel: ObservableObject {
     @Published var sessions: [String: [AgentSession]] = [:]
     /// The time-left estimate for each working session, keyed by session id.
     @Published var turnETA: [String: TurnETATracker.Snapshot] = [:]
+    /// The working session row under the pointer, if any. Drives the time-left card.
+    @Published var hoveredSession: SessionHover?
 
     /// A presentation preference only: retain raw samples for state transitions.
     @Published var showUnknownSessions: Bool

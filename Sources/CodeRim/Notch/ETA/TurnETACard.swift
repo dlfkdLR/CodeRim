@@ -1,11 +1,9 @@
 import SwiftUI
 
-/// What appears beside a session row when the pointer is over it: how long is
-/// left (or when it should end), and a bar filling left to right.
-///
-/// It replaces the row's own right-hand words while it is up rather than
-/// adding to the card, so the card's budgeted height never changes.
-struct TurnETAPill: View {
+/// The time-left card: how long is left (or when it should end) and a bar
+/// filling left to right. It opens beside the usage card while a working
+/// session row is hovered, in its own box rather than over the row.
+struct TurnETACard: View {
     let snapshot: TurnETATracker.Snapshot
     let now: Date
     @Environment(\.notchAccentColor) private var accentColor
@@ -22,26 +20,32 @@ struct TurnETAPill: View {
 
     var body: some View {
         if let line {
-            VStack(alignment: .leading, spacing: NotchDesign.px(6)) {
+            VStack(alignment: .leading, spacing: NotchDesign.px(10)) {
                 Text(line.headline)
                     .font(NotchType.cardBody)
                     .foregroundStyle(NotchPalette.textPrimary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.7)
                     .frame(height: NotchLayout.cardBodyLineHeight, alignment: .leading)
+                bar
                 HStack(spacing: NotchDesign.px(8)) {
                     Text(line.detail ?? "estimate")
                         .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                     Spacer(minLength: 0)
                     Text("beta")
                 }
                 .font(NotchType.cardBody)
                 .foregroundStyle(NotchPalette.textSecondary)
                 .frame(height: NotchLayout.cardBodyLineHeight)
-                bar
             }
-            .padding(.leading, NotchDesign.px(14))
-            .background(NotchPalette.card)
+            .padding(.horizontal, NotchDesign.px(26))
+            .padding(.vertical, NotchDesign.px(22))
+            .frame(width: NotchLayout.etaCardWidth, height: NotchLayout.etaCardHeight, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: NotchLayout.etaCardCorner, style: .continuous)
+                    .fill(NotchPalette.card)
+            )
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Estimated time")
             .accessibilityValue([line.headline, line.detail].compactMap { $0 }.joined(separator: ", "))

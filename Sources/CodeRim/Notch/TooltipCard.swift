@@ -492,7 +492,9 @@ private struct SessionRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
     @Environment(\.notchTurnETA) private var turnETA
+    @Environment(\.notchSessionHover) private var reportHover
     @State private var isHovered = false
+    @State private var rowFrame: CGRect = .zero
     @AppStorage(AppPreferences.notchShowSessionDurationKey)
     private var showDuration = AppPreferences.defaultNotchShowSessionDuration
     @AppStorage(AppPreferences.notchShowSessionTokensKey)
@@ -500,10 +502,16 @@ private struct SessionRow: View {
 
     /// The estimate for this session, only when the row is a real session
     /// (not a parent shown for context) and has something to say.
-    private var eta: TurnETATracker.Snapshot? {
-        guard !isContextOnly, let snapshot = turnETA[session.id],
-              TurnETACopy.line(for: snapshot, now: now) != nil else { return nil }
-        return snapshot
+    private var hasETA: Bool {
+        guard !isContextOnly, let snapshot = turnETA[session.id] else { return false }
+        return TurnETACopy.line(for: snapshot, now: now) != nil
+    }
+
+    /// Tell the panel which row the pointer is on, so it can open the
+    /// time-left card beside the usage card. Reported from here because only
+    /// the row knows where it is drawn.
+    private func reportHoverState() {
+        reportHover(isHovered && hasETA ? SessionHover(id: session.id, frame: rowFrame) : nil)
     }
 
     private var stateColor: Color {
@@ -561,6 +569,21 @@ private struct SessionRow: View {
     }
 
     var body: some View {
+        rowBody
+            .background(GeometryReader { proxy in
+                Color.clear.preference(key: SessionRowFrameKey.self,
+                                       value: proxy.frame(in: .named(NotchPanelSpace.name)))
+            })
+            .onPreferenceChange(SessionRowFrameKey.self) { frame in
+                rowFrame = frame
+                if isHovered { reportHoverState() }
+            }
+            .onChange(of: isHovered) { _, _ in reportHoverState() }
+            .onDisappear { if isHovered { reportHover(nil) } }
+    }
+
+    @ViewBuilder
+    private var rowBody: some View {
         if SessionFocus.target(for: session) != nil {
             Button {
                 if !SessionFocus.activate(session) { NSSound.beep() }
@@ -616,15 +639,12 @@ private struct SessionRow: View {
             .padding(.top, NotchLayout.sessionRowGap)
         }
         .padding(.leading, NotchDesign.px(14) * CGFloat(min(depth, 2)))
-        .overlay(alignment: .topTrailing) {
-            if isHovered, let eta {
-                TurnETAPill(snapshot: eta, now: now)
-                    .frame(width: NotchLayout.cardTextWidth * 0.55, alignment: .leading)
-                    .transition(.opacity)
-            }
-        }
-        .animation(NotchMotion.respectingReduceMotion(NotchMotion.crossfade, reduceMotion), value: isHovered)
     }
+}
+
+private struct SessionRowFrameKey: PreferenceKey {
+    static let defaultValue: CGRect = .zero
+    static func reduce(value: inout CGRect, nextValue: () -> CGRect) { value = nextValue() }
 }
 
 /// Main chats own their children, even when the parent itself has finished.
