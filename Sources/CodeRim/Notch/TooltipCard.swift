@@ -491,11 +491,20 @@ private struct SessionRow: View {
     @Environment(\.notchAccentColor) private var accentColor
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
+    @Environment(\.notchTurnETA) private var turnETA
     @State private var isHovered = false
     @AppStorage(AppPreferences.notchShowSessionDurationKey)
     private var showDuration = AppPreferences.defaultNotchShowSessionDuration
     @AppStorage(AppPreferences.notchShowSessionTokensKey)
     private var showTokens = AppPreferences.defaultNotchShowSessionTokens
+
+    /// The estimate for this session, only when the row is a real session
+    /// (not a parent shown for context) and has something to say.
+    private var eta: TurnETATracker.Snapshot? {
+        guard !isContextOnly, let snapshot = turnETA[session.id],
+              TurnETACopy.line(for: snapshot, now: now) != nil else { return nil }
+        return snapshot
+    }
 
     private var stateColor: Color {
         switch session.state {
@@ -580,6 +589,7 @@ private struct SessionRow: View {
             .accessibilityIdentifier("notch.session.\(session.id)")
         } else {
             content
+                .onHover { isHovered = $0 }
                 .help(session.locationDescription ?? "")
                 .accessibilityElement(children: .combine)
                 .accessibilityValue(session.locationDescription ?? "")
@@ -606,6 +616,14 @@ private struct SessionRow: View {
             .padding(.top, NotchLayout.sessionRowGap)
         }
         .padding(.leading, NotchDesign.px(14) * CGFloat(min(depth, 2)))
+        .overlay(alignment: .topTrailing) {
+            if isHovered, let eta {
+                TurnETAPill(snapshot: eta, now: now)
+                    .frame(width: NotchLayout.cardTextWidth * 0.55, alignment: .leading)
+                    .transition(.opacity)
+            }
+        }
+        .animation(NotchMotion.respectingReduceMotion(NotchMotion.crossfade, reduceMotion), value: isHovered)
     }
 }
 

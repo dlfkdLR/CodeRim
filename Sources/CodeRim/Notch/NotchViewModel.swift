@@ -51,6 +51,9 @@ final class NotchViewModel: ObservableObject {
     /// ring per provider, so nothing in the notch looks like a ring without
     /// being one.
     @Published var sessions: [String: [AgentSession]] = [:]
+    /// The time-left estimate for each working session, keyed by session id.
+    @Published var turnETA: [String: TurnETATracker.Snapshot] = [:]
+
     /// A presentation preference only: retain raw samples for state transitions.
     @Published var showUnknownSessions: Bool
     @Published var sessionTokenTotals: [String: [String: Int64]] = [:]
