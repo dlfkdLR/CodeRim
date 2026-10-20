@@ -99,6 +99,10 @@ All notable changes to CodeRim are documented here. Entries predating 2.1.0 reta
 
 ## [Unreleased]
 
+### Fixed
+
+- Codex account actions no longer fail with "A verified Codex installation could not be used" after the Codex desktop app moved its bundled CLI into a nested `codex-cli/CodexCLI.app` (Codex 0.163). Both the old and the new layout are recognised, and when the app runs the same binary as both `app-server` and `exec-server`, the app-server is the one picked.
+
 ## [2.0.13] - 2026-09-17
 
 ### Added

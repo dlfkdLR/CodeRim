@@ -123,7 +123,7 @@ final class LocalCodexAccountRuntime: CodexAccountRuntime {
 
     func openCodex() async throws {
         let url = try applicationURL()
-        let session = CodexDesktopSession(bundle: url, executable: url.appendingPathComponent("Contents/Resources/codex"))
+        let session = CodexDesktopSession(bundle: url, executable: CodexDesktopSession.bundledExecutable(in: url))
         try await Task.detached { try session.verifySignature() }.value
         _ = try await NSWorkspace.shared.openApplication(at: url, configuration: .init())
     }

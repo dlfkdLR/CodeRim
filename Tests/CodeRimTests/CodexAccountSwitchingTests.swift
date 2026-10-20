@@ -534,7 +534,7 @@ final class CodexAccountSwitchingTests: XCTestCase {
             let session = try await CodexDesktopSession.running()
             XCTAssertTrue(["/Applications/Codex.app", "/Applications/ChatGPT.app"].contains(session.bundle.path),
                           "The detected desktop must be an allowed application bundle.")
-            XCTAssertTrue(session.executable == session.bundle.appendingPathComponent("Contents/Resources/codex"),
+            XCTAssertTrue(session.executable == CodexDesktopSession.bundledExecutable(in: session.bundle),
                           "The detected executable must be the pinned desktop app-server.")
             try await LocalCodexAccountRuntime().checkPolicy(for: nil)
             let inspector = SystemCodexProcessInspector()
