@@ -6,14 +6,19 @@ struct GeneralSettingsView: View {
     @AppStorage("numberStyle") private var numberStyle = TokenNumberStyle.compact.rawValue
     @AppStorage("showCachedInput") private var showCachedInput = true
     @AppStorage("showLastUpdated") private var showLastUpdated = true
-    @StateObject private var launchAtLogin = LaunchAtLoginService()
+    @StateObject private var launchAtLogin: LaunchAtLoginService
     @State private var automaticallyChecksForUpdates = true
+
+    init(launchAtLogin: LaunchAtLoginService = .shared) {
+        _launchAtLogin = StateObject(wrappedValue: launchAtLogin)
+    }
 
     var body: some View {
         SettingsForm {
             SettingsSection(title: "Startup") {
                 SettingsToggleRow(
                     "Launch at Login",
+                    isEnabled: launchAtLogin.canSetEnabled,
                     get: { launchAtLogin.isEnabled },
                     set: { launchAtLogin.setEnabled($0) }
                 )
@@ -50,6 +55,8 @@ struct GeneralSettingsView: View {
             }
             SettingsNote("Checks the signed update feed once per day. Token usage data is never sent.")
 
+            MobileSettingsSection()
+
             SettingsSection(title: "Calendar") {
                 SettingsPickerRow(title: "Week starts on", selection: $weekStart) {
                     Text("Monday").tag(WeekStart.monday.rawValue)
@@ -66,6 +73,9 @@ struct GeneralSettingsView: View {
                 SettingsToggleRow("Show last updated", isOn: $showLastUpdated)
             }
             SettingsNote("Applies to the Usage pane and the notch's tooltip.")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            launchAtLogin.refresh()
         }
         .onAppear {
             launchAtLogin.refresh()

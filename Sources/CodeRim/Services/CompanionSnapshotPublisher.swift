@@ -108,6 +108,7 @@ final class CompanionSnapshotPublisher {
             }
         }
         let snapshot = CompanionSnapshot(generatedAt: now, providers: providers)
+        MobileConnectionStore.shared.receive(snapshot)
         cliWriter.submit(snapshot)
         if !CompanionSnapshotFile.usesLocalFile { widgetWriter.submit(snapshot) }
     }
@@ -209,7 +210,7 @@ final class CompanionSnapshotPublisher {
                 cachedInputTokens: value.cachedInputTokens, outputTokens: value.outputTokens)
         }
         return CompanionLocalUsage(state: state, updatedAt: store.lastSourceRefreshAt,
-            periodsAsOf: calculatedAt, totals: totals)
+            periodsAsOf: calculatedAt, totals: totals, historyComplete: !snapshot.historyIncomplete)
     }
 
     static func limitUsage(_ snapshot: AccountLimitsSnapshot?, state: CompanionState,

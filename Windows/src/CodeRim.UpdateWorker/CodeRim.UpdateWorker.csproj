@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AssemblyName>CodeRim.UpdateWorker</AssemblyName>
+    <PublishSingleFile Condition="'$(RuntimeIdentifier)' != ''">true</PublishSingleFile>
+    <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <PublishTrimmed>false</PublishTrimmed>
+    <Win32Resource Condition="'$(CodeRimUpdateWin32Resource)' != ''">$(CodeRimUpdateWin32Resource)</Win32Resource>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../CodeRim.Core/CodeRim.Core.csproj" />
+    <AssemblyMetadata Include="CodeRimPublisherSpkiSha256" Value="$(CodeRimPublisherSpkiSha256)" />
+  </ItemGroup>
+  <Target Name="ValidateUpdateSigningInputs" BeforeTargets="CoreCompile">
+    <Error Condition="'$(CodeRimPublisherSpkiSha256)' != '' and !$([System.Text.RegularExpressions.Regex]::IsMatch('$(CodeRimPublisherSpkiSha256)', '^[0-9a-f]{64}$'))" Text="CodeRimPublisherSpkiSha256 must be an exact lowercase SHA-256 SPKI pin." />
+    <Error Condition="'$(CodeRimPublisherSpkiSha256)' != '' and ('$(CodeRimUpdateWin32Resource)' == '' or !Exists('$(CodeRimUpdateWin32Resource)'))" Text="A pinned worker requires the signed-payload RT_RCDATA resource input." />
+    <Error Condition="'$(CodeRimUpdateWin32Resource)' != '' and '$(CodeRimPublisherSpkiSha256)' == ''" Text="A release manifest requires an explicitly configured publisher pin." />
+  </Target>
+</Project>

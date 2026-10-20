@@ -1,6 +1,6 @@
-[Docs](../README.md) · [All providers](../providers.md)
-
 # Claude Code
+
+**English** · [한국어](../ko/providers/claude.md)
 
 Local token history and status-line usage limits.
 
@@ -18,4 +18,4 @@ Hover the provider in the notch, or read the latest app snapshot with `coderim u
 
 Limits update when Claude Code sends a status-line update. A last-known reading can require another completed response. See the [Claude integration reference](../../Documentation/CLAUDE.md) and [saved accounts](../accounts.md).
 
-[Connection troubleshooting](../troubleshooting.md) · [Privacy](../privacy.md)
+[Connection troubleshooting](../troubleshooting.md) · [Privacy](../privacy.md) · [Docs](../README.md) · [All providers](../providers.md)

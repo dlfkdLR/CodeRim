@@ -148,7 +148,7 @@ private struct ProviderSettingsContent: View {
                     }
                 }
                 if claude.detectedAccount == nil {
-                    SettingsNote("Sign in with the `claude` command in your terminal, then choose Add Account.")
+                    SettingsNote("Choose Add Account to sign in to Claude in your browser.")
                 }
                 if claude.isRefreshing {
                     SettingsInfoRow(text: "Checking Claude…", systemImage: "hourglass", tint: .secondary)

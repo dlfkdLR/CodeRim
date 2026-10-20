@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 
 /// Gemini usage as Antigravity sees it, read from Antigravity's own local
@@ -27,7 +28,12 @@ final class AntigravityNotchProvider: NotchProvider {
     }
 
     var signInRoute: SignInRoute {
-        .openApp(bundleID: "com.google.antigravity", name: "Antigravity")
+        // Gemini's allowances come from the Antigravity app's own session. Open it when it is
+        // installed; otherwise send the user to get it, since there is nothing to read without it.
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.google.antigravity") != nil
+            ? .openApp(bundleID: "com.google.antigravity", name: "Antigravity")
+            : .guided(.init(name: "Antigravity", action: .browser(URL(string: "https://antigravity.google")!),
+                note: "Install Antigravity and sign in with your Google account. CodeRim connects on its own."))
     }
 
     func fetchSnapshot() async throws -> ProviderSnapshot {

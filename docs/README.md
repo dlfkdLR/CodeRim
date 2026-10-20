@@ -1,13 +1,20 @@
-# CodeRim docs
+# CodeRim documentation
 
-- [Installation](installation.md) — download, Homebrew, first launch, and CodexMeter migration.
-- [Get started](getting-started.md) — add providers, read rings, and configure the notch.
-- [All 70 providers](providers.md) — complete catalogue with a setup page for every provider.
-- [Token history](usage.md) — local totals, account scope, and cost estimates.
-- [Saved accounts](accounts.md) — Codex and Claude sign-in and switching.
-- [CLI](cli.md) — installation, commands, and JSON output.
-- [macOS widgets](widgets.md) — layouts, provider choices, and refresh behavior.
-- [Privacy](privacy.md) — local data, credentials, and provider requests.
-- [Troubleshooting](troubleshooting.md) — missing providers, stale readings, and installation issues.
+**English** · [한국어](ko/README.md)
 
-[CodeRim](../README.md) · [Changelog](../CHANGELOG.md) · [Security](../SECURITY.md)
+English is the default documentation language. Use the language links on each guide to switch to Korean.
+
+- [Installation](installation.md) — macOS DMG/Homebrew and Windows MSI.
+- [Get started](getting-started.md) — providers, rings, and notch settings.
+- [All 70 providers](providers.md) — every provider ID and connection guide.
+- [Usage and token history](usage.md) — This Mac, ChatGPT account history, charts, and estimates.
+- [Saved accounts](accounts.md) — Codex and Claude sign-in and manual switching.
+- [CLI](cli.md) — installation, commands, JSON, and snapshot freshness.
+- [macOS widgets](widgets.md) — layouts, provider choices, and refresh scheduling.
+- [Windows](windows.md) — installation, updates, and capability limits.
+- [iPhone companion](iphone.md) — source setup, relay, and Live Activity prerequisites.
+- [Privacy](privacy.md) — local data, credentials, provider requests, and optional sharing.
+- [Troubleshooting](troubleshooting.md) — installation, missing readings, and data recovery.
+- [Developer references](../Documentation/README.md) — architecture, accounting, releases, and dated evidence.
+
+[CodeRim](../README.md) · [Changelog](../CHANGELOG.md) · [Contributing](../CONTRIBUTING.md) · [Security](../SECURITY.md)

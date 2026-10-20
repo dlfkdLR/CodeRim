@@ -1,5 +1,88 @@
 # Changelog
 
+## 2.1.20 — Accurate usage across accounts, reliable iPhone updates
+
+- Count the certain part of inconsistent token logs and mark the period partial, instead of failing every refresh (macOS) or silently dropping usage (Windows); judge current periods by their own sessions and flag incomplete older history separately.
+- Never show one account's answer, remembered reading, rate-limit wait or alert state for another account; read providers side by side; skip unreadable browsers; follow `CLAUDE_CONFIG_DIR` for live sessions.
+- Relay: order iPhone answers by view revision and a stored content sequence, keep accounts' Island updates independent, free places held by expired computers, and stop leaking QR waiters. Windows: bound relay answers end to end.
+- macOS catches up with the Windows 2.1.16–2.1.19 provider sign-in and settings work. See the [release notes](Documentation/ReleaseNotes/2.1.20.md).
+
+## 2.1.15 — Provider sign-in on add, iPhone QR pairing, and notch fixes
+
+- Adding a provider now connects it in the same step on macOS and Windows: it reads an existing sign-in, otherwise opens the provider's own sign-in (a terminal login command, the website's login page, or the Antigravity app for Gemini) and watches until the account appears. Providers that need a key open their settings instead of leaving a second "Set up" step. Progress shows in the Add sheet on macOS and on the provider page on Windows.
+- iPhone: connect a computer by scanning the QR code it shows, with no Apple sign-in. The first scan creates an anonymous account kept only in the iPhone Keychain, and the Camera app can open the code too.
+- iPhone: the Dynamic Island starts on its own when a task begins on a connected computer (push-to-start) and ends two minutes after the work stops.
+- Relay: move to a Cloudflare Worker with one SQLite Durable Object, deployable only on the free plan, which cannot bill. Computers send changes plus a heartbeat every few minutes, and heartbeats with unchanged content write nothing. Near the daily allowance, the relay refuses new connections, tells connected people in the app, the Island and desktop settings, and asks computers to send less often.
+- Stop a second, SwiftUI-owned "CodeRim Settings" window from reopening on its own beside the real Settings window; it also kept redrawing the hidden Usage chart, which was most of CodeRim's idle CPU.
+- Stop the notch's cursor poll, mouse monitors and layout subscriptions while it is turned off, and keep turning it back on from stacking another set.
+- Name Claude Code sessions in the notch by their conversation title (`/rename` or Claude's generated title) on macOS and Windows, as Codex sessions are.
+- Clicking a Claude Code session brings its own tab forward: Terminal and iTerm2 by tty, Ghostty 1.3+ by working directory and title; other apps are raised. The notch no longer relies on cooperative activation, which macOS ignored from the background.
+- Add Account for Claude runs `claude auth login` in the browser when nothing is signed in yet, on macOS and Windows, instead of repeating the sign-in hint.
+- After a Claude account switch, say when Claude Desktop is still signed in to another account (it keeps its own sign-in) and offer to open it on macOS.
+- Windows: the notch's provider card glides and resizes between providers with only its contents crossfading, matching macOS; the settings control no longer shows a click-triggered focus ring larger than its rail; cost estimates turn back on for settings saved by 2026-09-19 to 09-23 builds.
+- Windows: keep a corrupted `project-key.bin` from blocking launch, reject accent colours the ring cannot draw, find npm-installed Codex, escape typographic quotes in PowerShell helper paths, send the real app version, probe live Claude transcripts instead of walking every transcript every 2 seconds, and use literal paths in the install scripts.
+- iPhone: show quota rings for `partial` readings and "Limits turned off" for `disabled`; Windows now sends those states instead of "unavailable", and the relay ages `partial` readings into `stale` like `ready` ones.
+- See the [release notes](Documentation/ReleaseNotes/2.1.15.md).
+
+## 2.1.13 — Usage, analytics, companion, and account reliability
+
+- Restore Codex account-limit reads for current ChatGPT and Codex app bundles by discovering the nested signed Codex executable and caching validation only while its filesystem identity remains unchanged.
+- Add the native Usage analytics experience with local period, model, project, session, image-count, and cost-estimate drill-downs while keeping local and account totals separate.
+- Improve live session status, token collection fairness, reset-ring animation, account history, launch-at-login handling, and legacy CodexMeter name/icon migration.
+- Add the optional iPhone Live Activity companion source and relay, including privacy-bounded snapshots and provider selection.
+- Bring the Windows preview forward with saved-account operation locking, current official app-server RPC handling, safer snapshot replacement, and optional iPhone relay settings.
+- Publish one 2.1.13 release line for the universal macOS app and Windows x64/ARM64 installers. See [release notes](Documentation/ReleaseNotes/2.1.13.md).
+
+## 2.1.10 — Windows motion and interaction
+
+- Add four-edge notch spring transitions, staggered controls, reading/reset interpolation and finite refresh feedback.
+- Match working/waiting ring indicators, tooltip movement, toggle/hover transitions and exact token-total interpolation to the macOS interaction design.
+- Honor Reduce Motion, pause hidden render clocks, preserve numeric transitions across repeated refresh events, and update Settings previews without replacing active controls.
+- Reduce excessive Usage overview spacing on both platforms so the standard viewport includes the analytic links.
+- Preserve MSI installation and authenticated automatic updates; macOS distribution remains 2.1.8. See [release notes](Documentation/ReleaseNotes/2.1.10.md).
+
+## 2.1.9 — Windows installer and automatic updates
+
+- Ship per-user x64/ARM64 MSI installers with Start menu, uninstall and CLI PATH registration.
+- Automatically download updates authenticated by the existing Ed25519 release key; verify the worker and install on confirmed restart with Windows Installer rollback.
+- Preserve accounts, settings, usage history and the separate legacy Authenticode-managed update channel.
+- Keep macOS distribution on 2.1.8. See [release notes](Documentation/ReleaseNotes/2.1.9.md) for installation details and the publisher-certificate limitation.
+
+## 2.1.8 — Browser sessions and native reliability
+
+- Expand Windows provider connections and align notch controls, account menus and usage navigation with macOS.
+- Preserve credential rotation, isolate account retry state and validate current browser storage without reviving obsolete sessions.
+- Add publisher-verified Windows installation/update/recovery code; public unsigned packages continue to use manual updates.
+- Fix macOS Safari snapshot reads and reject credential-bearing authentication redirects.
+- See [release notes](Documentation/ReleaseNotes/2.1.8.md) for native test evidence and remaining live-account/display limits.
+
+## 2.1.7 — Settings parity and session history
+
+- Align Windows Settings categories, themes, account/usage navigation, diagnostics and session controls with macOS.
+- Preserve active-log totals, deduplicate image metadata and repair inherited-session images without changing token history.
+- Reject late Cursor readings after account changes; preserve focus, manual-refresh behavior and blocked-session attention.
+- See [release notes](Documentation/ReleaseNotes/2.1.7.md).
+
+## 2.1.5 — Account and usage reliability; Windows preview
+
+- Fix external account invalidation, growing-log progress, optional cache-write accounting, and streaming HTTP limits.
+- Publish the Windows x64/ARM64 implementation preview with local usage history, provider connections, tray/notch, CLI, and installer fixes.
+- Preserve OpenRouter activity history and partial/stale readings; disclose remaining Windows parity work.
+- See [release notes](Documentation/ReleaseNotes/2.1.5.md).
+
+## 2.1.3 — Installed app identity
+
+- Finish the legacy CodexMeter filename migration on launch for manual installations, with a safe restart and no overwrites.
+- Preserve Homebrew-managed paths for the cask migration and repair existing CLI links after a rename.
+- Use a distinct Open Rim icon resource and refresh this app's macOS registration without changing its data or notification permissions.
+
+## 2.1.2 — Provider artwork and activity reliability
+
+- Give all catalog providers their matching artwork in the picker, settings and notch, including cached readings.
+- Preserve ring order during manual and automatic refreshes without briefly removing a visible ring.
+- Track long Codex turns across large rollout files and incrementally consume completed records, with reset detection for replaced or rewritten files.
+- Split installation, provider and companion documentation into focused guides and keep the README status badges concise.
+
 ## 2.1.1 — Open Rim
 
 - Adopt the Open Rim app icon and adaptive menu-bar mark.

@@ -27,7 +27,8 @@ final class OllamaNotchProvider: NotchProvider {
     }
 
     var signInRoute: SignInRoute {
-        .guidance("Export OLLAMA_API_KEY in your shell — the notch reads it.")
+        .guided(.init(name: "Ollama", action: .browser(URL(string: "https://ollama.com/settings/keys")!),
+            note: "Create a key on ollama.com, then export OLLAMA_API_KEY in your shell. CodeRim detects it."))
     }
 
     func account() -> ProviderAccount? {
@@ -72,11 +73,12 @@ enum OllamaCredentials {
     static let keychainService = "dev.codexmeter.ollama-api-key"
     static let keychainAccount = "codexmeter"
 
-    static func load() -> String? {
-        if let env = ProcessInfo.processInfo.environment["OLLAMA_API_KEY"], !env.isEmpty {
+    static func load(environment: [String: String] = ProcessInfo.processInfo.environment,
+                     service: String = keychainService) -> String? {
+        if let env = environment["OLLAMA_API_KEY"], !env.isEmpty {
             return env
         }
-        return NotchKeychain.read(service: keychainService, account: keychainAccount)
+        return NotchKeychain.read(service: service, account: keychainAccount)
     }
 
     static var isPresent: Bool { load() != nil }
@@ -88,14 +90,14 @@ enum OllamaCredentials {
     }
 
     @discardableResult
-    static func store(_ key: String) -> Bool {
+    static func store(_ key: String, service: String = keychainService) -> Bool {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return delete() }
-        return NotchKeychain.store(trimmed, service: keychainService, account: keychainAccount)
+        guard !trimmed.isEmpty else { return delete(service: service) }
+        return NotchKeychain.store(trimmed, service: service, account: keychainAccount)
     }
 
     @discardableResult
-    static func delete() -> Bool {
-        NotchKeychain.delete(service: keychainService, account: keychainAccount)
+    static func delete(service: String = keychainService) -> Bool {
+        NotchKeychain.delete(service: service, account: keychainAccount)
     }
 }

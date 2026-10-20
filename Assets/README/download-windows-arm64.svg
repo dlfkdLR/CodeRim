@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="212" height="54" viewBox="0 0 212 54" role="img" aria-label="Download for Windows on ARM">
+<rect x="1" y="1" width="210" height="52" rx="11" fill="none" stroke="#8b8f97" stroke-width="2"/>
+<path d="M28 15v17m-6-6 6 6 6-6m-15 8v5h18v-5" fill="none" stroke="#8b8f97" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="51" y="32" fill="#8b8f97" font-family="Arial,Helvetica,sans-serif" font-size="16" font-weight="600">Windows on ARM</text>
+</svg>

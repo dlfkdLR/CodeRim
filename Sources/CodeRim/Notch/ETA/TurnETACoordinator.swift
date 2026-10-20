@@ -53,6 +53,11 @@ struct TurnETACoordinator {
                 case .busy:    phase = compacting.contains(key) || session.isCompacting ? .compacting : .working
                 case .waiting: phase = .waiting
                 case .idle:    phase = .finished
+                case .unavailable:
+                    // Live status is not known, so there is no clock to run and
+                    // nothing was watched to its end.
+                    trackers.removeValue(forKey: key)
+                    continue
                 }
 
                 if phase == .finished {

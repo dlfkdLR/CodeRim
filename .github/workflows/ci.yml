@@ -12,15 +12,41 @@ permissions:
 jobs:
   build-and-test:
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1f # v7
       - name: Swift version
         run: swift --version
+      - name: Prepare pinned dependency fixes
+        run: python3 Scripts/prepare_swift_dependencies.py
+      - name: Dependency patch regression tests
+        run: python3 Tests/Scripts/swift_dependency_patch_tests.py
       - name: Unit and integration tests
         env:
           CODERIM_ACCOUNT_CAPTURE_DIR: ${{ github.workspace }}/.impeccable/review/accounts
-        run: swift test
+        run: python3 Scripts/prepare_swift_dependencies.py --run-swift test -Xswiftc -warnings-as-errors
+      - name: Provider matrices (one test per provider and situation)
+        run: |
+          bundle="$(find .build -type d \( -name CodeRimPackageTests.xctest -o -name CodeRimTests.xctest \) -prune -print 2>/dev/null | head -1)"
+          test -n "$bundle"
+          # swift test lists methods statically; these suites build one case per provider and situation.
+          xcrun xctest -XCTest CodeRimTests.ProviderFetchMatrixTests "$bundle"
+          xcrun xctest -XCTest CodeRimTests.ProviderAddFlowMatrixTests "$bundle"
+      - name: Node for the mobile relay
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+      - name: Mobile relay tests
+        working-directory: MobileRelay
+        run: node --test test/*.test.mjs
+      - name: iPhone app unit tests (simulator, ad-hoc signed)
+        run: |
+          device="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for r,l in d.items() if "iOS" in r for x in l if x["name"].startswith("iPhone")))')"
+          xcodebuild test -project iOS/CodeRimMobile.xcodeproj -scheme CodeRimMobile \
+            -destination "platform=iOS Simulator,id=${device}" -only-testing:CodeRimMobileTests \
+            -derivedDataPath .build/ios CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= | tail -40
+          test "${PIPESTATUS[0]}" -eq 0
+        shell: bash
       - name: Upload synthetic account layout captures on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -32,7 +58,8 @@ jobs:
           retention-days: 7
       - name: Companion CLI integration tests
         run: |
-          python3 Tests/Scripts/companion_cli_tests.py .build/debug/CodeRimCLI
+          product_directory=$(python3 Scripts/prepare_swift_dependencies.py --show-bin-path -c debug)
+          python3 Tests/Scripts/companion_cli_tests.py "${product_directory}/CodeRimCLI"
           python3 Tests/Scripts/rebrand_cli_tests.py
       - name: Validate release scripts
         run: |
@@ -42,11 +69,12 @@ jobs:
           done
       - name: Universal release build
         env:
-          CODERIM_SWIFT_SCRATCH_PATH: ${{ github.workspace }}/.build
+          CODERIM_SWIFT_SCRATCH_PATH: ${{ github.workspace }}/.build/coderim-build
         run: Scripts/build_release.sh
       - name: Verify architectures
         run: |
-          architectures=$(lipo -archs .build/apple/Products/Release/CodeRim)
+          product_directory=$(python3 Scripts/prepare_swift_dependencies.py --show-bin-path -c release --arch arm64 --arch x86_64)
+          architectures=$(lipo -archs "${product_directory}/CodeRim")
           echo "$architectures"
           grep -q arm64 <<< "$architectures"
           grep -q x86_64 <<< "$architectures"

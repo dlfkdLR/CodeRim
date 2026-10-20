@@ -32,6 +32,10 @@ enum NotchMotion {
     /// new value reads as a glitch, one that sweeps reads as a measurement.
     static let reading = Animation.spring(response: 0.9, dampingFraction: 0.9)
 
+    /// Usage clearing: draw the trailing endpoint back to the start without
+    /// spring overshoot, then settle gently into an empty track.
+    static let readingReset = Animation.easeInOut(duration: 0.85)
+
     /// The settings arc being taken back into the notch.
     ///
     /// Quicker than `unfold` and with no delay, which is the whole point: on

@@ -13,6 +13,8 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         case busy
         case waiting
         case idle
+        /// The catalog knows the task, but no live runtime evidence is available.
+        case unavailable
     }
 
     struct ParentThread: Equatable, Sendable {
@@ -50,6 +52,18 @@ struct AgentSession: Identifiable, Equatable, Sendable {
     let transcriptID: String?
     /// The agent says it is summarising its own context right now.
     let isCompacting: Bool
+    /// Stable host identity supplied by the collector; nil means this machine.
+    let remoteHostID: String?
+    /// Transcript identity for providers whose UI row is keyed by a process.
+    let usageSessionID: String?
+    /// Where a process-based session runs; lets a terminal find its tab.
+    let workingDirectory: String?
+    var isRemote: Bool { remoteHostID != nil }
+    var locationDescription: String? {
+        guard isRemote else { return nil }
+        return state == .unavailable
+            ? "Remote task · live status unavailable" : "Remote task"
+    }
 
     /// Navigation metadata is optional for providers without a destination.
     init(
@@ -62,6 +76,9 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         processID: pid_t? = nil,
         codexThreadID: String? = nil,
         parentThread: ParentThread? = nil,
+        remoteHostID: String? = nil,
+        usageSessionID: String? = nil,
+        workingDirectory: String? = nil,
         projectKey: String? = nil,
         followUps: Int = 0,
         transcriptID: String? = nil,
@@ -76,9 +93,24 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         self.processID = processID
         self.codexThreadID = codexThreadID
         self.parentThread = parentThread
+        self.usageSessionID = usageSessionID
+        self.workingDirectory = workingDirectory
+        let host = remoteHostID?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.remoteHostID = host == nil || host == "" || host == "local" ? nil : host
         self.projectKey = projectKey
         self.followUps = followUps
         self.transcriptID = transcriptID
         self.isCompacting = isCompacting
+    }
+}
+
+extension AgentSession {
+    /// The same session under another display name.
+    func renamed(_ name: String) -> AgentSession {
+        AgentSession(id: id, name: name, detail: detail, state: state, waitingFor: waitingFor, since: since,
+                     processID: processID, codexThreadID: codexThreadID, parentThread: parentThread,
+                     remoteHostID: remoteHostID, usageSessionID: usageSessionID,
+                     workingDirectory: workingDirectory, projectKey: projectKey, followUps: followUps,
+                     transcriptID: transcriptID, isCompacting: isCompacting)
     }
 }

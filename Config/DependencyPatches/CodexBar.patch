@@ -1,0 +1,2347 @@
+--- a/Sources/CodexBarCore/Providers/Cursor/CursorLocalCSVReader.swift
++++ b/Sources/CodexBarCore/Providers/Cursor/CursorLocalCSVReader.swift
+@@ -91,7 +91,7 @@
+         for row in rows {
+             let key = CostUsageLocalDay.key(from: row.date, calendar: calendar)
+             let existing = byDay[key]
+-            var e = existing ?? CostUsageDailyReport.Entry(
++            let e = existing ?? CostUsageDailyReport.Entry(
+                 date: key,
+                 inputTokens: 0,
+                 outputTokens: 0,
+--- a/Sources/CodexBarCore/Vendored/CostUsage/CostUsageClaudeJSON.swift
++++ b/Sources/CodexBarCore/Vendored/CostUsage/CostUsageClaudeJSON.swift
+@@ -143,7 +143,7 @@
+         #if canImport(Darwin)
+         if let decoded {
+             guard CFGetTypeID(decoded) == Self.dictionaryID else { return nil }
+-            return ClaudeJSONObject(decoded: unsafeBitCast(decoded, to: NSDictionary.self))
++            return ClaudeJSONObject(decoded: unsafeDowncast(decoded, to: NSDictionary.self))
+         }
+         #endif
+         return ClaudeJSONObject(self.value)
+@@ -154,7 +154,7 @@
+         if let decoded {
+             guard CFGetTypeID(decoded) == Self.arrayID else { return false }
+             return withExtendedLifetime(decoded) {
+-                let array = unsafeBitCast(decoded, to: CFArray.self)
++                let array = unsafeDowncast(decoded, to: CFArray.self)
+                 for index in 0..<CFArrayGetCount(array) {
+                     guard let pointer = CFArrayGetValueAtIndex(array, index),
+                           let dictionary = Self(decoded: ClaudeJSONObject.object(pointer)).dictionary
+--- a/Sources/CQuickJS/dtoa.c
++++ b/Sources/CQuickJS/dtoa.c
+@@ -96,7 +96,7 @@
+ 
+     for(i = 0; i < n; i++) {
+         t = (dlimb_t)taba[i] * (dlimb_t)b + l;
+-        tabr[i] = t;
++        tabr[i] = (limb_t)(t);
+         l = t >> LIMB_BITS;
+     }
+     return l;
+@@ -108,7 +108,7 @@
+     limb_t a0, a1;
+     a1 = -d - 1;
+     a0 = -1;
+-    return (((dlimb_t)a1 << LIMB_BITS) | a0) / d;
++    return (limb_t)((((dlimb_t)a1 << LIMB_BITS) | a0) / d);
+ }
+ 
+ /* return the quotient and the remainder in '*pr'of 'a1*2^LIMB_BITS+a0
+@@ -140,7 +140,7 @@
+     dlimb_t a1;
+     for(i = n - 1; i >= 0; i--) {
+         a1 = ((dlimb_t)r << LIMB_BITS) | taba[i];
+-        tabr[i] = a1 / b;
++        tabr[i] = (limb_t)(a1 / b);
+         r = a1 % b;
+     }
+     return r;
+@@ -280,7 +280,7 @@
+     } else
+ #endif
+     {
+-        r = pow_ui(a, b);
++        r = (uint32_t)(pow_ui(a, b));
+         shift = clz32(r);
+         r <<= shift;
+         r_inv = udiv1norm_init(r);
+@@ -421,7 +421,7 @@
+     r->tab[0] = m;
+     r->len = 1;
+ #else
+-    r->tab[0] = m;
++    r->tab[0] = (limb_t)(m);
+     r->tab[1] = m >> LIMB_BITS;
+     if (r->tab[1] == 0)
+         r->len = 1;
+@@ -482,7 +482,7 @@
+         return a / radix_bits;
+     } else {
+         mult = mul_log2_radix_table[radix - 2];
+-        return ((int64_t)a * mult) >> MUL_LOG2_RADIX_BASE_LOG2;
++        return (int)(((int64_t)a * mult) >> MUL_LOG2_RADIX_BASE_LOG2);
+     }
+ }
+ 
+@@ -531,7 +531,7 @@
+ static void u32toa_len(char *buf, uint32_t n, size_t len)
+ {
+     int digit, i;
+-    for(i = len - 1; i >= 0; i--) {
++    for(i = (int)(len - 1); i >= 0; i--) {
+         digit = n % 10;
+         n = n / 10;
+         buf[i] = digit + '0';
+@@ -615,7 +615,7 @@
+ size_t u64toa(char *buf, uint64_t n)
+ {
+     if (n < 0x100000000) {
+-        return u32toa(buf, n);
++        return u32toa(buf, (uint32_t)(n));
+     } else {
+         uint64_t n1;
+         char *q = buf;
+@@ -624,7 +624,7 @@
+         n1 = n / 1000000000;
+         n %= 1000000000;
+         if (n1 >= 0x100000000) {
+-            n2 = n1 / 1000000000;
++            n2 = (uint32_t)(n1 / 1000000000);
+             n1 = n1 % 1000000000;
+             /* at most two digits */
+             if (n2 >= 10) {
+@@ -632,12 +632,12 @@
+                 n2 %= 10;
+             }
+             *q++ = n2 + '0';
+-            u32toa_len(q, n1, 9);
++            u32toa_len(q, (uint32_t)(n1), 9);
+             q += 9;
+         } else {
+-            q += u32toa(q, n1);
+-        }
+-        u32toa_len(q, n, 9);
++            q += u32toa(q, (uint32_t)(n1));
++        }
++        u32toa_len(q, (uint32_t)(n), 9);
+         q += 9;
+         return q - buf;
+     }
+@@ -904,7 +904,7 @@
+             while (f != 0) {
+                 n = min_int(f, d);
+                 if (n != n0) {
+-                    b = pow_ui(radix1, n);
++                    b = (limb_t)(pow_ui(radix1, n));
+                     n0 = n;
+                 }
+                 h = mp_mul1(a->tab, a->tab, a->len, b, 0);
+@@ -1313,7 +1313,7 @@
+     *q = '\0';
+     dtoa_free(mant_max);
+     dtoa_free(tmp1);
+-    return q - buf;
++    return (int)(q - buf);
+ }
+ 
+ static inline int to_digit(int c)
+@@ -1491,7 +1491,7 @@
+         }
+     }
+     if (limb_digit_count != 0) {
+-        mpb_mul1_base(tmp0, pow_ui(radix, limb_digit_count), cur_limb);
++        mpb_mul1_base(tmp0, (limb_t)(pow_ui(radix, limb_digit_count)), cur_limb);
+     }
+     if (digit_count == 0) {
+         is_zero = true;
+--- a/Sources/CQuickJS/include/cutils.h
++++ b/Sources/CQuickJS/include/cutils.h
+@@ -705,7 +705,7 @@
+ static inline char *js__pstrcat(char *buf, int buf_size, const char *s)
+ {
+     int len;
+-    len = strlen(buf);
++    len = (int)(strlen(buf));
+     if (len < buf_size)
+         js__pstrcpy(buf + len, buf_size - len, s);
+     return buf;
+--- a/Sources/CQuickJS/libregexp.c
++++ b/Sources/CQuickJS/libregexp.c
+@@ -355,7 +355,7 @@
+ {
+     int pos;
+     dbuf_putc(&s->byte_code, op);
+-    pos = s->byte_code.size;
++    pos = (int)(s->byte_code.size);
+     dbuf_put_u32(&s->byte_code, val);
+     return pos;
+ }
+@@ -364,7 +364,7 @@
+ {
+     int pos;
+     dbuf_putc(&s->byte_code, op);
+-    pos = s->byte_code.size;
++    pos = (int)(s->byte_code.size);
+     dbuf_put_u32(&s->byte_code, val - (pos + 4));
+     return pos;
+ }
+@@ -426,7 +426,7 @@
+         p++;
+     }
+     *pp = p;
+-    return v;
++    return (int)(v);
+ }
+ 
+ static int re_parse_expect(REParseState *s, const uint8_t **pp, int c)
+@@ -1206,7 +1206,7 @@
+         break;
+     case '.':
+         p++;
+-        last_atom_start = s->byte_code.size;
++        last_atom_start = (int)(s->byte_code.size);
+         last_capture_count = s->capture_count;
+         if (is_backward_dir)
+             re_emit_op(s, REOP_prev);
+@@ -1244,7 +1244,7 @@
+         if (p[1] == '?') {
+             if (p[2] == ':') {
+                 p += 3;
+-                last_atom_start = s->byte_code.size;
++                last_atom_start = (int)(s->byte_code.size);
+                 last_capture_count = s->capture_count;
+                 s->buf_ptr = p;
+                 if (re_parse_disjunction(s, is_backward_dir))
+@@ -1268,7 +1268,7 @@
+                 /* Annex B allows lookahead to be used as an atom for
+                    the quantifiers */
+                 if (!s->is_unicode && !is_backward_lookahead)  {
+-                    last_atom_start = s->byte_code.size;
++                    last_atom_start = (int)(s->byte_code.size);
+                     last_capture_count = s->capture_count;
+                 }
+                 pos = re_emit_op_u32(s, REOP_lookahead + is_neg, 0);
+@@ -1282,7 +1282,7 @@
+                 /* jump after the 'match' after the lookahead is successful */
+                 if (dbuf_error(&s->byte_code))
+                     return -1;
+-                put_u32(s->byte_code.buf + pos, s->byte_code.size - (pos + 4));
++                put_u32(s->byte_code.buf + pos, (uint32_t)(s->byte_code.size - (pos + 4)));
+             } else if (p[2] == '<') {
+                 p += 3;
+                 if (re_parse_group_name(s->u.tmp_buf, sizeof(s->u.tmp_buf),
+@@ -1308,7 +1308,7 @@
+         parse_capture:
+             if (s->capture_count >= CAPTURE_COUNT_MAX)
+                 return re_parse_error(s, "too many captures");
+-            last_atom_start = s->byte_code.size;
++            last_atom_start = (int)(s->byte_code.size);
+             last_capture_count = s->capture_count;
+             capture_index = s->capture_count++;
+             re_emit_op_u8(s, REOP_save_start + is_backward_dir,
+@@ -1417,7 +1417,7 @@
+                     return re_parse_error(s, "back reference out of range in regular expression");
+                 }
+             emit_back_reference:
+-                last_atom_start = s->byte_code.size;
++                last_atom_start = (int)(s->byte_code.size);
+                 last_capture_count = s->capture_count;
+                 re_emit_op_u8(s, REOP_back_reference + is_backward_dir, c);
+             }
+@@ -1427,7 +1427,7 @@
+         }
+         break;
+     case '[':
+-        last_atom_start = s->byte_code.size;
++        last_atom_start = (int)(s->byte_code.size);
+         last_capture_count = s->capture_count;
+         if (is_backward_dir)
+             re_emit_op(s, REOP_prev);
+@@ -1447,7 +1447,7 @@
+         if ((int)c < 0)
+             return -1;
+     normal_char:
+-        last_atom_start = s->byte_code.size;
++        last_atom_start = (int)(s->byte_code.size);
+         last_capture_count = s->capture_count;
+         if (is_backward_dir)
+             re_emit_op(s, REOP_prev);
+@@ -1542,7 +1542,7 @@
+                     if (dbuf_error(&s->byte_code))
+                         goto out_of_memory;
+                     len = re_is_simple_quantifier(s->byte_code.buf + last_atom_start,
+-                                                 s->byte_code.size - last_atom_start);
++                                                 (int)(s->byte_code.size - last_atom_start));
+                     if (len > 0) {
+                         re_emit_op(s, REOP_match);
+ 
+@@ -1551,7 +1551,7 @@
+                         pos = last_atom_start;
+                         s->byte_code.buf[pos++] = REOP_simple_greedy_quant;
+                         put_u32(&s->byte_code.buf[pos],
+-                                s->byte_code.size - last_atom_start - 17);
++                                (uint32_t)(s->byte_code.size - last_atom_start - 17));
+                         pos += 4;
+                         put_u32(&s->byte_code.buf[pos], quant_min);
+                         pos += 4;
+@@ -1571,11 +1571,11 @@
+                then there is no match. We remove this test when we
+                are sure the atom always advances the position. */
+             add_zero_advance_check = re_need_check_advance(s->byte_code.buf + last_atom_start,
+-                                                           s->byte_code.size - last_atom_start);
++                                                           (int)(s->byte_code.size - last_atom_start));
+ 
+             {
+                 int len, pos;
+-                len = s->byte_code.size - last_atom_start;
++                len = (int)(s->byte_code.size - last_atom_start);
+                 if (quant_min == 0) {
+                     /* need to reset the capture in case the atom is
+                        not executed */
+@@ -1637,7 +1637,7 @@
+                         re_emit_op(s, REOP_drop);
+                     }
+                     if (quant_max == INT32_MAX) {
+-                        pos = s->byte_code.size;
++                        pos = (int)(s->byte_code.size);
+                         re_emit_op_u32(s, REOP_split_goto_first + greedy,
+                                        len + 5 + add_zero_advance_check * 2);
+                         if (add_zero_advance_check)
+@@ -1649,7 +1649,7 @@
+                         re_emit_goto(s, REOP_goto, pos);
+                     } else if (quant_max > quant_min) {
+                         re_emit_op_u32(s, REOP_push_i32, quant_max - quant_min);
+-                        pos = s->byte_code.size;
++                        pos = (int)(s->byte_code.size);
+                         re_emit_op_u32(s, REOP_split_goto_first + greedy,
+                                        len + 5 + add_zero_advance_check * 2);
+                         if (add_zero_advance_check)
+@@ -1720,13 +1720,13 @@
+         return re_parse_error(s, "stack overflow");
+     if (lre_check_size(s))
+         return -1;
+-    start = s->byte_code.size;
++    start = (int)(s->byte_code.size);
+     if (re_parse_alternative(s, is_backward_dir))
+         return -1;
+     while (*s->buf_ptr == '|') {
+         s->buf_ptr++;
+ 
+-        len = s->byte_code.size - start;
++        len = (int)(s->byte_code.size - start);
+ 
+         /* insert a split before the first alternative */
+         if (dbuf_insert(&s->byte_code, start, 5)) {
+@@ -1741,7 +1741,7 @@
+             return -1;
+ 
+         /* patch the goto */
+-        len = s->byte_code.size - (pos + 4);
++        len = (int)(s->byte_code.size - (pos + 4));
+         put_u32(s->byte_code.buf + pos, len);
+     }
+     return 0;
+@@ -1861,7 +1861,7 @@
+         goto error;
+     }
+ 
+-    stack_size = lre_compute_stack_size(s->byte_code.buf, s->byte_code.size);
++    stack_size = lre_compute_stack_size(s->byte_code.buf, (int)(s->byte_code.size));
+     if (stack_size < 0) {
+         re_parse_error(s, "too many imbricated quantifiers");
+         goto error;
+@@ -1870,7 +1870,7 @@
+     s->byte_code.buf[RE_HEADER_CAPTURE_COUNT] = s->capture_count;
+     s->byte_code.buf[RE_HEADER_STACK_SIZE] = stack_size;
+     put_u32(s->byte_code.buf + RE_HEADER_BYTECODE_LEN,
+-            s->byte_code.size - RE_HEADER_LEN);
++            (uint32_t)(s->byte_code.size - RE_HEADER_LEN));
+ 
+     /* add the named groups if needed */
+     if (s->group_names.size > (s->capture_count - 1)) {
+@@ -1885,7 +1885,7 @@
+ #endif
+ 
+     error_msg[0] = '\0';
+-    *plen = s->byte_code.size;
++    *plen = (int)(s->byte_code.size);
+     return s->byte_code.buf;
+ }
+ 
+@@ -2527,8 +2527,8 @@
+         capture[i] = NULL;
+     alloca_size = s->stack_size_max * sizeof(stack_buf[0]);
+     stack_buf = alloca(alloca_size);
+-    ret = lre_exec_backtrack(s, capture, stack_buf, 0, bc_buf + RE_HEADER_LEN,
+-                             cbuf + (cindex << cbuf_type), false);
++    ret = (int)(lre_exec_backtrack(s, capture, stack_buf, 0, bc_buf + RE_HEADER_LEN,
++                             cbuf + (cindex << cbuf_type), false));
+     lre_realloc(s->opaque, s->state_stack, 0);
+     return ret;
+ }
+--- a/Sources/CQuickJS/libunicode.c
++++ b/Sources/CQuickJS/libunicode.c
+@@ -982,7 +982,7 @@
+         return -1;
+     }
+     buf = (int *)dbuf->buf;
+-    buf_len = dbuf->size / sizeof(int);
++    buf_len = (int)(dbuf->size / sizeof(int));
+ 
+     sort_cc(buf, buf_len);
+ 
+@@ -1576,7 +1576,7 @@
+     if (gc_idx < 0)
+         return -2;
+     if (gc_idx <= UNICODE_GC_Co) {
+-        gc_mask = (uint64_t)1 << gc_idx;
++        gc_mask = (uint32_t)((uint64_t)1 << gc_idx);
+     } else {
+         gc_mask = unicode_gc_mask_table[gc_idx - UNICODE_GC_LC];
+     }
+--- a/Sources/CQuickJS/quickjs.c
++++ b/Sources/CQuickJS/quickjs.c
+@@ -1532,7 +1532,7 @@
+ static JSValue js_int64(int64_t v)
+ {
+     if (v >= INT32_MIN && v <= INT32_MAX)
+-        return js_int32(v);
++        return js_int32((int32_t)(v));
+     else
+         return js_float64(v);
+ }
+@@ -2090,7 +2090,7 @@
+ void JS_SetDumpFlags(JSRuntime *rt, uint64_t flags)
+ {
+ #ifdef ENABLE_DUMPS
+-    rt->dump_flags = flags;
++    rt->dump_flags = (uint32_t)(flags);
+ #endif
+ }
+ 
+@@ -2203,7 +2203,7 @@
+ 
+ static inline uint32_t atom_get_free(const JSAtomStruct *p)
+ {
+-    return (uintptr_t)p >> 1;
++    return (uint32_t)((uintptr_t)p >> 1);
+ }
+ 
+ static inline bool atom_is_free(const JSAtomStruct *p)
+@@ -2846,7 +2846,7 @@
+                 n64 = (uint64_t)n * 10 + (c - '0');
+                 if ((n64 >> 32) != 0)
+                     return false;
+-                n = n64;
++                n = (uint32_t)(n64);
+             }
+         }
+         *pval = n;
+@@ -3013,7 +3013,7 @@
+             atom_type = JS_ATOM_TYPE_SYMBOL;
+         else
+             atom_type = JS_ATOM_TYPE_STRING;
+-        len = strlen(p);
++        len = (int)(strlen(p));
+         if (__JS_NewAtomInit(rt, p, len, atom_type) == JS_ATOM_NULL)
+             return -1;
+         p = p + len + 1;
+@@ -3385,7 +3385,7 @@
+     } else {
+         char buf[16];
+         size_t len = u32toa(buf, n);
+-        JSValue val = js_new_string8_len(ctx, buf, len);
++        JSValue val = js_new_string8_len(ctx, buf, (int)(len));
+         if (JS_IsException(val))
+             return JS_ATOM_NULL;
+         return __JS_NewAtom(ctx->rt, JS_VALUE_GET_STRING(val),
+@@ -3400,7 +3400,7 @@
+     } else {
+         char buf[24];
+         size_t len = i64toa(buf, n);
+-        JSValue val = js_new_string8_len(ctx, buf, len);
++        JSValue val = js_new_string8_len(ctx, buf, (int)(len));
+         if (JS_IsException(val))
+             return JS_ATOM_NULL;
+         return __JS_NewAtom(ctx->rt, JS_VALUE_GET_STRING(val),
+@@ -3496,7 +3496,7 @@
+ 
+     if (__JS_AtomIsTaggedInt(atom)) {
+         size_t len = u32toa(buf, __JS_AtomToUInt32(atom));
+-        return js_new_string8_len(ctx, buf, len);
++        return js_new_string8_len(ctx, buf, (int)(len));
+     } else {
+         JSRuntime *rt = ctx->rt;
+         JSAtomStruct *p;
+@@ -3878,7 +3878,7 @@
+     JSAtom name;
+ 
+     // XXX: class_def->class_name must be raw 8-bit contents. No UTF-8 encoded strings
+-    len = strlen(class_def->class_name);
++    len = (int)(strlen(class_def->class_name));
+     name = __JS_FindAtom(rt, class_def->class_name, len, JS_ATOM_TYPE_STRING);
+     if (name == JS_ATOM_NULL) {
+         name = __JS_NewAtomInit(rt, class_def->class_name, len, JS_ATOM_TYPE_STRING);
+@@ -3913,7 +3913,7 @@
+ // XXX: no special case for the empty string
+ static inline JSValue js_new_string8(JSContext *ctx, const char *str)
+ {
+-    return js_new_string8_len(ctx, str, strlen(str));
++    return js_new_string8_len(ctx, str, (int)(strlen(str)));
+ }
+ 
+ static JSValue js_new_string16_len(JSContext *ctx, const uint16_t *buf, int len)
+@@ -4089,7 +4089,7 @@
+     new_str = js_realloc2(s->ctx, s->str, new_size_bytes, &slack);
+     if (!new_str)
+         return string_buffer_set_error(s);
+-    new_size = min_int(new_size + (slack >> s->is_wide_char), JS_STRING_LEN_MAX);
++    new_size = min_int((int)(new_size + (slack >> s->is_wide_char)), JS_STRING_LEN_MAX);
+     s->size = new_size;
+     s->str = new_str;
+     return 0;
+@@ -4246,7 +4246,7 @@
+ /* appending an ASCII string */
+ static int string_buffer_puts8(StringBuffer *s, const char *str)
+ {
+-    return string_buffer_write8(s, (const uint8_t *)str, strlen(str));
++    return string_buffer_write8(s, (const uint8_t *)str, (int)(strlen(str)));
+ }
+ 
+ static int string_buffer_concat(StringBuffer *s, JSString *p,
+@@ -4384,7 +4384,7 @@
+ 
+     switch (kind) {
+     case UTF8_PLAIN_ASCII:
+-        str = js_alloc_string(ctx, len, 0);
++        str = js_alloc_string(ctx, (int)(len), 0);
+         if (unlikely(!str))
+             return JS_EXCEPTION;
+         memcpy(str8(str), buf, len);
+@@ -4392,7 +4392,7 @@
+         break;
+     case UTF8_NON_ASCII:
+         /* buf contains non-ASCII code-points, but limited to 8-bit values */
+-        str = js_alloc_string(ctx, len, 0);
++        str = js_alloc_string(ctx, (int)(len), 0);
+         if (unlikely(!str))
+             return JS_EXCEPTION;
+         utf8_decode_buf8(str8(str), len + 1, buf, buf_len);
+@@ -4401,7 +4401,7 @@
+         // This causes a potential problem in JS_ThrowError if message is invalid
+         //if (kind & UTF8_HAS_ERRORS)
+         //    return JS_ThrowRangeError(ctx, "invalid UTF-8 sequence");
+-        str = js_alloc_string(ctx, len, 1);
++        str = js_alloc_string(ctx, (int)(len), 1);
+         if (unlikely(!str))
+             return JS_EXCEPTION;
+         utf8_decode_buf16(str16(str), len, buf, buf_len);
+@@ -4419,7 +4419,7 @@
+     if (unlikely(len > JS_STRING_LEN_MAX))
+         return JS_ThrowRangeError(ctx, "invalid string length");
+ 
+-    str = js_alloc_string(ctx, len, 1);
++    str = js_alloc_string(ctx, (int)(len), 1);
+     if (unlikely(!str))
+         return JS_EXCEPTION;
+     memcpy(str16(str), buf, len * sizeof(*buf));
+@@ -4439,8 +4439,8 @@
+             goto fail;
+     }
+     p = JS_VALUE_GET_STRING(str2);
+-    len1 = strlen(str1);
+-    len3 = strlen(str3);
++    len1 = (int)(strlen(str1));
++    len3 = (int)(strlen(str3));
+ 
+     if (string_buffer_init2(ctx, b, len1 + p->len + len3, p->is_wide_char))
+         goto fail;
+@@ -4579,7 +4579,7 @@
+     }
+ 
+     *q = '\0';
+-    str_new->len = q - str8(str_new);
++    str_new->len = (uint32_t)(q - str8(str_new));
+     JS_FreeValue(ctx, val);
+     if (plen)
+         *plen = str_new->len;
+@@ -5249,7 +5249,7 @@
+ static uint32_t shape_initial_hash(JSObject *proto)
+ {
+     uint32_t h;
+-    h = shape_hash(1, (uintptr_t)proto);
++    h = shape_hash(1, (uint32_t)((uintptr_t)proto));
+     if (sizeof(proto) > 4)
+         h = shape_hash(h, (uint64_t)(uintptr_t)proto >> 32);
+     return h;
+@@ -7479,10 +7479,10 @@
+         };
+         int i, usage_size_ok = 0;
+         for(i = 0; i < countof(object_types); i++) {
+-            unsigned int size = object_types[i].size;
++            unsigned int size = (unsigned int)(object_types[i].size);
+             void *p = js_malloc_rt(rt, size);
+             if (p) {
+-                unsigned int size1 = js_malloc_usable_size_rt(rt, p);
++                unsigned int size1 = (unsigned int)(js_malloc_usable_size_rt(rt, p));
+                 if (size1 >= size) {
+                     usage_size_ok = 1;
+                     fprintf(fp, "  %3u + %-2u  %s\n",
+@@ -7648,7 +7648,7 @@
+         v |= (a & 0x7f) << (i * 7);
+         if (!(a & 0x80)) {
+             *pval = v;
+-            return ptr - buf;
++            return (int)(ptr - buf);
+         }
+     }
+     *pval = 0;
+@@ -7883,7 +7883,7 @@
+                 int line_num1, col_num1;
+                 uint32_t pc;
+ 
+-                pc = sf->cur_pc - b->byte_code_buf - 1;
++                pc = (uint32_t)(sf->cur_pc - b->byte_code_buf - 1);
+                 line_num1 = find_line_num(ctx, b, pc, &col_num1);
+                 atom_str = b->filename ? JS_AtomToCString(ctx, b->filename) : NULL;
+                 dbuf_printf(&dbuf, " (%s", atom_str ? atom_str : "<null>");
+@@ -9644,7 +9644,7 @@
+                (uint64_t)idx <= INT32_MAX)) {
+         /* fast path for array and typed array access */
+         JSObject *p = JS_VALUE_GET_OBJ(obj);
+-        if (js_get_fast_array_element(ctx, p, idx, pval))
++        if (js_get_fast_array_element(ctx, p, (uint32_t)(idx), pval))
+             return true;
+     }
+     val = JS_EXCEPTION;
+@@ -9674,7 +9674,7 @@
+                (uint64_t)idx <= INT32_MAX)) {
+         /* fast path for array and typed array access */
+         JSObject *p = JS_VALUE_GET_OBJ(obj);
+-        if (js_get_fast_array_element(ctx, p, idx, &val))
++        if (js_get_fast_array_element(ctx, p, (uint32_t)(idx), &val))
+             return val;
+     }
+     prop = JS_NewAtomInt64(ctx, idx);
+@@ -9825,7 +9825,7 @@
+                 return false;
+             /* realloc the shape if needed */
+             if (lpr)
+-                lpr_idx = lpr - sh->prop;
++                lpr_idx = (uint32_t)(lpr - sh->prop);
+             if (js_shape_prepare_update(ctx, p, &pr))
+                 return -1;
+             sh = p->shape;
+@@ -10076,15 +10076,15 @@
+         return arr;
+     if (len > 0) {
+         p = JS_VALUE_GET_OBJ(arr);
+-        if (expand_fast_array(ctx, p, len) < 0) {
++        if (expand_fast_array(ctx, p, (uint32_t)(len)) < 0) {
+             JS_FreeValue(ctx, arr);
+             return JS_EXCEPTION;
+         }
+-        p->u.array.count = len;
++        p->u.array.count = (uint32_t)(len);
+         for(i = 0; i < len; i++)
+             p->u.array.u.values[i] = JS_UNDEFINED;
+         /* update the 'length' field */
+-        set_value(ctx, &p->prop[0].u.value, js_int32(len));
++        set_value(ctx, &p->prop[0].u.value, js_int32((int32_t)(len)));
+     }
+     return arr;
+ }
+@@ -10531,7 +10531,7 @@
+ 
+     if ((uint64_t)idx <= INT32_MAX) {
+         /* fast path for fast arrays */
+-        return JS_SetPropertyValue(ctx, this_obj, js_int32(idx), val,
++        return JS_SetPropertyValue(ctx, this_obj, js_int32((int32_t)(idx)), val,
+                                    JS_PROP_THROW);
+     }
+     prop = JS_NewAtomInt64(ctx, idx);
+@@ -10725,7 +10725,7 @@
+     if (sh->is_hashed) {
+         if (sh->header.ref_count != 1) {
+             if (pprs)
+-                idx = *pprs - sh->prop;
++                idx = (uint32_t)(*pprs - sh->prop);
+             /* clone the shape (the resulting one is no longer hashed) */
+             sh = js_clone_shape(ctx, sh);
+             if (!sh)
+@@ -11503,7 +11503,7 @@
+ 
+     if ((uint64_t)idx <= JS_ATOM_MAX_INT) {
+         /* fast path for fast arrays */
+-        return JS_DeleteProperty(ctx, obj, __JS_AtomFromUInt32(idx), flags);
++        return JS_DeleteProperty(ctx, obj, __JS_AtomFromUInt32((uint32_t)(idx)), flags);
+     }
+     prop = JS_NewAtomInt64(ctx, idx);
+     if (prop == JS_ATOM_NULL)
+@@ -11885,7 +11885,7 @@
+             p = p_next;
+         }
+     }
+-    return p - 1 - p_start;
++    return (int)(p - 1 - p_start);
+ }
+ 
+ static inline int js_to_digit(int c)
+@@ -11974,7 +11974,7 @@
+ 
+     for(i = 0; i < n; i++) {
+         t = (js_dlimb_t)taba[i] * (js_dlimb_t)b + l;
+-        tabr[i] = t;
++        tabr[i] = (js_limb_t)(t);
+         l = t >> JS_LIMB_BITS;
+     }
+     return l;
+@@ -11987,7 +11987,7 @@
+     js_dlimb_t a1;
+     for(i = n - 1; i >= 0; i--) {
+         a1 = ((js_dlimb_t)r << JS_LIMB_BITS) | taba[i];
+-        tabr[i] = a1 / b;
++        tabr[i] = (js_limb_t)(a1 / b);
+         r = a1 % b;
+     }
+     return r;
+@@ -12003,7 +12003,7 @@
+     l = 0;
+     for(i = 0; i < n; i++) {
+         t = (js_dlimb_t)taba[i] * (js_dlimb_t)b + l + tabr[i];
+-        tabr[i] = t;
++        tabr[i] = (js_limb_t)(t);
+         l = t >> JS_LIMB_BITS;
+     }
+     return l;
+@@ -12035,7 +12035,7 @@
+     l = 0;
+     for(i = 0; i < n; i++) {
+         t = tabr[i] - (js_dlimb_t)taba[i] * (js_dlimb_t)b - l;
+-        tabr[i] = t;
++        tabr[i] = (js_limb_t)(t);
+         l = -(t >> JS_LIMB_BITS);
+     }
+     return l;
+@@ -12047,7 +12047,7 @@
+     js_limb_t a0, a1;
+     a1 = -d - 1;
+     a0 = -1;
+-    return (((js_dlimb_t)a1 << JS_LIMB_BITS) | a0) / d;
++    return (js_limb_t)((((js_dlimb_t)a1 << JS_LIMB_BITS) | a0) / d);
+ }
+ 
+ /* return the quotient and the remainder in '*pr'of 'a1*2^JS_LIMB_BITS+a0
+@@ -12090,7 +12090,7 @@
+         js_dlimb_t a1;
+         for(i = n - 1; i >= 0; i--) {
+             a1 = ((js_dlimb_t)r << JS_LIMB_BITS) | taba[i];
+-            tabr[i] = a1 / b;
++            tabr[i] = (js_limb_t)(a1 / b);
+             r = a1 % b;
+         }
+     }
+@@ -12141,7 +12141,7 @@
+         } else {
+             js_dlimb_t al;
+             al = ((js_dlimb_t)taba[i + nb] << JS_LIMB_BITS) | taba[i + nb - 1];
+-            q = al / b1;
++            q = (js_limb_t)(al / b1);
+             r = al % b1;
+         }
+         r = js_mp_sub_mul1(taba + i, tabb, nb, q);
+@@ -12230,10 +12230,10 @@
+     r->header.ref_count = 0; /* fail safe */
+     if (a >= INT32_MIN && a <= INT32_MAX) {
+         r->len = 1;
+-        r->tab[0] = a;
++        r->tab[0] = (js_limb_t)(a);
+     } else {
+         r->len = 2;
+-        r->tab[0] = a;
++        r->tab[0] = (js_limb_t)(a);
+         r->tab[1] = a >> JS_LIMB_BITS;
+     }
+     return r;
+@@ -12275,13 +12275,13 @@
+ static JSBigInt *js_bigint_new_si64(JSContext *ctx, int64_t a)
+ {
+     if (a >= INT32_MIN && a <= INT32_MAX) {
+-        return js_bigint_new_si(ctx, a);
++        return js_bigint_new_si(ctx, (js_slimb_t)(a));
+     } else {
+         JSBigInt *r;
+         r = js_bigint_new(ctx, 2);
+         if (!r)
+             return NULL;
+-        r->tab[0] = a;
++        r->tab[0] = (js_limb_t)(a);
+         r->tab[1] = a >> 32;
+         return r;
+     }
+@@ -12296,7 +12296,7 @@
+         r = js_bigint_new(ctx, (65 + JS_LIMB_BITS - 1) / JS_LIMB_BITS);
+         if (!r)
+             return NULL;
+-        r->tab[0] = a;
++        r->tab[0] = (js_limb_t)(a);
+         r->tab[1] = a >> 32;
+         r->tab[2] = 0;
+         return r;
+@@ -12310,12 +12310,12 @@
+         r = js_bigint_new(ctx, 1);
+         if (!r)
+             return NULL;
+-        r->tab[0] = a;
++        r->tab[0] = (js_limb_t)(a);
+     } else {
+         r = js_bigint_new(ctx, 2);
+         if (!r)
+             return NULL;
+-        r->tab[0] = a;
++        r->tab[0] = (js_limb_t)(a);
+         r->tab[1] = a >> JS_LIMB_BITS;
+     }
+     return r;
+@@ -12731,7 +12731,7 @@
+             e1 = (uint64_t)e * n;
+             if (e1 > JS_BIGINT_MAX_SIZE * JS_LIMB_BITS)
+                 goto overflow;
+-            e = e1;
++            e = (uint32_t)(e1);
+             if (is_neg)
+                 is_neg = b->tab[0] & 1;
+             r = js_bigint_new(ctx,
+@@ -13040,7 +13040,7 @@
+         JS_ThrowRangeError(ctx, "BigInt is too large to allocate");
+         return NULL;
+     }
+-    n_digits = n_digits1;
++    n_digits = (int)(n_digits1);
+     log2_radix = 32 - clz32(radix - 1); /* ceil(log2(radix)) */
+     /* compute the maximum number of limbs */
+     if (radix == 10) {
+@@ -13189,7 +13189,7 @@
+     if (JS_VALUE_GET_TAG(val) == JS_TAG_SHORT_BIG_INT) {
+         char buf[66];
+         int len;
+-        len = i64toa_radix(buf, JS_VALUE_GET_SHORT_BIG_INT(val), radix);
++        len = (int)(i64toa_radix(buf, JS_VALUE_GET_SHORT_BIG_INT(val), radix));
+         return js_new_string8_len(ctx, buf, len);
+     } else {
+         JSBigInt *r, *tmp = NULL;
+@@ -13274,7 +13274,7 @@
+         if (is_neg)
+             *--q = '-';
+         js_free(ctx, tmp);
+-        res = js_new_string8_len(ctx, q, buf_end - q);
++        res = js_new_string8_len(ctx, q, (int)(buf_end - q));
+         js_free(ctx, buf);
+         return res;
+     }
+@@ -13428,7 +13428,7 @@
+ 
+     buf = buf1;
+     buf_allocated = false;
+-    len = p - p_start;
++    len = (int)(p - p_start);
+     if (unlikely((len + 2) > sizeof(buf1))) {
+         buf = js_malloc_rt(ctx->rt, len + 2); /* no exception raised */
+         if (!buf)
+@@ -13961,7 +13961,7 @@
+                 else if (d > 255)
+                     res = 255;
+                 else
+-                    res = lrint(d);
++                    res = (int)(lrint(d));
+             }
+         }
+         break;
+@@ -14159,7 +14159,7 @@
+         return js_linearize_string_rope(ctx, val);
+     case JS_TAG_INT:
+         len = i32toa(buf, JS_VALUE_GET_INT(val));
+-        return js_new_string8_len(ctx, buf, len);
++        return js_new_string8_len(ctx, buf, (int)(len));
+     case JS_TAG_BOOL:
+         return JS_AtomToString(ctx, JS_VALUE_GET_BOOL(val) ?
+                           JS_ATOM_true : JS_ATOM_false);
+@@ -14600,7 +14600,7 @@
+ JSValue JS_NewBigInt64(JSContext *ctx, int64_t v)
+ {
+     if (v >= JS_SHORT_BIG_INT_MIN && v <= JS_SHORT_BIG_INT_MAX) {
+-        return __JS_NewShortBigInt(ctx, v);
++        return __JS_NewShortBigInt(ctx, (int32_t)(v));
+     } else {
+         JSBigInt *p;
+         p = js_bigint_new_si64(ctx, v);
+@@ -14613,7 +14613,7 @@
+ JSValue JS_NewBigUint64(JSContext *ctx, uint64_t v)
+ {
+     if (v <= JS_SHORT_BIG_INT_MAX) {
+-        return __JS_NewShortBigInt(ctx, v);
++        return __JS_NewShortBigInt(ctx, (int32_t)(v));
+     } else {
+         JSBigInt *p;
+         p = js_bigint_new_ui64(ctx, v);
+@@ -14794,12 +14794,12 @@
+             case OP_inc:
+                 if (v == JS_SHORT_BIG_INT_MAX)
+                     goto bigint_slow_case;
+-                sp[-1] = __JS_NewShortBigInt(ctx, v + 1);
++                sp[-1] = __JS_NewShortBigInt(ctx, (int32_t)(v + 1));
+                 break;
+             case OP_dec:
+                 if (v == JS_SHORT_BIG_INT_MIN)
+                     goto bigint_slow_case;
+-                sp[-1] = __JS_NewShortBigInt(ctx, v - 1);
++                sp[-1] = __JS_NewShortBigInt(ctx, (int32_t)(v - 1));
+                 break;
+             case OP_neg:
+                 v = JS_VALUE_GET_SHORT_BIG_INT(op1);
+@@ -14976,7 +14976,7 @@
+             abort();
+         }
+         if (likely(v >= JS_SHORT_BIG_INT_MIN && v <= JS_SHORT_BIG_INT_MAX)) {
+-            sp[-2] = __JS_NewShortBigInt(ctx, v);
++            sp[-2] = __JS_NewShortBigInt(ctx, (int32_t)(v));
+         } else {
+             JSBigInt *r = js_bigint_new_di(ctx, v);
+             if (!r)
+@@ -15145,7 +15145,7 @@
+         v2 = JS_VALUE_GET_SHORT_BIG_INT(op2);
+         v = (js_sdlimb_t)v1 + (js_sdlimb_t)v2;
+         if (likely(v >= JS_SHORT_BIG_INT_MIN && v <= JS_SHORT_BIG_INT_MAX)) {
+-            sp[-2] = __JS_NewShortBigInt(ctx, v);
++            sp[-2] = __JS_NewShortBigInt(ctx, (int32_t)(v));
+         } else {
+             JSBigInt *r = js_bigint_new_di(ctx, v);
+             if (!r)
+@@ -15291,7 +15291,7 @@
+             vd = (js_dlimb_t)v1 << v2;
+             if (likely(vd >= JS_SHORT_BIG_INT_MIN &&
+                        vd <= JS_SHORT_BIG_INT_MAX)) {
+-                v = vd;
++                v = (js_slimb_t)(vd);
+             } else {
+                 JSBigInt *r = js_bigint_new_di(ctx, vd);
+                 if (!r)
+@@ -18760,7 +18760,7 @@
+             {
+                 int32_t diff;
+                 diff = get_u32(pc);
+-                sp[0] = JS_NewCatchOffset(ctx, pc + diff - b->byte_code_buf);
++                sp[0] = JS_NewCatchOffset(ctx, (int32_t)(pc + diff - b->byte_code_buf));
+                 sp++;
+                 pc += 4;
+             }
+@@ -18770,7 +18770,7 @@
+                 int32_t diff;
+                 diff = get_u32(pc);
+                 /* XXX: should have a different tag to avoid security flaw */
+-                sp[0] = js_int32(pc + 4 - b->byte_code_buf);
++                sp[0] = js_int32((int32_t)(pc + 4 - b->byte_code_buf));
+                 sp++;
+                 pc += diff;
+             }
+@@ -19586,7 +19586,7 @@
+                     if (unlikely(r < INT32_MIN || r > INT32_MAX))
+                         sp[-2] = js_float64(r);
+                     else
+-                        sp[-2] = js_int32(r);
++                        sp[-2] = js_int32((int32_t)(r));
+                     sp--;
+                 } else if (JS_VALUE_IS_BOTH_FLOAT(op1, op2)) {
+                     JS_X87_FPCW_SAVE_AND_ADJUST(fpcw);
+@@ -19617,7 +19617,7 @@
+                     if (unlikely((int)r != r))
+                         *pv = __JS_NewFloat64((double)r);
+                     else
+-                        *pv = js_int32(r);
++                        *pv = js_int32((int32_t)(r));
+                     sp--;
+                 } else if (JS_VALUE_GET_TAG(*pv) == JS_TAG_STRING) {
+                     JSValue op1;
+@@ -19656,7 +19656,7 @@
+                     if (unlikely((int)r != r))
+                         sp[-2] = __JS_NewFloat64((double)r);
+                     else
+-                        sp[-2] = js_int32(r);
++                        sp[-2] = js_int32((int32_t)(r));
+                     sp--;
+                 } else if (JS_VALUE_IS_BOTH_FLOAT(op1, op2)) {
+                     JS_X87_FPCW_SAVE_AND_ADJUST(fpcw);
+@@ -19690,7 +19690,7 @@
+                         d = -0.0;
+                         goto mul_fp_res;
+                     }
+-                    sp[-2] = js_int32(r);
++                    sp[-2] = js_int32((int32_t)(r));
+                     sp--;
+                 } else if (JS_VALUE_IS_BOTH_FLOAT(op1, op2)) {
+                     JS_X87_FPCW_SAVE_AND_ADJUST(fpcw);
+@@ -22687,7 +22687,7 @@
+             if (JS_VALUE_IS_NAN(ret) ||
+                 lre_js_is_ident_next(utf8_decode(p, &p1))) {
+                 JS_FreeValue(s->ctx, ret);
+-                s->col_num = max_int(1, s->mark - s->eol);
++                s->col_num = max_int(1, (int)(s->mark - s->eol));
+                 js_parse_error(s, "invalid number literal");
+                 goto fail;
+             }
+@@ -22907,7 +22907,7 @@
+         p++;
+         break;
+     }
+-    s->token.col_num = max_int(1, s->mark - s->eol);
++    s->token.col_num = max_int(1, (int)(s->mark - s->eol));
+     s->buf_ptr = p;
+ 
+     //    dump_token(s, &s->token);
+@@ -22925,7 +22925,7 @@
+ static int json_parse_error(JSParseState *s, const uint8_t *curp, const char *msg)
+ {
+     const uint8_t *p, *line_start;
+-    int position = curp - s->buf_start;
++    int position = (int)(curp - s->buf_start);
+     int line = 1;
+     for (line_start = p = s->buf_start; p < curp; p++) {
+         /* column count does not account for TABs nor wide characters */
+@@ -22963,7 +22963,7 @@
+ 
+         // Write batched ASCII in one call
+         if (p > p_start) {
+-            if (string_buffer_write8(b, p_start, p - p_start))
++            if (string_buffer_write8(b, p_start, (int)(p - p_start)))
+                 goto fail;
+         }
+ 
+@@ -23227,7 +23227,7 @@
+         p++;
+         break;
+     }
+-    s->token.col_num = s->mark - s->eol;
++    s->token.col_num = (int)(s->mark - s->eol);
+     s->buf_ptr = p;
+ 
+     //    dump_token(s, &s->token);
+@@ -23415,7 +23415,7 @@
+     JSFunctionDef *fd = s->cur_func;
+     DynBuf *bc = &fd->byte_code;
+ 
+-    fd->last_opcode_pos = bc->size;
++    fd->last_opcode_pos = (int)(bc->size);
+     dbuf_putc(bc, val);
+ }
+ 
+@@ -23473,7 +23473,7 @@
+ {
+     emit_u8(s, OP_label);
+     emit_u32(s, label);
+-    s->cur_func->label_slots[label].pos = s->cur_func->byte_code.size;
++    s->cur_func->label_slots[label].pos = (int)(s->cur_func->byte_code.size);
+ }
+ 
+ /* return the label ID offset */
+@@ -23482,8 +23482,8 @@
+     if (label >= 0) {
+         emit_op(s, OP_label);
+         emit_u32(s, label);
+-        s->cur_func->label_slots[label].pos = s->cur_func->byte_code.size;
+-        return s->cur_func->byte_code.size - 4;
++        s->cur_func->label_slots[label].pos = (int)(s->cur_func->byte_code.size);
++        return (int)(s->cur_func->byte_code.size - 4);
+     } else {
+         return -1;
+     }
+@@ -24984,7 +24984,7 @@
+     push_scope(s);
+ 
+     emit_op(s, OP_push_const);
+-    ctor_cpool_offset = fd->byte_code.size;
++    ctor_cpool_offset = (int)(fd->byte_code.size);
+     emit_u32(s, 0); /* will be patched at the end of the class parsing */
+ 
+     if (class_name == JS_ATOM_NULL) {
+@@ -25330,7 +25330,7 @@
+ 
+     /* store the class source code in the constructor. */
+     js_free(ctx, ctor_fd->source);
+-    ctor_fd->source_len = s->buf_ptr - class_start_ptr;
++    ctor_fd->source_len = (int)(s->buf_ptr - class_start_ptr);
+     ctor_fd->source = js_strndup(ctx, (const char *)class_start_ptr, ctor_fd->source_len);
+     if (!ctor_fd->source)
+         goto fail;
+@@ -25993,7 +25993,7 @@
+     label_parse = new_label(s);
+     label_assign = new_label(s);
+ 
+-    start_addr = s->cur_func->byte_code.size;
++    start_addr = (int)(s->cur_func->byte_code.size);
+     if (hasval) {
+         /* consume value from the stack */
+         emit_op(s, OP_dup);
+@@ -26007,7 +26007,7 @@
+         /* leave value on the stack */
+         emit_op(s, OP_dup);
+     }
+-    assign_addr = s->cur_func->byte_code.size;
++    assign_addr = (int)(s->cur_func->byte_code.size);
+     if (s->token.val == '{') {
+         if (next_token(s))
+             return -1;
+@@ -26455,7 +26455,7 @@
+                 v = JS_VALUE_GET_SHORT_BIG_INT(val);
+                 if (v >= INT32_MIN && v <= INT32_MAX) {
+                     emit_op(s, OP_push_bigint_i32);
+-                    emit_u32(s, v);
++                    emit_u32(s, (uint32_t)(v));
+                 } else {
+                     goto large_number;
+                 }
+@@ -28424,7 +28424,7 @@
+ 
+     label_expr = emit_goto(s, OP_goto, -1);
+ 
+-    pos_next = s->cur_func->byte_code.size;
++    pos_next = (int)(s->cur_func->byte_code.size);
+     emit_label(s, label_next);
+ 
+     tok = s->token.val;
+@@ -28536,7 +28536,7 @@
+     }
+     emit_goto(s, OP_goto, label_body);
+ 
+-    pos_expr = s->cur_func->byte_code.size;
++    pos_expr = (int)(s->cur_func->byte_code.size);
+     emit_label(s, label_expr);
+     if (s->token.val == '=') {
+         /* XXX: potential scoping issue if inside `with` statement */
+@@ -28610,14 +28610,14 @@
+         /* move the `next` code here */
+         DynBuf *bc = &s->cur_func->byte_code;
+         int chunk_size = pos_expr - pos_next;
+-        int offset = bc->size - pos_next;
++        int offset = (int)(bc->size - pos_next);
+         int i;
+         if (dbuf_claim(bc, chunk_size))
+             return -1;
+         dbuf_put(bc, bc->buf + pos_next, chunk_size);
+         memset(bc->buf + pos_next, OP_nop, chunk_size);
+         /* `next` part ends with a goto */
+-        s->cur_func->last_opcode_pos = bc->size - 5;
++        s->cur_func->last_opcode_pos = (int)(bc->size - 5);
+         /* relocate labels */
+         for (i = label_cont; i < s->cur_func->label_count; i++) {
+             LabelSlot *ls = &s->cur_func->label_slots[i];
+@@ -29105,7 +29105,7 @@
+                 /* skip the end expression */
+                 emit_goto(s, OP_goto, label_body);
+ 
+-                pos_cont = s->cur_func->byte_code.size;
++                pos_cont = (int)(s->cur_func->byte_code.size);
+                 emit_label(s, label_cont);
+                 if (js_parse_expr(s))
+                     goto fail;
+@@ -29116,7 +29116,7 @@
+             if (js_parse_expect(s, ')'))
+                 goto fail;
+ 
+-            pos_body = s->cur_func->byte_code.size;
++            pos_body = (int)(s->cur_func->byte_code.size);
+             emit_label(s, label_body);
+             if (js_parse_statement(s))
+                 goto fail;
+@@ -29129,14 +29129,14 @@
+                 /* move the increment code here */
+                 DynBuf *bc = &s->cur_func->byte_code;
+                 int chunk_size = pos_body - pos_cont;
+-                int offset = bc->size - pos_cont;
++                int offset = (int)(bc->size - pos_cont);
+                 int i;
+                 if (dbuf_claim(bc, chunk_size))
+                     return -1;
+                 dbuf_put(bc, bc->buf + pos_cont, chunk_size);
+                 memset(bc->buf + pos_cont, OP_nop, chunk_size);
+                 /* increment part ends with a goto */
+-                s->cur_func->last_opcode_pos = bc->size - 5;
++                s->cur_func->last_opcode_pos = (int)(bc->size - 5);
+                 /* relocate labels */
+                 for (i = label_cont; i < s->cur_func->label_count; i++) {
+                     LabelSlot *ls = &s->cur_func->label_slots[i];
+@@ -29266,7 +29266,7 @@
+                      */
+                     emit_op(s, OP_label);
+                     emit_u32(s, 0);
+-                    default_label_pos = s->cur_func->byte_code.size - 4;
++                    default_label_pos = (int)(s->cur_func->byte_code.size - 4);
+                 } else {
+                     if (label_case < 0) {
+                         /* falling thru direct from switch expression */
+@@ -29939,11 +29939,11 @@
+ 
+     r = strrchr(base_name, '/');
+     if (r)
+-        len = r - base_name;
++        len = (int)(r - base_name);
+     else
+         len = 0;
+ 
+-    cap = len + strlen(name) + 1 + 1;
++    cap = (int)(len + strlen(name) + 1 + 1);
+     filename = js_malloc(ctx, cap);
+     if (!filename)
+         return NULL;
+@@ -32231,7 +32231,7 @@
+         js_free_function_def(ctx, fd1);
+     }
+ 
+-    free_bytecode_atoms(ctx->rt, fd->byte_code.buf, fd->byte_code.size,
++    free_bytecode_atoms(ctx->rt, fd->byte_code.buf, (int)(fd->byte_code.size),
+                         fd->use_short_opcodes);
+     dbuf_free(&fd->byte_code);
+     js_free(ctx, fd->jump_slots);
+@@ -33472,7 +33472,7 @@
+     if (label_done >= 0) {
+         dbuf_putc(bc, OP_label);
+         dbuf_put_u32(bc, label_done);
+-        s->label_slots[label_done].pos2 = bc->size;
++        s->label_slots[label_done].pos2 = (int)(bc->size);
+     }
+     return pos_next;
+ }
+@@ -34193,7 +34193,7 @@
+ 
+         dbuf_putc(bc, OP_label);
+         dbuf_put_u32(bc, label_next);
+-        s->label_slots[label_next].pos2 = bc->size;
++        s->label_slots[label_next].pos2 = (int)(bc->size);
+     }
+ 
+     js_free(ctx, s->global_vars);
+@@ -34283,7 +34283,7 @@
+     int scope;
+ 
+     cc.bc_buf = bc_buf = s->byte_code.buf;
+-    cc.bc_len = bc_len = s->byte_code.size;
++    cc.bc_len = bc_len = (int)(s->byte_code.size);
+     js_dbuf_init(ctx, &bc_out);
+ 
+     /* first pass for runtime checks (must be done before the
+@@ -34469,7 +34469,7 @@
+                 label = get_u32(bc_buf + pos + 1);
+                 assert(label >= 0 && label < s->label_count);
+                 ls = &s->label_slots[label];
+-                ls->pos2 = bc_out.size + opcode_info[op].size;
++                ls->pos2 = (int)(bc_out.size + opcode_info[op].size);
+             }
+             goto no_change;
+ 
+@@ -34562,13 +34562,13 @@
+ 
+                                 dbuf_putc(&bc_out, OP_label);
+                                 dbuf_put_u32(&bc_out, label_catch);
+-                                s->label_slots[label_catch].pos2 = bc_out.size;
++                                s->label_slots[label_catch].pos2 = (int)(bc_out.size);
+ 
+                                 dbuf_putc(&bc_out, OP_using_dispose_merge);
+ 
+                                 dbuf_putc(&bc_out, OP_label);
+                                 dbuf_put_u32(&bc_out, label_end);
+-                                s->label_slots[label_end].pos2 = bc_out.size;
++                                s->label_slots[label_end].pos2 = (int)(bc_out.size);
+                             } else {
+                                 dbuf_putc(&bc_out, OP_using_dispose);
+                                 dbuf_put_u16(&bc_out, scope_idx);
+@@ -34921,7 +34921,7 @@
+     col_num = s->col_num;
+ 
+     cc.bc_buf = bc_buf = s->byte_code.buf;
+-    cc.bc_len = bc_len = s->byte_code.size;
++    cc.bc_len = bc_len = (int)(s->byte_code.size);
+     js_dbuf_init(ctx, &bc_out);
+ 
+     if (s->jump_size) {
+@@ -35023,7 +35023,7 @@
+                 assert(label >= 0 && label < s->label_count);
+                 ls = &label_slots[label];
+                 assert(ls->addr == -1);
+-                ls->addr = bc_out.size;
++                ls->addr = (int)(bc_out.size);
+                 /* resolve the relocation entries */
+                 for(re = ls->first_reloc; re != NULL; re = re_next) {
+                     int diff = ls->addr - re->addr;
+@@ -35056,13 +35056,13 @@
+                 if (code_match(&cc, pos_next, OP_return, -1)) {
+                     if (cc.line_num >= 0) line_num = cc.line_num;
+                     if (cc.col_num >= 0) col_num = cc.col_num;
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     put_short_code(&bc_out, op + 1, argc);
+                     pos_next = skip_dead_code(s, bc_buf, bc_len, cc.pos,
+                                               &line_num, &col_num);
+                     break;
+                 }
+-                add_pc2line_info(s, bc_out.size, line_num, col_num);
++                add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                 put_short_code(&bc_out, op, argc);
+                 break;
+             }
+@@ -35092,7 +35092,7 @@
+                     /* jump to return/throw: remove jump, append return/throw */
+                     /* updating the line number obfuscates assembly listing */
+                     update_label(s, label, -1);
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     dbuf_putc(&bc_out, op1);
+                     pos_next = skip_dead_code(s, bc_buf, bc_len, pos_next,
+                                               &line_num, &col_num);
+@@ -35140,7 +35140,7 @@
+                 }
+             }
+         has_label:
+-            add_pc2line_info(s, bc_out.size, line_num, col_num);
++            add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+             if (op == OP_goto) {
+                 pos_next = skip_dead_code(s, bc_buf, bc_len, pos_next,
+                                           &line_num, &col_num);
+@@ -35150,7 +35150,7 @@
+             jp = &s->jump_slots[s->jump_count++];
+             jp->op = op;
+             jp->size = 4;
+-            jp->pos = bc_out.size + 1;
++            jp->pos = (int)(bc_out.size + 1);
+             jp->label = label;
+ 
+             if (ls->addr == -1) {
+@@ -35160,7 +35160,7 @@
+                     jp->op = OP_if_false8 + (op - OP_if_false);
+                     dbuf_putc(&bc_out, OP_if_false8 + (op - OP_if_false));
+                     dbuf_putc(&bc_out, 0);
+-                    if (!add_reloc(ctx, ls, bc_out.size - 1, 1))
++                    if (!add_reloc(ctx, ls, (uint32_t)(bc_out.size - 1), 1))
+                         goto fail;
+                     break;
+                 }
+@@ -35169,12 +35169,12 @@
+                     jp->op = OP_goto16;
+                     dbuf_putc(&bc_out, OP_goto16);
+                     dbuf_put_u16(&bc_out, 0);
+-                    if (!add_reloc(ctx, ls, bc_out.size - 2, 2))
++                    if (!add_reloc(ctx, ls, (uint32_t)(bc_out.size - 2), 2))
+                         goto fail;
+                     break;
+                 }
+             } else {
+-                int diff = ls->addr - bc_out.size - 1;
++                int diff = (int)(ls->addr - bc_out.size - 1);
+                 if (diff == (int8_t)diff && (op == OP_if_false || op == OP_if_true || op == OP_goto)) {
+                     jp->size = 1;
+                     jp->op = OP_if_false8 + (op - OP_if_false);
+@@ -35191,10 +35191,10 @@
+                 }
+             }
+             dbuf_putc(&bc_out, op);
+-            dbuf_put_u32(&bc_out, ls->addr - bc_out.size);
++            dbuf_put_u32(&bc_out, (uint32_t)(ls->addr - bc_out.size));
+             if (ls->addr == -1) {
+                 /* unresolved yet: create a new relocation entry */
+-                if (!add_reloc(ctx, ls, bc_out.size - 4, 4))
++                if (!add_reloc(ctx, ls, (uint32_t)(bc_out.size - 4), 4))
+                     goto fail;
+             }
+             break;
+@@ -35214,18 +35214,18 @@
+                 label = find_jump_target(s, label, &op1);
+                 assert(label >= 0 && label < s->label_count);
+                 ls = &label_slots[label];
+-                add_pc2line_info(s, bc_out.size, line_num, col_num);
++                add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                 jp = &s->jump_slots[s->jump_count++];
+                 jp->op = op;
+                 jp->size = 4;
+-                jp->pos = bc_out.size + 5;
++                jp->pos = (int)(bc_out.size + 5);
+                 jp->label = label;
+                 dbuf_putc(&bc_out, op);
+                 dbuf_put_u32(&bc_out, atom);
+-                dbuf_put_u32(&bc_out, ls->addr - bc_out.size);
++                dbuf_put_u32(&bc_out, (uint32_t)(ls->addr - bc_out.size));
+                 if (ls->addr == -1) {
+                     /* unresolved yet: create a new relocation entry */
+-                    if (!add_reloc(ctx, ls, bc_out.size - 4, 4))
++                    if (!add_reloc(ctx, ls, (uint32_t)(bc_out.size - 4), 4))
+                         goto fail;
+                 }
+                 dbuf_putc(&bc_out, is_with);
+@@ -35246,7 +35246,7 @@
+             if (code_match(&cc, pos_next, OP_strict_eq, -1)) {
+                 if (cc.line_num >= 0) line_num = cc.line_num;
+                 if (cc.col_num >= 0) col_num = cc.col_num;
+-                add_pc2line_info(s, bc_out.size, line_num, col_num);
++                add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                 dbuf_putc(&bc_out, OP_is_null);
+                 pos_next = cc.pos;
+                 break;
+@@ -35255,7 +35255,7 @@
+             if (code_match(&cc, pos_next, OP_strict_neq, M2(OP_if_false, OP_if_true), -1)) {
+                 if (cc.line_num >= 0) line_num = cc.line_num;
+                 if (cc.col_num >= 0) col_num = cc.col_num;
+-                add_pc2line_info(s, bc_out.size, line_num, col_num);
++                add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                 dbuf_putc(&bc_out, OP_is_null);
+                 pos_next = cc.pos;
+                 label = cc.label;
+@@ -35300,7 +35300,7 @@
+                     if (cc.line_num >= 0) line_num = cc.line_num;
+                     if (cc.col_num >= 0) col_num = cc.col_num;
+                 } else {
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     push_short_int(&bc_out, -val);
+                 }
+                 pos_next = cc.pos;
+@@ -35318,7 +35318,7 @@
+                 val = (val != 0);
+                 goto has_constant_test;
+             }
+-            add_pc2line_info(s, bc_out.size, line_num, col_num);
++            add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+             push_short_int(&bc_out, val);
+             break;
+ 
+@@ -35334,7 +35334,7 @@
+                         if (cc.line_num >= 0) line_num = cc.line_num;
+                         if (cc.col_num >= 0) col_num = cc.col_num;
+                     } else {
+-                        add_pc2line_info(s, bc_out.size, line_num, col_num);
++                        add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                         dbuf_putc(&bc_out, OP_push_bigint_i32);
+                         dbuf_put_u32(&bc_out, -val);
+                     }
+@@ -35349,7 +35349,7 @@
+             {
+                 int idx = get_u32(bc_buf + pos + 1);
+                 if (idx < 256) {
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     dbuf_putc(&bc_out, OP_push_const8 + op - OP_push_const);
+                     dbuf_putc(&bc_out, idx);
+                     break;
+@@ -35362,7 +35362,7 @@
+                 JSAtom atom = get_u32(bc_buf + pos + 1);
+                 if (atom == JS_ATOM_length) {
+                     JS_FreeAtom(ctx, atom);
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     dbuf_putc(&bc_out, OP_get_length);
+                     break;
+                 }
+@@ -35382,7 +35382,7 @@
+                 }
+                 if (atom == JS_ATOM_empty_string) {
+                     JS_FreeAtom(ctx, atom);
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     dbuf_putc(&bc_out, OP_push_empty_string);
+                     break;
+                 }
+@@ -35411,7 +35411,7 @@
+             if (code_match(&cc, pos_next, OP_return, -1)) {
+                 if (cc.line_num >= 0) line_num = cc.line_num;
+                 if (cc.col_num >= 0) col_num = cc.col_num;
+-                add_pc2line_info(s, bc_out.size, line_num, col_num);
++                add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                 dbuf_putc(&bc_out, OP_return_undef);
+                 pos_next = cc.pos;
+                 break;
+@@ -35425,7 +35425,7 @@
+             if (code_match(&cc, pos_next, OP_strict_eq, -1)) {
+                 if (cc.line_num >= 0) line_num = cc.line_num;
+                 if (cc.col_num >= 0) col_num = cc.col_num;
+-                add_pc2line_info(s, bc_out.size, line_num, col_num);
++                add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                 dbuf_putc(&bc_out, OP_is_undefined);
+                 pos_next = cc.pos;
+                 break;
+@@ -35434,7 +35434,7 @@
+             if (code_match(&cc, pos_next, OP_strict_neq, M2(OP_if_false, OP_if_true), -1)) {
+                 if (cc.line_num >= 0) line_num = cc.line_num;
+                 if (cc.col_num >= 0) col_num = cc.col_num;
+-                add_pc2line_info(s, bc_out.size, line_num, col_num);
++                add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                 dbuf_putc(&bc_out, OP_is_undefined);
+                 pos_next = cc.pos;
+                 label = cc.label;
+@@ -35450,7 +35450,7 @@
+             if (code_match(&cc, pos_next, OP_put_field, OP_drop, -1)) {
+                 if (cc.line_num >= 0) line_num = cc.line_num;
+                 if (cc.col_num >= 0) col_num = cc.col_num;
+-                add_pc2line_info(s, bc_out.size, line_num, col_num);
++                add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                 dbuf_putc(&bc_out, OP_put_field);
+                 dbuf_put_u32(&bc_out, cc.atom);
+                 pos_next = cc.pos;
+@@ -35479,7 +35479,7 @@
+                             pos_next = cc.pos;
+                         }
+                     }
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     put_short_code(&bc_out, op1, cc.idx);
+                     if (line2 >= 0) line_num = line2;
+                     break;
+@@ -35513,7 +35513,7 @@
+                     code_match(&cc, pos_next, M2(OP_dec, OP_inc), OP_dup, OP_put_loc, idx, OP_drop, -1)) {
+                     if (cc.line_num >= 0) line_num = cc.line_num;
+                     if (cc.col_num >= 0) col_num = cc.col_num;
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     dbuf_putc(&bc_out, (cc.op == OP_inc || cc.op == OP_post_inc) ? OP_inc_loc : OP_dec_loc);
+                     dbuf_putc(&bc_out, idx);
+                     pos_next = cc.pos;
+@@ -35525,7 +35525,7 @@
+                 if (code_match(&cc, pos_next, OP_push_atom_value, OP_add, OP_dup, OP_put_loc, idx, OP_drop, -1)) {
+                     if (cc.line_num >= 0) line_num = cc.line_num;
+                     if (cc.col_num >= 0) col_num = cc.col_num;
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     if (cc.atom == JS_ATOM_empty_string) {
+                         JS_FreeAtom(ctx, cc.atom);
+                         dbuf_putc(&bc_out, OP_push_empty_string);
+@@ -35544,7 +35544,7 @@
+                 if (code_match(&cc, pos_next, OP_push_i32, OP_add, OP_dup, OP_put_loc, idx, OP_drop, -1)) {
+                     if (cc.line_num >= 0) line_num = cc.line_num;
+                     if (cc.col_num >= 0) col_num = cc.col_num;
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     push_short_int(&bc_out, cc.label);
+                     dbuf_putc(&bc_out, OP_add_loc);
+                     dbuf_putc(&bc_out, idx);
+@@ -35559,7 +35559,7 @@
+                 if (code_match(&cc, pos_next, M3(OP_get_loc, OP_get_arg, OP_get_var_ref), -1, OP_add, OP_dup, OP_put_loc, idx, OP_drop, -1)) {
+                     if (cc.line_num >= 0) line_num = cc.line_num;
+                     if (cc.col_num >= 0) col_num = cc.col_num;
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     put_short_code(&bc_out, cc.op, cc.idx);
+                     dbuf_putc(&bc_out, OP_add_loc);
+                     dbuf_putc(&bc_out, idx);
+@@ -35570,12 +35570,12 @@
+                 if (idx == 0 && code_match(&cc, pos_next, OP_get_loc, 1, -1)) {
+                     if (cc.line_num >= 0) line_num = cc.line_num;
+                     if (cc.col_num >= 0) col_num = cc.col_num;
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     dbuf_putc(&bc_out, OP_get_loc0_loc1);
+                     pos_next = cc.pos;
+                     break;
+                 }
+-                add_pc2line_info(s, bc_out.size, line_num, col_num);
++                add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                 put_short_code(&bc_out, op, idx);
+             }
+             break;
+@@ -35584,7 +35584,7 @@
+             {
+                 int idx;
+                 idx = get_u16(bc_buf + pos + 1);
+-                add_pc2line_info(s, bc_out.size, line_num, col_num);
++                add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                 put_short_code(&bc_out, op, idx);
+             }
+             break;
+@@ -35598,12 +35598,12 @@
+                 if (code_match(&cc, pos_next, op - 1, idx, -1)) {
+                     if (cc.line_num >= 0) line_num = cc.line_num;
+                     if (cc.col_num >= 0) col_num = cc.col_num;
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     put_short_code(&bc_out, op + 1, idx);
+                     pos_next = cc.pos;
+                     break;
+                 }
+-                add_pc2line_info(s, bc_out.size, line_num, col_num);
++                add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                 put_short_code(&bc_out, op, idx);
+             }
+             break;
+@@ -35630,7 +35630,7 @@
+                         op1 += 1;   /* put_x(n) get_x(n) -> set_x(n) */
+                         pos_next = cc.pos;
+                     }
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     dbuf_putc(&bc_out, OP_dec + (op - OP_post_dec));
+                     put_short_code(&bc_out, op1, idx);
+                     break;
+@@ -35638,7 +35638,7 @@
+                 if (code_match(&cc, pos_next, OP_perm3, OP_put_field, OP_drop, -1)) {
+                     if (cc.line_num >= 0) line_num = cc.line_num;
+                     if (cc.col_num >= 0) col_num = cc.col_num;
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     dbuf_putc(&bc_out, OP_dec + (op - OP_post_dec));
+                     dbuf_putc(&bc_out, OP_put_field);
+                     dbuf_put_u32(&bc_out, cc.atom);
+@@ -35648,7 +35648,7 @@
+                 if (code_match(&cc, pos_next, OP_perm4, OP_put_array_el, OP_drop, -1)) {
+                     if (cc.line_num >= 0) line_num = cc.line_num;
+                     if (cc.col_num >= 0) col_num = cc.col_num;
+-                    add_pc2line_info(s, bc_out.size, line_num, col_num);
++                    add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                     dbuf_putc(&bc_out, OP_dec + (op - OP_post_dec));
+                     dbuf_putc(&bc_out, OP_put_array_el);
+                     pos_next = cc.pos;
+@@ -35675,7 +35675,7 @@
+                 if (op2 >= 0) {
+                     /* transform typeof(s) == "<type>" into is_<type> */
+                     if (op1 == OP_strict_eq) {
+-                        add_pc2line_info(s, bc_out.size, line_num, col_num);
++                        add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                         dbuf_putc(&bc_out, op2);
+                         JS_FreeAtom(ctx, cc.atom);
+                         pos_next = cc.pos;
+@@ -35685,7 +35685,7 @@
+                         /* transform typeof(s) != "<type>" if_false into is_<type> if_true */
+                         if (cc.line_num >= 0) line_num = cc.line_num;
+                         if (cc.col_num >= 0) col_num = cc.col_num;
+-                        add_pc2line_info(s, bc_out.size, line_num, col_num);
++                        add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                         dbuf_putc(&bc_out, op2);
+                         JS_FreeAtom(ctx, cc.atom);
+                         pos_next = cc.pos;
+@@ -35701,7 +35701,7 @@
+             if (code_match(&cc, pos_next, OP_null, OP_set_proto, -1)) {
+                 if (cc.line_num >= 0) line_num = cc.line_num;
+                 if (cc.col_num >= 0) col_num = cc.col_num;
+-                add_pc2line_info(s, bc_out.size, line_num, col_num);
++                add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+                 dbuf_putc(&bc_out, OP_special_object);
+                 dbuf_putc(&bc_out, OP_SPECIAL_OBJECT_NULL_PROTO);
+                 pos_next = cc.pos;
+@@ -35711,7 +35711,7 @@
+ 
+         default:
+         no_change:
+-            add_pc2line_info(s, bc_out.size, line_num, col_num);
++            add_pc2line_info(s, (uint32_t)(bc_out.size), line_num, col_num);
+             dbuf_put(&bc_out, bc_buf + pos, len);
+             break;
+         }
+@@ -35884,7 +35884,7 @@
+     const uint8_t *bc_buf;
+ 
+     bc_buf = fd->byte_code.buf;
+-    s->bc_len = fd->byte_code.size;
++    s->bc_len = (int)(fd->byte_code.size);
+     /* bc_len > 0 */
+     s->stack_level_tab = js_malloc(ctx, sizeof(s->stack_level_tab[0]) *
+                                    s->bc_len);
+@@ -36176,7 +36176,7 @@
+ #ifdef ENABLE_DUMPS // JS_DUMP_BYTECODE_PASS1
+     if (check_dump_flag(ctx->rt, JS_DUMP_BYTECODE_PASS1)) {
+         printf("pass 1\n");
+-        dump_byte_code(ctx, 1, fd->byte_code.buf, fd->byte_code.size,
++        dump_byte_code(ctx, 1, fd->byte_code.buf, (int)(fd->byte_code.size),
+                        fd->args, fd->arg_count, fd->vars, fd->var_count,
+                        fd->closure_var, fd->closure_var_count,
+                        fd->cpool, fd->cpool_count, fd->source, fd->line_num,
+@@ -36191,7 +36191,7 @@
+ #ifdef ENABLE_DUMPS // JS_DUMP_BYTECODE_PASS2
+     if (check_dump_flag(ctx->rt, JS_DUMP_BYTECODE_PASS2)) {
+         printf("pass 2\n");
+-        dump_byte_code(ctx, 2, fd->byte_code.buf, fd->byte_code.size,
++        dump_byte_code(ctx, 2, fd->byte_code.buf, (int)(fd->byte_code.size),
+                        fd->args, fd->arg_count, fd->vars, fd->var_count,
+                        fd->closure_var, fd->closure_var_count,
+                        fd->cpool, fd->cpool_count, fd->source, fd->line_num,
+@@ -36222,7 +36222,7 @@
+     b->header.ref_count = 1;
+ 
+     b->byte_code_buf = (void *)((uint8_t*)b + byte_code_offset);
+-    b->byte_code_len = fd->byte_code.size;
++    b->byte_code_len = (int)(fd->byte_code.size);
+     memcpy(b->byte_code_buf, fd->byte_code.buf, fd->byte_code.size);
+     js_free(ctx, fd->byte_code.buf);
+     fd->byte_code.buf = NULL;
+@@ -36262,7 +36262,7 @@
+     b->pc2line_buf = js_realloc(ctx, fd->pc2line.buf, fd->pc2line.size);
+     if (!b->pc2line_buf)
+         b->pc2line_buf = fd->pc2line.buf;
+-    b->pc2line_len = fd->pc2line.size;
++    b->pc2line_len = (int)(fd->pc2line.size);
+     b->source = fd->source;
+     b->source_len = fd->source_len;
+ 
+@@ -36936,7 +36936,7 @@
+             /* save the function source code */
+             /* the end of the function source code is after the last
+                 token of the function source stored into s->last_ptr */
+-            fd->source_len = s->last_ptr - ptr;
++            fd->source_len = (int)(s->last_ptr - ptr);
+             fd->source = js_strndup(ctx, (const char *)ptr, fd->source_len);
+             if (!fd->source)
+                 goto fail;
+@@ -36974,7 +36974,7 @@
+         }
+ 
+         /* save the function source code */
+-        fd->source_len = s->buf_ptr - ptr;
++        fd->source_len = (int)(s->buf_ptr - ptr);
+         fd->source = js_strndup(ctx, (const char *)ptr, fd->source_len);
+         if (!fd->source)
+             goto fail;
+@@ -37253,7 +37253,7 @@
+     s->col_num = 1;
+     s->buf_start = s->buf_ptr = (const uint8_t *)input;
+     s->buf_end = s->buf_ptr + input_len;
+-    s->mark = s->buf_ptr + min_int(1, input_len);
++    s->mark = s->buf_ptr + min_int(1, (int)(input_len));
+     s->eol = s->buf_ptr;
+     s->token.val = ' ';
+     s->token.line_num = 1;
+@@ -38414,7 +38414,7 @@
+     /* move the atoms at the start */
+     /* XXX: could just append dbuf1 data, but it uses more memory if
+        dbuf1 is larger than dbuf */
+-    atoms_size = s->dbuf.size;
++    atoms_size = (int)(s->dbuf.size);
+     if (dbuf_claim(&dbuf1, atoms_size))
+         goto fail;
+     memmove(dbuf1.buf + atoms_size, dbuf1.buf, dbuf1.size);
+@@ -38779,7 +38779,7 @@
+             s->level -= 4;
+             bc_read_trace(s, "%s", "");  // hex dump + indent
+             dump_single_byte_code(s->ctx, bc_buf + pos, b,
+-                                  s->ptr - s->buf_start - len);
++                                  (int)(s->ptr - s->buf_start - len));
+             s->level += 4;
+             s->ptr = save_ptr;
+         }
+@@ -39800,7 +39800,7 @@
+ 
+     if (*name == '[') {
+         name++;
+-        len = strlen(name) - 1;
++        len = (int)(strlen(name) - 1);
+         /* We assume 8 bit non null strings, which is the case for these
+            symbols */
+         for(atom = JS_ATOM_Symbol_toPrimitive; atom < JS_ATOM_END; atom++) {
+@@ -42241,7 +42241,7 @@
+                 break;
+             if (mapping) {
+                 args[0] = v;
+-                args[1] = js_int32(k);
++                args[1] = js_int32((int32_t)(k));
+                 v2 = JS_Call(ctx, mapfn, this_arg, 2, args);
+                 JS_FreeValue(ctx, v);
+                 v = v2;
+@@ -42274,7 +42274,7 @@
+                 goto exception;
+             if (mapping) {
+                 args[0] = v;
+-                args[1] = js_int32(k);
++                args[1] = js_int32((int32_t)(k));
+                 v2 = JS_Call(ctx, mapfn, this_arg, 2, args);
+                 JS_FreeValue(ctx, v);
+                 v = v2;
+@@ -42286,7 +42286,7 @@
+                 goto exception;
+         }
+     }
+-    if (JS_SetProperty(ctx, r, JS_ATOM_length, js_uint32(k)) < 0)
++    if (JS_SetProperty(ctx, r, JS_ATOM_length, js_uint32((uint32_t)(k))) < 0)
+         goto exception;
+     goto done;
+ 
+@@ -42663,7 +42663,7 @@
+         break;
+     case special_map | special_TA:
+         args[0] = obj;
+-        args[1] = js_int32(len);
++        args[1] = js_int32((int32_t)(len));
+         ret = js_typed_array___speciesCreate(ctx, JS_UNDEFINED, 2, args);
+         if (JS_IsException(ret))
+             goto exception;
+@@ -42717,7 +42717,7 @@
+                     goto exception;
+                 break;
+             case special_map | special_TA:
+-                if (JS_SetPropertyValue(ctx, ret, js_int32(k), res, JS_PROP_THROW) < 0)
++                if (JS_SetPropertyValue(ctx, ret, js_int32((int32_t)(k)), res, JS_PROP_THROW) < 0)
+                     goto exception;
+                 break;
+             case special_filter:
+@@ -42740,7 +42740,7 @@
+     if (special == (special_filter | special_TA)) {
+         JSValue arr;
+         args[0] = obj;
+-        args[1] = js_int32(n);
++        args[1] = js_int32((int32_t)(n));
+         arr = js_typed_array___speciesCreate(ctx, JS_UNDEFINED, 2, args);
+         if (JS_IsException(arr))
+             goto exception;
+@@ -43172,7 +43172,7 @@
+                 string_buffer_concat(b, p, 0, p->len);
+             }
+         }
+-        el = JS_GetPropertyUint32(ctx, obj, i);
++        el = JS_GetPropertyUint32(ctx, obj, (uint32_t)(i));
+         if (JS_IsException(el))
+             goto fail;
+         if (!JS_IsNull(el) && !JS_IsUndefined(el)) {
+@@ -44805,7 +44805,7 @@
+                                         JS_PROP_C_W_E | JS_PROP_THROW) < 0)
+             goto exception;
+     }
+-    if (JS_SetProperty(ctx, result, JS_ATOM_length, js_uint32(idx)) < 0)
++    if (JS_SetProperty(ctx, result, JS_ATOM_length, js_uint32((uint32_t)(idx))) < 0)
+         goto exception;
+     JS_FreeValue(ctx, method);
+     return result;
+@@ -45433,7 +45433,7 @@
+     if (JS_VALUE_GET_TAG(val) == JS_TAG_INT) {
+         char buf1[70];
+         int len;
+-        len = i64toa_radix(buf1, JS_VALUE_GET_INT(val), base);
++        len = (int)(i64toa_radix(buf1, JS_VALUE_GET_INT(val), base));
+         return js_new_string8_len(ctx, buf1, len);
+     }
+     if (JS_ToFloat64Free(ctx, &d, val))
+@@ -46035,7 +46035,7 @@
+     p = JS_VALUE_GET_STRING(this_val);
+     if (p->len == len)
+         return js_dup(this_val);
+-    q = js_alloc_string(ctx, len, is_wide_char);
++    q = js_alloc_string(ctx, (int)(len), is_wide_char);
+     if (!q)
+         return JS_EXCEPTION;
+     d = strv(q);
+@@ -46687,10 +46687,10 @@
+     }
+     q = p;
+     for (q = p; (q += !r) <= s - r - !r; q = p = e + r) {
+-        e = string_indexof(sp, rp, q);
++        e = string_indexof(sp, rp, (int)(q));
+         if (e < 0)
+             break;
+-        T = js_sub_string(ctx, sp, p, e);
++        T = js_sub_string(ctx, sp, (int)(p), (int)(e));
+         if (JS_IsException(T))
+             goto exception;
+         if (JS_CreateDataPropertyUint32(ctx, A, lengthA++, T, 0) < 0)
+@@ -46699,7 +46699,7 @@
+             goto done;
+     }
+ add_tail:
+-    T = js_sub_string(ctx, sp, p, s);
++    T = js_sub_string(ctx, sp, (int)(p), (int)(s));
+     if (JS_IsException(T))
+         goto exception;
+     if (JS_CreateDataPropertyUint32(ctx, A, lengthA++, T,0 ) < 0)
+@@ -46895,7 +46895,7 @@
+         JS_ThrowRangeError(ctx, "invalid repeat count");
+         goto fail;
+     }
+-    n = val;
++    n = (int)(val);
+     p = JS_VALUE_GET_STRING(str);
+     len = p->len;
+     if (len == 0 || n == 1)
+@@ -47986,7 +47986,7 @@
+ 
+     return (int)difftime(mktime(&gmt), mktime(&tm)) / 60;
+ #else
+-    return -tm.tm_gmtoff / 60;
++    return (int)(-tm.tm_gmtoff / 60);
+ #endif /* NO_TM_GMTOFF */
+ #endif
+ }
+@@ -48412,7 +48412,7 @@
+         *p++ = 'y';
+     if (p == str)
+         return js_empty_string(ctx->rt);
+-    return js_new_string8_len(ctx, str, p - str);
++    return js_new_string8_len(ctx, str, (int)(p - str));
+ 
+ exception:
+     return JS_EXCEPTION;
+@@ -48561,7 +48561,7 @@
+         rc = 2;
+     } else {
+         rc = lre_exec(capture, re_bytecode,
+-                      str_buf, last_index, str->len,
++                      str_buf, (int)(last_index), str->len,
+                       shift, ctx);
+     }
+     if (rc != 1) {
+@@ -48590,7 +48590,7 @@
+     } else {
+         if (re_flags & (LRE_FLAG_GLOBAL | LRE_FLAG_STICKY)) {
+             if (JS_SetProperty(ctx, this_val, JS_ATOM_lastIndex,
+-                               js_int32((capture[1] - str_buf) >> shift)) < 0)
++                               js_int32((int32_t)((capture[1] - str_buf) >> shift))) < 0)
+                 goto fail;
+         }
+         group_name_ptr = lre_get_groupnames(re_bytecode);
+@@ -48609,7 +48609,7 @@
+                     goto fail;
+             }
+         }
+-        index = (capture[0] - str_buf) >> shift;
++        index = (int)((capture[0] - str_buf) >> shift);
+         props[0].u.value = js_int32(capture_count); // length
+         props[1].u.value = js_int32(index);         // index
+         props[2].u.value = str_val;                 // input
+@@ -48632,8 +48632,8 @@
+             }
+ 
+             if (match[0] && match[1]) {
+-                start = (match[0] - str_buf) >> shift;
+-                end = (match[1] - str_buf) >> shift;
++                start = (int)((match[0] - str_buf) >> shift);
++                end = (int)((match[1] - str_buf) >> shift);
+             }
+ 
+             if (!JS_IsUndefined(indices)) {
+@@ -48761,7 +48761,7 @@
+             break;
+ 
+         ret = lre_exec(capture, re_bytecode,
+-                       str_buf, last_index, str->len, shift, ctx);
++                       str_buf, (int)(last_index), str->len, shift, ctx);
+         if (ret != 1) {
+             if (ret >= 0) {
+                 if (ret == 2 || (re_flags & (LRE_FLAG_GLOBAL | LRE_FLAG_STICKY))) {
+@@ -48787,8 +48787,8 @@
+             }
+             break;
+         }
+-        start = (capture[0] - str_buf) >> shift;
+-        end = (capture[1] - str_buf) >> shift;
++        start = (int)((capture[0] - str_buf) >> shift);
++        end = (int)((capture[1] - str_buf) >> shift);
+         last_index = end;
+         if (next_src_pos < start) {
+             if (string_buffer_concat(b, str, next_src_pos, start))
+@@ -49307,7 +49307,7 @@
+         if (JS_IsException(namedCaptures))
+             goto exception;
+         if (functionalReplace) {
+-            if (JS_DefinePropertyValueInt64(ctx, tab, n++, js_int32(position), JS_PROP_C_W_E | JS_PROP_THROW) < 0)
++            if (JS_DefinePropertyValueInt64(ctx, tab, n++, js_int32((int32_t)(position)), JS_PROP_C_W_E | JS_PROP_THROW) < 0)
+                 goto exception;
+             if (JS_DefinePropertyValueInt64Const(ctx, tab, n++, str, JS_PROP_C_W_E | JS_PROP_THROW) < 0)
+                 goto exception;
+@@ -49330,7 +49330,7 @@
+             }
+             args[0] = matched;
+             args[1] = str;
+-            args[2] = js_int32(position);
++            args[2] = js_int32((int32_t)(position));
+             args[3] = tab;
+             args[4] = namedCaptures1;
+             args[5] = rep_val;
+@@ -49341,9 +49341,9 @@
+         if (JS_IsException(rep_str))
+             goto exception;
+         if (position >= nextSourcePosition) {
+-            string_buffer_concat(b, sp, nextSourcePosition, position);
++            string_buffer_concat(b, sp, nextSourcePosition, (uint32_t)(position));
+             string_buffer_concat_value(b, rep_str);
+-            nextSourcePosition = position + JS_VALUE_GET_STRING(matched)->len;
++            nextSourcePosition = (int)(position + JS_VALUE_GET_STRING(matched)->len);
+         }
+     }
+     string_buffer_concat(b, sp, nextSourcePosition, sp->len);
+@@ -49496,14 +49496,14 @@
+         if (JS_IsException(z))
+             goto exception;
+         if (JS_IsNull(z)) {
+-            q = string_advance_index(strp, q, unicodeMatching);
++            q = (uint32_t)(string_advance_index(strp, q, unicodeMatching));
+         } else {
+             if (JS_ToLengthFree(ctx, &e, JS_GetProperty(ctx, splitter, JS_ATOM_lastIndex)))
+                 goto exception;
+             if (e > size)
+                 e = size;
+             if (e == p) {
+-                q = string_advance_index(strp, q, unicodeMatching);
++                q = (uint32_t)(string_advance_index(strp, q, unicodeMatching));
+             } else {
+                 sub = js_sub_string(ctx, strp, p, q);
+                 if (JS_IsException(sub))
+@@ -49513,7 +49513,7 @@
+                     goto exception;
+                 if (lengthA == lim)
+                     goto done;
+-                p = e;
++                p = (uint32_t)(e);
+                 if (js_get_length64(ctx, &numberOfCaptures, z))
+                     goto exception;
+                 for(i = 1; i < numberOfCaptures; i++) {
+@@ -49933,8 +49933,8 @@
+         val = js_dup(s->token.u.str.str);
+         if (pr) {
+             json_parse_record_init_primitive(ctx, pr, val,
+-                                             s->token.ptr - s->buf_start,
+-                                             s->buf_ptr - s->token.ptr);
++                                             (uint32_t)(s->token.ptr - s->buf_start),
++                                             (uint32_t)(s->buf_ptr - s->token.ptr));
+         }
+         if (json_next_token(s))
+             goto fail;
+@@ -49943,8 +49943,8 @@
+         val = s->token.u.num.val;
+         if (pr) {
+             json_parse_record_init_primitive(ctx, pr, val,
+-                                             s->token.ptr - s->buf_start,
+-                                             s->buf_ptr - s->token.ptr);
++                                             (uint32_t)(s->token.ptr - s->buf_start),
++                                             (uint32_t)(s->buf_ptr - s->token.ptr));
+         }
+         if (json_next_token(s))
+             goto fail;
+@@ -49955,15 +49955,15 @@
+             val = js_bool(s->token.u.ident.atom == JS_ATOM_true);
+             if (pr) {
+                 json_parse_record_init_primitive(ctx, pr, val,
+-                                                 s->token.ptr - s->buf_start,
+-                                                 s->buf_ptr - s->token.ptr);
++                                                 (uint32_t)(s->token.ptr - s->buf_start),
++                                                 (uint32_t)(s->buf_ptr - s->token.ptr));
+             }
+         } else if (s->token.u.ident.atom == JS_ATOM_null) {
+             val = JS_NULL;
+             if (pr) {
+                 json_parse_record_init_primitive(ctx, pr, val,
+-                                                 s->token.ptr - s->buf_start,
+-                                                 s->buf_ptr - s->token.ptr);
++                                                 (uint32_t)(s->token.ptr - s->buf_start),
++                                                 (uint32_t)(s->buf_ptr - s->token.ptr));
+             }
+         } else {
+             goto def_token;
+@@ -52119,7 +52119,7 @@
+         break;
+     case JS_TAG_OBJECT:
+     case JS_TAG_SYMBOL:
+-        h = (uintptr_t)JS_VALUE_GET_PTR(key) * 3163;
++        h = (uint32_t)((uintptr_t)JS_VALUE_GET_PTR(key) * 3163);
+         break;
+     case JS_TAG_INT:
+         d = JS_VALUE_GET_INT(key);
+@@ -57254,14 +57254,14 @@
+         } else {
+             uint64_t v;
+             int shift;
+-            shift = 64 - bits;
++            shift = (int)(64 - bits);
+             v = JS_VALUE_GET_SHORT_BIG_INT(a);
+             v = v << shift;
+             if (asIntN)
+                 v = (int64_t)v >> shift;
+             else
+                 v = v >> shift;
+-            res = __JS_NewShortBigInt(ctx, v);
++            res = __JS_NewShortBigInt(ctx, (int32_t)(v));
+         }
+     } else {
+         JSBigInt *r, *p = JS_VALUE_GET_PTR(a);
+@@ -57270,7 +57270,7 @@
+         } else {
+             int len, shift, i;
+             js_limb_t v;
+-            len = (bits + JS_LIMB_BITS - 1) / JS_LIMB_BITS;
++            len = (int)((bits + JS_LIMB_BITS - 1) / JS_LIMB_BITS);
+             r = js_bigint_new(ctx, len);
+             if (!r) {
+                 JS_FreeValue(ctx, a);
+@@ -57758,8 +57758,8 @@
+     abuf = js_malloc(ctx, sizeof(*abuf));
+     if (!abuf)
+         goto fail;
+-    abuf->byte_length = len;
+-    abuf->max_byte_length = max_len ? *max_len : -1;
++    abuf->byte_length = (int)(len);
++    abuf->max_byte_length = max_len ? (int)(*max_len) : -1;
+     if (alloc_flag) {
+         if (class_id == JS_CLASS_SHARED_ARRAY_BUFFER &&
+             rt->sab_funcs.sab_alloc) {
+@@ -57767,13 +57767,13 @@
+             // is hard so we cheat and allocate |maxByteLength| bytes upfront
+             sab_alloc_len = max_len ? *max_len : len;
+             abuf->data = rt->sab_funcs.sab_alloc(rt->sab_funcs.sab_opaque,
+-                                                 max_int(sab_alloc_len, 1));
++                                                 max_int((int)(sab_alloc_len), 1));
+             if (!abuf->data)
+                 goto fail;
+             memset(abuf->data, 0, sab_alloc_len);
+         } else {
+             /* the allocation must be done after the object creation */
+-            abuf->data = js_mallocz(ctx, max_int(len, 1));
++            abuf->data = js_mallocz(ctx, max_int((int)(len), 1));
+             if (!abuf->data)
+                 goto fail;
+         }
+@@ -58126,7 +58126,7 @@
+         p = ta->obj;
+         if (p->class_id == JS_CLASS_DATAVIEW) {
+             if (ta->track_rab && ta->offset < len)
+-                ta->length = len - ta->offset;
++                ta->length = (uint32_t)(len - ta->offset);
+             continue;
+         }
+         p->u.array.count = 0;
+@@ -58135,7 +58135,7 @@
+         size_elem = 1 << size_log2;
+         if (ta->track_rab) {
+             if (len >= (int64_t)ta->offset + size_elem) {
+-                p->u.array.count = (len - ta->offset) >> size_log2;
++                p->u.array.count = (uint32_t)((len - ta->offset) >> size_log2);
+                 p->u.array.u.ptr = &data[ta->offset];
+             }
+         } else {
+@@ -58265,14 +58265,14 @@
+         // throw a TypeError in thread B as the spec says we should,
+         // instead both threads get their own view of the backing memory,
+         // 2 bytes big in A, and 1 byte big in B
+-        abuf->byte_length = len;
++        abuf->byte_length = (int)(len);
+     } else {
+-        data = js_realloc(ctx, abuf->data, max_int(len, 1));
++        data = js_realloc(ctx, abuf->data, max_int((int)(len), 1));
+         if (!data)
+             return JS_EXCEPTION;
+         if (len > abuf->byte_length)
+             memset(&data[abuf->byte_length], 0, len - abuf->byte_length);
+-        abuf->byte_length = len;
++        abuf->byte_length = (int)(len);
+         abuf->data = data;
+     }
+     js_array_buffer_update_typed_arrays(abuf);
+@@ -58663,7 +58663,7 @@
+         // observable, we cannot bail out early when the TA is first detached.
+         if (typed_array_is_oob(p)) {
+             JS_FreeValue(ctx, val);
+-        } else if (JS_SetPropertyUint32(ctx, dst, offset + i, val) < 0) {
++        } else if (JS_SetPropertyUint32(ctx, dst, (uint32_t)(offset + i), val) < 0) {
+             goto fail;
+         }
+     }
+@@ -58951,7 +58951,7 @@
+             goto exception;
+         if (mapping) {
+             args[0] = v;
+-            args[1] = js_int32(k);
++            args[1] = js_int32((int32_t)(k));
+             v2 = JS_Call(ctx, mapfn, this_arg, 2, args);
+             JS_FreeValue(ctx, v);
+             v = v2;
+@@ -59120,7 +59120,7 @@
+         break;
+     case 2:
+         for(; k < final; k++) {
+-            p->u.array.u.uint32_ptr[k] = v64;
++            p->u.array.u.uint32_ptr[k] = (uint32_t)(v64);
+         }
+         break;
+     case 3:
+@@ -59225,7 +59225,7 @@
+             int64_t k1;
+             if (JS_ToInt64Clamp(ctx, &k1, argv[1], -1, len - 1, len))
+                 goto exception;
+-            k = k1;
++            k = (int)(k1);
+             if (k < 0)
+                 goto done;
+         }
+@@ -59332,7 +59332,7 @@
+                 if (pv)
+                     pp = memchr(pv + k, v, len - k);
+                 if (pp)
+-                    res = pp - pv;
++                    res = (int)(pp - pv);
+             } else {
+                 for (; k != stop; k += inc) {
+                     if (pv[k] == v) {
+@@ -59372,7 +59372,7 @@
+             uint32_t v;
+         scan32:
+             pv = p->u.array.u.uint32_ptr;
+-            v = v64;
++            v = (uint32_t)(v64);
+             for (; k != stop; k += inc) {
+                 if (pv[k] == v) {
+                     res = k;
+@@ -60033,8 +60033,8 @@
+             if (!array_idx)
+                 return JS_EXCEPTION;
+             for(i = 0; i < len; i++)
+-                array_idx[i] = i;
+-            tsc.elt_size = elt_size;
++                array_idx[i] = (uint32_t)(i);
++            tsc.elt_size = (int)(elt_size);
+             rqsort(array_idx, len, sizeof(array_idx[0]),
+                    js_TA_cmp_generic, &tsc);
+             if (tsc.exception)
+@@ -60194,12 +60194,12 @@
+     abuf = pbuffer->u.array_buffer;
+     ta->obj = p;
+     ta->buffer = pbuffer;
+-    ta->offset = offset;
+-    ta->length = len << size_log2;
++    ta->offset = (uint32_t)(offset);
++    ta->length = (uint32_t)(len << size_log2);
+     ta->track_rab = track_rab;
+     list_add_tail(&ta->link, &abuf->array_list);
+     p->u.typed_array = ta;
+-    p->u.array.count = len;
++    p->u.array.count = (uint32_t)(len);
+     p->u.array.u.ptr = abuf->data + offset;
+     return 0;
+ }
+@@ -60504,14 +60504,14 @@
+         return JS_ThrowTypeErrorDetachedArrayBuffer(ctx);
+     if (offset > abuf->byte_length)
+         return JS_ThrowRangeError(ctx, "invalid byteOffset");
+-    len = abuf->byte_length - offset;
++    len = (uint32_t)(abuf->byte_length - offset);
+     if (argc > 2 && !JS_IsUndefined(argv[2])) {
+         uint64_t l;
+         if (JS_ToIndex(ctx, &l, argv[2]))
+             return JS_EXCEPTION;
+         if (l > len)
+             return JS_ThrowRangeError(ctx, "invalid byteLength");
+-        len = l;
++        len = (uint32_t)(l);
+     } else {
+         recompute_len = true;
+         track_rab = array_buffer_is_resizable(abuf);
+@@ -60529,7 +60529,7 @@
+     if (offset > abuf->byte_length) {
+         goto out_of_bound;
+     } else if (recompute_len) {
+-        len = abuf->byte_length - offset;
++        len = (uint32_t)(abuf->byte_length - offset);
+     } else if (offset + len > abuf->byte_length) {
+     out_of_bound:
+         JS_ThrowRangeError(ctx, "invalid byteOffset or byteLength");
+@@ -60544,7 +60544,7 @@
+     p = JS_VALUE_GET_OBJ(obj);
+     ta->obj = p;
+     ta->buffer = JS_VALUE_GET_OBJ(js_dup(buffer));
+-    ta->offset = offset;
++    ta->offset = (uint32_t)(offset);
+     ta->length = len;
+     ta->track_rab = track_rab;
+     list_add_tail(&ta->link, &abuf->array_list);
+@@ -61080,7 +61080,7 @@
+         break;
+     case ATOMICS_OP_COMPARE_EXCHANGE | (2 << 3):
+         {
+-            uint32_t v1 = v;
++            uint32_t v1 = (uint32_t)(v);
+             atomic_compare_exchange_strong((_Atomic uint32_t *)ptr, &v1, rep_val);
+             a = v1;
+         }
+@@ -61111,10 +61111,10 @@
+         goto done;
+     case JS_CLASS_INT32_ARRAY:
+     done:
+-        ret = js_int32(a);
++        ret = js_int32((int32_t)(a));
+         break;
+     case JS_CLASS_UINT32_ARRAY:
+-        ret = js_uint32(a);
++        ret = js_uint32((uint32_t)(a));
+         break;
+     case JS_CLASS_BIG_INT64_ARRAY:
+         ret = JS_NewBigInt64(ctx, a);
+@@ -62047,7 +62047,7 @@
+         JSFunctionBytecode *b = p->u.func.function_bytecode;
+         int line_num1, col_num1;
+         line_num1 = find_line_num(ctx, b,
+-                                  sf->cur_pc - b->byte_code_buf - 1,
++                                  (uint32_t)(sf->cur_pc - b->byte_code_buf - 1),
+                                   &col_num1);
+         csd->native = false;
+         csd->line_num = line_num1;
+@@ -62554,14 +62554,14 @@
+         goto fail;
+     }
+ 
+-    ostr = js_alloc_string(ctx, out_len, 0);
++    ostr = js_alloc_string(ctx, (int)(out_len), 0);
+     if (unlikely(!ostr))
+         goto fail;
+ 
+     outp = str8(ostr);
+     written = b64_encode(in8, len, (char *)outp, b64_enc);
+     outp[written] = '\0';
+-    ostr->len = out_len;
++    ostr->len = (uint32_t)(out_len);
+     ret = JS_MKPTR(JS_TAG_STRING, ostr);
+ fail:
+     if (tmp)
+@@ -62623,7 +62623,7 @@
+         goto fail;
+     }
+ 
+-    ostr = js_alloc_string(ctx, out_cap, 0);
++    ostr = js_alloc_string(ctx, (int)(out_cap), 0);
+     if (unlikely(!ostr))
+         goto fail;
+ 
+@@ -62638,7 +62638,7 @@
+         goto fail;
+     }
+     outp[out_len] = '\0';
+-    ostr->len = out_len;
++    ostr->len = (uint32_t)(out_len);
+     ret = JS_MKPTR(JS_TAG_STRING, ostr);
+ fail:
+     if (tmp)
+@@ -63050,7 +63050,7 @@
+     if (unlikely(out_len > JS_STRING_LEN_MAX))
+         return JS_ThrowRangeError(ctx, "output too large");
+ 
+-    ostr = js_alloc_string(ctx, out_len, 0);
++    ostr = js_alloc_string(ctx, (int)(out_len), 0);
+     if (!ostr)
+         return JS_EXCEPTION;
+ 
+@@ -63063,7 +63063,7 @@
+     }
+     dst[written] = '\0';
+ 
+-    ostr->len = written;
++    ostr->len = (uint32_t)(written);
+     return JS_MKPTR(JS_TAG_STRING, ostr);
+ }
+ 
+@@ -63086,7 +63086,7 @@
+     if (unlikely(out_len > JS_STRING_LEN_MAX))
+         return JS_ThrowRangeError(ctx, "output too large");
+ 
+-    ostr = js_alloc_string(ctx, out_len, 0);
++    ostr = js_alloc_string(ctx, (int)(out_len), 0);
+     if (!ostr)
+         return JS_EXCEPTION;
+ 
+@@ -63195,10 +63195,10 @@
+     if (JS_IsException(obj))
+         return JS_EXCEPTION;
+     if (JS_DefinePropertyValueStr(ctx, obj, "read",
+-            js_uint32(read), JS_PROP_C_W_E) < 0)
++            js_uint32((uint32_t)(read)), JS_PROP_C_W_E) < 0)
+         goto fail;
+     if (JS_DefinePropertyValueStr(ctx, obj, "written",
+-            js_uint32(written), JS_PROP_C_W_E) < 0)
++            js_uint32((uint32_t)(written)), JS_PROP_C_W_E) < 0)
+         goto fail;
+     return obj;
+ fail:

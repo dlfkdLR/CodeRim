@@ -37,12 +37,13 @@ enum Percent {
     /// The two halves of a used-fraction, as display text.
     static func halves(for fraction: Double) -> (used: String, left: String) {
         let value = fraction * 100
+        guard value.isFinite, value >= 0 else { return ("—", "—") }
         let fractional = (value > 0 && value < 1) || (value > 99 && value < 100)
         guard fractional else {
             // The left half derives from the *rounded* used half, not from the
             // raw value — 9.5% used is "10% Used · 90% left", because that is
             // how the dashboard the user is comparing against does the maths.
-            let used = Int(value.rounded())
+            guard let used = Int(exactly: value.rounded()) else { return ("—", "—") }
             return ("\(used)", "\(max(0, 100 - used))")
         }
         let left = max(0, 100 - value)
@@ -54,7 +55,10 @@ enum Percent {
     /// One percentage, as display text — the ring's label.
     static func text(for fraction: Double) -> String {
         let value = fraction * 100
-        guard value > 0, value < 1 else { return "\(Int(value.rounded()))" }
+        guard value.isFinite, value >= 0 else { return "—" }
+        guard value > 0, value < 1 else {
+            return Int(exactly: value.rounded()).map(String.init) ?? "—"
+        }
         return small(value)
     }
 
@@ -192,6 +196,13 @@ struct ProviderSnapshot: Identifiable, Equatable {
         localTokenUsage != nil || todaysTokens != nil || id == "codex" || id == "claude"
     }
 
+    // Provider-reported token counts can have a different scope. Only local
+    // transcript readings (including their loading state) get the local help.
+    var localTokenScopeHelp: String? {
+        guard localTokenUsage != nil || id == "codex" || id == "claude" else { return nil }
+        return LocalTokenUsage.scopeHelp
+    }
+
     func localTokenText(style: TokenNumberStyle) -> String {
         if let localTokenUsage { return localTokenUsage.text(style: style) }
         if let todaysTokens { return NotchNumberFormatting.count(todaysTokens, style: style) + " tokens" }
@@ -199,6 +210,9 @@ struct ProviderSnapshot: Identifiable, Equatable {
     }
     /// Provider-reported plan only; absence is never inferred from usage.
     var accountPlan: String?
+    /// The account this reading was taken for (`NotchProvider.accountIdentity()`), stamped by the
+    /// store. Keeps per-account state — such as which alerts were already sent — apart.
+    var accountIdentity: String?
 
     var accountPlanLabel: String? {
         guard let plan = accountPlan?.trimmingCharacters(in: .whitespacesAndNewlines), !plan.isEmpty else { return nil }

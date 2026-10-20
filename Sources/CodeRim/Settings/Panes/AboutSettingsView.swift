@@ -18,8 +18,6 @@ struct AboutSettingsView: View {
                 if let build {
                     SettingsValueRow(title: "Build", value: build)
                 }
-                SettingsValueRow(title: "Data scope", value: "Local history + optional account totals")
-                SettingsValueRow(title: "Privacy", value: "Remote totals are memory-only")
             }
 
             SettingsSection(title: "Updates") {
@@ -37,8 +35,6 @@ struct AboutSettingsView: View {
                                 destination: URL(string: "https://github.com/dlfkdLR/CodeRim/releases")!)
                 SettingsLinkRow(title: "Read MIT License", systemImage: "doc.text",
                                 destination: bundledNotice("LICENSE"))
-                SettingsLinkRow(title: "Codenotch - MIT License", systemImage: "doc.text",
-                                destination: bundledNotice("NOTICE"))
             }
 
             SettingsNote("Includes code and design adapted from Codenotch. Copyright © 2026 Vinz, MIT License.")

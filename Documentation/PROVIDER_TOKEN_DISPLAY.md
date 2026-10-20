@@ -1,5 +1,7 @@
 # Provider token display
 
+**English** · [한국어](PROVIDER_TOKEN_DISPLAY.ko.md)
+
 The notch displays local Codex and Claude transcript totals as **Today · This Mac**.
 These totals include all local accounts; they are not an account quota or an account-wide API total.
 A local snapshot subscription updates them immediately, independently of quota polling, stale quota

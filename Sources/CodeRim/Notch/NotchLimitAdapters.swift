@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import CodexBarCore
 
@@ -67,7 +68,17 @@ final class CodexNotchProvider: NotchProvider {
         self.usage = usage
     }
 
-    var signInRoute: SignInRoute { .openApp(bundleID: "com.openai.chat", name: "Codex") }
+    var signInRoute: SignInRoute {
+        NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.chat") != nil
+            ? .openApp(bundleID: "com.openai.chat", name: "Codex")
+            : .guided(.init(name: "Codex", action: .terminal(command: "codex login"),
+                note: "A Terminal window runs `codex login`. Finish it in the browser and CodeRim connects on its own.",
+                installURL: URL(string: "https://github.com/openai/codex")))
+    }
+
+    func accountIdentity() -> String? {
+        accounts.currentAccountEmail.map { AccountIdentity.fingerprint("codex", $0.lowercased()) }
+    }
 
     func account() -> ProviderAccount? {
         guard let email = accounts.currentAccountEmail else { return nil }
@@ -79,6 +90,7 @@ final class CodexNotchProvider: NotchProvider {
         // A reset credit changes the server quota immediately. A user refresh
         // must read it instead of re-rendering the pre-reset cached snapshot.
         // Keep background bridge updates read-only to avoid a polling loop.
+        accounts.refreshCurrentPlanType()
         if ProviderInteractionContext.current == .userInitiated {
             await limits.refresh()
         }
@@ -164,6 +176,10 @@ final class ClaudeNotchProvider: NotchProvider {
 
     var signInRoute: SignInRoute {
         .guidance("Enable Claude Code in Settings and add the account signed in to the claude CLI.")
+    }
+
+    func accountIdentity() -> String? {
+        claude.account?.email.map { AccountIdentity.fingerprint("claude", $0.lowercased()) }
     }
 
     func account() -> ProviderAccount? {

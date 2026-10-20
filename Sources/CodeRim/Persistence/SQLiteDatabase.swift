@@ -95,6 +95,7 @@ enum SQLiteDatabaseError: Error, LocalizedError {
     case statement(String)
     case step(String)
     case migration(String)
+    case unsupportedSchema(found: Int, supported: Int)
     case resourceLimit(String)
     case staleScan
 
@@ -104,6 +105,8 @@ enum SQLiteDatabaseError: Error, LocalizedError {
         case let .statement(message): "Database statement failed: \(message)"
         case let .step(message): "Database operation failed: \(message)"
         case let .migration(message): "Database migration failed: \(message)"
+        case let .unsupportedSchema(found, supported):
+            "Local usage database version \(found) requires a newer CodeRim app (supports up to \(supported)). Update CodeRim to read the saved usage."
         case let .resourceLimit(message): message
         case .staleScan: "The source scan was superseded by a data maintenance operation"
         }
@@ -112,11 +115,33 @@ enum SQLiteDatabaseError: Error, LocalizedError {
 
 actor SQLiteDatabase {
     static let maximumDatabaseBytes: Int64 = 1_073_741_824
+    static let supportedSchemaVersion = 17
 
     private let databaseURL: URL
     private let databaseByteLimit: Int64
     private let sourceFingerprintKeyData: Data
     private var connection: SQLiteConnection?
+
+    private struct ReadRevision: Equatable {
+        let localChanges: Int64
+        let externalChanges: Int64
+    }
+    private struct UsageCache {
+        let revision: ReadRevision
+        let today: Date
+        let week: Date
+        let month: Date
+        let asOf: Date
+        let nextEvent: TimeInterval?
+        let snapshot: UsageSnapshot
+    }
+    private struct EventBoundsCache {
+        let revision: ReadRevision
+        let oldest: Date?
+        let newest: Date?
+    }
+    private var usageCache: UsageCache?
+    private var eventBoundsCache: EventBoundsCache?
 
     init(url: URL, maximumDatabaseBytes: Int64 = SQLiteDatabase.maximumDatabaseBytes) throws {
         sqliteProcessStartupLock.lock()
@@ -168,6 +193,16 @@ actor SQLiteDatabase {
         do {
             try Self.configure(database)
             try Self.migrate(database)
+            // A legacy "partial" marker has no time of its own. Pin it once to the newest event that existed
+            // when it was first seen, so it marks the periods that hold that history and expires with them.
+            try Self.execute(
+                """
+                INSERT OR IGNORE INTO app_metadata(key, value)
+                SELECT 'legacy_partial_quality_through', CAST(COALESCE((SELECT MAX(occurred_at) FROM usage_events), 0) AS TEXT)
+                WHERE EXISTS (SELECT 1 FROM app_metadata WHERE key = 'legacy_partial_quality' AND value = '1')
+                """,
+                on: database
+            )
             try Self.protectDatabaseFiles(at: url)
         } catch {
             sqlite3_close(database)
@@ -354,19 +389,22 @@ actor SQLiteDatabase {
             for event in events {
                 sqlite3_reset(insert)
                 sqlite3_clear_bindings(insert)
+                // The table's CHECK constraints reject inconsistent rows; a rejected row would roll back the
+                // whole batch and fail the same read again on every refresh.
+                let usage = event.usage.isValid ? event.usage : event.usage.clampedToValid
                 try bind(event.eventKey, at: 1, to: insert)
                 sqlite3_bind_double(insert, 2, event.occurredAt.timeIntervalSince1970)
                 try bind(event.sessionID, at: 3, to: insert)
                 try bind(event.model, at: 4, to: insert)
                 try bind(event.projectPath, at: 5, to: insert)
-                sqlite3_bind_int64(insert, 6, event.usage.inputTokens)
-                sqlite3_bind_int64(insert, 7, event.usage.cachedInputTokens)
-                if let cacheWrite = event.usage.cacheWriteInputTokens {
+                sqlite3_bind_int64(insert, 6, usage.inputTokens)
+                sqlite3_bind_int64(insert, 7, usage.cachedInputTokens)
+                if let cacheWrite = usage.cacheWriteInputTokens {
                     sqlite3_bind_int64(insert, 8, cacheWrite)
                 } else {
                     sqlite3_bind_null(insert, 8)
                 }
-                sqlite3_bind_int64(insert, 9, event.usage.outputTokens)
+                sqlite3_bind_int64(insert, 9, usage.outputTokens)
                 if let pricingContext = event.pricingContext {
                     sqlite3_bind_int64(insert, 10, Int64(pricingContext.rawValue))
                 } else {
@@ -518,7 +556,9 @@ actor SQLiteDatabase {
                     INSERT INTO session_metadata (
                         session_id, parent_session_id, project_id, project_name,
                         started_at, image_attachment_count, updated_at
-                    ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+                    ) VALUES (?1, ?2, ?3, ?4, ?5,
+                        (SELECT COALESCE(MAX(image_attachment_count), 0)
+                         FROM parsing_state WHERE session_id = ?1), ?6)
                     ON CONFLICT(session_id) DO UPDATE SET
                         parent_session_id = excluded.parent_session_id,
                         project_id = excluded.project_id,
@@ -538,8 +578,7 @@ actor SQLiteDatabase {
                 } else {
                     sqlite3_bind_null(metadata, 5)
                 }
-                sqlite3_bind_int64(metadata, 6, checkpoint.imageAttachmentCount)
-                sqlite3_bind_double(metadata, 7, Date().timeIntervalSince1970)
+                sqlite3_bind_double(metadata, 6, Date().timeIntervalSince1970)
                 guard sqlite3_step(metadata) == SQLITE_DONE else {
                     throw SQLiteDatabaseError.step(errorMessage)
                 }
@@ -564,21 +603,35 @@ actor SQLiteDatabase {
 
         try execute("BEGIN DEFERRED")
         do {
+            let revision = try readRevision()
+            if let cached = usageCache, cached.revision == revision,
+               cached.today == today, cached.week == week, cached.month == month,
+               now >= cached.asOf, cached.nextEvent.map({ now.timeIntervalSince1970 < $0 }) ?? true {
+                try execute("COMMIT")
+                return cached.snapshot
+            }
             let todayUsage = try sum(from: today, through: now)
             let weekUsage = try sum(from: week, through: now)
             let monthUsage = try sum(from: month, through: now)
             let allTimeUsage = try sum(from: nil, through: now)
             let lastUpdated = try maximumEventDate(through: now)
-            let quality = try databaseQuality(hasEvents: lastUpdated != nil)
+            // The current periods are judged by the sessions seen in them; a partly read session from
+            // months ago, or old files still waiting for a re-read, is reported separately.
+            let quality = try databaseQuality(hasEvents: lastUpdated != nil, since: min(week, month), includesBackfill: false)
+            let historyIncomplete = try databaseQuality(hasEvents: lastUpdated != nil) == .partial
             let snapshot = UsageSnapshot(
                 today: todayUsage,
                 week: weekUsage,
                 month: monthUsage,
                 allTime: allTimeUsage,
                 quality: quality,
-                updatedAt: lastUpdated
+                updatedAt: lastUpdated,
+                historyIncomplete: historyIncomplete
             )
+            let nextEvent = try minimumEventTimestamp(after: now)
             try execute("COMMIT")
+            usageCache = UsageCache(revision: revision, today: today, week: week, month: month,
+                                    asOf: now, nextEvent: nextEvent, snapshot: snapshot)
             return snapshot
         } catch {
             try? execute("ROLLBACK")
@@ -606,7 +659,7 @@ actor SQLiteDatabase {
                 interval: interval,
                 through: end,
                 usage: usage,
-                quality: try databaseQuality(hasEvents: !usage.isZero),
+                quality: try databaseQuality(hasEvents: !usage.isZero, since: interval.start),
                 buckets: buckets,
                 models: models,
                 projects: projects,
@@ -966,21 +1019,50 @@ actor SQLiteDatabase {
     }
 
     func dataStatistics() throws -> DataStatistics {
-        let statement = try prepare("SELECT MIN(occurred_at), MAX(occurred_at) FROM usage_events")
-        defer { sqlite3_finalize(statement) }
-        guard sqlite3_step(statement) == SQLITE_ROW else {
-            throw SQLiteDatabaseError.step(errorMessage)
+        let revision = try readRevision()
+        let bounds: EventBoundsCache
+        if let cached = eventBoundsCache, cached.revision == revision {
+            bounds = cached
+        } else {
+            let statement = try prepare("SELECT MIN(occurred_at), MAX(occurred_at) FROM usage_events")
+            defer { sqlite3_finalize(statement) }
+            guard sqlite3_step(statement) == SQLITE_ROW else {
+                throw SQLiteDatabaseError.step(errorMessage)
+            }
+            bounds = EventBoundsCache(revision: revision,
+                oldest: sqlite3_column_type(statement, 0) == SQLITE_NULL
+                    ? nil : Date(timeIntervalSince1970: sqlite3_column_double(statement, 0)),
+                newest: sqlite3_column_type(statement, 1) == SQLITE_NULL
+                    ? nil : Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)))
+            eventBoundsCache = bounds
         }
-        let oldest = sqlite3_column_type(statement, 0) == SQLITE_NULL
-            ? nil
-            : Date(timeIntervalSince1970: sqlite3_column_double(statement, 0))
-        let newest = sqlite3_column_type(statement, 1) == SQLITE_NULL
-            ? nil
-            : Date(timeIntervalSince1970: sqlite3_column_double(statement, 1))
         let size = [databaseURL.path, databaseURL.path + "-wal", databaseURL.path + "-shm"]
             .compactMap { try? FileManager.default.attributesOfItem(atPath: $0)[.size] as? NSNumber }
             .reduce(Int64(0)) { $0 + $1.int64Value }
-        return DataStatistics(databaseBytes: size, oldestRecord: oldest, newestRecord: newest)
+        return DataStatistics(databaseBytes: size, oldestRecord: bounds.oldest, newestRecord: bounds.newest)
+    }
+
+    /// data_version observes other connections; total_changes observes this
+    /// connection, including history deletion, exclusions and metadata writes.
+    private func readRevision() throws -> ReadRevision {
+        let statement = try prepare("PRAGMA data_version")
+        defer { sqlite3_finalize(statement) }
+        guard let connection, sqlite3_step(statement) == SQLITE_ROW else {
+            throw SQLiteDatabaseError.step(errorMessage)
+        }
+        return ReadRevision(localChanges: sqlite3_total_changes64(connection.rawValue),
+                            externalChanges: sqlite3_column_int64(statement, 0))
+    }
+
+    private func minimumEventTimestamp(after date: Date) throws -> TimeInterval? {
+        let statement = try prepare("SELECT MIN(occurred_at) FROM usage_events WHERE occurred_at > ?1")
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_double(statement, 1, date.timeIntervalSince1970)
+        guard sqlite3_step(statement) == SQLITE_ROW else {
+            throw SQLiteDatabaseError.step(errorMessage)
+        }
+        return sqlite3_column_type(statement, 0) == SQLITE_NULL
+            ? nil : sqlite3_column_double(statement, 0)
     }
 
     func eventCount() throws -> Int64 {
@@ -993,6 +1075,12 @@ actor SQLiteDatabase {
     }
 
 #if DEBUG
+    func prepareVersion15ImageFixtureForTesting() throws {
+        try execute("UPDATE parsing_state SET image_attachment_count = 0 WHERE inherits_history = 1")
+        try execute("UPDATE session_metadata SET image_attachment_count = 0 WHERE parent_session_id IS NOT NULL")
+        try execute("PRAGMA user_version = 15")
+    }
+
     func prepareVersion14FixtureForTesting() throws {
         try execute("PRAGMA user_version = 14")
     }
@@ -1101,7 +1189,7 @@ actor SQLiteDatabase {
             try execute("DELETE FROM session_counters")
             try execute("DELETE FROM session_metadata")
             try execute("DELETE FROM analytics_backfill_sources")
-            try execute("DELETE FROM app_metadata WHERE key = 'legacy_partial_quality'")
+            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through')")
             try execute("COMMIT")
         } catch {
             try? execute("ROLLBACK")
@@ -1131,7 +1219,7 @@ actor SQLiteDatabase {
             try execute("DELETE FROM session_counters")
             try execute("DELETE FROM session_metadata")
             try execute("DELETE FROM analytics_backfill_sources")
-            try execute("DELETE FROM app_metadata WHERE key = 'legacy_partial_quality'")
+            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through')")
             do {
                 let statement = try prepare(
                     """
@@ -1324,21 +1412,37 @@ actor SQLiteDatabase {
         return Date(timeIntervalSince1970: sqlite3_column_double(statement, 0))
     }
 
-    private func databaseQuality(hasEvents: Bool) throws -> DataQuality {
+    /// Partial when a session observed since `since` (any time when nil; a session whose time is unknown
+    /// counts, conservatively) was read only partly, or —
+    /// with `includesBackfill` — when sources still wait for an analytics re-read.
+    private func databaseQuality(hasEvents: Bool, since: Date? = nil, includesBackfill: Bool = true) throws -> DataQuality {
         guard hasEvents else { return .unavailable }
+        let historyWide = since == nil
         let statement = try prepare(
             """
             SELECT 1
-            WHERE EXISTS (SELECT 1 FROM analytics_backfill_sources)
-               OR EXISTS (
+            WHERE (?1 AND EXISTS (SELECT 1 FROM analytics_backfill_sources))
+               OR (EXISTS (
                     SELECT 1 FROM app_metadata
                     WHERE key = 'legacy_partial_quality' AND value = '1'
+               ) AND (?2 OR COALESCE((
+                    SELECT CAST(value AS REAL) FROM app_metadata WHERE key = 'legacy_partial_quality_through'
+               ), ?3 + 1) >= ?3))
+               OR EXISTS (
+                    SELECT 1 FROM session_counters
+                    WHERE quality != 'exact' AND (?3 IS NULL OR last_observed_at IS NULL OR last_observed_at >= ?3)
                )
-               OR EXISTS (SELECT 1 FROM session_counters WHERE quality != 'exact')
             LIMIT 1
             """
         )
         defer { sqlite3_finalize(statement) }
+        sqlite3_bind_int(statement, 1, includesBackfill ? 1 : 0)
+        sqlite3_bind_int(statement, 2, historyWide ? 1 : 0)
+        if let since {
+            sqlite3_bind_double(statement, 3, since.timeIntervalSince1970)
+        } else {
+            sqlite3_bind_null(statement, 3)
+        }
         switch sqlite3_step(statement) {
         case SQLITE_ROW: return .partial
         case SQLITE_DONE: return .exact
@@ -1358,8 +1462,8 @@ actor SQLiteDatabase {
 
     private static func migrate(_ database: OpaquePointer) throws {
         var version = try userVersion(database)
-        guard version <= 15 else {
-            throw SQLiteDatabaseError.migration("database schema is newer than this app supports")
+        guard version <= supportedSchemaVersion else {
+            throw SQLiteDatabaseError.unsupportedSchema(found: Int(version), supported: supportedSchemaVersion)
         }
 
         if version == 0 {
@@ -1420,6 +1524,14 @@ actor SQLiteDatabase {
         }
         if version == 14 {
             try migrateToVersion15(database)
+            version = 15
+        }
+        if version == 15 {
+            try migrateToVersion16(database)
+            version = 16
+        }
+        if version == 16 {
+            try migrateToVersion17(database)
         }
     }
 
@@ -1973,6 +2085,96 @@ actor SQLiteDatabase {
                 on: database
             )
             try execute("PRAGMA user_version = 15", on: database)
+            try execute("COMMIT", on: database)
+        } catch {
+            try? execute("ROLLBACK", on: database)
+            throw error
+        }
+    }
+
+    private static func migrateToVersion16(_ database: OpaquePointer) throws {
+        try execute("BEGIN IMMEDIATE", on: database)
+        do {
+            if try userVersion(database) >= 16 {
+                try execute("COMMIT", on: database)
+                return
+            }
+            // Replay only inherited sessions whose first new image was previously
+            // skipped. Retain accounting rows and absent-source metadata; semantic
+            // event keys prevent replay from adding token deltas a second time.
+            try execute(
+                """
+                INSERT OR IGNORE INTO analytics_backfill_sources(source_path)
+                SELECT source_path FROM parsing_state WHERE inherits_history = 1
+                """, on: database
+            )
+            try execute(
+                """
+                DELETE FROM session_counters WHERE session_id IN (
+                    SELECT session_id FROM parsing_state WHERE inherits_history = 1
+                )
+                """, on: database
+            )
+            try execute(
+                """
+                UPDATE parsing_state
+                SET generation = MAX(
+                        generation + 1,
+                        COALESCE((SELECT MAX(usage_events.source_generation) + 1
+                            FROM usage_events WHERE usage_events.source_path = parsing_state.source_path),
+                            generation + 1)
+                    ),
+                    committed_offset = 0, skipping_oversized_line = 0,
+                    observed_size = 0, modification_time_ns = 0, content_fingerprint = '',
+                    has_pending_import = 1, session_id = NULL, inherits_history = 0,
+                    session_started_at = NULL, inherited_history_end_ordinal = NULL,
+                    history_replay_complete = 1, model = NULL, project_path = NULL,
+                    parent_session_id = NULL, project_name = NULL, image_attachment_count = 0
+                WHERE inherits_history = 1
+                """, on: database
+            )
+            try execute(
+                """
+                INSERT INTO app_metadata(key, value) VALUES('data_epoch', '1')
+                ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1
+                """, on: database
+            )
+            try execute("PRAGMA user_version = 16", on: database)
+            try execute("COMMIT", on: database)
+        } catch {
+            try? execute("ROLLBACK", on: database)
+            throw error
+        }
+    }
+
+    private static func migrateToVersion17(_ database: OpaquePointer) throws {
+        try execute("BEGIN IMMEDIATE", on: database)
+        do {
+            if try userVersion(database) >= 17 {
+                try execute("COMMIT", on: database)
+                return
+            }
+            // A shorter archive copy must not replace a fuller session's image
+            // count. Derive it from source checkpoints, so rewriting a single
+            // source can still lower its count. Token events remain unchanged.
+            try execute(
+                "CREATE INDEX IF NOT EXISTS parsing_state_session_idx ON parsing_state(session_id)",
+                on: database
+            )
+            try execute(
+                """
+                UPDATE session_metadata
+                SET image_attachment_count = (
+                    SELECT MAX(image_attachment_count) FROM parsing_state
+                    WHERE parsing_state.session_id = session_metadata.session_id
+                )
+                WHERE EXISTS (
+                    SELECT 1 FROM parsing_state
+                    WHERE parsing_state.session_id = session_metadata.session_id
+                )
+                """, on: database
+            )
+            try execute("PRAGMA user_version = 17", on: database)
             try execute("COMMIT", on: database)
         } catch {
             try? execute("ROLLBACK", on: database)

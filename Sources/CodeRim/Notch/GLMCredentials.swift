@@ -37,6 +37,8 @@ enum GLMCredentials {
         let baseURL: URL
         /// The tool the key was found under, for the settings row.
         let source: String
+        /// The account the key belongs to, without the key itself.
+        var identity: String { AccountIdentity.fingerprint("glm", baseURL.absoluteString, token) }
     }
 
     static var claudeSettingsURL: URL {

@@ -13,6 +13,11 @@ struct ExtendedProviderConfiguration: Codable, Sendable {
         provider = ProviderConfig(id: providerID.instanceID, source: .auto, cookieSource: providerID == .stepfun ? .auto : .manual)
     }
 
+    func environmentInput(_ value: String, for key: String) -> String {
+        if provider.id.firstPartyProvider == .stepfun, key == "STEPFUN_PASSWORD" { return value }
+        return value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     func fetchEnvironment(base: [String: String]) -> [String: String] {
         guard let id = provider.id.firstPartyProvider else { return base }
         let allowed = Set(ExtendedProviderGuides.all[id.rawValue]?.environmentKeys ?? [])
@@ -73,6 +78,12 @@ struct ExtendedProviderConfiguration: Codable, Sendable {
         if provider.id.firstPartyProvider == .kimi, provider.cookieSource != .auto,
            KimiCookieHeader.override(from: provider.cookieHeader) == nil {
             provider.cookieSource = .off
+        }
+        if provider.id.firstPartyProvider == .stepfun {
+            return .make(stepfun: .init(cookieSource: provider.cookieSource ?? .auto,
+                manualToken: provider.cookieHeader ?? "",
+                username: StepFunSettingsReader.token(environment: environment) == nil ? StepFunSettingsReader.username(environment: environment) ?? "" : "",
+                password: StepFunSettingsReader.token(environment: environment) == nil ? environment["STEPFUN_PASSWORD"] ?? "" : ""))
         }
         if provider.id.firstPartyProvider == .jetbrains {
             return .make(jetbrains: .init(ideBasePath: environment["IDE_BASE"]))

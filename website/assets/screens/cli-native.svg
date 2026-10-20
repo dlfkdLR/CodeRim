@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="425" viewBox="0 0 800 425" role="img" aria-label="CodeRim CLI limits output">
+<rect width="800" height="425" rx="20" fill="#181818"/>
+<path d="M20 0h760a20 20 0 0 1 20 20v32H0V20A20 20 0 0 1 20 0Z" fill="#242424"/>
+<g fill="#888"><circle cx="28" cy="26" r="5"/><circle cx="45" cy="26" r="5"/><circle cx="62" cy="26" r="5"/></g>
+<text x="400" y="31" text-anchor="middle" fill="#aaa" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="14">coderim — terminal</text>
+<g fill="#e4e4e4" font-family="SFMono-Regular, Menlo, Consolas, monospace" font-size="18"><text x="34" y="98" xml:space="preserve">$ coderim limits --provider codex</text>
+<text x="34" y="123" xml:space="preserve"></text>
+<text x="34" y="148" xml:space="preserve">Codex · Plus                             READY</text>
+<text x="34" y="173" xml:space="preserve">────────────────────────────────────────────────</text>
+<text x="34" y="198" xml:space="preserve">Session           68.0% left</text>
+<text x="34" y="223" xml:space="preserve">██████████████░░░░░░</text>
+<text x="34" y="248" xml:space="preserve">  resets in 2h 33m</text>
+<text x="34" y="273" xml:space="preserve">Weekly            82.0% left</text>
+<text x="34" y="298" xml:space="preserve">████████████████░░░░</text>
+<text x="34" y="323" xml:space="preserve">  resets in 1d 23h</text>
+<text x="34" y="348" xml:space="preserve">Updated 0s ago</text></g>
+</svg>

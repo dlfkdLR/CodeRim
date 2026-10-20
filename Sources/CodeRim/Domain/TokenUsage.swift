@@ -50,6 +50,19 @@ struct TokenUsage: Codable, Equatable, Sendable {
             && knownCacheWriteIsValid
     }
 
+    /// The closest storable value: negative parts become zero and cache reads/writes never exceed input.
+    /// Used when a delta between two valid cumulative counters is itself inconsistent.
+    var clampedToValid: TokenUsage {
+        let input = max(0, inputTokens)
+        let cached = min(max(0, cachedInputTokens), input)
+        return TokenUsage(
+            inputTokens: input,
+            cachedInputTokens: cached,
+            cacheWriteInputTokens: cacheWriteInputTokens.map { min(max(0, $0), input - cached) },
+            outputTokens: max(0, outputTokens)
+        )
+    }
+
     func adding(_ other: TokenUsage) -> TokenUsage {
         TokenUsage(
             inputTokens: inputTokens.saturatedAdding(other.inputTokens),
@@ -82,6 +95,14 @@ struct TokenUsage: Codable, Equatable, Sendable {
             && cachedInputTokens >= other.cachedInputTokens
             && optionalIsAtLeast(cacheWriteInputTokens, other.cacheWriteInputTokens)
             && outputTokens >= other.outputTokens
+    }
+
+    func hasCounterDecrease(comparedTo previous: TokenUsage) -> Bool {
+        inputTokens < previous.inputTokens || cachedInputTokens < previous.cachedInputTokens
+            || outputTokens < previous.outputTokens
+            || (cacheWriteInputTokens.flatMap { current in
+                previous.cacheWriteInputTokens.map { current < $0 }
+            } ?? false)
     }
 
     private func optionalSaturatedAdd(_ lhs: Int64?, _ rhs: Int64?) -> Int64? {

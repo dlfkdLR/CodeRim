@@ -44,16 +44,36 @@ struct NotchProviderSettingsView: View {
             accountSection
             if ExtendedProviderCatalog.isExtended(providerID),
                let descriptor = ExtendedProviderCatalog.descriptor(for: providerID) {
-                SettingsNote("To use another account, save its credentials below, or switch the imported browser session and refresh.")
-                SettingsSection(title: "Switch account") {
-                    SettingsButtonRow(title: "Refresh account", systemImage: "arrow.clockwise") {
-                        notch.providerConfigurationDidChange(providerID)
+                if isConnected || account != nil {
+                    SettingsSection(title: "Switch account") {
+                        SettingsButtonRow(title: "Refresh account", systemImage: "arrow.clockwise") {
+                            notch.providerConfigurationDidChange(providerID)
+                        }
+                    }
+                    SettingsNote("To use another account, save its credentials below, or switch the imported browser session and refresh.")
+                } else if let route {
+                    // Not connected: one place that says what to do, and the button that does it.
+                    SettingsSection(title: "Connect") {
+                        SettingsInfoRow(text: route.explanation, systemImage: "info.circle", tint: nil)
+                        if case .guided(let guided) = route, guided.opensSettings {
+                            EmptyView()
+                        } else if route.actionTitle != nil {
+                            routeControl(route)
+                        }
+                        if let accountActionMessage { SettingsInfoRow(text: accountActionMessage, systemImage: "exclamationmark.circle", tint: .orange) }
                     }
                 }
-                ExtendedProviderSettingsView(descriptor: descriptor)
+                ExtendedProviderSettingsView(descriptor: descriptor, isConnected: isConnected)
             } else {
                 connectionSection
+                if !["codex", "claude", "ollama-local"].contains(providerID),
+                   let descriptor = ExtendedProviderCatalog.descriptor(for: providerID) {
+                    // CodexBar's reader for the same service: a key, a token or a browser
+                    // session given to CodeRim works when no tool on this Mac holds a sign-in.
+                    ExtendedProviderSettingsView(descriptor: descriptor, isConnected: isConnected)
+                }
             }
+            connectionProgress
             alertsSection
 
             if !ExtendedProviderCatalog.isExtended(providerID) {
@@ -176,10 +196,34 @@ struct NotchProviderSettingsView: View {
             }
             SettingsNote(route.switchHint)
             if case .guidance = route { SettingsNote(route.explanation) }
+            if case .guided = route { SettingsNote(route.explanation) }
             if let accountActionMessage { SettingsNote(accountActionMessage) }
         } else if !isConnected, let route {
             SettingsSection(title: "Connection") { routeControl(route) }
             SettingsNote(route.explanation)
+        }
+    }
+
+    /// What the sign-in started from this page is waiting for, in full.
+    @ViewBuilder private var connectionProgress: some View {
+        switch notch.connectionState(for: providerID) {
+        case .waiting(let note)?:
+            SettingsSection(title: "Signing in") {
+                HStack(alignment: .top, spacing: 10) {
+                    ProgressView().controlSize(.small)
+                    Text(note).font(.callout).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 8)
+                    Button("Cancel") { notch.cancelConnecting(providerID) }.buttonStyle(SettingsPillButtonStyle(compact: true))
+                }
+                .padding(.horizontal, SettingsMetrics.rowInset).padding(.vertical, 10)
+            }
+        case .failed(let reason)?:
+            SettingsSection(title: "Signing in") {
+                SettingsInfoRow(text: reason, systemImage: "exclamationmark.circle", tint: .orange)
+                SettingsButtonRow(title: "Try again", systemImage: "arrow.clockwise") { notch.beginConnecting(providerID) }
+            }
+        default:
+            EmptyView()
         }
     }
 
@@ -213,6 +257,10 @@ struct NotchProviderSettingsView: View {
             SettingsButtonRow(title: "Sign in to \(appName)", systemImage: "person.badge.key") {
                 accountActionMessage = notch.openAccountSource(providerID: providerID)
                     ? nil : "The sign-in window could not be opened. Try again."
+            }
+        case let .guided(guided):
+            SettingsButtonRow(title: guided.actionTitle, systemImage: "person.badge.key") {
+                if guided.opensSettings { accountActionMessage = nil } else { notch.beginConnecting(providerID) }
             }
         case .guidance:
             EmptyView()

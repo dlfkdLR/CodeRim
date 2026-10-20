@@ -7,6 +7,7 @@ struct ActivitySummary: Equatable {
         case working
         case waiting
         case idle
+        case unavailable
     }
 
     let state: State
@@ -23,8 +24,10 @@ struct ActivitySummary: Equatable {
             state = .waiting
         } else if sessions.contains(where: { $0.state == .busy }) {
             state = .working
-        } else {
+        } else if sessions.contains(where: { $0.state == .idle }) {
             state = .idle
+        } else {
+            state = .unavailable
         }
     }
 
@@ -34,6 +37,7 @@ struct ActivitySummary: Equatable {
         case .working: return "working"
         case .waiting: return "waiting"
         case .idle:    return "idle"
+        case .unavailable: return "unknown"
         }
     }
 
@@ -45,7 +49,7 @@ struct ActivitySummary: Equatable {
         switch state {
         case .working: return NotchPalette.textPrimary
         case .waiting: return NotchPalette.watch
-        case .idle:    return NotchPalette.ringTrack
+        case .idle, .unavailable: return NotchPalette.ringTrack
         }
     }
 
@@ -59,19 +63,27 @@ struct ActivitySummary: Equatable {
         var id: String { session.id }
     }
 
+    private struct ThreadKey: Hashable {
+        let host: String?
+        let thread: String
+    }
+
     var displayRows: [Row] {
         var nodes = Dictionary(sessions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let byThread = Dictionary(sessions.compactMap { session in
-            session.codexThreadID.map { ($0, session.id) }
+            session.codexThreadID.map { (ThreadKey(host: session.remoteHostID, thread: $0), session.id) }
         }, uniquingKeysWith: { first, _ in first })
         var contextIDs = Set<String>()
         var parentIDs: [String: String] = [:]
         for session in sessions {
             guard let parent = session.parentThread, parent.id != session.codexThreadID else { continue }
-            let key = byThread[parent.id] ?? "parent.\(parent.id)"
+            let contextKey = session.remoteHostID.map { "remote.\($0).parent.\(parent.id)" }
+                ?? "parent.\(parent.id)"
+            let key = byThread[ThreadKey(host: session.remoteHostID, thread: parent.id)] ?? contextKey
             if nodes[key] == nil {
                 nodes[key] = AgentSession(id: key, name: session.name, detail: parent.title,
-                    state: .idle, waitingFor: nil, since: .distantPast, codexThreadID: parent.id)
+                    state: .idle, waitingFor: nil, since: .distantPast, codexThreadID: parent.id,
+                    remoteHostID: session.remoteHostID)
                 contextIDs.insert(key)
             }
             parentIDs[session.id] = key
@@ -87,7 +99,7 @@ struct ActivitySummary: Equatable {
         }
         let children = Dictionary(grouping: parentIDs.keys, by: { parentIDs[$0]! })
         func rank(_ state: AgentSession.State) -> Int {
-            switch state { case .waiting: 0; case .busy: 1; case .idle: 2 }
+            switch state { case .waiting: 0; case .busy: 1; case .idle: 2; case .unavailable: 3 }
         }
         var priorities: [String: (rank: Int, since: Date)] = [:]
         func priority(_ key: String) -> (rank: Int, since: Date) {

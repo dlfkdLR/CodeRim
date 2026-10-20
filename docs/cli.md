@@ -1,5 +1,7 @@
 # CLI
 
+**English** · [한국어](ko/cli.md)
+
 Open **Settings → Diagnostics → Install CLI**.
 
 The installer creates `~/.local/bin/coderim` pointing to the app's bundled `Contents/Helpers/CodeRimCLI`. It needs no administrator password and refuses to overwrite a different command. If `~/.local/bin` is not already on your shell's PATH, add it:

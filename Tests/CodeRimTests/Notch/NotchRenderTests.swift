@@ -237,8 +237,10 @@ final class NotchEdgeCrossfadeTests: XCTestCase {
     }
 
     func testTheNotchFadesOutBeforeItMoves() {
-        let controller = NotchWindowController()
+        let controller = NotchWindowController(
+            mouseLocation: { CGPoint(x: -100_000, y: -100_000) }, reduceMotion: { false })
         controller.show()
+        pump(0.2) // Settle initial layout before observing the actual panel transition.
         defer { controller.stop() }
 
         let before = controller.panelFrameForTesting
@@ -252,8 +254,10 @@ final class NotchEdgeCrossfadeTests: XCTestCase {
     }
 
     func testItComesBackOnTheNewEdgeAtFullStrength() {
-        let controller = NotchWindowController()
+        let controller = NotchWindowController(
+            mouseLocation: { CGPoint(x: -100_000, y: -100_000) }, reduceMotion: { false })
         controller.show()
+        pump(0.2) // Settle initial layout before observing the actual panel transition.
         defer { controller.stop() }
 
         controller.apply(edge: .bottom)
@@ -271,8 +275,10 @@ final class NotchEdgeCrossfadeTests: XCTestCase {
     /// Clicking through the picker quickly must not let an earlier move land
     /// after a later one.
     func testOnlyTheLastEdgeAskedForWins() {
-        let controller = NotchWindowController()
+        let controller = NotchWindowController(
+            mouseLocation: { CGPoint(x: -100_000, y: -100_000) }, reduceMotion: { false })
         controller.show()
+        pump(0.2) // Settle initial layout before observing the actual panel transition.
         defer { controller.stop() }
 
         controller.apply(edge: .top)
@@ -286,8 +292,10 @@ final class NotchEdgeCrossfadeTests: XCTestCase {
 
     /// Asking for the edge it is already on is not a move.
     func testAskingForTheSameEdgeDoesNothing() {
-        let controller = NotchWindowController()
+        let controller = NotchWindowController(
+            mouseLocation: { CGPoint(x: -100_000, y: -100_000) }, reduceMotion: { false })
         controller.show()
+        pump(0.2) // Settle initial layout before observing the actual panel transition.
         defer { controller.stop() }
 
         controller.apply(edge: controller.model.edge)
@@ -306,13 +314,15 @@ final class NotchEdgeArrivalTests: XCTestCase {
     }
 
     private func openController() -> NotchWindowController {
-        let controller = NotchWindowController()
+        let controller = NotchWindowController(
+            mouseLocation: { CGPoint(x: -100_000, y: -100_000) }, reduceMotion: { false })
         controller.show()
         controller.model.snapshots = (0..<3).map { index in
             ProviderSnapshot(id: "p\(index)", displayName: "P", glyph: .claude,
                              fidelity: .official, status: .ok, windows: [])
         }
-        controller.model.isExpanded = true
+        controller.apply(.alwaysShow)
+        pump(0.2) // Settle fixture layout and keep cursor polling out of this assertion.
         return controller
     }
 
@@ -321,10 +331,9 @@ final class NotchEdgeArrivalTests: XCTestCase {
     @discardableResult
     private func wait(upTo seconds: TimeInterval = 3,
                       for condition: () -> Bool) -> Bool {
-        var waited: TimeInterval = 0
-        while !condition(), waited < seconds {
-            pump(0.02)
-            waited += 0.02
+        let deadline = ProcessInfo.processInfo.systemUptime + seconds
+        while !condition(), ProcessInfo.processInfo.systemUptime < deadline {
+            pump(min(0.02, max(0, deadline - ProcessInfo.processInfo.systemUptime)))
         }
         return condition()
     }
@@ -371,7 +380,7 @@ final class NotchEdgeArrivalTests: XCTestCase {
         defer { controller.stop() }
 
         controller.apply(edge: .bottom)
-        XCTAssertTrue(wait { controller.model.isExpanded }, "it never opened")
+        XCTAssertTrue(wait { controller.model.edge == .bottom && controller.model.isExpanded }, "it never arrived and opened")
         XCTAssertEqual(controller.panelAlphaForTesting, 1, accuracy: 0.01,
                        "it is still fading while it opens — two animations over each other")
     }
@@ -380,7 +389,7 @@ final class NotchEdgeArrivalTests: XCTestCase {
     func testAFoldedNotchArrivesFolded() {
         let controller = openController()
         defer { controller.stop() }
-        controller.model.isExpanded = false
+        controller.apply(.onHover)
 
         controller.apply(edge: .left)
         pump(0.6)

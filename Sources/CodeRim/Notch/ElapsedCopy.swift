@@ -13,11 +13,12 @@ enum ElapsedCopy {
         let seconds = max(0, now.timeIntervalSince(since))
         if seconds < 45 { return "just now" }
 
-        let minutes = Int((seconds / 60).rounded())
+        guard let minutes = Int(exactly: (seconds / 60).rounded()) else { return "unknown" }
         if minutes < 60 { return "\(max(1, minutes)) min" }
 
         let hours = minutes / 60
         let rest = minutes % 60
+        if hours >= 24 { return "\(hours / 24) d \(hours % 24) hr \(rest) min" }
         if rest == 0 { return "\(hours) hr" }
         return "\(hours) hr \(rest) min"
     }

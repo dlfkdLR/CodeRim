@@ -1,0 +1,175 @@
+using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
+using System.Runtime.InteropServices;
+
+namespace CodeRim.ProcessFixture;
+
+internal static class Program
+{
+    private static async Task<int> Main(string[] args)
+    {
+        var root = Environment.GetEnvironmentVariable("SYNTHETIC_RUN_DIR") ?? throw new InvalidOperationException("Fixture root is required.");
+        Directory.CreateDirectory(root);
+        if (args.FirstOrDefault() != "child") File.WriteAllText(Path.Combine(root, "root.pid"), Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        switch (args.FirstOrDefault())
+        {
+            case "account-mutex":
+                if (!OperatingSystem.IsWindows() || args.Length != 3 || args[2] is not ("hold" or "try")
+                    || Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true"
+                    || Environment.GetEnvironmentVariable("RUNNER_ENVIRONMENT") != "github-hosted") return 12;
+                using (var identity = System.Security.Principal.WindowsIdentity.GetCurrent())
+                {
+                    var sid = identity.User?.Value ?? throw new IOException("Fixture user is unavailable.");
+                    var prefix = "CodeRim.AccountOperations." + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(Encoding.UTF8.GetBytes(sid))) + ".Test.";
+                    if (!args[1].StartsWith(prefix, StringComparison.Ordinal) || !Guid.TryParseExact(args[1][prefix.Length..], "N", out _)) return 13;
+                }
+                var options = new NamedWaitHandleOptions { CurrentUserOnly = true, CurrentSessionOnly = false };
+                using (var mutex = new Mutex(false, args[1], options))
+                {
+                    var owned = false; var abandon = false;
+                    try
+                    {
+                        try { owned = mutex.WaitOne(0); }
+                        catch (AbandonedMutexException) { owned = true; }
+                        if (!owned) { Console.WriteLine("busy"); return 4; }
+                        Console.WriteLine("owned"); Console.Out.Flush();
+                        if (args[2] == "try") return 0;
+                        // Keep WaitOne/release on this thread. Only stdin is read
+                        // by a worker; the owning thread never awaits its result.
+                        var command = Task.Run(Console.ReadLine);
+                        if (!command.Wait(TimeSpan.FromSeconds(60))) return 8;
+                        if (command.Result == "abandon") { abandon = true; return 0; }
+                        if (command.Result != "release") return 9;
+                        return 0;
+                    }
+                    finally { if (owned && !abandon) mutex.ReleaseMutex(); }
+                }
+            case "app-server":
+                while (await Console.In.ReadLineAsync().ConfigureAwait(false) is { } line)
+                {
+                    using var request = JsonDocument.Parse(line);
+                    if (!request.RootElement.TryGetProperty("id", out var id)) continue;
+                    if (id.GetInt32() == 1) Console.WriteLine("{\"id\":1,\"result\":{}}");
+                    else
+                    {
+                        var method = request.RootElement.GetProperty("method").GetString();
+                        var hasParameters = request.RootElement.TryGetProperty("params", out var parameters);
+                        var valid = method switch
+                        {
+                            "account/read" => hasParameters && parameters.ValueKind == JsonValueKind.Object
+                                && (!parameters.TryGetProperty("refreshToken", out var refresh) || refresh.ValueKind == JsonValueKind.False),
+                            "config/read" => hasParameters && parameters.ValueKind == JsonValueKind.Object,
+                            "account/rateLimits/read" => !hasParameters || parameters.ValueKind == JsonValueKind.Null,
+                            _ => false
+                        };
+                        if (!valid)
+                        {
+                            Console.WriteLine(JsonSerializer.Serialize(new { id = id.GetInt32(), error = new { code = -32600, message = "Invalid read-only request params" } }));
+                            continue;
+                        }
+                        Console.WriteLine(JsonSerializer.Serialize(new { id = id.GetInt32(), result = new {
+                            method, parameters = hasParameters ? (object)parameters : null,
+                            home = Environment.GetEnvironmentVariable("CODEX_HOME"),
+                            inherited = Environment.GetEnvironmentVariable("SYNTHETIC_PARENT_SECRET") is not null
+                        } }));
+                    }
+                }
+                return 0;
+            case "echo":
+                Console.OutputEncoding = new UTF8Encoding(false);
+                foreach (var argument in args.Skip(1)) Console.WriteLine(argument);
+                Console.WriteLine(Environment.GetEnvironmentVariable("SYNTHETIC_UNICODE"));
+                Console.Error.Write("fixture-error");
+                return Console.In.ReadToEnd().Length == 0 ? 0 : 9;
+            case "flood":
+                File.WriteAllText(Path.Combine(root, "flood.started"), "started");
+                using (var output = Console.OpenStandardOutput())
+                {
+                    var bytes = new byte[32]; Array.Fill(bytes, (byte)'x');
+                    while (true) output.Write(bytes);
+                }
+            case "early":
+            case "early-detached":
+            case "waiting":
+                var executable = Environment.GetEnvironmentVariable("SYNTHETIC_FIXTURE_BIN") ?? throw new InvalidOperationException("Fixture binary is required.");
+                if (args[0] == "early-detached" && OperatingSystem.IsWindows())
+                    foreach (var standard in new[] { -10, -11, -12 })
+                        if (!SetHandleInformation(GetStdHandle(standard), 1, 0)) throw new System.ComponentModel.Win32Exception();
+                if (args[0] != "early-detached" && OperatingSystem.IsWindows())
+                    foreach (var standard in new[] { -11, -12 })
+                        if (!SetHandleInformation(GetStdHandle(standard), 1, 1)) throw new System.ComponentModel.Win32Exception();
+                // At least one redirected stream makes Process.Start explicitly pass
+                // stdout/stderr through STARTF_USESTDHANDLES for CREATE_NO_WINDOW.
+                var start = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true,
+                    RedirectStandardInput = true, RedirectStandardOutput = args[0] == "early-detached",
+                    RedirectStandardError = args[0] == "early-detached" };
+                start.ArgumentList.Add("child"); start.ArgumentList.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                using (var child = Process.Start(start) ?? throw new IOException("Child fixture failed."))
+                {
+                    File.WriteAllText(Path.Combine(root, "child.pid"), child.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        + "|" + child.StartTime.ToUniversalTime().Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture));
+                    var ready = Stopwatch.StartNew();
+                    while (!File.Exists(Path.Combine(root, "child.started")))
+                    {
+                        if (child.HasExited || ready.Elapsed > TimeSpan.FromSeconds(2)) throw new IOException("Child did not acknowledge startup.");
+                        await Task.Delay(10).ConfigureAwait(false);
+                    }
+                }
+                File.WriteAllText(Path.Combine(root, "parent.started"), "started");
+                if (args[0] == "waiting") await Task.Delay(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                return 0;
+            case "child":
+                // Do not overwrite the parent marker with this descendant's own PID.
+                using (var self = Process.GetCurrentProcess())
+                    File.WriteAllText(Path.Combine(root, "child.self"), self.Id.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        + "|" + self.StartTime.ToUniversalTime().Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        + "|" + (Environment.GetEnvironmentVariable("SYNTHETIC_TEST_ID") ?? ""));
+                try
+                {
+                    using var parent = Process.GetProcessById(int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture));
+                    _ = parent.Handle; // Retain the actual parent handle before it can exit; GetProcessById is lazy.
+                    if (OperatingSystem.IsWindows())
+                    {
+                        var handle = GetStdHandle(-11);
+                        var bytes = Encoding.ASCII.GetBytes("child-pipe-is-open\n");
+                        if (GetFileType(handle) != 3 || !WriteFile(handle, bytes, (uint)bytes.Length, out var written, 0)
+                            || written != bytes.Length) throw new IOException("The descendant did not receive its output pipe.");
+                        File.WriteAllText(Path.Combine(root, "child.output-pipe-verified"), "pipe-write-ok");
+                    }
+                    File.WriteAllText(Path.Combine(root, "child.started"), "started");
+                    var exited = parent.WaitForExit(2000);
+                    File.WriteAllText(Path.Combine(root, "parent.exit-observation"),
+                        exited ? parent.ExitCode.ToString(System.Globalization.CultureInfo.InvariantCulture) : "still-running-after-2s");
+                    if (exited && parent.ExitCode == 0)
+                        File.WriteAllText(Path.Combine(root, "parent.normal-exit-observed"), "0");
+                }
+                catch (ArgumentException) { File.WriteAllText(Path.Combine(root, "parent.already-exited"), "observed"); }
+                await Task.Delay(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                return 0;
+            case "sibling":
+                File.WriteAllText(Path.Combine(root, "sibling.started"), "started");
+                await Task.Delay(TimeSpan.FromSeconds(20)).ConfigureAwait(false);
+                return 0;
+            default: return 2;
+        }
+    }
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+    private static extern nint GetStdHandle(int kind);
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+    private static extern uint GetFileType(nint handle);
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool WriteFile(nint handle, byte[] bytes, uint count, out uint written, nint overlapped);
+    [System.Runtime.Versioning.SupportedOSPlatform("windows")]
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", ExactSpelling = true, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetHandleInformation(nint handle, uint mask, uint flags);
+}

@@ -56,6 +56,29 @@ final class BoundedHTTPTests: XCTestCase {
         }
     }
 
+    func testUndeclaredOversizeBodyIsCancelledBeforeEOF() async throws {
+        server.respond(with: Data(repeating: 0x61, count: 65_536), declaringLength: false, holdOpen: true)
+        let start = ContinuousClock.now
+        do {
+            _ = try await BoundedHTTP.data(for: URLRequest(url: server.url), on: .shared, maximumBytes: 4_096)
+            XCTFail("oversize body was accepted")
+        } catch NotchProviderError.responseTooLarge {}
+        XCTAssertLessThan(start.duration(to: .now), .seconds(2), "Must reject before the server's delayed EOF")
+    }
+
+    func testCallerCancellationDoesNotWaitForEOF() async throws {
+        server.respond(with: Data([0x61]), declaringLength: false, holdOpen: true)
+        let url = server.url
+        let task = Task { try await BoundedHTTP.data(for: URLRequest(url: url), on: .shared) }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while server.requests.isEmpty, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
+        let start = ContinuousClock.now
+        task.cancel()
+        do { _ = try await task.value; XCTFail("cancelled request succeeded") }
+        catch { XCTAssertTrue(error is CancellationError || (error as? URLError)?.code == .cancelled) }
+        XCTAssertLessThan(start.duration(to: .now), .seconds(2))
+    }
+
     /// A body exactly at the ceiling is legitimate and must not be refused.
     func testABodyAtTheCeilingIsAccepted() async throws {
         let payload = Data(repeating: 0x61, count: 4_096)
@@ -133,6 +156,35 @@ final class BoundedHTTPTests: XCTestCase {
         XCTAssertFalse(try XCTUnwrap(requests.last).contains("WorkosCursorSessionToken"))
     }
 
+    func testARealCrossPortRedirectArrivesWithoutTheCredential() async throws {
+        let destination = try LocalHTTPServer()
+        defer { destination.stop() }
+        destination.respond(with: Data("{}".utf8), declaringLength: true)
+        server.redirectFirstRequest(to: destination.url)
+        var request = URLRequest(url: server.url)
+        request.setValue("synthetic-cookie", forHTTPHeaderField: "Cookie")
+        _ = try await BoundedHTTP.data(for: request, on: ProviderSession.shared)
+        XCTAssertEqual(destination.requests.count, 1)
+        XCTAssertFalse(try XCTUnwrap(destination.requests.first).contains("synthetic-cookie"))
+    }
+
+    func testCredentialsCannotCrossSchemeOrPortBoundaries() {
+        var original = URLRequest(url: URL(string: "https://example.invalid/a")!)
+        for header in BoundedHTTP.credentialHeaders { original.setValue("synthetic", forHTTPHeaderField: header) }
+        for target in ["http://example.invalid/a", "https://example.invalid:8443/a"] {
+            var proposed = original
+            proposed.url = URL(string: target)!
+            let redirected = BoundedHTTP.redirect(from: original, to: proposed)
+            for header in BoundedHTTP.credentialHeaders {
+                XCTAssertNil(redirected.value(forHTTPHeaderField: header), target)
+            }
+        }
+        var explicitDefault = original
+        explicitDefault.url = URL(string: "https://EXAMPLE.invalid:443/b")!
+        XCTAssertEqual(BoundedHTTP.redirect(from: original, to: explicitDefault)
+            .value(forHTTPHeaderField: "Cookie"), "synthetic")
+    }
+
     func testARealSameHostRedirectStillCarriesTheCredential() async throws {
         server.respond(with: Data("{}".utf8), declaringLength: true)
         server.redirectFirstRequest(to: server.sameHostURL)
@@ -144,6 +196,88 @@ final class BoundedHTTPTests: XCTestCase {
         let requests = server.requests
         XCTAssertEqual(requests.count, 2)
         XCTAssertTrue(try XCTUnwrap(requests.last).contains("WorkosCursorSessionToken"))
+    }
+
+    func testFixedEndpointRefusesCrossHost307WithRefreshBody() async throws {
+        try await assertRedirectRefused(status: 307, crossHost: true, postBody: true)
+    }
+
+    func testFixedEndpointRefusesCrossPort307WithRefreshBody() async throws {
+        try await assertRedirectRefused(status: 307, crossPort: true, postBody: true)
+    }
+
+    func testFixedEndpointRefusesCrossHost308WithRefreshBody() async throws {
+        try await assertRedirectRefused(status: 308, crossHost: true, postBody: true)
+    }
+
+    func testFixedEndpointRefusesSameOrigin302WithPathScopedCookie() async throws {
+        try await assertRedirectRefused(status: 302)
+    }
+
+    func testFixedEndpointRefusesSameOrigin307WithPathScopedCookie() async throws {
+        try await assertRedirectRefused(status: 307)
+    }
+
+    private func assertRedirectRefused(status: Int, crossHost: Bool = false,
+                                      crossPort: Bool = false, postBody: Bool = false) async throws {
+        let destination = try LocalHTTPServer()
+        defer { destination.stop() }
+        destination.respond(with: Data("{}".utf8), declaringLength: true)
+        server.respond(with: Data("{}".utf8), declaringLength: true)
+        let target = crossPort ? destination.url : crossHost ? server.loopbackAliasURL : server.sameHostURL
+        server.redirectFirstRequest(to: target, status: status)
+        let originalURL = server.url.appendingPathComponent("allowed/start")
+        var request = URLRequest(url: originalURL)
+        request.setValue("session=synthetic-path-cookie", forHTTPHeaderField: "Cookie")
+        if postBody {
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = Data(#"{"grant_type":"refresh_token","refresh_token":"synthetic-refresh-not-real"}"#.utf8)
+        }
+        let (data, response) = try await BoundedHTTP.data(
+            for: request, on: ProviderSession.shared, rejectRedirects: true
+        )
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, status)
+        XCTAssertEqual(response.url, originalURL)
+        XCTAssertTrue(data.isEmpty)
+        XCTAssertEqual(server.requests.count, 1, "The redirect target must never receive a request")
+        XCTAssertTrue(destination.requests.isEmpty, "Cross-port target must never receive a request")
+    }
+
+    func testFixedEndpointStillReturnsAnOrdinary200Response() async throws {
+        let payload = Data("{}".utf8)
+        server.respond(with: payload, declaringLength: true)
+        let (data, response) = try await BoundedHTTP.data(
+            for: URLRequest(url: server.url), on: ProviderSession.shared, rejectRedirects: true
+        )
+        XCTAssertEqual(data, payload)
+        XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
+        XCTAssertEqual(server.requests.count, 1)
+    }
+
+    func testFixedEndpointStillRejectsAnOversizeBodyBeforeEOF() async throws {
+        server.respond(with: Data(repeating: 0x61, count: 65_536), declaringLength: false, holdOpen: true)
+        let start = ContinuousClock.now
+        do {
+            _ = try await BoundedHTTP.data(for: URLRequest(url: server.url), on: ProviderSession.shared,
+                                          maximumBytes: 4_096, rejectRedirects: true)
+            XCTFail("oversize body was accepted")
+        } catch NotchProviderError.responseTooLarge {}
+        XCTAssertLessThan(start.duration(to: .now), .seconds(2))
+    }
+
+    func testFixedEndpointStillCancelsWithoutWaitingForEOF() async throws {
+        server.respond(with: Data([0x61]), declaringLength: false, holdOpen: true)
+        let url = server.url
+        let task = Task { try await BoundedHTTP.data(for: URLRequest(url: url), on: ProviderSession.shared, rejectRedirects: true) }
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while server.requests.isEmpty, ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(5)) }
+        XCTAssertFalse(server.requests.isEmpty)
+        let start = ContinuousClock.now
+        task.cancel()
+        do { _ = try await task.value; XCTFail("cancelled request succeeded") }
+        catch { XCTAssertTrue(error is CancellationError || (error as? URLError)?.code == .cancelled) }
+        XCTAssertLessThan(start.duration(to: .now), .seconds(2))
     }
 
     /// The session these requests run on keeps nothing on disk and shares no
@@ -165,9 +299,11 @@ private final class LocalHTTPServer: @unchecked Sendable {
     private let port: UInt16
     private var payload = Data()
     private var declaresLength = true
+    private var holdOpen = false
+    private let finishBody = DispatchSemaphore(value: 0)
     private var running = true
     private let lock = NSLock()
-    private var pendingRedirect: String?
+    private var pendingRedirect: (location: String, status: Int)?
     private var received: [String] = []
 
     var url: URL { URL(string: "http://127.0.0.1:\(port)/")! }
@@ -176,9 +312,9 @@ private final class LocalHTTPServer: @unchecked Sendable {
     var loopbackAliasURL: URL { URL(string: "http://localhost:\(port)/moved")! }
     var sameHostURL: URL { URL(string: "http://127.0.0.1:\(port)/moved")! }
 
-    /// Answer the first request with a 302 to `location`, then serve normally.
-    func redirectFirstRequest(to location: URL) {
-        lock.withLock { pendingRedirect = location.absoluteString }
+    /// Answer the first request with a redirect, then serve normally.
+    func redirectFirstRequest(to location: URL, status: Int = 302) {
+        lock.withLock { pendingRedirect = (location.absoluteString, status) }
     }
 
     /// The raw request lines the server saw, in order.
@@ -212,12 +348,14 @@ private final class LocalHTTPServer: @unchecked Sendable {
         accept(on: socketDescriptor)
     }
 
-    func respond(with payload: Data, declaringLength: Bool) {
+    func respond(with payload: Data, declaringLength: Bool, holdOpen: Bool = false) {
+        self.holdOpen = holdOpen
         self.payload = payload
         declaresLength = declaringLength
     }
 
     func stop() {
+        finishBody.signal()
         running = false
         try? listener.close()
     }
@@ -230,14 +368,14 @@ private final class LocalHTTPServer: @unchecked Sendable {
                 var request = [UInt8](repeating: 0, count: 2_048)
                 let read = Darwin.read(client, &request, request.count)
                 let text = String(decoding: request.prefix(max(0, read)), as: UTF8.self)
-                let redirect: String? = lock.withLock {
+                let redirect = lock.withLock {
                     received.append(text)
                     defer { pendingRedirect = nil }
                     return pendingRedirect
                 }
 
                 if let redirect {
-                    let response = "HTTP/1.1 302 Found\r\nLocation: \(redirect)\r\nContent-Length: 0\r\n\r\n"
+                    let response = "HTTP/1.1 \(redirect.status) Redirect\r\nLocation: \(redirect.location)\r\nContent-Length: 0\r\n\r\n"
                     _ = Data(response.utf8).withUnsafeBytes {
                         Darwin.write(client, $0.baseAddress, $0.count)
                     }
@@ -264,6 +402,7 @@ private final class LocalHTTPServer: @unchecked Sendable {
                         sent += wrote
                     }
                 }
+                if holdOpen { _ = finishBody.wait(timeout: .now() + 5) }
                 close(client)
             }
         }

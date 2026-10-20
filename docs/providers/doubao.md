@@ -1,6 +1,6 @@
-[Docs](../README.md) · [All providers](../providers.md)
-
 # Doubao
+
+**English** · [한국어](../ko/providers/doubao.md)
 
 Ark plan usage and request-limit checks.
 
@@ -11,7 +11,7 @@ CLI provider ID: `doubao`.
 Use an authenticated arkcli session or provide a supported Ark API key. API-key authentication paths may need a billed request.
 
 1. Add **Doubao** in **Settings → Providers → Add Provider**.
-2. Open its **Connection settings** and fill in the fields for the source above. Browser-session import is optional and must be enabled for this provider when using that source.
+2. Open its **Connection settings** and fill in the fields for the source above. Where browser-session import is offered, enable it explicitly for this provider when using that source.
 3. Choose **Save and refresh**. Credentials are stored in CodeRim's own Keychain item.
 
 ### Additional settings
@@ -32,4 +32,4 @@ A missing reading can mean the session expired, the account lacks the required p
 
 Connection protocols are supplied by CodeRim's pinned CodexBar integration. [Upstream source guide](https://github.com/steipete/CodexBar/blob/51ed16bdd3abe35ec53af99818e1b5f0d2a631d3/docs/doubao.md). Configure the connection in **CodeRim**; CodexBar-specific UI or config-file instructions do not apply directly.
 
-[Connection troubleshooting](../troubleshooting.md) · [Privacy](../privacy.md)
+[Connection troubleshooting](../troubleshooting.md) · [Privacy](../privacy.md) · [Docs](../README.md) · [All providers](../providers.md)

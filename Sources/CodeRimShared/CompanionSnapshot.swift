@@ -109,11 +109,15 @@ public struct CompanionLocalUsage: Codable, Equatable, Sendable {
     public var periodsAsOf: Date
     public var timeZoneIdentifier: String
     public var totals: [String: CompanionTokens]
+    /// `state` describes the current periods. False when older history (the all-time total) was read
+    /// only partly; nil from publishers that do not report it.
+    public var historyComplete: Bool?
 
     public init(state: CompanionState, updatedAt: Date?, periodsAsOf: Date,
                 timeZoneIdentifier: String = TimeZone.current.identifier,
-                totals: [String: CompanionTokens]) {
+                totals: [String: CompanionTokens], historyComplete: Bool? = nil) {
         scope = "this-mac"
+        self.historyComplete = historyComplete
         self.state = state
         self.updatedAt = updatedAt
         self.periodsAsOf = periodsAsOf

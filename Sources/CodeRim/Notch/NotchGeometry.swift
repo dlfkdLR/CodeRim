@@ -95,7 +95,8 @@ enum NotchGeometry {
         // of the padding must stay on screen even when the hover card may not.
         trailingExtent: CGFloat = 0,
         // Controls may instead hang off the leading end near the screen bottom.
-        leadingExtent: CGFloat = 0
+        leadingExtent: CGFloat = 0,
+        keepsPanelOnScreen: Bool = false
     ) -> CGRect {
         let full = screen.frameValue
         let usable = screen.visibleFrameValue
@@ -130,9 +131,13 @@ enum NotchGeometry {
             origin = CGPoint(x: x, y: usable.minY)
         }
 
+        let fitted = keepsPanelOnScreen ? CGPoint(
+            x: clamp(origin.x, min: full.minX, max: full.maxX - width),
+            y: clamp(origin.y, min: full.minY, max: full.maxY - height)
+        ) : origin
         return CGRect(
-            x: origin.x.rounded(),
-            y: origin.y.rounded(),
+            x: fitted.x.rounded(),
+            y: fitted.y.rounded(),
             width: width,
             height: height
         )

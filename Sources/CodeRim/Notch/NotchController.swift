@@ -49,6 +49,8 @@ final class NotchController: ObservableObject {
     private var whileVisible = Set<AnyCancellable>()
     private var configured = false
     private var visible = false
+    private var sessionTokenTimer: Timer?
+    private var sessionTokenFetch: Task<Void, Never>?
 
     /// Upstream stores also feed the CLI and WidgetKit while the notch is hidden.
     private var codexLimits: AccountLimitStore?
@@ -74,6 +76,7 @@ final class NotchController: ObservableObject {
             ClaudeNotchProvider(claude: claudeIntegration, usage: claudeUsage),
             // Borrows a token from GitHub CLI; its ring only appears once one
             // turns up (`isVisibleWhenAbsent == false`).
+        ] + ([
             CopilotNotchProvider(),
             // Borrows the Cursor editor's session from its SQLite store.
             CursorNotchProvider(),
@@ -91,7 +94,8 @@ final class NotchController: ObservableObject {
             AntigravityNotchProvider(),
             // Local `ollama serve` model listing (no ring — a local server has no quota).
             OllamaLocalProvider(),
-        ] + ExtendedProviderCatalog.makeProviders()
+        ] as [any NotchProvider]).map(HybridNotchProvider.wrapping)
+        + ExtendedProviderCatalog.makeProviders()
         var existing = Set(UsageArchive().load().values.filter { $0.snapshot.hasReading }.map { $0.snapshot.id })
         existing.insert("codex")
         if claudeIntegration.isEnabled { existing.insert("claude") }
@@ -156,7 +160,7 @@ final class NotchController: ObservableObject {
                 self.providerSummaries = self.store?.providerSummaries ?? []
                 self.window.model.snapshots = snapshots
                 self.window.model.now = Date()
-                if self.visible { self.window.relocate(cellCount: snapshots.count) }
+                if self.visible { self.window.relocate() }
                 if self.visible { self.thresholds.observe(snapshots) }
             }
             .store(in: &cancellables)
@@ -164,7 +168,7 @@ final class NotchController: ObservableObject {
 
         // Live agent activity — one monitor per provider ring. Built once and
         // started/stopped with the notch's visibility.
-        let claudeHome = URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".claude")
+        let claudeHome = UsageProvider.claudeConfigRoot(home: URL(fileURLWithPath: NSHomeDirectory()))
         monitors = [
             "claude": ClaudeSessionMonitor(
                 directory: claudeHome.appendingPathComponent("sessions"),
@@ -215,6 +219,9 @@ final class NotchController: ObservableObject {
         ) ?? .used
         store.start()
         wireLimitBridge()
+        sessionTokenTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.refreshSessionTokens() }
+        }
     }
 
     func lastUpdatedAt(providerID: String) -> Date? {
@@ -239,6 +246,8 @@ final class NotchController: ObservableObject {
             etaTimer?.invalidate()
             etaTimer = nil
             window.apply(.hidden)
+            // A hidden notch has no pointer to follow or clock to show.
+            window.stop()
         }
     }
 
@@ -330,6 +339,41 @@ final class NotchController: ObservableObject {
         window.model.resetTimeFormat = resetTimeFormat
     }
 
+    func apply(showSessionTokens: Bool) {
+        if showSessionTokens { refreshSessionTokens() }
+        else {
+            sessionTokenFetch?.cancel()
+            window.model.sessionTokenTotals = [:]
+        }
+    }
+
+    private func refreshSessionTokens() {
+        guard visible, sessionTokenFetch == nil,
+              UserDefaults.standard.bool(forKey: AppPreferences.notchShowSessionTokensKey) else { return }
+        let sessions = window.model.sessions
+        sessionTokenFetch = Task { [weak self] in
+            let totals = await Task.detached(priority: .utility) {
+                var result: [String: [String: Int64]] = [:]
+                for provider in UsageProvider.allCases {
+                    result[provider.rawValue] = SessionTokenReader.totals(
+                        for: sessions[provider.rawValue] ?? [], provider: provider,
+                        databaseURL: provider.databaseURL)
+                }
+                return result
+            }.value
+            guard let self else { return }
+            defer { self.sessionTokenFetch = nil }
+            guard !Task.isCancelled, self.visible,
+                  UserDefaults.standard.bool(forKey: AppPreferences.notchShowSessionTokensKey) else { return }
+            self.window.model.sessionTokenTotals = totals
+        }
+    }
+
+    func apply(showUnknownSessions: Bool) {
+        window.model.showUnknownSessions = showUnknownSessions
+        if configured { window.relocate() }
+    }
+
     func apply(percentageMode: NotchPercentageMode) {
         guard configured else { return }
         window.model.percentageMode = percentageMode
@@ -389,15 +433,59 @@ final class NotchController: ObservableObject {
         refresh(providerID: id)
     }
 
+    // MARK: - Connecting a provider as it is added
+
+    typealias ConnectionState = ProviderConnector.State
+    var connectionStates: [String: ConnectionState] { connector.states }
+    func connectionState(for id: String) -> ConnectionState? { connector.states[id] }
+    func cancelConnecting(_ id: String) { connector.cancel(id) }
+    func beginConnecting(_ id: String) { connector.begin(id) }
+
+    private lazy var connector: ProviderConnector = {
+        let connector = ProviderConnector(
+            provider: { [weak self] id in self?.providers.first { $0.id == id } },
+            connects: { [weak self] id in await self?.store?.connects(providerID: id) ?? false },
+            blocker: { [weak self] id in self?.connectionBlocker(id) })
+        connectorObservation = connector.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
+        return connector
+    }()
+    private var connectorObservation: AnyCancellable?
+
+    /// Why a provider that may already be signed in still cannot be read.
+    func connectionBlocker(_ id: String) -> String? {
+        guard let snapshot = store?.snapshots.first(where: { $0.id == id }) else { return nil }
+        switch snapshot.status {
+        case .accessDenied:
+            return "macOS refused CodeRim access to this sign-in. Choose Try again and pick Always Allow when macOS asks."
+        case .unsupported(let reason):
+            return reason
+        default:
+            return nil
+        }
+    }
+
     func addProvider(_ id: String) {
         guard NotchProviderCatalog.all.contains(where: { $0.id == id }),
               selectedProviderIDs.insert(id).inserted else { return }
         applyProviderSelection()
         if visible { monitors[id]?.start() }
-        store?.refresh(providerID: id)
+        // Adding is connecting: turn the provider on and start its sign-in in
+        // the same step, instead of leaving a second switch to find.
+        if id == "claude", let claudeIntegration {
+            Task { @MainActor [weak self] in
+                if !claudeIntegration.isEnabled { await claudeIntegration.setEnabled(true) }
+                if claudeIntegration.isEnabled, !claudeIntegration.isConnected {
+                    await claudeIntegration.addCurrentAccount()
+                }
+                self?.store?.refresh(providerID: id)
+            }
+        } else {
+            beginConnecting(id)
+        }
     }
 
     func removeProvider(_ id: String) {
+        cancelConnecting(id)
         guard selectedProviderIDs.remove(id) != nil else { return }
         monitors[id]?.stop()
         window.model.sessions.removeValue(forKey: id)
@@ -448,7 +536,7 @@ final class NotchController: ObservableObject {
         }
         guard defaults.object(forKey: "notchAnnounceSessionEnd") as? Bool
             ?? AppPreferences.defaultNotchAnnounceSessionEnd else { return }
-        window.peek(for: 5, focusing: event.session.processID)
+        window.peek(for: 5, focusing: event.session)
     }
 
     private func storedEdge() -> NotchEdge {

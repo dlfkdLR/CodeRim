@@ -6,7 +6,7 @@ import XCTest
 
 @MainActor
 final class AccountUsageLayoutTests: XCTestCase {
-    func testOnlyLiveLocalTotalsAppearEvenWithSavedAccountSyncAndAccountSwitch() async throws {
+    func testServerHistoryAppearsAndAccountSwitchClearsOldTotals() async throws {
         _ = NSApplication.shared
         let suite = "CodeRim.AccountUsageLayout.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
@@ -57,23 +57,20 @@ final class AccountUsageLayoutTests: XCTestCase {
                 // SwiftUI's custom buttons are not consistently exposed as
                 // NSButtons/AX children in unshown windows. Verify actual pixels.
                 let text = try recognizedText(in: bitmap)
-                for expected in ["This Mac", "Local History", "240", "480", "960"] {
+                for expected in ["This Mac", "ChatGPT", "Lifetime", "500", "1,000", "2,000"] {
                     XCTAssertTrue(text.contains(normalized(expected)), "Missing \(expected): \(text)")
                 }
 
-                for excluded in ["ChatGPT account", "Through", "Lifetime"] {
-                    XCTAssertFalse(text.contains(normalized(excluded)), "Unexpected account total: \(text)")
-                }
+                XCTAssertTrue(text.contains(normalized("Server through")), text)
                 XCTAssertEqual(text.components(separatedBy: "thisweek").count - 1, 1, text)
                 XCTAssertEqual(text.components(separatedBy: "thismonth").count - 1, 1, text)
 
                 profile.clearForAccountSwitch()
                 await layout(host, in: window, fixedSize: embedded ? NSSize(width: width, height: 780) : nil)
                 let afterSwitch = try recognizedText(in: render(host))
-                for expected in ["Local History", "240", "480", "960"] {
-                    XCTAssertTrue(afterSwitch.contains(normalized(expected)), afterSwitch)
-                }
-                XCTAssertFalse(afterSwitch.contains("lifetime"))
+                XCTAssertTrue(afterSwitch.contains("lifetime"), afterSwitch)
+                XCTAssertTrue(afterSwitch.contains(normalized("Account totals are ready to sync")), afterSwitch)
+                XCTAssertFalse(afterSwitch.contains(normalized("Server through")), afterSwitch)
             }
         }
     }

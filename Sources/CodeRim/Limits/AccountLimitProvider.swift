@@ -106,21 +106,17 @@ struct AccountLimitsResponseParser: Sendable {
     }
 
     private func numericID(_ value: Any?) -> Int? {
-        if let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() {
-            return number.intValue
-        }
-        return nil
+        integer(value)
     }
 
     private func integer(_ value: Any?) -> Int? {
         guard let number = value as? NSNumber,
               CFGetTypeID(number) != CFBooleanGetTypeID()
         else { return nil }
-        let double = number.doubleValue
-        guard double.isFinite, double.rounded() == double,
-              double >= Double(Int.min), double <= Double(Int.max)
-        else { return nil }
-        return Int(double)
+        // Preserve integer NSNumber values without rounding Int.max up to 2^63.
+        // The exact conversion also rejects fractional and out-of-range doubles.
+        if let integer = Int(number.stringValue) { return integer }
+        return Int(exactly: number.doubleValue)
     }
 
     private func number(_ value: Any?) -> Double? {

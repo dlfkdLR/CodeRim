@@ -13,6 +13,8 @@ final class ExtendedNotchProvider: NotchProvider {
     private let configuration: () throws -> ExtendedProviderConfiguration
     private var currentAccount: ProviderAccount?
     private var revision = UUID()
+    /// Which upstream strategy produced the last reading, e.g. `antigravity.offline`.
+    private(set) var lastStrategyID: String?
     static let cacheService = "dev.codexmeter.provider-cache"
 
     init(descriptor: ProviderDescriptor,
@@ -27,14 +29,25 @@ final class ExtendedNotchProvider: NotchProvider {
     var displayName: String { descriptor.metadata.displayName }
     var glyph: ProviderGlyph { NotchProviderCatalog.glyph(for: id) }
     var isVisibleWhenAbsent: Bool { true }
-    var signInRoute: SignInRoute { .guidance("Configure \(displayName) in its provider settings. " + (ExtendedProviderCatalog.guide(for: id)?.summary ?? "")) }
+    var signInRoute: SignInRoute { ExtendedProviderCatalog.signInRoute(for: descriptor, displayName: displayName) }
     func account() -> ProviderAccount? { currentAccount }
+    /// The account the last read reported, where the service names one.
+    func accountIdentity() -> String? {
+        currentAccount?.label.map { AccountIdentity.fingerprint(descriptor.id.rawValue, $0.lowercased()) }
+    }
     func forgetCachedCredential() {
         revision = UUID()
         currentAccount = nil
         // The dependency's default cache belongs to CodexBar, not this app.
         KeychainCacheStore.withServiceOverrideForTesting(Self.cacheService) {
-            _ = CookieHeaderCache.clearAllScopes(provider: descriptor.id)
+            if [.deepseek, .minimax, .factory].contains(descriptor.id) {
+                // CookieHeaderCache's legacy file belongs to CodexBar, even under a service override.
+                if case let .found(keys) = KeychainCacheStore.keysResult(category: "cookie") {
+                    for key in keys where key.identifier == descriptor.id.rawValue || key.identifier.hasPrefix(descriptor.id.rawValue + ".") {
+                        _ = KeychainCacheStore.clearResult(key: key)
+                    }
+                }
+            } else { _ = CookieHeaderCache.clearAllScopes(provider: descriptor.id) }
         }
     }
 
@@ -69,10 +82,23 @@ final class ExtendedNotchProvider: NotchProvider {
             })
         do {
             let result = try await KeychainCacheStore.withServiceOverrideForTesting(Self.cacheService) {
-                try await fetch(descriptor, context)
+                try await StepFunPasswordRecovery.$cacheCommit.withValue({ [weak self] token in
+                    await self?.cacheStepFunSession(token, version: version)
+                }) {
+                    try await SafeBrowserProviderFetch.$automaticAllowed.withValue(config.provider.cookieSource == .auto) {
+                        try await SafeBrowserProviderFetch.$cacheRead.withValue({ [weak self] in
+                            await self?.browserSessionCache(version: version)
+                        }) {
+                            try await SafeBrowserProviderFetch.$cacheCommit.withValue({ [weak self] expected, value in
+                                await self?.cacheBrowserSession(value, expected: expected, version: version) ?? false
+                            }) { try await fetch(descriptor, context) }
+                        }
+                    }
+                }
             }
             try Task.checkCancellation()
             guard revision == version else { throw CancellationError() }
+            lastStrategyID = result.strategyID
             currentAccount = ProviderAccount(label: result.usage.accountEmail(for: descriptor.id),
                 plan: result.usage.loginMethod(for: descriptor.id), source: result.sourceLabel,
                 manageURL: descriptor.metadata.dashboardURL.flatMap(URL.init(string:)))
@@ -93,6 +119,11 @@ final class ExtendedNotchProvider: NotchProvider {
     }
 
     nonisolated static func fetchUpstream(_ descriptor: ProviderDescriptor, context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        if [.deepseek, .minimax, .factory].contains(descriptor.id) { return try await SafeBrowserProviderFetch.fetch(descriptor, context: context) }
+        if descriptor.id == .stepfun { return try await StepFunPasswordRecovery.fetch(descriptor, context: context) }
+        if descriptor.id == .xai || descriptor.id == .poe {
+            return try await SharedScriptProvider.fetch(descriptor.id, environment: context.env)
+        }
         if descriptor.id == .jetbrains {
             let local = try Self.validatedJetBrainsQuota(settings: context.settings)
             // An IDE without an activated quota writes {type: "Unknown"}. The upstream
@@ -136,6 +167,30 @@ final class ExtendedNotchProvider: NotchProvider {
         return try JetBrainsStatusProbe.parseXMLData(data, detectedIDE: ide)
     }
 
+    private func browserSessionCache(version: UUID) -> String? {
+        guard revision == version, [.deepseek, .minimax, .factory].contains(descriptor.id) else { return nil }
+        if case let .found(entry) = KeychainCacheStore.load(key: .cookie(provider: descriptor.id.instanceID), as: CookieHeaderCacheEntry.self) {
+            return entry.cookieHeader
+        }
+        return nil
+    }
+
+    private func cacheBrowserSession(_ value: String, expected: String?, version: UUID) -> Bool {
+        guard revision == version, descriptor.id == .factory,
+              browserSessionCache(version: version) == expected else { return false }
+        // MainActor check + store is one turn. Rotation retains the original account/revision;
+        // explicit clear/settings invalidation cannot be undone by a late refresh response.
+        return KeychainCacheStore.storeResult(key: .cookie(provider: descriptor.id.instanceID),
+            entry: CookieHeaderCacheEntry(cookieHeader: value, storedAt: Date(), sourceLabel: "browser session"))
+    }
+
+    private func cacheStepFunSession(_ token: String, version: UUID) {
+        guard revision == version, descriptor.id == .stepfun else { return }
+        // The version check and cache commit share this MainActor turn. Settings
+        // invalidation cannot clear the account between them and then be undone.
+        CookieHeaderCache.store(provider: .stepfun, cookieHeader: token, sourceLabel: "login")
+    }
+
     private func persistRecoveredToken(_ token: String, provider: CodexBarCore.UsageProvider, version: UUID) {
         guard revision == version, provider == descriptor.id,
               var value = try? configuration() else { return }
@@ -153,11 +208,36 @@ final class ExtendedNotchProvider: NotchProvider {
     static func safeError(_ error: Error, provider: String) -> String {
         if error is ProviderFetchError { return "\(provider) needs a configured account or supported local tool. Open provider settings for connection instructions." }
         if let classified = error as? ProviderFetchClassifiedError {
-            return "\(provider): \(classified.kind.rawValue). Check the account and connection settings, then refresh."
+            switch classified.kind {
+            case .rateLimited: return "\(provider) is limiting requests right now. CodeRim tries again on the next refresh."
+            case .providerUnavailable: return "\(provider) is temporarily unavailable. CodeRim tries again on the next refresh."
+            case .networkFailure: return "\(provider) could not be reached. Check your internet connection; CodeRim tries again on the next refresh."
+            case .parseFailure: return "\(provider) answered in a form CodeRim could not read. Try refreshing; if it continues, the service may have changed."
+            default: return "\(provider) returned an error. Check the account and connection settings, then refresh."
+            }
         }
         let value = error as NSError
-        if value.domain == NSURLErrorDomain { return "\(provider) could not be reached (network error \(value.code)). Try refreshing." }
+        if value.domain == NSURLErrorDomain { return Self.networkMessage(code: value.code, provider: provider) }
         return "\(provider) could not return usage. Check the configured credentials, required plan, and provider documentation."
+    }
+
+    /// Plain words for the network failures people actually meet, instead of a bare error number.
+    static func networkMessage(code: Int, provider: String) -> String {
+        switch code {
+        case NSURLErrorNotConnectedToInternet, NSURLErrorDataNotAllowed, NSURLErrorInternationalRoamingOff:
+            return "This Mac is offline, so \(provider) could not be reached. CodeRim tries again when you are back online."
+        case NSURLErrorTimedOut:
+            return "\(provider) took too long to answer. CodeRim tries again on the next refresh."
+        case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed:
+            return "\(provider)'s server could not be found. Check your internet connection or DNS, then refresh."
+        case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted, NSURLErrorServerCertificateHasBadDate,
+             NSURLErrorServerCertificateNotYetValid, NSURLErrorServerCertificateHasUnknownRoot, NSURLErrorClientCertificateRejected:
+            return "A secure connection to \(provider) could not be made. A proxy or security software may be intercepting it."
+        case NSURLErrorNetworkConnectionLost, NSURLErrorCannotConnectToHost:
+            return "The connection to \(provider) dropped. CodeRim tries again on the next refresh."
+        default:
+            return "\(provider) could not be reached. Check your internet connection, then refresh."
+        }
     }
 
     /// Native percentage renderers use integer text. Keep overflow and invalid ratios textual.

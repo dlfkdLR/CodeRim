@@ -1,0 +1,31 @@
+name: Windows Codex desktop probe
+on:
+  push:
+    paths: ['Windows/tests/CodeRim.DesktopProbe/**', '.github/workflows/windows-desktop-probe.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect-official-app:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build isolated accessibility recorder
+        run: dotnet publish Windows/tests/CodeRim.DesktopProbe --configuration Release --runtime win-x64 --self-contained true --output Artifacts/desktop-probe
+      - name: Inspect signed official app on fresh runner
+        shell: powershell
+        run: ./Windows/tests/CodeRim.DesktopProbe/inspect-official-package.ps1 -Probe Artifacts/desktop-probe/CodeRim.DesktopProbe.exe -OutputDirectory Artifacts/official-desktop -QuitReopen
+      - name: Upload bounded UI evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: CodeRim-Official-Desktop-Inspection
+          path: |
+            Artifacts/official-desktop/*.json
+            Artifacts/official-desktop/*.txt

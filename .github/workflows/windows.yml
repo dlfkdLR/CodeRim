@@ -1,0 +1,252 @@
+name: Windows
+on:
+  push:
+    paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', '.github/workflows/windows.yml']
+  pull_request:
+    paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', '.github/workflows/windows.yml']
+  workflow_dispatch:
+    inputs:
+      msi_handoff:
+        description: 'Test the signed draft MSI with an isolated old-version fixture'
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  test-and-package:
+    if: ${{ inputs.msi_handoff != true }}
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+      - name: Test numeric history, scripts, and contracts
+        run: dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
+      - name: Validate release version declarations
+        run: ./Windows/Scripts/test_release_version.ps1
+      - name: Validate signed payload manifest generator
+        run: python Windows/Scripts/test_update_payload_manifest.py
+      - name: Build WPF application and CLI
+        run: dotnet build Windows/CodeRim.Windows.sln --configuration Release
+      - name: Package x64
+        run: ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-x64 -ResetManifest
+      - name: Package ARM64
+        run: ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-arm64
+      - name: Build MSI installers
+        run: |
+          ./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-x64
+          ./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-arm64
+      - name: MSI lifecycle and rollback on x64
+        run: |
+          $setup = (Get-ChildItem Artifacts -Filter '*-x64-Setup.msi').FullName
+          ./Windows/Scripts/test-installer.ps1 -Architecture x64 -Installer $setup
+      - name: Native x64 smoke test
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'Windows/artifacts/publish/win-x64/CodeRim.exe'
+          $capture = Join-Path $PWD 'Artifacts/windows-dashboard.png'
+          $process = Start-Process $exe -ArgumentList '--smoke-test', '--capture', $capture -PassThru
+          if (-not $process.WaitForExit(180000)) { $process.Kill(); throw 'Native smoke test timed out.' }
+          if ($process.ExitCode -ne 0 -or -not (Test-Path $capture)) { Get-Content (Join-Path $PWD 'Artifacts/windows-dashboard.error.txt') -ErrorAction SilentlyContinue; throw 'Native smoke test failed.' }
+          python Windows/tests/update_worker_regression_tests.py './Windows/artifacts/publish/win-x64/CodeRim.UpdateWorker.exe' --output Artifacts/windows-update-worker.json
+          if ($LASTEXITCODE -ne 0) { throw 'Unsigned update worker regression checks failed.' }
+          & './Windows/artifacts/publish/win-x64/CodeRimCLI.exe' version
+          if ($LASTEXITCODE -ne 0) { throw 'CLI startup failed.' }
+          python Windows/tests/cli_regression_tests.py './Windows/artifacts/publish/win-x64/CodeRimCLI.exe'
+          if ($LASTEXITCODE -ne 0) { throw 'CLI regression checks failed.' }
+          & './Windows/artifacts/publish/win-x64/install.ps1' -AddCliToPath
+          $cliBin = Join-Path $env:LOCALAPPDATA 'Programs\CodeRim\bin'
+          $env:PATH = $cliBin + ';' + $env:PATH
+          if ((Get-Command coderim).Source -ne (Join-Path $cliBin 'coderim.cmd')) { throw 'CLI is shadowed.' }
+          $text = cmd /d /c 'coderim version'
+          if ($LASTEXITCODE -ne 0 -or $text -notmatch 'CodeRim CLI') { throw 'Installed CLI failed.' }
+      - name: Build Microsoft Store packages
+        shell: pwsh
+        run: ./Windows/Scripts/package-msix.ps1
+      - name: Install and run the Store package on x64
+        # Windows PowerShell loads the Appx module natively; PowerShell 7 proxies it through a
+        # compatibility session that can stall on hosted runners.
+        shell: powershell
+        run: |
+          $package = (Get-ChildItem Artifacts -Filter 'CodeRim-Windows-*-x64.msix').FullName
+          ./Windows/Scripts/test-msix.ps1 -Package $package -Architecture x64
+      - name: Upload Store packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: CodeRim-Windows-Store
+          path: |
+            Artifacts/CodeRim-Windows-*.msix
+            Artifacts/CodeRim-Windows-*.msixbundle
+            Artifacts/msix-*/*.json
+            Artifacts/msix-*/*.txt
+            Artifacts/msix-*/*.png
+      - name: Upload MSI release candidates
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: CodeRim-Windows-MSI
+          path: |
+            Artifacts/CodeRim-Windows-*-Setup.msi
+            Artifacts/CodeRim-Windows-*-Setup.msi.sha256
+      - name: Upload native UI evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: CodeRim-Windows-UI
+          path: |
+            Artifacts/windows-*.png
+            Artifacts/installed/**
+            Artifacts/windows-*.json
+            Artifacts/windows-*.txt
+            Artifacts/windows-msi-*.log
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: CodeRim-Windows
+          path: |
+            Artifacts/CodeRim-Windows-*.zip
+            Artifacts/CodeRim-Windows-*-Setup.msi
+            Artifacts/*.sha256
+            Artifacts/SHA256SUMS-windows.txt
+            Artifacts/windows-*.png
+            Artifacts/installed/**
+            Artifacts/windows-*.json
+            Artifacts/windows-*.txt
+            Artifacts/windows-msi-*.log
+            Windows/tests/**/TestResults/**
+
+  native-arm64:
+    if: ${{ inputs.msi_handoff != true }}
+    needs: test-and-package
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+      - name: Test core on Windows ARM64
+        run: dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
+      - name: Validate release version declarations
+        run: ./Windows/Scripts/test_release_version.ps1
+      - name: Validate signed payload manifest generator
+        run: python Windows/Scripts/test_update_payload_manifest.py
+      - name: Build WPF application and CLI
+        run: dotnet build Windows/CodeRim.Windows.sln --configuration Release
+      - name: Download the release candidate built by the packaging job
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: CodeRim-Windows
+          path: Artifacts/packaged
+      - name: Verify and extract the exact ARM64 archive
+        shell: pwsh
+        run: |
+          $archives = @(Get-ChildItem 'Artifacts/packaged' -Filter 'CodeRim-Windows-*-arm64.zip' -Recurse)
+          if ($archives.Count -ne 1) { throw 'Expected exactly one ARM64 release archive.' }
+          $archive = $archives[0]
+          $checksum = Get-Content ($archive.FullName + '.sha256') -Raw
+          $expected = ($checksum.Trim() -split '\s+')[0]
+          $actual = (Get-FileHash $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($expected -notmatch '^[0-9a-f]{64}$' -or $actual -ne $expected) { throw 'ARM64 archive checksum mismatch.' }
+          New-Item -ItemType Directory -Force 'Windows/artifacts/publish/win-arm64' | Out-Null
+          Expand-Archive $archive.FullName 'Windows/artifacts/publish/win-arm64'
+          @{ archive = $archive.Name; sha256 = $actual; source = 'CodeRim-Windows packaging artifact' } |
+            ConvertTo-Json | Set-Content 'Artifacts/windows-native-archive.json' -Encoding utf8
+      - name: MSI lifecycle and rollback on ARM64
+        run: |
+          $setup = (Get-ChildItem Artifacts/packaged -Filter '*-arm64-Setup.msi' -Recurse).FullName
+          ./Windows/Scripts/test-installer.ps1 -Architecture arm64 -Installer $setup
+      - name: Native ARM64 UI and CLI regressions
+        shell: pwsh
+        run: |
+          $exe = Join-Path $PWD 'Windows/artifacts/publish/win-arm64/CodeRim.exe'
+          $capture = Join-Path $PWD 'Artifacts/windows-dashboard.png'
+          $process = Start-Process $exe -ArgumentList '--smoke-test', '--capture', $capture -PassThru
+          if (-not $process.WaitForExit(180000)) { $process.Kill(); throw 'Native smoke test timed out.' }
+          if ($process.ExitCode -ne 0 -or -not (Test-Path $capture)) { Get-Content (Join-Path $PWD 'Artifacts/windows-dashboard.error.txt') -ErrorAction SilentlyContinue; throw 'Native smoke test failed.' }
+          $hostEvidence = Get-Content 'Artifacts/windows-native-host.json' -Raw | ConvertFrom-Json
+          if ($hostEvidence.os_architecture -ne 'Arm64' -or $hostEvidence.process_architecture -ne 'Arm64') { throw 'ARM64 smoke must execute natively.' }
+          python Windows/tests/update_worker_regression_tests.py './Windows/artifacts/publish/win-arm64/CodeRim.UpdateWorker.exe' --output Artifacts/windows-update-worker.json
+          if ($LASTEXITCODE -ne 0) { throw 'Unsigned update worker regression checks failed.' }
+          & './Windows/artifacts/publish/win-arm64/CodeRimCLI.exe' version
+          if ($LASTEXITCODE -ne 0) { throw 'CLI startup failed.' }
+          python Windows/tests/cli_regression_tests.py './Windows/artifacts/publish/win-arm64/CodeRimCLI.exe'
+          if ($LASTEXITCODE -ne 0) { throw 'CLI regression checks failed.' }
+          & './Windows/artifacts/publish/win-arm64/install.ps1' -AddCliToPath
+          $cliBin = Join-Path $env:LOCALAPPDATA 'Programs\CodeRim\bin'
+          $env:PATH = $cliBin + ';' + $env:PATH
+          if ((Get-Command coderim).Source -ne (Join-Path $cliBin 'coderim.cmd')) { throw 'CLI is shadowed.' }
+          $text = cmd /d /c 'coderim version'
+          if ($LASTEXITCODE -ne 0 -or $text -notmatch 'CodeRim CLI') { throw 'Installed CLI failed.' }
+      - name: Download the Store packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: CodeRim-Windows-Store
+          path: Artifacts/store
+      - name: Install and run the Store package natively on ARM64
+        shell: powershell
+        run: |
+          $package = (Get-ChildItem Artifacts/store -Filter 'CodeRim-Windows-*-arm64.msix').FullName
+          ./Windows/Scripts/test-msix.ps1 -Package $package -Architecture arm64
+      - name: Upload ARM64 execution evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: CodeRim-Windows-ARM64-Native
+          path: |
+            Artifacts/msix-*/*.json
+            Artifacts/msix-*/*.txt
+            Artifacts/msix-*/*.png
+            Artifacts/windows-*.png
+            Artifacts/installed/**
+            Artifacts/windows-*.json
+            Artifacts/windows-*.txt
+            Artifacts/windows-msi-*.log
+            Windows/tests/**/TestResults/**
+
+  msi-handoff:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.msi_handoff == true }}
+    # GitHub hides draft releases from read-only installation tokens.
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2025
+            architecture: x64
+          - runner: windows-11-arm
+            architecture: arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+      - name: Download exact signed draft installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force Artifacts/handoff | Out-Null
+          $version = & ./Windows/Scripts/package.ps1 -CheckVersionOnly
+          if ($version -notmatch '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') { throw 'MSI handoff requires a canonical stable release version.' }
+          gh release download "v$version" --repo $env:GITHUB_REPOSITORY --pattern "CodeRim-Windows-$version-${{ matrix.architecture }}-Setup.msi*" --dir Artifacts/handoff
+          if ($LASTEXITCODE -ne 0) { throw 'Signed draft installer is unavailable.' }
+      - name: Exercise authenticated worker handoff and relaunch
+        run: ./Windows/Scripts/test-msi-handoff.ps1 -Architecture ${{ matrix.architecture }} -ReleaseDirectory Artifacts/handoff
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: CodeRim-MSI-Handoff-${{ matrix.architecture }}
+          path: |
+            Artifacts/handoff/*.json
+            Artifacts/handoff/*.txt
+            Artifacts/handoff/*.log
+            Artifacts/handoff/*.png

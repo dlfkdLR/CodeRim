@@ -29,10 +29,13 @@ enum ResetCopy {
     static func text(for resetsAt: Date, now: Date = Date(), calendar: Calendar = .current,
                      format: ResetTimeFormat = .automatic) -> String {
         let seconds = resetsAt.timeIntervalSince(now)
+        guard seconds.isFinite, let roundedMinutes = Int(exactly: (seconds / 60).rounded()) else {
+            return "Reset time unavailable"
+        }
         guard seconds > 0 else { return "Resetting…" }
 
         if format == .remaining {
-            let minutes = max(1, Int((seconds / 60).rounded()))
+            let minutes = max(1, roundedMinutes)
             let hours = minutes / 60
             let days = hours / 24
             if days > 0 {
@@ -47,7 +50,7 @@ enum ResetCopy {
         // Rounding, not truncation, so 50m40s reads as 51 rather than 50. A
         // value that rounds up to 60 falls through to the absolute form, so
         // "Resets in 60 min" never appears.
-        let minutes = Int((seconds / 60).rounded())
+        let minutes = roundedMinutes
         if minutes < 60 {
             return "Resets in \(max(1, minutes)) min"
         }

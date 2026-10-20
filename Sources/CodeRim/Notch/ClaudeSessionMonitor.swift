@@ -125,7 +125,15 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
                 return record
             }
         return deduplicated(live)
-            .map { record in state(of: record, transcripts: transcripts) }
+            .map { record in
+                let session = state(of: record, transcripts: transcripts)
+                // Lead with the conversation's title, as Codex sessions do,
+                // rather than the registry's generated `folder-xx` name.
+                guard let sessionID = record.sessionID,
+                      let title = transcripts?.title(sessionID: sessionID, cwd: record.cwd)
+                else { return session }
+                return session.renamed(title)
+            }
             // The id breaks ties so the order cannot flicker between two ticks
             // that read the same thing.
             .sorted { $0.since == $1.since ? $0.id < $1.id : $0.since > $1.since }

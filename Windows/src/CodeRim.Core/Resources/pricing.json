@@ -1,0 +1,66 @@
+[
+  {
+    "model": "gpt-6-astra",
+    "inputUSDPerMillionTokens": 10.0,
+    "cachedInputUSDPerMillionTokens": 1.0,
+    "outputUSDPerMillionTokens": 50.0,
+    "cacheWriteInputMultiplier": 1.25,
+    "highContextInputMultiplier": 2.0,
+    "highContextOutputMultiplier": 1.5
+  },
+  {
+    "model": "gpt-5.6-sol",
+    "inputUSDPerMillionTokens": 4.0,
+    "cachedInputUSDPerMillionTokens": 0.4,
+    "outputUSDPerMillionTokens": 20.0,
+    "cacheWriteInputMultiplier": 1.25,
+    "highContextInputMultiplier": 2.0,
+    "highContextOutputMultiplier": 1.5
+  },
+  {
+    "model": "gpt-5.6-terra",
+    "inputUSDPerMillionTokens": 2.0,
+    "cachedInputUSDPerMillionTokens": 0.2,
+    "outputUSDPerMillionTokens": 12.0,
+    "cacheWriteInputMultiplier": 1.25,
+    "highContextInputMultiplier": 2.0,
+    "highContextOutputMultiplier": 1.5
+  },
+  {
+    "model": "gpt-5.6-luna",
+    "inputUSDPerMillionTokens": 0.2,
+    "cachedInputUSDPerMillionTokens": 0.02,
+    "outputUSDPerMillionTokens": 1.2,
+    "cacheWriteInputMultiplier": 1.25,
+    "highContextInputMultiplier": 2.0,
+    "highContextOutputMultiplier": 1.5
+  },
+  {
+    "model": "gpt-5.5",
+    "inputUSDPerMillionTokens": 5.0,
+    "cachedInputUSDPerMillionTokens": 0.5,
+    "outputUSDPerMillionTokens": 30.0,
+    "highContextInputMultiplier": 2.0,
+    "highContextOutputMultiplier": 1.5
+  },
+  {
+    "model": "gpt-5.4",
+    "inputUSDPerMillionTokens": 2.5,
+    "cachedInputUSDPerMillionTokens": 0.25,
+    "outputUSDPerMillionTokens": 15.0,
+    "highContextInputMultiplier": 2.0,
+    "highContextOutputMultiplier": 1.5
+  },
+  {
+    "model": "gpt-5.4-mini",
+    "inputUSDPerMillionTokens": 0.75,
+    "cachedInputUSDPerMillionTokens": 0.075,
+    "outputUSDPerMillionTokens": 4.5
+  },
+  {
+    "model": "gpt-5.3-codex",
+    "inputUSDPerMillionTokens": 1.75,
+    "cachedInputUSDPerMillionTokens": 0.175,
+    "outputUSDPerMillionTokens": 14.0
+  }
+]

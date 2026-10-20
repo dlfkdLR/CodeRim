@@ -24,6 +24,7 @@ struct PeriodDetailView: View {
                     .monospacedDigit()
                     .contentTransition(.numericText())
                     .animation(reduceMotion ? nil : .easeOut(duration: 0.24), value: total)
+                    .id(total == nil)
                 Text(usesProfileTotalForPeriod ? profileTotalLabel : "This Mac total tokens")
                     .foregroundStyle(.secondary)
             }
@@ -101,6 +102,12 @@ struct PeriodDetailView: View {
             )
             .font(.caption)
             .foregroundStyle(.secondary)
+        } else if period == .allTime, !usesProfileTotalForPeriod, store.snapshot.historyIncomplete {
+            // Today can be exact while older sessions were read only partly; say so where the old total is shown.
+            Label("Some older sessions could not be fully read. This total may be low.",
+                  systemImage: "exclamationmark.triangle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
         } else if usesProfileTotalForPeriod {
             Label(profileStore.statusMessage, systemImage: "person.crop.circle.badge.questionmark")
                 .font(.caption)
@@ -155,7 +162,7 @@ struct PeriodDetailView: View {
 
     private var profileTotalLabel: String {
         guard let snapshot = profileSnapshot else { return "Account totals unavailable" }
-        return "Profile total through \(profileDate(snapshot.statsAsOf))"
+        return "Server total through \(profileDate(snapshot.statsAsOf))"
     }
 
     private var displayedTotal: Int64? {

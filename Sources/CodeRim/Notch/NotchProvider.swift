@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// One source of usage numbers. Each adapter declares how trustworthy it is,
@@ -15,6 +16,12 @@ protocol NotchProvider {
     /// on the default and never on the implementation — which is exactly what
     /// happened, and it failed silently by reporting every account as absent.
     func account() -> ProviderAccount?
+    /// A stable, non-secret fingerprint of the account whose credential is on disk right now, or nil
+    /// when the provider cannot tell accounts apart. The store compares it before and after a fetch,
+    /// and keys remembered readings and rate-limit waits by it, so an answer for the account that was
+    /// signed in when the request started is never shown as the account signed in now. A requirement
+    /// for the reason spelled out above `account()`.
+    func accountIdentity() -> String?
     /// Where the user goes to sign in, when there is no account to read. A
     /// requirement for the same reason `account()` is.
     var signInRoute: SignInRoute { get }
@@ -51,6 +58,49 @@ protocol NotchProvider {
 
 extension NotchProvider {
     var isVisibleWhenAbsent: Bool { true }
+    func accountIdentity() -> String? { nil }
+}
+
+/// Fingerprints for `accountIdentity()`: short SHA-256 prefixes, so neither a key nor an e-mail
+/// address is written next to the readings it owns.
+enum AccountIdentity {
+    static func fingerprint(_ parts: String...) -> String {
+        let digest = SHA256.hash(data: Data(parts.joined(separator: "\u{1F}").utf8))
+        return digest.prefix(12).map { String(format: "%02x", $0) }.joined()
+    }
+}
+
+/// A rate-limit wait that belongs to one account. A 429 earned by account A must not keep account B
+/// from being read after a switch, and the doubling restarts for each account.
+@MainActor
+struct AccountBackoff {
+    let providerID: String
+    let archive: UsageArchive
+    private(set) var consecutiveLimits = 0
+    private var account: String?
+
+    init(providerID: String, archive: UsageArchive) {
+        self.providerID = providerID
+        self.archive = archive
+    }
+
+    /// Seconds still to wait before `account` may be asked again, or nil.
+    mutating func remainingWait(for account: String) -> TimeInterval? {
+        if self.account != account { self.account = account; consecutiveLimits = 0 }
+        return archive.loadBackoffUntil(providerID: providerID, account: account).map { $0.timeIntervalSinceNow }
+    }
+
+    mutating func recordLimit(retryAfter: TimeInterval, account: String) {
+        if self.account != account { self.account = account; consecutiveLimits = 0 }
+        consecutiveLimits += 1
+        archive.saveBackoffUntil(Date().addingTimeInterval(retryAfter), providerID: providerID, account: account)
+    }
+
+    mutating func recordSuccess(account: String) {
+        self.account = account
+        consecutiveLimits = 0
+        archive.saveBackoffUntil(nil, providerID: providerID, account: account)
+    }
 }
 
 enum NotchProviderError: Error {

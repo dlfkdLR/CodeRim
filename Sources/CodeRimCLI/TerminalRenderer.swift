@@ -60,8 +60,11 @@ struct TerminalRenderer {
                 if let usage = provider.localUsage, [.ready, .partial, .stale].contains(usage.state),
                    let tokens = usage.totals[options.period.rawValue] {
                     if !provider.limits.windows.isEmpty { lines.append("") }
+                    // `state` covers the current periods; older history can be partial on its own.
+                    let state = options.period == .allTime && usage.historyComplete == false && usage.state == .ready
+                        ? CompanionState.partial : usage.state
                     lines += wrapped(label: options.period.label + " · This Mac",
-                        value: "\(tokens.totalTokens.formatted()) tokens [\(usage.state.rawValue)]")
+                        value: "\(tokens.totalTokens.formatted()) tokens [\(state.rawValue)]")
                     lines += wrapped(label: "Breakdown",
                         value: "Input \(tokens.inputTokens.formatted()) · Cached input \(tokens.cachedInputTokens.formatted()) · Output \(tokens.outputTokens.formatted())")
                     if usage.state == .stale {

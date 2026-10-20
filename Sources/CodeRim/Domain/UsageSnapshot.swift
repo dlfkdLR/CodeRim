@@ -20,8 +20,12 @@ struct UsageSnapshot: Equatable, Sendable {
     var week: TokenUsage
     var month: TokenUsage
     var allTime: TokenUsage
+    /// How complete the current periods (today, week, month) are. Old sessions that could only be
+    /// read partly, or history still waiting to be re-read, do not lower it — see `historyIncomplete`.
     var quality: DataQuality
     var updatedAt: Date?
+    /// Older history still has unread or partly read sources; all-time and past analytics may be low.
+    var historyIncomplete = false
 
     static let empty = UsageSnapshot(
         today: .zero,

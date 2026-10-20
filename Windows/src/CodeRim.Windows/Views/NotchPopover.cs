@@ -1,0 +1,224 @@
+using System.Globalization;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Documents;
+using System.Windows.Media;
+using System.Windows.Shapes;
+using CodeRim.Core.Domain;
+using CodeRim.Core.Services;
+using CodeRim.Windows.Services;
+using CodeRim.Windows.ViewModels;
+
+namespace CodeRim.Windows.Views;
+
+/// <summary>One black silhouette; no native ToolTip border, padding or focus chrome.</summary>
+internal sealed class SessionExpansionState
+{
+    internal bool Expanded { get; set; }
+}
+
+internal static partial class NotchPopover
+{
+    internal static FrameworkElement Create(string id, DashboardStore store, AppSettings settings, Action<string?> navigate, double? availableHeight = null, SessionExpansionState? expansion = null)
+    {
+        var content = new StackPanel { Margin = new Thickness(NotchMetrics.CardPadding) };
+        var header = new Grid();
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.Children.Add(new ProviderMark { ProviderId = id, Width = NotchMetrics.Glyph, Height = NotchMetrics.Glyph,
+            Margin = new Thickness(0, 0, NotchMetrics.HeaderGap, 0) });
+        var title = Text((ProviderCatalog.Find(id)?.Name ?? id) + " Usage", NotchMetrics.CardTitleFontSize, Brushes.White, FontWeights.SemiBold);
+        title.Margin = new Thickness(0); title.TextWrapping = TextWrapping.NoWrap; title.TextTrimming = TextTrimming.CharacterEllipsis;
+        title.MaxWidth = (NotchMetrics.CardWidth - 2 * NotchMetrics.CardPadding - NotchMetrics.Glyph - NotchMetrics.HeaderGap) / .85;
+        var fittedTitle = new Viewbox { Child = title, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly,
+            HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetColumn(fittedTitle, 1); header.Children.Add(fittedTitle);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(title, "notch.title." + id);
+        content.Children.Add(header);
+        var accountDisplay = store.AccountDisplay(id);
+        var reading = ProviderDisplayPolicy.ForNotch(accountDisplay.Reading, settings, accountDisplay.RawPlan)?.Evaluated(DateTimeOffset.Now);
+        content.Children.Add(AccountRow(id, accountDisplay.Plan, navigate));
+        if (id is "codex" or "claude" || store.Usage.ContainsKey(id))
+            content.Children.Add(LocalTokens(id, store.Usage.GetValueOrDefault(id), settings.NumberStyle));
+        if (reading is { Windows.Count: > 0 }) AddLimitGroups(content, reading.Windows, settings);
+        else
+        {
+            var status = Text(StatusMessage(id, reading), NotchMetrics.CardBodyFontSize, Secondary);
+            status.Margin = new Thickness(0, NotchMetrics.HeaderToBlock, 0, 0);
+            System.Windows.Automation.AutomationProperties.SetAutomationId(status, "notch.status." + id);
+            content.Children.Add(status);
+        }
+        var sessions = store.Sessions.Where(x => x.Provider == id && (settings.ShowUnknownSessions || x.State != "unavailable")).ToArray();
+        var groups = SessionPresentation.Groups(sessions);
+        var tokenTotals = settings.ShowSessionTokens ? store.TokensForSessions(id) : null;
+        if (groups.Count > 0)
+        {
+            expansion ??= new SessionExpansionState();
+            content.Measure(new Size(NotchMetrics.CardWidth, double.PositiveInfinity));
+            var remaining = (availableHeight ?? SystemParameters.WorkArea.Height) - 40 - content.DesiredSize.Height - 2 * NotchMetrics.CardPadding - 42;
+            var cap = Math.Max(0, (int)Math.Floor(remaining / (26 + 30 * NotchMetrics.Unit + 4)));
+            var list = new StackPanel(); content.Children.Add(list);
+            void RenderSessions(bool focusDisclosure = false)
+            {
+                list.Children.Clear();
+                list.Children.Add(new Border { Height = 1, Background = Ui.Brush("#303030"), Margin = new Thickness(0, 8, 0, 8) });
+                var shown = expansion.Expanded ? groups : groups.Take(cap).ToArray();
+                foreach (var group in shown)
+                {
+                    foreach (var row in new[] { group.Parent }.Concat(group.Children))
+                    {
+                        var session = row.Session;
+                        var state = row.ContextOnly ? "" : session.State switch { "busy" => "working", "waiting" => "waiting", "unavailable" => "unknown", _ => "idle" };
+                        var title = session.CodexThreadId is not null && session.RemoteHostId is null ? session.Detail ?? session.Name : session.Name;
+                        if (row.Depth > 0) title = "↳ " + title;
+                        var detail = session.CodexThreadId is not null && session.RemoteHostId is null ? session.Name : session.Detail ?? "";
+                        var openLabel = row.Depth > 0 ? "Open sub-agent " + title.TrimStart('↳', ' ') + " of " + (session.ParentThreadTitle ?? group.Parent.Session.Detail ?? group.Parent.Session.Name) + " in Codex"
+                            : "Open " + title;
+                        var open = PlainButton(openLabel, () => { if (!SessionFocus.Activate(session)) navigate("sessions:" + id); });
+                        var stateColor = session.State == "busy" ? Ui.Brush(settings.AccentColor) : session.State == "waiting" ? Ui.Brush("#F2FF00") : Secondary;
+                        var sessionContent = new StackPanel { Margin = new Thickness(14 * NotchMetrics.Unit * Math.Min(row.Depth, 2), 20 * NotchMetrics.Unit, 0, 0) };
+                        var firstLine = (Grid)Row(title, state, stateColor); ConfigureSessionLine(firstLine);
+                        if (!row.ContextOnly && session.State != "unavailable")
+                        {
+                            var statusText = (TextBlock)firstLine.Children[1]; firstLine.Children.Remove(statusText);
+                            var indicator = new StackPanel { Orientation = Orientation.Horizontal };
+                            indicator.Children.Add(new SessionStatusRing(session.State, stateColor) { Margin = new Thickness(8, 0, NotchMetrics.StatusDotGap, 0), VerticalAlignment = VerticalAlignment.Center });
+                            statusText.Margin = new Thickness(0); indicator.Children.Add(statusText); Grid.SetColumn(indicator, 1); firstLine.Children.Add(indicator);
+                        }
+                        sessionContent.Children.Add(firstLine);
+                        System.Windows.Automation.AutomationProperties.SetAutomationId(open, "notch.session." + session.Id);
+                        var duration = row.ContextOnly ? null : SessionPresentation.Duration(session, settings.ShowSessionDuration, DateTimeOffset.Now);
+                        var tokens = row.Depth == 0 && tokenTotals?.TryGetValue(session.Id, out var total) == true ? TokenFormatter.Format(total, TokenNumberStyle.Compact) + " tokens" : null;
+                        var metrics = string.Join(" · ", new[] { duration, tokens }.Where(x => x is not null));
+                        System.Windows.Automation.AutomationProperties.SetItemStatus(open, row.ContextOnly ? "Parent chat" : state);
+                        var secondLine = (Grid)Row(detail, metrics); ConfigureSessionLine(secondLine);
+                        secondLine.Margin = new Thickness(0, 10 * NotchMetrics.Unit, 0, 0); ((TextBlock)secondLine.Children[0]).Foreground = Secondary;
+                        sessionContent.Children.Add(secondLine); open.Content = sessionContent; open.HorizontalContentAlignment = HorizontalAlignment.Stretch;
+                        list.Children.Add(open);
+                        open.ToolTip = session.RemoteHostId is null ? openLabel : "Remote task · live status unavailable. Open in Codex.";
+                    }
+                }
+                var hidden = groups.Count - shown.Count;
+                if (hidden > 0 || expansion.Expanded)
+                {
+                    var disclosure = PlainButton(expansion.Expanded ? "Show less  ⌃" : "and " + hidden + " more  ⌄", () =>
+                    { expansion.Expanded = !expansion.Expanded; RenderSessions(true); });
+                    disclosure.HorizontalContentAlignment = HorizontalAlignment.Left;
+                    disclosure.Margin = new Thickness(0, 20 * NotchMetrics.Unit, 0, 0);
+                    System.Windows.Automation.AutomationProperties.SetName(disclosure, expansion.Expanded ? "Show fewer tasks" : "Show all " + groups.Count + " tasks");
+                    System.Windows.Automation.AutomationProperties.SetAutomationId(disclosure, expansion.Expanded ? "notch.sessions.showLess" : "notch.sessions.showAll");
+                    list.Children.Add(disclosure);
+                    if (focusDisclosure) disclosure.Focus();
+                }
+            }
+            RenderSessions();
+        }
+        var scroll = new ScrollViewer { Content = content, VerticalScrollBarVisibility = ScrollBarVisibility.Hidden,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, MaxHeight = Math.Max(1, (availableHeight ?? SystemParameters.WorkArea.Height) - 40) };
+        var card = new Border { Width = NotchMetrics.CardWidth, CornerRadius = new CornerRadius(NotchMetrics.CardCorner),
+            Background = Brushes.Black, Child = scroll, SnapsToDevicePixels = true };
+        var layout = new Grid();
+        var vertical = settings.Edge is NotchEdge.Right or NotchEdge.Left;
+        if (vertical)
+        {
+            var tailFirst = settings.Edge == NotchEdge.Left;
+            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(tailFirst ? NotchMetrics.Tail : NotchMetrics.CardWidth) });
+            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(tailFirst ? NotchMetrics.CardWidth : NotchMetrics.Tail) });
+            Grid.SetColumn(card, tailFirst ? 1 : 0); layout.Children.Add(card);
+            var tail = Tail(settings.Edge);
+            Grid.SetColumn(tail, tailFirst ? 0 : 1); layout.Children.Add(tail);
+        }
+        else
+        {
+            var tailFirst = settings.Edge == NotchEdge.Top;
+            layout.RowDefinitions.Add(new RowDefinition { Height = tailFirst ? new GridLength(NotchMetrics.Tail) : GridLength.Auto });
+            layout.RowDefinitions.Add(new RowDefinition { Height = tailFirst ? GridLength.Auto : new GridLength(NotchMetrics.Tail) });
+            Grid.SetRow(card, tailFirst ? 1 : 0); layout.Children.Add(card);
+            var tail = Tail(settings.Edge);
+            Grid.SetRow(tail, tailFirst ? 0 : 1); layout.Children.Add(tail);
+        }
+        return layout;
+    }
+    private static Path Tail(NotchEdge edge)
+    {
+        var length = NotchMetrics.Tail; var height = NotchMetrics.TailHeight;
+        var vertical = edge is NotchEdge.Left or NotchEdge.Right;
+        // The reference's two cubic shoulders are tangent to the card edge.
+        // Transform a right-pointing tail for each of the other three edges.
+        Point P(double x, double y) => edge switch
+        {
+            NotchEdge.Left => new(length - x, y),
+            NotchEdge.Top => new(y, length - x),
+            NotchEdge.Bottom => new(y, x),
+            _ => new(x, y)
+        };
+        var geometry = new StreamGeometry();
+        using (var drawing = geometry.Open())
+        {
+            drawing.BeginFigure(P(0, 0), true, true);
+            drawing.BezierTo(P(0, height * .25), P(length * .58, height * .38), P(length, height * .5), true, false);
+            drawing.BezierTo(P(length * .58, height * .62), P(0, height * .75), P(0, height), true, false);
+        }
+        geometry.Freeze();
+        var tail = new Path { Fill = Brushes.Black, Data = geometry, Width = vertical ? length : height,
+            Height = vertical ? height : length, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        System.Windows.Automation.AutomationProperties.SetAutomationId(tail, "notch.tail");
+        return tail;
+    }
+    private static StackPanel LocalTokens(string id, UsageSnapshot? snapshot, TokenNumberStyle style)
+    {
+        var block = new StackPanel { Margin = new Thickness(0, NotchMetrics.HeaderToBlock, 0, 0) };
+        var line = Text("", NotchMetrics.CardBodyFontSize); line.Margin = new Thickness(0); line.TextWrapping = TextWrapping.NoWrap;
+        line.Inlines.Add(new Run("Today  ") { Foreground = Secondary });
+        line.Inlines.Add(new Run(LocalTokenPresentation.Text(snapshot, style)) { Foreground = Brushes.White });
+        System.Windows.Automation.AutomationProperties.SetAutomationId(line, "notch.tokens." + id);
+        block.Children.Add(new Viewbox { Child = line, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly,
+            HorizontalAlignment = HorizontalAlignment.Left });
+        var scope = Text(LocalTokenPresentation.Scope, NotchMetrics.CardBodyFontSize, Secondary);
+        scope.Margin = new Thickness(0); scope.TextWrapping = TextWrapping.NoWrap; scope.ToolTip = LocalTokenPresentation.ScopeHelp;
+        System.Windows.Automation.AutomationProperties.SetAutomationId(scope, "notch.tokens.scope." + id);
+        block.Children.Add(new Viewbox { Child = scope, Stretch = Stretch.Uniform, StretchDirection = StretchDirection.DownOnly,
+            HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, NotchMetrics.LocalTokenScopeGap, 0, 0) });
+        return block;
+    }
+    private static void ConfigureSessionLine(Grid row)
+    {
+        row.Margin = new Thickness(0);
+        foreach (var text in row.Children.OfType<TextBlock>())
+        {
+            text.FontSize = NotchMetrics.CardBodyFontSize; text.Margin = new Thickness(Grid.GetColumn(text) == 1 ? 8 : 0, 0, 0, 0);
+            text.TextWrapping = TextWrapping.NoWrap; text.TextTrimming = TextTrimming.CharacterEllipsis;
+            text.Height = 13; text.VerticalAlignment = VerticalAlignment.Center;
+        }
+    }
+    internal static readonly Brush Secondary = Ui.Brush("#808080");
+    internal static TextBlock Text(string value, double size = 10.5, Brush? brush = null, FontWeight? weight = null) =>
+        new() { Text = value, FontSize = size, Foreground = brush ?? Brushes.White, FontWeight = weight ?? FontWeights.Normal,
+            TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 5) };
+    internal static FrameworkElement Row(string label, string value, Brush? valueBrush = null)
+    {
+        var row = new Grid { Margin = new Thickness(0, 3, 0, 3) };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var left = Text(label); left.TextTrimming = TextTrimming.CharacterEllipsis;
+        var right = Text(value, 10.5, valueBrush ?? Secondary); right.Margin = new Thickness(8, 0, 0, 5);
+        row.Children.Add(left); Grid.SetColumn(right, 1); row.Children.Add(right); return row;
+    }
+    internal static FrameworkElement UsageBar(double used, string accent = "#00FF88")
+    {
+        var amount = Math.Clamp(used, 0, 100);
+        var fill = new Grid();
+        fill.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(amount, GridUnitType.Star) });
+        fill.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(100 - amount, GridUnitType.Star) });
+        fill.Children.Add(new Border { Background = Ui.Brush(NotchGeometry.BandColor(used, accent)), CornerRadius = new CornerRadius(2) });
+        return new Border { Height = 4, Background = Ui.Brush("#2D2D2D"), CornerRadius = new CornerRadius(2), Child = fill, Margin = new Thickness(0, 0, 0, 6) };
+    }
+    private static System.Windows.Controls.Button PlainButton(string label, Action action)
+    {
+        var button = new System.Windows.Controls.Button { Content = Text(label, 10.5, Secondary),
+            Style = (Style)System.Windows.Application.Current.FindResource("NotchButton"), Padding = new Thickness(2) };
+        System.Windows.Automation.AutomationProperties.SetName(button, label);
+        button.Click += (_, _) => action(); return button;
+    }
+    private static string Reset(DateTimeOffset? reset, string format) => ResetCopy.Text(reset, format, DateTimeOffset.Now);
+}

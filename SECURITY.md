@@ -1,19 +1,27 @@
-# Security Policy
+# Security policy
 
-## Supported versions
+**English** · [한국어](SECURITY.ko.md)
 
-Security fixes target the latest `2.x` release and the `main` branch. Older releases and preview builds are unsupported.
+## Supported versions and reporting
 
-## Reporting a vulnerability
+Security fixes target the latest supported `2.x` platform release and main. Older and preview builds do not carry a separate security-support guarantee. Use [GitHub private vulnerability reporting](https://github.com/dlfkdLR/CodeRim/security/advisories/new). Provide the affected version and a minimal synthetic fixture; exclude real prompts, responses, source content, terminal output, authentication files, private paths, and session archives.
 
-Please use GitHub's private vulnerability reporting for this repository. Do not include real prompts, responses, source code, terminal output, authentication files, or session archives in a report. A minimal synthetic fixture and the affected CodeRim version are preferred.
+## Data and network boundaries
 
-CodeRim has no telemetry. Its local-accounting trust boundary is the Codex session-data directory plus the owner-only SQLite database. Local analytics may persist canonical model IDs, keyed project identifiers, hashed session identifiers, project folder basenames, and numeric image counts, but never full paths, session content, or attachment payloads. When a user explicitly enables ChatGPT account totals, a separate memory-only boundary reads the current Codex access token and account ID and sends them only to the fixed `https://chatgpt.com/backend-api/wham/profiles/me` endpoint. Credentials and responses must never be persisted or logged, redirects must be rejected, and remote values must never be inserted into local usage tables. Read-only account limits come only from a vendor-signed local Codex app-server with bounded execution and output; no reset-credit consumption or account-mutation RPC is allowed. The Sparkle updater requires both a signed HTTPS appcast and an Ed25519-signed GitHub Release archive before extraction.
+Local accounting reads contained Codex/Claude roots into owner-only separate SQLite stores. Persist only normalized counters, timestamps, canonical model IDs, keyed project identities/basenames, hashed session relationships, numeric attachments, and checkpoints. Never persist full paths, transcript/attachment payloads, or credentials in usage storage.
 
-The notch's other providers each borrow a credential a tool on this Mac already holds, and send it only to that vendor's own usage endpoint — never to another vendor, and never to us. No response body is written to the unified log: `privacy: .public` would put plan, spend and account identifiers in the clear, where other processes and any sysdiagnose bundle can read them. Only sizes, provider ids and error kinds are logged.
+Raw read-only Codex app-server responses remain in memory after vendor-signature/bounded execution checks. Normalized last-known windows/read times may persist in the quota cache and owner-only CLI/widget snapshot. No reset-credit consumption, purchase, or account-mutation RPC is exposed by monitoring.
 
-A credential file is read or written only when it is genuinely private to its owner. Mode bits do not settle that on macOS — a file can read `-rw-------` and still carry an extended ACL granting another principal access, and a directory can stamp such a grant onto files created inside it — so every open also refuses an ACL that allows anything to anybody. Restrictive `deny` entries are left alone, being stricter than the mode bits rather than looser.
+At the audited main commit, profile totals are disabled. The unreleased local development source enables them by default for new preference registration. That separate boundary sends only the current token/account ID to fixed `https://chatgpt.com/backend-api/wham/profiles/me`, rejects redirects, and retains response/credentials only in memory. Remote values never enter local usage tables. No current UI toggle should be invented in reporting.
 
-Switching a saved Claude account replaces Claude Code's own login, so it is gated rather than routine: it refuses when managed settings, an MDM profile, API-key or Bedrock/Vertex/Foundry authentication, or `apiKeyHelper` are in play; it refuses while Claude Code is running; it preserves the departing account's rotated refresh token first; and the credential and profile writes are compare-and-swap with rollback, staged `0600` and published atomically without following symlinks. Sign-in runs the official CLI in an owner-only temporary configuration with its own Keychain service, and CodeRim never calls logout or revoke on the real session. Saved logins live in a dedicated non-synchronizing Keychain item and are never written to preferences or logs.
+Provider credentials are sent only to the owning service or explicitly configured endpoint; settings/imports are provider/account scoped. No body is sent to unified logs; operational logging retains provider IDs, sizes, and error kinds. Local accounting has no telemetry. Optional paired iPhone usage is an explicit relay boundary with persisted allowlisted last snapshots and titles off by default. [Complete privacy/storage contract](Documentation/PRIVACY.md).
 
-The certificate-free macOS package is a stable application build, but it is not publisher-trusted by Apple. This distribution limitation is documented in the install guide and does not weaken the separate SHA-256 and Sparkle Ed25519 integrity checks.
+## Private files and account writes
+
+Mac private opens verify ownership, no-follow/containment, mode, and extended ACL. Permissive ACL entries can invalidate a `0600` file; restrictive deny entries remain allowed. Saved credentials use dedicated non-synchronizing Keychain items, separate from usage and preferences.
+
+Codex replacement preserves the departing login, requires supported closed clients and normal desktop quit, serializes operations, compares source bytes, and stages atomically with no-clobber for absent login. Claude refuses managed/MDM/API-key/Bedrock/Vertex/Foundry/apiKeyHelper authentication and running clients, preserves rotated credentials, uses compare-and-swap/owned rollback, and stages `0600` profiles without following symlinks. Official sign-in uses private temporary configuration; never logout/revoke the real session automatically. See [account contract](Documentation/ACCOUNTS.md).
+
+## Distribution trust
+
+Certificate-free macOS is ad-hoc and not Apple-notarized. Verify first-install SHA-256; Sparkle requires signed HTTPS appcast and Ed25519 archive validation before extraction. Windows MSI updates require the pinned Ed25519 manifest, exact architecture/version/file/size and SHA-256, plus authenticated worker/install verification. Authenticode publisher trust is separate; public MSI first installation can warn. The legacy managed ZIP channel keeps its own certificate/SPKI requirements. Do not weaken these boundaries to suppress a warning.

@@ -13,7 +13,7 @@ final class LocalTokenUsageTests: XCTestCase {
         XCTAssertEqual(LocalTokenUsage(snapshot: snapshot, hasLoaded: true).text(style: .detailed), "0 tokens")
         snapshot.today = TokenUsage(inputTokens: 500, cachedInputTokens: 400, outputTokens: 26)
         snapshot.quality = .partial
-        XCTAssertEqual(LocalTokenUsage(snapshot: snapshot, hasLoaded: true).text(style: .detailed), "526 tokens (partial)")
+        XCTAssertEqual(LocalTokenUsage(snapshot: snapshot, hasLoaded: true).text(style: .detailed), "526 tokens")
         snapshot.quality = .stale
         XCTAssertEqual(LocalTokenUsage(snapshot: snapshot, hasLoaded: true).text(style: .detailed), "526 tokens (stale)")
     }
@@ -153,6 +153,92 @@ final class LocalTokenUsageTests: XCTestCase {
             try png.write(to: URL(fileURLWithPath: path))
         }
         XCTAssertGreaterThan(image.size.height, 300)
+    }
+
+    func testTodayIncludesOnlyPostMidnightDeltasAndIgnoresRepeatedSnapshots() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("notch-midnight-\(UUID())")
+        let sources = root.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: sources, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Asia/Seoul"))
+        let iso = ISO8601DateFormatter()
+        let midnight = try XCTUnwrap(iso.date(from: "2026-09-24T15:00:00Z"))
+        var input = 1_000, cached = 0, output = 10
+        var lines: [String] = []
+        func append(seconds: Double, last: [String: Int]) throws {
+            let total = ["input_tokens": input, "cached_input_tokens": cached,
+                         "output_tokens": output, "total_tokens": input + output]
+            let row: [String: Any] = [
+                "timestamp": iso.string(from: midnight.addingTimeInterval(seconds)),
+                "type": "event_msg",
+                "payload": ["type": "token_count", "info": [
+                    "total_token_usage": total, "last_token_usage": last]]
+            ]
+            lines.append(String(decoding: try JSONSerialization.data(withJSONObject: row), as: UTF8.self))
+        }
+        try append(seconds: -1, last: ["input_tokens": input, "cached_input_tokens": cached,
+                                      "output_tokens": output, "total_tokens": input + output])
+        let deltas = [(520, 113634, 113408, 229), (525, 115656, 113408, 54),
+                      (962, 56930, 19200, 108), (969, 58772, 56704, 111),
+                      (980, 59101, 58624, 214), (989, 69786, 58880, 217),
+                      (1798, 70015, 69888, 357)]
+        for (seconds, newInput, newCached, newOutput) in deltas {
+            input += newInput
+            cached += newCached
+            output += newOutput
+            let last = ["input_tokens": newInput, "cached_input_tokens": newCached,
+                        "output_tokens": newOutput, "total_tokens": newInput + newOutput]
+            try append(seconds: Double(seconds), last: last)
+            try append(seconds: Double(seconds + 1), last: last)
+        }
+        try Data((lines.joined(separator: "\n") + "\n").utf8)
+            .write(to: sources.appendingPathComponent("session.jsonl"))
+        let db = try SQLiteDatabase(url: root.appendingPathComponent("usage.sqlite"))
+        let collector = CodexUsageCollector(database: db, roots: [sources])
+        let now = midnight.addingTimeInterval(22 * 3_600 + 32 * 60)
+        let result = try await collector.refresh(now: now, calendar: calendar, weekStart: .monday)
+        XCTAssertEqual(result.snapshot.today.totalTokens, 545_184)
+        XCTAssertEqual(result.snapshot.today.cachedInputTokens, 490_112)
+        XCTAssertEqual(result.snapshot.allTime.totalTokens, 546_194)
+        XCTAssertEqual(LocalTokenUsage(snapshot: result.snapshot, hasLoaded: true).total, 545_184)
+        let nextDay = try await collector.cachedSnapshot(now: midnight.addingTimeInterval(86_400),
+                                                         calendar: calendar, weekStart: .monday)
+        XCTAssertEqual(nextDay.today.totalTokens, 0)
+        XCTAssertEqual(nextDay.allTime.totalTokens, 546_194)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        let utc = try await collector.cachedSnapshot(now: now, calendar: calendar, weekStart: .monday)
+        XCTAssertEqual(utc.today.totalTokens, 0, "Today must follow the selected local calendar, not UTC")
+    }
+
+    func testLocalScopeHelpDoesNotMislabelProviderReportedTokensOrAddHeight() throws {
+        let remote = ProviderSnapshot(id: "grok", displayName: "Grok", glyph: .openai,
+            fidelity: .official, status: .ok, windows: [], todaysTokens: 545_184)
+        XCTAssertTrue(remote.showsLocalTokens)
+        XCTAssertNil(remote.localTokenScopeHelp)
+        for id in ["codex", "claude"] {
+            let local = ProviderSnapshot(id: id, displayName: "Local", glyph: .openai,
+                fidelity: .official, status: .ok, windows: [], todaysTokens: 545_184)
+            XCTAssertEqual(local.localTokenScopeHelp, LocalTokenUsage.scopeHelp)
+            let difference = NotchLayout.cardHeight(for: local, now: Date())
+                - NotchLayout.cardHeight(for: remote, now: Date())
+            XCTAssertEqual(difference, 0, accuracy: 0.001)
+        }
+    }
+
+    func testLoadingLocalUsageKeepsTheSameSessionBudgetAsLoadedUsage() {
+        for height in [600.0, 800.0, 1200.0] {
+            let model = NotchViewModel()
+            model.screenSize = CGSize(width: 1440, height: height)
+            let snapshot = ProviderSnapshot(id: "codex", displayName: "Codex", glyph: .openai,
+                fidelity: .official, status: .ok, windows: [], todaysTokens: 545_184)
+            model.snapshots = [snapshot]
+            let loadedCap = model.sessionCap
+            var loading = snapshot
+            loading.todaysTokens = nil
+            model.snapshots = [loading]
+            XCTAssertEqual(model.sessionCap, loadedCap)
+        }
     }
 
     private final class OfflineProvider: NotchProvider {

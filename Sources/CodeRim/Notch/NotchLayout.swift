@@ -295,7 +295,9 @@ enum NotchLayout {
         let header = max(glyphSize, cardTitleLineHeight)
         var height = 2 * cardPadding + header
         if hasAccountRow { height += headerToBlock + accountRowHeight }
-        if hasTodaysTokens { height += headerToBlock + cardBodyLineHeight }
+        if hasTodaysTokens {
+            height += headerToBlock + cardBodyLineHeight
+        }
 
         // The blocked line sits under the header, above everything else — it
         // is the reading that stops you working, so it leads.
@@ -433,7 +435,8 @@ enum NotchLayout {
             let height = cardHeight(windowCount: windowCount, groupCount: groupCount,
                                     sessionCount: n + 1, sessionCap: n,
                                     hasTokenUsage: hasTokenUsage,
-                                    hasTodaysTokens: hasTodaysTokens, hasAccountRow: hasAccountRow)
+                                    hasTodaysTokens: hasTodaysTokens,
+                                    hasAccountRow: hasAccountRow)
             guard height <= cardBudget else { break }
             fits = n
         }
@@ -455,11 +458,13 @@ enum NotchLayout {
     /// generous that the panel runs off the screen, which is what the cap is
     /// solved for.
     static func maxCardHeight(sessionCap: Int, hasTokenUsage: Bool = false,
-                              hasTodaysTokens: Bool = false, hasAccountRow: Bool = false) -> CGFloat {
+                              hasTodaysTokens: Bool = false,
+                              hasAccountRow: Bool = false) -> CGFloat {
         cardHeight(windowCount: maxWindowCount, groupCount: 2,
                    sessionCount: sessionCap + 1, sessionCap: sessionCap,
                    hasTokenUsage: hasTokenUsage,
-                   hasTodaysTokens: hasTodaysTokens, hasAccountRow: hasAccountRow)
+                   hasTodaysTokens: hasTodaysTokens,
+                   hasAccountRow: hasAccountRow)
     }
 
     static let defaultMaxCardHeight = maxCardHeight(sessionCap: defaultSessionCap)

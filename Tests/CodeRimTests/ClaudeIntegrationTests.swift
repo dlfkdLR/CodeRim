@@ -228,6 +228,35 @@ final class ClaudeIntegrationStoreTests: XCTestCase {
         XCTAssertEqual(installer.installCount, 1)
     }
 
+    func testAddAccountRunsTheCLISignInWhenNothingIsSignedIn() async throws {
+        let fixture = try ClaudeIntegrationFixture()
+        defer { fixture.cleanup() }
+        fixture.defaults.set(true, forKey: "claudeEnabled")
+        let account = ClaudeAccount(email: "person@example.com", subscriptionType: "pro", authenticationMethod: "claude.ai")
+        let authenticator = SigningInClaudeAuthenticator(after: account)
+        let store = ClaudeIntegrationStore(authenticator: authenticator, installer: RecordingClaudeInstaller(),
+            defaults: fixture.defaults, limitsURL: fixture.limitsURL, automaticallyRefresh: false)
+
+        await store.addCurrentAccount()
+        let signIns = await authenticator.signIns
+        XCTAssertEqual(signIns, 1)
+        XCTAssertTrue(store.isConnected)
+    }
+
+    func testAbandonedSignInSaysSoInsteadOfLookingUnchanged() async throws {
+        let fixture = try ClaudeIntegrationFixture()
+        defer { fixture.cleanup() }
+        fixture.defaults.set(true, forKey: "claudeEnabled")
+        let store = ClaudeIntegrationStore(authenticator: StaticClaudeAuthenticator(account: nil),
+            installer: RecordingClaudeInstaller(), defaults: fixture.defaults, limitsURL: fixture.limitsURL,
+            automaticallyRefresh: false)
+
+        await store.addCurrentAccount()
+        XCTAssertFalse(store.isConnected)
+        XCTAssertEqual(store.status, .needsAccount)
+        XCTAssertTrue(store.statusMessage.contains("sign-in didn’t finish"))
+    }
+
     func testConnectedAccountLoadsWeeklyThenFiveHourLimitsAndDisablesCleanly() async throws {
         let fixture = try ClaudeIntegrationFixture()
         defer { fixture.cleanup() }
@@ -619,6 +648,14 @@ final class ClaudeStatusLineInstallerTests: XCTestCase {
 private struct StaticClaudeAuthenticator: ClaudeAuthenticating {
     let account: ClaudeAccount?
     func accountStatus() async throws -> ClaudeAccount? { account }
+}
+
+private actor SigningInClaudeAuthenticator: ClaudeAuthenticating {
+    let after: ClaudeAccount
+    private(set) var signIns = 0
+    init(after: ClaudeAccount) { self.after = after }
+    func accountStatus() async throws -> ClaudeAccount? { signIns > 0 ? after : nil }
+    func signIn() async throws { signIns += 1 }
 }
 
 private actor SwitchableClaudeAuthenticator: ClaudeAuthenticating {

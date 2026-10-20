@@ -5,6 +5,46 @@ import XCTest
 
 @MainActor
 final class CodexAccountSwitchingTests: XCTestCase {
+    func testExternalIdentityChangeDiscardsAnInFlightLimitResponse() async throws {
+        let harness = try makeHarness()
+        harness.store.refreshCurrentPlanType()
+        let provider = AccountSwitchPausedLimitProvider()
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "ExternalAccountTest.\(UUID().uuidString)"))
+        let limits = AccountLimitStore(provider: provider, defaults: defaults, pollingInterval: nil)
+        harness.store.onAccountWillChange = { limits.clearForAccountSwitch() }
+        let refresh = Task { await limits.refresh() }
+        let requested = await provider.waitUntilRequested()
+        let generation = AccountSwitchActivity.generation
+        harness.login.data = harness.target.loginData
+        harness.login.lastModified = Date()
+        harness.store.refreshCurrentPlanType()
+        await provider.finish(.success(AccountLimitsSnapshot(windows: [], resetCredits: nil, fetchedAt: Date())))
+        await refresh.value
+        XCTAssertTrue(requested)
+        XCTAssertEqual(harness.store.currentID, harness.target.id)
+        XCTAssertEqual(AccountSwitchActivity.generation, generation + 1)
+        XCTAssertNil(limits.snapshot)
+        XCTAssertEqual(limits.status, .loading)
+        XCTAssertTrue(harness.trace.events.contains("did-finish"))
+    }
+
+    func testCredentialRefreshForSameIdentityDoesNotClearQuota() throws {
+        let harness = try makeHarness()
+        harness.store.refreshCurrentPlanType()
+        harness.trace.events.removeAll()
+        let generation = AccountSwitchActivity.generation
+        harness.login.data = try account(revision: "refreshed").loginData
+        harness.login.lastModified = Date()
+        harness.store.refreshCurrentPlanType()
+        XCTAssertEqual(AccountSwitchActivity.generation, generation)
+        XCTAssertFalse(harness.trace.events.contains("will-change"))
+        harness.login.data = nil
+        harness.login.lastModified = Date().addingTimeInterval(1)
+        harness.store.refreshCurrentPlanType()
+        XCTAssertNil(harness.store.currentID)
+        XCTAssertTrue(harness.trace.events.contains("will-change"))
+    }
+
     func testAccountIdentityUsesWorkspaceAndSubjectNotEmail() throws {
         let first = try account(workspace: "workspace-a", subject: "subject-a", email: "first@example.test")
         let renamed = try account(workspace: "workspace-a", subject: "subject-a", email: "renamed@example.test")
@@ -1152,6 +1192,7 @@ private final class AccountSwitchMemoryVault: AccountVault {
 
 private final class AccountSwitchMemoryLogin: CodexLoginStoring {
     var data: Data?
+    var lastModified: Date?
     private(set) var replaceCount = 0
     private(set) var expectedOriginal: Data?
     private let trace: AccountSwitchTrace
