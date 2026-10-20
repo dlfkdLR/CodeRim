@@ -4,51 +4,36 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.20</title>
-            <pubDate>Wed, 07 Oct 2026 16:52:30 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.20</link>
-            <sparkle:version>20120</sparkle:version>
-            <sparkle:shortVersionString>2.1.20</sparkle:shortVersionString>
+            <title>2.1.21</title>
+            <pubDate>Tue, 20 Oct 2026 23:29:10 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.21</link>
+            <sparkle:version>20121</sparkle:version>
+            <sparkle:shortVersionString>2.1.21</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.20
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.21
 
-CodeRim 2.1.20 brings macOS up to date with the Windows 2.1.16–2.1.19 work and fixes the data, account and connection problems a full audit found on macOS, Windows and the iPhone relay. Universal macOS app and Windows x64/ARM64 installers.
+A macOS-only release: it fixes Codex account switching after the Codex desktop app's update and adds a beta time-left estimate to the notch. Windows stays at 2.1.20.
 
-## Usage numbers
+## Codex accounts
 
-- A token log whose counters each grow, but not consistently (cached input growing faster than input), no longer fails the refresh again and again on macOS or silently drops usage on Windows. The certain part is counted and the period is marked partial; Windows remembers the correction with the stored history.
-- Today, this week and this month are judged by the sessions seen in them. An old session that could only be read partly marks **Local History** ("This total may be low") instead of every current period. Partial readings on Windows age into stale ones like complete readings.
-- Windows stops re-saving and re-reading its whole history when no log changed, and a refresh dropped by an account switch is read again next time.
+- Switching, saving and adding Codex accounts no longer fails with "A verified Codex installation could not be used" after the Codex desktop app (0.163) moved its bundled CLI into a nested `codex-cli/CodexCLI.app` and began running that binary twice, as `app-server` and `exec-server`. Both the old and the new layout are recognised, and the app-server is picked by how it was started.
 
-## Accounts
+## Time left (beta)
 
-- A usage answer for the account signed in when the request started is not shown for the account signed in now: CodeRim compares the account before and after each read and reads again after a switch. Remembered readings, rate-limit waits and 80%/100% alerts belong to one account, so a switch starts each of them fresh.
-- An alert for an unusually large usage figure can no longer close the app on macOS.
-
-## Providers
-
-- Reading providers side by side: one slow service no longer delays the others.
-- A browser whose data cannot be read is skipped and the next browser is tried (Factory, MiniMax).
-- The iPhone task list and the notch follow `CLAUDE_CONFIG_DIR` like usage does.
-
-## iPhone connection
-
-- Answers that arrive late on the iPhone can no longer bring back an earlier screen or older numbers, including after a filter change. Island updates for one account no longer wait for another account's.
-- A computer whose sign-in has expired no longer takes one of the 16 places. The iPhone stays connected for as long as it is used.
-- Windows: a relay or proxy that stops in the middle of an answer can no longer leave pairing, sharing or disconnect waiting forever.
-
-## Also on macOS since 2.1.15
-
-Provider sign-in on add without command-line tools (GitHub device code, Google sign-in for Antigravity, keys, browser sessions), Kiro and JetBrains AI sign-in, clearer provider errors, settings panes no longer covered by a scroller, and the Information page without the Data scope and Privacy rows.
+- Hovering a working Claude, Codex or OpenCode session in the notch shows a typical range for how long is left (with the long tail underneath), when it should finish, and a bar that fills left to right. It is a prediction from how long your earlier turns took, shown as a range because turn lengths vary too much for one number, and it learns as you work. On this Mac's own history an 80% range held about 80% of the time; a single figure would not have.
+- The clock and bar stop while a session waits for you, the estimate widens when you add an instruction mid-turn (Claude), and a turn that outlasts everything on record says "running long" instead of guessing.
+- Past turn lengths are read from the agents' own logs on launch. Only durations and the folder name are kept, in `~/Library/Application Support/CodeRim/TurnHistory.json`.
+- OpenCode sessions now appear in the notch's activity list, with the compaction state OpenCode records.
+- Settings ▸ Notch ▸ Time Left: an opt-in toggle that installs two small Claude Code hooks (`PreCompact`/`PostCompact`) so the notch can say "compacting" while it happens. It backs up `~/.claude/settings.json` once, touches only its own entries, refuses a file it cannot parse, and removes them when switched off.
 
 ## Verification
 
-macOS: 3,099 tests plus 1,901 provider-matrix cases. Windows: 4,510 core tests, native UI and installer checks in CI. Relay: 52 tests. Live accounts and Apple push delivery were not exercised.
+macOS: 3,100+ tests in CI, including the layout and argument-parsing cases for the Codex fix. The read-only probe of the installed Codex desktop app passed on the development Mac. The hover bar was verified by unit tests and a rendered image, not yet by hand in the running app.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-2.1.20.zip" length="32131205" type="application/octet-stream" sparkle:edSignature="wTiiYhIXp9E6P2rRzVxZPtSoqr02+OfgzsNpdHOS52Tn1l/95sqoDhdjQtmGtNjRpy2CO9UnzSSR5rpWtLTdCw=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.21/CodeRim-2.1.21.zip" length="32330504" type="application/octet-stream" sparkle:edSignature="R6WfulEYZtAhv/5yyvCe23/ChdcAofjwlkKENZq32yVREvFzWmEcXIyUPb2a6MTrj8B8nuWQz6lFXR5kHc7ICw=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: dKhEGjrNuT2I7JUI9KR4GdaK0KCaQVMymBfMUGFELROQX3ak44vxQzrHHjV7NSNr+dKlRfBbeCPSRGNocLr7Bg==
-length: 3948
+edSignature: XFpaiaoC7Dfm3U3evaXBfHPhqm6e/IsbA82mYjEg24f2we5hs+/1rbCdYFM4uaXucalOSKIezqQEXmRuuDD8BA==
+length: 3374
 -->
