@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Store } from '../src/store.mjs';
+import { alarmScheduler } from '../src/alarms.mjs';
 import { Relay } from '../src/relay.mjs';
 import { nodeSQL } from '../src/node-sql.mjs';
 import { handle } from '../src/http.mjs';
@@ -693,4 +694,408 @@ test('polls of a QR code nobody scans leave no waiters behind', async t => {
   const offer = await c.route('POST', '/v1/pairing/start', { platform: 'windows', name: 'PC' }, undefined);
   for (let i = 0; i < 3; i++) await c.route('POST', '/v1/pairing/poll', { id: offer.id, secret: offer.secret }, undefined);
   assert.equal(c.relay.waiters.size, 0);
+});
+
+test('a heartbeat after an outage moves the last-contact time, so the earlier offline answer orders before it', async t => {
+  const c = setup(t);
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  c.advance(700);
+  const before = await c.route('GET', '/v1/snapshot');
+  assert.equal(before.state.connection, 'offline');
+  const heartbeat = { ...snapshot(), generatedAt: c.now() }; // same content: a heartbeat, no new version
+  await c.route('POST', '/v1/snapshot', heartbeat, c.mac);
+  const after = await c.route('GET', '/v1/snapshot');
+  assert.equal(after.state.connection, 'connected');
+  assert.equal(after.state.viewRevision, before.state.viewRevision);
+  assert.equal(after.state.dataVersion, before.state.dataVersion);
+  assert.ok(after.state.staleAt > before.state.staleAt, 'the phone orders equal content by staleAt');
+});
+
+test('a refusal of the previous push-to-start token keeps the token registered meanwhile', async t => {
+  let release;
+  const hold = new Promise(r => { release = r; });
+  const c = setup(t, { push: async token => { if (token === 'a'.repeat(64)) { await hold; return { status: 410 }; } return { status: 200 }; } });
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'a'.repeat(64) });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac); // work begins: the relay starts the Island with A
+  for (let i = 0; i < 20 && !c.store.starters('alice')[0]?.data.startedAt; i++) await new Promise(r => setImmediate(r));
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'b'.repeat(64) });
+  release(); await c.relay.pending;
+  assert.deepEqual(c.store.starters('alice').map(s => s.data.token), ['b'.repeat(64)]);
+  // A refusal of the token still registered does remove it.
+  c.advance(400);
+  const d = setup(t, { push: async () => ({ status: 410 }) });
+  await d.route('POST', '/v1/push-to-start', { pushToken: 'a'.repeat(64) });
+  await d.route('POST', '/v1/snapshot', snapshot(), d.mac); await d.relay.pending;
+  assert.equal(d.store.starters('alice').length, 0);
+});
+
+test("in the alarm's pass, a slow start for one account does not hold back another account's update", async t => {
+  let release;
+  const hold = new Promise(r => { release = r; });
+  const calls = [];
+  const c = setup(t, { push: async (token, payload) => { calls.push(`${token[0]}:${payload.aps.event}`); if (token === 'a'.repeat(64)) await hold; return { status: 200 }; } });
+  const bobPhone = c.store.issue('bob', 'mobile', epoch).token, bobMac = c.store.issue('bob', 'desktop', epoch).token;
+  c.store.saveDevice('bob', { id: 'bob-mac', session: hash(bobMac), platform: 'macOS', name: 'Mac', snapshot: null, receivedAt: 0 });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.route('POST', '/v1/snapshot', snapshot(), bobMac);
+  await c.relay.pending;
+  // Due work the alarm finds: Alice's computer is working with no Island yet; Bob's Island needs an update.
+  c.store.saveStarter({ session: hash(c.mobile), owner: 'alice', data: { token: 'a'.repeat(64) } });
+  c.store.saveActivity({ id: `${hash(bobPhone)}:bob`, owner: 'bob', session: hash(bobPhone),
+    data: { token: 'b'.repeat(64), createdAt: c.now(), sentAt: 0, sentKey: '', ending: false, needsPush: true } });
+  const alarm = c.relay.tick();
+  for (let i = 0; i < 20 && !calls.includes('b:update'); i++) await new Promise(r => setImmediate(r));
+  assert.deepEqual(calls, ['a:start', 'b:update'], "Bob was updated while Alice's start was still waiting");
+  release(); await alarm;
+});
+
+test('a computer that went quiet neither starts an Island nor keeps one from ending', async t => {
+  const c = setup(t);
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac); // last snapshot: a task is working
+  await c.relay.pending;
+  c.advance(661);
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'a'.repeat(64) });
+  await c.relay.tick();
+  assert.equal(c.sent.filter(s => s.payload.aps.event === 'start').length, 0, 'no "Working on your computer" from an offline one');
+
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'b'.repeat(64) });
+  await c.relay.pending; await c.relay.tick();
+  c.advance(130); await c.relay.tick();
+  c.advance(20); await c.relay.tick();
+  assert.ok(c.sent.some(s => s.token === 'b'.repeat(64) && s.payload.aps.event === 'end'), 'the Island ends after the idle delay');
+});
+
+test('the relay wakes itself when a working computer goes quiet, so its Island ends on time', async t => {
+  const alarms = [];
+  const c = setup(t, { schedule: at => alarms.push(at) });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.pending;
+  const quiet = epoch + 660;
+  assert.ok(alarms.length && Math.min(...alarms) <= quiet, `woken by ${quiet}, not ${Math.min(...alarms)}`);
+  // Follow the alarms only; nothing else happens.
+  for (let i = 0; i < 5 && !c.sent.some(s => s.payload.aps.event === 'end'); i++) {
+    const next = Math.min(...alarms.splice(0));
+    c.advance(Math.max(0, next - c.now())); await c.relay.tick();
+  }
+  assert.ok(c.sent.some(s => s.payload.aps.event === 'end'), 'the Island ended');
+  assert.ok(c.now() <= quiet + 120 + 15, `ended at +${c.now() - epoch}s`);
+});
+
+test('a start APNs did not deliver is retried in a minute by an alarm', async t => {
+  const alarms = [];
+  let status = 503;
+  const starts = [];
+  const c = setup(t, { schedule: at => alarms.push(at), push: async (token, payload) => {
+    if (payload.aps.event === 'start') starts.push(c.now()); return { status }; } });
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'a'.repeat(64) });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.relay.pending;
+  assert.equal(starts.length, 1);
+  assert.ok(alarms.includes(epoch + 60), `retry scheduled: ${alarms}`);
+  status = 200;
+  c.advance(60); await c.relay.tick();
+  assert.equal(starts.length, 2);
+  // Delivered: the usual cooldown applies again.
+  c.advance(60); await c.relay.tick();
+  assert.equal(starts.length, 2);
+  assert.equal(c.store.starters('alice')[0].data.token, 'a'.repeat(64));
+});
+
+test('answers with the same content are ordered by when the relay evaluated them', async t => {
+  const c = setup(t);
+  const limited = snapshot(); limited.providers[0].windows[0].resetsAt = epoch + 300;
+  await c.route('POST', '/v1/snapshot', limited, c.mac);
+  c.advance(299);
+  const before = await c.route('GET', '/v1/snapshot');
+  c.advance(2);
+  const after = await c.route('GET', '/v1/snapshot');
+  assert.equal(before.state.providers[0].state, 'ready');
+  assert.equal(after.state.providers[0].state, 'stale');
+  assert.equal(after.state.dataVersion, before.state.dataVersion);
+  assert.equal(after.state.staleAt, before.state.staleAt);
+  assert.ok(after.state.evaluatedAt > before.state.evaluatedAt);
+});
+
+test('a token registered during a failed start is tried next, by an alarm, after a short wait', async t => {
+  for (const failure of [503, 410, 'throw']) {
+    let release;
+    const hold = new Promise(r => { release = r; });
+    const alarms = [], starts = [];
+    const c = setup(t, { schedule: at => alarms.push(at), push: async (token, payload) => {
+      if (payload.aps.event !== 'start') return { status: 200 };
+      starts.push(token[0]);
+      if (token === 'a'.repeat(64)) { await hold; if (failure === 'throw') throw new Error('network'); return { status: failure }; }
+      return { status: 200 };
+    } });
+    await c.route('POST', '/v1/push-to-start', { pushToken: 'a'.repeat(64) });
+    await c.route('POST', '/v1/snapshot', snapshot(), c.mac); // work begins: the start goes out with A
+    for (let i = 0; i < 20 && !starts.length; i++) await new Promise(r => setImmediate(r));
+    await c.route('POST', '/v1/push-to-start', { pushToken: 'b'.repeat(64) });
+    release(); await c.relay.pending;
+    assert.equal(c.store.starters('alice')[0].data.token, 'b'.repeat(64), `${failure}: B is kept`);
+    // Follow the alarms only, as the Durable Object would.
+    for (let i = 0; i < 4 && !starts.includes('b') && alarms.length; i++) {
+      const next = Math.min(...alarms.splice(0));
+      c.advance(Math.max(0, next - c.now())); await c.relay.tick();
+    }
+    assert.deepEqual(starts, ['a', 'b'], `${failure}: B was started`);
+    assert.ok(c.now() <= epoch + 60 + 1, `${failure}: within a minute, not after the cooldown (+${c.now() - epoch}s)`);
+  }
+});
+
+test('alarm runs, the alarms set and the rows they write count toward the free allowance', async t => {
+  const c = setup(t, { budgets: { requests: 4, writes: 1000 } });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.relay.settle();
+  const before = { ...c.relay.usage }, storeBefore = c.store.writes;
+  await c.relay.alarm();
+  await c.relay.alarm();
+  assert.equal(c.relay.usage.requests, before.requests + 2, 'each alarm run is a request');
+  c.relay.alarmSet();
+  // Every row the store wrote meanwhile is counted, and the alarm set adds one more.
+  assert.equal(c.relay.usage.writes, before.writes + (c.store.writes - storeBefore) + 1, 'setting an alarm is a row write');
+  // Rows written by an alarm's pass are counted without any HTTP request.
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.settle();
+  const counted = c.relay.usage.writes;
+  c.advance(30); const changed = snapshot(c.now()); changed.providers[0].todayTokens = 999;
+  c.store.saveDevice('alice', { ...c.store.devices('alice', c.now())[0], snapshot: changed, receivedAt: c.now() });
+  await c.relay.alarm();
+  assert.ok(c.relay.usage.writes > counted);
+  assert.notEqual(c.relay.level(), 'normal', 'alarm runs alone moved the relay toward its limit');
+});
+
+test('the budget level survives the object being recreated', async t => {
+  const budgets = { requests: 100000, writes: 40 };
+  const c = setup(t, { budgets });
+  for (let i = 0; i < 60 && c.relay.level() !== 'critical'; i++) {
+    const next = snapshot(); next.providers[0].todayTokens = 1000 + i; // new content: a stored row
+    await c.route('POST', '/v1/snapshot', next, c.mac);
+    await c.relay.settle();
+  }
+  assert.equal(c.relay.level(), 'critical');
+  // Cloudflare may discard an idle object's memory; the next request builds it again from storage.
+  const rebuilt = new Relay({ store: c.store, now: c.now, budgets, pollWait: 0 });
+  assert.equal(rebuilt.level(), 'critical');
+  assert.ok(rebuilt.usage.writes >= budgets.writes * 0.9);
+});
+
+test('rows written after midnight UTC are counted for the new day', async t => {
+  const c = setup(t);
+  const midnight = (Math.floor(c.now() / 86400) + 1) * 86400;
+  c.advance(midnight - 1 - c.now());
+  await c.route('GET', '/health'); // counted on the old day
+  c.advance(2);
+  c.store.saveMeta('probe', 1); c.store.saveMeta('probe', 2); c.store.saveMeta('probe', 3); // after midnight
+  c.relay.count({ request: false });
+  assert.equal(c.relay.usage.day, Math.floor(c.now() / 86400));
+  assert.ok(c.relay.usage.writes >= 3, `the three rows count for the new day, not ${c.relay.usage.writes}`);
+});
+
+test('the alarm is set to the earliest time asked, one decision at a time, and failures reach the caller', async () => {
+  const storage = { alarm: null, sets: [], gate: null,
+    async getAlarm() { if (this.gate) await this.gate; return this.alarm; },
+    async setAlarm(at) { this.alarm = at; this.sets.push(at); } };
+  let open; storage.gate = new Promise(r => { open = r; });
+  let set = 0;
+  const schedule = alarmScheduler(storage, { now: () => 0, onSet: () => set++ });
+  const first = schedule(60), second = schedule(120);
+  open(); await Promise.all([first, second]);
+  assert.equal(storage.alarm, 60_000, 'the later request does not replace the earlier alarm');
+  assert.deepEqual(storage.sets, [60_000]);
+  assert.equal(set, 1, 'one row write counted');
+  storage.gate = Promise.reject(new Error('storage unavailable')); storage.gate.catch(() => {});
+  await assert.rejects(schedule(30), /storage unavailable/);
+  storage.gate = null;
+  await schedule(30);
+  assert.equal(storage.alarm, 30_000, 'a failure does not block the next call');
+});
+
+test("a failure to set the next alarm fails the alarm handler, so Cloudflare retries it", async t => {
+  const c = setup(t, { schedule: async () => { throw new Error('storage unavailable'); } });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.settle();
+  await assert.rejects(c.relay.alarm(), /storage unavailable/);
+});
+
+test('usage below any saving step is not lost when the object is rebuilt again and again', async t => {
+  const sql = nodeSQL(); t.after(() => sql.close());
+  const store = new Store(sql);
+  let truth = 0, relay;
+  for (let i = 0; i < 101; i++) {
+    relay = new Relay({ store, now: () => epoch + i * 60, pollWait: 0 }); // memory discarded between alarms
+    relay.count(); // the alarm run
+    const before = store.writes;
+    for (let w = 0; w < 998; w++) store.saveMeta('fixture', w);
+    truth += store.writes - before + 1;
+    relay.alarmSet();
+    relay.count({ request: false });
+  }
+  assert.ok(relay.usage.writes >= truth, `counted ${relay.usage.writes} of ${truth}`);
+  assert.equal(relay.level(), 'critical');
+  assert.ok(relay.usage.writes <= truth + 101 * 2 * 20 + 101, 'over-counts by at most the reserve per rebuild');
+});
+
+test('an alarm that could not be set after a response is set again by the next request, even a heartbeat', async t => {
+  const storage = { alarm: null, attempts: 0,
+    async getAlarm() { return this.alarm; },
+    async setAlarm(at) { if (++this.attempts === 1) throw new Error('storage unavailable'); this.alarm = at; } };
+  let c;
+  const schedule = alarmScheduler(storage, { now: () => c.now() * 1000 });
+  c = setup(t, { schedule });
+  await c.route('GET', '/v1/snapshot'); await c.relay.settle(); // the fresh object's own recovery pass is done
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.relay.settle();
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.settle();
+  assert.equal(storage.attempts, 1);
+  assert.equal(storage.alarm, null, 'the failure was swallowed with the work after the response');
+  c.advance(300);
+  await c.route('POST', '/v1/snapshot', { ...snapshot(), generatedAt: c.now() }, c.mac); // unchanged: a heartbeat
+  await c.relay.settle();
+  assert.ok(storage.alarm, 'the alarm is set again');
+
+  // A rebuilt object does not know whether its predecessor's alarm was set; its first request sets it.
+  storage.alarm = null;
+  const rebuilt = new Relay({ store: c.store, now: c.now, pollWait: 0, schedule });
+  await rebuilt.route('GET', '/v1/snapshot', {}, c.mobile, 'test');
+  await rebuilt.settle();
+  assert.ok(storage.alarm, 'the rebuilt object set it');
+});
+
+const twoProviders = (now, sessions) => ({ schemaVersion: 1, generatedAt: now,
+  providers: [
+    { id: 'codex', name: 'Codex', state: 'ready', windows: [{ name: 'Weekly', remainingPercent: 75, resetsAt: now + 6000 }], todayTokens: 1, localState: 'ready', updatedAt: now },
+    { id: 'claude', name: 'Claude', state: 'ready', windows: [{ name: 'Weekly', remainingPercent: 50, resetsAt: now + 6000 }], todayTokens: 1, localState: 'ready', updatedAt: now }],
+  sessions });
+
+test('an Island stopped by hand is not started again for the same work, but is for later work', async t => {
+  const c = setup(t);
+  const starts = () => c.sent.filter(s => s.payload.aps.event === 'start').length;
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'a'.repeat(64) });
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.relay.pending;
+  assert.equal(starts(), 1);
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'b'.repeat(64) });
+  await c.relay.pending;
+  // Well past the cooldown, the same task still working.
+  c.advance(400); await c.route('POST', '/v1/snapshot', snapshot(c.now()), c.mac); await c.relay.pending;
+  c.advance(1); // APNs orders by the second; an end in the same second as an update waits for the next
+  await c.route('DELETE', '/v1/activities');
+  await c.relay.pending;
+  assert.ok(c.sent.some(s => s.token === 'b'.repeat(64) && s.payload.aps.event === 'end'));
+  c.advance(400); await c.route('POST', '/v1/snapshot', snapshot(c.now()), c.mac); await c.relay.pending; await c.relay.tick();
+  assert.equal(starts(), 1, 'the work the person stopped it for does not bring it back');
+  // That work ends, and new work begins: the Island may start again.
+  const idle = snapshot(c.now() + 10); idle.sessions = [];
+  c.advance(10); await c.route('POST', '/v1/snapshot', idle, c.mac); await c.relay.pending;
+  c.advance(10); await c.route('POST', '/v1/snapshot', snapshot(c.now()), c.mac); await c.relay.pending;
+  assert.equal(starts(), 2);
+});
+
+test('a filter change, a removed computer and a deleted account are acted on without waiting for the next alarm', async t => {
+  const alarms = [];
+  const c = setup(t, { schedule: at => alarms.push(at) });
+  await c.route('POST', '/v1/snapshot', twoProviders(epoch, [{ providerID: 'codex', phase: 'working', title: '', since: epoch }]), c.mac);
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.pending;
+  alarms.length = 0;
+  // Only Claude, which is idle, is shown now: the Island's idle clock starts and the relay wakes to end it.
+  c.advance(20);
+  await c.route('PUT', '/v1/preferences', { providerIDs: ['claude'] });
+  await c.relay.pending;
+  assert.equal(c.store.activities('alice')[0].data.idleSince, c.now());
+  assert.ok(alarms.length && Math.min(...alarms) <= c.now() + 120, `woken by +120s, not ${Math.min(...alarms) - c.now()}`);
+
+  // Deleting the account ends the Island now, not at the next alarm.
+  const before = c.sent.length;
+  c.advance(1);
+  await c.route('DELETE', '/v1/account');
+  await c.relay.pending;
+  assert.ok(c.sent.slice(before).some(s => s.payload.aps.event === 'end'), 'the end is pushed straight away');
+  assert.equal(c.store.activities('alice').length, 0);
+});
+
+test('a removed computer ends the Island it was showing straight away', async t => {
+  const c = setup(t);
+  await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.pending;
+  const before = c.sent.length;
+  c.advance(1);
+  await c.route('DELETE', '/v1/devices/fixture-mac');
+  await c.relay.pending;
+  const after = c.sent.slice(before);
+  assert.ok(after.length >= 1, 'pushed without a tick');
+  assert.equal(after.at(-1).payload.aps['content-state'].connection, 'offline');
+});
+
+test('the relay wakes when a shown limit resets or its reading grows old, though the computer sends nothing', async t => {
+  const alarms = [];
+  const c = setup(t, { schedule: at => alarms.push(at) });
+  const input = snapshot(); input.providers[0].windows[0].resetsAt = epoch + 30;
+  await c.route('POST', '/v1/snapshot', input, c.mac);
+  await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c.relay.pending;
+  assert.equal(Math.min(...alarms), epoch + 30, 'woken when the limit resets, not when the computer goes quiet');
+  alarms.length = 0;
+  c.advance(30); await c.relay.tick();
+  assert.equal(c.sent.at(-1).payload.aps['content-state'].providers[0].state, 'stale');
+  // A reading with no reset in sight still ages out after READING_AGE.
+  const c2 = setup(t, { schedule: at => alarms.push(at) });
+  const later = snapshot(); later.providers[0].windows[0].resetsAt = epoch + 6000;
+  alarms.length = 0;
+  await c2.route('POST', '/v1/snapshot', later, c2.mac);
+  await c2.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
+  await c2.relay.pending;
+  assert.equal(Math.min(...alarms), epoch + 301);
+});
+
+test('a body over the limit is abandoned while it streams in, and every request is counted, malformed ones too', async t => {
+  const c = setup(t);
+  const chunk = new Uint8Array(65536).fill(32);
+  let pulled = 0;
+  const stream = new ReadableStream({ pull(controller) {
+    if (pulled >= 16 * chunk.length) return controller.close();
+    pulled += chunk.length; controller.enqueue(chunk);
+  } });
+  const big = await handle(c.relay, new Request('https://relay.test/v1/snapshot', { method: 'POST', body: stream, duplex: 'half',
+    headers: { 'content-type': 'application/json' } }));
+  assert.equal(big.status, 413);
+  assert.ok(pulled <= 262144 + 2 * chunk.length, `read ${pulled} bytes of 1 MiB`);
+
+  const before = c.relay.usage.requests;
+  for (const init of [{ method: 'POST', body: '{', headers: { 'content-type': 'application/json' } },
+    { method: 'POST', body: '{}', headers: { 'content-type': 'text/plain' } }, {}]) {
+    const response = await handle(c.relay, new Request('https://relay.test/v1/snapshot' + (init.method ? '' : '?x=1'), init));
+    assert.ok(response.status >= 400);
+  }
+  assert.equal(c.relay.usage.requests - before, 3);
+});
+
+test('the hourly limit on new accounts from one address survives the object being rebuilt', async t => {
+  const c = setup(t);
+  for (let i = 0; i < 5; i++) await c.relay.route('POST', '/v1/accounts', {}, null, 'same');
+  await assert.rejects(c.relay.route('POST', '/v1/accounts', {}, null, 'same'), { status: 429 });
+  c.advance(60);
+  const rebuilt = new Relay({ store: c.store, now: c.now, push: async () => ({ status: 200 }) });
+  await assert.rejects(rebuilt.route('POST', '/v1/accounts', {}, null, 'same'), { status: 429 });
+  assert.ok((await rebuilt.route('POST', '/v1/accounts', {}, null, 'other')).token);
+  assert.equal(c.store.one("SELECT COUNT(*) AS n FROM limits WHERE key LIKE '%same%'").n, 0, 'addresses are kept only as digests');
+  c.advance(3600);
+  assert.ok((await rebuilt.route('POST', '/v1/accounts', {}, null, 'same')).token);
+});
+
+test("one account's rows are read through indexes, and rows read count toward the free allowance", async t => {
+  const c = setup(t, { budgets: { requests: 1e9, writes: 1e9, reads: 1000 } });
+  for (const [table, query] of [['activities', 'SELECT * FROM activities WHERE owner=?'], ['devices', 'SELECT data FROM devices WHERE owner=?'],
+    ['starters', 'SELECT * FROM starters WHERE owner=?'], ['sessions', "SELECT hash FROM sessions WHERE owner=? AND role='mobile'"]]) {
+    const plan = c.sql.all('EXPLAIN QUERY PLAN ' + query, 'alice').map(r => r.detail).join(' ');
+    assert.match(plan, /USING (COVERING )?INDEX/, `${table}: ${plan}`);
+  }
+  assert.equal(c.relay.level(), 'normal');
+  while (c.relay.usage.reads < 950) { c.advance(1); await c.route('GET', '/v1/snapshot'); }
+  assert.equal(c.relay.level(), 'critical');
 });

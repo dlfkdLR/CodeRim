@@ -4,13 +4,15 @@ import XCTest
 @testable import CodeRim
 
 final class SQLiteDatabaseTests: XCTestCase {
+    /// A database saved at schema 17 gains the partial-evidence table and keeps its usage.
     func testSchema17ReopenPreservesSavedUsage() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let url = directory.appendingPathComponent("usage.sqlite")
         try await writeSchemaRecoveryFixture(at: url)
-        XCTAssertEqual(try recoveryScalar("PRAGMA user_version", at: url), 17)
+        try executeRecoverySQL("DROP TABLE partial_evidence", at: url)
+        try executeRecoverySQL("PRAGMA user_version = 17", at: url)
 
         let reopened = try SQLiteDatabase(url: url)
         let count = try await reopened.eventCount()
@@ -21,7 +23,8 @@ final class SQLiteDatabaseTests: XCTestCase {
         XCTAssertEqual(count, 1)
         XCTAssertEqual(snapshot.allTime, TokenUsage(inputTokens: 100, cachedInputTokens: 60, outputTokens: 35))
         XCTAssertEqual(snapshot.quality, .exact)
-        XCTAssertEqual(try recoveryScalar("PRAGMA user_version", at: url), 17)
+        XCTAssertEqual(try recoveryScalar("PRAGMA user_version", at: url), 18)
+        XCTAssertEqual(try recoveryScalar("SELECT COUNT(*) FROM partial_evidence", at: url), 0)
         XCTAssertEqual(try recoveryScalar("SELECT committed_offset FROM parsing_state", at: url), 100)
     }
 
@@ -31,16 +34,16 @@ final class SQLiteDatabaseTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: directory) }
         let url = directory.appendingPathComponent("usage.sqlite")
         try await writeSchemaRecoveryFixture(at: url)
-        try executeRecoverySQL("PRAGMA user_version = 18", at: url)
+        try executeRecoverySQL("PRAGMA user_version = 19", at: url)
 
         do {
             _ = try SQLiteDatabase(url: url)
             XCTFail("A newer usage schema must require an app update")
         } catch let SQLiteDatabaseError.unsupportedSchema(found, supported) {
-            XCTAssertEqual(found, 18)
-            XCTAssertEqual(supported, 17)
+            XCTAssertEqual(found, 19)
+            XCTAssertEqual(supported, 18)
         }
-        XCTAssertEqual(try recoveryScalar("PRAGMA user_version", at: url), 18)
+        XCTAssertEqual(try recoveryScalar("PRAGMA user_version", at: url), 19)
         XCTAssertEqual(try recoveryScalar("SELECT COUNT(*) FROM usage_events", at: url), 1)
         XCTAssertEqual(try recoveryScalar("SELECT SUM(input_tokens + output_tokens) FROM usage_events", at: url), 135)
         XCTAssertEqual(try recoveryScalar("SELECT SUM(cached_input_tokens) FROM usage_events", at: url), 60)

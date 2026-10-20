@@ -44,6 +44,11 @@ struct CodexAuthCredentialLoader: Sendable {
         else {
             throw ProfileUsageError.unsafeCredentialFile
         }
+        // The same rule as the account manager's reader of this file: an access-control entry granting another
+        // principal access makes 0600 meaningless.
+        guard !CredentialFileSafety.hasPermissiveACL(fileDescriptor: descriptor) else {
+            throw ProfileUsageError.unsafeCredentialFile
+        }
         guard fileStatus.st_size >= 0,
               fileStatus.st_size <= off_t(Self.maximumFileSize)
         else {

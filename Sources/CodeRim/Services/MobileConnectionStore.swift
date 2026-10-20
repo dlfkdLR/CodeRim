@@ -18,36 +18,54 @@ final class MobileConnectionStore: ObservableObject {
     /// The relay's own notice while it is rationing its free daily allowance.
     @Published private(set) var serverNotice: String?
     /// The relay every CodeRim connects to unless overridden for self-hosting.
-    @Published var relayAddress = UserDefaults.standard.string(forKey: "mobileRelayURL")
-        ?? Bundle.main.object(forInfoDictionaryKey: "CodeRimRelayURL") as? String ?? "" {
-        didSet { UserDefaults.standard.set(relayAddress, forKey: "mobileRelayURL") }
+    @Published var relayAddress: String {
+        didSet { defaults.set(relayAddress, forKey: "mobileRelayURL") }
     }
-    @Published var deviceName = UserDefaults.standard.string(forKey: "mobileDeviceName") ?? "Mac" {
-        didSet { UserDefaults.standard.set(deviceName, forKey: "mobileDeviceName") }
+    @Published var deviceName: String {
+        didSet { defaults.set(deviceName, forKey: "mobileDeviceName") }
     }
     @Published var shareTaskTitles = false {
-        didSet { UserDefaults.standard.set(shareTaskTitles, forKey: "mobileShareTaskTitles") }
+        didSet { defaults.set(shareTaskTitles, forKey: "mobileShareTaskTitles") }
     }
+    private let defaults: UserDefaults
+    private let credentials: any MobileCredentialStoring
+    /// Makes a client for a relay; the second argument is how long the relay may hold a request open.
+    private let makeClient: (URL, TimeInterval) throws -> any MobileRelayServing
+    private let makeMonitors: () -> [String: any AgentActivityMonitor]
     private var credential: MobileCredential?
-    private var client: MobileRelayClient?
+    private var client: (any MobileRelayServing)?
     private var latestSnapshot: CompanionSnapshot?
     private var loop: Task<Void, Never>?
     private var generation = UUID()
     private var monitors: [String: any AgentActivityMonitor] = [:]
     private var pairingTask: Task<Void, Never>?
+    /// The pairing offer currently open. A cancelled pairing's task may still be finishing; it acts only while
+    /// its ID is this one, so it can neither connect after Cancel nor clear a newer pairing.
+    private var pairingID: UUID?
     private var lastSent: (body: MobileSnapshot, at: Date)?
     private var heartbeat: TimeInterval = 300
 
-    private init() {
-        shareTaskTitles = UserDefaults.standard.bool(forKey: "mobileShareTaskTitles")
-        guard UserDefaults.standard.bool(forKey: "mobileRelayPaired") else { return }
+    private convenience init() {
+        self.init(defaults: .standard, credentials: MobileCredentialStore.shared,
+                  makeClient: { try MobileRelayClient(endpoint: $0, pollWait: $1) }, makeMonitors: MobileConnectionStore.localMonitors)
+    }
+
+    init(defaults: UserDefaults, credentials: any MobileCredentialStoring,
+         makeClient: @escaping (URL, TimeInterval) throws -> any MobileRelayServing,
+         makeMonitors: @escaping () -> [String: any AgentActivityMonitor]) {
+        self.defaults = defaults; self.credentials = credentials; self.makeClient = makeClient; self.makeMonitors = makeMonitors
+        relayAddress = defaults.string(forKey: "mobileRelayURL")
+            ?? Bundle.main.object(forInfoDictionaryKey: "CodeRimRelayURL") as? String ?? ""
+        deviceName = defaults.string(forKey: "mobileDeviceName") ?? "Mac"
+        shareTaskTitles = defaults.bool(forKey: "mobileShareTaskTitles")
+        guard defaults.bool(forKey: "mobileRelayPaired") else { return }
         isBusy = true
         Task {
             defer { isBusy = false }
             do {
                 // The relay extends a token each time it is used, so the expiry saved at pairing is only
                 // where it started; the relay alone decides, with 401, when the iPhone must pair again.
-                guard let saved = try await MobileCredentialStore.shared.load() else { return }
+                guard let saved = try await credentials.load() else { return }
                 try activate(saved)
             } catch { errorMessage = error.localizedDescription; status = "Reconnect iPhone" }
         }
@@ -59,68 +77,87 @@ final class MobileConnectionStore: ObservableObject {
     func startPairing() {
         guard !isBusy, !isConnected, pairingTask == nil else { return }
         errorMessage = nil
+        let id = UUID(); pairingID = id
         pairingTask = Task { [weak self] in
-            await self?.runPairing()
-            self?.pairingTask = nil
+            await self?.runPairing(id)
+            if self?.pairingID == id { self?.pairingTask = nil; self?.pairingID = nil }
         }
     }
 
     func cancelPairing() {
-        pairingTask?.cancel(); pairingTask = nil
+        pairingTask?.cancel(); pairingTask = nil; pairingID = nil
         pairingLink = nil; pairingExpiresAt = nil
         if !isConnected { status = "Not connected" }
     }
 
-    private func runPairing() async {
+    /// Whether pairing `id` is still the one the person is waiting for.
+    private func isCurrent(_ id: UUID) -> Bool { pairingID == id && !Task.isCancelled }
+
+    private func runPairing(_ id: UUID) async {
         do {
             let endpoint = try MobileRelayClient.validatedEndpoint(relayAddress)
-            let client = try MobileRelayClient(endpoint: endpoint)
-            let offer: MobilePairingStart = try await client.send("POST", "/v1/pairing/start",
+            let client = try makeClient(endpoint, 0)
+            let offer: MobilePairingStart = try await client.send("POST", "/v1/pairing/start", token: nil,
                 body: MobileDesktopLabel(platform: "macOS", name: String(deviceName.prefix(24))))
+            guard isCurrent(id) else { return }
             pairingLink = MobilePairingLink(relay: endpoint, id: offer.id, secret: offer.secret)
             pairingExpiresAt = Date(timeIntervalSince1970: offer.expiresAt)
             status = "Scan the QR code with the CodeRim iPhone app"
             let request = MobilePairingRequest(id: offer.id, secret: offer.secret)
-            // The relay holds each poll until the iPhone scans or about 20 seconds pass.
-            while !Task.isCancelled, Date().timeIntervalSince1970 < offer.expiresAt {
+            // The relay holds each poll until the iPhone scans or about 20 seconds pass; this client waits that
+            // long. A poll that still fails is asked again, and the relay answers it with the same token.
+            let poller = try makeClient(endpoint, Self.pollWait)
+            while isCurrent(id), Date().timeIntervalSince1970 < offer.expiresAt {
                 let result: MobilePairingPoll
-                do { result = try await client.send("POST", "/v1/pairing/poll", body: request) }
+                do { result = try await poller.send("POST", "/v1/pairing/poll", token: nil, body: request) }
                 catch MobileRelayError.rejected(401) { break }
                 catch {
-                    if Task.isCancelled { return }
+                    if !isCurrent(id) { return }
                     try? await Task.sleep(for: .seconds(3)); continue
                 }
                 guard let token = result.token, let expiresAt = result.expiresAt else { continue }
+                // Cancelled while the answer was on its way: the computer the iPhone added is taken back.
+                guard isCurrent(id) else { return await Self.revoke(token, client: client) }
                 let saved = MobileCredential(endpoint: endpoint, session: MobileSessionToken(token: token, expiresAt: expiresAt))
-                do { try await MobileCredentialStore.shared.save(saved) }
+                do { try await credentials.save(saved) }
                 catch {
-                    let _: MobileOK? = try? await client.send("DELETE", "/v1/session", token: token, body: MobileEmpty())
+                    await Self.revoke(token, client: client)
                     throw error
                 }
-                UserDefaults.standard.set(true, forKey: "mobileRelayPaired")
+                // Cancelled while Keychain saved it: nothing is shared, and the saved token goes too.
+                guard isCurrent(id) else {
+                    if (try? await credentials.load())?.token == token { try? await credentials.delete() }
+                    return await Self.revoke(token, client: client)
+                }
+                defaults.set(true, forKey: "mobileRelayPaired")
                 pairingLink = nil; pairingExpiresAt = nil
                 try activate(saved)
                 return
             }
-            guard !Task.isCancelled else { return }
+            guard isCurrent(id) else { return }
             pairingLink = nil; pairingExpiresAt = nil
             status = "The QR code expired. Connect again."
         } catch {
-            guard !Task.isCancelled else { return }
+            guard isCurrent(id) else { return }
             pairingLink = nil; pairingExpiresAt = nil
             errorMessage = error.localizedDescription; status = "Connection failed"
         }
     }
 
+    /// The relay's longest hold of a pairing poll.
+    static let pollWait: TimeInterval = 20
+
+    private static func revoke(_ token: String, client: any MobileRelayServing) async {
+        let _: MobileOK? = try? await client.send("DELETE", "/v1/session", token: token, body: MobileEmpty())
+    }
+
     private func activate(_ saved: MobileCredential) throws {
-        let client = try MobileRelayClient(endpoint: saved.endpoint)
+        let client = try makeClient(saved.endpoint, 0)
         loop?.cancel(); monitors.values.forEach { $0.stop() }
         self.credential = saved; self.client = client
         generation = UUID(); let run = generation
         serverAddress = saved.endpoint.absoluteString; isConnected = true; status = "Waiting for usage"
-        let home = UsageProvider.claudeConfigRoot(home: URL(fileURLWithPath: NSHomeDirectory()))
-        monitors = ["codex": CodexActivityMonitor(), "claude": ClaudeSessionMonitor(
-            directory: home.appendingPathComponent("sessions"), projects: home.appendingPathComponent("projects"))]
+        monitors = makeMonitors()
         monitors.values.forEach { $0.start() }
         lastSent = nil
         loop = Task { [weak self] in
@@ -158,17 +195,23 @@ final class MobileConnectionStore: ObservableObject {
         stopLocal(); errorMessage = nil
         // Stop local collection first, even if the server is temporarily unreachable.
         do {
-            try await MobileCredentialStore.shared.delete()
-            UserDefaults.standard.set(false, forKey: "mobileRelayPaired")
+            try await credentials.delete()
+            defaults.set(false, forKey: "mobileRelayPaired")
             if let old, let oldClient {
                 let _: MobileOK = try await oldClient.send("DELETE", "/v1/session", token: old.token, body: MobileEmpty())
             }
             status = "Not connected"
         } catch {
-            UserDefaults.standard.set(false, forKey: "mobileRelayPaired")
+            defaults.set(false, forKey: "mobileRelayPaired")
             status = "Sharing stopped on this Mac"
             errorMessage = "The server could not confirm disconnection. Remove the connection in iPhone Settings when online."
         }
+    }
+
+    private static func localMonitors() -> [String: any AgentActivityMonitor] {
+        let home = UsageProvider.claudeConfigRoot(home: URL(fileURLWithPath: NSHomeDirectory()))
+        return ["codex": CodexActivityMonitor(), "claude": ClaudeSessionMonitor(
+            directory: home.appendingPathComponent("sessions"), projects: home.appendingPathComponent("projects"))]
     }
 
     private func stopLocal() {

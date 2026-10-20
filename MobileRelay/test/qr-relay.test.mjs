@@ -28,7 +28,7 @@ async function connect(c, mobile, name = 'Mac') {
   return c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: pair.secret });
 }
 
-test('QR pairing hands the computer its token once, and only to the holder of the secret', async t => {
+test('QR pairing hands the computer its token until it is used, and only to the holder of the secret', async t => {
   const c = setup(t), mobile = await phone(c);
   const pair = await c.route('POST', '/v1/pairing/start', { platform: 'windows', name: '작업 PC' });
   assert.deepEqual(await c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: pair.secret }), { pending: true, expiresAt: pair.expiresAt });
@@ -39,8 +39,13 @@ test('QR pairing hands the computer its token once, and only to the holder of th
   await assert.rejects(c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: 'wrong' }), { status: 401 });
   const desktop = await c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: pair.secret });
   assert.ok(desktop.token && desktop.deviceID);
-  await assert.rejects(c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: pair.secret }), { status: 401 });
+  // The answer was lost on the way (or the computer gave up waiting): asking again hands over the same
+  // token, not a second computer.
+  assert.deepEqual(await c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: pair.secret }), desktop);
   await c.route('POST', '/v1/snapshot', snapshot(), desktop.token);
+  // Using the token finishes the pairing.
+  await assert.rejects(c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: pair.secret }), { status: 401 });
+  assert.equal(c.store.one('SELECT COUNT(*) AS n FROM devices').n, 1);
   assert.equal((await c.route('GET', '/v1/snapshot', {}, mobile)).devices[0].name, '작업 PC');
   // A desktop token cannot read; a phone token cannot publish.
   await assert.rejects(c.route('GET', '/v1/snapshot', {}, desktop.token), { status: 403 });
@@ -165,4 +170,15 @@ test('without a push key the relay still pairs and serves usage, and stores no p
   await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) }, mobile);
   await c.route('POST', '/v1/push-to-start', { pushToken: 'f'.repeat(64) }, mobile);
   assert.equal(c.store.writes, writes); assert.equal(c.store.activities().length, 0);
+});
+
+test('a computer the iPhone added that never used its token goes when the code expires', async t => {
+  const c = setup(t), mobile = await phone(c);
+  const pair = await c.route('POST', '/v1/pairing/start', { platform: 'macOS', name: 'Cancelled' });
+  await c.route('POST', '/v1/pairing/claim', { id: pair.id, secret: pair.secret }, mobile);
+  const used = await connect(c, mobile, 'Used');
+  await c.route('POST', '/v1/snapshot', snapshot(), used.token);
+  assert.equal((await c.route('GET', '/v1/snapshot', {}, mobile)).devices.length, 2);
+  c.advance(301); await c.relay.tick();
+  assert.deepEqual((await c.route('GET', '/v1/snapshot', {}, mobile)).devices.map(d => d.name), ['Used']);
 });

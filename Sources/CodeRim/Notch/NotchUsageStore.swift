@@ -540,7 +540,7 @@ final class NotchUsageStore: ObservableObject {
                 fresh = try await provider.fetchSnapshot()
                 guard isCurrent(provider.id, version: version) else { return nil }
                 after = provider.accountIdentity()
-                guard after == owner else { return nil }
+                guard after == owner else { return unattributed(provider: provider, answer: fresh) }
             }
             fresh.accountPlan = fresh.accountPlan ?? provider.account()?.plan
             fresh.accountIdentity = owner
@@ -555,6 +555,21 @@ final class NotchUsageStore: ObservableObject {
             NotchLog.usage.error("\(provider.id, privacy: .public) failed: \(String(describing: error), privacy: .private)")
             return degraded(provider: provider, error: error)
         }
+    }
+
+    /// The read again after an account change still could not say whose answer it is: the account kept
+    /// changing, or the second read failed and its reader forgot the account. Nothing remembered belongs
+    /// to the account now signed in, so it is dropped; the cell stays, with the second read's failure or a
+    /// note that the account changed, and the next refresh reads again.
+    private func unattributed(provider: NotchProvider, answer: ProviderSnapshot) -> ProviderSnapshot? {
+        lastGood[provider.id] = nil
+        saveArchive()
+        guard provider.isVisibleWhenAbsent else { return nil }
+        var empty = Self.placeholder(provider)
+        empty.status = answer.status == .ok || answer.status.isStale
+            ? .error("The account changed while CodeRim was reading it. It reads again shortly.")
+            : answer.status
+        return empty
     }
 
     /// A failed fetch never invents a number: it either re-shows the last good

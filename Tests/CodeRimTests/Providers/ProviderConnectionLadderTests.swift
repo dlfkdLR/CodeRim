@@ -160,6 +160,32 @@ final class ProviderConnectionLadderTests: XCTestCase {
         XCTAssertEqual(result.status, .ok)
     }
 
+    /// Grok and Cursor see the borrowed token's expiry on disk before any request; that is as good as a 401.
+    func test13a_ALocallyExpiredCredentialIsRescuedByCodeRimsOwnSignIn() async throws {
+        let hybrid = HybridNotchProvider(native: Fake(result: { throw NotchProviderError.credentialExpired }),
+                                         upstream: try upstream { _, _ in Self.usage() })
+        let result = try await hybrid.fetchSnapshot()
+        XCTAssertEqual(result.status, .ok)
+    }
+
+    /// With no sign-in of CodeRim's own, the cell waits for the owning tool to refresh the token (stale, not signed out).
+    func test13b_ALocallyExpiredCredentialWaitsWhenUpstreamCannotHelp() async throws {
+        let hybrid = HybridNotchProvider(native: Fake(result: { throw NotchProviderError.credentialExpired }),
+                                         upstream: try upstream { _, _ in throw ProviderFetchError.noAvailableStrategy(.copilot) })
+        do { _ = try await hybrid.fetchSnapshot(); XCTFail() } catch NotchProviderError.credentialExpired {}
+    }
+
+    /// A rate limit or a server error says nothing about the sign-in; it is not answered by another one.
+    func test13c_ARateLimitOrServerErrorNeverSwitchesSignIn() async throws {
+        for failure in [NotchProviderError.rateLimited(retryAfter: 60), .badResponse(status: 503)] {
+            let calls = Box(0)
+            let hybrid = HybridNotchProvider(native: Fake(result: { throw failure }),
+                                             upstream: try upstream { _, _ in calls.value += 1; return Self.usage() })
+            do { _ = try await hybrid.fetchSnapshot(); XCTFail() } catch {}
+            XCTAssertEqual(calls.value, 0, "\(failure)")
+        }
+    }
+
     func test14_AFallbackReadingKeepsTheCellsIdentity() async throws {
         let native = Fake()
         let hybrid = HybridNotchProvider(native: native, upstream: try upstream { _, _ in Self.usage() })

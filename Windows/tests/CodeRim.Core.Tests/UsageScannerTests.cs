@@ -92,6 +92,67 @@ public sealed class UsageScannerTests
         finally { Directory.Delete(root, true); }
     }
 
+    /// The normalizer turns an inconsistent delta into a valid one before the repository sees it. The
+    /// repair still has to reach repaired_events through the real path, so the period stays partial
+    /// once the log that showed it is gone.
+    [Fact]
+    public async Task ADeltaRepairedWhileParsingIsStoredAsRepaired()
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            static string Line(string time, string total, string last) =>
+                """{"type":"event_msg","timestamp":"2026-09-01T00:00:0""" + time + """Z","payload":{"type":"token_count","info":{"total_token_usage":"""
+                + total + ""","last_token_usage":""" + last + "}}}";
+            var source = Path.Combine(root, "session.jsonl");
+            File.WriteAllLines(source, ["""{"type":"session_meta","payload":{"id":"repaired"}}""",
+                Line("1", """{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10}""", """{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10}"""),
+                // Cached input grew by 20 while input grew by 10: the delta (10,20,5) is inconsistent.
+                Line("2", """{"input_tokens":110,"cached_input_tokens":40,"output_tokens":15}""", """{"input_tokens":10,"cached_input_tokens":20,"output_tokens":5}""")]);
+            var scan = await new UsageScanner([root]).ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            Assert.Contains(scan.Events, e => e.Repaired && e.Usage == new TokenUsage(10, 10, 5));
+            var repository = new UsageRepository(Path.Combine(root, "usage.sqlite"));
+            repository.Merge("codex", scan.Events);
+            // The file that needed the repair was read only in part, so its other record is marked too.
+            Assert.Equal(2, repository.LastWriteRepairedEvents);
+
+            File.Delete(source);
+            var reopened = new UsageRepository(Path.Combine(root, "usage.sqlite"));
+            Assert.True(reopened.HasRepairedEventsSince("codex", new DateTimeOffset(2026, 8, 31, 0, 0, 0, TimeSpan.Zero)));
+        }
+        finally { Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); Directory.Delete(root, true); }
+    }
+
+    /// Two copies of one session reach the same later counters from different earlier ones: one copy's
+    /// delta is consistent, the other's had to be repaired. The event is marked repaired whichever copy
+    /// is read first.
+    [Theory]
+    [InlineData("a-consistent.jsonl", "b-repaired.jsonl")]
+    [InlineData("b-consistent.jsonl", "a-repaired.jsonl")]
+    public async Task ARepairInEitherCopyMarksTheMergedEvent(string consistentName, string repairedName)
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            static string Line(string time, string total, string last) =>
+                """{"type":"event_msg","timestamp":"2026-09-01T00:00:0""" + time + """Z","payload":{"type":"token_count","info":{"total_token_usage":"""
+                + total + ""","last_token_usage":""" + last + "}}}";
+            const string meta = """{"type":"session_meta","payload":{"id":"copied"}}""";
+            const string later = """{"input_tokens":110,"cached_input_tokens":40,"output_tokens":15}""";
+            const string laterLast = """{"input_tokens":10,"cached_input_tokens":10,"output_tokens":5}""";
+            File.WriteAllLines(Path.Combine(root, consistentName), [meta,
+                Line("1", """{"input_tokens":100,"cached_input_tokens":30,"output_tokens":10}""", """{"input_tokens":100,"cached_input_tokens":30,"output_tokens":10}"""),
+                Line("2", later, laterLast)]);
+            File.WriteAllLines(Path.Combine(root, repairedName), [meta,
+                Line("1", """{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10}""", """{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10}"""),
+                Line("2", later, laterLast)]);
+            var scan = await new UsageScanner([root]).ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            var merged = Assert.Single(scan.Events, e => e.Usage == new TokenUsage(10, 10, 5));
+            Assert.True(merged.Repaired);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     [Fact]
     public async Task RepeatedSnapshotEnrichesCacheWriteWithoutAddingTokens()
     {
@@ -456,6 +517,49 @@ public sealed class UsageScannerTests
         var path = Path.Combine(Path.GetTempPath(), $"CodeRimTests-{Guid.NewGuid():N}");
         Directory.CreateDirectory(path);
         return path;
+    }
+
+    /// A file read only in part marks what it yielded; the mark is stored, so the period stays partial after
+    /// the file is gone, and a range that does not hold those records is not made partial by them.
+    [Fact]
+    public async Task IncompleteHistoryStaysPartialAfterItsFileIsGoneAndOnlyInItsOwnRange()
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            var source = Path.Combine(root, "decreasing.jsonl");
+            File.WriteAllLines(source, [
+                "{\"timestamp\":\"2026-09-20T01:00:00Z\",\"type\":\"session_meta\",\"payload\":{\"id\":\"partial-file\"}}",
+                TokenLineWithLast("2026-09-20T01:00:01Z", 100, 60, 20, 100, 60, 20, 1),
+                TokenLineWithLast("2026-09-20T01:00:02Z", 80, 40, 10, 10, 5, 2, 2)]);
+            var scan = await new UsageScanner("codex", [root]).ScanAsync(WeekStart.Monday,
+                new DateTimeOffset(2026, 9, 20, 12, 0, 0, TimeSpan.Zero), CancellationToken.None).ConfigureAwait(true);
+            Assert.Equal(DataQuality.Partial, scan.Snapshot.Quality);
+            Assert.NotEmpty(scan.Events);
+            Assert.All(scan.Events, e => Assert.True(e.Repaired, "the records of a file read in part are marked"));
+
+            var repository = new UsageRepository(Path.Combine(root, "usage.sqlite"));
+            repository.Merge("codex", scan.Events);
+            File.Delete(source);
+            var stored = repository.Read("codex");
+            Assert.All(stored, e => Assert.True(e.Repaired));
+
+            // Still September: the month holding the records is partial though no file says so any more.
+            var september = UsageScanner.Aggregate(stored, new DateTimeOffset(2026, 9, 25, 12, 0, 0, TimeSpan.Zero), WeekStart.Monday, partial: false);
+            Assert.Equal(DataQuality.Partial, september.Quality);
+            // October 12: the current week and month are exact, the 30-day range (from September 13) is partial,
+            // the 7-day range is not.
+            var now = new DateTimeOffset(2026, 10, 12, 12, 0, 0, TimeSpan.Zero);
+            var october = UsageScanner.Aggregate(stored, now, WeekStart.Monday, partial: false);
+            Assert.Equal(DataQuality.Exact, october.Quality);
+            var zone = TimeZoneInfo.Utc;
+            var thirty = SettingsUsageAnalytics.Build(new AnalyticsSourceFrame(now, october, stored), AnalyticsRange.ThirtyDays, zone);
+            Assert.Equal(DataQuality.Partial, thirty.Quality);
+            var recent = stored.Select(e => e with { EventKey = "recent", OccurredAt = now.AddDays(-1), Repaired = false }).Take(1).ToArray();
+            var seven = SettingsUsageAnalytics.Build(new AnalyticsSourceFrame(now, october, [.. stored, .. recent]), AnalyticsRange.SevenDays, zone);
+            Assert.Equal(DataQuality.Exact, seven.Quality);
+        }
+        finally { Directory.Delete(root, true); }
     }
 
     private static string TokenLine(

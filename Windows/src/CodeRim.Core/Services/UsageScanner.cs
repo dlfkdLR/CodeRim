@@ -146,6 +146,9 @@ public sealed class UsageScanner
         var sources = discovery.Sources;
         var activePaths = new HashSet<string>(sources, StringComparer.OrdinalIgnoreCase);
         var partial = discovery.ResourceLimitReached;
+        // Gaps no record marks: something not read at all. A file read in part marks its records instead
+        // (below), so only the ranges holding them are partial.
+        var gaps = partial;
         var hasMoreWork = false;
         var resourceLimitReached = discovery.ResourceLimitReached;
         var scannedBytes = 0L;
@@ -164,7 +167,7 @@ public sealed class UsageScanner
                 var before = FileStamp.Read(source);
                 if (cache.TryGetValue(source, out var cached) && cached.Stamp == before)
                 {
-                    partial |= cached.Partial;
+                    partial |= cached.Partial; gaps |= cached.Partial && cached.Events.Count == 0;
                     continue;
                 }
 
@@ -174,7 +177,7 @@ public sealed class UsageScanner
                 {
                     cache.Remove(source);
                     cachedEventCount = retainedEventCount;
-                    partial = true;
+                    partial = gaps = true;
                     resourceLimitReached = true;
                     continue;
                 }
@@ -190,7 +193,7 @@ public sealed class UsageScanner
                 {
                     cache.Remove(source);
                     cachedEventCount = retainedEventCount;
-                    partial = true;
+                    partial = gaps = true;
                     resourceLimitReached = true;
                     break;
                 }
@@ -205,7 +208,7 @@ public sealed class UsageScanner
                 {
                     cache.Remove(source);
                     cachedEventCount = retainedEventCount;
-                    partial = true;
+                    partial = gaps = true;
                     resourceLimitReached = true;
                     break;
                 }
@@ -219,7 +222,7 @@ public sealed class UsageScanner
                     // A writer may append while we parse a frozen prefix. Keep a
                     // verified prefix useful, and retry its tail on the next scan.
                     hasMoreWork = true;
-                    partial = true;
+                    partial = gaps = true;
                     var canVerify = after.Length >= before.Length
                         && after.CreationTimeTicks == before.CreationTimeTicks
                         && scannedBytes + before.Length <= maximumBytesPerScan;
@@ -234,15 +237,20 @@ public sealed class UsageScanner
                 {
                     cache.Remove(source);
                     cachedEventCount = retainedEventCount;
-                    partial = true;
+                    partial = gaps = true;
                     hasMoreWork = true;
                     continue;
                 }
 
 
-                cache[source] = new CachedFile(before, parsed.Events, parsed.Partial, parsed.Details);
+                // A file read only in part (a baseline that could not be confirmed, a missing or decreasing counter,
+                // a malformed accounting row) marks what it did yield. The mark is stored with each record, so the
+                // periods they fall in stay partial after the file is gone; the file's own flag lasts only as long
+                // as the file.
+                var yielded = parsed.Partial ? parsed.Events.Select(e => e.Repaired ? e : e with { Repaired = true }).ToList() : parsed.Events;
+                cache[source] = new CachedFile(before, yielded, parsed.Partial, parsed.Details);
                 cachedEventCount = retainedEventCount + parsed.Events.Count + (parsed.Details?.Attachments.Count ?? 0);
-                partial |= parsed.Partial;
+                partial |= parsed.Partial; gaps |= parsed.Partial && parsed.Events.Count == 0;
             }
             catch (Exception error) when (error is IOException
                                           or UnauthorizedAccessException
@@ -250,7 +258,7 @@ public sealed class UsageScanner
             {
                 cache.Remove(source);
                 cachedEventCount = cache.Values.Sum(value => value.Events.Count + (value.Details?.Attachments.Count ?? 0));
-                partial = true;
+                partial = gaps = true;
             }
         }
 
@@ -270,6 +278,9 @@ public sealed class UsageScanner
                 if (eventIndices.TryGetValue(usageEvent.EventKey, out var existingIndex))
                 {
                     var existing = events[existingIndex];
+                    // A copy that had to be repaired marks the event whichever copy was read first, so the
+                    // stored quality does not depend on file or cache order.
+                    if (usageEvent.Repaired && !existing.Repaired) existing = events[existingIndex] = existing with { Repaired = true };
                     if (existing.Usage.InputTokens == usageEvent.Usage.InputTokens
                         && existing.Usage.CachedInputTokens == usageEvent.Usage.CachedInputTokens
                         && existing.Usage.OutputTokens == usageEvent.Usage.OutputTokens)
@@ -281,7 +292,7 @@ public sealed class UsageScanner
 
                 if (events.Count >= maximumEventCount)
                 {
-                    partial = true;
+                    partial = gaps = true;
                     resourceLimitReached = true;
                     break;
                 }
@@ -297,7 +308,7 @@ public sealed class UsageScanner
             contentVersion = Interlocked.Increment(ref contentVersions);
         // Attachments become visible as their time arrives, which changes the stored sessions too.
         var dueAttachments = provider == "claude" ? 0 : cache.Values.Sum(x => x.Details?.Attachments.Count(a => a.OccurredAt <= now) ?? 0);
-        var snapshot = Aggregate(events, now, weekStart, partial || hasMoreWork);
+        var snapshot = Aggregate(events, now, weekStart, partial || hasMoreWork, sourcesPartial: gaps || hasMoreWork);
         var status = resourceLimitReached
             ? "Local session data limit reached"
             : hasMoreWork
@@ -632,6 +643,7 @@ public sealed class UsageScanner
                         EventKey(sessionId, observation),
                         observation.OccurredAt,
                         delta, model, project, sessionId, "codex", projectId) {
+                            Repaired = normalized.Repaired,
                             PricingContext = delta.InputTokens <= UsageAnalytics.HighContextInputThreshold ? PricingContext.Standard
                                 : observation.LastUsage == delta ? PricingContext.HighContext : null });
                     break;
@@ -687,9 +699,11 @@ public sealed class UsageScanner
         IReadOnlyList<UsageEvent> events,
         DateTimeOffset now,
         WeekStart weekStart,
-        bool partial)
+        bool partial,
+        TimeZoneInfo? zone = null,
+        bool? sourcesPartial = null)
     {
-        var timeZone = TimeZoneInfo.Local;
+        var timeZone = zone ?? TimeZoneInfo.Local;
         var localNow = TimeZoneInfo.ConvertTime(now, timeZone);
         var todayStart = LocalStartUtc(localNow.Date, timeZone);
         var dayOffset = weekStart == WeekStart.Monday
@@ -735,22 +749,21 @@ public sealed class UsageScanner
             }
         }
 
+        // A record in the current week or month that was marked when it was read or saved makes them partial,
+        // even after the file that held it is gone.
+        var current = weekStartUtc < monthStartUtc ? weekStartUtc : monthStartUtc;
+        var marked = events.Any(e => e.Repaired && e.OccurredAt >= current && e.OccurredAt <= now);
         var quality = newest is null
             ? partial ? DataQuality.Partial : DataQuality.Unavailable
-            : partial ? DataQuality.Partial : DataQuality.Exact;
-        return new UsageSnapshot(today, week, month, allTime, quality, newest);
+            : partial || marked ? DataQuality.Partial : DataQuality.Exact;
+        return new UsageSnapshot(today, week, month, allTime, quality, newest) { SourcesPartial = sourcesPartial ?? partial };
     }
 
+    /// The day's first instant, the same one the charts start the day at: a midnight that happens twice
+    /// (the clock goes back at 01:00) starts at its first occurrence, not the standard-time one
+    /// `ConvertTimeToUtc` would pick, so Today and the chart's day hold the same records.
     private static DateTimeOffset LocalStartUtc(DateTime localDate, TimeZoneInfo timeZone)
-    {
-        var local = DateTime.SpecifyKind(localDate, DateTimeKind.Unspecified);
-        while (timeZone.IsInvalidTime(local))
-        {
-            local = local.AddMinutes(1);
-        }
-
-        return TimeZoneInfo.ConvertTimeToUtc(local, timeZone);
-    }
+        => AnalyticsTimeline.LocalMidnight(localDate, timeZone).ToUniversalTime();
 
     private static bool ContainsRelevantMarker(byte[] line)
     {

@@ -11,6 +11,20 @@ public sealed record SettingsUsageSession(string Id, TokenUsage Usage, DateTimeO
 public sealed record SettingsUsageSnapshot(AnalyticsRange Range, DateTimeOffset Through, TokenUsage Usage, DataQuality Quality,
     IReadOnlyList<SettingsUsageDay> Days, IReadOnlyList<SettingsUsageModel> Models, IReadOnlyList<SettingsUsageSession> Sessions);
 
+/// <summary>How complete the local history shown for one range is.</summary>
+public static class LocalHistoryQuality
+{
+    /// Partial when the read was incomplete, when a retained reading was, or when a record in the range was
+    /// marked incomplete; not because of a marked record in some other period the current snapshot covers.
+    public static DataQuality ForRange(UsageSnapshot? local, IReadOnlyCollection<UsageEvent> rangeEvents)
+    {
+        ArgumentNullException.ThrowIfNull(rangeEvents);
+        if (local is null || rangeEvents.Aggregate(TokenUsage.Zero, (sum, e) => sum.Add(e.Usage)).IsZero) return DataQuality.Unavailable;
+        if (local.SourcesPartial || local.RetainsPartialHistory || rangeEvents.Any(e => e.Repaired)) return DataQuality.Partial;
+        return local.Quality == DataQuality.Partial ? DataQuality.Exact : local.Quality;
+    }
+}
+
 /// <summary>Local Settings projections. Account/server totals never participate.</summary>
 public static class SettingsUsageAnalytics
 {
@@ -40,8 +54,7 @@ public static class SettingsUsageAnalytics
         var sessions = events.GroupBy(e => e.SessionId, StringComparer.Ordinal)
             .Select(g => new SettingsUsageSession(g.Key, Sum(g), g.Max(e => e.OccurredAt)))
             .OrderByDescending(s => s.Usage.TotalTokens).ThenBy(s => s.Id, StringComparer.Ordinal).ToArray();
-        var quality = total.IsZero ? DataQuality.Unavailable
-            : frame.Local.RetainsPartialHistory || frame.Local.Quality == DataQuality.Partial ? DataQuality.Partial : frame.Local.Quality;
+        var quality = LocalHistoryQuality.ForRange(frame.Local, events);
         return new(range, frame.Through, total, quality, days.AsReadOnly(), Models(events), Array.AsReadOnly(sessions));
     }
 

@@ -115,7 +115,7 @@ enum SQLiteDatabaseError: Error, LocalizedError {
 
 actor SQLiteDatabase {
     static let maximumDatabaseBytes: Int64 = 1_073_741_824
-    static let supportedSchemaVersion = 17
+    static let supportedSchemaVersion = 18
 
     private let databaseURL: URL
     private let databaseByteLimit: Int64
@@ -317,7 +317,8 @@ actor SQLiteDatabase {
         expectedEpoch: Int64? = nil,
         expectedNormalizationState: UsageNormalizationState? = nil,
         mergesMessageUsage: Bool = false,
-        excludedEventKeys: Set<String> = []
+        excludedEventKeys: Set<String> = [],
+        partialEvidence: [PartialEvidence] = []
     ) throws -> UsageNormalizationState? {
         try execute("BEGIN IMMEDIATE")
         do {
@@ -327,6 +328,18 @@ actor SQLiteDatabase {
             if let expectedNormalizationState, let sessionID = checkpoint.sessionID,
                try normalizationStateWithinTransaction(for: sessionID) != expectedNormalizationState {
                 throw SQLiteDatabaseError.staleScan
+            }
+            // Recorded with the rows read alongside it, so a re-read of the same lines records nothing new.
+            if !partialEvidence.isEmpty {
+                let statement = try prepare("INSERT OR IGNORE INTO partial_evidence(source, position, observed_at) VALUES (?1, ?2, ?3)")
+                defer { sqlite3_finalize(statement) }
+                for evidence in partialEvidence {
+                    sqlite3_reset(statement)
+                    try bind(evidence.source, at: 1, to: statement)
+                    sqlite3_bind_int64(statement, 2, evidence.position)
+                    sqlite3_bind_double(statement, 3, evidence.observedAt.timeIntervalSince1970)
+                    guard sqlite3_step(statement) == SQLITE_DONE else { throw SQLiteDatabaseError.step(errorMessage) }
+                }
             }
             if (!events.isEmpty || !excludedEventKeys.isEmpty),
                try allocatedDatabaseBytesWithinTransaction() >= databaseByteLimit {
@@ -1190,6 +1203,7 @@ actor SQLiteDatabase {
             try execute("DELETE FROM session_metadata")
             try execute("DELETE FROM analytics_backfill_sources")
             try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through')")
+            try execute("DELETE FROM partial_evidence")
             try execute("COMMIT")
         } catch {
             try? execute("ROLLBACK")
@@ -1220,6 +1234,7 @@ actor SQLiteDatabase {
             try execute("DELETE FROM session_metadata")
             try execute("DELETE FROM analytics_backfill_sources")
             try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through')")
+            try execute("DELETE FROM partial_evidence")
             do {
                 let statement = try prepare(
                     """
@@ -1432,6 +1447,9 @@ actor SQLiteDatabase {
                     SELECT 1 FROM session_counters
                     WHERE quality != 'exact' AND (?3 IS NULL OR last_observed_at IS NULL OR last_observed_at >= ?3)
                )
+               OR EXISTS (
+                    SELECT 1 FROM partial_evidence WHERE ?3 IS NULL OR observed_at >= ?3
+               )
             LIMIT 1
             """
         )
@@ -1532,6 +1550,10 @@ actor SQLiteDatabase {
         }
         if version == 16 {
             try migrateToVersion17(database)
+            version = 17
+        }
+        if version == 17 {
+            try migrateToVersion18(database)
         }
     }
 
@@ -2175,6 +2197,34 @@ actor SQLiteDatabase {
                 """, on: database
             )
             try execute("PRAGMA user_version = 17", on: database)
+            try execute("COMMIT", on: database)
+        } catch {
+            try? execute("ROLLBACK", on: database)
+            throw error
+        }
+    }
+
+    /// Rows whose tokens could not be counted, kept apart from any one session's counters so that their
+    /// own time, not the session's last valid row, decides which periods they make partial.
+    private static func migrateToVersion18(_ database: OpaquePointer) throws {
+        try execute("BEGIN IMMEDIATE", on: database)
+        do {
+            if try userVersion(database) >= 18 {
+                try execute("COMMIT", on: database)
+                return
+            }
+            try execute(
+                """
+                CREATE TABLE IF NOT EXISTS partial_evidence (
+                    source TEXT NOT NULL,
+                    position INTEGER NOT NULL,
+                    observed_at REAL NOT NULL,
+                    PRIMARY KEY (source, position)
+                )
+                """, on: database
+            )
+            try execute("CREATE INDEX IF NOT EXISTS partial_evidence_time_idx ON partial_evidence(observed_at)", on: database)
+            try execute("PRAGMA user_version = 18", on: database)
             try execute("COMMIT", on: database)
         } catch {
             try? execute("ROLLBACK", on: database)

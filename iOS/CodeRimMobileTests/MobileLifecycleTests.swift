@@ -51,11 +51,22 @@ final class MobileLifecycleTests: XCTestCase {
         let restore = Task { await model.restore() }
         await Task.yield()
         XCTAssertTrue(model.busy)
-        await model.connect(MobilePairingLink(relay: URL(string: "https://relay.example.com")!,
-            id: String(repeating: "i", count: 43), secret: String(repeating: "s", count: 43)))
-        let calls = await relay.calls; XCTAssertTrue(calls.isEmpty)
         await restore.value
         XCTAssertFalse(model.busy)
+    }
+    /// A QR code scanned with the Camera opens the app: the launch task and the link both restore. The link
+    /// waits for the saved connection and joins with it, instead of being dropped as "busy".
+    func testAQRLinkThatOpensTheAppWaitsForTheRestoreAndIsNotDropped() async throws {
+        let storage = MemoryCredentials(credential(), delay: .milliseconds(150)), relay = PairingRelay()
+        let model = MobileAppModel(credentials: storage, makeClient: { _ in relay })
+        let launch = Task { await model.restore() }
+        await Task.yield()
+        await model.connect(link)
+        await launch.value
+        let calls = await relay.calls
+        XCTAssertTrue(calls.contains("POST /v1/pairing/claim"), "\(calls)")
+        XCTAssertFalse(calls.contains("POST /v1/accounts"), "joined with the restored account")
+        XCTAssertNil(model.errorMessage)
     }
     func testOfflineLogoutClearsCredentialAndLiveActivityLocally() async throws {
         let storage = MemoryCredentials(credential()), relay = OfflineLogoutRelay()
@@ -166,6 +177,32 @@ extension MobileLifecycleTests {
         XCTAssertTrue(state(2, 5).supersedes(state(2, 5)))
         XCTAssertFalse(state(2, 4).supersedes(state(2, 5)))
         XCTAssertTrue(state(nil, nil).supersedes(state(0, nil)), "answers from an older relay still apply")
+    }
+
+    /// A heartbeat with unchanged content brings a computer back without a new content version. The
+    /// "offline" answer from before it must not replace the "connected" answer from after it.
+    func testALateOfflineAnswerCannotUndoAHeartbeat() {
+        func state(_ connection: String, staleAt: Double) -> MobileActivityState {
+            MobileActivityState(viewRevision: 0, dataVersion: 1, connection: connection, updatedAt: 0, staleAt: staleAt,
+                providers: [], sessions: [], additionalSessionCount: 0, workingCount: 0, waitingCount: 0, unavailableCount: 0)
+        }
+        let before = state("offline", staleAt: 1_000), after = state("connected", staleAt: 1_700)
+        XCTAssertTrue(after.supersedes(before))
+        XCTAssertFalse(before.supersedes(after))
+    }
+
+    /// A limit that reset between two answers changes neither the content version nor the last contact.
+    /// The answer evaluated later wins, so "needs a refresh" is not undone by spent numbers.
+    func testALateAnswerFromBeforeALimitResetCannotRestoreIt() {
+        func state(_ providerState: String, evaluatedAt: Double?) -> MobileActivityState {
+            let provider = MobileProvider(id: "codex", name: "Codex", state: providerState, windows: [], todayTokens: nil, localState: "ready", updatedAt: 0)
+            return MobileActivityState(viewRevision: 0, dataVersion: 1, evaluatedAt: evaluatedAt, connection: "connected", updatedAt: 0, staleAt: 1_660,
+                providers: [provider], sessions: [], additionalSessionCount: 0, workingCount: 0, waitingCount: 0, unavailableCount: 0)
+        }
+        let ready = state("ready", evaluatedAt: 1_299), stale = state("stale", evaluatedAt: 1_301)
+        XCTAssertTrue(stale.supersedes(ready))
+        XCTAssertFalse(ready.supersedes(stale))
+        XCTAssertTrue(state("ready", evaluatedAt: nil).supersedes(stale), "an older relay falls back to last contact")
     }
 }
 
@@ -300,8 +337,65 @@ extension MobileLifecycleTests {
         let other = URL(string: "https://other.example.com")!
         await model.connect(MobilePairingLink(relay: other, id: link.id, secret: link.secret))
         let calls = await relay.calls
-        XCTAssertEqual(Array(calls.filter { !$0.hasPrefix("GET ") }.prefix(3)), ["DELETE /v1/session", "POST /v1/accounts", "POST /v1/pairing/claim"])
+        // The restored connection may register its push-to-start token in the background at any point; only
+        // the order of leaving, creating and joining matters here.
+        XCTAssertEqual(Array(calls.filter { !$0.hasPrefix("GET ") && !$0.hasSuffix("/v1/push-to-start") }.prefix(3)),
+                       ["POST /v1/accounts", "POST /v1/pairing/claim", "DELETE /v1/session"])
         XCTAssertNil(model.errorMessage)
         let stored = try await storage.load(); XCTAssertEqual(stored?.endpoint, other)
+    }
+    /// A QR code for another server that turns out to be used, expired or unreachable leaves the working
+    /// connection exactly as it was.
+    func testAFailedJoinOnAnotherServerKeepsTheCurrentConnection() async throws {
+        let home = PairingRelay(), other = PairingRelay()
+        await other.failClaims(.rejected(401))
+        let storage = MemoryCredentials(credential())
+        let model = MobileAppModel(credentials: storage, makeClient: { $0.host == "other.example.com" ? other : home })
+        await model.restore()
+        await model.connect(MobilePairingLink(relay: URL(string: "https://other.example.com")!, id: link.id, secret: link.secret))
+        XCTAssertTrue(model.signedIn)
+        XCTAssertEqual(model.serverAddress, "https://relay.example.com")
+        let stored = try await storage.load(); XCTAssertEqual(stored?.token, "synthetic-test-token")
+        let homeCalls = await home.calls, otherCalls = await other.calls
+        XCTAssertFalse(homeCalls.contains("DELETE /v1/session"), "the working session was not ended")
+        XCTAssertEqual(otherCalls.filter { !$0.hasPrefix("GET ") }, ["POST /v1/accounts", "POST /v1/pairing/claim", "DELETE /v1/account"],
+                       "the account made for the failed join is removed again")
+        XCTAssertNotNil(model.errorMessage)
+    }
+    /// A Mac's QR code may spell the relay with a trailing slash, a Windows PC's without: the same server.
+    func testTheSameRelaySpelledDifferentlyIsNotAChangeOfServer() async throws {
+        let relay = PairingRelay()
+        let saved = MobileCredential(endpoint: URL(string: "https://relay.example.com/")!,
+                                     session: .init(token: "synthetic-test-token", expiresAt: 4102444800))
+        let model = MobileAppModel(credentials: MemoryCredentials(saved), makeClient: { _ in relay })
+        await model.restore()
+        await model.connect(link)
+        let calls = await relay.calls
+        XCTAssertFalse(calls.contains("POST /v1/accounts"))
+        XCTAssertFalse(calls.contains("DELETE /v1/session"))
+    }
+    /// The error a failed refresh showed goes away when the relay answers again.
+    func testARefreshThatSucceedsAgainClearsTheErrorItsFailureShowed() async throws {
+        let relay = FlakyRelay()
+        let model = MobileAppModel(credentials: MemoryCredentials(credential()), makeClient: { _ in relay })
+        await model.restore()
+        XCTAssertNotNil(model.errorMessage)
+        await relay.recover()
+        await model.refresh()
+        XCTAssertNil(model.errorMessage)
+    }
+}
+
+private actor FlakyRelay: MobileRelayServing {
+    nonisolated let endpoint = URL(string: "https://relay.example.com")!
+    private var failing = true
+    func recover() { failing = false }
+    func get<Response: Decodable & Sendable>(_ path: String, token: String) throws -> Response {
+        if failing { throw URLError(.notConnectedToInternet) }
+        let data = Data(#"{"state":{"connection":"connected","updatedAt":1790000000,"staleAt":0,"providers":[],"sessions":[],"additionalSessionCount":0,"workingCount":0,"waitingCount":0,"unavailableCount":0},"preferences":{"providerIDs":[]},"availableProviders":[]}"#.utf8)
+        return try JSONDecoder().decode(Response.self, from: data)
+    }
+    func send<Response: Decodable & Sendable, Body: Encodable & Sendable>(_ method: String, _ path: String, token: String?, body: Body) throws -> Response {
+        try JSONDecoder().decode(Response.self, from: Data(#"{"ok":true}"#.utf8))
     }
 }

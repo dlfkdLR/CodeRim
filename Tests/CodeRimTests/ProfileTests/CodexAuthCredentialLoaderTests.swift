@@ -46,6 +46,22 @@ final class CodexAuthCredentialLoaderTests: XCTestCase {
         }
     }
 
+    /// 0600 with an access-control entry letting everyone read it: the account manager refuses this file,
+    /// so the profile reader does too.
+    func testAnACLGrantingAnotherPrincipalAccessIsRejectedDespite0600() throws {
+        let fixture = try makeFixture(validJSON)
+        defer { fixture.remove() }
+        let chmod = Process()
+        chmod.executableURL = URL(fileURLWithPath: "/bin/chmod")
+        chmod.arguments = ["+a", "everyone allow read", fixture.file.path]
+        try chmod.run(); chmod.waitUntilExit()
+        try XCTSkipUnless(chmod.terminationStatus == 0, "this volume does not take ACLs")
+
+        XCTAssertThrowsError(try CodexAuthCredentialLoader(authFileURL: fixture.file).load()) {
+            XCTAssertEqual($0 as? ProfileUsageError, .unsafeCredentialFile)
+        }
+    }
+
     func testSymlinkIsRejectedWithoutFollowingIt() throws {
         let fixture = try makeFixture(validJSON)
         defer { fixture.remove() }

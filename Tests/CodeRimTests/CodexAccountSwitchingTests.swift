@@ -28,6 +28,23 @@ final class CodexAccountSwitchingTests: XCTestCase {
         XCTAssertTrue(harness.trace.events.contains("did-finish"))
     }
 
+    /// The notch's alerts and remembered readings use the provider's account identity. A personal plan
+    /// and a team workspace signed in with the same email have separate limits, so they are two owners.
+    func testNotchIdentityTellsWorkspacesWithTheSameEmailApart() throws {
+        let harness = try makeHarness()
+        let limits = AccountLimitStore(provider: UnavailableLimits(), pollingInterval: nil)
+        let notch = CodexNotchProvider(limits: limits, accounts: harness.store)
+        harness.store.refreshCurrentPlanType()
+        let personal = try XCTUnwrap(notch.accountIdentity())
+        harness.login.data = try account(workspace: "team-workspace", email: "account@example.test").loginData
+        harness.login.lastModified = Date().addingTimeInterval(1)
+        harness.store.refreshCurrentPlanType()
+        let team = try XCTUnwrap(notch.accountIdentity())
+        XCTAssertEqual(harness.store.currentAccountEmail, "account@example.test")
+        XCTAssertNotEqual(personal, team)
+        XCTAssertFalse(team.contains("example"))
+    }
+
     func testCredentialRefreshForSameIdentityDoesNotClearQuota() throws {
         let harness = try makeHarness()
         harness.store.refreshCurrentPlanType()
@@ -1351,4 +1368,8 @@ private actor AccountSwitchPausedLimitProvider: AccountLimitProviding {
         cancellationCount += 1
         if finishesOnCancellation { finish(.failure(CancellationError())) }
     }
+}
+
+private struct UnavailableLimits: AccountLimitProviding {
+    func readLimits() async throws -> AccountLimitsSnapshot { throw AccountLimitError.trustedAppServerNotFound }
 }
