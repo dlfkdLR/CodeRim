@@ -9,6 +9,8 @@ final class NotchViewModel: ObservableObject {
     /// ring per provider, so nothing in the notch looks like a ring without
     /// being one.
     @Published var sessions: [String: [AgentSession]] = [:]
+    /// The time-left estimate for each working session, keyed by session id.
+    @Published var turnETA: [String: TurnETATracker.Snapshot] = [:]
 
     /// Which cell the cursor is over, if any. Driven from the window controller
     /// rather than SwiftUI's `.onHover`: the panel ignores mouse events until

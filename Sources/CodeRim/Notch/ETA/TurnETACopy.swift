@@ -1,0 +1,73 @@
+import Foundation
+
+/// The words for an estimate. Ranges, never a single promise: the numbers
+/// behind them are quantiles of past turns, and the copy should not claim
+/// more than that.
+enum TurnETACopy {
+    struct Line: Equatable {
+        /// The headline, e.g. "about 3–8 min left".
+        let headline: String
+        /// A second, quieter line, e.g. "around 2:41 PM".
+        let detail: String?
+    }
+
+    static func line(for snapshot: TurnETATracker.Snapshot, now: Date,
+                     locale: Locale = .current, calendar: Calendar = .current) -> Line? {
+        switch snapshot.phase {
+        case .waiting:    return Line(headline: "waiting for you", detail: nil)
+        case .compacting: return Line(headline: "compacting context", detail: nil)
+        case .finished:   return nil
+        case .working:    break
+        }
+        guard let estimate = snapshot.estimate else { return nil }
+
+        let prefix = snapshot.extended ? "now " : ""
+        switch estimate.basis {
+        case .overrun:
+            return Line(headline: "\(prefix)running long", detail: nil)
+        case .prior, .agent, .project:
+            break
+        }
+        if estimate.high < 20 {
+            return Line(headline: "\(prefix)almost done", detail: finish(at: estimate.median, now: now,
+                                                                     locale: locale, calendar: calendar))
+        }
+        return Line(headline: "\(prefix)about \(range(estimate.low, estimate.high)) left",
+                    detail: finish(at: estimate.median, now: now, locale: locale, calendar: calendar))
+    }
+
+    /// "3–8 min", "45 sec – 2 min", "1 hr 10 min – 2 hr".
+    static func range(_ low: TimeInterval, _ high: TimeInterval) -> String {
+        let lo = round(low), hi = round(high)
+        if lo == hi { return span(hi) }
+        let loText = span(lo), hiText = span(hi)
+        // "3–8 min" reads better than "3 min – 8 min" when the unit is shared.
+        for unit in [" min", " sec", " hr"] where loText.hasSuffix(unit) && hiText.hasSuffix(unit) {
+            return "\(loText.dropLast(unit.count))–\(hiText)"
+        }
+        return "\(loText) – \(hiText)"
+    }
+
+    /// Coarse on purpose: the estimate is not good to the second.
+    static func span(_ seconds: TimeInterval) -> String {
+        let value = max(0, seconds)
+        if value < 90 { return "\(max(5, Int((value / 5).rounded()) * 5)) sec" }
+        let minutes = Int((value / 60).rounded())
+        if minutes < 60 { return "\(minutes) min" }
+        let hours = minutes / 60, rest = minutes % 60
+        let step = rest == 0 ? 0 : (rest / 5) * 5
+        return step == 0 ? "\(hours) hr" : "\(hours) hr \(step) min"
+    }
+
+    private static func finish(at median: TimeInterval, now: Date, locale: Locale,
+                               calendar: Calendar) -> String? {
+        guard median >= 60 else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return "around \(formatter.string(from: now.addingTimeInterval(median)))"
+    }
+}

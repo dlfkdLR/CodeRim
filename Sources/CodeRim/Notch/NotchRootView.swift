@@ -58,6 +58,7 @@ struct NotchRootView: View {
         .animation(motion(NotchMotion.unfold), value: model.isExpanded)
         .tint(model.accentColor.color)
         .environment(\.notchAccentColor, model.accentColor.color)
+        .environment(\.notchTurnETA, model.turnETA)
         .environment(\.notchRingAppearance, model.ringAppearance)
         .environment(\.notchRingAnimationEnabled, model.isExpanded)
     }

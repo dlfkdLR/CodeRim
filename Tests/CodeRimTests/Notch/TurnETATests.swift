@@ -219,3 +219,56 @@ final class TurnETATests: XCTestCase {
         XCTAssertEqual(found.first?.project, "app")
     }
 }
+
+final class TurnETACopyTests: XCTestCase {
+    private var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        return calendar
+    }
+    private let noon = Date(timeIntervalSince1970: 1_800_000_000)
+
+    private func working(_ low: Double, _ median: Double, _ high: Double,
+                         basis: TurnETAEstimate.Basis = .project, extended: Bool = false) -> TurnETATracker.Snapshot {
+        TurnETATracker.Snapshot(phase: .working, elapsed: 30,
+            estimate: TurnETAEstimate(low: low, median: median, high: high, basis: basis),
+            progress: 0.3, extended: extended)
+    }
+
+    func testRangesShareTheirUnit() {
+        XCTAssertEqual(TurnETACopy.range(180, 480), "3–8 min")
+        XCTAssertEqual(TurnETACopy.range(30, 150), "30 sec – 3 min")
+        XCTAssertEqual(TurnETACopy.range(40, 40), "40 sec")
+        XCTAssertEqual(TurnETACopy.span(4_200), "1 hr 10 min")
+    }
+
+    func testHeadlineAndFinishTime() {
+        let line = TurnETACopy.line(for: working(180, 300, 480), now: noon,
+                                    locale: Locale(identifier: "en_US_POSIX"), calendar: calendar)
+        XCTAssertEqual(line?.headline, "about 3–8 min left")
+        XCTAssertTrue(line?.detail?.hasPrefix("around ") == true)
+    }
+
+    func testNearlyDoneNeedsNoRange() {
+        XCTAssertEqual(TurnETACopy.line(for: working(2, 6, 12), now: noon)?.headline, "almost done")
+    }
+
+    func testFollowUpSaysSo() {
+        XCTAssertEqual(TurnETACopy.line(for: working(180, 300, 480, extended: true), now: noon)?.headline,
+                       "now about 3–8 min left")
+    }
+
+    func testOverrunMakesNoPromise() {
+        XCTAssertEqual(TurnETACopy.line(for: working(10, 30, 90, basis: .overrun), now: noon)?.headline,
+                       "running long")
+    }
+
+    func testWaitingAndCompactingAreNamed() {
+        func snapshot(_ phase: TurnETATracker.Phase) -> TurnETATracker.Snapshot {
+            TurnETATracker.Snapshot(phase: phase, elapsed: 5, estimate: nil, progress: 0.2, extended: false)
+        }
+        XCTAssertEqual(TurnETACopy.line(for: snapshot(.waiting), now: noon)?.headline, "waiting for you")
+        XCTAssertEqual(TurnETACopy.line(for: snapshot(.compacting), now: noon)?.headline, "compacting context")
+        XCTAssertNil(TurnETACopy.line(for: snapshot(.finished), now: noon))
+    }
+}
