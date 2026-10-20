@@ -8,6 +8,8 @@ The current Windows release is [**2.1.20**](https://github.com/dlfkdLR/CodeRim/r
 
 Release 2.1.20 keeps usage and alerts of one account from showing for another, marks inconsistent logs as partial instead of dropping them, and keeps iPhone sharing from waiting on an answer that never finishes. See [its notes](ReleaseNotes/2.1.20.md).
 
+Changes on `main` since 2.1.20 are macOS-only (the notch's time-left estimate and a Codex desktop account fix, listed in the [changelog](../CHANGELOG.md)); the Windows build is unchanged.
+
 Release 2.1.18 removes the flicker when the notch opens, especially the first time after start-up. See [its notes](ReleaseNotes/2.1.18.md).
 
 Release 2.1.17 centres the notch control icons, gives them the macOS spring motion, restores rounded settings corners, stops notch rings reacting to clicks, lists every added provider in Usage and lays out account switching like macOS. See [its notes](ReleaseNotes/2.1.17.md).
