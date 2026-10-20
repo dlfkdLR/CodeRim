@@ -76,6 +76,7 @@ struct TurnETATracker {
         let fresh = TurnETAEstimator.estimate(
             elapsed: activeElapsed - episodeStart, samples: samples, project: project)
         var low = fresh.low, median = fresh.median, high = fresh.high
+        var typicalLow = fresh.typicalLow, typicalHigh = fresh.typicalHigh
         if let carried {
             // What was still owed before the follow-up shrinks as time passes;
             // the follow-up's own work comes on top of it.
@@ -83,6 +84,8 @@ struct TurnETATracker {
             low += max(0, carried.low - spent)
             median += max(0, carried.median - spent)
             high += max(0, carried.high - spent)
+            typicalLow += max(0, carried.low - spent)
+            typicalHigh += max(0, carried.high - spent) * 0.5
         }
         lastRemaining = (low, median, high)
 
@@ -90,7 +93,8 @@ struct TurnETATracker {
         shownProgress = max(shownProgress, min(raw, Self.progressCeiling))
         return Snapshot(phase: .working, elapsed: activeElapsed,
                         estimate: TurnETAEstimate(low: low, median: median, high: high,
-                                                  basis: fresh.basis),
+                                                  basis: fresh.basis,
+                                                  typicalLow: typicalLow, typicalHigh: typicalHigh),
                         progress: shownProgress, extended: carried != nil)
     }
 

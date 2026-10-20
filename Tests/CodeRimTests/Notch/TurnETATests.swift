@@ -245,8 +245,18 @@ final class TurnETACopyTests: XCTestCase {
     func testHeadlineAndFinishTime() {
         let line = TurnETACopy.line(for: working(180, 300, 480), now: noon,
                                     locale: Locale(identifier: "en_US_POSIX"), calendar: calendar)
-        XCTAssertEqual(line?.headline, "about 3–8 min left")
-        XCTAssertTrue(line?.detail?.hasPrefix("around ") == true)
+        XCTAssertEqual(line?.headline, "typically 3–8 min left")
+        XCTAssertTrue(line?.detail?.contains("around ") == true)
+    }
+
+    func testALongTailIsKeptOutOfTheHeadline() {
+        let wide = TurnETATracker.Snapshot(phase: .working, elapsed: 40,
+            estimate: TurnETAEstimate(low: 15, median: 200, high: 1_975, basis: .project,
+                                      typicalLow: 60, typicalHigh: 360),
+            progress: 0.15, extended: false)
+        let line = TurnETACopy.line(for: wide, now: noon)
+        XCTAssertEqual(line?.headline, "typically 1–6 min left")
+        XCTAssertTrue(line?.detail?.hasPrefix("up to 33 min") == true)
     }
 
     func testNearlyDoneNeedsNoRange() {
@@ -255,7 +265,7 @@ final class TurnETACopyTests: XCTestCase {
 
     func testFollowUpSaysSo() {
         XCTAssertEqual(TurnETACopy.line(for: working(180, 300, 480, extended: true), now: noon)?.headline,
-                       "now about 3–8 min left")
+                       "now typically 3–8 min left")
     }
 
     func testOverrunMakesNoPromise() {

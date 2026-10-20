@@ -26,6 +26,21 @@ struct TurnETAEstimate: Equatable, Sendable {
     let median: TimeInterval
     let high: TimeInterval
     let basis: Basis
+    /// The middle half of what past turns did (25th–75th percentile). Far
+    /// narrower than `low...high`, and so the part worth putting in a headline —
+    /// but it holds only about half the time, so it is only ever called "typical".
+    let typicalLow: TimeInterval
+    let typicalHigh: TimeInterval
+
+    init(low: TimeInterval, median: TimeInterval, high: TimeInterval, basis: Basis,
+         typicalLow: TimeInterval? = nil, typicalHigh: TimeInterval? = nil) {
+        self.low = low
+        self.median = median
+        self.high = high
+        self.basis = basis
+        self.typicalLow = min(max(typicalLow ?? low, low), median)
+        self.typicalHigh = max(min(typicalHigh ?? high, high), median)
+    }
 
     var range: ClosedRange<TimeInterval> { low...high }
 }
@@ -68,12 +83,16 @@ enum TurnETAEstimator {
             return TurnETAEstimate(
                 low: weightedQuantile(weighted, 0.10), median: weightedQuantile(weighted, 0.50),
                 high: weightedQuantile(weighted, 0.90),
-                basis: local.count >= minimumTail ? .project : .agent)
+                basis: local.count >= minimumTail ? .project : .agent,
+                typicalLow: weightedQuantile(weighted, 0.25),
+                typicalHigh: weightedQuantile(weighted, 0.75))
         }
         let priorTail = prior.filter { $0 > elapsed }.map { $0 - elapsed }
         if priorTail.count >= minimumTail {
             return TurnETAEstimate(low: quantile(priorTail, 0.10), median: quantile(priorTail, 0.50),
-                                   high: quantile(priorTail, 0.90), basis: .prior)
+                                   high: quantile(priorTail, 0.90), basis: .prior,
+                                   typicalLow: quantile(priorTail, 0.25),
+                                   typicalHigh: quantile(priorTail, 0.75))
         }
         // Past everything on record. Remaining time scales with the time
         // already spent, because nothing else is known.

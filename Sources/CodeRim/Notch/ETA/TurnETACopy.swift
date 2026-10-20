@@ -32,8 +32,12 @@ enum TurnETACopy {
             return Line(headline: "\(prefix)almost done", detail: finish(at: estimate.median, now: now,
                                                                      locale: locale, calendar: calendar))
         }
-        return Line(headline: "\(prefix)about \(range(estimate.low, estimate.high)) left",
-                    detail: finish(at: estimate.median, now: now, locale: locale, calendar: calendar))
+        // The headline is the typical range; the long tail goes underneath, so
+        // a 15-second-to-33-minute spread never reads as the answer.
+        let finishText = finish(at: estimate.median, now: now, locale: locale, calendar: calendar)
+        let upTo = estimate.high > estimate.typicalHigh * 1.5 ? "up to \(span(estimate.high))" : nil
+        return Line(headline: "\(prefix)typically \(range(estimate.typicalLow, estimate.typicalHigh)) left",
+                    detail: [upTo, finishText].compactMap { $0 }.joined(separator: " · ").nilIfEmpty)
     }
 
     /// "3–8 min", "45 sec – 2 min", "1 hr 10 min – 2 hr".
@@ -51,7 +55,7 @@ enum TurnETACopy {
     /// Coarse on purpose: the estimate is not good to the second.
     static func span(_ seconds: TimeInterval) -> String {
         let value = max(0, seconds)
-        if value < 90 { return "\(max(5, Int((value / 5).rounded()) * 5)) sec" }
+        if value < 60 { return "\(max(5, Int((value / 5).rounded()) * 5)) sec" }
         let minutes = Int((value / 60).rounded())
         if minutes < 60 { return "\(minutes) min" }
         let hours = minutes / 60, rest = minutes % 60
@@ -71,4 +75,8 @@ enum TurnETACopy {
         formatter.setLocalizedDateFormatFromTemplate("jmm")
         return "around \(formatter.string(from: now.addingTimeInterval(median)))"
     }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }
