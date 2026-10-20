@@ -41,6 +41,17 @@ struct AgentSession: Identifiable, Equatable, Sendable {
     /// The original Codex thread ID, without the display model's profile prefix.
     let codexThreadID: String?
     let parentThread: ParentThread?
+    /// The folder the work is in, for grouping turns whose lengths resemble
+    /// each other. Nil when the tool does not say.
+    let projectKey: String?
+    /// Instructions the person added while this turn was already running.
+    /// The turn-time estimate widens each time this goes up.
+    let followUps: Int
+    /// The id the agent files its own transcript and hooks under, when it
+    /// differs from `id`. Claude Code's hooks name sessions this way.
+    let transcriptID: String?
+    /// The agent says it is summarising its own context right now.
+    let isCompacting: Bool
     /// Stable host identity supplied by the collector; nil means this machine.
     let remoteHostID: String?
     /// Transcript identity for providers whose UI row is keyed by a process.
@@ -67,7 +78,11 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         parentThread: ParentThread? = nil,
         remoteHostID: String? = nil,
         usageSessionID: String? = nil,
-        workingDirectory: String? = nil
+        workingDirectory: String? = nil,
+        projectKey: String? = nil,
+        followUps: Int = 0,
+        transcriptID: String? = nil,
+        isCompacting: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -82,6 +97,10 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         self.workingDirectory = workingDirectory
         let host = remoteHostID?.trimmingCharacters(in: .whitespacesAndNewlines)
         self.remoteHostID = host == nil || host == "" || host == "local" ? nil : host
+        self.projectKey = projectKey
+        self.followUps = followUps
+        self.transcriptID = transcriptID
+        self.isCompacting = isCompacting
     }
 }
 
@@ -91,6 +110,7 @@ extension AgentSession {
         AgentSession(id: id, name: name, detail: detail, state: state, waitingFor: waitingFor, since: since,
                      processID: processID, codexThreadID: codexThreadID, parentThread: parentThread,
                      remoteHostID: remoteHostID, usageSessionID: usageSessionID,
-                     workingDirectory: workingDirectory)
+                     workingDirectory: workingDirectory, projectKey: projectKey, followUps: followUps,
+                     transcriptID: transcriptID, isCompacting: isCompacting)
     }
 }

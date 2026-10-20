@@ -31,6 +31,9 @@ struct NotchSettingsView: View {
 
     @AppStorage("notchThresholdAlerts") private var thresholdAlerts = AppPreferences.defaultNotchThresholdAlerts
 
+    @State private var compactionHookOn = ClaudeCompactionHook.standard.isInstalled
+    @State private var compactionHookError: String?
+
     @State private var ollamaKeyDraft = ""
     @State private var ollamaKeyStored = false
     @State private var ollamaEnvActive = false
@@ -256,6 +259,18 @@ struct NotchSettingsView: View {
             .disabled(!showEdgeNotch)
             SettingsNote("A running agent spins its ring; one waiting on you pulses amber. When it finishes, the notch drops open for five seconds — click it to raise that agent's terminal.")
 
+            SettingsSection(title: "Time Left (beta)") {
+                SettingsToggleRow(
+                    "Detect Claude compaction",
+                    caption: "Adds two small hooks to ~/.claude/settings.json so the notch can say \"compacting\" while it happens.",
+                    get: { compactionHookOn },
+                    set: { setCompactionHook($0) }
+                )
+            }
+            .disabled(!showEdgeNotch)
+            SettingsNote(compactionHookError
+                ?? "Hover a working session in the notch to see a rough range for how long is left and a bar that fills as it goes. It is a prediction from how long your earlier turns took, so it is shown as a range, and it learns as you work. Turning compaction detection off removes the hooks again; your settings file is backed up once as settings.json.coderim-backup.")
+
             SettingsSection(title: "Limit Alerts") {
                 SettingsToggleRow(
                     "Notify at 80% and 100%",
@@ -307,6 +322,19 @@ struct NotchSettingsView: View {
             ollamaKeyDraft = ""
         }
     }
+
+    private func setCompactionHook(_ on: Bool) {
+        do {
+            if on { try ClaudeCompactionHook.standard.install() }
+            else { try ClaudeCompactionHook.standard.uninstall() }
+            compactionHookError = nil
+        } catch ClaudeCompactionHook.Failure.unreadableSettings {
+            compactionHookError = "~/.claude/settings.json is not valid JSON, so it was left untouched. Fix it and try again."
+        } catch {
+            compactionHookError = "Could not change ~/.claude/settings.json: \(error.localizedDescription)"
+        }
+        compactionHookOn = ClaudeCompactionHook.standard.isInstalled
+    }
 }
 
 private extension NotchAccentChoice {
@@ -320,4 +348,5 @@ private extension NotchAccentChoice {
         case .orange: return "Orange"
         }
     }
+
 }

@@ -147,6 +147,28 @@ enum ClaudeTranscript {
         return nil
     }
 
+    /// When instructions were queued behind the running turn.
+    ///
+    /// Typing while Claude is working does not start a turn; it is filed as a
+    /// `queue-operation` and picked up when the current step finishes. That is
+    /// the only trace of "the person added something", and it is why the time
+    /// left in a turn can grow without the turn having changed.
+    static func queuedInstructions(inTail data: Data) -> [Date] {
+        data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true)
+            .compactMap { line -> Date? in
+                // Cheap rejection before parsing: the tail is mostly other records.
+                guard line.range(of: Data("queue-operation".utf8)) != nil,
+                      let json = (try? JSONSerialization.jsonObject(with: Data(line)))
+                        as? [String: Any],
+                      json["type"] as? String == "queue-operation",
+                      json["operation"] as? String == "enqueue",
+                      let stamp = json["timestamp"] as? String else { return nil }
+                let formatter = ISO8601DateFormatter()
+                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                return formatter.date(from: stamp)
+            }
+    }
+
     /// Pressing Esc writes a user turn saying so, which is what makes "stopped"
     /// something the notch can know rather than wait out with a timeout. Two
     /// wordings exist, and both start the same way.
@@ -200,6 +222,7 @@ final class ClaudeTranscriptReader {
         let modified: Date
         let size: UInt64
         let event: ClaudeTranscript.Event?
+        let queued: [Date]
     }
 
     private let projects: URL
@@ -238,7 +261,8 @@ final class ClaudeTranscriptReader {
 
     /// What the session is doing, and when it last moved. Nil when there is no
     /// transcript to read, or nothing said in it yet.
-    func activity(sessionID: String, cwd: String) -> (turn: ClaudeTranscript.Turn, since: Date, eventAt: Date?)? {
+    func activity(sessionID: String, cwd: String)
+        -> (turn: ClaudeTranscript.Turn, since: Date, eventAt: Date?, followUps: Int)? {
         guard let url = path(sessionID: sessionID, cwd: cwd),
               let attributes = try? fileManager.attributesOfItem(atPath: url.path),
               let modified = attributes[.modificationDate] as? Date
@@ -246,23 +270,34 @@ final class ClaudeTranscriptReader {
         let size = (attributes[.size] as? NSNumber)?.uint64Value ?? 0
 
         let event: ClaudeTranscript.Event?
+        let queued: [Date]
         if let cached = cache[sessionID], cached.modified == modified, cached.size == size {
             event = cached.event
+            queued = cached.queued
         } else {
-            event = ClaudeTranscript.tail(of: url).flatMap(ClaudeTranscript.event(inTail:))
-            cache[sessionID] = Cached(modified: modified, size: size, event: event)
+            let tail = ClaudeTranscript.tail(of: url)
+            event = tail.flatMap(ClaudeTranscript.event(inTail:))
+            queued = tail.map(ClaudeTranscript.queuedInstructions(inTail:)) ?? []
+            cache[sessionID] = Cached(modified: modified, size: size, event: event, queued: queued)
         }
 
         guard let event else { return nil }
         let turn = event.turn
         if let previous = entered[sessionID], previous.turn == turn {
-            return (turn, previous.at, event.timestamp)
+            return (turn, previous.at, event.timestamp, Self.followUps(queued, since: previous.at))
         }
         // First sight of a change, so the file's own timestamp is the closest
         // thing there is to when it happened.
         let since = event.timestamp ?? modified
         entered[sessionID] = (turn, since)
-        return (turn, since, event.timestamp)
+        return (turn, since, event.timestamp, Self.followUps(queued, since: since))
+    }
+
+    /// Only instructions queued after the turn began extend it. The first
+    /// second is skipped because the prompt that starts a turn is itself
+    /// briefly queued.
+    private static func followUps(_ queued: [Date], since: Date) -> Int {
+        queued.filter { $0 > since.addingTimeInterval(1) }.count
     }
 
     /// The conversation's own title — the one Claude Code shows in its
