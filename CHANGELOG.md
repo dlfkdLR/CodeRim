@@ -16,6 +16,13 @@ All notable changes to CodeRim are documented here. Entries predating 2.1.0 reta
 
 ## [Unreleased]
 
+### Added
+
+- **Time left (beta).** Hovering a working session in the notch shows a rough range for how long is left, when it should finish, and a bar that fills left to right. It is a prediction from how long your earlier turns took — shown as a range because turn lengths vary too much for a single number — and it learns as you work. It stops the clock while a session waits for you, widens when you add an instruction mid-turn, and says "running long" rather than guessing once a turn outlasts everything on record.
+- Claude, Codex and OpenCode sessions get estimates. Past turn lengths are read from their own logs on launch; only durations and the folder name are kept, in `~/Library/Application Support/CodeRim/TurnHistory.json`.
+- OpenCode sessions now appear in the notch's activity list, with its own compaction state read from its database.
+- Settings ▸ Notch ▸ Time Left: an opt-in toggle that installs two small Claude Code hooks (`PreCompact`/`PostCompact`) so the notch can say "compacting" while it happens. It backs up `~/.claude/settings.json` once, touches only its own entries, and removes them when switched off.
+
 ## [2.0.13] - 2026-09-17
 
 ### Added

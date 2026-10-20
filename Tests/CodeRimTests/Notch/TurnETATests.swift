@@ -272,3 +272,30 @@ final class TurnETACopyTests: XCTestCase {
         XCTAssertNil(TurnETACopy.line(for: snapshot(.finished), now: noon))
     }
 }
+
+@MainActor
+final class TurnETAStoreTests: XCTestCase {
+    func testWatchedTurnsSurviveARelaunch() async throws {
+        let file = FileManager.default.temporaryDirectory
+            .appendingPathComponent("eta-store-\(UUID().uuidString)/TurnHistory.json")
+        defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
+        let start = Date()
+        func session(_ state: AgentSession.State) -> [String: [AgentSession]] {
+            ["claude": [AgentSession(id: "a", name: "a", detail: "", state: state, waitingFor: nil,
+                                     since: start.addingTimeInterval(-90), projectKey: "app")]]
+        }
+        let store = TurnETAStore(file: file)
+        store.absorb(session(.busy), now: start)
+        XCTAssertNotNil(store.snapshots[TurnETACoordinator.key("claude", "a")])
+        store.absorb(session(.idle), now: start.addingTimeInterval(5))
+
+        // Saved after a short debounce rather than on every turn.
+        for _ in 0..<60 where !FileManager.default.fileExists(atPath: file.path) {
+            try await Task.sleep(nanoseconds: 100_000_000)
+        }
+        let reloaded = TurnETAStore(file: file)
+        reloaded.absorb(session(.busy), now: start.addingTimeInterval(100))
+        let snapshot = try XCTUnwrap(reloaded.snapshots[TurnETACoordinator.key("claude", "a")])
+        XCTAssertGreaterThan(snapshot.elapsed, 90)
+    }
+}
