@@ -18,6 +18,10 @@ final class MobileAppModel: ObservableObject {
     @Published private(set) var activityActive = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var statusMessage: String?
+    /// Bumped when the Island or a link asks for the dashboard, so the root can pop back to it.
+    @Published private(set) var dashboardRequest = 0
+    /// When the relay last answered, for "Updated … ago".
+    @Published private(set) var lastRefresh: Date?
     private var credential: MobileCredential?
     private var client: (any MobileRelayServing)?
     private var loginGeneration = UUID()
@@ -27,6 +31,11 @@ final class MobileAppModel: ObservableObject {
     private var foregroundPoll: Task<Void, Never>?
     private var restored = false
     private var pushAvailable = true
+    private var foreground = false
+    /// The person chose Stop showing; respected until the running tasks finish.
+    private var userStopped = false
+    private var autoStarted = false
+    private var idleSince: Date?
     private var remoteActivities: [Task<Void, Never>] = []
     private let credentials: any MobileCredentialStoring
     private let makeClient: @Sendable (URL) throws -> any MobileRelayServing
@@ -148,15 +157,19 @@ final class MobileAppModel: ObservableObject {
     }
 
     func setForeground(_ active: Bool) {
+        foreground = active
         foregroundPoll?.cancel(); foregroundPoll = nil
         guard active else { return }
+        // Only while the app is on screen; computers send changes as they happen.
         foregroundPoll = Task { [weak self] in
             while !Task.isCancelled {
                 if self?.signedIn == true { await self?.refresh() }
-                do { try await Task.sleep(for: .seconds(15)) } catch { break }
+                do { try await Task.sleep(for: .seconds(5)) } catch { break }
             }
         }
     }
+
+    func openDashboard() { dashboardRequest += 1 }
 
     func refresh() async {
         guard let credential, let client else { return }
@@ -191,12 +204,40 @@ final class MobileAppModel: ObservableObject {
         serverNotice = response.notice
         displayProviders = response.displayProviders ?? []
         state = response.state
+        lastRefresh = Date()
         observeActivities()
         for activity in Activity<CodeRimActivityAttributes>.activities where activity.attributes.connectionID == connection && (activity.activityState == .active || activity.activityState == .stale) {
             guard response.state.supersedes(activity.content.state) else { continue }
             await activity.update(ActivityContent(state: response.state, staleDate: Date(timeIntervalSince1970: response.state.staleAt)))
         }
+        await followTasks()
         return true
+    }
+
+    /// Without push (an app signed with a free Apple ID) nothing can start or end the Island
+    /// remotely, so while the app is open it follows the tasks itself: shown once one runs,
+    /// ended two minutes after the last one stops.
+    private func followTasks() async {
+        guard foreground, signedIn else { return }
+        if state.workingCount + state.waitingCount > 0 {
+            idleSince = nil
+            guard !activityActive, !userStopped, !busy, ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+            autoStarted = true
+            await startActivity()
+        } else {
+            userStopped = false
+            guard activityActive, autoStarted, !pushAvailable else { idleSince = nil; return }
+            let since = idleSince ?? Date(); idleSince = since
+            guard Date().timeIntervalSince(since) >= 120 else { return }
+            autoStarted = false; idleSince = nil
+            await stopActivity()
+        }
+    }
+
+    /// The person's own Stop showing, which automatic starts respect until the tasks finish.
+    func stopShowing() async {
+        userStopped = true; autoStarted = false
+        await stopActivity()
     }
 
     /// Explicit, phone-specific focus. Filtering the rotation remains a separate setting.

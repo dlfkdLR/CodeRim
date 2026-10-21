@@ -406,7 +406,7 @@ private enum IslandPalette {
 }
 
 /// Presentation only: account quota and this device's local tokens stay separate.
-private struct IslandReading {
+struct IslandReading {
     let state: MobileActivityState
     let stale: Bool
     var disconnected: Bool { stale || state.isStale() }
