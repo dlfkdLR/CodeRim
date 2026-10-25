@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.22 — Chat details card, account switching with CLIs running, faster launch
+
+- The time-left card now opens for any chat you hover and lists what it runs on as small tiles: the estimate and finish time, state, elapsed time, tokens, model, reasoning effort, and Fast mode and Daybreak. Elapsed time and tokens moved out of the row into the card, and their settings are gone.
+- Working Claude sub-agents are listed under their chat. Estimates follow a chat's recent pace more closely and show a narrower range.
+- Switching the Claude account no longer needs every Claude Code session stopped; the shared login is watched for a few seconds so a running session cannot write the old account back.
+- Launch no longer allocates about 500 MB while reading past turns, and the notch no longer searches Antigravity's files on the main thread. See the [release notes](Documentation/ReleaseNotes/2.1.22.md).
+
 ## 2.1.21 — Codex account fix, time-left estimate (beta)
 
 - Codex account actions work again after the Codex desktop app moved its bundled CLI (Codex 0.163): both layouts are recognised and the app-server is picked among the two processes running the same binary.
