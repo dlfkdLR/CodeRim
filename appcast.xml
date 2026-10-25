@@ -4,36 +4,42 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.21</title>
-            <pubDate>Tue, 20 Oct 2026 23:29:10 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.21</link>
-            <sparkle:version>20121</sparkle:version>
-            <sparkle:shortVersionString>2.1.21</sparkle:shortVersionString>
+            <title>2.1.22</title>
+            <pubDate>Mon, 26 Oct 2026 06:06:17 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.22</link>
+            <sparkle:version>20122</sparkle:version>
+            <sparkle:shortVersionString>2.1.22</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.21
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.22
 
-A macOS-only release: it fixes Codex account switching after the Codex desktop app's update and adds a beta time-left estimate to the notch. Windows stays at 2.1.20.
+A macOS-only release: it turns the beta time-left card into a chat details card, lets the Claude account be switched while Claude Code is running, and fixes a memory spike at launch. Windows stays at 2.1.20.
 
-## Codex accounts
+## Chat details card
 
-- Switching, saving and adding Codex accounts no longer fails with "A verified Codex installation could not be used" after the Codex desktop app (0.163) moved its bundled CLI into a nested `codex-cli/CodexCLI.app` and began running that binary twice, as `app-server` and `exec-server`. Both the old and the new layout are recognised, and the app-server is picked by how it was started.
+- Hovering any chat row in the notch opens the card beside the usage card, not only a working one. It shows the beta estimate and gauge when there is one, then small icon tiles: the range and finish time, state, elapsed time, tokens, the model, its reasoning effort, and Fast mode and Daybreak (Codex) as pills.
+- Elapsed time and token usage moved from the row into the card. Their two Notch settings are removed and the card always shows them.
+- Working Claude sub-agents are listed under the chat that started them. Codex model, effort and Daybreak come from its thread store; the Claude model and fast tier from its transcript. Fast mode for Codex is a global setting, so every Codex chat shows the same answer.
+- Short turns are predicted from the chat's recent pace: turns from the last two hours count three times, the typical range is narrower, and equal ends read as one value ("4 min").
+- The card glides between rows, the gauge eases in, and a small tail points at the hovered row.
 
-## Time left (beta)
+## Claude accounts
 
-- Hovering a working Claude, Codex or OpenCode session in the notch shows a typical range for how long is left (with the long tail underneath), when it should finish, and a bar that fills left to right. It is a prediction from how long your earlier turns took, shown as a range because turn lengths vary too much for one number, and it learns as you work. On this Mac's own history an 80% range held about 80% of the time; a single figure would not have.
-- The clock and bar stop while a session waits for you, the estimate widens when you add an instruction mid-turn (Claude), and a turn that outlasts everything on record says "running long" instead of guessing.
-- Past turn lengths are read from the agents' own logs on launch. Only durations and the folder name are kept, in `~/Library/Application Support/CodeRim/TurnHistory.json`.
-- OpenCode sessions now appear in the notch's activity list, with the compaction state OpenCode records.
-- Settings ▸ Notch ▸ Time Left: an opt-in toggle that installs two small Claude Code hooks (`PreCompact`/`PostCompact`) so the notch can say "compacting" while it happens. It backs up `~/.claude/settings.json` once, touches only its own entries, refuses a file it cannot parse, and removes them when switched off.
+- Switching the Claude account no longer requires every Claude Code session to be stopped. Running sessions use the new login from their next request; CodeRim watches the shared login for about six seconds and puts the chosen account back if a session writes the old one. A session that refreshes later can still overwrite it: restart one that shows the old account.
+
+## Performance
+
+- Launch no longer allocates about 500 MB. Reading past turn lengths copied what was left of a 1 MB buffer for every line; it now trims once per chunk and matches lines as bytes. Footprint after launch fell from about 517 MB to about 115 MB.
+- The search for Antigravity's sign-in client read the installed app's files on the main thread every minute. It now runs in the background and repeats at most every ten minutes.
+- Session token totals are summed only while the panel is open, and finished sub-agents are no longer re-read.
 
 ## Verification
 
-macOS: 3,100+ tests in CI, including the layout and argument-parsing cases for the Codex fix. The read-only probe of the installed Codex desktop app passed on the development Mac. The hover bar was verified by unit tests and a rendered image, not yet by hand in the running app.
+macOS: 3,155 tests locally with 0 failures. The card, tiles and speeds were checked by hand in the running app on the development Mac; a live check that a running Claude CLI picks up a switched account is still outstanding.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.21/CodeRim-2.1.21.zip" length="32330504" type="application/octet-stream" sparkle:edSignature="R6WfulEYZtAhv/5yyvCe23/ChdcAofjwlkKENZq32yVREvFzWmEcXIyUPb2a6MTrj8B8nuWQz6lFXR5kHc7ICw=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.22/CodeRim-2.1.22.zip" length="32486011" type="application/octet-stream" sparkle:edSignature="vQ2hGaDXLrTZ2XX8r2TZbd3k7uLFIOzJ9AvDhIz32Wm5tc7iS8ID5vDVyx0Kutmj0dj4p50x3gv5O9qygTUZBA=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: XFpaiaoC7Dfm3U3evaXBfHPhqm6e/IsbA82mYjEg24f2we5hs+/1rbCdYFM4uaXucalOSKIezqQEXmRuuDD8BA==
-length: 3374
+edSignature: 3uprN08eRm/Q6nwYZjypyKxsq1ufKSeDe0mr66S7VNqFCjwaut3/h0VhHs0cUZuSeyVGzlFgHhr925mFS4JqAQ==
+length: 3626
 -->
