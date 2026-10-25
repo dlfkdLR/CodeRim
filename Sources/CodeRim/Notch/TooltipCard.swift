@@ -491,19 +491,15 @@ private struct SessionRow: View {
     @Environment(\.notchAccentColor) private var accentColor
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.notchTurnETA) private var turnETA
+    @Environment(\.notchSessionHover) private var reportHover
     @State private var isHovered = false
-    @AppStorage(AppPreferences.notchShowSessionDurationKey)
-    private var showDuration = AppPreferences.defaultNotchShowSessionDuration
-    @AppStorage(AppPreferences.notchShowSessionTokensKey)
-    private var showTokens = AppPreferences.defaultNotchShowSessionTokens
+    @State private var rowFrame: CGRect = .zero
 
-    /// The estimate for this session, only when the row is a real session
-    /// (not a parent shown for context) and has something to say.
-    private var eta: TurnETATracker.Snapshot? {
-        guard !isContextOnly, let snapshot = turnETA[session.id],
-              TurnETACopy.line(for: snapshot, now: now) != nil else { return nil }
-        return snapshot
+    /// Tell the panel which row the pointer is on, so it can open the
+    /// time-left card beside the usage card. Reported from here because only
+    /// the row knows where it is drawn.
+    private func reportHoverState() {
+        reportHover(isHovered && !isContextOnly ? SessionHover(id: session.id, frame: rowFrame) : nil)
     }
 
     private var stateColor: Color {
@@ -542,15 +538,6 @@ private struct SessionRow: View {
         [session.locationDescription, openLabel].compactMap { $0 }.joined(separator: ". ")
     }
 
-    private var elapsed: String {
-        SessionDuration.text(for: session, enabled: showDuration, now: now) ?? ""
-    }
-
-    private var metrics: String {
-        [isContextOnly || elapsed.isEmpty ? nil : elapsed, SessionTokenReader.text(tokenTotal, enabled: showTokens)]
-            .compactMap { $0 }.joined(separator: " · ")
-    }
-
     private var openLabel: String {
         if let parent = session.parentThread {
             return "Open sub-agent \(session.detail) of \(parent.title) in Codex"
@@ -561,6 +548,17 @@ private struct SessionRow: View {
     }
 
     var body: some View {
+        rowBody
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
+                rowFrame = frame
+                if isHovered { reportHoverState() }
+            }
+            .onChange(of: isHovered) { _, _ in reportHoverState() }
+            .onDisappear { if isHovered { reportHover(nil) } }
+    }
+
+    @ViewBuilder
+    private var rowBody: some View {
         if SessionFocus.target(for: session) != nil {
             Button {
                 if !SessionFocus.activate(session) { NSSound.beep() }
@@ -584,8 +582,7 @@ private struct SessionRow: View {
             .onHover { isHovered = $0 }
             .help(rowDescription)
             .accessibilityLabel(rowDescription)
-            .accessibilityValue([isContextOnly ? "Parent chat" : stateWord, metrics]
-                .filter { !$0.isEmpty }.joined(separator: ", "))
+            .accessibilityValue(isContextOnly ? "Parent chat" : stateWord)
             .accessibilityIdentifier("notch.session.\(session.id)")
         } else {
             content
@@ -609,21 +606,13 @@ private struct SessionRow: View {
             .frame(height: NotchLayout.cardBodyLineHeight)
             SplitRow(
                 leading: detail,
-                trailing: metrics,
+                trailing: "",
                 leadingColor: NotchPalette.textSecondary
             )
             .frame(height: NotchLayout.cardBodyLineHeight)
             .padding(.top, NotchLayout.sessionRowGap)
         }
         .padding(.leading, NotchDesign.px(14) * CGFloat(min(depth, 2)))
-        .overlay(alignment: .topTrailing) {
-            if isHovered, let eta {
-                TurnETAPill(snapshot: eta, now: now)
-                    .frame(width: NotchLayout.cardTextWidth * 0.55, alignment: .leading)
-                    .transition(.opacity)
-            }
-        }
-        .animation(NotchMotion.respectingReduceMotion(NotchMotion.crossfade, reduceMotion), value: isHovered)
     }
 }
 

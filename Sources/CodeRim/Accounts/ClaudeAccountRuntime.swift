@@ -5,7 +5,9 @@ import Foundation
 @MainActor
 protocol ClaudeAccountRuntime {
     func checkPolicy() throws
-    func requireStopped() throws
+    /// How many Claude Code sessions are running now. They are not stopped:
+    /// the switch reaches them through the shared login.
+    func runningSessionCount() -> Int
     func signIn() async throws -> SavedClaudeAccount
     func verifyCLIAccount(_ account: SavedClaudeAccount) async throws
 }
@@ -42,25 +44,23 @@ struct LocalClaudeAccountRuntime: ClaudeAccountRuntime {
         }
     }
 
-    func requireStopped() throws {
+    func runningSessionCount() -> Int {
+        var processes = 0
         let inspector = SystemCodexProcessInspector()
-        let executable = try ClaudeExecutable.resolve().resolvingSymlinksInPath().path
-        for pid in try inspector.processIDs() where pid != getpid() {
-            guard let info = inspector.metadata(for: pid) else {
-                if inspector.isAlive(pid) { throw ClaudeAccountError.running }
-                continue
-            }
-            guard info.userID == getuid(), info.status != UInt32(SZOMB) else { continue }
-            let path = inspector.executablePath(for: pid) ?? ""
-            if path == executable || info.command == "claude" || path.hasSuffix("/claude")
-                || path.contains("/claude/versions/") {
-                throw ClaudeAccountError.running
+        if let executable = try? ClaudeExecutable.resolve().resolvingSymlinksInPath().path,
+           let pids = try? inspector.processIDs() {
+            for pid in pids where pid != getpid() {
+                guard let info = inspector.metadata(for: pid),
+                      info.userID == getuid(), info.status != UInt32(SZOMB) else { continue }
+                let path = inspector.executablePath(for: pid) ?? ""
+                if path == executable || info.command == "claude" || path.hasSuffix("/claude")
+                    || path.contains("/claude/versions/") { processes += 1 }
             }
         }
         // Older npm installs execute through node; the registry identifies
         // those clients without reading their arguments or environment.
         let directory = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".claude/sessions")
-        guard ClaudeSessionMonitor.read(directory: directory).isEmpty else { throw ClaudeAccountError.running }
+        return max(processes, ClaudeSessionMonitor.read(directory: directory).count)
     }
 
     func verifyCLIAccount(_ account: SavedClaudeAccount) async throws {

@@ -19,6 +19,9 @@ enum CodexStore {
         let savedProjectName: String?
         let agentName: String?
         let parentThread: AgentSession.ParentThread?
+        var model: String? = nil
+        var effort: String? = nil
+        var daybreak = false
 
         var displayTitle: String { title ?? agentName ?? "Task \(id.prefix(8))" }
         var projectName: String {
@@ -54,12 +57,15 @@ enum CodexStore {
         let project = columns.contains("project_id") ? "project_id" : "NULL"
         let source = columns.contains("source") ? "substr(source, 1, 8193)" : "NULL"
         let nickname = columns.contains("agent_nickname") ? "substr(agent_nickname, 1, 161)" : "NULL"
+        let model = columns.contains("model") ? "substr(model, 1, 81)" : "NULL"
+        let effort = columns.contains("reasoning_effort") ? "substr(reasoning_effort, 1, 33)" : "NULL"
+        let daybreak = columns.contains("daybreak_enabled") ? "daybreak_enabled" : "NULL"
         let archiveFilter = includeArchived ? "" : "WHERE archived = 0"
         let bound = limit.map { " LIMIT \(max(1, $0))" } ?? ""
         let rows = SQLiteStore.rows(
             in: db,
-            sql: "SELECT id, rollout_path, cwd, \(name), substr(title, 1, 161), \(project), \(source), \(nickname) FROM threads \(archiveFilter) ORDER BY \(order) DESC\(bound)",
-            columns: 8
+            sql: "SELECT id, rollout_path, cwd, \(name), substr(title, 1, 161), \(project), \(source), \(nickname), \(model), \(effort), \(daybreak) FROM threads \(archiveFilter) ORDER BY \(order) DESC\(bound)",
+            columns: 11
         )
         let projectRows = SQLiteStore.rows(in: db, sql: "SELECT id, name FROM projects", columns: 2)
         let projects = Dictionary(projectRows.compactMap { row in
@@ -113,7 +119,9 @@ enum CodexStore {
             let parent = mainParent(for: row[0])
             return Thread(id: row[0], rollout: URL(fileURLWithPath: (row[1] as NSString).expandingTildeInPath),
                    cwd: row[2], title: cleanTitle(row[3]) ?? desktopTitles[row[0]] ?? cleanTitle(row[4]),
-                   savedProjectName: projects[row[5]], agentName: agentNames[index], parentThread: parent)
+                   savedProjectName: projects[row[5]], agentName: agentNames[index], parentThread: parent,
+                   model: row[8].isEmpty ? nil : row[8], effort: row[9].isEmpty ? nil : row[9],
+                   daybreak: row[10] == "1" || row[10].lowercased() == "true")
         }
     }
 

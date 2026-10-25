@@ -155,6 +155,24 @@ final class NotchClaudeTranscriptReaderTests: XCTestCase {
         XCTAssertEqual(reader.activity(sessionID: "abc", cwd: "/Users/vinz/app")?.turn, .finished)
     }
 
+    func testListsOnlyTheSubagentsStillWorking() throws {
+        try write(working, folder: "-Users-vinz-app", session: "abc")
+        let directory = projects.appendingPathComponent("-Users-vinz-app/abc/subagents")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        func agent(_ id: String, meta: String, age: TimeInterval = 0) throws {
+            try Data(meta.utf8).write(to: directory.appendingPathComponent("agent-\(id).meta.json"))
+            let log = directory.appendingPathComponent("agent-\(id).jsonl")
+            try Data("{}\n".utf8).write(to: log)
+            try FileManager.default.setAttributes([.modificationDate: Date().addingTimeInterval(-age)],
+                                                  ofItemAtPath: log.path)
+        }
+        try agent("live", meta: #"{"description":"Write the docs"}"#)
+        try agent("done", meta: #"{"description":"Old","finished":true}"#)
+        try agent("stale", meta: #"{"description":"Abandoned"}"#, age: 600)
+        let reader = ClaudeTranscriptReader(projects: projects)
+        XCTAssertEqual(reader.subagents(sessionID: "abc", cwd: "/Users/vinz/app").map(\.title), ["Write the docs"])
+    }
+
     func testTitleFollowsTheLatestGeneratedTitleAndPrefersACustomOne() throws {
         let url = try write(working + #"{"type":"ai-title","aiTitle":"First idea","sessionId":"abc"}"# + "\n",
                             folder: "-Users-vinz-app", session: "abc")

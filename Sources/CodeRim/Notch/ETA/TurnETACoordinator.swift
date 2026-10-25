@@ -45,7 +45,7 @@ struct TurnETACoordinator {
         var seen: Set<String> = []
 
         for (providerID, live) in sessions {
-            for session in live {
+            for session in live where !ClaudeSubagentRows.isSubagent(session) {
                 let key = Self.key(providerID, session.id)
                 seen.insert(key)
                 let phase: TurnETATracker.Phase

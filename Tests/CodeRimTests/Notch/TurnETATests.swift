@@ -309,3 +309,76 @@ final class TurnETAStoreTests: XCTestCase {
         XCTAssertGreaterThan(snapshot.elapsed, 90)
     }
 }
+
+final class TurnETACardLayoutTests: XCTestCase {
+    /// The time-left card is drawn in the panel's transparent margin, so the
+    /// panel has to reach past the usage card by exactly its width and gap —
+    /// clipped otherwise — on every edge.
+    func testThePanelReachesPastTheUsageCardForTheTimeCard() {
+        for edge in NotchEdge.allCases {
+            let card = NotchLayout.defaultMaxCardHeight
+            let depth = NotchLayout.tooltipDepth(for: edge, maxCardHeight: card)
+            let usageOnly = (edge.isVertical ? NotchLayout.cardWidth : card)
+                + NotchLayout.tailLength + NotchLayout.tailGap
+            if edge.isVertical {
+                XCTAssertEqual(depth - usageOnly, NotchLayout.etaReach, accuracy: 0.001, "\(edge)")
+            } else {
+                // Along a horizontal edge the card sits beside the usage card instead.
+                XCTAssertEqual(depth, usageOnly, accuracy: 0.001, "\(edge)")
+                XCTAssertGreaterThanOrEqual(
+                    NotchLayout.slack(for: edge, maxCardHeight: card),
+                    NotchLayout.cardWidth / 2 + NotchLayout.cardCorner + NotchLayout.etaReach, "\(edge)")
+            }
+        }
+    }
+
+    func testTheCardHeightHoldsItsThreeLines() {
+        XCTAssertGreaterThan(NotchLayout.etaCardHeight, 2 * NotchLayout.cardBodyLineHeight)
+        // Even with every tile it must fit inside the usage card's own height, the room the panel gives it.
+        XCTAssertLessThan(NotchLayout.etaCardHeight, NotchLayout.defaultMaxCardHeight)
+    }
+}
+
+final class SessionDetailCopyTests: XCTestCase {
+    func testClaudeModelNamesAreReadable() {
+        XCTAssertEqual(SessionDetailCopy.modelName("claude-opus-5-5"), "Opus 5.5")
+        XCTAssertEqual(SessionDetailCopy.modelName("claude-sonnet-5-5-20261001"), "Sonnet 5.5")
+        XCTAssertEqual(SessionDetailCopy.modelName("gpt-6.1-sol"), "gpt-6.1-sol")
+    }
+
+    func testRowsListWhatIsKnownAndNothingElse() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let session = AgentSession(id: "codex.1", name: "p", detail: "d", state: .busy, waitingFor: nil,
+                                   since: now.addingTimeInterval(-480), codexThreadID: "1",
+                                   details: ModelDetails(model: "gpt-6-sol", effort: "high", fast: false, daybreak: true))
+        let rows = SessionDetailCopy.rows(for: session, tokens: 2_010_000,
+                                          line: TurnETACopy.Line(headline: "typically 2–15 min left",
+                                                                  detail: "up to 54 min · around 12:05 AM"),
+                                          now: now)
+        XCTAssertEqual(rows.map(\.label), ["Up to", "Finishes", "State", "Elapsed", "Tokens", "Model", "Effort", "Fast mode", "Daybreak"])
+        XCTAssertEqual(rows.first { $0.label == "Fast mode" }?.value, "Off")
+        XCTAssertEqual(rows.first { $0.label == "Daybreak" }?.isOn, true)
+        let bare = AgentSession(id: "x", name: "p", detail: "d", state: .idle, waitingFor: nil, since: now)
+        XCTAssertEqual(SessionDetailCopy.rows(for: bare, tokens: nil, line: nil, now: now).map(\.label), ["State"])
+    }
+}
+
+final class RecentTurnPaceTests: XCTestCase {
+    func testRecentShortTurnsPullTheEstimateDown() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let longAgo = now.addingTimeInterval(-3 * 24 * 3600)
+        var samples = (0..<30).map { _ in TurnHistory.Sample(seconds: 400, project: "other", recordedAt: longAgo) }
+        samples += (0..<6).map { i in TurnHistory.Sample(seconds: 12, project: "chat", recordedAt: now.addingTimeInterval(-Double(i) * 300)) }
+        let withPace = TurnETAEstimator.estimate(elapsed: 3, samples: samples, project: "chat", now: now)
+        let withoutPace = TurnETAEstimator.estimate(elapsed: 3, samples: samples, project: "chat",
+                                                    now: now.addingTimeInterval(30 * 24 * 3600))
+        XCTAssertLessThan(withPace.median, withoutPace.median)
+    }
+}
+
+final class RangeCopyTests: XCTestCase {
+    func testEndsThatRoundTogetherReadAsOneValue() {
+        XCTAssertEqual(TurnETACopy.range(215, 265), "4 min")
+        XCTAssertEqual(TurnETACopy.range(180, 480), "3–8 min")
+    }
+}

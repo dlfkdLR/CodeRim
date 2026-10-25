@@ -222,6 +222,13 @@ final class NotchController: ObservableObject {
         sessionTokenTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshSessionTokens() }
         }
+        // The totals are only shown in the open panel, so they are not summed
+        // while it is closed; opening it reads them at once.
+        window.model.$isExpanded
+            .removeDuplicates()
+            .filter { $0 }
+            .sink { [weak self] _ in self?.refreshSessionTokens() }
+            .store(in: &cancellables)
     }
 
     func lastUpdatedAt(providerID: String) -> Date? {
@@ -339,17 +346,8 @@ final class NotchController: ObservableObject {
         window.model.resetTimeFormat = resetTimeFormat
     }
 
-    func apply(showSessionTokens: Bool) {
-        if showSessionTokens { refreshSessionTokens() }
-        else {
-            sessionTokenFetch?.cancel()
-            window.model.sessionTokenTotals = [:]
-        }
-    }
-
     private func refreshSessionTokens() {
-        guard visible, sessionTokenFetch == nil,
-              UserDefaults.standard.bool(forKey: AppPreferences.notchShowSessionTokensKey) else { return }
+        guard visible, window.model.isExpanded, sessionTokenFetch == nil else { return }
         let sessions = window.model.sessions
         sessionTokenFetch = Task { [weak self] in
             let totals = await Task.detached(priority: .utility) {
@@ -363,8 +361,7 @@ final class NotchController: ObservableObject {
             }.value
             guard let self else { return }
             defer { self.sessionTokenFetch = nil }
-            guard !Task.isCancelled, self.visible,
-                  UserDefaults.standard.bool(forKey: AppPreferences.notchShowSessionTokensKey) else { return }
+            guard !Task.isCancelled, self.visible else { return }
             self.window.model.sessionTokenTotals = totals
         }
     }

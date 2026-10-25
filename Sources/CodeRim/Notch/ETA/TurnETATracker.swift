@@ -74,7 +74,7 @@ struct TurnETATracker {
 
         let episodeStart = carried?.since ?? 0
         let fresh = TurnETAEstimator.estimate(
-            elapsed: activeElapsed - episodeStart, samples: samples, project: project)
+            elapsed: activeElapsed - episodeStart, samples: samples, project: project, now: now)
         var low = fresh.low, median = fresh.median, high = fresh.high
         var typicalLow = fresh.typicalLow, typicalHigh = fresh.typicalHigh
         if let carried {

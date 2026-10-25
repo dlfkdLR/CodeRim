@@ -124,6 +124,46 @@ enum NotchLayout {
     static let tailLength    = NotchDesign.px(75)
     static let tailHeight    = NotchDesign.px(87)
     static let tailGap       = NotchDesign.px(28)    // tail tip -> notch body edge
+    /// The time-left card that opens beside the usage card while a working
+    /// session is hovered. It lives in the panel's transparent margin, so the
+    /// panel reaches `etaReach` further than the usage card alone needs.
+    static let etaCardWidth  = NotchDesign.px(500)
+    static let etaCardGap    = NotchDesign.px(22)
+    static var etaTailSize: CGSize { CGSize(width: etaCardGap, height: NotchDesign.px(40)) }
+    static let etaCardCorner = cardCorner
+    static let etaCardPadding = NotchDesign.px(28)
+    static let etaCardLineGap = NotchDesign.px(8)
+    static let etaCardBarGap  = NotchDesign.px(14)
+    static let etaBarHeight   = NotchDesign.px(12)
+    static var etaBigLineHeight: CGFloat { cardBodyLineHeight * 1.7 }
+    static var etaReach: CGFloat { etaCardWidth + etaCardGap }
+    /// Known from what the card will show, so the panel can place it against a
+    /// row without measuring it: the title, the headline and bar when there is
+    /// an estimate, then one line for each row of the list.
+    static func etaCardHeight(hasETA: Bool, rowCount: Int, toggleCount: Int = 0) -> CGFloat {
+        var height = 2 * etaCardPadding + cardBodyLineHeight        // the title row
+        if hasETA { height += etaCardLineGap + etaBigLineHeight + etaCardBarGap + etaBarHeight }
+        let tiles = rowCount - toggleCount
+        if tiles > 0 {
+            let lines = (tiles + etaTileColumns - 1) / etaTileColumns
+            height += etaCardBarGap + etaDividerHeight + etaCardBarGap
+                + CGFloat(lines) * etaTileHeight + CGFloat(lines - 1) * etaTileGap
+        }
+        if toggleCount > 0 { height += (tiles > 0 ? etaTileGap : etaCardBarGap) + etaChipHeight }
+        return height
+    }
+    static let etaDividerHeight = NotchDesign.px(2)
+    /// The list is a grid of small tiles, each an icon with a label over its value.
+    static let etaTileColumns = 2
+    static var etaChipHeight: CGFloat { cardBodyLineHeight + NotchDesign.px(22) }
+    static let etaTileGap = NotchDesign.px(10)
+    static let etaTileCorner = NotchDesign.px(18)
+    static let etaTilePadding = NotchDesign.px(14)
+    static let etaTileIcon = NotchDesign.px(34)
+    static var etaTileLabelHeight: CGFloat { cardBodyLineHeight * 0.95 }
+    static var etaTileHeight: CGFloat { 2 * etaTilePadding + etaTileLabelHeight + cardBodyLineHeight }
+    /// The tallest the card gets.
+    static var etaCardHeight: CGFloat { etaCardHeight(hasETA: true, rowCount: 10, toggleCount: 2) }
     static let barHeight     = NotchDesign.px(10.5)
     static let headerGap     = NotchDesign.px(17)    // glyph -> title
     static let headerToBlock = NotchDesign.px(21)
@@ -395,7 +435,7 @@ enum NotchLayout {
                       notchScale: CGFloat = 1) -> CGFloat {
         edge.isVertical
             ? max(endSlack * notchScale, maxCardHeight / 2 + cardCorner)
-            : max(endSlack * notchScale, cardWidth / 2 + cardCorner)
+            : max(endSlack * notchScale, cardWidth / 2 + cardCorner + etaReach)
     }
 
     private static let endSlack = NotchDesign.px(300)
@@ -474,6 +514,6 @@ enum NotchLayout {
     /// below or above it on a horizontal one.
     static func tooltipDepth(for edge: NotchEdge,
                              maxCardHeight: CGFloat = defaultMaxCardHeight) -> CGFloat {
-        (edge.isVertical ? cardWidth : maxCardHeight) + tailLength + tailGap
+        (edge.isVertical ? cardWidth + etaReach : maxCardHeight) + tailLength + tailGap
     }
 }

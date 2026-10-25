@@ -30,10 +30,6 @@ enum AppPreferences {
     static let defaultNotchShowUsagePace = false
     static let notchShowUnknownSessionsKey = "notchShowUnknownSessions"
     static let defaultNotchShowUnknownSessions = false
-    static let notchShowSessionDurationKey = "notchShowSessionDuration"
-    static let defaultNotchShowSessionDuration = false
-    static let notchShowSessionTokensKey = "notchShowSessionTokens"
-    static let defaultNotchShowSessionTokens = false
 
     // MARK: Threshold alerts
 
@@ -90,9 +86,7 @@ enum AppPreferences {
                 "notchResetTimeFormat": defaultNotchResetTimeFormat,
                 "notchPercentageMode": defaultNotchPercentageMode,
                 "notchShowUsagePace": defaultNotchShowUsagePace,
-                notchShowUnknownSessionsKey: defaultNotchShowUnknownSessions,
-                notchShowSessionDurationKey: defaultNotchShowSessionDuration,
-                notchShowSessionTokensKey: defaultNotchShowSessionTokens
+                notchShowUnknownSessionsKey: defaultNotchShowUnknownSessions
             ]
         )
     }

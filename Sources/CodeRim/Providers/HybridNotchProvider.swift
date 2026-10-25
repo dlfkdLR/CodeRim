@@ -99,7 +99,7 @@ final class HybridNotchProvider: NotchProvider {
         case "ollama":
             return key("Ollama", "Paste an Ollama API key below (create one at ollama.com › Settings › Keys).")
         case "gemini":
-            if AntigravityOAuthConfig.resolvedClient() != nil {
+            if AntigravityClientProbe.isAvailable() {
                 return .guided(.init(name: "Antigravity", action: .inApp(.antigravityGoogle),
                     note: "Your browser opens Google's sign-in. Choose the account you use with Antigravity and allow access; CodeRim connects on its own. The Antigravity app does not need to be running."))
             }
@@ -108,6 +108,32 @@ final class HybridNotchProvider: NotchProvider {
         default:
             return native
         }
+    }
+}
+
+/// Whether Antigravity's sign-in client can be found. Finding it searches the installed app's
+/// files, which takes a good half second, and the sign-in route is asked for on every refresh
+/// of the notch. So the search runs off the main thread, the last answer is what callers get
+/// meanwhile, and it is repeated at most every ten minutes.
+@MainActor
+enum AntigravityClientProbe {
+    private static var found = false
+    private static var checkedAt: Date?
+    private static var searching = false
+
+    static func isAvailable(now: Date = Date()) -> Bool {
+        if !searching, checkedAt.map({ now.timeIntervalSince($0) >= 600 }) ?? true {
+            searching = true
+            Task.detached(priority: .utility) {
+                let result = AntigravityOAuthConfig.resolvedClient() != nil
+                await MainActor.run {
+                    found = result
+                    checkedAt = Date()
+                    searching = false
+                }
+            }
+        }
+        return found
     }
 }
 

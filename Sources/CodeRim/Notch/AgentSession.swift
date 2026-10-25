@@ -7,6 +7,17 @@ import Foundation
 /// format: Claude Code publishes a session registry, Cursor keeps composer rows
 /// in SQLite, and neither shape belongs in the notch. Each monitor does its own
 /// parsing and hands back this.
+/// What a chat is running on, as far as the tool says: the model, how hard it
+/// thinks, whether it is on the fast tier, and Codex's Daybreak.
+struct ModelDetails: Equatable, Sendable {
+    var model: String?
+    var effort: String?
+    var fast = false
+    var daybreak = false
+
+    var isEmpty: Bool { model == nil && effort == nil && !fast && !daybreak }
+}
+
 struct AgentSession: Identifiable, Equatable, Sendable {
     /// What the session is doing right now.
     enum State: Equatable, Sendable {
@@ -58,6 +69,7 @@ struct AgentSession: Identifiable, Equatable, Sendable {
     let usageSessionID: String?
     /// Where a process-based session runs; lets a terminal find its tab.
     let workingDirectory: String?
+    let details: ModelDetails?
     var isRemote: Bool { remoteHostID != nil }
     var locationDescription: String? {
         guard isRemote else { return nil }
@@ -82,7 +94,8 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         projectKey: String? = nil,
         followUps: Int = 0,
         transcriptID: String? = nil,
-        isCompacting: Bool = false
+        isCompacting: Bool = false,
+        details: ModelDetails? = nil
     ) {
         self.id = id
         self.name = name
@@ -101,16 +114,26 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         self.followUps = followUps
         self.transcriptID = transcriptID
         self.isCompacting = isCompacting
+        self.details = details
     }
 }
 
 extension AgentSession {
+    /// The same session with what it runs on filled in.
+    func with(details: ModelDetails?) -> AgentSession {
+        AgentSession(id: id, name: name, detail: detail, state: state, waitingFor: waitingFor, since: since,
+                     processID: processID, codexThreadID: codexThreadID, parentThread: parentThread,
+                     remoteHostID: remoteHostID, usageSessionID: usageSessionID,
+                     workingDirectory: workingDirectory, projectKey: projectKey, followUps: followUps,
+                     transcriptID: transcriptID, isCompacting: isCompacting, details: details)
+    }
+
     /// The same session under another display name.
     func renamed(_ name: String) -> AgentSession {
         AgentSession(id: id, name: name, detail: detail, state: state, waitingFor: waitingFor, since: since,
                      processID: processID, codexThreadID: codexThreadID, parentThread: parentThread,
                      remoteHostID: remoteHostID, usageSessionID: usageSessionID,
                      workingDirectory: workingDirectory, projectKey: projectKey, followUps: followUps,
-                     transcriptID: transcriptID, isCompacting: isCompacting)
+                     transcriptID: transcriptID, isCompacting: isCompacting, details: details)
     }
 }

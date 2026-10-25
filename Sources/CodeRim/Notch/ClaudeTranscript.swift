@@ -107,6 +107,19 @@ enum ClaudeTranscript {
         event(inTail: data)?.turn
     }
 
+    /// The model and tier of the latest assistant message in the tail.
+    static func details(inTail data: Data) -> ModelDetails? {
+        for line in data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true).reversed() {
+            guard let json = (try? JSONSerialization.jsonObject(with: Data(line))) as? [String: Any],
+                  json["type"] as? String == "assistant", json["isSidechain"] as? Bool != true,
+                  let message = json["message"] as? [String: Any],
+                  let model = message["model"] as? String, !model.hasPrefix("<") else { continue }
+            let usage = message["usage"] as? [String: Any]
+            return ModelDetails(model: model, effort: nil, fast: usage?["speed"] as? String == "fast")
+        }
+        return nil
+    }
+
     static func event(inTail data: Data) -> Event? {
         let lines = data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true)
         for line in lines.reversed() {
@@ -223,9 +236,12 @@ final class ClaudeTranscriptReader {
         let size: UInt64
         let event: ClaudeTranscript.Event?
         let queued: [Date]
+        var details: ModelDetails?
     }
 
     private let projects: URL
+    /// Sub-agent ids known to be over.
+    private var settledSubagents: Set<String> = []
     private let fileManager: FileManager
     /// Where each session's transcript turned out to be. Sessions come and go;
     /// this is bounded by how many have run since the app launched.
@@ -262,7 +278,7 @@ final class ClaudeTranscriptReader {
     /// What the session is doing, and when it last moved. Nil when there is no
     /// transcript to read, or nothing said in it yet.
     func activity(sessionID: String, cwd: String)
-        -> (turn: ClaudeTranscript.Turn, since: Date, eventAt: Date?, followUps: Int)? {
+        -> (turn: ClaudeTranscript.Turn, since: Date, eventAt: Date?, followUps: Int, details: ModelDetails?)? {
         guard let url = path(sessionID: sessionID, cwd: cwd),
               let attributes = try? fileManager.attributesOfItem(atPath: url.path),
               let modified = attributes[.modificationDate] as? Date
@@ -271,26 +287,30 @@ final class ClaudeTranscriptReader {
 
         let event: ClaudeTranscript.Event?
         let queued: [Date]
+        let details: ModelDetails?
         if let cached = cache[sessionID], cached.modified == modified, cached.size == size {
             event = cached.event
             queued = cached.queued
+            details = cached.details
         } else {
             let tail = ClaudeTranscript.tail(of: url)
             event = tail.flatMap(ClaudeTranscript.event(inTail:))
             queued = tail.map(ClaudeTranscript.queuedInstructions(inTail:)) ?? []
-            cache[sessionID] = Cached(modified: modified, size: size, event: event, queued: queued)
+            details = tail.flatMap(ClaudeTranscript.details(inTail:))
+            cache[sessionID] = Cached(modified: modified, size: size, event: event, queued: queued,
+                                      details: details)
         }
 
         guard let event else { return nil }
         let turn = event.turn
         if let previous = entered[sessionID], previous.turn == turn {
-            return (turn, previous.at, event.timestamp, Self.followUps(queued, since: previous.at))
+            return (turn, previous.at, event.timestamp, Self.followUps(queued, since: previous.at), details)
         }
         // First sight of a change, so the file's own timestamp is the closest
         // thing there is to when it happened.
         let since = event.timestamp ?? modified
         entered[sessionID] = (turn, since)
-        return (turn, since, event.timestamp, Self.followUps(queued, since: since))
+        return (turn, since, event.timestamp, Self.followUps(queued, since: since), details)
     }
 
     /// Only instructions queued after the turn began extend it. The first
@@ -326,6 +346,45 @@ final class ClaudeTranscriptReader {
         }
         titles[sessionID] = state
         return state.title
+    }
+
+    /// A sub-agent one of this session's turns has started and not finished.
+    struct Subagent: Equatable {
+        let id: String
+        let title: String
+        let startedAt: Date
+    }
+
+    /// Sub-agents live in `<session>/subagents/agent-<id>.jsonl`, each with a
+    /// `.meta.json` that carries what it was asked to do and, once it has
+    /// stopped, `finished`. A transcript written to in the last two minutes and
+    /// not marked finished is working; anything else is history.
+    func subagents(sessionID: String, cwd: String, now: Date = Date()) -> [Subagent] {
+        guard let transcript = path(sessionID: sessionID, cwd: cwd) else { return [] }
+        let directory = transcript.deletingPathExtension().appendingPathComponent("subagents")
+        guard let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else { return [] }
+        return names.filter { $0.hasSuffix(".meta.json") }.compactMap { name -> Subagent? in
+            let id = String(name.dropLast(".meta.json".count))
+            // A finished or long-quiet sub-agent never starts again, so it is
+            // looked at once and then skipped without touching the disk.
+            if settledSubagents.contains(id) { return nil }
+            let log = directory.appendingPathComponent(id + ".jsonl")
+            guard let logAttributes = try? fileManager.attributesOfItem(atPath: log.path),
+                  let modified = logAttributes[.modificationDate] as? Date else { return nil }
+            guard now.timeIntervalSince(modified) < 120 else {
+                if now.timeIntervalSince(modified) > 3600 { settledSubagents.insert(id) }
+                return nil
+            }
+            let meta = directory.appendingPathComponent(name)
+            guard let data = try? Data(contentsOf: meta),
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            else { return nil }
+            if json["finished"] as? Bool == true { settledSubagents.insert(id); return nil }
+            let started = ((try? fileManager.attributesOfItem(atPath: meta.path))?[.creationDate] as? Date) ?? modified
+            let title = (json["description"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+                ?? (json["agentType"] as? String) ?? "Sub-agent"
+            return Subagent(id: id, title: title, startedAt: started)
+        }.sorted { $0.startedAt == $1.startedAt ? $0.id < $1.id : $0.startedAt < $1.startedAt }
     }
 
     private func path(sessionID: String, cwd: String) -> URL? {

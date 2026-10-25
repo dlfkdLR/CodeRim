@@ -58,6 +58,9 @@ enum TurnETAEstimator {
     /// project only" and "everything equally": it keeps the project's habits
     /// without going blind when the project has few turns.
     static let otherProjectWeight = 0.25
+    /// Turns this recent count this many times over.
+    static let recentWindow: TimeInterval = 2 * 60 * 60
+    static let recentBoost = 3.0
 
     /// Estimate the time left in a turn that has been working for `elapsed`.
     ///
@@ -69,7 +72,8 @@ enum TurnETAEstimator {
     static func estimate(
         elapsed: TimeInterval,
         samples: [TurnHistory.Sample],
-        project: String?
+        project: String?,
+        now: Date = Date()
     ) -> TurnETAEstimate {
         let elapsed = elapsed.isFinite ? max(0, elapsed) : 0
         let tail = samples.filter { $0.seconds.isFinite && $0.seconds > elapsed }
@@ -78,21 +82,26 @@ enum TurnETAEstimator {
         if tail.count >= minimumTail {
             let weighted = tail.map { sample -> (Double, Double) in
                 let isLocal = project != nil && sample.project == project
-                return (sample.seconds - elapsed, isLocal ? 1 : otherProjectWeight)
+                // A chat has a pace: two hours of quick replies say more about
+                // the next one than a month of long builds do.
+                let recent = now.timeIntervalSince(sample.recordedAt) < recentWindow
+                    && now >= sample.recordedAt
+                return (sample.seconds - elapsed,
+                        (isLocal ? 1 : otherProjectWeight) * (recent ? recentBoost : 1))
             }
             return TurnETAEstimate(
                 low: weightedQuantile(weighted, 0.10), median: weightedQuantile(weighted, 0.50),
                 high: weightedQuantile(weighted, 0.90),
                 basis: local.count >= minimumTail ? .project : .agent,
-                typicalLow: weightedQuantile(weighted, 0.25),
-                typicalHigh: weightedQuantile(weighted, 0.75))
+                typicalLow: weightedQuantile(weighted, 0.35),
+                typicalHigh: weightedQuantile(weighted, 0.65))
         }
         let priorTail = prior.filter { $0 > elapsed }.map { $0 - elapsed }
         if priorTail.count >= minimumTail {
             return TurnETAEstimate(low: quantile(priorTail, 0.10), median: quantile(priorTail, 0.50),
                                    high: quantile(priorTail, 0.90), basis: .prior,
-                                   typicalLow: quantile(priorTail, 0.25),
-                                   typicalHigh: quantile(priorTail, 0.75))
+                                   typicalLow: quantile(priorTail, 0.35),
+                                   typicalHigh: quantile(priorTail, 0.65))
         }
         // Past everything on record. Remaining time scales with the time
         // already spent, because nothing else is known.
