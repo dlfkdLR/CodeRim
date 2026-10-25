@@ -21,7 +21,7 @@ enum TurnHistoryImporter {
                               fileManager: FileManager = .default) -> [TurnHistory.Sample] {
         var samples: [TurnHistory.Sample] = []
         for file in logFiles(under: projects, within: lookback, now: now, fileManager: fileManager) {
-            forEachLine(of: file, containing: "\"turn_duration\"") { line in
+            forEachLine(of: file, containingAny: ["\"turn_duration\""]) { line in
                 if let sample = claudeSample(fromLine: line) { samples.append(sample) }
             }
         }
@@ -49,13 +49,10 @@ enum TurnHistoryImporter {
             // The folder is stated once near the top (`session_meta` /
             // `turn_context`), the duration at the end of each turn.
             var folder = ""
-            forEachLine(of: file, containing: nil) { line in
-                guard let text = String(data: line, encoding: .utf8) else { return }
-                if text.contains("\"task_complete\"") {
+            forEachLine(of: file, containingAny: ["\"task_complete\"", "\"session_meta\"", "\"turn_context\""]) { line in
+                if line.range(of: Data("\"task_complete\"".utf8)) != nil {
                     if let sample = codexSample(fromLine: line, project: folder) { samples.append(sample) }
-                } else if text.contains("\"cwd\""),
-                          text.contains("\"session_meta\"") || text.contains("\"turn_context\""),
-                          let cwd = codexCWD(fromLine: line) {
+                } else if let cwd = codexCWD(fromLine: line) {
                     folder = (cwd as NSString).lastPathComponent
                 }
             }
@@ -126,23 +123,35 @@ enum TurnHistoryImporter {
     }
 
     /// Streams a file line by line, handing over only the lines that contain
-    /// `needle` (every line when nil), so a 20 MB transcript is not parsed in
-    /// full to find a few dozen records.
-    static func forEachLine(of url: URL, containing needle: String?, _ body: (Data) -> Void) {
+    /// any of `needles`, so a 20 MB transcript is not parsed in full to find a
+    /// few dozen records. Lines are matched as bytes and the buffer is trimmed
+    /// once per chunk, not once per line: copying what is left of it for every
+    /// line made a launch-time import allocate hundreds of megabytes.
+    static func forEachLine(of url: URL, containingAny needles: [String], _ body: (Data) -> Void) {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return }
         defer { try? handle.close() }
-        let needleData = needle.map { Data($0.utf8) }
+        let needleData = needles.map { Data($0.utf8) }
+        func matches(_ line: Data) -> Bool { needleData.contains { line.range(of: $0) != nil } }
         var carry = Data()
         let newline = UInt8(ascii: "\n")
-        while let chunk = try? handle.read(upToCount: 1 << 20), !chunk.isEmpty {
-            carry.append(chunk)
-            while let end = carry.firstIndex(of: newline) {
-                let line = carry[carry.startIndex..<end]
-                if needleData == nil || line.range(of: needleData!) != nil { body(Data(line)) }
-                carry = Data(carry[carry.index(after: end)...])
+        var reading = true
+        while reading {
+            autoreleasepool {
+                guard let chunk = try? handle.read(upToCount: 1 << 20), !chunk.isEmpty else {
+                    reading = false
+                    return
+                }
+                carry.append(chunk)
+                var start = carry.startIndex
+                while let end = carry[start...].firstIndex(of: newline) {
+                    let line = carry[start..<end]
+                    if matches(line) { body(Data(line)) }
+                    start = carry.index(after: end)
+                }
+                carry = Data(carry[start...])
             }
         }
-        if !carry.isEmpty, needleData == nil || carry.range(of: needleData!) != nil { body(carry) }
+        if !carry.isEmpty, matches(carry) { body(carry) }
     }
 
     static func parse(_ stamp: String) -> Date? {

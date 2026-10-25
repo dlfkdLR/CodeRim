@@ -112,16 +112,27 @@ final class HybridNotchProvider: NotchProvider {
 }
 
 /// Whether Antigravity's sign-in client can be found. Finding it searches the installed app's
-/// files, and the sign-in route is asked for on every refresh of the notch, so the answer is
-/// kept for a minute rather than searched for again each time.
+/// files, which takes a good half second, and the sign-in route is asked for on every refresh
+/// of the notch. So the search runs off the main thread, the last answer is what callers get
+/// meanwhile, and it is repeated at most every ten minutes.
 @MainActor
 enum AntigravityClientProbe {
-    private static var cached: (found: Bool, at: Date)?
+    private static var found = false
+    private static var checkedAt: Date?
+    private static var searching = false
 
     static func isAvailable(now: Date = Date()) -> Bool {
-        if let cached, now.timeIntervalSince(cached.at) < 60 { return cached.found }
-        let found = AntigravityOAuthConfig.resolvedClient() != nil
-        cached = (found, now)
+        if !searching, checkedAt.map({ now.timeIntervalSince($0) >= 600 }) ?? true {
+            searching = true
+            Task.detached(priority: .utility) {
+                let result = AntigravityOAuthConfig.resolvedClient() != nil
+                await MainActor.run {
+                    found = result
+                    checkedAt = Date()
+                    searching = false
+                }
+            }
+        }
         return found
     }
 }
