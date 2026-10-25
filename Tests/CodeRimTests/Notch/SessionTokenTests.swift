@@ -58,8 +58,6 @@ import XCTest
         let d = try XCTUnwrap(UserDefaults(suiteName:suite))
         defer { d.removePersistentDomain(forName:suite) }
         AppPreferences.registerDefaults(in:d)
-        XCTAssertFalse(d.bool(forKey:AppPreferences.notchShowSessionTokensKey))
-        XCTAssertFalse(d.bool(forKey:AppPreferences.notchShowSessionDurationKey))
         XCTAssertFalse(d.bool(forKey:AppPreferences.notchShowUnknownSessionsKey))
         XCTAssertNil(SessionTokenReader.text(nil,enabled:true))
         XCTAssertNil(SessionTokenReader.text(100,enabled:false))
@@ -99,7 +97,6 @@ import XCTest
         let suite = "SessionFamilyRender.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName:suite))
         defer { defaults.removePersistentDomain(forName:suite) }
-        defaults.set(true,forKey:AppPreferences.notchShowSessionTokensKey)
         let now = Date(timeIntervalSince1970:1_800_000_000)
         let snapshot = ProviderSnapshot(id:"codex",displayName:"Codex",glyph:.openai,fidelity:.official,status:.ok,
             windows:[LimitWindow(id:"weekly",label:"Weekly",usedFraction:0.81)])

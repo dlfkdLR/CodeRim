@@ -19,10 +19,6 @@ struct NotchSettingsView: View {
     @AppStorage("notchShowUsagePace") private var showUsagePace = AppPreferences.defaultNotchShowUsagePace
     @AppStorage(AppPreferences.notchShowUnknownSessionsKey)
     private var showUnknownSessions = AppPreferences.defaultNotchShowUnknownSessions
-    @AppStorage(AppPreferences.notchShowSessionDurationKey)
-    private var showSessionDuration = AppPreferences.defaultNotchShowSessionDuration
-    @AppStorage(AppPreferences.notchShowSessionTokensKey)
-    private var showSessionTokens = AppPreferences.defaultNotchShowSessionTokens
 
     @AppStorage("notchAnnounceSessionEnd") private var announceSessionEnd = AppPreferences.defaultNotchAnnounceSessionEnd
     @AppStorage("notchSessionEndSound") private var sessionEndSound = AppPreferences.defaultNotchSessionEndSound
@@ -210,23 +206,6 @@ struct NotchSettingsView: View {
                     }
                 )
                 .accessibilityIdentifier("notch.showUnknownSessions")
-                SettingsToggleRow(
-                    "Show task duration",
-                    caption: "Show time spent in the current working or waiting state. Unknown tasks have no duration.",
-                    get: { showSessionDuration },
-                    set: { showSessionDuration = $0 }
-                )
-                .accessibilityIdentifier("notch.showSessionDuration")
-                SettingsToggleRow(
-                    "Show tokens per chat",
-                    caption: "Include sub-agent usage in the main chat total. Chats without usage records stay blank.",
-                    get: { showSessionTokens },
-                    set: { newValue in
-                        showSessionTokens = newValue
-                        NotchController.shared.apply(showSessionTokens: newValue)
-                    }
-                )
-                .accessibilityIdentifier("notch.showSessionTokens")
             }
             .disabled(!showEdgeNotch)
 

@@ -55,10 +55,19 @@ struct NotchRootView: View {
 
                     // The time-left card: its own box beside the usage card,
                     // level with the working session being hovered.
-                    if let hover = model.hoveredSession, let eta = model.turnETA[hover.id] {
-                        TurnETACard(snapshot: eta, now: model.now)
-                            .position(etaCardCentre(hover: hover, panel: proxy.size))
-                            .transition(.opacity)
+                    if let hover = model.hoveredSession,
+                       let session = (model.sessions[snapshot.id] ?? []).first(where: { $0.id == hover.id }) {
+                        let eta = model.turnETA[hover.id]
+                        let tokens = model.sessionTokenTotals[snapshot.id]?[hover.id]
+                        let height = TurnETACard.height(snapshot: eta, session: session, tokens: tokens, now: model.now)
+                        let centre = etaCardCentre(hover: hover, panel: proxy.size, height: height)
+                        TurnETACard(snapshot: eta, session: session,
+                                    tokens: tokens, now: model.now,
+                                    tailOnTrailing: etaCardOnLeft(hover: hover),
+                                    tailY: hover.frame.midY - (centre.y - height / 2))
+                            .position(centre)
+                            .animation(motion(.spring(response: 0.34, dampingFraction: 0.86)), value: hover.frame)
+                            .transition(.opacity.combined(with: .scale(scale: 0.94, anchor: .trailing)))
                             .allowsHitTesting(false)
                     }
                 }
@@ -75,7 +84,7 @@ struct NotchRootView: View {
         .environment(\.notchAccentColor, model.accentColor.color)
         .environment(\.notchTurnETA, model.turnETA)
         .environment(\.notchSessionHover) { [model] hover in
-            if model.hoveredSession != hover { model.hoveredSession = hover }
+            model.reportHoveredSession(hover)
         }
         .environment(\.notchRingAppearance, model.ringAppearance)
         .environment(\.notchRingAnimationEnabled, model.isExpanded)
@@ -311,20 +320,25 @@ struct NotchRootView: View {
     /// Where the time-left card sits: on the far side of the usage card from
     /// the notch, level with the hovered row. Where the card could go either
     /// way (a notch on the top or bottom edge) it takes the side with room.
-    private func etaCardCentre(hover: SessionHover, panel: CGSize) -> CGPoint {
-        let width = NotchLayout.etaCardWidth, height = NotchLayout.etaCardHeight
+    private func etaCardCentre(hover: SessionHover, panel: CGSize, height: CGFloat) -> CGPoint {
+        let width = NotchLayout.etaCardWidth
+        let onLeft = etaCardOnLeft(hover: hover)
         let cardLeft = hover.frame.minX - NotchLayout.cardPadding
         let cardRight = hover.frame.maxX + NotchLayout.cardPadding
-        let onLeft: Bool
-        switch model.edge.tooltipDirection {
-        case .leading:       onLeft = true
-        case .trailing:      onLeft = false
-        case .up, .down:     onLeft = cardLeft - NotchLayout.etaCardGap - width >= 0
-        }
         let x = onLeft ? cardLeft - NotchLayout.etaCardGap - width / 2
                        : cardRight + NotchLayout.etaCardGap + width / 2
-        let y = min(max(hover.frame.minY + height / 2, height / 2), max(panel.height - height / 2, height / 2))
+        let y = min(max(hover.frame.midY, height / 2), max(panel.height - height / 2, height / 2))
         return CGPoint(x: x, y: y)
+    }
+
+    private func etaCardOnLeft(hover: SessionHover) -> Bool {
+        switch model.edge.tooltipDirection {
+        case .leading:       return true
+        case .trailing:      return false
+        case .up, .down:
+            let cardLeft = hover.frame.minX - NotchLayout.cardPadding
+            return cardLeft - NotchLayout.etaCardGap - NotchLayout.etaCardWidth >= 0
+        }
     }
 
     /// The tooltip is the card plus its tail; `position` centres that pair, so

@@ -491,27 +491,15 @@ private struct SessionRow: View {
     @Environment(\.notchAccentColor) private var accentColor
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.notchTurnETA) private var turnETA
     @Environment(\.notchSessionHover) private var reportHover
     @State private var isHovered = false
     @State private var rowFrame: CGRect = .zero
-    @AppStorage(AppPreferences.notchShowSessionDurationKey)
-    private var showDuration = AppPreferences.defaultNotchShowSessionDuration
-    @AppStorage(AppPreferences.notchShowSessionTokensKey)
-    private var showTokens = AppPreferences.defaultNotchShowSessionTokens
-
-    /// The estimate for this session, only when the row is a real session
-    /// (not a parent shown for context) and has something to say.
-    private var hasETA: Bool {
-        guard !isContextOnly, let snapshot = turnETA[session.id] else { return false }
-        return TurnETACopy.line(for: snapshot, now: now) != nil
-    }
 
     /// Tell the panel which row the pointer is on, so it can open the
     /// time-left card beside the usage card. Reported from here because only
     /// the row knows where it is drawn.
     private func reportHoverState() {
-        reportHover(isHovered && hasETA ? SessionHover(id: session.id, frame: rowFrame) : nil)
+        reportHover(isHovered && !isContextOnly ? SessionHover(id: session.id, frame: rowFrame) : nil)
     }
 
     private var stateColor: Color {
@@ -550,15 +538,6 @@ private struct SessionRow: View {
         [session.locationDescription, openLabel].compactMap { $0 }.joined(separator: ". ")
     }
 
-    private var elapsed: String {
-        SessionDuration.text(for: session, enabled: showDuration, now: now) ?? ""
-    }
-
-    private var metrics: String {
-        [isContextOnly || elapsed.isEmpty ? nil : elapsed, SessionTokenReader.text(tokenTotal, enabled: showTokens)]
-            .compactMap { $0 }.joined(separator: " · ")
-    }
-
     private var openLabel: String {
         if let parent = session.parentThread {
             return "Open sub-agent \(session.detail) of \(parent.title) in Codex"
@@ -570,11 +549,7 @@ private struct SessionRow: View {
 
     var body: some View {
         rowBody
-            .background(GeometryReader { proxy in
-                Color.clear.preference(key: SessionRowFrameKey.self,
-                                       value: proxy.frame(in: .named(NotchPanelSpace.name)))
-            })
-            .onPreferenceChange(SessionRowFrameKey.self) { frame in
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
                 rowFrame = frame
                 if isHovered { reportHoverState() }
             }
@@ -607,8 +582,7 @@ private struct SessionRow: View {
             .onHover { isHovered = $0 }
             .help(rowDescription)
             .accessibilityLabel(rowDescription)
-            .accessibilityValue([isContextOnly ? "Parent chat" : stateWord, metrics]
-                .filter { !$0.isEmpty }.joined(separator: ", "))
+            .accessibilityValue(isContextOnly ? "Parent chat" : stateWord)
             .accessibilityIdentifier("notch.session.\(session.id)")
         } else {
             content
@@ -632,7 +606,7 @@ private struct SessionRow: View {
             .frame(height: NotchLayout.cardBodyLineHeight)
             SplitRow(
                 leading: detail,
-                trailing: metrics,
+                trailing: "",
                 leadingColor: NotchPalette.textSecondary
             )
             .frame(height: NotchLayout.cardBodyLineHeight)
@@ -640,11 +614,6 @@ private struct SessionRow: View {
         }
         .padding(.leading, NotchDesign.px(14) * CGFloat(min(depth, 2)))
     }
-}
-
-private struct SessionRowFrameKey: PreferenceKey {
-    static let defaultValue: CGRect = .zero
-    static func reduce(value: inout CGRect, nextValue: () -> CGRect) { value = nextValue() }
 }
 
 /// Main chats own their children, even when the parent itself has finished.

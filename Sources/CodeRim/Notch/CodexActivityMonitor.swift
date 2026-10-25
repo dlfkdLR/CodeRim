@@ -59,6 +59,22 @@ final class CodexActivityMonitor: ObservableObject, AgentActivityMonitor {
 }
 
 actor CodexActivityReader {
+    /// Whether Codex is set to its fast service tier. The tier lives in the
+    /// profile's config, not per chat, so every chat shows the same answer.
+    static func fastTier(profile: CodexProfile) -> Bool {
+        let config = profile.configDirectory.appendingPathComponent("config.toml")
+        guard let text = try? String(contentsOf: config, encoding: .utf8) else { return false }
+        for line in text.split(separator: "\n").prefix(200) {
+            // Only the top level counts: a key under a [table] belongs to something else.
+            if line.trimmingCharacters(in: .whitespaces).hasPrefix("[") { break }
+            let parts = line.split(separator: "=", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespaces) }
+            guard parts.count == 2, parts[0] == "service_tier" else { continue }
+            let value = parts[1].trimmingCharacters(in: CharacterSet(charactersIn: "\"' "))
+            return value == "fast" || value == "priority"
+        }
+        return false
+    }
+
     private var cache: [String: CodexTurnActivity.Reader] = [:]
 
     func read(stateStore: URL, desktopStore: URL, profile: CodexProfile = .default(),
@@ -66,6 +82,7 @@ actor CodexActivityReader {
         let threads = CodexStore.threads(in: stateStore, desktopStore: desktopStore, limit: 64)
         let paths = Set(threads.map { $0.rollout.path })
         cache = cache.filter { paths.contains($0.key) }
+        let fast = Self.fastTier(profile: profile)
         let local: [AgentSession] = threads.compactMap { thread in
             guard let attributes = try? FileManager.default.attributesOfItem(atPath: thread.rollout.path),
                   let modified = attributes[.modificationDate] as? Date,
@@ -81,7 +98,9 @@ actor CodexActivityReader {
                                 detail: thread.displayTitle, state: event.isRunning ? .busy : .idle,
                                 waitingFor: nil, since: event.since, codexThreadID: thread.id,
                                 parentThread: thread.parentThread,
-                                projectKey: URL(fileURLWithPath: thread.cwd).lastPathComponent)
+                                projectKey: URL(fileURLWithPath: thread.cwd).lastPathComponent,
+                                details: ModelDetails(model: thread.model, effort: thread.effort,
+                                                      fast: fast, daybreak: thread.daybreak))
         }
         return local + CodexRemoteCatalog.sessions(in: desktopStore, profile: profile, now: now)
     }

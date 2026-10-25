@@ -35,7 +35,7 @@ enum TurnETACopy {
         // The headline is the typical range; the long tail goes underneath, so
         // a 15-second-to-33-minute spread never reads as the answer.
         let finishText = finish(at: estimate.median, now: now, locale: locale, calendar: calendar)
-        let upTo = estimate.high > estimate.typicalHigh * 1.5 ? "up to \(span(estimate.high))" : nil
+        let upTo = estimate.high > estimate.typicalHigh * 2.5 ? "up to \(span(estimate.high))" : nil
         return Line(headline: "\(prefix)typically \(range(estimate.typicalLow, estimate.typicalHigh)) left",
                     detail: [upTo, finishText].compactMap { $0 }.joined(separator: " · ").nilIfEmpty)
     }
@@ -45,6 +45,8 @@ enum TurnETACopy {
         let lo = round(low), hi = round(high)
         if lo == hi { return span(hi) }
         let loText = span(lo), hiText = span(hi)
+        // Two ends that read the same are one value, not a range.
+        if loText == hiText { return hiText }
         // "3–8 min" reads better than "3 min – 8 min" when the unit is shared.
         for unit in [" min", " sec", " hr"] where loText.hasSuffix(unit) && hiText.hasSuffix(unit) {
             return "\(loText.dropLast(unit.count))–\(hiText)"

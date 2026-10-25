@@ -31,37 +31,4 @@ final class SessionDurationTests: XCTestCase {
         }
         XCTAssertEqual(SessionDuration.text(for: session(.busy, since: now), enabled: true, now: now), "<1 min")
     }
-
-    func testDefaultOffPersistsOptInAndKeepsRowGeometry() throws {
-        let suite = "SessionDurationTests.\(UUID().uuidString)"
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
-        defer { defaults.removePersistentDomain(forName: suite) }
-        AppPreferences.registerDefaults(in: defaults)
-        XCTAssertFalse(defaults.bool(forKey: AppPreferences.notchShowSessionDurationKey))
-        let snapshot = ProviderSnapshot(id: "codex", displayName: "Codex", glyph: .openai,
-            fidelity: .official, status: .ok,
-            windows: [LimitWindow(id: "weekly", label: "Weekly", usedFraction: 0.81)])
-        let summary = try XCTUnwrap(ActivitySummary(sessions: [session(.busy)]))
-        var sizes: [CGSize] = []
-        for enabled in [false, true] {
-            defaults.set(enabled, forKey: AppPreferences.notchShowSessionDurationKey)
-            AppPreferences.registerDefaults(in: defaults)
-            XCTAssertEqual(defaults.bool(forKey: AppPreferences.notchShowSessionDurationKey), enabled)
-            let card = TooltipCard(snapshot: snapshot, activity: summary, now: now)
-                .defaultAppStorage(defaults)
-                .transaction { $0.animation = nil; $0.disablesAnimations = true }
-            let renderer = ImageRenderer(content: card.padding(20).background(Color.black))
-            renderer.scale = 3
-            let image = try XCTUnwrap(renderer.nsImage)
-            sizes.append(image.size)
-            if let folder = ProcessInfo.processInfo.environment["SESSION_DISCLOSURE_RENDER_DIR"] {
-                let tiff = try XCTUnwrap(image.tiffRepresentation)
-                let png = try XCTUnwrap(NSBitmapImageRep(data: tiff)?.representation(using: .png, properties: [:]))
-                try png.write(to: URL(fileURLWithPath: folder).appendingPathComponent("duration-\(enabled ? "on" : "off").png"))
-            }
-        }
-        XCTAssertEqual(sizes[0], sizes[1])
-        XCTAssertFalse(defaults.bool(forKey: AppPreferences.notchShowUnknownSessionsKey),
-                       "Duration preference must not turn unknown tasks on")
-    }
 }

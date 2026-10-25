@@ -55,6 +55,24 @@ final class NotchViewModel: ObservableObject {
     @Published var turnETA: [String: TurnETATracker.Snapshot] = [:]
     /// The working session row under the pointer, if any. Drives the time-left card.
     @Published var hoveredSession: SessionHover?
+    private var hoverClearTask: Task<Void, Never>?
+
+    /// Rows report enter and leave separately, so moving down the list is a
+    /// "none" followed at once by the next row. Clearing at once would make the
+    /// time card vanish and reappear; holding the clear for a beat lets it
+    /// glide from one row to the next instead.
+    func reportHoveredSession(_ hover: SessionHover?) {
+        hoverClearTask?.cancel()
+        if let hover {
+            if hoveredSession != hover { hoveredSession = hover }
+            return
+        }
+        hoverClearTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(140))
+            guard !Task.isCancelled else { return }
+            self?.hoveredSession = nil
+        }
+    }
 
     /// A presentation preference only: retain raw samples for state transitions.
     @Published var showUnknownSessions: Bool

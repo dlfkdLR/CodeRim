@@ -125,18 +125,34 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
                 return record
             }
         return deduplicated(live)
-            .map { record in
+            .flatMap { record -> [AgentSession] in
                 let session = state(of: record, transcripts: transcripts)
                 // Lead with the conversation's title, as Codex sessions do,
                 // rather than the registry's generated `folder-xx` name.
-                guard let sessionID = record.sessionID,
-                      let title = transcripts?.title(sessionID: sessionID, cwd: record.cwd)
-                else { return session }
-                return session.renamed(title)
+                guard let sessionID = record.sessionID else { return [session] }
+                let parent = transcripts?.title(sessionID: sessionID, cwd: record.cwd)
+                    .map { session.renamed($0) } ?? session
+                return [parent] + Self.children(of: parent, sessionID: sessionID, cwd: record.cwd,
+                                           transcripts: transcripts)
             }
             // The id breaks ties so the order cannot flicker between two ticks
             // that read the same thing.
             .sorted { $0.since == $1.since ? $0.id < $1.id : $0.since > $1.since }
+    }
+
+    /// Working sub-agents, listed under the conversation that started them.
+    /// Only while the parent is itself busy: a sub-agent outliving its parent's
+    /// turn would be a stale file, not a running agent.
+    nonisolated private static func children(of parent: AgentSession, sessionID: String, cwd: String,
+                                             transcripts: ClaudeTranscriptReader?) -> [AgentSession] {
+        guard parent.state == .busy, let transcripts else { return [] }
+        let group = ClaudeSubagentRows.groupID(of: parent)
+        return transcripts.subagents(sessionID: sessionID, cwd: cwd).map { agent in
+            AgentSession(id: "claude.sub.\(sessionID).\(agent.id)", name: agent.title,
+                         detail: parent.detail, state: .busy, waitingFor: nil, since: agent.startedAt,
+                         parentThread: AgentSession.ParentThread(id: group, title: parent.name),
+                         workingDirectory: cwd, projectKey: parent.projectKey)
+        }
     }
 
     /// Registry status stays authoritative until a newer transcript completion
@@ -151,11 +167,12 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
             // turn event supersedes it. File mtime includes unrelated bookkeeping
             // and must never be used to overrule a registry status.
             guard activity.turn == .finished, let eventAt = activity.eventAt,
-                  eventAt > record.session.since else { return record.session }
+                  eventAt > record.session.since else { return record.session.with(details: activity.details) }
         }
         return record.session(state: activity.turn == .inFlight ? .busy : .idle,
                               since: activity.since,
-                              followUps: activity.turn == .inFlight ? activity.followUps : 0)
+                              followUps: activity.turn == .inFlight ? activity.followUps : 0,
+                              details: activity.details)
     }
 
     /// One session can hold two registry records at once: resuming after a
@@ -174,4 +191,10 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
         }
         return Array(newest.values) + unidentified
     }
+}
+
+enum ClaudeSubagentRows {
+    /// What a sub-agent's `parentThread` points at: the parent's transcript id.
+    static func groupID(of parent: AgentSession) -> String { parent.transcriptID ?? parent.id }
+    static func isSubagent(_ session: AgentSession) -> Bool { session.id.hasPrefix("claude.sub.") }
 }
