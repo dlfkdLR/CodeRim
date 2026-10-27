@@ -81,6 +81,43 @@ enum SessionDetailCopy {
         return rows
     }
 
+    struct Stat: Equatable {
+        let label: String
+        let value: String
+    }
+
+    /// The card as a ring and a column beside it: what the chat runs on, then
+    /// a few figures. With an estimate the ring says the state, so only the
+    /// figures that add something are kept.
+    struct Facts: Equatable {
+        var model: String?
+        var effort: String?
+        var fast: Bool?
+        var daybreak: Bool?
+        var stats: [Stat] = []
+    }
+
+    static func facts(_ rows: [Row], hasEstimate: Bool) -> Facts {
+        var out = Facts()
+        for row in rows {
+            switch row.label {
+            case "Model":     out.model = row.value
+            case "Effort":    out.effort = row.value
+            case "Fast mode": out.fast = row.isOn
+            case "Daybreak":  out.daybreak = row.isOn
+            case "State" where hasEstimate: break
+            default:          out.stats.append(Stat(label: row.label, value: row.value))
+            }
+        }
+        // Elapsed first, as the figure that anchors the others.
+        out.stats.sort { rank($0.label) < rank($1.label) }
+        return out
+    }
+
+    private static func rank(_ label: String) -> Int {
+        ["State", "Elapsed", "Tokens", "Finishes", "Up to"].firstIndex(of: label) ?? 9
+    }
+
     static func stateWord(_ state: AgentSession.State) -> String {
         switch state {
         case .busy:        return "working"

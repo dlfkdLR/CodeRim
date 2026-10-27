@@ -346,6 +346,29 @@ final class SessionDetailCopyTests: XCTestCase {
         XCTAssertEqual(SessionDetailCopy.modelName("gpt-6.1-sol"), "gpt-6.1-sol")
     }
 
+    func testFactsKeepTheModelApartAndDropWhatTheRingAlreadySays() {
+        let rows = [
+            SessionDetailCopy.Row(label: "Up to", value: "48 min"),
+            SessionDetailCopy.Row(label: "Finishes", value: "8:32 PM"),
+            SessionDetailCopy.Row(label: "State", value: "working"),
+            SessionDetailCopy.Row(label: "Elapsed", value: "5 min"),
+            SessionDetailCopy.Row(label: "Tokens", value: "10.2M"),
+            SessionDetailCopy.Row(label: "Model", value: "Opus 5.5"),
+            SessionDetailCopy.Row(label: "Effort", value: "high"),
+            SessionDetailCopy.Row(label: "Fast mode", value: "On", isOn: true),
+            SessionDetailCopy.Row(label: "Daybreak", value: "Off"),
+        ]
+        let withEstimate = SessionDetailCopy.facts(rows, hasEstimate: true)
+        XCTAssertEqual(withEstimate.model, "Opus 5.5")
+        XCTAssertEqual(withEstimate.effort, "high")
+        XCTAssertEqual(withEstimate.fast, true)
+        XCTAssertEqual(withEstimate.daybreak, false)
+        XCTAssertEqual(withEstimate.stats.map(\.label), ["Elapsed", "Tokens", "Finishes", "Up to"])
+        // With no ring, the state is worth a figure of its own.
+        let without = SessionDetailCopy.facts(rows, hasEstimate: false)
+        XCTAssertEqual(without.stats.map(\.label), ["State", "Elapsed", "Tokens", "Finishes", "Up to"])
+    }
+
     func testRowsListWhatIsKnownAndNothingElse() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let session = AgentSession(id: "codex.1", name: "p", detail: "d", state: .busy, waitingFor: nil,
