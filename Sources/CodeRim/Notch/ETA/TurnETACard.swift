@@ -31,7 +31,7 @@ struct TurnETACard: View {
 
     private static func facts(session: AgentSession, tokens: Int64?, line: TurnETACopy.Line?, now: Date) -> SessionDetailCopy.Facts {
         SessionDetailCopy.facts(
-            SessionDetailCopy.rows(for: session, tokens: tokens, line: line, now: now), hasEstimate: line != nil)
+            SessionDetailCopy.rows(for: session, tokens: tokens, line: line, now: now), hasEstimate: line != nil || isDone(session, line))
     }
 
     /// How tall the card is for what it will show; the panel places it by this.
@@ -39,9 +39,18 @@ struct TurnETACard: View {
         let line = snapshot.flatMap { TurnETACopy.line(for: $0, now: now) }
         let facts = facts(session: session, tokens: tokens, line: line, now: now)
         return NotchLayout.etaCardHeight(
-            hasETA: line != nil, hasModel: facts.model != nil,
+            hasETA: line != nil || isDone(session, line), hasModel: facts.model != nil,
             hasFlags: Self.hasFlags(facts), statCount: facts.stats.count)
     }
+
+    /// A chat that has finished its turn and sits idle keeps the ring, filled
+    /// and in its own colour, instead of dropping it.
+    private static func isDone(_ session: AgentSession, _ line: TurnETACopy.Line?) -> Bool {
+        line == nil && session.state == .idle
+    }
+
+    private var isDone: Bool { Self.isDone(session, line) }
+    private var showsRing: Bool { line != nil || isDone }
 
     /// A switch is shown only while it is on; one that is off adds nothing.
     private static func hasFlags(_ facts: SessionDetailCopy.Facts) -> Bool {
@@ -61,10 +70,10 @@ struct TurnETACard: View {
         let facts = facts
         return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: NotchDesign.px(10)) {
-                Image(systemName: icon)
+                Image(systemName: isDone ? "checkmark.circle.fill" : icon)
                     .font(NotchType.cardBody.weight(.semibold))
-                    .foregroundStyle(barColor)
-                Text(line == nil ? SessionDetailCopy.stateWord(session.state).capitalized : "Time left")
+                    .foregroundStyle(isDone ? NotchPalette.done : barColor)
+                Text(isDone ? "Done" : line == nil ? SessionDetailCopy.stateWord(session.state).capitalized : "Time left")
                 Spacer(minLength: 0)
                 if line != nil {
                     Text("beta")
@@ -76,14 +85,14 @@ struct TurnETACard: View {
             .frame(height: NotchLayout.cardBodyLineHeight)
 
             HStack(alignment: .center, spacing: NotchLayout.etaColumnGap) {
-                if let line {
-                    ring(line.headline)
+                if showsRing {
+                    ring(line?.headline)
                 }
                 column(facts)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(height: NotchLayout.etaBodyHeight(
-                hasETA: line != nil, hasModel: facts.model != nil,
+                hasETA: showsRing, hasModel: facts.model != nil,
                 hasFlags: Self.hasFlags(facts), statCount: facts.stats.count),
                    alignment: .top)
             .padding(.top, NotchLayout.etaCardBarGap)
@@ -105,7 +114,7 @@ struct TurnETACard: View {
                 .offset(x: tailOnTrailing ? size.width - 1 : -(size.width - 1), y: y - size.height / 2)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(line == nil ? "Chat details" : "Estimated time")
+        .accessibilityLabel(isDone ? "Finished" : line == nil ? "Chat details" : "Estimated time")
         .accessibilityValue(([line?.headline].compactMap { $0 }
             + [facts.model.map { "Model \($0)" }, facts.effort.map { "Effort \($0)" }].compactMap { $0 }
             + facts.stats.map { "\($0.label) \($0.value)" }
@@ -127,18 +136,20 @@ struct TurnETACard: View {
 
     /// A paused turn holds its place; compaction has no progress to show, so
     /// the ring breathes instead of moving.
-    private func ring(_ headline: String) -> some View {
+    private func ring(_ headline: String?) -> some View {
         let side = NotchLayout.etaRing
         let stroke = NotchLayout.etaRingStroke
         return ZStack {
             ZStack {
                 Circle().stroke(NotchPalette.barTrack, lineWidth: stroke)
-                switch phase {
+                switch isDone ? TurnETATracker.Phase.finished : phase {
                 case .compacting:
                     TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
                         let wave = reduceMotion ? 0.6 : 0.5 + 0.35 * sin(context.date.timeIntervalSinceReferenceDate * 3)
                         Circle().stroke(barColor.opacity(wave), lineWidth: stroke)
                     }
+                case .finished where isDone:
+                    Circle().stroke(NotchPalette.done, lineWidth: stroke)
                 default:
                     Circle()
                         .trim(from: 0, to: max(0.012, min(1, shownProgress)))
@@ -163,7 +174,23 @@ struct TurnETACard: View {
     /// Anything that does not read that way ("running long") is set as plain
     /// words so nothing is cut.
     @ViewBuilder
-    private func centre(_ text: String) -> some View {
+    private func centre(_ text: String?) -> some View {
+        if let text {
+            estimateCentre(text)
+        } else {
+            VStack(spacing: NotchDesign.px(6)) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: NotchDesign.fontSize(capPixels: 18) * 1.7, weight: .semibold))
+                    .foregroundStyle(NotchPalette.done)
+                Text("Done")
+                    .font(NotchType.cardBody)
+                    .foregroundStyle(NotchPalette.textSecondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func estimateCentre(_ text: String) -> some View {
         let lead = "typically ", tail = " left"
         let body = text.hasPrefix(lead) && text.hasSuffix(tail)
             ? String(text.dropFirst(lead.count).dropLast(tail.count)) : nil
