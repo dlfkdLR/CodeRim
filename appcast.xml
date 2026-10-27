@@ -4,42 +4,33 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.22</title>
-            <pubDate>Mon, 26 Oct 2026 06:06:17 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.22</link>
-            <sparkle:version>20122</sparkle:version>
-            <sparkle:shortVersionString>2.1.22</sparkle:shortVersionString>
+            <title>2.1.23</title>
+            <pubDate>Tue, 27 Oct 2026 14:15:12 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.23</link>
+            <sparkle:version>20123</sparkle:version>
+            <sparkle:shortVersionString>2.1.23</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.22
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.23
 
-A macOS-only release: it turns the beta time-left card into a chat details card, lets the Claude account be switched while Claude Code is running, and fixes a memory spike at launch. Windows stays at 2.1.20.
+A macOS-only release: it redraws the chat details card and lets finished Claude chats leave the notch's list. Windows stays at 2.1.20.
 
 ## Chat details card
 
-- Hovering any chat row in the notch opens the card beside the usage card, not only a working one. It shows the beta estimate and gauge when there is one, then small icon tiles: the range and finish time, state, elapsed time, tokens, the model, its reasoning effort, and Fast mode and Daybreak (Codex) as pills.
-- Elapsed time and token usage moved from the row into the card. Their two Notch settings are removed and the card always shows them.
-- Working Claude sub-agents are listed under the chat that started them. Codex model, effort and Daybreak come from its thread store; the Claude model and fast tier from its transcript. Fast mode for Codex is a global setting, so every Codex chat shows the same answer.
-- Short turns are predicted from the chat's recent pace: turns from the last two hours count three times, the typical range is narrower, and equal ends read as one value ("4 min").
-- The card glides between rows, the gauge eases in, and a small tail points at the hovered row.
+- The small icon tiles are replaced by a ring and a column. The ring fills as the turn goes and holds the typical range ("16–29 min left"); a paused turn holds its place and compaction makes it breathe. Chats with no estimate show the column alone.
+- The column shows the model in the card-title type, its reasoning effort, then elapsed time, tokens, finish time and the longest the turn is expected to take, two to a line, and the Fast mode and Daybreak switches as filled or hollow dots. Labels are grey body type and values white, matching the usage card beside it.
 
-## Claude accounts
+## Claude chats
 
-- Switching the Claude account no longer requires every Claude Code session to be stopped. Running sessions use the new login from their next request; CodeRim watches the shared login for about six seconds and puts the chosen account back if a session writes the old one. A session that refreshes later can still overwrite it: restart one that shows the old account.
-
-## Performance
-
-- Launch no longer allocates about 500 MB. Reading past turn lengths copied what was left of a 1 MB buffer for every line; it now trims once per chunk and matches lines as bytes. Footprint after launch fell from about 517 MB to about 115 MB.
-- The search for Antigravity's sign-in client read the installed app's files on the main thread every minute. It now runs in the background and repeats at most every ten minutes.
-- Session token totals are summed only while the panel is open, and finished sub-agents are no longer re-read.
+- A Claude chat that has sat idle for 90 seconds leaves the notch's list, the same as a Codex chat. Chats that are working, waiting for you or compacting stay.
 
 ## Verification
 
-macOS: 3,155 tests locally with 0 failures. The card, tiles and speeds were checked by hand in the running app on the development Mac; a live check that a running Claude CLI picks up a switched account is still outstanding.
+macOS: full local test suite with 0 failures. The card was checked by hand in the running app on the development Mac.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.22/CodeRim-2.1.22.zip" length="32486011" type="application/octet-stream" sparkle:edSignature="vQ2hGaDXLrTZ2XX8r2TZbd3k7uLFIOzJ9AvDhIz32Wm5tc7iS8ID5vDVyx0Kutmj0dj4p50x3gv5O9qygTUZBA=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.23/CodeRim-2.1.23.zip" length="32484409" type="application/octet-stream" sparkle:edSignature="UXzeWum+iFr/eVQ7cwYf/lXBULHcm3kj6KD5sZOvioDXhfPD+CPuiq/dXcJwFEmMlBKQOrVpOhP+lOWm+NfvDw=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: 3uprN08eRm/Q6nwYZjypyKxsq1ufKSeDe0mr66S7VNqFCjwaut3/h0VhHs0cUZuSeyVGzlFgHhr925mFS4JqAQ==
-length: 3626
+edSignature: YRGCtaGPN533meOcRRrpNxBDTqgsGK+XG00r51aK/2leLGpCFgBQ+SEsc+n8J6+aJqpPpMPTLRUwiVRGhFM2Bw==
+length: 2266
 -->
