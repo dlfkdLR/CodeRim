@@ -98,7 +98,7 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
     }
 
     private func rescan() {
-        let found = Self.read(directory: directory, transcripts: transcripts)
+        let found = Self.read(directory: directory, transcripts: transcripts, dropIdleAfter: Self.idleLinger)
         guard found != sessions else { return }   // don't churn SwiftUI for nothing
         // Only on a change, so this is a handful of lines an hour rather than a
         // firehose. It is the one way to see what the notch thinks is running
@@ -110,8 +110,17 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
         sessions = found
     }
 
+    /// How long a chat that has finished stays listed, as Codex's do: long
+    /// enough to see it end, short enough that a terminal left open does not
+    /// keep an idle chat in the notch all day.
+    nonisolated static let idleLinger: TimeInterval = 90
+
+    /// `dropIdleAfter` leaves out chats that have been idle that long; callers
+    /// that only count running clients leave it nil and see every one.
     nonisolated static func read(directory: URL,
-                     transcripts: ClaudeTranscriptReader? = nil) -> [AgentSession] {
+                     transcripts: ClaudeTranscriptReader? = nil,
+                     dropIdleAfter: TimeInterval? = nil,
+                     now: Date = Date()) -> [AgentSession] {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
         let live = names
             .filter { $0.hasSuffix(".json") }
@@ -137,6 +146,10 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
             }
             // The id breaks ties so the order cannot flicker between two ticks
             // that read the same thing.
+            .filter { session in
+                guard let limit = dropIdleAfter, session.state == .idle else { return true }
+                return now.timeIntervalSince(session.since) < limit
+            }
             .sorted { $0.since == $1.since ? $0.id < $1.id : $0.since > $1.since }
     }
 

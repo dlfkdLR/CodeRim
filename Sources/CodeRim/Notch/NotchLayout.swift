@@ -134,36 +134,25 @@ enum NotchLayout {
     static let etaCardPadding = NotchDesign.px(28)
     static let etaCardLineGap = NotchDesign.px(8)
     static let etaCardBarGap  = NotchDesign.px(14)
-    static let etaBarHeight   = NotchDesign.px(12)
+    static let etaBarHeight   = NotchDesign.px(8)
     static var etaBigLineHeight: CGFloat { cardBodyLineHeight * 1.7 }
     static var etaReach: CGFloat { etaCardWidth + etaCardGap }
     /// Known from what the card will show, so the panel can place it against a
     /// row without measuring it: the title, the headline and bar when there is
     /// an estimate, then one line for each row of the list.
-    static func etaCardHeight(hasETA: Bool, rowCount: Int, toggleCount: Int = 0) -> CGFloat {
+    static func etaCardHeight(hasETA: Bool, rowCount: Int) -> CGFloat {
         var height = 2 * etaCardPadding + cardBodyLineHeight        // the title row
-        if hasETA { height += etaCardLineGap + etaBigLineHeight + etaCardBarGap + etaBarHeight }
-        let tiles = rowCount - toggleCount
-        if tiles > 0 {
-            let lines = (tiles + etaTileColumns - 1) / etaTileColumns
-            height += etaCardBarGap + etaDividerHeight + etaCardBarGap
-                + CGFloat(lines) * etaTileHeight + CGFloat(lines - 1) * etaTileGap
-        }
-        if toggleCount > 0 { height += (tiles > 0 ? etaTileGap : etaCardBarGap) + etaChipHeight }
+        if hasETA { height += etaCardLineGap + etaBigLineHeight + etaCardBarGap + etaBarHeight + etaAxisGap + etaAxisHeight }
+        if rowCount > 0 { height += etaCardBarGap + etaDividerHeight + CGFloat(rowCount) * etaInfoRowHeight }
         return height
     }
     static let etaDividerHeight = NotchDesign.px(2)
-    /// The list is a grid of small tiles, each an icon with a label over its value.
-    static let etaTileColumns = 2
-    static var etaChipHeight: CGFloat { cardBodyLineHeight + NotchDesign.px(22) }
-    static let etaTileGap = NotchDesign.px(10)
-    static let etaTileCorner = NotchDesign.px(18)
-    static let etaTilePadding = NotchDesign.px(14)
-    static let etaTileIcon = NotchDesign.px(34)
-    static var etaTileLabelHeight: CGFloat { cardBodyLineHeight * 0.95 }
-    static var etaTileHeight: CGFloat { 2 * etaTilePadding + etaTileLabelHeight + cardBodyLineHeight }
+    /// A line of the list: its text and the room around it, with a hairline between lines.
+    static var etaInfoRowHeight: CGFloat { cardBodyLineHeight + NotchDesign.px(22) }
+    static let etaAxisGap = NotchDesign.px(10)
+    static var etaAxisHeight: CGFloat { cardBodyLineHeight * 0.85 }
     /// The tallest the card gets.
-    static var etaCardHeight: CGFloat { etaCardHeight(hasETA: true, rowCount: 10, toggleCount: 2) }
+    static var etaCardHeight: CGFloat { etaCardHeight(hasETA: true, rowCount: 6) }
     static let barHeight     = NotchDesign.px(10.5)
     static let headerGap     = NotchDesign.px(17)    // glyph -> title
     static let headerToBlock = NotchDesign.px(21)

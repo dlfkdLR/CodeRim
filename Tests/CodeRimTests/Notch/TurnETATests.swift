@@ -346,6 +346,25 @@ final class SessionDetailCopyTests: XCTestCase {
         XCTAssertEqual(SessionDetailCopy.modelName("gpt-6.1-sol"), "gpt-6.1-sol")
     }
 
+    func testSectionsMoveTimingOutOfTheListAndFoldEffortIntoTheModel() {
+        let rows = [
+            SessionDetailCopy.Row(label: "Up to", value: "48 min"),
+            SessionDetailCopy.Row(label: "Finishes", value: "8:32 PM"),
+            SessionDetailCopy.Row(label: "State", value: "working"),
+            SessionDetailCopy.Row(label: "Elapsed", value: "5 min"),
+            SessionDetailCopy.Row(label: "Model", value: "Opus 5.5"),
+            SessionDetailCopy.Row(label: "Effort", value: "high"),
+        ]
+        let withEstimate = SessionDetailCopy.sections(rows, hasEstimate: true)
+        XCTAssertEqual(withEstimate.ceiling, "48 min")
+        XCTAssertEqual(withEstimate.finish, "8:32 PM")
+        XCTAssertEqual(withEstimate.elapsed, "5 min")
+        XCTAssertEqual(withEstimate.info.map(\.label), ["State", "Model"])
+        XCTAssertEqual(withEstimate.info.last?.value, "Opus 5.5 · high")
+        // Without an estimate there is no bar to hang elapsed time under.
+        XCTAssertTrue(SessionDetailCopy.sections(rows, hasEstimate: false).info.contains { $0.label == "Elapsed" })
+    }
+
     func testRowsListWhatIsKnownAndNothingElse() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let session = AgentSession(id: "codex.1", name: "p", detail: "d", state: .busy, waitingFor: nil,

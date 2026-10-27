@@ -81,6 +81,38 @@ enum SessionDetailCopy {
         return rows
     }
 
+    /// What the card draws from `rows`. With an estimate, elapsed time and the
+    /// ceiling sit under the bar and the finish time beside the headline; the
+    /// rest is a short list, with effort folded into the model.
+    struct Sections: Equatable {
+        var elapsed: String?
+        var ceiling: String?
+        var finish: String?
+        var info: [Row]
+    }
+
+    static func sections(_ rows: [Row], hasEstimate: Bool) -> Sections {
+        var out = Sections(info: [])
+        var effort: String?
+        for row in rows {
+            switch row.label {
+            case "Up to" where hasEstimate:    out.ceiling = row.value
+            case "Finishes" where hasEstimate: out.finish = row.value
+            case "Elapsed" where hasEstimate:  out.elapsed = row.value
+            case "Effort":                     effort = row.value
+            default:                           out.info.append(row)
+            }
+        }
+        if let effort {
+            if let at = out.info.firstIndex(where: { $0.label == "Model" }) {
+                out.info[at] = Row(label: "Model", value: out.info[at].value + " · " + effort)
+            } else {
+                out.info.append(Row(label: "Effort", value: effort))
+            }
+        }
+        return out
+    }
+
     static func stateWord(_ state: AgentSession.State) -> String {
         switch state {
         case .busy:        return "working"
