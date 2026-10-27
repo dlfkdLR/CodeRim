@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.24 — Fast mode and Daybreak show only while on
+
+- The chat details card now lists Fast mode and Daybreak only while they are on, so a chat with both off no longer carries a row of hollow dots and a long name is no longer cut off. See the [release notes](Documentation/ReleaseNotes/2.1.24.md).
+
 ## 2.1.23 — Redesigned chat details card, finished Claude chats leave the list
 
 - The chat details card is redrawn: a ring that fills as the turn goes with the time range in its centre, and beside it the model, its effort, elapsed time, tokens, finish time and the Fast mode and Daybreak switches in two sizes of type that match the usage card.

@@ -40,7 +40,12 @@ struct TurnETACard: View {
         let facts = facts(session: session, tokens: tokens, line: line, now: now)
         return NotchLayout.etaCardHeight(
             hasETA: line != nil, hasModel: facts.model != nil,
-            hasFlags: facts.fast != nil || facts.daybreak != nil, statCount: facts.stats.count)
+            hasFlags: Self.hasFlags(facts), statCount: facts.stats.count)
+    }
+
+    /// A switch is shown only while it is on; one that is off adds nothing.
+    private static func hasFlags(_ facts: SessionDetailCopy.Facts) -> Bool {
+        facts.fast == true || facts.daybreak == true
     }
 
     private var height: CGFloat { Self.height(snapshot: snapshot, session: session, tokens: tokens, now: now) }
@@ -79,7 +84,7 @@ struct TurnETACard: View {
             }
             .frame(height: NotchLayout.etaBodyHeight(
                 hasETA: line != nil, hasModel: facts.model != nil,
-                hasFlags: facts.fast != nil || facts.daybreak != nil, statCount: facts.stats.count),
+                hasFlags: Self.hasFlags(facts), statCount: facts.stats.count),
                    alignment: .top)
             .padding(.top, NotchLayout.etaCardBarGap)
         }
@@ -228,10 +233,10 @@ struct TurnETACard: View {
                 }
                 .padding(.top, facts.model == nil ? 0 : NotchLayout.etaCardBarGap)
             }
-            if facts.fast != nil || facts.daybreak != nil {
+            if Self.hasFlags(facts) {
                 HStack(spacing: NotchDesign.px(18)) {
-                    if let fast = facts.fast { flag("Fast mode", on: fast) }
-                    if let daybreak = facts.daybreak { flag("Daybreak", on: daybreak) }
+                    if facts.fast == true { flag("Fast mode", on: true) }
+                    if facts.daybreak == true { flag("Daybreak", on: true) }
                 }
                 .frame(height: NotchLayout.etaFlagsHeight, alignment: .leading)
                 .padding(.top, (facts.model == nil && facts.stats.isEmpty) ? 0 : NotchLayout.etaCardBarGap)
