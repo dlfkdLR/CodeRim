@@ -26,13 +26,13 @@ Local counts cover records on **this computer across accounts**. Cached input is
 
 ## Install
 
-**macOS:** [2.1.23](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.23) · **Windows:** [2.1.20](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.20)
+**macOS:** [2.1.24](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.24) · **Windows:** [2.1.20](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.20)
 
 ### macOS
 
 **macOS 14 or later · Apple silicon and Intel.**
 
-[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.23/CodeRim-2.1.23.dmg)
+[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.24/CodeRim-2.1.24.dmg)
 
 ```sh
 brew tap dlfkdLR/tap &&
