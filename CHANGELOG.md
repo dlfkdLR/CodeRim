@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.23 — Redesigned chat details card, finished Claude chats leave the list
+
+- The chat details card is redrawn: a ring that fills as the turn goes with the time range in its centre, and beside it the model, its effort, elapsed time, tokens, finish time and the Fast mode and Daybreak switches in two sizes of type that match the usage card.
+- Claude chats that have been idle for 90 seconds leave the notch's list, as Codex chats already did. See the [release notes](Documentation/ReleaseNotes/2.1.23.md).
+
 ## 2.1.22 — Chat details card, account switching with CLIs running, faster launch
 
 - The time-left card now opens for any chat you hover and lists what it runs on as small tiles: the estimate and finish time, state, elapsed time, tokens, model, reasoning effort, and Fast mode and Daybreak. Elapsed time and tokens moved out of the row into the card, and their settings are gone.

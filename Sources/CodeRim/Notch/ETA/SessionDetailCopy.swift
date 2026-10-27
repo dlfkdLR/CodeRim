@@ -81,36 +81,41 @@ enum SessionDetailCopy {
         return rows
     }
 
-    /// What the card draws from `rows`. With an estimate, elapsed time and the
-    /// ceiling sit under the bar and the finish time beside the headline; the
-    /// rest is a short list, with effort folded into the model.
-    struct Sections: Equatable {
-        var elapsed: String?
-        var ceiling: String?
-        var finish: String?
-        var info: [Row]
+    struct Stat: Equatable {
+        let label: String
+        let value: String
     }
 
-    static func sections(_ rows: [Row], hasEstimate: Bool) -> Sections {
-        var out = Sections(info: [])
+    /// The card as a ring and a column beside it: what the chat runs on, then
+    /// a few figures. With an estimate the ring says the state, so only the
+    /// figures that add something are kept.
+    struct Facts: Equatable {
+        var model: String?
         var effort: String?
+        var fast: Bool?
+        var daybreak: Bool?
+        var stats: [Stat] = []
+    }
+
+    static func facts(_ rows: [Row], hasEstimate: Bool) -> Facts {
+        var out = Facts()
         for row in rows {
             switch row.label {
-            case "Up to" where hasEstimate:    out.ceiling = row.value
-            case "Finishes" where hasEstimate: out.finish = row.value
-            case "Elapsed" where hasEstimate:  out.elapsed = row.value
-            case "Effort":                     effort = row.value
-            default:                           out.info.append(row)
+            case "Model":     out.model = row.value
+            case "Effort":    out.effort = row.value
+            case "Fast mode": out.fast = row.isOn
+            case "Daybreak":  out.daybreak = row.isOn
+            case "State" where hasEstimate: break
+            default:          out.stats.append(Stat(label: row.label, value: row.value))
             }
         }
-        if let effort {
-            if let at = out.info.firstIndex(where: { $0.label == "Model" }) {
-                out.info[at] = Row(label: "Model", value: out.info[at].value + " · " + effort)
-            } else {
-                out.info.append(Row(label: "Effort", value: effort))
-            }
-        }
+        // Elapsed first, as the figure that anchors the others.
+        out.stats.sort { rank($0.label) < rank($1.label) }
         return out
+    }
+
+    private static func rank(_ label: String) -> Int {
+        ["State", "Elapsed", "Tokens", "Finishes", "Up to"].firstIndex(of: label) ?? 9
     }
 
     static func stateWord(_ state: AgentSession.State) -> String {

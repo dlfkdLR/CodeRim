@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// The time-left card: how long is left (or when it should end) and a bar
-/// filling left to right. It opens beside the usage card while a working
-/// session row is hovered, in its own box rather than over the row.
+/// The time-left card: a ring that fills as the turn goes, with the range
+/// inside it, and beside it what the chat runs on and a few figures. It opens
+/// beside the usage card while a session row is hovered, in its own box
+/// rather than over the row.
 struct TurnETACard: View {
     /// Nil for a chat with nothing to estimate (idle, or no history yet): the
-    /// card then shows only where the chat stands and what it runs on.
+    /// card then drops the ring and shows only where the chat stands and what
+    /// it runs on.
     let snapshot: TurnETATracker.Snapshot?
     let session: AgentSession
     let tokens: Int64?
@@ -17,26 +19,28 @@ struct TurnETACard: View {
     var tailY: CGFloat = NotchLayout.etaCardHeight / 2
     @Environment(\.notchAccentColor) private var accentColor
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// What the bar is drawn at. It starts empty and eases to the real value
+    /// What the ring is drawn at. It starts empty and eases to the real value
     /// when the card opens, so the fill reads as arriving rather than as a
-    /// bar that was already there and jumped.
+    /// ring that was already there and jumped.
     @State private var shownProgress: Double = 0
 
     private var line: TurnETACopy.Line? { snapshot.flatMap { TurnETACopy.line(for: $0, now: now) } }
     private var phase: TurnETATracker.Phase { snapshot?.phase ?? .finished }
     private var progress: Double { snapshot?.progress ?? 0 }
-    private var sections: SessionDetailCopy.Sections {
-        SessionDetailCopy.sections(
+    private var facts: SessionDetailCopy.Facts { Self.facts(session: session, tokens: tokens, line: line, now: now) }
+
+    private static func facts(session: AgentSession, tokens: Int64?, line: TurnETACopy.Line?, now: Date) -> SessionDetailCopy.Facts {
+        SessionDetailCopy.facts(
             SessionDetailCopy.rows(for: session, tokens: tokens, line: line, now: now), hasEstimate: line != nil)
     }
 
     /// How tall the card is for what it will show; the panel places it by this.
     static func height(snapshot: TurnETATracker.Snapshot?, session: AgentSession, tokens: Int64?, now: Date) -> CGFloat {
         let line = snapshot.flatMap { TurnETACopy.line(for: $0, now: now) }
-        let rows = SessionDetailCopy.rows(for: session, tokens: tokens, line: line, now: now)
+        let facts = facts(session: session, tokens: tokens, line: line, now: now)
         return NotchLayout.etaCardHeight(
-            hasETA: line != nil,
-            rowCount: SessionDetailCopy.sections(rows, hasEstimate: line != nil).info.count)
+            hasETA: line != nil, hasModel: facts.model != nil,
+            hasFlags: facts.fast != nil || facts.daybreak != nil, statCount: facts.stats.count)
     }
 
     private var height: CGFloat { Self.height(snapshot: snapshot, session: session, tokens: tokens, now: now) }
@@ -49,7 +53,7 @@ struct TurnETACard: View {
     }
 
     var body: some View {
-        let sections = sections
+        let facts = facts
         return VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: NotchDesign.px(10)) {
                 Image(systemName: icon)
@@ -59,30 +63,25 @@ struct TurnETACard: View {
                 Spacer(minLength: 0)
                 if line != nil {
                     Text("beta")
-                        .font(NotchType.cardBody)
                         .foregroundStyle(NotchPalette.textSecondary.opacity(0.8))
                 }
             }
             .font(NotchType.cardBody)
             .foregroundStyle(NotchPalette.textSecondary)
             .frame(height: NotchLayout.cardBodyLineHeight)
-            if let line {
-                headline(line.headline, finish: sections.finish)
-                    .padding(.top, NotchLayout.etaCardLineGap)
-                bar
-                    .padding(.top, NotchLayout.etaCardBarGap)
-                axis(elapsed: sections.elapsed, ceiling: sections.ceiling)
-                    .padding(.top, NotchLayout.etaAxisGap)
-            }
-            if !sections.info.isEmpty {
-                Rectangle()
-                    .fill(NotchPalette.barTrack)
-                    .frame(height: NotchLayout.etaDividerHeight)
-                    .padding(.top, NotchLayout.etaCardBarGap)
-                ForEach(Array(sections.info.enumerated()), id: \.offset) { index, row in
-                    infoRow(row, separated: index > 0)
+
+            HStack(alignment: .center, spacing: NotchLayout.etaColumnGap) {
+                if let line {
+                    ring(line.headline)
                 }
+                column(facts)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .frame(height: NotchLayout.etaBodyHeight(
+                hasETA: line != nil, hasModel: facts.model != nil,
+                hasFlags: facts.fast != nil || facts.daybreak != nil, statCount: facts.stats.count),
+                   alignment: .top)
+            .padding(.top, NotchLayout.etaCardBarGap)
         }
         .padding(.horizontal, NotchLayout.cardPadding)
         .padding(.vertical, NotchLayout.etaCardPadding)
@@ -103,59 +102,11 @@ struct TurnETACard: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(line == nil ? "Chat details" : "Estimated time")
         .accessibilityValue(([line?.headline].compactMap { $0 }
-            + [sections.elapsed.map { "Elapsed \($0)" }, sections.finish.map { "Finishes \($0)" }].compactMap { $0 }
-            + sections.info.map { "\($0.label) \($0.value)" })
+            + [facts.model.map { "Model \($0)" }, facts.effort.map { "Effort \($0)" }].compactMap { $0 }
+            + facts.stats.map { "\($0.label) \($0.value)" }
+            + [facts.fast.map { "Fast mode \($0 ? "on" : "off")" },
+               facts.daybreak.map { "Daybreak \($0 ? "on" : "off")" }].compactMap { $0 })
             .joined(separator: ", "))
-    }
-
-    private var captionFont: Font { .system(size: NotchDesign.fontSize(capPixels: 18) * 0.85, weight: .regular) }
-
-    /// Where the turn stands on the bar, in plain words: time spent at the
-    /// left, the long-tail ceiling at the right.
-    private func axis(elapsed: String?, ceiling: String?) -> some View {
-        HStack {
-            if let elapsed { Text("\(elapsed) in") }
-            Spacer(minLength: 0)
-            if let ceiling { Text("up to \(ceiling)") }
-        }
-        .font(captionFont)
-        .monospacedDigit()
-        .foregroundStyle(NotchPalette.textSecondary)
-        .frame(height: NotchLayout.etaAxisHeight)
-    }
-
-    /// A line of the list: a quiet icon and name on the left, the value on the
-    /// right, a hairline above all but the first.
-    private func infoRow(_ row: SessionDetailCopy.Row, separated: Bool) -> some View {
-        HStack(spacing: NotchDesign.px(12)) {
-            Image(systemName: row.icon)
-                .font(.system(size: NotchDesign.fontSize(capPixels: 18) * 0.85, weight: .regular))
-                .frame(width: NotchDesign.px(30))
-            Text(row.label)
-            Spacer(minLength: NotchDesign.px(12))
-            if row.label == "Fast mode" || row.label == "Daybreak" {
-                Circle()
-                    .fill(row.isOn ? accentColor : Color.clear)
-                    .overlay(Circle().strokeBorder(row.isOn ? accentColor : NotchPalette.textSecondary.opacity(0.7), lineWidth: 1.2))
-                    .frame(width: NotchDesign.px(11), height: NotchDesign.px(11))
-            }
-            Text(row.value)
-                .foregroundStyle(valueColor(row))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-        }
-        .font(NotchType.cardBody)
-        .foregroundStyle(NotchPalette.textSecondary)
-        .frame(height: NotchLayout.etaInfoRowHeight)
-        .overlay(alignment: .top) {
-            if separated { Rectangle().fill(Color.white.opacity(0.07)).frame(height: 1) }
-        }
-    }
-
-    private func valueColor(_ row: SessionDetailCopy.Row) -> Color {
-        if row.isOn { return accentColor }
-        if row.label == "State" { return session.state == .busy ? accentColor : NotchPalette.textPrimary }
-        return NotchPalette.textPrimary
     }
 
     private var icon: String {
@@ -167,69 +118,140 @@ struct TurnETACard: View {
         }
     }
 
-    /// The range is the thing to read, so it is set large; the words around
-    /// it stay quiet. "typically 3–8 min left" becomes a big "3–8 min" and a
-    /// small "left".
-    @ViewBuilder
-    private func headline(_ text: String, finish: String?) -> some View {
-        let lead = "typically ", tail = " left"
-        let big = Font.system(size: NotchDesign.fontSize(capPixels: 18) * 1.6, weight: .bold, design: .rounded)
-        Group {
-            if text.hasPrefix(lead), text.hasSuffix(tail) {
-                HStack(alignment: .firstTextBaseline, spacing: NotchDesign.px(10)) {
-                    Text(String(text.dropFirst(lead.count).dropLast(tail.count)))
-                        .font(big)
-                        .foregroundStyle(NotchPalette.textPrimary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                    Text("left")
-                        .font(NotchType.cardBody)
-                        .foregroundStyle(NotchPalette.textSecondary)
-                    Spacer(minLength: 0)
-                    if let finish {
-                        Text("≈ \(finish)")
-                            .font(NotchType.cardBody)
-                            .monospacedDigit()
-                            .foregroundStyle(NotchPalette.textSecondary)
-                    }
-                }
-            } else {
-                Text(text)
-                    .font(big)
-                    .foregroundStyle(NotchPalette.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-            }
-        }
-        .frame(height: NotchLayout.etaBigLineHeight, alignment: .leading)
-    }
+    // MARK: - The ring
 
-    /// Left to right. A paused turn holds its place; compaction has no
-    /// progress to show, so it breathes instead of moving.
-    private var bar: some View {
-        let height = NotchLayout.etaBarHeight
-        return GeometryReader { proxy in
-            ZStack(alignment: .leading) {
-                Capsule().fill(NotchPalette.barTrack).frame(height: height)
+    /// A paused turn holds its place; compaction has no progress to show, so
+    /// the ring breathes instead of moving.
+    private func ring(_ headline: String) -> some View {
+        let side = NotchLayout.etaRing
+        let stroke = NotchLayout.etaRingStroke
+        return ZStack {
+            ZStack {
+                Circle().stroke(NotchPalette.barTrack, lineWidth: stroke)
                 switch phase {
                 case .compacting:
                     TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
                         let wave = reduceMotion ? 0.6 : 0.5 + 0.35 * sin(context.date.timeIntervalSinceReferenceDate * 3)
-                        Capsule().fill(barColor.opacity(wave)).frame(height: height)
+                        Circle().stroke(barColor.opacity(wave), lineWidth: stroke)
                     }
                 default:
-                    Capsule()
-                        .fill(barColor)
-                        .frame(width: max(height, proxy.size.width * CGFloat(shownProgress)), height: height)
+                    Circle()
+                        .trim(from: 0, to: max(0.012, min(1, shownProgress)))
+                        .stroke(barColor, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
                 }
             }
+            .padding(stroke / 2)
+            centre(headline)
+                .padding(stroke + NotchDesign.px(18))
         }
-        .frame(height: height)
+        .frame(width: side, height: side)
         .onAppear {
-            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.85).delay(0.12)) { shownProgress = progress }
+            withAnimation(reduceMotion ? nil : .easeOut(duration: 0.9).delay(0.1)) { shownProgress = progress }
         }
         .onChange(of: progress) { _, value in
             withAnimation(reduceMotion ? nil : .smooth(duration: 1.1)) { shownProgress = value }
+        }
+    }
+
+    /// "typically 3–8 min left" becomes a "3–8" with "min left" under it.
+    /// Anything that does not read that way ("running long") is set as plain
+    /// words so nothing is cut.
+    @ViewBuilder
+    private func centre(_ text: String) -> some View {
+        let lead = "typically ", tail = " left"
+        let body = text.hasPrefix(lead) && text.hasSuffix(tail)
+            ? String(text.dropFirst(lead.count).dropLast(tail.count)) : nil
+        let parts = body?.split(separator: " ", maxSplits: 1).map(String.init)
+        if let parts, parts.count == 2, parts[0].count <= 8 {
+            VStack(spacing: NotchDesign.px(4)) {
+                Text(parts[0])
+                    .font(.system(size: NotchDesign.fontSize(capPixels: 18) * 1.7, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(NotchPalette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                Text("\(parts[1]) left")
+                    .font(NotchType.cardBody)
+                    .foregroundStyle(NotchPalette.textSecondary)
+                    .lineLimit(1)
+            }
+        } else {
+            Text(body ?? text)
+                .font(NotchType.cardBody.weight(.semibold))
+                .foregroundStyle(NotchPalette.textPrimary)
+                .multilineTextAlignment(.center)
+                .lineLimit(3)
+                .minimumScaleFactor(0.6)
+        }
+    }
+
+    // MARK: - The column
+
+    /// Two sizes and two weights: the model in the card-title weight, every
+    /// other label in the body size and grey, every value in the body size, white.
+    private func column(_ facts: SessionDetailCopy.Facts) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let model = facts.model {
+                Text(model)
+                    .font(NotchType.cardTitle)
+                    .foregroundStyle(NotchPalette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .frame(height: NotchLayout.etaModelHeight, alignment: .leading)
+                Text(facts.effort.map { "\($0) effort" } ?? " ")
+                    .font(NotchType.cardBody)
+                    .foregroundStyle(NotchPalette.textSecondary)
+                    .lineLimit(1)
+                    .frame(height: NotchLayout.etaModelSubHeight, alignment: .leading)
+            }
+            if !facts.stats.isEmpty {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading),
+                                         count: NotchLayout.etaStatColumns),
+                          alignment: .leading, spacing: NotchLayout.etaStatGap) {
+                    ForEach(Array(facts.stats.enumerated()), id: \.offset) { _, stat in
+                        VStack(alignment: .leading, spacing: 0) {
+                            Text(stat.label)
+                                .font(NotchType.cardBody)
+                                .foregroundStyle(NotchPalette.textSecondary)
+                                .frame(height: NotchLayout.cardBodyLineHeight, alignment: .leading)
+                            Text(stat.value)
+                                .font(NotchType.cardBody.weight(.semibold))
+                                .monospacedDigit()
+                                .foregroundStyle(stat.label == "State" && session.state == .busy
+                                                 ? accentColor : NotchPalette.textPrimary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                                .frame(height: NotchLayout.cardBodyLineHeight, alignment: .leading)
+                        }
+                    }
+                }
+                .padding(.top, facts.model == nil ? 0 : NotchLayout.etaCardBarGap)
+            }
+            if facts.fast != nil || facts.daybreak != nil {
+                HStack(spacing: NotchDesign.px(18)) {
+                    if let fast = facts.fast { flag("Fast mode", on: fast) }
+                    if let daybreak = facts.daybreak { flag("Daybreak", on: daybreak) }
+                }
+                .frame(height: NotchLayout.etaFlagsHeight, alignment: .leading)
+                .padding(.top, (facts.model == nil && facts.stats.isEmpty) ? 0 : NotchLayout.etaCardBarGap)
+            }
+        }
+    }
+
+    /// A switch as a dot and its name: filled and in the accent colour when
+    /// on, hollow and quiet when off.
+    private func flag(_ name: String, on: Bool) -> some View {
+        HStack(spacing: NotchDesign.px(8)) {
+            Circle()
+                .fill(on ? accentColor : Color.clear)
+                .overlay(Circle().strokeBorder(on ? accentColor : NotchPalette.textSecondary.opacity(0.7), lineWidth: 1.2))
+                .frame(width: NotchDesign.px(11), height: NotchDesign.px(11))
+            Text(name)
+                .font(NotchType.cardBody)
+                .foregroundStyle(on ? accentColor : NotchPalette.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
     }
 }

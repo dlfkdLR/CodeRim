@@ -140,19 +140,34 @@ enum NotchLayout {
     /// Known from what the card will show, so the panel can place it against a
     /// row without measuring it: the title, the headline and bar when there is
     /// an estimate, then one line for each row of the list.
-    static func etaCardHeight(hasETA: Bool, rowCount: Int) -> CGFloat {
-        var height = 2 * etaCardPadding + cardBodyLineHeight        // the title row
-        if hasETA { height += etaCardLineGap + etaBigLineHeight + etaCardBarGap + etaBarHeight + etaAxisGap + etaAxisHeight }
-        if rowCount > 0 { height += etaCardBarGap + etaDividerHeight + CGFloat(rowCount) * etaInfoRowHeight }
+    static func etaCardHeight(hasETA: Bool, hasModel: Bool, hasFlags: Bool, statCount: Int) -> CGFloat {
+        let title = cardBodyLineHeight
+        return 2 * etaCardPadding + title + etaCardBarGap + etaBodyHeight(hasETA: hasETA, hasModel: hasModel, hasFlags: hasFlags, statCount: statCount)
+    }
+    /// The ring's side, and the column beside it: the model, then the figures two to a line.
+    static let etaRing = NotchDesign.px(166)
+    static let etaRingStroke = NotchDesign.px(10)
+    static let etaColumnGap = NotchDesign.px(34)
+    static var etaModelHeight: CGFloat { cardBodyLineHeight * 1.5 }
+    static var etaModelSubHeight: CGFloat { cardBodyLineHeight }
+    static var etaStatHeight: CGFloat { cardBodyLineHeight * 2 }
+    static let etaStatGap = NotchDesign.px(12)
+    static let etaStatColumns = 2
+    static var etaFlagsHeight: CGFloat { cardBodyLineHeight }
+    static func etaColumnHeight(hasModel: Bool, hasFlags: Bool, statCount: Int) -> CGFloat {
+        var height: CGFloat = 0
+        if hasModel { height += etaModelHeight + etaModelSubHeight }
+        let lines = (statCount + etaStatColumns - 1) / etaStatColumns
+        if lines > 0 { height += (hasModel ? etaCardBarGap : 0) + CGFloat(lines) * etaStatHeight + CGFloat(lines - 1) * etaStatGap }
+        if hasFlags { height += (height > 0 ? etaCardBarGap : 0) + etaFlagsHeight }
         return height
     }
-    static let etaDividerHeight = NotchDesign.px(2)
-    /// A line of the list: its text and the room around it, with a hairline between lines.
-    static var etaInfoRowHeight: CGFloat { cardBodyLineHeight + NotchDesign.px(22) }
-    static let etaAxisGap = NotchDesign.px(10)
-    static var etaAxisHeight: CGFloat { cardBodyLineHeight * 0.85 }
+    static func etaBodyHeight(hasETA: Bool, hasModel: Bool, hasFlags: Bool, statCount: Int) -> CGFloat {
+        let column = etaColumnHeight(hasModel: hasModel, hasFlags: hasFlags, statCount: statCount)
+        return hasETA ? max(etaRing, column) : column
+    }
     /// The tallest the card gets.
-    static var etaCardHeight: CGFloat { etaCardHeight(hasETA: true, rowCount: 6) }
+    static var etaCardHeight: CGFloat { etaCardHeight(hasETA: true, hasModel: true, hasFlags: true, statCount: 4) }
     static let barHeight     = NotchDesign.px(10.5)
     static let headerGap     = NotchDesign.px(17)    // glyph -> title
     static let headerToBlock = NotchDesign.px(21)
