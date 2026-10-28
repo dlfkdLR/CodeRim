@@ -8,7 +8,7 @@ The current Windows release is [**2.1.20**](https://github.com/dlfkdLR/CodeRim/r
 
 Release 2.1.20 keeps usage and alerts of one account from showing for another, marks inconsistent logs as partial instead of dropping them, and keeps iPhone sharing from waiting on an answer that never finishes. See [its notes](ReleaseNotes/2.1.20.md).
 
-macOS 2.1.21 to 2.1.25, released 2026-10-20 to 2026-10-28 (the notch time-left card, a Codex desktop account fix and a Claude account switch that no longer needs the CLI stopped, listed in the [changelog](../CHANGELOG.md)) do not change Windows, which stays at 2.1.20.
+macOS 2.1.21 to 2.1.25, released 2026-10-20 to 2026-10-28 (the notch time-left card, a Codex desktop account fix and a Claude account switch that no longer needs the CLI stopped, listed in the [changelog](../CHANGELOG.md)) leave Windows unchanged, and it stays at 2.1.20.
 
 Release 2.1.18 removes the flicker when the notch opens, especially the first time after start-up. See [its notes](ReleaseNotes/2.1.18.md).
 
