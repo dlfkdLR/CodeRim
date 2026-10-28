@@ -46,6 +46,7 @@ enum NotchPalette {
 
     static let ample         = Color(notchHex: 0x00FF88)   // green
     static let watch         = Color(notchHex: 0xF2FF00)   // yellow
+    static let done          = Color(notchHex: 0x7DB7FF)   // blue
     static let critical      = Color(notchHex: 0xFF3F00)   // orange
 
     static let textPrimary   = Color.white

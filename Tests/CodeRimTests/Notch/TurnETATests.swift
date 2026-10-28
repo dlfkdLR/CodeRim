@@ -384,6 +384,18 @@ final class SessionDetailCopyTests: XCTestCase {
         let bare = AgentSession(id: "x", name: "p", detail: "d", state: .idle, waitingFor: nil, since: now)
         XCTAssertEqual(SessionDetailCopy.rows(for: bare, tokens: nil, line: nil, now: now).map(\.label), ["State"])
     }
+
+    @MainActor
+    func testAFinishedChatKeepsTheRingAndAnUnknownOneDoesNot() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        func card(_ state: AgentSession.State) -> CGFloat {
+            let session = AgentSession(id: "x", name: "p", detail: "d", state: state, waitingFor: nil, since: now)
+            return TurnETACard.height(snapshot: nil, session: session, tokens: nil, now: now)
+        }
+        // The ring fills the body, so a finished chat's card holds at least the ring.
+        XCTAssertGreaterThanOrEqual(card(.idle), NotchLayout.etaRing + 2 * NotchLayout.etaCardPadding)
+        XCTAssertLessThan(card(.unavailable), card(.idle))
+    }
 }
 
 final class RecentTurnPaceTests: XCTestCase {
