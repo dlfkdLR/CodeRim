@@ -4,28 +4,28 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.24</title>
-            <pubDate>Tue, 27 Oct 2026 20:01:56 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.24</link>
-            <sparkle:version>20124</sparkle:version>
-            <sparkle:shortVersionString>2.1.24</sparkle:shortVersionString>
+            <title>2.1.25</title>
+            <pubDate>Wed, 28 Oct 2026 11:06:34 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.25</link>
+            <sparkle:version>20125</sparkle:version>
+            <sparkle:shortVersionString>2.1.25</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.24
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.25
 
 A macOS-only release with one change to the chat details card. Windows stays at 2.1.20.
 
 ## Chat details card
 
-- Fast mode and Daybreak appear as a filled dot and name only while they are on. When both are off the row is gone and the card is shorter; when one is on, its name has the full width and is no longer shortened to "Fast mo…".
+- A chat that has finished and is idle keeps the ring. It is drawn full in blue with a check and "Done" in the middle, and the title reads "Done" with a blue check, so the end of a turn reads as completion instead of the ring disappearing. The state figure is dropped from that card because the ring already says it.
 
 ## Verification
 
 macOS: full local test suite with 0 failures. The card was checked by hand in the running app on the development Mac.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.24/CodeRim-2.1.24.zip" length="32484639" type="application/octet-stream" sparkle:edSignature="Zwjulq2lFMyJWrpV1ZL6PNntM2utzYbBfaGSd6xWLFBM8zTYUkCVK2MMQBlWzRRioJixFg1PNuqw7ty3TIl5Aw=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.25/CodeRim-2.1.25.zip" length="32492068" type="application/octet-stream" sparkle:edSignature="XmTLroeaesVT30dw8YkFhWliJKXmUMjcHHThV6ZrxS4YJ+CDe48Y+JQqk0eyI8lW9xs29aFUBQqqHWuHXuaCDw=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: Jd39/2X3emzw5zEvZ46cZMRxTB5nhwAnULKmK2yBCSdjg8SUifqhkTps6TZXL9mX2vUweIT2OS8yEViYSwCQCA==
-length: 1698
+edSignature: AX6DzpImOm9VexKPcTAxrneOqoHOunu2Xpr0WHlH6gNN/xADTdPI9tshQc+KaF5PK96rk7B81fr8Ja+Cg6Y/CA==
+length: 1787
 -->
