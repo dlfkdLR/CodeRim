@@ -385,6 +385,7 @@ final class SessionDetailCopyTests: XCTestCase {
         XCTAssertEqual(SessionDetailCopy.rows(for: bare, tokens: nil, line: nil, now: now).map(\.label), ["State"])
     }
 
+    @MainActor
     func testAFinishedChatKeepsTheRingAndAnUnknownOneDoesNot() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         func card(_ state: AgentSession.State) -> CGFloat {
