@@ -31,7 +31,7 @@ struct TurnETACard: View {
 
     private static func facts(session: AgentSession, tokens: Int64?, line: TurnETACopy.Line?, now: Date) -> SessionDetailCopy.Facts {
         SessionDetailCopy.facts(
-            SessionDetailCopy.rows(for: session, tokens: tokens, line: line, now: now), hasEstimate: line != nil || isDone(session, line))
+            SessionDetailCopy.rows(for: session, tokens: tokens, line: line, now: now), hasEstimate: showsRing(session, line))
     }
 
     /// How tall the card is for what it will show; the panel places it by this.
@@ -39,7 +39,7 @@ struct TurnETACard: View {
         let line = snapshot.flatMap { TurnETACopy.line(for: $0, now: now) }
         let facts = facts(session: session, tokens: tokens, line: line, now: now)
         return NotchLayout.etaCardHeight(
-            hasETA: line != nil || isDone(session, line), hasModel: facts.model != nil,
+            hasETA: showsRing(session, line), hasModel: facts.model != nil,
             hasFlags: Self.hasFlags(facts), statCount: facts.stats.count)
     }
 
@@ -49,8 +49,19 @@ struct TurnETACard: View {
         line == nil && session.state == .idle
     }
 
+    /// A working turn that is not yet sized keeps its ring too, turning instead
+    /// of filling, so the card does not lose it for the first minute and a half.
+    private static func isMeasuring(_ session: AgentSession, _ line: TurnETACopy.Line?) -> Bool {
+        line == nil && session.state == .busy
+    }
+
+    private static func showsRing(_ session: AgentSession, _ line: TurnETACopy.Line?) -> Bool {
+        line != nil || isDone(session, line) || isMeasuring(session, line)
+    }
+
     private var isDone: Bool { Self.isDone(session, line) }
-    private var showsRing: Bool { line != nil || isDone }
+    private var isMeasuring: Bool { Self.isMeasuring(session, line) }
+    private var showsRing: Bool { Self.showsRing(session, line) }
 
     /// A switch is shown only while it is on; one that is off adds nothing.
     private static func hasFlags(_ facts: SessionDetailCopy.Facts) -> Bool {
@@ -73,9 +84,9 @@ struct TurnETACard: View {
                 Image(systemName: isDone ? "checkmark.circle.fill" : icon)
                     .font(NotchType.cardBody.weight(.semibold))
                     .foregroundStyle(isDone ? NotchPalette.done : barColor)
-                Text(isDone ? "Done" : line == nil ? SessionDetailCopy.stateWord(session.state).capitalized : "Time left")
+                Text(isDone ? "Done" : line == nil && !isMeasuring ? SessionDetailCopy.stateWord(session.state).capitalized : "Time left")
                 Spacer(minLength: 0)
-                if line != nil {
+                if line != nil || isMeasuring {
                     Text("beta")
                         .foregroundStyle(NotchPalette.textSecondary.opacity(0.8))
                 }
@@ -114,7 +125,7 @@ struct TurnETACard: View {
                 .offset(x: tailOnTrailing ? size.width - 1 : -(size.width - 1), y: y - size.height / 2)
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(isDone ? "Finished" : line == nil ? "Chat details" : "Estimated time")
+        .accessibilityLabel(isDone ? "Finished" : isMeasuring ? "Working, time left not yet known" : line == nil ? "Chat details" : "Estimated time")
         .accessibilityValue(([line?.headline].compactMap { $0 }
             + [facts.model.map { "Model \($0)" }, facts.effort.map { "Effort \($0)" }].compactMap { $0 }
             + facts.stats.map { "\($0.label) \($0.value)" }
@@ -150,6 +161,14 @@ struct TurnETACard: View {
                     }
                 case .finished where isDone:
                     Circle().stroke(NotchPalette.done, lineWidth: stroke)
+                case _ where isMeasuring:
+                    TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
+                        let turns = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate / 1.6
+                        Circle()
+                            .trim(from: 0, to: 0.22)
+                            .stroke(barColor, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
+                            .rotationEffect(.degrees(-90 + 360 * (turns - turns.rounded(.down))))
+                    }
                 default:
                     Circle()
                         .trim(from: 0, to: max(0.012, min(1, shownProgress)))
@@ -177,6 +196,12 @@ struct TurnETACard: View {
     private func centre(_ text: String?) -> some View {
         if let text {
             estimateCentre(text)
+        } else if isMeasuring {
+            Text("Working")
+                .font(NotchType.cardBody.weight(.semibold))
+                .foregroundStyle(NotchPalette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
         } else {
             VStack(spacing: NotchDesign.px(6)) {
                 Image(systemName: "checkmark")

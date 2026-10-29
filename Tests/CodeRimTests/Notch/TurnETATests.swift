@@ -479,6 +479,8 @@ final class SessionDetailCopyTests: XCTestCase {
         // The ring fills the body, so a finished chat's card holds at least the ring.
         XCTAssertGreaterThanOrEqual(card(.idle), NotchLayout.etaRing + 2 * NotchLayout.etaCardPadding)
         XCTAssertLessThan(card(.unavailable), card(.idle))
+        // A working turn that is not sized yet keeps the ring as well.
+        XCTAssertGreaterThanOrEqual(card(.busy), NotchLayout.etaRing + 2 * NotchLayout.etaCardPadding)
     }
 }
 
