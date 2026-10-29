@@ -191,25 +191,21 @@ struct TurnETACard: View {
 
     @ViewBuilder
     private func estimateCentre(_ text: String) -> some View {
-        let lead = "typically ", tail = " left"
-        let body = text.hasPrefix(lead) && text.hasSuffix(tail)
-            ? String(text.dropFirst(lead.count).dropLast(tail.count)) : nil
-        let parts = body?.split(separator: " ", maxSplits: 1).map(String.init)
-        if let parts, parts.count == 2, parts[0].count <= 8 {
+        if let label = TurnETACopy.ringLabel(text) {
             VStack(spacing: NotchDesign.px(4)) {
-                Text(parts[0])
+                Text(label.value)
                     .font(.system(size: NotchDesign.fontSize(capPixels: 18) * 1.7, weight: .semibold))
                     .monospacedDigit()
                     .foregroundStyle(NotchPalette.textPrimary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                Text("\(parts[1]) left")
+                    .minimumScaleFactor(0.5)
+                Text(label.unit)
                     .font(NotchType.cardBody)
                     .foregroundStyle(NotchPalette.textSecondary)
                     .lineLimit(1)
             }
         } else {
-            Text(body ?? text)
+            Text(text)
                 .font(NotchType.cardBody.weight(.semibold))
                 .foregroundStyle(NotchPalette.textPrimary)
                 .multilineTextAlignment(.center)

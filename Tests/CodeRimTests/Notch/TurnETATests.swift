@@ -412,6 +412,19 @@ final class RecentTurnPaceTests: XCTestCase {
 }
 
 final class RangeCopyTests: XCTestCase {
+    func testTheRingFigureAlwaysFitsInOnePiece() {
+        func label(_ headline: String) -> String {
+            TurnETACopy.ringLabel(headline).map { "\($0.value)|\($0.unit)" } ?? "nil"
+        }
+        XCTAssertEqual(label("typically 3–8 min left"), "3–8|min left")
+        XCTAssertEqual(label("now typically 4 min left"), "4|min left")
+        XCTAssertEqual(label("typically 25 sec – 3 min left"), "25s–3m|left")
+        XCTAssertEqual(label("typically 1 hr 10 min – 2 hr left"), "1h10m–2h|left")
+        XCTAssertEqual(label("typically 1 hr 10 min left"), "1h10m|left")
+        XCTAssertEqual(label("almost done"), "nil")
+        XCTAssertEqual(label("running long"), "nil")
+    }
+
     func testEndsThatRoundTogetherReadAsOneValue() {
         XCTAssertEqual(TurnETACopy.range(215, 265), "4 min")
         XCTAssertEqual(TurnETACopy.range(180, 480), "3–8 min")
