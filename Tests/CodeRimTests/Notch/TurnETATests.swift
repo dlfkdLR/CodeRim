@@ -53,7 +53,72 @@ final class TurnETATests: XCTestCase {
         }
     }
 
+    // MARK: - Tool calls
+
+    /// Thirty quick turns of one call, thirty long builds of forty.
+    private var mixedByCalls: [TurnHistory.Sample] {
+        (0..<30).map { TurnHistory.Sample(seconds: 120, project: "p", recordedAt: t0, toolCalls: 1 + $0 % 2) }
+            + (0..<30).map { _ in TurnHistory.Sample(seconds: 1_500, project: "p", recordedAt: t0, toolCalls: 40) }
+    }
+
+    func testATurnThatHasCalledManyToolsIsComparedWithBigTurns() {
+        let quiet = TurnETAEstimator.estimate(elapsed: 100, toolCalls: 0, samples: mixedByCalls, project: "p")
+        let busy = TurnETAEstimator.estimate(elapsed: 100, toolCalls: 25, samples: mixedByCalls, project: "p")
+        XCTAssertLessThan(quiet.median, 60)
+        XCTAssertEqual(busy.median, 1_400, accuracy: 1)
+    }
+
+    func testBusierThanAnythingOnRecordFallsBackToTheBusiestTurns() {
+        let busy = TurnETAEstimator.estimate(elapsed: 100, toolCalls: 400, samples: mixedByCalls, project: "p")
+        XCTAssertEqual(busy.median, 1_400, accuracy: 1)
+    }
+
+    func testTurnsThatDoNotSayHowManyCallsTheyMadeAreLeftAsTheyWere() {
+        let unknown = samples
+        let plain = TurnETAEstimator.estimate(elapsed: 100, toolCalls: 0, samples: unknown, project: "p")
+        let busy = TurnETAEstimator.estimate(elapsed: 100, toolCalls: 30, samples: unknown, project: "p")
+        XCTAssertEqual(plain, busy)
+    }
+
+    func testHistoryKeptBeforeCallsWereCountedGainsThemOnTheNextImport() throws {
+        var history = TurnHistory()
+        history.absorb(agent: "claude", [TurnHistory.Sample(seconds: 50, project: "p", recordedAt: t0)])
+        XCTAssertNil(history.samples["claude"]?.first?.toolCalls)
+        history.absorb(agent: "claude", [TurnHistory.Sample(seconds: 50, project: "p", recordedAt: t0, toolCalls: 7)])
+        XCTAssertEqual(history.samples["claude"]?.count, 1)
+        XCTAssertEqual(history.samples["claude"]?.first?.toolCalls, 7)
+
+        // A file written before the field existed still reads.
+        let old = #"{"samples":{"claude":[{"seconds":50,"project":"p","recordedAt":1800000000}]}}"#
+        let decoded = try JSONDecoder().decode(TurnHistory.self, from: Data(old.utf8))
+        XCTAssertEqual(decoded.samples["claude"]?.first?.seconds, 50)
+        XCTAssertNil(decoded.samples["claude"]?.first?.toolCalls)
+    }
+
+    func testAWatchedTurnIsFiledWithItsToolCalls() {
+        var coordinator = TurnETACoordinator()
+        _ = coordinator.absorb(["claude": [session("a", .busy, since: at(0))]], now: at(0))
+        _ = coordinator.absorb(["claude": [session("a", .busy, since: at(0), toolCalls: 12)]], now: at(20))
+        _ = coordinator.absorb(["claude": [session("a", .busy, since: at(0), toolCalls: 5)]], now: at(30))
+        _ = coordinator.absorb(["claude": [session("a", .idle, since: at(41))]], now: at(41))
+        XCTAssertEqual(coordinator.history.samples["claude"]?.first?.toolCalls, 12)
+    }
+
     // MARK: - Tracker
+
+    func testNothingIsSaidAboutATurnUntilItHasHadTimeToShowWhatItIs() {
+        var tracker = TurnETATracker()
+        var snapshot = tracker.update(phase: .working, now: at(0), samples: samples, project: "p")
+        for second in stride(from: 5.0, through: TurnETATracker.warmup - 5, by: 5) {
+            snapshot = tracker.update(phase: .working, now: at(second), samples: samples, project: "p")
+            XCTAssertNil(snapshot.estimate, "at \(second)s")
+        }
+        XCTAssertEqual(snapshot.phase, .working)
+        for second in stride(from: TurnETATracker.warmup, through: TurnETATracker.warmup + 10, by: 5) {
+            snapshot = tracker.update(phase: .working, now: at(second), samples: samples, project: "p")
+        }
+        XCTAssertNotNil(snapshot.estimate)
+    }
 
     func testWaitingStopsTheClockAndHoldsTheBar() {
         var tracker = TurnETATracker()
@@ -134,9 +199,9 @@ final class TurnETATests: XCTestCase {
     // MARK: - Coordinator
 
     private func session(_ id: String, _ state: AgentSession.State, since: Date,
-                         project: String = "p", followUps: Int = 0) -> AgentSession {
+                         project: String = "p", followUps: Int = 0, toolCalls: Int = 0) -> AgentSession {
         AgentSession(id: id, name: id, detail: "", state: state, waitingFor: nil, since: since,
-                     projectKey: project, followUps: followUps)
+                     projectKey: project, followUps: followUps, toolCalls: toolCalls)
     }
 
     func testTurnThatWasWatchedToTheEndIsLearned() {
@@ -170,10 +235,10 @@ final class TurnETATests: XCTestCase {
         coordinator.merge(imported: samples, agent: "claude")
         let key = TurnETACoordinator.key("claude", "a")
         var last: TurnETATracker.Snapshot?
-        for second in stride(from: 0.0, through: 60, by: 2) {
+        for second in stride(from: 0.0, through: 100, by: 2) {
             last = coordinator.absorb(["claude": [session("a", .busy, since: at(0))]], now: at(second)).snapshots[key]
         }
-        let next = coordinator.absorb(["claude": [session("a", .busy, since: at(0), followUps: 1)]], now: at(62)).snapshots[key]
+        let next = coordinator.absorb(["claude": [session("a", .busy, since: at(0), followUps: 1)]], now: at(102)).snapshots[key]
         XCTAssertEqual(next?.extended, true)
         XCTAssertGreaterThan(next?.estimate?.median ?? 0, last?.estimate?.median ?? .infinity)
     }
@@ -217,6 +282,25 @@ final class TurnETATests: XCTestCase {
             now: TurnHistoryImporter.parse("2026-10-07T00:00:00.000Z")!)
         XCTAssertEqual(found.map(\.seconds), [42])
         XCTAssertEqual(found.first?.project, "app")
+    }
+
+    func testImporterCountsEachTurnsToolCallsAndNotASubagents() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("eta-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let log = """
+        {"type":"assistant","timestamp":"2026-10-06T17:00:10.000Z","message":{"content":[{"type":"tool_use","id":"a"},{"type":"tool_use","id":"b"}]}}
+        {"type":"user","timestamp":"2026-10-06T17:00:11.000Z","message":{"content":[{"type":"tool_result","tool_use_id":"a"}]}}
+        {"type":"assistant","isSidechain":true,"timestamp":"2026-10-06T17:00:12.000Z","message":{"content":[{"type":"tool_use","id":"s"}]}}
+        {"type":"assistant","timestamp":"2026-10-06T17:00:13.000Z","message":{"content":[{"type":"tool_use","id":"c"}]}}
+        {"type":"system","subtype":"turn_duration","durationMs":42000,"timestamp":"2026-10-06T17:01:00.000Z","cwd":"/a/b/app"}
+        {"type":"assistant","timestamp":"2026-10-06T17:02:10.000Z","message":{"content":[{"type":"text","text":"hi"}]}}
+        {"type":"system","subtype":"turn_duration","durationMs":9000,"timestamp":"2026-10-06T17:03:00.000Z","cwd":"/a/b/app"}
+        """
+        try log.write(to: root.appendingPathComponent("s.jsonl"), atomically: true, encoding: .utf8)
+        let found = TurnHistoryImporter.claudeSamples(projects: root,
+            now: TurnHistoryImporter.parse("2026-10-07T00:00:00.000Z")!)
+        XCTAssertEqual(found.map(\.toolCalls), [3, 0])
     }
 }
 

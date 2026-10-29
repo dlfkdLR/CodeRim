@@ -231,6 +231,35 @@ final class NotchClaudeTranscriptReaderTests: XCTestCase {
         XCTAssertEqual(reader.activity(sessionID: "abc", cwd: "/Users/vinz/app")?.turn, .inFlight)
     }
 
+    private func call(at stamp: String, ids: [String], sidechain: Bool = false) -> String {
+        let blocks = ids.map { #"{"type":"tool_use","id":"\#($0)"}"# }.joined(separator: ",")
+        let side = sidechain ? #""isSidechain":true,"# : ""
+        return #"{"type":"assistant",\#(side)"timestamp":"\#(stamp)","message":{"stop_reason":"tool_use","content":[\#(blocks)]}}"# + "\n"
+    }
+
+    func testToolCallsAreCountedByBlockAndASubagentsAreLeftOut() {
+        let log = call(at: "2026-10-29T00:00:10.000Z", ids: ["a", "b"])
+            + call(at: "2026-10-29T00:00:11.000Z", ids: ["s"], sidechain: true)
+            + call(at: "2026-10-29T00:00:12.000Z", ids: ["c"])
+        XCTAssertEqual(ClaudeTranscript.toolUses(inTail: Data(log.utf8)).count, 3)
+    }
+
+    func testToolCallsKeepCountingAsTheFileGrowsAndOnlyThisTurnsCount() throws {
+        let begun = ClaudeTranscriptReader.toolCalls(
+            [Date(timeIntervalSince1970: 10), Date(timeIntervalSince1970: 20), Date(timeIntervalSince1970: 30)],
+            since: Date(timeIntervalSince1970: 20))
+        XCTAssertEqual(begun, 2)
+
+        let first = call(at: "2026-10-29T00:00:10.000Z", ids: ["a"])
+        let url = try write(first, folder: "-Users-vinz-app", session: "abc")
+        let reader = ClaudeTranscriptReader(projects: projects)
+        XCTAssertEqual(reader.activity(sessionID: "abc", cwd: "/Users/vinz/app")?.toolUses.count, 1)
+
+        let more = call(at: "2026-10-29T00:00:20.000Z", ids: ["b", "c"])
+        try Data((first + more).utf8).write(to: url)
+        XCTAssertEqual(reader.activity(sessionID: "abc", cwd: "/Users/vinz/app")?.toolUses.count, 3)
+    }
+
     func testRereadsOnceTheFileHasGrown() throws {
         let url = try write(working, folder: "-Users-vinz-app", session: "abc")
         let reader = ClaudeTranscriptReader(projects: projects)

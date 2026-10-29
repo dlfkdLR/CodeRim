@@ -15,6 +15,7 @@ struct TurnETACoordinator {
         var providerID: String
         var project: String?
         var followUps: Int
+        var toolCalls = 0
         var lastSeen: Date
     }
 
@@ -68,7 +69,8 @@ struct TurnETACoordinator {
                             phase: .finished, now: now,
                             samples: [], project: tracked.project)
                         history.record(agent: providerID, project: tracked.project ?? "",
-                                       seconds: snapshot.elapsed, at: now)
+                                       seconds: snapshot.elapsed, at: now,
+                                       toolCalls: tracked.toolCalls > 0 ? tracked.toolCalls : nil)
                         result.learned = true
                     }
                     continue
@@ -83,9 +85,11 @@ struct TurnETACoordinator {
                     tracked.followUps = session.followUps
                 }
                 tracked.lastSeen = now
+                tracked.toolCalls = max(tracked.toolCalls, session.toolCalls)
                 let samples = history.samples[providerID] ?? []
                 result.snapshots[key] = tracked.tracker.update(
-                    phase: phase, now: now, samples: samples, project: tracked.project)
+                    phase: phase, now: now, samples: samples, project: tracked.project,
+                    toolCalls: tracked.toolCalls)
                 trackers[key] = tracked
             }
         }

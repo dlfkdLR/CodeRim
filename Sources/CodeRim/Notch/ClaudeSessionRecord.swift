@@ -83,11 +83,11 @@ struct ClaudeSessionRecord {
     /// `waitingFor` is dropped on purpose: the only states that reach here come
     /// from the transcript, and the transcript cannot see a permission prompt.
     func session(state: AgentSession.State, since: Date, followUps: Int = 0,
-                 details: ModelDetails? = nil) -> AgentSession {
+                 toolCalls: Int = 0, details: ModelDetails? = nil) -> AgentSession {
         AgentSession(id: session.id, name: session.name, detail: session.detail,
                      state: state, waitingFor: nil, since: since, processID: pid, usageSessionID: sessionID,
                      workingDirectory: cwd, projectKey: session.projectKey, followUps: followUps,
-                     transcriptID: session.transcriptID, details: details)
+                     toolCalls: toolCalls, transcriptID: session.transcriptID, details: details)
     }
 
     static func surface(_ entrypoint: String?) -> String {

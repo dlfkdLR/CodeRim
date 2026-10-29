@@ -12,6 +12,18 @@ struct TurnHistory: Codable, Equatable, Sendable {
         let seconds: Double
         let project: String
         let recordedAt: Date
+        /// Tools the agent called in the turn, when its log says. A turn that
+        /// called forty is not the same kind of turn as one that called none,
+        /// whatever their lengths; older records and agents that do not say
+        /// leave it nil.
+        let toolCalls: Int?
+
+        init(seconds: Double, project: String, recordedAt: Date, toolCalls: Int? = nil) {
+            self.seconds = seconds
+            self.project = project
+            self.recordedAt = recordedAt
+            self.toolCalls = toolCalls
+        }
     }
 
     /// Per agent, oldest first. Capped so the file stays small and the
@@ -25,10 +37,11 @@ struct TurnHistory: Codable, Equatable, Sendable {
     /// work takes.
     static let plausible: ClosedRange<Double> = 2...(6 * 60 * 60)
 
-    mutating func record(agent: String, project: String, seconds: Double, at date: Date) {
+    mutating func record(agent: String, project: String, seconds: Double, at date: Date,
+                          toolCalls: Int? = nil) {
         guard seconds.isFinite, Self.plausible.contains(seconds) else { return }
         var list = samples[agent, default: []]
-        list.append(Sample(seconds: seconds, project: project, recordedAt: date))
+        list.append(Sample(seconds: seconds, project: project, recordedAt: date, toolCalls: toolCalls))
         if list.count > Self.perAgentLimit { list.removeFirst(list.count - Self.perAgentLimit) }
         samples[agent] = list
     }
@@ -42,13 +55,31 @@ struct TurnHistory: Codable, Equatable, Sendable {
     /// Merge turns read from an agent's own logs. A turn is identified by when
     /// it was recorded and how long it took, so reading the same log twice
     /// adds nothing.
+    ///
+    /// A turn kept before its tool calls were known gains them when the log is
+    /// read again, so a history built on older versions is filled in over time.
     mutating func absorb(agent: String, _ imported: [Sample]) {
-        var seen = Set((samples[agent] ?? []).map { Key(seconds: $0.seconds, at: $0.recordedAt) })
-        let fresh = imported
-            .filter { Self.plausible.contains($0.seconds) && $0.seconds.isFinite }
-            .filter { seen.insert(Key(seconds: $0.seconds, at: $0.recordedAt)).inserted }
-        guard !fresh.isEmpty else { return }
-        var list = (samples[agent] ?? []) + fresh
+        var existing = samples[agent] ?? []
+        var index: [Key: Int] = [:]
+        for (position, sample) in existing.enumerated() { index[Key(seconds: sample.seconds, at: sample.recordedAt)] = position }
+        var filled = false
+        var fresh: [Sample] = []
+        var added = Set<Key>()
+        for sample in imported where Self.plausible.contains(sample.seconds) && sample.seconds.isFinite {
+            let key = Key(seconds: sample.seconds, at: sample.recordedAt)
+            if let position = index[key] {
+                if existing[position].toolCalls == nil, let calls = sample.toolCalls {
+                    existing[position] = Sample(seconds: sample.seconds, project: existing[position].project,
+                                                recordedAt: existing[position].recordedAt, toolCalls: calls)
+                    filled = true
+                }
+            } else if added.insert(key).inserted {
+                fresh.append(sample)
+            }
+        }
+        guard !fresh.isEmpty || filled else { return }
+        if filled { samples[agent] = existing }
+        var list = existing + fresh
         list.sort { $0.recordedAt < $1.recordedAt }
         if list.count > Self.perAgentLimit { list.removeFirst(list.count - Self.perAgentLimit) }
         samples[agent] = list

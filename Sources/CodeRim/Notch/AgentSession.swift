@@ -58,6 +58,9 @@ struct AgentSession: Identifiable, Equatable, Sendable {
     /// Instructions the person added while this turn was already running.
     /// The turn-time estimate widens each time this goes up.
     let followUps: Int
+    /// Tools the agent has called in the turn under way, as far as its log
+    /// shows: a turn that has called many is a big one, whatever its age.
+    let toolCalls: Int
     /// The id the agent files its own transcript and hooks under, when it
     /// differs from `id`. Claude Code's hooks name sessions this way.
     let transcriptID: String?
@@ -93,6 +96,7 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         workingDirectory: String? = nil,
         projectKey: String? = nil,
         followUps: Int = 0,
+        toolCalls: Int = 0,
         transcriptID: String? = nil,
         isCompacting: Bool = false,
         details: ModelDetails? = nil
@@ -112,6 +116,7 @@ struct AgentSession: Identifiable, Equatable, Sendable {
         self.remoteHostID = host == nil || host == "" || host == "local" ? nil : host
         self.projectKey = projectKey
         self.followUps = followUps
+        self.toolCalls = toolCalls
         self.transcriptID = transcriptID
         self.isCompacting = isCompacting
         self.details = details
@@ -120,11 +125,12 @@ struct AgentSession: Identifiable, Equatable, Sendable {
 
 extension AgentSession {
     /// The same session with what it runs on filled in.
-    func with(details: ModelDetails?) -> AgentSession {
+    func with(details: ModelDetails?, toolCalls: Int? = nil) -> AgentSession {
         AgentSession(id: id, name: name, detail: detail, state: state, waitingFor: waitingFor, since: since,
                      processID: processID, codexThreadID: codexThreadID, parentThread: parentThread,
                      remoteHostID: remoteHostID, usageSessionID: usageSessionID,
                      workingDirectory: workingDirectory, projectKey: projectKey, followUps: followUps,
+                     toolCalls: toolCalls ?? self.toolCalls,
                      transcriptID: transcriptID, isCompacting: isCompacting, details: details)
     }
 
@@ -133,7 +139,7 @@ extension AgentSession {
         AgentSession(id: id, name: name, detail: detail, state: state, waitingFor: waitingFor, since: since,
                      processID: processID, codexThreadID: codexThreadID, parentThread: parentThread,
                      remoteHostID: remoteHostID, usageSessionID: usageSessionID,
-                     workingDirectory: workingDirectory, projectKey: projectKey, followUps: followUps,
+                     workingDirectory: workingDirectory, projectKey: projectKey, followUps: followUps, toolCalls: toolCalls,
                      transcriptID: transcriptID, isCompacting: isCompacting, details: details)
     }
 }
