@@ -250,12 +250,15 @@ final class NotchClaudeTranscriptReaderTests: XCTestCase {
             since: Date(timeIntervalSince1970: 20))
         XCTAssertEqual(begun, 2)
 
-        let first = call(at: "2026-10-29T00:00:10.000Z", ids: ["a"])
+        // Calls older than a turn could be are dropped, so these are made now.
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        let first = call(at: formatter.string(from: Date().addingTimeInterval(-20)), ids: ["a"])
         let url = try write(first, folder: "-Users-vinz-app", session: "abc")
         let reader = ClaudeTranscriptReader(projects: projects)
         XCTAssertEqual(reader.activity(sessionID: "abc", cwd: "/Users/vinz/app")?.toolUses.count, 1)
 
-        let more = call(at: "2026-10-29T00:00:20.000Z", ids: ["b", "c"])
+        let more = call(at: formatter.string(from: Date().addingTimeInterval(-10)), ids: ["b", "c"])
         try Data((first + more).utf8).write(to: url)
         XCTAssertEqual(reader.activity(sessionID: "abc", cwd: "/Users/vinz/app")?.toolUses.count, 3)
     }

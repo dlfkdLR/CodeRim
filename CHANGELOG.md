@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.26 — Time left that knows a big task from a quick one
+
+- A working turn is now sized by how many tools it has called, not only by how long it has run, so a long build no longer reads "2–7 min" a minute in. Claude's calls are counted from its transcript, and past turns are filed with theirs when the logs are read. Codex and OpenCode turns are not counted yet.
+- A turn says nothing about time left for its first 90 seconds; the ring turns with "Working" until it has shown what kind of turn it is.
+- The figure in the middle of the ring is no longer cut off when a range mixes units, and reads "25s–3m". See the [release notes](Documentation/ReleaseNotes/2.1.26.md).
+
 ## 2.1.25 — A finished chat keeps its ring
 
 - On the chat details card, a chat that has finished its turn and sits idle no longer loses its ring: the ring fills in blue with a check and "Done", instead of the card dropping to a plain list. See the [release notes](Documentation/ReleaseNotes/2.1.25.md).
