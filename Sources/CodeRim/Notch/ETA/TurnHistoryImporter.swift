@@ -20,15 +20,41 @@ enum TurnHistoryImporter {
     static func claudeSamples(projects: URL, now: Date = Date(),
                               fileManager: FileManager = .default) -> [TurnHistory.Sample] {
         var samples: [TurnHistory.Sample] = []
+        let turnEnd = Data("\"turn_duration\"".utf8)
+        let sidechain = Data("\"isSidechain\":true".utf8)
         for file in logFiles(under: projects, within: lookback, now: now, fileManager: fileManager) {
-            forEachLine(of: file, containingAny: ["\"turn_duration\""]) { line in
-                if let sample = claudeSample(fromLine: line) { samples.append(sample) }
+            // Tool calls are counted from the bytes of the records that make
+            // them, and handed to the turn that ends next.
+            var calls = 0
+            // Lines are looked at where they lie, not copied: a call that writes
+            // a file is megabytes, and only the turn's end is ever parsed.
+            forEachLine(of: file, containingAny: ["\"turn_duration\"", Self.toolUseNeedle], copying: false) { line in
+                if line.range(of: turnEnd) != nil {
+                    if let sample = claudeSample(fromLine: Data(line), toolCalls: calls) { samples.append(sample) }
+                    calls = 0
+                } else if line.range(of: sidechain) == nil {
+                    calls += occurrences(of: Self.toolUseNeedle, in: line)
+                }
             }
         }
         return samples
     }
 
-    static func claudeSample(fromLine line: Data) -> TurnHistory.Sample? {
+    /// One tool call in a Claude transcript.
+    static let toolUseNeedle = "\"type\":\"tool_use\""
+
+    static func occurrences(of needle: String, in data: Data) -> Int {
+        let pattern = Data(needle.utf8)
+        var count = 0
+        var from = data.startIndex
+        while let found = data.range(of: pattern, in: from..<data.endIndex) {
+            count += 1
+            from = found.upperBound
+        }
+        return count
+    }
+
+    static func claudeSample(fromLine line: Data, toolCalls: Int? = nil) -> TurnHistory.Sample? {
         guard let json = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any],
               json["type"] as? String == "system",
               json["subtype"] as? String == "turn_duration",
@@ -37,7 +63,7 @@ enum TurnHistoryImporter {
               let stamp = json["timestamp"] as? String,
               let date = parse(stamp) else { return nil }
         let folder = ((json["cwd"] as? String) as NSString?)?.lastPathComponent ?? ""
-        return TurnHistory.Sample(seconds: millis / 1000, project: folder, recordedAt: date)
+        return TurnHistory.Sample(seconds: millis / 1000, project: folder, recordedAt: date, toolCalls: toolCalls)
     }
 
     // MARK: - Codex
@@ -127,7 +153,8 @@ enum TurnHistoryImporter {
     /// few dozen records. Lines are matched as bytes and the buffer is trimmed
     /// once per chunk, not once per line: copying what is left of it for every
     /// line made a launch-time import allocate hundreds of megabytes.
-    static func forEachLine(of url: URL, containingAny needles: [String], _ body: (Data) -> Void) {
+    static func forEachLine(of url: URL, containingAny needles: [String], copying: Bool = true,
+                            _ body: (Data) -> Void) {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return }
         defer { try? handle.close() }
         let needleData = needles.map { Data($0.utf8) }
@@ -145,7 +172,7 @@ enum TurnHistoryImporter {
                 var start = carry.startIndex
                 while let end = carry[start...].firstIndex(of: newline) {
                     let line = carry[start..<end]
-                    if matches(line) { body(Data(line)) }
+                    if matches(line) { body(copying ? Data(line) : line) }
                     start = carry.index(after: end)
                 }
                 carry = Data(carry[start...])

@@ -54,6 +54,31 @@ enum TurnETACopy {
         return "\(loText) – \(hiText)"
     }
 
+    /// What goes in the middle of the ring: the range as one short figure and
+    /// the word under it. "typically 3–8 min left" gives ("3–8", "min left");
+    /// ends in different units are shortened so they still fit, "25 sec – 3 min"
+    /// giving ("25s–3m", "left"). Nil when the headline is not a range.
+    static func ringLabel(_ headline: String) -> (value: String, unit: String)? {
+        var text = headline
+        if text.hasPrefix("now ") { text.removeFirst(4) }
+        let lead = "typically ", tail = " left"
+        guard text.hasPrefix(lead), text.hasSuffix(tail) else { return nil }
+        let body = String(text.dropFirst(lead.count).dropLast(tail.count))
+        let ends = body.components(separatedBy: " – ")
+        if ends.count == 2 { return (ends.map(compact).joined(separator: "–"), "left") }
+        for unit in ["min", "sec", "hr"] where body.hasSuffix(" " + unit) {
+            let figure = String(body.dropLast(unit.count + 1))
+            if figure.allSatisfy({ $0.isNumber || $0 == "–" }) { return (figure, unit + " left") }
+        }
+        return (compact(body), "left")
+    }
+
+    /// "1 hr 10 min" becomes "1h10m".
+    private static func compact(_ text: String) -> String {
+        text.replacingOccurrences(of: " hr", with: "h").replacingOccurrences(of: " min", with: "m")
+            .replacingOccurrences(of: " sec", with: "s").replacingOccurrences(of: " ", with: "")
+    }
+
     /// Coarse on purpose: the estimate is not good to the second.
     static func span(_ seconds: TimeInterval) -> String {
         let value = max(0, seconds)

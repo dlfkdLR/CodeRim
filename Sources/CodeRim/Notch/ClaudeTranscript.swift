@@ -160,6 +160,28 @@ enum ClaudeTranscript {
         return nil
     }
 
+    /// When the agent called a tool, for each call in the tail.
+    ///
+    /// Counted by blocks, not lines: one assistant record can carry several
+    /// parallel calls. A subagent's calls are its own and are left out. Lines
+    /// are screened as bytes first, so the many that call nothing are never
+    /// parsed.
+    static func toolUses(inTail data: Data) -> [Date] {
+        let needle = Data("\"tool_use\"".utf8)
+        var stamps: [Date] = []
+        for line in data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true)
+        where line.range(of: needle) != nil {
+            guard let json = (try? JSONSerialization.jsonObject(with: Data(line))) as? [String: Any],
+                  json["type"] as? String == "assistant", json["isSidechain"] as? Bool != true,
+                  let message = json["message"] as? [String: Any],
+                  let content = message["content"] as? [[String: Any]],
+                  let stamp = (json["timestamp"] as? String).flatMap(TurnHistoryImporter.parse) else { continue }
+            let calls = content.filter { $0["type"] as? String == "tool_use" }.count
+            stamps.append(contentsOf: Array(repeating: stamp, count: calls))
+        }
+        return stamps
+    }
+
     /// When instructions were queued behind the running turn.
     ///
     /// Typing while Claude is working does not start a turn; it is filed as a
@@ -236,6 +258,7 @@ final class ClaudeTranscriptReader {
         let size: UInt64
         let event: ClaudeTranscript.Event?
         let queued: [Date]
+        let toolUses: [Date]
         var details: ModelDetails?
     }
 
@@ -261,6 +284,13 @@ final class ClaudeTranscriptReader {
     /// repeating every two seconds for one that simply has no transcript.
     private var scanned: Set<String> = []
     private var titles: [String: TitleScan] = [:]
+    /// Where each session's tool calls have been read up to, and when they were
+    /// made. The end of the file shows only the last few calls of a long turn;
+    /// reading on from where it stopped last time counts them all.
+    private var toolScans: [String: (offset: UInt64, stamps: [Date])] = [:]
+    /// The most read in one look, and how far back a first look goes.
+    private static let toolScanChunk = 8 * 1024 * 1024
+    private static let toolScanFirstLook: UInt64 = 4 * 1024 * 1024
 
     struct TitleScan {
         var offset: UInt64 = 0
@@ -278,7 +308,8 @@ final class ClaudeTranscriptReader {
     /// What the session is doing, and when it last moved. Nil when there is no
     /// transcript to read, or nothing said in it yet.
     func activity(sessionID: String, cwd: String)
-        -> (turn: ClaudeTranscript.Turn, since: Date, eventAt: Date?, followUps: Int, details: ModelDetails?)? {
+        -> (turn: ClaudeTranscript.Turn, since: Date, eventAt: Date?, followUps: Int, toolUses: [Date],
+        details: ModelDetails?)? {
         guard let url = path(sessionID: sessionID, cwd: cwd),
               let attributes = try? fileManager.attributesOfItem(atPath: url.path),
               let modified = attributes[.modificationDate] as? Date
@@ -287,30 +318,60 @@ final class ClaudeTranscriptReader {
 
         let event: ClaudeTranscript.Event?
         let queued: [Date]
+        let toolUses: [Date]
         let details: ModelDetails?
         if let cached = cache[sessionID], cached.modified == modified, cached.size == size {
             event = cached.event
             queued = cached.queued
+            toolUses = cached.toolUses
             details = cached.details
         } else {
             let tail = ClaudeTranscript.tail(of: url)
             event = tail.flatMap(ClaudeTranscript.event(inTail:))
             queued = tail.map(ClaudeTranscript.queuedInstructions(inTail:)) ?? []
+            toolUses = scanToolUses(sessionID: sessionID, url: url, size: size)
             details = tail.flatMap(ClaudeTranscript.details(inTail:))
             cache[sessionID] = Cached(modified: modified, size: size, event: event, queued: queued,
-                                      details: details)
+                                      toolUses: toolUses, details: details)
         }
 
         guard let event else { return nil }
         let turn = event.turn
         if let previous = entered[sessionID], previous.turn == turn {
-            return (turn, previous.at, event.timestamp, Self.followUps(queued, since: previous.at), details)
+            return (turn, previous.at, event.timestamp, Self.followUps(queued, since: previous.at),
+                    toolUses, details)
         }
         // First sight of a change, so the file's own timestamp is the closest
         // thing there is to when it happened.
         let since = event.timestamp ?? modified
         entered[sessionID] = (turn, since)
-        return (turn, since, event.timestamp, Self.followUps(queued, since: since), details)
+        return (turn, since, event.timestamp, Self.followUps(queued, since: since),
+                toolUses, details)
+    }
+
+    private func scanToolUses(sessionID: String, url: URL, size: UInt64) -> [Date] {
+        var state = toolScans[sessionID] ?? (size > Self.toolScanFirstLook ? size - Self.toolScanFirstLook : 0, [])
+        if size < state.offset { state = (0, []) }
+        if size > state.offset, let handle = try? FileHandle(forReadingFrom: url) {
+            defer { try? handle.close() }
+            if (try? handle.seek(toOffset: state.offset)) != nil,
+               let data = try? handle.read(upToCount: Self.toolScanChunk), !data.isEmpty,
+               let lastNewline = data.lastIndex(of: UInt8(ascii: "\n")) {
+                let whole = data[data.startIndex...lastNewline]
+                state.stamps += ClaudeTranscript.toolUses(inTail: Data(whole))
+                state.offset += UInt64(whole.count)
+                // A call older than any plausible turn belongs to none that is running.
+                let cutoff = Date().addingTimeInterval(-6 * 3600)
+                state.stamps.removeAll { $0 < cutoff }
+            }
+        }
+        toolScans[sessionID] = state
+        return state.stamps
+    }
+
+    /// Calls made since a turn began, from the stamps `activity` returns.
+    static func toolCalls(_ stamps: [Date], since: Date) -> Int {
+        stamps.filter { $0 >= since }.count
     }
 
     /// Only instructions queued after the turn began extend it. The first

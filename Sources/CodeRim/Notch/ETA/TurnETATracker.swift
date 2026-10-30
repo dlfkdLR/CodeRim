@@ -48,11 +48,18 @@ struct TurnETATracker {
     /// The bar stops short of full until the turn really ends.
     static let progressCeiling = 0.97
 
+    /// A turn this young has shown too little to be sized. Most end inside it,
+    /// and the ones that do not are the ones a typical-turn estimate is most
+    /// wrong about, so nothing is said until the turn has had time to show
+    /// what it is.
+    static let warmup: TimeInterval = 90
+
     mutating func update(
         phase: Phase,
         now: Date,
         samples: [TurnHistory.Sample],
-        project: String?
+        project: String?,
+        toolCalls: Int = 0
     ) -> Snapshot {
         if let last = lastTick, self.phase == .working {
             activeElapsed += min(max(0, now.timeIntervalSince(last)), Self.tickCeiling)
@@ -72,9 +79,15 @@ struct TurnETATracker {
             break
         }
 
+        if activeElapsed < Self.warmup {
+            return Snapshot(phase: .working, elapsed: activeElapsed, estimate: nil,
+                            progress: shownProgress, extended: carried != nil)
+        }
+
         let episodeStart = carried?.since ?? 0
         let fresh = TurnETAEstimator.estimate(
-            elapsed: activeElapsed - episodeStart, samples: samples, project: project, now: now)
+            elapsed: activeElapsed - episodeStart, toolCalls: toolCalls,
+            samples: samples, project: project, now: now)
         var low = fresh.low, median = fresh.median, high = fresh.high
         var typicalLow = fresh.typicalLow, typicalHigh = fresh.typicalHigh
         if let carried {

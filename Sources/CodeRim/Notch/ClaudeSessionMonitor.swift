@@ -180,11 +180,17 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
             // turn event supersedes it. File mtime includes unrelated bookkeeping
             // and must never be used to overrule a registry status.
             guard activity.turn == .finished, let eventAt = activity.eventAt,
-                  eventAt > record.session.since else { return record.session.with(details: activity.details) }
+                  eventAt > record.session.since else {
+                return record.session.with(
+                    details: activity.details,
+                    toolCalls: ClaudeTranscriptReader.toolCalls(activity.toolUses, since: record.session.since))
+            }
         }
         return record.session(state: activity.turn == .inFlight ? .busy : .idle,
                               since: activity.since,
                               followUps: activity.turn == .inFlight ? activity.followUps : 0,
+                              toolCalls: activity.turn == .inFlight
+                                  ? ClaudeTranscriptReader.toolCalls(activity.toolUses, since: activity.since) : 0,
                               details: activity.details)
     }
 

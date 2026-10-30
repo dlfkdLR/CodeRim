@@ -69,14 +69,33 @@ enum TurnETAEstimator {
     /// distribution of what remains. That is also why the estimate can
     /// *increase* as a turn drags on — a turn that is still going after ten
     /// minutes really is likely to go on for a while.
+    ///
+    /// `toolCalls` is how many tools the turn has already called. It says what
+    /// kind of turn this is, which the clock alone cannot: a reply that has run
+    /// for a minute and called nothing is nearly done, and one that has called
+    /// twenty tools is a build. It conditions the same way time does — a turn
+    /// that has made twenty calls ends with at least twenty — so only turns
+    /// that went at least this far are compared with it.
     static func estimate(
         elapsed: TimeInterval,
+        toolCalls: Int = 0,
         samples: [TurnHistory.Sample],
         project: String?,
         now: Date = Date()
     ) -> TurnETAEstimate {
         let elapsed = elapsed.isFinite ? max(0, elapsed) : 0
-        let tail = samples.filter { $0.seconds.isFinite && $0.seconds > elapsed }
+        var tail = samples.filter { $0.seconds.isFinite && $0.seconds > elapsed }
+        if toolCalls > 0 {
+            let counted = tail.filter { $0.toolCalls != nil }
+            let atLeast = counted.filter { ($0.toolCalls ?? 0) >= toolCalls }
+            if atLeast.count >= minimumTail {
+                tail = atLeast
+            } else if counted.count >= minimumTail {
+                // Busier than nearly anything on record: the busiest turns are
+                // the nearest company there is.
+                tail = Array(counted.sorted { ($0.toolCalls ?? 0) > ($1.toolCalls ?? 0) }.prefix(minimumTail))
+            }
+        }
         let local = tail.filter { project != nil && $0.project == project }
 
         if tail.count >= minimumTail {
