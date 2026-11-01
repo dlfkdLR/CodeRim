@@ -10,7 +10,7 @@ final class ViewedCodexAccountLimitsTests: XCTestCase {
     private var lockAvailable = true
     private var reads: [Data] = []
 
-    override func setUpWithError() throws {
+    override func setUp() async throws {
         directory = FileManager.default.temporaryDirectory.appendingPathComponent("viewed-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
                                                 attributes: [.posixPermissions: 0o700])
@@ -18,7 +18,7 @@ final class ViewedCodexAccountLimitsTests: XCTestCase {
         reads = []
     }
 
-    override func tearDownWithError() throws {
+    override func tearDown() async throws {
         try? FileManager.default.removeItem(at: directory)
     }
 
