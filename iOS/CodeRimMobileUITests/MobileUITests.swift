@@ -7,8 +7,8 @@ final class MobileUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
-        XCTAssertTrue(app.buttons["Scan the QR code on your computer"].waitForExistence(timeout: 10))
-        let scan = app.buttons["Scan the QR code on your computer"]
+        XCTAssertTrue(app.buttons["Scan QR code"].waitForExistence(timeout: 10))
+        let scan = app.buttons["Scan QR code"]
         XCTAssertTrue(scan.exists)
         XCTAssertFalse(app.staticTexts["Could not save the connection details to Keychain."].exists)
         attach("settings", app.screenshot())
@@ -70,13 +70,33 @@ final class MobileUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 2.2)
         attach("dynamic-island-windows", springboard.screenshot())
     }
+    /// With no computer the home screen offers the one thing to do, and a busy relay is announced there.
+    @MainActor
+    func testHomeScreenOffersToPairWhenEmptyAndShowsTheRelayNotice() throws {
+        let empty = XCUIApplication()
+        empty.launchArguments = ["--ui-settings", "--ui-dashboard", "--ui-empty-settings"]
+        empty.launch()
+        XCTAssertTrue(empty.buttons["dashboard-scan"].waitForExistence(timeout: 10))
+        XCTAssertFalse(empty.staticTexts["Tasks"].exists, "There is nothing to count with no computer")
+        empty.buttons["dashboard-scan"].tap()
+        XCTAssertTrue(empty.navigationBars["Scan QR code"].waitForExistence(timeout: 5))
+        empty.terminate()
+
+        let busy = XCUIApplication()
+        busy.launchArguments = ["--ui-settings", "--ui-dashboard", "--ui-notice"]
+        busy.launch()
+        XCTAssertTrue(busy.otherElements["dashboard-relay-notice"].waitForExistence(timeout: 10)
+                      || busy.staticTexts["The CodeRim relay is busy today, so updates arrive less often."].waitForExistence(timeout: 2))
+        XCTAssertTrue(busy.staticTexts["Tasks"].exists)
+    }
+
     @MainActor
     func testExpandedQuotaBoundariesOfflineAndUnknownStates() throws {
         let app = XCUIApplication()
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_GB"]
         app.launch()
-        XCTAssertTrue(app.buttons["Scan the QR code on your computer"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Scan QR code"].waitForExistence(timeout: 10))
         for scenario in ["low", "full", "offline", "unknown", "denied", "auth-working", "unpaired", "generic", "user-content"] {
             app.terminate()
             app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_GB", "--ui-preview", "--ui-\(scenario)"]
@@ -125,16 +145,16 @@ final class MobileUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-dark"]
         app.launch()
-        XCTAssertTrue(app.buttons["Scan the QR code on your computer"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Scan QR code"].waitForExistence(timeout: 10))
         Thread.sleep(forTimeInterval: 2) // UIWindow appearance transition can outlive AX readiness.
         attach("welcome-dark", app.screenshot())
         app.terminate()
         app.launchArguments = ["--ui-large-text"]
         app.launch()
-        XCTAssertTrue(app.buttons["Scan the QR code on your computer"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Scan QR code"].waitForExistence(timeout: 10))
         attach("welcome-large-text", app.screenshot())
         app.swipeUp()
-        XCTAssertTrue(app.buttons["Scan the QR code on your computer"].isHittable)
+        XCTAssertTrue(app.buttons["Scan QR code"].isHittable)
         attach("welcome-large-text-connect", app.screenshot())
         app.terminate()
         app.launchArguments = ["--ui-settings", "--ui-empty-settings"]

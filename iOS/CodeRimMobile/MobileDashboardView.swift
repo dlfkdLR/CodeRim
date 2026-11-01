@@ -28,6 +28,7 @@ enum MobileRoute: Hashable { case settings, showing }
 /// What the connected computers are doing right now: the Island, its tasks and usage.
 struct MobileDashboardView: View {
     @ObservedObject var model: MobileAppModel
+    @State private var scanning = false
     private var state: MobileActivityState { model.state }
     private var provider: MobileProvider? { state.providers.first }
     private var online: Int { model.devices.filter(\.online).count }
@@ -36,9 +37,12 @@ struct MobileDashboardView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 header
-                islandCard
-                if !model.activityActive { islandButton }
-                tasks
+                if let notice = model.serverNotice { relayNotice(notice) }
+                if model.devices.isEmpty { addComputer } else {
+                    islandCard
+                    if !model.activityActive { islandButton }
+                }
+                if !model.devices.isEmpty { tasks }
                 if let provider, !provider.windows.isEmpty || provider.todayTokens != nil { usage(provider) }
                 if let error = model.errorMessage {
                     Label(error, systemImage: "exclamationmark.circle.fill")
@@ -53,6 +57,7 @@ struct MobileDashboardView: View {
         }
         .background(Color(.systemGroupedBackground))
         .refreshable { await model.refresh() }
+        .sheet(isPresented: $scanning) { MobileQRScanner { link in Task { await model.connect(link) } } }
         .navigationTitle("CodeRim")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -91,6 +96,38 @@ struct MobileDashboardView: View {
         if model.devices.isEmpty { return "Open Settings to pair a Mac or Windows PC." }
         let count = model.devices.count == 1 ? "1 computer" : "\(model.devices.count) computers"
         return "\(count) · \(online) online"
+    }
+
+    // MARK: Notices
+
+    /// The shared relay is rationing its free daily allowance. Settings has always said so; the
+    /// screen people actually open should too.
+    private func relayNotice(_ text: String) -> some View {
+        Label(text, systemImage: "hourglass")
+            .font(.footnote).foregroundStyle(.orange)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .accessibilityIdentifier("dashboard-relay-notice")
+    }
+
+    /// With no computer there is nothing to show, so the one thing to do is offered here.
+    private var addComputer: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Nothing is connected yet.").font(.headline)
+            Text("On your Mac or Windows PC, open CodeRim → Settings → iPhone and choose Connect iPhone. Then scan the code it shows.")
+                .font(.subheadline).foregroundStyle(.secondary)
+            Button { scanning = true } label: {
+                Label("Scan QR code", systemImage: "qrcode.viewfinder")
+                    .font(.headline).frame(maxWidth: .infinity)
+            }
+            .buttonStyle(PrimaryCapsuleButtonStyle())
+            .disabled(model.busy)
+            .accessibilityIdentifier("dashboard-scan")
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     // MARK: Island

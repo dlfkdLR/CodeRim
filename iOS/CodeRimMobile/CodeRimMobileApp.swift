@@ -120,7 +120,10 @@ private actor DebugSettingsRelay: MobileRelayServing {
                               .init(providerID: id, phase: .working, title: "Refactor relay polling", since: now - 610)]
             state.workingCount = 1; state.waitingCount = 1; state.additionalSessionCount = 1
         }
-        let response = MobileSnapshotResponse(state: state, preferences: preferences, availableProviders: options, devices: devices, displayProviders: displayed)
+        var response = MobileSnapshotResponse(state: state, preferences: preferences, availableProviders: options, devices: devices, displayProviders: displayed)
+        if ProcessInfo.processInfo.arguments.contains("--ui-notice") {
+            response.notice = "The CodeRim relay is busy today, so updates arrive less often."
+        }
         return try JSONDecoder().decode(Response.self, from: JSONEncoder().encode(response))
     }
     func send<Response: Decodable & Sendable, Body: Encodable & Sendable>(

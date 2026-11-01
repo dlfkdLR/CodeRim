@@ -22,6 +22,9 @@ final class MobileAppModel: ObservableObject {
     @Published private(set) var dashboardRequest = 0
     /// When the relay last answered, for "Updated … ago".
     @Published private(set) var lastRefresh: Date?
+    /// The notice the last failed refresh put up, so a later good refresh can take down that one and
+    /// leave any other action's error alone.
+    private var refreshError: String?
     private var credential: MobileCredential?
     private var client: (any MobileRelayServing)?
     private var loginGeneration = UUID()
@@ -60,9 +63,23 @@ final class MobileAppModel: ObservableObject {
             }
         } catch {
             guard generation == loginGeneration else { return }
-            errorMessage = error.localizedDescription
+            errorMessage = Self.message(for: error)
             if case MobileRelayError.expired = error { await clearLocalLogin() }
         }
+    }
+
+    /// What a person reads for a failure: a dropped signal says so, instead of a system error code.
+    static func message(for error: Error) -> String {
+        if let url = error as? URLError {
+            switch url.code {
+            case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed, .internationalRoamingOff:
+                return "You're offline. Showing the last update from your computer."
+            case .timedOut, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed, .secureConnectionFailed:
+                return "Can't reach the CodeRim relay right now. It will try again."
+            default: break
+            }
+        }
+        return error.localizedDescription
     }
 
     var selectionOptions: [MobileProviderOption] {
@@ -110,7 +127,7 @@ final class MobileAppModel: ObservableObject {
             errorMessage = "This QR code has expired or was already used. Show a new one on your computer."
         } catch MobileRelayError.rejected(409) {
             errorMessage = "This QR code was already used. Show a new one on your computer."
-        } catch { errorMessage = error.localizedDescription }
+        } catch { errorMessage = Self.message(for: error) }
     }
 
     private func activate(_ saved: MobileCredential) throws {
@@ -178,9 +195,13 @@ final class MobileAppModel: ObservableObject {
             let response: MobileSnapshotResponse = try await client.get("/v1/snapshot", token: credential.token)
             guard generation == loginGeneration else { return }
             _ = try await apply(response, token: credential.token)
+            // The relay answered: clear the notice a failed refresh raised, and only that one.
+            if let shown = refreshError, errorMessage == shown { errorMessage = nil }
+            refreshError = nil
         } catch {
             guard generation == loginGeneration else { return }
-            errorMessage = error.localizedDescription
+            errorMessage = Self.message(for: error)
+            refreshError = errorMessage
             if case MobileRelayError.rejected(401) = error { await clearLocalLogin() }
             if case MobileRelayError.expired = error { await clearLocalLogin() }
         }
@@ -310,7 +331,7 @@ final class MobileAppModel: ObservableObject {
     /// A late failure from an earlier login says nothing about the current one.
     private func settingsFailed(_ error: Error, generation: UUID) {
         guard generation == loginGeneration else { return }
-        errorMessage = error.localizedDescription
+        errorMessage = Self.message(for: error)
         if case MobileRelayError.rejected(401) = error { Task { await clearLocalLogin() } }
     }
 
@@ -422,7 +443,7 @@ final class MobileAppModel: ObservableObject {
             let _: MobileOK = try await client.send("DELETE", deleteAccount ? "/v1/account" : "/v1/session", token: credential.token, body: MobileEmpty())
             if deleteAccount { await clearLocalLogin() }
         } catch {
-            errorMessage = deleteAccount ? error.localizedDescription
+            errorMessage = deleteAccount ? Self.message(for: error)
                 : "Signed out on your iPhone. The server could not be reached; the remote session will be removed when it expires."
         }
     }
@@ -432,7 +453,7 @@ final class MobileAppModel: ObservableObject {
         self.credential = nil; signedIn = false
         await stopActivity()
         do { try await credentials.delete() }
-        catch { errorMessage = error.localizedDescription }
+        catch { errorMessage = Self.message(for: error) }
         serverNotice = nil; preferences = MobilePreferences(); providers = []; displayProviders = []; devices = []; state = .disconnected
     }
 }

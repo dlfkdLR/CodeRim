@@ -23,8 +23,57 @@ private actor OfflineLogoutRelay: MobileRelayServing {
     }
 }
 
+/// Answers the snapshot, or fails the way a phone with no signal does.
+private actor FlakyRelay: MobileRelayServing {
+    nonisolated let endpoint = URL(string: "https://relay.example.com")!
+    var failure: Error?
+    func setFailure(_ error: Error?) { failure = error }
+    func get<Response: Decodable & Sendable>(_ path: String, token: String) throws -> Response {
+        if let failure { throw failure }
+        let data = Data(#"{"state":{"connection":"connected","updatedAt":1790000000,"staleAt":1790000600,"providers":[],"sessions":[],"additionalSessionCount":0,"workingCount":0,"waitingCount":0,"unavailableCount":0},"preferences":{"providerIDs":["codex"]},"availableProviders":[{"id":"codex","name":"Codex"}]}"#.utf8)
+        return try JSONDecoder().decode(Response.self, from: data)
+    }
+    func send<Response: Decodable & Sendable, Body: Encodable & Sendable>(_ method: String, _ path: String, token: String?, body: Body) throws -> Response {
+        throw URLError(.notConnectedToInternet)
+    }
+}
+
 @MainActor
 final class MobileLifecycleTests: XCTestCase {
+    /// A dropped signal says so in plain words, and the notice goes away by itself
+    /// once the relay answers again, instead of staying red until the app is reopened.
+    func testAnOfflineNoticeClearsWhenTheRelayAnswersAgain() async throws {
+        let relay = FlakyRelay()
+        let model = MobileAppModel(credentials: MemoryCredentials(credential()), makeClient: { _ in relay })
+        await model.restore()
+        XCTAssertNil(model.errorMessage)
+
+        await relay.setFailure(URLError(.notConnectedToInternet))
+        await model.refresh()
+        XCTAssertEqual(model.errorMessage, "You're offline. Showing the last update from your computer.")
+        XCTAssertTrue(model.signedIn)
+
+        await relay.setFailure(URLError(.timedOut))
+        await model.refresh()
+        XCTAssertEqual(model.errorMessage, "Can't reach the CodeRim relay right now. It will try again.")
+
+        await relay.setFailure(nil)
+        await model.refresh()
+        XCTAssertNil(model.errorMessage)
+    }
+
+    /// Only the notice a refresh raised is cleared by a refresh; a problem another action
+    /// reported (say, Live Activities not allowed) is not hidden by the next poll.
+    func testARefreshDoesNotHideAnotherActionsError() async throws {
+        let relay = FlakyRelay()
+        let model = MobileAppModel(credentials: MemoryCredentials(credential()), makeClient: { _ in relay })
+        await model.restore()
+        await model.selectProvider("codex", enabled: false)
+        XCTAssertEqual(model.errorMessage, "Select at least one provider to display.")
+        await model.refresh()
+        XCTAssertEqual(model.errorMessage, "Select at least one provider to display.")
+    }
+
     private func credential(expiresAt: Double = Date().addingTimeInterval(600).timeIntervalSince1970) -> MobileCredential {
         .init(endpoint: URL(string: "https://relay.example.com")!,
               session: .init(token: "synthetic-test-token", expiresAt: expiresAt))

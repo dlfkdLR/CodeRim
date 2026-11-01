@@ -55,7 +55,9 @@ struct MobileWelcomeView: View {
                 }
                 .buttonStyle(PrimaryCapsuleButtonStyle())
                 .disabled(model.busy)
-                .accessibilityLabel("Scan the QR code on your computer")
+                // Starts with the visible words, so Voice Control's "tap Scan QR code" finds it.
+                .accessibilityLabel("Scan QR code")
+                .accessibilityHint("Scans the code your computer shows in CodeRim Settings, iPhone")
                 Label("No sign-in. Your AI accounts stay on your computers.", systemImage: "lock.fill")
                     .font(.footnote).foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
