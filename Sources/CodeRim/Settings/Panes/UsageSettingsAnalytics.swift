@@ -8,6 +8,7 @@ struct UsageSettingsAnalytics: View {
     @AppStorage("numberStyle") private var numberStyle = TokenNumberStyle.compact.rawValue
     @AppStorage("showCachedInput") private var showsCachedInput = true
     @AppStorage("sessionsEnabled") private var sessionsEnabled = AppPreferences.defaultSessionsEnabled
+    @AppStorage("projectsEnabled") private var projectsEnabled = AppPreferences.defaultProjectsEnabled
     @EnvironmentObject private var state: SettingsUsageAnalyticsState
 
     private var range: AnalyticsRange { navigation.usageRange == .today ? .sevenDays : navigation.usageRange }
@@ -19,6 +20,7 @@ struct UsageSettingsAnalytics: View {
             totalUsage
             if let snapshot, snapshot.quality != .unavailable, snapshot.quality != .error {
                 if sessionsEnabled { topSessions(snapshot) }
+                if projectsEnabled { topProjects(snapshot) }
                 localHistory
                 modelActivity(snapshot)
             }
@@ -75,6 +77,9 @@ struct UsageSettingsAnalytics: View {
                             }
                             .font(.caption).foregroundStyle(.secondary)
                             legend(data.series(for: data.bucket(at: state.selectedDate)))
+                            if let day = data.bucket(at: state.selectedDate), !day.models.isEmpty {
+                                dayModels(day)
+                            }
                         }
                         if let status = snapshotStatus(snapshot) {
                             Label(status, systemImage: "exclamationmark.triangle")
@@ -184,39 +189,51 @@ struct UsageSettingsAnalytics: View {
             heading("Top sessions", subtitle: "Sessions ranked by tokens in this period")
             card {
                 VStack(spacing: 0) {
-                    HStack {
-                        Text("Session").frame(maxWidth: .infinity, alignment: .leading)
-                        Text("Share").frame(width: 64, alignment: .trailing)
-                        Text("Tokens").frame(width: 100, alignment: .trailing)
-                    }
-                    .font(.caption).foregroundStyle(.secondary).padding(.horizontal, 16).padding(.vertical, 10)
+                    tableHeader("Session", count: nil)
                     if sessions.isEmpty {
                         Divider()
                         Text("No sessions in this period").font(.callout).foregroundStyle(.secondary).padding(20)
                     }
                     ForEach(Array(sessions.prefix(state.showsAllSessions ? sessions.count : 5))) { session in
-                        Divider()
+                        Divider().opacity(0.6)
                         DisclosureGroup(isExpanded: Binding(
                             get: { state.expandedSessions.contains(session.id) },
                             set: { if $0 { state.expandedSessions.insert(session.id) } else { state.expandedSessions.remove(session.id) } }
                         )) {
-                            VStack(alignment: .leading, spacing: 12) {
-                                Text(session.id).font(.caption.monospaced()).foregroundStyle(.secondary).textSelection(.enabled)
-                                tokenBreakdown(session.usage)
-                                Text("Last active \(session.lastActivityAt.formatted(date: .abbreviated, time: .shortened))")
-                                    .font(.caption).foregroundStyle(.secondary)
+                            VStack(alignment: .leading, spacing: 14) {
+                                Text(session.id).font(.caption2.monospaced()).foregroundStyle(.tertiary)
+                                    .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+                                HStack(alignment: .top, spacing: 14) {
+                                    detailPanel("Tokens") { tokenBreakdown(session.usage) }
+                                    detailPanel("Activity") {
+                                        sessionFacts(session)
+                                        textRow("Last active", session.lastActivityAt.formatted(date: .abbreviated, time: .shortened))
+                                    }
+                                }
+                                if !session.models.isEmpty {
+                                    detailPanel("Models") {
+                                        ForEach(session.models.sorted(by: ModelUsageSummary.byUsageThenName)) { model in
+                                            valueRow(model.displayName, value: model.usage.totalTokens)
+                                        }
+                                    }
+                                }
                                 MenuLink(destination: .session(id: session.id, range: range)) {
                                     Label("Session details", systemImage: "arrow.up.right").font(.callout)
                                 }
-                            }.padding(.vertical, 10)
+                            }.padding(.top, 8).padding(.bottom, 6)
                         } label: {
                             HStack(spacing: 12) {
-                                Text(session.displayName).lineLimit(1).truncationMode(.middle)
-                                    .frame(maxWidth: .infinity, alignment: .leading).help(session.displayName)
-                                Text(snapshot.usage.totalTokens > 0
-                                     ? (Double(session.usage.totalTokens) / Double(snapshot.usage.totalTokens)).formatted(.percent.precision(.fractionLength(1))) : "—")
-                                    .frame(width: 64, alignment: .trailing)
-                                Text(formatted(session.usage.totalTokens)).frame(width: 100, alignment: .trailing)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(session.displayName).lineLimit(1).truncationMode(.middle).help(session.displayName)
+                                    if let summary = sessionSubtitle(session) {
+                                        Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                    }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                shareCell(snapshot.usage.totalTokens > 0
+                                          ? Double(session.usage.totalTokens) / Double(snapshot.usage.totalTokens) : 0)
+                                Text(formatted(session.usage.totalTokens)).fontWeight(.medium)
+                                    .frame(width: 84, alignment: .trailing)
                             }.font(.callout).monospacedDigit()
                         }
                         .padding(.horizontal, 16).padding(.vertical, 10)
@@ -229,6 +246,164 @@ struct UsageSettingsAnalytics: View {
                     .accessibilityIdentifier("settings.usage.moreSessions")
             }
         }
+    }
+
+    /// Every model that ran on the selected day, whichever grouping the chart uses.
+    private func dayModels(_ day: UsageBucket) -> some View {
+        detailPanel("Models that day") {
+            ForEach(day.models.sorted(by: ModelUsageSummary.byUsageThenName)) { model in
+                valueRow(model.displayName, value: model.usage.totalTokens)
+            }
+        }
+    }
+
+    private struct RankedRow: Identifiable {
+        let id: String
+        let title: String
+        var subtitle: String?
+        var tint: Color?
+        var count: Int?
+        let tokens: Int64
+    }
+
+    private func tableHeader(_ first: String, count: String?) -> some View {
+        HStack(spacing: 12) {
+            Text(first).frame(maxWidth: .infinity, alignment: .leading)
+            if let count { Text(count).frame(width: 64, alignment: .trailing) }
+            Text("Share").frame(width: Self.shareWidth, alignment: .trailing)
+            Text("Tokens").frame(width: 84, alignment: .trailing)
+        }
+        .font(.caption.weight(.medium)).foregroundStyle(.secondary)
+        .padding(.horizontal, 16).padding(.vertical, 10)
+    }
+
+    private static let shareWidth: CGFloat = 112
+
+    /// A percentage with a thin proportional bar, so the ranking reads at a glance.
+    private func shareCell(_ fraction: Double, tint: Color = .accentColor) -> some View {
+        HStack(spacing: 8) {
+            Capsule().fill(Color.primary.opacity(0.08))
+                .frame(width: 44, height: 5)
+                .overlay(alignment: .leading) {
+                    GeometryReader { proxy in
+                        Capsule().fill(tint.opacity(0.85))
+                            .frame(width: max(fraction > 0 ? 3 : 0, proxy.size.width * min(fraction, 1)))
+                    }
+                }
+            Text(fraction.formatted(.percent.precision(.fractionLength(1)))).frame(width: 52, alignment: .trailing)
+        }
+        .frame(width: Self.shareWidth, alignment: .trailing)
+    }
+
+    private func rankedRow(_ row: RankedRow, total: Int64, showsCount: Bool) -> some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 10) {
+                if let tint = row.tint { Circle().fill(tint).frame(width: 8, height: 8) }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(row.title).lineLimit(1).truncationMode(.middle)
+                    if let subtitle = row.subtitle {
+                        Text(subtitle).font(.caption).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .help(row.subtitle.map { "\(row.title) · \($0)" } ?? row.title)
+            if showsCount { Text((row.count ?? 0).formatted()).foregroundStyle(.secondary).frame(width: 64, alignment: .trailing) }
+            shareCell(total > 0 ? Double(row.tokens) / Double(total) : 0, tint: row.tint ?? .accentColor)
+            Text(formatted(row.tokens)).fontWeight(.medium).frame(width: 84, alignment: .trailing)
+        }
+        .font(.callout).monospacedDigit()
+        .padding(.horizontal, 16).padding(.vertical, 11)
+    }
+
+    private func rankedTable(first: String, count: String?, rows: [RankedRow], total: Int64, empty: String) -> some View {
+        VStack(spacing: 0) {
+            tableHeader(first, count: count)
+            if rows.isEmpty {
+                Divider()
+                Text(empty).font(.callout).foregroundStyle(.secondary).padding(20)
+            }
+            ForEach(rows) { row in
+                Divider().opacity(0.6)
+                rankedRow(row, total: total, showsCount: count != nil)
+            }
+        }
+    }
+
+    private func leadModel(_ models: [ModelUsageSummary]) -> String? {
+        let sorted = models.sorted(by: ModelUsageSummary.byUsageThenName)
+        guard let lead = sorted.first else { return nil }
+        return sorted.count > 1 ? "\(lead.displayName) +\(sorted.count - 1)" : lead.displayName
+    }
+
+    private func modelList(_ snapshot: AnalyticsSnapshot) -> some View {
+        let models = snapshot.models.sorted(by: ModelUsageSummary.byUsageThenName)
+        let rows = models.enumerated().map { index, model in
+            RankedRow(id: model.id, title: model.displayName, tint: colors[index % colors.count],
+                      count: snapshot.sessions.filter { $0.models.contains { $0.id == model.id } }.count,
+                      tokens: model.usage.totalTokens)
+        }
+        return VStack(spacing: 0) {
+            Divider()
+            rankedTable(first: "Model", count: "Sessions", rows: rows, total: snapshot.usage.totalTokens,
+                        empty: "No models in this period")
+                .padding(.horizontal, -16)
+        }
+    }
+
+    private func topProjects(_ snapshot: AnalyticsSnapshot) -> some View {
+        let rows = snapshot.projects.sorted(by: ProjectUsageSummary.byUsageThenName).prefix(5).map {
+            RankedRow(id: $0.id, title: $0.name, subtitle: leadModel($0.models), count: $0.sessionCount,
+                      tokens: $0.usage.totalTokens)
+        }
+        return VStack(alignment: .leading, spacing: 12) {
+            heading("Top projects", subtitle: "Projects ranked by tokens in this period")
+            card {
+                rankedTable(first: "Project", count: "Sessions", rows: Array(rows),
+                            total: snapshot.usage.totalTokens, empty: "No projects in this period")
+            }
+        }
+    }
+
+    /// The model that carried most of the session, with how many others joined it.
+    private func sessionSubtitle(_ session: SessionUsageSummary) -> String? {
+        guard let lead = session.models.sorted(by: ModelUsageSummary.byUsageThenName).first else { return nil }
+        let others = session.models.count - 1
+        return others > 0 ? "\(lead.displayName) +\(others)" : lead.displayName
+    }
+
+    @ViewBuilder
+    private func sessionFacts(_ session: SessionUsageSummary) -> some View {
+        VStack(spacing: 8) {
+            if let started = session.startedAt {
+                textRow("Started", started.formatted(date: .abbreviated, time: .shortened))
+                let duration = session.lastActivityAt.timeIntervalSince(started)
+                if duration >= 60 {
+                    textRow("Duration", Duration.seconds(duration).formatted(.units(allowed: [.days, .hours, .minutes], width: .abbreviated)))
+                }
+            }
+            if session.usage.inputTokens > 0 {
+                textRow("Cache hit", (Double(session.usage.cachedInputTokens) / Double(session.usage.inputTokens))
+                    .formatted(.percent.precision(.fractionLength(1))))
+            }
+            if session.directSubagentCount > 0 { textRow("Sub-agents", session.directSubagentCount.formatted()) }
+            if session.imageAttachmentCount > 0 { textRow("Images", session.imageAttachmentCount.formatted()) }
+        }
+    }
+
+    private func detailPanel<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+        .padding(12)
+        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
+    }
+
+    private func textRow(_ title: String, _ value: String) -> some View {
+        HStack { Text(title).foregroundStyle(.secondary); Spacer(); Text(value).monospacedDigit() }
+            .font(.callout).accessibilityElement(children: .combine)
     }
 
     private var localHistory: some View {
@@ -276,6 +451,7 @@ struct UsageSettingsAnalytics: View {
                     } else {
                         usageChart(data, line: true)
                         legend(data.series)
+                        modelList(snapshot)
                     }
                 }.padding(18)
             }
