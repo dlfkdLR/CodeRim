@@ -75,7 +75,10 @@ struct PrimaryCapsuleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .foregroundStyle(Color(.systemBackground))
-            .frame(height: height)
+            // A floor, not a fixed height: at the largest text sizes the label
+            // wraps and the button grows with it instead of cutting it off.
+            .padding(.vertical, 8)
+            .frame(minHeight: height)
             .background(Color.primary.opacity(isEnabled ? 1 : 0.4), in: Capsule())
             .opacity(configuration.isPressed ? 0.75 : 1)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)

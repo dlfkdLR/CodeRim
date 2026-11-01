@@ -6,10 +6,12 @@ The companion is present in the current development source. It is not included i
 
 1. Build the native app in `iOS/CodeRimMobile.xcodeproj` with your Apple development team and Push Notifications.
 2. On your Mac or Windows PC, open **Settings → iPhone** in CodeRim and choose **Connect iPhone**. A QR code appears.
-3. In the CodeRim iPhone app, tap **Scan the QR code on your computer**, or point the iPhone Camera app at the code. The code works once and expires after five minutes.
-4. To add another computer, tap **Add a computer** in the iPhone app and scan that computer's code.
+3. In the CodeRim iPhone app, tap **Scan QR code**, or point the iPhone Camera app at the code. The code works once and expires after five minutes.
+4. To add another computer, open **Settings** from the gear on the home screen, tap **Add a computer**, and scan that computer's code.
 
-No sign-in or Apple ID is needed. The first scan creates an anonymous connection on the relay, kept only in this iPhone's Keychain. The Dynamic Island appears on its own when a task starts on a connected computer, and leaves a couple of minutes after the work stops. **Show now** in the app starts it by hand.
+No sign-in or Apple ID is needed. The first scan creates an anonymous connection on the relay, kept only in this iPhone's Keychain. The Dynamic Island appears on its own when a task starts on a connected computer, and leaves a couple of minutes after the work stops. **Show in Dynamic Island** on the home screen (or **Show now** in Settings) starts it by hand.
+
+The home screen shows what your computers are doing: the same card the Island shows, the tasks that are working or need you, and the usage windows of the service you chose. Pull down to refresh. Choose the service from the menu on the card, and the computers and providers it follows in Settings. Larger text sizes are supported; the card that mirrors the Island keeps its own proportions.
 
 Each computer publishes its own allowlisted usage/task snapshot. The phone shows one device; it never sums local token totals across devices. Computers send changes as they happen plus a heartbeat every few minutes, and the Mac must stay awake with CodeRim running. A computer shows as offline 11 minutes after its last update. APNs and iOS control delivery scheduling; second-by-second updates are not guaranteed.
 

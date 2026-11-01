@@ -121,13 +121,16 @@ struct MobileDashboardView: View {
         .background(.black, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).strokeBorder(.white.opacity(0.1)))
         .environment(\.colorScheme, .dark)
+        // A picture of the Island, which has one size. The task and usage cards
+        // below say the same things and follow the reader's text size.
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
     }
 
     private var islandButton: some View {
         Button { Task { await model.startActivity() } } label: {
             HStack(spacing: 10) {
                 Image(systemName: "capsule.fill")
-                Text("Show in Dynamic Island")
+                Text("Show in Dynamic Island").multilineTextAlignment(.center)
             }
             .font(.subheadline.weight(.semibold))
             .frame(maxWidth: .infinity)
@@ -140,9 +143,16 @@ struct MobileDashboardView: View {
 
     private var tasks: some View {
         DashboardCard(title: "Tasks") {
-            HStack(spacing: 8) {
-                CountChip(count: state.workingCount, label: "working", color: onlineGreen)
-                CountChip(count: state.waitingCount, label: "need you", color: .orange)
+            // Side by side while they fit, stacked once the text is large.
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    CountChip(count: state.workingCount, label: "working", color: onlineGreen)
+                    CountChip(count: state.waitingCount, label: "need you", color: .orange)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    CountChip(count: state.workingCount, label: "working", color: onlineGreen)
+                    CountChip(count: state.waitingCount, label: "need you", color: .orange)
+                }
             }
         } content: {
             if state.sessions.isEmpty {
@@ -224,10 +234,16 @@ private struct DashboardCard<Accessory: View, Content: View>: View {
     @ViewBuilder var content: Content
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text(title).font(.headline)
-                Spacer(minLength: 8)
-                accessory
+            ViewThatFits(in: .horizontal) {
+                HStack {
+                    Text(title).font(.headline)
+                    Spacer(minLength: 8)
+                    accessory
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(title).font(.headline)
+                    accessory
+                }
             }
             content
         }
@@ -243,7 +259,8 @@ private struct CountChip: View {
     var body: some View {
         HStack(spacing: 5) {
             Circle().fill(count > 0 ? color : Color(.tertiaryLabel)).frame(width: 7, height: 7)
-            Text("\(count) \(label)").monospacedDigit()
+            // One piece: a chip that wraps inside its own capsule reads as broken.
+            Text("\(count) \(label)").monospacedDigit().lineLimit(1).fixedSize(horizontal: true, vertical: false)
         }
         .font(.caption.weight(.medium))
         .foregroundStyle(count > 0 ? .primary : .secondary)
@@ -263,6 +280,15 @@ private struct TaskRow: View {
         case .unavailable: ("Unavailable", .secondary, "exclamationmark.triangle.fill")
         }
     }
+    private var detail: Text {
+        var line = Text(phase.0).foregroundStyle(phase.1)
+        if !session.title.isEmpty { line = line + Text(" · \(providerName)").foregroundStyle(.secondary) }
+        if let since = session.since {
+            line = line + Text(" · \(Date(timeIntervalSince1970: since), format: .relative(presentation: .numeric, unitsStyle: .abbreviated))")
+                .foregroundStyle(.secondary)
+        }
+        return line
+    }
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: phase.2)
@@ -273,15 +299,8 @@ private struct TaskRow: View {
                 Text(session.title.isEmpty ? providerName : session.title)
                     .font(.subheadline.weight(.medium)).lineLimit(2)
                     .privacySensitive()
-                HStack(spacing: 4) {
-                    Text(phase.0).foregroundStyle(phase.1)
-                    if !session.title.isEmpty { Text("· \(providerName)").foregroundStyle(.secondary) }
-                    if let since = session.since {
-                        Text("· \(Date(timeIntervalSince1970: since), format: .relative(presentation: .numeric, unitsStyle: .abbreviated))")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .font(.caption).lineLimit(1)
+                // One run of text, so at large sizes it wraps instead of being cut off.
+                detail.font(.caption).lineLimit(3)
             }
             Spacer(minLength: 0)
         }
