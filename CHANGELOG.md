@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.27 — Look at another account's limits, richer Usage tables
+
+- With two or more saved Codex accounts, the Limits view (Settings and the menu-bar popover) has an account menu. Choosing another account shows that account's limits only; the signed-in Codex account and the Codex app are not changed. The limits are read from a private Codex home, and if reading renews that account's login, the renewed login is kept and saved so the saved account keeps working. Claude is not included.
+- The Usage screen gains a model table, a top-projects table and richer session details (models used, start and duration, cache hit, sub-agents and images), and the day you select in the chart lists that day's models. See the [release notes](Documentation/ReleaseNotes/2.1.27.md).
+
 ## 2.1.26 — Time left that knows a big task from a quick one
 
 - A working turn is now sized by how many tools it has called, not only by how long it has run, so a long build no longer reads "2–7 min" a minute in. Claude's calls are counted from its transcript, and past turns are filed with theirs when the logs are read. Codex and OpenCode turns are not counted yet.

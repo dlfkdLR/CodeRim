@@ -7,15 +7,18 @@ struct AppServerLimitProvider: AccountLimitProviding {
 
     private let executableResolver: @Sendable () throws -> URL
     private let runner: AppServerProcessRunning
+    private let arguments: [String]
     private let parser = AccountLimitsResponseParser()
     private static let executableQueue = DispatchQueue(label: "dev.coderim.codex-verification", qos: .utility)
 
     init(
         executableResolver: @escaping @Sendable () throws -> URL = TrustedCodexExecutable.resolve,
-        runner: AppServerProcessRunning = AppServerProcessRunner()
+        runner: AppServerProcessRunning = AppServerProcessRunner(),
+        arguments: [String] = ["app-server"]
     ) {
         self.executableResolver = executableResolver
         self.runner = runner
+        self.arguments = arguments
     }
 
     func readLimits() async throws -> AccountLimitsSnapshot {
@@ -34,7 +37,7 @@ struct AppServerLimitProvider: AccountLimitProviding {
         ].joined(separator: "\n") + "\n"
         let response = try await runner.run(
             executable: executable,
-            arguments: ["app-server"],
+            arguments: arguments,
             standardInput: Data(requests.utf8),
             timeout: .seconds(15),
             maximumOutputBytes: Self.maximumResponseBytes
@@ -55,6 +58,8 @@ protocol AppServerProcessRunning: Sendable {
 
 struct AppServerProcessRunner: AppServerProcessRunning {
     var workingDirectory: URL? = nil
+    /// Reads a login other than the signed-in one, from a private home.
+    var codexHome: URL? = nil
 
     func run(
         executable: URL,
@@ -70,7 +75,8 @@ struct AppServerProcessRunner: AppServerProcessRunning {
         let allowed = ["HOME", "TMPDIR", "USER", "LOGNAME", "LANG", "LC_ALL", "LC_CTYPE",
                        "__CF_USER_TEXT_ENCODING", "CODEX_HOME", "XDG_CONFIG_HOME",
                        "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY", "http_proxy", "https_proxy", "no_proxy"]
-        let environment = allowed.reduce(into: [String: String]()) { $0[$1] = inherited[$1] }
+        var environment = allowed.reduce(into: [String: String]()) { $0[$1] = inherited[$1] }
+        if let codexHome { environment["CODEX_HOME"] = codexHome.path }
         do {
             let result = try await BoundedProcess.run(
                 executable: executable, arguments: arguments, environment: environment,
