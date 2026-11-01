@@ -13,14 +13,20 @@ struct UsageSettingsAnalytics: View {
 
     private var range: AnalyticsRange { navigation.usageRange == .today ? .sevenDays : navigation.usageRange }
     private var snapshot: AnalyticsSnapshot? { store.analyticsSnapshots[range] }
+    private var activityKey: String { "\(store.provider.rawValue)|\(range.rawValue)" }
+    /// The agents' own logs, for the cards the token counts cannot give.
+    private var activity: ActivitySnapshot? { state.activityKey == activityKey ? state.activity : nil }
     private let colors: [Color] = [.accentColor, .orange, .green, .pink, .teal, .yellow]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 28) {
             totalUsage
             if let snapshot, snapshot.quality != .unavailable, snapshot.quality != .error {
+                UsageTypeCard(breakdown: UsageTypeBreakdown(snapshot: snapshot), formatted: formatted)
                 if sessionsEnabled { topSessions(snapshot) }
                 if projectsEnabled { topProjects(snapshot) }
+                toolActivity
+                messageActivity
                 localHistory
                 modelActivity(snapshot)
             }
@@ -29,6 +35,14 @@ struct UsageSettingsAnalytics: View {
         .frame(maxWidth: 960, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .center)
         .task(id: range) { await store.refreshAnalytics(range: range) }
+        .task(id: activityKey) {
+            let key = activityKey
+            if state.activityKey != key { state.activity = nil }
+            let loaded = await state.loadActivity(store.provider, range)
+            guard !Task.isCancelled else { return }
+            state.activity = loaded
+            state.activityKey = key
+        }
         .onChange(of: range) { _, _ in
             state.selectedDate = nil
             state.showsAllSessions = false
@@ -217,6 +231,7 @@ struct UsageSettingsAnalytics: View {
                                         }
                                     }
                                 }
+                                if let traits = activity?.traits[session.id] { SessionTraitsPanels(traits: traits) }
                                 MenuLink(destination: .session(id: session.id, range: range)) {
                                     Label("Session details", systemImage: "arrow.up.right").font(.callout)
                                 }
@@ -437,6 +452,29 @@ struct UsageSettingsAnalytics: View {
                 }
             }
         }
+    }
+
+    private var toolActivity: some View {
+        VStack(alignment: .leading, spacing: 28) {
+            UsageActivityChartCard(
+                title: "Tool activity", subtitle: "Tools and skills the agents called · This Mac",
+                metric: "Tools called", unit: "calls", chart: activity?.tools ?? .empty(days: []),
+                empty: "No tool calls in this period", isLoading: activity == nil,
+                identifier: "settings.usage.tools")
+            UsageActivityChartCard(
+                title: "Skills", subtitle: "Skills the agents loaded",
+                metric: "Skills used", unit: "uses", chart: activity?.skills ?? .empty(days: []),
+                empty: "No skills used in this period", isLoading: activity == nil,
+                identifier: "settings.usage.skills")
+        }
+    }
+
+    private var messageActivity: some View {
+        UsageActivityChartCard(
+            title: "Messages", subtitle: "Messages you sent over time, by model · This Mac",
+            metric: "Messages", unit: "messages", chart: activity?.messages ?? .empty(days: []),
+            empty: "No messages in this period", isLoading: activity == nil,
+            identifier: "settings.usage.messages")
     }
 
     private func modelActivity(_ snapshot: AnalyticsSnapshot) -> some View {
