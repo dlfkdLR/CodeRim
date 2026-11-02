@@ -107,4 +107,10 @@ final class SettingsUsageAnalyticsState: ObservableObject {
     @Published var showsAllSessions = false
     @Published var expandedSessions: Set<String> = []
     @Published var expandedPeriods: Set<UsagePeriod> = []
+    /// What the agents did in the range, read from their logs, and which
+    /// provider and range that answers.
+    @Published var activity: ActivitySnapshot?
+    var activityKey: String?
+    /// How it is read. Tests replace it so they never open the logs on this Mac.
+    var loadActivity: (UsageProvider, AnalyticsRange) async -> ActivitySnapshot = UsageActivityScanner.loadShared
 }
