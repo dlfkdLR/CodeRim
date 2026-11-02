@@ -4,35 +4,36 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.27</title>
-            <pubDate>Sun, 01 Nov 2026 15:42:57 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.27</link>
-            <sparkle:version>20127</sparkle:version>
-            <sparkle:shortVersionString>2.1.27</sparkle:shortVersionString>
+            <title>2.1.28</title>
+            <pubDate>Mon, 02 Nov 2026 16:52:48 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.28</link>
+            <sparkle:version>20128</sparkle:version>
+            <sparkle:shortVersionString>2.1.28</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.27
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.28
 
 A macOS-only release. Windows stays at 2.1.20.
 
-## Another account's limits
+## Activity on the Usage screen
 
-- When two or more Codex accounts are saved, the Limits view shows an account menu at the top, in Settings and in the menu-bar popover. Choosing another account shows that account's limits and nothing else changes: the signed-in account, the Codex app and the saved logins stay as they are. Refresh reads the account you chose. Choosing the signed-in account goes back to the usual limits.
-- The limits are read by starting a separate `codex app-server` with a copy of the saved login in a private temporary folder, which is deleted afterwards. If that read renews the login, the saved copy would stop working, so the renewed login is kept: saved straight away, or held and used for the next read and saved at the next chance when another account operation is running, and kept even when the read itself fails. A login that was replaced by signing in again is never overwritten by a waiting one.
-- Claude is left out: its limits are only available for the signed-in account.
+- **Usage by type:** how the period's tokens split between chats, the sub-agents they started, and whatever the session list does not account for.
+- **Messages:** the messages you sent per day, split by the model that answered.
+- **Tool calls and skills:** per day, with an MCP server counted as one tool; skills are counted from `Skill` calls (Claude) and `SKILL.md` reads (Codex).
+- **Session traits:** a session shows the share of its turns by reasoning effort and by Fast or Standard speed.
+- Codex and Claude are both covered. The cards follow the range you pick, and each legend wraps in a narrow window.
 
-## Usage screen
+## Privacy and cost
 
-- A model table (sessions, share, tokens), a top-projects table with each project's main model, and one table style for sessions, projects and models.
-- A session opens into Tokens, Activity (start, duration, cache hit, sub-agents, images) and Models panels. Selecting a day in the chart lists that day's tokens by model.
+Everything is counted from the agents' own log files on this Mac and never sent anywhere. A log is read once and again only when its size or date changes, so reopening Usage does not re-read every transcript.
 
 ## Verification
 
-macOS: full local test suite with 0 failures, run with warnings as errors as CI does, including five tests of the renewed-login handling against synthetic accounts. The Usage screen was rendered offscreen at two widths in light and dark and read. Reading a second real account's limits has not been exercised against a live account; if it shows "Account limits unavailable", the signed-in account is unaffected.
+macOS: full local test suite with warnings as errors; parser tests for both agents against synthetic logs; the cards were rendered offscreen at narrow and wide widths in light and dark. Real-window use over days of logs has not been exercised.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.27/CodeRim-2.1.27.zip" length="32712595" type="application/octet-stream" sparkle:edSignature="sZW7Zpzn2UXvdWz3T905sNYHs5fbmDgNPkZPb7KYM4MuXcD11jnHx5R3G/pSWiq9kaBuBgKcirBN4yJsLS2ECA=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.28/CodeRim-2.1.28.zip" length="32949813" type="application/octet-stream" sparkle:edSignature="9gn+Df2lpgYSq8B/RUPtgLvJ5Lfrov4IZKo/lptpu7CV95qm2xazV61wCLCM+THnffeSK1eK92eH2EGzvNxkBw=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: Kw2mjZ+a8C6dtvgV/mMxytC4448rqOe1irmwgww+gXb6jLNWU3JQAI5Km+02zGBeaqI6qncp3rPhZRi2K6hKCQ==
-length: 3045
+edSignature: Y1inSKaY8nT45zgsCU8SlX6UhjoSqYOLWzIsl+vJMRsHYxzg+NWWcDL2lF2ftN14qE3j/ga1oXvLrvrKIDWXDw==
+length: 2408
 -->
