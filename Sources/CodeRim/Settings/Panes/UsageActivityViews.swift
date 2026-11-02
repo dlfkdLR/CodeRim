@@ -89,7 +89,14 @@ struct UsageTypeCard: View {
     }
 
     private var legend: some View {
-        HStack(alignment: .top, spacing: 28) {
+        ViewThatFits(in: .horizontal) {
+            legendItems(HStackLayout(alignment: .top, spacing: 28))
+            legendItems(VStackLayout(alignment: .leading, spacing: 14))
+        }
+    }
+
+    private func legendItems<L: Layout>(_ layout: L) -> some View {
+        layout {
             ForEach(Array(breakdown.parts.enumerated()), id: \.element.id) { index, part in
                 HStack(spacing: 10) {
                     Capsule().fill(color(index, part)).frame(width: 3, height: 34)
@@ -103,8 +110,8 @@ struct UsageTypeCard: View {
                 .accessibilityLabel("\(part.title), \(formatted(part.tokens)) tokens, \(breakdown.share(part).formatted(.percent.precision(.fractionLength(1))))")
                 .help("\(part.tokens.formatted()) tokens")
             }
-            Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -229,8 +236,16 @@ struct SessionTraitsPanels: View {
         let panels = [("Reasoning", traits.efforts), ("Speed", traits.speeds)]
             .filter { !$0.1.isEmpty }
         if !panels.isEmpty {
-            HStack(alignment: .top, spacing: 14) {
-                ForEach(panels, id: \.0) { title, counts in
+            ViewThatFits(in: .horizontal) {
+                panelRow(panels, HStackLayout(alignment: .top, spacing: 14))
+                panelRow(panels, VStackLayout(alignment: .leading, spacing: 10))
+            }
+        }
+    }
+
+    private func panelRow<L: Layout>(_ panels: [(String, [String: Int])], _ layout: L) -> some View {
+        layout {
+            ForEach(panels, id: \.0) { title, counts in
                     VStack(alignment: .leading, spacing: 8) {
                         Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                         ForEach(SessionTraits.shares(counts), id: \.name) { item in
@@ -245,7 +260,6 @@ struct SessionTraitsPanels: View {
                     .frame(maxWidth: .infinity, alignment: .topLeading)
                     .padding(12)
                     .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 10))
-                }
             }
         }
     }
