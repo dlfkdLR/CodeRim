@@ -90,6 +90,21 @@ final class MobileUITests: XCTestCase {
         XCTAssertTrue(busy.staticTexts["Tasks"].exists)
     }
 
+    /// Disconnecting a computer no longer depends on knowing to swipe: a visible menu does it too.
+    @MainActor
+    func testAComputerCanBeDisconnectedFromAVisibleMenu() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-settings"]
+        app.launch()
+        let options = app.buttons["device-options-mac"]
+        XCTAssertTrue(options.waitForExistence(timeout: 15))
+        options.tap()
+        XCTAssertTrue(app.buttons["Disconnect Personal Mac"].waitForExistence(timeout: 5))
+        app.buttons["Disconnect Personal Mac"].tap()
+        XCTAssertTrue(app.staticTexts["Disconnect this device?"].waitForExistence(timeout: 5)
+                      || app.buttons["Cancel"].waitForExistence(timeout: 2))
+    }
+
     @MainActor
     func testExpandedQuotaBoundariesOfflineAndUnknownStates() throws {
         let app = XCUIApplication()

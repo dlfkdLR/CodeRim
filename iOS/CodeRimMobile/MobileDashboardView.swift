@@ -17,6 +17,8 @@ struct MobileRootView: View {
                 }
             }
         }
+        // A tap you can feel when pairing works; nothing when a poll fails in the background.
+        .sensoryFeedback(.success, trigger: model.signedIn) { old, new in !old && new }
         // Tapping the Island opens the dashboard, wherever the app was left.
         .onChange(of: model.dashboardRequest) { _, _ in path = NavigationPath() }
         .onChange(of: model.signedIn) { _, _ in path = NavigationPath() }

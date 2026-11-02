@@ -32,7 +32,19 @@ struct MobileSettingsView: View {
                     }.padding(.vertical, 4)
                 }
                 ForEach(model.devices) { device in
-                    DeviceRow(device: device)
+                    HStack(spacing: 8) {
+                        DeviceRow(device: device).frame(maxWidth: .infinity, alignment: .leading)
+                        // The same action as the swipe, where a person can see it.
+                        Menu {
+                            Button("Disconnect \(device.name)", systemImage: "minus.circle", role: .destructive) { deviceToRemove = device }
+                        } label: {
+                            Image(systemName: "ellipsis.circle").font(.title3).foregroundStyle(.secondary)
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                        .tint(.secondary)
+                        .accessibilityLabel("Options for \(device.name)")
+                        .accessibilityIdentifier("device-options-\(device.id)")
+                    }
                         .swipeActions {
                             Button("Disconnect", role: .destructive) { deviceToRemove = device }
                         }
@@ -47,7 +59,7 @@ struct MobileSettingsView: View {
             } header: { Text("Computers") } footer: {
                 Text(model.devices.isEmpty
                      ? "In CodeRim on your computer, open Settings → iPhone and scan its QR code. Works across different Wi‑Fi networks."
-                     : "Swipe left on a computer to disconnect it. Each computer shares while it is awake.")
+                     : "Tap ⋯ or swipe left on a computer to disconnect it. Each computer shares while it is awake.")
             }
 
             Section {
