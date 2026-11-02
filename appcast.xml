@@ -4,36 +4,34 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.28</title>
-            <pubDate>Mon, 02 Nov 2026 16:52:48 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.28</link>
-            <sparkle:version>20128</sparkle:version>
-            <sparkle:shortVersionString>2.1.28</sparkle:shortVersionString>
+            <title>2.1.29</title>
+            <pubDate>Mon, 02 Nov 2026 19:18:02 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.29</link>
+            <sparkle:version>20129</sparkle:version>
+            <sparkle:shortVersionString>2.1.29</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.28
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.29
 
 A macOS-only release. Windows stays at 2.1.20.
 
-## Activity on the Usage screen
+## Notch cards
 
-- **Usage by type:** how the period's tokens split between chats, the sub-agents they started, and whatever the session list does not account for.
-- **Messages:** the messages you sent per day, split by the model that answered.
-- **Tool calls and skills:** per day, with an MCP server counted as one tool; skills are counted from `Skill` calls (Claude) and `SKILL.md` reads (Codex).
-- **Session traits:** a session shows the share of its turns by reasoning effort and by Fast or Standard speed.
-- Codex and Claude are both covered. The cards follow the range you pick, and each legend wraps in a narrow window.
+- The speech-bubble pointer on the usage card is shorter and blunter (48 by 64 instead of 75 by 87), and the time-left card's pointer is cut the same way, so the two read as one family.
+- A finished chat's card has "Chat" in its header instead of repeating "Done" next to the ring.
+- The settings arc that rests under the notch is drawn at lower strength so it reads as a hint rather than a stray piece.
 
-## Privacy and cost
+## Another account's limits in Settings
 
-Everything is counted from the agents' own log files on this Mac and never sent anywhere. A log is read once and again only when its size or date changes, so reopening Usage does not re-read every transcript.
+- Settings opens without reading your saved logins, so the account menu added in 2.1.27 never appeared there. The Codex Limits tab now has "View another account's limits": pressing it reads the saved accounts (which can ask for Keychain access) and shows the menu. Choosing an account only changes which limits are shown; the signed-in Codex account and the Codex app stay as they are. With one saved account it says there is no other.
 
 ## Verification
 
-macOS: full local test suite with warnings as errors; parser tests for both agents against synthetic logs; the cards were rendered offscreen at narrow and wide widths in light and dark. Real-window use over days of logs has not been exercised.
+macOS: build with warnings as errors; notch, account and Usage tests with 0 failures. The tail shapes and the new link were checked by reading the code and tests, not on screen, and a second real account's limits have still not been read against a live account.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.28/CodeRim-2.1.28.zip" length="32949813" type="application/octet-stream" sparkle:edSignature="9gn+Df2lpgYSq8B/RUPtgLvJ5Lfrov4IZKo/lptpu7CV95qm2xazV61wCLCM+THnffeSK1eK92eH2EGzvNxkBw=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.29/CodeRim-2.1.29.zip" length="32961272" type="application/octet-stream" sparkle:edSignature="LqeJPup3SUdfk2O2nd2eDUka82G33g+ed/ydDJVaaMx+gcPymBRQYXtmbzOV6SLy90sIKxaCKL6xvFMcshXXDw=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: Y1inSKaY8nT45zgsCU8SlX6UhjoSqYOLWzIsl+vJMRsHYxzg+NWWcDL2lF2ftN14qE3j/ga1oXvLrvrKIDWXDw==
-length: 2408
+edSignature: V4ofGN1VqeMzpxjaYWTgfCzySQhyURTS8DQwHbjuqYzw9NoycZK7RSss6Th3Su8me1o+TO1j8dkRKtq0cvT6AA==
+length: 2449
 -->
