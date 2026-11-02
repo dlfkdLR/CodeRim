@@ -98,6 +98,7 @@ struct MenuPopoverView: View {
     @State private var selectedSection = MenuPopoverSection.overview
     @State private var settingsSection = SettingsUsageSection.analytics
     @State private var refreshTurns = 0
+    @State private var askedForSavedAccounts = false
     @AppStorage("usageProvider") private var usageProvider = UsageProvider.codex.rawValue
 
     private let formatter = TokenFormatter()
@@ -877,7 +878,26 @@ struct MenuPopoverView: View {
 
     @ViewBuilder
     private var limitsAccountPicker: some View {
-        if store.provider == .codex, accounts.accounts.count > 1 {
+        if store.provider == .codex, embedded, accounts.accounts.count <= 1 {
+            // Settings opens without reading the saved logins, which can ask for
+            // the Keychain. Looking at another account is the person asking for
+            // them, so the list is read now and the menu appears in its place.
+            if askedForSavedAccounts {
+                Text("No other saved accounts. Add one with Switch.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Button {
+                    askedForSavedAccounts = true
+                    accounts.load()
+                } label: {
+                    Label("View another account's limits", systemImage: "person.2")
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+                .help("Reads your saved accounts, then lets you look at one of them. The signed-in Codex account stays the same.")
+                .accessibilityIdentifier("settings.limits.viewAnotherAccount")
+            }
+        } else if store.provider == .codex, accounts.accounts.count > 1 {
             let selection = Binding<String>(
                 get: { viewedLimits.accountID ?? accounts.currentID ?? "" },
                 set: { id in Task { await viewedLimits.select(id, accounts: accounts) } }

@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.29 — Softer card tails, another account's limits in Settings
+
+- The pointer on the usage card and on the time-left card is shorter and blunter, and both are cut the same way. A finished chat's card no longer says "Done" twice, and the settings arc under the notch is quieter at rest.
+- Settings → Usage → Codex Limits has a "View another account's limits" link. It reads your saved accounts when you press it (Settings does not touch the Keychain on open), then shows the account menu. The signed-in Codex account is not changed. See the [release notes](Documentation/ReleaseNotes/2.1.29.md).
+
 ## 2.1.28 — Activity on the Usage screen
 
 - Settings → Usage gains ChatGPT-style activity cards for Codex and Claude, read from the agents' own logs on this Mac: usage by type (chats and sub-agents), messages per model over time, tool calls (an MCP server counts as one tool) and skills used. A session also shows how hard and how fast it ran (reasoning effort, Fast or Standard). Nothing leaves the Mac. See the [release notes](Documentation/ReleaseNotes/2.1.28.md).
