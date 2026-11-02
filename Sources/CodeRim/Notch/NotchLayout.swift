@@ -121,15 +121,15 @@ enum NotchLayout {
     static let cardWidth     = NotchDesign.px(600)
     static let cardCorner    = NotchDesign.px(49.5)
     static let cardPadding   = NotchDesign.px(32)
-    static let tailLength    = NotchDesign.px(75)
-    static let tailHeight    = NotchDesign.px(87)
+    static let tailLength    = NotchDesign.px(48)
+    static let tailHeight    = NotchDesign.px(64)
     static let tailGap       = NotchDesign.px(28)    // tail tip -> notch body edge
     /// The time-left card that opens beside the usage card while a working
     /// session is hovered. It lives in the panel's transparent margin, so the
     /// panel reaches `etaReach` further than the usage card alone needs.
     static let etaCardWidth  = NotchDesign.px(500)
     static let etaCardGap    = NotchDesign.px(22)
-    static var etaTailSize: CGSize { CGSize(width: etaCardGap, height: NotchDesign.px(40)) }
+    static var etaTailSize: CGSize { CGSize(width: etaCardGap, height: NotchDesign.px(52)) }
     static let etaCardCorner = cardCorner
     static let etaCardPadding = NotchDesign.px(28)
     static let etaCardLineGap = NotchDesign.px(8)
