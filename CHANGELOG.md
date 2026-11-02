@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.28 — Activity on the Usage screen
+
+- Settings → Usage gains ChatGPT-style activity cards for Codex and Claude, read from the agents' own logs on this Mac: usage by type (chats and sub-agents), messages per model over time, tool calls (an MCP server counts as one tool) and skills used. A session also shows how hard and how fast it ran (reasoning effort, Fast or Standard). Nothing leaves the Mac. See the [release notes](Documentation/ReleaseNotes/2.1.28.md).
+
 ## 2.1.27 — Look at another account's limits, richer Usage tables
 
 - With two or more saved Codex accounts, the Limits view (Settings and the menu-bar popover) has an account menu. Choosing another account shows that account's limits only; the signed-in Codex account and the Codex app are not changed. The limits are read from a private Codex home, and if reading renews that account's login, the renewed login is kept and saved so the saved account keeps working. Claude is not included.
