@@ -84,7 +84,7 @@ struct TurnETACard: View {
                 Image(systemName: isDone ? "checkmark.circle.fill" : icon)
                     .font(NotchType.cardBody.weight(.semibold))
                     .foregroundStyle(isDone ? NotchPalette.done : barColor)
-                Text(isDone ? "Done" : line == nil && !isMeasuring ? SessionDetailCopy.stateWord(session.state).capitalized : "Time left")
+                Text(isDone ? "Chat" : line == nil && !isMeasuring ? SessionDetailCopy.stateWord(session.state).capitalized : "Time left")
                 Spacer(minLength: 0)
                 if line != nil || isMeasuring {
                     Text("beta")
@@ -309,13 +309,20 @@ struct TurnETACard: View {
     }
 }
 
-/// A small pointer, tip to the right.
+/// A small pointer, tip to the right. Cut like the usage card's tail, tangent
+/// to the card at its shoulders and blunt at the point, so the two cards read
+/// as one family instead of a needle beside a bubble.
 private struct ETATail: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
+        let tip = CGPoint(x: rect.maxX, y: rect.midY)
         path.move(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.midY), control: CGPoint(x: rect.midX, y: rect.minY))
-        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY), control: CGPoint(x: rect.midX, y: rect.maxY))
+        path.addCurve(to: tip,
+                      control1: CGPoint(x: rect.minX, y: rect.minY + rect.height * 0.25),
+                      control2: CGPoint(x: rect.maxX - rect.width * 0.34, y: rect.midY - rect.height * 0.26))
+        path.addCurve(to: CGPoint(x: rect.minX, y: rect.maxY),
+                      control1: CGPoint(x: rect.maxX - rect.width * 0.34, y: rect.midY + rect.height * 0.26),
+                      control2: CGPoint(x: rect.minX, y: rect.maxY - rect.height * 0.25))
         path.closeSubpath()
         return path
     }
