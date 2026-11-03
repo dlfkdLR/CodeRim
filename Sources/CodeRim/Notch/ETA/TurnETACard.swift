@@ -84,7 +84,7 @@ struct TurnETACard: View {
                 Image(systemName: isDone ? "checkmark.circle.fill" : icon)
                     .font(NotchType.cardBody.weight(.semibold))
                     .foregroundStyle(isDone ? NotchPalette.done : barColor)
-                Text(isDone ? "Chat" : line == nil && !isMeasuring ? SessionDetailCopy.stateWord(session.state).capitalized : "Time left")
+                Text(isDone ? "Chat" : isMeasuring ? "Estimating" : line == nil ? SessionDetailCopy.stateWord(session.state).capitalized : "Time left")
                 Spacer(minLength: 0)
                 if line != nil || isMeasuring {
                     Text("beta")
@@ -165,8 +165,10 @@ struct TurnETACard: View {
                     TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduceMotion)) { context in
                         let turns = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate / 1.6
                         Circle()
-                            .trim(from: 0, to: 0.22)
-                            .stroke(barColor, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
+                            .trim(from: 0, to: 0.3)
+                            .stroke(AngularGradient(colors: [barColor.opacity(0), barColor], center: .center,
+                                                    startAngle: .degrees(0), endAngle: .degrees(0.3 * 360)),
+                                    style: StrokeStyle(lineWidth: stroke, lineCap: .round))
                             .rotationEffect(.degrees(-90 + 360 * (turns - turns.rounded(.down))))
                     }
                 default:
@@ -197,11 +199,18 @@ struct TurnETACard: View {
         if let text {
             estimateCentre(text)
         } else if isMeasuring {
-            Text("Working")
-                .font(NotchType.cardBody.weight(.semibold))
-                .foregroundStyle(NotchPalette.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+            VStack(spacing: NotchDesign.px(4)) {
+                Text(Self.clock(snapshot?.elapsed ?? 0))
+                    .font(.system(size: NotchDesign.fontSize(capPixels: 18) * 1.7, weight: .semibold))
+                    .monospacedDigit()
+                    .foregroundStyle(NotchPalette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                Text("so far")
+                    .font(NotchType.cardBody)
+                    .foregroundStyle(NotchPalette.textSecondary)
+                    .lineLimit(1)
+            }
         } else {
             VStack(spacing: NotchDesign.px(6)) {
                 Image(systemName: "checkmark")
@@ -212,6 +221,13 @@ struct TurnETACard: View {
                     .foregroundStyle(NotchPalette.textSecondary)
             }
         }
+    }
+
+    /// "1:12", or "1:05:09" past the hour.
+    private static func clock(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds))
+        let h = total / 3600, m = total % 3600 / 60, sec = total % 60
+        return h > 0 ? String(format: "%d:%02d:%02d", h, m, sec) : String(format: "%d:%02d", m, sec)
     }
 
     @ViewBuilder
