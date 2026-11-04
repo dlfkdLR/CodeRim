@@ -191,6 +191,45 @@ internal sealed class AccountsPane : DockPanel
                     var marker = Ui.Text("\u2713 Current", 13, "#A6A6AA"); marker.VerticalAlignment = VerticalAlignment.Center; marker.Margin = new Thickness(0, 0, 8, 0);
                     System.Windows.Automation.AutomationProperties.SetAutomationId(marker, "accounts.current"); actions.Children.Add(marker);
                 }
+                if (provider == "codex" && current != account.Identity.Id)
+                {
+                    // Looks at this account's limits in a private Codex home; the CLI stays signed in to the current account.
+                    var view = Ui.AsyncButton("View limits", async () =>
+                    {
+                        SetBusy(true); feedback.Text = "Reading " + account.Identity.Email + " limits…";
+                        string? renewed = null;
+                        try
+                        {
+                            await WaitForCurrentProbeAsync();
+                            try
+                            {
+                                var read = await SavedAccountLimitReader.ReadAsync(account, Executable()).ConfigureAwait(true);
+                                renewed = read.RotatedCredential;
+                                feedback.Text = account.Identity.Email + ": " + (read.Windows.Count == 0 ? "no limit was returned."
+                                    : string.Join(" · ", read.Windows.Select(w => w.Name + (w.UsedPercent is { } used ? " " + Math.Round(used) + "% used" : "")))) + " (current CLI login unchanged)";
+                            }
+                            catch (SavedAccountReadException failed)
+                            {
+                                renewed = failed.RotatedCredential;
+                                feedback.Text = "Limits for " + account.Identity.Email + " could not be read. Try again.";
+                            }
+                        }
+                        catch (AccountOperationBusyException error) { feedback.Text = error.UserMessage; }
+                        catch (Exception e) when (e is not OutOfMemoryException) { feedback.Text = "Limits for " + account.Identity.Email + " could not be read. Check the Codex install and try again."; }
+                        finally
+                        {
+                            // A renewed login is the only copy that still works: keep it even if the read failed.
+                            if (renewed is not null)
+                            {
+                                try { if (!accounts.StoreRotated(provider, account.Identity.Id, renewed)) feedback.Text += " The renewed login could not be saved; sign this account in again if it stops working."; }
+                                catch (Exception e) when (e is not OutOfMemoryException) { feedback.Text += " The renewed login could not be saved; sign this account in again if it stops working."; }
+                            }
+                            SetBusy(false);
+                        }
+                    });
+                    System.Windows.Automation.AutomationProperties.SetName(view, "View limits for " + account.Identity.Email);
+                    view.Margin = new Thickness(0, 0, 4, 0); actions.Children.Add(view);
+                }
                 var remove = Ui.Button("Remove", () => Run(() => { if (MessageBox.Show(Window.GetWindow(this), "Remove the saved login for " + account.Identity.Email + "? Its current CLI session and usage history are preserved.", "Remove saved account", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) { accounts.Remove(provider, account.Identity.Id); Populate(); } }));
                 System.Windows.Automation.AutomationProperties.SetName(remove, "Remove saved account " + account.Identity.Email);
                 // A borderless minus-in-circle, as macOS draws it.
