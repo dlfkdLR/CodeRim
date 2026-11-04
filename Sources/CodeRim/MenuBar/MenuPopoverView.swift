@@ -917,12 +917,12 @@ struct MenuPopoverView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "person.crop.circle.fill").foregroundStyle(.secondary)
                     Text(shown?.menuTitle(in: accounts.accounts) ?? "Account")
+                        .lineLimit(1).truncationMode(.middle)
                 }
                 .font(.callout)
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
-            .fixedSize()
             .help("Only changes which account's limits are shown. The signed-in Codex account stays the same.")
             .accessibilityLabel("Account whose limits are shown")
         }
