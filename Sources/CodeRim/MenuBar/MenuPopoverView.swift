@@ -902,13 +902,27 @@ struct MenuPopoverView: View {
                 get: { viewedLimits.accountID ?? accounts.currentID ?? "" },
                 set: { id in Task { await viewedLimits.select(id, accounts: accounts) } }
             )
-            Picker("Account", selection: selection) {
-                ForEach(accounts.accounts) { account in
-                    Text(account.menuTitle(in: accounts.accounts)).tag(account.id)
+            // Reads as the account line in the header — person glyph and the
+            // address, no box — and opens the saved accounts when pressed.
+            let shown = accounts.accounts.first { $0.id == selection.wrappedValue }
+            Menu {
+                Picker("Account", selection: selection) {
+                    ForEach(accounts.accounts) { account in
+                        Text(account.menuTitle(in: accounts.accounts)).tag(account.id)
+                    }
                 }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "person.crop.circle.fill").foregroundStyle(.secondary)
+                    Text(shown?.menuTitle(in: accounts.accounts) ?? "Account")
+                }
+                .font(.callout)
             }
-            .pickerStyle(.menu)
-            .font(.caption)
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
             .help("Only changes which account's limits are shown. The signed-in Codex account stays the same.")
             .accessibilityLabel("Account whose limits are shown")
         }
