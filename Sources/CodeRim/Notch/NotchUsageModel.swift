@@ -299,7 +299,16 @@ struct ProviderSnapshot: Identifiable, Equatable {
         case .unsupported(let why): return why
         case .error(let why): return "Couldn't read usage — \(why)"
         case .ok: return "Connected; this account did not report usage or a quota."
-        case .stale: return "Waiting for the first reading…"
+        case .stale(let since): return Self.staleMessage(since: since)
         }
+    }
+
+    /// A reading that never arrived reads differently from one that has gone
+    /// old. The second must say how old, so a number from twelve minutes ago is
+    /// never mistaken for "nothing used" or for a first load still in flight.
+    static func staleMessage(since: Date, now: Date = Date()) -> String {
+        // `.distantPast` is the placeholder for "nothing has been read yet".
+        if since <= Date(timeIntervalSince1970: 0) { return "Waiting for the first reading…" }
+        return "Last read \(ElapsedCopy.ago(since: since, now: now)) · refresh failed"
     }
 }
