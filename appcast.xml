@@ -4,34 +4,28 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.29</title>
-            <pubDate>Mon, 02 Nov 2026 19:18:02 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.29</link>
-            <sparkle:version>20129</sparkle:version>
-            <sparkle:shortVersionString>2.1.29</sparkle:shortVersionString>
+            <title>2.1.30</title>
+            <pubDate>Wed, 04 Nov 2026 15:39:18 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.30</link>
+            <sparkle:version>20130</sparkle:version>
+            <sparkle:shortVersionString>2.1.30</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.29
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.30
 
 A macOS-only release. Windows stays at 2.1.20.
 
-## Notch cards
+## A stale reading says how old it is
 
-- The speech-bubble pointer on the usage card is shorter and blunter (48 by 64 instead of 75 by 87), and the time-left card's pointer is cut the same way, so the two read as one family.
-- A finished chat's card has "Chat" in its header instead of repeating "Done" next to the ring.
-- The settings arc that rests under the notch is drawn at lower strength so it reads as a hint rather than a stray piece.
-
-## Another account's limits in Settings
-
-- Settings opens without reading your saved logins, so the account menu added in 2.1.27 never appeared there. The Codex Limits tab now has "View another account's limits": pressing it reads the saved accounts (which can ask for Keychain access) and shows the menu. Choosing an account only changes which limits are shown; the signed-in Codex account and the Codex app stay as they are. With one saved account it says there is no other.
+- A reading that had gone old showed the same "Waiting for the first reading…" as one that had never arrived. It now reads "Last read 12 min ago · refresh failed", so you can tell an old number from a first load still in flight. A provider that has never been read keeps the waiting line.
 
 ## Verification
 
-macOS: build with warnings as errors; notch, account and Usage tests with 0 failures. The tail shapes and the new link were checked by reading the code and tests, not on screen, and a second real account's limits have still not been read against a live account.
+macOS: the new `StaleStatusMessageTests` (3) pass, and the pull request's `build-and-test` passed. The new line was checked by tests, not on screen.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.29/CodeRim-2.1.29.zip" length="32961272" type="application/octet-stream" sparkle:edSignature="LqeJPup3SUdfk2O2nd2eDUka82G33g+ed/ydDJVaaMx+gcPymBRQYXtmbzOV6SLy90sIKxaCKL6xvFMcshXXDw=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.30/CodeRim-2.1.30.zip" length="32963911" type="application/octet-stream" sparkle:edSignature="Rn9mxj7OGnk8anVFBoLwBufeDYBhyoWV9bzjjBpB3NpqC7C+dAqnC+75+RR0T9WndZShOHqtYxFTlD4w1IfMAQ=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: V4ofGN1VqeMzpxjaYWTgfCzySQhyURTS8DQwHbjuqYzw9NoycZK7RSss6Th3Su8me1o+TO1j8dkRKtq0cvT6AA==
-length: 2449
+edSignature: L5gvd6//7KB98CQJe6MZ24XQt84lnAcpT56Kc/sUd5ehouQpi9E6oc7aXoemdTlP0CKm9g7tvnfNVBenMaWuBA==
+length: 1769
 -->
