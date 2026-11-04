@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.30 — A stale reading says how old it is
+
+- When a provider's last reading has gone old and refreshing failed, the notch card now says "Last read 12 min ago · refresh failed" instead of "Waiting for the first reading…", so an old number is never mistaken for a first load still in flight. A provider that has never been read keeps the waiting line. See the [release notes](Documentation/ReleaseNotes/2.1.30.md).
+
 ## 2.1.29 — Softer card tails, another account's limits in Settings
 
 - The pointer on the usage card and on the time-left card is shorter and blunter, and both are cut the same way. A finished chat's card no longer says "Done" twice, and the settings arc under the notch is quieter at rest.
