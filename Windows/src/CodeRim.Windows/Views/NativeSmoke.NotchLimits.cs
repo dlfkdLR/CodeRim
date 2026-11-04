@@ -75,7 +75,7 @@ internal static partial class NativeSmoke
             {
                 (ReadingState.Ready, (string?)null, "Connected; this account did not report usage or a quota."),
                 (ReadingState.Loading, null, "Waiting for the first reading…"),
-                (ReadingState.Stale, null, "Waiting for the first reading…"),
+                (ReadingState.Stale, null, "Last read just now · refresh failed"),
                 (ReadingState.NeedsAuth, null, "Sign in to Codex to read your usage"),
                 (ReadingState.Error, "Fixture could not read usage.", "Couldn't read usage — Fixture could not read usage."),
                 (ReadingState.Disabled, "Account limits are turned off in Settings.", "Account limits are turned off in Settings.")

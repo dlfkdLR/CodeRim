@@ -10,6 +10,10 @@ public static class ElapsedCopy
         var text = Text(since, now);
         return text == "just now" ? text : text + " ago";
     }
+    /// <summary>Copy for a reading that has gone old, matching the Mac notch. No timestamp means nothing was ever read.</summary>
+    public static string StaleReading(DateTimeOffset? updatedAt, DateTimeOffset now) => updatedAt is { } updated
+        ? "Last read " + Ago(updated, now) + " · refresh failed"
+        : "Waiting for the first reading…";
     public static string Text(DateTimeOffset since, DateTimeOffset now)
     {
         var seconds = Math.Max(0, (now - since).TotalSeconds);

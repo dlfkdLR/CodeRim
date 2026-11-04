@@ -23,4 +23,12 @@ public sealed class ElapsedCopyTests
     [Fact]
     public void OffsetDoesNotChangeElapsedTime()
         => Assert.Equal("1 hr ago", ElapsedCopy.Ago(Now.AddHours(-1).ToOffset(TimeSpan.FromHours(9)), Now));
+
+    [Fact]
+    public void StaleReadingSaysHowOldAndThatRefreshFailed()
+        => Assert.Equal("Last read 12 min ago · refresh failed", ElapsedCopy.StaleReading(Now.AddMinutes(-12), Now));
+
+    [Fact]
+    public void StaleReadingWithoutTimestampKeepsWaitingCopy()
+        => Assert.Equal("Waiting for the first reading…", ElapsedCopy.StaleReading(null, Now));
 }
