@@ -44,6 +44,23 @@ internal sealed class SavedAccounts(CredentialVault vault, Func<AccountOperation
         }
         return new(provider, identity, credential, profile);
     }
+    internal static SavedLogin ParseCredential(string provider, string credential) => ParseLogin(provider, credential, null);
+    /// <summary>
+    /// Replaces a saved account's credential with its renewed copy, but only when
+    /// the account is still saved and its stored copy has not changed since it was
+    /// read. Returns false when the renewed login could not be stored yet.
+    /// </summary>
+    internal bool StoreRotated(string provider, string id, string renewedCredential)
+    {
+        var snapshot = vault.LoadVersioned("accounts:" + provider);
+        if (snapshot is null) return false;
+        var renewed = ParseLogin(provider, renewedCredential, null);
+        if (renewed.Identity.Id != id) return false;
+        var accounts = Read(provider);
+        if (accounts.All(x => x.Identity.Id != id)) return false;
+        var updated = accounts.Select(x => x.Identity.Id == id ? renewed : x).ToArray();
+        return vault.SaveIfUnchanged("accounts:" + provider, snapshot.Version, JsonSerializer.Serialize(updated));
+    }
     internal static string? CurrentAccountLabel(string provider, bool synthetic)
     {
         if (provider is not ("codex" or "claude")) return null;
