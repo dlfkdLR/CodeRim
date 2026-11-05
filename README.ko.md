@@ -51,7 +51,7 @@ brew install --cask dlfkdLR/tap/coderim
 
 MSI를 실행한 뒤 시작 메뉴에서 CodeRim을 엽니다. 관리자 권한 없이 내 계정에 설치되고 `coderim` 명령이 추가되며, 이후 릴리스는 검증을 거쳐 자동으로 업데이트됩니다([x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.32/CodeRim-Windows-2.1.32-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.32/CodeRim-Windows-2.1.32-arm64-Setup.msi.sha256)).
 
-MSI에는 아직 게시자 인증서 서명이 없어 **Windows의 PC 보호** 창이 뜰 수 있습니다. **추가 정보 → 실행**을 선택하세요. 스마트 앱 컨트롤이 서명 없는 설치 파일을 막는 PC에서도 설치되는, Microsoft가 서명한 Microsoft Store 버전을 준비하고 있습니다. 업그레이드·CLI·Store 버전은 [Windows 설치](docs/ko/windows.md)에서 확인합니다.
+MSI에는 아직 게시자 인증서 서명이 없어 **Windows의 PC 보호** 창이 뜰 수 있습니다. **추가 정보 → 실행**을 선택하세요. 스마트 앱 컨트롤이 서명 없는 설치 파일을 막는 PC에서도 설치되는, Microsoft가 서명한 Microsoft Store 버전을 준비하고 있습니다. 무료 코드 서명을 위해 SignPath Foundation 신청을 준비하고 있으며, **아직 제출·승인되지 않았고** 그 인증서로 서명된 파일은 없습니다. [코드 서명 정책](CODE_SIGNING_POLICY.ko.md)을 참고하세요. 업그레이드·CLI·Store 버전은 [Windows 설치](docs/ko/windows.md)에서 확인합니다.
 
 **Settings → Providers → Add Provider**에서 한 번 로그인한 뒤 링에 포인터를 올립니다.
 
