@@ -4,7 +4,7 @@
 
 **macOS 14 or later · Apple silicon and Intel.**
 
-[![Download for macOS](../Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.31/CodeRim-2.1.31.dmg)
+[![Download for macOS](../Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.33/CodeRim-2.1.33.dmg)
 
 [All releases](https://github.com/dlfkdLR/CodeRim/releases/latest) · [Changelog](../CHANGELOG.md)
 
@@ -21,11 +21,11 @@ The app is **ad-hoc signed, not Apple-notarized**. Homebrew verifies the downloa
 
 ## Direct download and macOS first-launch help
 
-Save the DMG and [SHA256SUMS.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.31/SHA256SUMS.txt) in the same folder and verify the download:
+Save the DMG and [SHA256SUMS.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.33/SHA256SUMS.txt) in the same folder and verify the download:
 
 ```sh
 cd ~/Downloads
-grep ' CodeRim-2.1.31.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
+grep ' CodeRim-2.1.33.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
 ```
 
 After the checksum reports `OK`, open the DMG and drag CodeRim to Applications. If macOS blocks the verified app, remove quarantine from **CodeRim only**, then launch it:
@@ -63,4 +63,4 @@ Settings, usage history, and saved accounts are retained: do not add `--zap` or 
 
 ## Windows 11
 
-The current installers are [2.1.32 x64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.32/CodeRim-Windows-2.1.32-x64-Setup.msi) and [2.1.32 ARM64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.32/CodeRim-Windows-2.1.32-arm64-Setup.msi). See [Windows installation and updates](windows.md).
+The current installers are [2.1.34 x64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-x64-Setup.msi) and [2.1.34 ARM64](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-arm64-Setup.msi). See [Windows installation and updates](windows.md).
