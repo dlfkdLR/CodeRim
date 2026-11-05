@@ -146,10 +146,8 @@ enum ClaudeTranscript {
             case "system" where json["subtype"] as? String == "turn_duration":
                 return Event(turn: .finished, timestamp: timestamp)
             case "assistant":
-                // `tool_use` is the only stop reason that means the turn goes
-                // on; `end_turn`, `stop_sequence` and `max_tokens` all end it.
                 let message = json["message"] as? [String: Any]
-                return Event(turn: message?["stop_reason"] as? String == "tool_use" ? .inFlight : .finished,
+                return Event(turn: assistantEndsTurn(message) ? .finished : .inFlight,
                              timestamp: timestamp)
             case "user":
                 return Event(turn: isInterruption(json) ? .finished : .inFlight, timestamp: timestamp)
@@ -158,6 +156,28 @@ enum ClaudeTranscript {
             }
         }
         return nil
+    }
+
+    /// Whether an assistant record is the end of the turn rather than a piece
+    /// of it.
+    ///
+    /// Claude Code writes each content block as its own record as it streams.
+    /// A `thinking` block is recorded with `end_turn` (226 times in one
+    /// machine's transcripts) and then followed by the `text` block, and a
+    /// block still being streamed has no `stop_reason` yet. Reading either as
+    /// the end made a working chat show "Done". So a record only ends the
+    /// turn when it carries a terminal stop reason *and* its last block is the
+    /// answer rather than thinking. An interrupted turn is closed by the
+    /// explicit interruption record, never by a missing stop reason.
+    static func assistantEndsTurn(_ message: [String: Any]?) -> Bool {
+        guard let reason = message?["stop_reason"] as? String,
+              ["end_turn", "stop_sequence", "max_tokens"].contains(reason) else { return false }
+        if let blocks = message?["content"] as? [[String: Any]],
+           let last = blocks.last?["type"] as? String,
+           last == "thinking" || last == "redacted_thinking" || last == "tool_use" {
+            return false
+        }
+        return true
     }
 
     /// When the agent called a tool, for each call in the tail.

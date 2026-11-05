@@ -348,7 +348,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             along: model.slack + (model.shapeLength * model.sizeScale - length) / 2,
             across: 0,
             length: length,
-            depth: model.restingDepth * model.sizeScale + NotchLayout.pillHotZone
+            depth: model.restingDepth * model.sizeScale + NotchLayout.pillHotMargin
         )
     }
 

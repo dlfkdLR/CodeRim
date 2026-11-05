@@ -22,6 +22,7 @@ struct NotchSettingsView: View {
 
     @AppStorage("notchAnnounceSessionEnd") private var announceSessionEnd = AppPreferences.defaultNotchAnnounceSessionEnd
     @AppStorage("notchSessionEndSound") private var sessionEndSound = AppPreferences.defaultNotchSessionEndSound
+    @AppStorage("notchSubagentEndSound") private var subagentEndSound = AppPreferences.defaultNotchSubagentEndSound
     @AppStorage("notchSessionEndSoundName") private var finishedSoundName = "Glass"
     @AppStorage("notchSessionBlockedSoundName") private var blockedSoundName = "Funk"
 
@@ -220,6 +221,14 @@ struct NotchSettingsView: View {
                     get: { sessionEndSound },
                     set: { sessionEndSound = $0 }
                 )
+                SettingsToggleRow(
+                    "Sound for sub-agents",
+                    caption: "Also play it when a sub-agent finishes. Off by default; the chat that started it still sounds.",
+                    get: { subagentEndSound },
+                    set: { subagentEndSound = $0 }
+                )
+                .disabled(!sessionEndSound)
+                .accessibilityIdentifier("notch.subagentEndSound")
                 SettingsPickerRow(title: "Finished", selection: Binding(
                     get: { finishedSoundName },
                     set: { finishedSoundName = $0; SessionChime.play($0) }

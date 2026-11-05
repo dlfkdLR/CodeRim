@@ -58,6 +58,8 @@ public sealed record AppSettings(
     public bool ShowLastUpdated { get; init; } = true;
     public bool AlertsEnabled { get; init; } = true;
     public bool CompletionSound { get; init; } = true;
+    /// Sub-agents finish far more often than the chats that start them, so their chime is opt-in.
+    public bool SubagentSound { get; init; }
     public double Scale { get; init; } = 1;
     public double Offset { get; init; }
     public string? Display { get; init; }

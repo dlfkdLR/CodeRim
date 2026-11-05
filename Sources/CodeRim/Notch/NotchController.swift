@@ -525,8 +525,11 @@ final class NotchController: ObservableObject {
         NotchLog.sessions.info("session \(event.session.name, privacy: .public) \(String(describing: event.reason), privacy: .public)")
 
         let defaults = UserDefaults.standard
-        if defaults.object(forKey: "notchSessionEndSound") as? Bool ?? AppPreferences.defaultNotchSessionEndSound {
-            let name = event.reason == .blocked
+        let subagentSound = defaults.object(forKey: "notchSubagentEndSound") as? Bool
+            ?? AppPreferences.defaultNotchSubagentEndSound
+        if defaults.object(forKey: "notchSessionEndSound") as? Bool ?? AppPreferences.defaultNotchSessionEndSound,
+           let chimed = SessionCompletionWatcher.soundEvent(in: events, includingSubagents: subagentSound) {
+            let name = chimed.reason == .blocked
                 ? (defaults.string(forKey: "notchSessionBlockedSoundName") ?? "Funk")
                 : (defaults.string(forKey: "notchSessionEndSoundName") ?? "Glass")
             SessionChime.play(name)

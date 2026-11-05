@@ -62,6 +62,21 @@ struct SessionCompletionWatcher {
         return events.sorted { $0.session.since > $1.session.since }
     }
 
+    /// A session started by another session rather than by the user.
+    static func isSubagent(_ session: AgentSession) -> Bool {
+        guard let parent = session.parentThread else { return false }
+        return parent.id != session.codexThreadID
+    }
+
+    /// The event whose chime should play, or nil for silence.
+    ///
+    /// Not simply the newest event: when a sub-agent and its parent finish in
+    /// the same tick the sub-agent is newest, and silencing sub-agents must not
+    /// also silence the chat that actually finished.
+    static func soundEvent(in events: [Event], includingSubagents: Bool) -> Event? {
+        events.first { includingSubagents || !isSubagent($0.session) }
+    }
+
     /// Only leaving `busy` counts.
     ///
     /// `waiting` to `idle` is the tail of a question that was answered, and

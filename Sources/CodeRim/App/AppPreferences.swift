@@ -18,6 +18,9 @@ enum AppPreferences {
     static let defaultNotchEdge = NotchEdge.right.rawValue
     static let defaultNotchSessionEndSound = true
     static let defaultNotchAnnounceSessionEnd = true
+    /// Sub-agents finish far more often than the chats that start them, so
+    /// their chime is opt-in.
+    static let defaultNotchSubagentEndSound = false
     static let defaultNotchThresholdAlerts = true
     static let defaultNotchVisibility = NotchVisibility.onHover.rawValue
     static let defaultNotchSize = NotchSize.medium.rawValue
@@ -73,6 +76,7 @@ enum AppPreferences {
                 "notchEdge": defaultNotchEdge,
                 "notchSessionEndSound": defaultNotchSessionEndSound,
                 "notchAnnounceSessionEnd": defaultNotchAnnounceSessionEnd,
+                "notchSubagentEndSound": defaultNotchSubagentEndSound,
                 "notchSessionEndSoundName": "Glass",
                 "notchSessionBlockedSoundName": "Funk",
                 "notchThresholdAlerts": defaultNotchThresholdAlerts,

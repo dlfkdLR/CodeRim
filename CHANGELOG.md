@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.33 — Sub-agent sound off by default, a smaller wake area
+
+- A chat that is still working no longer shows "Done" when Claude Code saves a thinking block; it stays in the notch's list instead of dropping out after 90 seconds.
+- Settings → Edge Notch → When a Session Ends: **Sound for sub-agents**, off by default. The chat that started a sub-agent still sounds.
+- The folded notch wakes within about 12 pt of its shape instead of about 34 pt.
+
 ## 2.1.31 — The viewed account is a plain line
 
 - On Settings → Usage → Codex Limits, the account chooser is no longer a boxed menu: it is the person glyph and the address, as in the header, and pressing it still opens the saved accounts. A long address is shortened to fit. See the [release notes](Documentation/ReleaseNotes/2.1.31.md).

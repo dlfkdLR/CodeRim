@@ -307,11 +307,12 @@ internal sealed partial class DashboardWindow : Window
         taskActivity.IsEnabled = shown; notchSections.Add(taskActivity); body.Children.Add(taskActivity);
         var finished = SettingsUi.Picker("Finished", SessionChime.Names, settings.Current.FinishedSound, x => { Save(settings.Current with { FinishedSound = x }); if (settings.Current.CompletionSound && settings.Current.Visibility != NotchVisibility.Hidden) SessionChime.Play(x); });
         var blocked = SettingsUi.Picker("Blocked", SessionChime.Names, settings.Current.BlockedSound, x => { Save(settings.Current with { BlockedSound = x }); if (settings.Current.CompletionSound && settings.Current.Visibility != NotchVisibility.Hidden) SessionChime.Play(x); });
-        finished.IsEnabled = blocked.IsEnabled = settings.Current.CompletionSound;
+        var subagentSound = SettingsUi.Toggle("Sound for sub-agents", settings.Current.SubagentSound, x => Save(settings.Current with { SubagentSound = x }), caption: "Also play it when a sub-agent finishes. Off by default; the chat that started it still sounds.");
+        finished.IsEnabled = blocked.IsEnabled = subagentSound.IsEnabled = settings.Current.CompletionSound;
         var sessionEnd = SettingsUi.Section("When a Session Ends",
             SettingsUi.Toggle("Peek the notch open", settings.Current.PeekOnCompletion, x => Save(settings.Current with { PeekOnCompletion = x })),
-            SettingsUi.Toggle("Play a sound", settings.Current.CompletionSound, x => { Save(settings.Current with { CompletionSound = x }); finished.IsEnabled = blocked.IsEnabled = x; }),
-            finished, blocked);
+            SettingsUi.Toggle("Play a sound", settings.Current.CompletionSound, x => { Save(settings.Current with { CompletionSound = x }); finished.IsEnabled = blocked.IsEnabled = subagentSound.IsEnabled = x; }),
+            subagentSound, finished, blocked);
         sessionEnd.IsEnabled = shown; notchSections.Add(sessionEnd); body.Children.Add(sessionEnd);
         var alerts = SettingsUi.Section("Usage Alerts", SettingsUi.Toggle("Notify at 80% and 100% usage", settings.Current.AlertsEnabled, x => Save(settings.Current with { AlertsEnabled = x })));
         alerts.IsEnabled = shown; notchSections.Add(alerts); body.Children.Add(alerts);

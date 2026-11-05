@@ -4,15 +4,17 @@
 
 Native WPF application for Windows 11 x64 and ARM64, built with .NET 10. The current source includes the macOS-aligned edge notch and Usage dashboard, Codex/Claude saved accounts, local token history, and 70 provider connection implementations. Widgets are outside the Windows scope.
 
-The current Windows release is [**2.1.32**](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.32), with x64 and ARM64 MSI installers. Windows version declarations use `Windows/Release.env`, independently of the macOS release configuration.
+The current Windows release is [**2.1.34**](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.34), with x64 and ARM64 MSI installers. Windows version declarations use `Windows/Release.env`, independently of the macOS release configuration.
 
 Code signing: the MSI has no publisher certificate yet. A SignPath Foundation application is being prepared and is not submitted or approved; see the [code signing policy](../CODE_SIGNING_POLICY.md).
+
+Release 2.1.34 adds a **Sound for sub-agents** switch (off by default) to the session-end settings. It skips 2.1.33, which was a macOS release. See [its notes](ReleaseNotes/2.1.34.md). The installers' SHA-256 values are in [SHA256SUMS-windows.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/SHA256SUMS-windows.txt).
 
 Release 2.1.32 adds **View limits** for another saved Codex account (read in a private Codex home, so the CLI stays signed in) and shows how old a stale reading is. It jumps from 2.1.20 because 2.1.21 to 2.1.31 were macOS releases. See [its notes](ReleaseNotes/2.1.32.md). The installers' SHA-256 values are in [SHA256SUMS-windows.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.32/SHA256SUMS-windows.txt).
 
 Release 2.1.20 keeps usage and alerts of one account from showing for another, marks inconsistent logs as partial instead of dropping them, and keeps iPhone sharing from waiting on an answer that never finishes. See [its notes](ReleaseNotes/2.1.20.md).
 
-macOS 2.1.21 to 2.1.31, all released 2026-10-20 to 2026-11-05 (the notch time-left card, a Codex desktop account fix, a Claude account switch that no longer needs the CLI stopped, a plainer account line on the Codex Limits tab, listed in the [changelog](../CHANGELOG.md)) are macOS-only; the Windows app does not have the time-left card or the Claude switch change.
+macOS 2.1.21 to 2.1.31 and 2.1.33, all released 2026-10-20 to 2026-11-05 (the notch time-left card, a Codex desktop account fix, a Claude account switch that no longer needs the CLI stopped, a plainer account line on the Codex Limits tab, a working chat that no longer reads "Done", listed in the [changelog](../CHANGELOG.md)) are macOS-only; the Windows app does not have the time-left card or the Claude switch change.
 
 Release 2.1.18 removes the flicker when the notch opens, especially the first time after start-up. See [its notes](ReleaseNotes/2.1.18.md).
 
