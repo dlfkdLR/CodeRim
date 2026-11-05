@@ -51,7 +51,7 @@ Open **Settings → Providers → Add Provider**, connect your tools, then hover
 
 Run the MSI and open CodeRim from the Start menu. It installs for your account without administrator access, adds the `coderim` command, and updates itself after verifying each release ([x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.32/CodeRim-Windows-2.1.32-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.32/CodeRim-Windows-2.1.32-arm64-Setup.msi.sha256)).
 
-The MSI is not yet signed by a publisher certificate, so Windows may say **Windows protected your PC**: choose **More info → Run anyway**. A Microsoft-signed Microsoft Store version, which also installs where Smart App Control blocks unsigned installers, is on its way. [Windows installation](docs/windows.md) covers upgrades, CLI setup and the Store version.
+The MSI is not yet signed by a publisher certificate, so Windows may say **Windows protected your PC**: choose **More info → Run anyway**. A Microsoft-signed Microsoft Store version, which also installs where Smart App Control blocks unsigned installers, is on its way. We are preparing an application to the SignPath Foundation for free code signing; it is **not yet submitted or approved**, and nothing is signed with its certificate. See the [code signing policy](CODE_SIGNING_POLICY.md). [Windows installation](docs/windows.md) covers upgrades, CLI setup and the Store version.
 
 Open **Settings → Providers → Add Provider**, sign in once, then hover a ring.
 

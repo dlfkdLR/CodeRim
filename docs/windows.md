@@ -10,7 +10,7 @@ Run the matching `Setup.msi`. It installs per user without administrator access,
 
 ## "Windows protected your PC"
 
-The MSI has no publisher certificate yet, so SmartScreen may show **Windows protected your PC** or **Unknown publisher**. Choose **More info → Run anyway**. Each installer has a published SHA-256 file to check it against. If **Smart App Control** is on, Windows blocks unsigned installers without that option; use the Microsoft Store version once it is listed, or turn Smart App Control off in **Windows Security → App & browser control**.
+The MSI has no publisher certificate yet, so SmartScreen may show **Windows protected your PC** or **Unknown publisher**. Choose **More info → Run anyway**. Each installer has a published SHA-256 file to check it against. A SignPath Foundation application for free code signing is being prepared but is not submitted or approved; see the [code signing policy](../CODE_SIGNING_POLICY.md). If **Smart App Control** is on, Windows blocks unsigned installers without that option; use the Microsoft Store version once it is listed, or turn Smart App Control off in **Windows Security → App & browser control**.
 
 ## Microsoft Store version
 

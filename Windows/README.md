@@ -6,6 +6,8 @@ Native WPF application for Windows 11 x64 and ARM64, built with .NET 10. The cur
 
 The current Windows release is [**2.1.32**](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.32), with x64 and ARM64 MSI installers. Windows version declarations use `Windows/Release.env`, independently of the macOS release configuration.
 
+Code signing: the MSI has no publisher certificate yet. A SignPath Foundation application is being prepared and is not submitted or approved; see the [code signing policy](../CODE_SIGNING_POLICY.md).
+
 Release 2.1.32 adds **View limits** for another saved Codex account (read in a private Codex home, so the CLI stays signed in) and shows how old a stale reading is. It jumps from 2.1.20 because 2.1.21 to 2.1.31 were macOS releases. See [its notes](ReleaseNotes/2.1.32.md). The installers' SHA-256 values are in [SHA256SUMS-windows.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.32/SHA256SUMS-windows.txt).
 
 Release 2.1.20 keeps usage and alerts of one account from showing for another, marks inconsistent logs as partial instead of dropping them, and keeps iPhone sharing from waiting on an answer that never finishes. See [its notes](ReleaseNotes/2.1.20.md).
