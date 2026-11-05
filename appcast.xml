@@ -4,28 +4,36 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.31</title>
-            <pubDate>Thu, 05 Nov 2026 11:05:03 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.31</link>
-            <sparkle:version>20131</sparkle:version>
-            <sparkle:shortVersionString>2.1.31</sparkle:shortVersionString>
+            <title>2.1.33</title>
+            <pubDate>Fri, 06 Nov 2026 08:50:06 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.33</link>
+            <sparkle:version>20133</sparkle:version>
+            <sparkle:shortVersionString>2.1.33</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.31
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.33
 
-A macOS-only release. Windows stays at 2.1.20.
+A macOS release. Windows is at 2.1.34.
 
-## The viewed account is a plain line
+## A working chat no longer shows "Done"
 
-- The account chooser on Settings → Usage → Codex Limits was a boxed "Account" menu. It is now the person glyph and the address, matching the header above it. Pressing it still opens your saved accounts, and choosing one only changes which limits are shown; the signed-in Codex account stays as it is. A long address is shortened in the middle instead of pushing the Switch button out of the window.
+- Claude Code writes each streamed block of a reply as its own record, and a thinking block is saved with an end-of-turn marker before the answer follows. CodeRim read that as the end of the turn, so a chat that was still working could show "Done", and after 90 seconds drop out of the notch's list. A reply now counts as finished only when its last block is the answer, and a block still being written counts as working.
+
+## Sub-agent sound is off by default
+
+- Settings → Edge Notch → When a Session Ends has a new **Sound for sub-agents** switch. It is off, so a sub-agent finishing no longer plays the chime; the chat that started it still does, even when both finish together. Turn it on to hear every one. It follows the **Play a sound** switch.
+
+## The folded notch wakes in a smaller area
+
+- The pointer used to wake the folded notch up to about 34 pt away from the screen edge, which reached well below the menu bar beside a display notch. The band is now about 12 pt past the folded shape.
 
 ## Verification
 
-macOS: build with warnings as errors; all 3189 tests pass with 0 failures, including the account-switcher layout tests with a very long address. The new look was not checked on screen.
+macOS: build with warnings as errors; the full test suite passes with 0 failures, including new tests for the sub-agent sound choice, the setting's default, the thinking-block case and the narrower wake area. None of it was checked by eye on a real session.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.31/CodeRim-2.1.31.zip" length="32974433" type="application/octet-stream" sparkle:edSignature="Qs6EDYToaWaTuNq5zLIk+HcRDSZ83SNsHYlSzOCgH5U7GIQgmfOrIZaFBF6qVbMIsCQdzfA3hHbeUoNCl3LVAQ=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.33/CodeRim-2.1.33.zip" length="32977379" type="application/octet-stream" sparkle:edSignature="mcSw06POosYF9eA7XsPTiWAX9JX0kwBZdR9edI7QAqVAanpLFPNKTcZADX4Dsr4NBHn34jGNI3I74RUYQWI0AA=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: RFz9xbFOoDc8j6LFR6cqAPhDFYsY+mz5OgA8aaQbCmXfOzI7icFVmjnZzjpiQzVl/LGEezMQzsDbAjPie7z4Cg==
-length: 1917
+edSignature: 8GWo+kbVZKT2ZnpjOWb4A4B6Qpx+4DCqtVx6Xmr5KCmis+7KWcX44MmihvzX05q8C2WOAmFOnEtIOH5XPgj6Dg==
+length: 2585
 -->
