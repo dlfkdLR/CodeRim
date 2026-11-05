@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.31 — The viewed account is a plain line
+
+- On Settings → Usage → Codex Limits, the account chooser is no longer a boxed menu: it is the person glyph and the address, as in the header, and pressing it still opens the saved accounts. A long address is shortened to fit. See the [release notes](Documentation/ReleaseNotes/2.1.31.md).
+
 ## 2.1.30 — A stale reading says how old it is
 
 - When a provider's last reading has gone old and refreshing failed, the notch card now says "Last read 12 min ago · refresh failed" instead of "Waiting for the first reading…", so an old number is never mistaken for a first load still in flight. A provider that has never been read keeps the waiting line. See the [release notes](Documentation/ReleaseNotes/2.1.30.md).
