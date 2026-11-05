@@ -8,7 +8,7 @@ Windows 11 x64·ARM64용 .NET 10 WPF 앱입니다. 가장자리 노치, Settings
 
 .NET 10 SDK로 `CodeRim.Windows.sln`을 엽니다. 아키텍처별 CI에 맞춰 [빌드·검증](../Documentation/WINDOWS.ko.md#build-and-verify)의 명령을 실행합니다. 인증 메타데이터가 계정을 설명해도 실패한 한도 요청을 인증하지는 않습니다. companion 스냅샷에는 표시용 계정 정보가 없으며 CLI는 마지막 앱 내보내기를 읽습니다. [날짜별 비교 기록](../Documentation/WINDOWS_MAC_REFERENCE_PARITY_2026-09-23.md)을 참고합니다.
 
-2.1.32는 저장된 다른 Codex 계정의 한도를 보는 **View limits**(임시 Codex 홈에서 읽어 CLI 로그인은 그대로 유지)와 오래된 값의 경과 시간 표시를 추가합니다. 2.1.21~2.1.31은 macOS 릴리스였기 때문에 2.1.20에서 바로 2.1.32로 올라갑니다. [릴리스 노트](ReleaseNotes/2.1.32.md).
+2.1.32는 저장된 다른 Codex 계정의 한도를 보는 **View limits**(임시 Codex 홈에서 읽어 CLI 로그인은 그대로 유지)와 오래된 값의 경과 시간 표시를 추가합니다. 2.1.21~2.1.31은 macOS 릴리스였기 때문에 2.1.20에서 바로 2.1.32로 올라갑니다. [릴리스 노트](ReleaseNotes/2.1.32.md). 설치 파일의 SHA-256은 [SHA256SUMS-windows.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.32/SHA256SUMS-windows.txt)에 있습니다.
 
 2.1.20은 계정을 바꿔도 다른 계정의 사용량·알림이 섞이지 않게 하고, 불완전한 로그를 정확히 Partial로 표시하며, iPhone 공유가 멈춘 응답에 갇히지 않게 합니다. [릴리스 노트](ReleaseNotes/2.1.20.md).
 
