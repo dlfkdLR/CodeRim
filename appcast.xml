@@ -4,28 +4,28 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.30</title>
-            <pubDate>Wed, 04 Nov 2026 15:39:18 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.30</link>
-            <sparkle:version>20130</sparkle:version>
-            <sparkle:shortVersionString>2.1.30</sparkle:shortVersionString>
+            <title>2.1.31</title>
+            <pubDate>Thu, 05 Nov 2026 11:05:03 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.31</link>
+            <sparkle:version>20131</sparkle:version>
+            <sparkle:shortVersionString>2.1.31</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.30
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.31
 
 A macOS-only release. Windows stays at 2.1.20.
 
-## A stale reading says how old it is
+## The viewed account is a plain line
 
-- A reading that had gone old showed the same "Waiting for the first reading…" as one that had never arrived. It now reads "Last read 12 min ago · refresh failed", so you can tell an old number from a first load still in flight. A provider that has never been read keeps the waiting line.
+- The account chooser on Settings → Usage → Codex Limits was a boxed "Account" menu. It is now the person glyph and the address, matching the header above it. Pressing it still opens your saved accounts, and choosing one only changes which limits are shown; the signed-in Codex account stays as it is. A long address is shortened in the middle instead of pushing the Switch button out of the window.
 
 ## Verification
 
-macOS: the new `StaleStatusMessageTests` (3) pass, and the pull request's `build-and-test` passed. The new line was checked by tests, not on screen.
+macOS: build with warnings as errors; all 3189 tests pass with 0 failures, including the account-switcher layout tests with a very long address. The new look was not checked on screen.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.30/CodeRim-2.1.30.zip" length="32963911" type="application/octet-stream" sparkle:edSignature="Rn9mxj7OGnk8anVFBoLwBufeDYBhyoWV9bzjjBpB3NpqC7C+dAqnC+75+RR0T9WndZShOHqtYxFTlD4w1IfMAQ=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.31/CodeRim-2.1.31.zip" length="32974433" type="application/octet-stream" sparkle:edSignature="Qs6EDYToaWaTuNq5zLIk+HcRDSZ83SNsHYlSzOCgH5U7GIQgmfOrIZaFBF6qVbMIsCQdzfA3hHbeUoNCl3LVAQ=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: L5gvd6//7KB98CQJe6MZ24XQt84lnAcpT56Kc/sUd5ehouQpi9E6oc7aXoemdTlP0CKm9g7tvnfNVBenMaWuBA==
-length: 1769
+edSignature: RFz9xbFOoDc8j6LFR6cqAPhDFYsY+mz5OgA8aaQbCmXfOzI7icFVmjnZzjpiQzVl/LGEezMQzsDbAjPie7z4Cg==
+length: 1917
 -->
