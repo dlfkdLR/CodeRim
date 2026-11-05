@@ -224,4 +224,45 @@ final class NotchSessionChimeTests: XCTestCase {
             XCTAssertNotNil(SessionChime.url(for: name), "\(name) is offered but does not resolve")
         }
     }
+
+    // MARK: - Sub-agent sound
+
+    private func session(_ id: String, _ state: AgentSession.State, since: Date = Date()) -> AgentSession {
+        AgentSession(id: id, name: id, detail: "Terminal · \(id)", state: state, waitingFor: nil, since: since)
+    }
+
+    private func subagent(_ id: String, parent: String = "a", since: Date = Date()) -> AgentSession {
+        AgentSession(id: id, name: id, detail: "agent", state: .idle, waitingFor: nil, since: since,
+                     parentThread: AgentSession.ParentThread(id: parent, title: parent))
+    }
+
+    private func finished(_ session: AgentSession) -> SessionCompletionWatcher.Event {
+        SessionCompletionWatcher.Event(session: session, reason: .finished, providerID: "claude")
+    }
+
+    func testSubagentSoundIsOffByDefault() {
+        XCTAssertFalse(AppPreferences.defaultNotchSubagentEndSound)
+        let suite = "SubagentSound.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        AppPreferences.registerDefaults(in: defaults)
+        XCTAssertEqual(defaults.object(forKey: "notchSubagentEndSound") as? Bool, false)
+    }
+
+    func testASubagentIsRecognisedByItsParent() {
+        XCTAssertTrue(SessionCompletionWatcher.isSubagent(subagent("s")))
+        XCTAssertFalse(SessionCompletionWatcher.isSubagent(session("a", .idle)))
+    }
+
+    func testSilencedSubagentsDoNotChimeButTheirParentStillDoes() {
+        let now = Date()
+        let child = finished(subagent("child", since: now))
+        let parent = finished(session("a", .idle, since: now.addingTimeInterval(-1)))
+        // The sub-agent is the newest, yet the chat that finished is what sounds.
+        XCTAssertEqual(SessionCompletionWatcher.soundEvent(in: [child, parent],
+                                                           includingSubagents: false)?.session.id, "a")
+        XCTAssertNil(SessionCompletionWatcher.soundEvent(in: [child], includingSubagents: false))
+        XCTAssertEqual(SessionCompletionWatcher.soundEvent(in: [child, parent],
+                                                           includingSubagents: true)?.session.id, "child")
+    }
 }

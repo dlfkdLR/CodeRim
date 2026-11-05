@@ -47,6 +47,11 @@ enum NotchLayout {
     static let pillHeight = NotchDesign.px(210)
     /// The pill is small, so the region that wakes it is deliberately larger.
     static let pillHotZone = NotchDesign.px(90)
+    /// How far past the folded shape, away from the screen edge, the pointer
+    /// still wakes it. The edge stops the pointer, so a target needs little
+    /// depth; a deep band opened the notch for anything done near the edge, and
+    /// beside a display notch it reached well into the menu bar's neighbours.
+    static let pillHotMargin = NotchDesign.px(32)
 
     // A provider cell
     static let ringDiameter  = NotchDesign.px(117)   // 44pt, the design spec's anchor
