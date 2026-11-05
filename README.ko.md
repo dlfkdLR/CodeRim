@@ -26,13 +26,13 @@ CodeRim은 작은 가장자리 노치에서 코딩 도구의 사용 한도, 초�
 
 ## 설치
 
-**macOS:** [2.1.30](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.30) · **Windows:** [2.1.20](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.20)
+**macOS:** [2.1.31](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.31) · **Windows:** [2.1.20](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.20)
 
 ### macOS
 
 **macOS 14 이상 · Apple silicon과 Intel.**
 
-[![macOS 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.30/CodeRim-2.1.30.dmg)
+[![macOS 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.31/CodeRim-2.1.31.dmg)
 
 ```sh
 brew tap dlfkdLR/tap &&
