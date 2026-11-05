@@ -39,6 +39,20 @@ final class NotchClaudeTranscriptTests: XCTestCase {
                        .finished)
     }
 
+    /// Claude Code records each streamed block separately; a thinking block
+    /// carries `end_turn` and is followed by the answer, so it is mid-turn.
+    func testAThinkingBlockIsNotTheEndOfTheTurn() {
+        XCTAssertEqual(turn(#"{"type":"assistant","message":{"stop_reason":"end_turn","content":[{"type":"thinking"}]}}"#),
+                       .inFlight)
+        XCTAssertEqual(turn(#"{"type":"assistant","message":{"stop_reason":"end_turn","content":[{"type":"text"}]}}"#),
+                       .finished)
+    }
+
+    func testABlockStillStreamingIsNotTheEndOfTheTurn() {
+        XCTAssertEqual(turn(#"{"type":"assistant","message":{"stop_reason":null,"content":[{"type":"text"}]}}"#),
+                       .inFlight)
+    }
+
     /// A tool result means the tool is done and the model is thinking about it,
     /// which is the part of a turn that looks quietest from outside.
     func testAToolResultIsStillWork() {
