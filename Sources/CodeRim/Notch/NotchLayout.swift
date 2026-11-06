@@ -129,50 +129,6 @@ enum NotchLayout {
     static let tailLength    = NotchDesign.px(48)
     static let tailHeight    = NotchDesign.px(64)
     static let tailGap       = NotchDesign.px(28)    // tail tip -> notch body edge
-    /// The time-left card that opens beside the usage card while a working
-    /// session is hovered. It lives in the panel's transparent margin, so the
-    /// panel reaches `etaReach` further than the usage card alone needs.
-    static let etaCardWidth  = NotchDesign.px(500)
-    static let etaCardGap    = NotchDesign.px(22)
-    static var etaTailSize: CGSize { CGSize(width: etaCardGap, height: NotchDesign.px(52)) }
-    static let etaCardCorner = cardCorner
-    static let etaCardPadding = NotchDesign.px(28)
-    static let etaCardLineGap = NotchDesign.px(8)
-    static let etaCardBarGap  = NotchDesign.px(14)
-    static let etaBarHeight   = NotchDesign.px(8)
-    static var etaBigLineHeight: CGFloat { cardBodyLineHeight * 1.7 }
-    static var etaReach: CGFloat { etaCardWidth + etaCardGap }
-    /// Known from what the card will show, so the panel can place it against a
-    /// row without measuring it: the title, the headline and bar when there is
-    /// an estimate, then one line for each row of the list.
-    static func etaCardHeight(hasETA: Bool, hasModel: Bool, hasFlags: Bool, statCount: Int) -> CGFloat {
-        let title = cardBodyLineHeight
-        return 2 * etaCardPadding + title + etaCardBarGap + etaBodyHeight(hasETA: hasETA, hasModel: hasModel, hasFlags: hasFlags, statCount: statCount)
-    }
-    /// The ring's side, and the column beside it: the model, then the figures two to a line.
-    static let etaRing = NotchDesign.px(166)
-    static let etaRingStroke = NotchDesign.px(10)
-    static let etaColumnGap = NotchDesign.px(34)
-    static var etaModelHeight: CGFloat { cardBodyLineHeight * 1.5 }
-    static var etaModelSubHeight: CGFloat { cardBodyLineHeight }
-    static var etaStatHeight: CGFloat { cardBodyLineHeight * 2 }
-    static let etaStatGap = NotchDesign.px(12)
-    static let etaStatColumns = 2
-    static var etaFlagsHeight: CGFloat { cardBodyLineHeight }
-    static func etaColumnHeight(hasModel: Bool, hasFlags: Bool, statCount: Int) -> CGFloat {
-        var height: CGFloat = 0
-        if hasModel { height += etaModelHeight + etaModelSubHeight }
-        let lines = (statCount + etaStatColumns - 1) / etaStatColumns
-        if lines > 0 { height += (hasModel ? etaCardBarGap : 0) + CGFloat(lines) * etaStatHeight + CGFloat(lines - 1) * etaStatGap }
-        if hasFlags { height += (height > 0 ? etaCardBarGap : 0) + etaFlagsHeight }
-        return height
-    }
-    static func etaBodyHeight(hasETA: Bool, hasModel: Bool, hasFlags: Bool, statCount: Int) -> CGFloat {
-        let column = etaColumnHeight(hasModel: hasModel, hasFlags: hasFlags, statCount: statCount)
-        return hasETA ? max(etaRing, column) : column
-    }
-    /// The tallest the card gets.
-    static var etaCardHeight: CGFloat { etaCardHeight(hasETA: true, hasModel: true, hasFlags: true, statCount: 4) }
     static let barHeight     = NotchDesign.px(10.5)
     static let headerGap     = NotchDesign.px(17)    // glyph -> title
     static let headerToBlock = NotchDesign.px(21)
@@ -444,7 +400,7 @@ enum NotchLayout {
                       notchScale: CGFloat = 1) -> CGFloat {
         edge.isVertical
             ? max(endSlack * notchScale, maxCardHeight / 2 + cardCorner)
-            : max(endSlack * notchScale, cardWidth / 2 + cardCorner + etaReach)
+            : max(endSlack * notchScale, cardWidth / 2 + cardCorner)
     }
 
     private static let endSlack = NotchDesign.px(300)
@@ -523,6 +479,6 @@ enum NotchLayout {
     /// below or above it on a horizontal one.
     static func tooltipDepth(for edge: NotchEdge,
                              maxCardHeight: CGFloat = defaultMaxCardHeight) -> CGFloat {
-        (edge.isVertical ? cardWidth + etaReach : maxCardHeight) + tailLength + tailGap
+        (edge.isVertical ? cardWidth : maxCardHeight) + tailLength + tailGap
     }
 }

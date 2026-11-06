@@ -491,16 +491,7 @@ private struct SessionRow: View {
     @Environment(\.notchAccentColor) private var accentColor
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
-    @Environment(\.notchSessionHover) private var reportHover
     @State private var isHovered = false
-    @State private var rowFrame: CGRect = .zero
-
-    /// Tell the panel which row the pointer is on, so it can open the
-    /// time-left card beside the usage card. Reported from here because only
-    /// the row knows where it is drawn.
-    private func reportHoverState() {
-        reportHover(isHovered && !isContextOnly ? SessionHover(id: session.id, frame: rowFrame) : nil)
-    }
 
     private var stateColor: Color {
         switch session.state {
@@ -549,12 +540,6 @@ private struct SessionRow: View {
 
     var body: some View {
         rowBody
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame in
-                rowFrame = frame
-                if isHovered { reportHoverState() }
-            }
-            .onChange(of: isHovered) { _, _ in reportHoverState() }
-            .onDisappear { if isHovered { reportHover(nil) } }
     }
 
     @ViewBuilder
