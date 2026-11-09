@@ -48,6 +48,8 @@
 	<string>QzPdedAiOhC1Go03slQo9j+4TNqvw62c+3OYX10/mik=</string>
 	<key>SURequireSignedFeed</key>
 	<true/>
+	<key>SUSignedFeedFailureExpirationInterval</key>
+	<integer>0</integer>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
 	<key>SUVerifyUpdateBeforeExtraction</key>

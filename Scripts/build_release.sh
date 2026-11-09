@@ -29,6 +29,7 @@ if [[ "${adhoc_hardened_runtime}" != "0" && "${adhoc_hardened_runtime}" != "1" ]
 fi
 
 "${script_dir}/verify_release_context.sh"
+"${script_dir}/verify_update_policy.sh" "${project_root}/Config/Info.plist"
 
 cd "${project_root}"
 for product in "${PRODUCT_NAME}" CodeRimCLI CodeRimClaudeBridge; do

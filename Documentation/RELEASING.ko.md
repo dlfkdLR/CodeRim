@@ -10,6 +10,8 @@
 
 `Scripts/build_release.sh`는 도우미·확장·프레임워크·리소스가 있는 ad-hoc Universal 2 앱을 빌드합니다. 적절한 Apple 빌드 도구가 필요하지만 서명 인증서는 필요하지 않습니다. `Scripts/release.sh`는 `CODE_SIGN_IDENTITY`·`CODE_SIGN_TEAM_ID`가 필요한 인증서 경로이며 모든 기여 PR의 전제 조건이 아닙니다. 빌드는 공증·설치·릴리스가 아닙니다.
 
+`SUSignedFeedFailureExpirationInterval`은 `0`이며 `SURequireSignedFeed`·`SUVerifyUpdateBeforeExtraction`을 활성화해 피드 서명 실패가 만료되지 않게 합니다. 앱 시작, 소스 빌드, 원본·ZIP·DMG 앱 검증이 `Scripts/verify_update_policy.sh`의 정책을 적용합니다. 복구·키 교체 시 기존 서명 키를 보관해야 합니다.
+
 ## 인증서 없는 macOS 안정판 검증
 
 유지관리자는 깨끗한 불변 태그 작업 폴더, 소스 release·update-feed·Homebrew tap 접근, 설정 계정 `HechoLP`의 로그인 Keychain Sparkle Ed25519 개인 키가 필요합니다. 개인 키, 인증서, Apple 자격 증명, 공증 프로필을 커밋하지 않습니다. 메타데이터에는 공개 키만 넣습니다.
