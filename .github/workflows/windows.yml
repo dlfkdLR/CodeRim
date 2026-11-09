@@ -1,6 +1,7 @@
 name: Windows
 on:
   push:
+    branches: [main]
     paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', 'Tests/Fixtures/**', '.gitattributes', '.github/workflows/windows.yml']
   pull_request:
     paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', 'Tests/Fixtures/**', '.gitattributes', '.github/workflows/windows.yml']
@@ -13,8 +14,8 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.event_name == 'workflow_dispatch' && github.run_id || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
   test-and-package:
@@ -36,6 +37,8 @@ jobs:
         run: ./Windows/Scripts/test_msix_manifest.ps1
       - name: Validate signed payload manifest generator
         run: python Windows/Scripts/test_update_payload_manifest.py
+      - name: Validate release archive extraction
+        run: ./Windows/Scripts/test_release_archive.ps1
       - name: Build WPF application and CLI
         run: dotnet build Windows/CodeRim.Windows.sln --configuration Release
       - name: Package x64
@@ -46,22 +49,9 @@ jobs:
         run: |
           ./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-x64
           ./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-arm64
-      - name: MSI lifecycle and rollback on x64
-        run: |
-          $setup = (Get-ChildItem Artifacts -Filter '*-x64-Setup.msi').FullName
-          ./Windows/Scripts/test-installer.ps1 -Architecture x64 -Installer $setup
-      - name: Native x64 UI and CLI regressions
-        run: ./Windows/Scripts/test-native.ps1 -Architecture x64
       - name: Build Microsoft Store packages
         shell: pwsh
         run: ./Windows/Scripts/package-msix.ps1
-      - name: Install and run the Store package on x64
-        # Windows PowerShell loads the Appx module natively; PowerShell 7 proxies it through a
-        # compatibility session that can stall on hosted runners.
-        shell: powershell
-        run: |
-          $package = (Get-ChildItem Artifacts -Filter 'CodeRim-Windows-*-x64.msix').FullName
-          ./Windows/Scripts/test-msix.ps1 -Package $package -Architecture x64
       - name: Upload Store packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -70,9 +60,6 @@ jobs:
           path: |
             Artifacts/CodeRim-Windows-*.msix
             Artifacts/CodeRim-Windows-*.msixbundle
-            Artifacts/msix-*/*.json
-            Artifacts/msix-*/*.txt
-            Artifacts/msix-*/*.png
       - name: Upload MSI release candidates
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
@@ -90,12 +77,56 @@ jobs:
             Artifacts/CodeRim-Windows-*-Setup.msi
             Artifacts/*.sha256
             Artifacts/SHA256SUMS-windows.txt
+            Windows/tests/**/TestResults/**
+
+  native-x64:
+    if: ${{ inputs.msi_handoff != true }}
+    needs: test-and-package
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+      - name: Download the release candidate built by the packaging job
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: CodeRim-Windows
+          path: Artifacts/packaged
+      - name: Verify and extract the exact x64 archive
+        run: ./Windows/Scripts/expand-release-archive.ps1 -Architecture x64
+      - name: MSI lifecycle and rollback on x64
+        run: |
+          $setup = (Get-ChildItem Artifacts/packaged -Filter '*-x64-Setup.msi' -Recurse).FullName
+          ./Windows/Scripts/test-installer.ps1 -Architecture x64 -Installer $setup
+      - name: Native x64 UI and CLI regressions
+        run: ./Windows/Scripts/test-native.ps1 -Architecture x64
+      - name: Download the Store packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: CodeRim-Windows-Store
+          path: Artifacts/store
+      - name: Install and run the Store package on x64
+        # Windows PowerShell loads Appx natively; PowerShell 7's compatibility session can stall.
+        shell: powershell
+        run: |
+          $package = (Get-ChildItem Artifacts/store -Filter 'CodeRim-Windows-*-x64.msix').FullName
+          ./Windows/Scripts/test-msix.ps1 -Package $package -Architecture x64
+      - name: Upload x64 execution evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: CodeRim-Windows-X64-Native
+          path: |
+            Artifacts/msix-*/*.json
+            Artifacts/msix-*/*.txt
+            Artifacts/msix-*/*.png
             Artifacts/windows-*.png
             Artifacts/installed/**
             Artifacts/windows-*.json
             Artifacts/windows-*.txt
             Artifacts/windows-msi-*.log
-            Windows/tests/**/TestResults/**
 
   native-arm64:
     if: ${{ inputs.msi_handoff != true }}
@@ -125,19 +156,7 @@ jobs:
           name: CodeRim-Windows
           path: Artifacts/packaged
       - name: Verify and extract the exact ARM64 archive
-        shell: pwsh
-        run: |
-          $archives = @(Get-ChildItem 'Artifacts/packaged' -Filter 'CodeRim-Windows-*-arm64.zip' -Recurse)
-          if ($archives.Count -ne 1) { throw 'Expected exactly one ARM64 release archive.' }
-          $archive = $archives[0]
-          $checksum = Get-Content ($archive.FullName + '.sha256') -Raw
-          $expected = ($checksum.Trim() -split '\s+')[0]
-          $actual = (Get-FileHash $archive.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($expected -notmatch '^[0-9a-f]{64}$' -or $actual -ne $expected) { throw 'ARM64 archive checksum mismatch.' }
-          New-Item -ItemType Directory -Force 'Windows/artifacts/publish/win-arm64' | Out-Null
-          Expand-Archive $archive.FullName 'Windows/artifacts/publish/win-arm64'
-          @{ archive = $archive.Name; sha256 = $actual; source = 'CodeRim-Windows packaging artifact' } |
-            ConvertTo-Json | Set-Content 'Artifacts/windows-native-archive.json' -Encoding utf8
+        run: ./Windows/Scripts/expand-release-archive.ps1 -Architecture arm64
       - name: MSI lifecycle and rollback on ARM64
         run: |
           $setup = (Get-ChildItem Artifacts/packaged -Filter '*-arm64-Setup.msi' -Recurse).FullName

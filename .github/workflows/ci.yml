@@ -10,8 +10,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event_name == 'push' && github.ref) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
   checks:
@@ -26,6 +26,7 @@ jobs:
         run: |
           python3 Scripts/validate_docs.py
           python3 Tests/Scripts/docs_validation_tests.py
+          python3 Tests/Scripts/ci_source_mtimes_tests.py
           python3 website/scripts/sync-providers.py --check
           node --check website/app.js
           node --check website/providers.js
@@ -38,6 +39,9 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/swift-cache
+        with:
+          variant: tests
       - name: Swift version
         run: swift --version
       - name: Prepare pinned dependency fixes
@@ -55,14 +59,6 @@ jobs:
           # Run dynamic suites once, including toolchains whose SwiftPM discovery omits them.
           xcrun xctest -XCTest CodeRimTests.ProviderFetchMatrixTests "$bundle"
           xcrun xctest -XCTest CodeRimTests.ProviderAddFlowMatrixTests "$bundle"
-      - name: iPhone app unit tests (simulator, ad-hoc signed)
-        run: |
-          device="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for r,l in d.items() if "iOS" in r for x in l if x["name"].startswith("iPhone")))')"
-          xcodebuild test -project iOS/CodeRimMobile.xcodeproj -scheme CodeRimMobile \
-            -destination "platform=iOS Simulator,id=${device}" -only-testing:CodeRimMobileTests \
-            -derivedDataPath .build/ios CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= | tail -40
-          test "${PIPESTATUS[0]}" -eq 0
-        shell: bash
       - name: Upload synthetic account layout captures on failure
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -83,6 +79,33 @@ jobs:
           for test_script in Tests/Scripts/*_tests.zsh; do
             "$test_script"
           done
+      - name: Save source timestamps for incremental builds
+        run: python3 Scripts/ci_source_mtimes.py save
+
+  ios-tests:
+    needs: checks
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: iPhone app unit tests (simulator, ad-hoc signed)
+        run: |
+          device="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for r,l in d.items() if "iOS" in r for x in l if x["name"].startswith("iPhone")))')"
+          xcodebuild test -project iOS/CodeRimMobile.xcodeproj -scheme CodeRimMobile \
+            -destination "platform=iOS Simulator,id=${device}" -only-testing:CodeRimMobileTests \
+            -derivedDataPath .build/ios CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= | tail -40
+          test "${PIPESTATUS[0]}" -eq 0
+        shell: bash
+
+  release-build:
+    needs: checks
+    runs-on: macos-26
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/swift-cache
+        with:
+          variant: release
       - name: Universal release build
         env:
           CODERIM_SWIFT_SCRATCH_PATH: ${{ github.workspace }}/.build/coderim-build
@@ -94,3 +117,5 @@ jobs:
           echo "$architectures"
           grep -q arm64 <<< "$architectures"
           grep -q x86_64 <<< "$architectures"
+      - name: Save source timestamps for incremental builds
+        run: python3 Scripts/ci_source_mtimes.py save
