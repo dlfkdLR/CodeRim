@@ -22,6 +22,56 @@ final class PartialEvidenceTests: XCTestCase {
             + #"","role":"assistant","model":""# + model + #"","usage":{"input_tokens":"# + input + #","output_tokens":5}}}"#
     }
 
+    func testReplacingOrRewritingASourceAtTheSameOffsetKeepsTheNewPeriodPartial() async throws {
+        let now = Date(), old = Date().addingTimeInterval(-60 * 86400)
+        for atomic in [false, true] {
+            let folder = sources.appendingPathComponent(atomic ? "replaced" : "rewritten")
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let file = folder.appendingPathComponent("session.jsonl")
+            let collector = CodexUsageCollector(database: try SQLiteDatabase(url: root.appendingPathComponent("\(atomic).sqlite")),
+                                                roots: [folder], provider: .claude)
+            try Data(([claude("goodA", at: old), claude("badA", at: old, input: "-5")].joined(separator: "\n") + "\n").utf8).write(to: file)
+            _ = try await collector.refresh(now: old, weekStart: .monday)
+            try Data(([claude("goodB", at: now), claude("badB", at: now, input: "-5")].joined(separator: "\n") + "\n").utf8)
+                .write(to: file, options: atomic ? .atomic : [])
+            let refreshed = try await collector.refresh(now: now, weekStart: .monday)
+            XCTAssertEqual(refreshed.snapshot.today.totalTokens, 105)
+            XCTAssertEqual(refreshed.snapshot.quality, .partial)
+            try FileManager.default.removeItem(at: file)
+            let retained = try await collector.refresh(now: now, weekStart: .monday)
+            XCTAssertEqual(retained.snapshot.quality, .partial)
+        }
+    }
+
+    func testEvidenceWithoutNewTokensInvalidatesAnalytics() async throws {
+        let collector = CodexUsageCollector(database: try SQLiteDatabase(url: root.appendingPathComponent("revision.sqlite")),
+                                            roots: [sources], provider: .claude)
+        let now = Date()
+        try write([claude("good", at: now)])
+        let before = try await collector.refresh(now: now, weekStart: .monday)
+        let handle = try FileHandle(forWritingTo: sources.appendingPathComponent("session.jsonl"))
+        defer { try? handle.close() }
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data((claude("bad", at: now, input: "-5") + "\n").utf8))
+        let after = try await collector.refresh(now: now, weekStart: .monday)
+        XCTAssertGreaterThan(after.analyticsRevision, before.analyticsRevision)
+        XCTAssertEqual(after.snapshot.today, before.snapshot.today)
+        XCTAssertEqual(after.snapshot.quality, .partial)
+    }
+
+    func testEvidenceOnlyCommitCannotExceedTheDatabaseBudget() async throws {
+        let database = try SQLiteDatabase(url: root.appendingPathComponent("limited.sqlite"), maximumDatabaseBytes: 1)
+        let checkpoint = SourceCheckpoint.fresh(sourcePath: "evidence-source", fileIdentity: "1:1")
+        do {
+            try await database.commit(events: [], checkpoint: checkpoint, normalizationState: nil,
+                                      partialEvidence: [.init(source: "evidence-source", position: 0, observedAt: Date())])
+            XCTFail("Evidence must obey the same database limit as usage rows")
+        } catch SQLiteDatabaseError.resourceLimit {
+            let saved = try await database.checkpoint(for: checkpoint.sourcePath)
+            XCTAssertNil(saved)
+        }
+    }
+
     func testAClaudeAccountingRowThatFailsValidationKeepsItsPeriodPartialAfterTheFileIsGone() async throws {
         let collector = CodexUsageCollector(database: try SQLiteDatabase(url: root.appendingPathComponent("claude.sqlite")),
                                             roots: [sources], provider: .claude)

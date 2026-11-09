@@ -12,7 +12,7 @@ Local accounting reads contained Codex/Claude roots into owner-only separate SQL
 
 Raw read-only Codex app-server responses remain in memory after vendor-signature/bounded execution checks. Normalized last-known windows/read times may persist in the quota cache and owner-only CLI/widget snapshot. No reset-credit consumption, purchase, or account-mutation RPC is exposed by monitoring.
 
-At the audited main commit, profile totals are disabled. The unreleased local development source enables them by default for new preference registration. That separate boundary sends only the current token/account ID to fixed `https://chatgpt.com/backend-api/wham/profiles/me`, rejects redirects, and retains response/credentials only in memory. Remote values never enter local usage tables. No current UI toggle should be invented in reporting.
+ChatGPT profile history is off by default and requires **Include ChatGPT history**. It sends only the current token/account ID to fixed `https://chatgpt.com/backend-api/wham/profiles/me`, rejects redirects, and keeps credentials/responses in memory. **Stop including ChatGPT history** disables refresh and clears the snapshot. Existing stored choices are retained; remote totals never enter local usage tables. [Scope and controls](Documentation/USAGE.md).
 
 Provider credentials are sent only to the owning service or explicitly configured endpoint; settings/imports are provider/account scoped. No body is sent to unified logs; operational logging retains provider IDs, sizes, and error kinds. Local accounting has no telemetry. Optional paired iPhone usage is an explicit relay boundary with persisted allowlisted last snapshots and titles off by default. [Complete privacy/storage contract](Documentation/PRIVACY.md).
 

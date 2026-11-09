@@ -2,7 +2,7 @@
 
 **English** · [한국어](README.ko.md)
 
-This index separates current implementation guidance from dated evidence. The audit compares GitHub main commit `4bfdee23ca46918de4f56e0f79920851e8aa29bd` with the local development snapshot of 2026-09-28. Pending macOS analytics/account-history and iPhone/relay changes are identified as development features; the source matrix is not a release or live-service verification claim.
+Current developer contracts are listed below; platform scope belongs in [Product](../PRODUCT.md) and the platform guides. The iPhone companion remains unreleased source requiring provisioning and relay configuration. Dated records describe their original runs, not current acceptance.
 
 - [Architecture](ARCHITECTURE.md) — ownership, pipelines, persistence, and async boundaries.
 - [Usage accounting](USAGE.md) — safe deltas, cache arithmetic, calendar periods, and recovery.

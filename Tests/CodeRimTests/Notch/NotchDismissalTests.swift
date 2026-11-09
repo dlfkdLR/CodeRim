@@ -59,6 +59,23 @@ final class NotchDismissalTests: XCTestCase {
         XCTAssertTrue(controller.model.isExpanded, "The \(controller.model.edge) notch did not open on hover")
     }
 
+    /// The folded notch wakes just past its own shape, not a deep band beside it.
+    func testAFoldedNotchIgnoresThePointerWellPastItsShape() throws {
+        for edge in NotchEdge.allCases {
+            let (controller, cursor) = try makeController(edge: edge)
+            defer { controller.retire() }
+            let along = controller.model.shapeLength / 2
+            let depth = controller.model.restingDepth
+
+            try move(cursor, to: controller, along: along, across: depth + 40)
+            pump(0.8)
+            XCTAssertFalse(controller.model.isExpanded, "The \(edge) notch opened 40pt past its shape")
+
+            try enter(cursor, controller: controller)
+            XCTAssertTrue(controller.model.isExpanded)
+        }
+    }
+
     func testClickingAnOpenNotchMarginStillFoldsOnEveryEdge() throws {
         for edge in NotchEdge.allCases {
             let (controller, cursor) = try makeController(edge: edge)

@@ -55,7 +55,7 @@ internal static partial class NativeSmoke
             pane.Update(); await Idle(); EmptyRange();
             Descendants<RadioButton>(pane).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.30d").IsChecked = true; await Idle();
             Require(Descendants<TextBlock>(pane).Any(x => x.FontSize == 28 && x.Text == 123L.ToString("N0", CultureInfo.CurrentCulture)), "Changing range did not recover older records");
-            store.Usage["codex"] = store.Usage["codex"] with { Quality = DataQuality.Partial }; store.RecordLocalAnalyticsRead("codex", DateTimeOffset.Now); pane.RefreshReadings(); await Idle();
+            store.Usage["codex"] = store.Usage["codex"] with { Quality = DataQuality.Partial, SourcesPartial = true }; store.RecordLocalAnalyticsRead("codex", DateTimeOffset.Now); pane.RefreshReadings(); await Idle();
             var focused = Descendants<Button>(pane).Last(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.tokens.", StringComparison.Ordinal));
             Require(focused.Focus() && pane.IsKeyboardFocusWithin, "Analytics fixture did not focus a chart before its refresh failure");
             store.Usage["codex"] = LocalTokenPresentation.AfterFailure(store.Usage["codex"]); pane.RefreshReadings(); await Idle();

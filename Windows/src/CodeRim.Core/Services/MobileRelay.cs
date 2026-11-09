@@ -19,11 +19,11 @@ public sealed record MobilePairingPoll(bool? Pending, string? Token, double? Exp
 /// <summary>Interval is the heartbeat the free relay can afford today; Notice is set while it rations.</summary>
 public sealed record MobileSnapshotReply(bool Ok, double? Interval, string? Notice);
 
-/// <summary><c>coderim://pair?r=&lt;relay&gt;&amp;i=&lt;id&gt;&amp;s=&lt;secret&gt;</c>, shown as the QR code the iPhone scans.</summary>
+/// <summary>App-only QR/paste envelope; never route the pairing capability through a custom URL scheme.</summary>
 public static class MobilePairingLink
 {
     public static string Create(Uri relay, MobilePairingStart offer) =>
-        "coderim://pair?r=" + Uri.EscapeDataString(relay.AbsoluteUri.TrimEnd('/')) + "&i=" + Uri.EscapeDataString(offer.Id) + "&s=" + Uri.EscapeDataString(offer.Secret);
+        "CODERIM-PAIR-1\n" + relay.AbsoluteUri.TrimEnd('/') + "\n" + offer.Id + "\n" + offer.Secret;
 }
 
 public static class MobileSnapshotBuilder

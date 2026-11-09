@@ -29,85 +29,11 @@ Where the UI offers browser-session import, users enable it per provider. Curren
 Verify all IDs and glyphs, adapter construction, scoped settings, save/refresh, disabled/needsAuth/partial/stale states, and late-response isolation. Transport tests intercept local fixtures while running real upstream readers, including 401, Fireworks discovery, fractional billing, QuickJS resources, and JetBrains known/Unknown quota XML. Record a real service-account check separately.
 
 ```sh
-swift test --filter ExtendedProviderTests
-swift test --filter ExtendedProviderTransportTests
-swift test --filter ProviderToken
-Scripts/build_release.sh
-codesign --verify --deep --strict /Applications/CodeRim.app
+python3 Scripts/prepare_swift_dependencies.py --run-swift test --filter 'ExtendedProviderTests|ExtendedProviderTransportTests|ProviderToken'
 ```
 
-The build/signature commands must target the exact candidate app you built; an installed app can belong to another revision. A passing unit test or resource smoke is not live-provider acceptance. The harness has no Swift verification adapter; preserve its exact verdict separately. [Dated provider audit](PROVIDER_AUDIT.md) contains historical test counts, not current approval.
+Follow [Contributing](../CONTRIBUTING.md) for build/signature checks against the exact candidate app. Unit/resource smoke tests and the [historical audit](PROVIDER_AUDIT.md) do not establish current live-account acceptance.
 
 ## Full setup map
-| Provider | Stored/CLI ID | Adapter | Setup |
-| --- | --- | --- | --- |
-| Abacus AI | `abacus` | Pinned adapter | [Guide](../docs/providers/abacus.md) |
-| ai& | `aiand` | Pinned adapter | [Guide](../docs/providers/aiand.md) |
-| Alibaba | `alibaba` | Pinned adapter | [Guide](../docs/providers/alibaba.md) |
-| Alibaba Token Plan | `alibabatokenplan` | Pinned adapter | [Guide](../docs/providers/alibabatokenplan.md) |
-| Amp | `amp` | Pinned adapter | [Guide](../docs/providers/amp.md) |
-| Augment | `augment` | Pinned adapter | [Guide](../docs/providers/augment.md) |
-| Azure OpenAI | `azureopenai` | Pinned adapter | [Guide](../docs/providers/azureopenai.md) |
-| AWS Bedrock | `bedrock` | Pinned adapter | [Guide](../docs/providers/bedrock.md) |
-| Chutes | `chutes` | Pinned adapter | [Guide](../docs/providers/chutes.md) |
-| Claude Code | `claude` | Native | [Guide](../docs/providers/claude.md) |
-| ClawRouter | `clawrouter` | Pinned adapter | [Guide](../docs/providers/clawrouter.md) |
-| ClinePass | `clinepass` | Pinned adapter | [Guide](../docs/providers/clinepass.md) |
-| Codebuff | `codebuff` | Pinned adapter | [Guide](../docs/providers/codebuff.md) |
-| Codex | `codex` | Native | [Guide](../docs/providers/codex.md) |
-| Command Code | `commandcode` | Native | [Guide](../docs/providers/commandcode.md) |
-| GitHub Copilot | `copilot` | Native | [Guide](../docs/providers/copilot.md) |
-| Crof | `crof` | Pinned adapter | [Guide](../docs/providers/crof.md) |
-| Cursor | `cursor` | Native | [Guide](../docs/providers/cursor.md) |
-| Deepgram | `deepgram` | Pinned adapter | [Guide](../docs/providers/deepgram.md) |
-| DeepInfra | `deepinfra` | Pinned adapter | [Guide](../docs/providers/deepinfra.md) |
-| DeepSeek | `deepseek` | Pinned adapter | [Guide](../docs/providers/deepseek.md) |
-| Devin | `devin` | Pinned adapter | [Guide](../docs/providers/devin.md) |
-| Doubao | `doubao` | Pinned adapter | [Guide](../docs/providers/doubao.md) |
-| ElevenLabs | `elevenlabs` | Pinned adapter | [Guide](../docs/providers/elevenlabs.md) |
-| Droid | `factory` | Pinned adapter | [Guide](../docs/providers/factory.md) |
-| Fireworks | `fireworks` | Pinned adapter | [Guide](../docs/providers/fireworks.md) |
-| Gemini | `gemini-cli` | Pinned adapter | [Guide](../docs/providers/gemini-cli.md) |
-| Antigravity | `gemini` | Native | [Guide](../docs/providers/gemini.md) |
-| GLM | `glm` | Native | [Guide](../docs/providers/glm.md) |
-| Grok | `grok` | Native | [Guide](../docs/providers/grok.md) |
-| Groq | `groq` | Pinned adapter | [Guide](../docs/providers/groq.md) |
-| IBM Bob | `ibmbob` | Pinned adapter | [Guide](../docs/providers/ibmbob.md) |
-| JetBrains AI | `jetbrains` | Pinned adapter | [Guide](../docs/providers/jetbrains.md) |
-| Kilo | `kilo` | Pinned adapter | [Guide](../docs/providers/kilo.md) |
-| Kimi Code | `kimi` | Pinned adapter | [Guide](../docs/providers/kimi.md) |
-| Kiro | `kiro` | Pinned adapter | [Guide](../docs/providers/kiro.md) |
-| LiteLLM | `litellm` | Pinned adapter | [Guide](../docs/providers/litellm.md) |
-| LLM Proxy | `llmproxy` | Pinned adapter | [Guide](../docs/providers/llmproxy.md) |
-| LongCat | `longcat` | Pinned adapter | [Guide](../docs/providers/longcat.md) |
-| Manus | `manus` | Pinned adapter | [Guide](../docs/providers/manus.md) |
-| Xiaomi MiMo | `mimo` | Pinned adapter | [Guide](../docs/providers/mimo.md) |
-| MiniMax | `minimax` | Pinned adapter | [Guide](../docs/providers/minimax.md) |
-| Mistral | `mistral` | Pinned adapter | [Guide](../docs/providers/mistral.md) |
-| Moonshot / Kimi Open Platform | `moonshot` | Pinned adapter | [Guide](../docs/providers/moonshot.md) |
-| Neuralwatt | `neuralwatt` | Pinned adapter | [Guide](../docs/providers/neuralwatt.md) |
-| Notion AI | `notion` | Pinned adapter | [Guide](../docs/providers/notion.md) |
-| Ollama Local | `ollama-local` | Native | [Guide](../docs/providers/ollama-local.md) |
-| Ollama Cloud | `ollama` | Native | [Guide](../docs/providers/ollama.md) |
-| OpenAI | `openai` | Pinned adapter | [Guide](../docs/providers/openai.md) |
-| OpenCode | `opencode-zen` | Pinned adapter | [Guide](../docs/providers/opencode-zen.md) |
-| OpenCode Go | `opencode` | Native | [Guide](../docs/providers/opencode.md) |
-| OpenRouter | `openrouter` | Pinned adapter | [Guide](../docs/providers/openrouter.md) |
-| Perplexity | `perplexity` | Pinned adapter | [Guide](../docs/providers/perplexity.md) |
-| Poe | `poe` | Pinned adapter | [Guide](../docs/providers/poe.md) |
-| Qoder | `qoder` | Pinned adapter | [Guide](../docs/providers/qoder.md) |
-| Qwen Cloud | `qwencloud` | Pinned adapter | [Guide](../docs/providers/qwencloud.md) |
-| Sakana AI | `sakana` | Pinned adapter | [Guide](../docs/providers/sakana.md) |
-| StepFun | `stepfun` | Pinned adapter | [Guide](../docs/providers/stepfun.md) |
-| sub2api | `sub2api` | Pinned adapter | [Guide](../docs/providers/sub2api.md) |
-| Synthetic | `synthetic` | Pinned adapter | [Guide](../docs/providers/synthetic.md) |
-| T3 Chat | `t3chat` | Pinned adapter | [Guide](../docs/providers/t3chat.md) |
-| Venice | `venice` | Pinned adapter | [Guide](../docs/providers/venice.md) |
-| Vertex AI | `vertexai` | Pinned adapter | [Guide](../docs/providers/vertexai.md) |
-| Warp | `warp` | Pinned adapter | [Guide](../docs/providers/warp.md) |
-| Wayfinder | `wayfinder` | Pinned adapter | [Guide](../docs/providers/wayfinder.md) |
-| Windsurf | `windsurf` | Pinned adapter | [Guide](../docs/providers/windsurf.md) |
-| xAI | `xai` | Pinned adapter | [Guide](../docs/providers/xai.md) |
-| Zed | `zed` | Pinned adapter | [Guide](../docs/providers/zed.md) |
-| ZenMux | `zenmux` | Pinned adapter | [Guide](../docs/providers/zenmux.md) |
-| ZoomMate | `zoommate` | Pinned adapter | [Guide](../docs/providers/zoommate.md) |
+
+The [provider catalogue](../docs/providers.md) is the canonical name, stored-ID and setup map. Adapter construction lives in `NotchProviderCatalog` and `ExtendedProviderCatalog`.

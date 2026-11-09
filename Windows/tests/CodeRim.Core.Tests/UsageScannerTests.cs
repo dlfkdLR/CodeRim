@@ -113,14 +113,32 @@ public sealed class UsageScannerTests
             Assert.Contains(scan.Events, e => e.Repaired && e.Usage == new TokenUsage(10, 10, 5));
             var repository = new UsageRepository(Path.Combine(root, "usage.sqlite"));
             repository.Merge("codex", scan.Events);
-            // The file that needed the repair was read only in part, so its other record is marked too.
-            Assert.Equal(2, repository.LastWriteRepairedEvents);
+            Assert.False(scan.Events[0].Repaired, "A repaired later delta does not damage an earlier exact row");
+            Assert.Equal(1, repository.LastWriteRepairedEvents);
 
             File.Delete(source);
             var reopened = new UsageRepository(Path.Combine(root, "usage.sqlite"));
             Assert.True(reopened.HasRepairedEventsSince("codex", new DateTimeOffset(2026, 8, 31, 0, 0, 0, TimeSpan.Zero)));
         }
         finally { Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task MissingRowsStillMarkTheFileWhenAnotherDeltaWasAlreadyRepaired()
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            File.WriteAllLines(Path.Combine(root, "mixed.jsonl"), [
+                TokenLine("2026-09-01T00:00:01Z", 1, 100, 20, 10),
+                TokenLine("2026-09-01T00:00:02Z", 2, 110, 40, 15),
+                """{"type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":-1}}}}"""]);
+            var scan = await new UsageScanner([root]).ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            Assert.Equal(2, scan.Events.Count);
+            Assert.All(scan.Events, e => Assert.True(e.Repaired));
+            Assert.Equal(DataQuality.Partial, scan.Snapshot.Quality);
+        }
+        finally { Directory.Delete(root, true); }
     }
 
     /// Two copies of one session reach the same later counters from different earlier ones: one copy's
@@ -181,6 +199,90 @@ public sealed class UsageScannerTests
         }
         finally { Directory.Delete(root, true); }
     }
+
+    [Fact]
+    public async Task DuplicateEnrichmentPreservesFirstSeenOrderAndDistinctEvents()
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            var metadata = """{"type":"session_meta","payload":{"id":"ordered"}}""";
+            var first = TokenLine("2026-09-01T00:00:01Z", 1, 100, 0, 20);
+            File.WriteAllLines(Path.Combine(root, "a.jsonl"), [metadata, first]);
+            File.WriteAllLines(Path.Combine(root, "b.jsonl"), [metadata,
+                first.Replace("\"output_tokens\":20", "\"output_tokens\":20,\"cache_write_input_tokens\":40", StringComparison.Ordinal),
+                TokenLineWithLast("2026-09-01T00:00:02Z", 150, 0, 30, 50, 0, 10, 2)]);
+            var result = await new UsageScanner([root]).ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            Assert.Equal(new long[] { 120, 60 }, result.Events.Select(x => x.Usage.TotalTokens));
+            Assert.Equal(40, result.Events[0].Usage.CacheWriteInputTokens);
+            Assert.Equal(2, result.Events.Select(x => x.EventKey).Distinct(StringComparer.Ordinal).Count());
+            Assert.Equal(180, result.Snapshot.AllTime.TotalTokens);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Theory]
+    [InlineData("one\npartial", 99, "one", 1)]
+    [InlineData("one\npartial", 6, "one", 1)]
+    [InlineData("one\npartial", 4, "one", 0)]
+    [InlineData("partial", 99, "", 1)]
+    [InlineData("partial", 0, "", 0)]
+    [InlineData("one\ntwo\n", 99, "one|two", 0)]
+    public void BoundedReaderQuarantinesOnlyUnfinishedTail(string text, int budget, string complete, int quarantined)
+    {
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(text));
+        var lines = BoundedLineReader.Read(stream, budget, TestContext.Current.CancellationToken).ToArray();
+        Assert.Equal(complete, string.Join('|', lines.Where(x => !x.Oversized).Select(x => System.Text.Encoding.UTF8.GetString(x.Bytes!))));
+        Assert.Equal(quarantined, lines.Count(x => x.Oversized));
+        Assert.All(lines.Where(x => x.Oversized), line => Assert.Null(line.Bytes));
+        Assert.Equal(Math.Min(budget, stream.Length), stream.Position);
+    }
+    [Theory]
+    [InlineData(110, 15, 125)]
+    [InlineData(100, 10, 110)]
+    public async Task ScannerRepairsStayPartialAfterSourceDeletionReopenAndDuplicateMerge(long nextInput, long nextOutput, long total)
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            var source = Path.Combine(root, "repaired.jsonl");
+            File.WriteAllLines(source, ["""{"type":"session_meta","payload":{"id":"repaired"}}""",
+                TokenLine("2026-08-27T01:00:01Z", 1, 100, 20, 10),
+                TokenLine("2026-08-27T01:00:02Z", 2, nextInput, 40, nextOutput)]);
+            File.Copy(source, Path.Combine(root, "copy.jsonl"));
+            var scanner = new UsageScanner([root]);
+            var scanned = await scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            Assert.Equal(DataQuality.Partial, scanned.Snapshot.Quality);
+            var repaired = Assert.Single(scanned.Events, e => e.Repaired);
+            Assert.Equal(new TokenUsage(nextInput - 100, nextInput - 100, nextOutput - 10), repaired.Usage);
+            var path = Path.Combine(root, "usage.sqlite");
+            var repository = new UsageRepository(path);
+            repository.Merge("codex", scanned.Events);
+            Assert.Equal(1, repository.LastWriteRepairedEvents);
+            Assert.True(repository.HasRepairedEventsSince("codex", repaired.OccurredAt));
+            repository.Merge("codex", scanned.Events.Select(e => e with { Repaired = false }));
+            File.Delete(source); File.Delete(Path.Combine(root, "copy.jsonl"));
+            var missing = await scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            var retained = repository.Merge("codex", missing.Events);
+            Assert.Equal(2, retained.Count);
+            var reopened = new UsageRepository(path);
+            Assert.True(reopened.HasRepairedEventsSince("codex", repaired.OccurredAt));
+            var summary = UsageScanner.Aggregate(retained, repaired.OccurredAt.AddMinutes(1), WeekStart.Monday,
+                reopened.HasRepairedEventsSince("codex", repaired.OccurredAt));
+            Assert.Equal(DataQuality.Partial, summary.Quality);
+            Assert.Equal(total, summary.AllTime.TotalTokens);
+            reopened.Rebuild("codex", scanned.Events);
+            Assert.True(reopened.HasRepairedEventsSince("codex", repaired.OccurredAt));
+            reopened.Rebuild("codex", scanned.Events.Select(e => e with { Repaired = false }));
+            Assert.False(reopened.HasRepairedEventsSince("codex", repaired.OccurredAt));
+            reopened.Clear("codex", repaired.OccurredAt.AddSeconds(-1));
+            // The first id is cutoff-filtered and the second excluded, even with a later timestamp.
+            Assert.Empty(reopened.Merge("codex", [scanned.Events[0], repaired with { OccurredAt = repaired.OccurredAt.AddDays(1) }]));
+            Assert.False(reopened.HasRepairedEventsSince("codex", DateTimeOffset.MinValue));
+        }
+        finally { Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); Directory.Delete(root, true); }
+    }
+
     [Fact]
     public async Task ExcludesInheritedReplayAndCountsFreshChildUsage()
     {

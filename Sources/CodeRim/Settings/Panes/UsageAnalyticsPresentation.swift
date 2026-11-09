@@ -100,6 +100,14 @@ enum SettingsUsageSection: String, CaseIterable, Identifiable {
 }
 
 
+struct SettingsUsageActivityKey: Equatable {
+    let provider: UsageProvider
+    let range: AnalyticsRange
+    let through: Date?
+    let sourceUpdatedAt: Date?
+    let calendar: Calendar
+}
+
 @MainActor
 final class SettingsUsageAnalyticsState: ObservableObject {
     @Published var grouping = SettingsUsageGrouping.tokenType
@@ -107,4 +115,22 @@ final class SettingsUsageAnalyticsState: ObservableObject {
     @Published var showsAllSessions = false
     @Published var expandedSessions: Set<String> = []
     @Published var expandedPeriods: Set<UsagePeriod> = []
+    /// What the agents did in the range, read from their logs, and which
+    /// provider and range that answers.
+    @Published var activity: ActivitySnapshot?
+    var activityKey: SettingsUsageActivityKey?
+    private var activityRequest: UUID?
+    /// How it is read. Tests replace it so they never open the logs on this Mac.
+    var loadActivity: (UsageProvider, AnalyticsRange, Date, Calendar) async -> ActivitySnapshot = UsageActivityScanner.loadShared
+
+    func refreshActivity(for key: SettingsUsageActivityKey) async {
+        guard !Task.isCancelled else { return }
+        let request = UUID()
+        activityRequest = request
+        if activityKey != key { activity = nil }
+        let loaded = await loadActivity(key.provider, key.range, key.through ?? Date(), key.calendar)
+        guard activityRequest == request, !Task.isCancelled else { return }
+        activityKey = key
+        activity = loaded
+    }
 }

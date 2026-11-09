@@ -18,6 +18,13 @@ final class MobileAppModel: ObservableObject {
     @Published private(set) var activityActive = false
     @Published private(set) var errorMessage: String?
     @Published private(set) var statusMessage: String?
+    /// Bumped when the Island or a link asks for the dashboard, so the root can pop back to it.
+    @Published private(set) var dashboardRequest = 0
+    /// When the relay last answered, for "Updated … ago".
+    @Published private(set) var lastRefresh: Date?
+    /// The notice the last failed refresh put up, so a later good refresh can take down that one and
+    /// leave any other action's error alone.
+    private var refreshError: String?
     private var credential: MobileCredential?
     private var client: (any MobileRelayServing)?
     private var loginGeneration = UUID()
@@ -28,9 +35,12 @@ final class MobileAppModel: ObservableObject {
     /// The one restore of the saved connection. The app's launch task and a QR link that opened the app
     /// both wait for it, so a link never finds the model busy restoring and is never dropped.
     private var restoring: Task<Void, Never>?
-    /// The error a failed refresh showed; a later successful refresh takes back only that one.
-    private var refreshError: String?
     private var pushAvailable = true
+    private var foreground = false
+    /// The person chose Stop showing; respected until the running tasks finish.
+    private var userStopped = false
+    private var autoStarted = false
+    private var idleSince: Date?
     private var remoteActivities: [Task<Void, Never>] = []
     private let credentials: any MobileCredentialStoring
     private let makeClient: @Sendable (URL) throws -> any MobileRelayServing
@@ -59,9 +69,23 @@ final class MobileAppModel: ObservableObject {
             }
         } catch {
             guard generation == loginGeneration else { return }
-            errorMessage = error.localizedDescription
+            errorMessage = Self.message(for: error)
             if case MobileRelayError.expired = error { await clearLocalLogin() }
         }
+    }
+
+    /// What a person reads for a failure: a dropped signal says so, instead of a system error code.
+    static func message(for error: Error) -> String {
+        if let url = error as? URLError {
+            switch url.code {
+            case .notConnectedToInternet, .networkConnectionLost, .dataNotAllowed, .internationalRoamingOff:
+                return "You're offline. Showing the last update from your computer."
+            case .timedOut, .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed, .secureConnectionFailed:
+                return "Can't reach the CodeRim relay right now. It will try again."
+            default: break
+            }
+        }
+        return error.localizedDescription
     }
 
     var selectionOptions: [MobileProviderOption] {
@@ -115,7 +139,7 @@ final class MobileAppModel: ObservableObject {
             errorMessage = "This QR code has expired or was already used. Show a new one on your computer."
         } catch MobileRelayError.rejected(409) {
             errorMessage = "This QR code was already used. Show a new one on your computer."
-        } catch { errorMessage = error.localizedDescription }
+        } catch { errorMessage = Self.message(for: error) }
     }
 
     private func activate(_ saved: MobileCredential) throws {
@@ -162,15 +186,27 @@ final class MobileAppModel: ObservableObject {
     }
 
     func setForeground(_ active: Bool) {
+        foreground = active
         foregroundPoll?.cancel(); foregroundPoll = nil
         guard active else { return }
+        // Only while the app is on screen; computers send changes as they happen.
         foregroundPoll = Task { [weak self] in
             while !Task.isCancelled {
                 if self?.signedIn == true { await self?.refresh() }
-                do { try await Task.sleep(for: .seconds(15)) } catch { break }
+                do { try await Task.sleep(for: .seconds(5)) } catch { break }
             }
         }
     }
+
+    /// External URLs may navigate, but enrollment requires the app's scanner or paste action.
+    func handleExternalURL(_ url: URL) {
+        guard url.scheme == "coderim", url.host == "dashboard",
+              url.user == nil, url.password == nil, url.port == nil,
+              url.path.isEmpty, url.query == nil, url.fragment == nil else { return }
+        openDashboard()
+    }
+
+    func openDashboard() { dashboardRequest += 1 }
 
     func refresh() async {
         guard let credential, let client else { return }
@@ -180,13 +216,13 @@ final class MobileAppModel: ObservableObject {
             guard generation == loginGeneration else { return }
             _ = try await apply(response, token: credential.token)
             guard generation == loginGeneration else { return }
-            // The relay answered again: the error its last failure showed no longer holds. An error some
-            // other action showed since then stays.
+            // The relay answered: clear the notice a failed refresh raised, and only that one.
             if let shown = refreshError, errorMessage == shown { errorMessage = nil }
             refreshError = nil
         } catch {
             guard generation == loginGeneration else { return }
-            errorMessage = error.localizedDescription; refreshError = errorMessage
+            errorMessage = Self.message(for: error)
+            refreshError = errorMessage
             if case MobileRelayError.rejected(401) = error { await clearLocalLogin() }
             if case MobileRelayError.expired = error { await clearLocalLogin() }
         }
@@ -210,12 +246,40 @@ final class MobileAppModel: ObservableObject {
         serverNotice = response.notice
         displayProviders = response.displayProviders ?? []
         state = response.state
+        lastRefresh = Date()
         observeActivities()
         for activity in Activity<CodeRimActivityAttributes>.activities where activity.attributes.connectionID == connection && (activity.activityState == .active || activity.activityState == .stale) {
             guard response.state.supersedes(activity.content.state) else { continue }
             await activity.update(ActivityContent(state: response.state, staleDate: Date(timeIntervalSince1970: response.state.staleAt)))
         }
+        await followTasks()
         return true
+    }
+
+    /// Without push (an app signed with a free Apple ID) nothing can start or end the Island
+    /// remotely, so while the app is open it follows the tasks itself: shown once one runs,
+    /// ended two minutes after the last one stops.
+    private func followTasks() async {
+        guard foreground, signedIn else { return }
+        if state.workingCount + state.waitingCount > 0 {
+            idleSince = nil
+            guard !activityActive, !userStopped, !busy, ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+            autoStarted = true
+            await startActivity(userInitiated: false)
+        } else {
+            userStopped = false
+            guard activityActive, autoStarted, !pushAvailable else { idleSince = nil; return }
+            let since = idleSince ?? Date(); idleSince = since
+            guard Date().timeIntervalSince(since) >= 120 else { return }
+            autoStarted = false; idleSince = nil
+            await stopActivity()
+        }
+    }
+
+    /// The person's own Stop showing, which automatic starts respect until the tasks finish.
+    func stopShowing() async {
+        userStopped = true; autoStarted = false
+        await stopActivity()
     }
 
     /// Explicit, phone-specific focus. Filtering the rotation remains a separate setting.
@@ -247,40 +311,34 @@ final class MobileAppModel: ObservableObject {
     }
 
     func selectProvider(_ id: String, enabled: Bool) async {
-        guard !busy, let credential, let client else { return }
+        guard !busy, credential != nil, client != nil else { return }
         var ids = preferences.providerIDs.isEmpty ? providers.map(\.id) : preferences.providerIDs
         if enabled && !ids.contains(id) { ids.append(id) }
         if !enabled { ids.removeAll { $0 == id } }
         guard (1...100).contains(ids.count) else { errorMessage = "Select at least one provider to display."; return }
-        busy = true; errorMessage = nil; defer { busy = false }
-        let generation = loginGeneration
-        do {
-            let next = MobilePreferences(providerIDs: ids)
-            let _: MobileOK = try await client.send("PUT", "/v1/preferences", token: credential.token, body: next)
-            // A sign-out (or a 401 from a foreground refresh) while this was in flight wins.
-            guard generation == loginGeneration else { return }
-            preferences = next
-            await refresh()
-        } catch { settingsFailed(error, generation: generation) }
+        errorMessage = nil
+        let next = MobilePreferences(providerIDs: ids)
+        await updateSettings("PUT", "/v1/preferences", body: next) { preferences = next }
     }
 
     func showAllProviders() async {
-        guard !busy, let credential, let client else { return }
-        busy = true; defer { busy = false }
-        let generation = loginGeneration
-        do {
-            let _: MobileOK = try await client.send("PUT", "/v1/preferences", token: credential.token, body: MobilePreferences())
-            guard generation == loginGeneration else { return }
-            await refresh()
-        } catch { settingsFailed(error, generation: generation) }
+        await updateSettings("PUT", "/v1/preferences", body: MobilePreferences())
     }
     func removeDevice(_ device: MobileDevice) async {
+        await updateSettings("DELETE", "/v1/devices/" + device.id, body: MobileEmpty())
+    }
+
+    private func updateSettings<Body: Encodable & Sendable>(
+        _ method: String, _ path: String, body: Body, applying update: () -> Void = {}
+    ) async {
         guard !busy, let credential, let client else { return }
         busy = true; defer { busy = false }
         let generation = loginGeneration
         do {
-            let _: MobileOK = try await client.send("DELETE", "/v1/devices/" + device.id, token: credential.token, body: MobileEmpty())
+            let _: MobileOK = try await client.send(method, path, token: credential.token, body: body)
+            // A sign-out or foreground 401 while this was in flight wins.
             guard generation == loginGeneration else { return }
+            update()
             await refresh()
         } catch { settingsFailed(error, generation: generation) }
     }
@@ -288,17 +346,27 @@ final class MobileAppModel: ObservableObject {
     /// A late failure from an earlier login says nothing about the current one.
     private func settingsFailed(_ error: Error, generation: UUID) {
         guard generation == loginGeneration else { return }
-        errorMessage = error.localizedDescription
+        errorMessage = Self.message(for: error)
         if case MobileRelayError.rejected(401) = error { Task { await clearLocalLogin() } }
     }
 
-    func startActivity() async {
+    /// Automatic starts and token rotation must never clear a previous Stop on the relay.
+    func resumeActivityUpdates(userInitiated: Bool) async throws {
+        guard userInitiated, let credential, let client else { return }
+        let generation = loginGeneration
+        let _: MobileOK = try await client.send("POST", "/v1/activities/resume", token: credential.token, body: MobileEmpty())
+        guard generation == loginGeneration else { throw CancellationError() }
+        userStopped = false
+    }
+
+    func startActivity(userInitiated: Bool = true) async {
         guard signedIn, !busy else { return }
         busy = true; defer { busy = false }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             errorMessage = "Allow Live Activities for CodeRim in iPhone Settings."; return
         }
         do {
+            try await resumeActivityUpdates(userInitiated: userInitiated)
             if let existing = Activity<CodeRimActivityAttributes>.activities.first(where: { $0.attributes.connectionID == credential.map { MobileActivityConnection.id(for: $0.token) } && ($0.activityState == .active || $0.activityState == .stale) }) {
                 observe(existing); return
             }
@@ -400,7 +468,7 @@ final class MobileAppModel: ObservableObject {
             let _: MobileOK = try await client.send("DELETE", deleteAccount ? "/v1/account" : "/v1/session", token: credential.token, body: MobileEmpty())
             if deleteAccount { await clearLocalLogin() }
         } catch {
-            errorMessage = deleteAccount ? error.localizedDescription
+            errorMessage = deleteAccount ? Self.message(for: error)
                 : "Signed out on your iPhone. The server could not be reached; the remote session will be removed when it expires."
         }
     }
@@ -412,7 +480,7 @@ final class MobileAppModel: ObservableObject {
         await stopActivity()
         if forgetSaved {
             do { try await credentials.delete() }
-            catch { errorMessage = error.localizedDescription }
+            catch { errorMessage = Self.message(for: error) }
         }
         serverNotice = nil; preferences = MobilePreferences(); providers = []; displayProviders = []; devices = []; state = .disconnected
     }

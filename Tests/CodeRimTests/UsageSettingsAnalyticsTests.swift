@@ -71,6 +71,10 @@ final class UsageSettingsAnalyticsTests: XCTestCase {
                         initialSnapshot: UsageSnapshot(today: snapshot.usage, week: snapshot.usage, month: snapshot.usage,
                                                        allTime: snapshot.usage, quality: .exact, updatedAt: now), defaults: defaults)
                     let state = SettingsUsageAnalyticsState()
+                    // Never the logs on the Mac running the tests.
+                    let activity = ActivityLayoutFixture.snapshot(range: selectedRange, buckets: snapshot.buckets.map(\.start),
+                                                                  empty: scenario == "empty" || scenario == "loading")
+                    state.loadActivity = { _, _, _, _ in activity }
                     if scenario == "expanded" {
                         state.grouping = .model
                         state.selectedDate = snapshot.buckets[1].start
@@ -170,5 +174,32 @@ final class UsageSettingsAnalyticsTests: XCTestCase {
 private struct AnalyticsNoLimits: AccountLimitProviding {
     func readLimits() async throws -> AccountLimitsSnapshot {
         AccountLimitsSnapshot(windows: [], resetCredits: nil, fetchedAt: Date())
+    }
+}
+
+/// A believable stretch of activity for the layout tests, built without
+/// reading anything.
+enum ActivityLayoutFixture {
+    static func snapshot(range: AnalyticsRange, buckets: [Date], empty: Bool) -> ActivitySnapshot {
+        guard !empty else { return .empty(range: range, days: buckets) }
+        func chart(_ names: [String], base: Int) -> ActivityChart {
+            var counts: [Date: [String: Int]] = [:]
+            for (day, date) in buckets.enumerated() {
+                var byName: [String: Int] = [:]
+                for (index, name) in names.enumerated() {
+                    byName[name] = max(0, base - index * 4 + (day * 7 + index * 5) % 11)
+                }
+                counts[date] = byName
+            }
+            return .build(days: buckets, counts: counts)
+        }
+        let traits = SessionTraits(models: ["model-0": 9, "model-1": 1],
+                                   efforts: ["High": 8, "Low": 2], speeds: ["Standard": 7, "Fast": 3])
+        return ActivitySnapshot(
+            range: range,
+            messages: chart(["model-0", "model-1", "model-2", "model-3"], base: 14),
+            tools: chart(["Bash", "Read", "Edit", "Notion", "playwright", "Write", "Grep"], base: 40),
+            skills: chart(["development-harness", "cua-driver", "artifact-design"], base: 6),
+            traits: ["session-7": traits, "session-6": traits])
     }
 }

@@ -11,7 +11,8 @@ const timestamp = v => Number.isFinite(v) && v >= 0 && v <= 4102444800 ? v : nul
 const percent = v => Number.isFinite(v) && v >= 0 && v <= 100 ? v : null;
 const tokens = v => Number.isSafeInteger(v) && v >= 0 ? v : null;
 // Desktops post on change and send a heartbeat every five minutes (longer when the
-// relay is busy), so a computer counts as online for two missed heartbeats.
+// relay is busy). The default allows two missed normal heartbeats; each desktop
+// also retains the longer window advertised during critical mode.
 export const ONLINE_WINDOW = 660;
 // A provider reading older than this shows as stale.
 export const READING_AGE = 300;
@@ -45,8 +46,8 @@ export function sanitizeSnapshot(input, now) {
   });
   return { schemaVersion: 1, generatedAt: input.generatedAt, providers, sessions };
 }
-export function contentState(snapshot, prefs, receivedAt, now) {
-  const staleAt = receivedAt ? receivedAt + ONLINE_WINDOW : now;
+export function contentState(snapshot, prefs, receivedAt, now, onlineWindow = ONLINE_WINDOW) {
+  const staleAt = receivedAt ? receivedAt + onlineWindow : now;
   const connection = !snapshot || now >= staleAt ? 'offline' : 'connected';
   const providers = prefs.providerIDs.map(id => snapshot?.providers.find(p => p.id === id)).filter(Boolean).map(p => ({
     ...p,
@@ -75,7 +76,7 @@ export function activityPayload(state, now, event = 'update', { alert, attribute
 
 // The full catalog stays in the relay. Each drilldown level has at most three choices.
 const nameOrder = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
-function eligible(device, prefs) {
+export function eligibleProviders(device, prefs) {
   return (device?.snapshot?.providers ?? []).filter(p => !prefs.providerIDs.length || prefs.providerIDs.includes(p.id));
 }
 function splitCatalog(list) {
@@ -98,7 +99,7 @@ function catalogPicker(device, list, view, current, now) {
   const history = historyFor(view, device.id);
   const pinned = history.pinned.filter(id => list.some(p => p.id === id));
   const phase = id => {
-    if (now >= device.receivedAt + ONLINE_WINDOW) return undefined;
+    if (now >= device.receivedAt + (device.onlineWindow ?? ONLINE_WINDOW)) return undefined;
     const sessions = (device.snapshot?.sessions ?? []).filter(s => s.providerID === id);
     return sessions.some(s => s.phase === 'waiting') ? 'waiting' : sessions.some(s => s.phase === 'working') ? 'working' : undefined;
   };
@@ -127,10 +128,10 @@ function catalogPicker(device, list, view, current, now) {
 }
 // Each display has one source. Matching provider names never imply matching accounts.
 export function desktopState(devices, prefs, view, now) {
-  const device = devices.find(d => d.id === view?.deviceID) ?? devices.find(d => d.receivedAt + ONLINE_WINDOW > now) ?? devices[0];
-  const list = eligible(device, prefs);
+  const device = devices.find(d => d.id === view?.deviceID) ?? devices.find(d => d.receivedAt + (d.onlineWindow ?? ONLINE_WINDOW) > now) ?? devices[0];
+  const list = eligibleProviders(device, prefs);
   const provider = list.find(p => p.id === view?.providerID) ?? list[0];
-  const state = contentState(device?.snapshot, { providerIDs: provider ? [provider.id] : [] }, device?.receivedAt ?? 0, now);
+  const state = contentState(device?.snapshot, { providerIDs: provider ? [provider.id] : [] }, device?.receivedAt ?? 0, now, device?.onlineWindow);
   state.focus = { deviceID: device?.id ?? '', deviceName: device?.name ?? 'No device', platform: device?.platform ?? 'macOS',
     deviceIndex: device ? devices.indexOf(device) + 1 : 0, deviceCount: devices.length,
     providerIndex: provider ? list.indexOf(provider) + 1 : 0, providerCount: list.length };
@@ -165,7 +166,7 @@ export function navigate(devices, prefs, view, axis, direction, now, { groupID, 
       return { ...opened, pickerMode: 'all', pickerPath: groupID.split('.').map(Number) };
     }
     requireValue(providerID, 'provider_unavailable');
-    const history = historyFor(view, deviceID), allowed = eligible(devices.find(d => d.id === deviceID), prefs);
+    const history = historyFor(view, deviceID), allowed = eligibleProviders(devices.find(d => d.id === deviceID), prefs);
     const pinned = history.pinned.filter(id => allowed.some(p => p.id === id));
     requireValue(pinned.includes(providerID) || pinned.length < 3, 'pin_limit');
     opened.providerHistory[deviceID] = { recent: history.recent,
@@ -181,10 +182,10 @@ export function navigate(devices, prefs, view, axis, direction, now, { groupID, 
     const index = (current.focus.deviceIndex - 1 + direction + devices.length) % devices.length;
     deviceID = devices[index].id;
     // Remember the last chosen service on that computer independently.
-    const list = eligible(devices[index], prefs), recent = historyFor(view, deviceID).recent;
+    const list = eligibleProviders(devices[index], prefs), recent = historyFor(view, deviceID).recent;
     providerID = recent.find(id => list.some(p => p.id === id)) ?? (list.some(p => p.id === providerID) ? providerID : list[0]?.id);
   } else if (axis === 'provider') {
-    const providers = eligible(devices.find(d => d.id === deviceID), prefs);
+    const providers = eligibleProviders(devices.find(d => d.id === deviceID), prefs);
     if (providers.length) providerID = providers[(current.focus.providerIndex - 1 + direction + providers.length) % providers.length].id;
   }
   return advancedView(devices, view, deviceID, providerID, axis === 'provider');
@@ -194,7 +195,7 @@ export function selectProvider(devices, prefs, view, providerID, deviceID, now) 
   const current = desktopState(devices, prefs, view, now);
   requireValue(typeof providerID === 'string' && deviceID === current.focus.deviceID, 'display_changed');
   const device = devices.find(d => d.id === deviceID);
-  requireValue(eligible(device, prefs).some(p => p.id === providerID), 'provider_unavailable');
+  requireValue(eligibleProviders(device, prefs).some(p => p.id === providerID), 'provider_unavailable');
   return advancedView(devices, view, deviceID, providerID, true);
 }
 export function deviceLabel(body) {

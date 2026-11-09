@@ -145,7 +145,7 @@ internal sealed class MobileConnectionStore : INotifyPropertyChanged, IDisposabl
             Status = "Sharing with iPhone";
         }
         catch (HttpRequestException e) when (e.StatusCode == HttpStatusCode.Unauthorized) { if (credential?.Token == saved.Token) { Stop(); Status = "Reconnect iPhone"; } }
-        catch (Exception e) when (e is HttpRequestException or IOException or JsonException or OperationCanceledException or ObjectDisposedException)
+        catch (Exception e) when (e is HttpRequestException or InvalidDataException or IOException or JsonException or OperationCanceledException or ObjectDisposedException)
         { if (credential?.Token == saved.Token) Status = "Offline · retrying"; }
         finally { sending = false; Changed(); }
     }

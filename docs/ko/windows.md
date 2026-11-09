@@ -4,17 +4,17 @@
 
 **Windows 11 · x64 및 ARM64 · .NET 포함.**
 
-[2.1.20 x64 설치 파일](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-x64-Setup.msi) · [2.1.20 ARM64 설치 파일](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-arm64-Setup.msi)
+[2.1.34 x64 설치 파일](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-x64-Setup.msi) · [2.1.34 ARM64 설치 파일](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-arm64-Setup.msi)
 
 아키텍처에 맞는 `Setup.msi`를 실행합니다. 관리자 권한 없이 사용자별로 설치하고 시작 메뉴·제거 항목을 등록하며 사용자 PATH에 `coderim`을 추가합니다. 설치 후 새 터미널을 엽니다. 기존 ZIP 사용자는 Setup을 한 번 실행하면 관리형 업데이트를 사용할 수 있습니다. 설정, 저장한 계정, 로컬 히스토리는 유지합니다.
 
 ## "Windows의 PC 보호"
 
-MSI에는 아직 게시자 인증서가 없어 SmartScreen이 **Windows의 PC 보호** 또는 **알 수 없는 게시자**를 표시할 수 있습니다. **추가 정보 → 실행**을 선택합니다. 설치 파일마다 대조할 수 있는 SHA-256 파일을 함께 공개합니다. **스마트 앱 컨트롤**이 켜져 있으면 Windows가 서명 없는 설치 파일을 이 선택지 없이 차단합니다. Microsoft Store 버전이 등록되면 그것을 사용하거나, **Windows 보안 → 앱 및 브라우저 컨트롤**에서 스마트 앱 컨트롤을 끕니다.
+MSI에는 아직 게시자 인증서가 없어 SmartScreen이 **Windows의 PC 보호** 또는 **알 수 없는 게시자**를 표시할 수 있습니다. **추가 정보 → 실행**을 선택합니다. 설치 파일마다 대조할 수 있는 SHA-256 파일을 함께 공개합니다. 무료 코드 서명을 위한 SignPath Foundation 신청을 준비 중이며 아직 제출·승인되지 않았습니다. [코드 서명 정책](../../CODE_SIGNING_POLICY.ko.md)을 참고하세요. **스마트 앱 컨트롤**이 켜져 있으면 Windows가 서명 없는 설치 파일을 이 선택지 없이 차단합니다. Microsoft Store 버전이 등록되면 그것을 사용하거나, **Windows 보안 → 앱 및 브라우저 컨트롤**에서 스마트 앱 컨트롤을 끕니다.
 
 ## Microsoft Store 버전
 
-Store 버전은 Microsoft가 서명한 같은 앱입니다. 스마트 앱 컨트롤이 켜진 PC에도 설치되고 게시자 경고가 없으며, Store가 업데이트를 관리합니다. `coderim`과 `CodeRimCLI`는 실행 별칭으로 제공되고 로그인 시 실행과 Claude Code 상태줄은 패키지를 자동으로 사용합니다. 설정·계정·로컬 기록은 MSI 버전과 같은 폴더를 쓰므로 어느 쪽으로든 옮길 수 있습니다. Microsoft 인증을 통과하면 등록됩니다.
+저장소에는 Store 패키징 지원이 있지만 공개 목록이 검증됐다는 뜻은 아닙니다. 인증된 Store 버전은 Microsoft가 서명한 같은 앱입니다. 스마트 앱 컨트롤이 켜진 PC에도 설치되고 게시자 경고가 없으며, Store가 업데이트를 관리합니다. `coderim`과 `CodeRimCLI`는 실행 별칭으로 제공되고 로그인 시 실행과 Claude Code 상태줄은 패키지를 자동으로 사용합니다. 설정·계정·로컬 기록은 MSI 버전과 같은 폴더를 쓰므로 어느 쪽으로든 옮길 수 있습니다. Microsoft 인증을 통과하면 등록됩니다.
 
 ## 업데이트
 

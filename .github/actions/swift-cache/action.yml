@@ -1,0 +1,28 @@
+name: Swift build cache
+description: Restore compatible Swift build outputs without masking source changes.
+inputs:
+  variant:
+    description: Isolate test and Universal release builds.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Identify toolchain and build location
+      id: toolchain
+      shell: bash
+      run: |
+        toolchain=$({ swift --version; xcodebuild -version; xcrun --show-sdk-build-version; xcode-select -p; pwd -P; } | shasum -a 256)
+        echo "hash=${toolchain%% *}" >> "$GITHUB_OUTPUT"
+    - name: Restore Swift build outputs
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          .build/coderim-build
+          .build/widget-extension
+          .build/ci-source-mtimes.json
+        key: ${{ runner.os }}-${{ runner.arch }}-swift-${{ inputs.variant }}-v1-${{ steps.toolchain.outputs.hash }}-${{ hashFiles('Package.swift', 'Package.resolved', 'Config/DependencyPatches/**', 'Scripts/prepare_swift_dependencies.py', 'Scripts/ci_source_mtimes.py', '.github/actions/swift-cache/action.yml') }}-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-${{ runner.arch }}-swift-${{ inputs.variant }}-v1-${{ steps.toolchain.outputs.hash }}-${{ hashFiles('Package.swift', 'Package.resolved', 'Config/DependencyPatches/**', 'Scripts/prepare_swift_dependencies.py', 'Scripts/ci_source_mtimes.py', '.github/actions/swift-cache/action.yml') }}-
+    - name: Restore timestamps only for unchanged source files
+      shell: bash
+      run: python3 Scripts/ci_source_mtimes.py restore

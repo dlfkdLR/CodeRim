@@ -1,4 +1,5 @@
 import AppKit
+import CoreFoundation
 import Darwin
 import Foundation
 import Sparkle
@@ -205,7 +206,13 @@ final class UpdateService: NSObject, SPUUpdaterDelegate {
               feedURL.scheme == "https",
               feedURL.host != nil,
               let publicKey = infoDictionary["SUPublicEDKey"] as? String,
-              !publicKey.isEmpty else {
+              !publicKey.isEmpty,
+              ["SURequireSignedFeed", "SUVerifyUpdateBeforeExtraction"].allSatisfy({ key in
+                  guard let value = infoDictionary[key] as? NSNumber else { return false }
+                  return CFGetTypeID(value) == CFBooleanGetTypeID() && value.boolValue
+              }),
+              let expiration = infoDictionary["SUSignedFeedFailureExpirationInterval"] as? NSNumber,
+              CFGetTypeID(expiration) != CFBooleanGetTypeID(), expiration.doubleValue == 0 else {
             return false
         }
         return true

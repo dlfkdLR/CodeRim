@@ -6,7 +6,8 @@ internal static partial class NotchPopover
 {
     private static string StatusMessage(string id, ProviderReading? reading) => reading?.State switch
     {
-        null or ReadingState.Loading or ReadingState.Stale => "Waiting for the first reading…",
+        null or ReadingState.Loading => "Waiting for the first reading…",
+        ReadingState.Stale => CodeRim.Core.Services.ElapsedCopy.StaleReading(reading.UpdatedAt, DateTimeOffset.UtcNow),
         ReadingState.Ready or ReadingState.Partial => "Connected; this account did not report usage or a quota.",
         ReadingState.NeedsAuth => id switch
         {

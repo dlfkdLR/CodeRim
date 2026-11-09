@@ -346,11 +346,7 @@ enum GitHubCopilotUsage {
             return Date(timeIntervalSince1970: seconds > 10_000_000_000 ? seconds / 1000 : seconds)
         }
         guard let text = value as? String else { return nil }
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let plain = ISO8601DateFormatter()
-        plain.formatOptions = [.withInternetDateTime]
-        if let date = fractional.date(from: text) ?? plain.date(from: text) { return date }
+        if let date = TranscriptLines.parse(text) { return date }
 
         // `quota_reset_date` is a bare calendar day; read it as UTC midnight,
         // which is when Copilot's monthly allowance actually rolls.

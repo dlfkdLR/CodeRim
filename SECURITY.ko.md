@@ -12,7 +12,7 @@
 
 Codex 읽기 전용 app-server 원본 응답은 공급자 서명·실행 상한 확인 후 메모리에 유지합니다. 정규화한 마지막 한도·측정 시각은 캐시·소유자 전용 CLI·위젯 스냅샷에 저장할 수 있습니다. 모니터링은 초기화 크레딧 소모·구매·계정 변경 RPC를 노출하지 않습니다.
 
-감사한 main은 프로필 합계를 비활성화합니다. 미배포 로컬 개발 소스는 새 기본 설정 등록에서 켭니다. 이 별도 경계는 현재 토큰·계정 ID만 고정 `https://chatgpt.com/backend-api/wham/profiles/me`에 보내고 redirect를 거부하며 자격 증명·응답을 메모리에만 유지합니다. 원격 값은 로컬 사용량 테이블에 넣지 않습니다. 보고에서 존재하지 않는 UI 토글을 만들지 않습니다.
+ChatGPT 프로필 히스토리는 기본 off이며 **Include ChatGPT history**를 명시적으로 선택해야 합니다. 현재 token·account ID만 고정 `https://chatgpt.com/backend-api/wham/profiles/me`로 보내고 리다이렉트를 거부하며 자격 증명·응답은 메모리에만 둡니다. **Stop including ChatGPT history**는 갱신을 끄고 스냅샷을 지웁니다. 기존 저장 선택은 유지하며 원격 합계는 로컬 사용량 테이블에 넣지 않습니다. [범위와 제어](Documentation/USAGE.ko.md).
 
 제공업체 자격 증명은 해당 서비스 또는 명시한 엔드포인트에만 보내고 설정·가져오기는 제공업체·계정별로 제한합니다. unified log에 본문을 쓰지 않으며 운영 로그는 제공업체 ID·크기·오류 종류를 유지합니다. 로컬 집계는 텔레메트리가 없습니다. 연결된 iPhone 사용량은 별도 relay 경계로 허용 목록의 마지막 스냅샷을 저장하고 제목은 기본 off입니다. [전체 개인정보·저장 계약](Documentation/PRIVACY.ko.md)을 참고합니다.
 

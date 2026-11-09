@@ -29,7 +29,12 @@ internal sealed class MobileSettingsSection : StackPanel
         scan.Children.Add(Ui.Text("The code works once and expires in five minutes.", 12, "#A6A6AA"));
         scan.Children.Add(countdown);
         var offer = new DockPanel(); offer.Children.Add(code); offer.Children.Add(scan);
-        var pairing = SettingsUi.Section("iPhone · Dynamic Island", offer, SettingsUi.Action("Cancel", connection.CancelPairing));
+        var pairing = SettingsUi.Section("iPhone · Dynamic Island", offer,
+            SettingsUi.Action("Copy pairing code", () => {
+                if (connection.PairingLink is not { } payload) return;
+                try { Clipboard.SetText(payload); }
+                catch (System.Runtime.InteropServices.COMException) { countdown.Text = "Could not copy the code. Try again."; }
+            }), SettingsUi.Action("Cancel", connection.CancelPairing));
         var synchronizing = false;
         var share = Ui.Toggle("Share task titles", connection.ShareTitles, async value => {
             if (!synchronizing) await connection.SetShareTitlesAsync(value).ConfigureAwait(true);

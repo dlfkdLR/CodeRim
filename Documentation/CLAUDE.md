@@ -28,15 +28,14 @@ The explicit Claude Accounts workflow can save a subscription login, add via pri
 
 ## UI and supported metrics
 
-The current macOS development Settings view uses the full available window width for Overview, Usage analytics, and Claude Limits. The compact menu retains its small layout. No local snapshot prompts the user to run a session and refresh; it does not fabricate empty history.
+The macOS Settings view uses the full available window width for Overview, Usage analytics, and Claude Limits. The compact menu retains its small layout. No local snapshot prompts the user to run a session and refresh; it does not fabricate empty history.
 
 Local tokens, model/project/session analytics, and activity are supported. macOS Claude account-wide web/mobile token totals, attachment counts, reset credits, and API-equivalent cost estimates are not. `UsageProvider.supportsCostEstimates` is Codex-only. Registry state is reconciled with newer explicit transcript completion records; bookkeeping alone does not override waiting or working state.
 
 ## Verification
 
 ```sh
-swift test --filter ClaudeUsageTests
-swift test --filter ClaudeAccount
+python3 Scripts/prepare_swift_dependencies.py --run-swift test --filter 'ClaudeUsageTests|ClaudeAccount'
 ```
 
 Use temporary synthetic numeric records and mocked credential operations. Cover cache arithmetic, duplicate/streaming revisions, copies, cutoffs, calendar boundaries, rewrites, sub-agents, source isolation, and rollback/concurrent sign-in. Native renders do not prove a two-account OAuth switch or real status-line delivery.

@@ -29,8 +29,7 @@ final class MobileConnectionStore: ObservableObject {
     }
     private let defaults: UserDefaults
     private let credentials: any MobileCredentialStoring
-    /// Makes a client for a relay; the second argument is how long the relay may hold a request open.
-    private let makeClient: (URL, TimeInterval) throws -> any MobileRelayServing
+    private let makeClient: (URL) throws -> any MobileRelayServing
     private let makeMonitors: () -> [String: any AgentActivityMonitor]
     private var credential: MobileCredential?
     private var client: (any MobileRelayServing)?
@@ -47,11 +46,11 @@ final class MobileConnectionStore: ObservableObject {
 
     private convenience init() {
         self.init(defaults: .standard, credentials: MobileCredentialStore.shared,
-                  makeClient: { try MobileRelayClient(endpoint: $0, pollWait: $1) }, makeMonitors: MobileConnectionStore.localMonitors)
+                  makeClient: { try MobileRelayClient(endpoint: $0) }, makeMonitors: MobileConnectionStore.localMonitors)
     }
 
     init(defaults: UserDefaults, credentials: any MobileCredentialStoring,
-         makeClient: @escaping (URL, TimeInterval) throws -> any MobileRelayServing,
+         makeClient: @escaping (URL) throws -> any MobileRelayServing,
          makeMonitors: @escaping () -> [String: any AgentActivityMonitor]) {
         self.defaults = defaults; self.credentials = credentials; self.makeClient = makeClient; self.makeMonitors = makeMonitors
         relayAddress = defaults.string(forKey: "mobileRelayURL")
@@ -96,7 +95,7 @@ final class MobileConnectionStore: ObservableObject {
     private func runPairing(_ id: UUID) async {
         do {
             let endpoint = try MobileRelayClient.validatedEndpoint(relayAddress)
-            let client = try makeClient(endpoint, 0)
+            let client = try makeClient(endpoint)
             let offer: MobilePairingStart = try await client.send("POST", "/v1/pairing/start", token: nil,
                 body: MobileDesktopLabel(platform: "macOS", name: String(deviceName.prefix(24))))
             guard isCurrent(id) else { return }
@@ -104,12 +103,11 @@ final class MobileConnectionStore: ObservableObject {
             pairingExpiresAt = Date(timeIntervalSince1970: offer.expiresAt)
             status = "Scan the QR code with the CodeRim iPhone app"
             let request = MobilePairingRequest(id: offer.id, secret: offer.secret)
-            // The relay holds each poll until the iPhone scans or about 20 seconds pass; this client waits that
-            // long. A poll that still fails is asked again, and the relay answers it with the same token.
-            let poller = try makeClient(endpoint, Self.pollWait)
+            // MobileRelayClient gives pairing polls their own longer deadline. Retry lost answers;
+            // the relay returns the same token until the first snapshot confirms receipt.
             while isCurrent(id), Date().timeIntervalSince1970 < offer.expiresAt {
                 let result: MobilePairingPoll
-                do { result = try await poller.send("POST", "/v1/pairing/poll", token: nil, body: request) }
+                do { result = try await client.send("POST", "/v1/pairing/poll", token: nil, body: request) }
                 catch MobileRelayError.rejected(401) { break }
                 catch {
                     if !isCurrent(id) { return }
@@ -144,15 +142,12 @@ final class MobileConnectionStore: ObservableObject {
         }
     }
 
-    /// The relay's longest hold of a pairing poll.
-    static let pollWait: TimeInterval = 20
-
     private static func revoke(_ token: String, client: any MobileRelayServing) async {
         let _: MobileOK? = try? await client.send("DELETE", "/v1/session", token: token, body: MobileEmpty())
     }
 
     private func activate(_ saved: MobileCredential) throws {
-        let client = try makeClient(saved.endpoint, 0)
+        let client = try makeClient(saved.endpoint)
         loop?.cancel(); monitors.values.forEach { $0.stop() }
         self.credential = saved; self.client = client
         generation = UUID(); let run = generation

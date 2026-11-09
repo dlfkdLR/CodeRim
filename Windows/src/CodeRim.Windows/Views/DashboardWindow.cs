@@ -307,11 +307,12 @@ internal sealed partial class DashboardWindow : Window
         taskActivity.IsEnabled = shown; notchSections.Add(taskActivity); body.Children.Add(taskActivity);
         var finished = SettingsUi.Picker("Finished", SessionChime.Names, settings.Current.FinishedSound, x => { Save(settings.Current with { FinishedSound = x }); if (settings.Current.CompletionSound && settings.Current.Visibility != NotchVisibility.Hidden) SessionChime.Play(x); });
         var blocked = SettingsUi.Picker("Blocked", SessionChime.Names, settings.Current.BlockedSound, x => { Save(settings.Current with { BlockedSound = x }); if (settings.Current.CompletionSound && settings.Current.Visibility != NotchVisibility.Hidden) SessionChime.Play(x); });
-        finished.IsEnabled = blocked.IsEnabled = settings.Current.CompletionSound;
+        var subagentSound = SettingsUi.Toggle("Sound for sub-agents", settings.Current.SubagentSound, x => Save(settings.Current with { SubagentSound = x }), caption: "Also play it when a sub-agent finishes. Off by default; the chat that started it still sounds.");
+        finished.IsEnabled = blocked.IsEnabled = subagentSound.IsEnabled = settings.Current.CompletionSound;
         var sessionEnd = SettingsUi.Section("When a Session Ends",
             SettingsUi.Toggle("Peek the notch open", settings.Current.PeekOnCompletion, x => Save(settings.Current with { PeekOnCompletion = x })),
-            SettingsUi.Toggle("Play a sound", settings.Current.CompletionSound, x => { Save(settings.Current with { CompletionSound = x }); finished.IsEnabled = blocked.IsEnabled = x; }),
-            finished, blocked);
+            SettingsUi.Toggle("Play a sound", settings.Current.CompletionSound, x => { Save(settings.Current with { CompletionSound = x }); finished.IsEnabled = blocked.IsEnabled = subagentSound.IsEnabled = x; }),
+            subagentSound, finished, blocked);
         sessionEnd.IsEnabled = shown; notchSections.Add(sessionEnd); body.Children.Add(sessionEnd);
         var alerts = SettingsUi.Section("Usage Alerts", SettingsUi.Toggle("Notify at 80% and 100% usage", settings.Current.AlertsEnabled, x => Save(settings.Current with { AlertsEnabled = x })));
         alerts.IsEnabled = shown; notchSections.Add(alerts); body.Children.Add(alerts);
@@ -603,32 +604,20 @@ internal sealed partial class DashboardWindow : Window
                 {
                     var selected = ProviderConnections.AlibabaCodingSource(vault) == "web" ? "Web" : "API";
                     body.Children.Add(SettingsUi.Picker("Usage source", AlibabaCodingSources, selected, value =>
-                    {
-                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
-                        { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
-                    }));
+                        SaveProviderSetting(id, key, value.ToLowerInvariant(), "Could not save the usage source.")));
                     body.Children.Add(Ui.Text("API keys and Web sessions stay separate. Web reads the selected region's Coding Plan quotas.", 11, "#A6A6AA"));
                 }
                 else if (field.Key == "ALIBABA_CODING_PLAN_REGION")
                 {
                     var selected = ProviderConnections.AlibabaCodingRegion(vault) == "cn" ? "China" : "International";
                     body.Children.Add(SettingsUi.Picker("Region", MoonshotRegions, selected, value =>
-                    {
-                        try { vault.Save(key, value == "China" ? "cn" : "intl"); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
-                        { MessageBox.Show(this, "Could not save the region.", "CodeRim"); }
-                    }));
+                        SaveProviderSetting(id, key, value == "China" ? "cn" : "intl", "Could not save the region.")));
                 }
                 else if (field.Key == "ALIBABA_TOKEN_PLAN_SOURCE")
                 {
                     var selected = ProviderConnections.AlibabaSource(vault) switch { "cli" => "CLI", "web" => "Web", _ => "Auto" };
                     body.Children.Add(SettingsUi.Picker("Usage source", AlibabaSources, selected, value =>
-                    {
-                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
-                        { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
-                    }));
+                        SaveProviderSetting(id, key, value.ToLowerInvariant(), "Could not save the usage source.")));
                     body.Children.Add(Ui.Text("Auto tries Bailian CLI, then the selected Web session. CLI shows the active personal 5-hour and weekly quotas; Web follows the selected Team or Personal plan.", 11, "#A6A6AA"));
                 }
                 else if (field.Key == "ALIBABA_TOKEN_PLAN_REGION")
@@ -636,15 +625,7 @@ internal sealed partial class DashboardWindow : Window
                     var region = AlibabaTokenPlanCliUsage.Region(ProviderConnections.EffectiveSetting(vault, id, field.Key));
                     var selected = region switch { "cn" => "China · Team", "cn-personal" => "China · Personal", "intl-personal" => "International · Personal", _ => "International · Team" };
                     body.Children.Add(SettingsUi.Picker("Region and Web plan", AlibabaRegions, selected, value =>
-                    {
-                        try
-                        {
-                            vault.Save(key, value switch { "China · Team" => "cn", "China · Personal" => "cn-personal", "International · Personal" => "intl-personal", _ => "intl" });
-                            store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id);
-                        }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
-                        { MessageBox.Show(this, "Could not save the region.", "CodeRim"); }
-                    }));
+                        SaveProviderSetting(id, key, value switch { "China · Team" => "cn", "China · Personal" => "cn-personal", "International · Personal" => "intl-personal", _ => "intl" }, "Could not save the region.")));
                 }
                 else if (field.Key == "ALIBABA_TOKEN_PLAN_EXECUTABLE")
                 {
@@ -654,9 +635,7 @@ internal sealed partial class DashboardWindow : Window
                     {
                         var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "Bailian executable|bl.exe", CheckFileExists = true };
                         if (dialog.ShowDialog(this) != true) return;
-                        try { vault.Save(key, dialog.FileName); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
-                        { MessageBox.Show(this, "Could not save the selected path.", "CodeRim"); }
+                        SaveProviderSetting(id, key, dialog.FileName, "Could not save the selected path.");
                     }));
                     body.Children.Add(Ui.Button("Bailian CLI installation and sign-in", () => OpenUrl("https://docs.agent.bailian.aliyun.com/en/bailian-cli/getting-started/installation")));
                 }
@@ -665,11 +644,7 @@ internal sealed partial class DashboardWindow : Window
                 {
                     var selected = StepFunAuthentication.Mode(ProviderConnections.EffectiveSetting(vault, id, field.Key)) == "manual" ? "Manual" : "Auto";
                     body.Children.Add(SettingsUi.Picker(field.Label, StepFunModes, selected, value =>
-                    {
-                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
-                        { MessageBox.Show(this, "Could not save the authentication mode.", "CodeRim"); }
-                    }));
+                        SaveProviderSetting(id, key, value.ToLowerInvariant(), "Could not save the authentication mode.")));
                 }
                 else if (id == "stepfun" && StepFunAuthentication.Mode(ProviderConnections.EffectiveSetting(vault, id, "STEPFUN_AUTH_MODE")) == "manual") continue;
                 else if (field.Key == "DEEPSEEK_DETAILED_USAGE")
@@ -677,22 +652,14 @@ internal sealed partial class DashboardWindow : Window
                     if (DeepSeekAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, "DEEPSEEK_USAGE_SOURCE")) == "api") continue;
                     body.Children.Add(SettingsUi.Toggle("Detailed Web usage", DeepSeekUsageDetails.Enabled(
                         ProviderConnections.EffectiveSetting(vault, id, field.Key)), enabled =>
-                    {
-                        try { vault.Save(key, enabled ? "true" : "false"); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
-                        { MessageBox.Show(this, "Could not save the usage preference.", "CodeRim"); }
-                    }));
+                        SaveProviderSetting(id, key, enabled ? "true" : "false", "Could not save the usage preference.", navigate: false)));
                     body.Children.Add(Ui.Text("Shows daily and period totals from the selected platform session. API-key readings remain separate.", 11, "#A6A6AA"));
                 }
                 else if (field.Key is "DEEPSEEK_USAGE_SOURCE" or "KIMI_USAGE_SOURCE" or "MINIMAX_USAGE_SOURCE")
                 {
                     var selected = DeepSeekAuthentication.Source(ProviderConnections.EffectiveSetting(vault, id, field.Key)) switch { "api" => "API", "web" => "Web", _ => "Auto" };
                     body.Children.Add(SettingsUi.Picker("Usage source", DeepSeekSources, selected, value =>
-                    {
-                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
-                        { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
-                    }));
+                        SaveProviderSetting(id, key, value.ToLowerInvariant(), "Could not save the usage source.")));
                     body.Children.Add(Ui.Text(id == "minimax" ? "Auto uses the selected Web session when present, otherwise the API key. Each region keeps separate connections."
                         : id == "kimi" ? "API, CLI and Web keep their account data separate. Web uses only its selected session."
                         : "Auto uses an API key when present, then a platform session. Each source keeps its own credential.", 11, "#A6A6AA"));
@@ -712,22 +679,14 @@ internal sealed partial class DashboardWindow : Window
                 {
                     var selected = MoonshotAuthentication.Region(ProviderConnections.EffectiveSetting(vault, id, field.Key)) == "china" ? "China" : "International";
                     body.Children.Add(SettingsUi.Picker("Region", MoonshotRegions, selected, value =>
-                    {
-                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
-                        { MessageBox.Show(this, "Could not save the region.", "CodeRim"); }
-                    }));
+                        SaveProviderSetting(id, key, value.ToLowerInvariant(), "Could not save the region.")));
                     body.Children.Add(Ui.Text("Each region keeps its own API key. Switching regions does not copy an existing key.", 11, "#A6A6AA"));
                 }
                 else if (field.Key == "ANTIGRAVITY_USAGE_SOURCE")
                 {
                     var selected = AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, field.Key)) == "local" ? "Local IDE" : "OAuth";
                     body.Children.Add(SettingsUi.Picker("Usage source", AntigravitySources, selected, value =>
-                    {
-                        try { vault.Save(key, value == "Local IDE" ? "local" : "oauth"); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
-                        { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
-                    }));
+                        SaveProviderSetting(id, key, value == "Local IDE" ? "local" : "oauth", "Could not save the usage source.")));
                     body.Children.Add(Ui.Text("Local IDE reads quota from one running Antigravity session on this PC. OAuth uses your separately saved connection.", 11, "#A6A6AA"));
                 }
                 else if (id == "gemini" && AntigravityLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, "ANTIGRAVITY_USAGE_SOURCE")) == "local") continue;
@@ -735,11 +694,7 @@ internal sealed partial class DashboardWindow : Window
                 {
                     var selected = WindsurfLocalUsage.Source(ProviderConnections.EffectiveSetting(vault, id, field.Key)) == "local" ? "Local" : "Web";
                     body.Children.Add(SettingsUi.Picker("Usage source", WindsurfSources, selected, value =>
-                    {
-                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
-                        { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
-                    }));
+                        SaveProviderSetting(id, key, value.ToLowerInvariant(), "Could not save the usage source.", navigate: false)));
                     body.Children.Add(Ui.Text("Web verifies your supplied sign-in. Local reads Windsurf's saved quota; its freshness and current account are not verified.", 11, "#A6A6AA"));
                 }
                 else if (field.Key == "WINDSURF_CACHE_PATH")
@@ -749,30 +704,21 @@ internal sealed partial class DashboardWindow : Window
                     {
                         var dialog = new Microsoft.Win32.OpenFileDialog { Filter = "Windsurf state database|state.vscdb|SQLite database|*.vscdb;*.sqlite;*.db", CheckFileExists = true };
                         if (dialog.ShowDialog(this) != true) return;
-                        try { vault.Save(key, dialog.FileName); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
-                        { MessageBox.Show(this, "Could not save the selected path.", "CodeRim"); }
+                        SaveProviderSetting(id, key, dialog.FileName, "Could not save the selected path.");
                     }));
                 }
                 else if (field.Key == "AMP_USAGE_SOURCE")
                 {
                     var selected = AmpCliUsage.Source(ProviderConnections.EffectiveSetting(vault, id, field.Key)) switch { "cli" => "CLI", "web" => "Web", _ => "API" };
                     body.Children.Add(SettingsUi.Picker("Usage source", AmpSources, selected, value =>
-                    {
-                        try { vault.Save(key, value.ToLowerInvariant()); store.InvalidateAccount(id); Navigate(id); _ = store.RefreshProviderAsync(id); }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
-                        { MessageBox.Show(this, "Could not save the usage source.", "CodeRim"); }
-                    }));
+                        SaveProviderSetting(id, key, value.ToLowerInvariant(), "Could not save the usage source.")));
                     body.Children.Add(Ui.Text("API reads subscription and balance details with an API key. CLI uses the Amp sign-in on this PC. Web reads Amp Free with your browser session.", 11, "#A6A6AA"));
                 }
                 else if (field.Key.EndsWith("_ALLOW_BILLABLE_REQUESTS", StringComparison.Ordinal))
                 {
                     body.Children.Add(Ui.Text("Each refresh can incur charges from this provider.", 12, "#B7B8BD"));
                     body.Children.Add(Ui.Toggle(field.Label, string.Equals(vault.Load(key) ?? Environment.GetEnvironmentVariable(field.Key), "true", StringComparison.OrdinalIgnoreCase), enabled =>
-                    {
-                        try { vault.Save(key, enabled ? "true" : "false"); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
-                        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { MessageBox.Show(this, "Could not save this setting.", "CodeRim"); }
-                    }));
+                        SaveProviderSetting(id, key, enabled ? "true" : "false", "Could not save this setting.", navigate: false)));
                 }
                 else { body.Children.Add(Ui.Text(field.Label)); if (field.Key.EndsWith("_TOKEN", StringComparison.Ordinal) || field.Key.EndsWith("_SECRET", StringComparison.Ordinal) || field.Key.EndsWith("_PASSWORD", StringComparison.Ordinal)) AddSecretField(key, id, field.Key.EndsWith("_PASSWORD", StringComparison.Ordinal) ? "Save password" : "Save token"); else AddSettingField(key, id); }
             }
@@ -905,16 +851,24 @@ internal sealed partial class DashboardWindow : Window
         RenderProviderLimits(ProviderDisplayPolicy.Apply(current, settings.Current));
         if (id == "claude") UpdateClaude();
     }
+    private void SaveProviderSetting(string id, string key, string value, string failure, bool navigate = true)
+    {
+        try
+        {
+            vault.Save(key, value); store.InvalidateAccount(id);
+            if (navigate) Navigate(id);
+            _ = store.RefreshProviderAsync(id);
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+        { MessageBox.Show(this, failure, "CodeRim"); }
+    }
     private void AddSettingField(string key, string id)
     {
         var input = new TextBox { Text = vault.Load(key) ?? "", MaxLength = 4096, Margin = new Thickness(0, 4, 0, 8) };
         body.Children.Add(input);
         System.Windows.Automation.AutomationProperties.SetName(input, key.Split(':').Last());
         body.Children.Add(Ui.Button("Save setting", () =>
-        {
-            try { vault.Save(key, input.Text.Trim()); store.InvalidateAccount(id); _ = store.RefreshProviderAsync(id); }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException) { MessageBox.Show(this, "Could not save this setting.", "CodeRim"); }
-        }));
+            SaveProviderSetting(id, key, input.Text.Trim(), "Could not save this setting.", navigate: false)));
     }
     private static readonly string[] AlibabaSources = ["Auto", "CLI", "Web"];
     private static readonly string[] AlibabaRegions = ["International · Team", "International · Personal", "China · Team", "China · Personal"];

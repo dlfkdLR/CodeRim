@@ -64,14 +64,7 @@ Ad-hoc local builds use `CodexMeterSnapshotTransport=local-file`. The sandboxed 
 
 Widget kinds, supported sizes, provider/metric selections, freshness labels, and history rules are in the [complete widget guide](../docs/widgets.md). `WidgetKit` controls scheduling; save before reload, throttle ordinary reload requests, invalidate account/state changes promptly, and let timeline entries age data. App refresh does not guarantee immediate desktop redraw.
 
-```sh
-swift build -c release --product CodeRimCLI
-swift test
-./Scripts/build_widget.sh
-./Scripts/build_release.sh
-swift build --product CodeRimCLI
-python3 Tests/Scripts/companion_cli_tests.py .build/debug/CodeRimCLI
-```
+Build/test commands live in [Contributing](../CONTRIBUTING.md); widget/release packaging follows [Releasing](RELEASING.md).
 
 ## If widgets are absent or stale
 

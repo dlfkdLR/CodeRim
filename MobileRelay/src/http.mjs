@@ -4,24 +4,6 @@ const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store
 const reply = (status, value) => new Response(JSON.stringify(value), { status, headers });
 export const BODY_LIMIT = 262144;
 
-/** Reads at most `limit` bytes; a longer body is abandoned as soon as it passes the limit, never held whole. */
-async function readBody(request, limit) {
-  if (!request.body) return '';
-  const reader = request.body.getReader(), chunks = [];
-  let size = 0;
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > limit) { await reader.cancel().catch(() => {}); throw new HTTPError(413, 'payload_too_large'); }
-    chunks.push(value);
-  }
-  const bytes = new Uint8Array(size);
-  let offset = 0;
-  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
-  return new TextDecoder().decode(bytes);
-}
-
 /** Fetch-style entry point shared by the Durable Object and the tests. */
 export async function handle(relay, request) {
   try {
@@ -32,8 +14,28 @@ export async function handle(relay, request) {
     relay.enter(request.method, url.pathname, ip);
     if (url.pathname.length > 256 || url.search) throw new HTTPError(400, 'invalid_path');
     const declared = Number(request.headers.get('content-length') ?? 0);
-    if (declared > BODY_LIMIT) throw new HTTPError(413, 'payload_too_large');
-    const data = ['GET', 'HEAD'].includes(request.method) ? '' : await readBody(request, BODY_LIMIT);
+    if (declared > BODY_LIMIT) {
+      await request.body?.cancel();
+      throw new HTTPError(413, 'payload_too_large');
+    }
+    let data = '';
+    if (!['GET', 'HEAD'].includes(request.method) && request.body) {
+      const reader = request.body.getReader(), decoder = new TextDecoder();
+      let bytes = 0;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          bytes += value.byteLength;
+          if (bytes > BODY_LIMIT) {
+            await reader.cancel();
+            throw new HTTPError(413, 'payload_too_large');
+          }
+          data += decoder.decode(value, { stream: true });
+        }
+        data += decoder.decode();
+      } finally { reader.releaseLock(); }
+    }
     let body = {};
     if (data) {
       if (!request.headers.get('content-type')?.startsWith('application/json')) throw new HTTPError(415, 'json_required');

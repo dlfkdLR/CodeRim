@@ -1,5 +1,76 @@
 # Changelog
 
+## 2.1.36 — Safer usage reads and iPhone updates
+
+- Codex and Claude transcript reads are bounded, and usage collection retains partial or repaired provenance. Account renewal and local Antigravity access reject stale or unbound credentials.
+- Account credentials reject unsafe extended ACLs, and update-feed authentication remains mandatory without an expiration fallback.
+- The iPhone connection uses an in-app pairing code. Live Activity Stop survives late registrations and retries; the matching relay and iPhone app changes must be deployed together. See the [release notes](Documentation/ReleaseNotes/2.1.36.md).
+- Windows 2.1.36 carries the corresponding fixes and separate native x64 and ARM64 package checks. See the [Windows release notes](Windows/ReleaseNotes/2.1.36.md).
+
+## 2.1.35 — The time-left card is gone
+
+- The time-left card, its Settings section ("Time Left (beta)") and the optional Claude compaction hook switch are removed. Hovering a chat in the notch no longer opens an estimate card, and the notch panel no longer reserves room for one. See the [release notes](Documentation/ReleaseNotes/2.1.35.md).
+
+## 2.1.33 — Sub-agent sound off by default, a smaller wake area
+
+- A chat that is still working no longer shows "Done" when Claude Code saves a thinking block; it stays in the notch's list instead of dropping out after 90 seconds.
+- Settings → Edge Notch → When a Session Ends: **Sound for sub-agents**, off by default. The chat that started a sub-agent still sounds.
+- The folded notch wakes within about 12 pt of its shape instead of about 34 pt.
+
+## 2.1.31 — The viewed account is a plain line
+
+- On Settings → Usage → Codex Limits, the account chooser is no longer a boxed menu: it is the person glyph and the address, as in the header, and pressing it still opens the saved accounts. A long address is shortened to fit. See the [release notes](Documentation/ReleaseNotes/2.1.31.md).
+
+## 2.1.30 — A stale reading says how old it is
+
+- When a provider's last reading has gone old and refreshing failed, the notch card now says "Last read 12 min ago · refresh failed" instead of "Waiting for the first reading…", so an old number is never mistaken for a first load still in flight. A provider that has never been read keeps the waiting line. See the [release notes](Documentation/ReleaseNotes/2.1.30.md).
+
+## 2.1.29 — Softer card tails, another account's limits in Settings
+
+- The pointer on the usage card and on the time-left card is shorter and blunter, and both are cut the same way. A finished chat's card no longer says "Done" twice, and the settings arc under the notch is quieter at rest.
+- Settings → Usage → Codex Limits has a "View another account's limits" link. It reads your saved accounts when you press it (Settings does not touch the Keychain on open), then shows the account menu. The signed-in Codex account is not changed. See the [release notes](Documentation/ReleaseNotes/2.1.29.md).
+
+## 2.1.28 — Activity on the Usage screen
+
+- Settings → Usage gains ChatGPT-style activity cards for Codex and Claude, read from the agents' own logs on this Mac: usage by type (chats and sub-agents), messages per model over time, tool calls (an MCP server counts as one tool) and skills used. A session also shows how hard and how fast it ran (reasoning effort, Fast or Standard). Nothing leaves the Mac. See the [release notes](Documentation/ReleaseNotes/2.1.28.md).
+
+## 2.1.27 — Look at another account's limits, richer Usage tables
+
+- With two or more saved Codex accounts, the Limits view (Settings and the menu-bar popover) has an account menu. Choosing another account shows that account's limits only; the signed-in Codex account and the Codex app are not changed. The limits are read from a private Codex home, and if reading renews that account's login, the renewed login is kept and saved so the saved account keeps working. Claude is not included.
+- The Usage screen gains a model table, a top-projects table and richer session details (models used, start and duration, cache hit, sub-agents and images), and the day you select in the chart lists that day's models. See the [release notes](Documentation/ReleaseNotes/2.1.27.md).
+
+## 2.1.26 — Time left that knows a big task from a quick one
+
+- A working turn is now sized by how many tools it has called, not only by how long it has run, so a long build no longer reads "2–7 min" a minute in. Claude's calls are counted from its transcript, and past turns are filed with theirs when the logs are read. Codex and OpenCode turns are not counted yet.
+- A turn says nothing about time left for its first 90 seconds; the ring turns with "Working" until it has shown what kind of turn it is.
+- The figure in the middle of the ring is no longer cut off when a range mixes units, and reads "25s–3m". See the [release notes](Documentation/ReleaseNotes/2.1.26.md).
+
+## 2.1.25 — A finished chat keeps its ring
+
+- On the chat details card, a chat that has finished its turn and sits idle no longer loses its ring: the ring fills in blue with a check and "Done", instead of the card dropping to a plain list. See the [release notes](Documentation/ReleaseNotes/2.1.25.md).
+
+## 2.1.24 — Fast mode and Daybreak show only while on
+
+- The chat details card now lists Fast mode and Daybreak only while they are on, so a chat with both off no longer carries a row of hollow dots and a long name is no longer cut off. See the [release notes](Documentation/ReleaseNotes/2.1.24.md).
+
+## 2.1.23 — Redesigned chat details card, finished Claude chats leave the list
+
+- The chat details card is redrawn: a ring that fills as the turn goes with the time range in its centre, and beside it the model, its effort, elapsed time, tokens, finish time and the Fast mode and Daybreak switches in two sizes of type that match the usage card.
+- Claude chats that have been idle for 90 seconds leave the notch's list, as Codex chats already did. See the [release notes](Documentation/ReleaseNotes/2.1.23.md).
+
+## 2.1.22 — Chat details card, account switching with CLIs running, faster launch
+
+- The time-left card now opens for any chat you hover and lists what it runs on as small tiles: the estimate and finish time, state, elapsed time, tokens, model, reasoning effort, and Fast mode and Daybreak. Elapsed time and tokens moved out of the row into the card, and their settings are gone.
+- Working Claude sub-agents are listed under their chat. Estimates follow a chat's recent pace more closely and show a narrower range.
+- Switching the Claude account no longer needs every Claude Code session stopped; the shared login is watched for a few seconds so a running session cannot write the old account back.
+- Launch no longer allocates about 500 MB while reading past turns, and the notch no longer searches Antigravity's files on the main thread. See the [release notes](Documentation/ReleaseNotes/2.1.22.md).
+
+## 2.1.21 — Codex account fix, time-left estimate (beta)
+
+- Codex account actions work again after the Codex desktop app moved its bundled CLI (Codex 0.163): both layouts are recognised and the app-server is picked among the two processes running the same binary.
+- Hovering a working Claude, Codex or OpenCode session in the notch shows a typical range for how long is left, a finish time and a progress bar (beta). It stops while a session waits for you, widens when you add an instruction, and learns from your own earlier turns.
+- OpenCode sessions appear in the notch's activity list; an opt-in setting installs Claude Code compaction hooks so the notch can say "compacting". See the [release notes](Documentation/ReleaseNotes/2.1.21.md).
+
 ## 2.1.20 — Accurate usage across accounts, reliable iPhone updates
 
 - Count the certain part of inconsistent token logs and mark the period partial, instead of failing every refresh (macOS) or silently dropping usage (Windows); judge current periods by their own sessions and flag incomplete older history separately.

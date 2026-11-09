@@ -26,9 +26,9 @@
 
 화면 이미지는 `assets/screens/` 아래에 있습니다. 서비스 로고는 식별용이며 보증이 아닙니다. root NOTICE·LICENSE는 `assets/NOTICE.txt`·`assets/LICENSE.txt`에 원본 그대로 포함하며 Codenotch MIT·CodexBarCore/제공업체 로고·상표 고지를 보존합니다. GitHub는 관례적 서비스 마크, Apple·Windows 실루엣은 다운로드 플랫폼입니다.
 
-목록·설명은 `docs/providers.md`·`README.ko.md`·`Sources/CodeRimShared/CompanionProviderID.swift`의 name switch에서 생성합니다. 뒤의 glyph-name switch로 범위를 넓히지 않습니다. 연결 문서는 공개 CodeRim 저장소로 연결합니다.
+목록·설명은 `docs/providers.md`·`docs/ko/providers.md`·`Sources/CodeRimShared/CompanionProviderID.swift`의 name switch에서 생성합니다. 뒤의 glyph-name switch로 범위를 넓히지 않습니다. 연결 문서는 공개 CodeRim 저장소로 연결합니다.
 
-주장은 PRODUCT·두 README·getting-started·cli·privacy·installation을 따릅니다. 다운로드는 2026-09-28 확인한 실제 GitHub 자산이며 Windows는 미리보기입니다. 로컬 토큰은 계정 전체·기기 전체 합계가 아닙니다.
+주장은 PRODUCT·두 README·getting-started·cli·privacy·installation을 따릅니다. 다운로드 확인과 Windows 미리보기 표기는 2026-09-28 캡처 당시의 기록이며 현재 릴리스 대상은 [README](README.ko.md)에서 관리합니다. 로컬 토큰은 계정 전체·기기 전체 합계가 아닙니다.
 
 네이티브 자료는 실제 컴포넌트·예시 데이터이며 새 설치 앱 캡처·실제 계정 수치가 아닙니다. renderer 소스·로그는 `outputs/website-2026-09-28/`에 있고 로그인·설치·업데이트하지 않습니다. 분석은 example.com·합성 workspace입니다. 실제 계정 요청은 없습니다.
 

@@ -104,17 +104,11 @@ public sealed partial class HttpProviders : IDisposable
     }
     public static ProviderReading ParseMoonshot(JsonElement root, string region)
     {
-        static bool Unique(JsonElement value)
-        {
-            if (value.ValueKind != JsonValueKind.Object) return false;
-            var names = new HashSet<string>(StringComparer.Ordinal);
-            return value.EnumerateObject().All(property => names.Add(property.Name));
-        }
         static double? Amount(JsonElement data, string name) => Get(data, name) is { ValueKind: JsonValueKind.Number } value
             && value.TryGetDouble(out var amount) && double.IsFinite(amount) ? amount : null;
         ProviderReading Failure() => new("moonshot", ReadingState.Error, [], Message: "Moonshot could not return a valid balance for the selected region.");
         var data = Get(root, "data");
-        if (region is not "china" and not "international" || !Unique(root) || !Unique(data)
+        if (region is not "china" and not "international" || !IsUniqueObject(root) || !IsUniqueObject(data)
             || Get(root, "code").ValueKind != JsonValueKind.Number || !Get(root, "code").TryGetInt32(out var code) || code != 0
             || Get(root, "status").ValueKind != JsonValueKind.True || Get(root, "scode").ValueKind != JsonValueKind.String
             || Amount(data, "available_balance") is not { } available || Amount(data, "cash_balance") is not { } cash

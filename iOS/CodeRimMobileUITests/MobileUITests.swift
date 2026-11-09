@@ -3,19 +3,34 @@ import XCTest
 
 final class MobileUITests: XCTestCase {
     @MainActor
+    func testScannerRejectsLegacyPairingURLsWithoutOpeningAnEnrollment() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-scanner"] // Isolated scanner; no Keychain restore, relay or ActivityKit actions.
+        UIPasteboard.general.string = "coderim://pair?r=https://relay.example.com&i=" + String(repeating: "i", count: 43) + "&s=" + String(repeating: "s", count: 43)
+        app.launch()
+        let paste = app.buttons["pastePairingLink"]
+        XCTAssertTrue(paste.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.textFields.firstMatch.exists)
+        paste.tap()
+        XCTAssertTrue(app.staticTexts["That is not a CodeRim pairing code."].waitForExistence(timeout: 5))
+        XCTAssertTrue(paste.exists)
+        XCTAssertFalse(app.staticTexts["CodeRim opens and connects on its own."].exists)
+        app.terminate()
+    }
+
+    @MainActor
     func testSettingsAndRealDynamicIslandPresentation() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
         app.launch()
-        XCTAssertTrue(app.navigationBars["CodeRim"].waitForExistence(timeout: 10))
-        let scan = app.buttons["Scan the QR code on your computer"]
+        XCTAssertTrue(app.buttons["Scan QR code"].waitForExistence(timeout: 10))
+        let scan = app.buttons["Scan QR code"]
         XCTAssertTrue(scan.exists)
         XCTAssertFalse(app.staticTexts["Could not save the connection details to Keychain."].exists)
         attach("settings", app.screenshot())
         if !scan.isHittable { app.swipeUp() }
         scan.tap()
-        // The Simulator has no camera: the scanner points to the Camera app and offers a copied link.
-        // There is no field to type a server or link into.
+        // Simulator enrollment uses pasted pairing codes because it has no camera.
         XCTAssertFalse(app.textFields.firstMatch.exists)
         UIPasteboard.general.string = "coderim://pair?r=http://example.com"
         let paste = app.buttons["pastePairingLink"]
@@ -71,12 +86,45 @@ final class MobileUITests: XCTestCase {
         attach("dynamic-island-windows", springboard.screenshot())
     }
     @MainActor
+    func testHomeScreenOffersToPairWhenEmptyAndShowsTheRelayNotice() throws {
+        let empty = XCUIApplication()
+        empty.launchArguments = ["--ui-settings", "--ui-dashboard", "--ui-empty-settings"]
+        empty.launch()
+        XCTAssertTrue(empty.buttons["dashboard-scan"].waitForExistence(timeout: 10))
+        XCTAssertFalse(empty.staticTexts["Tasks"].exists, "There is nothing to count with no computer")
+        empty.buttons["dashboard-scan"].tap()
+        XCTAssertTrue(empty.navigationBars["Scan QR code"].waitForExistence(timeout: 5))
+        empty.terminate()
+
+        let busy = XCUIApplication()
+        busy.launchArguments = ["--ui-settings", "--ui-dashboard", "--ui-notice"]
+        busy.launch()
+        XCTAssertTrue(busy.otherElements["dashboard-relay-notice"].waitForExistence(timeout: 10)
+                      || busy.staticTexts["The CodeRim relay is busy today, so updates arrive less often."].waitForExistence(timeout: 2))
+        XCTAssertTrue(busy.staticTexts["Tasks"].exists)
+    }
+
+    @MainActor
+    func testAComputerCanBeDisconnectedFromAVisibleMenu() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-settings"]
+        app.launch()
+        let options = app.buttons["device-options-mac"]
+        XCTAssertTrue(options.waitForExistence(timeout: 15))
+        options.tap()
+        XCTAssertTrue(app.buttons["Disconnect Personal Mac"].waitForExistence(timeout: 5))
+        app.buttons["Disconnect Personal Mac"].tap()
+        XCTAssertTrue(app.staticTexts["Disconnect this device?"].waitForExistence(timeout: 5)
+                      || app.buttons["Cancel"].waitForExistence(timeout: 2))
+    }
+
+    @MainActor
     func testExpandedQuotaBoundariesOfflineAndUnknownStates() throws {
         let app = XCUIApplication()
         let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
         app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_GB"]
         app.launch()
-        XCTAssertTrue(app.navigationBars["CodeRim"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Scan QR code"].waitForExistence(timeout: 10))
         for scenario in ["low", "full", "offline", "unknown", "denied", "auth-working", "unpaired", "generic", "user-content"] {
             app.terminate()
             app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_GB", "--ui-preview", "--ui-\(scenario)"]
@@ -125,16 +173,16 @@ final class MobileUITests: XCTestCase {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-dark"]
         app.launch()
-        XCTAssertTrue(app.navigationBars["CodeRim"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Scan QR code"].waitForExistence(timeout: 10))
         Thread.sleep(forTimeInterval: 2) // UIWindow appearance transition can outlive AX readiness.
         attach("welcome-dark", app.screenshot())
         app.terminate()
         app.launchArguments = ["--ui-large-text"]
         app.launch()
-        XCTAssertTrue(app.navigationBars["CodeRim"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["Scan QR code"].waitForExistence(timeout: 10))
         attach("welcome-large-text", app.screenshot())
         app.swipeUp()
-        XCTAssertTrue(app.buttons["Scan the QR code on your computer"].isHittable)
+        XCTAssertTrue(app.buttons["Scan QR code"].isHittable)
         attach("welcome-large-text-connect", app.screenshot())
         app.terminate()
         app.launchArguments = ["--ui-settings", "--ui-empty-settings"]

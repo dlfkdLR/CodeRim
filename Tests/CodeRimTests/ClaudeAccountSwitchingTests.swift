@@ -202,15 +202,16 @@ final class ClaudeAccountStoreTests: XCTestCase {
         XCTAssertFalse(fixture.store.isError)
     }
 
-    func testRunningClaudeBlocksSwitchWithoutStoppingSessions() async throws {
+    func testSwitchReachesRunningClaudeSessionsInsteadOfRefusing() async throws {
         let fixture = try ClaudeAccountFixture()
         let destination = try ClaudeAccountFixture.saved("two")
         fixture.vault.accounts = [destination]
         fixture.runtime.running = true
         await fixture.store.switchAccount(to: destination.id)
-        XCTAssertEqual(fixture.login.writes, 0)
-        XCTAssertEqual(fixture.vault.writes, 0)
-        XCTAssertTrue(fixture.store.isError)
+        XCTAssertEqual(fixture.login.writes, 1)
+        XCTAssertFalse(fixture.store.isError)
+        XCTAssertEqual(fixture.store.currentID, destination.id)
+        XCTAssertTrue(fixture.store.message?.contains("2 running Claude Code sessions") == true)
     }
 
     func testAddKeepsCurrentLoginAndWaitsForExplicitSwitch() async throws {
@@ -335,7 +336,7 @@ final class TestClaudeAccountRuntime: ClaudeAccountRuntime {
         if verificationFails { throw ClaudeAccountError.cliVerificationFailed }
     }
     func checkPolicy() throws { if policyBlocked { throw ClaudeAccountError.policy } }
-    func requireStopped() throws { if running { throw ClaudeAccountError.running } }
+    func runningSessionCount() -> Int { running ? 2 : 0 }
     func signIn() async throws -> SavedClaudeAccount {
         while holdSignIn { try await Task.sleep(for: .milliseconds(10)) }
         return try ClaudeAccountFixture.saved("two")

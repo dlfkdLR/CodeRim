@@ -27,12 +27,6 @@ enum ClaudeDesktopAccount {
         return id
     }
 
-    /// True when Desktop is known to be signed in to a different account.
-    static func differs(from accountID: String, configuration url: URL = configurationURL) -> Bool {
-        guard let desktop = Self.accountID(configuration: url) else { return false }
-        return desktop.caseInsensitiveCompare(accountID) != .orderedSame
-    }
-
     @MainActor
     static func open() {
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleIdentifier) else { return }

@@ -32,21 +32,14 @@ struct SourceCheckpoint: Equatable, Sendable {
             fileIdentity: fileIdentity,
             generation: generation,
             committedOffset: 0,
-            isSkippingOversizedLine: false,
-            observedSize: 0,
-            modificationTimeNanoseconds: 0,
-            contentFingerprint: "",
-            hasPendingImport: false,
             sessionID: nil,
             inheritsHistory: false,
             sessionStartedAt: nil,
             inheritedHistoryEndOrdinal: nil,
-            historyReplayComplete: true,
             model: nil,
             projectPath: nil,
             parentSessionID: nil,
-            projectName: nil,
-            imageAttachmentCount: 0
+            projectName: nil
         )
     }
 }
@@ -341,7 +334,7 @@ actor SQLiteDatabase {
                     guard sqlite3_step(statement) == SQLITE_DONE else { throw SQLiteDatabaseError.step(errorMessage) }
                 }
             }
-            if (!events.isEmpty || !excludedEventKeys.isEmpty),
+            if (!events.isEmpty || !excludedEventKeys.isEmpty || !partialEvidence.isEmpty),
                try allocatedDatabaseBytesWithinTransaction() >= databaseByteLimit {
                 throw SQLiteDatabaseError.resourceLimit(
                     "The local CodeRim database reached its 1 GB safety limit"
@@ -431,6 +424,17 @@ actor SQLiteDatabase {
                 }
                 if let connection {
                     insertedEventCount += Int(sqlite3_changes(connection.rawValue))
+                }
+            }
+
+            if normalizationState?.quality == .partial,
+               (checkpoint.sessionID == nil || normalizationState?.cumulativeHighWaterMark == nil) {
+                // shortcut: undated loss marks every period partial, add dated source quality if period scoping is required.
+                let partial = try prepare("INSERT OR IGNORE INTO app_metadata(key, value) VALUES (?1, '1')")
+                defer { sqlite3_finalize(partial) }
+                try bind("partial_source_quality:" + checkpoint.sourcePath, at: 1, to: partial)
+                guard sqlite3_step(partial) == SQLITE_DONE else {
+                    throw SQLiteDatabaseError.step(errorMessage)
                 }
             }
 
@@ -709,24 +713,18 @@ actor SQLiteDatabase {
         sqlite3_bind_double(statement, 2, end.timeIntervalSince1970)
 
         var rows: [String: (modelID: String?, accumulator: ModelUsageAccumulator)] = [:]
-        while true {
-            switch sqlite3_step(statement) {
-            case SQLITE_ROW:
-                let modelID = text(statement, column: 0)
-                let key = modelID ?? "\0unknown-model"
-                var row = rows[key] ?? (modelID, ModelUsageAccumulator())
-                row.accumulator.add(
-                    aggregateUsage(statement, startingAt: 2),
-                    pricingContext: pricingContext(statement, column: 1)
-                )
-                rows[key] = row
-            case SQLITE_DONE:
-                return rows.values.map { $0.accumulator.summary(modelID: $0.modelID) }
-                    .sorted(by: ModelUsageSummary.byUsageThenName)
-            default:
-                throw SQLiteDatabaseError.step(errorMessage)
-            }
+        try forEachRow(statement) {
+            let modelID = text(statement, column: 0)
+            let key = modelID ?? "\0unknown-model"
+            var row = rows[key] ?? (modelID, ModelUsageAccumulator())
+            row.accumulator.add(
+                aggregateUsage(statement, startingAt: 2),
+                pricingContext: pricingContext(statement, column: 1)
+            )
+            rows[key] = row
         }
+        return rows.values.map { $0.accumulator.summary(modelID: $0.modelID) }
+            .sorted(by: ModelUsageSummary.byUsageThenName)
     }
 
     private func usageBuckets(intervals: [DateInterval], through end: Date) throws -> [UsageBucket] {
@@ -772,37 +770,31 @@ actor SQLiteDatabase {
             repeating: [String: (modelID: String?, accumulator: ModelUsageAccumulator)](),
             count: intervals.count
         )
-        while true {
-            switch sqlite3_step(statement) {
-            case SQLITE_ROW:
-                let index = Int(sqlite3_column_int64(statement, 0))
-                guard grouped.indices.contains(index) else {
-                    throw SQLiteDatabaseError.step("usage bucket index is out of range")
-                }
-                let usage = aggregateUsage(statement, startingAt: 3)
-                if !usage.isZero {
-                    let modelID = text(statement, column: 1)
-                    let key = modelID ?? "\0unknown-model"
-                    var row = grouped[index][key] ?? (modelID, ModelUsageAccumulator())
-                    row.accumulator.add(
-                        usage,
-                        pricingContext: pricingContext(statement, column: 2)
-                    )
-                    grouped[index][key] = row
-                }
-            case SQLITE_DONE:
-                return intervals.enumerated().map { index, interval in
-                    UsageBucket(
-                        start: interval.start,
-                        end: interval.end,
-                        models: grouped[index].values
-                            .map { $0.accumulator.summary(modelID: $0.modelID) }
-                            .sorted(by: ModelUsageSummary.byUsageThenName)
-                    )
-                }
-            default:
-                throw SQLiteDatabaseError.step(errorMessage)
+        try forEachRow(statement) {
+            let index = Int(sqlite3_column_int64(statement, 0))
+            guard grouped.indices.contains(index) else {
+                throw SQLiteDatabaseError.step("usage bucket index is out of range")
             }
+            let usage = aggregateUsage(statement, startingAt: 3)
+            if !usage.isZero {
+                let modelID = text(statement, column: 1)
+                let key = modelID ?? "\0unknown-model"
+                var row = grouped[index][key] ?? (modelID, ModelUsageAccumulator())
+                row.accumulator.add(
+                    usage,
+                    pricingContext: pricingContext(statement, column: 2)
+                )
+                grouped[index][key] = row
+            }
+        }
+        return intervals.enumerated().map { index, interval in
+            UsageBucket(
+                start: interval.start,
+                end: interval.end,
+                models: grouped[index].values
+                    .map { $0.accumulator.summary(modelID: $0.modelID) }
+                    .sorted(by: ModelUsageSummary.byUsageThenName)
+            )
         }
     }
 
@@ -834,40 +826,34 @@ actor SQLiteDatabase {
             var models: [String: (modelID: String?, accumulator: ModelUsageAccumulator)]
         }
         var projects: [String: Accumulator] = [:]
-        while true {
-            switch sqlite3_step(statement) {
-            case SQLITE_ROW:
-                let projectID = text(statement, column: 0) ?? "unknown-project"
-                let name = text(statement, column: 1) ?? "Unknown Project"
-                let modelID = text(statement, column: 2)
-                let modelKey = modelID ?? "\0unknown-model"
-                var project = projects[projectID] ?? Accumulator(name: name, models: [:])
-                var model = project.models[modelKey] ?? (modelID, ModelUsageAccumulator())
-                model.accumulator.add(
-                    aggregateUsage(statement, startingAt: 4),
-                    pricingContext: pricingContext(statement, column: 3)
-                )
-                project.models[modelKey] = model
-                projects[projectID] = project
-            case SQLITE_DONE:
-                let counts = try projectSessionCounts(from: start, through: end)
-                return projects.map { projectID, accumulator in
-                    let models = accumulator.models.values
-                        .map { $0.accumulator.summary(modelID: $0.modelID) }
-                        .sorted(by: ModelUsageSummary.byUsageThenName)
-                    let usage = models.reduce(TokenUsage.zero) { $0.adding($1.usage) }
-                    return ProjectUsageSummary(
-                        id: projectID,
-                        name: accumulator.name,
-                        usage: usage,
-                        models: models,
-                        sessionCount: counts[projectID] ?? 0
-                    )
-                }.sorted(by: ProjectUsageSummary.byUsageThenName)
-            default:
-                throw SQLiteDatabaseError.step(errorMessage)
-            }
+        try forEachRow(statement) {
+            let projectID = text(statement, column: 0) ?? "unknown-project"
+            let name = text(statement, column: 1) ?? "Unknown Project"
+            let modelID = text(statement, column: 2)
+            let modelKey = modelID ?? "\0unknown-model"
+            var project = projects[projectID] ?? Accumulator(name: name, models: [:])
+            var model = project.models[modelKey] ?? (modelID, ModelUsageAccumulator())
+            model.accumulator.add(
+                aggregateUsage(statement, startingAt: 4),
+                pricingContext: pricingContext(statement, column: 3)
+            )
+            project.models[modelKey] = model
+            projects[projectID] = project
         }
+        let counts = try projectSessionCounts(from: start, through: end)
+        return projects.map { projectID, accumulator in
+            let models = accumulator.models.values
+                .map { $0.accumulator.summary(modelID: $0.modelID) }
+                .sorted(by: ModelUsageSummary.byUsageThenName)
+            let usage = models.reduce(TokenUsage.zero) { $0.adding($1.usage) }
+            return ProjectUsageSummary(
+                id: projectID,
+                name: accumulator.name,
+                usage: usage,
+                models: models,
+                sessionCount: counts[projectID] ?? 0
+            )
+        }.sorted(by: ProjectUsageSummary.byUsageThenName)
     }
 
     /// Opaque associations for display-name enrichment, including a session
@@ -882,16 +868,12 @@ actor SQLiteDatabase {
         sqlite3_bind_double(statement, 1, start.timeIntervalSince1970)
         sqlite3_bind_double(statement, 2, end.timeIntervalSince1970)
         var result: [String: Set<String>] = [:]
-        while true {
-            switch sqlite3_step(statement) {
-            case SQLITE_ROW:
-                if let project = text(statement, column: 0), let session = text(statement, column: 1) {
-                    result[project, default: []].insert(session)
-                }
-            case SQLITE_DONE: return result
-            default: throw SQLiteDatabaseError.step(errorMessage)
+        try forEachRow(statement) {
+            if let project = text(statement, column: 0), let session = text(statement, column: 1) {
+                result[project, default: []].insert(session)
             }
         }
+        return result
     }
 
     private func projectSessionCounts(from start: Date, through end: Date) throws -> [String: Int] {
@@ -907,16 +889,10 @@ actor SQLiteDatabase {
         sqlite3_bind_double(statement, 1, start.timeIntervalSince1970)
         sqlite3_bind_double(statement, 2, end.timeIntervalSince1970)
         var counts: [String: Int] = [:]
-        while true {
-            switch sqlite3_step(statement) {
-            case SQLITE_ROW:
-                counts[text(statement, column: 0) ?? "unknown-project"] = Int(sqlite3_column_int64(statement, 1))
-            case SQLITE_DONE:
-                return counts
-            default:
-                throw SQLiteDatabaseError.step(errorMessage)
-            }
+        try forEachRow(statement) {
+            counts[text(statement, column: 0) ?? "unknown-project"] = Int(sqlite3_column_int64(statement, 1))
         }
+        return counts
     }
 
     private func sessionUsage(from start: Date, through end: Date) throws -> [SessionUsageSummary] {
@@ -955,64 +931,58 @@ actor SQLiteDatabase {
             var parentSessionID: String?
         }
         var sessions: [String: Accumulator] = [:]
-        while true {
-            switch sqlite3_step(statement) {
-            case SQLITE_ROW:
-                guard let sessionID = text(statement, column: 0) else {
-                    throw SQLiteDatabaseError.step("session identifier is unavailable")
-                }
-                let lastActivity = Date(timeIntervalSince1970: sqlite3_column_double(statement, 4))
-                let startedAt = sqlite3_column_type(statement, 3) == SQLITE_NULL
-                    ? nil
-                    : Date(timeIntervalSince1970: sqlite3_column_double(statement, 3))
-                var accumulator = sessions[sessionID] ?? Accumulator(
-                    projectID: text(statement, column: 1),
-                    projectName: text(statement, column: 2),
-                    startedAt: startedAt,
-                    lastActivityAt: lastActivity,
-                    models: [:],
-                    imageAttachmentCount: Int(sqlite3_column_int64(statement, 12)),
-                    parentSessionID: text(statement, column: 11)
-                )
-                accumulator.lastActivityAt = max(accumulator.lastActivityAt, lastActivity)
-                let modelID = text(statement, column: 5)
-                let modelKey = modelID ?? "\0unknown-model"
-                var model = accumulator.models[modelKey] ?? (modelID, ModelUsageAccumulator())
-                model.accumulator.add(
-                    aggregateUsage(statement, startingAt: 7),
-                    pricingContext: pricingContext(statement, column: 6)
-                )
-                accumulator.models[modelKey] = model
-                sessions[sessionID] = accumulator
-            case SQLITE_DONE:
-                var directSubagentCounts: [String: Int] = [:]
-                for accumulator in sessions.values {
-                    guard let parentID = accumulator.parentSessionID,
-                          sessions[parentID] != nil
-                    else { continue }
-                    directSubagentCounts[parentID, default: 0] += 1
-                }
-                return sessions.map { sessionID, accumulator in
-                    let models = accumulator.models.values
-                        .map { $0.accumulator.summary(modelID: $0.modelID) }
-                        .sorted(by: ModelUsageSummary.byUsageThenName)
-                    return SessionUsageSummary(
-                        id: sessionID,
-                        projectID: accumulator.projectID,
-                        projectName: accumulator.projectName,
-                        startedAt: accumulator.startedAt,
-                        lastActivityAt: accumulator.lastActivityAt,
-                        usage: models.reduce(TokenUsage.zero) { $0.adding($1.usage) },
-                        models: models,
-                        directSubagentCount: directSubagentCounts[sessionID] ?? 0,
-                        imageAttachmentCount: accumulator.imageAttachmentCount,
-                        parentSessionID: accumulator.parentSessionID
-                    )
-                }.sorted(by: SessionUsageSummary.byActivityThenID)
-            default:
-                throw SQLiteDatabaseError.step(errorMessage)
+        try forEachRow(statement) {
+            guard let sessionID = text(statement, column: 0) else {
+                throw SQLiteDatabaseError.step("session identifier is unavailable")
             }
+            let lastActivity = Date(timeIntervalSince1970: sqlite3_column_double(statement, 4))
+            let startedAt = sqlite3_column_type(statement, 3) == SQLITE_NULL
+                ? nil
+                : Date(timeIntervalSince1970: sqlite3_column_double(statement, 3))
+            var accumulator = sessions[sessionID] ?? Accumulator(
+                projectID: text(statement, column: 1),
+                projectName: text(statement, column: 2),
+                startedAt: startedAt,
+                lastActivityAt: lastActivity,
+                models: [:],
+                imageAttachmentCount: Int(sqlite3_column_int64(statement, 12)),
+                parentSessionID: text(statement, column: 11)
+            )
+            accumulator.lastActivityAt = max(accumulator.lastActivityAt, lastActivity)
+            let modelID = text(statement, column: 5)
+            let modelKey = modelID ?? "\0unknown-model"
+            var model = accumulator.models[modelKey] ?? (modelID, ModelUsageAccumulator())
+            model.accumulator.add(
+                aggregateUsage(statement, startingAt: 7),
+                pricingContext: pricingContext(statement, column: 6)
+            )
+            accumulator.models[modelKey] = model
+            sessions[sessionID] = accumulator
         }
+        var directSubagentCounts: [String: Int] = [:]
+        for accumulator in sessions.values {
+            guard let parentID = accumulator.parentSessionID,
+                  sessions[parentID] != nil
+            else { continue }
+            directSubagentCounts[parentID, default: 0] += 1
+        }
+        return sessions.map { sessionID, accumulator in
+            let models = accumulator.models.values
+                .map { $0.accumulator.summary(modelID: $0.modelID) }
+                .sorted(by: ModelUsageSummary.byUsageThenName)
+            return SessionUsageSummary(
+                id: sessionID,
+                projectID: accumulator.projectID,
+                projectName: accumulator.projectName,
+                startedAt: accumulator.startedAt,
+                lastActivityAt: accumulator.lastActivityAt,
+                usage: models.reduce(TokenUsage.zero) { $0.adding($1.usage) },
+                models: models,
+                directSubagentCount: directSubagentCounts[sessionID] ?? 0,
+                imageAttachmentCount: accumulator.imageAttachmentCount,
+                parentSessionID: accumulator.parentSessionID
+            )
+        }.sorted(by: SessionUsageSummary.byActivityThenID)
     }
 
     private func aggregateUsage(_ statement: OpaquePointer, startingAt column: Int32) -> TokenUsage {
@@ -1202,7 +1172,7 @@ actor SQLiteDatabase {
             try execute("DELETE FROM session_counters")
             try execute("DELETE FROM session_metadata")
             try execute("DELETE FROM analytics_backfill_sources")
-            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through')")
+            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through') OR key GLOB 'partial_source_quality:*'")
             try execute("DELETE FROM partial_evidence")
             try execute("COMMIT")
         } catch {
@@ -1233,7 +1203,7 @@ actor SQLiteDatabase {
             try execute("DELETE FROM session_counters")
             try execute("DELETE FROM session_metadata")
             try execute("DELETE FROM analytics_backfill_sources")
-            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through')")
+            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through') OR key GLOB 'partial_source_quality:*'")
             try execute("DELETE FROM partial_evidence")
             do {
                 let statement = try prepare(
@@ -1377,43 +1347,37 @@ actor SQLiteDatabase {
             sqlite3_bind_double(statement, 1, end.timeIntervalSince1970)
         }
         var total = TokenUsage.zero
-        while true {
-            switch sqlite3_step(statement) {
-            case SQLITE_ROW:
-                let input = sqlite3_column_int64(statement, 0)
-                let cached = sqlite3_column_int64(statement, 1)
-                let cacheWrite = sqlite3_column_type(statement, 2) == SQLITE_NULL
-                    ? nil
-                    : sqlite3_column_int64(statement, 2)
-                let output = sqlite3_column_int64(statement, 3)
-                let (newInput, inputOverflow) = total.inputTokens.addingReportingOverflow(input)
-                let (newCached, cachedOverflow) = total.cachedInputTokens.addingReportingOverflow(cached)
-                let (newOutput, outputOverflow) = total.outputTokens.addingReportingOverflow(output)
-                let newCacheWrite: Int64?
-                let cacheWriteOverflow: Bool
-                if let current = total.cacheWriteInputTokens, let cacheWrite {
-                    let result = current.addingReportingOverflow(cacheWrite)
-                    newCacheWrite = result.partialValue
-                    cacheWriteOverflow = result.overflow
-                } else {
-                    newCacheWrite = nil
-                    cacheWriteOverflow = false
-                }
-                guard !inputOverflow, !cachedOverflow, !cacheWriteOverflow, !outputOverflow else {
-                    throw SQLiteDatabaseError.step("token aggregate exceeds the supported range")
-                }
-                total = TokenUsage(
-                    inputTokens: newInput,
-                    cachedInputTokens: newCached,
-                    cacheWriteInputTokens: newCacheWrite,
-                    outputTokens: newOutput
-                )
-            case SQLITE_DONE:
-                return total
-            default:
-                throw SQLiteDatabaseError.step(errorMessage)
+        try forEachRow(statement) {
+            let input = sqlite3_column_int64(statement, 0)
+            let cached = sqlite3_column_int64(statement, 1)
+            let cacheWrite = sqlite3_column_type(statement, 2) == SQLITE_NULL
+                ? nil
+                : sqlite3_column_int64(statement, 2)
+            let output = sqlite3_column_int64(statement, 3)
+            let (newInput, inputOverflow) = total.inputTokens.addingReportingOverflow(input)
+            let (newCached, cachedOverflow) = total.cachedInputTokens.addingReportingOverflow(cached)
+            let (newOutput, outputOverflow) = total.outputTokens.addingReportingOverflow(output)
+            let newCacheWrite: Int64?
+            let cacheWriteOverflow: Bool
+            if let current = total.cacheWriteInputTokens, let cacheWrite {
+                let result = current.addingReportingOverflow(cacheWrite)
+                newCacheWrite = result.partialValue
+                cacheWriteOverflow = result.overflow
+            } else {
+                newCacheWrite = nil
+                cacheWriteOverflow = false
             }
+            guard !inputOverflow, !cachedOverflow, !cacheWriteOverflow, !outputOverflow else {
+                throw SQLiteDatabaseError.step("token aggregate exceeds the supported range")
+            }
+            total = TokenUsage(
+                inputTokens: newInput,
+                cachedInputTokens: newCached,
+                cacheWriteInputTokens: newCacheWrite,
+                outputTokens: newOutput
+            )
         }
+        return total
     }
 
     private func maximumEventDate(through end: Date) throws -> Date? {
@@ -1443,6 +1407,9 @@ actor SQLiteDatabase {
                ) AND (?2 OR COALESCE((
                     SELECT CAST(value AS REAL) FROM app_metadata WHERE key = 'legacy_partial_quality_through'
                ), ?3 + 1) >= ?3))
+               OR EXISTS (
+                    SELECT 1 FROM app_metadata WHERE key GLOB 'partial_source_quality:*'
+               )
                OR EXISTS (
                     SELECT 1 FROM session_counters
                     WHERE quality != 'exact' AND (?3 IS NULL OR last_observed_at IS NULL OR last_observed_at >= ?3)
@@ -2291,6 +2258,16 @@ actor SQLiteDatabase {
             throw SQLiteDatabaseError.statement(errorMessage)
         }
         return statement
+    }
+
+    private func forEachRow(_ statement: OpaquePointer, _ body: () throws -> Void) throws {
+        while true {
+            switch sqlite3_step(statement) {
+            case SQLITE_ROW: try body()
+            case SQLITE_DONE: return
+            default: throw SQLiteDatabaseError.step(errorMessage)
+            }
+        }
     }
 
     private func execute(_ sql: String) throws {

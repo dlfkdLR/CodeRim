@@ -237,6 +237,33 @@ final class CodexAccountStore: ObservableObject {
         guard verified, current?.id == account.id else { throw AccountSwitchError.cliVerificationFailed }
     }
 
+    /// The saved login for `id`, read from the vault rather than the published list.
+    func savedAccount(_ id: String) throws -> SavedCodexAccount? {
+        try vault.load().first { $0.id == id }
+    }
+
+    enum RotationSaveResult { case saved, superseded, retry }
+
+    /// Replaces only the login this probe read. Superseded results are discarded;
+    /// lock or vault failures let the caller retain the renewed login for retry.
+    func storeRotatedLogin(_ loginData: Data, for id: String, expecting base: Data) -> RotationSaveResult {
+        guard !isBusy, !AccountSwitchActivity.isSwitching,
+              let lease = try? acquireLock(),
+              let account = try? SavedCodexAccount(loginData: loginData), account.id == id else { return .retry }
+        return withExtendedLifetime(lease) {
+            do {
+                var saved = try vault.load()
+                guard let index = saved.firstIndex(where: { $0.id == id }), saved[index].loginData == base else {
+                    return .superseded
+                }
+                saved[index] = account
+                try vault.save(saved)
+                accounts = saved
+                return .saved
+            } catch { return .retry }
+        }
+    }
+
     private func upsert(_ account: SavedCodexAccount) throws {
         var saved = try vault.load()
         if let index = saved.firstIndex(where: { $0.id == account.id }) { saved[index] = account }

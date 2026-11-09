@@ -6,11 +6,12 @@ struct CodeRimMobileApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @ViewBuilder private var rootView: some View {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--ui-settings") { DebugSettingsPreview() }
+        if ProcessInfo.processInfo.arguments.contains("--ui-scanner") { MobileQRScanner { _ in } }
+        else if ProcessInfo.processInfo.arguments.contains("--ui-settings") { DebugSettingsPreview() }
         else if ProcessInfo.processInfo.arguments.contains("--ui-preview") { DebugPreviewView() }
-        else { MobileSettingsView(model: model) }
+        else { MobileRootView(model: model) }
         #else
-        MobileSettingsView(model: model)
+        MobileRootView(model: model)
         #endif
     }
     var body: some Scene {
@@ -24,16 +25,15 @@ struct CodeRimMobileApp: App {
                     guard !usesPreview else { return }
                     model.setForeground(phase == .active)
                 }
-                // A pairing QR scanned with the Camera app opens coderim://pair?….
                 .onOpenURL { url in
-                    guard !usesPreview, let link = MobilePairingLink(url.absoluteString) else { return }
-                    Task { await model.restore(); await model.connect(link) }
+                    guard !usesPreview else { return }
+                    model.handleExternalURL(url)
                 }
         }
     }
     private var usesPreview: Bool {
         #if DEBUG
-        ProcessInfo.processInfo.arguments.contains("--ui-settings") || ProcessInfo.processInfo.arguments.contains("--ui-preview")
+        ProcessInfo.processInfo.arguments.contains("--ui-settings") || ProcessInfo.processInfo.arguments.contains("--ui-preview") || ProcessInfo.processInfo.arguments.contains("--ui-scanner")
         #else
         false
         #endif
@@ -60,7 +60,8 @@ private struct DebugSettingsPreview: View {
     @StateObject private var model: MobileAppModel
     init() {
         let empty = ProcessInfo.processInfo.arguments.contains("--ui-empty-settings")
-        let relay = DebugSettingsRelay(empty: empty, noServices: ProcessInfo.processInfo.arguments.contains("--ui-no-services"))
+        let relay = DebugSettingsRelay(empty: empty, noServices: ProcessInfo.processInfo.arguments.contains("--ui-no-services"),
+                                       busy: ProcessInfo.processInfo.arguments.contains("--ui-dashboard"))
         _model = StateObject(wrappedValue: MobileAppModel(credentials: DebugSettingsCredentials(),
             makeClient: { _ in relay }))
     }
@@ -68,7 +69,8 @@ private struct DebugSettingsPreview: View {
         VStack(spacing: 0) {
             Text("Sample preview · Account and Live Activity actions are disabled.").font(.caption2).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity).padding(8).background(.regularMaterial)
-            MobileSettingsView(model: model)
+            if ProcessInfo.processInfo.arguments.contains("--ui-dashboard") { MobileRootView(model: model) }
+            else { NavigationStack { MobileSettingsView(model: model) } }
         }.task { await model.restore() }
     }
 }
@@ -85,10 +87,12 @@ private actor DebugSettingsRelay: MobileRelayServing {
     nonisolated let endpoint = URL(string: "https://relay.example.com")!
     let empty: Bool
     let noServices: Bool
+    /// Sample usage and tasks for the dashboard preview.
+    let busy: Bool
     var preferences = MobilePreferences()
     var selectedID = "codex"
     var revision = 0
-    init(empty: Bool, noServices: Bool) { self.empty = empty; self.noServices = noServices }
+    init(empty: Bool, noServices: Bool, busy: Bool = false) { self.empty = empty; self.noServices = noServices; self.busy = busy }
     func get<Response: Decodable & Sendable>(_ path: String, token: String) throws -> Response {
         let now = Date().timeIntervalSince1970
         let options: [MobileProviderOption] = (empty || noServices) ? [] : [.init(id: "codex", name: "Codex"), .init(id: "claude", name: "Claude")]
@@ -105,7 +109,19 @@ private actor DebugSettingsRelay: MobileRelayServing {
                             providerIndex: selected.flatMap { pick in displayed.firstIndex(where: { $0.id == pick.id }) }.map { $0 + 1 } ?? 0,
                             providerCount: displayed.count)
         state.providers = selected.map { [.init(id: $0.id, name: $0.name, state: "unavailable", windows: [], todayTokens: nil, localState: "unavailable", updatedAt: nil)] } ?? []
-        let response = MobileSnapshotResponse(state: state, preferences: preferences, availableProviders: options, devices: devices, displayProviders: displayed)
+        if busy, let id = selected?.id, let name = selected?.name {
+            state.connection = "connected"; state.updatedAt = now; state.staleAt = now + 600
+            state.providers = [.init(id: id, name: name, state: "ready",
+                windows: [.init(name: "5h", remainingPercent: 68, resetsAt: now + 7_800), .init(name: "Week", remainingPercent: 41, resetsAt: now + 260_000)],
+                todayTokens: 284_000, localState: "ready", updatedAt: now)]
+            state.sessions = [.init(providerID: id, phase: .waiting, title: "Review the iPhone dashboard", since: now - 140),
+                              .init(providerID: id, phase: .working, title: "Refactor relay polling", since: now - 610)]
+            state.workingCount = 1; state.waitingCount = 1; state.additionalSessionCount = 1
+        }
+        var response = MobileSnapshotResponse(state: state, preferences: preferences, availableProviders: options, devices: devices, displayProviders: displayed)
+        if ProcessInfo.processInfo.arguments.contains("--ui-notice") {
+            response.notice = "The CodeRim relay is busy today, so updates arrive less often."
+        }
         return try JSONDecoder().decode(Response.self, from: JSONEncoder().encode(response))
     }
     func send<Response: Decodable & Sendable, Body: Encodable & Sendable>(

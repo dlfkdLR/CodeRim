@@ -1,15 +1,7 @@
 import Foundation
 
-/// Notices the moment an agent stops working.
-///
-/// The monitors publish *what is true now*; nothing in them says what changed.
-/// That difference is the whole event here — a session sitting at `idle` is
-/// unremarkable, a session that was `busy` a second ago and is `idle` now is
-/// the thing worth looking up for. So this keeps the previous state of every
-/// session and reports only the crossings.
-///
-/// Pure and free of AppKit on purpose: it is the part with the edge cases, and
-/// tests can drive it directly.
+/// Compare successive session states and report crossings only. Keep this state machine free of
+/// AppKit for direct tests.
 struct SessionCompletionWatcher {
     /// Why a session is being announced.
     enum Reason: Equatable {
@@ -28,12 +20,8 @@ struct SessionCompletionWatcher {
 
     /// The last state seen for every session, keyed by provider and session id.
     private var previous: [String: AgentSession.State] = [:]
-    /// Nothing is announced from the first reading.
-    ///
-    /// Every session already running when Codenotch launches arrives with no
-    /// history, and treating that as a transition would ring once per session
-    /// on every start — including a restart in the middle of the night after a
-    /// Sparkle update. The first pass only records.
+    /// Seed the first reading without events so app launches and updates do not chime for existing
+    /// sessions.
     private var hasSeeded = false
 
     /// Feed the monitors' current view; get back what just changed.
@@ -62,11 +50,19 @@ struct SessionCompletionWatcher {
         return events.sorted { $0.session.since > $1.session.since }
     }
 
-    /// Only leaving `busy` counts.
-    ///
-    /// `waiting` to `idle` is the tail of a question that was answered, and
-    /// `idle` to `idle` is the steady state of a window nobody is using —
-    /// neither is a piece of work ending.
+    /// A session started by another session rather than by the user.
+    static func isSubagent(_ session: AgentSession) -> Bool {
+        guard let parent = session.parentThread else { return false }
+        return parent.id != session.codexThreadID
+    }
+
+    /// Select an eligible event, not merely the newest: a silent subagent must not hide its parent’s
+    /// completion.
+    static func soundEvent(in events: [Event], includingSubagents: Bool) -> Event? {
+        events.first { includingSubagents || !isSubagent($0.session) }
+    }
+
+    /// Only transitions out of busy end work; waiting→idle and idle→idle must not announce completion.
     static func reason(from was: AgentSession.State, to now: AgentSession.State) -> Reason? {
         guard was == .busy else { return nil }
         switch now {

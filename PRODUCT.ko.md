@@ -6,15 +6,15 @@
 
 ## 플랫폼과 구성
 
-기본 네이티브 앱은 macOS 14+이며 Swift·SwiftUI·AppKit·Foundation·Swift Concurrency·SQLite·OSLog·CoreServices·ServiceManagement·Sparkle을 사용합니다. 공개 macOS 패키지는 Universal 2입니다. Windows 11은 WPF·.NET 10·SQLite 기반 구현 미리보기이며 런타임을 포함한 x64·ARM64 MSI를 제공합니다. 두 데스크톱 플랫폼 모두 별도 런타임 설치가 필요 없습니다. Windows 위젯은 현재 범위 밖입니다.
+기본 네이티브 앱은 macOS 14+이며 Swift·SwiftUI·AppKit·Foundation·Swift Concurrency·SQLite·OSLog·CoreServices·ServiceManagement·Sparkle을 사용합니다. 공개 macOS 패키지는 Universal 2입니다. Windows 11의 안정 릴리스는 2.1.34이며 WPF·.NET 10·SQLite 기반으로 런타임을 포함한 x64·ARM64 MSI를 제공합니다. 두 데스크톱 플랫폼 모두 별도 런타임 설치가 필요 없습니다. Windows 위젯은 현재 범위 밖입니다.
 
-선택적 소스 수준 iPhone 연동은 iOS 17.2+에서 SwiftUI·ActivityKit·APNs·Sign in with Apple과 명시적으로 구성한 Node 24 relay를 사용합니다. 프로비저닝·서버 구성이 필요하며 공개 App Store 릴리스는 아닙니다. [플랫폼 계약](Documentation/README.ko.md).
+선택적 네이티브 iPhone 연동은 미출시 소스이며 iOS 17.2+에서 SwiftUI·WidgetKit Live Activity·ActivityKit·APNs를 사용합니다. Apple ID나 로그인 없이 QR 코드로 익명 연결하며 Cloudflare Worker와 SQLite 기반 Durable Object relay를 거칩니다. 프로비저닝·relay 구성이 필요하며 공개 App Store·TestFlight 릴리스는 아닙니다. [플랫폼 계약](Documentation/README.ko.md).
 
 ## 사용자와 목적
 
 Codex·Claude Code 사용자는 로컬에서 관찰 가능한 토큰과 별도 서비스 한도를 빠르게 확인하려 합니다. 앱은 세션 이벤트를 제공업체별 영속 스냅샷으로 가져오고 캐시를 즉시 보여준 뒤 새 기록을 비동기로 추적합니다. 반복 기록을 중복 집계하지 않고 큰 기록을 가져오는 동안에도 반응성을 유지해야 합니다.
 
-Today·Usage analytics·노치 토큰·CLI·데스크톱 위젯은 계정에 관계없이 이 컴퓨터의 기록을 표시합니다. CodeRim 2.1.13의 별도 Codex Overview History는 측정 범위 날짜와 현재 ChatGPT 계정 합계를 표시할 수 있습니다. 원격 합계는 로컬 테이블이나 계정 미귀속 로컬 기록에 더하지 않습니다. 계정 전환 시 이전 원격 값을 즉시 지웁니다. [집계](Documentation/USAGE.ko.md).
+Today·Usage analytics·노치 토큰·CLI·데스크톱 위젯은 계정에 관계없이 이 컴퓨터의 기록을 표시합니다. 별도 Codex Overview History는 측정 범위 날짜와 현재 ChatGPT 계정 합계를 표시할 수 있습니다. 원격 합계는 로컬 테이블이나 계정 미귀속 로컬 기록에 더하지 않습니다. 계정 전환 시 이전 원격 값을 즉시 지웁니다. [집계](Documentation/USAGE.ko.md).
 
 ## 기능과 제약
 

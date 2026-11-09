@@ -247,7 +247,7 @@ public sealed class UsageScanner
                 // a malformed accounting row) marks what it did yield. The mark is stored with each record, so the
                 // periods they fall in stay partial after the file is gone; the file's own flag lasts only as long
                 // as the file.
-                var yielded = parsed.Partial ? parsed.Events.Select(e => e.Repaired ? e : e with { Repaired = true }).ToList() : parsed.Events;
+                var yielded = parsed.UncountedUsage ? parsed.Events.Select(e => e.Repaired ? e : e with { Repaired = true }).ToList() : parsed.Events;
                 cache[source] = new CachedFile(before, yielded, parsed.Partial, parsed.Details);
                 cachedEventCount = retainedEventCount + parsed.Events.Count + (parsed.Details?.Attachments.Count ?? 0);
                 partial |= parsed.Partial; gaps |= parsed.Partial && parsed.Events.Count == 0;
@@ -262,47 +262,42 @@ public sealed class UsageScanner
             }
         }
 
-        var events = new List<UsageEvent>();
         var merged = new Dictionary<string, UsageEvent>(StringComparer.Ordinal);
-        var eventIndices = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var cached in cache.Values)
         {
             foreach (var usageEvent in cached.Events)
             {
                 if (provider == "claude")
                 {
-                    merged[usageEvent.EventKey] = merged.TryGetValue(usageEvent.EventKey, out var existing)
-                        ? ClaudeJsonlParser.Merge(existing, usageEvent) : usageEvent;
+                    merged[usageEvent.EventKey] = merged.TryGetValue(usageEvent.EventKey, out var claudeExisting)
+                        ? ClaudeJsonlParser.Merge(claudeExisting, usageEvent) : usageEvent;
                     continue;
                 }
-                if (eventIndices.TryGetValue(usageEvent.EventKey, out var existingIndex))
+                if (merged.TryGetValue(usageEvent.EventKey, out var existing))
                 {
-                    var existing = events[existingIndex];
-                    // A copy that had to be repaired marks the event whichever copy was read first, so the
-                    // stored quality does not depend on file or cache order.
-                    if (usageEvent.Repaired && !existing.Repaired) existing = events[existingIndex] = existing with { Repaired = true };
+                    existing = existing with { Repaired = existing.Repaired || usageEvent.Repaired };
                     if (existing.Usage.InputTokens == usageEvent.Usage.InputTokens
                         && existing.Usage.CachedInputTokens == usageEvent.Usage.CachedInputTokens
                         && existing.Usage.OutputTokens == usageEvent.Usage.OutputTokens)
-                        events[existingIndex] = existing with {
+                        existing = existing with {
                             Usage = existing.Usage.CacheWriteInputTokens is null && usageEvent.Usage.CacheWriteInputTokens is not null ? usageEvent.Usage : existing.Usage,
                             PricingContext = usageEvent.PricingContext ?? existing.PricingContext };
+                    merged[usageEvent.EventKey] = existing;
                     continue;
                 }
 
-                if (events.Count >= maximumEventCount)
+                if (merged.Count >= maximumEventCount)
                 {
                     partial = gaps = true;
                     resourceLimitReached = true;
                     break;
                 }
 
-                eventIndices[usageEvent.EventKey] = events.Count;
-                events.Add(usageEvent);
+                merged.Add(usageEvent.EventKey, usageEvent);
             }
         }
 
-        if (provider == "claude") events.AddRange(merged.Values.Take(maximumEventCount));
+        var events = merged.Values.Take(maximumEventCount).ToList();
         if (cacheAtStart.Length != cache.Count
             || cacheAtStart.Any(entry => !cache.TryGetValue(entry.Key, out var current) || !ReferenceEquals(current, entry.Value)))
             contentVersion = Interlocked.Increment(ref contentVersions);
@@ -419,6 +414,7 @@ public sealed class UsageScanner
         var attachments = new List<AttachmentObservation>();
         string? parentSession = null;
         var partial = false;
+        var uncountedUsage = false;
         var sessionId = HashIdentifier(SessionIdentifierFromFilename(path) ?? path);
         var state = UsageNormalizationState.Empty;
         var inheritsHistory = false;
@@ -447,7 +443,7 @@ public sealed class UsageScanner
         {
             if (boundedLine.Oversized)
             {
-                partial = true;
+                partial = uncountedUsage = true;
                 continue;
             }
 
@@ -459,10 +455,10 @@ public sealed class UsageScanner
                 {
                     using var document = System.Text.Json.JsonDocument.Parse(line);
                     if (document.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object || JsonFields.Text(document.RootElement, "type") is null)
-                    { partial = true; continue; }
+                    { partial = uncountedUsage = true; continue; }
                     sawCompleteRecord = true;
                 }
-                catch (System.Text.Json.JsonException) { partial = true; continue; }
+                catch (System.Text.Json.JsonException) { partial = uncountedUsage = true; continue; }
             }
             if (provider == "claude")
             {
@@ -477,7 +473,7 @@ public sealed class UsageScanner
                     var root = document.RootElement; var message = JsonFields.Object(root, "message");
                     if (JsonFields.Text(root, "type") == "assistant" && !JsonFields.Flag(root, "isApiErrorMessage")
                         && (JsonFields.Text(message, "model")?.StartsWith("claude-", StringComparison.Ordinal) == true
-                            || JsonFields.Object(message, "usage").ValueKind != System.Text.Json.JsonValueKind.Undefined)) partial = true;
+                            || JsonFields.Object(message, "usage").ValueKind != System.Text.Json.JsonValueKind.Undefined)) partial = uncountedUsage = true;
                 }
                 continue;
             }
@@ -515,10 +511,10 @@ public sealed class UsageScanner
                                 attachments.Add(new AttachmentObservation(HashIdentifier($"images|{sessionId}|{timestamp:O}|{identityKey}"), timestamp, images.Length));
                             }
                         }
-                        else if (images.Length > 0) partial = true;
+                        else if (images.Length > 0) partial = uncountedUsage = true;
                     }
                 }
-                catch (System.Text.Json.JsonException) { partial = true; }
+                catch (System.Text.Json.JsonException) { partial = uncountedUsage = true; }
             }
             if (line.AsSpan().IndexOf("\"turn_context\""u8) >= 0 || line.AsSpan().IndexOf("\"session_meta\""u8) >= 0)
             {
@@ -538,7 +534,7 @@ public sealed class UsageScanner
                         }
                     }
                 }
-                catch (System.Text.Json.JsonException) { partial = true; }
+                catch (System.Text.Json.JsonException) { partial = uncountedUsage = true; }
             }
             if (!requireCompleteSources && !ContainsRelevantMarker(line))
             {
@@ -629,7 +625,8 @@ public sealed class UsageScanner
                         events[^1] = last with { Usage = enriched };
                     state = normalized.State;
                     partial |= state.Quality == DataQuality.Partial;
-                    if (isInheritedReplay || normalized.Delta is not { } delta || delta.IsZero)
+                    uncountedUsage |= state.Quality == DataQuality.Partial && !normalized.Repaired && normalized.Diagnostic is not null;
+                    if (isInheritedReplay || normalized.Delta is not { } delta || delta.IsZero && !normalized.Repaired)
                     {
                         break;
                     }
@@ -649,14 +646,15 @@ public sealed class UsageScanner
                     break;
 
                 case ParsedLineKind.Malformed:
-                    partial = true;
+                    partial = uncountedUsage = true;
                     break;
             }
         }
 
         return new ParsedFile(events, partial || requireCompleteSources && !sawCompleteRecord, false, prefixHash.GetHashAndReset(), identity,
             provider == "codex" ? new SessionDetails(sessionId, parentSession, attachments) { StartedAt = sessionStartedAt,
-                ProjectName = projectId == "unknown" ? null : project, ProjectObservedAt = projectObservedAt } : null);
+                ProjectName = projectId == "unknown" ? null : project, ProjectObservedAt = projectObservedAt } : null)
+            { UncountedUsage = uncountedUsage || requireCompleteSources && !sawCompleteRecord };
     }
 
     private static bool VerifyPrefix(string path, long length, ParsedFile parsed, CancellationToken cancellationToken)
@@ -685,9 +683,9 @@ public sealed class UsageScanner
     }
 
     /// The earliest start of the current week and month: the periods a snapshot reports as current.
-    public static DateTimeOffset CurrentPeriodStart(DateTimeOffset now, WeekStart weekStart)
+    public static DateTimeOffset CurrentPeriodStart(DateTimeOffset now, WeekStart weekStart, TimeZoneInfo? timeZone = null)
     {
-        var timeZone = TimeZoneInfo.Local;
+        timeZone ??= TimeZoneInfo.Local;
         var localNow = TimeZoneInfo.ConvertTime(now, timeZone);
         var dayOffset = weekStart == WeekStart.Monday ? ((int)localNow.DayOfWeek + 6) % 7 : (int)localNow.DayOfWeek;
         var week = LocalStartUtc(localNow.Date.AddDays(-dayOffset), timeZone);
@@ -700,10 +698,10 @@ public sealed class UsageScanner
         DateTimeOffset now,
         WeekStart weekStart,
         bool partial,
-        TimeZoneInfo? zone = null,
+        TimeZoneInfo? timeZone = null,
         bool? sourcesPartial = null)
     {
-        var timeZone = zone ?? TimeZoneInfo.Local;
+        timeZone ??= TimeZoneInfo.Local;
         var localNow = TimeZoneInfo.ConvertTime(now, timeZone);
         var todayStart = LocalStartUtc(localNow.Date, timeZone);
         var dayOffset = weekStart == WeekStart.Monday
@@ -756,7 +754,7 @@ public sealed class UsageScanner
         var quality = newest is null
             ? partial ? DataQuality.Partial : DataQuality.Unavailable
             : partial || marked ? DataQuality.Partial : DataQuality.Exact;
-        return new UsageSnapshot(today, week, month, allTime, quality, newest) { SourcesPartial = sourcesPartial ?? partial };
+        return new UsageSnapshot(today, week, month, allTime, quality, newest) { SourcesPartial = sourcesPartial ?? partial, Through = now, TimeZoneIdentifier = timeZone.Id };
     }
 
     /// The day's first instant, the same one the charts start the day at: a midnight that happens twice
@@ -846,7 +844,10 @@ public sealed class UsageScanner
         bool ResourceLimitReached,
         byte[]? PrefixHash = null,
         FileIdentity? Identity = null,
-        SessionDetails? Details = null);
+        SessionDetails? Details = null)
+    {
+        public bool UncountedUsage { get; init; }
+    }
     private sealed record DiscoveryResult(List<string> Sources, bool ResourceLimitReached);
     private sealed record CachedFile(FileStamp Stamp, IReadOnlyList<UsageEvent> Events, bool Partial, SessionDetails? Details);
     private readonly record struct FileStamp(long Length, long LastWriteTicks, long CreationTimeTicks)
@@ -939,26 +940,12 @@ internal static class BoundedLineReader
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var remainingBytes = maximumBytes - totalBytesRead;
-                if (remainingBytes <= 0)
-                {
-                    if (oversized || lineBuffer.WrittenCount > 0)
-                    {
-                        yield return new BoundedLine(null, true);
-                    }
-                    yield break;
-                }
+                if (remainingBytes <= 0) break;
                 var read = stream.Read(
                     readBuffer,
                     0,
                     (int)Math.Min(readBuffer.Length, remainingBytes));
-                if (read == 0)
-                {
-                    if (oversized || lineBuffer.WrittenCount > 0)
-                    {
-                        yield return new BoundedLine(null, true);
-                    }
-                    yield break;
-                }
+                if (read == 0) break;
                 totalBytesRead += read;
                 prefixHash?.AppendData(readBuffer, 0, read);
 
@@ -991,6 +978,7 @@ internal static class BoundedLineReader
                     lineBuffer.Advance(1);
                 }
             }
+            if (oversized || lineBuffer.WrittenCount > 0) yield return new BoundedLine(null, true);
         }
         finally
         {

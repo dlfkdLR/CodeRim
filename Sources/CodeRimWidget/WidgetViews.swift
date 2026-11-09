@@ -17,11 +17,6 @@ public struct CompanionWidgetView: View {
     public let size: CompanionWidgetSize
     public let metric: CompanionWidgetMetric
 
-    public init(provider: CompanionProvider?, providerName: String, showsLimits: Bool, isMedium: Bool) {
-        self.init(provider: provider, providerName: providerName,
-                  mode: showsLimits ? .usage : .overview, size: isMedium ? .medium : .small)
-    }
-
     public init(provider: CompanionProvider?, providerName: String, mode: CompanionWidgetMode,
                 size: CompanionWidgetSize, metric: CompanionWidgetMetric = .automatic) {
         self.provider = provider

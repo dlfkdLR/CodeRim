@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import XCTest
 @testable import CodeRim
@@ -332,6 +333,28 @@ final class ProfileUsageStoreTests: XCTestCase {
 
         XCTAssertNil(store.snapshot)
         XCTAssertFalse(store.isRefreshing)
+    }
+
+    func testClockTimeZoneAndWakeNotificationsEachRefreshTheCalendarFrame() async throws {
+        let fixture = try DefaultsFixture(enabled: true)
+        defer { fixture.remove() }
+        let counter = StoreInvocationCounter()
+        let store = ProfileUsageStore(defaults: fixture.defaults) { now, _, _ in
+            await counter.increment()
+            return ProfileUsageSnapshot(today: 1, week: 2, month: 3, lifetime: 4,
+                                        statsAsOf: now, generatedAt: now)
+        }
+        await Task.yield()
+        await store.refresh()
+        for (center, name) in [(NotificationCenter.default, Notification.Name.NSSystemClockDidChange),
+                               (NotificationCenter.default, Notification.Name.NSSystemTimeZoneDidChange),
+                               (NSWorkspace.shared.notificationCenter, NSWorkspace.didWakeNotification)] {
+            let before = await counter.value()
+            center.post(name: name, object: nil)
+            try await waitUntil { await counter.value() > before }
+        }
+        try await waitUntil { store.status == .ready }
+        XCTAssertNotNil(store.snapshot)
     }
 
     private func isoDate(_ value: String) throws -> Date {

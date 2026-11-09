@@ -19,9 +19,10 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
 
     private let directory: URL
     private let livenessInterval: TimeInterval
-    /// Nil leaves the monitor reading nothing but the registry, which is what
-    /// the tests that only care about the registry want.
-    private let transcripts: ClaudeTranscriptReader?
+    private let reader: ClaudeSessionReader
+    private var scan: Task<Void, Never>?
+    private var generation = 0
+    private var running = false
 
     private var source: DispatchSourceFileSystemObject?
     private var descriptor: CInt = -1
@@ -42,7 +43,7 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
     ) {
         self.directory = directory
         self.livenessInterval = livenessInterval
-        self.transcripts = projects.map { ClaudeTranscriptReader(projects: $0) }
+        self.reader = ClaudeSessionReader(projects: projects)
     }
 
     func start() {
@@ -50,6 +51,7 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
         // timer would stack on the first pair, so stop whatever is running.
         // (`AntigravityActivityMonitor` does the same.)
         stop()
+        running = true
         rescan()
         watchDirectory()
 
@@ -61,6 +63,10 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
     }
 
     func stop() {
+        running = false
+        generation += 1
+        scan?.cancel()
+        scan = nil
         livenessTimer?.invalidate()
         livenessTimer = nil
         debounce?.cancel()
@@ -98,20 +104,28 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
     }
 
     private func rescan() {
-        let found = Self.read(directory: directory, transcripts: transcripts)
-        guard found != sessions else { return }   // don't churn SwiftUI for nothing
-        // Only on a change, so this is a handful of lines an hour rather than a
-        // firehose. It is the one way to see what the notch thinks is running
-        // without hovering over it:
-        //
-        //     log stream --predicate 'category == "sessions"' --level debug
-        let summary = found.map { "\($0.name)=\($0.state)" }.joined(separator: " ")
-        NotchLog.sessions.debug("\(self.directory.path, privacy: .public): \(summary, privacy: .public)")
-        sessions = found
+        guard running, scan == nil else { return }
+        let expected = generation
+        scan = Task { [weak self] in
+            guard let self else { return }
+            let found = await reader.read(directory: directory)
+            guard !Task.isCancelled, running, generation == expected else { return }
+            scan = nil
+            if found != sessions { sessions = found }
+        }
     }
 
+    /// How long a chat that has finished stays listed, as Codex's do: long
+    /// enough to see it end, short enough that a terminal left open does not
+    /// keep an idle chat in the notch all day.
+    nonisolated static let idleLinger: TimeInterval = 90
+
+    /// `dropIdleAfter` leaves out chats that have been idle that long; callers
+    /// that only count running clients leave it nil and see every one.
     nonisolated static func read(directory: URL,
-                     transcripts: ClaudeTranscriptReader? = nil) -> [AgentSession] {
+                     transcripts: ClaudeTranscriptReader? = nil,
+                     dropIdleAfter: TimeInterval? = nil,
+                     now: Date = Date()) -> [AgentSession] {
         let names = (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
         let live = names
             .filter { $0.hasSuffix(".json") }
@@ -125,18 +139,38 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
                 return record
             }
         return deduplicated(live)
-            .map { record in
+            .flatMap { record -> [AgentSession] in
                 let session = state(of: record, transcripts: transcripts)
                 // Lead with the conversation's title, as Codex sessions do,
                 // rather than the registry's generated `folder-xx` name.
-                guard let sessionID = record.sessionID,
-                      let title = transcripts?.title(sessionID: sessionID, cwd: record.cwd)
-                else { return session }
-                return session.renamed(title)
+                guard let sessionID = record.sessionID else { return [session] }
+                let parent = transcripts?.title(sessionID: sessionID, cwd: record.cwd)
+                    .map { session.renamed($0) } ?? session
+                return [parent] + Self.children(of: parent, sessionID: sessionID, cwd: record.cwd,
+                                           transcripts: transcripts)
             }
             // The id breaks ties so the order cannot flicker between two ticks
             // that read the same thing.
+            .filter { session in
+                guard let limit = dropIdleAfter, session.state == .idle else { return true }
+                return now.timeIntervalSince(session.since) < limit
+            }
             .sorted { $0.since == $1.since ? $0.id < $1.id : $0.since > $1.since }
+    }
+
+    /// Working sub-agents, listed under the conversation that started them.
+    /// Only while the parent is itself busy: a sub-agent outliving its parent's
+    /// turn would be a stale file, not a running agent.
+    nonisolated private static func children(of parent: AgentSession, sessionID: String, cwd: String,
+                                             transcripts: ClaudeTranscriptReader?) -> [AgentSession] {
+        guard parent.state == .busy, let transcripts else { return [] }
+        let group = ClaudeSubagentRows.groupID(of: parent)
+        return transcripts.subagents(sessionID: sessionID, cwd: cwd).map { agent in
+            AgentSession(id: "claude.sub.\(sessionID).\(agent.id)", name: agent.title,
+                         detail: parent.detail, state: .busy, waitingFor: nil, since: agent.startedAt,
+                         parentThread: AgentSession.ParentThread(id: group, title: parent.name),
+                         workingDirectory: cwd, projectKey: parent.projectKey)
+        }
     }
 
     /// Registry status stays authoritative until a newer transcript completion
@@ -151,10 +185,18 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
             // turn event supersedes it. File mtime includes unrelated bookkeeping
             // and must never be used to overrule a registry status.
             guard activity.turn == .finished, let eventAt = activity.eventAt,
-                  eventAt > record.session.since else { return record.session }
+                  eventAt > record.session.since else {
+                return record.session.with(
+                    details: activity.details,
+                    toolCalls: ClaudeTranscriptReader.toolCalls(activity.toolUses, since: record.session.since))
+            }
         }
         return record.session(state: activity.turn == .inFlight ? .busy : .idle,
-                              since: activity.since)
+                              since: activity.since,
+                              followUps: activity.turn == .inFlight ? activity.followUps : 0,
+                              toolCalls: activity.turn == .inFlight
+                                  ? ClaudeTranscriptReader.toolCalls(activity.toolUses, since: activity.since) : 0,
+                              details: activity.details)
     }
 
     /// One session can hold two registry records at once: resuming after a
@@ -172,5 +214,26 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
             newest[id] = record
         }
         return Array(newest.values) + unidentified
+    }
+}
+
+enum ClaudeSubagentRows {
+    /// What a sub-agent's `parentThread` points at: the parent's transcript id.
+    static func groupID(of parent: AgentSession) -> String { parent.transcriptID ?? parent.id }
+    static func isSubagent(_ session: AgentSession) -> Bool { session.id.hasPrefix("claude.sub.") }
+}
+
+/// Owns the mutable transcript caches and all registry/transcript I/O off the UI actor.
+private actor ClaudeSessionReader {
+    private let transcripts: ClaudeTranscriptReader?
+
+    init(projects: URL?) {
+        transcripts = projects.map { ClaudeTranscriptReader(projects: $0) }
+    }
+
+    func read(directory: URL) -> [AgentSession] {
+        guard !Task.isCancelled else { return [] }
+        return ClaudeSessionMonitor.read(directory: directory, transcripts: transcripts,
+                                         dropIdleAfter: ClaudeSessionMonitor.idleLinger)
     }
 }

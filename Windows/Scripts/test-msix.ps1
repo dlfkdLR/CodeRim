@@ -29,6 +29,28 @@ function Invoke-Bounded([string]$File, [string[]]$Arguments, [int]$Seconds, [str
     return $text
 }
 
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class CodeRimMsixActivation {
+    [ComImport, Guid("45BA127D-10A8-46EA-8AB7-56EA9078943C")]
+    private class ApplicationActivationManager { }
+    [ComImport, Guid("2E941141-7F97-4756-BA1D-9DECDE894A3D"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+    private interface IApplicationActivationManager {
+        [PreserveSig] int ActivateApplication([MarshalAs(UnmanagedType.LPWStr)] string appId,
+            [MarshalAs(UnmanagedType.LPWStr)] string arguments, uint options, out uint processId);
+    }
+    public static uint Launch(string appId, string arguments) {
+        var manager = (IApplicationActivationManager)new ApplicationActivationManager();
+        try {
+            uint pid;
+            Marshal.ThrowExceptionForHR(manager.ActivateApplication(appId, arguments, 0, out pid));
+            return pid;
+        } finally { Marshal.FinalReleaseComObject(manager); }
+    }
+}
+'@
+
 $certificate = New-SelfSignedCertificate -Type CodeSigningCert -Subject $identity.Publisher -CertStoreLocation Cert:\CurrentUser\My `
     -KeyUsage DigitalSignature -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
 try {
@@ -59,18 +81,20 @@ try {
     if (-not $installed) { throw "The package did not install." }
     $results.Add("installs-per-user-without-administrator")
     $aliases = Join-Path $env:LOCALAPPDATA "Microsoft\WindowsApps"
-    foreach ($alias in "coderim.exe", "CodeRimCLI.exe", "CodeRim.exe") {
+    foreach ($alias in "coderim.exe", "CodeRimCLI.exe") {
         if (-not (Test-Path (Join-Path $aliases $alias))) { throw "Execution alias $alias is missing." }
     }
-    $results.Add("cli-and-app-aliases-registered")
+    $results.Add("cli-aliases-registered")
 
     # Package activation needs the license service, which hosted Windows Server images leave stopped.
     foreach ($service in "ClipSVC", "AppXSvc") { Start-Service $service -ErrorAction SilentlyContinue }
     $activates = $true
     try {
-        $version = Invoke-Bounded (Join-Path $aliases "coderim.exe") @('version') 120 'alias-version'
-        if ($version -notmatch "CodeRim CLI") { throw "The coderim alias did not run the CLI: $version" }
-        $results.Add("coderim-alias-runs-cli")
+        foreach ($alias in "coderim.exe", "CodeRimCLI.exe") {
+            $version = Invoke-Bounded (Join-Path $aliases $alias) @('version') 120 "$alias-version"
+            if ($version -notmatch "CodeRim CLI") { throw "The $alias alias did not run the CLI: $version" }
+        }
+        $results.Add("both-cli-aliases-run-cli")
     }
     catch {
         if ($_.Exception.Message -notmatch 'did not finish') { throw }
@@ -86,7 +110,9 @@ try {
 
     # The native UI smoke inside the package: same checks as the MSI build, with package identity.
     $capture = Join-Path $evidence "windows-msix-dashboard.png"
-    $smoke = Start-Process (Join-Path $aliases "CodeRim.exe") -ArgumentList "--smoke-test", "--capture", ('"' + $capture + '"') -PassThru
+    $appId = "$($installed.PackageFamilyName)!CodeRim"
+    $smokeId = [CodeRimMsixActivation]::Launch($appId, ('--smoke-test --capture "' + $capture + '"'))
+    $smoke = Get-Process -Id $smokeId
     $null = $smoke.Handle
     if (-not $smoke.WaitForExit(240000)) { $smoke.Kill(); throw "Packaged smoke test timed out." }
     if ($smoke.ExitCode -ne 0 -or -not (Test-Path $capture)) {
@@ -98,7 +124,9 @@ try {
 
     Invoke-Bounded $powershell @('-NoProfile', '-Command', "Remove-AppxPackage -Package '$($installed.PackageFullName)'") 300 'remove-appx' | Out-Null
     if (Get-AppxPackage -Name $identity.IdentityName) { throw "The package did not uninstall." }
-    if (Test-Path (Join-Path $aliases "coderim.exe")) { throw "Uninstall left the coderim alias." }
+    foreach ($alias in "coderim.exe", "CodeRimCLI.exe") {
+        if (Test-Path (Join-Path $aliases $alias)) { throw "Uninstall left the $alias alias." }
+    }
     $results.Add("uninstall-removes-app-and-aliases")
 }
 finally {

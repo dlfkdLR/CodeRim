@@ -26,13 +26,13 @@ CodeRim은 작은 가장자리 노치에서 코딩 도구의 사용 한도, 초�
 
 ## 설치
 
-**macOS:** [2.1.20](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.20) · **Windows:** [2.1.20](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.20)
+**macOS:** [2.1.35](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.35) · **Windows:** [2.1.34](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.34)
 
 ### macOS
 
 **macOS 14 이상 · Apple silicon과 Intel.**
 
-[![macOS 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-2.1.20.dmg)
+[![macOS 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.35/CodeRim-2.1.35.dmg)
 
 ```sh
 brew tap dlfkdLR/tap &&
@@ -47,88 +47,17 @@ brew install --cask dlfkdLR/tap/coderim
 
 **Windows 11 · x64·ARM64 · .NET 포함.**
 
-[![Windows용 다운로드](Assets/README/download-windows.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-x64-Setup.msi) [![ARM 기반 Windows용 다운로드](Assets/README/download-windows-arm64.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-arm64-Setup.msi)
+[![Windows용 다운로드](Assets/README/download-windows.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-x64-Setup.msi) [![ARM 기반 Windows용 다운로드](Assets/README/download-windows-arm64.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-arm64-Setup.msi)
 
-MSI를 실행한 뒤 시작 메뉴에서 CodeRim을 엽니다. 관리자 권한 없이 내 계정에 설치되고 `coderim` 명령이 추가되며, 이후 릴리스는 검증을 거쳐 자동으로 업데이트됩니다([x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-arm64-Setup.msi.sha256)).
+MSI를 실행한 뒤 시작 메뉴에서 CodeRim을 엽니다. 관리자 권한 없이 내 계정에 설치되고 `coderim` 명령이 추가되며, 이후 릴리스는 검증을 거쳐 자동으로 업데이트됩니다([x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-arm64-Setup.msi.sha256)).
 
-MSI에는 아직 게시자 인증서 서명이 없어 **Windows의 PC 보호** 창이 뜰 수 있습니다. **추가 정보 → 실행**을 선택하세요. 스마트 앱 컨트롤이 서명 없는 설치 파일을 막는 PC에서도 설치되는, Microsoft가 서명한 Microsoft Store 버전을 준비하고 있습니다. 업그레이드·CLI·Store 버전은 [Windows 설치](docs/ko/windows.md)에서 확인합니다.
+MSI에는 아직 게시자 인증서 서명이 없어 **Windows의 PC 보호** 창이 뜰 수 있습니다. **추가 정보 → 실행**을 선택하세요. 스마트 앱 컨트롤이 서명 없는 설치 파일을 막는 PC에서도 설치되는, Microsoft가 서명한 Microsoft Store 버전을 준비하고 있습니다. 무료 코드 서명을 위해 SignPath Foundation 신청을 준비하고 있으며, **아직 제출·승인되지 않았고** 그 인증서로 서명된 파일은 없습니다. [코드 서명 정책](CODE_SIGNING_POLICY.ko.md)을 참고하세요. 업그레이드·CLI·Store 버전은 [Windows 설치](docs/ko/windows.md)에서 확인합니다.
 
 **Settings → Providers → Add Provider**에서 한 번 로그인한 뒤 링에 포인터를 올립니다.
 
 ## macOS 제공업체
 
 각 연결 안내를 제공하는 **70개 제공업체**입니다. [전체 목록](docs/ko/providers.md) · [Windows 기능 표](Documentation/WINDOWS.ko.md#remaining-parity-work).
-
-- [Codex](docs/ko/providers/codex.md) — 계정 사용 한도와 로컬 토큰 사용 기록.
-- [OpenAI](docs/ko/providers/openai.md) — API 사용량, 지출, 사용 가능한 크레딧.
-- [Azure OpenAI](docs/ko/providers/azureopenai.md) — 계정 할당량이 아닌 엔드포인트 및 배포 상태 확인.
-- [Claude Code](docs/ko/providers/claude.md) — 로컬 토큰 사용 기록과 상태 표시줄을 통한 사용 한도.
-- [ClinePass](docs/ko/providers/clinepass.md) — 5시간, 주간, 월간 사용 한도.
-- [Cursor](docs/ko/providers/cursor.md) — 에디터 또는 Cursor Agent에서 가져오는 요금제 사용량.
-- [OpenCode Zen](docs/ko/providers/opencode-zen.md) — Zen 워크스페이스 구독 사용량.
-- [OpenCode Go](docs/ko/providers/opencode.md) — OpenCode 로그인 정보를 통해 확인하는 Go 요금제 사용량.
-- [Alibaba Coding Plan](docs/ko/providers/alibaba.md) — Alibaba Coding Plan 할당량.
-- [Alibaba Token Plan](docs/ko/providers/alibabatokenplan.md) — Bailian 토큰 요금제 사용량.
-- [Qwen Cloud](docs/ko/providers/qwencloud.md) — Individual Token Plan 사용 한도.
-- [Droid / Factory](docs/ko/providers/factory.md) — Factory 사용량 및 청구 정보.
-- [Fireworks](docs/ko/providers/fireworks.md) — 최근 30일간 계정 지출.
-- [Gemini CLI](docs/ko/providers/gemini-cli.md) — Gemini CLI 인증 정보를 통해 확인하는 할당량.
-- [Antigravity](docs/ko/providers/gemini.md) — 로컬 언어 서버에서 가져오는 모델별 허용 사용량.
-- [GitHub Copilot](docs/ko/providers/copilot.md) — GitHub CLI 로그인 정보를 통해 확인하는 Copilot 할당량.
-- [Devin](docs/ko/providers/devin.md) — 계정의 기간별 할당량.
-- [GLM / Z.ai](docs/ko/providers/glm.md) — Z.ai Coding Plan 사용량.
-- [MiniMax](docs/ko/providers/minimax.md) — Coding Plan 사용량.
-- [Manus](docs/ko/providers/manus.md) — 크레딧 잔액과 일일 허용 사용량.
-- [Kimi Code](docs/ko/providers/kimi.md) — Kimi Code 할당량과 요청 빈도 제한.
-- [Kilo](docs/ko/providers/kilo.md) — Kilo Pass 사용량.
-- [Kiro](docs/ko/providers/kiro.md) — CLI 사용량과 월간 크레딧.
-- [Vertex AI](docs/ko/providers/vertexai.md) — Google Cloud 할당량 사용 현황.
-- [Augment](docs/ko/providers/augment.md) — 계정 크레딧.
-- [JetBrains AI](docs/ko/providers/jetbrains.md) — 설치된 JetBrains IDE에서 확인할 수 있는 할당량 정보.
-- [Moonshot / Kimi Open Platform](docs/ko/providers/moonshot.md) — Kimi Open Platform API 잔액.
-- [Amp](docs/ko/providers/amp.md) — CLI 사용량과 계정 크레딧.
-- [T3 Chat](docs/ko/providers/t3chat.md) — 채팅 허용 사용량.
-- [Ollama Cloud](docs/ko/providers/ollama.md) — API 키를 통해 확인하는 클라우드 사용량.
-- [Ollama Local](docs/ko/providers/ollama-local.md) — 로드된 모델과 로컬 메모리 사용량.
-- [Synthetic](docs/ko/providers/synthetic.md) — API의 기간별 할당량.
-- [OpenRouter](docs/ko/providers/openrouter.md) — 크레딧 잔액과 지출.
-- [ElevenLabs](docs/ko/providers/elevenlabs.md) — 구독 크레딧과 사용량.
-- [Warp](docs/ko/providers/warp.md) — 요청 한도와 크레딧.
-- [Windsurf](docs/ko/providers/windsurf.md) — 에디터 또는 브라우저 세션에서 가져오는 요금제 사용량.
-- [Zed](docs/ko/providers/zed.md) — 에디터 요금제와 허용 사용량.
-- [Perplexity](docs/ko/providers/perplexity.md) — 계정 사용 크레딧.
-- [Xiaomi MiMo](docs/ko/providers/mimo.md) — 계정 잔액과 토큰 요금제 사용량.
-- [Doubao](docs/ko/providers/doubao.md) — Ark 요금제 사용량과 요청 한도 확인.
-- [Sakana AI](docs/ko/providers/sakana.md) — 기간별 할당량과 사용 가능한 크레딧.
-- [Abacus AI](docs/ko/providers/abacus.md) — ChatLLM 및 RouteLLM 연산 크레딧.
-- [Mistral](docs/ko/providers/mistral.md) — API 지출과 요금제별 허용 사용량.
-- [DeepSeek](docs/ko/providers/deepseek.md) — API 크레딧 잔액.
-- [DeepInfra](docs/ko/providers/deepinfra.md) — 잔액, 지출, 설정된 한도.
-- [Codebuff](docs/ko/providers/codebuff.md) — 크레딧과 주간 사용 한도.
-- [Crof](docs/ko/providers/crof.md) — 크레딧 잔액과 사용 가능한 요청 할당량.
-- [Venice](docs/ko/providers/venice.md) — DIEM 및 USD 잔액.
-- [Command Code](docs/ko/providers/commandcode.md) — 계정 크레딧 사용량.
-- [Qoder](docs/ko/providers/qoder.md) — 모델 크레딧 사용량.
-- [StepFun](docs/ko/providers/stepfun.md) — Step Plan 사용 한도.
-- [AWS Bedrock](docs/ko/providers/bedrock.md) — AWS 지출과 예산.
-- [Grok](docs/ko/providers/grok.md) — Grok CLI를 통해 확인하는 크레딧과 사용량.
-- [Groq / GroqCloud](docs/ko/providers/groq.md) — 콘솔 사용량과 지출.
-- [LLM Proxy](docs/ko/providers/llmproxy.md) — 프록시 할당량과 사용량.
-- [LiteLLM](docs/ko/providers/litellm.md) — 키별 및 팀별 지출 예산.
-- [Deepgram](docs/ko/providers/deepgram.md) — 음성 및 API 사용량 지표.
-- [Poe](docs/ko/providers/poe.md) — 포인트 잔액과 사용 기록.
-- [Chutes](docs/ko/providers/chutes.md) — 구독 사용량과 기간별 할당량.
-- [Neuralwatt](docs/ko/providers/neuralwatt.md) — API 할당량 사용 현황.
-- [ClawRouter](docs/ko/providers/clawrouter.md) — 라우터 지출과 월간 예산.
-- [LongCat](docs/ko/providers/longcat.md) — 계정의 기간별 할당량.
-- [sub2api](docs/ko/providers/sub2api.md) — 게이트웨이 할당량과 지갑 잔액.
-- [Wayfinder](docs/ko/providers/wayfinder.md) — 로컬 게이트웨이 상태와 경로 통계.
-- [ZenMux](docs/ko/providers/zenmux.md) — 기간별 할당량과 선불 잔액.
-- [ai&](docs/ko/providers/aiand.md) — 최근 30일간 지출.
-- [ZoomMate](docs/ko/providers/zoommate.md) — 크레딧 사용량.
-- [xAI](docs/ko/providers/xai.md) — 팀 잔액과 API 지출.
-- [Notion AI](docs/ko/providers/notion.md) — AI 허용 사용량.
-- [IBM Bob](docs/ko/providers/ibmbob.md) — Bobcoin 사용량.
 
 ## 문서
 

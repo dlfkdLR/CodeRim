@@ -98,10 +98,15 @@ static async Task<int> RunAsync(string[] arguments)
                     Console.WriteLine(item.Name);
                     if (command != "limits" && item.LocalUsage is { } local && local.Totals.TryGetValue(period, out var tokens))
                     {
-                        var stale = DateTimeOffset.Now - local.PeriodsAsOf > TimeSpan.FromMinutes(5)
-                            || local.PeriodsAsOf.LocalDateTime.Date != DateTime.Today || local.TimeZoneIdentifier != TimeZoneInfo.Local.Id;
-                        Console.WriteLine($"  {period} · This PC{(local.State == "partial" ? " · partial" : "")}{(stale ? " · stale" : "")}  {tokens.TotalTokens:N0} tokens");
-                        Console.WriteLine($"  Input {tokens.InputTokens:N0} · Cached {tokens.CachedInputTokens:N0} (in Input) · Output {tokens.OutputTokens:N0}");
+                        if (local.State is "unavailable" or "error")
+                            Console.WriteLine($"  {period} · This PC · unavailable");
+                        else
+                        {
+                            var stale = local.Stale || local.State == "stale" || DateTimeOffset.Now - local.PeriodsAsOf > TimeSpan.FromMinutes(5)
+                                || local.PeriodsAsOf.LocalDateTime.Date != DateTime.Today || local.TimeZoneIdentifier != TimeZoneInfo.Local.Id;
+                            Console.WriteLine($"  {period} · This PC{(local.State == "partial" ? " · partial" : "")}{(stale ? " · stale" : "")}  {tokens.TotalTokens:N0} tokens");
+                            Console.WriteLine($"  Input {tokens.InputTokens:N0} · Cached {tokens.CachedInputTokens:N0} (in Input) · Output {tokens.OutputTokens:N0}");
+                        }
                     }
                     if (command == "tokens") continue;
                     Console.WriteLine("  Limits · " + item.Limits.State);

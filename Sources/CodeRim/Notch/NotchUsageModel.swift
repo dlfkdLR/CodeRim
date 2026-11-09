@@ -26,13 +26,8 @@ enum ProviderStatus: Equatable {
     var staleSince: Date? { if case .stale(let since) = self { return since }; return nil }
 }
 
-/// How percentages read.
-///
-/// Whole percents above one — "12%", "104%" — because decimals there are
-/// noise. Below one, whole percents collapse a real reading into "0%", the one
-/// number that looks most like "nothing used", so both halves gain a tenth of
-/// a percent and still add up: 0.3% used is 99.7% left. A tenth of nothing
-/// says so rather than pretending to be zero.
+/// Use whole percents above one; below one, retain tenths so nonzero usage does not look unused and
+/// used/left still sum correctly.
 enum Percent {
     /// The two halves of a used-fraction, as display text.
     static func halves(for fraction: Double) -> (used: String, left: String) {
@@ -110,11 +105,8 @@ struct LimitWindow: Identifiable, Codable, Equatable {
         self.displayValue = displayValue
     }
 
-    /// A count short enough to sit inside a 44 pt ring.
-    ///
-    /// Requests and credits are three or four digits and print verbatim; token
-    /// counts run to seven, and "651061" under the ring is unreadable at that
-    /// width. The threshold is 10 000 so no existing provider's number changes.
+    /// Compact counts at 10,000 so large token totals fit a 44pt ring while small request/credit counts
+    /// stay exact.
     static func compact(_ count: Int) -> String {
         if count < 10_000 { return "\(count)" }
         if count < 1_000_000 { return "\(count / 1_000)k" }
@@ -125,12 +117,8 @@ struct LimitWindow: Identifiable, Codable, Equatable {
     var summary: String {
         if let displayValue { return displayValue }
         if let usedFraction {
-            // Both ends of the same figure. Vendors do not agree on which to
-            // show — Codex writes "87% remaining", Claude writes "% used" — so
-            // a notch that picks one side leaves the user converting in their
-            // head, and "12% Used" beside Codex's "87% remaining" reads as two
-            // different numbers rather than one seen from either end. That is
-            // what made a correct reading look wrong.
+            // Show both used and remaining so vendor conventions do not make equivalent readings appear
+            // inconsistent.
             let halves = Percent.halves(for: usedFraction)
             return "\(halves.used)% Used · \(halves.left)% left"
         }
@@ -144,12 +132,7 @@ struct LimitWindow: Identifiable, Codable, Equatable {
     }
 }
 
-/// A limit that has been *reached*, even where the headline still shows room.
-///
-/// Vendors meter some capabilities separately from the plan's main allowance,
-/// so "84% left" and "paused until 4:13 PM" are both true at once. A ring that
-/// only knows the headline reports the first and hides the second, which is
-/// the reading that actually stops you working.
+/// A capability may be blocked while the headline allowance still has room; surface both readings.
 struct UsageBlock: Equatable {
     /// What is paused, in the vendor's own terms.
     let reason: String
@@ -225,17 +208,8 @@ struct ProviderSnapshot: Identifiable, Equatable {
         }.count
     }
 
-    /// The number on the cell: the provider's declared primary window — for
-    /// Claude, the current session.
-    ///
-    /// Not the most-constrained window, which is what the design spec asks for.
-    /// Picking whichever limit is highest means the headline silently changes
-    /// meaning — session one minute, weekly the next — and disagrees with
-    /// Claude's own panel, which always leads with the session.
-    ///
-    /// If the declared window is missing from the response the cell shows no
-    /// reading rather than promoting a different one. A blank is honest; a
-    /// weekly percentage wearing the session's place is not.
+    /// Use the provider’s declared primary window, not whichever is most constrained. If absent, show
+    /// no headline rather than relabelling another window.
     var headline: LimitWindow? {
         guard let headlineID else { return windows.first }
         return windows.first { $0.id == headlineID }
@@ -299,7 +273,16 @@ struct ProviderSnapshot: Identifiable, Equatable {
         case .unsupported(let why): return why
         case .error(let why): return "Couldn't read usage — \(why)"
         case .ok: return "Connected; this account did not report usage or a quota."
-        case .stale: return "Waiting for the first reading…"
+        case .stale(let since): return Self.staleMessage(since: since)
         }
+    }
+
+    /// A reading that never arrived reads differently from one that has gone
+    /// old. The second must say how old, so a number from twelve minutes ago is
+    /// never mistaken for "nothing used" or for a first load still in flight.
+    static func staleMessage(since: Date, now: Date = Date()) -> String {
+        // `.distantPast` is the placeholder for "nothing has been read yet".
+        if since <= Date(timeIntervalSince1970: 0) { return "Waiting for the first reading…" }
+        return "Last read \(ElapsedCopy.ago(since: since, now: now)) · refresh failed"
     }
 }

@@ -106,6 +106,29 @@ final class CompanionTests: XCTestCase {
         XCTAssertEqual(value.evaluated(at: now).providers[0].localUsage?.state, .stale)
     }
 
+    func testFreshnessTimestampBoundariesRemainStrictAndMissingTimesAreStale() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        for (offset, stale) in [(nil, true), (-300.001, true), (-300, false), (60, false), (60.001, true)] as [(Double?, Bool)] {
+            var provider = fixture().providers[0]
+            provider.localUsage?.timeZoneIdentifier = calendar.timeZone.identifier
+            provider.localUsage?.updatedAt = offset.map { now.addingTimeInterval($0) }
+            provider.limits.updatedAt = provider.localUsage?.updatedAt
+            XCTAssertEqual(provider.evaluated(at: now, calendar: calendar).localUsage?.state, stale ? .stale : .ready)
+            XCTAssertEqual(provider.evaluated(at: now).limits.state, stale ? .stale : .ready)
+        }
+        for (offset, stale) in [(-600.001, true), (-600, false), (60, false), (60.001, true)] {
+            let history = CompanionHistory(state: .ready, updatedAt: now.addingTimeInterval(offset),
+                timeZoneIdentifier: calendar.timeZone.identifier,
+                days: [], totalTokens: 0, estimatedCostUSD: nil, costIsPartial: false)
+            XCTAssertEqual(history.evaluated(at: now, calendar: calendar).state, stale ? .stale : .ready)
+        }
+        var partial = fixture().providers[0].limits
+        partial.state = .partial
+        partial.updatedAt = nil
+        XCTAssertEqual(partial.evaluated(at: now).state, .partial)
+    }
+
     func testDisabledAndUnavailableStayDistinctFromZero() throws {
         let value = fixture().evaluated(at: now.addingTimeInterval(600))
         XCTAssertEqual(value.providers[1].limits.state, .disabled)
@@ -163,7 +186,7 @@ final class CompanionTests: XCTestCase {
                     for limits in [false, true] {
                         let size = NSSize(width: medium ? 344 : 164, height: 164)
                         let content = CompanionWidgetView(provider: provider, providerName: provider?.name ?? "Codex",
-                            showsLimits: limits, isMedium: medium)
+                            mode: limits ? .usage : .overview, size: medium ? .medium : .small)
                             .padding(16).frame(width: size.width, height: size.height)
                             .background(dark ? Color(nsColor: .darkGray) : Color(nsColor: .windowBackgroundColor))
                             .environment(\.colorScheme, dark ? .dark : .light)

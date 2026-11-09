@@ -939,15 +939,20 @@ test('usage below any saving step is not lost when the object is rebuilt again a
 });
 
 test('an alarm that could not be set after a response is set again by the next request, even a heartbeat', async t => {
-  const storage = { alarm: null, attempts: 0,
+  const storage = { alarm: null, attempts: 0, failNext: false,
     async getAlarm() { return this.alarm; },
-    async setAlarm(at) { if (++this.attempts === 1) throw new Error('storage unavailable'); this.alarm = at; } };
+    async setAlarm(at) {
+      this.attempts++;
+      if (this.failNext) { this.failNext = false; throw new Error('storage unavailable'); }
+      this.alarm = at;
+    } };
   let c;
   const schedule = alarmScheduler(storage, { now: () => c.now() * 1000 });
   c = setup(t, { schedule });
   await c.route('GET', '/v1/snapshot'); await c.relay.settle(); // the fresh object's own recovery pass is done
   await c.route('POST', '/v1/snapshot', snapshot(), c.mac);
   await c.relay.settle();
+  storage.alarm = null; storage.attempts = 0; storage.failNext = true;
   await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
   await c.relay.settle();
   assert.equal(storage.attempts, 1);

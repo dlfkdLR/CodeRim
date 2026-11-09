@@ -71,7 +71,10 @@ struct ActivitySummary: Equatable {
     var displayRows: [Row] {
         var nodes = Dictionary(sessions.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         let byThread = Dictionary(sessions.compactMap { session in
-            session.codexThreadID.map { (ThreadKey(host: session.remoteHostID, thread: $0), session.id) }
+            // Claude sessions are found by their transcript id, which is what a
+            // sub-agent names as its parent.
+            (session.codexThreadID ?? (ClaudeSubagentRows.isSubagent(session) ? nil : session.transcriptID))
+                .map { (ThreadKey(host: session.remoteHostID, thread: $0), session.id) }
         }, uniquingKeysWith: { first, _ in first })
         var contextIDs = Set<String>()
         var parentIDs: [String: String] = [:]

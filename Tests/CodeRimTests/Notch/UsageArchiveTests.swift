@@ -63,4 +63,15 @@ final class NotchUsageArchiveTests: XCTestCase {
         XCTAssertNotEqual(defaults.data(forKey: "notchLastGoodReadings"), first)
         XCTAssertEqual(archive.load().count, 2)
     }
+
+    func testOwnedRestoreUsesTheSameSnapshotAndOwner() throws {
+        let archive = UsageArchive(defaults: defaults), now = Date()
+        archive.save(["codex": reading("codex", fetchedAt: now)], owners: ["codex": "owner-a"])
+        let owned = try XCTUnwrap(archive.loadOwned()["codex"])
+        XCTAssertEqual(owned.accountIdentity, "owner-a")
+        XCTAssertEqual(owned.snapshot.accountIdentity, owned.accountIdentity)
+        XCTAssertEqual(owned.fetchedAt, now)
+        archive.save(["codex": reading("codex", fetchedAt: now)])
+        XCTAssertNil(archive.loadOwned()["codex"]?.accountIdentity)
+    }
 }

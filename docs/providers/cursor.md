@@ -12,10 +12,6 @@ CLI provider ID: `cursor`.
 2. Add **Cursor** in **Settings → Providers → Add Provider**.
 3. Refresh the provider to load the account's available usage limits.
 
-## Check the reading
-
-Hover the provider in the notch, or read the latest app snapshot with `coderim usage --provider cursor` after [installing the CLI](../cli.md). Keep CodeRim running for fresh readings.
-
-A missing reading can mean the session expired, the account lacks the required plan or permissions, or the service did not return a usable value. Reconnect the provider and refresh; missing data is not zero usage.
+Check `coderim usage --provider cursor` ([CLI setup](../cli.md)); see [readings and troubleshooting](../providers.md#readings-and-troubleshooting).
 
 [Connection troubleshooting](../troubleshooting.md) · [Privacy](../privacy.md) · [Docs](../README.md) · [All providers](../providers.md)

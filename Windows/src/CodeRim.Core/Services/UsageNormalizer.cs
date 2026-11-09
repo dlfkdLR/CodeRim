@@ -15,8 +15,10 @@ public sealed record UsageNormalizationState(
 public sealed record UsageNormalizationResult(
     TokenUsage? Delta,
     UsageNormalizationState State,
-    string? Diagnostic,
-    bool Repaired = false);
+    string? Diagnostic)
+{
+    public bool Repaired { get; init; }
+}
 
 public static class UsageNormalizer
 {
@@ -58,8 +60,7 @@ public static class UsageNormalizer
             return new UsageNormalizationResult(
                 Storable(cumulative),
                 new UsageNormalizationState(cumulative, observation.OccurredAt, repaired ? DataQuality.Partial : state.Quality),
-                repaired ? "inconsistent token usage clamped" : null,
-                repaired);
+                repaired ? "inconsistent token usage clamped" : null) { Repaired = repaired };
         }
 
         if (cumulative.HasCounterDecrease(previous))
@@ -69,7 +70,7 @@ public static class UsageNormalizer
                 return new UsageNormalizationResult(
                     Storable(cumulative),
                     new UsageNormalizationState(cumulative, observation.OccurredAt, DataQuality.Partial),
-                    "cumulative counter restarted");
+                    "cumulative counter restarted") { Repaired = !cumulative.IsValid };
             }
 
             return new UsageNormalizationResult(
@@ -89,8 +90,7 @@ public static class UsageNormalizer
             return new UsageNormalizationResult(
                 Storable(delta),
                 new UsageNormalizationState(cumulative, observation.OccurredAt, DataQuality.Partial),
-                "inconsistent token delta clamped",
-                Repaired: true);
+                "inconsistent token delta clamped") { Repaired = true };
         }
         return new UsageNormalizationResult(
             delta.IsZero ? null : delta,
@@ -101,6 +101,6 @@ public static class UsageNormalizer
     private static TokenUsage? Storable(TokenUsage usage)
     {
         var value = usage.IsValid ? usage : usage.ClampedToValid();
-        return value.IsZero ? null : value;
+        return value.IsZero && usage.IsValid ? null : value;
     }
 }

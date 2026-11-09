@@ -29,85 +29,11 @@ UI에서 제공되는 경우 사용자에게 제공업체별 브라우저 가져
 전체 ID·glyph, 어댑터 생성, 설정 제한, 저장·갱신, disabled·needsAuth·partial·stale, 늦은 응답 분리를 확인합니다. transport 테스트는 실제 상류 reader를 로컬 fixture로 가로채 401, Fireworks 탐색, 소수점 비용, QuickJS 리소스, JetBrains 정상·Unknown XML을 검사합니다. 실계정 확인은 별도로 기록합니다.
 
 ```sh
-swift test --filter ExtendedProviderTests
-swift test --filter ExtendedProviderTransportTests
-swift test --filter ProviderToken
-Scripts/build_release.sh
-codesign --verify --deep --strict /Applications/CodeRim.app
+python3 Scripts/prepare_swift_dependencies.py --run-swift test --filter 'ExtendedProviderTests|ExtendedProviderTransportTests|ProviderToken'
 ```
 
-빌드·서명 명령은 실제 빌드한 후보 앱을 지정해야 합니다. 설치된 앱은 다른 revision일 수 있습니다. 단위 테스트·리소스 smoke 통과는 실계정 승인이 아닙니다. 하네스에는 Swift 검증 어댑터가 없으므로 정확한 판정을 별도로 유지합니다. [날짜별 제공업체 감사](PROVIDER_AUDIT.md)의 과거 테스트 수는 현재 승인이 아닙니다.
+빌드·서명 절차는 [기여 안내](../CONTRIBUTING.ko.md)를 따르고 실제 후보 앱을 검사합니다. 단위 테스트·리소스 smoke나 [과거 감사](PROVIDER_AUDIT.md)는 현재 실계정 검증을 대신하지 않습니다.
 
 ## 전체 연결 지도
-| 제공업체 | 저장·CLI ID | 어댑터 | 설정 |
-| --- | --- | --- | --- |
-| Abacus AI | `abacus` | 고정 어댑터 | [안내](../docs/ko/providers/abacus.md) |
-| ai& | `aiand` | 고정 어댑터 | [안내](../docs/ko/providers/aiand.md) |
-| Alibaba | `alibaba` | 고정 어댑터 | [안내](../docs/ko/providers/alibaba.md) |
-| Alibaba Token Plan | `alibabatokenplan` | 고정 어댑터 | [안내](../docs/ko/providers/alibabatokenplan.md) |
-| Amp | `amp` | 고정 어댑터 | [안내](../docs/ko/providers/amp.md) |
-| Augment | `augment` | 고정 어댑터 | [안내](../docs/ko/providers/augment.md) |
-| Azure OpenAI | `azureopenai` | 고정 어댑터 | [안내](../docs/ko/providers/azureopenai.md) |
-| AWS Bedrock | `bedrock` | 고정 어댑터 | [안내](../docs/ko/providers/bedrock.md) |
-| Chutes | `chutes` | 고정 어댑터 | [안내](../docs/ko/providers/chutes.md) |
-| Claude Code | `claude` | 기본 | [안내](../docs/ko/providers/claude.md) |
-| ClawRouter | `clawrouter` | 고정 어댑터 | [안내](../docs/ko/providers/clawrouter.md) |
-| ClinePass | `clinepass` | 고정 어댑터 | [안내](../docs/ko/providers/clinepass.md) |
-| Codebuff | `codebuff` | 고정 어댑터 | [안내](../docs/ko/providers/codebuff.md) |
-| Codex | `codex` | 기본 | [안내](../docs/ko/providers/codex.md) |
-| Command Code | `commandcode` | 기본 | [안내](../docs/ko/providers/commandcode.md) |
-| GitHub Copilot | `copilot` | 기본 | [안내](../docs/ko/providers/copilot.md) |
-| Crof | `crof` | 고정 어댑터 | [안내](../docs/ko/providers/crof.md) |
-| Cursor | `cursor` | 기본 | [안내](../docs/ko/providers/cursor.md) |
-| Deepgram | `deepgram` | 고정 어댑터 | [안내](../docs/ko/providers/deepgram.md) |
-| DeepInfra | `deepinfra` | 고정 어댑터 | [안내](../docs/ko/providers/deepinfra.md) |
-| DeepSeek | `deepseek` | 고정 어댑터 | [안내](../docs/ko/providers/deepseek.md) |
-| Devin | `devin` | 고정 어댑터 | [안내](../docs/ko/providers/devin.md) |
-| Doubao | `doubao` | 고정 어댑터 | [안내](../docs/ko/providers/doubao.md) |
-| ElevenLabs | `elevenlabs` | 고정 어댑터 | [안내](../docs/ko/providers/elevenlabs.md) |
-| Droid | `factory` | 고정 어댑터 | [안내](../docs/ko/providers/factory.md) |
-| Fireworks | `fireworks` | 고정 어댑터 | [안내](../docs/ko/providers/fireworks.md) |
-| Gemini | `gemini-cli` | 고정 어댑터 | [안내](../docs/ko/providers/gemini-cli.md) |
-| Antigravity | `gemini` | 기본 | [안내](../docs/ko/providers/gemini.md) |
-| GLM | `glm` | 기본 | [안내](../docs/ko/providers/glm.md) |
-| Grok | `grok` | 기본 | [안내](../docs/ko/providers/grok.md) |
-| Groq | `groq` | 고정 어댑터 | [안내](../docs/ko/providers/groq.md) |
-| IBM Bob | `ibmbob` | 고정 어댑터 | [안내](../docs/ko/providers/ibmbob.md) |
-| JetBrains AI | `jetbrains` | 고정 어댑터 | [안내](../docs/ko/providers/jetbrains.md) |
-| Kilo | `kilo` | 고정 어댑터 | [안내](../docs/ko/providers/kilo.md) |
-| Kimi Code | `kimi` | 고정 어댑터 | [안내](../docs/ko/providers/kimi.md) |
-| Kiro | `kiro` | 고정 어댑터 | [안내](../docs/ko/providers/kiro.md) |
-| LiteLLM | `litellm` | 고정 어댑터 | [안내](../docs/ko/providers/litellm.md) |
-| LLM Proxy | `llmproxy` | 고정 어댑터 | [안내](../docs/ko/providers/llmproxy.md) |
-| LongCat | `longcat` | 고정 어댑터 | [안내](../docs/ko/providers/longcat.md) |
-| Manus | `manus` | 고정 어댑터 | [안내](../docs/ko/providers/manus.md) |
-| Xiaomi MiMo | `mimo` | 고정 어댑터 | [안내](../docs/ko/providers/mimo.md) |
-| MiniMax | `minimax` | 고정 어댑터 | [안내](../docs/ko/providers/minimax.md) |
-| Mistral | `mistral` | 고정 어댑터 | [안내](../docs/ko/providers/mistral.md) |
-| Moonshot / Kimi Open Platform | `moonshot` | 고정 어댑터 | [안내](../docs/ko/providers/moonshot.md) |
-| Neuralwatt | `neuralwatt` | 고정 어댑터 | [안내](../docs/ko/providers/neuralwatt.md) |
-| Notion AI | `notion` | 고정 어댑터 | [안내](../docs/ko/providers/notion.md) |
-| Ollama Local | `ollama-local` | 기본 | [안내](../docs/ko/providers/ollama-local.md) |
-| Ollama Cloud | `ollama` | 기본 | [안내](../docs/ko/providers/ollama.md) |
-| OpenAI | `openai` | 고정 어댑터 | [안내](../docs/ko/providers/openai.md) |
-| OpenCode | `opencode-zen` | 고정 어댑터 | [안내](../docs/ko/providers/opencode-zen.md) |
-| OpenCode Go | `opencode` | 기본 | [안내](../docs/ko/providers/opencode.md) |
-| OpenRouter | `openrouter` | 고정 어댑터 | [안내](../docs/ko/providers/openrouter.md) |
-| Perplexity | `perplexity` | 고정 어댑터 | [안내](../docs/ko/providers/perplexity.md) |
-| Poe | `poe` | 고정 어댑터 | [안내](../docs/ko/providers/poe.md) |
-| Qoder | `qoder` | 고정 어댑터 | [안내](../docs/ko/providers/qoder.md) |
-| Qwen Cloud | `qwencloud` | 고정 어댑터 | [안내](../docs/ko/providers/qwencloud.md) |
-| Sakana AI | `sakana` | 고정 어댑터 | [안내](../docs/ko/providers/sakana.md) |
-| StepFun | `stepfun` | 고정 어댑터 | [안내](../docs/ko/providers/stepfun.md) |
-| sub2api | `sub2api` | 고정 어댑터 | [안내](../docs/ko/providers/sub2api.md) |
-| Synthetic | `synthetic` | 고정 어댑터 | [안내](../docs/ko/providers/synthetic.md) |
-| T3 Chat | `t3chat` | 고정 어댑터 | [안내](../docs/ko/providers/t3chat.md) |
-| Venice | `venice` | 고정 어댑터 | [안내](../docs/ko/providers/venice.md) |
-| Vertex AI | `vertexai` | 고정 어댑터 | [안내](../docs/ko/providers/vertexai.md) |
-| Warp | `warp` | 고정 어댑터 | [안내](../docs/ko/providers/warp.md) |
-| Wayfinder | `wayfinder` | 고정 어댑터 | [안내](../docs/ko/providers/wayfinder.md) |
-| Windsurf | `windsurf` | 고정 어댑터 | [안내](../docs/ko/providers/windsurf.md) |
-| xAI | `xai` | 고정 어댑터 | [안내](../docs/ko/providers/xai.md) |
-| Zed | `zed` | 고정 어댑터 | [안내](../docs/ko/providers/zed.md) |
-| ZenMux | `zenmux` | 고정 어댑터 | [안내](../docs/ko/providers/zenmux.md) |
-| ZoomMate | `zoommate` | 고정 어댑터 | [안내](../docs/ko/providers/zoommate.md) |
+
+전체 이름·저장 ID·연결 안내는 [제공업체 목록](../docs/ko/providers.md)을 기준으로 합니다. 어댑터 종류는 `NotchProviderCatalog`·`ExtendedProviderCatalog`에서 확인합니다.

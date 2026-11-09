@@ -215,11 +215,6 @@ internal sealed partial class UsagePane
         template.Triggers.Add(focused);
         return template;
     }
-    private void MetricSummary(Panel parent, TokenUsage tokens)
-    {
-        parent.Children.Add(Ui.Row("Total tokens", TokenFormatter.Format(tokens.TotalTokens, settings.Current.NumberStyle)));
-        Breakdown(parent, tokens);
-    }
     private string BucketLabel(DateTimeOffset date) => period == "today"
         ? date.ToLocalTime().ToString("HH:mm zzz", CultureInfo.CurrentCulture)
         : CalendarDateText.MonthDay(date.LocalDateTime) ?? "Date unavailable";

@@ -76,35 +76,18 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     private var foldWork: DispatchWorkItem?
     /// Folds the notch again after a peek, when nothing else is holding it open.
     private var peekWork: DispatchWorkItem?
-    /// The session a peek is currently offering, and how long the offer lasts.
-    ///
-    /// A click on the open notch normally refetches a ring; while
-    /// this is set and unexpired it jumps to the session instead. The expiry is
-    /// what keeps the two apart — without it, the *next* click on the notch,
-    /// minutes later and about something else, would still be raising a
-    /// terminal window.
+    /// Until expiry, a peek click focuses its session rather than refreshing a ring.
     private var pendingFocus: (session: AgentSession, until: Date)?
-    /// When the current peek's five seconds are up.
-    ///
-    /// The hover fold has to be told to leave it alone until then. Without
-    /// this the cursor poll — which runs every 0.3s and asks "is the pointer on
-    /// the notch?", to which the answer during a peek is almost always no —
-    /// scheduled a fold immediately, and the notch opened and shut inside a
-    /// second. A peek is not the pointer arriving, so the pointer leaving is
-    /// not what should end it.
+    /// Suppress hover folding until the peek expires; a stationary pointer outside the notch must not
+    /// close it early.
     private var peekUntil: Date?
     /// The standing visibility choice, so a peek never overrides Hidden.
     private var visibility: NotchVisibility = .onHover
     private var visibilityChange = 0
     /// Whether we have pushed the pointing hand onto the cursor stack.
     private var isPointing = false
-    /// The usable area the panel was last placed against.
-    ///
-    /// The notch is pinned to `visibleFrame` so it rests on the Dock rather than
-    /// under it — but an auto-hiding Dock revealing or concealing itself fires
-    /// no screen-parameter notification, so nothing would tell us the space had
-    /// come back. The cursor poll is already running; noticing there costs one
-    /// rect comparison every 0.3s and needs no new machinery.
+    /// An auto-hiding Dock emits no screen-change notification, so the existing cursor poll checks
+    /// visibleFrame.
     private var lastVisibleFrame: CGRect?
 
     init(mouseLocation: @escaping () -> CGPoint = { NSEvent.mouseLocation },
@@ -225,14 +208,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
 
     // MARK: - Placement
 
-    /// The screen this notch lives on: its assigned display while that display
-    /// is still connected, the menu-bar screen otherwise — so unplugging the
-    /// display never strands the panel on a screen that no longer exists.
-    /// Assigned first — the fleet has already picked this display for this
-    /// controller, which is the whole point of there being more than one
-    /// controller. `displayPreference` only comes into play once nothing has
-    /// been assigned, which is the single-controller case `.mainDisplay`
-    /// scope leaves it in.
+    /// Prefer the fleet-assigned screen while connected; otherwise follow the configured/menu-bar
+    /// display.
     func currentScreen() -> NSScreen? {
         if let assigned = assignedScreen,
            NSScreen.screens.contains(where: { $0 === assigned }) {
@@ -269,20 +246,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
                 self.onReposition?(self.model.alongOffset)
             }
 
-            // The hosting view goes *inside* a plain container rather than
-            // being the content view itself.
-            //
-            // As the content view, SwiftUI gets a say in the window's frame: it
-            // reports the content's ideal size, and this view's root is a
-            // `GeometryReader`, whose ideal size is 10x10. On the side edges
-            // that never surfaced. Turned horizontal, AppKit started walking
-            // the window down toward it — 522pt of height to 266, to 10, to
-            // zero — until nothing was drawn at all and the constraint pass
-            // gave up and threw, taking the app with it.
-            //
-            // A container removes the channel instead of arguing with it. The
-            // panel's size comes from `NotchGeometry` and from nowhere else,
-            // which is what every hit region in this file already assumes.
+            // A plain container prevents NSHostingView’s GeometryReader ideal size (10×10) from shrinking the
+            // window. NotchGeometry alone owns the panel frame.
             let container = NotchContainerView(frame: CGRect(origin: .zero, size: frame.size))
             container.autoresizingMask = [.width, .height]
             hosting.frame = container.bounds
@@ -302,17 +267,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         updateInteractiveRects()
     }
 
-    /// Feeds a raw pointer delta from an ⌥-drag into `model.alongOffset` and
-    /// re-places the panel at once, so the pill tracks the cursor rather than
-    /// catching up once the button lifts.
-    ///
-    /// Both deltas are used as `NSEvent` reports them, unflipped: `deltaY`
-    /// positive is the pointer moving *down* the screen, `deltaX` positive is
-    /// it moving *right*. `NotchGeometry` is written to match — it subtracts
-    /// the offset from a vertical edge's y (which AppKit grows *up*, so
-    /// subtracting more moves the pill down) and adds it to a horizontal
-    /// edge's x — so no sign flip belongs here; adding one would make the
-    /// pill run away from the cursor instead of following it.
+    /// Apply NSEvent deltas unflipped: positive deltaY moves down and deltaX moves right. NotchGeometry
+    /// performs the AppKit y conversion.
     private func dragged(dx: CGFloat, dy: CGFloat) {
         model.alongOffset += model.edge.isVertical ? dy : dx
         relocate()
@@ -348,7 +304,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             along: model.slack + (model.shapeLength * model.sizeScale - length) / 2,
             across: 0,
             length: length,
-            depth: model.restingDepth * model.sizeScale + NotchLayout.pillHotZone
+            depth: model.restingDepth * model.sizeScale + NotchLayout.pillHotMargin
         )
     }
 
@@ -422,13 +378,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
 
     // MARK: - Cursor tracking
 
-    /// A global monitor catches the outside-to-inside crossing while the panel
-    /// is still ignoring events; a local one catches the way back out.
-    ///
-    /// A slow poll backs both of them up, because a cursor that never moves
-    /// produces no events at all — so a notch that appears, resizes or is
-    /// re-anchored underneath a parked pointer would otherwise sit there with
-    /// stale hover state until the user jogged the mouse.
+    /// Global/local monitors detect crossings; polling also refreshes hover when the panel moves under
+    /// a stationary pointer.
     private func startWatchingCursor() {
         let poll = Timer(timeInterval: 0.3, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -589,14 +540,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             onOpenSettings?()
             return
         }
-        // A peek is a question — "this one just finished, do you want it?" —
-        // and the click that follows is the answer. It outranks refetching
-        // for as long as the offer stands, and for no longer.
-        //
-        // Tested before the folded case below, not after: the grace period
-        // outlives the peek by a couple of seconds precisely so that a hand
-        // that arrived late still lands on the session, and answering it by
-        // merely re-opening the notch would waste that click.
+        // An unexpired peek wins over refresh and reopening, including clicks arriving during its post-
+        // close grace period.
         if takePendingFocus() {
             peekWork?.cancel()
             peekWork = nil
@@ -610,12 +555,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             return
         }
         guard model.isExpanded else {
-            // Opens it, the same as the pointer arriving would — it must not
-            // also pin it. The pill's hot zone is deliberately generous, since
-            // it is a small target on a screen edge, so a click aimed at
-            // something else nearby can land here without the notch ever
-            // having been seen open. Folding it back in later follows the
-            // ordinary hover behavior, which `setExpanded` leaves intact.
+            // A generous pill hit zone can catch stray clicks; open without pinning so normal hover dismissal
+            // still applies.
             setExpanded(true)
             return
         }
@@ -631,24 +572,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         setExpanded(true)
     }
 
-    /// Move the notch to another screen edge.
-    ///
-    /// It goes out where it was, crosses while there is nothing to see, and
-    /// then **opens** where it now is — the same unfold hovering uses, so a
-    /// move ends the way reaching for it does rather than with a bar appearing
-    /// at full size.
-    ///
-    /// Changing the placement moves the panel, turns the shape on its side and
-    /// relays the whole stack, all in one frame. Done in view that is a jump no
-    /// animation can smooth over, and animating a panel across a corner looks
-    /// like a bug rather than a choice — hence the crossing rather than a
-    /// slide.
-    /// A new size choice: set it, then rebuild the panel around it.
-    ///
-    /// Set-then-relocate rather than a subscription on `model.$sizeScale`,
-    /// because `@Published` fires in `willSet` — a sink here would recompute
-    /// the panel from the size that is being replaced. `apply(edge:)` is the
-    /// same shape for the same reason.
+    /// Set size before relocation: @Published emits in willSet, when a subscription would still read
+    /// the previous value.
     func apply(size: NotchSize) {
         guard model.sizeScale != size.scale else { return }
         model.sizeScale = size.scale
@@ -780,16 +705,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
 
     // MARK: - Peeking
 
-    /// Open the notch by itself for a moment, because something happened.
-    ///
-    /// Distinct from `setExpanded(true)`, which is the pointer arriving: this
-    /// has no pointer to leave again, so it schedules its own close. The close
-    /// checks the same two conditions the hover fold does — pinned open, or the
-    /// pointer now resting on it — because a peek that arrives while you are
-    /// already reading the notch must not yank it shut underneath you.
-    ///
-    /// `pid` is the agent's process, used only if the peek is clicked; nil
-    /// leaves the click doing what it ordinarily does.
+    /// A peek schedules its own close but respects pinning and hover. Session focus applies only to
+    /// clicks during its offer.
     func peek(for duration: TimeInterval, focusing session: AgentSession?) {
         // Hidden is a standing choice that the notch is not to be on screen.
         // Something finishing is not grounds to overrule it — the chime still
@@ -848,20 +765,14 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         return SessionFocus.activate(pending.session)
     }
 
-    /// Tear down a controller whose display is gone: hide first so no panel
-    /// lingers on a screen that no longer exists, then stop its timers and
-    /// monitors — a retired controller that kept polling would relocate
-    /// another display's panel underneath a parked pointer.
+    /// Hide a disconnected display’s panel before stopping its observers and timers.
     func retire() {
         apply(.hidden)
         stop()
     }
 
-    /// Explicitly choosing "Keep open" pins the notch while you read it.
-    ///
-    /// A no-op while Settings says Always show: there the notch is already
-    /// held open by a standing choice, and letting a click release it meant
-    /// the setting said one thing and the notch did another.
+    /// Only a menu pin is toggleable; the standing Always show setting continues to hold the notch
+    /// open.
     func togglePinned() {
         guard !model.isAlwaysOn else { return }
         model.isPinned.toggle()
@@ -925,10 +836,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             keyEquivalent: ""
         )
         keepOpen.target = menuActions
-        // Checked whichever way it is being held open, but only changeable
-        // when it is a menu pin that is holding it — the setting is Settings'
-        // to change, and a menu item that silently loses is worse than one
-        // that says it is not yours to press.
+        // Show both pin sources as checked, but only Settings may change the standing visibility choice.
         keepOpen.state = (model.isPinned || model.isAlwaysOn) ? .on : .off
         keepOpen.isEnabled = !model.isAlwaysOn
         keepOpen.toolTip = model.isAlwaysOn

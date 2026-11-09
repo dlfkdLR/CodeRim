@@ -40,7 +40,7 @@ components:
 
 ## Overview
 
-This document defines the CodeRim 2.1.13 design. Settings analytics and account-history defaults ship in the macOS app; optional mobile sharing remains source-level and requires separate relay and device provisioning. [Source/release boundary](Documentation/README.md). Existing geometry and design tokens remain authoritative.
+This is the current macOS design contract. ChatGPT account history is opt-in; mobile sharing requires separate relay and device provisioning. [Source/release boundary](Documentation/README.md). Existing geometry and design tokens remain authoritative.
 
 **Creative North Star: "The Quiet Instrument"**
 
@@ -48,35 +48,12 @@ CodeRim should feel like a compact macOS instrument that is ready when opened an
 
 The product uses system materials, semantic labels, SF Symbols, hairline separators, and tabular numerals instead of decorative dashboard chrome. Density is intentional, but every section must have one clear purpose and retain enough spacing to scan quickly.
 
-**Key Characteristics:**
-
-- Native macOS controls and semantic system styling.
-- Token totals remain the strongest visual signal.
-- Progressive disclosure instead of one long provider dashboard.
-- Quiet status communication with explicit text for warnings and estimates.
-- Motion explains change and never blocks interaction.
-
 ## Two surfaces since 2.0
 
-Through 1.x the whole product was a `MenuBarExtra` popover with a diamond
-meter. 2.0 splits it in two, and they follow **different** visual systems on
-purpose:
+The notch and Settings use separate visual systems:
 
-- **The edge notch** — a floating usage ring per provider welded to a screen
-  edge, ported from the MIT-licensed [Codenotch](https://github.com/vinzdg/codenotch).
-  It keeps Codenotch's design language, which is not this one: a pure-black
-  ground (`NotchPalette.notch`), its own green/amber/red usage bands, its own
-  motion vocab (`NotchMotion`), sampled from Codenotch's design frames rather
-  than macOS materials. It lives in `Sources/CodeRim/Notch/` and is
-  deliberately sealed off from the tokens below — see `NotchDesign.swift`. "똑같이"
-  (make it the same as Codenotch) was the brief, and it won.
-- **The Settings window** — General, Usage, Providers, Notch, Diagnostics, and Information, with
-  a detail pane per provider. This is where the Quiet Instrument rules below still
-  apply. The **Usage** pane shares account actions and navigation with
-  `MenuPopoverView` in `embedded` mode, while `UsageSettingsOverview` supplies
-  an overview that fills the available Settings column. The component rules
-  below distinguish this window presentation from the retained compact menu
-  presentation.
+- **Edge notch:** MIT [Codenotch](https://github.com/vinzdg/codenotch) geometry, pure-black `NotchPalette.notch`, green/amber/red usage bands and `NotchMotion`. `Sources/CodeRim/Notch/NotchDesign.swift` owns its tokens; do not apply Settings styling to it.
+- **Settings:** General, Usage, Providers, Notch, Diagnostics and Information, with provider detail panes. Embedded `MenuPopoverView` shares account/navigation actions; `UsageSettingsOverview` fills the available column. The retained compact menu keeps its own width and viewport.
 
 A minimal `NSStatusItem` (`StatusItemController`) is the way back in when the
 notch is hidden: Show Notch, Usage…, Settings…, Check for Updates…, Quit.
@@ -110,46 +87,16 @@ sidebar modes. Number Format is shared by Usage and notch token/count readings.
 
 ## Colors
 
-The palette follows macOS semantic colors so it remains correct in light, dark, increased-contrast, and accent-color configurations.
-
-### Primary
-
-- **System Accent:** Used for healthy progress and the current macOS selection accent. Its exact color belongs to the user's system configuration.
-
-### Secondary
-
-- **Warning Orange:** Used only when remaining quota is low or pace is above an even-use schedule.
-- **Critical Red:** Used only when remaining quota is critical.
-
-### Neutral
-
-- **System Background:** The popover and destination surfaces use the platform background.
-- **Primary, Secondary, Tertiary Labels:** Information hierarchy comes from semantic label roles rather than fixed gray values.
-- **Quaternary Fill:** Detail cards use a restrained tonal fill, with dividers separating major overview sections.
-
-**The Semantic Color Rule.** Do not replace native semantic colors with fixed light- or dark-mode values.
-
-**The Text-With-Color Rule.** Warning and critical colors always appear with an explicit label such as “Low” or “Critical.”
+Use macOS semantic colors in light, dark, increased-contrast and user-accent configurations. System Accent signals healthy progress/selection, Warning Orange low remaining quota or fast pace, and Critical Red critical quota. System backgrounds, Primary/Secondary/Tertiary Labels and Quaternary Fill establish hierarchy; do not substitute fixed light/dark values. Warnings always include text such as Low or Critical.
 
 ## Typography
 
-**Display Font:** SF Pro Rounded for the primary token total.
-**Body Font:** The macOS system font through SwiftUI semantic text styles.
-**Label/Mono Font:** Monospaced digits for token counts, percentages, and cost values.
+Use SF Pro Rounded semibold for primary totals, SwiftUI semantic styles for body text, and monospaced digits for tokens, percentages and costs. Honor Dynamic Type and scale long totals without unstable digit widths.
 
-**Character:** The hierarchy is compact and factual. The rounded headline gives the primary metric a recognizable but restrained identity; all supporting text follows native semantic sizing and Dynamic Type.
-
-### Hierarchy
-
-- **Primary Metric** (rounded semibold): Today's total is the strongest number on the overview. The compact menu uses `primary-metric`; Settings uses the larger `settings-primary-metric` role. Both retain stable digits and scale down to fit long totals.
-- **Settings Period Metric** (rounded semibold, 20pt): Week, month, and history totals form a quieter supporting row beneath today's total.
-- **Headline** (semantic headline): Product title and primary empty-state messages.
-- **Section Label** (semibold subheadline): Limits and analytic section headings.
-- **Heading Tone:** Use the category's natural capitalization, not forced uppercase. The interface stays calm without weakening hierarchy.
-- **Body Row** (semantic subheadline): Token components and period totals.
-- **Supporting Label** (caption and caption2): Reset times, pace, data status, and explanatory text.
-
-**The Number Stability Rule.** Use monospaced digits and numeric content transitions anywhere changing values could shift the layout.
+- Today is the strongest metric: `primary-metric` (32px) in the compact menu and `settings-primary-metric` (42px) in Settings.
+- Settings period totals use rounded semibold 20pt beneath Today.
+- Titles use headline, section labels semibold subheadline, rows subheadline, and reset/pace/status/help caption or caption2. Keep natural capitalization.
+- Numeric content transitions prevent layout shifts; honor Reduce Motion.
 
 ## Layout
 
@@ -185,7 +132,6 @@ Detail selections use gently rounded 8px containers, while information cards use
 
 ### Usage Overview Hosts
 
-- **Character:** A quiet status instrument with density appropriate to its host.
 - **Settings Shape:** The header, overview, and destinations fill the available column. Overview groups use generous section spacing while preserving native controls and semantic styling.
 - **Compact Shape:** The retained menu presentation uses the fixed `overview-popover` width with its compact header and utility footer.
 - **Behavior:** Both hosts measure content at its intrinsic height. Settings contains that content in its single outer viewport; the compact overview has no inner scroll region.
@@ -197,27 +143,23 @@ Detail selections use gently rounded 8px containers, while information cards use
 - **Provider Limits:** Read-only Codex or Claude quota windows, reset timing, and pace. Reset-credit availability remains Codex-only.
 - **Provider Selection:** Settings and the compact menu share a 34pt switcher with a service mark, current provider name, and small chevrons. It opens a native popover with aligned service marks, 40pt rows, a quiet accent selection, and a trailing checkmark. Up to six providers fit naturally; larger lists expose search and scroll within a six-row viewport. Arrow keys and Return select, Escape dismisses, and existing provider shortcuts remain available. Only providers supported by the current usage data source appear. The existing Codex account switcher or Claude account row remains directly beneath the controls.
 - **Settings Mode Selection:** Underline tabs switch Overview, Usage analytics, and provider Limits. Keep their natural height and keyboard/accessibility behavior; provider/account context stays above the tabs. The retained compact presentation uses its two equal-width native mode buttons.
-- **Compact Mode Selection:** Two equal-width native buttons switch content in place. Native selection styling and keyboard and VoiceOver access remain part of both presentations.
 - **Feedback:** Clickable rows and utility buttons use a subtle neutral hover/pressed fill and an accent keyboard-focus outline. Feedback never changes geometry, honors Increase Contrast, and skips its short fade under Reduce Motion.
 - **Separation:** Provider and mode selection stay compact. The existing account row supplies account context without a repeated app title or generated explanatory subtitle.
 
 ### Primary Token Summary
 
-- **Character:** Immediate and auditable.
 - **Content:** Total first, then Input, Cached input, and Output; help text explains that cached input is included in Input and Total equals Input plus Output.
 - **Settings Composition:** The Today heading carries “This Mac.” A large total with a secondary “tokens” label sits beside the breakdown when space allows; narrower layouts stack the two. The cached-input row follows the existing visibility preference.
 - **Motion:** Numeric transitions use a short 0.2–0.24 second ease-out and are removed when Reduce Motion is enabled.
 
 ### Settings Period Summary
 
-- **Character:** A horizontal supporting summary beneath today's local total.
 - **Content:** This Week, This Month, and Lifetime when an optional ChatGPT snapshot is available; otherwise the last destination is Local History. Each total opens its period detail.
-- **Source:** Codex History defaults to “ChatGPT account”: the server's aggregate already includes synced local and cloud usage. Never add account-unassigned local totals a second time. Show the server coverage date and update delay, and retain a Local History link. Unavailable server totals display a dash and status; account switches clear old values immediately. Today and analytics retain their local source.
+- **Source:** After opting into ChatGPT history, Codex History shows the server's account aggregate, including synced local and cloud usage. Never add account-unassigned local totals a second time. Show the server coverage date and update delay, and retain a Local History link. Unavailable server totals display a dash and status; account switches clear old values immediately. Today and analytics retain their local source.
 - **Shape:** Equal-width period links separated by short vertical dividers; they stack when the available width cannot fit the strip.
 
 ### Account Limit Preview
 
-- **Character:** Actionable without pretending to be a billing dashboard.
 - **Order:** Pin the primary Codex Weekly window first in both the preview and Limits detail. Keep the remaining windows ordered by duration and name; do not change reported values or synthesize a missing Weekly window.
 - **Content:** At most three limit windows, percent remaining, and reset countdown. Additional windows and even-use pace remain in Limits detail. Do not repeat the number of visible windows in the heading.
 - **State:** Healthy uses the system accent; low and critical states combine color with text.
@@ -225,7 +167,6 @@ Detail selections use gently rounded 8px containers, while information cards use
 
 ### Analytic Shortcuts
 
-- **Character:** Three equal one-click destinations for Usage, Projects, and Sessions.
 - **Settings Shape:** Equal-width links form one row, each with an SF Symbol, visible label, trailing disclosure, and restrained tonal fill using `settings-detail-link` padding and corners.
 - **Compact Shape:** The same destinations use vertically stacked rows with 38pt minimum height.
 - **Behavior:** Hidden preferences remove their destination instead of leaving disabled placeholders.
@@ -244,62 +185,39 @@ Detail selections use gently rounded 8px containers, while information cards use
 
 ### Footer Actions
 
-- **Character:** Stable utility actions with 28px targets.
 - **Compact Behavior:** Refresh rotates once while starting and respects Reduce Motion; Settings and More remain fixed. More groups status, repository, update, and quit actions.
 - **Settings Behavior:** The footer contains only applicable freshness, source, and operation status. It appears when status is needed and omits the compact menu's utility-action row.
 - **Keyboard:** Refresh uses Command-R, Settings uses Command-comma, and Quit uses Command-Q.
 
 ### Detail Cards
 
-- **Character:** Quiet tonal containers for limit, selection, and breakdown details.
 - **Shape:** 10px corners with 12px padding; selected chart details use 8px corners.
 - **Background:** Quaternary semantic fill at low opacity.
 
 ### Provider Monitoring List
 
-- **Character:** A native Settings list of providers the user chose to monitor.
 - **Controls:** “Added Providers” contains the selected rows and their existing detail, setup, alert, and ordering controls. A native searchable “Add Provider” sheet lists providers outside the selection, including distinct Ollama Cloud and Ollama Local entries. Adding a provider opens its existing setup or detail page; a borderless minus-circle button removes a row.
 - **State:** The selected list persists across relaunch, including an explicitly empty list. With no providers selected, an inline message points to Add Provider. The add control is disabled when the whole catalog is already selected.
 - **Selection Boundary:** Removing a provider stops its notch monitoring and leaves the original tool signed in. It can be added again. Selection remains separate from saved ring order, and a provider's local-model status does not acquire a quota ring merely by being selected.
 
 ### Notch Tooltip and Actions
 
-- **Character:** The existing Codenotch tooltip, with account context and actions integrated into its own type, colors, spacing, and shell.
 - **Account Row:** A compact row below the provider title shows the reported plan and a visible “Switch account” button. An absent or blank plan uses the neutral label “Account”; plan names are never inferred from token totals or quota readings. Full plan text remains available as help text.
 - **Account Destination:** For Codex and Claude, Switch account opens the corresponding native saved-account window. Switching requires explicit confirmation; Claude Code sessions must be closed first. Other providers retain their account or setup Settings destinations. Opening a window does not change the vendor account.
 - **Settings Orb:** The existing gear artwork is hosted by a plain native Button labeled “Open Settings.” Its callback reaches the Settings window through the shared view model, preserving the orb's shape, position, and hover appearance.
 - **Fit:** Today, account actions, grouped limits, and capped live sessions remain inside the tooltip's rounded mask and reachable pointer region. Provider titles stay on one line and may scale down slightly; the card keeps its existing width and grows according to the shared content budget.
 - **Verification:** Check the natural content height against the shared card budget with grouped and ungrouped limits, Today present or absent, and varying live-session counts. Verify that both Settings and account callbacks reach the actual view model and that provider selection round-trips through storage, including Ollama Local and an empty list.
 
-## Do's and Don'ts
+## Application rules
 
-### Do:
-
-- **Do** keep Token Usage focused on token totals and history, and Codex Limits focused on account limits and reset timing.
-- **Do** use semantic system colors, SwiftUI text styles, SF Symbols, VoiceOver labels, keyboard shortcuts, and Reduce Motion.
-- **Do** show unknown or incomplete cost data as unavailable in detailed analytics instead of zero.
-- **Do** keep local token totals, account-wide profile totals, quota percentages, and API-equivalent estimates visibly distinct.
-- **Do** add Claude, Gemini, or another provider behind a shared provider boundary before exposing it in navigation.
-
-### Don't:
-
-- **Don't** replace CodeRim’s independent app identity with CodexBar branding. Licensed provider-identification artwork and adapters retain their upstream attribution in `NOTICE`; service marks do not imply endorsement.
-- **Don't** place charts, projects, sessions, credits, every provider, and every limit on the overview.
-- **Don't** show empty or speculative provider tabs.
-- **Don't** use purple/blue AI gradients, neon, decorative glass, giant cards, or custom dashboard chrome.
-- **Don't** communicate low quota, stale data, or estimates through color alone.
-
-The notch Settings and account controls share a slim black capsule instead of separate floating discs. The resting arc is preserved; the account glyph appears 80 ms after Settings. Its transient native popover lists provider logos, current identity and plan, with a clear route to account management and outside-click/Escape dismissal.
+Keep local tokens, account profile totals, quotas and API-equivalent estimates visibly distinct. Unknown cost is unavailable, never zero. Provider navigation requires a supported data boundary. Keep charts and full breakdowns behind progressive disclosure. Use semantic controls, VoiceOver, keyboard navigation and Reduce Motion; avoid decorative AI gradients, neon, glass or giant dashboard cards. Preserve CodeRim identity and upstream `NOTICE` attribution; service marks do not imply endorsement.
 
 ### Claude Accounts
 
 Claude inherits the Codex Accounts utility window: 560 × 400 pt by default, 500 × 300 pt minimum, system type and colors, native controls, and dividers. Only the saved list scrolls; Save Current Account, Add Account, Cancel during sign-in, status, and session guidance stay fixed. Rows show email, the reported plan, Current or Switch, and removal. A failed identity refresh removes the unverified Current badge. Switching and removal require confirmation. This extension adds no design tokens.
 
-
 ### Settings Usage Analytics
 
-- **Reference:** The supplied GPT Usage screenshots guide the Settings analytics layout: understated underline tabs, chart cards, a ranked table and expandable history rows. The compact menu keeps its two existing sections.
-- **Navigation:** Settings opens Usage analytics, with Overview and provider Limits beside it. Disabling Analytics hides its tab and returns the content to Overview. Provider/account and refresh actions remain above the tabs.
 - **Content:** A 7/30-day stacked token chart switches between token type and model. Its legend shows a selected day's shares or the full range. The top five sessions expand to their token breakdown and existing detail destination; Show more reveals the rest. Local calendar history expands separately; model activity uses a line chart with a consistent model legend.
 - **Truth:** These charts, sessions and breakdowns are labeled This Mac. Server account totals remain in Overview, with their source and coverage footer. Cached input is removed from the uncached-input segment before stacking. No unsupported server feature shares, credits, plugin counts or message counts are fabricated.
 - **Style:** Native semantic backgrounds and text; 14pt rounded cards, 18pt internal padding, 28pt section gaps, 24pt page inset and a 960pt maximum content width. Categorical chart colors have text legends and accessible values. Native segmented range controls and menu pickers retain keyboard behavior.

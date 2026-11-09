@@ -4,6 +4,38 @@ import XCTest
 @testable import CodeRim
 
 final class SQLiteDatabaseTests: XCTestCase {
+    func testReadFailuresRollbackAfterSQLiteAndRowAggregationErrors() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let database = try SQLiteDatabase(url: directory.appendingPathComponent("usage.sqlite"))
+        let date = Date(timeIntervalSince1970: 1_800_000_000)
+        let checkpoint = SourceCheckpoint.fresh(sourcePath: "overflow-fixture", fileIdentity: "1:2")
+        let events = [Int64.max, 1].enumerated().map { index, input in
+            UsageEvent(eventKey: "event-\(index)", occurredAt: date, sessionID: "session", model: "model",
+                       projectPath: "project", usage: TokenUsage(inputTokens: input, cachedInputTokens: 0,
+                                                                 cacheWriteInputTokens: 0, outputTokens: 0),
+                       sourcePath: checkpoint.sourcePath, sourcePosition: Int64(index), pricingContext: .standard)
+        }
+        try await database.commit(events: events, checkpoint: checkpoint, normalizationState: nil)
+        let calendar = Calendar(identifier: .gregorian)
+        do {
+            _ = try await database.analyticsSnapshot(range: .today, through: date, calendar: calendar)
+            XCTFail("SQLite SUM overflow must fail the read")
+        } catch SQLiteDatabaseError.step(let message) {
+            XCTAssertFalse(message.isEmpty)
+        }
+        do {
+            _ = try await database.usageSnapshot(now: date, calendar: calendar, weekStart: .monday)
+            XCTFail("Row aggregation overflow must fail the read")
+        } catch SQLiteDatabaseError.step(let message) {
+            XCTAssertEqual(message, "token aggregate exceeds the supported range")
+        }
+        _ = try await database.clearLocalHistory(at: date.addingTimeInterval(1))
+        let empty = try await database.usageSnapshot(now: date.addingTimeInterval(2), calendar: calendar,
+                                                   weekStart: .monday)
+        XCTAssertEqual(empty.allTime, .zero)
+    }
+
     /// A database saved at schema 17 gains the partial-evidence table and keeps its usage.
     func testSchema17ReopenPreservesSavedUsage() async throws {
         let directory = FileManager.default.temporaryDirectory

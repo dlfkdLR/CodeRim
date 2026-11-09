@@ -77,7 +77,8 @@ enum MenuProviderSelection {
 struct MenuPopoverView: View {
     @StateObject private var navigation: MenuNavigation
     @StateObject private var analyticsState: SettingsUsageAnalyticsState
-    private let accounts: CodexAccountStore
+    @ObservedObject private var accounts: CodexAccountStore
+    @StateObject private var viewedLimits = ViewedCodexAccountLimits()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var store: UsageStore
     @EnvironmentObject private var profileStore: ProfileUsageStore
@@ -97,6 +98,7 @@ struct MenuPopoverView: View {
     @State private var selectedSection = MenuPopoverSection.overview
     @State private var settingsSection = SettingsUsageSection.analytics
     @State private var refreshTurns = 0
+    @State private var askedForSavedAccounts = false
     @AppStorage("usageProvider") private var usageProvider = UsageProvider.codex.rawValue
 
     private let formatter = TokenFormatter()
@@ -110,7 +112,7 @@ struct MenuPopoverView: View {
     init(accounts: CodexAccountStore, navigation: MenuNavigation = MenuNavigation(),
          section: MenuPopoverSection? = nil, embedded: Bool = false,
          analyticsState: SettingsUsageAnalyticsState = SettingsUsageAnalyticsState()) {
-        self.accounts = accounts
+        _accounts = ObservedObject(wrappedValue: accounts)
         self.embedded = embedded
         _navigation = StateObject(wrappedValue: navigation)
         _analyticsState = StateObject(wrappedValue: analyticsState)
@@ -334,6 +336,7 @@ struct MenuPopoverView: View {
             .accessibilityHint("Open all account limit details")
 
             VStack(alignment: .leading, spacing: 12) {
+                limitsAccountPicker
                 if let snapshot = currentLimitSnapshot {
                     let windows = visibleAccountLimitWindows(snapshot.windows)
                     if windows.isEmpty {
@@ -867,15 +870,75 @@ struct MenuPopoverView: View {
         claude.isAvailable ? UsageProvider.allCases : [.codex]
     }
 
+    /// A saved account other than the signed-in one is being looked at. Only the
+    /// Limits display follows it; the shared Codex login is untouched.
+    private var viewsOtherAccount: Bool {
+        viewedLimits.accountID != nil
+    }
+
+    @ViewBuilder
+    private var limitsAccountPicker: some View {
+        if store.provider == .codex, embedded, accounts.accounts.count <= 1 {
+            // Settings opens without reading the saved logins, which can ask for
+            // the Keychain. Looking at another account is the person asking for
+            // them, so the list is read now and the menu appears in its place.
+            if askedForSavedAccounts {
+                Text("No other saved accounts. Add one with Switch.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else {
+                Button {
+                    askedForSavedAccounts = true
+                    accounts.load()
+                } label: {
+                    Label("View another account's limits", systemImage: "person.2")
+                }
+                .buttonStyle(.link)
+                .font(.caption)
+                .help("Reads your saved accounts, then lets you look at one of them. The signed-in Codex account stays the same.")
+                .accessibilityIdentifier("settings.limits.viewAnotherAccount")
+            }
+        } else if store.provider == .codex, accounts.accounts.count > 1 {
+            let selection = Binding<String>(
+                get: { viewedLimits.accountID ?? accounts.currentID ?? "" },
+                set: { id in Task { await viewedLimits.select(id, accounts: accounts) } }
+            )
+            // Reads as the account line in the header — person glyph and the
+            // address, no box — and opens the saved accounts when pressed.
+            let shown = accounts.accounts.first { $0.id == selection.wrappedValue }
+            Menu {
+                Picker("Account", selection: selection) {
+                    ForEach(accounts.accounts) { account in
+                        Text(account.menuTitle(in: accounts.accounts)).tag(account.id)
+                    }
+                }
+                .pickerStyle(.inline)
+                .labelsHidden()
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "person.crop.circle.fill").foregroundStyle(.secondary)
+                    Text(shown?.menuTitle(in: accounts.accounts) ?? "Account")
+                        .lineLimit(1).truncationMode(.middle)
+                }
+                .font(.callout)
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .help("Only changes which account's limits are shown. The signed-in Codex account stays the same.")
+            .accessibilityLabel("Account whose limits are shown")
+        }
+    }
+
     private var currentLimitsEnabled: Bool {
         store.provider == .codex ? accountLimitsEnabled : claude.isAvailable
     }
 
     private var currentLimitSnapshot: AccountLimitsSnapshot? {
-        store.provider == .codex ? limitStore.snapshot : claude.snapshot
+        guard store.provider == .codex else { return claude.snapshot }
+        return viewsOtherAccount ? viewedLimits.snapshot : limitStore.snapshot
     }
 
     private var currentLimitStatus: AccountLimitStatus {
+        if viewsOtherAccount { return viewedLimits.status }
         guard store.provider == .claude else { return limitStore.status }
         return switch claude.status {
         case .disabled: .disabled
@@ -887,11 +950,13 @@ struct MenuPopoverView: View {
     }
 
     private var currentLimitStatusMessage: String {
-        store.provider == .codex ? limitStore.statusMessage : claude.statusMessage
+        guard store.provider == .codex else { return claude.statusMessage }
+        return viewsOtherAccount ? viewedLimits.statusMessage : limitStore.statusMessage
     }
 
     private var currentLimitsRefreshing: Bool {
-        store.provider == .codex ? limitStore.isRefreshing : claude.isRefreshing
+        guard store.provider == .codex else { return claude.isRefreshing }
+        return viewsOtherAccount ? viewedLimits.isRefreshing : limitStore.isRefreshing
     }
 
     private func refreshUsage() async {
@@ -908,7 +973,8 @@ struct MenuPopoverView: View {
 
     private func refreshCurrentLimits() async {
         if store.provider == .codex {
-            await limitStore.refresh()
+            if viewsOtherAccount { await viewedLimits.refresh(accounts: accounts) }
+            else { await limitStore.refresh() }
         } else {
             await claude.refresh()
         }

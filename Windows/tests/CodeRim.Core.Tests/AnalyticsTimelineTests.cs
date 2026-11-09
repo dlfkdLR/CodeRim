@@ -28,6 +28,34 @@ public sealed class AnalyticsTimelineTests
         Assert.Equal(hours, buckets.Count);
         Assert.True(buckets.Zip(buckets.Skip(1)).All(pair => pair.First.End == pair.Second.Start));
     }
+    [Theory]
+    [InlineData(11, 1, 25)]
+    [InlineData(3, 1, 23)]
+    public void CalendarSummaryAndTimelineShareRepeatedAndSkippedMidnight(int month, int day, int hours)
+    {
+        var rule = TimeZoneInfo.AdjustmentRule.CreateAdjustmentRule(new DateTime(2026, 1, 1), new DateTime(2026, 12, 31),
+            TimeSpan.FromHours(1),
+            TimeZoneInfo.TransitionTime.CreateFixedDateRule(new DateTime(1, 1, 1, 0, 0, 0), 3, 1),
+            TimeZoneInfo.TransitionTime.CreateFixedDateRule(new DateTime(1, 1, 1, 1, 0, 0), 11, 1));
+        var zone = TimeZoneInfo.CreateCustomTimeZone("midnight-transition", TimeSpan.Zero,
+            "midnight-transition", "standard", "daylight", [rule]);
+        var date = new DateTime(2026, month, day);
+        var through = new DateTimeOffset(date.AddHours(23).AddMinutes(59), zone.GetUtcOffset(date.AddHours(23)));
+        var start = AnalyticsTimeline.Start(AnalyticsRange.Today, through, zone);
+        var expectedStart = month == 11 ? new DateTimeOffset(2026, 10, 31, 23, 0, 0, TimeSpan.Zero)
+            : new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
+        Assert.Equal(expectedStart, start);
+        UsageEvent[] events = [Event("before", start.AddTicks(-1)), Event("first", start.AddMinutes(30)), Event("second", start.AddMinutes(90))];
+        var summary = UsageScanner.Aggregate(events, through, WeekStart.Sunday, false, zone);
+        var buckets = AnalyticsTimeline.Build(events, AnalyticsRange.Today, through, zone);
+        Assert.Equal(hours, buckets.Count);
+        Assert.Equal(220, summary.Today.TotalTokens);
+        Assert.Equal(summary.Today, summary.Week);
+        Assert.Equal(summary.Today, summary.Month);
+        Assert.Equal(summary.Today.TotalTokens, buckets.Sum(b => b.Usage.TotalTokens));
+        Assert.Equal(start, UsageScanner.CurrentPeriodStart(through, WeekStart.Sunday, zone));
+    }
+
     [Fact]
     public void UnknownModelCostStaysUnavailableAndMixedPricingStaysPartial()
     {

@@ -2,46 +2,22 @@
 
 **English** · [한국어](REBRANDING.ko.md)
 
-CodeRim 2.1.0 continues CodexMeter with the same user data and update trust.
-Source modules, binaries, menus, CLI, documentation and release artifacts use CodeRim.
+CodeRim 2.1.0 continues CodexMeter with the same user data and update trust. New source modules, binaries, UI, CLI and release artifacts use CodeRim.
 
 ## Compatibility identities
 
-The host bundle identifier remains `dev.codexmeter.CodexMeter`. This preserves
-UserDefaults, login-item identity, saved account access, and Sparkle replacement.
-Application Support/CodexMeter and CodexMeter-Development, CodexMeter.sqlite,
-the project-hash namespace, credential-file lock, Keychain services, App Group,
-widget bundle identifier and widget kinds intentionally retain their identifiers.
-The managed Claude helper remains CodexMeterClaudeBridge so existing statusLine
-commands keep working; the packaged helper is CodeRimClaudeBridge.
-Both coderim://usage and codexmeter://usage open the usage window.
+Keep `dev.codexmeter.CodexMeter` for preferences, login items, accounts and Sparkle replacement. Application Support/CodexMeter and CodexMeter-Development, CodexMeter.sqlite, project-hash namespace, credential lock, Keychain services, App Group, widget identity/kinds and saved window-frame keys remain compatibility contracts. The provider vault retains `dev.codexmeter.CodexMeter.extended-providers`. Renaming these can hide existing data or credentials.
+
+The managed Claude helper remains CodexMeterClaudeBridge so existing statusLine commands work; the packaged helper is CodeRimClaudeBridge. Both coderim://usage and codexmeter://usage open Usage.
 
 ## Installation and updates
 
-New downloads install CodeRim.app and the coderim command. In-app updates replace
-the existing app at its current path. Starting with 2.1.3, a manually installed
-CodexMeter.app in an Applications folder is renamed to CodeRim.app at launch,
-then restarted once. Homebrew-managed paths are preserved until Homebrew
-migrates the installation; custom filenames and existing destinations remain
-untouched. If Homebrew cannot find the old app or an upgrade leaves the old
-filename in place, follow the [installation repair](../docs/troubleshooting.md#homebrew-upgrade-cannot-find-codexmeterapp)
-to reinstall CodeRim and refresh its receipt without deleting user data.
-Use Settings → Diagnostics → Install CLI to point the command at the actual app.
-At launch, existing app-managed CLI links are repaired automatically.
-The legacy codexmeter command is retained only when it was an app-managed link;
-unrelated executables and links are never overwritten.
+New downloads install CodeRim.app and `coderim`; Sparkle replaces the app at its installed path. Since 2.1.3, a manually installed CodexMeter.app in a supported Applications folder can be renamed and restarted once. Homebrew uses its receipt-managed upgrade/reinstall path. Custom names, unsupported folders, an existing destination and unwritable locations are not overwritten.
 
-The source repository is dlfkdLR/CodeRim and the archived compatibility repository
-is dlfkdLR/CodeRim-Releases. The Homebrew tap keeps the dlfkdLR/homebrew-tap
-repository and changes its cask to coderim, with a codexmeter-to-coderim rename map.
+App-managed CLI links are repaired at launch; the legacy `codexmeter` command remains only for an app-managed link. Unrelated files/links are preserved. [Installation and Homebrew recovery](../docs/installation.md) · [Troubleshooting](../docs/troubleshooting.md). Notification icon caching can persist until the next login; do not reset system caches or permissions.
 
-Starting with 2.1.1, new builds use the canonical CodeRim project, release and
-update-feed URLs. Previously installed versions still use their embedded
-CodexMeter URLs; GitHub redirects those aliases to the same repository and signed
-feed. Both address families must remain reachable. Do not create new repositories
-under the old names, because that would replace the redirects.
-Historical release notes keep their original names.
+Canonical source/feed URLs use dlfkdLR/CodeRim; the archived compatibility repository is dlfkdLR/CodeRim-Releases. The Homebrew tap stays dlfkdLR/homebrew-tap with `coderim` and a legacy rename map. Embedded CodexMeter URLs must keep redirecting to the same repository and signed feed. Do not recreate old repository names or rewrite historical release names.
 
-Runtime diagnostic labels and temporary release-build caches use CodeRim.
-Persistent keys, managed-helper paths, widget kinds and saved window-frame keys
-retain their established values. [Full branding audit](BRANDING_AUDIT.md).
+## Verification
+
+Classify legacy references before changing them: current branding can change; persistent identities, fixtures, old release URLs and dated evidence keep their contracts. Local builds, installed name/icon, Homebrew receipts, CLI links, feed redirects and account/data preservation require separate verification. [Historical branding audit](BRANDING_AUDIT.md).

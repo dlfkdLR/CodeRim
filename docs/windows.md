@@ -4,17 +4,17 @@
 
 **Windows 11 · x64 and ARM64 · .NET included.**
 
-[2.1.20 x64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-x64-Setup.msi) · [2.1.20 ARM64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-arm64-Setup.msi)
+[2.1.34 x64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-x64-Setup.msi) · [2.1.34 ARM64 installer](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-arm64-Setup.msi)
 
 Run the matching `Setup.msi`. It installs per user without administrator access, registers Start menu/uninstall entries, and adds `coderim` to user PATH. Open a new terminal after installation. Existing ZIP users run Setup once to enable managed updates. Settings, saved accounts, and local history are preserved.
 
 ## "Windows protected your PC"
 
-The MSI has no publisher certificate yet, so SmartScreen may show **Windows protected your PC** or **Unknown publisher**. Choose **More info → Run anyway**. Each installer has a published SHA-256 file to check it against. If **Smart App Control** is on, Windows blocks unsigned installers without that option; use the Microsoft Store version once it is listed, or turn Smart App Control off in **Windows Security → App & browser control**.
+The MSI has no publisher certificate yet, so SmartScreen may show **Windows protected your PC** or **Unknown publisher**. Choose **More info → Run anyway**. Each installer has a published SHA-256 file to check it against. A SignPath Foundation application for free code signing is being prepared but is not submitted or approved; see the [code signing policy](../CODE_SIGNING_POLICY.md). If **Smart App Control** is on, Windows blocks unsigned installers without that option; use the Microsoft Store version once it is listed, or turn Smart App Control off in **Windows Security → App & browser control**.
 
 ## Microsoft Store version
 
-The Store version is the same app, signed by Microsoft. It installs where Smart App Control is on, shows no publisher warning, and the Store keeps it up to date. `coderim` and `CodeRimCLI` are execution aliases, and Launch at Login and Claude Code's status line use the package automatically. Settings, accounts and local history live in the same folders as the MSI version, so you can switch either way. Its listing goes live after Microsoft certification.
+The source includes Store packaging support; it does not establish a public listing. A certified Store version is the same app, signed by Microsoft. It installs where Smart App Control is on, shows no publisher warning, and the Store keeps it up to date. `coderim` and `CodeRimCLI` are execution aliases, and Launch at Login and Claude Code's status line use the package automatically. Settings, accounts and local history live in the same folders as the MSI version, so you can switch either way. Its listing goes live after Microsoft certification.
 
 ## Updates
 

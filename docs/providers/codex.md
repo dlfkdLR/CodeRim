@@ -12,9 +12,7 @@ CLI provider ID: `codex`.
 2. Add **Codex** in **Settings → Providers → Add Provider**.
 3. Run a local Codex session, then open **Settings → Usage** for token history. Local token history can use CLI logs. macOS account-limit reading additionally requires a supported, vendor-signed Codex or ChatGPT app installed in `/Applications`; a standalone/Homebrew CLI alone does not supply this trusted app-server.
 
-## Check the reading
-
-Hover the provider in the notch, or read the latest app snapshot with `coderim usage --provider codex` after [installing the CLI](../cli.md). Keep CodeRim running for fresh readings.
+Check `coderim usage --provider codex` ([CLI setup](../cli.md)); see [readings and troubleshooting](../providers.md#readings-and-troubleshooting).
 
 Local token history belongs to this Mac across accounts. Switching accounts does not reset or replace that history. See [token accounting](../usage.md) and [saved accounts](../accounts.md).
 

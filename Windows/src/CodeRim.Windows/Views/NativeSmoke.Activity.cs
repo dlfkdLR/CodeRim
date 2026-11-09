@@ -8,10 +8,10 @@ using CodeRim.Windows.ViewModels;
 namespace CodeRim.Windows.Views;
 internal static partial class NativeSmoke
 {
-    private static void ActivityRegression(DashboardStore store)
+    private static void ActivityRegression(DashboardStore store, string directory)
     {
         var previousConfig = Environment.GetEnvironmentVariable("CLAUDE_CONFIG_DIR");
-        var root = Path.Combine(AppContext.BaseDirectory, "TestResults", "activity-" + Guid.NewGuid().ToString("N"));
+        var root = Path.Combine(directory, "activity-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Path.Combine(root, "sessions"));
         Directory.CreateDirectory(Path.Combine(root, "projects", "fixture"));
         var previousSessions = store.Sessions;

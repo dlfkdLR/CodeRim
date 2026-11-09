@@ -17,7 +17,7 @@ final class MobilePairingCancelTests: XCTestCase {
     override func tearDown() async throws { defaults.removePersistentDomain(forName: suite) }
 
     private func store(_ relay: PairingFake, credentials: GatedCredentials = GatedCredentials()) -> MobileConnectionStore {
-        MobileConnectionStore(defaults: defaults, credentials: credentials, makeClient: { _, _ in relay }, makeMonitors: { [:] })
+        MobileConnectionStore(defaults: defaults, credentials: credentials, makeClient: { _ in relay }, makeMonitors: { [:] })
     }
 
     /// The poll's answer has arrived; Cancel runs before the pairing continues with it.
@@ -29,7 +29,7 @@ final class MobilePairingCancelTests: XCTestCase {
         await relay.waitFor("DELETE /v1/session")
         XCTAssertFalse(mobile.isConnected)
         XCTAssertFalse(defaults.bool(forKey: "mobileRelayPaired"))
-        let saved = try await credentials.load(); XCTAssertNil(saved)
+        let saved = await credentials.load(); XCTAssertNil(saved)
         XCTAssertEqual(relay.revoked, ["desktop-token"], "the computer the iPhone added is taken back")
     }
 
@@ -43,7 +43,7 @@ final class MobilePairingCancelTests: XCTestCase {
         await credentials.releaseSaves()
         await relay.waitFor("DELETE /v1/session")
         XCTAssertFalse(mobile.isConnected)
-        let saved = try await credentials.load(); XCTAssertNil(saved)
+        let saved = await credentials.load(); XCTAssertNil(saved)
         XCTAssertFalse(defaults.bool(forKey: "mobileRelayPaired"))
     }
 
@@ -66,15 +66,18 @@ final class MobilePairingCancelTests: XCTestCase {
         mobile.cancelPairing(); relay.releaseAll()
     }
 
-    func testThePollClientWaitsLongerThanTheRelayHoldsAPoll() async throws {
-        let relay = PairingFake(), waits = Waits()
+    func testPairingUsesTheSameInjectedClientForTheOfferAndPoll() async throws {
+        let relay = PairingFake()
+        relay.holdPolls = true
+        var endpoints: [URL] = []
         let mobile = MobileConnectionStore(defaults: defaults, credentials: GatedCredentials(),
-            makeClient: { _, wait in waits.add(wait); return relay }, makeMonitors: { [:] })
+            makeClient: { endpoints.append($0); return relay }, makeMonitors: { [:] })
         mobile.startPairing()
         await relay.waitFor("POST /v1/pairing/poll")
-        XCTAssertEqual(waits.values.max(), 20, "the relay holds a poll up to 20 seconds")
-        let client = try MobileRelayClient(endpoint: relay.endpoint, pollWait: 20)
-        XCTAssertNotNil(client)
+        XCTAssertEqual(endpoints, [relay.endpoint])
+        XCTAssertEqual(relay.count("POST /v1/pairing/start"), 1)
+        XCTAssertEqual(relay.count("POST /v1/pairing/poll"), 1)
+        mobile.cancelPairing(); relay.releaseAll()
     }
 
     func testEndpointsAreOneSpellingPerOrigin() throws {
@@ -132,13 +135,6 @@ private final class PairingFake: MobileRelayServing, @unchecked Sendable {
     func get<Response: Decodable & Sendable>(_ path: String, token: String) async throws -> Response {
         throw MobileRelayError.invalidResponse
     }
-}
-
-private final class Waits: @unchecked Sendable {
-    private let lock = NSLock()
-    private var list: [TimeInterval] = []
-    var values: [TimeInterval] { lock.withLock { list } }
-    func add(_ value: TimeInterval) { lock.withLock { list.append(value) } }
 }
 
 private actor GatedCredentials: MobileCredentialStoring {

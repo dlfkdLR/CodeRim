@@ -76,7 +76,7 @@ struct SettingsOrb: View {
                     style: StrokeStyle(lineWidth: NotchLayout.orbStroke, lineCap: .round)
                 )
                 .frame(width: arcRadius * 2, height: arcRadius * 2)
-                .opacity(isHovered ? 0 : 1)
+                .opacity(isHovered ? 0 : 0.45)
                 .scaleEffect(isHovered ? 0.86 : 1)
                 .offset(arcOffset)
 

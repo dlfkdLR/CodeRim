@@ -8,6 +8,7 @@ namespace CodeRim.Core.Services;
 /// Durable numeric history. No credentials, full paths, prompts or response bodies.
 public sealed class UsageRepository
 {
+    private const string DeleteHistory = "DELETE FROM events WHERE provider=$provider; DELETE FROM attachments WHERE provider=$provider; DELETE FROM session_links WHERE provider=$provider; DELETE FROM session_metadata WHERE provider=$provider; DELETE FROM repaired_events WHERE provider=$provider";
     private readonly string connectionString;
     private readonly string databasePath;
     public UsageRepository(string path)
@@ -104,7 +105,7 @@ public sealed class UsageRepository
         command.Transaction = transaction;
         if (replace)
         {
-            command.CommandText = "DELETE FROM events WHERE provider=$provider; DELETE FROM attachments WHERE provider=$provider; DELETE FROM session_links WHERE provider=$provider; DELETE FROM session_metadata WHERE provider=$provider; DELETE FROM repaired_events WHERE provider=$provider";
+            command.CommandText = DeleteHistory;
             command.Parameters.AddWithValue("$provider", provider); command.ExecuteNonQuery(); command.Parameters.Clear();
         }
         // Inputs are disjoint in storage so revisions from copied Claude histories cannot lose cache reads/writes.
@@ -146,10 +147,10 @@ public sealed class UsageRepository
             if (usageEvent.Provider != provider) continue;
             // An inconsistent row is stored as its closest valid value and reported, never dropped silently.
             var usage = usageEvent.Usage;
-            // The parser may have repaired it already; it says so, since the numbers no longer can.
-            if (!usage.IsValid || usageEvent.Repaired)
+            if (usageEvent.Repaired || !usage.IsValid)
             {
-                usage = usage.ClampedToValid(); repaired++; repairedRows.Add((usageEvent.EventKey, usageEvent.OccurredAt));
+                usage = usage.ClampedToValid(); repaired++;
+                repairedRows.Add((usageEvent.EventKey, usageEvent.OccurredAt));
             }
             if (provider == "claude" && usageEvent.ImportParentSessionId is { } parent)
             {
@@ -244,7 +245,7 @@ public sealed class UsageRepository
         foreach (var (id, time) in repairedRows)
         {
             command.Parameters.Clear();
-            command.CommandText = "INSERT INTO repaired_events VALUES($provider,$id,$time) ON CONFLICT(provider,id) DO UPDATE SET time=MIN(time,excluded.time)";
+            command.CommandText = "INSERT INTO repaired_events SELECT $provider,$id,$time WHERE EXISTS(SELECT 1 FROM events WHERE provider=$provider AND id=$id) ON CONFLICT(provider,id) DO UPDATE SET time=MIN(time,excluded.time)";
             command.Parameters.AddWithValue("$provider", provider); command.Parameters.AddWithValue("$id", id);
             command.Parameters.AddWithValue("$time", time.ToUnixTimeMilliseconds()); command.ExecuteNonQuery();
         }
@@ -320,7 +321,8 @@ public sealed class UsageRepository
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
-        command.CommandText = "INSERT OR IGNORE INTO exclusions SELECT provider,id FROM events WHERE provider=$provider; INSERT OR IGNORE INTO exclusions SELECT provider,id FROM attachments WHERE provider=$provider; DELETE FROM events WHERE provider=$provider; DELETE FROM attachments WHERE provider=$provider; DELETE FROM session_links WHERE provider=$provider; DELETE FROM session_metadata WHERE provider=$provider; DELETE FROM repaired_events WHERE provider=$provider; INSERT INTO cutoffs VALUES($provider,$time) ON CONFLICT(provider) DO UPDATE SET time=excluded.time";
+        command.CommandText = "INSERT OR IGNORE INTO exclusions SELECT provider,id FROM events WHERE provider=$provider; INSERT OR IGNORE INTO exclusions SELECT provider,id FROM attachments WHERE provider=$provider; "
+            + DeleteHistory + "; INSERT INTO cutoffs VALUES($provider,$time) ON CONFLICT(provider) DO UPDATE SET time=excluded.time";
         command.Parameters.AddWithValue("$provider", provider);
         command.Parameters.AddWithValue("$time", cutoff.ToUnixTimeMilliseconds());
         command.ExecuteNonQuery();

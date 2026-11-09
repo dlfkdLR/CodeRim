@@ -261,3 +261,69 @@ private struct ProcessInspectorFixture: CodexProcessInspecting {
         return holdsAuth.contains(pid)
     }
 }
+
+final class CodexDesktopLayoutTests: XCTestCase {
+    private func bundle(with files: [String]) throws -> URL {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("layout-\(UUID().uuidString)/ChatGPT.app")
+        for file in files {
+            let url = root.appendingPathComponent(file)
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(),
+                                                    withIntermediateDirectories: true)
+            FileManager.default.createFile(atPath: url.path, contents: Data("#!/bin/sh\n".utf8),
+                                           attributes: [.posixPermissions: 0o755])
+        }
+        addTeardownBlock { try? FileManager.default.removeItem(at: root.deletingLastPathComponent()) }
+        return root
+    }
+
+    /// Codex 0.163 moved the bundled CLI into a nested app. Looking only at
+    /// `Resources/codex` made every account action fail with "a verified Codex
+    /// installation could not be used" the day the desktop app updated.
+    func testNestedCLILayoutIsFound() throws {
+        let app = try bundle(with: ["Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"])
+        XCTAssertEqual(CodexDesktopSession.bundledExecutable(in: app).path,
+                       app.appendingPathComponent("Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex").path)
+    }
+
+    func testLegacyLayoutIsStillFound() throws {
+        let app = try bundle(with: ["Contents/Resources/codex"])
+        XCTAssertEqual(CodexDesktopSession.bundledExecutable(in: app).path,
+                       app.appendingPathComponent("Contents/Resources/codex").path)
+    }
+
+    func testNewLayoutWinsWhenBothExist() throws {
+        let app = try bundle(with: ["Contents/Resources/codex",
+                                    "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"])
+        XCTAssertTrue(CodexDesktopSession.bundledExecutable(in: app).path.contains("CodexCLI.app"))
+    }
+
+    func testMissingBundleFallsBackToTheLegacyPath() throws {
+        let app = try bundle(with: [])
+        XCTAssertEqual(CodexDesktopSession.bundledExecutable(in: app).path,
+                       app.appendingPathComponent("Contents/Resources/codex").path)
+    }
+}
+
+final class CodexProcessArgumentsTests: XCTestCase {
+    private func buffer(arguments: [String], environment: [String] = ["HOME=/Users/x"]) -> Data {
+        var data = Data(withUnsafeBytes(of: Int32(arguments.count)) { Data($0) })
+        data.append(Data("/Applications/ChatGPT.app/x/codex".utf8)); data.append(contentsOf: [0, 0, 0])
+        for argument in arguments + environment { data.append(Data(argument.utf8)); data.append(0) }
+        return data
+    }
+
+    /// Both children run the same binary; only one of them is the app-server.
+    func testArgumentsAreReadWithoutTheEnvironment() throws {
+        let args = ["codex", "-c", "x=1", "app-server"]
+        XCTAssertEqual(try CodexDesktopSession.arguments(from: buffer(arguments: args)), args)
+        XCTAssertFalse(try CodexDesktopSession.arguments(from: buffer(arguments: ["codex", "exec-server"],
+                                                                      environment: ["app-server=1"]))
+            .contains("app-server"))
+    }
+
+    func testMalformedBuffersAreRejected() {
+        XCTAssertThrowsError(try CodexDesktopSession.arguments(from: Data([1, 0])))
+        XCTAssertThrowsError(try CodexDesktopSession.arguments(from: Data([0xFF, 0xFF, 0xFF, 0x7F, 0, 0, 0, 0])))
+    }
+}

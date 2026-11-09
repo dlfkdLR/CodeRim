@@ -1,6 +1,4 @@
 using System.IO;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Providers;
@@ -32,7 +30,7 @@ internal sealed partial class ProviderConnections
         var raw = snapshot.Value;
         var credential = ChromiumProviderCredential.Parse(raw);
         if (credential.Provider != id || credential.Region != ChromiumRegion(vault, id)) throw new InvalidDataException("The imported connection has another region.");
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(ChromiumSelection(vault, id) + raw + snapshot.Version)));
+        return ScopeHash(ChromiumSelection(vault, id) + raw + snapshot.Version);
     }
     internal Task<ProviderReading> VerifyChromiumAsync(ChromiumProviderCredential credential, Func<ChromiumProviderCredential, bool> saveRotated, CancellationToken token)
         => ReadChromiumAsync(credential, false, saveRotated, token);

@@ -6,15 +6,11 @@
 
 Run checks appropriate to the changed code before preparing a release. A documentation change uses `python3 Scripts/validate_docs.py`; it does not require signing or publishing. CI's source checks and build are in `.github/workflows/ci.yml` and `.github/workflows/windows.yml`.
 
-```sh
-swift test
-swift build --product CodeRimCLI
-python3 Tests/Scripts/companion_cli_tests.py .build/debug/CodeRimCLI
-for test_script in Tests/Scripts/*_tests.zsh; do "$test_script"; done
-Scripts/build_release.sh
-```
+Use the prepared-dependency commands in [Contributing](../CONTRIBUTING.md); do not bypass the pinned-source wrapper.
 
 `Scripts/build_release.sh` builds an ad-hoc Universal 2 app with helper, extension, framework, and resource bundles. It requires suitable Apple build tools, not an Apple signing certificate. `Scripts/release.sh` is a certificate-backed path requiring `CODE_SIGN_IDENTITY` and `CODE_SIGN_TEAM_ID`; it is not a prerequisite for every contributor PR. A build is not a notarization, installation, or release.
+
+Signed-feed failures never expire: `SUSignedFeedFailureExpirationInterval` is `0`, with `SURequireSignedFeed` and `SUVerifyUpdateBeforeExtraction` enabled. Startup, source builds, and original/ZIP/DMG app verification enforce this policy through `Scripts/verify_update_policy.sh`. Keep the signing key available when recovering or rotating keys.
 
 ## Certificate-free macOS stable gate
 
@@ -56,7 +52,7 @@ Scripts/release_public.sh
 
 ## Windows releases
 
-Windows MSI versions can advance independently of the macOS DMG. CodeRim 2.1.13 intentionally aligns the macOS and Windows version, but future platform releases can diverge again. Update each platform's links from actual release assets; the overall GitHub latest-release endpoint is not a macOS-version oracle. Package/test x64 and ARM64 installers separately. MSI signatures/manifests use the pinned Ed25519 update trust; Authenticode publisher signing is a distinct condition. See [Windows packaging and recovery](WINDOWS.md#updates).
+Windows MSI versions can advance independently of the macOS DMG. Update each platform's links from actual release assets; the overall GitHub latest-release endpoint is not a macOS-version oracle. Package/test x64 and ARM64 installers separately. MSI signatures/manifests use the pinned Ed25519 update trust; Authenticode publisher signing is a distinct condition. See [Windows packaging and recovery](WINDOWS.md#updates).
 
 ## Microsoft Store (free signing)
 
@@ -65,9 +61,9 @@ The Store package removes the "unknown publisher" warning and installs where Sma
 1. Create a free individual developer account at [Partner Center](https://partner.microsoft.com/dashboard/registration) and finish identity verification.
 2. **Apps and games → New product → MSIX or PWA app**, reserve the name **CodeRim**.
 3. Open **Product management → Product identity** and copy *Package/Identity/Name*, *Package/Identity/Publisher* and *Package/Properties/PublisherDisplayName* into `Windows/Installer/Store/store-identity.json`.
-4. After the Windows workflow passes, download the `CodeRim-Windows-Store` artifact and upload `CodeRim-Windows-<version>.msixbundle` to a new submission. CI installs a test-signed copy, checks the execution aliases and uninstalls it on x64 and ARM64; hosted runners cannot activate packaged apps, so certification is the first run of the packaged app itself.
+4. After the Windows workflow passes, download the `CodeRim-Windows-Store` artifact and upload `CodeRim-Windows-<version>.msixbundle` to a new submission. CI installs a test-signed copy, checks aliases and attempts packaged UI activation on x64 and ARM64 before uninstalling. Runners whose license services cannot activate packages record that limitation; certification is a separate check.
 5. In **Submission options → restricted capabilities**, explain: *runFullTrust* — a desktop WPF app; *unvirtualizedResources* — CodeRim reads and edits the configuration of the CLI tools it monitors (for example Claude Code's status line) and shares its data folder with its own CLI, as the MSI installation does.
-6. Use `https://github.com/dlfkdLR/CodeRim/blob/main/PRIVACY.md` as the privacy policy URL. Category: Developer tools. Free.
+6. Use `https://github.com/dlfkdLR/CodeRim/blob/main/docs/privacy.md` as the privacy policy URL. Category: Developer tools. Free.
 
 The Store version never runs the in-app MSI updater; later versions are new submissions of the bundle.
 

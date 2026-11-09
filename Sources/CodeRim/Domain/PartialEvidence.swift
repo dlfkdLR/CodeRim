@@ -4,7 +4,7 @@ import Foundation
 /// validation, or one too long to read. Stored with the time it belongs to, so the periods holding it read
 /// as partial for as long as the history is kept, whether or not the file still exists.
 struct PartialEvidence: Equatable, Sendable {
-    /// `storageIdentifier` of the source path, as usage events record it.
+    /// Opaque source-generation identifier; replacing a file cannot reuse its old evidence positions.
     let source: String
     /// Byte offset of the row in its file; with `source`, it makes re-reading the same row idempotent.
     let position: Int64

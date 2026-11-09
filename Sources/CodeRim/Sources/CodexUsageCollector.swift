@@ -79,14 +79,18 @@ private struct SourceFingerprintAccumulator {
                 startingAt: authenticatedOffset,
                 byteCount: byteCount
             )
-            authenticator.update(data: sample)
-            legacyAuthenticator?.update(data: sample)
-            authenticatedOffset += Int64(byteCount)
+            append(sample)
         }
         return FingerprintAdvanceResult(
             bytesRead: authenticatedOffset - startingOffset,
             reachedTarget: authenticatedOffset == offset
         )
+    }
+
+    mutating func append(_ data: Data) {
+        authenticator.update(data: data)
+        legacyAuthenticator?.update(data: data)
+        authenticatedOffset += Int64(data.count)
     }
 
     var fingerprint: String {
@@ -174,6 +178,8 @@ private enum CollectorResourceLimits {
 }
 
 actor CodexUsageCollector {
+    @TaskLocal static var afterSourceReadForTesting: (@Sendable (URL, Int64) throws -> Void)?
+
     private let provider: UsageProvider
     private let database: SQLiteDatabase
     private let roots: [URL]
@@ -185,8 +191,6 @@ actor CodexUsageCollector {
     private var sourceFingerprintKeyData: Data?
     private var fingerprintVerificationStates: [String: FingerprintVerificationState] = [:]
     private var readSnapshots: [String: SourceReadSnapshot] = [:]
-    /// Rows of the source being read whose tokens could not be counted; committed with its events.
-    private var pendingEvidence: [PartialEvidence] = []
     private var nextSourcePath: String?
     /// The last per-source write the database rejected; kept for diagnostics, never shown as a number.
     private(set) var lastSourceWriteFailure: String?
@@ -544,6 +548,8 @@ actor CodexUsageCollector {
                 fingerprintBytesRead += try updateCheckpointFingerprint(
                     &checkpoint,
                     accumulator: &fingerprintAccumulator,
+                    expectedFingerprint: fingerprintAccumulator.fingerprint,
+                    expectedStatusChangeTime: openedStatusChangeTime,
                     fileDescriptor: handle.fileDescriptor
                 )
             }
@@ -595,10 +601,11 @@ actor CodexUsageCollector {
         var loadedStateSessionID = checkpoint.sessionID
         var pendingEvents: [UsageEvent] = []
         var excludedEventKeys: Set<String> = []
-        pendingEvidence.removeAll()
+        var pendingEvidence: [PartialEvidence] = []
         pendingEvents.reserveCapacity(256)
         var completedLineCount = 0
         let startingOffset = checkpoint.committedOffset
+        var parsedFingerprintAccumulator = fingerprintAccumulator
 
         guard Darwin.lseek(
             handle.fileDescriptor,
@@ -630,6 +637,7 @@ actor CodexUsageCollector {
                 throw CodexUsageCollectorError.sourceUnavailable
             }
             guard !chunk.isEmpty else { break }
+            try Self.afterSourceReadForTesting?(source.url, readOffset)
             try Task.checkCancellation()
             let chunkStartOffset = readOffset
             readOffset += Int64(chunk.count)
@@ -638,12 +646,14 @@ actor CodexUsageCollector {
                 if let newline = chunk.firstIndex(of: 0x0A) {
                     let afterNewline = chunk.index(after: newline)
                     let consumed = chunk.distance(from: chunk.startIndex, to: afterNewline)
+                    parsedFingerprintAccumulator.append(chunk[..<afterNewline])
                     checkpoint.committedOffset = chunkStartOffset + Int64(consumed)
                     checkpoint.isSkippingOversizedLine = false
                     lineStartOffset = checkpoint.committedOffset
                     skippingOversizedLine = false
                     lineBuffer.append(contentsOf: chunk[afterNewline...])
                 } else {
+                    parsedFingerprintAccumulator.append(chunk)
                     continue
                 }
             } else {
@@ -664,11 +674,14 @@ actor CodexUsageCollector {
                     persistedNormalizationState: &persistedNormalizationState,
                     loadedStateSessionID: &loadedStateSessionID,
                     pendingEvents: &pendingEvents,
+                    pendingEvidence: &pendingEvidence,
                     excludedEventKeys: &excludedEventKeys,
                     importCutoff: importCutoff
                 )
                 completedLineCount += 1
-                consumedThrough = lineBuffer.index(after: newline)
+                let afterNewline = lineBuffer.index(after: newline)
+                parsedFingerprintAccumulator.append(lineBuffer[consumedThrough..<afterNewline])
+                consumedThrough = afterNewline
                 checkpoint.committedOffset = lineStartOffset
                     + Int64(lineBuffer.distance(from: lineBuffer.startIndex, to: consumedThrough))
 
@@ -676,20 +689,21 @@ actor CodexUsageCollector {
                     fingerprintBytesRead += try updateCheckpointFingerprint(
                         &checkpoint,
                         accumulator: &fingerprintAccumulator,
+                        expectedFingerprint: parsedFingerprintAccumulator.fingerprint,
+                        expectedStatusChangeTime: openedStatusChangeTime,
                         fileDescriptor: handle.fileDescriptor
                     )
                     let committedNormalizationState = try await database.commit(
                         events: pendingEvents,
                         checkpoint: checkpoint,
-                        normalizationState: checkpoint.sessionID == nil ? nil : normalizationState,
+                        normalizationState: normalizationState,
                         expectedEpoch: expectedEpoch,
                         expectedNormalizationState: checkpoint.sessionID == nil ? nil : persistedNormalizationState,
                         mergesMessageUsage: provider == .claude,
                         excludedEventKeys: excludedEventKeys,
                         partialEvidence: pendingEvidence
                     )
-                    pendingEvidence.removeAll()
-                    if !pendingEvents.isEmpty || !excludedEventKeys.isEmpty
+                    if !pendingEvents.isEmpty || !excludedEventKeys.isEmpty || !pendingEvidence.isEmpty
                         || analyticsMetadataChanged(checkpoint, from: previousCheckpoint) {
                         analyticsRevision &+= 1
                     }
@@ -699,6 +713,7 @@ actor CodexUsageCollector {
                             normalizationState = committedNormalizationState
                         }
                     }
+                    pendingEvidence.removeAll(keepingCapacity: true)
                     pendingEvents.removeAll(keepingCapacity: true)
                     excludedEventKeys.removeAll(keepingCapacity: true)
                     completedLineCount = 0
@@ -712,10 +727,12 @@ actor CodexUsageCollector {
             }
 
             if lineBuffer.count > CodexJSONLParser.maximumLineBytes {
+                parsedFingerprintAccumulator.append(lineBuffer)
+                normalizationState.quality = .partial
                 // Too long to read. If what was read of it is an accounting row (a Codex token count, or a
                 // Claude assistant message, whose usage comes after its content), its tokens are missing.
                 if provider == .claude ? lineBuffer.containsASCII("\"type\":\"assistant\"") : lineBuffer.containsASCII("\"token_count\"") {
-                    recordEvidence(source: source, position: lineStartOffset, occurredAt: nil, importCutoff: importCutoff)
+                    recordEvidence(checkpoint: checkpoint, position: lineStartOffset, occurredAt: nil, importCutoff: importCutoff, evidence: &pendingEvidence)
                 }
                 lineBuffer.removeAll(keepingCapacity: false)
                 skippingOversizedLine = true
@@ -736,23 +753,25 @@ actor CodexUsageCollector {
             fingerprintBytesRead += try updateCheckpointFingerprint(
                 &checkpoint,
                 accumulator: &fingerprintAccumulator,
+                expectedFingerprint: parsedFingerprintAccumulator.fingerprint,
+                expectedStatusChangeTime: openedStatusChangeTime,
                 fileDescriptor: handle.fileDescriptor
             )
             let committedNormalizationState = try await database.commit(
                 events: pendingEvents,
                 checkpoint: checkpoint,
-                normalizationState: checkpoint.sessionID == nil ? nil : normalizationState,
+                normalizationState: normalizationState,
                 expectedEpoch: expectedEpoch,
                 expectedNormalizationState: checkpoint.sessionID == nil ? nil : persistedNormalizationState,
                 mergesMessageUsage: provider == .claude,
                 excludedEventKeys: excludedEventKeys,
                 partialEvidence: pendingEvidence
             )
-            pendingEvidence.removeAll()
-            if !pendingEvents.isEmpty || !excludedEventKeys.isEmpty
+            if !pendingEvents.isEmpty || !excludedEventKeys.isEmpty || !pendingEvidence.isEmpty
                 || analyticsMetadataChanged(checkpoint, from: previousCheckpoint) {
                 analyticsRevision &+= 1
             }
+            pendingEvidence.removeAll(keepingCapacity: true)
             if let committedNormalizationState,
                normalizationState.cumulativeHighWaterMark != nil {
                 normalizationState = committedNormalizationState
@@ -797,6 +816,8 @@ actor CodexUsageCollector {
     private func updateCheckpointFingerprint(
         _ checkpoint: inout SourceCheckpoint,
         accumulator: inout SourceFingerprintAccumulator,
+        expectedFingerprint: String,
+        expectedStatusChangeTime: Int64,
         fileDescriptor: Int32
     ) throws -> Int64 {
         var currentStat = stat()
@@ -806,14 +827,19 @@ actor CodexUsageCollector {
         else {
             throw CodexUsageCollectorError.sourceChangedDuringRead
         }
-        checkpoint.observedSize = Int64(currentStat.st_size)
-        checkpoint.modificationTimeNanoseconds = modificationTimeNanoseconds(currentStat)
+        // Keep the opened metadata: a later append or rewrite must be checked on the next pass.
         let advance = try accumulator.advance(
             fileDescriptor: fileDescriptor,
             to: checkpoint.committedOffset,
             maximumBytes: checkpoint.committedOffset - accumulator.authenticatedOffset
         )
-        guard advance.reachedTarget else {
+        guard advance.reachedTarget, accumulator.fingerprint == expectedFingerprint,
+              readSourceStat(fileDescriptor, &currentStat) == 0,
+              Int64(currentStat.st_size) > checkpoint.observedSize
+                || (Int64(currentStat.st_size) == checkpoint.observedSize
+                    && modificationTimeNanoseconds(currentStat) == checkpoint.modificationTimeNanoseconds
+                    && statusChangeTimeNanoseconds(currentStat) == expectedStatusChangeTime)
+        else {
             throw CodexUsageCollectorError.sourceChangedDuringRead
         }
         checkpoint.contentFingerprint = accumulator.fingerprint
@@ -898,12 +924,14 @@ actor CodexUsageCollector {
         persistedNormalizationState: inout UsageNormalizationState,
         loadedStateSessionID: inout String?,
         pendingEvents: inout [UsageEvent],
+        pendingEvidence: inout [PartialEvidence],
         excludedEventKeys: inout Set<String>,
         importCutoff: Date?
     ) async throws {
         if provider == .claude {
             try await processClaudeLine(line, position: position, source: source,
                                         checkpoint: &checkpoint, pendingEvents: &pendingEvents,
+                                        pendingEvidence: &pendingEvidence,
                                         excludedEventKeys: &excludedEventKeys,
                                         importCutoff: importCutoff)
             return
@@ -1037,18 +1065,19 @@ actor CodexUsageCollector {
             normalizationState.quality = .partial
             // The session's quality alone dates the gap at its last valid row, which a recent period does not
             // reach; the row's own time (or when it was read) does.
-            recordEvidence(source: source, position: position, occurredAt: ClaudeJSONLParser.timestamp(of: line), importCutoff: importCutoff)
+            recordEvidence(checkpoint: checkpoint, position: position, occurredAt: ClaudeJSONLParser.timestamp(of: line), importCutoff: importCutoff, evidence: &pendingEvidence)
 
         case .ignored:
             break
         }
     }
 
-    private func recordEvidence(source: CodexSessionSource, position: Int64, occurredAt: Date?, importCutoff: Date?) {
+    private func recordEvidence(checkpoint: SourceCheckpoint, position: Int64, occurredAt: Date?,
+                                importCutoff: Date?, evidence: inout [PartialEvidence]) {
         let observedAt = occurredAt ?? Date()
         if let importCutoff, observedAt <= importCutoff { return }
-        pendingEvidence.append(PartialEvidence(source: storageIdentifier(source.url.standardizedFileURL.path),
-                                               position: position, observedAt: observedAt))
+        let generation = "\(checkpoint.sourcePath)|\(checkpoint.fileIdentity)|\(checkpoint.generation)"
+        evidence.append(PartialEvidence(source: storageIdentifier(generation), position: position, observedAt: observedAt))
     }
 
     private func eventKey(
@@ -1072,6 +1101,7 @@ actor CodexUsageCollector {
         source: CodexSessionSource,
         checkpoint: inout SourceCheckpoint,
         pendingEvents: inout [UsageEvent],
+        pendingEvidence: inout [PartialEvidence],
         excludedEventKeys: inout Set<String>,
         importCutoff: Date?
     ) async throws {
@@ -1079,7 +1109,7 @@ actor CodexUsageCollector {
             // Most lines are not accounting rows. One that is but failed validation leaves tokens uncounted.
             let rejected = ClaudeJSONLParser.rejectedAccounting(line)
             if rejected.isAccounting {
-                recordEvidence(source: source, position: position, occurredAt: rejected.occurredAt, importCutoff: importCutoff)
+                recordEvidence(checkpoint: checkpoint, position: position, occurredAt: rejected.occurredAt, importCutoff: importCutoff, evidence: &pendingEvidence)
             }
             return
         }

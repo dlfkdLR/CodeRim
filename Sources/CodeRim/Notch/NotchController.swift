@@ -2,15 +2,8 @@ import AppKit
 import Combine
 import CodexBarCore
 
-/// Owns the edge notch: one `NotchWindowController`, a `NotchUsageStore` fed by
-/// the Codex and Claude adapters, the session monitors that light the activity
-/// arcs, and the wiring between them. Modelled on `SettingsWindowController` —
-/// a `@MainActor` singleton created from the app's `init`, shown or hidden from
-/// a preference.
-///
-/// Phase 1–2: single screen, hover-to-expand, live session activity + a peek
-/// and a chime when an agent finishes. Multi-monitor and the full notch
-/// settings pane come later.
+/// Coordinates provider readings, session monitors and per-display notch windows from the shared
+/// Settings preferences.
 @MainActor
 final class NotchController: ObservableObject {
     static let shared = NotchController()
@@ -20,11 +13,8 @@ final class NotchController: ObservableObject {
     /// second store.
     @Published private(set) var snapshots: [ProviderSnapshot] = []
 
-    /// Whose credential each provider borrows, and its sign-in route — the
-    /// Settings Providers list's row model. Cached rather than recomputed on
-    /// every SwiftUI render: `providerSummaries` calls `account()` on every
-    /// provider, and several of those open a file or a SQLite database on the
-    /// main thread. Refreshed after each fetch and when a settings pane opens.
+    /// Cache account/sign-in summaries outside SwiftUI renders because account() may read a file or
+    /// database.
     @Published private(set) var providerSummaries: [ProviderSummary] = []
     @Published private(set) var selectedProviderIDs: Set<String> = ["codex"]
 
@@ -33,6 +23,7 @@ final class NotchController: ObservableObject {
     private var providers: [any NotchProvider] = []
     private var monitors: [String: any AgentActivityMonitor] = [:]
     private var completions = SessionCompletionWatcher()
+    private var clockTimer: Timer?
     private let thresholds = ThresholdNotifier(
         isMuted: { id in
             let defaults = UserDefaults.standard
@@ -173,6 +164,7 @@ final class NotchController: ObservableObject {
                 projects: claudeHome.appendingPathComponent("projects")
             ),
             "codex": CodexActivityMonitor(),
+            "opencode": OpenCodeActivityMonitor(),
         ]
         for (id, monitor) in monitors {
             monitor.sessionsPublisher
@@ -186,7 +178,10 @@ final class NotchController: ObservableObject {
                 .store(in: &cancellables)
         }
         store.isBusy = { [weak self] in
-            self?.monitors.values.contains { m in m.sessions.contains { $0.state == .busy } } ?? false
+            guard let self else { return false }
+            return Self.hasBusyMonitors(visible: self.visible,
+                                       selectedProviderIDs: self.selectedProviderIDs,
+                                       monitors: self.monitors)
         }
 
         if let saved = UserDefaults.standard.object(forKey: offsetKey) as? Double {
@@ -206,6 +201,21 @@ final class NotchController: ObservableObject {
         sessionTokenTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshSessionTokens() }
         }
+        // The totals are only shown in the open panel, so they are not summed
+        // while it is closed; opening it reads them at once.
+        window.model.$isExpanded
+            .removeDuplicates()
+            .filter { $0 }
+            .sink { [weak self] _ in self?.refreshSessionTokens() }
+            .store(in: &cancellables)
+    }
+
+    static func hasBusyMonitors(visible: Bool, selectedProviderIDs: Set<String>,
+                                monitors: [String: any AgentActivityMonitor]) -> Bool {
+        guard visible else { return false }
+        return monitors.contains { id, monitor in
+            selectedProviderIDs.contains(id) && monitor.sessions.contains { $0.state == .busy }
+        }
     }
 
     func lastUpdatedAt(providerID: String) -> Date? {
@@ -224,12 +234,41 @@ final class NotchController: ObservableObject {
             store?.start()
             for (id, monitor) in monitors where selectedProviderIDs.contains(id) { monitor.start() }
             wireLimitBridge()
+            startClockTimer()
+            removeLegacyCompactionHook()
         } else {
             monitors.values.forEach { $0.stop() }
+            clockTimer?.invalidate()
+            clockTimer = nil
             window.apply(.hidden)
             // A hidden notch has no pointer to follow or clock to show.
             window.stop()
         }
+    }
+
+    /// Monitors publish on change; refresh elapsed-time labels while sessions remain active.
+    private func startClockTimer() {
+        clockTimer?.invalidate()
+        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self,
+                      self.window.model.sessions.values.contains(where: { $0.contains { $0.state != .idle } })
+                else { return }
+                self.window.model.now = Date()
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        clockTimer = timer
+    }
+
+    /// Releases up to 2.1.32 could add two hooks to `~/.claude/settings.json` so
+    /// the notch could say "compacting". Nothing reads them any more, so remove
+    /// them once if they are there. A settings file that cannot be read is left
+    /// alone, and the hooks do nothing without the app.
+    private func removeLegacyCompactionHook() {
+        guard ClaudeCompactionHook.standard.isInstalled else { return }
+        do { try ClaudeCompactionHook.standard.uninstall() }
+        catch { NotchLog.sessions.error("could not remove the compaction hooks, code=\((error as NSError).code, privacy: .public)") }
     }
 
     /// Refresh on quota or freshness changes, but ignore timestamps/defaults
@@ -291,17 +330,8 @@ final class NotchController: ObservableObject {
         window.model.resetTimeFormat = resetTimeFormat
     }
 
-    func apply(showSessionTokens: Bool) {
-        if showSessionTokens { refreshSessionTokens() }
-        else {
-            sessionTokenFetch?.cancel()
-            window.model.sessionTokenTotals = [:]
-        }
-    }
-
     private func refreshSessionTokens() {
-        guard visible, sessionTokenFetch == nil,
-              UserDefaults.standard.bool(forKey: AppPreferences.notchShowSessionTokensKey) else { return }
+        guard visible, window.model.isExpanded, sessionTokenFetch == nil else { return }
         let sessions = window.model.sessions
         sessionTokenFetch = Task { [weak self] in
             let totals = await Task.detached(priority: .utility) {
@@ -315,8 +345,7 @@ final class NotchController: ObservableObject {
             }.value
             guard let self else { return }
             defer { self.sessionTokenFetch = nil }
-            guard !Task.isCancelled, self.visible,
-                  UserDefaults.standard.bool(forKey: AppPreferences.notchShowSessionTokensKey) else { return }
+            guard !Task.isCancelled, self.visible else { return }
             self.window.model.sessionTokenTotals = totals
         }
     }
@@ -477,11 +506,16 @@ final class NotchController: ObservableObject {
     private func announceCompletions() {
         let events = completions.absorb(window.model.sessions)
         guard let event = events.first else { return }
-        NotchLog.sessions.info("session \(event.session.name, privacy: .public) \(String(describing: event.reason), privacy: .public)")
 
         let defaults = UserDefaults.standard
-        if defaults.object(forKey: "notchSessionEndSound") as? Bool ?? AppPreferences.defaultNotchSessionEndSound {
-            let name = event.reason == .blocked
+        if defaults.bool(forKey: "debugLogging") {
+            NotchLog.sessions.info("session completion reason=\(String(describing: event.reason), privacy: .public) count=\(events.count)")
+        }
+        let subagentSound = defaults.object(forKey: "notchSubagentEndSound") as? Bool
+            ?? AppPreferences.defaultNotchSubagentEndSound
+        if defaults.object(forKey: "notchSessionEndSound") as? Bool ?? AppPreferences.defaultNotchSessionEndSound,
+           let chimed = SessionCompletionWatcher.soundEvent(in: events, includingSubagents: subagentSound) {
+            let name = chimed.reason == .blocked
                 ? (defaults.string(forKey: "notchSessionBlockedSoundName") ?? "Funk")
                 : (defaults.string(forKey: "notchSessionEndSoundName") ?? "Glass")
             SessionChime.play(name)

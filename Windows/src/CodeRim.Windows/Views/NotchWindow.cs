@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Automation;
@@ -88,7 +89,7 @@ internal sealed partial class NotchWindow : Window
         {
             if (!dragging) return;
             var point = System.Windows.Forms.Control.MousePosition.ToPoint(); dragging = false; ReleaseMouseCapture();
-            settings.Save(settings.Current with { Offset = dragOffset + (Vertical ? point.Y - dragStart.Y : point.X - dragStart.X) / ScreenScale(SelectedScreen()) });
+            Save(settings.Current with { Offset = dragOffset + (Vertical ? point.Y - dragStart.Y : point.X - dragStart.X) / ScreenScale(SelectedScreen()) });
             e.Handled = true;
         };
         SourceInitialized += (_, _) =>
@@ -136,6 +137,15 @@ internal sealed partial class NotchWindow : Window
         if (IsMouseCaptured) ReleaseMouseCapture();
     }
     private void SettingsChanged(object? sender, EventArgs e) { CancelDrag(); ApplyVisibility(); }
+    private void Save(AppSettings value)
+    {
+        try { settings.Save(value); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            Position();
+            (Application.Current as App)?.Tray?.Notify("CodeRim", "Could not save notch settings. Try again from Settings.");
+        }
+    }
     private void DisplayChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(SystemParameters.WorkArea)) QueueDisplayLayout();
@@ -330,9 +340,9 @@ internal sealed partial class NotchWindow : Window
         var keep = new MenuItem { Header = "Keep open", IsCheckable = true, IsChecked = pinned };
         keep.Click += (_, _) => { pinned = keep.IsChecked; foldTimer.Start(); }; menu.Items.Add(keep);
         AddMenu(menu, "Refresh", () => _ = store.RefreshAsync(true));
-        AddMenu(menu, "Recentre", () => settings.Save(config with { Offset = 0 }));
+        AddMenu(menu, "Recentre", () => Save(config with { Offset = 0 }));
         AddMenu(menu, "Settings…", () => openSettings(null));
-        AddMenu(menu, "Hide notch", () => settings.Save(config with { Visibility = NotchVisibility.Hidden }));
+        AddMenu(menu, "Hide notch", () => Save(config with { Visibility = NotchVisibility.Hidden }));
         canvas.ContextMenu = menu; Content = canvas; PositionWithNextFrame();
         if (animateOpening) { if (settingsControl is not null && Animates) settingsControl.Opacity = 0; AnimateFold(); }
     }
@@ -521,9 +531,7 @@ internal sealed partial class NotchWindow : Window
     private Screen SelectedScreen() => Screen.AllScreens.FirstOrDefault(x => x.DeviceName == settings.Current.Display) ?? Screen.PrimaryScreen ?? Screen.AllScreens[0];
     private bool positionPending;
     /// <summary>
-    /// Moves and resizes the window together with the frame that draws its new content. A layered window
-    /// keeps showing its previous bitmap until WPF presents the next one, so moving it first flashed the old
-    /// pill or card at the new place — most visibly on the first open, while that frame is still slow.
+    /// Present the resized window with its new frame; moving a layered window first flashes the old bitmap.
     /// </summary>
     private void PositionWithNextFrame()
     {
@@ -537,10 +545,7 @@ internal sealed partial class NotchWindow : Window
         }
         CompositionTarget.Rendering += Present;
     }
-    /// <summary>
-    /// Draws the open notch once off screen while the app is idle after start-up, so the first real opening
-    /// does not stall on first-use work (code, fonts, provider artwork) in the middle of its animation.
-    /// </summary>
+    /// <summary>Warm code, fonts and artwork offscreen to avoid first-open animation stalls.</summary>
     private void PrewarmOpenNotch()
     {
         if (closed) return;

@@ -6,7 +6,7 @@ Windows 11 x64·ARM64용 WPF·.NET 10 포트입니다. 제공업체 목록과 �
 
 ## 실행·설치
 
-해당 [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-x64-Setup.msi) 또는 [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.20/CodeRim-Windows-2.1.20-arm64-Setup.msi)를 실행합니다. .NET은 포함됩니다. 설치 위치는 `%LOCALAPPDATA%\Programs\CodeRim`이며 관리자 권한 없이 시작 메뉴·제거 항목을 등록하고 현재 사용자 PATH에 `bin`을 추가합니다. `coderim`을 사용하려면 새 터미널을 엽니다.
+해당 [x64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-x64-Setup.msi) 또는 [ARM64 MSI](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-arm64-Setup.msi)를 실행합니다. .NET은 포함됩니다. 설치 위치는 `%LOCALAPPDATA%\Programs\CodeRim`이며 관리자 권한 없이 시작 메뉴·제거 항목을 등록하고 현재 사용자 PATH에 `bin`을 추가합니다. `coderim`을 사용하려면 새 터미널을 엽니다.
 
 기존 미서명 ZIP 사용자는 CodeRim을 종료하고 MSI를 한 번 설치합니다. 설정·계정·사용량은 앱 폴더 밖에 있어 유지됩니다. 이전 Authenticode 관리형 설치는 기존 서명 ZIP 채널을 계속 사용하며 공개 MSI는 이를 덮어쓰지 않습니다. 첫 MSI에는 Authenticode 게시자 인증서가 없어 SmartScreen 경고가 표시될 수 있습니다. 자동 업데이트는 아래 고정 Ed25519 릴리스 키를 사용합니다.
 
@@ -59,84 +59,15 @@ macOS는 replay 경계 후 상속 세션 이미지를 첫 토큰 전에도 집�
 
 <a id="remaining-parity-work"></a>
 
+<a id="remaining-parity-work"></a>
+
 ## 남은 동등성 검증
 
 목록·로고는 macOS와 같으며 현재 소스는70개 모두 연결 구현을 갖고 있습니다. 구현한 경로에도 실제 Windows·계정 확인이 필요합니다.
 
 남은 확인은 Kimi Desktop 자동 탐색·실제 제공업체·전체 접근성·여러 모니터입니다. Chromium localStorage import는 DeepSeek·Factory·MiniMax에 구현되어 고정 macOS 전략을 따릅니다. MSI updater Ed25519와 Authenticode 게시자 인증서는 별개이며 후자는 없습니다. 지원 Firefox reader가 전체 브라우저 인증 동등성을 의미하지 않습니다. Windows Widgets는 범위 밖입니다. API/manual cookie가 macOS의 모든 인증 전략을 뜻하지 않습니다. native Windows CI는 합성 startup·render·credential·account display·bridge·CLI를 검사하며 실제 계정은 별도입니다.
 
-| 제공업체 | Windows 연결 |
-| --- | --- |
-| Codex (`codex`) | 로컬 JSONL + Codex app-server |
-| Claude Code (`claude`) | 로컬 JSONL + 상태 줄 도우미 |
-| GitHub Copilot (`copilot`) | 저장 토큰, GH_TOKEN/GITHUB_TOKEN, 선택한 github.com GitHub CLI 계정 또는 제한된 gh auth token 조회 |
-| Cursor (`cursor`) | 현재 편집기 로그인, 기본 Windows agent 대체 소스 또는 명시적 세션 쿠키; 편집기·agent 계정 분리 |
-| Grok (`grok`) | Grok CLI 로그인 또는 CLI 액세스 토큰 |
-| OpenCode Go (`opencode`) | OpenCode Go 로컬 로그인 또는 API 키 |
-| Command Code (`commandcode`) | Command Code 로컬 로그인 또는 API 키 |
-| GLM (`glm`) | 저장·환경 API 키 또는 신뢰되는 Claude/ZCode/OpenCode Coding Plan 로그인; 감지 지역에 연결 |
-| Ollama Cloud (`ollama`) | Ollama Cloud API 키 |
-| Antigravity (`gemini`) | OAuth 토큰·JSON 또는 프로세스 연결 Local IDE; 모델 한도·세션·주간 주기·플랜 |
-| Ollama Local (`ollama-local`) | 로컬 읽기 전용 API |
-| OpenAI (`openai`) | 조직 사용량·비용 권한 API 키, 선택적 Project ID |
-| Azure OpenAI (`azureopenai`) | API 키·배포; 유료 검증 명시적 허용, 한도 카운터 없음 |
-| ClinePass (`clinepass`) | CLINE_API_KEY |
-| OpenCode (`opencode-zen`) | Web 인증 쿠키; 워크스페이스 구독 한도 또는 사용량 기반 지출 |
-| Alibaba (`alibaba`) | API/Web; Coding Plan 키 또는 선택한 intl/cn 콘솔 세션·요청 한도 |
-| Alibaba Token Plan (`alibabatokenplan`) | Auto/CLI/Web; Bailian CLI 개인 이동 기간 한도 또는 intl/cn의 콘솔 쿠키·Firefox Team/Personal 한도 |
-| Qwen Cloud (`qwencloud`) | 콘솔 쿠키·Firefox; 개인 Token Plan 이동 기간 한도와 범위 제한 sec_token 탐색 |
-| Droid (`factory`) | Factory API 키·Authorization, Cookie·Firefox 또는 갱신 가능한 저장 WorkOS 세션 JSON; 현재·이전 개인 한도 |
-| Fireworks (`fireworks`) | API 키와 계정 slug |
-| Gemini (`gemini-cli`) | Gemini CLI OAuth 감지·갱신; Code Assist 모델 한도·소비자 이전 상태 |
-| Devin (`devin`) | 액세스 토큰·조직; 한도·초과 사용 |
-| MiniMax (`minimax`) | Auto/API/Web; Global/China 별도 키·Web 세션; 구간·주간 한도·현재 플랜·제한된 활동 |
-| Manus (`manus`) | manus.im Cookie 헤더 또는 Firefox |
-| Kimi Code (`kimi`) | Auto/API/Web; API 키·새 읽기 전용 CLI 로그인·수동 Web 토큰·쿠키·선택 Firefox·명시적 Desktop 평문 세션 |
-| Kilo (`kilo`) | API 키 또는 로컬 Kilo CLI 로그인 |
-| Kiro (`kiro`) | Kiro CLI 로그인·사용량 |
-| Vertex AI (`vertexai`) | gcloud ADC 또는 서비스 계정; Cloud Monitoring 한도 |
-| Augment (`augment`) | Web 쿠키; 계정 크레딧·청구 주기 |
-| JetBrains AI (`jetbrains`) | 설치 IDE의 읽기 전용 한도 XML |
-| Moonshot / Kimi Open Platform (`moonshot`) | International/China 별도 API 키·고정 지역 엔드포인트; USD/CNY 유지 |
-| Amp (`amp`) | 구독·잔액 API/CLI 또는 Amp Free Web 쿠키·Firefox |
-| T3 Chat (`t3chat`) | t3.chat Cookie 헤더·Firefox |
-| Synthetic (`synthetic`) | API 키 |
-| OpenRouter (`openrouter`) | API 키; 상세 활동용 선택 Management API 키 |
-| ElevenLabs (`elevenlabs`) | ElevenLabs API 키 |
-| Warp (`warp`) | 액세스 토큰; GraphQL 한도 |
-| Windsurf (`windsurf`) | Devin 세션 JSON 또는 명시적 로컬 Windsurf DB; 캐시 값은 stale |
-| Zed (`zed`) | User ID·액세스 토큰; edit prediction |
-| Perplexity (`perplexity`) | perplexity.ai Cookie 헤더·Firefox |
-| Xiaomi MiMo (`mimo`) | 콘솔 쿠키·선택 Firefox의 완전한 세션 쿠키 복구; 잔액·토큰 플랜 크레딧 |
-| Doubao (`doubao`) | Volcengine 서명 키; Coding Plan 백분율·Agent Plan 포인트 |
-| Sakana AI (`sakana`) | Web 쿠키; 청구 페이지 한도 |
-| Abacus AI (`abacus`) | Web 쿠키·Firefox; compute 크레딧 |
-| Mistral (`mistral`) | Web 쿠키; Vibe 한도·월간 지출·크레딧 |
-| DeepSeek (`deepseek`) | Auto/API/Web; 별도 API 키·플랫폼 세션과 원래 통화; 선택 Web의 추가 상세 사용량 |
-| DeepInfra (`deepinfra`) | API 키; 잔액·현재 기간 지출 |
-| Codebuff (`codebuff`) | API 키 또는 Codebuff/Manicode 로컬 로그인; 로컬 세션의 선택적 구독 상세 |
-| Crof (`crof`) | API 키 |
-| Venice (`venice`) | API 키 |
-| Qoder (`qoder`) | qoder.com/qoder.com.cn Cookie 헤더·Firefox |
-| StepFun (`stepfun`) | Auto/Manual; 사용자 이름·비밀번호·갱신 Oasis-Token·범위 제한 Firefox; 플랜 한도·크레딧 팩 |
-| AWS Bedrock (`bedrock`) | AWS CLI 프로필·SSO 또는 서명 키; 월간 비용·14일 Claude 활동 |
-| Groq (`groq`) | 콘솔 세션 JWT·JSON·Firefox의 30일 활동; Enterprise metrics API 키도 지원 |
-| LLM Proxy (`llmproxy`) | 프록시 URL·API 키 |
-| LiteLLM (`litellm`) | 프록시 URL·API 키; 키·사용자·팀 예산 |
-| Deepgram (`deepgram`) | API 키; 선택 Project ID·API URL |
-| Poe (`poe`) | API 키 |
-| Chutes (`chutes`) | API 키; 이동·월간·모델별 한도 |
-| Neuralwatt (`neuralwatt`) | API 키; 한도 |
-| ClawRouter (`clawrouter`) | 정책 API 키; 선택 Base URL |
-| LongCat (`longcat`) | Web 쿠키·Firefox; 활성 토큰·fuel 팩 |
-| sub2api (`sub2api`) | API 키·Base URL |
-| Wayfinder (`wayfinder`) | 로컬 게이트웨이 URL; 상태·절약 |
-| ZenMux (`zenmux`) | Management API 키; 구독 한도 |
-| ai& (`aiand`) | API 키; 페이지로 읽는 최근 30일 지출 |
-| ZoomMate (`zoommate`) | Bearer 토큰 또는 명시적 Cookie: 헤더; 크레딧 한도 |
-| xAI (`xai`) | Management API 키·Team ID |
-| Notion AI (`notion`) | Web 쿠키·선택 workspace ID; AI 크레딧 |
-| IBM Bob (`ibmbob`) | Bob API 키; 프로필·팀 할당 |
+제공업체 설정과 기준 카탈로그는 [제공업체 안내](../docs/ko/providers.md)에 있습니다. Windows 고유 브라우저·로컬 소스 동작은 아래에 기록하며, 같은 제공업체 ID가 모든 플랫폼의 동일한 인증을 뜻하지는 않습니다.
 
 <a id="updates"></a>
 

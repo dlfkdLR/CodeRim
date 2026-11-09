@@ -6,15 +6,11 @@
 
 릴리스 전에 변경 코드에 맞는 검사를 실행합니다. 문서 변경은 `python3 Scripts/validate_docs.py`를 사용하며 서명·게시가 필요하지 않습니다. CI 소스 검사·빌드는 `.github/workflows/ci.yml`·`.github/workflows/windows.yml`에 있습니다.
 
-```sh
-swift test
-swift build --product CodeRimCLI
-python3 Tests/Scripts/companion_cli_tests.py .build/debug/CodeRimCLI
-for test_script in Tests/Scripts/*_tests.zsh; do "$test_script"; done
-Scripts/build_release.sh
-```
+[기여 안내](../CONTRIBUTING.ko.md)의 의존성 준비 명령을 사용하며 고정 원본 wrapper를 우회하지 않습니다.
 
 `Scripts/build_release.sh`는 도우미·확장·프레임워크·리소스가 있는 ad-hoc Universal 2 앱을 빌드합니다. 적절한 Apple 빌드 도구가 필요하지만 서명 인증서는 필요하지 않습니다. `Scripts/release.sh`는 `CODE_SIGN_IDENTITY`·`CODE_SIGN_TEAM_ID`가 필요한 인증서 경로이며 모든 기여 PR의 전제 조건이 아닙니다. 빌드는 공증·설치·릴리스가 아닙니다.
+
+`SUSignedFeedFailureExpirationInterval`은 `0`이며 `SURequireSignedFeed`·`SUVerifyUpdateBeforeExtraction`을 활성화해 피드 서명 실패가 만료되지 않게 합니다. 앱 시작, 소스 빌드, 원본·ZIP·DMG 앱 검증이 `Scripts/verify_update_policy.sh`의 정책을 적용합니다. 복구·키 교체 시 기존 서명 키를 보관해야 합니다.
 
 ## 인증서 없는 macOS 안정판 검증
 
@@ -56,7 +52,7 @@ Scripts/release_public.sh
 
 ## Windows 릴리스
 
-Windows MSI 버전은 macOS DMG와 독립적으로 올라갈 수 있습니다. CodeRim 2.1.13은 macOS·Windows 버전을 의도적으로 맞췄지만 이후 플랫폼 릴리스는 다시 달라질 수 있습니다. 실제 공개 파일로 플랫폼별 링크를 갱신합니다. GitHub 전체 최신 릴리스는 macOS 버전의 기준이 아닙니다. x64·ARM64 설치 파일을 별도로 패키징·검사합니다. MSI 서명·manifest는 고정 Ed25519 업데이트 신뢰를 쓰며 Authenticode 게시자 서명은 별개입니다. [Windows 패키징·복구](WINDOWS.ko.md#updates)를 참고합니다.
+Windows MSI 버전은 macOS DMG와 독립적으로 올라갈 수 있습니다. 실제 공개 파일로 플랫폼별 링크를 갱신합니다. GitHub 전체 최신 릴리스는 macOS 버전의 기준이 아닙니다. x64·ARM64 설치 파일을 별도로 패키징·검사합니다. MSI 서명·manifest는 고정 Ed25519 업데이트 신뢰를 쓰며 Authenticode 게시자 서명은 별개입니다. [Windows 패키징·복구](WINDOWS.ko.md#updates)를 참고합니다.
 
 ## Microsoft Store (무료 서명)
 
@@ -65,9 +61,9 @@ Store 패키지는 인증서를 사지 않고도 "알 수 없는 게시자" 경�
 1. [Partner Center](https://partner.microsoft.com/dashboard/registration)에서 무료 개인 개발자 계정을 만들고 본인 확인을 마칩니다.
 2. **앱 및 게임 → 새 제품 → MSIX 또는 PWA 앱**에서 이름 **CodeRim**을 예약합니다.
 3. **제품 관리 → 제품 ID**의 *Package/Identity/Name*, *Package/Identity/Publisher*, *Package/Properties/PublisherDisplayName*을 `Windows/Installer/Store/store-identity.json`에 넣습니다.
-4. Windows 워크플로가 통과하면 `CodeRim-Windows-Store` 아티팩트를 받아 `CodeRim-Windows-<버전>.msixbundle`을 새 제출에 올립니다. CI는 테스트 서명한 사본을 x64·ARM64에 설치해 실행 별칭을 확인하고 제거합니다. 호스팅 러너는 패키지 앱을 활성화하지 못하므로 패키지 안에서의 실제 실행은 인증 과정에서 처음 검증됩니다.
+4. Windows 워크플로가 통과하면 `CodeRim-Windows-Store` 아티팩트를 받아 `CodeRim-Windows-<버전>.msixbundle`을 새 제출에 올립니다. CI는 테스트 서명한 사본을 x64·ARM64에 설치해 별칭을 확인하고 패키지 UI 활성화를 시도한 뒤 제거합니다. 라이선스 서비스가 활성화를 허용하지 않는 러너는 그 제한을 기록하며 인증 과정은 별도 검사입니다.
 5. **제출 옵션 → 제한된 기능**에 다음과 같이 설명합니다. *runFullTrust* — 데스크톱 WPF 앱. *unvirtualizedResources* — 모니터링하는 CLI 도구의 설정(예: Claude Code 상태줄)을 읽고 고치며, MSI 설치와 마찬가지로 자체 CLI와 데이터 폴더를 공유합니다.
-6. 개인정보 처리방침 URL은 `https://github.com/dlfkdLR/CodeRim/blob/main/PRIVACY.md`, 범주는 개발자 도구, 무료로 지정합니다.
+6. 개인정보 처리방침 URL은 `https://github.com/dlfkdLR/CodeRim/blob/main/docs/privacy.md`, 범주는 개발자 도구, 무료로 지정합니다.
 
 Store 버전은 앱 내 MSI 업데이트를 실행하지 않습니다. 이후 버전은 번들을 새로 제출합니다.
 

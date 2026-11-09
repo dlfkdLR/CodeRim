@@ -52,6 +52,7 @@ internal static partial class NativeSmoke
             Require((await connection.FetchAsync("alibaba", settings.Current, CancellationToken.None)).State == ReadingState.Ready
                 && calls[^1].Api == "saved-coding-api", "The Coding Plan default did not preserve API mode.");
             var apiScope = connection.Scope("alibaba");
+            Require(apiScope == "7CEB5FD7A469E3D3B994ACDCD2B2BA5B04BDCAD55033E04814848419E04BE93B", "Coding Plan scope no longer matches its stored credential identity.");
             vault.Save("setting:alibaba:ALIBABA_CODING_PLAN_SOURCE", "web");
             var webScope = connection.Scope("alibaba");
             Require(webScope is not null && webScope != apiScope, "API and Web share an account scope.");

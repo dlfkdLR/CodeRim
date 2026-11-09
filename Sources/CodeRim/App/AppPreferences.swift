@@ -18,6 +18,9 @@ enum AppPreferences {
     static let defaultNotchEdge = NotchEdge.right.rawValue
     static let defaultNotchSessionEndSound = true
     static let defaultNotchAnnounceSessionEnd = true
+    /// Sub-agents finish far more often than the chats that start them, so
+    /// their chime is opt-in.
+    static let defaultNotchSubagentEndSound = false
     static let defaultNotchThresholdAlerts = true
     static let defaultNotchVisibility = NotchVisibility.onHover.rawValue
     static let defaultNotchSize = NotchSize.medium.rawValue
@@ -30,10 +33,6 @@ enum AppPreferences {
     static let defaultNotchShowUsagePace = false
     static let notchShowUnknownSessionsKey = "notchShowUnknownSessions"
     static let defaultNotchShowUnknownSessions = false
-    static let notchShowSessionDurationKey = "notchShowSessionDuration"
-    static let defaultNotchShowSessionDuration = false
-    static let notchShowSessionTokensKey = "notchShowSessionTokens"
-    static let defaultNotchShowSessionTokens = false
 
     // MARK: Threshold alerts
 
@@ -77,6 +76,7 @@ enum AppPreferences {
                 "notchEdge": defaultNotchEdge,
                 "notchSessionEndSound": defaultNotchSessionEndSound,
                 "notchAnnounceSessionEnd": defaultNotchAnnounceSessionEnd,
+                "notchSubagentEndSound": defaultNotchSubagentEndSound,
                 "notchSessionEndSoundName": "Glass",
                 "notchSessionBlockedSoundName": "Funk",
                 "notchThresholdAlerts": defaultNotchThresholdAlerts,
@@ -90,9 +90,7 @@ enum AppPreferences {
                 "notchResetTimeFormat": defaultNotchResetTimeFormat,
                 "notchPercentageMode": defaultNotchPercentageMode,
                 "notchShowUsagePace": defaultNotchShowUsagePace,
-                notchShowUnknownSessionsKey: defaultNotchShowUnknownSessions,
-                notchShowSessionDurationKey: defaultNotchShowSessionDuration,
-                notchShowSessionTokensKey: defaultNotchShowSessionTokens
+                notchShowUnknownSessionsKey: defaultNotchShowUnknownSessions
             ]
         )
     }

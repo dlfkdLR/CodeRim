@@ -53,43 +53,16 @@ extension NSScreen: ScreenDescribing {
 }
 
 enum NotchGeometry {
-    /// The panel hugs the chosen edge and is centred along it.
-    ///
-    /// **Which edge it hugs is `visibleFrame`'s, not `frame`'s.** That is what
-    /// keeps a bottom notch resting on top of the Dock and a top one below the
-    /// menu bar rather than behind them, and it is why the notch moves when the
-    /// Dock hides — `visibleFrame` gives the space back and the notch takes it.
-    ///
-    /// **Centring, though, stays on `frame`.** A Dock at the bottom is nowhere
-    /// near a right-edge notch, and centring on the visible area would shift
-    /// that notch up and down the screen every time the Dock hid itself, for no
-    /// reason anyone could see.
-    ///
-    /// The rect is rounded out to whole points on purpose. AppKit rounds window
-    /// frames anyway, and if it does the rounding the panel ends up a fraction
-    /// larger than asked for — which leaves the content, laid out at its exact
-    /// size, stopping short of the screen edge. A hairline of wallpaper along
-    /// that edge is all it takes for the notch to read as floating rather than
-    /// welded to the bezel.
+    /// Anchor to visibleFrame to clear menu bar/Dock, but centre along frame so Dock visibility does
+    /// not shift side notches. Round outward to whole points to avoid a wallpaper seam.
     static func panelFrame(
         for screen: ScreenDescribing,
         panelSize: CGSize,
         edge: NotchEdge = .right,
-        // A user-chosen nudge along the edge, from `NotchViewModel.alongOffset`
-        // — zero is the centred default this file always drew before the nudge
-        // existed. Vertical edges read it as AppKit's y running *down* the
-        // screen (dragging the pill down increases it); horizontal edges read
-        // it as x running right, which needs no such flip.
+        // Positive offsets move down on vertical edges and right on horizontal edges; convert AppKit y
+        // here.
         alongOffset: CGFloat = 0,
-        // The padding `panelSize` carries on *each* end beyond the visible
-        // pill, reserved for a hover card that is not there right now —
-        // `NotchViewModel.slack`. Clamping the offset by the padded size
-        // would have left the pill only a sliver of room to move in on most
-        // screens, since that padding is sized for the tallest possible card
-        // and can be most of the panel. Clamping by the pill's own extent
-        // instead — `panelSize` shrunk by this on each end — lets it travel
-        // almost the full edge; the padding is free to run past the bezel,
-        // since nothing is drawn there until a card actually opens.
+        // Clamp the visible pill, not tooltip slack. Empty padding may cross the bezel until a card opens.
         slack: CGFloat = 0,
         // The settings handle hangs past the body's trailing end. That part
         // of the padding must stay on screen even when the hover card may not.
@@ -114,13 +87,7 @@ enum NotchGeometry {
                           min: full.minY - slack + trailingExtent, max: full.maxY - height + slack - leadingExtent)
             origin = CGPoint(x: usable.minX, y: y)
         case .top:
-            // AppKit's y grows upward, so the top edge is `maxY`.
-            //
-            // On a Mac with a notch of its own, this one goes all the way up to
-            // meet it — past the menu bar — so the two read as a single shape
-            // rather than as a bar parked underneath the hardware. Where there
-            // is nothing to merge with, covering the menu bar buys nothing, so
-            // it stays below it.
+            // A top bar uses the full screen only when joining hardware; otherwise stay below the menu bar.
             let top = screen.hardwareNotch == nil ? usable.maxY : full.maxY
             let x = clamp(full.midX - width / 2 + alongOffset,
                           min: full.minX - slack + leadingExtent, max: full.maxX - width + slack - trailingExtent)

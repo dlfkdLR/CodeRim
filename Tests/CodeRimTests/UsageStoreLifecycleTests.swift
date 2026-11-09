@@ -1,3 +1,4 @@
+import CSQLite
 import Foundation
 import XCTest
 @testable import CodeRim
@@ -69,6 +70,25 @@ final class UsageStoreLifecycleTests: XCTestCase {
         XCTAssertEqual(fixture.store.snapshot.allTime.totalTokens, 130)
         for range in AnalyticsRange.allCases {
             XCTAssertEqual(fixture.store.analyticsSnapshot(for: range)?.usage.totalTokens, 130)
+        }
+    }
+
+    func testFailedMaintenanceKeepsCachedUsageAndReleasesMaintenanceState() async throws {
+        for rebuilding in [false, true] {
+            let fixture = try Fixture()
+            defer { fixture.remove() }
+            try fixture.write(output: 10)
+            await fixture.store.refresh()
+            let original = fixture.store.snapshot
+            try fixture.dropUsageTable()
+            if rebuilding { await fixture.store.rebuildStatistics() }
+            else { await fixture.store.clearLocalHistory() }
+            XCTAssertEqual(fixture.store.snapshot.allTime, original.allTime)
+            XCTAssertEqual(fixture.store.snapshot.quality, .stale)
+            XCTAssertTrue(fixture.store.dataOperationFailed)
+            XCTAssertFalse(fixture.store.isMaintainingData)
+            XCTAssertEqual(fixture.store.dataOperationMessage,
+                           rebuilding ? "Unable to rebuild statistics" : "Unable to clear local history")
         }
     }
 
@@ -145,6 +165,17 @@ final class UsageStoreLifecycleTests: XCTestCase {
         func remove() {
             defaults.removePersistentDomain(forName: defaultsDomain)
             try? FileManager.default.removeItem(at: root)
+        }
+
+        func dropUsageTable() throws {
+            var connection: OpaquePointer?
+            let url = root.appendingPathComponent("Claude.sqlite")
+            guard sqlite3_open_v2(url.path, &connection, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK else {
+                if let connection { sqlite3_close(connection) }
+                throw NSError(domain: "UsageStoreLifecycleTests", code: 1)
+            }
+            defer { sqlite3_close(connection) }
+            XCTAssertEqual(sqlite3_exec(connection, "DROP TABLE usage_events", nil, nil, nil), SQLITE_OK)
         }
     }
 }

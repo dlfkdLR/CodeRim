@@ -2,7 +2,7 @@
 
 [English](USAGE.md) · **한국어**
 
-**Settings → Usage**에서 Codex 또는 연결된 Claude Code를 선택합니다. CodeRim 2.1.13에는 **Overview**, **Usage analytics**, 제공업체 **Limits**가 있습니다. 분석 화면에서 기간별 합계, 토큰 유형·모델 차트, 프로젝트, 세션, 모델·세션 상세를 봅니다.
+**Settings → Usage**에서 Codex 또는 연결된 Claude Code를 선택합니다. Settings에는 **Overview**, **Usage analytics**, 제공업체 **Limits**가 있습니다. 분석 화면에서 기간별 합계, 토큰 유형·모델 차트, 프로젝트, 세션, 모델·세션 상세를 봅니다.
 
 ## 로컬과 계정의 범위
 
@@ -16,7 +16,7 @@
 
 **Total = Input + Output.** 캐시 입력은 이미 입력에 포함됩니다. 누적 차트는 이를 비캐시 입력, 캐시 입력, 출력으로 나누며 다시 더하지 않습니다. Codex 누적 스냅샷에서는 안전한 증가분만 집계하고 같은 스냅샷이 반복되면 추가하지 않습니다.
 
-Claude 입력에는 비캐시 입력, 캐시 읽기, 캐시 생성이 포함됩니다. 반복 메시지·스트리밍 기록은 중복 합산하지 않고 조정합니다. [Codex 집계](USAGE.ko.md)와 [Claude 집계](CLAUDE.ko.md#accounting)를 참고합니다.
+Claude 입력에는 비캐시 입력, 캐시 읽기, 캐시 생성이 포함됩니다. 반복 메시지·스트리밍 기록은 중복 합산하지 않고 조정합니다. [가져오기 불변 조건](#import-invariants)와 [Claude 집계](CLAUDE.ko.md#accounting)를 참고합니다.
 
 ## 비용 추정과 첨부 파일
 
@@ -28,6 +28,8 @@ Codex 이미지 분석은 숫자 개수만 저장합니다. 세션 이미지 수
 
 [계정](ACCOUNTS.ko.md) · [개인정보](PRIVACY.ko.md) · [문제 해결](TROUBLESHOOTING.ko.md) · [문서](README.ko.md)
 
+<a id="import-invariants"></a>
+
 ## 가져오기 불변 조건
 
 `CodexUsageCollector`가 허용 루트 안의 JSONL을 찾고 `SourceReadSnapshot`이 관측 prefix를 제한합니다. `CodexJSONLParser`는 지원 메타데이터만 추출하고 `UsageNormalizer`가 누적 값의 항목별 증가분을 계산합니다. 지원하지 않는 첫 기준값, 잘못된 카운터, 초기화·교차 카운터를 새로운 사용량으로 만들어 내면 안 됩니다. 동일 스냅샷·상위 기록 재생은 추가하지 않습니다. 안전한 증가분은 시각·정규 모델 ID를 유지합니다.
@@ -37,10 +39,7 @@ SQLite는 정규 이벤트, 원본 체크포인트, 키 기반 프로젝트 ID·
 스키마 복구·원본 재생은 토큰 증가분, 세대·삭제 기준, 없는 원본의 메타데이터를 유지해야 합니다. 데이터베이스 1 GiB·원본 50,000개 제한에서는 자동 삭제 대신 상태를 보고합니다. 스키마 거부로 정상 데이터가 숨겨질 수 있으므로 삭제 전에 확인합니다.
 
 ```sh
-swift test --filter UsageNormalizerTests
-swift test --filter CodexUsageCollectorTests
-swift test --filter SQLiteDatabaseTests
-swift test --filter ClaudeUsageTests
+python3 Scripts/prepare_swift_dependencies.py --run-swift test --filter 'UsageNormalizerTests|CodexUsageCollectorTests|SQLiteDatabaseTests|ClaudeUsageTests'
 ```
 
 숫자 메타데이터가 있는 합성 fixture를 사용합니다. 파서 테스트는 실계정 독립 집계 검증이 아닙니다. 소스·로컬 검사·네이티브 UI·CI·릴리스 증거를 구분합니다. 예상 안전 증가분을 이벤트 행과 비교한 뒤 기간 합계가 같은 원장과 일치하는지 확인합니다.

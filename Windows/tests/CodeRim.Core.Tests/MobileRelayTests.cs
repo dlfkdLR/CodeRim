@@ -53,13 +53,24 @@ public sealed class MobileRelayTests
         });
         using var client = new MobileRelayClient("https://relay.example.com", handler);
         var started = await client.StartPairingAsync("작업 PC", TestContext.Current.CancellationToken);
-        Assert.Equal("coderim://pair?r=https%3A%2F%2Frelay.example.com&i=" + offer.Id + "&s=" + offer.Secret,
+        Assert.Equal("CODERIM-PAIR-1\nhttps://relay.example.com\n" + offer.Id + "\n" + offer.Secret,
             MobilePairingLink.Create(client.Endpoint, started));
         Assert.Null(await client.PollPairingAsync(started, TestContext.Current.CancellationToken));
         var token = await client.PollPairingAsync(started, TestContext.Current.CancellationToken);
         Assert.Equal(bearer, token!.Token);
         await Assert.ThrowsAsync<HttpRequestException>(() => client.DisconnectAsync(token.Token, TestContext.Current.CancellationToken));
         Assert.Equal(4, handler.Count);
+    }
+    [Fact]
+    public void PairingEnvelopeMatchesTheSharedSwiftFixtureAndHasNoUrlScheme()
+    {
+        using var resource = typeof(MobileRelayTests).Assembly.GetManifestResourceStream("mobile-pairing-v1.txt")!;
+        using var reader = new StreamReader(resource);
+        var payload = MobilePairingLink.Create(new Uri("https://relay.example.com/"),
+            new MobilePairingStart(new string('a', 43), "Zq-_" + new string('9', 39), 1));
+        Assert.Equal(reader.ReadToEnd(), payload);
+        Assert.False(Uri.TryCreate(payload, UriKind.Absolute, out _));
+        Assert.True(Encoding.UTF8.GetByteCount(payload) <= 512);
     }
     [Fact]
     public void OnlyChangesAndHeartbeatsArePublished()

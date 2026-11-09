@@ -29,7 +29,7 @@ struct CodexDesktopSession: Sendable {
             throw AccountSwitchError.openCodexFirst
         }
         return try await Task.detached {
-            let executable = bundle.appendingPathComponent("Contents/Resources/codex")
+            let executable = bundledExecutable(in: bundle)
             let session = CodexDesktopSession(bundle: bundle, executable: executable)
             try session.verifySignature()
             let child = try appServerChild(of: pid, executable: executable)
@@ -41,6 +41,23 @@ struct CodexDesktopSession: Sendable {
             guard try appServerChild(of: pid, executable: executable) == child else { throw AccountSwitchError.openCodexFirst }
             return session
         }.value
+    }
+
+    /// Where the desktop app keeps its own `codex`.
+    ///
+    /// Newer builds moved it into a nested `codex-cli/CodexCLI.app` (the file
+    /// at `bin/codex` there is an unsigned shell wrapper, so the signed binary
+    /// the app actually runs is the one inside). Older builds kept it at
+    /// `Resources/codex`. Both are tried, newest first; when neither exists the
+    /// legacy path is returned so the failure is the same signature check it
+    /// always was rather than a new error.
+    static func bundledExecutable(in bundle: URL, fileManager: FileManager = .default) -> URL {
+        let resources = bundle.appendingPathComponent("Contents/Resources")
+        let layouts = [
+            resources.appendingPathComponent("codex-cli/CodexCLI.app/Contents/MacOS/codex"),
+            resources.appendingPathComponent("codex"),
+        ]
+        return layouts.first { fileManager.isExecutableFile(atPath: $0.path) } ?? layouts[1]
     }
 
     func verifySignature() throws {
@@ -73,8 +90,45 @@ struct CodexDesktopSession: Sendable {
             let url = URL(fileURLWithPath: String(decoding: path.prefix(while: { $0 != 0 }), as: UTF8.self))
             if url.standardizedFileURL == executable.standardizedFileURL { children.append(child) }
         }
+        // The desktop app runs the same binary more than once — as `app-server`
+        // and, in current builds, as an `exec-server` for cloud environments.
+        // Only the app-server owns the login, so when several match, keep the
+        // ones that were started as one.
+        if children.count > 1 {
+            children = children.filter { (try? arguments(ofProcess: $0))?.contains("app-server") == true }
+        }
         guard children.count == 1, let child = children.first else { throw AccountSwitchError.openCodexFirst }
         return child
+    }
+
+    private static func arguments(ofProcess pid: pid_t) throws -> [String] {
+        var query: [Int32] = [CTL_KERN, KERN_PROCARGS2, pid]
+        var size = 0
+        guard sysctl(&query, u_int(query.count), nil, &size, nil, 0) == 0,
+              size >= MemoryLayout<Int32>.size, size <= 1_048_576 else { throw AccountSwitchError.openCodexFirst }
+        var bytes = [UInt8](repeating: 0, count: size)
+        guard sysctl(&query, u_int(query.count), &bytes, &size, nil, 0) == 0 else { throw AccountSwitchError.openCodexFirst }
+        defer { _ = bytes.withUnsafeMutableBytes { $0.initializeMemory(as: UInt8.self, repeating: 0) } }
+        return try arguments(from: Data(bytes.prefix(size)))
+    }
+
+    /// The argument vector of a `KERN_PROCARGS2` buffer, without the
+    /// environment that follows it (which this never decodes).
+    static func arguments(from data: Data) throws -> [String] {
+        guard data.count >= MemoryLayout<Int32>.size else { throw AccountSwitchError.openCodexFirst }
+        let count = data.withUnsafeBytes { $0.loadUnaligned(as: Int32.self) }
+        guard count >= 1, count <= 16_384 else { throw AccountSwitchError.openCodexFirst }
+        var index = MemoryLayout<Int32>.size
+        func readCString() throws -> Data {
+            let start = index
+            while index < data.count, data[index] != 0 { index += 1 }
+            guard index < data.count else { throw AccountSwitchError.openCodexFirst }
+            defer { index += 1 }
+            return data.subdata(in: start..<index)
+        }
+        _ = try readCString() // Executable path, followed by alignment padding.
+        while index < data.count, data[index] == 0 { index += 1 }
+        return try (0..<Int(count)).map { _ in String(decoding: try readCString(), as: UTF8.self) }
     }
 
     private static func homeOfProcess(_ pid: pid_t) throws -> String? {
