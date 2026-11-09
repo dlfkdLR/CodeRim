@@ -33,8 +33,7 @@ final class NotchController: ObservableObject {
     private var providers: [any NotchProvider] = []
     private var monitors: [String: any AgentActivityMonitor] = [:]
     private var completions = SessionCompletionWatcher()
-    private let turnETA = TurnETAStore()
-    private var etaTimer: Timer?
+    private var clockTimer: Timer?
     private let thresholds = ThresholdNotifier(
         isMuted: { id in
             let defaults = UserDefaults.standard
@@ -184,23 +183,10 @@ final class NotchController: ObservableObject {
                     guard let self, self.selectedProviderIDs.contains(id) else { return }
                     self.window.model.sessions[id] = live
                     self.window.model.now = Date()
-                    self.turnETA.absorb(self.window.model.sessions)
                     self.announceCompletions()
                 }
                 .store(in: &cancellables)
         }
-        turnETA.$snapshots
-            .receive(on: RunLoop.main)
-            .sink { [weak self] snapshots in
-                // The row looks its estimate up by session id alone.
-                self?.window.model.turnETA = Dictionary(
-                    snapshots.map { ($0.key.split(separator: "\u{1}", maxSplits: 1).last.map(String.init) ?? $0.key, $0.value) },
-                    uniquingKeysWith: { first, _ in first })
-            }
-            .store(in: &cancellables)
-        turnETA.importPastTurns(
-            claudeProjects: claudeHome.appendingPathComponent("projects"),
-            codexSessions: URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".codex/sessions"))
         store.isBusy = { [weak self] in
             self?.monitors.values.contains { m in m.sessions.contains { $0.state == .busy } } ?? false
         }
@@ -247,11 +233,12 @@ final class NotchController: ObservableObject {
             store?.start()
             for (id, monitor) in monitors where selectedProviderIDs.contains(id) { monitor.start() }
             wireLimitBridge()
-            startETATimer()
+            startClockTimer()
+            removeLegacyCompactionHook()
         } else {
             monitors.values.forEach { $0.stop() }
-            etaTimer?.invalidate()
-            etaTimer = nil
+            clockTimer?.invalidate()
+            clockTimer = nil
             window.apply(.hidden)
             // A hidden notch has no pointer to follow or clock to show.
             window.stop()
@@ -261,30 +248,28 @@ final class NotchController: ObservableObject {
     /// The monitors publish on change, and a progress bar changes every
     /// second. While something is working, re-read the clock once a second so
     /// the bar and the time left keep moving.
-    private func startETATimer() {
-        etaTimer?.invalidate()
+    private func startClockTimer() {
+        clockTimer?.invalidate()
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self,
                       self.window.model.sessions.values.contains(where: { $0.contains { $0.state != .idle } })
                 else { return }
                 self.window.model.now = Date()
-                self.turnETA.setCompacting(self.compactingSessionKeys())
-                self.turnETA.absorb(self.window.model.sessions)
             }
         }
         RunLoop.main.add(timer, forMode: .common)
-        etaTimer = timer
+        clockTimer = timer
     }
 
-    /// Claude sessions that the compaction hook says are summarising right now.
-    private func compactingSessionKeys() -> Set<String> {
-        let compacting = ClaudeCompactionHook.standard.compactingSessionIDs()
-        guard !compacting.isEmpty else { return [] }
-        return Set((window.model.sessions["claude"] ?? []).compactMap { session in
-            guard let id = session.transcriptID, compacting.contains(id) else { return nil }
-            return TurnETACoordinator.key("claude", session.id)
-        })
+    /// Releases up to 2.1.32 could add two hooks to `~/.claude/settings.json` so
+    /// the notch could say "compacting". Nothing reads them any more, so remove
+    /// them once if they are there. A settings file that cannot be read is left
+    /// alone, and the hooks do nothing without the app.
+    private func removeLegacyCompactionHook() {
+        guard ClaudeCompactionHook.standard.isInstalled else { return }
+        do { try ClaudeCompactionHook.standard.uninstall() }
+        catch { NotchLog.sessions.error("could not remove the compaction hooks: \(error.localizedDescription, privacy: .public)") }
     }
 
     /// Refresh on quota or freshness changes, but ignore timestamps/defaults

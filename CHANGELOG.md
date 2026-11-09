@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.35 — The time-left card is gone
+
+- The time-left card, its Settings section ("Time Left (beta)") and the optional Claude compaction hook switch are removed. Hovering a chat in the notch no longer opens an estimate card, and the notch panel no longer reserves room for one. See the [release notes](Documentation/ReleaseNotes/2.1.35.md).
+
 ## 2.1.33 — Sub-agent sound off by default, a smaller wake area
 
 - A chat that is still working no longer shows "Done" when Claude Code saves a thinking block; it stays in the notch's list instead of dropping out after 90 seconds.

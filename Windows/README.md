@@ -14,7 +14,7 @@ Release 2.1.32 adds **View limits** for another saved Codex account (read in a p
 
 Release 2.1.20 keeps usage and alerts of one account from showing for another, marks inconsistent logs as partial instead of dropping them, and keeps iPhone sharing from waiting on an answer that never finishes. See [its notes](ReleaseNotes/2.1.20.md).
 
-macOS 2.1.21 to 2.1.31 and 2.1.33, all released 2026-10-20 to 2026-11-05 (the notch time-left card, a Codex desktop account fix, a Claude account switch that no longer needs the CLI stopped, a plainer account line on the Codex Limits tab, a working chat that no longer reads "Done", listed in the [changelog](../CHANGELOG.md)) are macOS-only; the Windows app does not have the time-left card or the Claude switch change. 2.1.33 and Windows 2.1.34 add the same sub-agent sound switch.
+macOS 2.1.21 to 2.1.31, 2.1.33 and 2.1.35, all released 2026-10-20 to 2026-11-05 (the notch time-left card, removed again in 2.1.35, a Codex desktop account fix, a Claude account switch that no longer needs the CLI stopped, a plainer account line on the Codex Limits tab, a working chat that no longer reads "Done", listed in the [changelog](../CHANGELOG.md)) are macOS-only; the Windows app does not have the time-left card or the Claude switch change. 2.1.33 and Windows 2.1.34 add the same sub-agent sound switch.
 
 Release 2.1.18 removes the flicker when the notch opens, especially the first time after start-up. See [its notes](ReleaseNotes/2.1.18.md).
 
