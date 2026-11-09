@@ -40,7 +40,8 @@ struct CodexAuthCredentialLoader: Sendable {
 
         let permissions = fileStatus.st_mode & 0o7777
         guard (permissions & ~mode_t(0o600)) == 0,
-              (permissions & mode_t(0o400)) != 0
+              (permissions & mode_t(0o400)) != 0,
+              !CredentialFileSafety.hasPermissiveACL(fileDescriptor: descriptor)
         else {
             throw ProfileUsageError.unsafeCredentialFile
         }
