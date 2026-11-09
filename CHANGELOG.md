@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.36 — Safer usage reads and iPhone updates
+
+- Codex and Claude transcript reads are bounded, and usage collection retains partial or repaired provenance. Account renewal and local Antigravity access reject stale or unbound credentials.
+- The iPhone connection uses an in-app pairing code. Live Activity Stop survives late registrations and retries; the matching relay and iPhone app changes must be deployed together. See the [release notes](Documentation/ReleaseNotes/2.1.36.md).
+- Windows 2.1.36 carries the corresponding fixes and separate native x64 and ARM64 package checks. See the [Windows release notes](Windows/ReleaseNotes/2.1.36.md).
+
 ## 2.1.35 — The time-left card is gone
 
 - The time-left card, its Settings section ("Time Left (beta)") and the optional Claude compaction hook switch are removed. Hovering a chat in the notch no longer opens an estimate card, and the notch panel no longer reserves room for one. See the [release notes](Documentation/ReleaseNotes/2.1.35.md).
