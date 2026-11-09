@@ -445,26 +445,13 @@ extension MobileLifecycleTests {
     /// The error a failed refresh showed goes away when the relay answers again.
     func testARefreshThatSucceedsAgainClearsTheErrorItsFailureShowed() async throws {
         let relay = FlakyRelay()
+        await relay.setFailure(URLError(.notConnectedToInternet))
         let model = MobileAppModel(credentials: MemoryCredentials(credential()), makeClient: { _ in relay })
         await model.restore()
         XCTAssertNotNil(model.errorMessage)
-        await relay.recover()
+        await relay.setFailure(nil)
         await model.refresh()
         XCTAssertNil(model.errorMessage)
-    }
-}
-
-private actor FlakyRelay: MobileRelayServing {
-    nonisolated let endpoint = URL(string: "https://relay.example.com")!
-    private var failing = true
-    func recover() { failing = false }
-    func get<Response: Decodable & Sendable>(_ path: String, token: String) throws -> Response {
-        if failing { throw URLError(.notConnectedToInternet) }
-        let data = Data(#"{"state":{"connection":"connected","updatedAt":1790000000,"staleAt":0,"providers":[],"sessions":[],"additionalSessionCount":0,"workingCount":0,"waitingCount":0,"unavailableCount":0},"preferences":{"providerIDs":[]},"availableProviders":[]}"#.utf8)
-        return try JSONDecoder().decode(Response.self, from: data)
-    }
-    func send<Response: Decodable & Sendable, Body: Encodable & Sendable>(_ method: String, _ path: String, token: String?, body: Body) throws -> Response {
-        try JSONDecoder().decode(Response.self, from: Data(#"{"ok":true}"#.utf8))
     }
 }
 
