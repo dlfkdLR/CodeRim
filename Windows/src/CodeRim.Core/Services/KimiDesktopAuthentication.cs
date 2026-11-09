@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using Microsoft.Data.Sqlite;
+using static CodeRim.Core.Providers.ProviderParsers;
 
 namespace CodeRim.Core.Services;
 
@@ -97,9 +98,7 @@ public static class KimiDesktopAuthentication
             var text = new UTF8Encoding(false, true).GetString(bytes);
             using var document = JsonDocument.Parse(text, new JsonDocumentOptions { MaxDepth = 16 });
             var root = document.RootElement;
-            if (root.ValueKind != JsonValueKind.Object) return false;
-            var names = new HashSet<string>(StringComparer.Ordinal);
-            if (root.EnumerateObject().Any(property => !names.Add(property.Name))) return false;
+            if (!IsUniqueObject(root)) return false;
             if (!root.TryGetProperty("exp", out var exp)) return true;
             if (exp.ValueKind != JsonValueKind.Number || !exp.TryGetDecimal(out var seconds)
                 || seconds <= now.ToUnixTimeMilliseconds() / 1000m || seconds > DateTimeOffset.MaxValue.ToUnixTimeSeconds()) return false;

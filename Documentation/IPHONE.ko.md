@@ -45,7 +45,7 @@ Free 플랜은 Worker와 Durable Object에 하루 약 100,000개 요청과 100,0
 | 70% 이상 | 새 계정·연결 요청에 `503 server_busy`를 반환합니다. 응답, Island 콘텐츠 상태, 데스크톱 설정에 안내를 담고, 실행 중인 Island마다 하루 한 번 알림을 보냅니다. 컴퓨터에 10분 heartbeat를 지시합니다. |
 | 90% 이상 | 위와 같고 heartbeat는 30분입니다. |
 
-내용과 간격이 같은 heartbeat는 메모리만 갱신합니다. 요청된 heartbeat 간격이 바뀔 때에는 새 온라인 유효 시간을 한 번 저장합니다. 컴퓨터는 마지막 전송 후 11분(30분 heartbeat 단계에서는 31분) 동안 온라인으로 표시합니다. 실제로는 하루에 활성 컴퓨터 약 150~300대를 감당하며, 그 이상이면 relay가 00:00 UTC까지 멈춥니다.
+내용과 간격이 같은 heartbeat는 메모리만 갱신합니다. 요청된 heartbeat 간격이 바뀔 때에는 새 온라인 유효 시간을 한 번 저장합니다. 컴퓨터는 마지막 전송 후 11분(30분 heartbeat 단계에서는 31분) 동안 온라인으로 표시합니다. 처리 용량은 스냅샷 변경과 APNs 트래픽에 따라 달라지며 예산을 소진하면 00:00 UTC까지 요청을 멈춥니다.
 
 ## 연결과 데이터 흐름
 
@@ -57,7 +57,7 @@ Free 플랜은 Worker와 Durable Object에 하루 약 100,000개 요청과 100,0
 
 ## Dynamic Island
 
-iPhone은 ActivityKit push-to-start 토큰을 등록합니다(`POST /v1/push-to-start`). 연결된 컴퓨터가 작업 중이거나 입력 대기 중인 작업을 보고했는데 그 iPhone에 Live Activity가 없으면, relay가 APNs `start` 이벤트(`attributes-type: CodeRimActivityAttributes`, 알림, 우선순위 10)로 시작합니다. 5분에 한 번까지만 시작합니다. iOS는 앱에 백그라운드 시간을 주어 새 Activity의 업데이트 토큰을 등록하게 합니다(`POST /v1/activities`). 이후 relay는 변경이 있을 때 최대 15초 간격으로 갱신하고, 마지막 작업이 끝나고 2분 뒤 Activity를 끝냅니다. iOS는 어떤 Activity든 8시간 뒤 끝냅니다. 앱의 **Show now**로 직접 시작할 수도 있습니다.
+iPhone은 ActivityKit push-to-start 토큰을 등록합니다(`POST /v1/push-to-start`). 연결된 컴퓨터가 작업 중이거나 입력 대기 중인 작업을 보고했는데 그 iPhone에 Live Activity가 없으면, relay가 APNs `start` 이벤트(`attributes-type: CodeRimActivityAttributes`, 알림, 우선순위 10)로 시작합니다. 5분에 한 번까지만 시작합니다. iOS는 앱에 백그라운드 시간을 주어 새 Activity의 업데이트 토큰을 등록하게 합니다(`POST /v1/activities`). 이후 relay는 변경이 있을 때 최대 15초 간격으로 갱신하고, 마지막 작업이 끝나고 2분 뒤 Activity를 끝냅니다. iOS는 어떤 Activity든 8시간 뒤 끝냅니다. Stop은 작업이 유휴 상태가 되거나 사용자가 명시적으로 다시 시작할 때까지 원격 시작을 억제하고 늦은 등록도 종료합니다. 오프라인 컴퓨터에는 재시도 알람으로 Activity를 시작하지 않습니다. **Show now**는 `/v1/activities/resume`으로 억제를 해제한 뒤 로컬 Activity를 만듭니다.
 
 Live Activity 갱신은 우선순위 5를 쓰고, 입력 대기와 relay 혼잡 알림만 우선순위 10을 씁니다. 직렬화한 APNs envelope는 UTF-8 3,800바이트로 제한합니다. ActivityKit wire 날짜는 Unix 초입니다.
 

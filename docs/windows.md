@@ -14,7 +14,7 @@ The MSI has no publisher certificate yet, so SmartScreen may show **Windows prot
 
 ## Microsoft Store version
 
-The Store version is the same app, signed by Microsoft. It installs where Smart App Control is on, shows no publisher warning, and the Store keeps it up to date. `coderim` and `CodeRimCLI` are execution aliases, and Launch at Login and Claude Code's status line use the package automatically. Settings, accounts and local history live in the same folders as the MSI version, so you can switch either way. Its listing goes live after Microsoft certification.
+The source includes Store packaging support; it does not establish a public listing. A certified Store version is the same app, signed by Microsoft. It installs where Smart App Control is on, shows no publisher warning, and the Store keeps it up to date. `coderim` and `CodeRimCLI` are execution aliases, and Launch at Login and Claude Code's status line use the package automatically. Settings, accounts and local history live in the same folders as the MSI version, so you can switch either way. Its listing goes live after Microsoft certification.
 
 ## Updates
 

@@ -82,18 +82,8 @@ enum BoundedProcess {
         }
     }
 
-    /// The same bounds for a caller that cannot be `async`.
-    ///
-    /// Credential discovery (`gh auth token`) and the Antigravity probe run
-    /// inside a detached task whose signature is synchronous all the way down,
-    /// and both previously used `readDataToEndOfFile()` — which has no
-    /// deadline and no ceiling, so a child that never exits (a `gh` waiting on
-    /// a Keychain prompt) blocks that thread for the life of the process and
-    /// leaves the child behind. This keeps the call shape and adds the
-    /// deadline, the output ceiling and the environment the async path has.
-    ///
-    /// stdin is `/dev/null`: a child that reads it sees EOF instead of waiting
-    /// for input that is never coming.
+    /// Synchronous discovery still needs a deadline and output ceiling.
+    /// Closed stdin prevents tools from waiting for interactive input.
     static func runSynchronously(
         executable: URL, arguments: [String], environment: [String: String],
         timeout: Duration, maximumOutputBytes: Int

@@ -6,12 +6,7 @@ using CodeRim.Core.Services;
 
 namespace CodeRim.Core.Tests;
 
-/// <summary>
-/// Every catalogue provider through every connection outcome a user can hit: nothing configured,
-/// a refused credential, a broken server, no network, a timeout and unreadable answers. Each
-/// must end in a state that tells the user what to do — never a crash, never a fake success,
-/// and never a sign-in prompt for what is really a network problem.
-/// </summary>
+/// <summary>Every provider must distinguish credential failures from network and malformed-response failures.</summary>
 public sealed class ProviderMatrixTests
 {
     public enum Scenario
@@ -139,7 +134,6 @@ public sealed class ProviderMatrixTests
             $"{id}/{scenario} reported {state} without any reading");
         Assert.False(scenario is not (Scenario.EmptyJson or Scenario.JsonArray or Scenario.NullJson or Scenario.EmptyBody) && state is ReadingState.Ready or ReadingState.Partial,
             $"{id}/{scenario} reported {state} from a failed or refused request");
-        // Whatever is shown must say something, so the user knows what to do next.
         if (state is not (ReadingState.Ready or ReadingState.Partial or ReadingState.Loading))
             Assert.False(string.IsNullOrWhiteSpace(outcome.Message), $"{id}/{scenario} ended {state} with no message");
         // Network trouble is not a sign-in problem: a sign-in prompt would send the user on a useless detour.

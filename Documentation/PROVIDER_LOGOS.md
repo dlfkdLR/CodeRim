@@ -9,8 +9,7 @@ Artwork follows pinned CodexBar `branding.iconResourceName` at `51ed16bdd3abe35e
 SVG CSS `1em` dimensions need an explicit NSImage logical size before SwiftUI rendering. Validate `ProviderGlyphView` alpha-mask output itself; `tiffRepresentation` alone does not establish the displayed vector. Check light/dark, unknown assets, legacy cache resolution, picker search/layout, native and all extended snapshot marks, and packaged resource hashes.
 
 ```sh
-swift test --filter ProviderGlyph
-swift test --filter ProviderLogo
+python3 Scripts/prepare_swift_dependencies.py --run-swift test --filter 'ProviderGlyph|ProviderLogo'
 ```
 
 Inspect synthetic captures as well as actual packaged UI if claiming installation success. The [2026-09-17 logo verification record](PROVIDER_LOGOS_2026-09-17.md) preserves the prior 39-test/build/install evidence and its limits. It is not a fresh result from this docs audit. [Providers](PROVIDERS.md).

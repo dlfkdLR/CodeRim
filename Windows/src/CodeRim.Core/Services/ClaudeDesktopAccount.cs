@@ -4,10 +4,7 @@ using System.Text.Json;
 namespace CodeRim.Core.Services;
 
 /// <summary>
-/// Which account Claude Desktop is signed in to, as far as CodeRim can tell. Desktop keeps
-/// its own encrypted sign-in in config.json, separate from the Claude Code CLI's, and rewrites
-/// it while running, so CodeRim never edits it. It only reads the account UUID Desktop records
-/// beside it, to say after a CLI switch when Desktop is still on another account.
+/// Read Desktop's account UUID only; Desktop owns its encrypted sign-in separately from the CLI.
 /// </summary>
 public static class ClaudeDesktopAccount
 {

@@ -1,6 +1,6 @@
 import { digest, secret } from './crypto.mjs';
 import { HTTPError, requireValue, preferences, sanitizeSnapshot, activityPayload, desktopState, navigate, selectProvider,
-  deviceLabel, ONLINE_WINDOW } from './model.mjs';
+  deviceLabel, eligibleProviders, ONLINE_WINDOW } from './model.mjs';
 
 /**
  * The relay runs on the Cloudflare Workers Free plan, which can never bill: once a
@@ -15,6 +15,7 @@ const IDLE_END = 120, START_COOLDOWN = 300, ACTIVITY_LIFETIME = 8 * 3600;
 const MAX_ACTIVITIES_PER_PHONE = 16;
 
 const sameSnapshot = (a, b) => a && b && JSON.stringify({ ...a, generatedAt: 0 }) === JSON.stringify({ ...b, generatedAt: 0 });
+const rejectedToken = result => result.status === 410 || (result.status === 400 && ['BadDeviceToken', 'DeviceTokenNotForTopic'].includes(result.reason));
 const day = now => Math.floor(now / 86400);
 
 export class Relay {
@@ -144,13 +145,13 @@ export class Relay {
     }
     if (method === 'DELETE' && path === '/v1/session') {
       // Mark endings durably before revoking access; tick retries APNs failures.
-      for (const a of store.activities(session.owner)) if (a.session === session.hash) { a.data.ending = true; store.saveActivity(a); }
+      this.endActivities(store.activities(session.owner).filter(a => a.session === session.hash));
       store.revoke(session.hash);
       this.settlePickers(session.owner, { context: session.role === 'desktop' });
       return { ok: true };
     }
     if (method === 'DELETE' && path === '/v1/account') {
-      for (const a of store.activities(session.owner)) { a.data.ending = true; store.saveActivity(a); }
+      this.endActivities(store.activities(session.owner));
       store.transaction(() => {
         for (const { hash } of store.sql.all('SELECT hash FROM sessions WHERE owner=?', session.owner)) store.revoke(hash);
         store.run('DELETE FROM users WHERE id=?', session.owner);
@@ -205,7 +206,7 @@ export class Relay {
         store.saveDevice(session.owner, device);
         const catalogChanged = previousCatalog !== JSON.stringify(next.providers.map(p => [p.id, p.name]));
         if (catalogChanged
-            || next.providers.filter(p => !user.preferences.providerIDs.length || user.preferences.providerIDs.includes(p.id)).length < 2) {
+            || eligibleProviders(device, user.preferences).length < 2) {
           this.settlePickers(session.owner, { deviceID: device.id, context: catalogChanged && previousCatalog !== '[]' ? device.id : false });
         }
         this.later(() => this.tick(session.owner));
@@ -236,9 +237,7 @@ export class Relay {
       // Keep every pending end delivery, but bound the retry work a phone can retain.
       if (!existing && activities.length >= MAX_ACTIVITIES_PER_PHONE) throw new HTTPError(429, 'activity_limit');
       // One Live Activity per iPhone. Token rotation keeps the original lifetime.
-      for (const a of activities) if (a.id !== id && !a.data.ending) {
-        a.data.ending = true; store.saveActivity(a);
-      }
+      this.endActivities(activities.filter(a => a.id !== id && !a.data.ending));
       store.saveActivity({ id, owner: session.owner, session: session.hash,
         data: { ...existing?.data, token: body.pushToken, createdAt: existing?.data.createdAt ?? now, sentAt: existing?.data.sentAt ?? 0,
           sentKey: existing?.data.sentKey ?? '', ending: suppressed, needsPush: true } });
@@ -250,7 +249,7 @@ export class Relay {
       const starter = store.starters(session.owner).find(s => s.session === session.hash)
         ?? { session: session.hash, owner: session.owner, data: {} };
       if (this.pushConfigured && !starter.data.suppressed) { starter.data.suppressed = true; store.saveStarter(starter); }
-      for (const a of store.activities(session.owner)) if (a.session === session.hash && !a.data.ending) { a.data.ending = true; store.saveActivity(a); }
+      this.endActivities(store.activities(session.owner).filter(a => a.session === session.hash && !a.data.ending));
       this.later(() => this.tick(session.owner));
       return { ok: true };
     }
@@ -279,13 +278,16 @@ export class Relay {
     return pair;
   }
 
+  endActivities(activities) {
+    for (const activity of activities) { activity.data.ending = true; this.store.saveActivity(activity); }
+  }
+
   response(session, now) {
     const user = this.store.user(session.owner), devices = this.devices(session.owner, now);
     const providers = new Map();
     for (const device of devices) for (const p of device.snapshot?.providers ?? []) providers.set(p.id, { id: p.id, name: p.name });
     const state = this.state(session.owner, session.hash, now, devices);
-    const displayProviders = (devices.find(d => d.id === state.focus.deviceID)?.snapshot?.providers ?? [])
-      .filter(p => !user.preferences.providerIDs.length || user.preferences.providerIDs.includes(p.id))
+    const displayProviders = eligibleProviders(devices.find(d => d.id === state.focus.deviceID), user.preferences)
       .map(p => ({ id: p.id, name: p.name }));
     return { state, preferences: user.preferences, displayProviders, notice: this.notice(),
       availableProviders: [...providers.values()].sort((a,b) => a.name.localeCompare(b.name)),
@@ -411,7 +413,7 @@ export class Relay {
       starts.push((async () => {
         try {
           const result = await this.push(starter.data.token, payload, { priority: 10 });
-          if (result.status === 410 || (result.status === 400 && ['BadDeviceToken', 'DeviceTokenNotForTopic'].includes(result.reason))) {
+          if (rejectedToken(result)) {
             this.store.run('DELETE FROM starters WHERE session=? AND data=?', starter.session, JSON.stringify(starter.data));
           }
         } catch {}
@@ -451,7 +453,7 @@ export class Relay {
         { priority: alert || state.waitingCount > 0 ? 10 : 5 });
       const current = this.store.activities(activity.owner).find(x => x.id === activity.id);
       if (!current || current.data.token !== a.token) return Infinity;
-      if (result.status === 410 || (result.status === 400 && ['BadDeviceToken', 'DeviceTokenNotForTopic'].includes(result.reason))
+      if (rejectedToken(result)
           || (result.status === 200 && a.ending)) { this.store.deleteActivity(activity.id); return Infinity; }
       if (result.status === 200) {
         Object.assign(current.data, { sentAt: now, sentKey: key, sentRevision: state.viewRevision, retryAfter: 0, needsPush: false,

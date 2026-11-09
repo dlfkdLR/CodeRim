@@ -23,7 +23,6 @@ private actor OfflineLogoutRelay: MobileRelayServing {
     }
 }
 
-/// Answers the snapshot, or fails the way a phone with no signal does.
 private actor FlakyRelay: MobileRelayServing {
     nonisolated let endpoint = URL(string: "https://relay.example.com")!
     var failure: Error?
@@ -40,8 +39,6 @@ private actor FlakyRelay: MobileRelayServing {
 
 @MainActor
 final class MobileLifecycleTests: XCTestCase {
-    /// A dropped signal says so in plain words, and the notice goes away by itself
-    /// once the relay answers again, instead of staying red until the app is reopened.
     func testAnOfflineNoticeClearsWhenTheRelayAnswersAgain() async throws {
         let relay = FlakyRelay()
         let model = MobileAppModel(credentials: MemoryCredentials(credential()), makeClient: { _ in relay })
@@ -62,8 +59,7 @@ final class MobileLifecycleTests: XCTestCase {
         XCTAssertNil(model.errorMessage)
     }
 
-    /// Only the notice a refresh raised is cleared by a refresh; a problem another action
-    /// reported (say, Live Activities not allowed) is not hidden by the next poll.
+    /// Polling clears only its own notice; another action may still need attention.
     func testARefreshDoesNotHideAnotherActionsError() async throws {
         let relay = FlakyRelay()
         let model = MobileAppModel(credentials: MemoryCredentials(credential()), makeClient: { _ in relay })
@@ -78,8 +74,7 @@ final class MobileLifecycleTests: XCTestCase {
         .init(endpoint: URL(string: "https://relay.example.com")!,
               session: .init(token: "synthetic-test-token", expiresAt: expiresAt))
     }
-    /// The saved expiry is where the token started; the relay renews tokens in use. A phone past it
-    /// stays connected while the relay accepts the token, and signs out only on the relay's 401.
+    /// The relay renews tokens in use: only its 401, not the original saved expiry, signs the phone out.
     func testThePastSavedExpiryDoesNotSignOutButARelay401Does() async throws {
         let renewed = MemoryCredentials(credential(expiresAt: 1))
         let accepted = MobileAppModel(credentials: renewed, makeClient: { _ in StatusRelay(status: 200) })
@@ -365,7 +360,6 @@ extension MobileLifecycleTests {
         XCTAssertFalse(calls.contains("POST /v1/accounts"))
         XCTAssertEqual(model.errorMessage, "This QR code has expired or was already used. Show a new one on your computer.")
     }
-    /// The QR code names its computer's server: scanning it connects there without typing an address.
     func testAComputerOnAnotherRelayIsJoinedOnItsOwnServer() async throws {
         let relay = PairingRelay()
         let storage = MemoryCredentials(credential())
@@ -387,15 +381,26 @@ private actor ActivityControlRelay: MobileRelayServing {
     private(set) var resumeToken: String?
     private(set) var resumeBody: Data?
     var rejectResume = false
+    private var snapshotStatus = 200
+    private var holdSettings = false
+    private var pendingSettings: CheckedContinuation<Void, Never>?
     func failResume() { rejectResume = true }
+    func rejectSnapshots(_ status: Int) { snapshotStatus = status }
+    func suspendSettings() { holdSettings = true }
+    var settingsPending: Bool { pendingSettings != nil }
+    func finishSettings() { pendingSettings?.resume(); pendingSettings = nil }
     func get<Response: Decodable & Sendable>(_ path: String, token: String) throws -> Response {
+        guard snapshotStatus == 200 else { throw MobileRelayError.rejected(snapshotStatus) }
         let response = MobileSnapshotResponse(state: .disconnected, preferences: MobilePreferences(), availableProviders: [])
         return try JSONDecoder().decode(Response.self, from: JSONEncoder().encode(response))
     }
     func send<Response: Decodable & Sendable, Body: Encodable & Sendable>(
         _ method: String, _ path: String, token: String?, body: Body
-    ) throws -> Response {
+    ) async throws -> Response {
         if path != "/v1/push-to-start" { calls.append("\(method) \(path)") }
+        if path == "/v1/preferences", holdSettings {
+            await withCheckedContinuation { pendingSettings = $0 }
+        }
         if path == "/v1/activities/resume" {
             resumeToken = token; resumeBody = try JSONEncoder().encode(body)
             if rejectResume { throw URLError(.notConnectedToInternet) }
@@ -405,6 +410,44 @@ private actor ActivityControlRelay: MobileRelayServing {
 }
 
 extension MobileLifecycleTests {
+    func testSettingsActionsKeepTheirLocalStateWhenTheFollowUpRefreshFails() async throws {
+        let relay = ActivityControlRelay(), saved = credential(), storage = MemoryCredentials(saved)
+        let model = MobileAppModel(credentials: storage, makeClient: { _ in relay })
+        await model.restore()
+        await relay.rejectSnapshots(503)
+        await model.selectProvider("codex", enabled: true)
+        XCTAssertEqual(model.preferences.providerIDs, ["codex"])
+        await model.showAllProviders()
+        XCTAssertEqual(model.preferences.providerIDs, ["codex"], "All is confirmed by a fresh snapshot, not guessed locally")
+        await model.removeDevice(.init(id: "mac", name: "Mac", platform: "macOS", online: false, lastSeen: 0))
+        let calls = await relay.calls, retained = try await storage.load()
+        XCTAssertEqual(calls, ["PUT /v1/preferences", "PUT /v1/preferences", "DELETE /v1/devices/mac"])
+        XCTAssertEqual(retained?.token, saved.token)
+        XCTAssertFalse(model.busy)
+        XCTAssertNotNil(model.errorMessage)
+    }
+
+    func testLateSettingsSuccessCannotRepopulateARevokedLogin() async throws {
+        let relay = ActivityControlRelay(), storage = MemoryCredentials(credential())
+        let model = MobileAppModel(credentials: storage, makeClient: { _ in relay })
+        await model.restore()
+        await relay.suspendSettings()
+        let change = Task { await model.selectProvider("codex", enabled: true) }
+        let deadline = ContinuousClock.now + .seconds(3)
+        while await !relay.settingsPending, ContinuousClock.now < deadline { await Task.yield() }
+        let pending = await relay.settingsPending
+        guard pending else { change.cancel(); return XCTFail("The settings request did not reach the relay") }
+        await relay.rejectSnapshots(401)
+        await model.refresh()
+        await relay.finishSettings()
+        await change.value
+        XCTAssertFalse(model.signedIn)
+        XCTAssertFalse(model.busy)
+        XCTAssertTrue(model.preferences.providerIDs.isEmpty)
+        let saved = try await storage.load()
+        XCTAssertNil(saved)
+    }
+
     func testAutomaticActivityUpdatesNeverUndoStopAndExplicitStartUsesTheResumeProtocol() async throws {
         let relay = ActivityControlRelay(), saved = credential(), storage = MemoryCredentials(saved)
         let model = MobileAppModel(credentials: storage, makeClient: { _ in relay })

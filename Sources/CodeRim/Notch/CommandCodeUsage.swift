@@ -88,10 +88,7 @@ enum CommandCodeUsage {
     /// ISO 8601, unix seconds, or unix milliseconds. Zero is "no reset".
     static func date(_ any: Any?) -> Date? {
         if let text = any as? String {
-            let fractional = ISO8601DateFormatter()
-            fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = fractional.date(from: text) { return date }
-            return ISO8601DateFormatter().date(from: text)
+            return TranscriptLines.parse(text)
         }
         guard let value = number(any), value > 0 else { return nil }
         var unix = value

@@ -20,7 +20,6 @@ final class UsageStore: ObservableObject {
     @Published private(set) var isAnalyticsRefreshing = false
     @Published private(set) var analyticsStatusMessage = "Analytics are ready to load"
 
-    private let formatter = TokenFormatter()
     private let defaults: UserDefaults
     private var collector: CodexUsageCollector?
     private var sourceRoots: [URL] = []
@@ -279,10 +278,14 @@ final class UsageStore: ObservableObject {
         }
     }
 
-    func rebuildStatistics() async {
+    func rebuildStatistics() async { await maintainData(rebuilding: true) }
+
+    func clearLocalHistory() async { await maintainData(rebuilding: false) }
+
+    private func maintainData(rebuilding: Bool) async {
         guard !isMaintainingData, !isRefreshing else { return }
         isMaintainingData = true
-        statusMessage = "Rebuilding local statistics…"
+        statusMessage = rebuilding ? "Rebuilding local statistics…" : "Clearing local history…"
         dataOperationMessage = statusMessage
         dataOperationFailed = false
         invalidateAnalytics(clearSnapshots: true)
@@ -291,7 +294,11 @@ final class UsageStore: ObservableObject {
         do {
             let collector = try await collector()
             let weekStart = selectedWeekStart
-            let result = try await collector.rebuild(weekStart: weekStart)
+            let result = if rebuilding {
+                try await collector.rebuild(weekStart: weekStart)
+            } else {
+                try await collector.clearLocalHistory(weekStart: weekStart)
+            }
             snapshot = result.snapshot
             hasLoadedSnapshot = true
             dataStatistics = result.statistics
@@ -300,53 +307,17 @@ final class UsageStore: ObservableObject {
             lastSourceRefreshAt = Date()
             isImportingHistory = result.hasMoreWork
             await refreshRequestedAnalytics(using: collector)
-            await DiagnosticsLogger.shared.record(.rebuildCompleted(quality: result.snapshot.quality))
-            statusMessage = result.hasMoreWork
-                ? "Importing local history…"
-                : "Rebuild complete"
+            await DiagnosticsLogger.shared.record(rebuilding
+                ? .rebuildCompleted(quality: result.snapshot.quality) : .clearCompleted)
+            let completion = rebuilding ? "Rebuild complete" : (result.maintenanceWarning ?? "Local history cleared")
+            statusMessage = result.hasMoreWork ? "Importing local history…" : completion
             dataOperationMessage = statusMessage
+            dataOperationFailed = !rebuilding && result.maintenanceWarning != nil
             if result.hasMoreWork { scheduleContinuationRefresh() }
         } catch {
-            await DiagnosticsLogger.shared.record(.rebuildFailed)
+            await DiagnosticsLogger.shared.record(rebuilding ? .rebuildFailed : .clearFailed)
             snapshot.quality = snapshot.updatedAt == nil ? .error : .stale
-            statusMessage = "Unable to rebuild statistics"
-            dataOperationMessage = statusMessage
-            dataOperationFailed = true
-        }
-    }
-
-    func clearLocalHistory() async {
-        guard !isMaintainingData, !isRefreshing else { return }
-        isMaintainingData = true
-        statusMessage = "Clearing local history…"
-        dataOperationMessage = statusMessage
-        dataOperationFailed = false
-        invalidateAnalytics(clearSnapshots: true)
-        defer { isMaintainingData = false }
-
-        do {
-            let collector = try await collector()
-            let weekStart = selectedWeekStart
-            let result = try await collector.clearLocalHistory(weekStart: weekStart)
-            snapshot = result.snapshot
-            hasLoadedSnapshot = true
-            dataStatistics = result.statistics
-            sourceCount = result.sourceCount
-            refreshPending = false
-            lastSourceRefreshAt = Date()
-            isImportingHistory = result.hasMoreWork
-            await refreshRequestedAnalytics(using: collector)
-            await DiagnosticsLogger.shared.record(.clearCompleted)
-            statusMessage = result.hasMoreWork
-                ? "Importing local history…"
-                : (result.maintenanceWarning ?? "Local history cleared")
-            dataOperationMessage = statusMessage
-            dataOperationFailed = result.maintenanceWarning != nil
-            if result.hasMoreWork { scheduleContinuationRefresh() }
-        } catch {
-            await DiagnosticsLogger.shared.record(.clearFailed)
-            snapshot.quality = snapshot.updatedAt == nil ? .error : .stale
-            statusMessage = "Unable to clear local history"
+            statusMessage = rebuilding ? "Unable to rebuild statistics" : "Unable to clear local history"
             dataOperationMessage = statusMessage
             dataOperationFailed = true
         }

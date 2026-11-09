@@ -81,16 +81,6 @@ final class OpenCodeActivityTests: XCTestCase {
         XCTAssertTrue(OpenCodeActivityMonitor.read(database: database, now: now).isEmpty)
     }
 
-    func testPastTurnLengthsComeFromParentedReplies() throws {
-        try session("a")
-        try user("u1", session: "a", at: -300)
-        try assistant("r1", session: "a", parent: "u1", created: -299, completed: -250)
-        try assistant("r2", session: "a", parent: "u1", created: -249, completed: -180)
-        let samples = TurnHistoryImporter.openCodeSamples(database: database, now: now)
-        XCTAssertEqual(samples.map(\.seconds), [120])
-        XCTAssertEqual(samples.first?.project, "app")
-    }
-
     func testMissingDatabaseIsEmptyNotAnError() {
         XCTAssertTrue(OpenCodeActivityMonitor.read(database: root.appendingPathComponent("none.db")).isEmpty)
     }

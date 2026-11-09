@@ -184,11 +184,7 @@ struct NotchSettingsView: View {
                 )) {
                     ForEach(ResetTimeFormat.allCases) { Text($0.title).tag($0.rawValue) }
                 }
-                SettingsToggleRow(
-                    "Show usage pace",
-                    get: { showUsagePace },
-                    set: { showUsagePace = $0 }
-                )
+                SettingsToggleRow("Show usage pace", isOn: $showUsagePace)
             }
             .disabled(!showEdgeNotch)
 
@@ -209,21 +205,12 @@ struct NotchSettingsView: View {
             .disabled(!showEdgeNotch)
 
             SettingsSection(title: "When a Session Ends") {
-                SettingsToggleRow(
-                    "Peek the notch open",
-                    get: { announceSessionEnd },
-                    set: { announceSessionEnd = $0 }
-                )
-                SettingsToggleRow(
-                    "Play a sound",
-                    get: { sessionEndSound },
-                    set: { sessionEndSound = $0 }
-                )
+                SettingsToggleRow("Peek the notch open", isOn: $announceSessionEnd)
+                SettingsToggleRow("Play a sound", isOn: $sessionEndSound)
                 SettingsToggleRow(
                     "Sound for sub-agents",
                     caption: "Also play it when a sub-agent finishes. Off by default; the chat that started it still sounds.",
-                    get: { subagentEndSound },
-                    set: { subagentEndSound = $0 }
+                    isOn: $subagentEndSound
                 )
                 .disabled(!sessionEndSound)
                 .accessibilityIdentifier("notch.subagentEndSound")
@@ -246,11 +233,7 @@ struct NotchSettingsView: View {
             SettingsNote("A running agent spins its ring; one waiting on you pulses amber. When it finishes, the notch drops open for five seconds — click it to raise that agent's terminal.")
 
             SettingsSection(title: "Limit Alerts") {
-                SettingsToggleRow(
-                    "Notify at 80% and 100%",
-                    get: { thresholdAlerts },
-                    set: { thresholdAlerts = $0 }
-                )
+                SettingsToggleRow("Notify at 80% and 100%", isOn: $thresholdAlerts)
             }
             .disabled(!showEdgeNotch)
             SettingsNote("A single macOS notification each time a limit window crosses 80%, then 100% — once per crossing, and again only after the window resets. Mute an individual provider from its row in Settings ▸ Providers.")

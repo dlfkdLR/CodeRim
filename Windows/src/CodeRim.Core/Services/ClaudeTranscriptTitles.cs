@@ -5,10 +5,7 @@ using System.Text.Json;
 namespace CodeRim.Core.Services;
 
 /// <summary>
-/// The conversation title Claude Code shows in its terminal tab and /resume list.
-/// Titles are appended as <c>custom-title</c> (/rename) and <c>ai-title</c> entries
-/// anywhere in a transcript, so each file keeps a read offset and only the bytes
-/// appended since the previous call are scanned.
+/// Scan appended Claude title records; late custom titles outrank generated titles.
 /// </summary>
 public sealed class ClaudeTranscriptTitles
 {

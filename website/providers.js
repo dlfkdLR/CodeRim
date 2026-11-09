@@ -371,7 +371,7 @@ window.CODERIM_PROVIDERS = [
   {
     "id": "mistral",
     "name": "Mistral",
-    "ko": "API 지출과 요금제별 허용 사용량.",
+    "ko": "API 지출과 요금제 사용 한도.",
     "en": "API spending and plan allowances.",
     "category": "tool",
     "icon": "ProviderIcon-mistral.svg"

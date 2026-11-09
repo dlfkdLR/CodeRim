@@ -28,9 +28,7 @@ public sealed record SignInPlan(SignInKind Kind, string Name, string? Command, U
 }
 
 /// <summary>
-/// How adding a provider gets the user signed in, so there is no second "Set up" step:
-/// a tool with a login command runs it, a website session opens its login page, and a
-/// key goes to the provider's settings. Nothing here reads or stores a credential.
+/// Route sign-in to the provider's CLI, website or key settings without reading or storing credentials.
 /// </summary>
 public static class ProviderSignIn
 {
@@ -104,10 +102,7 @@ public static class ProviderSignIn
         return new(SignInKind.Settings, name, null, null, $"Enter your {name} key or session in its settings. {definition?.Summary}".Trim());
     }
 
-    /// <summary>
-    /// Why a terminal sign-in cannot start: its command is not installed. Looked up on PATH with
-    /// the Windows executable extensions, so an empty terminal never opens.
-    /// </summary>
+    /// <summary>Check PATH and Windows executable extensions before opening a terminal for sign-in.</summary>
     public static string? MissingTool(SignInPlan plan, Func<string, bool>? installed = null)
     {
         if (plan.Kind != SignInKind.Terminal || plan.Command is not { } command) return null;
@@ -134,10 +129,7 @@ public static class ProviderSignIn
         return false;
     }
 
-    /// <summary>
-    /// The PATH a new terminal gets now. CodeRim's own copy is fixed at its start, so a CLI installed
-    /// afterwards would otherwise look missing until CodeRim restarts.
-    /// </summary>
+    /// <summary>Read the current terminal PATH so newly installed CLIs appear without restarting CodeRim.</summary>
     public static string CurrentPath()
     {
         var process = Environment.GetEnvironmentVariable("PATH") ?? "";
@@ -153,10 +145,7 @@ public static class ProviderSignIn
         command.Length is > 0 and <= 80 && command.All(c => char.IsAsciiLetterOrDigit(c) || c is ' ' or '-' or '_' or '.' or '/');
 }
 
-/// <summary>
-/// Adding a provider is connecting it. Read what is already there; otherwise start the
-/// sign-in once and keep watching until the account appears.
-/// </summary>
+/// <summary>Reuse an existing sign-in, or launch it once and wait for the account.</summary>
 public sealed class ProviderConnector
 {
     public enum Phase { Checking, Waiting, NeedsKey, Connected, Failed }

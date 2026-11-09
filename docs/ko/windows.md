@@ -14,7 +14,7 @@ MSI에는 아직 게시자 인증서가 없어 SmartScreen이 **Windows의 PC �
 
 ## Microsoft Store 버전
 
-Store 버전은 Microsoft가 서명한 같은 앱입니다. 스마트 앱 컨트롤이 켜진 PC에도 설치되고 게시자 경고가 없으며, Store가 업데이트를 관리합니다. `coderim`과 `CodeRimCLI`는 실행 별칭으로 제공되고 로그인 시 실행과 Claude Code 상태줄은 패키지를 자동으로 사용합니다. 설정·계정·로컬 기록은 MSI 버전과 같은 폴더를 쓰므로 어느 쪽으로든 옮길 수 있습니다. Microsoft 인증을 통과하면 등록됩니다.
+저장소에는 Store 패키징 지원이 있지만 공개 목록이 검증됐다는 뜻은 아닙니다. 인증된 Store 버전은 Microsoft가 서명한 같은 앱입니다. 스마트 앱 컨트롤이 켜진 PC에도 설치되고 게시자 경고가 없으며, Store가 업데이트를 관리합니다. `coderim`과 `CodeRimCLI`는 실행 별칭으로 제공되고 로그인 시 실행과 Claude Code 상태줄은 패키지를 자동으로 사용합니다. 설정·계정·로컬 기록은 MSI 버전과 같은 폴더를 쓰므로 어느 쪽으로든 옮길 수 있습니다. Microsoft 인증을 통과하면 등록됩니다.
 
 ## 업데이트
 

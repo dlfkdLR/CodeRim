@@ -29,9 +29,7 @@ public static class ReleasePackageDownload
     }
 
     /// <summary>
-    /// Room for the whole installer on a slow line (about 64 KB/s), never less than five minutes nor more than two
-    /// hours. A fixed five minutes failed every update below roughly 470 KB/s; a stalled connection is still caught
-    /// by the idle timeout.
+    /// Allow about 64 KB/s within 5 minutes–2 hours; the idle timeout still catches stalled downloads.
     /// </summary>
     public static TimeSpan TotalTimeout(long size) =>
         TimeSpan.FromSeconds(Math.Clamp(size / (64d * 1024), TimeSpan.FromMinutes(5).TotalSeconds, TimeSpan.FromHours(2).TotalSeconds));

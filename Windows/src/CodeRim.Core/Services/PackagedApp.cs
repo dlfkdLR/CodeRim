@@ -3,9 +3,7 @@ using System.Runtime.InteropServices;
 namespace CodeRim.Core.Services;
 
 /// <summary>
-/// Whether CodeRim runs from its Microsoft Store (MSIX) package. The Store installs into a protected
-/// WindowsApps folder, updates the app itself, and reaches the CLI through execution aliases, so a
-/// few behaviours differ from the MSI installation.
+/// Detect MSIX, whose protected install, Store updates and CLI aliases differ from MSI installations.
 /// </summary>
 public static class PackagedApp
 {

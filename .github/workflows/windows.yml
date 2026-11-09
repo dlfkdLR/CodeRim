@@ -12,6 +12,10 @@ on:
         default: false
 permissions:
   contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   test-and-package:
     if: ${{ inputs.msi_handoff != true }}
@@ -46,26 +50,8 @@ jobs:
         run: |
           $setup = (Get-ChildItem Artifacts -Filter '*-x64-Setup.msi').FullName
           ./Windows/Scripts/test-installer.ps1 -Architecture x64 -Installer $setup
-      - name: Native x64 smoke test
-        shell: pwsh
-        run: |
-          $exe = Join-Path $PWD 'Windows/artifacts/publish/win-x64/CodeRim.exe'
-          $capture = Join-Path $PWD 'Artifacts/windows-dashboard.png'
-          $process = Start-Process $exe -ArgumentList '--smoke-test', '--capture', $capture -PassThru
-          if (-not $process.WaitForExit(180000)) { $process.Kill(); throw 'Native smoke test timed out.' }
-          if ($process.ExitCode -ne 0 -or -not (Test-Path $capture)) { Get-Content (Join-Path $PWD 'Artifacts/windows-dashboard.error.txt') -ErrorAction SilentlyContinue; throw 'Native smoke test failed.' }
-          python Windows/tests/update_worker_regression_tests.py './Windows/artifacts/publish/win-x64/CodeRim.UpdateWorker.exe' --output Artifacts/windows-update-worker.json
-          if ($LASTEXITCODE -ne 0) { throw 'Unsigned update worker regression checks failed.' }
-          & './Windows/artifacts/publish/win-x64/CodeRimCLI.exe' version
-          if ($LASTEXITCODE -ne 0) { throw 'CLI startup failed.' }
-          python Windows/tests/cli_regression_tests.py './Windows/artifacts/publish/win-x64/CodeRimCLI.exe'
-          if ($LASTEXITCODE -ne 0) { throw 'CLI regression checks failed.' }
-          & './Windows/artifacts/publish/win-x64/install.ps1' -AddCliToPath
-          $cliBin = Join-Path $env:LOCALAPPDATA 'Programs\CodeRim\bin'
-          $env:PATH = $cliBin + ';' + $env:PATH
-          if ((Get-Command coderim).Source -ne (Join-Path $cliBin 'coderim.cmd')) { throw 'CLI is shadowed.' }
-          $text = cmd /d /c 'coderim version'
-          if ($LASTEXITCODE -ne 0 -or $text -notmatch 'CodeRim CLI') { throw 'Installed CLI failed.' }
+      - name: Native x64 UI and CLI regressions
+        run: ./Windows/Scripts/test-native.ps1 -Architecture x64
       - name: Build Microsoft Store packages
         shell: pwsh
         run: ./Windows/Scripts/package-msix.ps1
@@ -95,17 +81,6 @@ jobs:
           path: |
             Artifacts/CodeRim-Windows-*-Setup.msi
             Artifacts/CodeRim-Windows-*-Setup.msi.sha256
-      - name: Upload native UI evidence
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: always()
-        with:
-          name: CodeRim-Windows-UI
-          path: |
-            Artifacts/windows-*.png
-            Artifacts/installed/**
-            Artifacts/windows-*.json
-            Artifacts/windows-*.txt
-            Artifacts/windows-msi-*.log
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -168,27 +143,7 @@ jobs:
           $setup = (Get-ChildItem Artifacts/packaged -Filter '*-arm64-Setup.msi' -Recurse).FullName
           ./Windows/Scripts/test-installer.ps1 -Architecture arm64 -Installer $setup
       - name: Native ARM64 UI and CLI regressions
-        shell: pwsh
-        run: |
-          $exe = Join-Path $PWD 'Windows/artifacts/publish/win-arm64/CodeRim.exe'
-          $capture = Join-Path $PWD 'Artifacts/windows-dashboard.png'
-          $process = Start-Process $exe -ArgumentList '--smoke-test', '--capture', $capture -PassThru
-          if (-not $process.WaitForExit(180000)) { $process.Kill(); throw 'Native smoke test timed out.' }
-          if ($process.ExitCode -ne 0 -or -not (Test-Path $capture)) { Get-Content (Join-Path $PWD 'Artifacts/windows-dashboard.error.txt') -ErrorAction SilentlyContinue; throw 'Native smoke test failed.' }
-          $hostEvidence = Get-Content 'Artifacts/windows-native-host.json' -Raw | ConvertFrom-Json
-          if ($hostEvidence.os_architecture -ne 'Arm64' -or $hostEvidence.process_architecture -ne 'Arm64') { throw 'ARM64 smoke must execute natively.' }
-          python Windows/tests/update_worker_regression_tests.py './Windows/artifacts/publish/win-arm64/CodeRim.UpdateWorker.exe' --output Artifacts/windows-update-worker.json
-          if ($LASTEXITCODE -ne 0) { throw 'Unsigned update worker regression checks failed.' }
-          & './Windows/artifacts/publish/win-arm64/CodeRimCLI.exe' version
-          if ($LASTEXITCODE -ne 0) { throw 'CLI startup failed.' }
-          python Windows/tests/cli_regression_tests.py './Windows/artifacts/publish/win-arm64/CodeRimCLI.exe'
-          if ($LASTEXITCODE -ne 0) { throw 'CLI regression checks failed.' }
-          & './Windows/artifacts/publish/win-arm64/install.ps1' -AddCliToPath
-          $cliBin = Join-Path $env:LOCALAPPDATA 'Programs\CodeRim\bin'
-          $env:PATH = $cliBin + ';' + $env:PATH
-          if ((Get-Command coderim).Source -ne (Join-Path $cliBin 'coderim.cmd')) { throw 'CLI is shadowed.' }
-          $text = cmd /d /c 'coderim version'
-          if ($LASTEXITCODE -ne 0 -or $text -notmatch 'CodeRim CLI') { throw 'Installed CLI failed.' }
+        run: ./Windows/Scripts/test-native.ps1 -Architecture arm64
       - name: Download the Store packages
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:

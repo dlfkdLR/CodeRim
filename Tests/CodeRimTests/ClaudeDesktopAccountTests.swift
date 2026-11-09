@@ -12,14 +12,11 @@ final class ClaudeDesktopAccountTests: XCTestCase {
     func testReadsOnlyTheRecordedAccountID() throws {
         let url = try config(#"{"oauth:tokenCacheV2":"opaque","lastKnownAccountUuid":"AAA-1"}"#)
         XCTAssertEqual(ClaudeDesktopAccount.accountID(configuration: url), "AAA-1")
-        XCTAssertFalse(ClaudeDesktopAccount.differs(from: "aaa-1", configuration: url))
-        XCTAssertTrue(ClaudeDesktopAccount.differs(from: "BBB-2", configuration: url))
     }
 
-    func testUnknownDesktopIsNeverReportedAsDifferent() throws {
+    func testUnknownDesktopHasNoRecordedAccountID() throws {
         let missing = FileManager.default.temporaryDirectory.appendingPathComponent("absent-\(UUID().uuidString).json")
         XCTAssertNil(ClaudeDesktopAccount.accountID(configuration: missing))
-        XCTAssertFalse(ClaudeDesktopAccount.differs(from: "BBB-2", configuration: missing))
-        XCTAssertFalse(ClaudeDesktopAccount.differs(from: "BBB-2", configuration: try config(#"{"locale":"en"}"#)))
+        XCTAssertNil(ClaudeDesktopAccount.accountID(configuration: try config(#"{"locale":"en"}"#)))
     }
 }

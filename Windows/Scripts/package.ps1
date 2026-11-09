@@ -52,10 +52,6 @@ $archivePath = Join-Path $artifactRoot $archiveName
 $checksumPath = "$archivePath.sha256"
 $manifestPath = Join-Path $artifactRoot "SHA256SUMS-windows.txt"
 
-if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$') {
-    throw "Unsupported version: $Version"
-}
-
 # No environment-based publisher pin, automatic certificate creation, or unsigned fallback in Required mode.
 $certificate = $null
 if ($SigningMode -eq 'Required') {
@@ -79,25 +75,18 @@ function Sign-PayloadFile([string]$Path) {
     $signature = Get-AuthenticodeSignature -LiteralPath $Path
     if ($signature.Status -ne 'Valid' -or -not $signature.TimeStamperCertificate -or $signature.SignerCertificate.Thumbprint -ine $certificate.Thumbprint) { throw 'Publisher signing or timestamp verification failed.' }
 }
+function Publish-Project([string]$Project, [string]$Output, [string]$Failure, [string[]]$ExtraArguments = @()) {
+    dotnet publish $Project --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $Output "-p:Version=$Version" '-p:CodeRimMsiQa=false' '-p:DebugType=None' '-p:DebugSymbols=false' @ExtraArguments
+    if ($LASTEXITCODE -ne 0) { throw $Failure }
+}
 
 if (Test-Path $publishRoot) {
     Remove-Item -Recurse -Force $publishRoot
 }
 New-Item -ItemType Directory -Force -Path $publishRoot, $artifactRoot | Out-Null
 
-dotnet publish $projectPath `
-    --configuration Release `
-    --runtime $RuntimeIdentifier `
-    --self-contained true `
-    --output $publishRoot `
-    -p:Version=$Version `
-    -p:CodeRimMsiQa=false -p:DebugType=None `
-    -p:DebugSymbols=false `
-    "-p:CodeRimPublisherSpkiSha256=$PublisherSpkiSha256"
-
-if ($LASTEXITCODE -ne 0) { throw 'Application publish failed.' }
-dotnet publish (Join-Path $windowsRoot "src\CodeRim.CLI\CodeRim.CLI.csproj") --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $publishRoot -p:Version=$Version -p:CodeRimMsiQa=false -p:DebugType=None -p:DebugSymbols=false
-if ($LASTEXITCODE -ne 0) { throw 'CLI publish failed.' }
+Publish-Project $projectPath $publishRoot 'Application publish failed.' @("-p:CodeRimPublisherSpkiSha256=$PublisherSpkiSha256")
+Publish-Project (Join-Path $windowsRoot "src\CodeRim.CLI\CodeRim.CLI.csproj") $publishRoot 'CLI publish failed.'
 Copy-Item (Join-Path $PSScriptRoot 'install.ps1'), (Join-Path $PSScriptRoot 'connect-claude.ps1') $publishRoot
 New-Item -ItemType Directory -Force (Join-Path $publishRoot 'bin') | Out-Null
 Copy-Item (Join-Path $PSScriptRoot 'coderim.cmd') (Join-Path $publishRoot 'bin')
@@ -128,16 +117,14 @@ if ($SigningMode -eq 'Required') {
 }
 # The legacy ZIP entry remains disabled without its publisher pin. The MSI entry requires a release-key-signed manifest.
 $workerRoot = Join-Path $windowsRoot ('artifacts\worker-publish-' + [Guid]::NewGuid().ToString('N'))
-dotnet publish $workerProject --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $workerRoot -p:Version=$Version -p:CodeRimMsiQa=false -p:DebugType=None -p:DebugSymbols=false @resourceArguments
-if ($LASTEXITCODE -ne 0) { throw 'Update worker publish failed.' }
+Publish-Project $workerProject $workerRoot 'Update worker publish failed.' $resourceArguments
 $workerPath = Join-Path $workerRoot 'CodeRim.UpdateWorker.exe'
 if (-not (Test-Path $workerPath)) { throw 'Published update worker is missing.' }
 if ($SigningMode -eq 'Required') { Sign-PayloadFile $workerPath }
 else {
     # Pin the already-installed bootstrap worker in the GUI before building a public MSI.
     $installerWorkerHash = (Get-FileHash $workerPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    dotnet publish $projectPath --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $publishRoot -p:Version=$Version -p:CodeRimMsiQa=false -p:DebugType=None -p:DebugSymbols=false "-p:CodeRimInstallerWorkerSha256=$installerWorkerHash" -p:CodeRimPublisherSpkiSha256=
-    if ($LASTEXITCODE -ne 0) { throw 'Installer bootstrap pin publish failed.' }
+    Publish-Project $projectPath $publishRoot 'Installer bootstrap pin publish failed.' @("-p:CodeRimInstallerWorkerSha256=$installerWorkerHash", '-p:CodeRimPublisherSpkiSha256=')
     $bootstrap = @{version=$Version; workerSha256=$installerWorkerHash; guiSha256=(Get-FileHash $executablePath -Algorithm SHA256).Hash.ToLowerInvariant()}
     [IO.File]::WriteAllText((Join-Path $publishRoot 'CodeRim.bootstrap.json'), ($bootstrap | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
 }

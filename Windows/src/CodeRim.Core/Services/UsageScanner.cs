@@ -254,46 +254,42 @@ public sealed class UsageScanner
             }
         }
 
-        var events = new List<UsageEvent>();
         var merged = new Dictionary<string, UsageEvent>(StringComparer.Ordinal);
-        var eventIndices = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var cached in cache.Values)
         {
             foreach (var usageEvent in cached.Events)
             {
                 if (provider == "claude")
                 {
-                    merged[usageEvent.EventKey] = merged.TryGetValue(usageEvent.EventKey, out var existing)
-                        ? ClaudeJsonlParser.Merge(existing, usageEvent) : usageEvent;
+                    merged[usageEvent.EventKey] = merged.TryGetValue(usageEvent.EventKey, out var claudeExisting)
+                        ? ClaudeJsonlParser.Merge(claudeExisting, usageEvent) : usageEvent;
                     continue;
                 }
-                if (eventIndices.TryGetValue(usageEvent.EventKey, out var existingIndex))
+                if (merged.TryGetValue(usageEvent.EventKey, out var existing))
                 {
-                    var existing = events[existingIndex];
                     existing = existing with { Repaired = existing.Repaired || usageEvent.Repaired };
-                    events[existingIndex] = existing;
                     if (existing.Usage.InputTokens == usageEvent.Usage.InputTokens
                         && existing.Usage.CachedInputTokens == usageEvent.Usage.CachedInputTokens
                         && existing.Usage.OutputTokens == usageEvent.Usage.OutputTokens)
-                        events[existingIndex] = existing with {
+                        existing = existing with {
                             Usage = existing.Usage.CacheWriteInputTokens is null && usageEvent.Usage.CacheWriteInputTokens is not null ? usageEvent.Usage : existing.Usage,
                             PricingContext = usageEvent.PricingContext ?? existing.PricingContext };
+                    merged[usageEvent.EventKey] = existing;
                     continue;
                 }
 
-                if (events.Count >= maximumEventCount)
+                if (merged.Count >= maximumEventCount)
                 {
                     partial = true;
                     resourceLimitReached = true;
                     break;
                 }
 
-                eventIndices[usageEvent.EventKey] = events.Count;
-                events.Add(usageEvent);
+                merged.Add(usageEvent.EventKey, usageEvent);
             }
         }
 
-        if (provider == "claude") events.AddRange(merged.Values.Take(maximumEventCount));
+        var events = merged.Values.Take(maximumEventCount).ToList();
         if (cacheAtStart.Length != cache.Count
             || cacheAtStart.Any(entry => !cache.TryGetValue(entry.Key, out var current) || !ReferenceEquals(current, entry.Value)))
             contentVersion = Interlocked.Increment(ref contentVersions);
@@ -922,26 +918,12 @@ internal static class BoundedLineReader
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var remainingBytes = maximumBytes - totalBytesRead;
-                if (remainingBytes <= 0)
-                {
-                    if (oversized || lineBuffer.WrittenCount > 0)
-                    {
-                        yield return new BoundedLine(null, true);
-                    }
-                    yield break;
-                }
+                if (remainingBytes <= 0) break;
                 var read = stream.Read(
                     readBuffer,
                     0,
                     (int)Math.Min(readBuffer.Length, remainingBytes));
-                if (read == 0)
-                {
-                    if (oversized || lineBuffer.WrittenCount > 0)
-                    {
-                        yield return new BoundedLine(null, true);
-                    }
-                    yield break;
-                }
+                if (read == 0) break;
                 totalBytesRead += read;
                 prefixHash?.AppendData(readBuffer, 0, read);
 
@@ -974,6 +956,7 @@ internal static class BoundedLineReader
                     lineBuffer.Advance(1);
                 }
             }
+            if (oversized || lineBuffer.WrittenCount > 0) yield return new BoundedLine(null, true);
         }
         finally
         {

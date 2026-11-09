@@ -116,6 +116,12 @@ public static class ProviderParsers
         }
         return result;
     }
+    internal static bool IsUniqueObject(JsonElement value)
+    {
+        if (value.ValueKind != JsonValueKind.Object) return false;
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        return value.EnumerateObject().All(property => names.Add(property.Name));
+    }
     public static JsonElement Get(JsonElement root, string name) => root.ValueKind == JsonValueKind.Object && root.TryGetProperty(name, out var result) ? result : default;
     public static string? Text(JsonElement root, string name) => Get(root, name).ValueKind == JsonValueKind.String ? Get(root, name).GetString() : null;
     public static double? Number(JsonElement root, string name)

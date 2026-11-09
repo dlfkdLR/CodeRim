@@ -50,9 +50,7 @@ internal sealed class SavedAccounts(CredentialVault vault, Func<AccountOperation
     }
     internal static SavedLogin ParseCredential(string provider, string credential) => ParseLogin(provider, credential, null);
     /// <summary>
-    /// Replaces a saved account's credential with its renewed copy, but only when
-    /// the account is still saved and its stored copy has not changed since it was
-    /// read. Returns false when the renewed login could not be stored yet.
+    /// Renew only an unchanged saved credential; removal/replacement wins and failed persistence returns false.
     /// </summary>
     internal bool StoreRotated(SavedLogin original, string renewedCredential)
     {

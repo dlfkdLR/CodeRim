@@ -2,6 +2,22 @@ import XCTest
 @testable import CodeRim
 
 final class UsageActivityTests: XCTestCase {
+    func testActivityRootsHonorOnlyValidAbsoluteClaudeProfiles() {
+        let home = URL(fileURLWithPath: "/synthetic-home", isDirectory: true)
+        XCTAssertEqual(UsageActivityScanner.Roots.standard(home: home, environment: [:]).claudeProjects.path,
+                       "/synthetic-home/.claude/projects")
+        for configured in ["", "relative-profile", "/invalid\0profile"] {
+            let roots = UsageActivityScanner.Roots.standard(home: home,
+                environment: ["CLAUDE_CONFIG_DIR": configured])
+            XCTAssertEqual(roots.claudeProjects.path, "/synthetic-home/.claude/projects")
+            XCTAssertEqual(roots.codexSessions.map(\.path),
+                           ["/synthetic-home/.codex/sessions", "/synthetic-home/.codex/archived_sessions"])
+        }
+        XCTAssertEqual(UsageActivityScanner.Roots.standard(home: home,
+            environment: ["CLAUDE_CONFIG_DIR": "/synthetic-profile"]).claudeProjects.path,
+                       "/synthetic-profile/projects")
+    }
+
     private var utc: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!

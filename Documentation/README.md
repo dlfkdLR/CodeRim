@@ -2,7 +2,7 @@
 
 **English** · [한국어](README.ko.md)
 
-This index separates current implementation guidance from dated evidence. macOS local Usage analytics and separate Codex account history are shipped features. Windows has a stable 2.1.34 release. The native iPhone companion remains unreleased source: it pairs anonymously by QR code, without Apple sign-in, through a Cloudflare Worker and SQLite-backed Durable Object relay, and requires provisioning and relay configuration. Source guidance does not establish a public iPhone release or live APNs/Dynamic Island delivery. Historical audits retain their recorded commits, dates, and verification limits.
+Current developer contracts are listed below; platform scope belongs in [Product](../PRODUCT.md) and the platform guides. The iPhone companion remains unreleased source requiring provisioning and relay configuration. Dated records describe their original runs, not current acceptance.
 
 - [Architecture](ARCHITECTURE.md) — ownership, pipelines, persistence, and async boundaries.
 - [Usage accounting](USAGE.md) — safe deltas, cache arithmetic, calendar periods, and recovery.

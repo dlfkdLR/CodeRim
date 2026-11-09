@@ -6,10 +6,7 @@ using CodeRim.Core.Services;
 
 namespace CodeRim.Core.Tests;
 
-/// <summary>
-/// The Windows counterpart of the macOS ladder: connecting a provider from plain routing up to
-/// races, hostile input and misbehaving networks. Most of it sits at the hard end.
-/// </summary>
+/// <summary>Connection routing, races, hostile input and network failures across provider sign-in routes.</summary>
 public sealed class ProviderConnectionLadderTests : IDisposable
 {
     private readonly Func<GoogleOAuthClient?> savedLocator = ProviderSignIn.AntigravityClient;
@@ -29,8 +26,6 @@ public sealed class ProviderConnectionLadderTests : IDisposable
         var end = DateTime.UtcNow.AddMilliseconds(ms);
         while (DateTime.UtcNow < end && !done()) await Task.Delay(5, TestContext.Current.CancellationToken);
     }
-
-    // Level 1 — routing
 
     [Fact] public void L01CopilotSignsInInsideTheApp() { var p = ProviderSignIn.For("copilot"); Assert.Equal(SignInKind.InApp, p.Kind); Assert.Equal(InAppKind.GitHubDevice, p.InApp); }
 
@@ -61,8 +56,6 @@ public sealed class ProviderConnectionLadderTests : IDisposable
     }
 
     [Fact] public void L08AnInstalledToolPassesPreflight() => Assert.Null(ProviderSignIn.MissingTool(new(SignInKind.Terminal, "T", "tool login", null, "n"), _ => true));
-
-    // Level 2 — connector states
 
     [Fact] public async Task L09AnExistingSignInConnectsWithoutOpeningAnything()
     {
@@ -154,8 +147,6 @@ public sealed class ProviderConnectionLadderTests : IDisposable
         Assert.Equal("Install the Antigravity app first", c.StateOf("p")!.Message);
     }
 
-    // Level 3 — races
-
     [Fact] public async Task L19CancellingWhileCheckingNeverLeavesAConnectedState()
     {
         var gate = new TaskCompletionSource<bool>();
@@ -226,8 +217,6 @@ public sealed class ProviderConnectionLadderTests : IDisposable
         Assert.Equal(ProviderConnector.Phase.Waiting, c.StateOf("p")!.Phase);
         await again;
     }
-
-    // Level 3 — GitHub device flow against a scripted GitHub
 
     private sealed class Script(params (HttpStatusCode Status, string Body)[] replies) : HttpMessageHandler
     {
@@ -309,8 +298,6 @@ public sealed class ProviderConnectionLadderTests : IDisposable
         cancel.Cancel();
         Assert.Equal("Sign-in was cancelled.", (await run).Reason);
     }
-
-    // Level 3 — Antigravity's OAuth client and the loopback redirect
 
     [Fact] public void L35TheClientIsFoundNextToItsMarker()
     {
@@ -477,8 +464,6 @@ public sealed class ProviderConnectionLadderTests : IDisposable
         }, _ => { }, CancellationToken.None, TimeSpan.FromSeconds(5));
         Assert.False(outcome.SignedIn); Assert.Contains("refused", outcome.Reason);
     }
-
-    // Level 3 — hostile text
 
     [Theory]
     [InlineData("gh auth login; del C:\\")]

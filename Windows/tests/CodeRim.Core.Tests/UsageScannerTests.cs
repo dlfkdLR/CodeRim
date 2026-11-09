@@ -120,6 +120,44 @@ public sealed class UsageScannerTests
         }
         finally { Directory.Delete(root, true); }
     }
+
+    [Fact]
+    public async Task DuplicateEnrichmentPreservesFirstSeenOrderAndDistinctEvents()
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            var metadata = """{"type":"session_meta","payload":{"id":"ordered"}}""";
+            var first = TokenLine("2026-09-01T00:00:01Z", 1, 100, 0, 20);
+            File.WriteAllLines(Path.Combine(root, "a.jsonl"), [metadata, first]);
+            File.WriteAllLines(Path.Combine(root, "b.jsonl"), [metadata,
+                first.Replace("\"output_tokens\":20", "\"output_tokens\":20,\"cache_write_input_tokens\":40", StringComparison.Ordinal),
+                TokenLineWithLast("2026-09-01T00:00:02Z", 150, 0, 30, 50, 0, 10, 2)]);
+            var result = await new UsageScanner([root]).ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            Assert.Equal(new long[] { 120, 60 }, result.Events.Select(x => x.Usage.TotalTokens));
+            Assert.Equal(40, result.Events[0].Usage.CacheWriteInputTokens);
+            Assert.Equal(2, result.Events.Select(x => x.EventKey).Distinct(StringComparer.Ordinal).Count());
+            Assert.Equal(180, result.Snapshot.AllTime.TotalTokens);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Theory]
+    [InlineData("one\npartial", 99, "one", 1)]
+    [InlineData("one\npartial", 6, "one", 1)]
+    [InlineData("one\npartial", 4, "one", 0)]
+    [InlineData("partial", 99, "", 1)]
+    [InlineData("partial", 0, "", 0)]
+    [InlineData("one\ntwo\n", 99, "one|two", 0)]
+    public void BoundedReaderQuarantinesOnlyUnfinishedTail(string text, int budget, string complete, int quarantined)
+    {
+        using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(text));
+        var lines = BoundedLineReader.Read(stream, budget, TestContext.Current.CancellationToken).ToArray();
+        Assert.Equal(complete, string.Join('|', lines.Where(x => !x.Oversized).Select(x => System.Text.Encoding.UTF8.GetString(x.Bytes!))));
+        Assert.Equal(quarantined, lines.Count(x => x.Oversized));
+        Assert.All(lines.Where(x => x.Oversized), line => Assert.Null(line.Bytes));
+        Assert.Equal(Math.Min(budget, stream.Length), stream.Position);
+    }
     [Theory]
     [InlineData(110, 15, 125)]
     [InlineData(100, 10, 110)]

@@ -14,12 +14,9 @@ actor UsageActivityScanner {
 
         static func standard(home: URL = FileManager.default.homeDirectoryForCurrentUser,
                              environment: [String: String] = ProcessInfo.processInfo.environment) -> Roots {
-            let claudeHome = environment["CLAUDE_CONFIG_DIR"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0) }
-                ?? home.appendingPathComponent(".claude", isDirectory: true)
-            let codex = home.appendingPathComponent(".codex", isDirectory: true)
-            return Roots(claudeProjects: claudeHome.appendingPathComponent("projects", isDirectory: true),
-                         codexSessions: [codex.appendingPathComponent("sessions", isDirectory: true),
-                                         codex.appendingPathComponent("archived_sessions", isDirectory: true)])
+            Roots(claudeProjects: UsageProvider.claudeConfigRoot(home: home, environment: environment)
+                .appendingPathComponent("projects", isDirectory: true),
+                  codexSessions: UsageProvider.codex.sourceRoots(home: home, environment: environment))
         }
     }
 
@@ -148,7 +145,7 @@ actor UsageActivityScanner {
 
     private func readClaude(_ url: URL) -> FileActivity {
         var parser = ClaudeActivityParser(days: days)
-        TurnHistoryImporter.forEachLine(of: url, containingAny: ClaudeActivityParser.needles, copying: false) {
+        TranscriptLines.forEachLine(of: url, containingAny: ClaudeActivityParser.needles, copying: false) {
             parser.consume($0)
         }
         var activity = parser.finish()
@@ -161,7 +158,7 @@ actor UsageActivityScanner {
 
     private func readCodex(_ url: URL) -> FileActivity {
         var parser = CodexActivityParser(days: days)
-        TurnHistoryImporter.forEachLine(of: url, containingAny: CodexActivityParser.needles, copying: false) {
+        TranscriptLines.forEachLine(of: url, containingAny: CodexActivityParser.needles, copying: false) {
             parser.consume($0)
         }
         var activity = parser.finish()

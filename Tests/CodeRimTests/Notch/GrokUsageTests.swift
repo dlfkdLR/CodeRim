@@ -117,6 +117,15 @@ final class NotchGrokCredentialsTests: XCTestCase {
         XCTAssertFalse(creds.isExpired)
     }
 
+    @MainActor
+    func testProviderAccountAndIdentityUseTheSameCredentialFile() throws {
+        let url = try write(#"{"https://auth.x.ai::grok-cli":{"key":"fixture","email":"fixture@example.com"}}"#)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let provider = GrokNotchProvider(authURL: url)
+        XCTAssertEqual(provider.account()?.label, "fixture@example.com")
+        XCTAssertEqual(provider.accountIdentity(), try GrokCredentials.load(from: url).identity)
+    }
+
     func testUntrustedIssuerIsIgnored() throws {
         let url = try write("""
         {"https://idp.example.com::grok-cli":{"key":"private-proxy-token",

@@ -2,7 +2,7 @@
 
 **English** · [한국어](USAGE.ko.md)
 
-Open **Settings → Usage** and choose Codex or a connected Claude Code integration. CodeRim 2.1.13 offers **Overview**, **Usage analytics**, and provider **Limits**. Its analytics show period totals, token-type/model charts, projects, sessions, and model/session details.
+Open **Settings → Usage** and choose Codex or a connected Claude Code integration. Settings offers **Overview**, **Usage analytics**, and provider **Limits**. Its analytics show period totals, token-type/model charts, projects, sessions, and model/session details.
 
 ## Local and account scope
 
@@ -16,7 +16,7 @@ Open **Settings → Usage** and choose Codex or a connected Claude Code integrat
 
 **Total = Input + Output.** Cached input is already included in input. A stacked chart splits it into uncached input, cached input, and output rather than adding it again. Codex cumulative snapshots contribute safe increases; repeated snapshots add nothing.
 
-Claude input includes uncached input, cache reads, and cache creation. Repeated message/streaming records are reconciled rather than summed. See [Codex accounting](USAGE.md) and [Claude accounting](CLAUDE.md#accounting).
+Claude input includes uncached input, cache reads, and cache creation. Repeated message/streaming records are reconciled rather than summed. See [import invariants](#import-invariants) and [Claude accounting](CLAUDE.md#accounting).
 
 ## Estimates and attachments
 
@@ -37,10 +37,7 @@ SQLite persists normalized events, source checkpoints, keyed project identity/ba
 Schema repair and source replay must preserve token deltas, generation/cutoff semantics, and metadata for absent sources. The 1 GiB database and 50,000-source safety limits report a condition rather than deleting history automatically. A schema rejection can hide intact data; inspect before clearing.
 
 ```sh
-swift test --filter UsageNormalizerTests
-swift test --filter CodexUsageCollectorTests
-swift test --filter SQLiteDatabaseTests
-swift test --filter ClaudeUsageTests
+python3 Scripts/prepare_swift_dependencies.py --run-swift test --filter 'UsageNormalizerTests|CodexUsageCollectorTests|SQLiteDatabaseTests|ClaudeUsageTests'
 ```
 
 Use synthetic fixtures with numeric metadata; a parser test is not independent accounting of a real account. Record source, local checks, native UI, CI, and release verification separately. Compare expected safe deltas to event rows, then confirm periods reconcile to the same ledger.

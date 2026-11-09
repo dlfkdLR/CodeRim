@@ -62,7 +62,7 @@ public static class CursorAuthentication
         var auth = read(authPath); var config = read(configPath);
         if (auth != read(authPath) || config != read(configPath)) return new(null, null);
         var root = Object(auth); var info = Get(Object(config), "authInfo");
-        if (!UniqueObject(info)) info = default;
+        if (!IsUniqueObject(info)) info = default;
         var token = Token(Text(root, "accessToken"));
         var claims = Claims(token);
         var jwtSubject = Subject(Text(claims, "sub"));
@@ -114,15 +114,9 @@ public static class CursorAuthentication
         try
         {
             using var document = JsonDocument.Parse(json, new JsonDocumentOptions { MaxDepth = 32 });
-            return UniqueObject(document.RootElement) ? document.RootElement.Clone() : default;
+            return IsUniqueObject(document.RootElement) ? document.RootElement.Clone() : default;
         }
         catch (JsonException) { return default; }
-    }
-    private static bool UniqueObject(JsonElement value)
-    {
-        if (value.ValueKind != JsonValueKind.Object) return false;
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        return value.EnumerateObject().All(property => names.Add(property.Name));
     }
     private static string? Token(string? value)
     {

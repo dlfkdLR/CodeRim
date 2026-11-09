@@ -161,3 +161,33 @@ final class CredentialFileSafetyTests: XCTestCase {
 
     private enum Failure: Error { case open, chmod }
 }
+
+final class CredentialFileIOTests: XCTestCase {
+    func testDescriptorRoundTripAndExactReadLimit() throws {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let fd = open(file.path, O_RDWR | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC, 0o600)
+        XCTAssertGreaterThanOrEqual(fd, 0)
+        guard fd >= 0 else { return }
+        defer { close(fd); try? FileManager.default.removeItem(at: file) }
+        let data = Data(repeating: 0xAB, count: 16_385)
+        try CredentialFileSafety.writeAll(data, to: fd, failure: Failure.write)
+        XCTAssertEqual(lseek(fd, 0, SEEK_SET), 0)
+        XCTAssertEqual(try CredentialFileSafety.readAll(from: fd, limit: data.count, failure: Failure.read), data)
+        XCTAssertEqual(lseek(fd, 0, SEEK_SET), 0)
+        XCTAssertThrowsError(try CredentialFileSafety.readAll(from: fd, limit: data.count - 1, failure: Failure.limit)) {
+            XCTAssertEqual($0 as? Failure, .limit)
+        }
+    }
+
+    func testIOFailuresKeepTheCallersError() {
+        XCTAssertThrowsError(try CredentialFileSafety.readAll(from: -1, limit: 1, failure: Failure.read)) {
+            XCTAssertEqual($0 as? Failure, .read)
+        }
+        XCTAssertThrowsError(try CredentialFileSafety.writeAll(Data([1]), to: -1, failure: Failure.write)) {
+            XCTAssertEqual($0 as? Failure, .write)
+        }
+        XCTAssertNoThrow(try CredentialFileSafety.writeAll(Data(), to: -1, failure: Failure.write))
+    }
+
+    private enum Failure: Error, Equatable { case read, write, limit }
+}

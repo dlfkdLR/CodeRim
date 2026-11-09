@@ -42,11 +42,7 @@ struct NotchRootView: View {
                         resetTimeFormat: model.resetTimeFormat,
                         onSwitchAccount: model.onSwitchAccount.map { action in { action(snapshot.id) } }
                     )
-                        // Deliberately *no* `.id` here: the card is one object
-                        // that travels and resizes between cells, which reads
-                        // far better than one card leaving and another arriving.
-                        // What must not interpolate is its contents — see
-                        // `TooltipCard`.
+                        // Move one card between cells; only its contents crossfade by identity in TooltipCard.
                         .position(tooltipCentre(place, index: index, snapshot: snapshot))
                         .transition(.opacity.combined(with: .offset(
                             x: model.edge.outward.x * NotchDesign.px(24),
@@ -85,23 +81,12 @@ struct NotchRootView: View {
                 .contentShape(Circle())
                 .accessibilityLabel("Open Settings")
                 .accessibilityIdentifier("notch.settings")
-                // Before `position`, not after. `position` hands back a
-                // view the size of the whole panel with the orb placed
-                // inside it, so a scale applied after this one scales
-                // *that* layer about the panel's centre — which moves
-                // the orb away from the notch by a share of the panel,
-                // and left the arc floating off the corner it is drawn
-                // to hug. Here it scales the orb about its own centre,
-                // which is what `orbCentre` then places.
+                // Scale before position so the orb scales about its own centre, not the panel centre.
                 .scaleEffect(model.sizeScale)
                 .position(orbCentre(place))
                 // Outward, into the black — not inward to nothing.
                 .scaleEffect(model.isExpanded ? 1 : model.orbMergeScale)
-                // Full strength the whole way in. The arc is buried in
-                // the notch before this reaches zero, so the fade is
-                // only there to guarantee nothing is left on screen
-                // once the notch has folded — it is never what the eye
-                // sees the arc leave by.
+                // The arc is buried before opacity reaches zero; fading only guarantees a clean folded state.
                 .opacity(model.isExpanded ? 1 : 0)
                 .animation(motion(orbMotion), value: model.isExpanded)
 
@@ -216,11 +201,7 @@ struct NotchRootView: View {
                 isRefreshing: model.refreshing.contains(snapshot.id),
                 percentageMode: model.percentageMode
             )
-                // Pinned to what the cell claims along the stack, or the drawn
-                // rings stop lining up with the centres `ringCenter` hands to
-                // the hover bands and the tooltip tails. Across a horizontal
-                // edge that is the ring alone — the label sits below it, in the
-                // notch's depth, and claims nothing here.
+                // Match cellAlong so drawn rings align with hover bands and tooltip tails on every edge.
                 .frame(width: model.edge.isVertical ? nil : NotchLayout.cellAlong(for: model.edge))
                 .opacity(model.isExpanded ? 1 : 0)
                 // A short slide toward the edge, no scaling: the clip is
@@ -281,11 +262,7 @@ struct NotchRootView: View {
         NotchMotion.respectingReduceMotion(animation, reduceMotion)
     }
 
-    /// The orb sits on the flare's own centre of curvature, one radius in from
-    /// the bezel and level with the far end of the shape.
-    /// The orb belongs to the notch, not to the tooltip, so it scales with it —
-    /// it is tucked into the corner the shape's own flare makes, and a fixed
-    /// orb against a scaled flare would sit off that corner.
+    /// Keep the orb on the notch’s flare centre and scale it with the notch, not the tooltip.
     private func orbCentre(_ place: NotchPlacement) -> CGPoint {
         place.point(
             along: model.slack + model.orbAlong * model.sizeScale,

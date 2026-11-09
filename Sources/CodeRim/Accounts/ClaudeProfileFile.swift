@@ -36,15 +36,7 @@ struct ClaudeProfileFile: ClaudeProfileStoring {
         guard !CredentialFileSafety.hasPermissiveACL(fileDescriptor: fd) else {
             throw ClaudeAccountError.unsafeFile
         }
-        try data.withUnsafeBytes { bytes in
-            var offset = 0
-            while offset < bytes.count {
-                let count = Darwin.write(fd, bytes.baseAddress!.advanced(by: offset), bytes.count - offset)
-                if count < 0, errno == EINTR { continue }
-                guard count > 0 else { throw ClaudeAccountError.unsafeFile }
-                offset += count
-            }
-        }
+        try CredentialFileSafety.writeAll(data, to: fd, failure: ClaudeAccountError.unsafeFile)
         guard fsync(fd) == 0 else { throw ClaudeAccountError.unsafeFile }
         guard try read(in: dir) == original else { throw ClaudeAccountError.changedLogin }
         if original == nil {
@@ -85,16 +77,6 @@ struct ClaudeProfileFile: ClaudeProfileStoring {
               !CredentialFileSafety.hasPermissiveACL(fileDescriptor: fd),
               info.st_size > 0, info.st_size <= 8_388_608
         else { throw ClaudeAccountError.unsafeFile }
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 8_192)
-        while true {
-            let count = Darwin.read(fd, &buffer, buffer.count)
-            if count < 0, errno == EINTR { continue }
-            guard count >= 0 else { throw ClaudeAccountError.unsafeFile }
-            if count == 0 { break }
-            data.append(contentsOf: buffer.prefix(count))
-            guard data.count <= 8_388_608 else { throw ClaudeAccountError.unsafeFile }
-        }
-        return data
+        return try CredentialFileSafety.readAll(from: fd, limit: 8_388_608, failure: ClaudeAccountError.unsafeFile)
     }
 }

@@ -14,9 +14,7 @@ internal sealed class SavedAccountReadException(Exception inner, string rotatedC
 }
 
 /// <summary>
-/// Reads one saved Codex account's limits in a private Codex home, so another
-/// account can be looked at without signing the CLI out of the current one.
-/// The home is a disposable child of the vault directory; logout is never run.
+/// Read saved-account limits in a disposable private Codex home; never log out or change the active CLI login.
 /// </summary>
 internal static class SavedAccountLimitReader
 {

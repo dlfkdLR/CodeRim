@@ -99,17 +99,16 @@ struct CostEstimator: Sendable {
             catalogRetrievedAt: catalog.metadata.retrievedAt
         )
 
+        func unavailable(_ coverage: CostCoverage) -> CostEstimate {
+            CostEstimate(amountUSD: nil, breakdown: nil, coverage: coverage, pricingBasis: basis)
+        }
+
         guard samples.allSatisfy({
             $0.usage.isValid
                 && $0.highContextUsage.isValid
                 && ($0.highContextUsage.isZero || $0.usage.isComponentWiseAtLeast($0.highContextUsage))
         }) else {
-            return CostEstimate(
-                amountUSD: nil,
-                breakdown: nil,
-                coverage: .invalidTokenUsage,
-                pricingBasis: basis
-            )
+            return unavailable(.invalidTokenUsage)
         }
 
         let missingModelIDs = Set(
@@ -121,14 +120,8 @@ struct CostEstimator: Sendable {
         ).sorted()
 
         guard missingModelIDs.isEmpty else {
-            return CostEstimate(
-                amountUSD: nil,
-                breakdown: nil,
-                coverage: .unavailable(missingModelIDs: missingModelIDs),
-                pricingBasis: basis
-            )
+            return unavailable(.unavailable(missingModelIDs: missingModelIDs))
         }
-
 
         let incompleteModelIDs = Set(
             samples.compactMap { sample -> String? in
@@ -146,12 +139,7 @@ struct CostEstimator: Sendable {
             }
         ).sorted()
         guard incompleteModelIDs.isEmpty else {
-            return CostEstimate(
-                amountUSD: nil,
-                breakdown: nil,
-                coverage: .incompleteMetadata(modelIDs: incompleteModelIDs),
-                pricingBasis: basis
-            )
+            return unavailable(.incompleteMetadata(modelIDs: incompleteModelIDs))
         }
 
         let breakdown = samples.reduce(into: CostBreakdown.zero) { total, sample in

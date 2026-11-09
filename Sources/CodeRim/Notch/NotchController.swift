@@ -2,15 +2,8 @@ import AppKit
 import Combine
 import CodexBarCore
 
-/// Owns the edge notch: one `NotchWindowController`, a `NotchUsageStore` fed by
-/// the Codex and Claude adapters, the session monitors that light the activity
-/// arcs, and the wiring between them. Modelled on `SettingsWindowController` —
-/// a `@MainActor` singleton created from the app's `init`, shown or hidden from
-/// a preference.
-///
-/// Phase 1–2: single screen, hover-to-expand, live session activity + a peek
-/// and a chime when an agent finishes. Multi-monitor and the full notch
-/// settings pane come later.
+/// Coordinates provider readings, session monitors and per-display notch windows from the shared
+/// Settings preferences.
 @MainActor
 final class NotchController: ObservableObject {
     static let shared = NotchController()
@@ -20,11 +13,8 @@ final class NotchController: ObservableObject {
     /// second store.
     @Published private(set) var snapshots: [ProviderSnapshot] = []
 
-    /// Whose credential each provider borrows, and its sign-in route — the
-    /// Settings Providers list's row model. Cached rather than recomputed on
-    /// every SwiftUI render: `providerSummaries` calls `account()` on every
-    /// provider, and several of those open a file or a SQLite database on the
-    /// main thread. Refreshed after each fetch and when a settings pane opens.
+    /// Cache account/sign-in summaries outside SwiftUI renders because account() may read a file or
+    /// database.
     @Published private(set) var providerSummaries: [ProviderSummary] = []
     @Published private(set) var selectedProviderIDs: Set<String> = ["codex"]
 
@@ -256,9 +246,7 @@ final class NotchController: ObservableObject {
         }
     }
 
-    /// The monitors publish on change, and a progress bar changes every
-    /// second. While something is working, re-read the clock once a second so
-    /// the bar and the time left keep moving.
+    /// Monitors publish on change; refresh elapsed-time labels while sessions remain active.
     private func startClockTimer() {
         clockTimer?.invalidate()
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in

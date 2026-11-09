@@ -29,15 +29,14 @@ Total        = Input + output_tokens
 
 ## UI와 지원 지표
 
-현재 macOS 개발 Settings 화면은 Overview·Usage analytics·Claude Limits에 창의 가용 너비를 사용합니다. 작은 메뉴는 기존 작은 레이아웃을 유지합니다. 로컬 스냅샷이 없으면 세션 실행·새로고침을 안내하며 빈 히스토리를 만들어 내지 않습니다.
+macOS Settings 화면은 Overview·Usage analytics·Claude Limits에 창의 가용 너비를 사용합니다. 작은 메뉴는 기존 작은 레이아웃을 유지합니다. 로컬 스냅샷이 없으면 세션 실행·새로고침을 안내하며 빈 히스토리를 만들어 내지 않습니다.
 
 로컬 토큰, 모델·프로젝트·세션 분석, 활동을 지원합니다. macOS Claude의 계정 전체 웹·모바일 토큰, 첨부 개수, 초기화 크레딧, API 환산 비용 추정은 지원하지 않습니다. `UsageProvider.supportsCostEstimates`는 Codex만 지원합니다. 등록 상태는 더 최신의 명시적 대화 완료 기록과 조정하며 백그라운드 관리 기록만으로 대기·작업 상태를 덮어쓰지 않습니다.
 
 ## 검증
 
 ```sh
-swift test --filter ClaudeUsageTests
-swift test --filter ClaudeAccount
+python3 Scripts/prepare_swift_dependencies.py --run-swift test --filter 'ClaudeUsageTests|ClaudeAccount'
 ```
 
 임시 합성 숫자 기록과 모의 자격 증명 작업을 사용합니다. 캐시 산식, 반복·스트리밍, 복사, 삭제 기준, 달력 경계, 다시 쓰기, 하위 에이전트, 원본 분리, rollback·동시 로그인을 확인합니다. 네이티브 렌더는 두 계정 OAuth 전환이나 실제 상태 줄 전달을 증명하지 않습니다.

@@ -152,12 +152,10 @@ def prepare(root, scratch):
     spec, patch = load_spec(root)
     scratch.mkdir(parents=True, exist_ok=True)
     (scratch / ".coderim-owner.json").write_text(json.dumps(owner) + "\n")
-    dep = dependency_state(scratch, spec["identity"])
-    if dep is None:
+    if dependency_state(scratch, spec["identity"]) is None:
         reuse_verified_archive(scratch, spec["binary_cache"])
         run(["swift", "package", "--package-path", str(root), "--scratch-path", str(scratch),
              "--cache-path", str(scratch / "dependency-cache"), "--force-resolved-versions", "resolve"])
-        dep = dependency_state(scratch, spec["identity"])
     checkout = owned_checkout(scratch, spec)
     receipt = scratch / "coderim-dependency-receipt.json"
     if receipt.is_symlink():

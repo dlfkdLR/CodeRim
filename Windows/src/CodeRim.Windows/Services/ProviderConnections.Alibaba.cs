@@ -1,6 +1,5 @@
 using System.IO;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
@@ -60,8 +59,7 @@ internal sealed partial class ProviderConnections
     private string? AlibabaScope()
     {
         var selected = ResolveAlibaba();
-        return selected is null ? null : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
-            JsonSerializer.Serialize(new { selected, process = selected.Mode == "web" ? 0 : Environment.ProcessId }))));
+        return selected is null ? null : ScopeHash(JsonSerializer.Serialize(new { selected, process = selected.Mode == "web" ? 0 : Environment.ProcessId }));
     }
     private async Task<ProviderReading> FetchAlibabaConnectionAsync(BrowserCookieJar? browserOverride, CancellationToken token)
     {

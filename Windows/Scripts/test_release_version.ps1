@@ -5,6 +5,29 @@ $files = @('Windows/Scripts/package.ps1', 'Windows/Directory.Build.props',
     'Windows/src/CodeRim.Windows/CodeRim.Windows.csproj', 'Windows/src/CodeRim.Windows/app.manifest', 'Windows/Release.env', 'Config/Release.env',
     'Windows/Scripts/test-msi-handoff.ps1')
 $expected = [string]([xml](Get-Content (Join-Path $projectRoot $files[2]) -Raw)).Project.PropertyGroup.Version
+$tokens = $parseErrors = $null
+$packageSyntax = [Management.Automation.Language.Parser]::ParseFile((Join-Path $projectRoot $files[0]), [ref]$tokens, [ref]$parseErrors)
+if ($parseErrors) { throw 'Packaging script did not parse.' }
+$publisher = $packageSyntax.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Publish-Project' }, $false)
+$originalExitCode = $global:LASTEXITCODE
+try {
+    & {
+        $RuntimeIdentifier = 'win-arm64'; $Version = $expected
+        $script:publishExit = 0
+        function dotnet { $script:publishArguments = @($args); $global:LASTEXITCODE = $script:publishExit }
+        . ([scriptblock]::Create($publisher.Extent.Text))
+        Publish-Project 'fixture app.csproj' 'output path' 'Fixture publish failed.' @('-p:Pin=fixture', '-p:Resource=fixture path')
+        $expectedArguments = @('publish', 'fixture app.csproj', '--configuration', 'Release', '--runtime', 'win-arm64', '--self-contained', 'true', '--output', 'output path',
+            "-p:Version=$expected", '-p:CodeRimMsiQa=false', '-p:DebugType=None', '-p:DebugSymbols=false', '-p:Pin=fixture', '-p:Resource=fixture path')
+        if (($script:publishArguments | ConvertTo-Json -Compress) -cne ($expectedArguments | ConvertTo-Json -Compress)) { throw ('Publish flags or path boundaries changed: ' + ($script:publishArguments | ConvertTo-Json -Compress)) }
+        $script:publishExit = 17
+        $failure = $null
+        try { Publish-Project 'fixture app.csproj' 'output path' 'Fixture publish failed.' }
+        catch { $failure = $_.Exception.Message }
+        if ($failure -cne 'Fixture publish failed.') { throw 'A failed publish did not stop packaging.' }
+    }
+} finally { $global:LASTEXITCODE = $originalExitCode }
+Write-Host 'PASS publish-arguments-and-failure'
 $cases = @(
     @{ Name = 'consistent'; Pass = $true },
     @{ Name = 'independent-mac-version'; Pass = $true; File = $files[5]; Pattern = '(?m)^MARKETING_VERSION=.*$'; Value = 'MARKETING_VERSION=0.0.1' },

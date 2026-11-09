@@ -61,14 +61,7 @@ struct UsageArchive {
     /// Readings with the account each was taken for, so a restore can drop one that belongs to an
     /// account signed out while CodeRim was not running.
     func loadOwned() -> [String: (snapshot: ProviderSnapshot, fetchedAt: Date, accountIdentity: String?)] {
-        guard let data = defaults.data(forKey: key),
-              let entries = try? JSONDecoder().decode([Entry].self, from: data)
-        else { return [:] }
-        var owners: [String: String?] = [:]
-        for entry in entries { owners[entry.id] = entry.accountIdentity }
-        return load().reduce(into: [:]) { result, item in
-            result[item.key] = (item.value.snapshot, item.value.fetchedAt, owners[item.key] ?? nil)
-        }
+        load().mapValues { ($0.snapshot, $0.fetchedAt, $0.snapshot.accountIdentity) }
     }
 
     func load() -> [String: (snapshot: ProviderSnapshot, fetchedAt: Date)] {

@@ -298,40 +298,34 @@ final class MobileAppModel: ObservableObject {
     }
 
     func selectProvider(_ id: String, enabled: Bool) async {
-        guard !busy, let credential, let client else { return }
+        guard !busy, credential != nil, client != nil else { return }
         var ids = preferences.providerIDs.isEmpty ? providers.map(\.id) : preferences.providerIDs
         if enabled && !ids.contains(id) { ids.append(id) }
         if !enabled { ids.removeAll { $0 == id } }
         guard (1...100).contains(ids.count) else { errorMessage = "Select at least one provider to display."; return }
-        busy = true; errorMessage = nil; defer { busy = false }
-        let generation = loginGeneration
-        do {
-            let next = MobilePreferences(providerIDs: ids)
-            let _: MobileOK = try await client.send("PUT", "/v1/preferences", token: credential.token, body: next)
-            // A sign-out (or a 401 from a foreground refresh) while this was in flight wins.
-            guard generation == loginGeneration else { return }
-            preferences = next
-            await refresh()
-        } catch { settingsFailed(error, generation: generation) }
+        errorMessage = nil
+        let next = MobilePreferences(providerIDs: ids)
+        await updateSettings("PUT", "/v1/preferences", body: next) { preferences = next }
     }
 
     func showAllProviders() async {
-        guard !busy, let credential, let client else { return }
-        busy = true; defer { busy = false }
-        let generation = loginGeneration
-        do {
-            let _: MobileOK = try await client.send("PUT", "/v1/preferences", token: credential.token, body: MobilePreferences())
-            guard generation == loginGeneration else { return }
-            await refresh()
-        } catch { settingsFailed(error, generation: generation) }
+        await updateSettings("PUT", "/v1/preferences", body: MobilePreferences())
     }
     func removeDevice(_ device: MobileDevice) async {
+        await updateSettings("DELETE", "/v1/devices/" + device.id, body: MobileEmpty())
+    }
+
+    private func updateSettings<Body: Encodable & Sendable>(
+        _ method: String, _ path: String, body: Body, applying update: () -> Void = {}
+    ) async {
         guard !busy, let credential, let client else { return }
         busy = true; defer { busy = false }
         let generation = loginGeneration
         do {
-            let _: MobileOK = try await client.send("DELETE", "/v1/devices/" + device.id, token: credential.token, body: MobileEmpty())
+            let _: MobileOK = try await client.send(method, path, token: credential.token, body: body)
+            // A sign-out or foreground 401 while this was in flight wins.
             guard generation == loginGeneration else { return }
+            update()
             await refresh()
         } catch { settingsFailed(error, generation: generation) }
     }

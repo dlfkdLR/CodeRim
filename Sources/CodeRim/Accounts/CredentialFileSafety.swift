@@ -14,6 +14,31 @@ import Foundation
 /// So the mode check is necessary and not sufficient, and every place that
 /// opens one of these files asks this as well.
 enum CredentialFileSafety {
+    static func readAll(from descriptor: Int32, limit: Int, failure: any Error) throws -> Data {
+        var data = Data()
+        var buffer = [UInt8](repeating: 0, count: 8_192)
+        while true {
+            let count = Darwin.read(descriptor, &buffer, buffer.count)
+            if count < 0, errno == EINTR { continue }
+            guard count >= 0 else { throw failure }
+            if count == 0 { return data }
+            data.append(contentsOf: buffer.prefix(count))
+            guard data.count <= limit else { throw failure }
+        }
+    }
+
+    static func writeAll(_ data: Data, to descriptor: Int32, failure: any Error) throws {
+        try data.withUnsafeBytes { bytes in
+            var offset = 0
+            while offset < bytes.count {
+                let count = Darwin.write(descriptor, bytes.baseAddress!.advanced(by: offset), bytes.count - offset)
+                if count < 0, errno == EINTR { continue }
+                guard count > 0 else { throw failure }
+                offset += count
+            }
+        }
+    }
+
     /// True when an extended ACL grants something to somebody.
     ///
     /// Only *allow* entries count. macOS puts `deny` entries on files

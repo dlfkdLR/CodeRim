@@ -64,78 +64,7 @@ The 70-provider catalog and artwork match the macOS catalog. **The current sourc
 
 Remaining verification includes automatic Kimi Desktop discovery, live provider accounts and full accessibility/mixed-monitor workflows. Explicit Chromium localStorage import is implemented for DeepSeek, Factory and MiniMax; the exact provider strategies follow the pinned macOS implementations. The MSI automatic updater uses the existing Ed25519 release key. Authenticode publisher signing remains unavailable; it is separate from the updater signature. Firefox cookie import is implemented for the supported cookie readers; it does not imply complete browser authentication parity. Windows Widgets are excluded from this parity effort. API-key or manual-cookie support does not imply that every macOS authentication strategy has been ported. Native Windows CI covers synthetic startup, rendering, credential storage, account display, bridge installation, and CLI behavior; live account/provider verification is separate.
 
-| Provider | Windows connection |
-| --- | --- |
-| Codex (`codex`) | Local JSONL + Codex app-server |
-| Claude Code (`claude`) | Local JSONL + status-line bridge |
-| GitHub Copilot (`copilot`) | Saved token, GH_TOKEN/GITHUB_TOKEN, selected github.com GitHub CLI account or bounded gh auth token lookup |
-| Cursor (`cursor`) | Current Cursor editor sign-in, native Windows agent fallback, or explicit session cookie; editor and agent identities stay separate |
-| Grok (`grok`) | Grok CLI sign-in or CLI access token |
-| OpenCode Go (`opencode`) | OpenCode Go local sign-in or API key |
-| Command Code (`commandcode`) | Command Code local sign-in or API key |
-| GLM (`glm`) | Saved/environment API key or trusted Claude/ZCode/OpenCode Coding Plan sign-in, bound to the detected region |
-| Ollama Cloud (`ollama`) | Ollama Cloud API key |
-| Antigravity (`gemini`) | OAuth token/JSON or process-bound Local IDE; model quotas, session/week cadence and plan metadata |
-| Ollama Local (`ollama-local`) | Local read-only API |
-| OpenAI (`openai`) | API key with organization usage/cost permissions; optional Project ID |
-| Azure OpenAI (`azureopenai`) | API key and deployment; explicit paid validation opt-in, no quota counters |
-| ClinePass (`clinepass`) | CLINE_API_KEY |
-| OpenCode (`opencode-zen`) | Web auth cookie; workspace subscription quotas or pay-as-you-go spending |
-| Alibaba (`alibaba`) | API/Web; Coding Plan API key or selected intl/cn console session and request quota |
-| Alibaba Token Plan (`alibabatokenplan`) | Auto/CLI/Web; Bailian CLI personal rolling limits or console cookie/Firefox Team/Personal quota in intl/cn regions |
-| Qwen Cloud (`qwencloud`) | Console cookie or Firefox import; Personal Token Plan rolling limits and scoped sec_token discovery |
-| Droid (`factory`) | Factory API key/Authorization, Cookie/Firefox import or saved WorkOS session JSON with refresh; current or legacy personal quota |
-| Fireworks (`fireworks`) | API key and account slug |
-| Gemini (`gemini-cli`) | Gemini CLI OAuth detection/refresh; Code Assist model quotas and consumer-migration state |
-| Devin (`devin`) | Access token and organization; quota and overage |
-| MiniMax (`minimax`) | Auto/API/Web; separate Global/China API keys and Web sessions; text-first interval/weekly quota, current plan and bounded account activity |
-| Manus (`manus`) | manus.im Cookie header or Firefox import |
-| Kimi Code (`kimi`) | Auto/API/Web; API key, fresh read-only CLI sign-in, manual Web token/cookie, selected Firefox import or explicitly selected Desktop plaintext session |
-| Kilo (`kilo`) | Kilo local sign-in or API token; personal/organization billing |
-| Kiro (`kiro`) | CLI state database or token/profile ARN; plan and overage credits |
-| Vertex AI (`vertexai`) | gcloud ADC or OAuth token; active project Cloud Monitoring quota |
-| Augment (`augment`) | Augment web cookie; account credits and billing cycle |
-| JetBrains AI (`jetbrains`) | Installed IDE quota XML (read-only) |
-| Moonshot / Kimi Open Platform (`moonshot`) | Separate International/China API keys and fixed regional balance endpoints; USD/CNY preserved |
-| Amp (`amp`) | API/CLI source for subscription and balances, or Web cookie/Firefox source for Amp Free |
-| T3 Chat (`t3chat`) | t3.chat Cookie header or Firefox import |
-| Synthetic (`synthetic`) | API key |
-| OpenRouter (`openrouter`) | API key; optional Management API key for detailed activity |
-| ElevenLabs (`elevenlabs`) | ElevenLabs API key |
-| Warp (`warp`) | Access token; GraphQL limits |
-| Windsurf (`windsurf`) | Devin session JSON or explicitly selected local Windsurf state database; cached values are labelled stale |
-| Zed (`zed`) | User ID and access token; edit predictions |
-| Perplexity (`perplexity`) | perplexity.ai Cookie header or Firefox import |
-| Xiaomi MiMo (`mimo`) | Console cookie or selected Firefox profile, including complete session-cookie recovery; balance and token-plan credits |
-| Doubao (`doubao`) | Volcengine signing keys; Coding Plan percentages and Agent Plan points |
-| Sakana AI (`sakana`) | Sakana web cookie; billing page limits |
-| Abacus AI (`abacus`) | Abacus web cookie or Firefox import; compute credits |
-| Mistral (`mistral`) | Mistral web cookie; Vibe limits, monthly spending, credits |
-| DeepSeek (`deepseek`) | Auto/API/Web source selection; API key and platform session stored separately, currency balances preserved; optional detailed usage for the selected Web session |
-| DeepInfra (`deepinfra`) | API key; balance and current-period spend |
-| Codebuff (`codebuff`) | API key or Codebuff/Manicode local sign-in; optional subscription details for the local session |
-| Crof (`crof`) | API key |
-| Venice (`venice`) | API key |
-| Qoder (`qoder`) | qoder.com or qoder.com.cn Cookie header or Firefox import |
-| StepFun (`stepfun`) | Auto/Manual; username/password login, Oasis-Token with refresh, or scoped Firefox sign-in; plan limits and credit packs |
-| AWS Bedrock (`bedrock`) | AWS CLI profile/SSO or signing keys; monthly costs and 14-day Claude activity |
-| Groq (`groq`) | Console session JWT/JSON or Firefox import for 30-day activity; enterprise metrics API key remains available |
-| LLM Proxy (`llmproxy`) | Proxy URL and API key |
-| LiteLLM (`litellm`) | Proxy URL and API key; key/user/team budget |
-| Deepgram (`deepgram`) | API key; optional Project ID and API URL |
-| Poe (`poe`) | API key |
-| Chutes (`chutes`) | API key; rolling/monthly/per-model quota |
-| Neuralwatt (`neuralwatt`) | API key; quota |
-| ClawRouter (`clawrouter`) | Policy API key; optional Base URL |
-| LongCat (`longcat`) | LongCat web cookie or Firefox import; active token and fuel packs |
-| sub2api (`sub2api`) | API key and Base URL |
-| Wayfinder (`wayfinder`) | Local gateway URL; health and savings |
-| ZenMux (`zenmux`) | Management API key; subscription quota |
-| ai& (`aiand`) | API key; paginated last-30-day spending |
-| ZoomMate (`zoommate`) | Bearer token or explicit Cookie: header; credit quota |
-| xAI (`xai`) | Management API key and Team ID |
-| Notion AI (`notion`) | Notion web cookie and optional workspace ID; AI credits |
-| IBM Bob (`ibmbob`) | Bob API key; profile/team allocation |
+Provider setup and the canonical catalogue are in [the provider guides](../docs/providers.md). Windows-specific browser/local-source behavior is documented below; a shared provider ID does not imply identical authentication on every platform.
 
 ## Updates
 

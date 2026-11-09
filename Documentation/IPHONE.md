@@ -45,7 +45,7 @@ The Free plan allows about 100,000 requests and 100,000 row writes per day for t
 | 70% and above | New accounts and pairings get `503 server_busy`. Responses, the Island content state, and desktop settings carry a notice; each running Island gets one alert per day. Computers are told to send heartbeats every 10 minutes. |
 | 90% and above | As above, with 30-minute heartbeats. |
 
-Steady heartbeats with unchanged content update only memory. A change in the advertised heartbeat interval persists the freshness horizon once. A computer counts as online for 11 minutes after its last post, or 31 minutes while it uses the critical 30-minute heartbeat. In practice this supports roughly 150–300 active computers per day; past that, the relay pauses until 00:00 UTC.
+Steady heartbeats with unchanged content update only memory. A change in the advertised heartbeat interval persists the freshness horizon once. A computer counts as online for 11 minutes after its last post, or 31 minutes while it uses the critical 30-minute heartbeat. Capacity depends on snapshot changes and APNs traffic; budget exhaustion pauses requests until 00:00 UTC.
 
 ## Pairing and data flow
 
@@ -57,7 +57,7 @@ Steady heartbeats with unchanged content update only memory. A change in the adv
 
 ## Dynamic Island
 
-The iPhone registers an ActivityKit push-to-start token (`POST /v1/push-to-start`). When a connected computer reports a working or waiting task and that iPhone has no Live Activity, the relay starts one with an APNs `start` event (`attributes-type: CodeRimActivityAttributes`, alert, priority 10), at most once every five minutes. iOS gives the app background time to register the new Activity's update token (`POST /v1/activities`). The relay then pushes updates on change, at most every 15 seconds. It ends the Activity two minutes after the last task stops, and iOS ends any Activity after eight hours. **Show now** in the app still starts one by hand.
+The iPhone registers an ActivityKit push-to-start token (`POST /v1/push-to-start`). When a connected computer reports a working or waiting task and that iPhone has no Live Activity, the relay starts one with an APNs `start` event (`attributes-type: CodeRimActivityAttributes`, alert, priority 10), at most once every five minutes. iOS gives the app background time to register the new Activity's update token (`POST /v1/activities`). The relay then pushes updates on change, at most every 15 seconds. It ends the Activity two minutes after the last task stops, and iOS ends any Activity after eight hours. Stop suppresses remote starts and ends late registrations until work becomes idle or the user explicitly starts again. Retry alarms do not start activities for offline computers. **Show now** clears suppression through `/v1/activities/resume` before local creation.
 
 Live Activity updates use priority 5, except for waiting-for-input and busy-relay alerts (priority 10). The serialized APNs envelope is bounded to 3,800 UTF-8 bytes. ActivityKit wire dates are Unix seconds.
 

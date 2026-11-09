@@ -4,11 +4,11 @@
 
 ## A provider is missing
 
-Open **Settings → Providers → Add Provider**. There are 70 catalogue entries, while the notch and default CLI output show selected providers. `coderim providers` lists all IDs. Z.ai is GLM, Factory is Droid, and Gemini CLI is Gemini. See [aliases and setup](providers.md).
+Open **Settings → Providers → Add Provider**. There are 70 catalogue entries, while the notch and default CLI output show selected providers. `coderim providers` lists all IDs. Z.ai is GLM, Factory is Droid, and Gemini CLI and Antigravity are separate entries. See [aliases and setup](providers.md).
 
 ## A provider has no reading
 
-Check its [connection guide](providers.md), source sign-in, plan, permissions, endpoint, and region, then refresh. Adding a provider does not authenticate an account. Missing usage is not zero. Potentially billed AWS Bedrock, Azure OpenAI, and some Doubao paths require an explicit monitoring toggle. StepFun uses username/password or Oasis-Token without a browser-import toggle.
+Check its [connection guide](providers.md), source sign-in, plan, permissions, endpoint, and region, then refresh. Adding starts sign-in or key setup; finish that flow before expecting a reading. Missing usage is not zero. Potentially billed AWS Bedrock, Azure OpenAI, and some Doubao paths require an explicit monitoring toggle. StepFun uses username/password or Oasis-Token without a browser-import toggle.
 
 ## Claude limits are stale
 
@@ -18,7 +18,7 @@ Enable the Claude integration, add the signed-in account, and complete a Claude 
 
 Run a local Codex or Claude Code session, then use the **Settings → Usage** toolbar refresh icon or **Command-R**. CodeRim cannot recover deleted logs or other computers' records. In **Settings → Providers → Codex or Claude Code → Manage Data**, **Rebuild Statistics** reprocesses observable logs without removing the clear-history cutoff. **Clear Local History** removes only derived rows and records a new cutoff; original logs remain.
 
-Account history and local history have separate scope. CodeRim 2.1.13 can show dated ChatGPT account totals in Overview after **Include ChatGPT history** is selected; its local charts and Today remain This Mac. Profile history is off by default, and **Stop including ChatGPT history** disables it and clears the current in-memory account snapshot. See [scope](usage.md).
+Account history and local history have separate scope. CodeRim can show dated ChatGPT account totals in Overview after **Include ChatGPT history** is selected; its local charts and Today remain This Mac. Profile history is off by default, and **Stop including ChatGPT history** disables it and clears the current in-memory account snapshot. See [scope](usage.md).
 
 ## macOS blocks the app
 
@@ -36,21 +36,11 @@ Quit the running app and reopen `/Applications/CodeRim.app` after installation; 
 
 ## Homebrew cannot find the CodeRim cask
 
-An unavailable `dlfkdlr/tap/coderim` cask can mean the tap has not been registered. For a fresh install, follow [Installation](installation.md). To repair an existing install, quit CodeRim/CodexMeter, check any existing target app, then run:
-
-```sh
-brew update &&
-brew tap dlfkdLR/tap &&
-HOMEBREW_NO_INSTALL_CLEANUP=1 brew reinstall --cask --force dlfkdLR/tap/coderim &&
-xattr -dr com.apple.quarantine /Applications/CodeRim.app &&
-open /Applications/CodeRim.app
-```
-
-Homebrew verifies the archive SHA-256 before the app-scoped quarantine command runs. `--force` replaces an existing target app; a custom `--appdir` requires matching launch paths. Settings, accounts, and history are retained. Do not add `--zap`. Fully qualified cask installation does not require disabling tap trust checks. [Homebrew tap trust](https://docs.brew.sh/Tap-Trust).
+An unavailable `dlfkdlr/tap/coderim` cask can mean the tap is not registered. Follow [Installation](installation.md) for a fresh install. For an existing install, quit the running app, check the target app, then follow the [migration/reinstall steps](installation.md#moving-from-codexmeter). Remove quarantine only from the verified app; do not add `--zap` or delete Application Support. Tap trust checks need not be disabled. [Homebrew tap trust](https://docs.brew.sh/Tap-Trust).
 
 ## Homebrew upgrade cannot find CodexMeter.app
 
-`It seems the App source '/Applications/CodexMeter.app' is not there` means the old installation receipt points to a missing app. A downloaded ZIP alone does not mean the upgrade succeeded. Use the reinstall repair above, without deleting receipts or the Application Support folder, then confirm the launched app's version and location.
+`It seems the App source '/Applications/CodexMeter.app' is not there` means the old installation receipt points to a missing app. A downloaded ZIP alone does not mean the upgrade succeeded. Use the linked reinstall repair, without deleting receipts or the Application Support folder, then confirm the launched app's version and location.
 
 ### xcrun reports an incompatible architecture
 

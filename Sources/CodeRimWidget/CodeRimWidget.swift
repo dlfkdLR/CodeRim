@@ -4,6 +4,7 @@ import WidgetKit
 
 extension CompanionProviderID: AppEnum {
     public static let typeDisplayRepresentation: TypeDisplayRepresentation = "Provider"
+    // AppIntents metadata extraction requires a literal, exhaustive dictionary.
     public static let caseDisplayRepresentations: [Self: DisplayRepresentation] = [
         .codex: "Codex",
         .claude: "Claude Code",

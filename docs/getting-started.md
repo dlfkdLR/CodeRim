@@ -3,7 +3,7 @@
 **English** · [한국어](ko/getting-started.md)
 
 1. [Install CodeRim](installation.md), open it, then choose **Settings → Providers → Add Provider**.
-2. Select your tools and follow their [connection guides](providers.md). Adding an entry does not sign you into that service.
+2. Select your tools. Adding starts the connection flow; follow the sign-in/key prompts and [connection guide](providers.md).
 3. Hover a ring for usage windows, reset times, plans, and session activity. Only selected providers are monitored.
 4. Open **Settings → Usage** and choose a connected Codex or Claude Code integration. In the current macOS source, **Overview**, **Usage analytics**, and the selected provider's **Limits** share the same toolbar. Other quota-only providers do not gain local token analytics.
 5. Use the notch's account control or **Switch** in Usage for [saved accounts](accounts.md).

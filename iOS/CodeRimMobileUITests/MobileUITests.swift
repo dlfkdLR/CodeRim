@@ -30,8 +30,7 @@ final class MobileUITests: XCTestCase {
         attach("settings", app.screenshot())
         if !scan.isHittable { app.swipeUp() }
         scan.tap()
-        // The Simulator has no camera: the scanner offers an explicitly pasted pairing code.
-        // There is no field to type a server or link into.
+        // Simulator enrollment uses pasted pairing codes because it has no camera.
         XCTAssertFalse(app.textFields.firstMatch.exists)
         UIPasteboard.general.string = "coderim://pair?r=http://example.com"
         let paste = app.buttons["pastePairingLink"]
@@ -86,7 +85,6 @@ final class MobileUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 2.2)
         attach("dynamic-island-windows", springboard.screenshot())
     }
-    /// With no computer the home screen offers the one thing to do, and a busy relay is announced there.
     @MainActor
     func testHomeScreenOffersToPairWhenEmptyAndShowsTheRelayNotice() throws {
         let empty = XCUIApplication()
@@ -106,7 +104,6 @@ final class MobileUITests: XCTestCase {
         XCTAssertTrue(busy.staticTexts["Tasks"].exists)
     }
 
-    /// Disconnecting a computer no longer depends on knowing to swipe: a visible menu does it too.
     @MainActor
     func testAComputerCanBeDisconnectedFromAVisibleMenu() throws {
         let app = XCUIApplication()

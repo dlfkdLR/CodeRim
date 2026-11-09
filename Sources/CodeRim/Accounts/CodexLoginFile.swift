@@ -79,15 +79,7 @@ struct CodexLoginFile: CodexLoginStoring {
         guard !CredentialFileSafety.hasPermissiveACL(fileDescriptor: fd) else {
             throw AccountSwitchError.unsafeFile
         }
-        try data.withUnsafeBytes { bytes in
-            var offset = 0
-            while offset < bytes.count {
-                let count = Darwin.write(fd, bytes.baseAddress!.advanced(by: offset), bytes.count - offset)
-                if count < 0, errno == EINTR { continue }
-                guard count > 0 else { throw AccountSwitchError.unsafeFile }
-                offset += count
-            }
-        }
+        try CredentialFileSafety.writeAll(data, to: fd, failure: AccountSwitchError.unsafeFile)
         guard fsync(fd) == 0 else { throw AccountSwitchError.unsafeFile }
         guard try read(in: dir) == original else { throw AccountSwitchError.changedLogin }
         if original == nil {
@@ -128,16 +120,6 @@ struct CodexLoginFile: CodexLoginStoring {
               !CredentialFileSafety.hasPermissiveACL(fileDescriptor: fd),
               info.st_size > 0, info.st_size <= 262_144
         else { throw AccountSwitchError.unsafeFile }
-        var data = Data()
-        var buffer = [UInt8](repeating: 0, count: 8_192)
-        while true {
-            let count = Darwin.read(fd, &buffer, buffer.count)
-            if count < 0, errno == EINTR { continue }
-            guard count >= 0 else { throw AccountSwitchError.unsafeFile }
-            if count == 0 { break }
-            data.append(contentsOf: buffer.prefix(count))
-            guard data.count <= 262_144 else { throw AccountSwitchError.unsafeFile }
-        }
-        return data
+        return try CredentialFileSafety.readAll(from: fd, limit: 262_144, failure: AccountSwitchError.unsafeFile)
     }
 }

@@ -74,7 +74,7 @@ export function activityPayload(state, now, event = 'update', { alert, attribute
 
 // The full catalog stays in the relay. Each drilldown level has at most three choices.
 const nameOrder = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
-function eligible(device, prefs) {
+export function eligibleProviders(device, prefs) {
   return (device?.snapshot?.providers ?? []).filter(p => !prefs.providerIDs.length || prefs.providerIDs.includes(p.id));
 }
 function splitCatalog(list) {
@@ -127,7 +127,7 @@ function catalogPicker(device, list, view, current, now) {
 // Each display has one source. Matching provider names never imply matching accounts.
 export function desktopState(devices, prefs, view, now) {
   const device = devices.find(d => d.id === view?.deviceID) ?? devices.find(d => d.receivedAt + (d.onlineWindow ?? ONLINE_WINDOW) > now) ?? devices[0];
-  const list = eligible(device, prefs);
+  const list = eligibleProviders(device, prefs);
   const provider = list.find(p => p.id === view?.providerID) ?? list[0];
   const state = contentState(device?.snapshot, { providerIDs: provider ? [provider.id] : [] }, device?.receivedAt ?? 0, now, device?.onlineWindow);
   state.focus = { deviceID: device?.id ?? '', deviceName: device?.name ?? 'No device', platform: device?.platform ?? 'macOS',
@@ -164,7 +164,7 @@ export function navigate(devices, prefs, view, axis, direction, now, { groupID, 
       return { ...opened, pickerMode: 'all', pickerPath: groupID.split('.').map(Number) };
     }
     requireValue(providerID, 'provider_unavailable');
-    const history = historyFor(view, deviceID), allowed = eligible(devices.find(d => d.id === deviceID), prefs);
+    const history = historyFor(view, deviceID), allowed = eligibleProviders(devices.find(d => d.id === deviceID), prefs);
     const pinned = history.pinned.filter(id => allowed.some(p => p.id === id));
     requireValue(pinned.includes(providerID) || pinned.length < 3, 'pin_limit');
     opened.providerHistory[deviceID] = { recent: history.recent,
@@ -180,10 +180,10 @@ export function navigate(devices, prefs, view, axis, direction, now, { groupID, 
     const index = (current.focus.deviceIndex - 1 + direction + devices.length) % devices.length;
     deviceID = devices[index].id;
     // Remember the last chosen service on that computer independently.
-    const list = eligible(devices[index], prefs), recent = historyFor(view, deviceID).recent;
+    const list = eligibleProviders(devices[index], prefs), recent = historyFor(view, deviceID).recent;
     providerID = recent.find(id => list.some(p => p.id === id)) ?? (list.some(p => p.id === providerID) ? providerID : list[0]?.id);
   } else if (axis === 'provider') {
-    const providers = eligible(devices.find(d => d.id === deviceID), prefs);
+    const providers = eligibleProviders(devices.find(d => d.id === deviceID), prefs);
     if (providers.length) providerID = providers[(current.focus.providerIndex - 1 + direction + providers.length) % providers.length].id;
   }
   return advancedView(devices, view, deviceID, providerID, axis === 'provider');
@@ -193,7 +193,7 @@ export function selectProvider(devices, prefs, view, providerID, deviceID, now) 
   const current = desktopState(devices, prefs, view, now);
   requireValue(typeof providerID === 'string' && deviceID === current.focus.deviceID, 'display_changed');
   const device = devices.find(d => d.id === deviceID);
-  requireValue(eligible(device, prefs).some(p => p.id === providerID), 'provider_unavailable');
+  requireValue(eligibleProviders(device, prefs).some(p => p.id === providerID), 'provider_unavailable');
   return advancedView(devices, view, deviceID, providerID, true);
 }
 export function deviceLabel(body) {

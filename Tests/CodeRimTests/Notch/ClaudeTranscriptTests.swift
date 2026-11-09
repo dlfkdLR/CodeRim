@@ -400,11 +400,11 @@ extension NotchClaudeTranscriptReaderTests {
         XCTAssertEqual(cursor.offset, cursor.readOffset - 7)
     }
 
-    func testActivityAndETAReaderSkipsOversizedAndUnfinishedRecords() throws {
+    func testActivityReaderSkipsOversizedAndUnfinishedRecords() throws {
         let url = try write("match " + String(repeating: "x", count: TranscriptLineCursor.lineBytes + 1)
                             + "\nmatch retained\nmatch unfinished", folder: "-Users-vinz-app", session: "abc")
         var lines: [String] = []
-        TurnHistoryImporter.forEachLine(of: url, containingAny: ["match"], copying: false) {
+        TranscriptLines.forEachLine(of: url, containingAny: ["match"], copying: false) {
             lines.append(String(decoding: $0, as: UTF8.self))
         }
         XCTAssertEqual(lines, ["match retained"])

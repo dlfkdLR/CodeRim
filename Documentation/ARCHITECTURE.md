@@ -14,11 +14,9 @@ known JSONL roots -> contained discovery -> FSEvents refresh hint
  -> CompanionSnapshotPublisher -> CLI / WidgetKit snapshot
 ```
 
-`UsageProvider` selects the source roots and database. Codex reads `~/.codex/sessions` and `~/.codex/archived_sessions`; Claude reads `<CLAUDE_CONFIG_DIR or ~/.claude>/projects`. `CodexMeter.sqlite` and `Claude.sqlite` retain independent token events and cutoffs. Filesystem events are refresh hints, not token events. A frozen prefix is parsed when a file grows during import; concurrent appends must not erase accepted data. Rewrites/replacements invalidate checkpoints.
+`UsageProvider` selects the source roots and database. Codex reads `~/.codex/sessions` and `~/.codex/archived_sessions`; Claude reads `<CLAUDE_CONFIG_DIR or ~/.claude>/projects`. `CodexMeter.sqlite` and `Claude.sqlite` retain independent token events and cutoffs. Filesystem events are refresh hints, not token events. Imports bound reads to the observed prefix, use COW snapshots where available, and validate keyed continuity fingerprints for live reads; concurrent appends must not erase accepted data. Rewrites/replacements invalidate checkpoints.
 
 Only the production bundle identity opens `~/Library/Application Support/CodexMeter`. Development/test hosts use `CodexMeter-Development`. This separates unreleased schema migration from installed production data. Schema 17 preserves token events and version-16 replay repairs, indexes parsing-state session IDs, and repairs image counts transactionally from the maximum matching full-log/prefix checkpoint. It does not union unrelated image fragments.
-
-The `usageProvider` selection scopes the Usage pane's readings and analytics destinations; switching providers resets detail navigation. Codex and Claude have separate account-switch and quota paths. `SettingsEnvironment` owns their stores. The six sidebar sections are General, Usage, Providers, Notch, Diagnostics, and Information; provider details live under Providers. The Usage pane hosts `MenuPopoverView` in embedded mode with its own header refresh action (Command-R) and status-only footer. Detail panes use flat `SettingsSection`/`SettingsRow` primitives rather than a boxed form.
 
 ## State and rendering
 
@@ -29,10 +27,6 @@ memory when returning analytics. Sessions show their task titles, and generic
 project labels such as `Codex` use the available project/task names. Existing
 project IDs, session counts, token events, costs, and stored metadata are not
 rewritten; unavailable catalogue entries retain their stored labels.
-
-Schema version 17 preserves accounting events and the version 16 inherited-image replay repair. It indexes parsing_state.session_id and repairs session image counts from the maximum matching source checkpoint in a transaction, so a shorter archived prefix cannot erase a fuller log's count. Only sessions with matching checkpoints are repaired; metadata for absent sources remains intact. This is full-log/prefix reconciliation, not a union of arbitrary non-overlapping image fragments. Token deltas, clear cutoffs and historical generations keep their existing semantics.
-
-Only the production bundle identifier opens `~/Library/Application Support/CodexMeter`. Preview, test-host, and command-line development builds use `~/Library/Application Support/CodexMeter-Development`, so unreleased schema migrations cannot make an installed older app reject its production database.
 
 Account limits use an independent read-only boundary:
 
@@ -60,14 +54,11 @@ Codex activity recognizes explicit turn start/complete/abort events; catalog or 
 
 Provider adapters preserve quotas, counts, currencies, periods, and unavailable states. Extended settings are provider-scoped; potentially billed sources require explicit opt-in. Browser import verifies current profile/account identity and rejects stale or replaced source data before saving. Shared script resources remain pinned and bundled.
 
-File-system notifications are only refresh hints. Startup, manual refresh, watcher events, and the fallback timer reconcile source state again. The app also reconciles committed offsets and keyed continuity fingerprints against SQLite.
-
+Startup, manual refresh, watcher events and the fallback timer reconcile committed offsets and keyed continuity fingerprints against SQLite.
 
 ## Windows and shared readers
 
 Windows/src contains the WPF app, platform-independent Core services and the CLI. User action flows through DashboardWindow or NotchWindow into UsageStateStore, provider connections/refresh, bounded native HTTP or sandboxed scripts, then immutable readings back into the dispatcher. Local JSONL ingestion uses its own SQLite schema; neither database is a hosted multi-user service and no RLS layer exists. Credentials stay in the Windows encrypted vault and are excluded from companion snapshots.
-
-The corrected xAI and Poe scripts under Sources/CodeRim/Resources/ProviderScripts are loaded by the pinned macOS ProviderPluginRuntime and embedded in Windows Core with stable logical names. Required authentication failures are classified before JSON parsing; optional analytics failure retains balance and marks history incomplete. This does not replace live-provider acceptance tests.
 
 ## Notch viewport
 

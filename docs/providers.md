@@ -6,12 +6,20 @@ CodeRim offers **70 entries: 69 service integrations and Ollama Local**. Every e
 
 ## Connect a provider
 
-1. Open **Settings → Providers → Add Provider** and search for the service.
-2. Choose **Add**. CodeRim connects it in the same step: it reads any sign-in already on this computer and otherwise starts the sign-in itself, then watches for up to ten minutes and connects on its own when the account appears. A tool with a login command (Codex, GitHub Copilot, Cursor, Grok, OpenCode, Gemini CLI, Vertex AI) runs it in a terminal window, a service with a website session opens its sign-in page in your browser, and the Antigravity app opens for Gemini. A service that needs a key opens its settings for you to paste it. Use **Cancel** or **Try again** in the Add sheet or on the provider's page.
-3. Follow the linked setup page for anything unusual. Native integrations reuse the original tool's login; additional integrations expose **Connection settings** for keys, sessions, endpoints, or regions.
-4. Refresh the provider. Where offered, browser-session import must be enabled for each provider; StepFun uses password or Oasis-Token settings instead. Saved additional-provider settings use CodeRim's Keychain items on macOS. Windows uses protected local storage.
+1. Find the service in **Settings → Providers → Add Provider** and choose **Add**.
+2. CodeRim reuses an existing sign-in or opens the tool, app, browser sign-in or key setup. Follow the provider-specific guide below.
+3. Where offered, enter the required keys, sessions, endpoints or regions in **Connection settings**, then choose **Save and refresh**. Set optional **Additional provider settings** only when needed by your source.
+4. Sign-in detection runs for up to ten minutes. Use **Cancel** or **Try again** to stop or retry.
 
-Only added providers are monitored. Available readings depend on the account, plan, and service. Local token history is available for **Codex and Claude Code**; the other entries report their own quotas, credits, spending, or status. Ollama Local reports running models and memory, and Azure OpenAI reports a deployment check.
+Where offered, allow browser-session import only for the provider you are connecting. StepFun uses username/password or Oasis-Token and has no browser-import toggle. Saved additional-provider settings use CodeRim's Keychain items on macOS and protected local storage on Windows. Pinned CodexBar source guides document connection protocols; their CodexBar-specific UI/config-file instructions do not apply directly to CodeRim.
+
+Only added providers are monitored; readings depend on the account, plan and service. **Codex and Claude Code** offer local token history, Ollama Local reports loaded models/memory, and Azure OpenAI reports deployment checks rather than account quotas. Other entries report their own quotas, credits, spending or status.
+
+## Readings and troubleshooting
+
+Hover the provider in the notch or use [the CLI](cli.md) with `coderim usage --provider <id>` to read the latest app snapshot. Keep CodeRim running for fresh readings.
+
+For a missing reading, check the original sign-in, plan/permissions, endpoint and region, then refresh; reconnect expired sessions. Missing data is not zero usage. See [troubleshooting](troubleshooting.md#a-provider-has-no-reading) and [privacy](privacy.md).
 
 ## Complete catalogue
 

@@ -4,12 +4,7 @@ using CodeRim.Core.Services;
 
 namespace CodeRim.Core.Tests;
 
-/// <summary>
-/// Adding each catalogue provider, through every way the first sign-in can go. Adding must never
-/// leave a dead end: an account already present connects without opening anything, a missing
-/// one starts exactly one sign-in, and cancelling, failing to open, or a missing tool each end
-/// with a reason and a way to try again.
-/// </summary>
+/// <summary>Every provider sign-in outcome must leave a usable connection or a recovery action.</summary>
 public sealed class ProviderAddFlowMatrixTests
 {
     public enum Flow { AlreadySignedIn, SignsInLater, Cancelled, CannotOpen, ToolMissing, NeverSignsIn, Superseded }

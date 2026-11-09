@@ -36,6 +36,4 @@ Supported options: `--provider`, `--period today|week|month|all-time`, `--format
 
 Exit codes: **0** for a readable result, **64** for invalid arguments, **69** for an unavailable/invalid snapshot or absent selection. A readable snapshot can contain disabled, unavailable or stale providers; scripts should inspect each provider's state before making decisions.
 
-The CLI reads the app snapshot and does not authenticate providers itself. [Connect providers](providers.md) in the app first.
-
 [Snapshot schema and implementation](../Documentation/CLI_WIDGETS.md#json-contract) · [Widgets](widgets.md) · [Docs](README.md)
