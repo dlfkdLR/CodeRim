@@ -51,7 +51,7 @@ test('unknown-length bodies stop reading and cancel at the byte limit before rou
   }, { highWaterMark: 0 });
   const request = new Request('https://relay.test/v1/accounts', { method: 'POST', duplex: 'half',
     headers: { 'content-type': 'application/json' }, body });
-  const response = await handle({ route() { routes++; } }, request);
+  const response = await handle({ enter() {}, dispatch() { routes++; } }, request);
   assert.equal(response.status, 413);
   assert.equal(routes, 0); assert.equal(pulls, 5); assert.equal(cancelled, 1); assert.equal(eof, false);
 });
@@ -63,7 +63,7 @@ test('bounded body decoding preserves split UTF-8 at the exact byte limit', asyn
     controller.enqueue(bytes.subarray(0, 12)); controller.enqueue(bytes.subarray(12)); controller.close();
   } });
   let routed;
-  const response = await handle({ route(_method, _path, value) { routed = value; return { ok: true }; } },
+  const response = await handle({ enter() {}, dispatch(_method, _path, value) { routed = value; return { ok: true }; } },
     new Request('https://relay.test/v1/accounts', { method: 'POST', duplex: 'half', headers: { 'content-type': 'application/json' }, body }));
   assert.equal(response.status, 200); assert.deepEqual(routed, input);
 });
@@ -90,7 +90,7 @@ test('heartbeat interval transitions persist once without changing content versi
   c.advance(300); c.relay.usage.requests = 90001;
   let before = c.store.writes;
   await c.route('POST', '/v1/snapshot', { ...snapshot(), generatedAt: c.now() }, mac.token);
-  assert.equal(c.store.writes - before, 1, 'the critical interval survives eviction');
+  assert.equal(c.store.writes - before, 2, 'the deadline and budget-level change each persist once');
   c.advance(HEARTBEAT.critical);
   const restarted = new Relay({ store: c.store, now: c.now });
   assert.equal((await restarted.route('GET', '/v1/snapshot', {}, mobile, 'restart')).state.connection, 'connected');
@@ -101,7 +101,7 @@ test('heartbeat interval transitions persist once without changing content versi
   c.relay.usage.requests = 0;
   before = c.store.writes;
   await c.route('POST', '/v1/snapshot', { ...snapshot(), generatedAt: c.now() }, mac.token);
-  assert.equal(c.store.writes - before, 1, 'returning to normal persists its shorter deadline');
+  assert.equal(c.store.writes - before, 2, 'returning to normal persists its deadline and budget-level change');
   assert.equal((await c.route('GET', '/v1/snapshot', {}, mobile)).state.dataVersion, version);
   c.advance(ONLINE_WINDOW);
   const reading = await c.route('GET', '/v1/snapshot', {}, mobile);
@@ -161,7 +161,7 @@ test('failed or unregistered starts retry only through scheduled alarms; permane
     await c.route('POST', '/v1/push-to-start', { pushToken: 'f'.repeat(64) }, mobile);
     await c.route('POST', '/v1/snapshot', snapshot(), mac.token); await c.relay.pending;
     assert.equal(calls.length, 1);
-    assert.equal(await alarm(c), epoch + 300);
+    assert.equal(await alarm(c), epoch + (failure.status === 200 ? 300 : 60));
     assert.equal(calls.length, 2);
   }
   for (const failure of [{ status: 410 }, { status: 400, reason: 'BadDeviceToken' }, { status: 400, reason: 'DeviceTokenNotForTopic' }]) {
@@ -257,12 +257,14 @@ test('repeated activity replacements cost constant foreground writes and bound r
   for (let i = 0; i < 16; i++) {
     const before = c.store.writes;
     await c.route('POST', '/v1/activities', { activityID: `activity-${i}`, pushToken: 'a'.repeat(64) }, mobile);
-    assert.ok(c.store.writes - before <= 2, `registration ${i} rewrote old ending rows`);
+    // At most two activity writes and one reservation for the durable usage budget.
+    assert.ok(c.store.writes - before <= 3, `registration ${i} rewrote old ending rows`);
     await c.relay.tick(owner);
   }
   const before = c.store.writes;
   await assert.rejects(c.route('POST', '/v1/activities', { activityID: 'overflow', pushToken: 'a'.repeat(64) }, mobile), { status: 429 });
-  assert.equal(c.store.writes, before); assert.equal(c.store.activities().length, 16);
+  assert.ok(c.store.writes - before <= 1, 'a refused registration can only reserve its request budget');
+  assert.equal(c.store.activities().length, 16);
   await c.route('POST', '/v1/activities', { activityID: 'activity-15', pushToken: 'b'.repeat(64) }, mobile);
   const second = c.store.issue(owner, 'mobile', c.now()).token;
   await c.route('POST', '/v1/activities', { activityID: 'other', pushToken: 'c'.repeat(64) }, second);
@@ -271,7 +273,7 @@ test('repeated activity replacements cost constant foreground writes and bound r
   assert.equal(c.store.activities().length, 0);
 });
 
-test('QR pairing hands the computer its token once, and only to the holder of the secret', async t => {
+test('QR pairing hands the computer its token until it is used, and only to the holder of the secret', async t => {
   const c = setup(t), mobile = await phone(c);
   const pair = await c.route('POST', '/v1/pairing/start', { platform: 'windows', name: '작업 PC' });
   assert.deepEqual(await c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: pair.secret }), { pending: true, expiresAt: pair.expiresAt });
@@ -282,8 +284,13 @@ test('QR pairing hands the computer its token once, and only to the holder of th
   await assert.rejects(c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: 'wrong' }), { status: 401 });
   const desktop = await c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: pair.secret });
   assert.ok(desktop.token && desktop.deviceID);
-  await assert.rejects(c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: pair.secret }), { status: 401 });
+  // The answer was lost on the way (or the computer gave up waiting): asking again hands over the same
+  // token, not a second computer.
+  assert.deepEqual(await c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: pair.secret }), desktop);
   await c.route('POST', '/v1/snapshot', snapshot(), desktop.token);
+  // Using the token finishes the pairing.
+  await assert.rejects(c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: pair.secret }), { status: 401 });
+  assert.equal(c.store.one('SELECT COUNT(*) AS n FROM devices').n, 1);
   assert.equal((await c.route('GET', '/v1/snapshot', {}, mobile)).devices[0].name, '작업 PC');
   // A desktop token cannot read; a phone token cannot publish.
   await assert.rejects(c.route('GET', '/v1/snapshot', {}, desktop.token), { status: 403 });
@@ -408,4 +415,15 @@ test('without a push key the relay still pairs and serves usage, and stores no p
   await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) }, mobile);
   await c.route('POST', '/v1/push-to-start', { pushToken: 'f'.repeat(64) }, mobile);
   assert.equal(c.store.writes, writes); assert.equal(c.store.activities().length, 0);
+});
+
+test('a computer the iPhone added that never used its token goes when the code expires', async t => {
+  const c = setup(t), mobile = await phone(c);
+  const pair = await c.route('POST', '/v1/pairing/start', { platform: 'macOS', name: 'Cancelled' });
+  await c.route('POST', '/v1/pairing/claim', { id: pair.id, secret: pair.secret }, mobile);
+  const used = await connect(c, mobile, 'Used');
+  await c.route('POST', '/v1/snapshot', snapshot(), used.token);
+  assert.equal((await c.route('GET', '/v1/snapshot', {}, mobile)).devices.length, 2);
+  c.advance(301); await c.relay.tick();
+  assert.deepEqual((await c.route('GET', '/v1/snapshot', {}, mobile)).devices.map(d => d.name), ['Used']);
 });

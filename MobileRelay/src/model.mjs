@@ -14,6 +14,8 @@ const tokens = v => Number.isSafeInteger(v) && v >= 0 ? v : null;
 // relay is busy). The default allows two missed normal heartbeats; each desktop
 // also retains the longer window advertised during critical mode.
 export const ONLINE_WINDOW = 660;
+// A provider reading older than this shows as stale.
+export const READING_AGE = 300;
 export const defaultPreferences = () => ({ providerIDs: [] });
 export function preferences(input) {
   requireValue(Array.isArray(input?.providerIDs) && input.providerIDs.length <= 100);
@@ -49,7 +51,7 @@ export function contentState(snapshot, prefs, receivedAt, now, onlineWindow = ON
   const connection = !snapshot || now >= staleAt ? 'offline' : 'connected';
   const providers = prefs.providerIDs.map(id => snapshot?.providers.find(p => p.id === id)).filter(Boolean).map(p => ({
     ...p,
-    state: (p.state === 'ready' || p.state === 'partial') && (!p.updatedAt || now - p.updatedAt > 300 || p.windows.some(w => w.resetsAt && w.resetsAt <= now)) ? 'stale' : p.state,
+    state: (p.state === 'ready' || p.state === 'partial') && (!p.updatedAt || now - p.updatedAt > READING_AGE || p.windows.some(w => w.resetsAt && w.resetsAt <= now)) ? 'stale' : p.state,
   }));
   const rank = { waiting: 0, working: 1, idle: 2, unavailable: 3 };
   const all = (snapshot?.sessions ?? []).filter(s => prefs.providerIDs.includes(s.providerID)).sort((a, b) => rank[a.phase] - rank[b.phase] || (b.since ?? 0) - (a.since ?? 0));

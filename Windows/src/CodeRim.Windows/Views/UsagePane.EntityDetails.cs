@@ -19,7 +19,7 @@ internal sealed partial class UsagePane
         }
         var allEvents = Filter(through, includeSelection: false).ToArray();
         var total = events.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
-        var quality = AnalyticsQuality(allEvents.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage)));
+        var quality = AnalyticsQuality(allEvents);
         var content = new StackPanel();
         AutomationProperties.SetAutomationId(content, "usage.entity.detail"); readings.Children.Add(content);
         void Add(FrameworkElement child)

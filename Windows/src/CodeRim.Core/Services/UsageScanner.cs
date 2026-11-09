@@ -146,6 +146,9 @@ public sealed class UsageScanner
         var sources = discovery.Sources;
         var activePaths = new HashSet<string>(sources, StringComparer.OrdinalIgnoreCase);
         var partial = discovery.ResourceLimitReached;
+        // Gaps no record marks: something not read at all. A file read in part marks its records instead
+        // (below), so only the ranges holding them are partial.
+        var gaps = partial;
         var hasMoreWork = false;
         var resourceLimitReached = discovery.ResourceLimitReached;
         var scannedBytes = 0L;
@@ -164,7 +167,7 @@ public sealed class UsageScanner
                 var before = FileStamp.Read(source);
                 if (cache.TryGetValue(source, out var cached) && cached.Stamp == before)
                 {
-                    partial |= cached.Partial;
+                    partial |= cached.Partial; gaps |= cached.Partial && cached.Events.Count == 0;
                     continue;
                 }
 
@@ -174,7 +177,7 @@ public sealed class UsageScanner
                 {
                     cache.Remove(source);
                     cachedEventCount = retainedEventCount;
-                    partial = true;
+                    partial = gaps = true;
                     resourceLimitReached = true;
                     continue;
                 }
@@ -190,7 +193,7 @@ public sealed class UsageScanner
                 {
                     cache.Remove(source);
                     cachedEventCount = retainedEventCount;
-                    partial = true;
+                    partial = gaps = true;
                     resourceLimitReached = true;
                     break;
                 }
@@ -205,7 +208,7 @@ public sealed class UsageScanner
                 {
                     cache.Remove(source);
                     cachedEventCount = retainedEventCount;
-                    partial = true;
+                    partial = gaps = true;
                     resourceLimitReached = true;
                     break;
                 }
@@ -219,7 +222,7 @@ public sealed class UsageScanner
                     // A writer may append while we parse a frozen prefix. Keep a
                     // verified prefix useful, and retry its tail on the next scan.
                     hasMoreWork = true;
-                    partial = true;
+                    partial = gaps = true;
                     var canVerify = after.Length >= before.Length
                         && after.CreationTimeTicks == before.CreationTimeTicks
                         && scannedBytes + before.Length <= maximumBytesPerScan;
@@ -234,15 +237,20 @@ public sealed class UsageScanner
                 {
                     cache.Remove(source);
                     cachedEventCount = retainedEventCount;
-                    partial = true;
+                    partial = gaps = true;
                     hasMoreWork = true;
                     continue;
                 }
 
 
-                cache[source] = new CachedFile(before, parsed.Events, parsed.Partial, parsed.Details);
+                // A file read only in part (a baseline that could not be confirmed, a missing or decreasing counter,
+                // a malformed accounting row) marks what it did yield. The mark is stored with each record, so the
+                // periods they fall in stay partial after the file is gone; the file's own flag lasts only as long
+                // as the file.
+                var yielded = parsed.UncountedUsage ? parsed.Events.Select(e => e.Repaired ? e : e with { Repaired = true }).ToList() : parsed.Events;
+                cache[source] = new CachedFile(before, yielded, parsed.Partial, parsed.Details);
                 cachedEventCount = retainedEventCount + parsed.Events.Count + (parsed.Details?.Attachments.Count ?? 0);
-                partial |= parsed.Partial;
+                partial |= parsed.Partial; gaps |= parsed.Partial && parsed.Events.Count == 0;
             }
             catch (Exception error) when (error is IOException
                                           or UnauthorizedAccessException
@@ -250,7 +258,7 @@ public sealed class UsageScanner
             {
                 cache.Remove(source);
                 cachedEventCount = cache.Values.Sum(value => value.Events.Count + (value.Details?.Attachments.Count ?? 0));
-                partial = true;
+                partial = gaps = true;
             }
         }
 
@@ -280,7 +288,7 @@ public sealed class UsageScanner
 
                 if (merged.Count >= maximumEventCount)
                 {
-                    partial = true;
+                    partial = gaps = true;
                     resourceLimitReached = true;
                     break;
                 }
@@ -295,7 +303,7 @@ public sealed class UsageScanner
             contentVersion = Interlocked.Increment(ref contentVersions);
         // Attachments become visible as their time arrives, which changes the stored sessions too.
         var dueAttachments = provider == "claude" ? 0 : cache.Values.Sum(x => x.Details?.Attachments.Count(a => a.OccurredAt <= now) ?? 0);
-        var snapshot = Aggregate(events, now, weekStart, partial || hasMoreWork);
+        var snapshot = Aggregate(events, now, weekStart, partial || hasMoreWork, sourcesPartial: gaps || hasMoreWork);
         var status = resourceLimitReached
             ? "Local session data limit reached"
             : hasMoreWork
@@ -406,6 +414,7 @@ public sealed class UsageScanner
         var attachments = new List<AttachmentObservation>();
         string? parentSession = null;
         var partial = false;
+        var uncountedUsage = false;
         var sessionId = HashIdentifier(SessionIdentifierFromFilename(path) ?? path);
         var state = UsageNormalizationState.Empty;
         var inheritsHistory = false;
@@ -434,7 +443,7 @@ public sealed class UsageScanner
         {
             if (boundedLine.Oversized)
             {
-                partial = true;
+                partial = uncountedUsage = true;
                 continue;
             }
 
@@ -446,10 +455,10 @@ public sealed class UsageScanner
                 {
                     using var document = System.Text.Json.JsonDocument.Parse(line);
                     if (document.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object || JsonFields.Text(document.RootElement, "type") is null)
-                    { partial = true; continue; }
+                    { partial = uncountedUsage = true; continue; }
                     sawCompleteRecord = true;
                 }
-                catch (System.Text.Json.JsonException) { partial = true; continue; }
+                catch (System.Text.Json.JsonException) { partial = uncountedUsage = true; continue; }
             }
             if (provider == "claude")
             {
@@ -464,7 +473,7 @@ public sealed class UsageScanner
                     var root = document.RootElement; var message = JsonFields.Object(root, "message");
                     if (JsonFields.Text(root, "type") == "assistant" && !JsonFields.Flag(root, "isApiErrorMessage")
                         && (JsonFields.Text(message, "model")?.StartsWith("claude-", StringComparison.Ordinal) == true
-                            || JsonFields.Object(message, "usage").ValueKind != System.Text.Json.JsonValueKind.Undefined)) partial = true;
+                            || JsonFields.Object(message, "usage").ValueKind != System.Text.Json.JsonValueKind.Undefined)) partial = uncountedUsage = true;
                 }
                 continue;
             }
@@ -502,10 +511,10 @@ public sealed class UsageScanner
                                 attachments.Add(new AttachmentObservation(HashIdentifier($"images|{sessionId}|{timestamp:O}|{identityKey}"), timestamp, images.Length));
                             }
                         }
-                        else if (images.Length > 0) partial = true;
+                        else if (images.Length > 0) partial = uncountedUsage = true;
                     }
                 }
-                catch (System.Text.Json.JsonException) { partial = true; }
+                catch (System.Text.Json.JsonException) { partial = uncountedUsage = true; }
             }
             if (line.AsSpan().IndexOf("\"turn_context\""u8) >= 0 || line.AsSpan().IndexOf("\"session_meta\""u8) >= 0)
             {
@@ -525,7 +534,7 @@ public sealed class UsageScanner
                         }
                     }
                 }
-                catch (System.Text.Json.JsonException) { partial = true; }
+                catch (System.Text.Json.JsonException) { partial = uncountedUsage = true; }
             }
             if (!requireCompleteSources && !ContainsRelevantMarker(line))
             {
@@ -616,6 +625,7 @@ public sealed class UsageScanner
                         events[^1] = last with { Usage = enriched };
                     state = normalized.State;
                     partial |= state.Quality == DataQuality.Partial;
+                    uncountedUsage |= state.Quality == DataQuality.Partial && !normalized.Repaired && normalized.Diagnostic is not null;
                     if (isInheritedReplay || normalized.Delta is not { } delta || delta.IsZero && !normalized.Repaired)
                     {
                         break;
@@ -636,14 +646,15 @@ public sealed class UsageScanner
                     break;
 
                 case ParsedLineKind.Malformed:
-                    partial = true;
+                    partial = uncountedUsage = true;
                     break;
             }
         }
 
         return new ParsedFile(events, partial || requireCompleteSources && !sawCompleteRecord, false, prefixHash.GetHashAndReset(), identity,
             provider == "codex" ? new SessionDetails(sessionId, parentSession, attachments) { StartedAt = sessionStartedAt,
-                ProjectName = projectId == "unknown" ? null : project, ProjectObservedAt = projectObservedAt } : null);
+                ProjectName = projectId == "unknown" ? null : project, ProjectObservedAt = projectObservedAt } : null)
+            { UncountedUsage = uncountedUsage || requireCompleteSources && !sawCompleteRecord };
     }
 
     private static bool VerifyPrefix(string path, long length, ParsedFile parsed, CancellationToken cancellationToken)
@@ -687,7 +698,8 @@ public sealed class UsageScanner
         DateTimeOffset now,
         WeekStart weekStart,
         bool partial,
-        TimeZoneInfo? timeZone = null)
+        TimeZoneInfo? timeZone = null,
+        bool? sourcesPartial = null)
     {
         timeZone ??= TimeZoneInfo.Local;
         var localNow = TimeZoneInfo.ConvertTime(now, timeZone);
@@ -735,14 +747,21 @@ public sealed class UsageScanner
             }
         }
 
+        // A record in the current week or month that was marked when it was read or saved makes them partial,
+        // even after the file that held it is gone.
+        var current = weekStartUtc < monthStartUtc ? weekStartUtc : monthStartUtc;
+        var marked = events.Any(e => e.Repaired && e.OccurredAt >= current && e.OccurredAt <= now);
         var quality = newest is null
             ? partial ? DataQuality.Partial : DataQuality.Unavailable
-            : partial ? DataQuality.Partial : DataQuality.Exact;
-        return new UsageSnapshot(today, week, month, allTime, quality, newest) { Through = now, TimeZoneIdentifier = timeZone.Id };
+            : partial || marked ? DataQuality.Partial : DataQuality.Exact;
+        return new UsageSnapshot(today, week, month, allTime, quality, newest) { SourcesPartial = sourcesPartial ?? partial, Through = now, TimeZoneIdentifier = timeZone.Id };
     }
 
-    private static DateTimeOffset LocalStartUtc(DateTime localDate, TimeZoneInfo timeZone) =>
-        AnalyticsTimeline.LocalMidnight(localDate, timeZone).ToUniversalTime();
+    /// The day's first instant, the same one the charts start the day at: a midnight that happens twice
+    /// (the clock goes back at 01:00) starts at its first occurrence, not the standard-time one
+    /// `ConvertTimeToUtc` would pick, so Today and the chart's day hold the same records.
+    private static DateTimeOffset LocalStartUtc(DateTime localDate, TimeZoneInfo timeZone)
+        => AnalyticsTimeline.LocalMidnight(localDate, timeZone).ToUniversalTime();
 
     private static bool ContainsRelevantMarker(byte[] line)
     {
@@ -825,7 +844,10 @@ public sealed class UsageScanner
         bool ResourceLimitReached,
         byte[]? PrefixHash = null,
         FileIdentity? Identity = null,
-        SessionDetails? Details = null);
+        SessionDetails? Details = null)
+    {
+        public bool UncountedUsage { get; init; }
+    }
     private sealed record DiscoveryResult(List<string> Sources, bool ResourceLimitReached);
     private sealed record CachedFile(FileStamp Stamp, IReadOnlyList<UsageEvent> Events, bool Partial, SessionDetails? Details);
     private readonly record struct FileStamp(long Length, long LastWriteTicks, long CreationTimeTicks)

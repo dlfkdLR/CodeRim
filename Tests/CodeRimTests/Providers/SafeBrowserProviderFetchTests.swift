@@ -222,6 +222,25 @@ final class SafeBrowserProviderFetchTests: XCTestCase, @unchecked Sendable {
         do { _ = try await fetch(.factory, dependencies: deps); XCTFail("expected the refusal") }
         catch { XCTAssertTrue(error is Refused, "\(error)") }
     }
+    /// A Chrome profile folder that cannot be listed must not stop Safari's working session from being read.
+    func testFactoryUnlistableChromeProfilesStillTrySafari() async throws {
+        let safari = BrowserCookieStore(browser: .safari, profile: .init(id: "safari", name: "Safari"), kind: .primary,
+                                        label: "safari", databaseURL: URL(fileURLWithPath: "/fixture/Safari/Cookies.binarycookies"))
+        var deps = dependencies()
+        deps.profiles = { _, _ in throw LocalStorageReadError.limit }
+        deps.stores = { browser in browser == .safari ? [safari] : [] }
+        deps.cookies = { _, domains in
+            domains == ["factory.ai"] ? [.init(domain: "app.factory.ai", name: "access-token", path: "/",
+                value: Self.token, expires: nil, isSecure: true, isHTTPOnly: true)] : []
+        }
+        deps.transport = Transport { request in Self.factoryReply(request) }
+        let result = try await fetch(.factory, dependencies: deps)
+        XCTAssertEqual(result.usage.primary?.usedPercent, 10)
+
+        deps.cookies = { _, _ in [] }
+        do { _ = try await fetch(.factory, dependencies: deps); XCTFail("expected the listing failure") }
+        catch { XCTAssertEqual(error as? LocalStorageReadError, .limit) }
+    }
     private func factoryRecoveryDependencies(_ state: State, stored: Bool, secondStatus: Int, changeSource: Bool = false) -> SafeBrowserProviderFetch.Dependencies {
         var deps = dependencies()
         deps.storedFactoryRefresh = { stored ? (state.changed ? Self.nextRefresh : Self.refresh) : nil }

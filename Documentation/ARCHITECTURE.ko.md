@@ -16,7 +16,7 @@ known JSONL roots -> contained discovery -> FSEvents refresh hint
 
 `UsageProvider`가 원본 위치와 데이터베이스를 선택합니다. Codex는 `~/.codex/sessions`·`~/.codex/archived_sessions`, Claude는 `<CLAUDE_CONFIG_DIR or ~/.claude>/projects`를 읽습니다. `CodexMeter.sqlite`·`Claude.sqlite`는 토큰 이벤트와 삭제 기준 시각을 별도로 유지합니다. 파일 시스템 이벤트는 갱신 힌트이지 토큰 이벤트가 아닙니다. 관측한 prefix까지만 읽고 가능한 파일 시스템에서는 COW 스냅샷을 쓰며 직접 읽을 때에는 키 기반 연속성 fingerprint를 검증합니다. 동시 append가 이미 허용된 데이터를 지우면 안 됩니다. 다시 쓰기·파일 교체는 체크포인트를 무효화합니다.
 
-프로덕션 번들 ID만 `~/Library/Application Support/CodexMeter`를 엽니다. 개발·테스트 호스트는 `CodexMeter-Development`를 사용해 미배포 스키마 변경과 설치된 앱 데이터를 분리합니다. 스키마 17은 토큰 이벤트와 버전 16 재생 복구를 유지하고 파싱 상태의 세션 ID를 인덱싱합니다. 일치하는 전체 로그·prefix 체크포인트의 최댓값에서 트랜잭션으로 이미지 수를 복구하며 서로 무관한 이미지 조각을 합치지 않습니다.
+프로덕션 번들 ID만 `~/Library/Application Support/CodexMeter`를 엽니다. 개발·테스트 호스트는 `CodexMeter-Development`를 사용해 미배포 스키마 변경과 설치된 앱 데이터를 분리합니다. 스키마 17은 토큰 이벤트와 버전 16 재생 복구를 유지하고 파싱 상태의 세션 ID를 인덱싱합니다. 일치하는 전체 로그·prefix 체크포인트의 최댓값에서 트랜잭션으로 이미지 수를 복구하며 서로 무관한 이미지 조각을 합치지 않습니다. 스키마 18은 집계하지 못한 회계 행의 근거를 원본 세대별로 체크포인트와 함께 저장합니다. 원본 파일을 삭제해도 남고 기록 지우기·재구축 시 제거됩니다.
 
 계정 한도는 독립된 읽기 전용 경계를 사용합니다.
 

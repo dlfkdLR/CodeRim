@@ -37,7 +37,7 @@ Without the three secrets the relay still starts: it pairs computers and serves 
 
 ### Staying inside the free allowance
 
-The Free plan allows about 100,000 requests and 100,000 row writes per day for the Worker and its Durable Object. The relay counts both and degrades on purpose before Cloudflare does:
+The relay budgets 100,000 requests, 100,000 row writes and 5,000,000 row reads per day, including malformed requests and alarm work. Usage reservations and hourly registration limits survive object restarts:
 
 | Daily use | Relay behavior |
 | --- | --- |
@@ -45,7 +45,7 @@ The Free plan allows about 100,000 requests and 100,000 row writes per day for t
 | 70% and above | New accounts and pairings get `503 server_busy`. Responses, the Island content state, and desktop settings carry a notice; each running Island gets one alert per day. Computers are told to send heartbeats every 10 minutes. |
 | 90% and above | As above, with 30-minute heartbeats. |
 
-Steady heartbeats with unchanged content update only memory. A change in the advertised heartbeat interval persists the freshness horizon once. A computer counts as online for 11 minutes after its last post, or 31 minutes while it uses the critical 30-minute heartbeat. Capacity depends on snapshot changes and APNs traffic; budget exhaustion pauses requests until 00:00 UTC.
+Steady heartbeats keep unchanged device content in memory; usage-budget reservations still persist in batches. A change in the advertised heartbeat interval persists the freshness horizon once. A computer counts as online for 11 minutes after its last post, or 31 minutes while it uses the critical 30-minute heartbeat. Capacity depends on snapshot changes and APNs traffic; budget exhaustion pauses requests until 00:00 UTC.
 
 ## Pairing and data flow
 
@@ -89,4 +89,4 @@ Focus belongs to each iPhone and computer. Direct provider selection through `/v
 
 Disconnecting the iPhone deletes its account, computers, and stored snapshots, and schedules APNs end retries. A delivery token can remain until APNs succeeds, reports a permanent error, or the 8-hour Activity limit passes.
 
-`npm test` covers QR pairing, anonymous accounts, isolation between phones, heartbeats that write nothing, the budget levels and notices, push-to-start and idle end, HTTP limits, the APNs provider token, and the existing focus and picker contracts. DEBUG UI fixtures (`--ui-settings`, `--ui-dashboard` with it for the home screen, `--ui-empty-settings`, `--ui-no-services`, `--ui-dark`, `--ui-large-text`, and the isolated `--ui-scanner` paste fixture) use a memory relay or scanner-only view and disable real account and Activity actions. Real APNs delivery from the deployed Worker, camera scanning on a device, battery and latency, and physical Island interaction remain separate checks. [Privacy](PRIVACY.md).
+`npm test` covers QR pairing, anonymous accounts, isolation between phones, unchanged-content heartbeats, durable budget accounting and notices, push-to-start and idle end, HTTP limits, the APNs provider token, and the existing focus and picker contracts. DEBUG UI fixtures (`--ui-settings`, `--ui-dashboard` with it for the home screen, `--ui-empty-settings`, `--ui-no-services`, `--ui-dark`, `--ui-large-text`, and the isolated `--ui-scanner` paste fixture) use a memory relay or scanner-only view and disable real account and Activity actions. Real APNs delivery from the deployed Worker, camera scanning on a device, battery and latency, and physical Island interaction remain separate checks. [Privacy](PRIVACY.md).

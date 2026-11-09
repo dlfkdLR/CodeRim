@@ -44,8 +44,18 @@ public final class MobileRelayClient: MobileRelayServing, Sendable {
         guard let c = URLComponents(string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
               c.scheme == "https", let host = c.host, !host.isEmpty,
               c.user == nil, c.password == nil, c.query == nil, c.fragment == nil,
-              c.path.isEmpty || c.path == "/", let url = c.url else { throw MobileRelayError.invalidServer }
+              c.path.isEmpty || c.path == "/" else { throw MobileRelayError.invalidServer }
+        // One spelling per origin: `https://Relay.example.com:443/` and `https://relay.example.com` are the same
+        // server, so a QR code from a Mac and one from a Windows PC never look like a change of server.
+        var origin = URLComponents()
+        origin.scheme = "https"; origin.host = host.lowercased(); origin.port = c.port == 443 ? nil : c.port
+        guard let url = origin.url else { throw MobileRelayError.invalidServer }
         return url
+    }
+    /// Whether two addresses name the same relay, including addresses saved before they were normalized.
+    public static func sameOrigin(_ a: URL, _ b: URL) -> Bool {
+        guard let a = try? validatedEndpoint(a.absoluteString), let b = try? validatedEndpoint(b.absoluteString) else { return a == b }
+        return a == b
     }
     public convenience init(endpoint: URL) throws {
         try self.init(endpoint: endpoint, protocolClasses: nil)

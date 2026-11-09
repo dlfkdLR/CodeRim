@@ -15,8 +15,10 @@ public sealed class SettingsUsageAnalyticsTests
         string model = "model-a", string session = "session-a", long? writes = 0) =>
         new(id, at, new(input, cached, output, writes), model, "Fixture", session);
     private static AnalyticsSourceFrame Frame(IReadOnlyList<UsageEvent> events, DateTimeOffset? through = null,
+        // A partial frame here is an incomplete read, which makes every range partial.
         DataQuality quality = DataQuality.Exact) => new(through ?? Now,
-        new(new(999999, 0, 0), new(999999, 0, 0), new(999999, 0, 0), new(999999, 0, 0), quality, Now.AddDays(-20)), events);
+        new(new(999999, 0, 0), new(999999, 0, 0), new(999999, 0, 0), new(999999, 0, 0), quality, Now.AddDays(-20))
+        { SourcesPartial = quality == DataQuality.Partial }, events);
 
     [Theory]
     [InlineData(AnalyticsRange.Today, 7)]

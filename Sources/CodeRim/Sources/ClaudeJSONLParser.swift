@@ -79,6 +79,27 @@ struct ClaudeJSONLParser: Sendable {
         }
     }
 
+    /// Whether a line the parser did not accept still looked like an accounting row: an assistant message
+    /// from a Claude model that carries usage. Such a row's tokens are missing from the totals, so the period
+    /// it belongs to is partial; other lines (user turns, summaries, synthetic and API-error messages) are not.
+    /// Returns the row's time when it can be read.
+    static func rejectedAccounting(_ line: Data) -> (isAccounting: Bool, occurredAt: Date?) {
+        guard line.count <= CodexJSONLParser.maximumLineBytes,
+              let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
+              object["type"] as? String == "assistant", object["isApiErrorMessage"] as? Bool != true,
+              let message = object["message"] as? [String: Any], message["usage"] != nil,
+              (message["model"] as? String)?.hasPrefix("claude-") == true
+        else { return (false, nil) }
+        return (true, (object["timestamp"] as? String).flatMap(date))
+    }
+
+    /// The `timestamp` of a JSONL row, when it has a readable one.
+    static func timestamp(of line: Data) -> Date? {
+        guard line.count <= CodexJSONLParser.maximumLineBytes,
+              let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { return nil }
+        return (object["timestamp"] as? String).flatMap(date)
+    }
+
     private static func date(_ value: String) -> Date? {
         guard value.utf8.count <= 64 else { return nil }
         return (try? Date(value, strategy: .iso8601.time(includingFractionalSeconds: true)))

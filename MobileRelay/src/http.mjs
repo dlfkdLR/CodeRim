@@ -2,14 +2,19 @@ import { HTTPError } from './model.mjs';
 
 const headers = { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' };
 const reply = (status, value) => new Response(JSON.stringify(value), { status, headers });
+export const BODY_LIMIT = 262144;
 
 /** Fetch-style entry point shared by the Durable Object and the tests. */
 export async function handle(relay, request) {
   try {
     const url = new URL(request.url);
+    // Cloudflare sets CF-Connecting-IP itself; a client cannot supply it through the edge.
+    const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+    // Counted, and held to the address's limit, before anything else: a malformed request is a request too.
+    relay.enter(request.method, url.pathname, ip);
     if (url.pathname.length > 256 || url.search) throw new HTTPError(400, 'invalid_path');
     const declared = Number(request.headers.get('content-length') ?? 0);
-    if (declared > 262144) {
+    if (declared > BODY_LIMIT) {
       await request.body?.cancel();
       throw new HTTPError(413, 'payload_too_large');
     }
@@ -22,7 +27,7 @@ export async function handle(relay, request) {
           const { value, done } = await reader.read();
           if (done) break;
           bytes += value.byteLength;
-          if (bytes > 262144) {
+          if (bytes > BODY_LIMIT) {
             await reader.cancel();
             throw new HTTPError(413, 'payload_too_large');
           }
@@ -39,9 +44,7 @@ export async function handle(relay, request) {
     }
     const authorization = request.headers.get('authorization');
     const token = authorization?.startsWith('Bearer ') ? authorization.slice(7) : null;
-    // Cloudflare sets CF-Connecting-IP itself; a client cannot supply it through the edge.
-    const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-    return reply(200, await relay.route(request.method, url.pathname, body, token, ip));
+    return reply(200, await relay.dispatch(request.method, url.pathname, body, token, ip));
   } catch (error) {
     return reply(error instanceof HTTPError ? error.status : 500, { error: error instanceof HTTPError ? error.message : 'internal_error' });
   }

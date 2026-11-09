@@ -16,7 +16,7 @@ known JSONL roots -> contained discovery -> FSEvents refresh hint
 
 `UsageProvider` selects the source roots and database. Codex reads `~/.codex/sessions` and `~/.codex/archived_sessions`; Claude reads `<CLAUDE_CONFIG_DIR or ~/.claude>/projects`. `CodexMeter.sqlite` and `Claude.sqlite` retain independent token events and cutoffs. Filesystem events are refresh hints, not token events. Imports bound reads to the observed prefix, use COW snapshots where available, and validate keyed continuity fingerprints for live reads; concurrent appends must not erase accepted data. Rewrites/replacements invalidate checkpoints.
 
-Only the production bundle identity opens `~/Library/Application Support/CodexMeter`. Development/test hosts use `CodexMeter-Development`. This separates unreleased schema migration from installed production data. Schema 17 preserves token events and version-16 replay repairs, indexes parsing-state session IDs, and repairs image counts transactionally from the maximum matching full-log/prefix checkpoint. It does not union unrelated image fragments.
+Only the production bundle identity opens `~/Library/Application Support/CodexMeter`. Development/test hosts use `CodexMeter-Development`. This separates unreleased schema migration from installed production data. Schema 17 preserves token events and version-16 replay repairs, indexes parsing-state session IDs, and repairs image counts transactionally from the maximum matching full-log/prefix checkpoint. It does not union unrelated image fragments. Schema 18 adds generation-scoped evidence for uncounted accounting rows; it is committed with checkpoints, survives source deletion, and is removed by Clear/Rebuild.
 
 ## State and rendering
 

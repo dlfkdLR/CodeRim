@@ -4,6 +4,7 @@ import { Store } from './store.mjs';
 import { durableSQL } from './sql.mjs';
 import { createAPNs } from './apns.mjs';
 import { handle } from './http.mjs';
+import { alarmScheduler } from './alarms.mjs';
 
 /**
  * One Durable Object holds every account. A single instance keeps the relay's
@@ -27,17 +28,19 @@ export class RelayObject extends DurableObject {
       schedule: at => this.schedule(at),
     });
   }
-  async schedule(at) {
-    const current = await this.ctx.storage.getAlarm();
-    const next = Math.max(Date.now() + 1000, at * 1000);
-    if (current === null || next < current) await this.ctx.storage.setAlarm(next);
+  schedule(at) {
+    // setAlarm is a row write on SQLite-backed objects.
+    this.scheduleAlarm ??= alarmScheduler(this.ctx.storage, { onSet: () => this.relay.alarmSet() });
+    return this.scheduleAlarm(at);
   }
   async fetch(request) {
     const response = await handle(this.relay, request);
-    if (this.relay.pending) this.ctx.waitUntil(this.relay.pending);
+    // Rows written after the response (pushes, activity bookkeeping) are counted once that work ends.
+    // Rows the request wrote are counted (and claimed in storage) before the object can go idle.
+    if (this.relay.pending) this.ctx.waitUntil(this.relay.settle()); else this.relay.count({ request: false });
     return response;
   }
-  async alarm() { await this.relay.tick(); if (this.relay.pending) await this.relay.pending; }
+  async alarm() { await this.relay.alarm(); }
 }
 
 export default {

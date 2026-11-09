@@ -62,7 +62,9 @@ final class ThresholdNotifier {
         let key = snapshot.id + "|" + (snapshot.accountIdentity ?? "")
         var memory = crossed[key] ?? Memory(level: 0, window: nil, resetsAt: nil)
         let sameWindow = memory.window == headline?.id
-        if sameWindow, let next = headline?.resetsAt, let last = memory.resetsAt,
+        // A reset that moved to a later period is a new period, whatever the window is called: Codex names
+        // its windows by their reset time, so a new period also arrives under a new window id.
+        if let next = headline?.resetsAt, let last = memory.resetsAt,
            next.timeIntervalSince(last) > Self.newPeriodShift {
             memory.level = 0   // a new limit period began while the reading was not seen low
         }

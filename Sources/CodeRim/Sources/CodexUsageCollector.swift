@@ -601,6 +601,7 @@ actor CodexUsageCollector {
         var loadedStateSessionID = checkpoint.sessionID
         var pendingEvents: [UsageEvent] = []
         var excludedEventKeys: Set<String> = []
+        var pendingEvidence: [PartialEvidence] = []
         pendingEvents.reserveCapacity(256)
         var completedLineCount = 0
         let startingOffset = checkpoint.committedOffset
@@ -673,6 +674,7 @@ actor CodexUsageCollector {
                     persistedNormalizationState: &persistedNormalizationState,
                     loadedStateSessionID: &loadedStateSessionID,
                     pendingEvents: &pendingEvents,
+                    pendingEvidence: &pendingEvidence,
                     excludedEventKeys: &excludedEventKeys,
                     importCutoff: importCutoff
                 )
@@ -698,9 +700,10 @@ actor CodexUsageCollector {
                         expectedEpoch: expectedEpoch,
                         expectedNormalizationState: checkpoint.sessionID == nil ? nil : persistedNormalizationState,
                         mergesMessageUsage: provider == .claude,
-                        excludedEventKeys: excludedEventKeys
+                        excludedEventKeys: excludedEventKeys,
+                        partialEvidence: pendingEvidence
                     )
-                    if !pendingEvents.isEmpty || !excludedEventKeys.isEmpty
+                    if !pendingEvents.isEmpty || !excludedEventKeys.isEmpty || !pendingEvidence.isEmpty
                         || analyticsMetadataChanged(checkpoint, from: previousCheckpoint) {
                         analyticsRevision &+= 1
                     }
@@ -710,6 +713,7 @@ actor CodexUsageCollector {
                             normalizationState = committedNormalizationState
                         }
                     }
+                    pendingEvidence.removeAll(keepingCapacity: true)
                     pendingEvents.removeAll(keepingCapacity: true)
                     excludedEventKeys.removeAll(keepingCapacity: true)
                     completedLineCount = 0
@@ -725,6 +729,11 @@ actor CodexUsageCollector {
             if lineBuffer.count > CodexJSONLParser.maximumLineBytes {
                 parsedFingerprintAccumulator.append(lineBuffer)
                 normalizationState.quality = .partial
+                // Too long to read. If what was read of it is an accounting row (a Codex token count, or a
+                // Claude assistant message, whose usage comes after its content), its tokens are missing.
+                if provider == .claude ? lineBuffer.containsASCII("\"type\":\"assistant\"") : lineBuffer.containsASCII("\"token_count\"") {
+                    recordEvidence(checkpoint: checkpoint, position: lineStartOffset, occurredAt: nil, importCutoff: importCutoff, evidence: &pendingEvidence)
+                }
                 lineBuffer.removeAll(keepingCapacity: false)
                 skippingOversizedLine = true
                 checkpoint.isSkippingOversizedLine = true
@@ -755,12 +764,14 @@ actor CodexUsageCollector {
                 expectedEpoch: expectedEpoch,
                 expectedNormalizationState: checkpoint.sessionID == nil ? nil : persistedNormalizationState,
                 mergesMessageUsage: provider == .claude,
-                excludedEventKeys: excludedEventKeys
+                excludedEventKeys: excludedEventKeys,
+                partialEvidence: pendingEvidence
             )
-            if !pendingEvents.isEmpty || !excludedEventKeys.isEmpty
+            if !pendingEvents.isEmpty || !excludedEventKeys.isEmpty || !pendingEvidence.isEmpty
                 || analyticsMetadataChanged(checkpoint, from: previousCheckpoint) {
                 analyticsRevision &+= 1
             }
+            pendingEvidence.removeAll(keepingCapacity: true)
             if let committedNormalizationState,
                normalizationState.cumulativeHighWaterMark != nil {
                 normalizationState = committedNormalizationState
@@ -913,12 +924,14 @@ actor CodexUsageCollector {
         persistedNormalizationState: inout UsageNormalizationState,
         loadedStateSessionID: inout String?,
         pendingEvents: inout [UsageEvent],
+        pendingEvidence: inout [PartialEvidence],
         excludedEventKeys: inout Set<String>,
         importCutoff: Date?
     ) async throws {
         if provider == .claude {
             try await processClaudeLine(line, position: position, source: source,
                                         checkpoint: &checkpoint, pendingEvents: &pendingEvents,
+                                        pendingEvidence: &pendingEvidence,
                                         excludedEventKeys: &excludedEventKeys,
                                         importCutoff: importCutoff)
             return
@@ -1050,10 +1063,21 @@ actor CodexUsageCollector {
 
         case .malformed:
             normalizationState.quality = .partial
+            // The session's quality alone dates the gap at its last valid row, which a recent period does not
+            // reach; the row's own time (or when it was read) does.
+            recordEvidence(checkpoint: checkpoint, position: position, occurredAt: ClaudeJSONLParser.timestamp(of: line), importCutoff: importCutoff, evidence: &pendingEvidence)
 
         case .ignored:
             break
         }
+    }
+
+    private func recordEvidence(checkpoint: SourceCheckpoint, position: Int64, occurredAt: Date?,
+                                importCutoff: Date?, evidence: inout [PartialEvidence]) {
+        let observedAt = occurredAt ?? Date()
+        if let importCutoff, observedAt <= importCutoff { return }
+        let generation = "\(checkpoint.sourcePath)|\(checkpoint.fileIdentity)|\(checkpoint.generation)"
+        evidence.append(PartialEvidence(source: storageIdentifier(generation), position: position, observedAt: observedAt))
     }
 
     private func eventKey(
@@ -1077,10 +1101,18 @@ actor CodexUsageCollector {
         source: CodexSessionSource,
         checkpoint: inout SourceCheckpoint,
         pendingEvents: inout [UsageEvent],
+        pendingEvidence: inout [PartialEvidence],
         excludedEventKeys: inout Set<String>,
         importCutoff: Date?
     ) async throws {
-        guard let observation = ClaudeJSONLParser().parse(line) else { return }
+        guard let observation = ClaudeJSONLParser().parse(line) else {
+            // Most lines are not accounting rows. One that is but failed validation leaves tokens uncounted.
+            let rejected = ClaudeJSONLParser.rejectedAccounting(line)
+            if rejected.isAccounting {
+                recordEvidence(checkpoint: checkpoint, position: position, occurredAt: rejected.occurredAt, importCutoff: importCutoff, evidence: &pendingEvidence)
+            }
+            return
+        }
         let eventKey = storageIdentifier("claude-message|\(observation.messageID)")
         if let importCutoff, observation.occurredAt <= importCutoff {
             excludedEventKeys.insert(eventKey)

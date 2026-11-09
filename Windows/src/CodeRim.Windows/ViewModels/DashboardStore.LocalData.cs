@@ -41,6 +41,9 @@ internal sealed partial class DashboardStore
             {
                 generations[id] = Generation(id) + 1;
                 var cutoff = DateTimeOffset.Now;
+                // Before the write, not after it succeeds: if what follows is cancelled or fails, the next
+                // refresh must read the database again rather than republish the numbers held in memory.
+                storedScans.Remove(id);
                 await Task.Run(() => repository.Clear(id, cutoff), cancellation.Token).ConfigureAwait(true); committed = true;
                 var clearStatistics = await Task.Run(() => repository.Statistics(id), lifetime.Token).ConfigureAwait(true);
                 if (!CanPublishLocalAnalytics(id, epoch, maintenance: true)) return;
@@ -70,6 +73,9 @@ internal sealed partial class DashboardStore
             }
             cancellation.Token.ThrowIfCancellationRequested();
             var periodStart = UsageScanner.CurrentPeriodStart(DateTimeOffset.Now, settings.Current.WeekStart);
+            // As above: a rebuild whose follow-up is cancelled (the two-minute deadline) or fails leaves the next
+            // refresh to re-read the rebuilt database, never to reuse the events from before it.
+            storedScans.Remove(id);
             var (events, repaired) = await Task.Run(() => (repository.Rebuild(id, scan.Events, scan.Sessions), repository.HasRepairedEventsSince(id, periodStart)), cancellation.Token).ConfigureAwait(true);
             committed = true;
             if (!CanPublishLocalAnalytics(id, epoch, maintenance: true)) return;
@@ -84,7 +90,8 @@ internal sealed partial class DashboardStore
             scanners[id] = new UsageScanner(id, projectKey: projectKey); SourceCounts[id] = scan.SourceCount;
             Events[id] = events; SessionDetails[id] = sessions;
             if (labels is not null) CodexAnalyticsLabels = labels;
-            Usage[id] = UsageScanner.Aggregate(events, through, settings.Current.WeekStart, repaired);
+            // A rebuild reads every source completely; only marked records can make a range partial.
+            Usage[id] = UsageScanner.Aggregate(events, through, settings.Current.WeekStart, repaired, sourcesPartial: false);
             DataStatistics[id] = statistics;
             PublishLocalAnalyticsRead(id, through, epoch, maintenance: true);
             DataOperationMessages[id] = "Statistics rebuilt."; Persist();

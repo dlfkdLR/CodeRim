@@ -3,17 +3,15 @@ using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using CodeRim.Core.Domain;
+using CodeRim.Core.Services;
 
 namespace CodeRim.Windows.Views;
 
 internal sealed partial class UsagePane
 {
-    private DataQuality AnalyticsQuality(TokenUsage rangeUsage)
-    {
-        if (rangeUsage.IsZero) return DataQuality.Unavailable;
-        var snapshot = detailAnalyticsFrame?.Local ?? store.Usage.GetValueOrDefault(provider);
-        return snapshot?.RetainsPartialHistory == true ? DataQuality.Partial : snapshot?.Quality ?? DataQuality.Unavailable;
-    }
+    /// The quality of the range shown, from its own records, not the current week's or month's.
+    private DataQuality AnalyticsQuality(IReadOnlyCollection<UsageEvent> rangeEvents)
+        => LocalHistoryQuality.ForRange(detailAnalyticsFrame?.Local ?? store.Usage.GetValueOrDefault(provider), rangeEvents);
 
     private bool AnalyticsReady()
     {

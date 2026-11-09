@@ -1,4 +1,5 @@
 import XCTest
+import CodexBarCore
 @testable import CodeRim
 
 /// A successful answer is only the current account's answer if the account did not change while it was
@@ -42,6 +43,62 @@ final class NotchAccountBoundaryTests: XCTestCase {
         XCTAssertEqual(native.fetchCount, 2)
         XCTAssertEqual(store.snapshots.first?.accountIdentity, "b")
         XCTAssertEqual(store.snapshots.first?.windows.first?.usedFraction, native.fraction(for: "b"))
+    }
+
+    /// The borrowed CLI credential (A) is expired, so CodeRim's own sign-in answers. The reading is
+    /// that sign-in's (B), and a later switch of that sign-in to C is noticed though A is still on disk.
+    func testAFallbackAnswerBelongsToTheSignInThatAnswered() async throws {
+        let native = SwitchingProvider(id: "grok")
+        native.refuses = true
+        let signedIn = SignedInEmail("b@example.invalid")
+        let upstream = ExtendedNotchProvider(descriptor: ProviderDescriptorRegistry.descriptor(for: .grok),
+                                             configuration: { .init(providerID: .grok) }, fetch: { descriptor, _ in
+            ProviderFetchResult(usage: .init(primary: .init(usedPercent: signedIn.email.hasPrefix("b") ? 20 : 70,
+                                                            windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+                                             secondary: nil, updatedAt: Date(),
+                                             identity: .init(providerID: descriptor.id.instanceID, accountEmail: signedIn.email,
+                                                             accountOrganization: nil, loginMethod: nil)),
+                                credits: nil, dashboard: nil, sourceLabel: "fixture", strategyID: "fixture", strategyKind: .apiToken)
+        })
+        let wrapped = HybridNotchProvider(native: native, upstream: upstream)
+        let store = NotchUsageStore(providers: [wrapped], archive: UsageArchive(defaults: defaults))
+        await store.refresh()
+        let b = AccountIdentity.fingerprint("grok", "b@example.invalid")
+        XCTAssertEqual(store.snapshots.first?.accountIdentity, b, "not A, whose credential was refused")
+        XCTAssertEqual(wrapped.accountIdentity(), b)
+
+        signedIn.email = "c@example.invalid"
+        await store.refresh()
+        XCTAssertEqual(store.snapshots.first?.accountIdentity, AccountIdentity.fingerprint("grok", "c@example.invalid"))
+        XCTAssertEqual(store.snapshots.first?.windows.first?.usedFraction ?? 0, 0.7, accuracy: 0.001)
+
+        // The local reader answers again but cannot name its account (Antigravity's IDE): the answer is
+        // nobody's, not C's that CodeRim's own sign-in read before.
+        native.refuses = false
+        native.identity = nil
+        await store.refresh()
+        XCTAssertNil(wrapped.accountIdentity())
+        XCTAssertNil(store.snapshots.first?.accountIdentity)
+        XCTAssertEqual(store.snapshots.first?.windows.first?.usedFraction, native.fraction(for: ""))
+    }
+
+    /// The account changed during the first read, and the read again failed, forgetting the account.
+    /// The cell stays with the failure instead of disappearing, and nothing of the old account is kept.
+    func testAFailedReadAgainAfterAnAccountChangeStillShowsTheCell() async throws {
+        let provider = SwitchingProvider()
+        let archive = UsageArchive(defaults: defaults)
+        let store = NotchUsageStore(providers: [provider], archive: archive)
+        await store.refresh()
+        XCTAssertNotNil(store.snapshots.first?.windows.first)
+        provider.onFetch = { count in
+            if count == 2 { provider.identity = "b" }
+            if count == 3 { provider.identity = nil; provider.answers = .error("Network unavailable") }
+        }
+        await store.refresh()
+        let cell = try XCTUnwrap(store.snapshots.first, "the ring stays")
+        XCTAssertEqual(cell.status, .error("Network unavailable"))
+        XCTAssertTrue(cell.windows.allSatisfy { $0.usedFraction == nil })
+        XCTAssertNil(archive.loadOwned()["switching"], "A's reading is not kept for whoever is signed in now")
     }
 
     func testBuiltInProvidersNameTheirAccount() {
@@ -104,26 +161,38 @@ final class NotchAccountBoundaryTests: XCTestCase {
         init(id: String = "switching") { self.id = id }
         var displayName: String { "Switching" }
         var glyph: ProviderGlyph { .openai }
-        var identity = "a"
+        var identity: String? = "a"
+        var refuses = false
+        /// When set, the read answers with this status and no windows, as an error snapshot does.
+        var answers: ProviderStatus?
         var fetchCount = 0
         var onFetch: (Int) -> Void = { _ in }
 
         func fraction(for account: String) -> Double { account == "a" ? 0.9 : 0.2 }
 
         func fetchSnapshot() async throws -> ProviderSnapshot {
-            let account = identity
+            let account = identity ?? ""
             fetchCount += 1
             onFetch(fetchCount)
             await Task.yield()
+            if refuses { throw NotchProviderError.needsAuth }
+            if let answers {
+                return ProviderSnapshot(id: id, displayName: displayName, glyph: glyph, fidelity: .official, status: answers, windows: [])
+            }
             return ProviderSnapshot(id: id, displayName: displayName, glyph: glyph, fidelity: .official, status: .ok,
                                     windows: [LimitWindow(id: "weekly", label: "Weekly", usedFraction: fraction(for: account))])
         }
 
-        func account() -> ProviderAccount? { ProviderAccount(label: identity, plan: nil, source: "test", manageURL: nil) }
+        func account() -> ProviderAccount? { identity.map { ProviderAccount(label: $0, plan: nil, source: "test", manageURL: nil) } }
         func accountIdentity() -> String? { identity }
         var signInRoute: SignInRoute { .guidance("") }
         func signOut() async {}
         func presentSignIn() {}
         func forgetCachedCredential() {}
+    }
+
+    private final class SignedInEmail: @unchecked Sendable {
+        var email: String
+        init(_ email: String) { self.email = email }
     }
 }

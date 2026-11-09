@@ -30,6 +30,10 @@ public sealed record UsageSnapshot(
     // A failed refresh changes freshness, not the completeness of retained data.
     public bool RetainsPartialHistory { get; init; }
 
+    /// The read itself was incomplete (a file unreadable, still being written, over a limit): every range
+    /// is partial. Records known to be incomplete are marked one by one instead (`UsageEvent.Repaired`).
+    public bool SourcesPartial { get; init; }
+
     public static UsageSnapshot Empty { get; } = new(
         TokenUsage.Zero,
         TokenUsage.Zero,
@@ -86,6 +90,7 @@ public sealed record UsageEvent(
     // this is not a new field in exported numeric history.
     [System.Text.Json.Serialization.JsonIgnore]
     public string? ImportParentSessionId { get; init; }
+
 }
 
 public sealed record AttachmentObservation(string Id, DateTimeOffset OccurredAt, int Count);

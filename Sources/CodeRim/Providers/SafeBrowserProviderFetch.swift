@@ -178,10 +178,12 @@ enum SafeBrowserProviderFetch {
             }
             catch { try Task.checkCancellation(); if !isMiniMaxFallback(error) { throw error }; lastError = error }
         }
-        let profiles = try dependencies.profiles(chromium, context.browserDetection)
+        // A Chrome profile folder that cannot be listed is skipped like any unreadable store; Safari and
+        // Firefox are still tried.
+        let profiles = try readable({ try dependencies.profiles(chromium, context.browserDetection) }, skipped: &skippedRead) ?? []
         for profile in profiles {
             let stores = dependencies.stores(profile.browser).filter { $0.profile.id == profile.url.path }
-            guard stores.count <= 4 else { throw LocalStorageReadError.limit }
+            guard stores.count <= 4 else { if skippedRead == nil { skippedRead = LocalStorageReadError.limit }; continue }
             for store in stores {
                 // Profile ID alone is insufficient when a crafted store names a different backing database.
                 guard let database = store.databaseURL,
@@ -333,7 +335,7 @@ enum SafeBrowserProviderFetch {
                 return result(usage.toUsageSnapshot(), "factory", "web")
             } catch FactoryStatusProbeError.noSessionCookie { guard await dependencies.storedFactoryRefresh() == storedRefresh else { throw LocalStorageReadError.changed }; lastError = FactoryStatusProbeError.noSessionCookie }
         }
-        let profiles = try dependencies.profiles([.chrome], context.browserDetection)
+        let profiles = try readable({ try dependencies.profiles([.chrome], context.browserDetection) }, skipped: &skippedRead) ?? []
         for profile in profiles {
             for origin in SafeBrowserSessionCredentials.origins("factory") {
                 guard let found = try readable({ try read("factory", profile: profile, origin: origin, dependencies: dependencies) }, skipped: &skippedRead),

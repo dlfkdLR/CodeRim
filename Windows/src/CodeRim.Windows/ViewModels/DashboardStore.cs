@@ -201,7 +201,9 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                         SourceCounts[id] = scan.SourceCount;
                         if (imported.Statistics is { } statistics) DataStatistics[id] = statistics;
                         var through = DateTimeOffset.Now;
-                        Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(events, through, settings.Current.WeekStart, scan.Snapshot.Quality == DataQuality.Partial || scan.HasMoreWork || imported.Repaired));
+                        var sourcesPartial = scan.Snapshot.SourcesPartial || scan.HasMoreWork;
+                        Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(events, through, settings.Current.WeekStart,
+                            sourcesPartial || imported.Repaired, sourcesPartial: sourcesPartial));
                         PublishLocalAnalyticsRead(id, through, analyticsEpoch, maintenance: false);
                         Status = scan.StatusMessage;
                         if (settings.Current.DebugLogging) AppDiagnostics.Record(id, scan.Snapshot.Quality.ToString(), events.Count);

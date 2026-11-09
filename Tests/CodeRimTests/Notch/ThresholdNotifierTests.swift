@@ -124,6 +124,26 @@ final class NotchThresholdNotifierTests: XCTestCase {
         XCTAssertEqual(alerts.map(\.providerID), ["cursor", "claude"])
         XCTAssertEqual(alerts.last?.threshold, 80)
     }
+    /// Through the real Codex parser and adapter, whose window ids carry the reset time: a new period seen
+    /// only high still alerts.
+    func testACodexPeriodThatArrivesUnderANewWindowIDAlertsAgain() throws {
+        func reading(_ used: Double, resetsAt: Int) throws -> ProviderSnapshot {
+            let line = #"{"id":2,"result":{"rateLimitsByLimitId":{"codex":{"limitName":"Codex","primary":{"usedPercent":"#
+                + "\(used)" + #","windowDurationMins":300,"resetsAt":"# + "\(resetsAt)" + #"}}}}}"#
+            let windows = try AccountLimitsResponseParser().parse(Data(line.utf8)).windows
+            return ProviderSnapshot(id: "codex", displayName: "Codex", glyph: .openai, fidelity: .official, status: .ok,
+                                    windows: NotchLimitMapping.windows(windows), headlineID: NotchLimitMapping.headlineID(windows))
+        }
+        let first = try reading(100, resetsAt: 1_800_000_000)
+        notifier.observe([first])
+        XCTAssertEqual(alerts.map(\.threshold), [80, 100])
+        let next = try reading(90, resetsAt: 1_800_018_000)
+        XCTAssertNotEqual(first.headline?.id, next.headline?.id, "the parser names the new period differently")
+        notifier.observe([next])
+        XCTAssertEqual(alerts.map(\.threshold), [80, 100, 80])
+        notifier.observe([try reading(100, resetsAt: 1_800_018_000)])
+        XCTAssertEqual(alerts.map(\.threshold), [80, 100, 80, 100])
+    }
 }
 
 /// The muted-set preference is stored as a joined id list; a provider added
@@ -151,4 +171,5 @@ final class NotchAlertMuteStoreTests: XCTestCase {
         AppPreferences.setAlertMuted(false, for: "codex", in: defaults)
         XCTAssertTrue(AppPreferences.mutedAlertProviders(in: defaults).isEmpty)
     }
+
 }
