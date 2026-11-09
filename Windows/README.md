@@ -8,6 +8,8 @@ The current Windows release is [**2.1.34**](https://github.com/dlfkdLR/CodeRim/r
 
 Code signing: the MSI has no publisher certificate yet. A SignPath Foundation application is being prepared and is not submitted or approved; see the [code signing policy](../CODE_SIGNING_POLICY.md).
 
+The download page at coderim.dlfkd.dev uses Vercel Web Analytics (page views only). This is about the website; it says nothing about the app.
+
 Release 2.1.34 adds a **Sound for sub-agents** switch (off by default) to the session-end settings. It skips 2.1.33, which was a macOS release. See [its notes](ReleaseNotes/2.1.34.md). The installers' SHA-256 values are in [SHA256SUMS-windows.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/SHA256SUMS-windows.txt).
 
 Release 2.1.32 adds **View limits** for another saved Codex account (read in a private Codex home, so the CLI stays signed in) and shows how old a stale reading is. It jumps from 2.1.20 because 2.1.21 to 2.1.31 were macOS releases. See [its notes](ReleaseNotes/2.1.32.md). The installers' SHA-256 values are in [SHA256SUMS-windows.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.32/SHA256SUMS-windows.txt).
