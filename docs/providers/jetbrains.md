@@ -10,22 +10,14 @@ CLI provider ID: `jetbrains`.
 
 Sign in to AI Assistant in a supported JetBrains IDE. CodeRim reads the local quota XML. Set IDE_BASE only when the IDE configuration is in a nonstandard location.
 
-1. Add **JetBrains AI** in **Settings → Providers → Add Provider**.
-2. Open its **Connection settings** and fill in the fields for the source above. Where browser-session import is offered, enable it explicitly for this provider when using that source.
-3. Choose **Save and refresh**. Credentials are stored in CodeRim's own Keychain item.
+Follow the [shared connection steps](../providers.md#connect-a-provider) with the source above.
 
-### Additional settings
+**Additional provider settings:** `IDE_BASE`.
 
-The app exposes these optional fields under **Additional provider settings**. Only set the values needed for your account and connection method.
-
-`IDE_BASE`.
-
-## Check the reading
-
-Hover the provider in the notch, or read the latest app snapshot with `coderim usage --provider jetbrains` after [installing the CLI](../cli.md). Keep CodeRim running for fresh readings.
+Check `coderim usage --provider jetbrains` ([CLI setup](../cli.md)); see [readings and troubleshooting](../providers.md#readings-and-troubleshooting).
 
 If the IDE only reports `Unknown` or omits a usable maximum, CodeRim cannot show a quota percentage. Open the IDE account settings and refresh its usage before checking again.
 
-Connection protocols are supplied by CodeRim's pinned CodexBar integration. [Upstream source guide](https://github.com/steipete/CodexBar/blob/51ed16bdd3abe35ec53af99818e1b5f0d2a631d3/docs/jetbrains.md). Configure the connection in **CodeRim**; CodexBar-specific UI or config-file instructions do not apply directly.
+[Pinned source guide](https://github.com/steipete/CodexBar/blob/51ed16bdd3abe35ec53af99818e1b5f0d2a631d3/docs/jetbrains.md); use [CodeRim connection settings](../providers.md#connect-a-provider).
 
 [Connection troubleshooting](../troubleshooting.md) · [Privacy](../privacy.md) · [Docs](../README.md) · [All providers](../providers.md)

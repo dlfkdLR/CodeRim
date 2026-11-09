@@ -19,9 +19,10 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
 
     private let directory: URL
     private let livenessInterval: TimeInterval
-    /// Nil leaves the monitor reading nothing but the registry, which is what
-    /// the tests that only care about the registry want.
-    private let transcripts: ClaudeTranscriptReader?
+    private let reader: ClaudeSessionReader
+    private var scan: Task<Void, Never>?
+    private var generation = 0
+    private var running = false
 
     private var source: DispatchSourceFileSystemObject?
     private var descriptor: CInt = -1
@@ -42,7 +43,7 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
     ) {
         self.directory = directory
         self.livenessInterval = livenessInterval
-        self.transcripts = projects.map { ClaudeTranscriptReader(projects: $0) }
+        self.reader = ClaudeSessionReader(projects: projects)
     }
 
     func start() {
@@ -50,6 +51,7 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
         // timer would stack on the first pair, so stop whatever is running.
         // (`AntigravityActivityMonitor` does the same.)
         stop()
+        running = true
         rescan()
         watchDirectory()
 
@@ -61,6 +63,10 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
     }
 
     func stop() {
+        running = false
+        generation += 1
+        scan?.cancel()
+        scan = nil
         livenessTimer?.invalidate()
         livenessTimer = nil
         debounce?.cancel()
@@ -98,16 +104,15 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
     }
 
     private func rescan() {
-        let found = Self.read(directory: directory, transcripts: transcripts, dropIdleAfter: Self.idleLinger)
-        guard found != sessions else { return }   // don't churn SwiftUI for nothing
-        // Only on a change, so this is a handful of lines an hour rather than a
-        // firehose. It is the one way to see what the notch thinks is running
-        // without hovering over it:
-        //
-        //     log stream --predicate 'category == "sessions"' --level debug
-        let summary = found.map { "\($0.name)=\($0.state)" }.joined(separator: " ")
-        NotchLog.sessions.debug("\(self.directory.path, privacy: .public): \(summary, privacy: .public)")
-        sessions = found
+        guard running, scan == nil else { return }
+        let expected = generation
+        scan = Task { [weak self] in
+            guard let self else { return }
+            let found = await reader.read(directory: directory)
+            guard !Task.isCancelled, running, generation == expected else { return }
+            scan = nil
+            if found != sessions { sessions = found }
+        }
     }
 
     /// How long a chat that has finished stays listed, as Codex's do: long
@@ -216,4 +221,19 @@ enum ClaudeSubagentRows {
     /// What a sub-agent's `parentThread` points at: the parent's transcript id.
     static func groupID(of parent: AgentSession) -> String { parent.transcriptID ?? parent.id }
     static func isSubagent(_ session: AgentSession) -> Bool { session.id.hasPrefix("claude.sub.") }
+}
+
+/// Owns the mutable transcript caches and all registry/transcript I/O off the UI actor.
+private actor ClaudeSessionReader {
+    private let transcripts: ClaudeTranscriptReader?
+
+    init(projects: URL?) {
+        transcripts = projects.map { ClaudeTranscriptReader(projects: $0) }
+    }
+
+    func read(directory: URL) -> [AgentSession] {
+        guard !Task.isCancelled else { return [] }
+        return ClaudeSessionMonitor.read(directory: directory, transcripts: transcripts,
+                                         dropIdleAfter: ClaudeSessionMonitor.idleLinger)
+    }
 }

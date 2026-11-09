@@ -8,6 +8,16 @@ enum BoundedHTTP {
     /// so this only ever trips on something that has gone wrong.
     static let defaultMaximumBytes = 4 * 1024 * 1024
 
+    static func text(for request: URLRequest, on session: URLSession) async throws -> String {
+        let (data, response) = try await data(for: request, on: session)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        if status == 401 || status == 403 { throw NotchProviderError.needsAuth }
+        if status == 429 { throw NotchProviderError.rateLimited(retryAfter: 60) }
+        guard (200..<300).contains(status), let text = String(data: data, encoding: .utf8)
+        else { throw NotchProviderError.badResponse(status: status) }
+        return text
+    }
+
     static func data(
         for request: URLRequest,
         on session: URLSession,

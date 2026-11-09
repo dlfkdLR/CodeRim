@@ -36,7 +36,7 @@ internal static partial class NativeSmoke
             var scope = connections.Scope("gemini");
             Environment.SetEnvironmentVariable("ANTIGRAVITY_OAUTH_CREDENTIALS_JSON", """{"accessToken":"synthetic-two"}""");
             Require(scope is not null && scope != connections.Scope("gemini"), "Antigravity JSON alias does not invalidate account scope");
-            var localPath = Path.Combine(AppContext.BaseDirectory, "TestResults", "windsurf-native.vscdb");
+            var localPath = Path.Combine(directory, "windsurf-native.vscdb");
             Directory.CreateDirectory(Path.GetDirectoryName(localPath)!);
             using (var database = new Microsoft.Data.Sqlite.SqliteConnection(new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder { DataSource = localPath, Pooling = false }.ToString()))
             {

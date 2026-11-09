@@ -6,13 +6,13 @@
 
 ## 구성과 프로비저닝
 
-`iOS/CodeRimMobile.xcodeproj`에는 앱, Live Activity extension, 단위 테스트, UI 테스트가 있으며 `CodeRimMobile` scheme을 사용합니다. 앱과 extension에 같은 Apple 개발 팀을 선택하고, 고유 bundle ID를 등록하고, Push Notifications를 켭니다. `NSSupportsLiveActivities`와 `NSCameraUsageDescription`이 설정되어 있고 앱이 `coderim://pair` 링크를 처리하므로, 시스템 카메라 앱으로 연결 코드를 찍어도 앱이 열립니다. 소스 설정을 바꾸면 `iOS/generate_project.py`로 프로젝트와 공유 scheme을 다시 생성합니다.
+`iOS/CodeRimMobile.xcodeproj`에는 앱, Live Activity extension, 단위 테스트, UI 테스트가 있으며 `CodeRimMobile` scheme을 사용합니다. 앱과 extension에 같은 Apple 개발 팀을 선택하고, 고유 bundle ID를 등록하고, Push Notifications를 켭니다. `NSSupportsLiveActivities`와 `NSCameraUsageDescription`이 설정되어 있습니다. 연결은 앱 내부 스캐너 또는 명시적인 붙여넣기로만 진행합니다. 외부 URL은 `coderim://dashboard`로 화면을 열 수 있지만 컴퓨터를 연결할 수 없습니다. 소스 설정을 바꾸면 `iOS/generate_project.py`로 프로젝트와 공유 scheme을 다시 생성합니다.
 
 ```sh
 xcodebuild -project iOS/CodeRimMobile.xcodeproj -scheme CodeRimMobile -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/coderim-iphone-derived CODE_SIGN_IDENTITY=- build
 ```
 
-`test`에는 설치된 시뮬레이터 destination을 쓰고, Keychain·WidgetKit 확인을 위해 ad-hoc 서명(`CODE_SIGN_IDENTITY=-`)을 유지합니다. `CODE_SIGNING_ALLOWED=NO`는 같지 않으며 Keychain 접근이 실패합니다. 시뮬레이터에는 카메라가 없어서 스캐너가 카메라 앱 안내와 붙여넣기 칸을 대신 보여 줍니다. 개발 서명은 sandbox APNs를, TestFlight·App Store는 production을 사용합니다.
+`test`에는 설치된 시뮬레이터 destination을 쓰고, Keychain·WidgetKit 확인을 위해 ad-hoc 서명(`CODE_SIGN_IDENTITY=-`)을 유지합니다. `CODE_SIGNING_ALLOWED=NO`는 같지 않으며 Keychain 접근이 실패합니다. 시뮬레이터에는 카메라가 없으므로 컴퓨터에서 **Copy pairing code**를 선택하고 스캐너의 붙여넣기 버튼을 사용합니다. 시스템 카메라 앱은 컴퓨터 연결에 사용할 수 없습니다. 개발 서명은 sandbox APNs를, TestFlight·App Store는 production을 사용합니다.
 
 모든 컴퓨터가 쓰는 relay 주소는 macOS의 `Config/Info.plist` `CodeRimRelayURL`과 Windows의 `MobileConnectionStore.DefaultRelay`입니다. 둘 다 `https://coderim-relay.pages.dev`를 가리킵니다. 직접 운영하는 relay를 쓰려면 각 앱의 iPhone 설정에서 바꿀 수 있습니다.
 
@@ -45,19 +45,19 @@ Free 플랜은 Worker와 Durable Object에 하루 약 100,000개 요청과 100,0
 | 70% 이상 | 새 계정·연결 요청에 `503 server_busy`를 반환합니다. 응답, Island 콘텐츠 상태, 데스크톱 설정에 안내를 담고, 실행 중인 Island마다 하루 한 번 알림을 보냅니다. 컴퓨터에 10분 heartbeat를 지시합니다. |
 | 90% 이상 | 위와 같고 heartbeat는 30분입니다. |
 
-내용이 같은 heartbeat는 메모리만 갱신하고 저장소에 쓰지 않습니다. 컴퓨터는 마지막 전송 후 11분 동안 온라인으로 표시합니다. 실제로는 하루에 활성 컴퓨터 약 150~300대를 감당하며, 그 이상이면 relay가 00:00 UTC까지 멈춥니다.
+내용과 간격이 같은 heartbeat는 메모리만 갱신합니다. 요청된 heartbeat 간격이 바뀔 때에는 새 온라인 유효 시간을 한 번 저장합니다. 컴퓨터는 마지막 전송 후 11분(30분 heartbeat 단계에서는 31분) 동안 온라인으로 표시합니다. 처리 용량은 스냅샷 변경과 APNs 트래픽에 따라 달라지며 예산을 소진하면 00:00 UTC까지 요청을 멈춥니다.
 
 ## 연결과 데이터 흐름
 
-1. 컴퓨터가 플랫폼과 이름으로 `POST /v1/pairing/start`를 호출하고 `coderim://pair?r=<relay origin>&i=<id>&s=<secret>`를 QR 코드로 보여 줍니다. 256비트 secret은 해시로만 저장하고 5분 뒤 만료됩니다.
+1. 컴퓨터가 플랫폼과 이름으로 `POST /v1/pairing/start`를 호출하고 `CODERIM-PAIR-1\n<HTTPS relay origin>\n<id>\n<secret>`를 QR 코드로 보여 줍니다(네 줄, LF 구분, 최대 512 UTF-8 바이트). 앱 내부 스캐너나 명시적인 붙여넣기로만 이 형식을 받으며, 기존 `coderim://pair` URL은 거부합니다. 256비트 secret은 해시로만 저장하고 5분 뒤 만료됩니다.
 2. iPhone은 첫 스캔에서 `POST /v1/accounts`로 익명 계정을 만듭니다. 이 계정에는 Apple ID, 이메일, 이름이 없고 iPhone Keychain에 보관하는 bearer 토큰만 있습니다. 이어서 `POST /v1/pairing/claim`으로 코드를 사용합니다.
-3. 컴퓨터는 `POST /v1/pairing/poll`을 한 번에 최대 20초씩 열어 두고, 코드가 사용되는 즉시 자신의 게시 토큰을 받습니다. 각 코드는 한 번만 쓸 수 있습니다. iPhone 하나에 컴퓨터 16대까지 연결합니다.
+3. 컴퓨터는 `POST /v1/pairing/poll`을 한 번에 최대 20초씩 열어 두고, 코드가 사용되는 즉시 자신의 게시 토큰을 받습니다. Swift의 연결 poll은 요청 30초·전체 응답 35초 제한을 사용하며, 일반 요청은 15초·20초 제한을 유지합니다. 각 코드는 한 번만 쓸 수 있습니다. iPhone 하나에 컴퓨터 16대까지 연결합니다.
 4. 토큰은 1년간 유효하며 사용할 때마다 갱신합니다. relay는 SHA-256 토큰 해시를 저장합니다. 데스크톱 토큰은 Apple Keychain 또는 Windows DPAPI를 쓰며 relay origin에 묶입니다. TLS가 전송 구간을 보호하지만 relay는 공유 데이터를 읽을 수 있습니다.
 5. 컴퓨터는 15초마다 허용 목록 스냅샷을 만들고, 내용이 바뀌었거나 relay가 요청한 heartbeat 시점일 때만 보냅니다. 기본 payload는 제공업체 이름, 최대 두 개의 한도 창, 읽은 시각, Today 토큰, 작업 상태·개수입니다. 제목은 선택 사항이며 60자로 제한합니다. 서비스 자격 증명, 전체 경로, 프롬프트, 대화·첨부 원문, 세션 ID는 보내지 않습니다.
 
 ## Dynamic Island
 
-iPhone은 ActivityKit push-to-start 토큰을 등록합니다(`POST /v1/push-to-start`). 연결된 컴퓨터가 작업 중이거나 입력 대기 중인 작업을 보고했는데 그 iPhone에 Live Activity가 없으면, relay가 APNs `start` 이벤트(`attributes-type: CodeRimActivityAttributes`, 알림, 우선순위 10)로 시작합니다. 5분에 한 번까지만 시작합니다. iOS는 앱에 백그라운드 시간을 주어 새 Activity의 업데이트 토큰을 등록하게 합니다(`POST /v1/activities`). 이후 relay는 변경이 있을 때 최대 15초 간격으로 갱신하고, 마지막 작업이 끝나고 2분 뒤 Activity를 끝냅니다. iOS는 어떤 Activity든 8시간 뒤 끝냅니다. 앱의 **Show now**로 직접 시작할 수도 있습니다.
+iPhone은 ActivityKit push-to-start 토큰을 등록합니다(`POST /v1/push-to-start`). 연결된 컴퓨터가 작업 중이거나 입력 대기 중인 작업을 보고했는데 그 iPhone에 Live Activity가 없으면, relay가 APNs `start` 이벤트(`attributes-type: CodeRimActivityAttributes`, 알림, 우선순위 10)로 시작합니다. 5분에 한 번까지만 시작합니다. iOS는 앱에 백그라운드 시간을 주어 새 Activity의 업데이트 토큰을 등록하게 합니다(`POST /v1/activities`). 이후 relay는 변경이 있을 때 최대 15초 간격으로 갱신하고, 마지막 작업이 끝나고 2분 뒤 Activity를 끝냅니다. iOS는 어떤 Activity든 8시간 뒤 끝냅니다. Stop은 작업이 유휴 상태가 되거나 사용자가 명시적으로 다시 시작할 때까지 원격 시작을 억제하고 늦은 등록도 종료합니다. 오프라인 컴퓨터에는 재시도 알람으로 Activity를 시작하지 않습니다. **Show now**는 `/v1/activities/resume`으로 억제를 해제한 뒤 로컬 Activity를 만듭니다.
 
 Live Activity 갱신은 우선순위 5를 쓰고, 입력 대기와 relay 혼잡 알림만 우선순위 10을 씁니다. 직렬화한 APNs envelope는 UTF-8 3,800바이트로 제한합니다. ActivityKit wire 날짜는 Unix 초입니다.
 
@@ -78,6 +78,7 @@ Live Activity 갱신은 우선순위 5를 쓰고, 입력 대기와 relay 혼잡 
 | DELETE | `/v1/devices/:id` | 모바일. 자기 기기만 제거 |
 | PUT | `/v1/preferences` | 모바일. providerIDs 최대 100개, 비어 있으면 전체 |
 | POST/DELETE | `/v1/activities` | 모바일. 현재 Live Activity 등록·중지 |
+| POST | `/v1/activities/resume` | 모바일. 사용자가 직접 Start를 선택할 때만 해당 폰의 중지 상태 해제. 일반 토큰 등록은 해제할 수 없음 |
 | POST/DELETE | `/v1/push-to-start` | 모바일. push-to-start 토큰 등록·제거 |
 | DELETE | `/v1/session` | 현재 기기. 연결 해제 |
 | DELETE | `/v1/account` | 모바일. 계정과 그 컴퓨터·데이터 삭제 |
@@ -88,4 +89,4 @@ Live Activity 갱신은 우선순위 5를 쓰고, 입력 대기와 relay 혼잡 
 
 iPhone 연결을 해제하면 그 계정, 컴퓨터, 저장된 스냅샷을 삭제하고 APNs 종료 재시도를 예약합니다. 전달 토큰은 APNs가 성공하거나, 영구 오류를 보고하거나, Activity의 8시간 제한이 지날 때까지 남을 수 있습니다.
 
-`npm test`는 QR 연결, 익명 계정, 폰 간 격리, 저장하지 않는 heartbeat, 한도 단계와 안내, push-to-start와 유휴 종료, HTTP 제한, APNs provider 토큰, 기존 포커스·picker 계약을 검증합니다. DEBUG UI fixture(`--ui-settings`, `--ui-empty-settings`, `--ui-no-services`, `--ui-dark`, `--ui-large-text`)는 메모리 relay를 쓰고 실제 계정·Activity 동작을 막습니다. 배포한 Worker의 실제 APNs 전달, 기기 카메라 스캔, 배터리·지연, 실제 Island 조작은 별도로 확인해야 합니다. [개인정보](PRIVACY.ko.md).
+`npm test`는 QR 연결, 익명 계정, 폰 간 격리, 저장하지 않는 heartbeat, 한도 단계와 안내, push-to-start와 유휴 종료, HTTP 제한, APNs provider 토큰, 기존 포커스·picker 계약을 검증합니다. DEBUG UI fixture(`--ui-settings`, `--ui-empty-settings`, `--ui-no-services`, `--ui-dark`, `--ui-large-text`, 격리된 붙여넣기 확인용 `--ui-scanner`)는 메모리 relay 또는 스캐너 전용 화면을 쓰고 실제 계정·Activity 동작을 막습니다. 배포한 Worker의 실제 APNs 전달, 기기 카메라 스캔, 배터리·지연, 실제 Island 조작은 별도로 확인해야 합니다. [개인정보](PRIVACY.ko.md).

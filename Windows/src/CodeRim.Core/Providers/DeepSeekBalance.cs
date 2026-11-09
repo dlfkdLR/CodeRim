@@ -7,12 +7,6 @@ namespace CodeRim.Core.Providers;
 
 public static class DeepSeekBalance
 {
-    private static bool Unique(JsonElement value)
-    {
-        if (value.ValueKind != JsonValueKind.Object) return false;
-        var names = new HashSet<string>(StringComparer.Ordinal);
-        return value.EnumerateObject().All(property => names.Add(property.Name));
-    }
     private static decimal Money(JsonElement value) => DeepSeekUsageDetails.Number(value, allowNegative: true);
     private static string Currency(JsonElement value)
     {
@@ -33,7 +27,7 @@ public static class DeepSeekBalance
         ProviderReading Error() => new("deepseek", ReadingState.Error, [], Message: "DeepSeek could not return a valid balance.");
         try
         {
-            if (!Unique(root) || source is not "api" and not "web") return Error();
+            if (!IsUniqueObject(root) || source is not "api" and not "web") return Error();
             var balances = new Dictionary<string, decimal>(StringComparer.Ordinal);
             var paid = new Dictionary<string, decimal>(StringComparer.Ordinal);
             var granted = new Dictionary<string, decimal>(StringComparer.Ordinal);
@@ -44,18 +38,18 @@ public static class DeepSeekBalance
                 // Authentication codes remain meaningful even when an error envelope's data is not a success object.
                 var code = Code(Get(root, "code"));
                 if (code is 40002 or 40003) return new("deepseek", ReadingState.NeedsAuth, []);
-                if (code is not null and not 0 || !Unique(data)) return Error();
+                if (code is not null and not 0 || !IsUniqueObject(data)) return Error();
                 var bizCode = Code(Get(data, "biz_code"));
                 if (bizCode is 40002 or 40003) return new("deepseek", ReadingState.NeedsAuth, []);
                 var summary = Get(data, "biz_data");
-                if (bizCode is not null and not 0 || !Unique(summary)) return Error();
+                if (bizCode is not null and not 0 || !IsUniqueObject(summary)) return Error();
                 foreach (var key in new[] { "normal_wallets", "bonus_wallets" })
                 {
                     var wallets = Get(summary, key);
                     if (wallets.ValueKind != JsonValueKind.Array || wallets.GetArrayLength() > 1024) return Error();
                     foreach (var wallet in wallets.EnumerateArray())
                     {
-                        if (!Unique(wallet)) return Error();
+                        if (!IsUniqueObject(wallet)) return Error();
                         var currency = Currency(Get(wallet, "currency")); var amount = Money(Get(wallet, "balance"));
                         balances[currency] = checked(balances.GetValueOrDefault(currency) + amount);
                         var detail = key == "normal_wallets" ? paid : granted;
@@ -73,7 +67,7 @@ public static class DeepSeekBalance
                 if (rows.ValueKind != JsonValueKind.Array || rows.GetArrayLength() > 1024) return Error();
                 foreach (var row in rows.EnumerateArray())
                 {
-                    if (!Unique(row)) return Error();
+                    if (!IsUniqueObject(row)) return Error();
                     var currency = Currency(Get(row, "currency"));
                     if (balances.ContainsKey(currency)) return Error();
                     var amount = Money(Get(row, "total_balance"));

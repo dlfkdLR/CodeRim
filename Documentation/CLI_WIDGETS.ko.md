@@ -65,14 +65,7 @@ ad-hoc 로컬 빌드는 `CodexMeterSnapshotTransport=local-file`입니다. sandb
 
 위젯 종류·크기·제공업체·지표 선택·최신 상태·히스토리 규칙은 [전체 위젯 안내](../docs/ko/widgets.md)에 있습니다. `WidgetKit`이 일정을 제어합니다. reload 전에 저장하고 일반 요청을 제한하며 계정·상태 변경을 즉시 무효화하고 timeline에서 오래된 상태를 반영합니다. 앱 새로고침은 즉시 데스크톱 갱신을 보장하지 않습니다.
 
-```sh
-swift build -c release --product CodeRimCLI
-swift test
-./Scripts/build_widget.sh
-./Scripts/build_release.sh
-swift build --product CodeRimCLI
-python3 Tests/Scripts/companion_cli_tests.py .build/debug/CodeRimCLI
-```
+빌드·테스트 명령은 [기여 안내](../CONTRIBUTING.ko.md), 위젯·릴리스 패키징은 [릴리스](RELEASING.ko.md)를 따릅니다.
 
 <a id="if-widgets-are-absent-or-stale"></a>
 ## 위젯이 없거나 오래된 경우

@@ -103,11 +103,6 @@ enum CursorUsage {
 
     private static func date(_ any: Any?) -> Date? {
         guard let text = any as? String else { return nil }
-        let withFraction = ISO8601DateFormatter()
-        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = withFraction.date(from: text) { return date }
-        let plain = ISO8601DateFormatter()
-        plain.formatOptions = [.withInternetDateTime]
-        return plain.date(from: text)
+        return TranscriptLines.parse(text)
     }
 }

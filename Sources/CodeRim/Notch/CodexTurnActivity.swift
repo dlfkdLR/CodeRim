@@ -173,15 +173,8 @@ enum CodexTurnActivity {
               let type = payload["type"] as? String,
               ["task_started", "task_complete", "turn_aborted"].contains(type),
               let timestamp = json["timestamp"] as? String,
-              let date = timestampDate(timestamp) else { return nil }
+              let date = TranscriptLines.parse(timestamp) else { return nil }
         return Event(isRunning: type == "task_started", since: date)
     }
 
-    private static func timestampDate(_ value: String) -> Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: value) { return date }
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: value)
-    }
 }

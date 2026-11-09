@@ -426,21 +426,21 @@ final class NotchGLMCredentialsTests: XCTestCase {
 /// Claude's is.
 final class NotchGLMBackoffTests: XCTestCase {
     func testTheWaitDoublesWhileTheLimitPersists() {
-        XCTAssertEqual(GLMNotchProvider.backoff(forAttempt: 0, retryAfter: nil), 60)
-        XCTAssertEqual(GLMNotchProvider.backoff(forAttempt: 1, retryAfter: nil), 120)
-        XCTAssertEqual(GLMNotchProvider.backoff(forAttempt: 2, retryAfter: nil), 240)
+        XCTAssertEqual(AccountBackoff.delay(forAttempt: 0, retryAfter: nil), 60)
+        XCTAssertEqual(AccountBackoff.delay(forAttempt: 1, retryAfter: nil), 120)
+        XCTAssertEqual(AccountBackoff.delay(forAttempt: 2, retryAfter: nil), 240)
     }
 
     func testItIsCappedSoItAlwaysRecovers() {
-        XCTAssertEqual(GLMNotchProvider.backoff(forAttempt: 99, retryAfter: nil), 15 * 60)
+        XCTAssertEqual(AccountBackoff.delay(forAttempt: 99, retryAfter: nil), 15 * 60)
     }
 
     func testAZeroHintStillWaitsAMinute() {
-        XCTAssertEqual(GLMNotchProvider.backoff(forAttempt: 0, retryAfter: 0), 60)
+        XCTAssertEqual(AccountBackoff.delay(forAttempt: 0, retryAfter: 0), 60)
     }
 
     func testAGenerousHintWins() {
-        XCTAssertEqual(GLMNotchProvider.backoff(forAttempt: 0, retryAfter: 600), 600)
+        XCTAssertEqual(AccountBackoff.delay(forAttempt: 0, retryAfter: 600), 600)
     }
 
     private func response(retryAfter: String?) -> HTTPURLResponse {
@@ -452,11 +452,21 @@ final class NotchGLMBackoffTests: XCTestCase {
     }
 
     func testReadsRetryAfterInSeconds() {
-        XCTAssertEqual(GLMNotchProvider.retryAfter(from: response(retryAfter: "120")), 120)
+        XCTAssertEqual(AccountBackoff.retryAfter(response(retryAfter: "120").value(forHTTPHeaderField: "Retry-After")), 120)
     }
 
     func testMissingOrUnparseableHeaderIsNil() {
-        XCTAssertNil(GLMNotchProvider.retryAfter(from: response(retryAfter: nil)))
-        XCTAssertNil(GLMNotchProvider.retryAfter(from: response(retryAfter: "soon")))
+        XCTAssertNil(AccountBackoff.retryAfter(nil))
+        XCTAssertNil(AccountBackoff.retryAfter("soon"))
+    }
+
+    func testHTTPDateHintsWaitUntilTheDateButNeverIntoThePast() {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        XCTAssertEqual(AccountBackoff.retryAfter(formatter.string(from: Date().addingTimeInterval(120))) ?? -1,
+                       120, accuracy: 2)
+        XCTAssertEqual(AccountBackoff.retryAfter(formatter.string(from: Date(timeIntervalSince1970: 0))), 0)
     }
 }

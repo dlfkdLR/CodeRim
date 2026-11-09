@@ -1,14 +1,7 @@
 import Darwin
 import Foundation
 
-/// One agent session, whichever tool it belongs to.
-///
-/// Deliberately a *display* model rather than a mirror of any one tool's file
-/// format: Claude Code publishes a session registry, Cursor keeps composer rows
-/// in SQLite, and neither shape belongs in the notch. Each monitor does its own
-/// parsing and hands back this.
-/// What a chat is running on, as far as the tool says: the model, how hard it
-/// thinks, whether it is on the fast tier, and Codex's Daybreak.
+/// Model metadata reported by the provider, independent of its registry or database format.
 struct ModelDetails: Equatable, Sendable {
     var model: String?
     var effort: String?
@@ -43,23 +36,17 @@ struct AgentSession: Identifiable, Equatable, Sendable {
     let waitingFor: String?
     /// When it entered its current state.
     let since: Date
-    /// The agent's own process, when the tool publishes one.
-    ///
-    /// Only used to find the window it is running in — see `SessionFocus`.
-    /// Nil for the tools that report activity from a database or a log file
-    /// rather than from a process. Codex uses its thread ID instead.
+    /// Used only for SessionFocus; database/log-only providers may have no process, and Codex uses its
+    /// thread ID.
     let processID: pid_t?
     /// The original Codex thread ID, without the display model's profile prefix.
     let codexThreadID: String?
     let parentThread: ParentThread?
-    /// The folder the work is in, for grouping turns whose lengths resemble
-    /// each other. Nil when the tool does not say.
+    /// Project basename supplied by the monitor, when available.
     let projectKey: String?
-    /// Instructions the person added while this turn was already running.
-    /// The turn-time estimate widens each time this goes up.
+    /// Instructions queued while this turn was already running.
     let followUps: Int
-    /// Tools the agent has called in the turn under way, as far as its log
-    /// shows: a turn that has called many is a big one, whatever its age.
+    /// Tool calls observed in the current turn.
     let toolCalls: Int
     /// The id the agent files its own transcript and hooks under, when it
     /// differs from `id`. Claude Code's hooks name sessions this way.

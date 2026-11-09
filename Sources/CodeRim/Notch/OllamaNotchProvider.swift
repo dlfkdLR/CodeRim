@@ -1,12 +1,7 @@
 import Foundation
 
-/// Reads Ollama Cloud usage from `https://ollama.com/api/usage`, authenticating
-/// with `OLLAMA_API_KEY` from the environment. No key, no ring.
-///
-/// Codenotch also lets the user paste a key into Settings (stored in the login
-/// keychain) and monitors a local `ollama serve` model listing; both are
-/// follow-ups here — the first needs a keychain helper, the second a data model
-/// the notch does not carry.
+/// Reads Ollama Cloud usage using the environment key or the key saved in Settings.
+/// Local model monitoring belongs to the separate Ollama Local provider.
 ///
 /// Ported from the MIT-licensed Codenotch (`OllamaProvider`).
 @MainActor

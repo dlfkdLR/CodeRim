@@ -37,6 +37,38 @@ public sealed class LocalTokenPresentationTests
         Assert.Equal(DataQuality.Exact, old.Quality);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FailedPublicationKeepsTheSuccessfulCalendarFrameAndPartialState(bool partial)
+    {
+        var zone = TimeZoneInfo.CreateCustomTimeZone("prior-zone", TimeSpan.FromHours(9), "prior-zone", "prior-zone");
+        var through = new DateTimeOffset(2026, 9, 25, 23, 59, 0, TimeSpan.FromHours(9));
+        var events = new[] { new UsageEvent("old", through.AddMinutes(-1), new(100, 80, 10)) };
+        var successful = UsageScanner.Aggregate(events, through, WeekStart.Monday, partial, zone);
+        var failed = LocalTokenPresentation.AfterFailure(LocalTokenPresentation.AfterFailure(successful));
+        var publishedAt = through.AddMinutes(2);
+        var local = CompanionFile.Local(failed, publishedAt);
+        Assert.Equal(through, local.PeriodsAsOf);
+        Assert.Equal(zone.Id, local.TimeZoneIdentifier);
+        Assert.Equal(partial ? "partial" : "stale", local.State);
+        Assert.True(local.Stale);
+        Assert.Equal(110, local.Totals["today"].TotalTokens);
+        var directory = Directory.CreateTempSubdirectory("coderim-stale-").FullName;
+        try
+        {
+            var path = Path.Combine(directory, "snapshot.json");
+            CompanionFile.Write(new(1, publishedAt, [new("codex", "Codex", true, local, new("codex", ReadingState.Unavailable, []))]), path);
+            var restored = Assert.Single(CompanionFile.Read(path).Providers).LocalUsage!;
+            Assert.Equal(local.PeriodsAsOf, restored.PeriodsAsOf);
+            Assert.Equal(local.TimeZoneIdentifier, restored.TimeZoneIdentifier);
+            Assert.Equal(local.State, restored.State);
+            Assert.True(restored.Stale);
+            Assert.Equal(local.Totals["today"], restored.Totals["today"]);
+        }
+        finally { Directory.Delete(directory, true); }
+    }
+
     [Fact]
     public void FirstReadFailureEndsLoadingWithoutPublishingZero()
     {

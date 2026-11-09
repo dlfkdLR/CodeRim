@@ -21,7 +21,6 @@ internal static class Ui
         else block.Foreground = Brush(color);
         return block;
     }
-    public static StackPanel Stack(double gap = 0) => new() { Margin = new Thickness(gap) };
     public static Button Button(string label, Action action)
     {
         var button = new Button { Content = label, Padding = new Thickness(10, 4, 10, 4), Margin = new Thickness(0, 4, 8, 4),

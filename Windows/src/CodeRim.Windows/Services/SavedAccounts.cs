@@ -20,6 +20,10 @@ internal sealed class SavedAccounts(CredentialVault vault, Func<AccountOperation
     {
         var json = vault.Load("accounts:" + provider);
         if (json is null) return [];
+        return ParseSaved(provider, json);
+    }
+    private static SavedLogin[] ParseSaved(string provider, string json)
+    {
         var saved = JsonSerializer.Deserialize<SavedLogin[]>(json) ?? [];
         if (saved.Length > 12 || saved.Select(x => x.Identity.Id).Distinct(StringComparer.Ordinal).Count() != saved.Length) throw new InvalidDataException("Saved account list is invalid.");
         foreach (var account in saved)
@@ -46,18 +50,17 @@ internal sealed class SavedAccounts(CredentialVault vault, Func<AccountOperation
     }
     internal static SavedLogin ParseCredential(string provider, string credential) => ParseLogin(provider, credential, null);
     /// <summary>
-    /// Replaces a saved account's credential with its renewed copy, but only when
-    /// the account is still saved and its stored copy has not changed since it was
-    /// read. Returns false when the renewed login could not be stored yet.
+    /// Renew only an unchanged saved credential; removal/replacement wins and failed persistence returns false.
     /// </summary>
-    internal bool StoreRotated(string provider, string id, string renewedCredential)
+    internal bool StoreRotated(SavedLogin original, string renewedCredential)
     {
+        var provider = original.Provider; var id = original.Identity.Id;
         var snapshot = vault.LoadVersioned("accounts:" + provider);
         if (snapshot is null) return false;
         var renewed = ParseLogin(provider, renewedCredential, null);
         if (renewed.Identity.Id != id) return false;
-        var accounts = Read(provider);
-        if (accounts.All(x => x.Identity.Id != id)) return false;
+        var accounts = ParseSaved(provider, snapshot.Value);
+        if (accounts.SingleOrDefault(x => x.Identity.Id == id)?.Credential != original.Credential) return false;
         var updated = accounts.Select(x => x.Identity.Id == id ? renewed : x).ToArray();
         return vault.SaveIfUnchanged("accounts:" + provider, snapshot.Version, JsonSerializer.Serialize(updated));
     }

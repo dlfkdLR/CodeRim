@@ -13,16 +13,6 @@ public sealed partial class NativeProviders
             "cn" => ("https://bailian.console.aliyun.com", "cn-beijing", "sfm_codingplan_public_cn"),
             _ => throw new InvalidDataException("Alibaba region must be intl or cn.")
         };
-    private static JsonElement AlibabaDecoded(JsonElement value)
-    {
-        for (var depth = 0; depth < 8 && value.ValueKind == JsonValueKind.String; depth++)
-        {
-            var text = value.GetString()?.Trim(); if (text is not { Length: > 1 } || text[0] is not ('{' or '[')) break;
-            try { using var parsed = JsonDocument.Parse(text); value = parsed.RootElement.Clone(); }
-            catch (JsonException) { break; }
-        }
-        return value;
-    }
     private static async Task<ProviderReading> FetchAlibaba(Func<string, string?> setting, Func<string, Task<JsonElement>> get)
     {
         var region = AlibabaRegion(setting);

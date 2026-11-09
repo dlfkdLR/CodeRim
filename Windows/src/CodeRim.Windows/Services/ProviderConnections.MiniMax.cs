@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
@@ -44,7 +42,7 @@ internal sealed partial class ProviderConnections
     private string? MiniMaxScope()
     {
         var choice = ResolveMiniMax();
-        return choice is null || choice.Raw is null ? null : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(choice))));
+        return choice is null || choice.Raw is null ? null : ScopeHash(JsonSerializer.Serialize(choice));
     }
     private async Task<ProviderReading> FetchMiniMaxConnectionAsync(BrowserCookieJar? browserOverride, CancellationToken token)
     {

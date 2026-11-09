@@ -14,12 +14,9 @@ actor UsageActivityScanner {
 
         static func standard(home: URL = FileManager.default.homeDirectoryForCurrentUser,
                              environment: [String: String] = ProcessInfo.processInfo.environment) -> Roots {
-            let claudeHome = environment["CLAUDE_CONFIG_DIR"].flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0) }
-                ?? home.appendingPathComponent(".claude", isDirectory: true)
-            let codex = home.appendingPathComponent(".codex", isDirectory: true)
-            return Roots(claudeProjects: claudeHome.appendingPathComponent("projects", isDirectory: true),
-                         codexSessions: [codex.appendingPathComponent("sessions", isDirectory: true),
-                                         codex.appendingPathComponent("archived_sessions", isDirectory: true)])
+            Roots(claudeProjects: UsageProvider.claudeConfigRoot(home: home, environment: environment)
+                .appendingPathComponent("projects", isDirectory: true),
+                  codexSessions: UsageProvider.codex.sourceRoots(home: home, environment: environment))
         }
     }
 
@@ -33,25 +30,35 @@ actor UsageActivityScanner {
     static let shared = UsageActivityScanner()
 
     /// `snapshot` from outside the actor, for a place that takes a plain function.
-    nonisolated static func loadShared(provider: UsageProvider, range: AnalyticsRange) async -> ActivitySnapshot {
-        await shared.snapshot(provider: provider, range: range)
+    nonisolated static func loadShared(provider: UsageProvider, range: AnalyticsRange, through: Date,
+                                       calendar: Calendar) async -> ActivitySnapshot {
+        await shared.snapshot(provider: provider, range: range, now: through, calendar: calendar)
     }
 
     /// A file larger than this is not read: it is not a transcript anyone had.
     static let fileLimit: UInt64 = 256 * 1024 * 1024
 
     private let roots: Roots
-    private let calendar: Calendar
-    private let days: ActivityDayResolver
+    private let fixedCalendar: Calendar?
+    private var calendar: Calendar
+    private var days: ActivityDayResolver
     private var cache: [String: Cached] = [:]
 
-    init(roots: Roots = .standard(), calendar: Calendar = .current) {
+    init(roots: Roots = .standard(), calendar: Calendar? = nil) {
         self.roots = roots
-        self.calendar = calendar
-        self.days = ActivityDayResolver(calendar: calendar)
+        self.fixedCalendar = calendar
+        self.calendar = calendar ?? .current
+        self.days = ActivityDayResolver(calendar: calendar ?? .current)
     }
 
-    func snapshot(provider: UsageProvider, range: AnalyticsRange, now: Date = Date()) -> ActivitySnapshot {
+    func snapshot(provider: UsageProvider, range: AnalyticsRange, now: Date = Date(),
+                  calendar reportingCalendar: Calendar? = nil) -> ActivitySnapshot {
+        let current = reportingCalendar ?? fixedCalendar ?? .current
+        if current != calendar {
+            calendar = current
+            days = ActivityDayResolver(calendar: current)
+            cache.removeAll()
+        }
         let interval = range.interval(through: now, calendar: calendar)
         var chartDays: [Date] = []
         var cursor = calendar.startOfDay(for: interval.start)
@@ -138,7 +145,7 @@ actor UsageActivityScanner {
 
     private func readClaude(_ url: URL) -> FileActivity {
         var parser = ClaudeActivityParser(days: days)
-        TurnHistoryImporter.forEachLine(of: url, containingAny: ClaudeActivityParser.needles, copying: false) {
+        TranscriptLines.forEachLine(of: url, containingAny: ClaudeActivityParser.needles, copying: false) {
             parser.consume($0)
         }
         var activity = parser.finish()
@@ -151,7 +158,7 @@ actor UsageActivityScanner {
 
     private func readCodex(_ url: URL) -> FileActivity {
         var parser = CodexActivityParser(days: days)
-        TurnHistoryImporter.forEachLine(of: url, containingAny: CodexActivityParser.needles, copying: false) {
+        TranscriptLines.forEachLine(of: url, containingAny: CodexActivityParser.needles, copying: false) {
             parser.consume($0)
         }
         var activity = parser.finish()

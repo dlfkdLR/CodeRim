@@ -13,7 +13,10 @@ public sealed record CompanionProvider(string Id, string Name, bool Enabled, Loc
     [JsonIgnore] public ProviderReading RestartLimits => CachedLimits ?? Limits;
 }
 public sealed record LocalUsage(string Scope, string State, DateTimeOffset? UpdatedAt, DateTimeOffset PeriodsAsOf,
-    string TimeZoneIdentifier, Dictionary<string, TokenUsage> Totals);
+    string TimeZoneIdentifier, Dictionary<string, TokenUsage> Totals)
+{
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Stale { get; init; }
+}
 public static class CompanionFile
 {
     private const int MaximumBytes = 8 * 1024 * 1024;
@@ -44,8 +47,8 @@ public static class CompanionFile
             ?? throw new InvalidDataException("Snapshot is empty.");
         Validate(result);
         return result with { Providers = result.Providers.Select(p => p with { Limits = p.Limits.Evaluated(DateTimeOffset.Now), LocalUsage = p.LocalUsage is { } local &&
-            (DateTimeOffset.Now - local.PeriodsAsOf > TimeSpan.FromMinutes(5) || local.PeriodsAsOf > DateTimeOffset.Now.AddMinutes(1)
-            || local.PeriodsAsOf.LocalDateTime.Date != DateTime.Today || local.TimeZoneIdentifier != TimeZoneInfo.Local.Id) ? local with { State = local.State == "partial" ? "partial" : "stale" } : p.LocalUsage }).ToArray() };
+            (local.State is "ready" or "partial" or "stale") && (DateTimeOffset.Now - local.PeriodsAsOf > TimeSpan.FromMinutes(5) || local.PeriodsAsOf > DateTimeOffset.Now.AddMinutes(1)
+            || local.PeriodsAsOf.LocalDateTime.Date != DateTime.Today || local.TimeZoneIdentifier != TimeZoneInfo.Local.Id) ? local with { State = local.State == "partial" ? "partial" : "stale", Stale = true } : p.LocalUsage }).ToArray() };
     }
     public static void Write(CompanionSnapshot snapshot, string? path = null)
     {
@@ -108,6 +111,6 @@ public static class CompanionFile
                 || window.UsedPercent is { } percent && (!double.IsFinite(percent) || percent < 0))
                 throw new InvalidDataException("Invalid quota window.");
     }
-    public static LocalUsage Local(UsageSnapshot snapshot, DateTimeOffset now) => new("this-pc", snapshot.Quality == DataQuality.Exact ? "ready" : snapshot.Quality == DataQuality.Partial ? "partial" : "unavailable", snapshot.UpdatedAt,
-        now, TimeZoneInfo.Local.Id, new Dictionary<string, TokenUsage>(StringComparer.Ordinal) { ["today"] = snapshot.Today, ["week"] = snapshot.Week, ["month"] = snapshot.Month, ["all-time"] = snapshot.AllTime });
+    public static LocalUsage Local(UsageSnapshot snapshot, DateTimeOffset now) => new("this-pc", snapshot.Quality == DataQuality.Exact ? "ready" : (snapshot.Quality == DataQuality.Partial || snapshot.RetainsPartialHistory) ? "partial" : snapshot.Quality == DataQuality.Stale ? "stale" : "unavailable", snapshot.UpdatedAt,
+        snapshot.Through ?? snapshot.UpdatedAt ?? now, snapshot.TimeZoneIdentifier ?? "", new Dictionary<string, TokenUsage>(StringComparer.Ordinal) { ["today"] = snapshot.Today, ["week"] = snapshot.Week, ["month"] = snapshot.Month, ["all-time"] = snapshot.AllTime }) { Stale = snapshot.Quality == DataQuality.Stale };
 }

@@ -128,8 +128,7 @@ public struct CompanionLocalUsage: Codable, Equatable, Sendable {
     public func evaluated(at now: Date, calendar: Calendar = .current) -> Self {
         var result = self
         guard state == .ready || state == .partial || state == .stale else { return result }
-        if updatedAt == nil || now.timeIntervalSince(updatedAt!) > 300
-            || updatedAt! > now.addingTimeInterval(60)
+        if isStale(updatedAt, at: now, after: 300)
             || !calendar.isDate(periodsAsOf, inSameDayAs: now)
             || timeZoneIdentifier != calendar.timeZone.identifier {
             result.state = .stale
@@ -162,12 +161,10 @@ public struct CompanionLimits: Codable, Equatable, Sendable {
 
     public func evaluated(at now: Date) -> Self {
         var result = self
-        if state == .ready || state == .stale {
-            if updatedAt == nil || now.timeIntervalSince(updatedAt!) > staleAfterSeconds
-                || updatedAt! > now.addingTimeInterval(60)
-                || windows.contains(where: { $0.resetsAt.map { $0 <= now } ?? false }) {
-                result.state = .stale
-            }
+        if state == .ready || state == .stale,
+           isStale(updatedAt, at: now, after: staleAfterSeconds)
+            || windows.contains(where: { $0.resetsAt.map { $0 <= now } ?? false }) {
+            result.state = .stale
         }
         return result
     }
@@ -228,7 +225,7 @@ public struct CompanionHistory: Codable, Equatable, Sendable {
     public func evaluated(at now: Date, calendar: Calendar = .current) -> Self {
         var value = self
         if [.ready, .partial, .stale].contains(state),
-           now.timeIntervalSince(updatedAt) > 600 || updatedAt > now.addingTimeInterval(60)
+           isStale(updatedAt, at: now, after: 600)
             || !calendar.isDate(updatedAt, inSameDayAs: now)
             || timeZoneIdentifier != calendar.timeZone.identifier {
             value.state = .stale
@@ -259,4 +256,8 @@ extension CompanionProvider {
               usage.totals["today"] != nil else { return nil }
         return usage
     }
+}
+
+private func isStale(_ updatedAt: Date?, at now: Date, after interval: TimeInterval) -> Bool {
+    updatedAt.map { now.timeIntervalSince($0) > interval || $0 > now.addingTimeInterval(60) } ?? true
 }

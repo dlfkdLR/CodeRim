@@ -13,7 +13,10 @@ struct UsageSettingsAnalytics: View {
 
     private var range: AnalyticsRange { navigation.usageRange == .today ? .sevenDays : navigation.usageRange }
     private var snapshot: AnalyticsSnapshot? { store.analyticsSnapshots[range] }
-    private var activityKey: String { "\(store.provider.rawValue)|\(range.rawValue)" }
+    private var activityKey: SettingsUsageActivityKey {
+        .init(provider: store.provider, range: range, through: snapshot?.through,
+              sourceUpdatedAt: store.snapshot.updatedAt, calendar: .current)
+    }
     /// The agents' own logs, for the cards the token counts cannot give.
     private var activity: ActivitySnapshot? { state.activityKey == activityKey ? state.activity : nil }
     private let colors: [Color] = [.accentColor, .orange, .green, .pink, .teal, .yellow]
@@ -35,14 +38,7 @@ struct UsageSettingsAnalytics: View {
         .frame(maxWidth: 960, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .center)
         .task(id: range) { await store.refreshAnalytics(range: range) }
-        .task(id: activityKey) {
-            let key = activityKey
-            if state.activityKey != key { state.activity = nil }
-            let loaded = await state.loadActivity(store.provider, range)
-            guard !Task.isCancelled else { return }
-            state.activity = loaded
-            state.activityKey = key
-        }
+        .task(id: activityKey) { await state.refreshActivity(for: activityKey) }
         .onChange(of: range) { _, _ in
             state.selectedDate = nil
             state.showsAllSessions = false

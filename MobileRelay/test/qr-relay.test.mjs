@@ -6,6 +6,8 @@ import { Relay, HEARTBEAT } from '../src/relay.mjs';
 import { nodeSQL } from '../src/node-sql.mjs';
 import { handle } from '../src/http.mjs';
 import { createAPNs } from '../src/apns.mjs';
+import { digest } from '../src/crypto.mjs';
+import { ONLINE_WINDOW } from '../src/model.mjs';
 
 const epoch = 1790000000;
 const snapshot = (now = epoch, phase = 'working') => ({ schemaVersion: 1, generatedAt: now,
@@ -27,6 +29,247 @@ async function connect(c, mobile, name = 'Mac') {
   await c.route('POST', '/v1/pairing/claim', { id: pair.id, secret: pair.secret }, mobile);
   return c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: pair.secret });
 }
+
+async function alarm(c) {
+  const at = Math.min(...c.scheduled.splice(0));
+  assert.ok(Number.isFinite(at), 'background work scheduled its next alarm');
+  c.advance(Math.max(0, at - c.now()));
+  await c.relay.tick();
+  await c.relay.pending;
+  return at;
+}
+
+test('unknown-length bodies stop reading and cancel at the byte limit before routing', async () => {
+  let pulls = 0, cancelled = 0, eof = false, routes = 0;
+  const body = new ReadableStream({
+    pull(controller) {
+      pulls++;
+      if (pulls <= 6) controller.enqueue(new Uint8Array(65536).fill(120));
+      else { eof = true; controller.close(); }
+    },
+    cancel() { cancelled++; },
+  }, { highWaterMark: 0 });
+  const request = new Request('https://relay.test/v1/accounts', { method: 'POST', duplex: 'half',
+    headers: { 'content-type': 'application/json' }, body });
+  const response = await handle({ route() { routes++; } }, request);
+  assert.equal(response.status, 413);
+  assert.equal(routes, 0); assert.equal(pulls, 5); assert.equal(cancelled, 1); assert.equal(eof, false);
+});
+
+test('bounded body decoding preserves split UTF-8 at the exact byte limit', async () => {
+  const input = { title: '😀' + 'x'.repeat(262128) }, bytes = new TextEncoder().encode(JSON.stringify(input));
+  assert.equal(bytes.byteLength, 262144);
+  const body = new ReadableStream({ start(controller) {
+    controller.enqueue(bytes.subarray(0, 12)); controller.enqueue(bytes.subarray(12)); controller.close();
+  } });
+  let routed;
+  const response = await handle({ route(_method, _path, value) { routed = value; return { ok: true }; } },
+    new Request('https://relay.test/v1/accounts', { method: 'POST', duplex: 'half', headers: { 'content-type': 'application/json' }, body }));
+  assert.equal(response.status, 200); assert.deepEqual(routed, input);
+});
+
+test('critical heartbeat publishers stay online until the advertised interval plus grace', async t => {
+  const c = setup(t), mobile = await phone(c), mac = await connect(c, mobile);
+  c.relay.usage.requests = 90000;
+  const reply = await c.route('POST', '/v1/snapshot', snapshot(), mac.token);
+  assert.equal(reply.interval, HEARTBEAT.critical);
+  for (const elapsed of [661, reply.interval]) {
+    c.advance(epoch + elapsed - c.now());
+    const reading = await c.route('GET', '/v1/snapshot', {}, mobile);
+    assert.equal(reading.state.connection, 'connected'); assert.equal(reading.devices[0].online, true);
+  }
+  c.advance(epoch + reply.interval + 60 - c.now());
+  const reading = await c.route('GET', '/v1/snapshot', {}, mobile);
+  assert.equal(reading.state.connection, 'offline'); assert.equal(reading.devices[0].online, false);
+});
+
+test('heartbeat interval transitions persist once without changing content versions or normal offline timing', async t => {
+  const c = setup(t, { pushConfigured: false }), mobile = await phone(c), mac = await connect(c, mobile);
+  await c.route('POST', '/v1/snapshot', snapshot(), mac.token); await c.relay.pending;
+  const version = (await c.route('GET', '/v1/snapshot', {}, mobile)).state.dataVersion;
+  c.advance(300); c.relay.usage.requests = 90001;
+  let before = c.store.writes;
+  await c.route('POST', '/v1/snapshot', { ...snapshot(), generatedAt: c.now() }, mac.token);
+  assert.equal(c.store.writes - before, 1, 'the critical interval survives eviction');
+  c.advance(HEARTBEAT.critical);
+  const restarted = new Relay({ store: c.store, now: c.now });
+  assert.equal((await restarted.route('GET', '/v1/snapshot', {}, mobile, 'restart')).state.connection, 'connected');
+  before = c.store.writes;
+  await c.route('POST', '/v1/snapshot', { ...snapshot(), generatedAt: c.now() }, mac.token);
+  assert.equal(c.store.writes, before, 'steady critical heartbeats cost no writes');
+  assert.equal((await c.route('GET', '/v1/snapshot', {}, mobile)).state.dataVersion, version);
+  c.relay.usage.requests = 0;
+  before = c.store.writes;
+  await c.route('POST', '/v1/snapshot', { ...snapshot(), generatedAt: c.now() }, mac.token);
+  assert.equal(c.store.writes - before, 1, 'returning to normal persists its shorter deadline');
+  assert.equal((await c.route('GET', '/v1/snapshot', {}, mobile)).state.dataVersion, version);
+  c.advance(ONLINE_WINDOW);
+  const reading = await c.route('GET', '/v1/snapshot', {}, mobile);
+  assert.equal(reading.state.connection, 'offline'); assert.equal(reading.devices[0].online, false);
+});
+
+test('push-disabled maintenance expires staggered abandoned offers without unrelated traffic', async t => {
+  const c = setup(t, { pushConfigured: false });
+  const first = await c.route('POST', '/v1/pairing/start', { platform: 'macOS' });
+  c.advance(100);
+  const second = await c.route('POST', '/v1/pairing/start', { platform: 'macOS' });
+  assert.equal(await alarm(c), first.expiresAt);
+  assert.equal(c.store.one('SELECT 1 FROM pairs WHERE id=?', first.id), undefined);
+  assert.ok(c.store.one('SELECT 1 FROM pairs WHERE id=?', second.id));
+  assert.equal(await alarm(c), second.expiresAt);
+  assert.equal(c.store.one('SELECT COUNT(*) AS n FROM pairs').n, 0);
+  assert.equal(c.store.nextExpiry(), Infinity); assert.deepEqual(c.scheduled, []);
+});
+
+test('unused mobile sessions and starters expire through maintenance with no activity', async t => {
+  const c = setup(t), mobile = await phone(c);
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'f'.repeat(64) }, mobile);
+  const expires = c.store.one('SELECT expires FROM sessions WHERE hash=?', digest(mobile)).expires;
+  assert.equal(await alarm(c), expires);
+  assert.equal(c.store.starters().length, 0);
+  await assert.rejects(c.route('GET', '/v1/snapshot', {}, mobile), { status: 401 });
+  assert.equal(c.store.nextExpiry(), Infinity); assert.deepEqual(c.scheduled, []);
+});
+
+test('only a current matching mobile authorization may start an activity, without renewing it', async t => {
+  for (const invalid of ['expired', 'missing', 'owner', 'role']) {
+    const c = setup(t), mobile = await phone(c), mac = await connect(c, mobile);
+    await c.route('POST', '/v1/push-to-start', { pushToken: 'f'.repeat(64) }, mobile);
+    const hash = digest(mobile);
+    if (invalid === 'expired') c.store.run('UPDATE sessions SET expires=? WHERE hash=?', c.now(), hash);
+    if (invalid === 'missing') c.store.run('DELETE FROM sessions WHERE hash=?', hash);
+    if (invalid === 'owner') c.store.run('UPDATE sessions SET owner=? WHERE hash=?', 'other', hash);
+    if (invalid === 'role') c.store.run('UPDATE sessions SET role=? WHERE hash=?', 'desktop', hash);
+    if (invalid === 'expired') await assert.rejects(c.route('GET', '/v1/snapshot', {}, mobile), { status: 401 });
+    await c.route('POST', '/v1/snapshot', snapshot(), mac.token);
+    await c.relay.pending;
+    assert.equal(c.sent.length, 0, invalid);
+    assert.equal(c.store.starters().length, 0, invalid);
+    if (invalid === 'expired') assert.equal(c.store.one('SELECT expires FROM sessions WHERE hash=?', hash).expires, c.now());
+  }
+});
+
+test('failed or unregistered starts retry only through scheduled alarms; permanent tokens retire', async t => {
+  for (const failure of [{ status: 503 }, new Error('offline'), { status: 200 }]) {
+    const calls = [];
+    const c = setup(t, { push: async (_, payload) => {
+      calls.push(payload);
+      if (calls.length === 1) { if (failure instanceof Error) throw failure; return failure; }
+      return { status: 200 };
+    } });
+    const mobile = await phone(c), mac = await connect(c, mobile);
+    await c.route('POST', '/v1/push-to-start', { pushToken: 'f'.repeat(64) }, mobile);
+    await c.route('POST', '/v1/snapshot', snapshot(), mac.token); await c.relay.pending;
+    assert.equal(calls.length, 1);
+    assert.equal(await alarm(c), epoch + 300);
+    assert.equal(calls.length, 2);
+  }
+  for (const failure of [{ status: 410 }, { status: 400, reason: 'BadDeviceToken' }, { status: 400, reason: 'DeviceTokenNotForTopic' }]) {
+    const c = setup(t, { push: async () => failure }), mobile = await phone(c), mac = await connect(c, mobile);
+    await c.route('POST', '/v1/push-to-start', { pushToken: 'f'.repeat(64) }, mobile);
+    await c.route('POST', '/v1/snapshot', snapshot(), mac.token); await c.relay.pending;
+    assert.equal(c.store.starters().length, 0);
+  }
+});
+
+test('Stop showing suppresses the same work across alarms and token rotation until idle', async t => {
+  const c = setup(t), mobile = await phone(c), mac = await connect(c, mobile);
+  const other = c.store.issue(c.store.auth(mobile, 'mobile', c.now()).owner, 'mobile', c.now()).token;
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'f'.repeat(64) }, mobile);
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'e'.repeat(64) }, other);
+  await c.route('POST', '/v1/snapshot', snapshot(), mac.token); await c.relay.pending;
+  await c.route('POST', '/v1/activities', { activityID: 'shown', pushToken: 'a'.repeat(64) }, mobile); await c.relay.pending;
+  await c.route('DELETE', '/v1/activities', {}, mobile); await c.relay.pending;
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'd'.repeat(64) }, mobile);
+  for (let i = 0; i < 3; i++) {
+    await alarm(c);
+    assert.equal(c.sent.filter(s => s.payload.aps.event === 'start' && ['f', 'd'].includes(s.token[0])).length, 1);
+  }
+  assert.ok(c.sent.filter(s => s.payload.aps.event === 'start' && s.token[0] === 'e').length > 1);
+  await c.route('POST', '/v1/snapshot', snapshot(c.now(), null), mac.token); await c.relay.pending;
+  await c.route('POST', '/v1/snapshot', snapshot(c.now()), mac.token); await c.relay.pending;
+  assert.ok(c.sent.some(s => s.payload.aps.event === 'start' && s.token[0] === 'd'));
+});
+
+test('Stop showing before the first starter token survives registration and relay restart', async t => {
+  const c = setup(t), mobile = await phone(c), mac = await connect(c, mobile);
+  await c.route('POST', '/v1/snapshot', snapshot(), mac.token); await c.relay.pending;
+  await c.route('DELETE', '/v1/activities', {}, mobile); await c.relay.pending;
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'f'.repeat(64) }, mobile);
+  let starts = 0;
+  const restarted = new Relay({ store: c.store, now: c.now, push: async () => { starts++; return { status: 200 }; } });
+  await restarted.tick(c.store.auth(mobile, 'mobile', c.now()).owner);
+  assert.equal(starts, 0, 'suppressed work must not start');
+  assert.equal(c.store.starters()[0].data.suppressed, true);
+  await c.route('POST', '/v1/snapshot', snapshot(c.now(), null), mac.token); await c.relay.pending;
+  await c.route('POST', '/v1/snapshot', snapshot(c.now()), mac.token); await c.relay.pending;
+  assert.equal(c.sent.filter(s => s.payload.aps.event === 'start').length, 1);
+});
+
+test('Stop ends a late registration from an in-flight start; only explicit resume permits a new activity', async t => {
+  let release, began;
+  const held = new Promise(resolve => { release = resolve; });
+  const entered = new Promise(resolve => { began = resolve; });
+  const sent = [];
+  const c = setup(t, { push: async (_token, payload) => {
+    sent.push(payload);
+    if (payload.aps.event === 'start') { began(); await held; }
+    return { status: 200 };
+  } });
+  const mobile = await phone(c), mac = await connect(c, mobile);
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'f'.repeat(64) }, mobile);
+  await c.route('POST', '/v1/snapshot', snapshot(), mac.token); await entered;
+  await c.route('DELETE', '/v1/activities', {}, mobile);
+  await c.route('POST', '/v1/activities', { activityID: 'late', pushToken: 'a'.repeat(64) }, mobile);
+  release(); await c.relay.pending;
+  assert.deepEqual(sent.map(p => p.aps.event), ['start', 'end']);
+  assert.equal(c.store.activities().length, 0);
+  const other = c.store.issue(c.store.auth(mobile, 'mobile', c.now()).owner, 'mobile', c.now()).token;
+  await c.route('POST', '/v1/activities/resume', {}, other);
+  assert.equal(c.store.starters().find(s => s.session === digest(mobile)).data.suppressed, true);
+  await assert.rejects(c.route('POST', '/v1/activities/resume', {}, mac.token), { status: 403 });
+  await c.route('POST', '/v1/activities/resume', {}, mobile);
+  await c.route('POST', '/v1/activities', { activityID: 'explicit', pushToken: 'b'.repeat(64) }, mobile);
+  await c.relay.pending;
+  assert.equal(sent.at(-1).aps.event, 'update');
+  assert.equal(c.store.activities()[0].data.ending, false);
+});
+
+test('scheduled starts stop when the desktop goes offline and an unchanged reconnect rearms them', async t => {
+  const c = setup(t), mobile = await phone(c), mac = await connect(c, mobile);
+  await c.route('POST', '/v1/push-to-start', { pushToken: 'f'.repeat(64) }, mobile);
+  await c.route('POST', '/v1/snapshot', snapshot(), mac.token); await c.relay.pending;
+  for (let i = 0; i < 3; i++) await alarm(c);
+  assert.equal(c.now(), epoch + 900);
+  assert.equal(c.sent.filter(s => s.payload.aps.event === 'start').length, 3, 'offline work cannot emit another start');
+  assert.ok(c.scheduled.every(at => at > c.now() + 300), 'no cooldown retry remains for offline work');
+  const before = c.store.writes;
+  await c.route('POST', '/v1/snapshot', { ...snapshot(), generatedAt: c.now() }, mac.token); await c.relay.pending;
+  assert.equal(c.sent.filter(s => s.payload.aps.event === 'start').length, 4, 'a fresh unchanged heartbeat rearms starts');
+  assert.equal(c.store.writes - before, 1, 'only the rearmed starter attempt writes, not the unchanged heartbeat');
+});
+
+test('repeated activity replacements cost constant foreground writes and bound retained retries per phone', async t => {
+  const c = setup(t, { push: async () => ({ status: 503 }) }), mobile = await phone(c);
+  const owner = c.store.auth(mobile, 'mobile', c.now()).owner;
+  // Isolate registration writes from the independently scheduled APNs retries.
+  c.relay.later = () => {};
+  for (let i = 0; i < 16; i++) {
+    const before = c.store.writes;
+    await c.route('POST', '/v1/activities', { activityID: `activity-${i}`, pushToken: 'a'.repeat(64) }, mobile);
+    assert.ok(c.store.writes - before <= 2, `registration ${i} rewrote old ending rows`);
+    await c.relay.tick(owner);
+  }
+  const before = c.store.writes;
+  await assert.rejects(c.route('POST', '/v1/activities', { activityID: 'overflow', pushToken: 'a'.repeat(64) }, mobile), { status: 429 });
+  assert.equal(c.store.writes, before); assert.equal(c.store.activities().length, 16);
+  await c.route('POST', '/v1/activities', { activityID: 'activity-15', pushToken: 'b'.repeat(64) }, mobile);
+  const second = c.store.issue(owner, 'mobile', c.now()).token;
+  await c.route('POST', '/v1/activities', { activityID: 'other', pushToken: 'c'.repeat(64) }, second);
+  assert.equal(c.store.activities().filter(a => a.session === digest(second)).length, 1);
+  c.advance(8 * 3600); await c.relay.tick(owner);
+  assert.equal(c.store.activities().length, 0);
+});
 
 test('QR pairing hands the computer its token once, and only to the holder of the secret', async t => {
   const c = setup(t), mobile = await phone(c);

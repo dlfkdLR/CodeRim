@@ -6,15 +6,15 @@
 
 ## Platform and stack
 
-macOS 14+ is the primary native app: Swift, SwiftUI, AppKit, Foundation, Swift Concurrency, SQLite, OSLog, CoreServices, ServiceManagement, and Sparkle. Public macOS packages are Universal 2. Windows 11 is an implementation preview using WPF, .NET 10, and SQLite, with self-contained x64/ARM64 MSI packages. Neither desktop platform needs a separate runtime. Windows widgets are outside the current scope.
+macOS 14+ is the primary native app: Swift, SwiftUI, AppKit, Foundation, Swift Concurrency, SQLite, OSLog, CoreServices, ServiceManagement, and Sparkle. Public macOS packages are Universal 2. Windows 11 has a stable 2.1.34 release using WPF, .NET 10, and SQLite, with self-contained x64/ARM64 MSI packages. Neither desktop platform needs a separate runtime. Windows widgets are outside the current scope.
 
-An optional source-level iPhone companion targets iOS 17.2+ with SwiftUI, ActivityKit, APNs, Sign in with Apple, and an explicitly configured Node 24 relay. It requires provisioning and server setup; it is not an available public App Store release. [Platform contracts](Documentation/README.md).
+An optional, unreleased native iPhone companion targets iOS 17.2+ with SwiftUI, WidgetKit Live Activities, ActivityKit, and APNs. It pairs anonymously by QR code without an Apple ID or sign-in, through a Cloudflare Worker and SQLite-backed Durable Object relay. It requires provisioning and relay configuration; it is not an available public App Store or TestFlight release. [Platform contracts](Documentation/README.md).
 
 ## Users and purpose
 
 People using Codex or Claude Code want a quick view of locally observable tokens and separate service limits. The app imports local session events into independent durable provider snapshots, shows cached data immediately, and follows new writes asynchronously. It must avoid double-counting repeated records and remain responsive during large imports.
 
-Today, Usage analytics, notch token counts, CLI, and desktop widgets describe this computer across accounts. CodeRim 2.1.13 adds a separate Codex Overview History that can show current ChatGPT account totals with coverage dates. Remote totals never enter local usage tables or supplement unattributed local history. Account switches clear old remote values immediately. [Accounting](Documentation/USAGE.md).
+Today, Usage analytics, notch token counts, CLI, and desktop widgets describe this computer across accounts. Separate Codex Overview History can show current ChatGPT account totals with coverage dates. Remote totals never enter local usage tables or supplement unattributed local history. Account switches clear old remote values immediately. [Accounting](Documentation/USAGE.md).
 
 ## Capabilities and constraints
 
@@ -39,4 +39,4 @@ The interface stays compact, quiet, factual, and native. Settings follows [The Q
 
 Use VoiceOver labels, keyboard navigation, semantic appearance and contrast, Reduce Motion, and text with status colors. Accuracy and duplicate prevention outrank visual embellishment. Every claim must be limited to its evidence: fixture tests, native component captures, installed-app interaction, live accounts, CI, and published artifacts are different checks. A catalogue entry or cross-build proves no live connection. Dated [audit records](Documentation/README.md#historical-evidence) preserve their original scope; this product contract adds no new benchmark or affiliation claim.
 
-The Settings sections, provider identifiers, quota units, local-accounting scope, and analytics destinations are shared product contracts. Browser credential discovery, native authentication strategies, automatic updates, mixed-DPI behavior, and accessibility still require platform-specific implementation or verification; see [Windows status](Documentation/WINDOWS.md) and the [current audit](Documentation/FULL_AUDIT_2026-09-20.md).
+The Settings sections, provider identifiers, quota units, local-accounting scope, and analytics destinations are shared product contracts. Browser credential discovery, native authentication strategies, automatic updates, mixed-DPI behavior, and accessibility still require platform-specific implementation or verification; see [Windows status](Documentation/WINDOWS.md) and [dated evidence](Documentation/README.md#historical-evidence).

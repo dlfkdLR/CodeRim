@@ -74,7 +74,7 @@ final class UsageSettingsAnalyticsTests: XCTestCase {
                     // Never the logs on the Mac running the tests.
                     let activity = ActivityLayoutFixture.snapshot(range: selectedRange, buckets: snapshot.buckets.map(\.start),
                                                                   empty: scenario == "empty" || scenario == "loading")
-                    state.loadActivity = { _, _ in activity }
+                    state.loadActivity = { _, _, _, _ in activity }
                     if scenario == "expanded" {
                         state.grouping = .model
                         state.selectedDate = snapshot.buckets[1].start

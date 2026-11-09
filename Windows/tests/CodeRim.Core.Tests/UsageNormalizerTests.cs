@@ -87,6 +87,8 @@ public sealed class UsageNormalizerTests
         Assert.True(next.Delta!.Value.IsValid);
         Assert.Equal(DataQuality.Partial, next.State.Quality);
         Assert.Equal("inconsistent token delta clamped", next.Diagnostic);
+        Assert.True(next.Repaired);
+        Assert.False(first.Repaired);
         Assert.Equal(new TokenUsage(110, 40, 15), next.State.CumulativeHighWaterMark);
     }
 
@@ -96,6 +98,7 @@ public sealed class UsageNormalizerTests
         var result = UsageNormalizer.Normalize(Observation(new TokenUsage(10, 30, 4, 5)), UsageNormalizationState.Empty);
 
         Assert.Equal(new TokenUsage(10, 10, 4, 0), result.Delta);
+        Assert.True(result.Repaired);
         Assert.Equal(DataQuality.Partial, result.State.Quality);
     }
 

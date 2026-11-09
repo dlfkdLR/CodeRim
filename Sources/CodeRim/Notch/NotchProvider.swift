@@ -10,44 +10,20 @@ protocol NotchProvider {
     var displayName: String { get }
     var glyph: ProviderGlyph { get }
     func fetchSnapshot() async throws -> ProviderSnapshot
-    /// Whose readings these are. Declared here rather than only in an extension:
-    /// a method that exists solely in a protocol extension is dispatched
-    /// *statically*, so calling it through `any NotchProvider` would always land
-    /// on the default and never on the implementation — which is exactly what
-    /// happened, and it failed silently by reporting every account as absent.
+    /// Keep account methods as protocol requirements so existential calls dispatch to provider
+    /// overrides.
     func account() -> ProviderAccount?
-    /// A stable, non-secret fingerprint of the account whose credential is on disk right now, or nil
-    /// when the provider cannot tell accounts apart. The store compares it before and after a fetch,
-    /// and keys remembered readings and rate-limit waits by it, so an answer for the account that was
-    /// signed in when the request started is never shown as the account signed in now. A requirement
-    /// for the reason spelled out above `account()`.
+    /// Non-secret current-account identity, checked around each fetch and used to partition cached
+    /// readings/backoff across switches.
     func accountIdentity() -> String?
     /// Where the user goes to sign in, when there is no account to read. A
     /// requirement for the same reason `account()` is.
     var signInRoute: SignInRoute { get }
-    /// Discard whatever credential *this app* holds for the provider.
-    ///
-    /// For a borrowed credential there is nothing here to discard — the session
-    /// belongs to Claude Code or Cursor, and ending it is their business, not
-    /// ours. For a session Codenotch created itself (`WebSessionProvider`) this
-    /// is a real logout. A requirement, not an extension member, for the reason
-    /// spelled out above `account()`.
+    /// Discard app-owned sessions only; borrowed credentials belong to their tools.
     func signOut() async
-    /// Open whatever sign-in this provider can present.
-    ///
-    /// Only a `WebSessionProvider` has a modal of its own to show — it owns the
-    /// session, so it can create one. Everyone else borrows a credential, and
-    /// the nearest thing is launching the app that holds it, which is why the
-    /// route matters as much as this call. A requirement, not an extension
-    /// member, for the reason spelled out above `account()`.
+    /// Present an owned sign-in modal; other providers use their signInRoute.
     func presentSignIn()
-    /// Drop any credential held in memory, so the next read goes to the
-    /// keychain for real.
-    ///
-    /// Without this, "ask me again" does nothing whenever a valid token is
-    /// still cached: the read is served from memory, macOS is never consulted,
-    /// and no prompt appears. A requirement, not an extension member, for the
-    /// reason spelled out above `account()`.
+    /// Drop cached credentials so the next read can re-request Keychain access after a denial.
     func forgetCachedCredential()
     /// Whether this provider should keep a cell or placeholder in the notch when
     /// its account or daemon is unavailable. Most providers default to `true`
@@ -100,6 +76,21 @@ struct AccountBackoff {
         self.account = account
         consecutiveLimits = 0
         archive.saveBackoffUntil(nil, providerID: providerID, account: account)
+    }
+
+    nonisolated static func delay(forAttempt attempt: Int, retryAfter: TimeInterval?) -> TimeInterval {
+        min(15 * 60, max(60 * pow(2, Double(min(attempt, 4))), retryAfter ?? 0))
+    }
+
+    /// Callers retain their endpoint's header-whitespace policy.
+    nonisolated static func retryAfter(_ header: String?) -> TimeInterval? {
+        guard let header else { return nil }
+        if let seconds = TimeInterval(header) { return max(0, seconds) }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(identifier: "GMT")
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        return formatter.date(from: header).map { max(0, $0.timeIntervalSinceNow) }
     }
 }
 

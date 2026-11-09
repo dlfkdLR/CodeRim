@@ -28,23 +28,15 @@ final class NotchUsageStore: ObservableObject {
             }
             snapshots.removeAll { disconnected.contains($0.id) }
             refusedAccess.subtract(disconnected)
-            // The remembered reading has to go as well. Dropping it from
-            // `snapshots` alone left it in `lastGood`, which is written to the
-            // archive wholesale on every fetch — so a switched-off provider was
-            // remembered forever and rebuilt from the archive at the next
-            // launch, ring and all.
+            // Prune lastGood too: every archive save includes it, and a disabled provider must not return on
+            // launch.
             for id in disconnected { lastGood.removeValue(forKey: id) }
             saveArchive()
             refreshNow()
         }
     }
 
-    /// The order the user has put the rings in, as provider ids.
-    ///
-    /// Held here rather than at each consumer because there are two consumers —
-    /// the notch reads `snapshots`, settings reads `providerSummaries` — and
-    /// they have to agree. Sorting each of them separately makes that agreement
-    /// something two call sites have to keep remembering.
+    /// Share one provider order between notch snapshots and Settings summaries.
     @Published var order: [String] = [] {
         didSet {
             guard order != oldValue else { return }
@@ -68,15 +60,7 @@ final class NotchUsageStore: ObservableObject {
     var isBusy: () -> Bool = { false }
 
     private let refreshInterval: TimeInterval
-    /// How long a snapshot stays believable after its last successful fetch.
-    ///
-    /// Comfortably above `idleRefreshInterval`, on purpose. With the two equal,
-    /// a ring dimmed the instant the *first* idle refresh attempt failed —
-    /// which reads as "nothing is being read any more" when what actually
-    /// happened is one attempt, five minutes ago, out of what will keep being
-    /// tried every five minutes after. The margin buys room for a couple of
-    /// those attempts to have genuinely failed before the ring says so; it
-    /// must never fire merely because the idle schedule hasn't come round yet.
+    /// Allow multiple failed idle refreshes before dimming; this must exceed idleRefreshInterval.
     private let staleAfter: TimeInterval
     /// How often to look when nothing is running.
     private let idleRefreshInterval: TimeInterval
@@ -114,13 +98,8 @@ final class NotchUsageStore: ObservableObject {
         self.staleAfter = staleAfter
         self.archive = archive
 
-        // Open on what we knew last time rather than on an empty ring; the
-        // first fetch will either confirm it or replace it.
-        // Set through the wrapper's storage, not `self.disconnected = …`.
-        // `disconnected` is `@Published`, so a plain assignment here runs its
-        // `didSet` — which saves `lastGood` to the archive. At this point
-        // `lastGood` is still empty, so it wrote an empty archive and destroyed
-        // every remembered reading on any launch with a provider switched off.
+        // Initialize the Published wrapper directly: didSet would save the still-empty lastGood and erase
+        // the archive.
         _disconnected = Published(initialValue: disconnected)
         // Through the wrapper's storage for the same reason `_disconnected` is:
         // a plain assignment runs the `didSet`, which sorts a `snapshots` that
@@ -141,11 +120,7 @@ final class NotchUsageStore: ObservableObject {
             }
         }
         if restoredForeignAccount { saveArchive() }
-        // Pruned here as well as in `didSet`, because `didSet` cannot be relied
-        // on to run: it guards against a no-op change, and the value the
-        // preference binding delivers a moment later is usually identical to
-        // the one passed in here. A provider switched off in a previous session
-        // would then keep its archived reading indefinitely.
+        // Prune on launch too: a no-op preference binding may never run the disconnected didSet.
         if lastGood.keys.contains(where: disconnected.contains) {
             for id in disconnected { lastGood.removeValue(forKey: id) }
             saveArchive()
@@ -377,11 +352,7 @@ final class NotchUsageStore: ObservableObject {
         }
     }
 
-    /// Refetch one provider, leaving the others alone.
-    ///
-    /// Deliberately not routed through `refreshNow`: asking one cell for a fresh
-    /// reading should not spend every other provider's rate-limit budget, and
-    /// Claude's in particular is easy to exhaust.
+    /// Refresh only this provider to preserve the others’ rate-limit budgets.
     func refresh(providerID: String) {
         guard let provider = providers.first(where: { $0.id == providerID }),
               !disconnected.contains(providerID) else { return }
@@ -406,18 +377,8 @@ final class NotchUsageStore: ObservableObject {
         }
     }
 
-    /// Sign out of one provider: discard anything of its account that this app
-    /// is holding, and stop reading it.
-    ///
-    /// Deliberately more than `disconnected` alone. Switching a provider off
-    /// stops the *next* read; it leaves the last one archived, so the numbers
-    /// come back on the next launch. Someone who presses Sign out means those
-    /// numbers to be gone.
-    ///
-    /// What it cannot do is end the session at the vendor: for every provider
-    /// shipping today the credential belongs to Claude Code, Cursor or Codex,
-    /// and deleting their keychain item would sign the user out of an app they
-    /// did not ask us to touch. `SignInRoute.signOutCaveat` says so on the row.
+    /// Discard local readings and stop fetching. Borrowed vendor credentials remain untouched; app-
+    /// owned sessions may sign out.
     func signOut(providerID: String) {
         guard let provider = providers.first(where: { $0.id == providerID }) else { return }
 
@@ -432,14 +393,8 @@ final class NotchUsageStore: ObservableObject {
         Task { await provider.signOut() }
     }
 
-    /// Take the user to wherever this provider's account is signed into.
-    ///
-    /// Three different places, because the providers differ in what they own: a
-    /// `WebSessionProvider` presents its own modal, Cursor and Codex hold the
-    /// credential in their app so the app is launched, and Claude Code is a
-    /// command with nothing to open — the row's guidance is all there is.
-    /// Returns whether anything was actually opened, so the sheet can say so
-    /// when nothing was.
+    /// Use an owned sign-in modal or the borrowed credential’s app/guidance; return whether a
+    /// destination opened.
     @discardableResult
     func signIn(providerID: String) -> Bool {
         guard let provider = providers.first(where: { $0.id == providerID }) else { return false }
@@ -470,26 +425,15 @@ final class NotchUsageStore: ObservableObject {
         return false
     }
 
-    /// Ask macOS for this provider's credential again.
-    ///
-    /// The remedy for a declined keychain prompt. Dropping the in-memory copy
-    /// first is the part that matters: a plain refresh is served from the cache
-    /// whenever the token is still valid, so the keychain is never touched and
-    /// the prompt never returns — the button would appear to do nothing.
+    /// Drop the cached credential before retrying so a previously declined Keychain prompt can
+    /// reappear.
     func reauthorize(providerID: String) {
         providers.first { $0.id == providerID }?.forgetCachedCredential()
         refresh(providerID: providerID)
     }
 
-    /// Take the user to where this provider's account is *changed*.
-    ///
-    /// Same destination as signing in, but unconditional: switching accounts is
-    /// something you do while already signed in, so the shortcut `signIn` takes
-    /// when a credential exists is exactly wrong here.
-    ///
-    /// Codenotch cannot switch the account itself. The credential belongs to
-    /// Claude Code, Cursor or Codex, and the most this can honestly do is open
-    /// the thing that owns it.
+    /// Open the account-change destination even when signed in; the ordinary sign-in shortcut would
+    /// skip it.
     @discardableResult
     func openAccountSource(providerID: String) -> Bool {
         guard let provider = providers.first(where: { $0.id == providerID }) else { return false }
@@ -568,23 +512,16 @@ final class NotchUsageStore: ObservableObject {
 
         let status = Self.status(for: error)
 
-        // Remembered apart from the snapshot on purpose. The snapshot answers
-        // "how good are the numbers I am showing", and for a refusal the honest
-        // answer is "still fine, just ageing" — which is why `supersedesHistory`
-        // keeps the old reading and its status. That deliberately loses the one
-        // fact the settings row needs: whether macOS let us in last time. Two
-        // different questions, so two different places to keep the answer.
+        // Keep access denial separately from retained reading quality so Settings can offer the Keychain
+        // retry action.
         if case .accessDenied = status {
             refusedAccess.insert(provider.id)
         } else {
             refusedAccess.remove(provider.id)
         }
 
-        // Some failures are statements about the account rather than a hiccup:
-        // signed out, or a plan that meters nothing. Re-showing an old reading
-        // through one of those would present a number that is no longer true —
-        // and, after an endpoint change, one that came from somewhere we no
-        // longer read. So the remembered reading is dropped, not dimmed.
+        // Account/endpoint changes invalidate prior readings; do not present old-account values as merely
+        // stale.
         if Self.supersedesHistory(status) {
             lastGood[provider.id] = nil
             saveArchive()

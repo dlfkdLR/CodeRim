@@ -29,6 +29,7 @@
     try { localStorage.setItem(`coderim-site-${key}`, value); } catch { /* Browsing without storage remains supported. */ }
   };
   const t = (ko, en) => language === 'en' ? en : ko;
+  const docURL = path => `https://github.com/dlfkdLR/CodeRim/blob/main/docs/${language === 'ko' ? 'ko/' : ''}${path}`;
   const icon = name => {
     const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svg.classList.add('icon');
@@ -64,7 +65,7 @@
     for (const provider of visible) {
       const link = document.createElement('a');
       link.className = 'provider-card';
-      link.href = `https://github.com/dlfkdLR/CodeRim/blob/main/docs/providers/${provider.id}.md`;
+      link.href = docURL(`providers/${provider.id}.md`);
       link.title = language === 'en' ? provider.en : provider.ko;
       const copy = document.createElement('span');
       copy.className = 'provider-card-copy';
@@ -93,7 +94,7 @@
       const provider = providers.find(item => item.id === id);
       if (!provider) continue;
       const link = document.createElement('a');
-      link.href = `https://github.com/dlfkdLR/CodeRim/blob/main/docs/providers/${provider.id}.md`;
+      link.href = docURL(`providers/${provider.id}.md`);
       link.className = 'featured-brand';
       link.append(glyph(provider), document.createTextNode(provider.name === 'GitHub Copilot' ? 'Copilot' : provider.name === 'Gemini CLI' ? 'Gemini' : provider.name));
       fragment.append(link);
@@ -167,7 +168,10 @@
     document.querySelector('meta[property="og:description"]').content = description;
     updateThemeLabel();
     setMenu(nav.classList.contains('is-open'));
+    document.querySelectorAll('[data-doc]').forEach(link => { link.href = docURL(link.dataset.doc); });
+    document.querySelectorAll('[data-en-href]').forEach(link => { link.href = language === 'en' ? link.dataset.enHref : link.dataset.koHref; });
     renderProviders();
+    renderFeatured();
     updateScreen();
     updateTerminalPauseLabel();
     updateTerminalDescription();
@@ -599,7 +603,6 @@
   featureTrack.addEventListener('pointerdown', () => { featureTarget = null; });
   new ResizeObserver(() => { featureTarget = null; updateFeatureCarousel(); }).observe(featureTrack);
 
-  renderFeatured();
   setTheme(readSetting('theme') || 'light', false);
   const requestedLanguage = new URL(location.href).searchParams.get('lang');
   setLanguage(requestedLanguage || readSetting('language') || 'ko', false);

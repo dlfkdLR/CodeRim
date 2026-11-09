@@ -2,8 +2,7 @@ import AVFoundation
 import SwiftUI
 import VisionKit
 
-/// Scans the pairing QR code a computer shows. Falls back to the Camera app and
-/// pasting when live scanning is unavailable (no camera access, Simulator).
+/// Reads pairing capabilities only inside the app, through its scanner or explicit paste action.
 struct MobileQRScanner: View {
     let onLink: (MobilePairingLink) -> Void
     @Environment(\.dismiss) private var dismiss
@@ -27,7 +26,7 @@ struct MobileQRScanner: View {
                     ContentUnavailableView {
                         Label("Camera access is off", systemImage: "camera.fill")
                     } description: {
-                        Text("Allow the camera for CodeRim in Settings, or scan the code with the iPhone Camera app. CodeRim opens and connects on its own.")
+                        Text("Allow the camera for CodeRim in Settings, or copy the pairing code from your computer and paste it here.")
                     } actions: {
                         Button("Open Settings") {
                             if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
@@ -37,20 +36,18 @@ struct MobileQRScanner: View {
                     }
                 } else {
                     ContentUnavailableView("Camera unavailable", systemImage: "camera",
-                        description: Text("Scan the code with the iPhone Camera app instead — CodeRim opens and connects on its own."))
+                        description: Text("Copy the pairing code from CodeRim on your computer and paste it here."))
                 }
                 Text("On your computer, open CodeRim → Settings → iPhone and choose Connect iPhone. The code includes its server, so there is nothing to type.")
                     .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                if !(DataScannerViewController.isSupported && DataScannerViewController.isAvailable) {
-                    // A link copied from the computer, without typing it. PasteButton needs no paste permission prompt.
-                    PasteButton(payloadType: String.self) { strings in
-                        Task { @MainActor in
-                            guard let text = strings.first, let link = MobilePairingLink(text) else { invalid = true; return }
-                            dismiss(); onLink(link)
-                        }
+                // Pasting is an explicit enrollment action, just like opening this scanner.
+                PasteButton(payloadType: String.self) { strings in
+                    Task { @MainActor in
+                        guard let text = strings.first, let link = MobilePairingLink(text) else { invalid = true; return }
+                        dismiss(); onLink(link)
                     }
-                    .accessibilityIdentifier("pastePairingLink")
                 }
+                .accessibilityIdentifier("pastePairingLink")
                 if invalid { Text("That is not a CodeRim pairing code.").font(.footnote).foregroundStyle(.red) }
             }
             .padding()
@@ -79,7 +76,7 @@ private struct LiveScanner: UIViewControllerRepresentable {
         init(onCode: @escaping (String) -> Void) { self.onCode = onCode }
         func dataScanner(_ scanner: DataScannerViewController, didAdd items: [RecognizedItem], allItems: [RecognizedItem]) {
             for case .barcode(let code) in items {
-                guard !delivered, let text = code.payloadStringValue, text.hasPrefix("coderim://") else { continue }
+                guard !delivered, let text = code.payloadStringValue, MobilePairingLink(text) != nil else { continue }
                 delivered = true; onCode(text); return
             }
         }

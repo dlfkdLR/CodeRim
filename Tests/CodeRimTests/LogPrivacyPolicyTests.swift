@@ -14,7 +14,8 @@ import XCTest
 /// be logged; this keeps the next debugging aid from quietly saying otherwise.
 final class LogPrivacyPolicyTests: XCTestCase {
     /// Names that mean "the payload", as opposed to a count or an identifier.
-    private let payloadTerms = ["body", "response", "payload", "credits", "json", "token", "credential"]
+    private let payloadTerms = ["body", "response", "payload", "credits", "json", "token", "credential",
+                                "title", "summary", ".name", ".path", "error", "description"]
 
     func testNoResponsePayloadIsLoggedPublicly() throws {
         var offenders: [String] = []
@@ -25,10 +26,7 @@ final class LogPrivacyPolicyTests: XCTestCase {
             for (index, line) in source.split(separator: "\n", omittingEmptySubsequences: false).enumerated() {
                 let text = String(line)
                 guard text.contains("privacy: .public") else { continue }
-                // A count or a byte total is fine; the thing it counts is not.
-                guard !text.contains(".count") else { continue }
-                let lowered = text.lowercased()
-                guard payloadTerms.contains(where: lowered.contains) else { continue }
+                guard try !sensitivePublicFields(in: text).isEmpty else { continue }
                 offenders.append("\(file.lastPathComponent):\(index + 1) — \(text.trimmingCharacters(in: .whitespaces))")
             }
         }
@@ -38,6 +36,26 @@ final class LogPrivacyPolicyTests: XCTestCase {
             "a response payload is being written to the system log in the clear:\n"
                 + offenders.joined(separator: "\n")
         )
+    }
+
+    func testCountsCannotHideAnotherPublicTitleOrPath() throws {
+        let source = #"log.info("\(sessions.count, privacy: .public) \(session.name, privacy: .public) \(directory.path, privacy: .public)")"#
+        XCTAssertEqual(try sensitivePublicFields(in: source), ["session.name", "directory.path"])
+        XCTAssertTrue(try sensitivePublicFields(in: #"log.debug("\(body.utf8.count, privacy: .public) bytes")"#).isEmpty)
+        XCTAssertEqual(try sensitivePublicFields(in: #"log.error("\(error.localizedDescription, privacy: .public)")"#),
+                       ["error.localizedDescription"])
+    }
+
+    private func sensitivePublicFields(in source: String) throws -> [String] {
+        let interpolation = try NSRegularExpression(pattern: #"\\\((.*?),\s*privacy:\s*\.public\)"#)
+        return interpolation.matches(in: source, range: NSRange(source.startIndex..., in: source)).compactMap { match in
+            guard let range = Range(match.range(at: 1), in: source) else { return nil }
+            let field = String(source[range]).trimmingCharacters(in: .whitespaces)
+            // Inspect each field: a numeric count must not exempt a title on the same line.
+            if field.hasSuffix(".count") || field.hasSuffix(".code") { return nil }
+            let lowered = field.lowercased()
+            return lowered == "name" || payloadTerms.contains(where: lowered.contains) ? field : nil
+        }
     }
 
     private func swiftSources() throws -> [URL] {

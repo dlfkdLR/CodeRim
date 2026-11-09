@@ -23,6 +23,10 @@ public sealed record UsageSnapshot(
     DataQuality Quality,
     DateTimeOffset? UpdatedAt)
 {
+    // Calendar totals belong to this successful aggregation, not the publication time.
+    public DateTimeOffset? Through { get; init; }
+    public string? TimeZoneIdentifier { get; init; }
+
     // A failed refresh changes freshness, not the completeness of retained data.
     public bool RetainsPartialHistory { get; init; }
 
@@ -73,6 +77,10 @@ public sealed record UsageEvent(
     // Pricing metadata stays in the local database, not exported event JSON.
     [System.Text.Json.Serialization.JsonIgnore]
     public PricingContext? PricingContext { get; init; }
+
+    // Normalization may already have clamped the incoming numeric value.
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool Repaired { get; init; }
 
     // Transient import evidence. Durable relationships live in session_links;
     // this is not a new field in exported numeric history.

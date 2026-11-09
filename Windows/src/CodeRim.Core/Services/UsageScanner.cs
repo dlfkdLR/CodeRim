@@ -254,44 +254,42 @@ public sealed class UsageScanner
             }
         }
 
-        var events = new List<UsageEvent>();
         var merged = new Dictionary<string, UsageEvent>(StringComparer.Ordinal);
-        var eventIndices = new Dictionary<string, int>(StringComparer.Ordinal);
         foreach (var cached in cache.Values)
         {
             foreach (var usageEvent in cached.Events)
             {
                 if (provider == "claude")
                 {
-                    merged[usageEvent.EventKey] = merged.TryGetValue(usageEvent.EventKey, out var existing)
-                        ? ClaudeJsonlParser.Merge(existing, usageEvent) : usageEvent;
+                    merged[usageEvent.EventKey] = merged.TryGetValue(usageEvent.EventKey, out var claudeExisting)
+                        ? ClaudeJsonlParser.Merge(claudeExisting, usageEvent) : usageEvent;
                     continue;
                 }
-                if (eventIndices.TryGetValue(usageEvent.EventKey, out var existingIndex))
+                if (merged.TryGetValue(usageEvent.EventKey, out var existing))
                 {
-                    var existing = events[existingIndex];
+                    existing = existing with { Repaired = existing.Repaired || usageEvent.Repaired };
                     if (existing.Usage.InputTokens == usageEvent.Usage.InputTokens
                         && existing.Usage.CachedInputTokens == usageEvent.Usage.CachedInputTokens
                         && existing.Usage.OutputTokens == usageEvent.Usage.OutputTokens)
-                        events[existingIndex] = existing with {
+                        existing = existing with {
                             Usage = existing.Usage.CacheWriteInputTokens is null && usageEvent.Usage.CacheWriteInputTokens is not null ? usageEvent.Usage : existing.Usage,
                             PricingContext = usageEvent.PricingContext ?? existing.PricingContext };
+                    merged[usageEvent.EventKey] = existing;
                     continue;
                 }
 
-                if (events.Count >= maximumEventCount)
+                if (merged.Count >= maximumEventCount)
                 {
                     partial = true;
                     resourceLimitReached = true;
                     break;
                 }
 
-                eventIndices[usageEvent.EventKey] = events.Count;
-                events.Add(usageEvent);
+                merged.Add(usageEvent.EventKey, usageEvent);
             }
         }
 
-        if (provider == "claude") events.AddRange(merged.Values.Take(maximumEventCount));
+        var events = merged.Values.Take(maximumEventCount).ToList();
         if (cacheAtStart.Length != cache.Count
             || cacheAtStart.Any(entry => !cache.TryGetValue(entry.Key, out var current) || !ReferenceEquals(current, entry.Value)))
             contentVersion = Interlocked.Increment(ref contentVersions);
@@ -618,7 +616,7 @@ public sealed class UsageScanner
                         events[^1] = last with { Usage = enriched };
                     state = normalized.State;
                     partial |= state.Quality == DataQuality.Partial;
-                    if (isInheritedReplay || normalized.Delta is not { } delta || delta.IsZero)
+                    if (isInheritedReplay || normalized.Delta is not { } delta || delta.IsZero && !normalized.Repaired)
                     {
                         break;
                     }
@@ -632,6 +630,7 @@ public sealed class UsageScanner
                         EventKey(sessionId, observation),
                         observation.OccurredAt,
                         delta, model, project, sessionId, "codex", projectId) {
+                            Repaired = normalized.Repaired,
                             PricingContext = delta.InputTokens <= UsageAnalytics.HighContextInputThreshold ? PricingContext.Standard
                                 : observation.LastUsage == delta ? PricingContext.HighContext : null });
                     break;
@@ -673,9 +672,9 @@ public sealed class UsageScanner
     }
 
     /// The earliest start of the current week and month: the periods a snapshot reports as current.
-    public static DateTimeOffset CurrentPeriodStart(DateTimeOffset now, WeekStart weekStart)
+    public static DateTimeOffset CurrentPeriodStart(DateTimeOffset now, WeekStart weekStart, TimeZoneInfo? timeZone = null)
     {
-        var timeZone = TimeZoneInfo.Local;
+        timeZone ??= TimeZoneInfo.Local;
         var localNow = TimeZoneInfo.ConvertTime(now, timeZone);
         var dayOffset = weekStart == WeekStart.Monday ? ((int)localNow.DayOfWeek + 6) % 7 : (int)localNow.DayOfWeek;
         var week = LocalStartUtc(localNow.Date.AddDays(-dayOffset), timeZone);
@@ -687,9 +686,10 @@ public sealed class UsageScanner
         IReadOnlyList<UsageEvent> events,
         DateTimeOffset now,
         WeekStart weekStart,
-        bool partial)
+        bool partial,
+        TimeZoneInfo? timeZone = null)
     {
-        var timeZone = TimeZoneInfo.Local;
+        timeZone ??= TimeZoneInfo.Local;
         var localNow = TimeZoneInfo.ConvertTime(now, timeZone);
         var todayStart = LocalStartUtc(localNow.Date, timeZone);
         var dayOffset = weekStart == WeekStart.Monday
@@ -738,19 +738,11 @@ public sealed class UsageScanner
         var quality = newest is null
             ? partial ? DataQuality.Partial : DataQuality.Unavailable
             : partial ? DataQuality.Partial : DataQuality.Exact;
-        return new UsageSnapshot(today, week, month, allTime, quality, newest);
+        return new UsageSnapshot(today, week, month, allTime, quality, newest) { Through = now, TimeZoneIdentifier = timeZone.Id };
     }
 
-    private static DateTimeOffset LocalStartUtc(DateTime localDate, TimeZoneInfo timeZone)
-    {
-        var local = DateTime.SpecifyKind(localDate, DateTimeKind.Unspecified);
-        while (timeZone.IsInvalidTime(local))
-        {
-            local = local.AddMinutes(1);
-        }
-
-        return TimeZoneInfo.ConvertTimeToUtc(local, timeZone);
-    }
+    private static DateTimeOffset LocalStartUtc(DateTime localDate, TimeZoneInfo timeZone) =>
+        AnalyticsTimeline.LocalMidnight(localDate, timeZone).ToUniversalTime();
 
     private static bool ContainsRelevantMarker(byte[] line)
     {
@@ -926,26 +918,12 @@ internal static class BoundedLineReader
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var remainingBytes = maximumBytes - totalBytesRead;
-                if (remainingBytes <= 0)
-                {
-                    if (oversized || lineBuffer.WrittenCount > 0)
-                    {
-                        yield return new BoundedLine(null, true);
-                    }
-                    yield break;
-                }
+                if (remainingBytes <= 0) break;
                 var read = stream.Read(
                     readBuffer,
                     0,
                     (int)Math.Min(readBuffer.Length, remainingBytes));
-                if (read == 0)
-                {
-                    if (oversized || lineBuffer.WrittenCount > 0)
-                    {
-                        yield return new BoundedLine(null, true);
-                    }
-                    yield break;
-                }
+                if (read == 0) break;
                 totalBytesRead += read;
                 prefixHash?.AppendData(readBuffer, 0, read);
 
@@ -978,6 +956,7 @@ internal static class BoundedLineReader
                     lineBuffer.Advance(1);
                 }
             }
+            if (oversized || lineBuffer.WrittenCount > 0) yield return new BoundedLine(null, true);
         }
         finally
         {

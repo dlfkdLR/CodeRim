@@ -1,4 +1,6 @@
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Providers;
@@ -253,8 +255,7 @@ internal sealed partial class ProviderConnections : IDisposable
         {
             if (ChromiumScope(id, replacement) is { } importedScope) return importedScope;
             if (id == "copilot" && !CanCache(id))
-                return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
-                    JsonSerializer.Serialize(new { id, process = Environment.ProcessId, config = CopilotConnection.Directory, hosts = CopilotConnection.ScopeMarker() }))));
+                return ScopeHash(JsonSerializer.Serialize(new { id, process = Environment.ProcessId, config = CopilotConnection.Directory, hosts = CopilotConnection.ScopeMarker() }));
             if (id == "jetbrains" || id is "amp" or "windsurf" or "gemini" && !CanCache(id))
             {
                 // A source marker keeps the current UI reading between quota polls.
@@ -264,7 +265,7 @@ internal sealed partial class ProviderConnections : IDisposable
                 var source = JsonSerializer.Serialize(new { id, process = Environment.ProcessId,
                     mode = id == "jetbrains" ? null : EffectiveSetting(vault, id, modeKey),
                     path = id is "jetbrains" or "gemini" ? null : EffectiveSetting(vault, id, pathKey) });
-                return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source)));
+                return ScopeHash(source);
             }
             if (id is "codex" or "claude") return SavedAccounts.Current(id).Identity.Id;
             if (id == "alibaba") return AlibabaCodingScope();
@@ -274,15 +275,13 @@ internal sealed partial class ProviderConnections : IDisposable
             if (id == "kimi")
             {
                 var selected = ResolveKimi();
-                return selected?.Token is null ? null : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
-                    System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(selected))));
+                return selected?.Token is null ? null : ScopeHash(JsonSerializer.Serialize(selected));
             }
             if (id == "deepseek")
             {
                 var credential = DeepSeekAuthentication.Resolve(EffectiveSetting(vault, id, "DEEPSEEK_USAGE_SOURCE"), vault.Load, Environment.GetEnvironmentVariable);
-                return credential?.Token is null ? null : Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
-                    System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { credential,
-                        details = DeepSeekUsageDetails.Enabled(EffectiveSetting(vault, id, "DEEPSEEK_DETAILED_USAGE")) }))));
+                return credential?.Token is null ? null : ScopeHash(JsonSerializer.Serialize(new { credential,
+                    details = DeepSeekUsageDetails.Enabled(EffectiveSetting(vault, id, "DEEPSEEK_DETAILED_USAGE")) }));
             }
             var definition = ProviderCatalog.Find(id);
             var values = new List<string?> { Read("browser:" + id), Read("provider:" + id), Read("cookie:" + id), readCredential(id) };
@@ -304,11 +303,13 @@ internal sealed partial class ProviderConnections : IDisposable
                 values.AddRange(script.Settings.Select(x => vault.Load("setting:" + id + ":" + x.Key) ?? Environment.GetEnvironmentVariable(x.Key)));
             values.AddRange(NativeProviders.ScopeAliases(id).Select(x => EffectiveSetting(vault, id, x)));
             values.AddRange(NativeProviders.Settings(id).Select(x => EffectiveSetting(vault, id, x.Key)));
-            return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(values))));
+            return ScopeHash(JsonSerializer.Serialize(values));
         }
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException or JsonException or FormatException or System.Security.Cryptography.CryptographicException)
         { return null; }
     }
+    private static string ScopeHash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+
     public static string? ResolveExecutable(string name)
     {
         var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

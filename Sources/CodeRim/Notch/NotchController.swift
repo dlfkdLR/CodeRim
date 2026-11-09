@@ -2,15 +2,8 @@ import AppKit
 import Combine
 import CodexBarCore
 
-/// Owns the edge notch: one `NotchWindowController`, a `NotchUsageStore` fed by
-/// the Codex and Claude adapters, the session monitors that light the activity
-/// arcs, and the wiring between them. Modelled on `SettingsWindowController` —
-/// a `@MainActor` singleton created from the app's `init`, shown or hidden from
-/// a preference.
-///
-/// Phase 1–2: single screen, hover-to-expand, live session activity + a peek
-/// and a chime when an agent finishes. Multi-monitor and the full notch
-/// settings pane come later.
+/// Coordinates provider readings, session monitors and per-display notch windows from the shared
+/// Settings preferences.
 @MainActor
 final class NotchController: ObservableObject {
     static let shared = NotchController()
@@ -20,11 +13,8 @@ final class NotchController: ObservableObject {
     /// second store.
     @Published private(set) var snapshots: [ProviderSnapshot] = []
 
-    /// Whose credential each provider borrows, and its sign-in route — the
-    /// Settings Providers list's row model. Cached rather than recomputed on
-    /// every SwiftUI render: `providerSummaries` calls `account()` on every
-    /// provider, and several of those open a file or a SQLite database on the
-    /// main thread. Refreshed after each fetch and when a settings pane opens.
+    /// Cache account/sign-in summaries outside SwiftUI renders because account() may read a file or
+    /// database.
     @Published private(set) var providerSummaries: [ProviderSummary] = []
     @Published private(set) var selectedProviderIDs: Set<String> = ["codex"]
 
@@ -188,7 +178,10 @@ final class NotchController: ObservableObject {
                 .store(in: &cancellables)
         }
         store.isBusy = { [weak self] in
-            self?.monitors.values.contains { m in m.sessions.contains { $0.state == .busy } } ?? false
+            guard let self else { return false }
+            return Self.hasBusyMonitors(visible: self.visible,
+                                       selectedProviderIDs: self.selectedProviderIDs,
+                                       monitors: self.monitors)
         }
 
         if let saved = UserDefaults.standard.object(forKey: offsetKey) as? Double {
@@ -215,6 +208,14 @@ final class NotchController: ObservableObject {
             .filter { $0 }
             .sink { [weak self] _ in self?.refreshSessionTokens() }
             .store(in: &cancellables)
+    }
+
+    static func hasBusyMonitors(visible: Bool, selectedProviderIDs: Set<String>,
+                                monitors: [String: any AgentActivityMonitor]) -> Bool {
+        guard visible else { return false }
+        return monitors.contains { id, monitor in
+            selectedProviderIDs.contains(id) && monitor.sessions.contains { $0.state == .busy }
+        }
     }
 
     func lastUpdatedAt(providerID: String) -> Date? {
@@ -245,9 +246,7 @@ final class NotchController: ObservableObject {
         }
     }
 
-    /// The monitors publish on change, and a progress bar changes every
-    /// second. While something is working, re-read the clock once a second so
-    /// the bar and the time left keep moving.
+    /// Monitors publish on change; refresh elapsed-time labels while sessions remain active.
     private func startClockTimer() {
         clockTimer?.invalidate()
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
@@ -269,7 +268,7 @@ final class NotchController: ObservableObject {
     private func removeLegacyCompactionHook() {
         guard ClaudeCompactionHook.standard.isInstalled else { return }
         do { try ClaudeCompactionHook.standard.uninstall() }
-        catch { NotchLog.sessions.error("could not remove the compaction hooks: \(error.localizedDescription, privacy: .public)") }
+        catch { NotchLog.sessions.error("could not remove the compaction hooks, code=\((error as NSError).code, privacy: .public)") }
     }
 
     /// Refresh on quota or freshness changes, but ignore timestamps/defaults
@@ -507,9 +506,11 @@ final class NotchController: ObservableObject {
     private func announceCompletions() {
         let events = completions.absorb(window.model.sessions)
         guard let event = events.first else { return }
-        NotchLog.sessions.info("session \(event.session.name, privacy: .public) \(String(describing: event.reason), privacy: .public)")
 
         let defaults = UserDefaults.standard
+        if defaults.bool(forKey: "debugLogging") {
+            NotchLog.sessions.info("session completion reason=\(String(describing: event.reason), privacy: .public) count=\(events.count)")
+        }
         let subagentSound = defaults.object(forKey: "notchSubagentEndSound") as? Bool
             ?? AppPreferences.defaultNotchSubagentEndSound
         if defaults.object(forKey: "notchSessionEndSound") as? Bool ?? AppPreferences.defaultNotchSessionEndSound,

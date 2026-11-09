@@ -85,14 +85,7 @@ final class NotchNotchRenderTests: XCTestCase {
         }
     }
 
-    /// The orb has to stay attached to the notch at every size.
-    ///
-    /// `position` hands back a view the size of the whole panel, so a scale
-    /// applied *after* it scales that layer about the panel's centre and slides
-    /// the orb away by a share of the panel — the arc left floating off the
-    /// corner it is drawn to hug. Arithmetic cannot see that: the numbers going
-    /// in were right and the modifier order was not, so this looks at the
-    /// pixels instead.
+    /// Check pixels, not geometry alone: scaling after position would move the orb away from the notch.
     func testNothingIsPaintedBeyondTheNotchAndItsOrbAtAnySize() {
         for size in NotchSize.allCases {
             let m = model(edge: .right)
@@ -133,20 +126,8 @@ final class NotchNotchRenderTests: XCTestCase {
     }
 }
 
-/// The panel's size is worked out by `NotchGeometry` and by nobody else.
-///
-/// It was not. Set an `NSHostingView` as a window's `contentView` and SwiftUI
-/// gets a say in the window's frame: it reports the content's *ideal* size, and
-/// a `GeometryReader` root — which is what this notch is — has an ideal size of
-/// 10x10. On the side edges that never surfaced. Turn the panel horizontal and
-/// AppKit began walking the window down toward it in steps of its own choosing,
-/// 522pt of height to 266 to 10 to 0, until the window was zero-height, nothing
-/// was drawn, and the constraint pass gave up and threw — killing the app.
-///
-/// The fix is to take the channel away rather than to fight it: a plain
-/// container view is the `contentView`, and the hosting view lives inside it
-/// held by an autoresizing mask. SwiftUI then has no window to talk to about
-/// size, and the frame is only ever the one we computed.
+/// A plain container isolates panel sizing from NSHostingView’s 10×10 GeometryReader ideal size.
+/// The hosting view autoresizes within the NotchGeometry frame.
 @MainActor
 final class NotchPanelSizingIntegrityTests: XCTestCase {
     func testSwiftUIIsNotThePanelsContentView() {
@@ -190,11 +171,7 @@ final class NotchClickThroughTests: XCTestCase {
         return controller
     }
 
-    /// Wrapping the hosting view in a container must not reintroduce a target
-    /// where there was a hole: a plain `NSView` answers `hitTest` with *itself*
-    /// for any point inside its bounds, which would make the entire panel — most
-    /// of it empty space reserved for the tooltip — swallow clicks meant for
-    /// whatever is underneath.
+    /// The container must pass clicks through empty tooltip slack rather than hit-testing itself.
     func testThePanelIsAHoleAwayFromItsChrome() {
         let controller = shownController()
         defer { controller.stop() }
@@ -338,11 +315,8 @@ final class NotchEdgeArrivalTests: XCTestCase {
         return condition()
     }
 
-    /// It lands folded and *then* opens — the same unfold hovering uses.
-    ///
-    /// The two have to happen in separate turns or SwiftUI coalesces them: the
-    /// value goes shut-to-open inside one update, nothing interpolates, and the
-    /// notch simply appears at full size having animated nothing.
+    /// Use separate updates for folded placement and opening so SwiftUI does not coalesce away the
+    /// animation.
     func testItLandsFoldedAndThenOpens() {
         let controller = openController()
         defer { controller.stop() }
@@ -398,13 +372,7 @@ final class NotchEdgeArrivalTests: XCTestCase {
     }
 }
 
-/// "Always show" is a standing choice, and clicking the notch must not quietly
-/// undo it.
-///
-/// It was held in `isPinned` — the same flag a click on the notch toggles. So
-/// clicking anywhere on the bar that was not a ring or the settings orb turned
-/// the flag off, the notch started folding on the way out, and Settings went on
-/// saying "Always show". Reported as: it sometimes reverts to show-on-hover.
+/// A menu pin must never release the independent Always show preference.
 @MainActor
 final class NotchAlwaysShowTests: XCTestCase {
     func testClickingTheNotchDoesNotUndoAlwaysShow() {
@@ -470,14 +438,8 @@ final class NotchAlwaysShowTests: XCTestCase {
     }
 }
 
-/// A click that arrives while the notch is still folded used to pin it —
-/// permanently, via `togglePinned()` — even though nobody had seen it open.
-/// The pill's own hot zone is deliberately generous, since it is a small
-/// target on a screen edge, which made it easy to trip by accident: reported
-/// as "hover mode sticks open after a stray click".
-///
-/// Plain clicks open the notch without pinning, whether or not the cursor
-/// poll has already opened it. Panel-backed coverage is in NotchDismissalTests.
+/// Plain clicks open without pinning, including before the cursor poll catches up. Panel-backed
+/// coverage is in NotchDismissalTests.
 @MainActor
 final class NotchStrayClickPinTests: XCTestCase {
     func testAClickOnAFoldedNotchOpensWithoutPinning() {
@@ -501,11 +463,8 @@ final class NotchStrayClickPinTests: XCTestCase {
     }
 }
 
-/// A ring dimmed the instant the very first idle refresh attempt failed,
-/// because `staleAfter` and `idleRefreshInterval` were the same value — so a
-/// reading was *guaranteed* to reach the dimming threshold before an idle
-/// schedule could even try to refresh it once. Reported as "rings dim to
-/// invisibility on every idle cycle".
+/// Keep staleAfter above idleRefreshInterval so one failed idle refresh does not immediately dim a
+/// reading.
 final class NotchStaleAfterMarginTests: XCTestCase {
     private final class FailingProvider: NotchProvider, @unchecked Sendable {
         let id = "x"

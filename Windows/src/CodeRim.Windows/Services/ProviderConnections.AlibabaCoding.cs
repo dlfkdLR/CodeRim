@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Providers;
@@ -40,7 +38,7 @@ internal sealed partial class ProviderConnections
     {
         var selected = ResolveAlibabaCoding();
         return selected.Mode is null || selected.Region is null || selected.Api is null && selected.Cookie is null && selected.Browser is null ? null
-            : Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(selected))));
+            : ScopeHash(JsonSerializer.Serialize(selected));
     }
     private async Task<ProviderReading> FetchAlibabaCodingConnectionAsync(BrowserCookieJar? browserOverride, CancellationToken token)
     {

@@ -18,12 +18,10 @@ final class OpenCodeNotchProvider: NotchProvider {
     var isVisibleWhenAbsent: Bool { false }
 
     private let session: URLSession
-    private let archive: UsageArchive
     private var backoff: AccountBackoff
 
     init(session: URLSession = ProviderSession.shared, archive: UsageArchive = UsageArchive()) {
         self.session = session
-        self.archive = archive
         self.backoff = AccountBackoff(providerID: "opencode", archive: archive)
     }
 
@@ -93,9 +91,10 @@ final class OpenCodeNotchProvider: NotchProvider {
         }
         if status == 429 {
             throw NotchProviderError.rateLimited(
-                retryAfter: Self.backoff(
+                retryAfter: AccountBackoff.delay(
                     forAttempt: backoff.consecutiveLimits,
-                    retryAfter: Self.retryAfter(from: response)
+                    retryAfter: AccountBackoff.retryAfter((response as? HTTPURLResponse)?
+                        .value(forHTTPHeaderField: "Retry-After")?.trimmingCharacters(in: CharacterSet.whitespacesAndNewlines))
                 )
             )
         }
@@ -103,31 +102,5 @@ final class OpenCodeNotchProvider: NotchProvider {
             throw NotchProviderError.badResponse(status: status)
         }
         return data
-    }
-
-    /// A minute, doubling per consecutive limit, capped so it always recovers
-    /// on its own. The server's own hint only raises the floor.
-    nonisolated static func backoff(forAttempt attempt: Int, retryAfter: TimeInterval?) -> TimeInterval {
-        let floor: TimeInterval = 60
-        let ceiling: TimeInterval = 15 * 60
-        let doubled = floor * pow(2, Double(min(attempt, 4)))
-        return min(ceiling, max(doubled, retryAfter ?? 0))
-    }
-
-    /// `Retry-After` is either a number of seconds or an HTTP date.
-    nonisolated static func retryAfter(from response: URLResponse?) -> TimeInterval? {
-        guard let header = (response as? HTTPURLResponse)?
-            .value(forHTTPHeaderField: "Retry-After")?
-            .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines)
-        else { return nil }
-
-        if let seconds = TimeInterval(header) { return max(0, seconds) }
-
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = TimeZone(identifier: "GMT")
-        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
-        guard let date = formatter.date(from: header) else { return nil }
-        return max(0, date.timeIntervalSinceNow)
     }
 }

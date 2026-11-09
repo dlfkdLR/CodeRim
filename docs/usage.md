@@ -2,7 +2,7 @@
 
 **English** · [한국어](ko/usage.md)
 
-Open **Settings → Usage** and choose Codex or a connected Claude Code integration. CodeRim 2.1.13 offers **Overview**, **Usage analytics**, and provider **Limits**. Its analytics show period totals, token-type/model charts, projects, sessions, and model/session details.
+Open **Settings → Usage** and choose Codex or a connected Claude Code integration. The macOS app offers **Overview**, **Usage analytics**, and provider **Limits**. Its analytics show period totals, token-type/model charts, projects, sessions, and model/session details.
 
 ## Local and account scope
 

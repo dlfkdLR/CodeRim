@@ -2,6 +2,22 @@ import XCTest
 @testable import CodeRim
 
 final class UsageActivityTests: XCTestCase {
+    func testActivityRootsHonorOnlyValidAbsoluteClaudeProfiles() {
+        let home = URL(fileURLWithPath: "/synthetic-home", isDirectory: true)
+        XCTAssertEqual(UsageActivityScanner.Roots.standard(home: home, environment: [:]).claudeProjects.path,
+                       "/synthetic-home/.claude/projects")
+        for configured in ["", "relative-profile", "/invalid\0profile"] {
+            let roots = UsageActivityScanner.Roots.standard(home: home,
+                environment: ["CLAUDE_CONFIG_DIR": configured])
+            XCTAssertEqual(roots.claudeProjects.path, "/synthetic-home/.claude/projects")
+            XCTAssertEqual(roots.codexSessions.map(\.path),
+                           ["/synthetic-home/.codex/sessions", "/synthetic-home/.codex/archived_sessions"])
+        }
+        XCTAssertEqual(UsageActivityScanner.Roots.standard(home: home,
+            environment: ["CLAUDE_CONFIG_DIR": "/synthetic-profile"]).claudeProjects.path,
+                       "/synthetic-profile/projects")
+    }
+
     private var utc: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
@@ -48,6 +64,34 @@ final class UsageActivityTests: XCTestCase {
         let counts = parser.finish().days[day("2026-10-29")]
         XCTAssertEqual(counts?.tools, ["Bash": 1, "Skill": 1, "Notion": 2])
         XCTAssertEqual(counts?.skills, ["cua-driver": 1])
+    }
+
+    func testClaudeDeduplicatesCallIDsAcrossRepeatedBlocksIncludingSubagents() {
+        var parser = ClaudeActivityParser(days: ActivityDayResolver(calendar: utc))
+        let blocks = #"{"id":"toolu_bash","type":"tool_use","name":"Bash","input":{}},{"type":"tool_use","id":"toolu_skill","name":"Skill","input":{"skill":"cua-driver"}}"#
+        let repeated = assistant(stamp: "2026-10-29T01:00:10.000Z", blocks: blocks)
+        parser.consume(repeated)
+        parser.consume(repeated)
+        // Distinct calls in the same message still count, even on a sidechain.
+        let next = assistant(stamp: "2026-10-29T01:00:10.000Z",
+                             blocks: #"{"type":"tool_use","id":"toolu_next","name":"Skill","input":{"skill":"cua-driver"}}"#,
+                             sidechain: true)
+        parser.consume(next)
+        parser.consume(next)
+        parser.consume(assistant(stamp: "2026-10-29T01:00:10.000Z",
+                                 blocks: #"{"type":"tool_use","id":"toolu_new_bash","name":"Bash","input":{}}"#))
+        let counts = parser.finish().days[day("2026-10-29")]
+        XCTAssertEqual(counts?.tools, ["Bash": 2, "Skill": 2])
+        XCTAssertEqual(counts?.skills, ["cua-driver": 2])
+    }
+
+    func testClaudeCallsWithoutIDsRemainCountable() {
+        var parser = ClaudeActivityParser(days: ActivityDayResolver(calendar: utc))
+        let row = assistant(stamp: "2026-10-29T01:00:10.000Z",
+                            blocks: #"{"type":"tool_use","name":"Read","input":{}},{"type":"tool_use","id":"","name":"Read","input":{}}"#)
+        parser.consume(row)
+        parser.consume(row)
+        XCTAssertEqual(parser.finish().days[day("2026-10-29")]?.tools, ["Read": 4])
     }
 
     func testClaudeASubagentsToolCallsCountButItsMessagesAndModelDoNot() {
@@ -174,6 +218,33 @@ final class UsageActivityTests: XCTestCase {
 
     // MARK: - Scanner
 
+    func testScannerRebuildsBothDayCachesWhenReportingCalendarChanges() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("activity-calendar-\(UUID())")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("session.jsonl")
+        let row = assistant(stamp: "2026-10-29T23:30:00.000Z",
+                            blocks: #"{"type":"tool_use","id":"t","name":"Bash","input":{}}"#)
+        try (row + Data("\n".utf8)).write(to: file)
+        let now = ISO8601DateFormatter().date(from: "2026-10-30T12:00:00Z")!
+        try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: file.path)
+        let roots = UsageActivityScanner.Roots(claudeProjects: root, codexSessions: [])
+        let scanner = UsageActivityScanner(roots: roots)
+        let first = await scanner.snapshot(provider: .claude, range: .sevenDays, now: now, calendar: utc)
+        let cached = await scanner.snapshot(provider: .claude, range: .sevenDays, now: now, calendar: utc)
+        XCTAssertEqual(first, cached)
+        XCTAssertEqual(first.tools.series.first?.counts, [0, 0, 0, 0, 0, 1, 0])
+        var seoul = utc
+        seoul.timeZone = TimeZone(identifier: "Asia/Seoul")!
+        let changed = await scanner.snapshot(provider: .claude, range: .sevenDays, now: now, calendar: seoul)
+        let fresh = await UsageActivityScanner(roots: roots, calendar: seoul)
+            .snapshot(provider: .claude, range: .sevenDays, now: now)
+        XCTAssertEqual(changed, fresh)
+        XCTAssertEqual(changed.tools.days.last, seoul.startOfDay(for: now))
+        XCTAssertEqual(changed.tools.series.first?.counts, [0, 0, 0, 0, 0, 0, 1])
+        XCTAssertNotEqual(changed.tools.days, first.tools.days)
+    }
+
     func testTheScannerReadsBothAgentsAndKeysTraitsByTheAnalyticsSessionID() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("activity-\(UUID().uuidString)")
         let claude = root.appendingPathComponent("claude/projects/-Users-x-app", isDirectory: true)
@@ -187,7 +258,7 @@ final class UsageActivityTests: XCTestCase {
             String(decoding: user(#""go""#, stamp: "2026-10-29T01:00:00.000Z"), as: UTF8.self),
             String(decoding: assistant(stamp: "2026-10-29T01:00:05.000Z",
                                        blocks: #"{"type":"tool_use","id":"t","name":"Bash","input":{}}"#), as: UTF8.self),
-        ].joined(separator: "\n")
+        ].joined(separator: "\n") + "\n"
         let claudeFile = claude.appendingPathComponent("11111111-1111-1111-1111-111111111111.jsonl")
         try claudeLog.write(to: claudeFile, atomically: true, encoding: .utf8)
         let rollout = codexDir.appendingPathComponent("rollout-2026-10-29T01-00-00-22222222-2222-2222-2222-222222222222.jsonl")
@@ -195,7 +266,7 @@ final class UsageActivityTests: XCTestCase {
             String(decoding: codex("2026-10-29T01:00:00.000Z", "turn_context", #"{"model":"gpt-6-sol","effort":"high"}"#), as: UTF8.self),
             String(decoding: codex("2026-10-29T01:00:01.000Z", "response_item",
                                    #"{"type":"message","role":"user","content":[{"type":"input_text","text":"hi"}]}"#), as: UTF8.self),
-        ].joined(separator: "\n")
+        ].joined(separator: "\n") + "\n"
         try codexLog.write(to: rollout, atomically: true, encoding: .utf8)
         for url in [claudeFile, rollout] {
             try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: url.path)

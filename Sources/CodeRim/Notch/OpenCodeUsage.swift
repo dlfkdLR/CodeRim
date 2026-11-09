@@ -38,7 +38,7 @@ enum OpenCodeUsage {
             guard let entry = usage[id] as? [String: Any],
                   let percent = (entry["percent"] as? NSNumber)?.doubleValue
             else { return nil }
-            let resetsAt = (entry["resetsAt"] as? String).flatMap(date(from:))
+            let resetsAt = (entry["resetsAt"] as? String).flatMap(TranscriptLines.parse)
             return LimitWindow(
                 id: id,
                 label: label,
@@ -49,13 +49,6 @@ enum OpenCodeUsage {
         }
         guard !out.isEmpty else { throw NotchProviderError.badResponse(status: 0) }
         return out
-    }
-
-    private static func date(from stamp: String) -> Date? {
-        let fractional = ISO8601DateFormatter()
-        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = fractional.date(from: stamp) { return date }
-        return ISO8601DateFormatter().date(from: stamp)
     }
 
     private static func duration(for id: String, endingAt reset: Date?) -> TimeInterval? {

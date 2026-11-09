@@ -21,15 +21,19 @@ final class AnalyticsMetricLayoutTests: XCTestCase {
             let text = try recognizedText(host, name: "analytics-unified-\(Int(width))")
             let compact = normalized(text)
             XCTAssertEqual(segmentControls(in: host).count, 1, "Only the period selector should remain")
-            for expected in ["660,000", "330,000", "220,000", "110,000", "Cached input",
+            for expected in ["660,000", "Cached input",
                              "$1.89", "$1.05", "$0.84", "Estimated API cost subtotal", "Pricing unavailable"] {
                 XCTAssertTrue(compact.contains(normalized(expected)), text)
             }
             XCTAssertTrue(text.contains("$1.89"), text)
             XCTAssertEqual(compact.components(separatedBy: "660000").count - 1, 2,
                            "The range and selected interval must both display the total: \(text)")
+            // Read the same model-list pixels separately so Vision does not merge counts with chevrons.
+            let modelText = normalized(try recognizedText(host, name: "analytics-models-\(Int(width))",
+                region: CGRect(x: 0, y: 0, width: 1, height: 0.4)))
             for model in fixture.models {
                 XCTAssertTrue(compact.contains(normalized(model.displayName)), text)
+                XCTAssertTrue(modelText.contains(normalized(model.usage.totalTokens.formatted())), modelText)
             }
         }
     }
@@ -110,7 +114,8 @@ final class AnalyticsMetricLayoutTests: XCTestCase {
         }
     }
 
-    private func recognizedText(_ host: NSView, name: String) throws -> String {
+    private func recognizedText(_ host: NSView, name: String,
+                                region: CGRect = CGRect(x: 0, y: 0, width: 1, height: 1)) throws -> String {
         let size = host.bounds.size
         let bitmap = try XCTUnwrap(NSBitmapImageRep(bitmapDataPlanes: nil,
             pixelsWide: Int(size.width * 3), pixelsHigh: Int(size.height * 3),
@@ -132,6 +137,7 @@ final class AnalyticsMetricLayoutTests: XCTestCase {
         request.customWords = ["Pricing unavailable", "Estimate unavailable",
                                "gpt-6-astra", "gpt-5.6-sol", "gpt-5.3-codex-spark"]
         request.recognitionLanguages = ["en-US"]
+        request.regionOfInterest = region
         try VNImageRequestHandler(cgImage: XCTUnwrap(bitmap.cgImage), options: [:]).perform([request])
         return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
     }

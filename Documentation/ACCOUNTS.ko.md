@@ -15,7 +15,7 @@ Codex는 `/Applications/Codex.app`·`/Applications/ChatGPT.app`의 공급자 서
 3. Switch 전에 떠나는 계정의 최신 로그인을 보관하고 정상 데스크톱 종료를 요청하며 지원 클라이언트를 검사합니다. 강제 종료하지 않습니다. `~/.codex/auth.json`을 잡고 있는 활성 클라이언트는 교체를 막고, 식별한 생존 클라이언트의 열린 파일을 검사할 수 없으면 검증 오류를 반환합니다. 파일을 놓은 유휴 클라이언트는 자동으로 막지 않습니다.
 4. 소유자 전용 잠금으로 작업을 직렬화합니다. 원본 스냅샷과 현재 바이트를 비교한 뒤 개인 `0600` 임시 파일을 원자적으로 게시합니다. 로그인이 없으면 기존 파일을 덮어쓰지 않는 방식으로 게시해 동시 로그인에 우선권을 줍니다. 잘못되거나 안전하지 않은 파일을 없는 파일로 처리하지 않습니다.
 5. 공식 데스크톱을 다시 엽니다. 번들 공식 CLI로 `refreshToken: false`의 `account/read`를 읽고 ChatGPT 이메일과 공유 파일의 전체 workspace·subject를 확인합니다. 기존 CLI는 자격 증명을 메모리에 유지할 수 있으므로 수동 재시작합니다. 로컬 확인은 원격 인증 증명이 아닙니다.
-6. 기록 후 계정 확인이 실패하면 미검증 결과를 표시하고 현재 계정을 다시 읽습니다. 자동 rollback으로 동시 로그인·갱신을 덮어쓰지 않습니다. 공식 데스크톱이 갱신을 소유하며 저장한 자격 증명 복사본을 일회성 프로세스에서 갱신하지 않습니다.
+6. 기록 후 계정 확인이 실패하면 미검증 결과를 표시하고 현재 계정을 다시 읽습니다. 자동 rollback으로 동시 로그인·갱신을 덮어쓰지 않습니다. 저장 계정 한도 조회는 별도 개인 홈에서 로그인을 갱신할 수 있습니다. 저장 바이트가 조회 시작 시점과 같은 경우에만 갱신을 보관하며 새 로그인·제거에 우선권을 줍니다.
 
 <a id="claude-accounts"></a>
 ## Claude 계정
@@ -35,9 +35,7 @@ Claude Desktop은 자체 로그인을 `~/Library/Application Support/Claude/conf
 합성 테스트는 임시 홈, 모의 데스크톱·CLI, 합성 저장소 항목을 사용합니다. 저장·추가·취소·전환·제거, 누락·위험 로그인, 활성 클라이언트, 오래된 결과, 동시 로그인, rollback, 프로필 보존을 검사합니다. 네이티브 렌더는 비어 있음·계정 있음·긴 ID·오류·작업 중 상태, footer, 두 크기·테마를 확인합니다. 실제 OAuth, 키보드·VoiceOver 순서, Keychain 권한, 서버 인증을 증명하지 않습니다. 자동 테스트로 개발자의 활성 로그인을 바꾸지 않습니다.
 
 ```sh
-swift test --filter CodexAccount
-swift test --filter ClaudeAccount
-swift test --filter AccountUsageLayoutTests
+python3 Scripts/prepare_swift_dependencies.py --run-swift test --filter 'CodexAccount|ClaudeAccount|AccountUsageLayoutTests'
 ```
 
 Windows는 별도 DPAPI 저장소와 트랜잭션을 사용하므로 macOS Keychain 가정을 적용하지 않습니다. [Windows](WINDOWS.ko.md) · [개인정보](PRIVACY.ko.md).

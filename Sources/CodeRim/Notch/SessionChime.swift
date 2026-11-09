@@ -66,7 +66,7 @@ enum SessionChime {
     @discardableResult
     static func play(_ name: String) -> Bool {
         guard let url = url(for: name) else {
-            NotchLog.usage.error("no sound file named \(name, privacy: .public)")
+            NotchLog.usage.error("sound file unavailable")
             return false
         }
         do {
@@ -79,13 +79,13 @@ enum SessionChime {
             // at all on an ordinary run — the app logs nothing and plays
             // nothing, and every part of it looks correct.
             let started = player.play()
-            NotchLog.usage.debug("chime \(name, privacy: .public): \(started, privacy: .public)")
+            NotchLog.usage.debug("chime started: \(started, privacy: .public)")
             return started
         } catch {
             // Worth falling back for rather than going silent: whatever stops
             // AVFoundation reading the file — an unreadable custom sound, a
             // format it will not open — has nothing to do with NSSound.
-            NotchLog.usage.error("chime \(name, privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
+            NotchLog.usage.error("chime failed (code \((error as NSError).code, privacy: .public))")
             return NSSound(named: name)?.play() ?? false
         }
     }

@@ -28,6 +28,34 @@ final class BoundedHTTPTests: XCTestCase {
         XCTAssertEqual((response as? HTTPURLResponse)?.statusCode, 200)
     }
 
+    func testTextResponsesPreserveStatusAndEncodingFailures() async throws {
+        for (status, payload) in [(200, Data("usage 한도".utf8)), (200, Data([0xFF])),
+                                  (401, Data()), (403, Data()), (429, Data()), (500, Data())] {
+            server.respond(with: payload, declaringLength: true, status: status)
+            do {
+                let text = try await BoundedHTTP.text(for: URLRequest(url: server.url), on: ProviderSession.shared)
+                XCTAssertEqual(status, 200)
+                XCTAssertEqual(text, "usage 한도")
+            } catch {
+                switch (status, error) {
+                case (401, NotchProviderError.needsAuth), (403, NotchProviderError.needsAuth): break
+                case (429, NotchProviderError.rateLimited(let wait)): XCTAssertEqual(wait, 60)
+                case (200, NotchProviderError.badResponse(let code)), (500, NotchProviderError.badResponse(let code)):
+                    XCTAssertEqual(code, status)
+                default: XCTFail("Unexpected status \(status): \(error)")
+                }
+            }
+        }
+    }
+
+    func testTextResponsesRetainTheBodyCeiling() async throws {
+        server.respond(with: Data(repeating: 0x61, count: BoundedHTTP.defaultMaximumBytes + 1), declaringLength: true)
+        do {
+            _ = try await BoundedHTTP.text(for: URLRequest(url: server.url), on: ProviderSession.shared)
+            XCTFail("oversize text was accepted")
+        } catch NotchProviderError.responseTooLarge { }
+    }
+
     /// The cheap case: the server says how big it is, so nothing is downloaded.
     func testADeclaredOversizeBodyIsRefused() async throws {
         server.respond(with: Data(repeating: 0x61, count: 256_000), declaringLength: true)
@@ -299,6 +327,7 @@ private final class LocalHTTPServer: @unchecked Sendable {
     private let port: UInt16
     private var payload = Data()
     private var declaresLength = true
+    private var status = 200
     private var holdOpen = false
     private let finishBody = DispatchSemaphore(value: 0)
     private var running = true
@@ -348,10 +377,11 @@ private final class LocalHTTPServer: @unchecked Sendable {
         accept(on: socketDescriptor)
     }
 
-    func respond(with payload: Data, declaringLength: Bool, holdOpen: Bool = false) {
+    func respond(with payload: Data, declaringLength: Bool, holdOpen: Bool = false, status: Int = 200) {
         self.holdOpen = holdOpen
         self.payload = payload
         declaresLength = declaringLength
+        self.status = status
     }
 
     func stop() {
@@ -365,6 +395,8 @@ private final class LocalHTTPServer: @unchecked Sendable {
             while running {
                 let client = Darwin.accept(socketDescriptor, nil, nil)
                 guard client >= 0 else { return }
+                var noSigPipe: Int32 = 1
+                setsockopt(client, SOL_SOCKET, SO_NOSIGPIPE, &noSigPipe, socklen_t(MemoryLayout<Int32>.size))
                 var request = [UInt8](repeating: 0, count: 2_048)
                 let read = Darwin.read(client, &request, request.count)
                 let text = String(decoding: request.prefix(max(0, read)), as: UTF8.self)
@@ -383,7 +415,7 @@ private final class LocalHTTPServer: @unchecked Sendable {
                     continue
                 }
 
-                var head = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
+                var head = "HTTP/1.1 \(status) Response\r\nContent-Type: application/json\r\n"
                 if declaresLength {
                     head += "Content-Length: \(payload.count)\r\n"
                 } else {

@@ -3,6 +3,22 @@ import XCTest
 
 final class MobileUITests: XCTestCase {
     @MainActor
+    func testScannerRejectsLegacyPairingURLsWithoutOpeningAnEnrollment() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-scanner"] // Isolated scanner; no Keychain restore, relay or ActivityKit actions.
+        UIPasteboard.general.string = "coderim://pair?r=https://relay.example.com&i=" + String(repeating: "i", count: 43) + "&s=" + String(repeating: "s", count: 43)
+        app.launch()
+        let paste = app.buttons["pastePairingLink"]
+        XCTAssertTrue(paste.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.textFields.firstMatch.exists)
+        paste.tap()
+        XCTAssertTrue(app.staticTexts["That is not a CodeRim pairing code."].waitForExistence(timeout: 5))
+        XCTAssertTrue(paste.exists)
+        XCTAssertFalse(app.staticTexts["CodeRim opens and connects on its own."].exists)
+        app.terminate()
+    }
+
+    @MainActor
     func testSettingsAndRealDynamicIslandPresentation() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
@@ -14,8 +30,7 @@ final class MobileUITests: XCTestCase {
         attach("settings", app.screenshot())
         if !scan.isHittable { app.swipeUp() }
         scan.tap()
-        // The Simulator has no camera: the scanner points to the Camera app and offers a copied link.
-        // There is no field to type a server or link into.
+        // Simulator enrollment uses pasted pairing codes because it has no camera.
         XCTAssertFalse(app.textFields.firstMatch.exists)
         UIPasteboard.general.string = "coderim://pair?r=http://example.com"
         let paste = app.buttons["pastePairingLink"]
@@ -70,7 +85,6 @@ final class MobileUITests: XCTestCase {
         Thread.sleep(forTimeInterval: 2.2)
         attach("dynamic-island-windows", springboard.screenshot())
     }
-    /// With no computer the home screen offers the one thing to do, and a busy relay is announced there.
     @MainActor
     func testHomeScreenOffersToPairWhenEmptyAndShowsTheRelayNotice() throws {
         let empty = XCUIApplication()
@@ -90,7 +104,6 @@ final class MobileUITests: XCTestCase {
         XCTAssertTrue(busy.staticTexts["Tasks"].exists)
     }
 
-    /// Disconnecting a computer no longer depends on knowing to swipe: a visible menu does it too.
     @MainActor
     func testAComputerCanBeDisconnectedFromAVisibleMenu() throws {
         let app = XCUIApplication()

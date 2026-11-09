@@ -4,11 +4,11 @@
 
 ## 제공업체가 보이지 않음
 
-**Settings → Providers → Add Provider**를 엽니다. 목록은 70개이며 노치·기본 CLI 출력에는 선택한 제공업체만 표시합니다. `coderim providers`로 모든 ID를 확인합니다. Z.ai는 GLM, Factory는 Droid, Gemini CLI는 Gemini입니다. [이름 매핑과 설정](providers.md)을 참고합니다.
+**Settings → Providers → Add Provider**를 엽니다. 목록은 70개이며 노치·기본 CLI 출력에는 선택한 제공업체만 표시합니다. `coderim providers`로 모든 ID를 확인합니다. Z.ai는 GLM, Factory는 Droid이며 Gemini CLI와 Antigravity는 별도 항목입니다. [이름 매핑과 설정](providers.md)을 참고합니다.
 
 ## 제공업체 측정값이 없음
 
-[연결 안내](providers.md), 원래 소스 로그인, 플랜, 권한, 엔드포인트, 지역을 확인하고 새로고침합니다. 제공업체를 추가해도 인증되지는 않습니다. 데이터 누락은 사용량 0이 아닙니다. 과금 가능한 AWS Bedrock·Azure OpenAI·일부 Doubao 경로는 모니터링 토글을 명시적으로 켜야 합니다. StepFun은 브라우저 가져오기 토글 없이 사용자 이름·비밀번호 또는 Oasis-Token을 사용합니다.
+[연결 안내](providers.md), 원래 소스 로그인, 플랜, 권한, 엔드포인트, 지역을 확인하고 새로고침합니다. 추가하면 로그인·키 입력을 시작하므로 해당 단계를 마친 뒤 값을 확인합니다. 데이터 누락은 사용량 0이 아닙니다. 과금 가능한 AWS Bedrock·Azure OpenAI·일부 Doubao 경로는 모니터링 토글을 명시적으로 켜야 합니다. StepFun은 브라우저 가져오기 토글 없이 사용자 이름·비밀번호 또는 Oasis-Token을 사용합니다.
 
 ## Claude 한도가 오래됨
 
@@ -18,7 +18,7 @@ Claude 연동을 켜고 로그인된 계정을 추가한 뒤 Claude Code 응답�
 
 로컬 Codex·Claude Code 세션을 실행한 뒤 **Settings → Usage** 도구 모음의 새로고침 아이콘 또는 **Command-R**을 사용합니다. 삭제된 로그·다른 컴퓨터 기록은 복구할 수 없습니다. **Settings → Providers → Codex 또는 Claude Code → Manage Data**의 **Rebuild Statistics**는 삭제 기준 시각을 유지하며 관측 가능한 로그를 다시 처리합니다. **Clear Local History**는 집계 행만 지우고 새 기준 시각을 기록하며 원본 로그를 유지합니다.
 
-계정 히스토리와 로컬 히스토리는 범위가 다릅니다. CodeRim 2.1.13은 **Include ChatGPT history**를 선택한 뒤 Overview에 날짜가 있는 ChatGPT 계정 합계를 표시할 수 있으며 로컬 차트·Today는 This Mac을 유지합니다. 프로필 히스토리는 기본으로 꺼져 있고 **Stop including ChatGPT history**로 끄면 현재 메모리 계정 스냅샷도 지웁니다. [범위](usage.md)를 참고합니다.
+계정 히스토리와 로컬 히스토리는 범위가 다릅니다. CodeRim은 **Include ChatGPT history**를 선택한 뒤 Overview에 날짜가 있는 ChatGPT 계정 합계를 표시할 수 있으며 로컬 차트·Today는 This Mac을 유지합니다. 프로필 히스토리는 기본으로 꺼져 있고 **Stop including ChatGPT history**로 끄면 현재 메모리 계정 스냅샷도 지웁니다. [범위](usage.md)를 참고합니다.
 
 ## macOS가 앱을 차단함
 
@@ -37,22 +37,12 @@ Claude 연동을 켜고 로그인된 계정을 추가한 뒤 Claude Code 응답�
 <a id="homebrew-cannot-find-the-coderim-cask"></a>
 ## Homebrew가 CodeRim cask를 찾지 못함
 
-`dlfkdlr/tap/coderim` cask를 찾지 못하면 tap이 등록되지 않았을 수 있습니다. 새 설치는 [설치 안내](installation.md)를 따릅니다. 기존 설치를 복구하려면 CodeRim·CodexMeter를 종료하고 기존 대상 앱을 확인한 뒤 실행합니다.
-
-```sh
-brew update &&
-brew tap dlfkdLR/tap &&
-HOMEBREW_NO_INSTALL_CLEANUP=1 brew reinstall --cask --force dlfkdLR/tap/coderim &&
-xattr -dr com.apple.quarantine /Applications/CodeRim.app &&
-open /Applications/CodeRim.app
-```
-
-Homebrew가 아카이브 SHA-256을 검증한 뒤 이 앱에만 격리 해제 명령을 실행합니다. `--force`는 기존 대상 앱을 교체합니다. 사용자 지정 `--appdir`은 실행 경로도 맞춰야 합니다. 설정·계정·히스토리는 유지하므로 `--zap`을 추가하지 않습니다. 전체 cask 경로로 설치할 때 tap 신뢰 검사를 끌 필요는 없습니다. [Homebrew tap 신뢰](https://docs.brew.sh/Tap-Trust)를 참고합니다.
+`dlfkdlr/tap/coderim` cask를 찾지 못하면 tap이 등록되지 않았을 수 있습니다. 새 설치는 [설치 안내](installation.md)를 따릅니다. 기존 설치는 실행 중인 앱을 종료하고 대상 앱을 확인한 뒤 [이전·재설치 절차](installation.md#codexmeter에서-이동)를 따릅니다. 확인한 앱의 격리 해제만 수행하고 `--zap`이나 Application Support 삭제를 추가하지 않습니다. tap 신뢰 검사를 끌 필요는 없습니다. [Homebrew tap trust](https://docs.brew.sh/Tap-Trust).
 
 <a id="homebrew-upgrade-cannot-find-codexmeterapp"></a>
 ## Homebrew 업그레이드가 CodexMeter.app을 찾지 못함
 
-`It seems the App source '/Applications/CodexMeter.app' is not there`는 기존 설치 기록이 없는 앱을 가리킨다는 뜻입니다. ZIP을 다운로드했다는 사실만으로 업그레이드 성공을 뜻하지는 않습니다. 설치 기록·Application Support 폴더를 지우지 않고 위 재설치 복구를 사용한 뒤 실행한 앱의 버전·위치를 확인합니다.
+`It seems the App source '/Applications/CodexMeter.app' is not there`는 기존 설치 기록이 없는 앱을 가리킨다는 뜻입니다. ZIP을 다운로드했다는 사실만으로 업그레이드 성공을 뜻하지는 않습니다. 설치 기록·Application Support 폴더를 지우지 않고 연결된 재설치 절차를 따른 뒤 실행한 앱의 버전·위치를 확인합니다.
 
 ### xcrun 아키텍처 오류
 

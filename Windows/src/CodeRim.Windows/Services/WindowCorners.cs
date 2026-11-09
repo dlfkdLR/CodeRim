@@ -3,9 +3,7 @@ using System.Runtime.InteropServices;
 namespace CodeRim.Windows.Services;
 
 /// <summary>
-/// Windows 11 rounds top-level windows, but not one whose WindowChrome removes the glass frame, as the
-/// settings window's does. Asking DWM for the rounded preference restores the system corners; older
-/// Windows versions ignore the attribute.
+/// Restore DWM corners removed by WindowChrome; older Windows versions ignore the preference.
 /// </summary>
 internal static class WindowCorners
 {

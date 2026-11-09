@@ -3,7 +3,7 @@
 [English](../getting-started.md) · **한국어**
 
 1. [CodeRim을 설치](installation.md)하고 실행한 뒤 **Settings → Providers → Add Provider**를 엽니다.
-2. 사용할 도구를 선택하고 해당 [연결 안내](providers.md)를 따릅니다. 항목을 추가하는 것만으로 그 서비스에 로그인되지는 않습니다.
+2. 사용할 도구를 선택합니다. 추가하면 연결을 시작하므로 로그인·키 입력 안내와 [연결 문서](providers.md)를 따릅니다.
 3. 링 위에 포인터를 올려 한도 기간, 초기화 시각, 요금제, 세션 활동을 확인합니다. 선택한 제공업체만 모니터링합니다.
 4. **Settings → Usage**에서 연결된 Codex 또는 Claude Code를 선택합니다. 현재 macOS 소스에서는 **Overview**, **Usage analytics**, 선택한 제공업체의 **Limits**가 같은 도구 모음을 사용합니다. 한도만 제공하는 다른 서비스에는 로컬 토큰 분석이 생기지 않습니다.
 5. 노치의 계정 버튼이나 Usage의 **Switch**로 [저장한 계정](accounts.md)을 관리합니다.

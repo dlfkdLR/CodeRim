@@ -46,6 +46,10 @@ foreach ($rid in $RuntimeIdentifier) {
         Replace('$PublisherDisplayName$', [Security.SecurityElement]::Escape($identity.PublisherDisplayName)).
         Replace('$Version$', $packageVersion).Replace('$Architecture$', $architecture)
     if ($manifest -match '\$[A-Za-z]+\$') { throw "Unfilled manifest token: $($Matches[0])" }
+    $aliases = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($alias in ([xml]$manifest).SelectNodes("//*[local-name()='ExecutionAlias']/@Alias")) {
+        if (-not $aliases.Add($alias.Value)) { throw "Duplicate execution alias: $($alias.Value)" }
+    }
     [IO.File]::WriteAllText((Join-Path $layout "AppxManifest.xml"), $manifest, [Text.UTF8Encoding]::new($false))
     $output = Join-Path $artifacts "CodeRim-Windows-$version-$architecture.msix"
     & $makeAppx.FullName pack /o /d $layout /p $output /nv

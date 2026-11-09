@@ -95,15 +95,15 @@ final class NotchOpenCodeCredentialsTests: XCTestCase {
 /// survives a relaunch.
 final class NotchOpenCodeBackoffTests: XCTestCase {
     func testBackoffDoublesFromAMinuteAndCaps() {
-        XCTAssertEqual(OpenCodeNotchProvider.backoff(forAttempt: 0, retryAfter: nil), 60)
-        XCTAssertEqual(OpenCodeNotchProvider.backoff(forAttempt: 1, retryAfter: nil), 120)
-        XCTAssertEqual(OpenCodeNotchProvider.backoff(forAttempt: 3, retryAfter: nil), 480)
-        XCTAssertEqual(OpenCodeNotchProvider.backoff(forAttempt: 10, retryAfter: nil), 15 * 60)
+        XCTAssertEqual(AccountBackoff.delay(forAttempt: 0, retryAfter: nil), 60)
+        XCTAssertEqual(AccountBackoff.delay(forAttempt: 1, retryAfter: nil), 120)
+        XCTAssertEqual(AccountBackoff.delay(forAttempt: 3, retryAfter: nil), 480)
+        XCTAssertEqual(AccountBackoff.delay(forAttempt: 10, retryAfter: nil), 15 * 60)
     }
 
     func testServerHintOnlyRaisesTheFloor() {
-        XCTAssertEqual(OpenCodeNotchProvider.backoff(forAttempt: 0, retryAfter: 300), 300)
-        XCTAssertEqual(OpenCodeNotchProvider.backoff(forAttempt: 0, retryAfter: 10), 60)
+        XCTAssertEqual(AccountBackoff.delay(forAttempt: 0, retryAfter: 300), 300)
+        XCTAssertEqual(AccountBackoff.delay(forAttempt: 0, retryAfter: 10), 60)
     }
 
     func testArchivePersistsThePenaltyPerProvider() {

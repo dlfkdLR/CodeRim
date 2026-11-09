@@ -19,6 +19,13 @@ final class MobileContractTests: XCTestCase {
         let roundtrip = try JSONDecoder().decode(MobileActivityState.self, from: JSONEncoder().encode(decoded))
         XCTAssertEqual(roundtrip, decoded)
     }
+    func testActivityTokenRegistrationNeverCarriesPermissionToResumeAfterStop() throws {
+        let registration = MobileActivityRegistration(activityID: "fixture", pushToken: String(repeating: "a", count: 64))
+        let wire = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(registration)) as? [String: String])
+        XCTAssertEqual(Set(wire.keys), ["activityID", "pushToken"])
+        XCTAssertEqual(wire["activityID"], "fixture")
+    }
+
     func testDisconnectedStateNeverLooksLive() {
         XCTAssertTrue(MobileActivityState.disconnected.isStale())
     }

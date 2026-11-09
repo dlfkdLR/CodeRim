@@ -242,16 +242,26 @@ final class CodexAccountStore: ObservableObject {
         try vault.load().first { $0.id == id }
     }
 
-    /// Keeps a refresh token that a read-only limits probe rotated, so the saved
-    /// copy stays usable. Skipped when another account operation holds the lock;
-    /// the answer says whether it was kept, so a caller can hold on to the new
-    /// login and try again rather than lose it.
-    @discardableResult
-    func storeRotatedLogin(_ loginData: Data, for id: String) -> Bool {
+    enum RotationSaveResult { case saved, superseded, retry }
+
+    /// Replaces only the login this probe read. Superseded results are discarded;
+    /// lock or vault failures let the caller retain the renewed login for retry.
+    func storeRotatedLogin(_ loginData: Data, for id: String, expecting base: Data) -> RotationSaveResult {
         guard !isBusy, !AccountSwitchActivity.isSwitching,
               let lease = try? acquireLock(),
-              let account = try? SavedCodexAccount(loginData: loginData), account.id == id else { return false }
-        return withExtendedLifetime(lease) { (try? upsert(account)) != nil }
+              let account = try? SavedCodexAccount(loginData: loginData), account.id == id else { return .retry }
+        return withExtendedLifetime(lease) {
+            do {
+                var saved = try vault.load()
+                guard let index = saved.firstIndex(where: { $0.id == id }), saved[index].loginData == base else {
+                    return .superseded
+                }
+                saved[index] = account
+                try vault.save(saved)
+                accounts = saved
+                return .saved
+            } catch { return .retry }
+        }
     }
 
     private func upsert(_ account: SavedCodexAccount) throws {

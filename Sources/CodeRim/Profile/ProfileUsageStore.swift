@@ -19,9 +19,7 @@ final class ProfileUsageStore: ObservableObject {
     private var identityTask: Task<Void, Never>?
     private var defaultsTask: Task<Void, Never>?
     private var automaticRefreshTask: Task<Void, Never>?
-    private var clockChangeTask: Task<Void, Never>?
-    private var timeZoneChangeTask: Task<Void, Never>?
-    private var wakeTask: Task<Void, Never>?
+    private var calendarContextTasks: [Task<Void, Never>] = []
     private var calendarBoundaryTask: Task<Void, Never>?
     private var inFlightFetchTask: Task<ProfileUsageSnapshot, any Error>?
     private var inFlightRefreshID: UUID?
@@ -58,32 +56,15 @@ final class ProfileUsageStore: ObservableObject {
                 self?.synchronizeEnabledPreference()
             }
         }
-        clockChangeTask = Task { [weak self] in
-            let notifications = NotificationCenter.default.notifications(
-                named: .NSSystemClockDidChange
-            )
-            for await _ in notifications {
-                guard !Task.isCancelled else { return }
-                self?.handleCalendarContextChange()
-            }
-        }
-        timeZoneChangeTask = Task { [weak self] in
-            let notifications = NotificationCenter.default.notifications(
-                named: .NSSystemTimeZoneDidChange
-            )
-            for await _ in notifications {
-                guard !Task.isCancelled else { return }
-                self?.handleCalendarContextChange()
-            }
-        }
-        wakeTask = Task { [weak self] in
-            let notifications = NSWorkspace.shared.notificationCenter.notifications(
-                named: NSWorkspace.didWakeNotification
-            )
-            for await _ in notifications {
-                guard !Task.isCancelled else { return }
-                self?.handleCalendarContextChange()
-            }
+        for (center, name) in [(NotificationCenter.default, Notification.Name.NSSystemClockDidChange),
+                               (NotificationCenter.default, Notification.Name.NSSystemTimeZoneDidChange),
+                               (NSWorkspace.shared.notificationCenter, NSWorkspace.didWakeNotification)] {
+            calendarContextTasks.append(Task { [weak self] in
+                for await _ in center.notifications(named: name) {
+                    guard !Task.isCancelled else { return }
+                    self?.handleCalendarContextChange()
+                }
+            })
         }
         scheduleCalendarBoundary()
     }
@@ -118,9 +99,7 @@ final class ProfileUsageStore: ObservableObject {
         identityTask?.cancel()
         defaultsTask?.cancel()
         automaticRefreshTask?.cancel()
-        clockChangeTask?.cancel()
-        timeZoneChangeTask?.cancel()
-        wakeTask?.cancel()
+        calendarContextTasks.forEach { $0.cancel() }
         calendarBoundaryTask?.cancel()
         inFlightFetchTask?.cancel()
     }

@@ -8,7 +8,6 @@ Historical records and verbatim licenses retain their original language.
 from __future__ import annotations
 
 import argparse
-import ast
 import html
 import json
 import os
@@ -142,25 +141,14 @@ def main() -> int:
         row_ids = [row[1] for row in rows]
         if len(row_ids) != len(ids) or set(row_ids) != set(ids) or any(row[1] != row[2] for row in rows):
             errors.append(f'{path}: catalogue does not match shared source IDs')
-    for path in ('README.md', 'README.ko.md'):
-        guide_ids = re.findall(r'^- \[[^\]]+\]\(docs/(?:ko/)?providers/([^)]+)\.md\) — ', texts.get(path, ''), flags=re.M)
-        if len(guide_ids) != len(ids) or set(guide_ids) != set(ids):
-            errors.append(f'{path}: flat provider list does not match shared catalogue')
+    for path, index in [('README.md', 'docs/providers.md'), ('README.ko.md', 'docs/ko/providers.md')]:
+        if not re.search(r'\]\(' + re.escape(index) + r'(?:#[^)]*)?\)', texts.get(path, '')):
+            errors.append(f'{path}: link to the canonical provider index: {index}')
     for identifier in ids:
         for prefix in ('docs/providers/', 'docs/ko/providers/'):
             path = f'{prefix}{identifier}.md'
             if path not in texts or f'`{identifier}`' not in texts[path]:
                 errors.append(f'{path}: missing provider ID or translated guide')
-    generator = selected('website/scripts/sync-providers.py')
-    if generator.is_file():
-        data = generator.read_text(encoding='utf-8')
-        ast.parse(data, filename=str(generator))
-        # Read the extraction regex without executing the website asset writer.
-        match = re.search(r"korean = dict\(re\.findall\(r(['\"])(.*?)\1", data, re.S)
-        pattern = match.group(2) if match else None
-        extracted = dict(re.findall(pattern, texts.get('README.ko.md', ''), flags=re.M)) if pattern else {}
-        if set(extracted) != set(ids):
-            errors.append('Website generator cannot read all Korean provider descriptions.')
     result = {'status': 'PASS' if not errors else 'FAIL', 'counts': counts, 'errors': errors,
               'root': str(root), 'overlay': str(overlay) if overlay else None,
               'scope': 'Maintained bilingual documentation; external URLs, live accounts, CI and historical test claims are not executed.'}

@@ -1,26 +1,10 @@
 import Foundation
 
-/// What a Claude Code session is doing, read from its transcript.
-///
-/// Claude Code writes `status` into `~/.claude/sessions/<pid>.json` from one
-/// place only: an effect inside the terminal interface's render loop. A session
-/// hosted by the Claude desktop app runs the same binary with no terminal
-/// interface, so that effect never fires and the record carries no status at
-/// all — which is why every desktop session read as permanently idle, and why
-/// the usage ring never polled hard while one was working.
-///
-/// The transcript is the other thing Claude Code writes, and the engine writes
-/// it rather than the interface, so it is there for both surfaces:
-/// `~/.claude/projects/<slug>/<sessionId>.jsonl`, one JSON object per line,
-/// appended as the turn goes.
+/// Read conversation activity from ~/.claude/projects/<slug>/<sessionId>.jsonl. Unlike the terminal
+/// registry’s status, engine-written transcripts also cover desktop-hosted sessions.
 enum ClaudeTranscript {
-    /// Whether the session is mid-turn.
-    ///
-    /// Two cases and not three, deliberately. Nothing in the transcript
-    /// separates a tool waiting on your permission from a tool that is simply
-    /// taking its time — there is no record for a permission prompt — so this
-    /// never claims `waiting`. Only the terminal interface knows that, and only
-    /// the terminal interface writes it to the registry.
+    /// Transcripts cannot distinguish permission waits from slow tools; only the terminal registry may
+    /// claim waiting.
     enum Turn: Equatable { case inFlight, finished }
 
     struct Event {
@@ -42,13 +26,7 @@ enum ClaudeTranscript {
         String(cwd.map { $0 == "/" || $0 == "." ? "-" : $0 })
     }
 
-    /// The transcript for one session, or nil if it has not been written yet.
-    ///
-    /// `scanning` is what makes this affordable to call on a timer: the slug is
-    /// derived from the session's own `cwd` and is right almost always, so the
-    /// usual cost is a single `stat`. The directory scan is the fallback for a
-    /// session that has moved since it started — resumed in a worktree, say —
-    /// and keeps its transcript where it was first written.
+    /// Try the cwd-derived slug first; cache the directory-scan fallback for resumed/moved sessions.
     static func transcript(
         forSessionID sessionID: String,
         cwd: String,
@@ -81,28 +59,16 @@ enum ClaudeTranscript {
 
     /// The last records of the file, without reading the rest of it.
     static func tail(of url: URL, bytes: Int = tailBytes) -> Data? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        guard bytes > 0, let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
         guard let end = try? handle.seekToEnd() else { return nil }
         let start = end > UInt64(bytes) ? end - UInt64(bytes) : 0
         guard (try? handle.seek(toOffset: start)) != nil else { return nil }
-        return try? handle.readToEnd()
+        return try? handle.read(upToCount: bytes)
     }
 
-    /// The state machine, kept pure so it can be tested without a file.
-    ///
-    /// Only `user` and `assistant` lines are allowed to decide. The transcript
-    /// also carries bookkeeping — `bridge-session`, `atis-latch`, `frame-link`,
-    /// `custom-title` and more — which Claude Code keeps appending while a
-    /// session sits doing nothing. That is why "was the file touched recently",
-    /// which is all the Codex monitor can manage, is not good enough here: on
-    /// this Mac it reported a session that had been parked for an hour as
-    /// working. An allow-list rather than a list of kinds to skip, because the
-    /// bookkeeping kinds are added to between releases.
-    ///
-    /// Nil when the tail holds no conversation at all — a session that has been
-    /// opened and not yet used. The caller leaves such a session as it found it
-    /// rather than guessing.
+    /// Only conversation records decide activity; bookkeeping continues while idle. Return nil for an
+    /// unused transcript rather than guessing.
     static func turn(inTail data: Data) -> Turn? {
         event(inTail: data)?.turn
     }
@@ -131,13 +97,7 @@ enum ClaudeTranscript {
             // parent's turn is the one being reported on.
             if json["isSidechain"] as? Bool == true { continue }
 
-            let timestamp = (json["timestamp"] as? String).flatMap { value -> Date? in
-                let formatter = ISO8601DateFormatter()
-                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-                if let date = formatter.date(from: value) { return date }
-                formatter.formatOptions = [.withInternetDateTime]
-                return formatter.date(from: value)
-            }
+            let timestamp = (json["timestamp"] as? String).flatMap(TranscriptLines.parse)
             switch json["type"] as? String {
             case "continued-in":
                 // The old process may remain open after a conversation moves to
@@ -158,17 +118,9 @@ enum ClaudeTranscript {
         return nil
     }
 
-    /// Whether an assistant record is the end of the turn rather than a piece
-    /// of it.
-    ///
-    /// Claude Code writes each content block as its own record as it streams.
-    /// A `thinking` block is recorded with `end_turn` (226 times in one
-    /// machine's transcripts) and then followed by the `text` block, and a
-    /// block still being streamed has no `stop_reason` yet. Reading either as
-    /// the end made a working chat show "Done". So a record only ends the
-    /// turn when it carries a terminal stop reason *and* its last block is the
-    /// answer rather than thinking. An interrupted turn is closed by the
-    /// explicit interruption record, never by a missing stop reason.
+    /// Streamed thinking blocks may carry end_turn and incomplete blocks lack stop_reason. Finish only
+    /// on a terminal reason plus a non-thinking/non-tool final block; explicit interruption closes
+    /// interrupted turns.
     static func assistantEndsTurn(_ message: [String: Any]?) -> Bool {
         guard let reason = message?["stop_reason"] as? String,
               ["end_turn", "stop_sequence", "max_tokens"].contains(reason) else { return false }
@@ -180,12 +132,8 @@ enum ClaudeTranscript {
         return true
     }
 
-    /// When the agent called a tool, for each call in the tail.
-    ///
-    /// Counted by blocks, not lines: one assistant record can carry several
-    /// parallel calls. A subagent's calls are its own and are left out. Lines
-    /// are screened as bytes first, so the many that call nothing are never
-    /// parsed.
+    /// Count tool blocks, including parallel calls, but exclude sidechains. Screen bytes before parsing
+    /// JSON.
     static func toolUses(inTail data: Data) -> [Date] {
         let needle = Data("\"tool_use\"".utf8)
         var stamps: [Date] = []
@@ -195,19 +143,15 @@ enum ClaudeTranscript {
                   json["type"] as? String == "assistant", json["isSidechain"] as? Bool != true,
                   let message = json["message"] as? [String: Any],
                   let content = message["content"] as? [[String: Any]],
-                  let stamp = (json["timestamp"] as? String).flatMap(TurnHistoryImporter.parse) else { continue }
+                  let stamp = (json["timestamp"] as? String).flatMap(TranscriptLines.parse) else { continue }
             let calls = content.filter { $0["type"] as? String == "tool_use" }.count
             stamps.append(contentsOf: Array(repeating: stamp, count: calls))
         }
         return stamps
     }
 
-    /// When instructions were queued behind the running turn.
-    ///
-    /// Typing while Claude is working does not start a turn; it is filed as a
-    /// `queue-operation` and picked up when the current step finishes. That is
-    /// the only trace of "the person added something", and it is why the time
-    /// left in a turn can grow without the turn having changed.
+    /// Queued instructions do not start a new turn; retain their timestamps separately from activity
+    /// transitions.
     static func queuedInstructions(inTail data: Data) -> [Date] {
         data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true)
             .compactMap { line -> Date? in
@@ -267,11 +211,8 @@ private extension String {
     var nonEmpty: String? { isEmpty ? nil : self }
 }
 
-/// Reads transcripts on a timer, and remembers enough not to read them twice.
-///
-/// One instance per monitor. A tick that finds a transcript untouched since the
-/// last one costs a `stat` and nothing else — the tail is read only when the
-/// file has actually grown.
+/// Cache transcript metadata per monitor; unchanged files need only stat, and growing files trigger
+/// tail reads.
 final class ClaudeTranscriptReader {
     private struct Cached {
         let modified: Date
@@ -290,20 +231,16 @@ final class ClaudeTranscriptReader {
     /// this is bounded by how many have run since the app launched.
     private var paths: [String: URL] = [:]
     private var cache: [String: Cached] = [:]
-    /// When each session last changed what it was doing.
-    ///
-    /// The transcript's timestamp is when it was last *appended to*, which
-    /// moves every few seconds through a long turn. Reported as-is it would
-    /// hold the tooltip's elapsed time at zero for as long as the session
-    /// worked, and hand the notch a new value to animate on every tick. What
-    /// the notch means by `since` is when the state was entered, so the moment
-    /// of the change is kept and the appends in between are ignored.
+    /// Keep state-entry time separately from append timestamps so continued output does not reset
+    /// elapsed time.
     private var entered: [String: (turn: ClaudeTranscript.Turn, at: Date)] = [:]
     /// Sessions already looked for the hard way and not found. The directory
     /// scan is worth doing once for a session that has moved, and never worth
     /// repeating every two seconds for one that simply has no transcript.
     private var scanned: Set<String> = []
     private var titles: [String: TitleScan] = [:]
+    private var titleAccess: UInt64 = 0
+    private static let titleCacheLimit = 64
     /// Where each session's tool calls have been read up to, and when they were
     /// made. The end of the file shows only the last few calls of a long turn;
     /// reading on from where it stopped last time counts them all.
@@ -313,7 +250,8 @@ final class ClaudeTranscriptReader {
     private static let toolScanFirstLook: UInt64 = 4 * 1024 * 1024
 
     struct TitleScan {
-        var offset: UInt64 = 0
+        var access: UInt64 = 0
+        var cursor = TranscriptLineCursor()
         var custom: String?
         var generated: String?
         /// A name the user gave the session outranks the generated one.
@@ -401,29 +339,28 @@ final class ClaudeTranscriptReader {
         queued.filter { $0 > since.addingTimeInterval(1) }.count
     }
 
-    /// The conversation's own title — the one Claude Code shows in its
-    /// terminal tab and `/resume` list — when it has written one.
-    ///
-    /// Titles are appended as `custom-title` (set with `/rename`) and
-    /// `ai-title` entries anywhere in the transcript, so this keeps a read
-    /// offset per session and only scans what was appended since.
+    /// Custom and generated titles may appear anywhere; keep a bounded incremental cursor for each
+    /// session.
     func title(sessionID: String, cwd: String) -> String? {
         guard let url = path(sessionID: sessionID, cwd: cwd),
               let size = (try? fileManager.attributesOfItem(atPath: url.path))?[.size] as? NSNumber
         else { return titles[sessionID]?.title }
+        if titles[sessionID] == nil, titles.count >= Self.titleCacheLimit,
+           let oldest = titles.min(by: { $0.value.access < $1.value.access }) {
+            titles.removeValue(forKey: oldest.key)
+        }
         var state = titles[sessionID] ?? TitleScan()
         let end = size.uint64Value
-        if end < state.offset { state = TitleScan() }   // rewritten from scratch
-        if end > state.offset, let handle = try? FileHandle(forReadingFrom: url) {
+        if end < state.cursor.readOffset { state = TitleScan() }   // rewritten from scratch
+        titleAccess &+= 1
+        state.access = titleAccess
+        if end > state.cursor.readOffset, let handle = try? FileHandle(forReadingFrom: url) {
             defer { try? handle.close() }
-            if (try? handle.seek(toOffset: state.offset)) != nil,
-               let data = try? handle.read(upToCount: Int(end - state.offset)) {
-                // Stop at the last complete line; a half-written one is read next time.
-                if let last = data.lastIndex(of: 0x0A) {
-                    ClaudeTranscript.titles(in: data[...last], into: &state)
-                    state.offset += UInt64(data.distance(from: data.startIndex, to: last) + 1)
-                }
+            var cursor = state.cursor
+            try? cursor.read(handle, through: end) { line in
+                ClaudeTranscript.titles(in: line, into: &state)
             }
+            state.cursor = cursor
         }
         titles[sessionID] = state
         return state.title

@@ -15,7 +15,7 @@ Codex requires a vendor-signed desktop at `/Applications/Codex.app` or `/Applica
 3. Before Switch, preserve the departing account's latest login, request normal desktop termination, and check supported clients. CodeRim never force-quits clients. A live client holding `~/.codex/auth.json` blocks replacement; an identified live client whose open files cannot be inspected returns a verification error. Idle clients that released the file are not automatically blockers.
 4. Serialize operations with an owner-only lock. Compare active bytes against the read snapshot before private `0600` staging and atomic publication. Missing logins use no-clobber publication; a concurrent login wins. Malformed/unsafe files are not treated as absent.
 5. Reopen the official desktop. Read `account/read` through the bundled official CLI with `refreshToken: false`; match returned ChatGPT email and full shared-file workspace/subject identity. Existing CLI sessions may retain credentials, so restart them manually. A local check is not remote authentication proof.
-6. If the post-write identity check fails, show an unverified result and re-read the current account. Do not overwrite a concurrent sign-in/renewal with an automatic rollback. The official desktop owns credential renewal; never refresh a copied saved credential in a disposable process.
+6. If the post-write identity check fails, show an unverified result and re-read the current account. Do not overwrite a concurrent sign-in/renewal with an automatic rollback. Saved-account limit viewing uses a separate private home and may renew its saved login. Persist that renewal only if the saved bytes still match the probe base; a newer login or removal wins.
 
 ## Claude accounts
 
@@ -34,9 +34,7 @@ Account changes invalidate quota/profile snapshots; generation/identity checks d
 Synthetic tests use temporary homes, mocked desktops/CLI and synthetic vault entries. Validate save/add/cancel/switch/remove, missing/unsafe login, running clients, stale results, concurrent sign-in, rollback, and profile preservation. Native layout captures cover empty/populated/long-identity/error/busy states, footer visibility, both sizes and appearances. These do not prove real OAuth login, keyboard/VoiceOver order, Keychain prompts, or server authentication. Never change the developer's active login in automated tests.
 
 ```sh
-swift test --filter CodexAccount
-swift test --filter ClaudeAccount
-swift test --filter AccountUsageLayoutTests
+python3 Scripts/prepare_swift_dependencies.py --run-swift test --filter 'CodexAccount|ClaudeAccount|AccountUsageLayoutTests'
 ```
 
 Windows has its own DPAPI vault and transaction behavior; do not apply macOS Keychain assumptions. [Windows](WINDOWS.md) · [Privacy](PRIVACY.md).

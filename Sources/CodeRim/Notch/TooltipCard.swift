@@ -1,11 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// The speech-bubble tail, its point aimed at the hovered cell.
-///
-/// Its shoulders leave the card tangent to the card's edge. That continuous
-/// tangent is what makes the two pieces read as one moulded silhouette rather
-/// than a triangle pasted onto a rounded rectangle.
+/// Tangent shoulders join the tail and rounded card into one silhouette.
 private struct TooltipTail: Shape {
     /// Which way the card sits relative to the notch — the tip points back the
     /// other way, at the cell.
@@ -70,11 +66,8 @@ private struct TooltipTail: Shape {
 /// The card chrome every tooltip shares: fixed width, the frame's padding and
 /// corner, and the tail welded on so there is no seam between them.
 private struct TooltipShell<Content: View>: View {
-    /// Given explicitly rather than left to the contents.
-    ///
-    /// Sized by its contents, the card's height changes the instant they do —
-    /// and the tail, centred on that height, jumps with it while the card's
-    /// position is still gliding. The two halves then visibly come apart.
+    /// Hold card height explicitly so tail centring does not jump before the card’s position animation
+    /// catches up.
     let height: CGFloat
     /// Which side of the notch the card is on, so the tail goes on the other one.
     let direction: NotchEdge.TooltipDirection
@@ -84,15 +77,8 @@ private struct TooltipShell<Content: View>: View {
     @Environment(\.notchReduceTransparency) private var reduceTransparency
 
     private var card: some View {
-        // The same arrangement that makes the notch fold work: the contents
-        // are laid out once at their natural size and never move, and it is
-        // the *mask* that changes size over them.
-        //
-        // The obvious alternative — putting the contents inside a frame of
-        // the animating height — makes SwiftUI re-align them on every frame
-        // of the animation, so the rows drift vertically inside the card and
-        // the top ones slide out under the clip. Nothing should move here
-        // except the boundary.
+        // Lay content out at natural size and animate only its mask; animating its frame would realign
+        // rows.
         ZStack(alignment: .top) {
             RoundedRectangle(cornerRadius: NotchLayout.cardCorner, style: .circular)
                 .fill(NotchPalette.card)
@@ -234,11 +220,8 @@ private struct StatusRing: View {
                     // "in progress" without anything moving.
                     ring(trim: 0.75)
                 } else {
-                    // A timeline rather than `repeatForever`. An endless
-                    // animation has to be cancelled to stop, and setting the
-                    // value it is already heading towards does not cancel it —
-                    // which is exactly how the refresh ring here once span for
-                    // ever. Derived from the clock, it simply stops being drawn.
+                    // A clock-derived spinner stops on removal; repeatForever can survive setting its target value
+                    // again.
                     TimelineView(.animation) { context in
                         ring(trim: 0.75)
                             .rotationEffect(.degrees(angle(at: context.date)))
@@ -458,11 +441,7 @@ private struct ProviderTooltip: View {
 }
 
 
-/// The line that says you are stopped.
-///
-/// Deliberately loud where the rest of the card is quiet: it is the one thing
-/// here that changes what you can do next, and it can be true while the
-/// percentage beside it still reads comfortable.
+/// Make blocking guidance prominent even when the adjacent headline allowance still has room.
 private struct BlockedRow: View {
     let text: String
 
@@ -751,11 +730,7 @@ struct TooltipCard: View {
                     }, tokenTotals: tokenTotals)
                 }
             }
-            // An identity, so one provider's rows are never interpolated
-            // into another's — that is what slid text through positions
-            // belonging to neither layout. A crossfade rather than an
-            // instant swap, so the change is part of the movement instead
-            // of a cut in the middle of it.
+            // Crossfade provider contents by identity; never interpolate rows between unrelated layouts.
             .id(snapshot.id)
             .transition(.opacity.animation(NotchMotion.crossfade))
         }

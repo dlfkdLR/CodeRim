@@ -13,6 +13,7 @@
   <ItemGroup>
     <PackageReference Include="xunit.v3" Version="3.2.2" />
     <EmbeddedResource Include="Fixtures/AnalyticsAxisReference.json" />
+    <EmbeddedResource Include="../../../Tests/Fixtures/mobile-pairing-v1.txt" LogicalName="mobile-pairing-v1.txt" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\CodeRim.Core\CodeRim.Core.csproj" />

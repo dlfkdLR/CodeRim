@@ -323,3 +323,137 @@ extension NotchClaudeTranscriptReaderTests {
         XCTAssertEqual(after?.since, ended)
     }
 }
+
+extension NotchClaudeTranscriptReaderTests {
+    func testTitleAfterALargeTranscriptAndOversizedUnfinishedLine() throws {
+        let url = try write("", folder: "-Users-vinz-app", session: "abc")
+        let output = try FileHandle(forWritingTo: url)
+        defer { try? output.close() }
+        let chunk = Data(repeating: 0x20, count: TranscriptLineCursor.chunkBytes)
+        for _ in 0..<128 { try output.write(contentsOf: chunk) }
+        try output.write(contentsOf: Data(("\n" + #"{"type":"ai-title","aiTitle":"Near EOF"}"# + "\n").utf8))
+        let reader = ClaudeTranscriptReader(projects: projects)
+        XCTAssertEqual(reader.title(sessionID: "abc", cwd: "/Users/vinz/app"), "Near EOF")
+        for _ in 0..<128 { try output.write(contentsOf: chunk) }
+        for _ in 0..<3 {
+            XCTAssertEqual(reader.title(sessionID: "abc", cwd: "/Users/vinz/app"), "Near EOF")
+        }
+        try output.write(contentsOf: Data(("\n" + #"{"type":"custom-title","customTitle":"After skipped tail"}"# + "\n").utf8))
+        XCTAssertEqual(reader.title(sessionID: "abc", cwd: "/Users/vinz/app"), "After skipped tail")
+    }
+
+    func testCompletedLargeTranscriptsReleaseCarryAndEvictOldTitleCursors() throws {
+        let reader = ClaudeTranscriptReader(projects: projects)
+        let padding = String(repeating: "x", count: 900 * 1024) + "\n"
+        for index in 0..<80 {
+            let title = "Title \(index)"
+            try write(padding + "{\"type\":\"ai-title\",\"aiTitle\":\"\(title)\"}\n",
+                      folder: "-Users-vinz-app", session: "s\(index)")
+            XCTAssertEqual(reader.title(sessionID: "s\(index)", cwd: "/Users/vinz/app"), title)
+        }
+        let cached = try XCTUnwrap(Mirror(reflecting: reader).children.first { $0.label == "titles" }?.value
+            as? [String: ClaudeTranscriptReader.TitleScan])
+        XCTAssertLessThanOrEqual(cached.count, 64)
+        XCTAssertNil(cached["s0"])
+        XCTAssertTrue(cached.values.allSatisfy { $0.cursor.carry.isEmpty })
+        XCTAssertEqual(reader.title(sessionID: "s0", cwd: "/Users/vinz/app"), "Title 0")
+    }
+
+    func testTitleSplitAcrossChunksAndRewriteAfterAnUnfinishedTail() throws {
+        let prefix = String(repeating: " ", count: TranscriptLineCursor.chunkBytes - 20) + "\n"
+        let url = try write(prefix + #"{"type":"ai-title","aiTitle":"Split title"}"# + "\n",
+                            folder: "-Users-vinz-app", session: "abc")
+        let reader = ClaudeTranscriptReader(projects: projects)
+        XCTAssertEqual(reader.title(sessionID: "abc", cwd: "/Users/vinz/app"), "Split title")
+        let output = try FileHandle(forWritingTo: url)
+        try output.seekToEnd()
+        try output.write(contentsOf: Data(repeating: 0x78, count: TranscriptLineCursor.lineBytes * 2))
+        try output.close()
+        XCTAssertEqual(reader.title(sessionID: "abc", cwd: "/Users/vinz/app"), "Split title")
+        try Data((#"{"type":"ai-title","aiTitle":"Rewritten"}"# + "\n").utf8).write(to: url)
+        XCTAssertEqual(reader.title(sessionID: "abc", cwd: "/Users/vinz/app"), "Rewritten")
+    }
+
+    func testBoundedCursorRetainsCompletedPositionWithoutRereadingOversizedTail() throws {
+        let url = try write("ok\n" + String(repeating: "x", count: TranscriptLineCursor.lineBytes * 4),
+                            folder: "-Users-vinz-app", session: "abc")
+        let input = try FileHandle(forReadingFrom: url)
+        defer { try? input.close() }
+        var cursor = TranscriptLineCursor()
+        let end = try input.seekToEnd()
+        var lines: [Data] = []
+        try cursor.read(input, through: end) { lines.append($0) }
+        XCTAssertEqual(lines, [Data("ok".utf8)])
+        XCTAssertEqual(cursor.offset, 3)
+        XCTAssertEqual(cursor.readOffset, end)
+        XCTAssertTrue(cursor.discarding)
+        XCTAssertLessThanOrEqual(cursor.carry.count, TranscriptLineCursor.lineBytes)
+        try cursor.read(input, through: end) { _ in XCTFail("Unfinished bytes were emitted") }
+        XCTAssertEqual(cursor.readOffset, end)
+        let output = try FileHandle(forWritingTo: url)
+        try output.seekToEnd()
+        try output.write(contentsOf: Data("\nkept\npartial".utf8))
+        try output.close()
+        try cursor.read(input, through: input.seekToEnd()) { lines.append($0) }
+        XCTAssertEqual(lines, [Data("ok".utf8), Data("kept".utf8)])
+        XCTAssertEqual(cursor.carry, Data("partial".utf8))
+        XCTAssertEqual(cursor.offset, cursor.readOffset - 7)
+    }
+
+    func testActivityReaderSkipsOversizedAndUnfinishedRecords() throws {
+        let url = try write("match " + String(repeating: "x", count: TranscriptLineCursor.lineBytes + 1)
+                            + "\nmatch retained\nmatch unfinished", folder: "-Users-vinz-app", session: "abc")
+        var lines: [String] = []
+        TranscriptLines.forEachLine(of: url, containingAny: ["match"], copying: false) {
+            lines.append(String(decoding: $0, as: UTF8.self))
+        }
+        XCTAssertEqual(lines, ["match retained"])
+    }
+
+    @MainActor
+    func testInitialMonitorScanKeepsTheMainActorResponsiveAndStopRejectsLatePublication() async throws {
+        let registry = projects.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: registry, withIntermediateDirectories: true)
+        let started = Int((ProcessLiveness.startTime(pid: getpid()) ?? Date()).timeIntervalSince1970 * 1000)
+        let metadata = """
+        {"pid":\(getpid()),"sessionId":"abc","cwd":"/Users/vinz/app","startedAt":\(started),"status":"busy","kind":"interactive"}
+        """
+        try metadata.write(to: registry.appendingPathComponent("session.json"), atomically: true, encoding: .utf8)
+        let url = try write("", folder: "-Users-vinz-app", session: "abc")
+        let output = try FileHandle(forWritingTo: url)
+        let chunk = Data(String(repeating: #"{"type":"progress"}"# + "\n", count: 4096).utf8)
+        for _ in 0..<128 { try output.write(contentsOf: chunk) }
+        try output.write(contentsOf: Data((#"{"type":"ai-title","aiTitle":"Late title"}"# + "\n").utf8))
+        try output.close()
+        let monitor = ClaudeSessionMonitor(directory: registry, projects: projects, livenessInterval: 60)
+        defer { monitor.stop() }
+        let start = ContinuousClock.now
+        monitor.start()
+        XCTAssertLessThan(start.duration(to: .now), .milliseconds(500))
+        var beats = 0
+        let deadline = ContinuousClock.now + .seconds(15)
+        while monitor.sessions.isEmpty, ContinuousClock.now < deadline {
+            let before = ContinuousClock.now
+            try await Task.sleep(for: .milliseconds(10))
+            XCTAssertLessThan(before.duration(to: .now), .milliseconds(500))
+            beats += 1
+        }
+        XCTAssertGreaterThan(beats, 0)
+        XCTAssertEqual(monitor.sessions.first?.name, "Late title")
+        // A stopped generation must never publish a queued scan's results.
+        let append = try FileHandle(forWritingTo: url)
+        try append.seekToEnd()
+        try append.write(contentsOf: Data((#"{"type":"custom-title","customTitle":"Restarted"}"# + "\n").utf8))
+        try append.close()
+        monitor.start()
+        monitor.stop()
+        try await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(monitor.sessions.first?.name, "Late title")
+        monitor.start()
+        let restartDeadline = ContinuousClock.now + .seconds(5)
+        while monitor.sessions.first?.name != "Restarted", ContinuousClock.now < restartDeadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        XCTAssertEqual(monitor.sessions.first?.name, "Restarted")
+    }
+}

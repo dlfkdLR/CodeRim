@@ -17,6 +17,8 @@ for test_script in Tests/Scripts/*_tests.zsh; do "$test_script"; done
 Scripts/build_release.sh
 ```
 
+CI는 Swift 테스트·iOS 테스트·Universal 릴리스 빌드를 병렬 실행합니다. Swift 캐시는 빌드 종류·도구 버전·고정 의존성별로 분리하고, 내용이 일치하는 소스의 시간 정보만 복원해 증분 컴파일을 유지합니다. Windows는 한 번 패키징한 정확한 아카이브를 x64·ARM64에서 병렬 검증합니다. 문서·웹사이트·Relay·Windows만 바꾸면 빠른 검사를 유지하고 Apple 빌드는 생략합니다. 기능 브랜치는 PR 검사로 실행하며, `main` push와 전체 수동 실행도 지원합니다.
+
 준비 명령은 `Config/DependencyPatches`의 검토된 CodexBar Swift·C 경고 수정을 전용 `.build/coderim-build` 안에만 적용하고, 고정 revision과 SwiftPM repository 연결을 유지합니다. 래퍼는 준비·빌드·테스트·사후 소스 해시 및 `Package.resolved` 확인까지 같은 잠금을 유지합니다. CI와 릴리스 빌드는 Swift 컴파일 경고가 있으면 실패합니다. 기존 수동 빌드, editable override, 전역 SwiftPM 캐시는 보존합니다. 별도 `--scratch-path`는 `--run-swift` 앞에 지정하고, 도구 버전에 따른 제품 위치는 `--show-bin-path`로 확인합니다.
 
 C 패치는 고정된 QuickJS의 정수 변환을 명시적으로 표현합니다. 회귀 검사는
@@ -27,7 +29,8 @@ ARM64·x86_64의 생성 어셈블리를 비교하고 숫자·Unicode·큰 배열
 기록된 패치가 바뀌면 이전 기록 파일이 있는 빌드 디렉터리의 사용을 거부합니다.
 `--scratch-path`에 새 빈 디렉터리를 지정하고, Python 회귀 검사의
 `CODERIM_DEPENDENCY_TEST_SCRATCH`도 같은 경로로 설정합니다. 기존 checkout과
-기록 파일은 유지합니다. 릴리스 빌드는 기본적으로 새 디렉터리를 사용합니다.
+기록 파일은 유지합니다. 릴리스 빌드는 기본적으로 `.build/coderim-build`를
+유지하여 appcast 생성 시 같은 고정 Sparkle 도구를 재사용합니다.
 `CODERIM_SWIFT_SCRATCH_PATH`를 직접 지정한다면 현재 패치와 일치해야 합니다.
 
 문서만 변경하면 `python3 Scripts/validate_docs.py`를 실행합니다. 영어 기본 경로와 대응 한국어 탐색, 제공업체 ID, 명령어, 코드 블록, 버전·파일, 원본 제한을 맞춥니다. 날짜별 릴리스·감사 기록의 사실은 유지합니다. Windows는 [Windows 문서](Documentation/WINDOWS.ko.md)의 기본 .NET 테스트·아키텍처별 workflow를 따릅니다.
