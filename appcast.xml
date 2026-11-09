@@ -4,36 +4,30 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.33</title>
-            <pubDate>Fri, 06 Nov 2026 08:50:06 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.33</link>
-            <sparkle:version>20133</sparkle:version>
-            <sparkle:shortVersionString>2.1.33</sparkle:shortVersionString>
+            <title>2.1.35</title>
+            <pubDate>Mon, 09 Nov 2026 09:20:14 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.35</link>
+            <sparkle:version>20135</sparkle:version>
+            <sparkle:shortVersionString>2.1.35</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.33
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.35
 
-A macOS release. Windows is at 2.1.34.
+A macOS release. Windows stays at 2.1.34; it never had this card.
 
-## A working chat no longer shows "Done"
+## The time-left card is removed
 
-- Claude Code writes each streamed block of a reply as its own record, and a thinking block is saved with an end-of-turn marker before the answer follows. CodeRim read that as the end of the turn, so a chat that was still working could show "Done", and after 90 seconds drop out of the notch's list. A reply now counts as finished only when its last block is the answer, and a block still being written counts as working.
-
-## Sub-agent sound is off by default
-
-- Settings → Edge Notch → When a Session Ends has a new **Sound for sub-agents** switch. It is off, so a sub-agent finishing no longer plays the chime; the chat that started it still does, even when both finish together. Turn it on to hear every one. It follows the **Play a sound** switch.
-
-## The folded notch wakes in a smaller area
-
-- The pointer used to wake the folded notch up to about 34 pt away from the screen edge, which reached well below the menu bar beside a display notch. The band is now about 12 pt past the folded shape.
+- The "Time left (beta)" card that appeared when hovering a working chat in the notch is gone, along with its Settings → Edge Notch section and the notch panel's reserved width for it.
+- The optional Claude Code compaction hook switch was part of that section and is gone with it. A hook you installed earlier is left as it is; CodeRim no longer reads or manages it from Settings.
+- Nothing else about sessions, the "Done" state or sounds changes.
 
 ## Verification
 
-macOS: build with warnings as errors; the full test suite passes with 0 failures, including new tests for the sub-agent sound choice, the setting's default, the thinking-block case and the narrower wake area. None of it was checked by eye on a real session.
+macOS: build with warnings as errors; the full test suite passes with 0 failures. The removal was not checked by eye on a real session.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.33/CodeRim-2.1.33.zip" length="32977379" type="application/octet-stream" sparkle:edSignature="mcSw06POosYF9eA7XsPTiWAX9JX0kwBZdR9edI7QAqVAanpLFPNKTcZADX4Dsr4NBHn34jGNI3I74RUYQWI0AA=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.35/CodeRim-2.1.35.zip" length="32684130" type="application/octet-stream" sparkle:edSignature="RyH1m0z3OHeSyE13lgDsqXsIpSHndM/4VqPJBwwwSLdC42Ydee97JGBJzcOZHKJBJ+O8ESqGUjT2XF40E3NbCQ=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: 8GWo+kbVZKT2ZnpjOWb4A4B6Qpx+4DCqtVx6Xmr5KCmis+7KWcX44MmihvzX05q8C2WOAmFOnEtIOH5XPgj6Dg==
-length: 2585
+edSignature: pY98VOpZfTzpZhFezjxK5+yJlZFvWf+53x+rtwygZeUN4njxO6FI8htbmIRWKOZMN732SIqqXW3KBS+g93RLAA==
+length: 1928
 -->
