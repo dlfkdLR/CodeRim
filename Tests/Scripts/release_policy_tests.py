@@ -75,7 +75,7 @@ elif "-d" in args:
                     target = root / name
                     target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(ROOT / name, target)
-                for name in [workflow, "release_unsigned.sh", "build_release.sh", "generate_appcast.sh", "package_release.sh", "verify_license_notices.sh"]:
+                for name in [workflow, "release_unsigned.sh", "build_release.sh", "generate_appcast.sh", "package_release.sh", "verify_license_notices.sh", "verify_update_policy.sh"]:
                     target = root / "Scripts" / name
                     target.parent.mkdir(exist_ok=True)
                     shutil.copyfile(ROOT / "Scripts" / name, target)

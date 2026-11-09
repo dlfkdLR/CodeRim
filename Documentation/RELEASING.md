@@ -10,6 +10,8 @@ Use the prepared-dependency commands in [Contributing](../CONTRIBUTING.md); do n
 
 `Scripts/build_release.sh` builds an ad-hoc Universal 2 app with helper, extension, framework, and resource bundles. It requires suitable Apple build tools, not an Apple signing certificate. `Scripts/release.sh` is a certificate-backed path requiring `CODE_SIGN_IDENTITY` and `CODE_SIGN_TEAM_ID`; it is not a prerequisite for every contributor PR. A build is not a notarization, installation, or release.
 
+Signed-feed failures never expire: `SUSignedFeedFailureExpirationInterval` is `0`, with `SURequireSignedFeed` and `SUVerifyUpdateBeforeExtraction` enabled. Startup, source builds, and original/ZIP/DMG app verification enforce this policy through `Scripts/verify_update_policy.sh`. Keep the signing key available when recovering or rotating keys.
+
 ## Certificate-free macOS stable gate
 
 A maintainer needs a clean immutable tagged worktree, GitHub access to the source releases/update-feed and Homebrew tap, and the Sparkle Ed25519 private key in login Keychain under the configured account `HechoLP`. Never commit private keys, certificates, Apple credentials, or notary profiles. Only public signing keys belong in metadata.

@@ -17,6 +17,8 @@ Codex requires a vendor-signed desktop at `/Applications/Codex.app` or `/Applica
 5. Reopen the official desktop. Read `account/read` through the bundled official CLI with `refreshToken: false`; match returned ChatGPT email and full shared-file workspace/subject identity. Existing CLI sessions may retain credentials, so restart them manually. A local check is not remote authentication proof.
 6. If the post-write identity check fails, show an unverified result and re-read the current account. Do not overwrite a concurrent sign-in/renewal with an automatic rollback. Saved-account limit viewing uses a separate private home and may renew its saved login. Persist that renewal only if the saved bytes still match the probe base; a newer login or removal wins.
 
+Credential privacy checks include extended ACLs on login/profile files, locks and their directories. Deny-only ACLs and current-user grants are accepted; other grants or inspection errors stop the operation. Temporary login homes are checked before creation, and user ACLs are never rewritten.
+
 ## Claude accounts
 
 The default macOS subscription OAuth Keychain record and `~/.claude.json` profile are supported. Custom `CLAUDE_CONFIG_DIR`, managed/API-key authentication, and non-Keychain credentials remain owned by Claude Code.

@@ -49,6 +49,7 @@ verify_app() {
   local claude_bridge="${candidate}/Contents/Helpers/CodeRimClaudeBridge"
 
   plutil -lint "${info_plist}"
+  "${script_dir}/verify_update_policy.sh" "${info_plist}"
   codesign --verify --deep --strict --verbose=2 "${candidate}"
 
   local actual_bundle_id actual_version actual_build actual_minimum_system ui_element

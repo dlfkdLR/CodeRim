@@ -147,9 +147,7 @@ final class LocalCodexAccountRuntime: CodexAccountRuntime {
     }
 
     private func temporaryHome() throws -> URL {
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("coderim-account-\(UUID().uuidString)", isDirectory: true)
-        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
-        return directory
+        try CredentialFileSafety.makeTemporaryHome()
     }
 
     private func request(_ method: String, params: [String: Any]) async throws -> [String: Any] {
