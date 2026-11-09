@@ -6,9 +6,9 @@
 
 ## Platform and stack
 
-macOS 14+ is the primary native app: Swift, SwiftUI, AppKit, Foundation, Swift Concurrency, SQLite, OSLog, CoreServices, ServiceManagement, and Sparkle. Public macOS packages are Universal 2. Windows 11 is an implementation preview using WPF, .NET 10, and SQLite, with self-contained x64/ARM64 MSI packages. Neither desktop platform needs a separate runtime. Windows widgets are outside the current scope.
+macOS 14+ is the primary native app: Swift, SwiftUI, AppKit, Foundation, Swift Concurrency, SQLite, OSLog, CoreServices, ServiceManagement, and Sparkle. Public macOS packages are Universal 2. Windows 11 has a stable 2.1.34 release using WPF, .NET 10, and SQLite, with self-contained x64/ARM64 MSI packages. Neither desktop platform needs a separate runtime. Windows widgets are outside the current scope.
 
-An optional source-level iPhone companion targets iOS 17.2+ with SwiftUI, ActivityKit, APNs, Sign in with Apple, and an explicitly configured Node 24 relay. It requires provisioning and server setup; it is not an available public App Store release. [Platform contracts](Documentation/README.md).
+An optional, unreleased native iPhone companion targets iOS 17.2+ with SwiftUI, WidgetKit Live Activities, ActivityKit, and APNs. It pairs anonymously by QR code without an Apple ID or sign-in, through a Cloudflare Worker and SQLite-backed Durable Object relay. It requires provisioning and relay configuration; it is not an available public App Store or TestFlight release. [Platform contracts](Documentation/README.md).
 
 ## Users and purpose
 

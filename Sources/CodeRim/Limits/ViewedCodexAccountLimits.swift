@@ -67,11 +67,10 @@ final class ViewedCodexAccountLimits: ObservableObject {
     /// changed since (the account was signed in again), when the new one wins.
     private func saveWaiting(accounts: CodexAccountStore) {
         for (id, pending) in unsaved {
-            guard let saved = try? accounts.savedAccount(id), saved.loginData == pending.base else {
-                unsaved[id] = nil
-                continue
+            switch accounts.storeRotatedLogin(pending.renewed, for: id, expecting: pending.base) {
+            case .saved, .superseded: unsaved[id] = nil
+            case .retry: break
             }
-            if accounts.storeRotatedLogin(pending.renewed, for: id) { unsaved[id] = nil }
         }
     }
     func select(_ id: String?, accounts: CodexAccountStore) async {
@@ -96,12 +95,15 @@ final class ViewedCodexAccountLimits: ObservableObject {
         // dropping it would leave a saved copy that no longer works.
         func keep(_ rotated: Data) {
             guard let base else { return }
-            if accounts.storeRotatedLogin(rotated, for: id) { unsaved[id] = nil }
-            else { unsaved[id] = (base, rotated) }
+            switch accounts.storeRotatedLogin(rotated, for: id, expecting: base) {
+            case .saved, .superseded: unsaved[id] = nil
+            case .retry: unsaved[id] = (base, rotated)
+            }
         }
         do {
             saveWaiting(accounts: accounts)
             guard let saved = try accounts.savedAccount(id) else { throw AccountSwitchError.invalidLogin }
+            if unsaved[id]?.base != saved.loginData { unsaved[id] = nil }
             base = unsaved[id]?.base ?? saved.loginData
             let result = try await reader(unsaved[id]?.renewed ?? saved.loginData)
             if let rotated = result.rotatedLogin { keep(rotated) }

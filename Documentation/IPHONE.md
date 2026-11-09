@@ -6,13 +6,13 @@ This is unreleased source, separate from the public macOS DMG/Windows MSI. iOS 1
 
 ## Components and provisioning
 
-`iOS/CodeRimMobile.xcodeproj` includes the app, the Live Activity extension, unit tests, and UI tests; use scheme `CodeRimMobile`. Select the same Apple development team for app and extension, register unique bundle IDs, and enable Push Notifications. `NSSupportsLiveActivities` and `NSCameraUsageDescription` are set, and the app handles `coderim://pair` links, so the system Camera app can also open a pairing code. Regenerate the project and shared scheme through `iOS/generate_project.py` after source configuration changes.
+`iOS/CodeRimMobile.xcodeproj` includes the app, the Live Activity extension, unit tests, and UI tests; use scheme `CodeRimMobile`. Select the same Apple development team for app and extension, register unique bundle IDs, and enable Push Notifications. `NSSupportsLiveActivities` and `NSCameraUsageDescription` are set, and enrollment uses only the app’s scanner or explicit paste action. External URLs can open `coderim://dashboard` but cannot pair a computer. Regenerate the project and shared scheme through `iOS/generate_project.py` after source configuration changes.
 
 ```sh
 xcodebuild -project iOS/CodeRimMobile.xcodeproj -scheme CodeRimMobile -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' -derivedDataPath /tmp/coderim-iphone-derived CODE_SIGN_IDENTITY=- build
 ```
 
-Use an installed simulator destination for `test` and keep ad-hoc signing (`CODE_SIGN_IDENTITY=-`) for Keychain and WidgetKit checks; `CODE_SIGNING_ALLOWED=NO` is not equivalent and makes Keychain access fail. The Simulator has no camera, so the scanner offers the Camera app and a paste field instead. Development signing uses sandbox APNs; TestFlight and App Store use production.
+Use an installed simulator destination for `test` and keep ad-hoc signing (`CODE_SIGN_IDENTITY=-`) for Keychain and WidgetKit checks; `CODE_SIGNING_ALLOWED=NO` is not equivalent and makes Keychain access fail. The Simulator has no camera, so choose **Copy pairing code** on the computer and use the scanner’s paste button. The system Camera app cannot enroll a computer. Development signing uses sandbox APNs; TestFlight and App Store use production.
 
 The relay address every computer uses is `CodeRimRelayURL` in `Config/Info.plist` (macOS) and `MobileConnectionStore.DefaultRelay` (Windows). Both point to `https://coderim-relay.pages.dev`. Either app can override it in its iPhone settings for self-hosting.
 
@@ -45,13 +45,13 @@ The Free plan allows about 100,000 requests and 100,000 row writes per day for t
 | 70% and above | New accounts and pairings get `503 server_busy`. Responses, the Island content state, and desktop settings carry a notice; each running Island gets one alert per day. Computers are told to send heartbeats every 10 minutes. |
 | 90% and above | As above, with 30-minute heartbeats. |
 
-Heartbeats with unchanged content update only memory, never storage. A computer counts as online for 11 minutes after its last post. In practice this supports roughly 150–300 active computers per day; past that, the relay pauses until 00:00 UTC.
+Steady heartbeats with unchanged content update only memory. A change in the advertised heartbeat interval persists the freshness horizon once. A computer counts as online for 11 minutes after its last post, or 31 minutes while it uses the critical 30-minute heartbeat. In practice this supports roughly 150–300 active computers per day; past that, the relay pauses until 00:00 UTC.
 
 ## Pairing and data flow
 
-1. The computer calls `POST /v1/pairing/start` with its platform and name, and shows `coderim://pair?r=<relay origin>&i=<id>&s=<secret>` as a QR code. The 256-bit secret is stored only as a hash and expires after five minutes.
+1. The computer calls `POST /v1/pairing/start` with its platform and name, and shows the non-URL text `CODERIM-PAIR-1\n<HTTPS relay origin>\n<id>\n<secret>` as a QR code (four lines, LF separators, at most 512 UTF-8 bytes). The app accepts only this envelope through its own scanner or paste action; legacy `coderim://pair` URLs are rejected. This keeps the complete pairing capability out of unbound custom-scheme routing. The 256-bit secret is stored only as a hash and expires after five minutes.
 2. On its first scan, the iPhone creates an anonymous account with `POST /v1/accounts`. The account has no Apple ID, email, or name: only a bearer token kept in the iPhone Keychain. The iPhone then claims the code with `POST /v1/pairing/claim`.
-3. The computer holds `POST /v1/pairing/poll` open for up to 20 seconds at a time and receives its own publishing token as soon as the code is claimed. Each code works once. Up to 16 computers belong to one iPhone.
+3. The computer holds `POST /v1/pairing/poll` open for up to 20 seconds at a time and receives its own publishing token as soon as the code is claimed. Swift uses a poll-specific 30-second request and 35-second resource deadline; ordinary requests retain 15/20-second deadlines. Each code works once. Up to 16 computers belong to one iPhone.
 4. Tokens last a year and renew whenever they are used. The relay stores SHA-256 token hashes. Desktop tokens use Apple Keychain or Windows DPAPI and are tied to the relay origin. TLS protects transit, but the relay can read shared data.
 5. Computers build an allowlisted snapshot every 15 seconds and send it only when it changed, or when the heartbeat the relay asked for is due. The default payload includes provider names, at most two quota windows, reading time, Today tokens, and task states and counts. Titles are opt-in and capped at 60 characters. Vendor credentials, full paths, prompts, transcript or attachment bytes, and session IDs are never sent.
 
@@ -78,6 +78,7 @@ All JSON responses use `Cache-Control: no-store`. Non-public routes require `Aut
 | DELETE | `/v1/devices/:id` | Mobile; remove only own device |
 | PUT | `/v1/preferences` | Mobile; providerIDs, maximum 100; empty means all |
 | POST/DELETE | `/v1/activities` | Mobile; register or stop the current Live Activity |
+| POST | `/v1/activities/resume` | Mobile; explicit user Start clears that phone’s Stop suppression before local creation; ordinary registration cannot resume |
 | POST/DELETE | `/v1/push-to-start` | Mobile; register or remove the push-to-start token |
 | DELETE | `/v1/session` | Current device; disconnect |
 | DELETE | `/v1/account` | Mobile; delete the account, its computers, and data |
@@ -88,4 +89,4 @@ Focus belongs to each iPhone and computer. Direct provider selection through `/v
 
 Disconnecting the iPhone deletes its account, computers, and stored snapshots, and schedules APNs end retries. A delivery token can remain until APNs succeeds, reports a permanent error, or the 8-hour Activity limit passes.
 
-`npm test` covers QR pairing, anonymous accounts, isolation between phones, heartbeats that write nothing, the budget levels and notices, push-to-start and idle end, HTTP limits, the APNs provider token, and the existing focus and picker contracts. DEBUG UI fixtures (`--ui-settings`, `--ui-dashboard` with it for the home screen, `--ui-empty-settings`, `--ui-no-services`, `--ui-dark`, `--ui-large-text`) use a memory relay and disable real account and Activity actions. Real APNs delivery from the deployed Worker, camera scanning on a device, battery and latency, and physical Island interaction remain separate checks. [Privacy](PRIVACY.md).
+`npm test` covers QR pairing, anonymous accounts, isolation between phones, heartbeats that write nothing, the budget levels and notices, push-to-start and idle end, HTTP limits, the APNs provider token, and the existing focus and picker contracts. DEBUG UI fixtures (`--ui-settings`, `--ui-dashboard` with it for the home screen, `--ui-empty-settings`, `--ui-no-services`, `--ui-dark`, `--ui-large-text`, and the isolated `--ui-scanner` paste fixture) use a memory relay or scanner-only view and disable real account and Activity actions. Real APNs delivery from the deployed Worker, camera scanning on a device, battery and latency, and physical Island interaction remain separate checks. [Privacy](PRIVACY.md).

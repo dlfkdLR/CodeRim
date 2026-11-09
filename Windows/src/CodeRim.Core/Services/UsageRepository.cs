@@ -128,7 +128,11 @@ public sealed class UsageRepository
             if (usageEvent.Provider != provider) continue;
             // An inconsistent row is stored as its closest valid value and reported, never dropped silently.
             var usage = usageEvent.Usage;
-            if (!usage.IsValid) { usage = usage.ClampedToValid(); repaired++; repairedRows.Add((usageEvent.EventKey, usageEvent.OccurredAt)); }
+            if (usageEvent.Repaired || !usage.IsValid)
+            {
+                usage = usage.ClampedToValid(); repaired++;
+                repairedRows.Add((usageEvent.EventKey, usageEvent.OccurredAt));
+            }
             if (provider == "claude" && usageEvent.ImportParentSessionId is { } parent)
             {
                 importedLinks[usageEvent.SessionId] = parent; importedLinks.TryAdd(parent, null);
@@ -207,7 +211,7 @@ public sealed class UsageRepository
         foreach (var (id, time) in repairedRows)
         {
             command.Parameters.Clear();
-            command.CommandText = "INSERT INTO repaired_events VALUES($provider,$id,$time) ON CONFLICT(provider,id) DO UPDATE SET time=MIN(time,excluded.time)";
+            command.CommandText = "INSERT INTO repaired_events SELECT $provider,$id,$time WHERE EXISTS(SELECT 1 FROM events WHERE provider=$provider AND id=$id) ON CONFLICT(provider,id) DO UPDATE SET time=MIN(time,excluded.time)";
             command.Parameters.AddWithValue("$provider", provider); command.Parameters.AddWithValue("$id", id);
             command.Parameters.AddWithValue("$time", time.ToUnixTimeMilliseconds()); command.ExecuteNonQuery();
         }

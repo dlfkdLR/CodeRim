@@ -66,7 +66,7 @@ struct MobileSettingsSection: View {
 
     @ViewBuilder private func pairingCode(_ link: MobilePairingLink) -> some View {
         VStack(spacing: 16) {
-            if let image = Self.qrImage(link.url.absoluteString) {
+            if let image = Self.qrImage(link.qrPayload) {
                 // A white tile with a quiet zone: scanners need the margin, and it sits as one object.
                 Image(nsImage: image).interpolation(.none).resizable()
                     .frame(width: 176, height: 176)
@@ -81,6 +81,11 @@ struct MobileSettingsSection: View {
                     .font(.callout).foregroundStyle(.secondary)
             }
             .multilineTextAlignment(.center)
+            Button("Copy pairing code") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(link.qrPayload, forType: .string)
+            }
+            .buttonStyle(.link)
             if let expiry = connection.pairingExpiresAt, expiry > Date() {
                 VStack(spacing: 5) {
                     // The bar and the clock tick on their own; nothing re-renders the QR code.

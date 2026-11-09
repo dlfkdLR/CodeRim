@@ -120,6 +120,52 @@ public sealed class UsageScannerTests
         }
         finally { Directory.Delete(root, true); }
     }
+    [Theory]
+    [InlineData(110, 15, 125)]
+    [InlineData(100, 10, 110)]
+    public async Task ScannerRepairsStayPartialAfterSourceDeletionReopenAndDuplicateMerge(long nextInput, long nextOutput, long total)
+    {
+        var root = CreateTemporaryDirectory();
+        try
+        {
+            var source = Path.Combine(root, "repaired.jsonl");
+            File.WriteAllLines(source, ["""{"type":"session_meta","payload":{"id":"repaired"}}""",
+                TokenLine("2026-08-27T01:00:01Z", 1, 100, 20, 10),
+                TokenLine("2026-08-27T01:00:02Z", 2, nextInput, 40, nextOutput)]);
+            File.Copy(source, Path.Combine(root, "copy.jsonl"));
+            var scanner = new UsageScanner([root]);
+            var scanned = await scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            Assert.Equal(DataQuality.Partial, scanned.Snapshot.Quality);
+            var repaired = Assert.Single(scanned.Events, e => e.Repaired);
+            Assert.Equal(new TokenUsage(nextInput - 100, nextInput - 100, nextOutput - 10), repaired.Usage);
+            var path = Path.Combine(root, "usage.sqlite");
+            var repository = new UsageRepository(path);
+            repository.Merge("codex", scanned.Events);
+            Assert.Equal(1, repository.LastWriteRepairedEvents);
+            Assert.True(repository.HasRepairedEventsSince("codex", repaired.OccurredAt));
+            repository.Merge("codex", scanned.Events.Select(e => e with { Repaired = false }));
+            File.Delete(source); File.Delete(Path.Combine(root, "copy.jsonl"));
+            var missing = await scanner.ScanAsync(WeekStart.Monday, TestContext.Current.CancellationToken);
+            var retained = repository.Merge("codex", missing.Events);
+            Assert.Equal(2, retained.Count);
+            var reopened = new UsageRepository(path);
+            Assert.True(reopened.HasRepairedEventsSince("codex", repaired.OccurredAt));
+            var summary = UsageScanner.Aggregate(retained, repaired.OccurredAt.AddMinutes(1), WeekStart.Monday,
+                reopened.HasRepairedEventsSince("codex", repaired.OccurredAt));
+            Assert.Equal(DataQuality.Partial, summary.Quality);
+            Assert.Equal(total, summary.AllTime.TotalTokens);
+            reopened.Rebuild("codex", scanned.Events);
+            Assert.True(reopened.HasRepairedEventsSince("codex", repaired.OccurredAt));
+            reopened.Rebuild("codex", scanned.Events.Select(e => e with { Repaired = false }));
+            Assert.False(reopened.HasRepairedEventsSince("codex", repaired.OccurredAt));
+            reopened.Clear("codex", repaired.OccurredAt.AddSeconds(-1));
+            // The first id is cutoff-filtered and the second excluded, even with a later timestamp.
+            Assert.Empty(reopened.Merge("codex", [scanned.Events[0], repaired with { OccurredAt = repaired.OccurredAt.AddDays(1) }]));
+            Assert.False(reopened.HasRepairedEventsSince("codex", DateTimeOffset.MinValue));
+        }
+        finally { Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools(); Directory.Delete(root, true); }
+    }
+
     [Fact]
     public async Task ExcludesInheritedReplayAndCountsFreshChildUsage()
     {

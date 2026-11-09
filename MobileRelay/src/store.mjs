@@ -96,6 +96,9 @@ export class Store {
       this.revoke(session);
     }
   }
+  nextExpiry() {
+    return this.one('SELECT MIN(expires) AS expires FROM (SELECT expires FROM pairs UNION ALL SELECT expires FROM sessions)').expires ?? Infinity;
+  }
   /** Computers that can still connect: the pairing limit counts only these. */
   activeDeviceCount(owner, now) {
     return this.one('SELECT COUNT(*) AS n FROM devices d JOIN sessions s ON d.session=s.hash WHERE d.owner=? AND s.expires>?', owner, now).n;

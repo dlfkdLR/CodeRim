@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Automation;
@@ -88,7 +89,7 @@ internal sealed partial class NotchWindow : Window
         {
             if (!dragging) return;
             var point = System.Windows.Forms.Control.MousePosition.ToPoint(); dragging = false; ReleaseMouseCapture();
-            settings.Save(settings.Current with { Offset = dragOffset + (Vertical ? point.Y - dragStart.Y : point.X - dragStart.X) / ScreenScale(SelectedScreen()) });
+            Save(settings.Current with { Offset = dragOffset + (Vertical ? point.Y - dragStart.Y : point.X - dragStart.X) / ScreenScale(SelectedScreen()) });
             e.Handled = true;
         };
         SourceInitialized += (_, _) =>
@@ -136,6 +137,15 @@ internal sealed partial class NotchWindow : Window
         if (IsMouseCaptured) ReleaseMouseCapture();
     }
     private void SettingsChanged(object? sender, EventArgs e) { CancelDrag(); ApplyVisibility(); }
+    private void Save(AppSettings value)
+    {
+        try { settings.Save(value); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            Position();
+            (Application.Current as App)?.Tray?.Notify("CodeRim", "Could not save notch settings. Try again from Settings.");
+        }
+    }
     private void DisplayChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(SystemParameters.WorkArea)) QueueDisplayLayout();
@@ -330,9 +340,9 @@ internal sealed partial class NotchWindow : Window
         var keep = new MenuItem { Header = "Keep open", IsCheckable = true, IsChecked = pinned };
         keep.Click += (_, _) => { pinned = keep.IsChecked; foldTimer.Start(); }; menu.Items.Add(keep);
         AddMenu(menu, "Refresh", () => _ = store.RefreshAsync(true));
-        AddMenu(menu, "Recentre", () => settings.Save(config with { Offset = 0 }));
+        AddMenu(menu, "Recentre", () => Save(config with { Offset = 0 }));
         AddMenu(menu, "Settings…", () => openSettings(null));
-        AddMenu(menu, "Hide notch", () => settings.Save(config with { Visibility = NotchVisibility.Hidden }));
+        AddMenu(menu, "Hide notch", () => Save(config with { Visibility = NotchVisibility.Hidden }));
         canvas.ContextMenu = menu; Content = canvas; PositionWithNextFrame();
         if (animateOpening) { if (settingsControl is not null && Animates) settingsControl.Opacity = 0; AnimateFold(); }
     }

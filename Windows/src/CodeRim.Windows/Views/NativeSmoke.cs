@@ -113,6 +113,8 @@ internal static partial class NativeSmoke
             Require(vault.Load("iphone-relay") is null, "Invalid saved relay credential was not removed");
         }
         Record("Invalid saved iPhone relay credential fails closed and is removed");
+        await UiErrorRecoveryRegression(notch, settings, vault, directory);
+        Record("Relay null reply retries, and failed notch gesture/menu saves retain the saved state");
         var pendingImport = new TaskCompletionSource<BrowserCookieJar>(TaskCreationOptions.RunContinuationsAsynchronously);
         var importSaved = false; CancellationToken pendingReadToken = default;
         vault.Save("cookie:qoder", "manual-fixture");

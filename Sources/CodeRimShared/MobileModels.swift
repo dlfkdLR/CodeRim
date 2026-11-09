@@ -155,32 +155,26 @@ public struct MobileSnapshotReply: Decodable, Sendable {
     public var notice: String? = nil
 }
 
-/// `coderim://pair?r=<relay origin>&i=<id>&s=<secret>`: everything an iPhone
-/// needs to join a computer, and nothing it could reuse after five minutes.
+/// App-only QR/paste envelope. It is deliberately not a URL: the complete pairing
+/// capability must never pass through an unbound custom-scheme handler.
 public struct MobilePairingLink: Equatable, Sendable {
     public var relay: URL
     public var id: String
     public var secret: String
     public init(relay: URL, id: String, secret: String) { self.relay = relay; self.id = id; self.secret = secret }
 
-    public var url: URL {
-        var components = URLComponents()
-        components.scheme = "coderim"; components.host = "pair"
-        components.queryItems = [URLQueryItem(name: "r", value: relay.absoluteString),
-                                 URLQueryItem(name: "i", value: id), URLQueryItem(name: "s", value: secret)]
-        return components.url!
+    public var qrPayload: String {
+        ["CODERIM-PAIR-1", relay.absoluteString, id, secret].joined(separator: "\n")
     }
 
     public init?(_ text: String) {
-        guard text.count <= 512, let components = URLComponents(string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
-              components.scheme == "coderim", components.host == "pair",
-              let items = components.queryItems,
-              let relayText = items.first(where: { $0.name == "r" })?.value,
-              let relay = try? MobileRelayClient.validatedEndpoint(relayText),
-              let id = items.first(where: { $0.name == "i" })?.value, Self.token(id),
-              let secret = items.first(where: { $0.name == "s" })?.value, Self.token(secret)
-        else { return nil }
-        self.init(relay: relay, id: id, secret: secret)
+        guard text.utf8.count <= 512 else { return nil }
+        let fields = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard fields.count == 4, fields[0] == "CODERIM-PAIR-1",
+              fields[1] == fields[1].trimmingCharacters(in: .whitespacesAndNewlines),
+              let relay = try? MobileRelayClient.validatedEndpoint(fields[1]),
+              Self.token(fields[2]), Self.token(fields[3]) else { return nil }
+        self.init(relay: relay, id: fields[2], secret: fields[3])
     }
     private static func token(_ value: String) -> Bool {
         (16...64).contains(value.count) && value.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") }

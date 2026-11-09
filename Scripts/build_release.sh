@@ -20,21 +20,8 @@ artifact_root="${project_root}/Artifacts"
 cache_root=${CODERIM_BUILD_CACHE:-"$(getconf DARWIN_USER_CACHE_DIR)/dev.coderim.release"}
 app_path=${CODERIM_APP_PATH:-"${cache_root}/${PRODUCT_NAME}.app"}
 mkdir -p "${cache_root}"
-if [[ -n "${CODERIM_SWIFT_SCRATCH_PATH:-}" ]]; then
-  swift_scratch_path=${CODERIM_SWIFT_SCRATCH_PATH}
-  remove_swift_scratch=0
-else
-  swift_scratch_path=$(mktemp -d "${cache_root}/swift-build.XXXXXX")
-  remove_swift_scratch=1
-fi
-
-cleanup() {
-  if [[ "${remove_swift_scratch}" == "1" \
-      && "${swift_scratch_path}" == "${cache_root}/swift-build."* ]]; then
-    rm -rf -- "${swift_scratch_path}"
-  fi
-}
-trap cleanup EXIT INT TERM
+# Retain the prepared dependencies so appcast generation uses the same pinned tools.
+swift_scratch_path=${CODERIM_SWIFT_SCRATCH_PATH:-"${project_root}/.build/coderim-build"}
 
 if [[ "${adhoc_hardened_runtime}" != "0" && "${adhoc_hardened_runtime}" != "1" ]]; then
   print -u2 "CODERIM_ADHOC_HARDENED_RUNTIME must be 0 or 1."

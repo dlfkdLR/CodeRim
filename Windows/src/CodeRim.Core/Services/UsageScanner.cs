@@ -270,6 +270,8 @@ public sealed class UsageScanner
                 if (eventIndices.TryGetValue(usageEvent.EventKey, out var existingIndex))
                 {
                     var existing = events[existingIndex];
+                    existing = existing with { Repaired = existing.Repaired || usageEvent.Repaired };
+                    events[existingIndex] = existing;
                     if (existing.Usage.InputTokens == usageEvent.Usage.InputTokens
                         && existing.Usage.CachedInputTokens == usageEvent.Usage.CachedInputTokens
                         && existing.Usage.OutputTokens == usageEvent.Usage.OutputTokens)
@@ -618,7 +620,7 @@ public sealed class UsageScanner
                         events[^1] = last with { Usage = enriched };
                     state = normalized.State;
                     partial |= state.Quality == DataQuality.Partial;
-                    if (isInheritedReplay || normalized.Delta is not { } delta || delta.IsZero)
+                    if (isInheritedReplay || normalized.Delta is not { } delta || delta.IsZero && !normalized.Repaired)
                     {
                         break;
                     }
@@ -632,6 +634,7 @@ public sealed class UsageScanner
                         EventKey(sessionId, observation),
                         observation.OccurredAt,
                         delta, model, project, sessionId, "codex", projectId) {
+                            Repaired = normalized.Repaired,
                             PricingContext = delta.InputTokens <= UsageAnalytics.HighContextInputThreshold ? PricingContext.Standard
                                 : observation.LastUsage == delta ? PricingContext.HighContext : null });
                     break;
@@ -673,9 +676,9 @@ public sealed class UsageScanner
     }
 
     /// The earliest start of the current week and month: the periods a snapshot reports as current.
-    public static DateTimeOffset CurrentPeriodStart(DateTimeOffset now, WeekStart weekStart)
+    public static DateTimeOffset CurrentPeriodStart(DateTimeOffset now, WeekStart weekStart, TimeZoneInfo? timeZone = null)
     {
-        var timeZone = TimeZoneInfo.Local;
+        timeZone ??= TimeZoneInfo.Local;
         var localNow = TimeZoneInfo.ConvertTime(now, timeZone);
         var dayOffset = weekStart == WeekStart.Monday ? ((int)localNow.DayOfWeek + 6) % 7 : (int)localNow.DayOfWeek;
         var week = LocalStartUtc(localNow.Date.AddDays(-dayOffset), timeZone);
@@ -687,9 +690,10 @@ public sealed class UsageScanner
         IReadOnlyList<UsageEvent> events,
         DateTimeOffset now,
         WeekStart weekStart,
-        bool partial)
+        bool partial,
+        TimeZoneInfo? timeZone = null)
     {
-        var timeZone = TimeZoneInfo.Local;
+        timeZone ??= TimeZoneInfo.Local;
         var localNow = TimeZoneInfo.ConvertTime(now, timeZone);
         var todayStart = LocalStartUtc(localNow.Date, timeZone);
         var dayOffset = weekStart == WeekStart.Monday
@@ -738,19 +742,11 @@ public sealed class UsageScanner
         var quality = newest is null
             ? partial ? DataQuality.Partial : DataQuality.Unavailable
             : partial ? DataQuality.Partial : DataQuality.Exact;
-        return new UsageSnapshot(today, week, month, allTime, quality, newest);
+        return new UsageSnapshot(today, week, month, allTime, quality, newest) { Through = now, TimeZoneIdentifier = timeZone.Id };
     }
 
-    private static DateTimeOffset LocalStartUtc(DateTime localDate, TimeZoneInfo timeZone)
-    {
-        var local = DateTime.SpecifyKind(localDate, DateTimeKind.Unspecified);
-        while (timeZone.IsInvalidTime(local))
-        {
-            local = local.AddMinutes(1);
-        }
-
-        return TimeZoneInfo.ConvertTimeToUtc(local, timeZone);
-    }
+    private static DateTimeOffset LocalStartUtc(DateTime localDate, TimeZoneInfo timeZone) =>
+        AnalyticsTimeline.LocalMidnight(localDate, timeZone).ToUniversalTime();
 
     private static bool ContainsRelevantMarker(byte[] line)
     {

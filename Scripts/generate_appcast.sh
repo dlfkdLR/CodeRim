@@ -13,7 +13,10 @@ artifact_root="${project_root}/Artifacts"
 archive_path="${artifact_root}/${PRODUCT_NAME}-${release_version}.zip"
 appcast_path="${artifact_root}/appcast.xml"
 release_notes_path="${project_root}/Documentation/ReleaseNotes/${release_version}.md"
-sparkle_bin_root="${project_root}/.build/artifacts/sparkle/Sparkle/bin"
+cd "${project_root}"
+swift_scratch_path=$(python3 -c 'from pathlib import Path; import sys; print(Path(sys.argv[1]).expanduser().resolve())' \
+  "${CODERIM_SWIFT_SCRATCH_PATH:-${project_root}/.build/coderim-build}")
+sparkle_bin_root="${swift_scratch_path}/artifacts/sparkle/Sparkle/bin"
 generate_appcast="${sparkle_bin_root}/generate_appcast"
 sign_update="${sparkle_bin_root}/sign_update"
 
@@ -23,7 +26,7 @@ if [[ ! -f "${archive_path}" ]]; then
 fi
 "${script_dir}/verify_release_context.sh"
 if [[ ! -x "${generate_appcast}" || ! -x "${sign_update}" ]]; then
-  print -u2 "Sparkle signing tools are missing. Run swift package resolve first."
+  print -u2 "Sparkle signing tools are missing from ${swift_scratch_path}. Run Scripts/prepare_swift_dependencies.py with that --scratch-path first."
   exit 1
 fi
 

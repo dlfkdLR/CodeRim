@@ -42,7 +42,10 @@ Git automatic deployment is not connected in the recorded configuration. If conn
 python3 website/scripts/sync-providers.py
 node --check website/app.js
 node --check website/providers.js
+python3 website/scripts/test-language.py
 ```
+
+The browser regression uses installed Chrome/Chromium with a temporary profile. It runs the real site through Korean → English → Korean, checks local guide counterparts, and preserves search, filter, expansion, theme, platform, terminal pause, carousel position, and computed styles. It performs no deployment or live-account requests.
 
 A changed catalogue count stops generation and requires a review of site copy. Provider artwork comes from bundled SVG and native `GlyphOutline` paths; retain [ASSETS](ASSETS.md) and `assets/NOTICE.txt`. Documentation links should follow the selected language where a counterpart exists.
 
@@ -54,4 +57,4 @@ Images are native CodeRim SwiftUI renders or recorded layout captures with examp
 
 The seven feature slides cover limits, analytics, notch settings, accounts, CLI, macOS widgets and project/task activity in both languages. A full-width manual gallery shows two/three desktop cards or one larger mobile/tablet card, with arrows, direction keys, Home/End and touch scrolling. It uses subtle blurred/faded edges, no surrounding card border, disabled end arrows and instant Reduce Motion transitions.
 
-The main scene loops resting pill → unfolded notch → Codex detail → Claude detail → project/task activity → folded notch using actual `NotchMotion` springs/delays and `SideNotchShape` geometry; each content view lasts about 2.3 seconds. The task list uses an actual SessionList render with matching 1.4-second rotating rings, paused offscreen/in the background/under Reduce Motion. The hero has no playback or provider-selection buttons; the separate terminal retains pause/resume. This is a web rendering of app motion, not a recording or remote control of the installed app. The count means catalogue coverage, not successful connections to every account. Windows remains a preview; local tokens, account limits and Apple notarization are described separately. No external analytics, remote fonts, or app-account requests are used.
+The main scene loops resting pill → unfolded notch → Codex detail → Claude detail → project/task activity → folded notch using actual `NotchMotion` springs/delays and `SideNotchShape` geometry; each content view lasts about 2.3 seconds. The task list uses an actual SessionList render with matching 1.4-second rotating rings, paused offscreen/in the background/under Reduce Motion. The hero has no playback or provider-selection buttons; the separate terminal retains pause/resume. This is a web rendering of app motion, not a recording or remote control of the installed app. The count means catalogue coverage, not successful connections to every account. Windows has a stable 2.1.34 release; local tokens, account limits and Apple notarization are described separately. The download page uses Vercel Web Analytics for visitor statistics. No remote fonts or app-account requests are used.

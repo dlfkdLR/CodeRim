@@ -37,6 +37,7 @@ public protocol MobileRelayServing: Sendable {
 public final class MobileRelayClient: MobileRelayServing, Sendable {
     public let endpoint: URL
     private let session: URLSession
+    private let pairingSession: URLSession
     private let redirectDelegate = MobileNoRedirect()
 
     public static func validatedEndpoint(_ text: String) throws -> URL {
@@ -46,14 +47,25 @@ public final class MobileRelayClient: MobileRelayServing, Sendable {
               c.path.isEmpty || c.path == "/", let url = c.url else { throw MobileRelayError.invalidServer }
         return url
     }
-    public init(endpoint: URL) throws {
+    public convenience init(endpoint: URL) throws {
+        try self.init(endpoint: endpoint, protocolClasses: nil)
+    }
+    init(endpoint: URL, protocolClasses: [AnyClass]?) throws {
         self.endpoint = try Self.validatedEndpoint(endpoint.absoluteString)
+        let ordinary = Self.configuration(pairingPoll: false)
+        let pairing = Self.configuration(pairingPoll: true)
+        if let protocolClasses { ordinary.protocolClasses = protocolClasses; pairing.protocolClasses = protocolClasses }
+        session = URLSession(configuration: ordinary)
+        pairingSession = URLSession(configuration: pairing)
+    }
+    static func configuration(pairingPoll: Bool) -> URLSessionConfiguration {
         let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = 15
-        configuration.timeoutIntervalForResource = 20
+        // The relay waits 20 seconds before returning an empty pairing poll.
+        configuration.timeoutIntervalForRequest = pairingPoll ? 30 : 15
+        configuration.timeoutIntervalForResource = pairingPoll ? 35 : 20
         configuration.httpCookieStorage = nil
         configuration.urlCache = nil
-        session = URLSession(configuration: configuration)
+        return configuration
     }
     public func send<Response: Decodable & Sendable, Body: Encodable & Sendable>(
         _ method: String, _ path: String, token: String? = nil, body: Body
@@ -68,6 +80,9 @@ public final class MobileRelayClient: MobileRelayServing, Sendable {
     private func request<Response: Decodable & Sendable>(_ method: String, _ path: String, token: String?, body: Data?) async throws -> Response {
         guard path.hasPrefix("/v1/"), !path.contains("?"), !path.contains("..") else { throw MobileRelayError.invalidServer }
         var request = URLRequest(url: endpoint.appendingPathComponent(String(path.dropFirst())))
+        let pairingPoll = method == "POST" && path == "/v1/pairing/poll"
+        let session = pairingPoll ? pairingSession : session
+        request.timeoutInterval = pairingPoll ? 30 : 15
         request.httpMethod = method; request.httpBody = body
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         if let token { request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization") }

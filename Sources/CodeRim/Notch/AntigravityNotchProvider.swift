@@ -18,12 +18,9 @@ final class AntigravityNotchProvider: NotchProvider {
     let glyph: ProviderGlyph = .antigravity
     var isVisibleWhenAbsent: Bool { false }
 
-    private let session: URLSession
     private let discover: @Sendable () -> AntigravityBridge.Endpoint?
 
     init(discover: (@Sendable () -> AntigravityBridge.Endpoint?)? = nil) {
-        self.session = URLSession(configuration: .ephemeral,
-                                  delegate: LocalhostTrust(), delegateQueue: nil)
         self.discover = discover ?? { AntigravityBridge.discover() }
     }
 
@@ -37,13 +34,13 @@ final class AntigravityNotchProvider: NotchProvider {
     }
 
     func fetchSnapshot() async throws -> ProviderSnapshot {
-        // Discovery spawns `ps` and `lsof`; keep it off the main actor.
+        // Discovery reads `ps` and the kernel process/socket tables; keep it off the main actor.
         let find = discover
         guard let endpoint = await Task.detached(operation: { find() }).value else {
             throw NotchProviderError.needsAuth
         }
 
-        let windows = try await AntigravityBridge.quota(from: endpoint, session: session)
+        let windows = try await AntigravityBridge.quota(from: endpoint)
         guard !windows.isEmpty else {
             throw NotchProviderError.nothingMetered("Antigravity reported no metered quota")
         }

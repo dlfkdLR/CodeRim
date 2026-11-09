@@ -221,7 +221,7 @@ internal sealed class AccountsPane : DockPanel
                             // A renewed login is the only copy that still works: keep it even if the read failed.
                             if (renewed is not null)
                             {
-                                try { if (!accounts.StoreRotated(provider, account.Identity.Id, renewed)) feedback.Text += " The renewed login could not be saved; sign this account in again if it stops working."; }
+                                try { if (!accounts.StoreRotated(account, renewed)) feedback.Text += " The renewed login could not be saved; sign this account in again if it stops working."; }
                                 catch (Exception e) when (e is not OutOfMemoryException) { feedback.Text += " The renewed login could not be saved; sign this account in again if it stops working."; }
                             }
                             SetBusy(false);

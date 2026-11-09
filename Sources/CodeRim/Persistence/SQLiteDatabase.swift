@@ -421,6 +421,17 @@ actor SQLiteDatabase {
                 }
             }
 
+            if normalizationState?.quality == .partial,
+               (checkpoint.sessionID == nil || normalizationState?.cumulativeHighWaterMark == nil) {
+                // shortcut: undated loss marks every period partial, add dated source quality if period scoping is required.
+                let partial = try prepare("INSERT OR IGNORE INTO app_metadata(key, value) VALUES (?1, '1')")
+                defer { sqlite3_finalize(partial) }
+                try bind("partial_source_quality:" + checkpoint.sourcePath, at: 1, to: partial)
+                guard sqlite3_step(partial) == SQLITE_DONE else {
+                    throw SQLiteDatabaseError.step(errorMessage)
+                }
+            }
+
             if (events.isEmpty || insertedEventCount > 0),
                let sessionID = checkpoint.sessionID, let normalizationState,
                let highWaterMark = normalizationState.cumulativeHighWaterMark {
@@ -1189,7 +1200,7 @@ actor SQLiteDatabase {
             try execute("DELETE FROM session_counters")
             try execute("DELETE FROM session_metadata")
             try execute("DELETE FROM analytics_backfill_sources")
-            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through')")
+            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through') OR key GLOB 'partial_source_quality:*'")
             try execute("COMMIT")
         } catch {
             try? execute("ROLLBACK")
@@ -1219,7 +1230,7 @@ actor SQLiteDatabase {
             try execute("DELETE FROM session_counters")
             try execute("DELETE FROM session_metadata")
             try execute("DELETE FROM analytics_backfill_sources")
-            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through')")
+            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through') OR key GLOB 'partial_source_quality:*'")
             do {
                 let statement = try prepare(
                     """
@@ -1428,6 +1439,9 @@ actor SQLiteDatabase {
                ) AND (?2 OR COALESCE((
                     SELECT CAST(value AS REAL) FROM app_metadata WHERE key = 'legacy_partial_quality_through'
                ), ?3 + 1) >= ?3))
+               OR EXISTS (
+                    SELECT 1 FROM app_metadata WHERE key GLOB 'partial_source_quality:*'
+               )
                OR EXISTS (
                     SELECT 1 FROM session_counters
                     WHERE quality != 'exact' AND (?3 IS NULL OR last_observed_at IS NULL OR last_observed_at >= ?3)

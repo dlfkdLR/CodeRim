@@ -203,8 +203,14 @@ elif transport == "app-group":
     group = sys.argv[3] or team + "." + host_info["CFBundleIdentifier"]
     assert team and group.startswith(team + "."), "An authorized team App Group is required"
     assert host_info.get("CodexMeterAppGroup") == widget_info.get("CodexMeterAppGroup") == group
-    expected_host = {"com.apple.security.application-groups": [group]}
-    expected_widget = {"com.apple.security.app-sandbox": True, **expected_host}
+    expected_host = {
+        "com.apple.security.automation.apple-events": True,
+        "com.apple.security.application-groups": [group],
+    }
+    expected_widget = {
+        "com.apple.security.app-sandbox": True,
+        "com.apple.security.application-groups": [group],
+    }
 else:
     raise AssertionError("Unknown companion transport")
 assert entitlements(app) == expected_host, "Unexpected host entitlements"

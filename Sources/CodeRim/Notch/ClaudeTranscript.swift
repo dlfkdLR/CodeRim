@@ -81,12 +81,12 @@ enum ClaudeTranscript {
 
     /// The last records of the file, without reading the rest of it.
     static func tail(of url: URL, bytes: Int = tailBytes) -> Data? {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        guard bytes > 0, let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
         guard let end = try? handle.seekToEnd() else { return nil }
         let start = end > UInt64(bytes) ? end - UInt64(bytes) : 0
         guard (try? handle.seek(toOffset: start)) != nil else { return nil }
-        return try? handle.readToEnd()
+        return try? handle.read(upToCount: bytes)
     }
 
     /// The state machine, kept pure so it can be tested without a file.
@@ -304,6 +304,8 @@ final class ClaudeTranscriptReader {
     /// repeating every two seconds for one that simply has no transcript.
     private var scanned: Set<String> = []
     private var titles: [String: TitleScan] = [:]
+    private var titleAccess: UInt64 = 0
+    private static let titleCacheLimit = 64
     /// Where each session's tool calls have been read up to, and when they were
     /// made. The end of the file shows only the last few calls of a long turn;
     /// reading on from where it stopped last time counts them all.
@@ -313,7 +315,8 @@ final class ClaudeTranscriptReader {
     private static let toolScanFirstLook: UInt64 = 4 * 1024 * 1024
 
     struct TitleScan {
-        var offset: UInt64 = 0
+        var access: UInt64 = 0
+        var cursor = TranscriptLineCursor()
         var custom: String?
         var generated: String?
         /// A name the user gave the session outranks the generated one.
@@ -411,19 +414,22 @@ final class ClaudeTranscriptReader {
         guard let url = path(sessionID: sessionID, cwd: cwd),
               let size = (try? fileManager.attributesOfItem(atPath: url.path))?[.size] as? NSNumber
         else { return titles[sessionID]?.title }
+        if titles[sessionID] == nil, titles.count >= Self.titleCacheLimit,
+           let oldest = titles.min(by: { $0.value.access < $1.value.access }) {
+            titles.removeValue(forKey: oldest.key)
+        }
         var state = titles[sessionID] ?? TitleScan()
         let end = size.uint64Value
-        if end < state.offset { state = TitleScan() }   // rewritten from scratch
-        if end > state.offset, let handle = try? FileHandle(forReadingFrom: url) {
+        if end < state.cursor.readOffset { state = TitleScan() }   // rewritten from scratch
+        titleAccess &+= 1
+        state.access = titleAccess
+        if end > state.cursor.readOffset, let handle = try? FileHandle(forReadingFrom: url) {
             defer { try? handle.close() }
-            if (try? handle.seek(toOffset: state.offset)) != nil,
-               let data = try? handle.read(upToCount: Int(end - state.offset)) {
-                // Stop at the last complete line; a half-written one is read next time.
-                if let last = data.lastIndex(of: 0x0A) {
-                    ClaudeTranscript.titles(in: data[...last], into: &state)
-                    state.offset += UInt64(data.distance(from: data.startIndex, to: last) + 1)
-                }
+            var cursor = state.cursor
+            try? cursor.read(handle, through: end) { line in
+                ClaudeTranscript.titles(in: line, into: &state)
             }
+            state.cursor = cursor
         }
         titles[sessionID] = state
         return state.title

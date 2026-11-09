@@ -27,7 +27,8 @@ ARM64·x86_64의 생성 어셈블리를 비교하고 숫자·Unicode·큰 배열
 기록된 패치가 바뀌면 이전 기록 파일이 있는 빌드 디렉터리의 사용을 거부합니다.
 `--scratch-path`에 새 빈 디렉터리를 지정하고, Python 회귀 검사의
 `CODERIM_DEPENDENCY_TEST_SCRATCH`도 같은 경로로 설정합니다. 기존 checkout과
-기록 파일은 유지합니다. 릴리스 빌드는 기본적으로 새 디렉터리를 사용합니다.
+기록 파일은 유지합니다. 릴리스 빌드는 기본적으로 `.build/coderim-build`를
+유지하여 appcast 생성 시 같은 고정 Sparkle 도구를 재사용합니다.
 `CODERIM_SWIFT_SCRATCH_PATH`를 직접 지정한다면 현재 패치와 일치해야 합니다.
 
 문서만 변경하면 `python3 Scripts/validate_docs.py`를 실행합니다. 영어 기본 경로와 대응 한국어 탐색, 제공업체 ID, 명령어, 코드 블록, 버전·파일, 원본 제한을 맞춥니다. 날짜별 릴리스·감사 기록의 사실은 유지합니다. Windows는 [Windows 문서](Documentation/WINDOWS.ko.md)의 기본 .NET 테스트·아키텍처별 workflow를 따릅니다.

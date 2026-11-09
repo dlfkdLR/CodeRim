@@ -188,7 +188,10 @@ final class NotchController: ObservableObject {
                 .store(in: &cancellables)
         }
         store.isBusy = { [weak self] in
-            self?.monitors.values.contains { m in m.sessions.contains { $0.state == .busy } } ?? false
+            guard let self else { return false }
+            return Self.hasBusyMonitors(visible: self.visible,
+                                       selectedProviderIDs: self.selectedProviderIDs,
+                                       monitors: self.monitors)
         }
 
         if let saved = UserDefaults.standard.object(forKey: offsetKey) as? Double {
@@ -215,6 +218,14 @@ final class NotchController: ObservableObject {
             .filter { $0 }
             .sink { [weak self] _ in self?.refreshSessionTokens() }
             .store(in: &cancellables)
+    }
+
+    static func hasBusyMonitors(visible: Bool, selectedProviderIDs: Set<String>,
+                                monitors: [String: any AgentActivityMonitor]) -> Bool {
+        guard visible else { return false }
+        return monitors.contains { id, monitor in
+            selectedProviderIDs.contains(id) && monitor.sessions.contains { $0.state == .busy }
+        }
     }
 
     func lastUpdatedAt(providerID: String) -> Date? {
@@ -269,7 +280,7 @@ final class NotchController: ObservableObject {
     private func removeLegacyCompactionHook() {
         guard ClaudeCompactionHook.standard.isInstalled else { return }
         do { try ClaudeCompactionHook.standard.uninstall() }
-        catch { NotchLog.sessions.error("could not remove the compaction hooks: \(error.localizedDescription, privacy: .public)") }
+        catch { NotchLog.sessions.error("could not remove the compaction hooks, code=\((error as NSError).code, privacy: .public)") }
     }
 
     /// Refresh on quota or freshness changes, but ignore timestamps/defaults
@@ -507,9 +518,11 @@ final class NotchController: ObservableObject {
     private func announceCompletions() {
         let events = completions.absorb(window.model.sessions)
         guard let event = events.first else { return }
-        NotchLog.sessions.info("session \(event.session.name, privacy: .public) \(String(describing: event.reason), privacy: .public)")
 
         let defaults = UserDefaults.standard
+        if defaults.bool(forKey: "debugLogging") {
+            NotchLog.sessions.info("session completion reason=\(String(describing: event.reason), privacy: .public) count=\(events.count)")
+        }
         let subagentSound = defaults.object(forKey: "notchSubagentEndSound") as? Bool
             ?? AppPreferences.defaultNotchSubagentEndSound
         if defaults.object(forKey: "notchSessionEndSound") as? Bool ?? AppPreferences.defaultNotchSessionEndSound,

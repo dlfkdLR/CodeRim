@@ -6,7 +6,8 @@ struct CodeRimMobileApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @ViewBuilder private var rootView: some View {
         #if DEBUG
-        if ProcessInfo.processInfo.arguments.contains("--ui-settings") { DebugSettingsPreview() }
+        if ProcessInfo.processInfo.arguments.contains("--ui-scanner") { MobileQRScanner { _ in } }
+        else if ProcessInfo.processInfo.arguments.contains("--ui-settings") { DebugSettingsPreview() }
         else if ProcessInfo.processInfo.arguments.contains("--ui-preview") { DebugPreviewView() }
         else { MobileRootView(model: model) }
         #else
@@ -24,18 +25,15 @@ struct CodeRimMobileApp: App {
                     guard !usesPreview else { return }
                     model.setForeground(phase == .active)
                 }
-                // A pairing QR scanned with the Camera app opens coderim://pair?….
                 .onOpenURL { url in
-                    // The Island and Lock Screen open coderim://dashboard.
-                    if url.scheme == "coderim", url.host == "dashboard" { model.openDashboard(); return }
-                    guard !usesPreview, let link = MobilePairingLink(url.absoluteString) else { return }
-                    Task { await model.restore(); await model.connect(link) }
+                    guard !usesPreview else { return }
+                    model.handleExternalURL(url)
                 }
         }
     }
     private var usesPreview: Bool {
         #if DEBUG
-        ProcessInfo.processInfo.arguments.contains("--ui-settings") || ProcessInfo.processInfo.arguments.contains("--ui-preview")
+        ProcessInfo.processInfo.arguments.contains("--ui-settings") || ProcessInfo.processInfo.arguments.contains("--ui-preview") || ProcessInfo.processInfo.arguments.contains("--ui-scanner")
         #else
         false
         #endif

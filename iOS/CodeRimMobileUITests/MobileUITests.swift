@@ -3,6 +3,22 @@ import XCTest
 
 final class MobileUITests: XCTestCase {
     @MainActor
+    func testScannerRejectsLegacyPairingURLsWithoutOpeningAnEnrollment() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-scanner"] // Isolated scanner; no Keychain restore, relay or ActivityKit actions.
+        UIPasteboard.general.string = "coderim://pair?r=https://relay.example.com&i=" + String(repeating: "i", count: 43) + "&s=" + String(repeating: "s", count: 43)
+        app.launch()
+        let paste = app.buttons["pastePairingLink"]
+        XCTAssertTrue(paste.waitForExistence(timeout: 10))
+        XCTAssertFalse(app.textFields.firstMatch.exists)
+        paste.tap()
+        XCTAssertTrue(app.staticTexts["That is not a CodeRim pairing code."].waitForExistence(timeout: 5))
+        XCTAssertTrue(paste.exists)
+        XCTAssertFalse(app.staticTexts["CodeRim opens and connects on its own."].exists)
+        app.terminate()
+    }
+
+    @MainActor
     func testSettingsAndRealDynamicIslandPresentation() throws {
         let app = XCUIApplication()
         app.launchArguments = ["-AppleLanguages", "(ko)", "-AppleLocale", "ko_KR"]
@@ -14,7 +30,7 @@ final class MobileUITests: XCTestCase {
         attach("settings", app.screenshot())
         if !scan.isHittable { app.swipeUp() }
         scan.tap()
-        // The Simulator has no camera: the scanner points to the Camera app and offers a copied link.
+        // The Simulator has no camera: the scanner offers an explicitly pasted pairing code.
         // There is no field to type a server or link into.
         XCTAssertFalse(app.textFields.firstMatch.exists)
         UIPasteboard.general.string = "coderim://pair?r=http://example.com"

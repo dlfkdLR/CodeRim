@@ -38,8 +38,9 @@ preservation; they do not establish integer safety for every generic QuickJS API
 If the recorded patch changes, preparation rejects a build directory containing
 the old receipt. Choose a new empty directory with `--scratch-path` and set
 `CODERIM_DEPENDENCY_TEST_SCRATCH` to that same path for the Python regression tests.
-Keep existing checkouts and receipts intact. Release builds use a fresh directory
-by default; an explicit `CODERIM_SWIFT_SCRATCH_PATH` must match the current patch.
+Keep existing checkouts and receipts intact. Release builds retain `.build/coderim-build`
+by default so appcast generation reuses its pinned Sparkle tools. An explicit
+`CODERIM_SWIFT_SCRATCH_PATH` must match the current patch.
 
 For docs only, run `python3 Scripts/validate_docs.py`. Keep English canonical paths and equivalent Korean navigation, provider IDs, commands, code blocks, version/assets, and source limits. Dated release/audit records keep their original facts. For Windows, use the project-native .NET tests and architecture-specific workflow described in [Windows](Documentation/WINDOWS.md).
 

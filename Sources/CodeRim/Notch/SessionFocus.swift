@@ -64,7 +64,7 @@ enum SessionFocus {
             var error: NSDictionary?
             let result = NSAppleScript(source: source)?.executeAndReturnError(&error)
             if error == nil, result?.booleanValue == true { return true }
-            NotchLog.usage.debug("terminal focus script failed: \(String(describing: error), privacy: .public)")
+            NotchLog.usage.debug("terminal focus script failed")
         }
         // The notch panel never makes CodeRim the active app, and on macOS 14+
         // `NSRunningApplication.activate()` is cooperative — ignored when the

@@ -6,9 +6,9 @@
 
 ## 플랫폼과 구성
 
-기본 네이티브 앱은 macOS 14+이며 Swift·SwiftUI·AppKit·Foundation·Swift Concurrency·SQLite·OSLog·CoreServices·ServiceManagement·Sparkle을 사용합니다. 공개 macOS 패키지는 Universal 2입니다. Windows 11은 WPF·.NET 10·SQLite 기반 구현 미리보기이며 런타임을 포함한 x64·ARM64 MSI를 제공합니다. 두 데스크톱 플랫폼 모두 별도 런타임 설치가 필요 없습니다. Windows 위젯은 현재 범위 밖입니다.
+기본 네이티브 앱은 macOS 14+이며 Swift·SwiftUI·AppKit·Foundation·Swift Concurrency·SQLite·OSLog·CoreServices·ServiceManagement·Sparkle을 사용합니다. 공개 macOS 패키지는 Universal 2입니다. Windows 11의 안정 릴리스는 2.1.34이며 WPF·.NET 10·SQLite 기반으로 런타임을 포함한 x64·ARM64 MSI를 제공합니다. 두 데스크톱 플랫폼 모두 별도 런타임 설치가 필요 없습니다. Windows 위젯은 현재 범위 밖입니다.
 
-선택적 소스 수준 iPhone 연동은 iOS 17.2+에서 SwiftUI·ActivityKit·APNs·Sign in with Apple과 명시적으로 구성한 Node 24 relay를 사용합니다. 프로비저닝·서버 구성이 필요하며 공개 App Store 릴리스는 아닙니다. [플랫폼 계약](Documentation/README.ko.md).
+선택적 네이티브 iPhone 연동은 미출시 소스이며 iOS 17.2+에서 SwiftUI·WidgetKit Live Activity·ActivityKit·APNs를 사용합니다. Apple ID나 로그인 없이 QR 코드로 익명 연결하며 Cloudflare Worker와 SQLite 기반 Durable Object relay를 거칩니다. 프로비저닝·relay 구성이 필요하며 공개 App Store·TestFlight 릴리스는 아닙니다. [플랫폼 계약](Documentation/README.ko.md).
 
 ## 사용자와 목적
 

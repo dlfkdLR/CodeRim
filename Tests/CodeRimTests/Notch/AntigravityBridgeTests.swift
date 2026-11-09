@@ -1,7 +1,16 @@
+import Darwin
 import XCTest
 @testable import CodeRim
 
 final class NotchAntigravityBridgeTests: XCTestCase {
+    private func addresses(_ ports: [Int]) -> [LocalTCPPeer.Address] {
+        ports.map { .init(host: "127.0.0.1", port: $0) }
+    }
+
+    private func identity(_ pid: pid_t) -> LocalTCPPeer.ProcessIdentity {
+        .init(pid: pid, userID: getuid(), startedSeconds: 1, startedMicroseconds: 2)
+    }
+
     /// Verbatim from the running language server.
     private let real = Data("""
     {"response":{"groups":[
@@ -52,23 +61,23 @@ final class NotchAntigravityBridgeTests: XCTestCase {
         --csrf_token d4bd9204-bf02-4111-b1fe-71f0d0d921d0 --app_data_dir antigravity
         """
         let endpoint = try XCTUnwrap(
-            AntigravityBridge.discover(processTable: table, listeningPorts: { pid in
+            AntigravityBridge.discover(processTable: table, listeningAddresses: { pid in
                 XCTAssertEqual(pid, 29283)
-                return [63881, 63882]
-            })
+                return self.addresses([63881, 63882])
+            }, processIdentity: identity)
         )
         XCTAssertEqual(endpoint.csrfToken, "d4bd9204-bf02-4111-b1fe-71f0d0d921d0")
-        XCTAssertEqual(endpoint.ports, [63881, 63882])
+        XCTAssertEqual(endpoint.listeners, addresses([63881, 63882]))
     }
 
     func testNoAntigravityMeansNoEndpoint() {
         XCTAssertNil(AntigravityBridge.discover(processTable: "1 /sbin/launchd",
-                                                listeningPorts: { _ in [] }))
+                                                listeningAddresses: { _ in [] }, processIdentity: identity))
     }
 
     func testNoPortMeansNoEndpoint() {
         let table = "1 language_server --csrf_token abc"
-        XCTAssertNil(AntigravityBridge.discover(processTable: table, listeningPorts: { _ in [] }))
+        XCTAssertNil(AntigravityBridge.discover(processTable: table, listeningAddresses: { _ in [] }, processIdentity: identity))
     }
 
     func testTheCLIIsFoundAndAsksForNoToken() throws {
@@ -77,19 +86,19 @@ final class NotchAntigravityBridgeTests: XCTestCase {
         34221 agy
         """
         let endpoint = try XCTUnwrap(
-            AntigravityBridge.discover(processTable: table, listeningPorts: { pid in
+            AntigravityBridge.discover(processTable: table, listeningAddresses: { pid in
                 XCTAssertEqual(pid, 34221)
-                return [54166, 54167]
-            })
+                return self.addresses([54166, 54167])
+            }, processIdentity: identity)
         )
         XCTAssertNil(endpoint.csrfToken, "the CLI serves this without one")
-        XCTAssertEqual(endpoint.ports, [54166, 54167])
+        XCTAssertEqual(endpoint.listeners, addresses([54166, 54167]))
     }
 
     func testTheCLIIsFoundByItsFullPathToo() throws {
         let table = "700 /Users/someone/.local/bin/agy"
         let endpoint = try XCTUnwrap(
-            AntigravityBridge.discover(processTable: table, listeningPorts: { _ in [9000] })
+            AntigravityBridge.discover(processTable: table, listeningAddresses: { _ in self.addresses([9000]) }, processIdentity: identity)
         )
         XCTAssertNil(endpoint.csrfToken)
     }
@@ -100,17 +109,42 @@ final class NotchAntigravityBridgeTests: XCTestCase {
         34221 agy
         """
         let endpoint = try XCTUnwrap(
-            AntigravityBridge.discover(processTable: table, listeningPorts: { _ in [1] })
+            AntigravityBridge.discover(processTable: table, listeningAddresses: { _ in self.addresses([1]) }, processIdentity: identity)
         )
         XCTAssertEqual(endpoint.csrfToken, "abc")
     }
 
-    func testPortsAreParsedFromLSOF() {
-        let output = """
-        language_ 29283 me   34u  IPv4 0x1  0t0  TCP 127.0.0.1:63881 (LISTEN)
-        language_ 29283 me   35u  IPv6 0x2  0t0  TCP [::1]:63882 (LISTEN)
-        """
-        XCTAssertEqual(AntigravityBridge.parsePorts(fromLSOF: output), [63881, 63882])
+    func testIPv6ListenerIsPreserved() throws {
+        let listener = LocalTCPPeer.Address(host: "::1", port: 63882)
+        let endpoint = try XCTUnwrap(AntigravityBridge.discover(
+            processTable: "29283 language_server --csrf_token dummy-token",
+            listeningAddresses: { _ in [listener] }, processIdentity: identity))
+        XCTAssertEqual(endpoint.listeners, [listener])
+        XCTAssertEqual(endpoint.listeners[0].authority, "[::1]:63882")
+        XCTAssertEqual(endpoint.process, identity(29283))
+    }
+
+    func testDiscoveryRejectsUnknownOrDifferentUserProcess() {
+        let table = "29283 language_server --csrf_token dummy-token"
+        XCTAssertNil(AntigravityBridge.discover(processTable: table,
+            listeningAddresses: { _ in self.addresses([63881]) }, processIdentity: { _ in nil }))
+        XCTAssertNil(AntigravityBridge.discover(processTable: table,
+            listeningAddresses: { _ in self.addresses([63881]) }, processIdentity: { pid in
+                .init(pid: pid, userID: getuid() + 1, startedSeconds: 1, startedMicroseconds: 2)
+            }))
+    }
+
+    func testDiscoveryRejectsProcessReplacementAndNonLoopbackListener() {
+        var reads = 0
+        XCTAssertNil(AntigravityBridge.discover(
+            processTable: "29283 language_server --csrf_token dummy-token",
+            listeningAddresses: { _ in self.addresses([63881]) }, processIdentity: { pid in
+                reads += 1
+                return .init(pid: pid, userID: getuid(), startedSeconds: UInt64(reads), startedMicroseconds: 0)
+            }))
+        XCTAssertNil(AntigravityBridge.discover(
+            processTable: "29283 language_server --csrf_token dummy-token",
+            listeningAddresses: { _ in [.init(host: "0.0.0.0", port: 63881)] }, processIdentity: identity))
     }
 
     // MARK: - Provider

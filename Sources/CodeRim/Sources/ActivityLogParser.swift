@@ -3,8 +3,8 @@ import Foundation
 /// Reads the few values a log record carries by looking for them in its bytes.
 ///
 /// These logs run to hundreds of megabytes and nearly every line is a record
-/// that matters to somebody else, so each line is not parsed as JSON: the
-/// handful of fields wanted (a model, a tool's name, a timestamp) are written in
+/// that matters to somebody else, so most lines are not parsed as JSON: the
+/// handful of fields wanted (a model, a timestamp) are written in
 /// a fixed, compact form by the agents, and are found by their key. A value is
 /// read up to its closing quote; none of the ones wanted contain one.
 enum LogBytes {
@@ -118,13 +118,12 @@ struct ClaudeActivityParser {
     private static let speed = Data("\"speed\":\"".utf8)
     private static let messageID = Data("\"id\":\"msg_".utf8)
     private static let toolUse = Data("\"type\":\"tool_use\"".utf8)
-    private static let name = Data("\"name\":\"".utf8)
-    private static let skill = Data("\"skill\":\"".utf8)
 
     private(set) var activity = FileActivity()
     private var waiting: [Date] = []
     private var lastModel: String?
     private var lastMessage: String?
+    private var seenToolCalls: Set<String> = []
     private let days: ActivityDayResolver
 
     init(days: ActivityDayResolver) {
@@ -169,18 +168,20 @@ struct ClaudeActivityParser {
     }
 
     private mutating func countTools(in line: Data, on day: Date) {
-        guard LogBytes.contains(line, Self.toolUse) else { return }
-        var cursor = line.startIndex
-        while let call = line.range(of: Self.toolUse, in: cursor..<line.endIndex) {
-            cursor = call.upperBound
-            guard let named = LogBytes.string(after: Self.name, in: line, from: cursor) else { continue }
-            let tool = ActivityNames.tool(named.value)
+        guard LogBytes.contains(line, Self.toolUse),
+              let record = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
+              let message = record["message"] as? [String: Any],
+              let blocks = message["content"] as? [[String: Any]] else { return }
+        for block in blocks where block["type"] as? String == "tool_use" {
+            guard let name = block["name"] as? String, !name.isEmpty else { continue }
+            // Calls without an id remain countable; only an explicit id proves a duplicate.
+            if let id = block["id"] as? String, !id.isEmpty, !seenToolCalls.insert(id).inserted { continue }
+            let tool = ActivityNames.tool(name)
             activity.edit(day) { $0.tools[tool, default: 0] += 1 }
-            if named.value == "Skill",
-               let used = LogBytes.string(after: Self.skill, in: line, from: named.end), !used.value.isEmpty {
-                activity.edit(day) { $0.skills[used.value, default: 0] += 1 }
+            if name == "Skill", let input = block["input"] as? [String: Any],
+               let skill = input["skill"] as? String, !skill.isEmpty {
+                activity.edit(day) { $0.skills[skill, default: 0] += 1 }
             }
-            cursor = named.end
         }
     }
 

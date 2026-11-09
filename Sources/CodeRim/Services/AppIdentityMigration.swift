@@ -31,7 +31,7 @@ enum AppIdentityMigration {
                 try moveWithoutReplacing(from: bundle.bundleURL, to: destination)
             } catch {
                 try? gate.fileHandleForWriting.close()
-                log.error("Could not migrate application filename: \(error.localizedDescription, privacy: .public)")
+                log.error("Could not migrate application filename (code \((error as NSError).code, privacy: .public))")
                 refreshRegistration(bundle: bundle)
                 return
             }

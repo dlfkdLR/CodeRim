@@ -2,7 +2,7 @@
 
 [English](README.md) · **한국어**
 
-현재 구현 안내와 날짜별 검증 근거를 구분합니다. 이번 감사는 GitHub main 커밋 `4bfdee23ca46918de4f56e0f79920851e8aa29bd`와 2026-09-28 로컬 개발 스냅샷을 비교합니다. 아직 반영되지 않은 macOS 분석·계정 히스토리와 iPhone·relay 변경은 개발 기능으로 명시합니다. 소스 기능표는 릴리스나 실제 서비스 검증 결과가 아닙니다.
+현재 구현 안내와 날짜별 검증 근거를 구분합니다. macOS 로컬 Usage 분석과 별도 Codex 계정 히스토리는 출시된 기능입니다. Windows의 안정 릴리스는 2.1.34입니다. 네이티브 iPhone 연동은 미출시 소스로, Apple 로그인 없이 QR 코드로 익명 연결하며 Cloudflare Worker와 SQLite 기반 Durable Object relay를 거칩니다. 프로비저닝·relay 구성이 필요합니다. 소스 안내는 공개 iPhone 릴리스나 실제 APNs·Dynamic Island 전달을 검증한 결과가 아닙니다. 과거 감사 기록은 당시 커밋·날짜·검증 한계를 유지합니다.
 
 - [구조](ARCHITECTURE.ko.md) — 소유 관계, 파이프라인, 저장, 비동기 경계.
 - [사용량 집계](USAGE.ko.md) — 안전한 증가분, 캐시 산식, 달력 기간, 복구.

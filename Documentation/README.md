@@ -2,7 +2,7 @@
 
 **English** · [한국어](README.ko.md)
 
-This index separates current implementation guidance from dated evidence. The audit compares GitHub main commit `4bfdee23ca46918de4f56e0f79920851e8aa29bd` with the local development snapshot of 2026-09-28. Pending macOS analytics/account-history and iPhone/relay changes are identified as development features; the source matrix is not a release or live-service verification claim.
+This index separates current implementation guidance from dated evidence. macOS local Usage analytics and separate Codex account history are shipped features. Windows has a stable 2.1.34 release. The native iPhone companion remains unreleased source: it pairs anonymously by QR code, without Apple sign-in, through a Cloudflare Worker and SQLite-backed Durable Object relay, and requires provisioning and relay configuration. Source guidance does not establish a public iPhone release or live APNs/Dynamic Island delivery. Historical audits retain their recorded commits, dates, and verification limits.
 
 - [Architecture](ARCHITECTURE.md) — ownership, pipelines, persistence, and async boundaries.
 - [Usage accounting](USAGE.md) — safe deltas, cache arithmetic, calendar periods, and recovery.

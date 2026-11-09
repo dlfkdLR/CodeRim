@@ -79,14 +79,18 @@ private struct SourceFingerprintAccumulator {
                 startingAt: authenticatedOffset,
                 byteCount: byteCount
             )
-            authenticator.update(data: sample)
-            legacyAuthenticator?.update(data: sample)
-            authenticatedOffset += Int64(byteCount)
+            append(sample)
         }
         return FingerprintAdvanceResult(
             bytesRead: authenticatedOffset - startingOffset,
             reachedTarget: authenticatedOffset == offset
         )
+    }
+
+    mutating func append(_ data: Data) {
+        authenticator.update(data: data)
+        legacyAuthenticator?.update(data: data)
+        authenticatedOffset += Int64(data.count)
     }
 
     var fingerprint: String {
@@ -174,6 +178,8 @@ private enum CollectorResourceLimits {
 }
 
 actor CodexUsageCollector {
+    @TaskLocal static var afterSourceReadForTesting: (@Sendable (URL, Int64) throws -> Void)?
+
     private let provider: UsageProvider
     private let database: SQLiteDatabase
     private let roots: [URL]
@@ -542,6 +548,8 @@ actor CodexUsageCollector {
                 fingerprintBytesRead += try updateCheckpointFingerprint(
                     &checkpoint,
                     accumulator: &fingerprintAccumulator,
+                    expectedFingerprint: fingerprintAccumulator.fingerprint,
+                    expectedStatusChangeTime: openedStatusChangeTime,
                     fileDescriptor: handle.fileDescriptor
                 )
             }
@@ -596,6 +604,7 @@ actor CodexUsageCollector {
         pendingEvents.reserveCapacity(256)
         var completedLineCount = 0
         let startingOffset = checkpoint.committedOffset
+        var parsedFingerprintAccumulator = fingerprintAccumulator
 
         guard Darwin.lseek(
             handle.fileDescriptor,
@@ -627,6 +636,7 @@ actor CodexUsageCollector {
                 throw CodexUsageCollectorError.sourceUnavailable
             }
             guard !chunk.isEmpty else { break }
+            try Self.afterSourceReadForTesting?(source.url, readOffset)
             try Task.checkCancellation()
             let chunkStartOffset = readOffset
             readOffset += Int64(chunk.count)
@@ -635,12 +645,14 @@ actor CodexUsageCollector {
                 if let newline = chunk.firstIndex(of: 0x0A) {
                     let afterNewline = chunk.index(after: newline)
                     let consumed = chunk.distance(from: chunk.startIndex, to: afterNewline)
+                    parsedFingerprintAccumulator.append(chunk[..<afterNewline])
                     checkpoint.committedOffset = chunkStartOffset + Int64(consumed)
                     checkpoint.isSkippingOversizedLine = false
                     lineStartOffset = checkpoint.committedOffset
                     skippingOversizedLine = false
                     lineBuffer.append(contentsOf: chunk[afterNewline...])
                 } else {
+                    parsedFingerprintAccumulator.append(chunk)
                     continue
                 }
             } else {
@@ -665,7 +677,9 @@ actor CodexUsageCollector {
                     importCutoff: importCutoff
                 )
                 completedLineCount += 1
-                consumedThrough = lineBuffer.index(after: newline)
+                let afterNewline = lineBuffer.index(after: newline)
+                parsedFingerprintAccumulator.append(lineBuffer[consumedThrough..<afterNewline])
+                consumedThrough = afterNewline
                 checkpoint.committedOffset = lineStartOffset
                     + Int64(lineBuffer.distance(from: lineBuffer.startIndex, to: consumedThrough))
 
@@ -673,12 +687,14 @@ actor CodexUsageCollector {
                     fingerprintBytesRead += try updateCheckpointFingerprint(
                         &checkpoint,
                         accumulator: &fingerprintAccumulator,
+                        expectedFingerprint: parsedFingerprintAccumulator.fingerprint,
+                        expectedStatusChangeTime: openedStatusChangeTime,
                         fileDescriptor: handle.fileDescriptor
                     )
                     let committedNormalizationState = try await database.commit(
                         events: pendingEvents,
                         checkpoint: checkpoint,
-                        normalizationState: checkpoint.sessionID == nil ? nil : normalizationState,
+                        normalizationState: normalizationState,
                         expectedEpoch: expectedEpoch,
                         expectedNormalizationState: checkpoint.sessionID == nil ? nil : persistedNormalizationState,
                         mergesMessageUsage: provider == .claude,
@@ -707,6 +723,8 @@ actor CodexUsageCollector {
             }
 
             if lineBuffer.count > CodexJSONLParser.maximumLineBytes {
+                parsedFingerprintAccumulator.append(lineBuffer)
+                normalizationState.quality = .partial
                 lineBuffer.removeAll(keepingCapacity: false)
                 skippingOversizedLine = true
                 checkpoint.isSkippingOversizedLine = true
@@ -726,12 +744,14 @@ actor CodexUsageCollector {
             fingerprintBytesRead += try updateCheckpointFingerprint(
                 &checkpoint,
                 accumulator: &fingerprintAccumulator,
+                expectedFingerprint: parsedFingerprintAccumulator.fingerprint,
+                expectedStatusChangeTime: openedStatusChangeTime,
                 fileDescriptor: handle.fileDescriptor
             )
             let committedNormalizationState = try await database.commit(
                 events: pendingEvents,
                 checkpoint: checkpoint,
-                normalizationState: checkpoint.sessionID == nil ? nil : normalizationState,
+                normalizationState: normalizationState,
                 expectedEpoch: expectedEpoch,
                 expectedNormalizationState: checkpoint.sessionID == nil ? nil : persistedNormalizationState,
                 mergesMessageUsage: provider == .claude,
@@ -785,6 +805,8 @@ actor CodexUsageCollector {
     private func updateCheckpointFingerprint(
         _ checkpoint: inout SourceCheckpoint,
         accumulator: inout SourceFingerprintAccumulator,
+        expectedFingerprint: String,
+        expectedStatusChangeTime: Int64,
         fileDescriptor: Int32
     ) throws -> Int64 {
         var currentStat = stat()
@@ -794,14 +816,19 @@ actor CodexUsageCollector {
         else {
             throw CodexUsageCollectorError.sourceChangedDuringRead
         }
-        checkpoint.observedSize = Int64(currentStat.st_size)
-        checkpoint.modificationTimeNanoseconds = modificationTimeNanoseconds(currentStat)
+        // Keep the opened metadata: a later append or rewrite must be checked on the next pass.
         let advance = try accumulator.advance(
             fileDescriptor: fileDescriptor,
             to: checkpoint.committedOffset,
             maximumBytes: checkpoint.committedOffset - accumulator.authenticatedOffset
         )
-        guard advance.reachedTarget else {
+        guard advance.reachedTarget, accumulator.fingerprint == expectedFingerprint,
+              readSourceStat(fileDescriptor, &currentStat) == 0,
+              Int64(currentStat.st_size) > checkpoint.observedSize
+                || (Int64(currentStat.st_size) == checkpoint.observedSize
+                    && modificationTimeNanoseconds(currentStat) == checkpoint.modificationTimeNanoseconds
+                    && statusChangeTimeNanoseconds(currentStat) == expectedStatusChangeTime)
+        else {
             throw CodexUsageCollectorError.sourceChangedDuringRead
         }
         checkpoint.contentFingerprint = accumulator.fingerprint

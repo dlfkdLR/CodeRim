@@ -26,8 +26,7 @@ enum TurnHistoryImporter {
             // Tool calls are counted from the bytes of the records that make
             // them, and handed to the turn that ends next.
             var calls = 0
-            // Lines are looked at where they lie, not copied: a call that writes
-            // a file is megabytes, and only the turn's end is ever parsed.
+            // Screen bounded lines as bytes; only the turn's end needs JSON parsing.
             forEachLine(of: file, containingAny: ["\"turn_duration\"", Self.toolUseNeedle], copying: false) { line in
                 if line.range(of: turnEnd) != nil {
                     if let sample = claudeSample(fromLine: Data(line), toolCalls: calls) { samples.append(sample) }
@@ -150,35 +149,19 @@ enum TurnHistoryImporter {
 
     /// Streams a file line by line, handing over only the lines that contain
     /// any of `needles`, so a 20 MB transcript is not parsed in full to find a
-    /// few dozen records. Lines are matched as bytes and the buffer is trimmed
-    /// once per chunk, not once per line: copying what is left of it for every
-    /// line made a launch-time import allocate hundreds of megabytes.
+    /// few dozen records. Only complete, bounded lines are emitted; an oversized
+    /// record is skipped through its newline before matching later records.
     static func forEachLine(of url: URL, containingAny needles: [String], copying: Bool = true,
                             _ body: (Data) -> Void) {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return }
         defer { try? handle.close() }
         let needleData = needles.map { Data($0.utf8) }
         func matches(_ line: Data) -> Bool { needleData.contains { line.range(of: $0) != nil } }
-        var carry = Data()
-        let newline = UInt8(ascii: "\n")
-        var reading = true
-        while reading {
-            autoreleasepool {
-                guard let chunk = try? handle.read(upToCount: 1 << 20), !chunk.isEmpty else {
-                    reading = false
-                    return
-                }
-                carry.append(chunk)
-                var start = carry.startIndex
-                while let end = carry[start...].firstIndex(of: newline) {
-                    let line = carry[start..<end]
-                    if matches(line) { body(copying ? Data(line) : line) }
-                    start = carry.index(after: end)
-                }
-                carry = Data(carry[start...])
-            }
+        var cursor = TranscriptLineCursor()
+        guard let size = try? handle.seekToEnd() else { return }
+        try? cursor.read(handle, through: min(size, fileLimit)) { line in
+            if matches(line) { body(copying ? Data(line) : line) }
         }
-        if !carry.isEmpty, matches(carry) { body(carry) }
     }
 
     static func parse(_ stamp: String) -> Date? {
@@ -187,5 +170,48 @@ enum TurnHistoryImporter {
         if let date = formatter.date(from: stamp) { return date }
         formatter.formatOptions = [.withInternetDateTime]
         return formatter.date(from: stamp)
+    }
+}
+
+/// Keeps consumed bytes separate from the last completed line, so unfinished
+/// appends are retained once and oversized records are discarded through newline.
+struct TranscriptLineCursor {
+    static let chunkBytes = 64 * 1024
+    // shortcut: records over 1 MiB are skipped, raise only for a supported record needing more.
+    static let lineBytes = 1024 * 1024
+    private(set) var offset: UInt64 = 0
+    private(set) var readOffset: UInt64 = 0
+    private(set) var carry = Data()
+    private(set) var discarding = false
+
+    mutating func read(_ handle: FileHandle, through end: UInt64, _ body: (Data) -> Void) throws {
+        defer { if carry.isEmpty { carry = Data() } }
+        try handle.seek(toOffset: readOffset)
+        while readOffset < end {
+            guard !Task.isCancelled else { return }
+            let chunk = try handle.read(upToCount: Int(min(UInt64(Self.chunkBytes), end - readOffset))) ?? Data()
+            guard !chunk.isEmpty else { return }
+            autoreleasepool {
+                var start = chunk.startIndex
+                while start < chunk.endIndex {
+                    let newline = chunk[start...].firstIndex(of: 0x0A)
+                    let stop = newline ?? chunk.endIndex
+                    let part = chunk[start..<stop]
+                    if !discarding {
+                        if carry.count + part.count <= Self.lineBytes { carry.append(part) }
+                        else { carry = Data(); discarding = true }
+                    }
+                    readOffset += UInt64(part.count)
+                    if let newline {
+                        readOffset += 1
+                        offset = readOffset
+                        if !discarding { body(carry) }
+                        carry.removeAll(keepingCapacity: true)
+                        discarding = false
+                        start = chunk.index(after: newline)
+                    } else { break }
+                }
+            }
+        }
     }
 }

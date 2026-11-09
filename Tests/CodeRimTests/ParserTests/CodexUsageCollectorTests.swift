@@ -1436,6 +1436,261 @@ final class CodexUsageCollectorTests: XCTestCase {
         XCTAssertEqual(try next.handle.readToEnd(), Data("rewritten\nnew-tail\n".utf8))
     }
 
+    func testLiveSameSizeRewriteBeforeFinalCommitDoesNotMixGenerations() async throws {
+        try await assertLiveRewriteIsRejected(tokenCount: 1)
+    }
+
+    func testLiveSameSizeRewriteBeforeIntermediateCommitDoesNotMixGenerations() async throws {
+        try await assertLiveRewriteIsRejected(tokenCount: 257)
+    }
+
+    func testLiveSameSizeRewriteBeforeThousandLineCommitDoesNotMixGenerations() async throws {
+        try await assertLiveRewriteIsRejected(tokenCount: 1, ignoredLineCount: 999)
+    }
+
+    func testCommittedPrefixRewriteDuringLiveReadIsRejected() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let sessions = root.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+        let source = sessions.appendingPathComponent("prefix.jsonl")
+        let metadata = #"{"type":"session_meta","payload":{"id":"live-prefix"}}"#
+        let first = tokenLine(input: 100, cached: 0, output: 0,
+                              lastInput: 100, lastCached: 0, lastOutput: 0, ordinal: 1)
+        let second = tokenLine(input: 1000, cached: 0, output: 0,
+                               lastInput: 900, lastCached: 0, lastOutput: 0, ordinal: 2)
+        let initial = Data((metadata + "\n" + first + "\n").utf8)
+        try initial.write(to: source)
+        let database = try SQLiteDatabase(url: root.appendingPathComponent("usage.sqlite"))
+        let collector = CodexUsageCollector(database: database, roots: [sessions])
+        let now = try Date.ISO8601FormatStyle().parse("2026-08-27T01:00:00Z")
+        _ = try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        let previous = try await database.checkpoint(for: storageIdentifier(source.path))
+        let writer = try FileHandle(forWritingTo: source)
+        defer { try? writer.close() }
+        try writer.seekToEnd()
+        try writer.write(contentsOf: Data((second + "\n").utf8))
+        let grown = try Data(contentsOf: source)
+        let replacement = Data(String(decoding: grown, as: UTF8.self)
+            .replacingOccurrences(of: #""input_tokens":100,"#, with: #""input_tokens":900,"#).utf8)
+        let modificationDate = try XCTUnwrap(
+            FileManager.default.attributesOfItem(atPath: source.path)[.modificationDate] as? Date)
+        let rejected = try await CodexUsageCollector.$afterSourceReadForTesting.withValue({ url, _ in
+            let rewrite = try FileHandle(forWritingTo: url)
+            defer { try? rewrite.close() }
+            try rewrite.write(contentsOf: replacement)
+            try FileManager.default.setAttributes([.modificationDate: modificationDate], ofItemAtPath: url.path)
+        }) {
+            try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        }
+        XCTAssertEqual(rejected.snapshot.allTime.inputTokens, 100)
+        let count = try await database.eventCount()
+        XCTAssertEqual(count, 1)
+        let checkpoint = try await database.checkpoint(for: storageIdentifier(source.path))
+        XCTAssertEqual(checkpoint, previous)
+    }
+
+    func testAppendDuringLiveReadKeepsAlreadyParsedUsageAndConverges() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let sessions = root.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+        let source = sessions.appendingPathComponent("live.jsonl")
+        let metadata = #"{"type":"session_meta","payload":{"id":"live-append"}}"#
+        let first = tokenLine(input: 100, cached: 0, output: 0,
+                              lastInput: 100, lastCached: 0, lastOutput: 0, ordinal: 1)
+        let second = tokenLine(input: 200, cached: 0, output: 0,
+                               lastInput: 100, lastCached: 0, lastOutput: 0, ordinal: 2)
+        try Data((metadata + "\n" + first + "\n").utf8).write(to: source)
+        let database = try SQLiteDatabase(url: root.appendingPathComponent("usage.sqlite"))
+        let collector = CodexUsageCollector(database: database, roots: [sessions])
+        let now = try Date.ISO8601FormatStyle().parse("2026-08-27T01:00:00Z")
+        let duringAppend = try await CodexUsageCollector.$afterSourceReadForTesting.withValue({ url, offset in
+            guard offset == 0 else { return }
+            let writer = try FileHandle(forWritingTo: url)
+            defer { try? writer.close() }
+            try writer.seekToEnd()
+            try writer.write(contentsOf: Data((second + "\n").utf8))
+        }) {
+            try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        }
+        XCTAssertGreaterThanOrEqual(duringAppend.snapshot.allTime.inputTokens, 100,
+                                    "An append must not discard the already parsed first accounting row")
+        let completed = try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        XCTAssertEqual(completed.snapshot.allTime.inputTokens, 200)
+        XCTAssertFalse(completed.hasMoreWork)
+        let eventCount = try await database.eventCount()
+        XCTAssertEqual(eventCount, 2)
+    }
+
+    func testOversizedAccountingQuarantineKeepsPartialQualityAfterReopenAndRecovery() async throws {
+        try await assertQuarantineQualitySurvivesReopen(hasInitialUsage: true)
+    }
+
+    func testOversizedAccountingWithoutCounterKeepsPartialQualityWithoutInventingBaseline() async throws {
+        try await assertQuarantineQualitySurvivesReopen(hasInitialUsage: false)
+    }
+
+    func testHistoryResetsRemovePartialSourceQualityWithoutCounter() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let database = try SQLiteDatabase(url: root.appendingPathComponent("usage.sqlite"))
+        let now = try Date.ISO8601FormatStyle().parse("2026-08-27T01:00:00Z")
+        let checkpoint = SourceCheckpoint.fresh(sourcePath: "opaque-source", fileIdentity: "synthetic")
+        let event = UsageEvent(eventKey: "synthetic-event", occurredAt: now, sessionID: nil,
+                               model: nil, projectPath: nil,
+                               usage: TokenUsage(inputTokens: 100, cachedInputTokens: 0, outputTokens: 0),
+                               sourcePath: checkpoint.sourcePath, sourcePosition: 0)
+        for clearsHistory in [true, false] {
+            try await database.commit(events: [event], checkpoint: checkpoint,
+                normalizationState: UsageNormalizationState(cumulativeHighWaterMark: nil, quality: .partial))
+            let partial = try await database.usageSnapshot(now: now, calendar: utcCalendar, weekStart: .monday)
+            XCTAssertEqual(partial.quality, .partial)
+            if clearsHistory {
+                _ = try await database.clearLocalHistory(at: now.addingTimeInterval(-1))
+            } else {
+                try await database.rebuildStatistics()
+            }
+            try await database.commit(events: [event], checkpoint: checkpoint, normalizationState: nil)
+            let exact = try await database.usageSnapshot(now: now, calendar: utcCalendar, weekStart: .monday)
+            XCTAssertEqual(exact.quality, .exact)
+        }
+    }
+
+    func testQuarantineBeforeSessionMetadataKeepsPartialQuality() async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let sessions = root.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+        let source = sessions.appendingPathComponent("early-quarantine.jsonl")
+        let transcript = Data(repeating: 0x78, count: CodexJSONLParser.maximumLineBytes + 1)
+        let metadata = #"{"type":"session_meta","payload":{"id":"late-metadata"}}"#
+        let row = tokenLine(input: 100, cached: 0, output: 0,
+                            lastInput: 100, lastCached: 0, lastOutput: 0, ordinal: 1)
+        try transcript.write(to: source)
+        let database = try SQLiteDatabase(url: root.appendingPathComponent("usage.sqlite"))
+        let collector = CodexUsageCollector(database: database, roots: [sessions])
+        let now = try Date.ISO8601FormatStyle().parse("2026-08-27T01:00:00Z")
+        _ = try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        let writer = try FileHandle(forWritingTo: source)
+        defer { try? writer.close() }
+        try writer.seekToEnd()
+        try writer.write(contentsOf: Data(("\n" + metadata + "\n" + row + "\n").utf8))
+        let result = try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        XCTAssertEqual(result.snapshot.allTime.inputTokens, 100)
+        XCTAssertEqual(result.snapshot.quality, .partial)
+    }
+
+    private func assertQuarantineQualitySurvivesReopen(hasInitialUsage: Bool) async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let sessions = root.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+        let source = sessions.appendingPathComponent("quality.jsonl")
+        let databaseURL = root.appendingPathComponent("usage.sqlite")
+        let metadata = #"{"type":"session_meta","payload":{"id":"quarantine-quality"}}"#
+        let first = tokenLine(input: 100, cached: 0, output: 0,
+                              lastInput: 100, lastCached: 0, lastOutput: 0, ordinal: 1)
+        try Data((metadata + "\n" + (hasInitialUsage ? first + "\n" : "")).utf8).write(to: source)
+        let now = try Date.ISO8601FormatStyle().parse("2026-08-27T01:00:00Z")
+        let database = try SQLiteDatabase(url: databaseURL)
+        let collector = CodexUsageCollector(database: database, roots: [sessions])
+        let initial = try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        XCTAssertEqual(initial.snapshot.quality, hasInitialUsage ? .exact : .unavailable)
+        let writer = try FileHandle(forWritingTo: source)
+        defer { try? writer.close() }
+        try writer.seekToEnd()
+        try writer.write(contentsOf: Data((#"{"type":"event_msg","payload":{"type":"token_count","padding":""#
+            + String(repeating: "x", count: CodexJSONLParser.maximumLineBytes + 1)).utf8))
+        let quarantined = try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        XCTAssertEqual(quarantined.snapshot.allTime.inputTokens, hasInitialUsage ? 100 : 0)
+        if hasInitialUsage { XCTAssertEqual(quarantined.snapshot.quality, .partial) }
+        let storedCheckpoint = try await database.checkpoint(for: storageIdentifier(source.path))
+        XCTAssertEqual(storedCheckpoint?.isSkippingOversizedLine, true)
+
+        let reopenedDatabase = try SQLiteDatabase(url: databaseURL)
+        let reopenedCollector = CodexUsageCollector(database: reopenedDatabase, roots: [sessions])
+        let reopened = try await reopenedCollector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        if hasInitialUsage { XCTAssertEqual(reopened.snapshot.quality, .partial) }
+        let state = try await reopenedDatabase.normalizationState(for: storageIdentifier("quarantine-quality"))
+        XCTAssertEqual(state.cumulativeHighWaterMark?.inputTokens, hasInitialUsage ? 100 : nil,
+                       "Quarantine cannot manufacture a cumulative baseline")
+        let next = tokenLine(input: 200, cached: 0, output: 0,
+                             lastInput: hasInitialUsage ? 100 : 200,
+                             lastCached: 0, lastOutput: 0, ordinal: 2)
+        try writer.write(contentsOf: Data(("\n" + next + "\n").utf8))
+        let recovered = try await reopenedCollector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        XCTAssertEqual(recovered.snapshot.allTime.inputTokens, 200)
+        XCTAssertEqual(recovered.snapshot.quality, .partial)
+        let recoveredCheckpoint = try await reopenedDatabase.checkpoint(for: storageIdentifier(source.path))
+        XCTAssertEqual(recoveredCheckpoint?.isSkippingOversizedLine, false)
+        let finalDatabase = try SQLiteDatabase(url: databaseURL)
+        let finalSnapshot = try await finalDatabase.usageSnapshot(now: now, calendar: utcCalendar, weekStart: .monday)
+        XCTAssertEqual(finalSnapshot.quality, .partial)
+    }
+
+    private func assertLiveRewriteIsRejected(tokenCount: Int, ignoredLineCount: Int = 0) async throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let sessions = root.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+        let source = sessions.appendingPathComponent("live.jsonl")
+        let databaseURL = root.appendingPathComponent("usage.sqlite")
+        let metadata = #"{"timestamp":"2026-08-27T00:00:00Z","type":"session_meta","payload":{"id":"live-rewrite"}}"#
+        func transcript(base: Int64) -> Data {
+            let rows = (1...tokenCount).map { index in
+                tokenLine(input: base + Int64(index), cached: 0, output: 0,
+                          lastInput: index == 1 ? base + 1 : 1,
+                          lastCached: 0, lastOutput: 0, ordinal: Int64(index))
+            }
+            let ignored = Array(repeating: #"{"type":"ignored"}"#, count: ignoredLineCount)
+            return Data(([metadata] + rows + ignored).joined(separator: "\n").appending("\n").utf8)
+        }
+        let original = transcript(base: 100_000)
+        let replacement = transcript(base: 200_000)
+        XCTAssertEqual(original.count, replacement.count)
+        XCTAssertLessThan(original.count, 256 * 1_024, "The rewrite must occur inside one live read chunk")
+        try original.write(to: source)
+        let now = try Date.ISO8601FormatStyle().parse("2026-08-27T01:00:00Z")
+        let database = try SQLiteDatabase(url: databaseURL)
+        let collector = CodexUsageCollector(database: database, roots: [sessions])
+        let rejected = try await CodexUsageCollector.$afterSourceReadForTesting.withValue({ url, offset in
+            guard offset == 0 else { return }
+            let writer = try FileHandle(forWritingTo: url)
+            defer { try? writer.close() }
+            try writer.write(contentsOf: replacement)
+            // A deterministic version change, independent of filesystem clock resolution.
+            try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: url.path)
+        }) {
+            try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        }
+        XCTAssertEqual(rejected.snapshot.allTime, .zero)
+        let rejectedCount = try await database.eventCount()
+        XCTAssertEqual(rejectedCount, 0, "Neither intermediate nor final batches may publish the old chunk")
+        let rejectedCheckpoint = try await database.checkpoint(for: storageIdentifier(source.path))
+        XCTAssertNil(rejectedCheckpoint)
+
+        let recovered = try await collector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        XCTAssertEqual(recovered.snapshot.allTime.inputTokens, 200_000 + Int64(tokenCount))
+        let storedCheckpoint = try await database.checkpoint(for: storageIdentifier(source.path))
+        let checkpoint = try XCTUnwrap(storedCheckpoint)
+        let key = await database.sourceFingerprintKey()
+        var authenticator = HMAC<SHA256>(key: SymmetricKey(data: key))
+        authenticator.update(data: Data("CodeRim.source-fingerprint.v2|".utf8))
+        authenticator.update(data: replacement)
+        let fingerprint = "v2:" + Data(authenticator.finalize()).map { String(format: "%02x", $0) }.joined()
+        XCTAssertEqual(checkpoint.contentFingerprint, fingerprint)
+        XCTAssertEqual(checkpoint.committedOffset, Int64(replacement.count))
+
+        let reopenedDatabase = try SQLiteDatabase(url: databaseURL)
+        let reopenedCollector = CodexUsageCollector(database: reopenedDatabase, roots: [sessions])
+        let reopened = try await reopenedCollector.refresh(now: now, calendar: utcCalendar, weekStart: .monday)
+        XCTAssertEqual(reopened.snapshot.allTime.inputTokens, 200_000 + Int64(tokenCount))
+        let reopenedCount = try await reopenedDatabase.eventCount()
+        XCTAssertEqual(reopenedCount, Int64(tokenCount), "Replacement event identities must survive refresh and reopen without duplication")
+    }
+
     private var utcCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!

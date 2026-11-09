@@ -1,4 +1,5 @@
 import AppKit
+import CoreImage
 import SwiftUI
 import Vision
 import XCTest
@@ -53,7 +54,10 @@ final class ClaudeAccountsLayoutTests: XCTestCase {
                     let request = VNRecognizeTextRequest()
                     request.recognitionLevel = .accurate
                     request.recognitionLanguages = ["en-US"]
-                    try VNImageRequestHandler(cgImage: XCTUnwrap(bitmap.cgImage)).perform([request])
+                    // Strengthen disabled-control contrast for OCR without changing text, geometry or saved captures.
+                    let image = CIImage(cgImage: try XCTUnwrap(bitmap.cgImage))
+                        .applyingFilter("CIGammaAdjust", parameters: ["inputPower": dark ? 0.5 : 2])
+                    try VNImageRequestHandler(ciImage: image).perform([request])
                     let lines = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
                     let text = lines.joined(separator: " ")
                     for action in ["Save Current Account", "Add Account"] + (state == "busy" ? ["Cancel"] : []) {

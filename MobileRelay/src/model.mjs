@@ -11,7 +11,8 @@ const timestamp = v => Number.isFinite(v) && v >= 0 && v <= 4102444800 ? v : nul
 const percent = v => Number.isFinite(v) && v >= 0 && v <= 100 ? v : null;
 const tokens = v => Number.isSafeInteger(v) && v >= 0 ? v : null;
 // Desktops post on change and send a heartbeat every five minutes (longer when the
-// relay is busy), so a computer counts as online for two missed heartbeats.
+// relay is busy). The default allows two missed normal heartbeats; each desktop
+// also retains the longer window advertised during critical mode.
 export const ONLINE_WINDOW = 660;
 export const defaultPreferences = () => ({ providerIDs: [] });
 export function preferences(input) {
@@ -43,8 +44,8 @@ export function sanitizeSnapshot(input, now) {
   });
   return { schemaVersion: 1, generatedAt: input.generatedAt, providers, sessions };
 }
-export function contentState(snapshot, prefs, receivedAt, now) {
-  const staleAt = receivedAt ? receivedAt + ONLINE_WINDOW : now;
+export function contentState(snapshot, prefs, receivedAt, now, onlineWindow = ONLINE_WINDOW) {
+  const staleAt = receivedAt ? receivedAt + onlineWindow : now;
   const connection = !snapshot || now >= staleAt ? 'offline' : 'connected';
   const providers = prefs.providerIDs.map(id => snapshot?.providers.find(p => p.id === id)).filter(Boolean).map(p => ({
     ...p,
@@ -96,7 +97,7 @@ function catalogPicker(device, list, view, current, now) {
   const history = historyFor(view, device.id);
   const pinned = history.pinned.filter(id => list.some(p => p.id === id));
   const phase = id => {
-    if (now >= device.receivedAt + ONLINE_WINDOW) return undefined;
+    if (now >= device.receivedAt + (device.onlineWindow ?? ONLINE_WINDOW)) return undefined;
     const sessions = (device.snapshot?.sessions ?? []).filter(s => s.providerID === id);
     return sessions.some(s => s.phase === 'waiting') ? 'waiting' : sessions.some(s => s.phase === 'working') ? 'working' : undefined;
   };
@@ -125,10 +126,10 @@ function catalogPicker(device, list, view, current, now) {
 }
 // Each display has one source. Matching provider names never imply matching accounts.
 export function desktopState(devices, prefs, view, now) {
-  const device = devices.find(d => d.id === view?.deviceID) ?? devices.find(d => d.receivedAt + ONLINE_WINDOW > now) ?? devices[0];
+  const device = devices.find(d => d.id === view?.deviceID) ?? devices.find(d => d.receivedAt + (d.onlineWindow ?? ONLINE_WINDOW) > now) ?? devices[0];
   const list = eligible(device, prefs);
   const provider = list.find(p => p.id === view?.providerID) ?? list[0];
-  const state = contentState(device?.snapshot, { providerIDs: provider ? [provider.id] : [] }, device?.receivedAt ?? 0, now);
+  const state = contentState(device?.snapshot, { providerIDs: provider ? [provider.id] : [] }, device?.receivedAt ?? 0, now, device?.onlineWindow);
   state.focus = { deviceID: device?.id ?? '', deviceName: device?.name ?? 'No device', platform: device?.platform ?? 'macOS',
     deviceIndex: device ? devices.indexOf(device) + 1 : 0, deviceCount: devices.length,
     providerIndex: provider ? list.indexOf(provider) + 1 : 0, providerCount: list.length };

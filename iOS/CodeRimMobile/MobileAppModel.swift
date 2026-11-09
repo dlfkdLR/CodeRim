@@ -186,6 +186,14 @@ final class MobileAppModel: ObservableObject {
         }
     }
 
+    /// External URLs may navigate, but enrollment requires the app's scanner or paste action.
+    func handleExternalURL(_ url: URL) {
+        guard url.scheme == "coderim", url.host == "dashboard",
+              url.user == nil, url.password == nil, url.port == nil,
+              url.path.isEmpty, url.query == nil, url.fragment == nil else { return }
+        openDashboard()
+    }
+
     func openDashboard() { dashboardRequest += 1 }
 
     func refresh() async {
@@ -244,7 +252,7 @@ final class MobileAppModel: ObservableObject {
             idleSince = nil
             guard !activityActive, !userStopped, !busy, ActivityAuthorizationInfo().areActivitiesEnabled else { return }
             autoStarted = true
-            await startActivity()
+            await startActivity(userInitiated: false)
         } else {
             userStopped = false
             guard activityActive, autoStarted, !pushAvailable else { idleSince = nil; return }
@@ -335,13 +343,23 @@ final class MobileAppModel: ObservableObject {
         if case MobileRelayError.rejected(401) = error { Task { await clearLocalLogin() } }
     }
 
-    func startActivity() async {
+    /// Automatic starts and token rotation must never clear a previous Stop on the relay.
+    func resumeActivityUpdates(userInitiated: Bool) async throws {
+        guard userInitiated, let credential, let client else { return }
+        let generation = loginGeneration
+        let _: MobileOK = try await client.send("POST", "/v1/activities/resume", token: credential.token, body: MobileEmpty())
+        guard generation == loginGeneration else { throw CancellationError() }
+        userStopped = false
+    }
+
+    func startActivity(userInitiated: Bool = true) async {
         guard signedIn, !busy else { return }
         busy = true; defer { busy = false }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else {
             errorMessage = "Allow Live Activities for CodeRim in iPhone Settings."; return
         }
         do {
+            try await resumeActivityUpdates(userInitiated: userInitiated)
             if let existing = Activity<CodeRimActivityAttributes>.activities.first(where: { $0.attributes.connectionID == credential.map { MobileActivityConnection.id(for: $0.token) } && ($0.activityState == .active || $0.activityState == .stale) }) {
                 observe(existing); return
             }

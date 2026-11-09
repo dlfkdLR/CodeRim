@@ -1,9 +1,9 @@
 name: Windows
 on:
   push:
-    paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', '.github/workflows/windows.yml']
+    paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', 'Tests/Fixtures/**', '.github/workflows/windows.yml']
   pull_request:
-    paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', '.github/workflows/windows.yml']
+    paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', 'Tests/Fixtures/**', '.github/workflows/windows.yml']
   workflow_dispatch:
     inputs:
       msi_handoff:
@@ -24,8 +24,12 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Test numeric history, scripts, and contracts
         run: dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
+      - name: Saved-account probe regression tests
+        run: dotnet run --project Windows/tests/CodeRim.SavedAccountProbeTests --configuration Release
       - name: Validate release version declarations
         run: ./Windows/Scripts/test_release_version.ps1
+      - name: Validate Store manifest aliases
+        run: ./Windows/Scripts/test_msix_manifest.ps1
       - name: Validate signed payload manifest generator
         run: python Windows/Scripts/test_update_payload_manifest.py
       - name: Build WPF application and CLI
@@ -130,8 +134,12 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Test core on Windows ARM64
         run: dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
+      - name: Saved-account probe regression tests
+        run: dotnet run --project Windows/tests/CodeRim.SavedAccountProbeTests --configuration Release
       - name: Validate release version declarations
         run: ./Windows/Scripts/test_release_version.ps1
+      - name: Validate Store manifest aliases
+        run: ./Windows/Scripts/test_msix_manifest.ps1
       - name: Validate signed payload manifest generator
         run: python Windows/Scripts/test_update_payload_manifest.py
       - name: Build WPF application and CLI

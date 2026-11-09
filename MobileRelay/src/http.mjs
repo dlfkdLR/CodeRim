@@ -9,9 +9,28 @@ export async function handle(relay, request) {
     const url = new URL(request.url);
     if (url.pathname.length > 256 || url.search) throw new HTTPError(400, 'invalid_path');
     const declared = Number(request.headers.get('content-length') ?? 0);
-    if (declared > 262144) throw new HTTPError(413, 'payload_too_large');
-    const data = ['GET', 'HEAD'].includes(request.method) ? '' : await request.text();
-    if (new TextEncoder().encode(data).length > 262144) throw new HTTPError(413, 'payload_too_large');
+    if (declared > 262144) {
+      await request.body?.cancel();
+      throw new HTTPError(413, 'payload_too_large');
+    }
+    let data = '';
+    if (!['GET', 'HEAD'].includes(request.method) && request.body) {
+      const reader = request.body.getReader(), decoder = new TextDecoder();
+      let bytes = 0;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          bytes += value.byteLength;
+          if (bytes > 262144) {
+            await reader.cancel();
+            throw new HTTPError(413, 'payload_too_large');
+          }
+          data += decoder.decode(value, { stream: true });
+        }
+        data += decoder.decode();
+      } finally { reader.releaseLock(); }
+    }
     let body = {};
     if (data) {
       if (!request.headers.get('content-type')?.startsWith('application/json')) throw new HTTPError(415, 'json_required');

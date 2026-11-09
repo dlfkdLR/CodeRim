@@ -33,25 +33,35 @@ actor UsageActivityScanner {
     static let shared = UsageActivityScanner()
 
     /// `snapshot` from outside the actor, for a place that takes a plain function.
-    nonisolated static func loadShared(provider: UsageProvider, range: AnalyticsRange) async -> ActivitySnapshot {
-        await shared.snapshot(provider: provider, range: range)
+    nonisolated static func loadShared(provider: UsageProvider, range: AnalyticsRange, through: Date,
+                                       calendar: Calendar) async -> ActivitySnapshot {
+        await shared.snapshot(provider: provider, range: range, now: through, calendar: calendar)
     }
 
     /// A file larger than this is not read: it is not a transcript anyone had.
     static let fileLimit: UInt64 = 256 * 1024 * 1024
 
     private let roots: Roots
-    private let calendar: Calendar
-    private let days: ActivityDayResolver
+    private let fixedCalendar: Calendar?
+    private var calendar: Calendar
+    private var days: ActivityDayResolver
     private var cache: [String: Cached] = [:]
 
-    init(roots: Roots = .standard(), calendar: Calendar = .current) {
+    init(roots: Roots = .standard(), calendar: Calendar? = nil) {
         self.roots = roots
-        self.calendar = calendar
-        self.days = ActivityDayResolver(calendar: calendar)
+        self.fixedCalendar = calendar
+        self.calendar = calendar ?? .current
+        self.days = ActivityDayResolver(calendar: calendar ?? .current)
     }
 
-    func snapshot(provider: UsageProvider, range: AnalyticsRange, now: Date = Date()) -> ActivitySnapshot {
+    func snapshot(provider: UsageProvider, range: AnalyticsRange, now: Date = Date(),
+                  calendar reportingCalendar: Calendar? = nil) -> ActivitySnapshot {
+        let current = reportingCalendar ?? fixedCalendar ?? .current
+        if current != calendar {
+            calendar = current
+            days = ActivityDayResolver(calendar: current)
+            cache.removeAll()
+        }
         let interval = range.interval(through: now, calendar: calendar)
         var chartDays: [Date] = []
         var cursor = calendar.startOfDay(for: interval.start)

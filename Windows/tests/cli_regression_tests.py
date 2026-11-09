@@ -32,6 +32,28 @@ with tempfile.TemporaryDirectory(prefix="coderim-cli-review-") as directory:
         assert structured["providers"][0]["localUsage"]["state"] == "partial"
 print("PASS: CLI preserves partial quality in fresh/stale text and JSON (4 process checks)")
 
+# Fresh publication timestamps must not erase an explicit failed-read state.
+with tempfile.TemporaryDirectory(prefix="coderim-cli-failed-local-") as directory:
+    path = pathlib.Path(directory) / "snapshot.json"
+    for state, stale in (("stale", False), ("partial", True), ("unavailable", False), ("error", False)):
+        snapshot = {"schemaVersion": 1, "generatedAt": now.isoformat(), "providers": [
+            {"id": "codex", "name": "Codex", "enabled": True,
+             "localUsage": {"scope": "this-pc", "state": state, "stale": stale,
+                            "updatedAt": now.isoformat(), "periodsAsOf": now.isoformat(),
+                            "timeZoneIdentifier": "UTC", "totals": {"today": {
+                                "inputTokens": 100, "cachedInputTokens": 0, "outputTokens": 10}}},
+             "limits": {"id": "codex", "state": "unavailable", "windows": []}}]}
+        path.write_text(json.dumps(snapshot), encoding="utf-8")
+        text = subprocess.run(runner + ["tokens", "--snapshot", str(path)], check=True,
+                              capture_output=True, text=True, encoding="utf-8", timeout=10).stdout
+        if state in ("unavailable", "error"):
+            assert "unavailable" in text and "110 tokens" not in text and "Input" not in text, text
+        else:
+            assert "stale" in text and "110 tokens" in text, text
+            if state == "partial":
+                assert "partial" in text, text
+print("PASS: CLI respects explicit stale, stale partial and unavailable local readings")
+
 with tempfile.TemporaryDirectory(prefix="coderim-cli-units-") as directory:
     path = pathlib.Path(directory) / "snapshot.json"
     timestamp = now.isoformat()
