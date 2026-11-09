@@ -17,8 +17,17 @@ jobs:
   checks:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    outputs:
+      apple: ${{ steps.changes.outputs.apple }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Detect Apple build inputs
+        id: changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: bash Scripts/ci_apple_changes.sh "$BASE" >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
@@ -27,6 +36,7 @@ jobs:
           python3 Scripts/validate_docs.py
           python3 Tests/Scripts/docs_validation_tests.py
           python3 Tests/Scripts/ci_source_mtimes_tests.py
+          python3 Tests/Scripts/ci_apple_changes_tests.py
           python3 website/scripts/sync-providers.py --check
           node --check website/app.js
           node --check website/providers.js
@@ -35,6 +45,7 @@ jobs:
 
   build-and-test:
     needs: checks
+    if: needs.checks.outputs.apple == 'true'
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -84,6 +95,7 @@ jobs:
 
   ios-tests:
     needs: checks
+    if: needs.checks.outputs.apple == 'true'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -99,8 +111,9 @@ jobs:
 
   release-build:
     needs: checks
+    if: needs.checks.outputs.apple == 'true'
     runs-on: macos-26
-    timeout-minutes: 40
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/swift-cache

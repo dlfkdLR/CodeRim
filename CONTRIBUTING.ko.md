@@ -17,7 +17,7 @@ for test_script in Tests/Scripts/*_tests.zsh; do "$test_script"; done
 Scripts/build_release.sh
 ```
 
-CI는 Swift 테스트·iOS 테스트·Universal 릴리스 빌드를 병렬 실행합니다. Swift 캐시는 빌드 종류·도구 버전·고정 의존성별로 분리하고, 내용이 일치하는 소스의 시간 정보만 복원해 증분 컴파일을 유지합니다. Windows는 한 번 패키징한 정확한 아카이브를 x64·ARM64에서 병렬 검증합니다. 기능 브랜치는 PR 검사로 실행하며, `main` push와 수동 실행도 지원합니다.
+CI는 Swift 테스트·iOS 테스트·Universal 릴리스 빌드를 병렬 실행합니다. Swift 캐시는 빌드 종류·도구 버전·고정 의존성별로 분리하고, 내용이 일치하는 소스의 시간 정보만 복원해 증분 컴파일을 유지합니다. Windows는 한 번 패키징한 정확한 아카이브를 x64·ARM64에서 병렬 검증합니다. 문서·웹사이트·Relay·Windows만 바꾸면 빠른 검사를 유지하고 Apple 빌드는 생략합니다. 기능 브랜치는 PR 검사로 실행하며, `main` push와 전체 수동 실행도 지원합니다.
 
 준비 명령은 `Config/DependencyPatches`의 검토된 CodexBar Swift·C 경고 수정을 전용 `.build/coderim-build` 안에만 적용하고, 고정 revision과 SwiftPM repository 연결을 유지합니다. 래퍼는 준비·빌드·테스트·사후 소스 해시 및 `Package.resolved` 확인까지 같은 잠금을 유지합니다. CI와 릴리스 빌드는 Swift 컴파일 경고가 있으면 실패합니다. 기존 수동 빌드, editable override, 전역 SwiftPM 캐시는 보존합니다. 별도 `--scratch-path`는 `--run-swift` 앞에 지정하고, 도구 버전에 따른 제품 위치는 `--show-bin-path`로 확인합니다.
 

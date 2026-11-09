@@ -17,7 +17,7 @@ for test_script in Tests/Scripts/*_tests.zsh; do "$test_script"; done
 Scripts/build_release.sh
 ```
 
-CI runs Swift tests, iOS tests, and the Universal release build in parallel. Swift caches are isolated by build variant, toolchain, and pinned dependencies; only content-matching source timestamps are restored for incremental compilation. Windows packages once, then verifies the exact archives on x64 and ARM64 in parallel. Feature branches use PR checks; pushes to `main` and manual runs remain supported.
+CI runs Swift tests, iOS tests, and the Universal release build in parallel. Swift caches are isolated by build variant, toolchain, and pinned dependencies; only content-matching source timestamps are restored for incremental compilation. Windows packages once, then verifies the exact archives on x64 and ARM64 in parallel. Docs, website, Relay, or Windows-only changes keep the fast checks and skip Apple builds. Feature branches use PR checks; pushes to `main` and full manual runs remain supported.
 
 The preparation command keeps CodexBar at the revision in `Package.resolved`
 and applies the Swift and C warning fixes recorded in `Config/DependencyPatches` to
