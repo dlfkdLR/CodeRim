@@ -21,6 +21,8 @@ Scripts/build_release.sh
 
 CI runs Swift tests, iOS tests, and the Universal release build in parallel. Swift caches are isolated by build variant, toolchain, and pinned dependencies; only content-matching source timestamps are restored for incremental compilation. Windows packages once, then verifies the exact archives on x64 and ARM64 in parallel. Docs, website, Relay, or Windows-only changes keep the fast checks and skip Apple builds. Feature branches use PR checks; pushes to `main` and full manual runs remain supported.
 
+The required `build-and-test` result always runs after fast checks and the conditional `apple-tests` job. Documentation-only changes report success after fast checks pass; Apple changes require the actual Mac tests to pass. Failed or cancelled checks cannot be turned into a green required result.
+
 The preparation command keeps CodexBar at the revision in `Package.resolved`
 and applies the Swift and C warning fixes recorded in `Config/DependencyPatches` to
 the checkout in an exclusively owned `.build/coderim-build` directory. It
