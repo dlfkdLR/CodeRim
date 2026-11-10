@@ -1,10 +1,5 @@
 import Foundation
 
-enum WeekStart: Int, CaseIterable, Codable, Sendable {
-    case sunday = 1
-    case monday = 2
-}
-
 struct AggregationService: Sendable {
     func snapshot(
         from events: [UsageEvent],
@@ -12,12 +7,7 @@ struct AggregationService: Sendable {
         calendar baseCalendar: Calendar,
         weekStart: WeekStart
     ) -> UsageSnapshot {
-        var calendar = baseCalendar
-        calendar.firstWeekday = weekStart.rawValue
-
-        let todayStart = calendar.startOfDay(for: now)
-        let weekStartDate = calendar.dateInterval(of: .weekOfYear, for: now)?.start ?? todayStart
-        let monthStart = calendar.dateInterval(of: .month, for: now)?.start ?? todayStart
+        let bounds = UsagePeriodBounds(now: now, calendar: baseCalendar, weekStart: weekStart)
 
         var today = TokenUsage.zero
         var week = TokenUsage.zero
@@ -26,9 +16,9 @@ struct AggregationService: Sendable {
 
         for event in events where event.occurredAt <= now {
             allTime = allTime.adding(event.usage)
-            if event.occurredAt >= monthStart { month = month.adding(event.usage) }
-            if event.occurredAt >= weekStartDate { week = week.adding(event.usage) }
-            if event.occurredAt >= todayStart { today = today.adding(event.usage) }
+            if event.occurredAt >= bounds.month { month = month.adding(event.usage) }
+            if event.occurredAt >= bounds.week { week = week.adding(event.usage) }
+            if event.occurredAt >= bounds.today { today = today.adding(event.usage) }
         }
 
         let visibleEvents = events.filter { $0.occurredAt <= now }

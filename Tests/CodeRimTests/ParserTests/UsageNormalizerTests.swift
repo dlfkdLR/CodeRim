@@ -9,15 +9,15 @@ final class UsageNormalizerTests: XCTestCase {
     func testOptionalCacheWriteLossDoesNotDropOrRepeatUsage() {
         let known = TokenUsage(inputTokens: 100, cachedInputTokens: 0, cacheWriteInputTokens: 40, outputTokens: 20)
         let missing = TokenUsage(inputTokens: 100, cachedInputTokens: 0, outputTokens: 20)
-        let first = normalizer.normalize(observation(cumulative: known), metadata: nil, state: .empty)
-        let repeated = normalizer.normalize(observation(cumulative: missing), metadata: nil, state: first.state)
+        let first = normalizer.normalize(observation(cumulative: known), state: .empty)
+        let repeated = normalizer.normalize(observation(cumulative: missing), state: first.state)
         XCTAssertNil(repeated.delta)
         var state = first.state
         var total = first.delta!.totalTokens
         for index in 2...3 {
             let cumulative = TokenUsage(inputTokens: Int64(index * 100), cachedInputTokens: 0, outputTokens: Int64(index * 20))
             let result = normalizer.normalize(CodexTokenObservation(occurredAt: timestamp.addingTimeInterval(Double(index)),
-                ordinal: Int64(index), lastUsage: missing, cumulativeUsage: cumulative), metadata: nil, state: state)
+                ordinal: Int64(index), lastUsage: missing, cumulativeUsage: cumulative), state: state)
             total += result.delta?.totalTokens ?? 0
             XCTAssertNil(result.delta?.cacheWriteInputTokens)
             XCTAssertEqual(result.state.quality, .exact)
@@ -29,36 +29,26 @@ final class UsageNormalizerTests: XCTestCase {
     func testUsesCumulativeIncreaseAndIgnoresRepeatedSnapshot() {
         let first = normalizer.normalize(
             observation(cumulative: usage(100, cached: 60, output: 20)),
-            metadata: rootMetadata,
             state: .empty
         )
         XCTAssertEqual(first.delta, usage(100, cached: 60, output: 20))
 
         let repeated = normalizer.normalize(
             observation(cumulative: usage(100, cached: 60, output: 20)),
-            metadata: rootMetadata,
             state: first.state
         )
         XCTAssertNil(repeated.delta)
 
         let increased = normalizer.normalize(
             observation(cumulative: usage(130, cached: 80, output: 25)),
-            metadata: rootMetadata,
             state: repeated.state
         )
         XCTAssertEqual(increased.delta, usage(30, cached: 20, output: 5))
     }
 
-    func testForkedSessionCountsFreshCounterWhenLastMatchesCumulative() {
-        let metadata = SessionMetadata(
-            id: "child",
-            model: nil,
-            workingDirectory: nil,
-            forkedFromID: "parent"
-        )
+    func testCountsFreshCounterWhenLastMatchesCumulative() {
         let result = normalizer.normalize(
             observation(cumulative: usage(5_000, cached: 4_000, output: 500)),
-            metadata: metadata,
             state: .empty
         )
 
@@ -67,13 +57,7 @@ final class UsageNormalizerTests: XCTestCase {
         XCTAssertNil(result.diagnostic)
     }
 
-    func testForkedSessionSkipsAmbiguousInheritedBaseline() {
-        let metadata = SessionMetadata(
-            id: "child",
-            model: nil,
-            workingDirectory: nil,
-            forkedFromID: "parent"
-        )
+    func testSkipsAmbiguousInheritedBaseline() {
         let result = normalizer.normalize(
             CodexTokenObservation(
                 occurredAt: timestamp,
@@ -81,7 +65,6 @@ final class UsageNormalizerTests: XCTestCase {
                 lastUsage: usage(100, cached: 50, output: 20),
                 cumulativeUsage: usage(5_000, cached: 4_000, output: 500)
             ),
-            metadata: metadata,
             state: .empty
         )
 
@@ -102,7 +85,6 @@ final class UsageNormalizerTests: XCTestCase {
                 lastUsage: usage(100, cached: 80, output: 10),
                 cumulativeUsage: usage(500, cached: 300, output: 50)
             ),
-            metadata: rootMetadata,
             state: prior
         )
 
@@ -123,7 +105,7 @@ final class UsageNormalizerTests: XCTestCase {
             lastUsage: fresh,
             cumulativeUsage: fresh
         )
-        let result = normalizer.normalize(observation, metadata: rootMetadata, state: prior)
+        let result = normalizer.normalize(observation, state: prior)
 
         XCTAssertEqual(result.delta, fresh)
         XCTAssertEqual(result.state.cumulativeHighWaterMark, fresh)
@@ -145,7 +127,7 @@ final class UsageNormalizerTests: XCTestCase {
             cumulativeUsage: usage(100, cached: 60, output: 20)
         )
 
-        let result = normalizer.normalize(replay, metadata: rootMetadata, state: prior)
+        let result = normalizer.normalize(replay, state: prior)
 
         XCTAssertNil(result.delta)
         XCTAssertEqual(result.state, prior)
@@ -160,7 +142,7 @@ final class UsageNormalizerTests: XCTestCase {
             lastUsage: usage(100, cached: 80, output: 10),
             cumulativeUsage: cumulative
         )
-        let result = normalizer.normalize(observation, metadata: rootMetadata, state: .empty)
+        let result = normalizer.normalize(observation, state: .empty)
         XCTAssertNil(result.delta)
         XCTAssertEqual(result.state.quality, .partial)
         XCTAssertEqual(result.diagnostic, "initial cumulative baseline is unresolved")
@@ -173,23 +155,19 @@ final class UsageNormalizerTests: XCTestCase {
             lastUsage: usage(100, cached: 80, output: 20),
             cumulativeUsage: nil
         )
-        let result = normalizer.normalize(observation, metadata: rootMetadata, state: .empty)
+        let result = normalizer.normalize(observation, state: .empty)
         XCTAssertNil(result.delta)
         XCTAssertEqual(result.state.quality, .partial)
-    }
-
-    private var rootMetadata: SessionMetadata {
-        SessionMetadata(id: "root", model: nil, workingDirectory: nil)
     }
 
     /// 100/20/10 then 110/40/15: both snapshots are valid, their difference (10 input, 20 cached) is not.
     /// It must neither reach storage (whose CHECK rejects it) nor be dropped while the period says exact.
     func testInconsistentDeltaBetweenValidCountersIsClampedAndPartial() {
-        let first = normalizer.normalize(observation(cumulative: usage(100, cached: 20, output: 10)), metadata: nil, state: .empty)
+        let first = normalizer.normalize(observation(cumulative: usage(100, cached: 20, output: 10)), state: .empty)
         let next = normalizer.normalize(
             CodexTokenObservation(occurredAt: timestamp.addingTimeInterval(1), ordinal: 2,
                                   lastUsage: usage(10, cached: 20, output: 5), cumulativeUsage: usage(110, cached: 40, output: 15)),
-            metadata: nil, state: first.state)
+            state: first.state)
         XCTAssertEqual(next.delta, usage(10, cached: 10, output: 5))
         XCTAssertTrue(next.delta?.isValid == true)
         XCTAssertEqual(next.state.quality, .partial)

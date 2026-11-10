@@ -81,7 +81,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                 var history = repository.Read(id);
                 Events[id] = history; SessionDetails[id] = repository.ReadSessionDetails(id);
                 var through = DateTimeOffset.Now;
-                Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(history, through, settings.Current.WeekStart, true));
+                Usage[id] = LocalTokenPresentation.CompletedRead(UsageAggregation.Aggregate(history, through, settings.Current.WeekStart, true));
                 RecordLocalAnalyticsRead(id, through);
             }
         }
@@ -178,7 +178,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                             && Events.ContainsKey(id) && SessionDetails.ContainsKey(id) && DataStatistics.ContainsKey(id);
                         // Codex thread names live outside the session files, so they are re-read now and then regardless.
                         var refreshLabels = id == "codex" && DateTimeOffset.Now - labelsReadAt >= TimeSpan.FromMinutes(1);
-                        var periodStart = UsageScanner.CurrentPeriodStart(DateTimeOffset.Now, settings.Current.WeekStart);
+                        var periodStart = UsageAggregation.CurrentPeriodStart(DateTimeOffset.Now, settings.Current.WeekStart);
                         var known = unchanged ? Events[id] : null;
                         var imported = await Task.Run(() =>
                         {
@@ -202,7 +202,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
                         if (imported.Statistics is { } statistics) DataStatistics[id] = statistics;
                         var through = DateTimeOffset.Now;
                         var sourcesPartial = scan.Snapshot.SourcesPartial || scan.HasMoreWork;
-                        Usage[id] = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(events, through, settings.Current.WeekStart,
+                        Usage[id] = LocalTokenPresentation.CompletedRead(UsageAggregation.Aggregate(events, through, settings.Current.WeekStart,
                             sourcesPartial || imported.Repaired, sourcesPartial: sourcesPartial));
                         PublishLocalAnalyticsRead(id, through, analyticsEpoch, maintenance: false);
                         Status = scan.StatusMessage;
@@ -344,7 +344,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
             new("preview-child", "preview-session", [])];
         Events["claude"] = [new("preview-claude", DateTimeOffset.Now.AddMinutes(-2), new(12000, 3000, 4000),
             "claude-sonnet-4-6", "CodeRim", "preview-claude-session", "claude", "preview-project")];
-        Usage["claude"] = UsageScanner.Aggregate(Events["claude"], DateTimeOffset.Now, settings.Current.WeekStart, false);
+        Usage["claude"] = UsageAggregation.Aggregate(Events["claude"], DateTimeOffset.Now, settings.Current.WeekStart, false);
         Usage["codex"] = new(new(123456, 24000, 56000), new(340000, 70000, 120000), new(1100000, 250000, 700000), new(4800000, 1000000, 1200000), DataQuality.Exact, DateTimeOffset.Now);
         var through = DateTimeOffset.Now;
         RecordLocalAnalyticsRead("codex", through); RecordLocalAnalyticsRead("claude", through);

@@ -50,7 +50,7 @@ internal static partial class NativeSmoke
             store.Events["codex"] = keys.Select((key, index) => new UsageEvent("label-" + index, now, new(10 * (index + 1), 0, 0),
                 "gpt-5.6-sol", "Codex", key, "codex", "generic-project")).ToArray();
             store.SessionDetails["codex"] = keys.Select((key, index) => new SessionDetails(key, index == 1 ? keys[0] : null, []) { ProjectName = "Recorded folder" }).ToArray();
-            store.Usage["codex"] = UsageScanner.Aggregate(store.Events["codex"], now, settings.Current.WeekStart, false);
+            store.Usage["codex"] = UsageAggregation.Aggregate(store.Events["codex"], now, settings.Current.WeekStart, false);
             store.CodexAnalyticsLabels = CodexActivityCatalogue.ReadAnalyticsLabels(keys, state, desktop);
             Require(store.CodexAnalyticsLabels.Count == 3, "Read-only label query omitted archived or local tasks");
             settings.Save(previousSettings with { UsageProvider = "codex", AgentDetailsEnabled = true, CostEstimatesEnabled = false });

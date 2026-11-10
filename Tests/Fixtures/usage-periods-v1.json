@@ -1,0 +1,320 @@
+[
+  {
+    "name": "seoul-monday-periods",
+    "now": 1787799600,
+    "timeZone": "Asia/Seoul",
+    "weekStart": "monday",
+    "events": [
+      {
+        "at": 1787796000,
+        "tokens": 10,
+        "repaired": false
+      },
+      {
+        "at": 1787529600,
+        "tokens": 20,
+        "repaired": false
+      },
+      {
+        "at": 1787443200,
+        "tokens": 30,
+        "repaired": false
+      },
+      {
+        "at": 1785506400,
+        "tokens": 40,
+        "repaired": false
+      }
+    ],
+    "expected": {
+      "totals": [
+        10,
+        30,
+        60,
+        100
+      ],
+      "quality": "exact",
+      "updatedAt": 1787796000,
+      "hasRepairEvidence": false
+    }
+  },
+  {
+    "name": "seoul-sunday-and-future",
+    "now": 1787713200,
+    "timeZone": "Asia/Seoul",
+    "weekStart": "sunday",
+    "events": [
+      {
+        "at": 1787443200,
+        "tokens": 20,
+        "repaired": false
+      },
+      {
+        "at": 1787407200,
+        "tokens": 30,
+        "repaired": false
+      },
+      {
+        "at": 1787713260,
+        "tokens": 40,
+        "repaired": false
+      }
+    ],
+    "expected": {
+      "totals": [
+        0,
+        20,
+        50,
+        50
+      ],
+      "quality": "exact",
+      "updatedAt": 1787443200,
+      "hasRepairEvidence": false
+    }
+  },
+  {
+    "name": "new-year-midnight",
+    "now": 1798761660,
+    "timeZone": "UTC",
+    "weekStart": "monday",
+    "events": [
+      {
+        "at": 1798761540,
+        "tokens": 10,
+        "repaired": false
+      },
+      {
+        "at": 1798761600,
+        "tokens": 20,
+        "repaired": false
+      }
+    ],
+    "expected": {
+      "totals": [
+        20,
+        30,
+        20,
+        30
+      ],
+      "quality": "exact",
+      "updatedAt": 1798761600,
+      "hasRepairEvidence": false
+    }
+  },
+  {
+    "name": "leap-day",
+    "now": 1835481660,
+    "timeZone": "UTC",
+    "weekStart": "monday",
+    "events": [
+      {
+        "at": 1835481540,
+        "tokens": 25,
+        "repaired": false
+      }
+    ],
+    "expected": {
+      "totals": [
+        0,
+        25,
+        0,
+        25
+      ],
+      "quality": "exact",
+      "updatedAt": 1835481540,
+      "hasRepairEvidence": false
+    }
+  },
+  {
+    "name": "dst-short-day",
+    "now": 1772996400,
+    "timeZone": "America/Los_Angeles",
+    "weekStart": "sunday",
+    "events": [
+      {
+        "at": 1772956740,
+        "tokens": 10,
+        "repaired": false
+      },
+      {
+        "at": 1772964060,
+        "tokens": 20,
+        "repaired": false
+      }
+    ],
+    "expected": {
+      "totals": [
+        20,
+        20,
+        30,
+        30
+      ],
+      "quality": "exact",
+      "updatedAt": 1772964060,
+      "hasRepairEvidence": false
+    }
+  },
+  {
+    "name": "repeated-midnight",
+    "now": 1793548800,
+    "timeZone": "America/Havana",
+    "weekStart": "monday",
+    "events": [
+      {
+        "at": 1793505540,
+        "tokens": 10,
+        "repaired": false
+      },
+      {
+        "at": 1793507400,
+        "tokens": 20,
+        "repaired": false
+      },
+      {
+        "at": 1793507400,
+        "tokens": 30,
+        "repaired": false
+      }
+    ],
+    "expected": {
+      "totals": [
+        50,
+        60,
+        50,
+        60
+      ],
+      "quality": "exact",
+      "updatedAt": 1793507400,
+      "hasRepairEvidence": false
+    }
+  },
+  {
+    "name": "old-repair-does-not-taint-current-period",
+    "now": 1790337600,
+    "timeZone": "UTC",
+    "weekStart": "monday",
+    "events": [
+      {
+        "at": 1782907200,
+        "tokens": 10,
+        "repaired": true
+      },
+      {
+        "at": 1790334000,
+        "tokens": 20,
+        "repaired": false
+      }
+    ],
+    "expected": {
+      "totals": [
+        20,
+        20,
+        20,
+        30
+      ],
+      "quality": "exact",
+      "updatedAt": 1790334000,
+      "hasRepairEvidence": true
+    }
+  },
+  {
+    "name": "month-repair-persists-after-reopen",
+    "now": 1790337600,
+    "timeZone": "UTC",
+    "weekStart": "monday",
+    "events": [
+      {
+        "at": 1788264000,
+        "tokens": 10,
+        "repaired": true
+      },
+      {
+        "at": 1790334000,
+        "tokens": 20,
+        "repaired": false
+      }
+    ],
+    "expected": {
+      "totals": [
+        20,
+        20,
+        30,
+        30
+      ],
+      "quality": "partial",
+      "updatedAt": 1790334000,
+      "hasRepairEvidence": true
+    }
+  },
+  {
+    "name": "zero-row-retains-repair-evidence",
+    "now": 1790337600,
+    "timeZone": "UTC",
+    "weekStart": "monday",
+    "events": [
+      {
+        "at": 1790330400,
+        "tokens": 20,
+        "repaired": false
+      },
+      {
+        "at": 1790334000,
+        "tokens": 0,
+        "repaired": true
+      }
+    ],
+    "expected": {
+      "totals": [
+        20,
+        20,
+        20,
+        20
+      ],
+      "quality": "partial",
+      "updatedAt": 1790334000,
+      "hasRepairEvidence": true
+    }
+  },
+  {
+    "name": "empty-history",
+    "now": 1790337600,
+    "timeZone": "UTC",
+    "weekStart": "monday",
+    "events": [],
+    "expected": {
+      "totals": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "quality": "unavailable",
+      "updatedAt": null,
+      "hasRepairEvidence": false
+    }
+  },
+  {
+    "name": "future-only",
+    "now": 1790337600,
+    "timeZone": "UTC",
+    "weekStart": "monday",
+    "events": [
+      {
+        "at": 1790337660,
+        "tokens": 40,
+        "repaired": false
+      }
+    ],
+    "expected": {
+      "totals": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "quality": "unavailable",
+      "updatedAt": null,
+      "hasRepairEvidence": false
+    }
+  }
+]

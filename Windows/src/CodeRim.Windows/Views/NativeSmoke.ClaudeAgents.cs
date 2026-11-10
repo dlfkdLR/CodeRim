@@ -31,7 +31,7 @@ internal static partial class NativeSmoke
             var scan = await new UsageScanner("claude", [source]).ScanAsync(settings.Current.WeekStart);
             var repository = new UsageRepository(Path.Combine(root, "usage.sqlite")); repository.Merge("claude", scan.Events, scan.Sessions);
             store.Events["claude"] = repository.Read("claude"); store.SessionDetails["claude"] = repository.ReadSessionDetails("claude");
-            store.Usage["claude"] = UsageScanner.Aggregate(store.Events["claude"], DateTimeOffset.Now, settings.Current.WeekStart, false);
+            store.Usage["claude"] = UsageAggregation.Aggregate(store.Events["claude"], DateTimeOffset.Now, settings.Current.WeekStart, false);
             Require(store.Usage["claude"].AllTime.TotalTokens == 150 && store.SessionDetails["claude"].Count == 2, "Claude import lost or duplicated agent usage");
             var child = store.SessionDetails["claude"].Single(x => x.ParentId is not null); var parent = child.ParentId!;
             settings.Save(previousSettings with { UsageProvider = "claude", AgentDetailsEnabled = true, AttachmentMetadataEnabled = true, CostEstimatesEnabled = true });

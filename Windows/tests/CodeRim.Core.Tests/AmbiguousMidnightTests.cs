@@ -28,7 +28,7 @@ public sealed class AmbiguousMidnightTests
 
         var chart = AnalyticsTimeline.Build([record], AnalyticsRange.Today, now, zone);
         var charted = chart.Aggregate(0L, (sum, bucket) => sum + bucket.Usage.TotalTokens);
-        var today = UsageScanner.Aggregate([record], now, WeekStart.Monday, partial: false, zone).Today.TotalTokens;
+        var today = UsageAggregation.Aggregate([record], now, WeekStart.Monday, partial: false, zone).Today.TotalTokens;
 
         Assert.Equal(110, charted);
         Assert.Equal(charted, today);

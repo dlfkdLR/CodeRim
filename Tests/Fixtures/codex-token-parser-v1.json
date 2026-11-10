@@ -1,0 +1,227 @@
+[
+  {
+    "name": "empty-line",
+    "line": "",
+    "expected": {
+      "kind": "ignored",
+      "diagnostic": null,
+      "token": null
+    }
+  },
+  {
+    "name": "invalid-json",
+    "line": "{\"type\":",
+    "expected": {
+      "kind": "malformed",
+      "diagnostic": "invalid JSON",
+      "token": null
+    }
+  },
+  {
+    "name": "non-object-root",
+    "line": "[]",
+    "expected": {
+      "kind": "malformed",
+      "diagnostic": "missing event type",
+      "token": null
+    }
+  },
+  {
+    "name": "missing-event-type",
+    "line": "{}",
+    "expected": {
+      "kind": "malformed",
+      "diagnostic": "missing event type",
+      "token": null
+    }
+  },
+  {
+    "name": "future-event",
+    "line": "{\"type\":\"future_event\",\"content\":\"synthetic\"}",
+    "expected": {
+      "kind": "ignored",
+      "diagnostic": null,
+      "token": null
+    }
+  },
+  {
+    "name": "missing-event-payload",
+    "line": "{\"type\":\"event_msg\"}",
+    "expected": {
+      "kind": "ignored",
+      "diagnostic": null,
+      "token": null
+    }
+  },
+  {
+    "name": "invalid-timestamp",
+    "line": "{\"timestamp\":\"not-a-date\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":100,\"cached_input_tokens\":20,\"output_tokens\":5}}}}",
+    "expected": {
+      "kind": "malformed",
+      "diagnostic": "token event is missing a valid timestamp",
+      "token": null
+    }
+  },
+  {
+    "name": "missing-usage-info",
+    "line": "{\"timestamp\":\"2026-08-27T01:02:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\"}}",
+    "expected": {
+      "kind": "malformed",
+      "diagnostic": "token event is missing usage info",
+      "token": null
+    }
+  },
+  {
+    "name": "empty-usage-info",
+    "line": "{\"timestamp\":\"2026-08-27T01:02:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{}}}",
+    "expected": {
+      "kind": "malformed",
+      "diagnostic": "token event has no supported usage object",
+      "token": null
+    }
+  },
+  {
+    "name": "fractional-time-and-ordinal",
+    "line": "{\"timestamp\":\"2026-08-27T01:02:03.125Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":200,\"cached_input_tokens\":150,\"output_tokens\":50},\"total_token_usage\":{\"input_tokens\":1200,\"cached_input_tokens\":800,\"output_tokens\":300,\"cache_write_input_tokens\":100,\"total_tokens\":99999}}},\"ordinal\":42}",
+    "expected": {
+      "kind": "token",
+      "diagnostic": null,
+      "token": {
+        "occurredAt": 1787792523.125,
+        "ordinal": 42,
+        "lastUsage": { "inputTokens": 200, "cachedInputTokens": 150, "outputTokens": 50, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 1200, "cachedInputTokens": 800, "outputTokens": 300, "cacheWriteInputTokens": 100 }
+      }
+    }
+  },
+  {
+    "name": "numeric-strings",
+    "line": "{\"timestamp\":\"2026-08-27T01:02:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":\"100\",\"cached_input_tokens\":\"20\",\"output_tokens\":\"5\",\"cache_write_input_tokens\":\"10\"}}}}",
+    "expected": {
+      "kind": "token",
+      "diagnostic": null,
+      "token": {
+        "occurredAt": 1787792523,
+        "ordinal": null,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 5, "cacheWriteInputTokens": 10 },
+        "cumulativeUsage": null
+      }
+    }
+  },
+  {
+    "name": "cumulative-only",
+    "line": "{\"timestamp\":\"2026-08-27T01:02:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"total_token_usage\":{\"input_tokens\":100,\"cached_input_tokens\":20,\"output_tokens\":5}}}}",
+    "expected": {
+      "kind": "token",
+      "diagnostic": null,
+      "token": {
+        "occurredAt": 1787792523,
+        "ordinal": null,
+        "lastUsage": null,
+        "cumulativeUsage": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 5, "cacheWriteInputTokens": null }
+      }
+    }
+  },
+  {
+    "name": "last-usage-only",
+    "line": "{\"timestamp\":\"2026-08-27T01:02:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":100,\"cached_input_tokens\":20,\"output_tokens\":5}}}}",
+    "expected": {
+      "kind": "token",
+      "diagnostic": null,
+      "token": {
+        "occurredAt": 1787792523,
+        "ordinal": null,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 5, "cacheWriteInputTokens": null },
+        "cumulativeUsage": null
+      }
+    }
+  },
+  {
+    "name": "boolean-token-count",
+    "line": "{\"timestamp\":\"2026-08-27T01:02:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":true,\"cached_input_tokens\":20,\"output_tokens\":5}}}}",
+    "expected": {
+      "kind": "malformed",
+      "diagnostic": "token event has no supported usage object",
+      "token": null
+    }
+  },
+  {
+    "name": "fractional-token-count",
+    "line": "{\"timestamp\":\"2026-08-27T01:02:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":1.5,\"cached_input_tokens\":0,\"output_tokens\":2}}}}",
+    "expected": {
+      "kind": "malformed",
+      "diagnostic": "token event has no supported usage object",
+      "token": null
+    }
+  },
+  {
+    "name": "count-above-parser-limit",
+    "line": "{\"timestamp\":\"2026-08-27T01:02:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":1000000000001,\"cached_input_tokens\":20,\"output_tokens\":5}}}}",
+    "expected": {
+      "kind": "malformed",
+      "diagnostic": "token event has no supported usage object",
+      "token": null
+    }
+  },
+  {
+    "name": "cache-input-exceeds-input",
+    "line": "{\"timestamp\":\"2026-08-27T01:02:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":10,\"cached_input_tokens\":11,\"output_tokens\":2}}}}",
+    "expected": {
+      "kind": "malformed",
+      "diagnostic": "token event has no supported usage object",
+      "token": null
+    }
+  },
+  {
+    "name": "valid-cumulative-survives-invalid-last",
+    "line": "{\"timestamp\":\"2026-08-27T01:02:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":true,\"cached_input_tokens\":20,\"output_tokens\":5},\"total_token_usage\":{\"input_tokens\":100,\"cached_input_tokens\":20,\"output_tokens\":5}}}}",
+    "expected": {
+      "kind": "token",
+      "diagnostic": null,
+      "token": {
+        "occurredAt": 1787792523,
+        "ordinal": null,
+        "lastUsage": null,
+        "cumulativeUsage": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 5, "cacheWriteInputTokens": null }
+      }
+    }
+  },
+  {
+    "name": "invalid-optional-cache-write-has-platform-specific-acceptance",
+    "line": "{\"timestamp\":\"2026-08-27T01:02:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":10,\"cached_input_tokens\":0,\"output_tokens\":2,\"cache_write_input_tokens\":true}}}}",
+    "expected": {
+      "kind": "malformed",
+      "diagnostic": "token event has no supported usage object",
+      "token": null
+    },
+    "windowsExpected": {
+      "kind": "token",
+      "diagnostic": null,
+      "token": {
+        "occurredAt": 1787792523,
+        "ordinal": null,
+        "lastUsage": { "inputTokens": 10, "cachedInputTokens": 0, "outputTokens": 2, "cacheWriteInputTokens": null },
+        "cumulativeUsage": null
+      }
+    }
+  },
+  {
+    "name": "leading-plus-string-has-platform-specific-acceptance",
+    "line": "{\"timestamp\":\"2026-08-27T01:02:03Z\",\"type\":\"event_msg\",\"payload\":{\"type\":\"token_count\",\"info\":{\"last_token_usage\":{\"input_tokens\":\"+10\",\"cached_input_tokens\":0,\"output_tokens\":2}}}}",
+    "expected": {
+      "kind": "token",
+      "diagnostic": null,
+      "token": {
+        "occurredAt": 1787792523,
+        "ordinal": null,
+        "lastUsage": { "inputTokens": 10, "cachedInputTokens": 0, "outputTokens": 2, "cacheWriteInputTokens": null },
+        "cumulativeUsage": null
+      }
+    },
+    "windowsExpected": {
+      "kind": "malformed",
+      "diagnostic": "token event has no supported usage object",
+      "token": null
+    }
+  }
+]

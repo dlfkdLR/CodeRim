@@ -1038,7 +1038,7 @@ actor CodexUsageCollector {
             } else {
                 isInheritedReplay = false
             }
-            let result = normalizer.normalize(observation, metadata: metadata, state: normalizationState)
+            let result = normalizer.normalize(observation, state: normalizationState)
             normalizationState = result.state
             guard !isInheritedReplay else { return }
             guard let delta = result.delta, !delta.isZero else { return }

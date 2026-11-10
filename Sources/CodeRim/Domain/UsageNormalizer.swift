@@ -31,7 +31,6 @@ struct UsageNormalizationResult: Equatable, Sendable {
 struct UsageNormalizer: Sendable {
     func normalize(
         _ observation: CodexTokenObservation,
-        metadata: SessionMetadata?,
         state: UsageNormalizationState
     ) -> UsageNormalizationResult {
         if let lastObservedAt = state.lastObservedAt,

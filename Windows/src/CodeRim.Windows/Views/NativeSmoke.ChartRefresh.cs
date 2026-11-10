@@ -41,7 +41,7 @@ internal static partial class NativeSmoke
             void SetEvents(params UsageEvent[] events)
             {
                 store.Events["codex"] = events;
-                store.Usage["codex"] = UsageScanner.Aggregate(events, after, settings.Current.WeekStart, false);
+                store.Usage["codex"] = UsageAggregation.Aggregate(events, after, settings.Current.WeekStart, false);
             }
             var old = new UsageEvent("before-midnight", before, new(111, 0, 0, 0), "gpt-5.6-sol");
             var current = new UsageEvent("after-midnight", day, new(222, 0, 0, 0), "gpt-5.6-sol");
