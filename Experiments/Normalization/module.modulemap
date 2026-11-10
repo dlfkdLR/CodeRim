@@ -1,0 +1,4 @@
+module NormalizationTrial {
+    header "normalization.h"
+    export *
+}

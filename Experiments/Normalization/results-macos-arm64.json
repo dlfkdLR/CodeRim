@@ -1,0 +1,246 @@
+{
+  "platform": "macOS-27.2-arm64-arm-64bit-Mach-O",
+  "machine": "arm64",
+  "swift": "Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)\nTarget: arm64-apple-macosx27.2.0",
+  "rust": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "dotnet": "10.0.403",
+  "dotnetEnvironment": {
+    "DOTNET_TieredCompilation": "0"
+  },
+  "inputHashes": {
+    "Tests/Fixtures/usage-normalization-v1.json": "694320f02c35fb6d362c653ffafc281709b198e3ad1655bd398714f0d58bf856",
+    "Experiments/Normalization/src/lib.rs": "b693c64da9a8b042f5fc91acf59f8d7a33cf41cd6729ea1150da7dca7705730f",
+    "Experiments/Normalization/Swift/main.swift": "a1a36d7cf79ba7ea3491dfd303c4ffe427b841139b3b6f0764bc96fed4fb5795",
+    "Experiments/Normalization/DotNet/Program.cs": "f435d34cba498702545ee1414b5e273c538d9800c1d9499a4e2a9527be5765bb",
+    "Experiments/Normalization/run.py": "91319bdede647b20f440671c3ef45322aabccee5c99f7592d8edf136db8e9e6c",
+    "Experiments/Normalization/Cargo.toml": "4e4e3c47ab6751d52b416fcd93d735917236d6005edf8c4733fafb5e8d51603e",
+    "Experiments/Normalization/normalization.h": "7f9454e1c0c3ae9334ace79d844cdf1cdf9c4e4281fac5f567365b706b0843b2",
+    "Experiments/Normalization/module.modulemap": "fe40ce959e8253cad22f68fcc8db51f84f96fcaf67b99c5aad8b974faf2f1295",
+    "Experiments/Normalization/DotNet/Trial.csproj": "806d65f92203d11314ce2fa4e554a75385bd1bde10fb226517ea99f495852c6f",
+    "Sources/CodeRim/Domain/TokenUsage.swift": "317a7fb7cdfe1260fe2fdd157041d75c0003ed40a69279576b39afe1b2e6c51f",
+    "Sources/CodeRim/Domain/UsageNormalizer.swift": "f3a296fd736f867dc954c5456f4615c3570298e08e5bd7ddaff10b3a3e08ac9c",
+    "Sources/CodeRim/Domain/UsageSnapshot.swift": "7c0ac64fc5c03a6a8c17cd1f28ee81e0b2f130eeb9c8185180f6f6c668981fdb",
+    "Sources/CodeRim/Domain/CodexTokenObservation.swift": "b88e65c571ae495ef15a4ad8a9da54ff2de9f348c5950cdf4908859da7b0baff",
+    "Sources/CodeRim/Domain/UsageEvent.swift": "f1f4502571680818caa32f3d88164db570581cdb2d965b87fa63dafab0b2c2c0",
+    "Sources/CodeRim/Sources/CodexJSONLParser.swift": "67d425dd00e77af7d11ce7f78da10bfdc83915aa0c610848e4360022954c9b63",
+    "Windows/src/CodeRim.Core/Domain/UsageModels.cs": "a0fe6230a32f80a1ef94f9bd869a034e458bfa7ca116ac297e8dfca1534cdb9b",
+    "Windows/src/CodeRim.Core/Parsing/CodexJsonlParser.cs": "b7685fea021e4c2a542bbb25d8c9382bc08641f35c341075c2c8a681a89e8fd5",
+    "Windows/src/CodeRim.Core/Domain/TokenUsage.cs": "b07f12526c0a759ff1336f7db90d892ce26a0c682a151431573eb9828dfb34e2",
+    "Windows/src/CodeRim.Core/Domain/UsageNormalizer.cs": "b843cb8075c9d73dd668bff82795bb2a9623e5aab64e91d0197b380a4d2a4ff7"
+  },
+  "measurements": [
+    {
+      "cases": 13,
+      "checksum": 32258000096354746,
+      "iterations": 1000000,
+      "language": "swift",
+      "mode": "both",
+      "nativeNanoseconds": [
+        27777708,
+        27552667,
+        26941333,
+        26748542
+      ],
+      "pipelineChecksum": 1935000005876885,
+      "pipelineIterations": 20000,
+      "pipelineNativeNanoseconds": [
+        111087625,
+        142080833,
+        114207708,
+        112562459
+      ],
+      "pipelineRustNanoseconds": [
+        115864500,
+        117315000,
+        111633625,
+        115724167
+      ],
+      "rustNanoseconds": [
+        7262375,
+        6865250,
+        6874209,
+        6892958
+      ],
+      "transitions": 31,
+      "peakResidentBytes": 84983808,
+      "nativeMedianNanoseconds": 26941333,
+      "rustMedianNanoseconds": 6874209,
+      "pipelineNativeMedianNanoseconds": 114207708,
+      "pipelineRustMedianNanoseconds": 115724167
+    },
+    {
+      "cases": 13,
+      "checksum": 32258000096354746,
+      "iterations": 1000000,
+      "language": "swift",
+      "mode": "native",
+      "nativeNanoseconds": [
+        25906333,
+        25499333,
+        37204667,
+        35111750
+      ],
+      "pipelineChecksum": 1935000005876885,
+      "pipelineIterations": 20000,
+      "pipelineNativeNanoseconds": [
+        118159667,
+        121321375,
+        124555583,
+        117363250
+      ],
+      "pipelineRustNanoseconds": [],
+      "rustNanoseconds": [],
+      "transitions": 31,
+      "peakResidentBytes": 62455808,
+      "nativeMedianNanoseconds": 35111750,
+      "pipelineNativeMedianNanoseconds": 121321375
+    },
+    {
+      "cases": 13,
+      "checksum": 32258000096354746,
+      "iterations": 1000000,
+      "language": "swift",
+      "mode": "rust",
+      "nativeNanoseconds": [],
+      "pipelineChecksum": 1935000005876885,
+      "pipelineIterations": 20000,
+      "pipelineNativeNanoseconds": [],
+      "pipelineRustNanoseconds": [
+        115585708,
+        114648458,
+        113400375,
+        112883500
+      ],
+      "rustNanoseconds": [
+        6778041,
+        6770000,
+        6883416,
+        6880292
+      ],
+      "transitions": 31,
+      "peakResidentBytes": 62472192,
+      "rustMedianNanoseconds": 6880292,
+      "pipelineRustMedianNanoseconds": 113400375
+    },
+    {
+      "language": "csharp",
+      "cases": 13,
+      "transitions": 31,
+      "iterations": 1000000,
+      "mode": "both",
+      "nativeNanoseconds": [
+        47953900,
+        39666500,
+        39569900,
+        39468100
+      ],
+      "rustNanoseconds": [
+        9294200,
+        8761200,
+        8984700,
+        8823000
+      ],
+      "nativeAllocatedBytes": [
+        40,
+        40,
+        40,
+        40
+      ],
+      "rustAllocatedBytes": [
+        40,
+        40,
+        40,
+        40
+      ],
+      "checksum": 32258000096354746,
+      "pipelineIterations": 20000,
+      "pipelineNativeNanoseconds": [
+        55353800,
+        49460400,
+        49961400,
+        49583100
+      ],
+      "pipelineRustNanoseconds": [
+        47334200,
+        47143500,
+        47596600,
+        47301900
+      ],
+      "pipelineChecksum": 1935000005876885,
+      "peakResidentBytes": 63340544,
+      "nativeMedianNanoseconds": 39569900,
+      "rustMedianNanoseconds": 8823000,
+      "pipelineNativeMedianNanoseconds": 49583100,
+      "pipelineRustMedianNanoseconds": 47301900
+    },
+    {
+      "language": "csharp",
+      "cases": 13,
+      "transitions": 31,
+      "iterations": 1000000,
+      "mode": "native",
+      "nativeNanoseconds": [
+        41593100,
+        41461300,
+        41937200,
+        41829600
+      ],
+      "rustNanoseconds": [],
+      "nativeAllocatedBytes": [
+        40,
+        40,
+        40,
+        40
+      ],
+      "rustAllocatedBytes": [],
+      "checksum": 32258000096354746,
+      "pipelineIterations": 20000,
+      "pipelineNativeNanoseconds": [
+        56199000,
+        48036000,
+        50451100,
+        49999400
+      ],
+      "pipelineRustNanoseconds": [],
+      "pipelineChecksum": 1935000005876885,
+      "peakResidentBytes": 63275008,
+      "nativeMedianNanoseconds": 41829600,
+      "pipelineNativeMedianNanoseconds": 49999400
+    },
+    {
+      "language": "csharp",
+      "cases": 13,
+      "transitions": 31,
+      "iterations": 1000000,
+      "mode": "rust",
+      "nativeNanoseconds": [],
+      "rustNanoseconds": [
+        8979400,
+        8919200,
+        8914800,
+        8884900
+      ],
+      "nativeAllocatedBytes": [],
+      "rustAllocatedBytes": [
+        40,
+        40,
+        40,
+        40
+      ],
+      "checksum": 32258000096354746,
+      "pipelineIterations": 20000,
+      "pipelineNativeNanoseconds": [],
+      "pipelineRustNanoseconds": [
+        57141000,
+        48962300,
+        48281600,
+        48465000
+      ],
+      "pipelineChecksum": 1935000005876885,
+      "peakResidentBytes": 63242240,
+      "rustMedianNanoseconds": 8914800,
+      "pipelineRustMedianNanoseconds": 48465000
+    }
+  ],
+  "scope": "Synthetic macOS normalization and JSON-parse-plus-normalization benchmark; peak RSS includes runtime, fixtures and both binding checks. First timing sample is warm-up. C# allocated bytes cover the benchmark thread. This is not end-to-end app or native Windows performance."
+}
