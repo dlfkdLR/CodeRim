@@ -44,12 +44,12 @@ def main():
     run(['cargo', 'test', '--manifest-path', TRIAL / 'Cargo.toml', '--target-dir', BUILD / 'rust'])
     run(['cargo', 'build', '--manifest-path', TRIAL / 'Cargo.toml', '--release', '--target-dir', BUILD / 'rust'])
     library = BUILD / 'rust/release/libcoderim_normalization_trial.dylib'
-    sources = ROOT / 'Sources/CodeRim/Domain'
-    run(['swiftc', '-O', '-warnings-as-errors', '-I', TRIAL, '-L', library.parent,
+    sources = ROOT / 'Sources/CodeRimUsageCore'
+    run(['swiftc', '-package-name', 'CodeRim', '-O', '-warnings-as-errors', '-I', TRIAL, '-L', library.parent,
          '-lcoderim_normalization_trial', '-Xlinker', '-rpath', '-Xlinker', library.parent,
          sources / 'TokenUsage.swift', sources / 'UsageSnapshot.swift', sources / 'CodexTokenObservation.swift',
          sources / 'UsageNormalizer.swift', sources / 'UsageEvent.swift',
-         ROOT / 'Sources/CodeRim/Sources/CodexJSONLParser.swift',
+         ROOT / 'Sources/CodeRimUsageCore/CodexJSONLParser.swift',
          TRIAL / 'Swift/main.swift', '-o', BUILD / 'swift-trial'])
     run(['dotnet', 'build', TRIAL / 'DotNet/Trial.csproj', '-c', 'Release', '-o', BUILD / 'dotnet'])
     reports = []
@@ -61,11 +61,11 @@ def main():
                TRIAL / 'run.py', TRIAL / 'Cargo.toml', TRIAL / 'normalization.h', TRIAL / 'module.modulemap',
                TRIAL / 'DotNet/Trial.csproj', sources / 'TokenUsage.swift', sources / 'UsageNormalizer.swift',
                sources / 'UsageSnapshot.swift', sources / 'CodexTokenObservation.swift',
-               sources / 'UsageEvent.swift', ROOT / 'Sources/CodeRim/Sources/CodexJSONLParser.swift',
-               ROOT / 'Windows/src/CodeRim.Core/Domain/UsageModels.cs',
-               ROOT / 'Windows/src/CodeRim.Core/Parsing/CodexJsonlParser.cs',
-               ROOT / 'Windows/src/CodeRim.Core/Domain/TokenUsage.cs',
-               ROOT / 'Windows/src/CodeRim.Core/Domain/UsageNormalizer.cs']
+               sources / 'UsageEvent.swift', ROOT / 'Sources/CodeRimUsageCore/CodexJSONLParser.swift',
+               ROOT / 'Windows/src/CodeRim.UsageCore/Domain/UsageModels.cs',
+               ROOT / 'Windows/src/CodeRim.UsageCore/Parsing/CodexJsonlParser.cs',
+               ROOT / 'Windows/src/CodeRim.UsageCore/Domain/TokenUsage.cs',
+               ROOT / 'Windows/src/CodeRim.UsageCore/Domain/UsageNormalizer.cs']
     report = {'platform': platform.platform(), 'machine': platform.machine(),
               'swift': run(['swiftc', '--version']).stdout.strip(),
               'rust': run(['rustc', '--version']).stdout.strip(),

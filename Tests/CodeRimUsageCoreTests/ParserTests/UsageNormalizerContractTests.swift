@@ -1,6 +1,6 @@
+import CodeRimUsageCore
 import Foundation
 import XCTest
-@testable import CodeRim
 
 final class UsageNormalizerContractTests: XCTestCase {
     func testSharedNormalizationContract() throws {

@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import CodexBarCore
 import Foundation
 import XCTest

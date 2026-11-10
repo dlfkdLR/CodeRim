@@ -84,6 +84,6 @@ public static class UsageAggregation
     /// (the clock goes back at 01:00) starts at its first occurrence, not the standard-time one
     /// `ConvertTimeToUtc` would pick, so Today and the chart's day hold the same records.
     private static DateTimeOffset LocalStartUtc(DateTime localDate, TimeZoneInfo timeZone)
-        => AnalyticsTimeline.LocalMidnight(localDate, timeZone).ToUniversalTime();
+        => UsageCalendar.LocalMidnight(localDate, timeZone).ToUniversalTime();
 
 }

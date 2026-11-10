@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import Foundation
 
 /// A displayable subtotal with explicit omissions. The billing estimator stays

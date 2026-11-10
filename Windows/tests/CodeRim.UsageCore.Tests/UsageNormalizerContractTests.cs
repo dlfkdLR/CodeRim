@@ -2,7 +2,7 @@ using System.Text.Json;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
 
-namespace CodeRim.Core.Tests;
+namespace CodeRim.UsageCore.Tests;
 
 public sealed class UsageNormalizerContractTests
 {

@@ -28,15 +28,7 @@ public static class AnalyticsTimeline
     public static DateTimeOffset Start(AnalyticsRange range, DateTimeOffset now, TimeZoneInfo zone)
     {
         var days = range switch { AnalyticsRange.SevenDays => 6, AnalyticsRange.ThirtyDays => 29, _ => 0 };
-        return LocalMidnight(TimeZoneInfo.ConvertTime(now, zone).Date.AddDays(-days), zone);
-    }
-    internal static DateTimeOffset LocalMidnight(DateTime day, TimeZoneInfo zone)
-    {
-        day = DateTime.SpecifyKind(day, DateTimeKind.Unspecified);
-        // Some zones advance the clock at midnight. Start at the first valid local instant.
-        while (zone.IsInvalidTime(day)) day = day.AddMinutes(1);
-        var offset = zone.IsAmbiguousTime(day) ? zone.GetAmbiguousTimeOffsets(day).Max() : zone.GetUtcOffset(day);
-        return new(day, offset);
+        return UsageCalendar.LocalMidnight(TimeZoneInfo.ConvertTime(now, zone).Date.AddDays(-days), zone);
     }
     public static IReadOnlyList<AnalyticsBucket> Build(IEnumerable<UsageEvent> source, AnalyticsRange range,
         DateTimeOffset now, TimeZoneInfo zone)
@@ -48,7 +40,7 @@ public static class AnalyticsTimeline
         for (var cursor = start; cursor <= now;)
         {
             var next = range == AnalyticsRange.Today ? cursor.AddHours(1)
-                : LocalMidnight(TimeZoneInfo.ConvertTime(cursor, zone).Date.AddDays(1), zone);
+                : UsageCalendar.LocalMidnight(TimeZoneInfo.ConvertTime(cursor, zone).Date.AddDays(1), zone);
             var end = next <= now ? next : now == DateTimeOffset.MaxValue ? now : now.AddTicks(1);
             var rows = new List<UsageEvent>();
             while (index < events.Length && events[index].OccurredAt < end) rows.Add(events[index++]);

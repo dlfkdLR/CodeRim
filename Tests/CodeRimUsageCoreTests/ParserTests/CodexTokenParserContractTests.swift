@@ -1,6 +1,6 @@
+import CodeRimUsageCore
 import Foundation
 import XCTest
-@testable import CodeRim
 
 final class CodexTokenParserContractTests: XCTestCase {
     func testSharedTokenParserContract() throws {

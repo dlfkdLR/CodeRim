@@ -1,7 +1,9 @@
 import Foundation
 
-struct AggregationService: Sendable {
-    func snapshot(
+package struct AggregationService: Sendable {
+    package init() {}
+
+    package func snapshot(
         from events: [UsageEvent],
         now: Date,
         calendar baseCalendar: Calendar,

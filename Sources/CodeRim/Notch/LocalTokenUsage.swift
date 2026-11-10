@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import Foundation
 
 /// Local transcript totals have a different lifetime and scope from account quotas.

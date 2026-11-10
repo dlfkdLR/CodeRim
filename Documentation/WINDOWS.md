@@ -145,6 +145,7 @@ Windows release versions are declared in `Windows/Release.env`, `Windows/Directo
 
 ```powershell
 ./Windows/Scripts/test_release_version.ps1
+dotnet test Windows/tests/CodeRim.UsageCore.Tests --configuration Release
 dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
 dotnet build Windows/CodeRim.Windows.sln --configuration Release
 ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-x64 -ResetManifest

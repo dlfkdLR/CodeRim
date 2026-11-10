@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import CSQLite
 import Foundation
 import XCTest

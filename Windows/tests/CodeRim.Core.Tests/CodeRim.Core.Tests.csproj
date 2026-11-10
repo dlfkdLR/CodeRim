@@ -14,8 +14,7 @@
     <PackageReference Include="xunit.v3" Version="3.2.2" />
     <EmbeddedResource Include="Fixtures/AnalyticsAxisReference.json" />
     <EmbeddedResource Include="../../../Tests/Fixtures/mobile-pairing-v1.txt" LogicalName="mobile-pairing-v1.txt" />
-    <EmbeddedResource Include="../../../Tests/Fixtures/usage-normalization-v1.json" LogicalName="usage-normalization-v1.json" />
-    <EmbeddedResource Include="../../../Tests/Fixtures/codex-token-parser-v1.json" LogicalName="codex-token-parser-v1.json" />
+    <EmbeddedResource Include="../../../Tests/Fixtures/provider-refresh-v1.json" LogicalName="provider-refresh-v1.json" />
     <EmbeddedResource Include="../../../Tests/Fixtures/usage-periods-v1.json" LogicalName="usage-periods-v1.json" />
   </ItemGroup>
   <ItemGroup>

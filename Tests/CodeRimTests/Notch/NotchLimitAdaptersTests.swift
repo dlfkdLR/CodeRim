@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import AppKit
 import CodexBarCore
 import Foundation

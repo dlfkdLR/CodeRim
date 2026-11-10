@@ -1,16 +1,16 @@
 import Foundation
 
-enum WeekStart: Int, CaseIterable, Codable, Sendable {
+package enum WeekStart: Int, CaseIterable, Codable, Sendable {
     case sunday = 1
     case monday = 2
 }
 
-struct UsagePeriodBounds: Sendable {
-    let today: Date
-    let week: Date
-    let month: Date
+package struct UsagePeriodBounds: Sendable {
+    package let today: Date
+    package let week: Date
+    package let month: Date
 
-    init(now: Date, calendar baseCalendar: Calendar, weekStart: WeekStart) {
+    package init(now: Date, calendar baseCalendar: Calendar, weekStart: WeekStart) {
         var calendar = baseCalendar
         calendar.firstWeekday = weekStart.rawValue
         today = calendar.startOfDay(for: now)

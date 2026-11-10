@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import Foundation
 import CodexBarCore
 import SweetCookieKit

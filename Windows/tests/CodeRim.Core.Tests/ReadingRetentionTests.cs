@@ -6,6 +6,24 @@ namespace CodeRim.Core.Tests;
 public sealed class ReadingRetentionTests
 {
     private static readonly ProviderReading Previous = new("codex", ReadingState.Ready, [new("weekly", "Weekly", 42)], DateTimeOffset.Parse("2026-09-18T10:00:00Z", System.Globalization.CultureInfo.InvariantCulture));
+    [Fact]
+    public void SharedAuthenticationAndRefreshContract()
+    {
+        using var stream = typeof(ReadingRetentionTests).Assembly.GetManifestResourceStream("provider-refresh-v1.json")!;
+        using var document = System.Text.Json.JsonDocument.Parse(stream);
+        foreach (var item in document.RootElement.EnumerateArray())
+        {
+            var id = item.GetProperty("provider").GetString()!;
+            var state = Enum.Parse<ReadingState>(item.GetProperty("failure").GetString()!, true);
+            Assert.Equal(item.GetProperty("hiddenWhenAbsent").GetBoolean(), ProviderAvailability.HidesWhenAbsent(id));
+            var result = ReadingRetention.Merge(new(id, state, []), Previous with { Id = id });
+            var keeps = item.GetProperty("retainsReading").GetBoolean();
+            Assert.Equal(keeps, result.Windows.Count > 0);
+            Assert.Equal(keeps ? Previous.UpdatedAt : null, result.UpdatedAt);
+            if (keeps) Assert.Equal(ReadingState.Stale, result.State);
+        }
+    }
+
     [Theory]
     [InlineData(ReadingState.Error)]
     [InlineData(ReadingState.Unavailable)]

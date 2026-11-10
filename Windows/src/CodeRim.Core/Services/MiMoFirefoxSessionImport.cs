@@ -79,7 +79,7 @@ public static class MiMoFirefoxSessionImport
         var stamp = (before.Length, before.LastWriteTimeUtc, before.CreationTimeUtc);
         if (before.Length > MaximumInputBytes) throw new LimitException();
         using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        var identity = UsageScanner.FileIdentity.TryRead(input.SafeFileHandle);
+        var identity = SourceFileIdentity.TryRead(input.SafeFileHandle);
         if (OperatingSystem.IsWindows() && identity is null) throw new InvalidDataException("The browser session could not be identified.");
         if (input.Length != stamp.Length || input.Length > MaximumInputBytes) throw new LimitException();
         var bytes = new byte[(int)input.Length]; var offset = 0;
@@ -95,7 +95,7 @@ public static class MiMoFirefoxSessionImport
             RejectLinks(path);
             var after = new FileInfo(path);
             if (input.ReadByte() != -1 || stamp != (after.Length, after.LastWriteTimeUtc, after.CreationTimeUtc)
-                || identity != UsageScanner.FileIdentity.TryRead(path))
+                || identity != SourceFileIdentity.TryRead(path))
                 throw new UnstableException();
         }
         catch (Exception error) when (error is IOException or InvalidDataException or UnauthorizedAccessException)
