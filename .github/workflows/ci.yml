@@ -38,6 +38,7 @@ jobs:
           python3 Tests/Scripts/ci_source_mtimes_tests.py
           python3 Tests/Scripts/ci_apple_changes_tests.py
           python3 Tests/Scripts/ci_required_result_tests.py
+          python3 Tests/Scripts/ci_windows_changes_tests.py
           python3 website/scripts/sync-providers.py --check
           node --check website/app.js
           node --check website/providers.js

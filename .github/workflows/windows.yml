@@ -2,9 +2,7 @@ name: Windows
 on:
   push:
     branches: [main]
-    paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', 'Tests/Fixtures/**', '.gitattributes', '.github/workflows/windows.yml']
   pull_request:
-    paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', 'Tests/Fixtures/**', '.gitattributes', '.github/workflows/windows.yml']
   workflow_dispatch:
     inputs:
       msi_handoff:
@@ -18,8 +16,24 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
-  test-and-package:
+  windows-changes:
     if: ${{ inputs.msi_handoff != true }}
+    runs-on: ubuntu-24.04
+    outputs:
+      windows: ${{ steps.changes.outputs.windows }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Detect Windows build inputs
+        id: changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: bash Scripts/ci_windows_changes.sh "$BASE" >> "$GITHUB_OUTPUT"
+
+  windows-build:
+    needs: windows-changes
+    if: ${{ inputs.msi_handoff != true && needs.windows-changes.outputs.windows == 'true' }}
     runs-on: windows-2025
     timeout-minutes: 60
     steps:
@@ -83,7 +97,7 @@ jobs:
 
   native-x64:
     if: ${{ inputs.msi_handoff != true }}
-    needs: test-and-package
+    needs: windows-build
     runs-on: windows-2025
     timeout-minutes: 60
     steps:
@@ -132,9 +146,9 @@ jobs:
             Artifacts/windows-*.txt
             Artifacts/windows-msi-*.log
 
-  native-arm64:
+  windows-arm64-tests:
     if: ${{ inputs.msi_handoff != true }}
-    needs: test-and-package
+    needs: windows-build
     runs-on: windows-11-arm
     timeout-minutes: 60
     steps:
@@ -194,6 +208,32 @@ jobs:
             Artifacts/windows-*.txt
             Artifacts/windows-msi-*.log
             Windows/tests/**/TestResults/**
+
+  test-and-package:
+    needs: [windows-changes, windows-build]
+    if: ${{ always() && inputs.msi_handoff != true }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Report the required Windows result
+        env:
+          CHECKS_RESULT: ${{ needs.windows-changes.result }}
+          WINDOWS_REQUIRED: ${{ needs.windows-changes.outputs.windows }}
+          WINDOWS_RESULT: ${{ needs.windows-build.result }}
+        run: bash Scripts/ci_required_result.sh "$CHECKS_RESULT" "$WINDOWS_REQUIRED" "$WINDOWS_RESULT"
+
+  native-arm64:
+    needs: [windows-changes, windows-arm64-tests]
+    if: ${{ always() && inputs.msi_handoff != true }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Report the required Windows result
+        env:
+          CHECKS_RESULT: ${{ needs.windows-changes.result }}
+          WINDOWS_REQUIRED: ${{ needs.windows-changes.outputs.windows }}
+          WINDOWS_RESULT: ${{ needs.windows-arm64-tests.result }}
+        run: bash Scripts/ci_required_result.sh "$CHECKS_RESULT" "$WINDOWS_REQUIRED" "$WINDOWS_RESULT"
 
   msi-handoff:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.msi_handoff == true }}
