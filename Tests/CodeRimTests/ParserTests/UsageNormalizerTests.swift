@@ -201,14 +201,16 @@ final class UsageNormalizerTests: XCTestCase {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let database = try SQLiteDatabase(url: directory.appendingPathComponent("usage.sqlite"))
-        let now = Date()
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = calendar.startOfDay(for: timestamp).addingTimeInterval(30)
         let bad = usage(10, cached: 20, output: 5)
         XCTAssertFalse(bad.isValid)
-        let event = UsageEvent(eventKey: "bad", occurredAt: now.addingTimeInterval(-60), sessionID: "s", model: nil,
+        let event = UsageEvent(eventKey: "bad", occurredAt: now, sessionID: "s", model: nil,
                                projectPath: nil, usage: bad, sourcePath: "fixture", sourcePosition: 0)
         _ = try await database.commit(events: [event], checkpoint: .fresh(sourcePath: "fixture", fileIdentity: "1:2"),
                                       normalizationState: nil)
-        let snapshot = try await database.usageSnapshot(now: now, calendar: .current, weekStart: .monday)
+        let snapshot = try await database.usageSnapshot(now: now, calendar: calendar, weekStart: .monday)
         XCTAssertEqual(snapshot.today.totalTokens, 15)
         XCTAssertEqual(snapshot.today.cachedInputTokens, 10)
     }
@@ -219,7 +221,7 @@ final class UsageNormalizerTests: XCTestCase {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         let database = try SQLiteDatabase(url: directory.appendingPathComponent("usage.sqlite"))
-        let now = Date()
+        let now = timestamp
         func commit(_ key: String, at date: Date, quality: DataQuality) async throws {
             var checkpoint = SourceCheckpoint.fresh(sourcePath: key, fileIdentity: "1:2")
             checkpoint.sessionID = key
@@ -231,12 +233,12 @@ final class UsageNormalizerTests: XCTestCase {
                 normalizationState: UsageNormalizationState(cumulativeHighWaterMark: value, lastObservedAt: date, quality: quality))
         }
         try await commit("old", at: now.addingTimeInterval(-120 * 86_400), quality: .partial)
-        try await commit("today", at: now.addingTimeInterval(-60), quality: .exact)
+        try await commit("today", at: now, quality: .exact)
         var snapshot = try await database.usageSnapshot(now: now, calendar: .current, weekStart: .monday)
         XCTAssertEqual(snapshot.quality, .exact)
         XCTAssertTrue(snapshot.historyIncomplete)
-        try await commit("recent", at: now.addingTimeInterval(-30), quality: .partial)
-        snapshot = try await database.usageSnapshot(now: now.addingTimeInterval(1), calendar: .current, weekStart: .monday)
+        try await commit("recent", at: now, quality: .partial)
+        snapshot = try await database.usageSnapshot(now: now, calendar: .current, weekStart: .monday)
         XCTAssertEqual(snapshot.quality, .partial)
     }
 
