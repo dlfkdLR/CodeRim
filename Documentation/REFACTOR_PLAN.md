@@ -10,7 +10,7 @@ Keep Swift for macOS, iPhone and widgets, C# for Windows, and JavaScript for the
 - [x] 2. Separate domain calculation, migrations, Claude CLI work and OAuth listener ownership. [PR #170](https://github.com/dlfkdLR/CodeRim/pull/170) merged after Apple and native Windows x64/ARM64 CI passed.
 - [x] 3. Trial Rust through actual Swift and C# bindings, without a product dependency.
 - [x] 4. Retain Swift and C#: the measured synthetic pipeline benefit does not justify product-wide bindings and packaging.
-- [ ] 5. Complete the follow-up boundaries below, run full regression/platform CI and merge the follow-up PR. The first pass alone did not complete this stage.
+- [x] 5. Complete the follow-up boundaries below, full regression/platform CI and merge. [PR #172](https://github.com/dlfkdLR/CodeRim/pull/172) merged on 2026-11-10; the first pass and this follow-up together establish these boundaries.
 
 ## Follow-up checklist
 
@@ -20,8 +20,8 @@ Keep Swift for macOS, iPhone and widgets, C# for Windows, and JavaScript for the
 - [x] Shared Claude streaming, copied-message and agent-ownership contract. Swift now promotes a copied parent message to its explicitly identified child, matching Windows, including the child’s project, without changing token totals or schema.
 - [x] Shared provider authentication/refresh retention cases. Existing per-platform tests retain cancellation, settings invalidation, credential-rotation and account-switch coverage.
 - [x] Review Settings/notch/provider/iOS/relay ownership. Separate provider Keychain storage from configuration projection, iOS enrollment/rollback from observable UI state, and relay durable budget accounting from request/push orchestration.
-- [ ] Full local regression and native platform CI for this follow-up.
-- [ ] Merge follow-up and record release preparation evidence.
+- [x] Full local regression and native platform CI for this follow-up: [Apple CI](https://github.com/dlfkdLR/CodeRim/actions/runs/42761236845) and [Windows CI](https://github.com/dlfkdLR/CodeRim/actions/runs/42761236991).
+- [x] Merge follow-up and record release preparation evidence. Universal 2, x64/ARM64 ZIP/MSI/MSIX candidates and native installation/rollback/UI/CLI checks passed. Signing, live accounts and physical devices remain separate release gates.
 
 ## Behavior contracts
 
@@ -64,4 +64,4 @@ The Rust runner's source links now follow the module moves and compile Swift pac
 
 Compare event rows, totals, quality and retained repair evidence, not only totals. Keep local usage distinct from account-wide history and reject late responses after account/settings changes. Run migration/recovery tests on disposable databases and validate packages on native Windows x64/ARM64 and Universal 2 macOS before merge.
 
-Local follow-up validation passed: 1,352 Swift tests (18 opt-in skips), provider fetch/add matrices (1,357 + 544), 116 CLI process cases and 10 identity-migration cases, Windows runtime 4,608 (49 native-only skips) plus 34 pure-core tests and 7 saved-account probes, a warning-free WPF/CLI/worker cross-build, 37 iOS simulator tests, 88 relay tests, docs/site checks and the relocated Rust trial bindings. The native CI gate remains pending. The Windows transport suite exposed a deadline/disposal race; cancelled response buffering now consistently throws cancellation rather than an incidental disposed-content error. Release-only signed MSI handoff, live provider accounts, physical iPhone behavior and production APNs are not established by synthetic tests or simulator signing. No public release is published by this refactoring plan.
+Local follow-up validation passed: 1,352 Swift tests (18 opt-in skips), provider fetch/add matrices (1,357 + 544), 116 CLI process cases and 10 identity-migration cases, Windows runtime 4,608 (49 native-only skips) plus 34 pure-core tests and 7 saved-account probes, a warning-free WPF/CLI/worker cross-build, 37 iOS simulator tests, 88 relay tests, docs/site checks and the relocated Rust trial bindings. CI passed for source commit `88171906eb7bac7c33e6750cc1820c9509453d76`, including Universal 2, iOS, native Windows x64/ARM64 package execution and MSI install/upgrade/rollback. A separate 10k/100k history stress test passed; after the final project-attribution fix, 76 affected Swift/storage regressions and the shared Windows contract also passed. The Windows transport suite exposed a deadline/disposal race; cancelled response buffering now consistently throws cancellation rather than an incidental disposed-content error. Remaining release checks are signed MSI handoff, live provider accounts, physical iPhone behavior and production APNs. No signed draft MSI exists for the release-only `msi-handoff` job, so that job was skipped; this Mac has no valid Apple signing identities. Synthetic tests and simulator signing do not establish those results. No public release was published. These external checks are not marked complete by the refactoring goal.

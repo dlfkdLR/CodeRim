@@ -37,13 +37,15 @@ jobs:
           python3 Tests/Scripts/docs_validation_tests.py
           python3 Tests/Scripts/ci_source_mtimes_tests.py
           python3 Tests/Scripts/ci_apple_changes_tests.py
+          python3 Tests/Scripts/ci_required_result_tests.py
+          python3 Tests/Scripts/ci_windows_changes_tests.py
           python3 website/scripts/sync-providers.py --check
           node --check website/app.js
           node --check website/providers.js
           node --test MobileRelay/test/*.test.mjs
           python3 website/scripts/test-language.py
 
-  build-and-test:
+  apple-tests:
     needs: checks
     if: needs.checks.outputs.apple == 'true'
     runs-on: macos-26
@@ -92,6 +94,20 @@ jobs:
           done
       - name: Save source timestamps for incremental builds
         run: python3 Scripts/ci_source_mtimes.py save
+
+  build-and-test:
+    needs: [checks, apple-tests]
+    if: ${{ always() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Report the required CI result
+        env:
+          CHECKS_RESULT: ${{ needs.checks.result }}
+          APPLE_REQUIRED: ${{ needs.checks.outputs.apple }}
+          APPLE_RESULT: ${{ needs.apple-tests.result }}
+        run: bash Scripts/ci_required_result.sh "$CHECKS_RESULT" "$APPLE_REQUIRED" "$APPLE_RESULT"
 
   ios-tests:
     needs: checks
