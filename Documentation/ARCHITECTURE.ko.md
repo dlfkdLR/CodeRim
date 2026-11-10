@@ -30,6 +30,10 @@ signed Codex app-server
 
 ## 상태와 렌더링
 
+계산은 도메인 계층에 둡니다. `CodexTokenObservation`과 `UsageNormalizer`는 세션 탐색·저장에 의존하지 않고, 상속 기록 재생과 가져오기 기준 시각은 collector가 소유합니다. `UsagePeriodBounds`는 메모리 집계와 SQLite 조회에 같은 달력 경계를 제공합니다. `SQLiteSchema`는 기존 버전별 마이그레이션을, `SQLiteDatabase`는 연결 수명·트랜잭션·조회 캐시를 소유합니다.
+
+`ClaudeCLIService`와 status-line 설치기는 CLI·설정 부수 효과를 관측 상태인 `ClaudeIntegrationStore`와 분리합니다. `OAuthLoopbackServer`는 loopback 전용 리스너를 소유하고 준비가 끝난 뒤 배정된 포트를 반환해 포트 확인·재바인딩 경쟁을 없앱니다. Windows의 `UsageAggregation`은 `UsageScanner`와 분리된 기간 계산을 소유하고 정규화 상태·결과는 읽기 전용 값 레코드입니다. [구조 개편 계획](REFACTOR_PLAN.ko.md)에 공통 계약과 기존 언어 유지 결정을 기록합니다.
+
 `SettingsNavigation`은 상위 객체가 소유해 창을 닫아도 선택을 유지합니다. 여섯 섹션은 General, Usage, Providers, Notch, Diagnostics, Information입니다. 제공업체 상세가 계정·분석·데이터 작업을 소유합니다. 내장 `MenuPopoverView`는 상단 새로고침과 상태 footer를 쓰며 작은 메뉴의 크기는 별도로 유지합니다. 내장 Overview·Usage analytics·Limits는 연결된 제공업체 탐색을 공유하고 `SettingsUsageAnalyticsState`가 그룹, 날짜, 펼침 상태를 유지합니다.
 
 `UsageStore`는 가져오기·데이터 작업·달력 변경 후 요청된 분석 범위를 무효화합니다. revision·요청 ID로 이전 비동기 결과를 버립니다. `UsageAnalyticsPresentation`은 비캐시 차트 값에서 캐시 입력을 빼고 모델 그룹에서 상위 모델과 Other를 유지합니다. 전체 경로는 저장 전에 키 기반 프로젝트 ID·폴더명으로 바꾸고 제목은 로컬 목록과 메모리에서 결합합니다.

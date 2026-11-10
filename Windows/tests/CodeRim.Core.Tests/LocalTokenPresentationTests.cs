@@ -45,7 +45,7 @@ public sealed class LocalTokenPresentationTests
         var zone = TimeZoneInfo.CreateCustomTimeZone("prior-zone", TimeSpan.FromHours(9), "prior-zone", "prior-zone");
         var through = new DateTimeOffset(2026, 9, 25, 23, 59, 0, TimeSpan.FromHours(9));
         var events = new[] { new UsageEvent("old", through.AddMinutes(-1), new(100, 80, 10)) };
-        var successful = UsageScanner.Aggregate(events, through, WeekStart.Monday, partial, zone);
+        var successful = UsageAggregation.Aggregate(events, through, WeekStart.Monday, partial, zone);
         var failed = LocalTokenPresentation.AfterFailure(LocalTokenPresentation.AfterFailure(successful));
         var publishedAt = through.AddMinutes(2);
         var local = CompanionFile.Local(failed, publishedAt);
@@ -83,13 +83,13 @@ public sealed class LocalTokenPresentationTests
     {
         var now = DateTimeOffset.Now;
         UsageEvent[] events = [new("partial", now, new(100, 80, 10))];
-        var partial = UsageScanner.Aggregate(events, now, WeekStart.Monday, true);
+        var partial = UsageAggregation.Aggregate(events, now, WeekStart.Monday, true);
         var stale = LocalTokenPresentation.AfterFailure(partial);
         Assert.Equal(DataQuality.Stale, stale.Quality);
         Assert.True(stale.RetainsPartialHistory);
         Assert.Equal(partial.Today, stale.Today);
         Assert.True(LocalTokenPresentation.AfterFailure(stale).RetainsPartialHistory);
-        var recovered = LocalTokenPresentation.CompletedRead(UsageScanner.Aggregate(events, now, WeekStart.Monday, false));
+        var recovered = LocalTokenPresentation.CompletedRead(UsageAggregation.Aggregate(events, now, WeekStart.Monday, false));
         Assert.Equal(DataQuality.Exact, recovered.Quality);
         Assert.False(recovered.RetainsPartialHistory);
         Assert.False(LocalTokenPresentation.AfterFailure(recovered).RetainsPartialHistory);
@@ -99,7 +99,7 @@ public sealed class LocalTokenPresentationTests
     [Fact]
     public void CompletedEmptyPartialInventoryIsNotMeasuredZero()
     {
-        var aggregate = UsageScanner.Aggregate([], DateTimeOffset.Now, WeekStart.Monday, true);
+        var aggregate = UsageAggregation.Aggregate([], DateTimeOffset.Now, WeekStart.Monday, true);
         var snapshot = LocalTokenPresentation.CompletedRead(aggregate);
         Assert.Equal(DataQuality.Unavailable, snapshot.Quality);
         Assert.Equal("Unavailable", LocalTokenPresentation.Text(snapshot, TokenNumberStyle.Detailed));
@@ -110,7 +110,7 @@ public sealed class LocalTokenPresentationTests
     {
         var now = DateTimeOffset.Now;
         UsageEvent[] events = [new("yesterday", now.AddDays(-1), new(100, 80, 10))];
-        var aggregate = UsageScanner.Aggregate(events, now, WeekStart.Monday, true);
+        var aggregate = UsageAggregation.Aggregate(events, now, WeekStart.Monday, true);
         var snapshot = LocalTokenPresentation.CompletedRead(aggregate);
         Assert.Equal(aggregate, snapshot);
         Assert.Equal(DataQuality.Partial, snapshot.Quality);
@@ -140,8 +140,8 @@ public sealed class LocalTokenPresentationTests
         var now = DateTimeOffset.Now;
         var yesterday = now.AddDays(-1);
         UsageEvent[] events = [new("yesterday", yesterday, new(100, 80, 10))];
-        var prior = UsageScanner.Aggregate(events, yesterday, WeekStart.Monday, false);
-        var current = UsageScanner.Aggregate(events, now, WeekStart.Monday, false);
+        var prior = UsageAggregation.Aggregate(events, yesterday, WeekStart.Monday, false);
+        var current = UsageAggregation.Aggregate(events, now, WeekStart.Monday, false);
         Assert.Equal("110 tokens", LocalTokenPresentation.Text(prior, TokenNumberStyle.Detailed));
         Assert.Equal("0 tokens", LocalTokenPresentation.Text(current, TokenNumberStyle.Detailed));
         Assert.Equal(110, current.AllTime.TotalTokens);

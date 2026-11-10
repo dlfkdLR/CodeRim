@@ -11,13 +11,6 @@ enum CodexParsedLine: Equatable, Sendable {
     case malformed(String)
 }
 
-struct CodexTokenObservation: Equatable, Sendable {
-    let occurredAt: Date
-    let ordinal: Int64?
-    let lastUsage: TokenUsage?
-    let cumulativeUsage: TokenUsage?
-}
-
 struct TurnContextMetadata: Equatable, Sendable {
     let model: String?
     let workingDirectory: String?

@@ -5,6 +5,7 @@
 Current developer contracts are listed below; platform scope belongs in [Product](../PRODUCT.md) and the platform guides. The iPhone companion remains unreleased source requiring provisioning and relay configuration. Dated records describe their original runs, not current acceptance.
 
 - [Architecture](ARCHITECTURE.md) — ownership, pipelines, persistence, and async boundaries.
+- [Refactoring plan](REFACTOR_PLAN.md) — stages, shared behavior contracts, and the Rust decision gate.
 - [Usage accounting](USAGE.md) — safe deltas, cache arithmetic, calendar periods, and recovery.
 - [Claude](CLAUDE.md) — record identity, streaming reconciliation, status-line bridge, and supported fields.
 - [Accounts](ACCOUNTS.md) — supported authentication, switching protocol, concurrency, and verification.

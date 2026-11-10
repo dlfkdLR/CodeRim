@@ -158,7 +158,7 @@ internal static partial class NativeSmoke
                 new("order-new", listTime, new(1, 0, 0, 0), "gpt-5.6-sol", "Zulu", "new-session", "codex", "z-project"),
                 new("order-unknown", listTime.AddMinutes(-3), new(1, 0, 0, 0), "gpt-5.6-sol", SessionId: "opaque-123456"),
                 new("order-literal", listTime.AddMinutes(-4), new(2, 0, 0, 0), "gpt-5.6-sol", "Unknown project", "literal-session", "codex", "literal-project")];
-            store.Usage["codex"] = UsageScanner.Aggregate(store.Events["codex"], listTime, settings.Current.WeekStart, false); store.RecordLocalAnalyticsRead("codex", listTime);
+            store.Usage["codex"] = UsageAggregation.Aggregate(store.Events["codex"], listTime, settings.Current.WeekStart, false); store.RecordLocalAnalyticsRead("codex", listTime);
             store.SessionDetails["codex"] = [new("new-session", null, [new("list-image", listTime, 3)]), new("a-session", "new-session", [])];
             Button[] ListRows(string kind) => Descendants<Button>(pane).Where(x => AutomationProperties.GetAutomationId(x).StartsWith("usage." + kind + ".", StringComparison.Ordinal)).ToArray();
             await Open("projects");

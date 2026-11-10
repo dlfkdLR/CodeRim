@@ -1,0 +1,471 @@
+[
+  {
+    "name": "cumulative-increase-and-repeat",
+    "steps": [
+      {
+        "occurredAt": 1800000000,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000000,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000001,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": null,
+          "cumulativeHighWaterMark": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000001,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000002,
+        "lastUsage": { "inputTokens": 30, "cachedInputTokens": 20, "outputTokens": 5, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 130, "cachedInputTokens": 80, "outputTokens": 25, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 30, "cachedInputTokens": 20, "outputTokens": 5, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 130, "cachedInputTokens": 80, "outputTokens": 25, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000002,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      }
+    ]
+  },
+  {
+    "name": "ambiguous-initial-baseline",
+    "steps": [
+      {
+        "occurredAt": 1800000000,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 80, "outputTokens": 10, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 500, "cachedInputTokens": 300, "outputTokens": 50, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": null,
+          "cumulativeHighWaterMark": { "inputTokens": 500, "cachedInputTokens": 300, "outputTokens": 50, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000000,
+          "quality": "partial",
+          "diagnostic": "initial cumulative baseline is unresolved",
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000001,
+        "lastUsage": { "inputTokens": 50, "cachedInputTokens": 20, "outputTokens": 10, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 550, "cachedInputTokens": 320, "outputTokens": 60, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 50, "cachedInputTokens": 20, "outputTokens": 10, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 550, "cachedInputTokens": 320, "outputTokens": 60, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000001,
+          "quality": "partial",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      }
+    ]
+  },
+  {
+    "name": "out-of-order-replay",
+    "steps": [
+      {
+        "occurredAt": 1800000000,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000000,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000002,
+        "lastUsage": { "inputTokens": 30, "cachedInputTokens": 20, "outputTokens": 5, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 130, "cachedInputTokens": 80, "outputTokens": 25, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 30, "cachedInputTokens": 20, "outputTokens": 5, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 130, "cachedInputTokens": 80, "outputTokens": 25, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000002,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000001,
+        "lastUsage": { "inputTokens": 10, "cachedInputTokens": 5, "outputTokens": 2, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 110, "cachedInputTokens": 65, "outputTokens": 22, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": null,
+          "cumulativeHighWaterMark": { "inputTokens": 130, "cachedInputTokens": 80, "outputTokens": 25, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000002,
+          "quality": "exact",
+          "diagnostic": "out-of-order token snapshot ignored",
+          "windowsRepaired": false
+        }
+      }
+    ]
+  },
+  {
+    "name": "missing-cumulative-keeps-previous-baseline",
+    "steps": [
+      {
+        "occurredAt": 1800000000,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000000,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000001,
+        "lastUsage": { "inputTokens": 30, "cachedInputTokens": 20, "outputTokens": 5, "cacheWriteInputTokens": null },
+        "cumulativeUsage": null,
+        "expected": {
+          "delta": null,
+          "cumulativeHighWaterMark": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000000,
+          "quality": "partial",
+          "diagnostic": "missing cumulative token usage",
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000002,
+        "lastUsage": { "inputTokens": 30, "cachedInputTokens": 20, "outputTokens": 5, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 130, "cachedInputTokens": 80, "outputTokens": 25, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 30, "cachedInputTokens": 20, "outputTokens": 5, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 130, "cachedInputTokens": 80, "outputTokens": 25, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000002,
+          "quality": "partial",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      }
+    ]
+  },
+  {
+    "name": "last-usage-alone-is-not-authoritative",
+    "steps": [
+      {
+        "occurredAt": 1800000000,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 60, "outputTokens": 20, "cacheWriteInputTokens": null },
+        "cumulativeUsage": null,
+        "expected": {
+          "delta": null,
+          "cumulativeHighWaterMark": null,
+          "lastObservedAt": null,
+          "quality": "partial",
+          "diagnostic": "missing cumulative token usage",
+          "windowsRepaired": false
+        }
+      }
+    ]
+  },
+  {
+    "name": "validated-counter-restart",
+    "steps": [
+      {
+        "occurredAt": 1800000000,
+        "lastUsage": { "inputTokens": 1000, "cachedInputTokens": 700, "outputTokens": 100, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 1000, "cachedInputTokens": 700, "outputTokens": 100, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 1000, "cachedInputTokens": 700, "outputTokens": 100, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 1000, "cachedInputTokens": 700, "outputTokens": 100, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000000,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000001,
+        "lastUsage": { "inputTokens": 50, "cachedInputTokens": 20, "outputTokens": 10, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 50, "cachedInputTokens": 20, "outputTokens": 10, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 50, "cachedInputTokens": 20, "outputTokens": 10, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 50, "cachedInputTokens": 20, "outputTokens": 10, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000001,
+          "quality": "partial",
+          "diagnostic": "cumulative counter restarted",
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000002,
+        "lastUsage": { "inputTokens": 25, "cachedInputTokens": 10, "outputTokens": 5, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 75, "cachedInputTokens": 30, "outputTokens": 15, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 25, "cachedInputTokens": 10, "outputTokens": 5, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 75, "cachedInputTokens": 30, "outputTokens": 15, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000002,
+          "quality": "partial",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      }
+    ]
+  },
+  {
+    "name": "interleaved-counters-use-component-high-water",
+    "steps": [
+      {
+        "occurredAt": 1800000000,
+        "lastUsage": { "inputTokens": 1000, "cachedInputTokens": 700, "outputTokens": 100, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 1000, "cachedInputTokens": 700, "outputTokens": 100, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 1000, "cachedInputTokens": 700, "outputTokens": 100, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 1000, "cachedInputTokens": 700, "outputTokens": 100, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000000,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000001,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 80, "outputTokens": 10, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 500, "cachedInputTokens": 800, "outputTokens": 50, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": null,
+          "cumulativeHighWaterMark": { "inputTokens": 1000, "cachedInputTokens": 800, "outputTokens": 100, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000001,
+          "quality": "partial",
+          "diagnostic": "cumulative token usage decreased or interleaved",
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000002,
+        "lastUsage": { "inputTokens": 50, "cachedInputTokens": 20, "outputTokens": 10, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 1050, "cachedInputTokens": 820, "outputTokens": 110, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 50, "cachedInputTokens": 20, "outputTokens": 10, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 1050, "cachedInputTokens": 820, "outputTokens": 110, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000002,
+          "quality": "partial",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      }
+    ]
+  },
+  {
+    "name": "optional-cache-write-disappears-and-returns",
+    "steps": [
+      {
+        "occurredAt": 1800000000,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 20, "cacheWriteInputTokens": 40 },
+        "cumulativeUsage": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 20, "cacheWriteInputTokens": 40 },
+        "expected": {
+          "delta": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 20, "cacheWriteInputTokens": 40 },
+          "cumulativeHighWaterMark": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 20, "cacheWriteInputTokens": 40 },
+          "lastObservedAt": 1800000000,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000001,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 20, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 20, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": null,
+          "cumulativeHighWaterMark": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 20, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000001,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000002,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 10, "outputTokens": 20, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 200, "cachedInputTokens": 30, "outputTokens": 40, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 100, "cachedInputTokens": 10, "outputTokens": 20, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 200, "cachedInputTokens": 30, "outputTokens": 40, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000002,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000003,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 10, "outputTokens": 20, "cacheWriteInputTokens": 60 },
+        "cumulativeUsage": { "inputTokens": 300, "cachedInputTokens": 40, "outputTokens": 60, "cacheWriteInputTokens": 100 },
+        "expected": {
+          "delta": { "inputTokens": 100, "cachedInputTokens": 10, "outputTokens": 20, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 300, "cachedInputTokens": 40, "outputTokens": 60, "cacheWriteInputTokens": 100 },
+          "lastObservedAt": 1800000003,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      }
+    ]
+  },
+  {
+    "name": "inconsistent-delta-is-clamped",
+    "steps": [
+      {
+        "occurredAt": 1800000000,
+        "lastUsage": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 10, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 10, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 10, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 100, "cachedInputTokens": 20, "outputTokens": 10, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000000,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000001,
+        "lastUsage": { "inputTokens": 10, "cachedInputTokens": 20, "outputTokens": 5, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 110, "cachedInputTokens": 40, "outputTokens": 15, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 10, "cachedInputTokens": 10, "outputTokens": 5, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 110, "cachedInputTokens": 40, "outputTokens": 15, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000001,
+          "quality": "partial",
+          "diagnostic": "inconsistent token delta clamped",
+          "windowsRepaired": true
+        }
+      },
+      {
+        "occurredAt": 1800000002,
+        "lastUsage": { "inputTokens": 10, "cachedInputTokens": 20, "outputTokens": 5, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 110, "cachedInputTokens": 40, "outputTokens": 15, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": null,
+          "cumulativeHighWaterMark": { "inputTokens": 110, "cachedInputTokens": 40, "outputTokens": 15, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000002,
+          "quality": "partial",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      }
+    ]
+  },
+  {
+    "name": "inconsistent-first-snapshot-is-clamped",
+    "steps": [
+      {
+        "occurredAt": 1800000000,
+        "lastUsage": { "inputTokens": 10, "cachedInputTokens": 30, "outputTokens": 4, "cacheWriteInputTokens": 5 },
+        "cumulativeUsage": { "inputTokens": 10, "cachedInputTokens": 30, "outputTokens": 4, "cacheWriteInputTokens": 5 },
+        "expected": {
+          "delta": { "inputTokens": 10, "cachedInputTokens": 10, "outputTokens": 4, "cacheWriteInputTokens": 0 },
+          "cumulativeHighWaterMark": { "inputTokens": 10, "cachedInputTokens": 30, "outputTokens": 4, "cacheWriteInputTokens": 5 },
+          "lastObservedAt": 1800000000,
+          "quality": "partial",
+          "diagnostic": "inconsistent token usage clamped",
+          "windowsRepaired": true
+        }
+      }
+    ]
+  },
+  {
+    "name": "repaired-zero-delta-has-platform-specific-evidence",
+    "steps": [
+      {
+        "occurredAt": 1800000000,
+        "lastUsage": { "inputTokens": 0, "cachedInputTokens": 1, "outputTokens": 0, "cacheWriteInputTokens": 0 },
+        "cumulativeUsage": { "inputTokens": 0, "cachedInputTokens": 1, "outputTokens": 0, "cacheWriteInputTokens": 0 },
+        "expected": {
+          "delta": null,
+          "cumulativeHighWaterMark": { "inputTokens": 0, "cachedInputTokens": 1, "outputTokens": 0, "cacheWriteInputTokens": 0 },
+          "lastObservedAt": 1800000000,
+          "quality": "partial",
+          "diagnostic": "inconsistent token usage clamped",
+          "windowsRepaired": true,
+          "windowsDelta": { "inputTokens": 0, "cachedInputTokens": 0, "outputTokens": 0, "cacheWriteInputTokens": 0 }
+        }
+      },
+      {
+        "occurredAt": 1800000001,
+        "lastUsage": { "inputTokens": 2, "cachedInputTokens": 1, "outputTokens": 1, "cacheWriteInputTokens": 0 },
+        "cumulativeUsage": { "inputTokens": 2, "cachedInputTokens": 1, "outputTokens": 1, "cacheWriteInputTokens": 0 },
+        "expected": {
+          "delta": { "inputTokens": 2, "cachedInputTokens": 0, "outputTokens": 1, "cacheWriteInputTokens": 0 },
+          "cumulativeHighWaterMark": { "inputTokens": 2, "cachedInputTokens": 1, "outputTokens": 1, "cacheWriteInputTokens": 0 },
+          "lastObservedAt": 1800000001,
+          "quality": "partial",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      }
+    ]
+  },
+  {
+    "name": "valid-zero-snapshot-does-not-create-an-event",
+    "steps": [
+      {
+        "occurredAt": 1800000000,
+        "lastUsage": { "inputTokens": 0, "cachedInputTokens": 0, "outputTokens": 0, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 0, "cachedInputTokens": 0, "outputTokens": 0, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": null,
+          "cumulativeHighWaterMark": { "inputTokens": 0, "cachedInputTokens": 0, "outputTokens": 0, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000000,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      }
+    ]
+  },
+  {
+    "name": "counts-above-32-bit-remain-exact",
+    "steps": [
+      {
+        "occurredAt": 1800000000,
+        "lastUsage": { "inputTokens": 999999999990, "cachedInputTokens": 500000000000, "outputTokens": 900000000000, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 999999999990, "cachedInputTokens": 500000000000, "outputTokens": 900000000000, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 999999999990, "cachedInputTokens": 500000000000, "outputTokens": 900000000000, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 999999999990, "cachedInputTokens": 500000000000, "outputTokens": 900000000000, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000000,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      },
+      {
+        "occurredAt": 1800000001,
+        "lastUsage": { "inputTokens": 10, "cachedInputTokens": 5, "outputTokens": 10, "cacheWriteInputTokens": null },
+        "cumulativeUsage": { "inputTokens": 1000000000000, "cachedInputTokens": 500000000005, "outputTokens": 900000000010, "cacheWriteInputTokens": null },
+        "expected": {
+          "delta": { "inputTokens": 10, "cachedInputTokens": 5, "outputTokens": 10, "cacheWriteInputTokens": null },
+          "cumulativeHighWaterMark": { "inputTokens": 1000000000000, "cachedInputTokens": 500000000005, "outputTokens": 900000000010, "cacheWriteInputTokens": null },
+          "lastObservedAt": 1800000001,
+          "quality": "exact",
+          "diagnostic": null,
+          "windowsRepaired": false
+        }
+      }
+    ]
+  }
+]

@@ -20,6 +20,10 @@ Only the production bundle identity opens `~/Library/Application Support/CodexMe
 
 ## State and rendering
 
+Calculation lives in the domain layer: `CodexTokenObservation` and `UsageNormalizer` have no session-discovery or persistence dependency. The collector owns inherited replay and import cutoffs. `UsagePeriodBounds` supplies the same calendar boundaries to in-memory aggregation and SQLite queries. `SQLiteSchema` owns the existing versioned migrations; `SQLiteDatabase` owns connection lifetime, transactions and query caches.
+
+`ClaudeCLIService` and the status-line installer own CLI/settings side effects separately from the observable `ClaudeIntegrationStore`. `OAuthLoopbackServer` owns a loopback-only listener and reports its assigned port after it becomes ready, so a probe-and-rebind race cannot invalidate the redirect URL. Windows `UsageAggregation` owns period calculations separately from `UsageScanner`; normalization state/results are readonly value records. The [refactoring plan](REFACTOR_PLAN.md) records shared contracts and the decision to retain the native languages.
+
 Canonical model IDs are retained for pricing. Full working directories are immediately projected to a keyed HMAC plus their final folder name; raw paths never enter SQLite. Parent-session IDs are hashed with the existing storage identifier. Image attachment records contribute only a timestamped numeric count when the local schema is unambiguous; the retained whole-session count respects the local-history cutoff and attachment payloads are never copied. Inherited parent replay remains excluded before events reach aggregation, so parent and sub-agent rows are not added twice.
 
 `CodexAnalyticsNames` joins hashed session IDs to the local Codex catalogue in

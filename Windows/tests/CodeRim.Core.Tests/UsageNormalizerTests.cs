@@ -156,4 +156,23 @@ public sealed class UsageNormalizerTests
 
     private TokenObservation Observation(TokenUsage usage) =>
         new(timestamp, 1, usage, usage);
+
+    [Fact]
+    public void NormalizationDoesNotAllocateStateOrResultObjects()
+    {
+        var observation = Observation(new TokenUsage(100, 60, 20));
+        var state = UsageNormalizationState.Empty;
+        for (var index = 0; index < 100; index++) state = UsageNormalizer.Normalize(observation, state).State;
+        var before = GC.GetAllocatedBytesForCurrentThread();
+        long total = 0;
+        for (var index = 0; index < 1_000; index++)
+        {
+            var result = UsageNormalizer.Normalize(observation, state);
+            total += result.Delta?.TotalTokens ?? 0;
+            state = result.State;
+        }
+        var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+        Assert.Equal(0, total);
+        Assert.Equal(0, allocated);
+    }
 }
