@@ -565,3 +565,30 @@ extension MobileLifecycleTests {
         XCTAssertEqual(retained?.token, saved.token)
     }
 }
+
+private actor UnwritableCredentials: MobileCredentialStoring {
+    let value: MobileCredential
+    init(_ value: MobileCredential) { self.value = value }
+    func load() -> MobileCredential? { value }
+    func save(_ credential: MobileCredential) throws { throw MobileRelayError.keychain }
+    func delete() {}
+}
+
+extension MobileLifecycleTests {
+    func testFailedCredentialSaveRollsBackNewEnrollmentAndKeepsPreviousLogin() async throws {
+        let home = PairingRelay(), other = PairingRelay()
+        let saved = credential()
+        let storage = UnwritableCredentials(saved)
+        let model = MobileAppModel(credentials: storage, makeClient: { $0.host == "other.example.com" ? other : home })
+        await model.restore()
+        await model.connect(MobilePairingLink(relay: URL(string: "https://other.example.com")!, id: link.id, secret: link.secret))
+        XCTAssertTrue(model.signedIn)
+        XCTAssertEqual(model.serverAddress, saved.endpoint.absoluteString)
+        let retained = await storage.load()
+        XCTAssertEqual(retained?.token, saved.token)
+        let homeCalls = await home.calls, otherCalls = await other.calls
+        XCTAssertFalse(homeCalls.contains("DELETE /v1/session"))
+        XCTAssertEqual(otherCalls, ["POST /v1/accounts", "POST /v1/pairing/claim", "DELETE /v1/account"])
+        XCTAssertNotNil(model.errorMessage)
+    }
+}

@@ -42,7 +42,7 @@ public static class SettingsUsageAnalytics
         {
             var date = TimeZoneInfo.ConvertTime(cursor, zone).Date;
             var next = date == DateTime.MaxValue.Date ? DateTimeOffset.MaxValue
-                : AnalyticsTimeline.LocalMidnight(date.AddDays(1), zone);
+                : UsageCalendar.LocalMidnight(date.AddDays(1), zone);
             var end = next <= frame.Through ? next : frame.Through == DateTimeOffset.MaxValue ? frame.Through : frame.Through.AddTicks(1);
             var rows = new List<UsageEvent>();
             while (index < events.Length && (events[index].OccurredAt < end || end == DateTimeOffset.MaxValue && events[index].OccurredAt == end))

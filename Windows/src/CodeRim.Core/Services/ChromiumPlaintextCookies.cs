@@ -23,7 +23,7 @@ public static class ChromiumPlaintextCookies
             if (File.Exists(path + suffix) && (File.GetAttributes(path + suffix) & FileAttributes.ReparsePoint) != 0)
                 throw new InvalidDataException("Linked cookie databases are unsupported.");
         using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
-        var identity = UsageScanner.FileIdentity.TryRead(file.SafeFileHandle); var size = file.Length;
+        var identity = SourceFileIdentity.TryRead(file.SafeFileHandle); var size = file.Length;
         byte[] Hash()
         {
             file.Position = 0; using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256); var bytes = new byte[16384]; long total = 0; int count;
@@ -91,7 +91,7 @@ public static class ChromiumPlaintextCookies
         }
         catch (SqliteException) { token.ThrowIfCancellationRequested(); throw new InvalidDataException("The selected cookie database could not be read safely."); }
         token.ThrowIfCancellationRequested(); SqliteReadSafety.ValidateFiles(path, MaximumBytes);
-        if (file.Length != size || identity != UsageScanner.FileIdentity.TryRead(path) || !CryptographicOperations.FixedTimeEquals(originalHash, Hash())
+        if (file.Length != size || identity != SourceFileIdentity.TryRead(path) || !CryptographicOperations.FixedTimeEquals(originalHash, Hash())
             || !originalNames.SequenceEqual(Names()) || Length(path + "-wal") > 0 || Length(path + "-journal") > 0)
             throw new IOException("The selected cookie database changed. Retry after closing the browser.");
         return new(cookies, [domain]);

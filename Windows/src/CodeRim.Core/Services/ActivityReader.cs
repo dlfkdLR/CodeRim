@@ -23,7 +23,7 @@ public static class ActivityReader
     public const int MaximumTailBytes = 8 * 1024 * 1024;
     private sealed record Boundary(bool Running, DateTimeOffset Time);
     private sealed record Snapshot(long Length, DateTime Created, long Complete,
-        byte[] Digest, Boundary? Event, UsageScanner.FileIdentity? Identity, string? SessionId);
+        byte[] Digest, Boundary? Event, SourceFileIdentity? Identity, string? SessionId);
     private static readonly Dictionary<string, Snapshot> Cache = new(StringComparer.Ordinal);
     private static readonly object CacheLock = new();
     public static SessionActivity? ReadCodex(string path, DateTimeOffset now, CancellationToken cancellationToken = default) => Read(path, now, false, cancellationToken);
@@ -40,7 +40,7 @@ public static class ActivityReader
             var info = new FileInfo(path);
             if ((info.Attributes & FileAttributes.ReparsePoint) != 0) return null;
             using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-            var length = stream.Length; var identity = UsageScanner.FileIdentity.TryRead(stream.SafeFileHandle);
+            var length = stream.Length; var identity = SourceFileIdentity.TryRead(stream.SafeFileHandle);
             var created = info.CreationTimeUtc;
             var key = (claude ? "claude:" : "codex:") + Path.GetFullPath(path);
             Snapshot? previous;
@@ -63,7 +63,7 @@ public static class ActivityReader
             // truncated or replaced input. No unbounded line is materialized.
             info.Refresh();
             if (stream.Length < length || !info.Exists || info.Length < length || info.CreationTimeUtc != created
-                || UsageScanner.FileIdentity.TryRead(path) != identity
+                || SourceFileIdentity.TryRead(path) != identity
                 || !(reusable && previous!.Length == length)
                     && !Hashes(stream, length, 0, cancellationToken).Full.AsSpan().SequenceEqual(digests.Full)) return null;
             lock (CacheLock)
@@ -85,7 +85,7 @@ public static class ActivityReader
     {
         // Use the importer's first complete session_meta record, with the same
         // normalized filename/path fallback. A copied rollout must keep its owner.
-        var fallback = UsageScanner.SessionIdentifierFromFilename(path) ?? path;
+        var fallback = UsageLogSession.SessionIdentifierFromFilename(path) ?? path;
         stream.Position = 0;
         foreach (var line in BoundedLineReader.Read(stream, length, cancellationToken))
         {

@@ -1,12 +1,12 @@
 import Foundation
 
-struct TokenUsage: Codable, Equatable, Sendable {
-    let inputTokens: Int64
-    let cachedInputTokens: Int64
-    let cacheWriteInputTokens: Int64?
-    let outputTokens: Int64
+package struct TokenUsage: Codable, Equatable, Sendable {
+    package let inputTokens: Int64
+    package let cachedInputTokens: Int64
+    package let cacheWriteInputTokens: Int64?
+    package let outputTokens: Int64
 
-    init(
+    package init(
         inputTokens: Int64,
         cachedInputTokens: Int64,
         cacheWriteInputTokens: Int64? = nil,
@@ -18,26 +18,26 @@ struct TokenUsage: Codable, Equatable, Sendable {
         self.outputTokens = outputTokens
     }
 
-    static let zero = TokenUsage(
+    package static let zero = TokenUsage(
         inputTokens: 0,
         cachedInputTokens: 0,
         cacheWriteInputTokens: 0,
         outputTokens: 0
     )
 
-    var totalTokens: Int64 {
+    package var totalTokens: Int64 {
         inputTokens
             .saturatedAdding(outputTokens)
     }
 
-    var isZero: Bool {
+    package var isZero: Bool {
         inputTokens == 0
             && cachedInputTokens == 0
             && (cacheWriteInputTokens == nil || cacheWriteInputTokens == 0)
             && outputTokens == 0
     }
 
-    var isValid: Bool {
+    package var isValid: Bool {
         let knownCacheWriteIsValid = cacheWriteInputTokens.map { cacheWrite in
             guard cacheWrite >= 0 else { return false }
             let combined = cachedInputTokens.addingReportingOverflow(cacheWrite)
@@ -52,7 +52,7 @@ struct TokenUsage: Codable, Equatable, Sendable {
 
     /// The closest storable value: negative parts become zero and cache reads/writes never exceed input.
     /// Used when a delta between two valid cumulative counters is itself inconsistent.
-    var clampedToValid: TokenUsage {
+    package var clampedToValid: TokenUsage {
         let input = max(0, inputTokens)
         let cached = min(max(0, cachedInputTokens), input)
         return TokenUsage(
@@ -63,7 +63,7 @@ struct TokenUsage: Codable, Equatable, Sendable {
         )
     }
 
-    func adding(_ other: TokenUsage) -> TokenUsage {
+    package func adding(_ other: TokenUsage) -> TokenUsage {
         TokenUsage(
             inputTokens: inputTokens.saturatedAdding(other.inputTokens),
             cachedInputTokens: cachedInputTokens.saturatedAdding(other.cachedInputTokens),
@@ -72,7 +72,7 @@ struct TokenUsage: Codable, Equatable, Sendable {
         )
     }
 
-    func subtractingFloorAtZero(_ previous: TokenUsage) -> TokenUsage {
+    package func subtractingFloorAtZero(_ previous: TokenUsage) -> TokenUsage {
         TokenUsage(
             inputTokens: max(0, inputTokens - previous.inputTokens),
             cachedInputTokens: max(0, cachedInputTokens - previous.cachedInputTokens),
@@ -81,7 +81,7 @@ struct TokenUsage: Codable, Equatable, Sendable {
         )
     }
 
-    func componentWiseMaximum(with other: TokenUsage) -> TokenUsage {
+    package func componentWiseMaximum(with other: TokenUsage) -> TokenUsage {
         TokenUsage(
             inputTokens: max(inputTokens, other.inputTokens),
             cachedInputTokens: max(cachedInputTokens, other.cachedInputTokens),
@@ -90,14 +90,14 @@ struct TokenUsage: Codable, Equatable, Sendable {
         )
     }
 
-    func isComponentWiseAtLeast(_ other: TokenUsage) -> Bool {
+    package func isComponentWiseAtLeast(_ other: TokenUsage) -> Bool {
         inputTokens >= other.inputTokens
             && cachedInputTokens >= other.cachedInputTokens
             && optionalIsAtLeast(cacheWriteInputTokens, other.cacheWriteInputTokens)
             && outputTokens >= other.outputTokens
     }
 
-    func hasCounterDecrease(comparedTo previous: TokenUsage) -> Bool {
+    package func hasCounterDecrease(comparedTo previous: TokenUsage) -> Bool {
         inputTokens < previous.inputTokens || cachedInputTokens < previous.cachedInputTokens
             || outputTokens < previous.outputTokens
             || (cacheWriteInputTokens.flatMap { current in

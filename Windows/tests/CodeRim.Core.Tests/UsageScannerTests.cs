@@ -19,14 +19,12 @@ public sealed class UsageScannerTests
             var source = Path.Combine(root, "identity.jsonl");
             File.WriteAllLines(source, [TokenLine("2026-08-27T01:00:01Z", 1, 100, 60, 20)]);
             var length = new FileInfo(source).Length;
-            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
-            var parsed = typeof(UsageScanner).GetMethod("ParseFile", flags)!.Invoke(null,
-                [source, 100, length, TestContext.Current.CancellationToken, "codex", null, false]);
+            var parsed = UsageSourceReader.Read(source, 100, length, "codex", null, false,
+                TestContext.Current.CancellationToken);
+            Assert.NotNull(parsed.Identity);
             var replacement = source + ".replacement";
             File.Copy(source, replacement); File.Move(replacement, source, overwrite: true);
-            var accepted = typeof(UsageScanner).GetMethod("VerifyPrefix", flags)!.Invoke(null,
-                [source, length, parsed, TestContext.Current.CancellationToken]);
-            Assert.Equal(false, accepted);
+            Assert.False(UsageSourceReader.VerifyPrefix(source, length, parsed, TestContext.Current.CancellationToken));
         }
         finally { Directory.Delete(root, true); }
     }

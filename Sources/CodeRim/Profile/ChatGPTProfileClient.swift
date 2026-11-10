@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import Foundation
 
 struct ChatGPTProfileClient: Sendable {

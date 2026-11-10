@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import Combine
 import SwiftUI
 import XCTest

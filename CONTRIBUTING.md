@@ -4,7 +4,9 @@
 
 CodeRim favors small, reviewable changes preserving accounting accuracy, local privacy, native behavior, and the existing [design authority](DESIGN.md).
 
-For macOS code changes, run the checks relevant to the affected pipeline; the repository CI also runs these broader checks:
+For macOS code changes, run the checks relevant to the affected pipeline; the repository The dependency-free usage modules are `Sources/CodeRimUsageCore` and `Windows/src/CodeRim.UsageCore`; keep UI, storage, credentials and transport in the runtime layers. Shared synthetic fixtures live in `Tests/Fixtures`. Swift core contracts run in `CodeRimUsageCoreTests`; run both Windows test projects listed in the Windows build instructions.
+
+CI also runs these broader checks:
 
 ```sh
 python3 Scripts/prepare_swift_dependencies.py

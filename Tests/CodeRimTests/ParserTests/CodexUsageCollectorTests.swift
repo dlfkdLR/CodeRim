@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import CryptoKit
 import Foundation
 import XCTest

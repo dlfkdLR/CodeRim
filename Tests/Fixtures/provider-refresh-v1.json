@@ -1,0 +1,58 @@
+[
+  {
+    "name": "codex-error",
+    "provider": "codex",
+    "failure": "error",
+    "hiddenWhenAbsent": false,
+    "retainsReading": true
+  },
+  {
+    "name": "claude-unavailable",
+    "provider": "claude",
+    "failure": "unavailable",
+    "hiddenWhenAbsent": false,
+    "retainsReading": true
+  },
+  {
+    "name": "poe-error",
+    "provider": "poe",
+    "failure": "error",
+    "hiddenWhenAbsent": false,
+    "retainsReading": true
+  },
+  {
+    "name": "openrouter-unavailable",
+    "provider": "openrouter",
+    "failure": "unavailable",
+    "hiddenWhenAbsent": false,
+    "retainsReading": true
+  },
+  {
+    "name": "codex-needsAuth",
+    "provider": "codex",
+    "failure": "needsAuth",
+    "hiddenWhenAbsent": false,
+    "retainsReading": false
+  },
+  {
+    "name": "claude-unsupported",
+    "provider": "claude",
+    "failure": "unsupported",
+    "hiddenWhenAbsent": false,
+    "retainsReading": false
+  },
+  {
+    "name": "cursor-error",
+    "provider": "cursor",
+    "failure": "error",
+    "hiddenWhenAbsent": true,
+    "retainsReading": false
+  },
+  {
+    "name": "glm-unavailable",
+    "provider": "glm",
+    "failure": "unavailable",
+    "hiddenWhenAbsent": true,
+    "retainsReading": false
+  }
+]

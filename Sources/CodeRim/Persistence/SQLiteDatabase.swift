@@ -1,48 +1,10 @@
+import CodeRimUsageCore
 import CSQLite
 import CryptoKit
 import Darwin
 import Foundation
 
 private let sqliteProcessStartupLock = NSLock()
-
-struct SourceCheckpoint: Equatable, Sendable {
-    let sourcePath: String
-    var fileIdentity: String
-    var generation: Int64
-    var committedOffset: Int64
-    var isSkippingOversizedLine = false
-    var observedSize: Int64 = 0
-    var modificationTimeNanoseconds: Int64 = 0
-    var contentFingerprint = ""
-    var hasPendingImport = false
-    var sessionID: String?
-    var inheritsHistory: Bool
-    var sessionStartedAt: Date?
-    var inheritedHistoryEndOrdinal: Int64?
-    var historyReplayComplete: Bool = true
-    var model: String?
-    var projectPath: String?
-    var parentSessionID: String?
-    var projectName: String?
-    var imageAttachmentCount: Int64 = 0
-
-    static func fresh(sourcePath: String, fileIdentity: String, generation: Int64 = 0) -> SourceCheckpoint {
-        SourceCheckpoint(
-            sourcePath: sourcePath,
-            fileIdentity: fileIdentity,
-            generation: generation,
-            committedOffset: 0,
-            sessionID: nil,
-            inheritsHistory: false,
-            sessionStartedAt: nil,
-            inheritedHistoryEndOrdinal: nil,
-            model: nil,
-            projectPath: nil,
-            parentSessionID: nil,
-            projectName: nil
-        )
-    }
-}
 
 private struct ModelUsageAccumulator {
     var usage = TokenUsage.zero
@@ -362,10 +324,10 @@ actor SQLiteDatabase {
                 ? "MAX(COALESCE(usage_events.cache_write_input_tokens, 0), COALESCE(excluded.cache_write_input_tokens, 0))"
                 : "COALESCE(excluded.cache_write_input_tokens, usage_events.cache_write_input_tokens)"
             let sessionMerge = mergesMessageUsage
-                ? "CASE WHEN excluded.occurred_at < usage_events.occurred_at THEN COALESCE(excluded.session_id, usage_events.session_id) ELSE COALESCE(usage_events.session_id, excluded.session_id) END"
+                ? "CASE WHEN usage_events.session_id = ?14 THEN COALESCE(excluded.session_id, usage_events.session_id) ELSE COALESCE(usage_events.session_id, excluded.session_id) END"
                 : "COALESCE(excluded.session_id, usage_events.session_id)"
             let projectMerge = mergesMessageUsage
-                ? "CASE WHEN excluded.occurred_at < usage_events.occurred_at THEN COALESCE(excluded.project_path, usage_events.project_path) ELSE COALESCE(usage_events.project_path, excluded.project_path) END"
+                ? "CASE WHEN usage_events.session_id = ?14 THEN COALESCE(excluded.project_path, usage_events.project_path) ELSE COALESCE(usage_events.project_path, excluded.project_path) END"
                 : "COALESCE(excluded.project_path, usage_events.project_path)"
             let values = "?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13"
             let insertValues = mergesMessageUsage
@@ -419,6 +381,7 @@ actor SQLiteDatabase {
                 try bind(event.sourcePath, at: 11, to: insert)
                 sqlite3_bind_int64(insert, 12, checkpoint.generation)
                 sqlite3_bind_int64(insert, 13, event.sourcePosition)
+                if mergesMessageUsage { try bind(event.importParentSessionID, at: 14, to: insert) }
                 guard sqlite3_step(insert) == SQLITE_DONE else {
                     throw SQLiteDatabaseError.step(errorMessage)
                 }

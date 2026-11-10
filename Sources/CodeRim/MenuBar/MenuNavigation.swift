@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import SwiftUI
 
 enum MenuDestination: Hashable {

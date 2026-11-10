@@ -1,24 +1,26 @@
 import Foundation
 
-enum PricingContext: Int, Equatable, Sendable {
-    static let highContextInputThreshold: Int64 = 272_000
+package enum PricingContext: Int, Equatable, Sendable {
+    package static let highContextInputThreshold: Int64 = 272_000
 
     case standard = 0
     case highContext = 1
 }
 
-struct UsageEvent: Equatable, Sendable {
-    let eventKey: String
-    let occurredAt: Date
-    let sessionID: String?
-    let model: String?
-    let projectPath: String?
-    let usage: TokenUsage
-    let sourcePath: String
-    let sourcePosition: Int64
-    let pricingContext: PricingContext?
+package struct UsageEvent: Equatable, Sendable {
+    package let eventKey: String
+    package let occurredAt: Date
+    package let sessionID: String?
+    package let model: String?
+    package let projectPath: String?
+    package let usage: TokenUsage
+    package let sourcePath: String
+    package let sourcePosition: Int64
+    package let pricingContext: PricingContext?
+    /// Import provenance only; no new persisted column or external format.
+    package let importParentSessionID: String?
 
-    init(
+    package init(
         eventKey: String,
         occurredAt: Date,
         sessionID: String?,
@@ -27,7 +29,8 @@ struct UsageEvent: Equatable, Sendable {
         usage: TokenUsage,
         sourcePath: String,
         sourcePosition: Int64,
-        pricingContext: PricingContext? = nil
+        pricingContext: PricingContext? = nil,
+        importParentSessionID: String? = nil
     ) {
         self.eventKey = eventKey
         self.occurredAt = occurredAt
@@ -38,19 +41,20 @@ struct UsageEvent: Equatable, Sendable {
         self.sourcePath = sourcePath
         self.sourcePosition = sourcePosition
         self.pricingContext = pricingContext
+        self.importParentSessionID = importParentSessionID
     }
 }
 
-struct SessionMetadata: Equatable, Sendable {
-    let id: String?
-    let model: String?
-    let workingDirectory: String?
-    let forkedFromID: String?
-    let parentThreadID: String?
-    let subagentHistoryStartOrdinal: Int64?
-    let occurredAt: Date?
+package struct SessionMetadata: Equatable, Sendable {
+    package let id: String?
+    package let model: String?
+    package let workingDirectory: String?
+    package let forkedFromID: String?
+    package let parentThreadID: String?
+    package let subagentHistoryStartOrdinal: Int64?
+    package let occurredAt: Date?
 
-    init(
+    package init(
         id: String?,
         model: String?,
         workingDirectory: String?,
@@ -68,7 +72,7 @@ struct SessionMetadata: Equatable, Sendable {
         self.occurredAt = occurredAt
     }
 
-    var inheritsHistory: Bool {
+    package var inheritsHistory: Bool {
         forkedFromID != nil || parentThreadID != nil || subagentHistoryStartOrdinal != nil
     }
 }

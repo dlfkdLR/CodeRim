@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit.v3" Version="3.2.2" />
+    <ProjectReference Include="../../src/CodeRim.UsageCore/CodeRim.UsageCore.csproj" />
+    <EmbeddedResource Include="../../../Tests/Fixtures/usage-normalization-v1.json" LogicalName="usage-normalization-v1.json" />
+    <EmbeddedResource Include="../../../Tests/Fixtures/claude-usage-v1.json" LogicalName="claude-usage-v1.json" />
+    <EmbeddedResource Include="../../../Tests/Fixtures/codex-token-parser-v1.json" LogicalName="codex-token-parser-v1.json" />
+  </ItemGroup>
+</Project>

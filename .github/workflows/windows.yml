@@ -27,6 +27,8 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.x'
+      - name: Test dependency-free usage core
+        run: dotnet test Windows/tests/CodeRim.UsageCore.Tests --configuration Release
       - name: Test numeric history, scripts, and contracts
         run: dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
       - name: Saved-account probe regression tests
@@ -140,6 +142,8 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.x'
+      - name: Test dependency-free usage core
+        run: dotnet test Windows/tests/CodeRim.UsageCore.Tests --configuration Release
       - name: Test core on Windows ARM64
         run: dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
       - name: Saved-account probe regression tests

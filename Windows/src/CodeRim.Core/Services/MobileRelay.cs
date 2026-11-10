@@ -119,9 +119,17 @@ public sealed class MobileRelayClient : IDisposable
         // Disposing the response aborts the connection, and WaitAsync returns at the deadline even if
         // a stream does not observe cancellation itself.
         using var abort = cancellationToken.Register(static state => ((IDisposable)state!).Dispose(), response);
-        await response.Content.LoadIntoBufferAsync(262144, cancellationToken).WaitAsync(cancellationToken).ConfigureAwait(false);
-        var result = await response.Content.ReadFromJsonAsync<T>(Json, cancellationToken).WaitAsync(cancellationToken).ConfigureAwait(false);
-        return result ?? throw new InvalidDataException("Empty relay response.");
+        try
+        {
+            await response.Content.LoadIntoBufferAsync(262144, cancellationToken).WaitAsync(cancellationToken).ConfigureAwait(false);
+            var result = await response.Content.ReadFromJsonAsync<T>(Json, cancellationToken).WaitAsync(cancellationToken).ConfigureAwait(false);
+            return result ?? throw new InvalidDataException("Empty relay response.");
+        }
+        catch (ObjectDisposedException error) when (cancellationToken.IsCancellationRequested)
+        {
+            // The deadline can dispose the content just before buffering starts.
+            throw new OperationCanceledException("Relay request deadline elapsed or was cancelled.", error, cancellationToken);
+        }
     }
     public static MobileToken ValidateIssuedToken(MobileToken issued, DateTimeOffset now)
     {

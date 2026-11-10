@@ -1,17 +1,26 @@
 import Foundation
 
-struct ClaudeUsageObservation: Sendable {
-    let messageID: String
-    let sessionID: String
-    let agentID: String?
-    let occurredAt: Date
-    let model: String
-    let workingDirectory: String?
-    let usage: TokenUsage
+package struct ClaudeUsageObservation: Sendable {
+    package let messageID: String
+    package let sessionID: String
+    package let agentID: String?
+    package let occurredAt: Date
+    package let model: String
+    package let workingDirectory: String?
+    package let usage: TokenUsage
+
+    package init(messageID: String, sessionID: String, agentID: String?, occurredAt: Date,
+                 model: String, workingDirectory: String?, usage: TokenUsage) {
+        self.messageID = messageID; self.sessionID = sessionID; self.agentID = agentID
+        self.occurredAt = occurredAt; self.model = model
+        self.workingDirectory = workingDirectory; self.usage = usage
+    }
 }
 
 /// Projects only accounting fields. Message content and credentials are never decoded.
-struct ClaudeJSONLParser: Sendable {
+package struct ClaudeJSONLParser: Sendable {
+    package init() {}
+
     private struct Row: Decodable {
         let type: String
         let timestamp: String
@@ -36,7 +45,7 @@ struct ClaudeJSONLParser: Sendable {
         let output_tokens: Int64
     }
 
-    func parse(_ line: Data) -> ClaudeUsageObservation? {
+    package func parse(_ line: Data) -> ClaudeUsageObservation? {
         guard line.count <= CodexJSONLParser.maximumLineBytes,
               let row = try? JSONDecoder().decode(Row.self, from: line),
               row.type == "assistant", row.message.role == "assistant",
@@ -83,7 +92,7 @@ struct ClaudeJSONLParser: Sendable {
     /// from a Claude model that carries usage. Such a row's tokens are missing from the totals, so the period
     /// it belongs to is partial; other lines (user turns, summaries, synthetic and API-error messages) are not.
     /// Returns the row's time when it can be read.
-    static func rejectedAccounting(_ line: Data) -> (isAccounting: Bool, occurredAt: Date?) {
+    package static func rejectedAccounting(_ line: Data) -> (isAccounting: Bool, occurredAt: Date?) {
         guard line.count <= CodexJSONLParser.maximumLineBytes,
               let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
               object["type"] as? String == "assistant", object["isApiErrorMessage"] as? Bool != true,
@@ -94,7 +103,7 @@ struct ClaudeJSONLParser: Sendable {
     }
 
     /// The `timestamp` of a JSONL row, when it has a readable one.
-    static func timestamp(of line: Data) -> Date? {
+    package static func timestamp(of line: Data) -> Date? {
         guard line.count <= CodexJSONLParser.maximumLineBytes,
               let object = try? JSONSerialization.jsonObject(with: line) as? [String: Any] else { return nil }
         return (object["timestamp"] as? String).flatMap(date)

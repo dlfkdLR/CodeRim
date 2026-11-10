@@ -4,7 +4,9 @@
 
 CodeRim은 집계 정확성, 로컬 개인정보, 기본 동작, 기존 [디자인 기준](DESIGN.ko.md)을 유지하는 작고 검토 가능한 변경을 지향합니다.
 
-macOS 코드 변경은 영향받는 파이프라인에 맞는 검사를 실행합니다. 저장소 CI는 다음 폭넓은 검사도 실행합니다.
+macOS 코드 변경은 영향받는 파이프라인에 맞는 검사를 실행합니다. 저장소 의존성 없는 사용량 모듈은 `Sources/CodeRimUsageCore`와 `Windows/src/CodeRim.UsageCore`입니다. UI·저장·인증·전송은 실행 계층에 둡니다. 공통 합성 사례는 `Tests/Fixtures`에 저장합니다. Swift 코어 계약은 `CodeRimUsageCoreTests`에서 실행하며 Windows는 빌드 안내에 있는 두 테스트 프로젝트를 모두 실행합니다.
+
+CI는 다음 폭넓은 검사도 실행합니다.
 
 ```sh
 python3 Scripts/prepare_swift_dependencies.py
