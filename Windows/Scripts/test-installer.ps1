@@ -98,7 +98,10 @@ try {
     Compare-State $after (Product-State);$results.Add('downgrade-refused-without-changes')
     $capture=Join-Path $repo 'Artifacts/installed/windows-installed-dashboard.png'
     $smoke=Start-Process (Join-Path $app 'CodeRim.exe') -ArgumentList '--smoke-test','--capture',('"'+$capture+'"') -PassThru
-    if(-not $smoke.WaitForExit(180000) -or $smoke.ExitCode -ne 0 -or -not(Test-Path $capture)){throw 'Installed native app smoke failed'}
+    if(-not $smoke.WaitForExit(180000) -or $smoke.ExitCode -ne 0 -or -not(Test-Path $capture)){
+        Get-Content ([IO.Path]::ChangeExtension($capture,'error.txt')) -ErrorAction SilentlyContinue
+        throw 'Installed native app smoke failed'
+    }
     $results.Add('installed-native-ui-and-pinned-worker')
     New-Item -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Force | Out-Null
     New-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name CodeRim -Value ('"'+(Join-Path $app 'CodeRim.exe')+'"') -PropertyType String -Force | Out-Null
