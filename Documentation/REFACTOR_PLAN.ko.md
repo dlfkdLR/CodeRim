@@ -17,7 +17,7 @@ macOS·iPhone·위젯은 Swift, Windows는 C#, relay와 웹사이트는 JavaScri
 - [x] 독립 `CodeRimUsageCore` Swift 타깃과 `CodeRim.UsageCore` .NET 어셈블리. 앱·UI·DB·프로세스·네트워크 패키지를 참조하지 않습니다. 순수 정규화·파서 계약 테스트는 이 타깃만 참조합니다. 실행 계층은 모듈을 명시적으로 가져오며 앱의 재노출 우회 계층은 두지 않습니다.
 - [x] Swift: `SourceImportSession`이 행 해석과 소스별 상태를 소유하고, `SourceIntegrityReader`가 안전한 열기·고정 스냅샷·인증된 접두부 캐시를 소유합니다. `CodexUsageCollector`는 일정·예산·DB 저장을 조율합니다. 체크포인트 데이터는 SQLite 구현에서 독립했습니다.
 - [x] Windows: `UsageSourceDiscovery`·`UsageSourceReader`·`BoundedLineReader`·`SourceFileIdentity`가 파일 작업을 소유합니다. 의존성 없는 `UsageLogSession`은 제한된 바이트를 입력받습니다. `UsageScanner`는 갱신·캐시를 조율하고 집계는 UsageCore에 둡니다.
-- [x] Claude 스트리밍·복사 메시지·에이전트 소유 관계의 공통 계약. Swift도 복사된 부모 메시지를 명시된 자식 소유로 보정하며 토큰 합계·스키마는 바꾸지 않습니다.
+- [x] Claude 스트리밍·복사 메시지·에이전트 소유 관계의 공통 계약. Swift도 복사된 부모 메시지를 명시된 자식 소유와 프로젝트로 보정하며 토큰 합계·스키마는 바꾸지 않습니다.
 - [x] 제공업체 인증·갱신 시 이전 값 유지 공통 사례. 기존 플랫폼별 테스트에서 취소·설정 무효화·인증 교체·계정 전환 검증을 유지합니다.
 - [x] Settings·노치·제공업체·iOS·relay의 책임 검토. 제공업체 Keychain 저장을 설정 투영에서, iOS 등록·실패 복구를 관찰 가능한 UI 상태에서, relay의 영속 예산 계산을 요청·푸시 조율에서 분리했습니다.
 - [ ] 후속 변경의 전체 로컬 회귀 및 네이티브 플랫폼 CI.
@@ -30,7 +30,7 @@ macOS·iPhone·위젯은 Swift, Windows는 C#, relay와 웹사이트는 JavaScri
 | [정규화](../Tests/Fixtures/usage-normalization-v1.json) | 13개 시나리오·31개 상태 전이: 증분·누적 최대값·재생·보정·진단·32비트 초과 수치. |
 | [Codex 파서](../Tests/Fixtures/codex-token-parser-v1.json) | 허용·거부·무시하는 토큰 행 20개. |
 | [달력과 저장 근거](../Tests/Fixtures/usage-periods-v1.json) | 주 시작일·연말·윤일·미래 행·짧은 날·반복 자정·DB 재개방을 포함한 11개. |
-| [Claude 수집](../Tests/Fixtures/claude-usage-v1.json) | 9개 시나리오: 캐시 성분 분리·중첩 내역 무시·중복 블록·성분별 스트리밍 최대값·최초 발생 시각·정확한 부모에 대한 에이전트 소유·파일명 대체·잘못된 행과 비집계 행. Swift는 실제 수집·SQLite·재개방, Windows는 실제 바이트 해석기·병합을 실행합니다. |
+| [Claude 수집](../Tests/Fixtures/claude-usage-v1.json) | 10개 시나리오: 캐시 성분 분리·중첩 내역 무시·중복 블록·성분별 스트리밍 최대값·최초 발생 시각·정확한 부모에 대한 에이전트 소유·파일명 대체·잘못된 행과 비집계 행. Swift는 실제 수집·SQLite·재개방, Windows는 실제 바이트 해석기·병합을 실행합니다. |
 | [제공업체 갱신](../Tests/Fixtures/provider-refresh-v1.json) | 8개 사례: 허용된 제공업체의 일시적 실패는 이전 값 유지, 인증·미지원 상태는 기록 제거, 미연결 시 숨기는 제공업체는 실패한 사용량 제거. Swift는 저장소, Windows는 유지 정책을 실행합니다. |
 
 정규화·토큰 파서 사례는 [Swift 코어 테스트](../Tests/CodeRimUsageCoreTests/ParserTests)와 [C# 코어 테스트](../Windows/tests/CodeRim.UsageCore.Tests)에서 읽습니다. 달력·저장 테스트는 실행 계층 테스트 프로젝트에 유지합니다. 합성 계약이며 실제 계정 근거나 모든 제공업체 응답의 플랫폼 간 일치 주장은 아닙니다.

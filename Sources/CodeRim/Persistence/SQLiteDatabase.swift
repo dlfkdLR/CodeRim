@@ -327,7 +327,7 @@ actor SQLiteDatabase {
                 ? "CASE WHEN usage_events.session_id = ?14 THEN COALESCE(excluded.session_id, usage_events.session_id) ELSE COALESCE(usage_events.session_id, excluded.session_id) END"
                 : "COALESCE(excluded.session_id, usage_events.session_id)"
             let projectMerge = mergesMessageUsage
-                ? "CASE WHEN excluded.occurred_at < usage_events.occurred_at THEN COALESCE(excluded.project_path, usage_events.project_path) ELSE COALESCE(usage_events.project_path, excluded.project_path) END"
+                ? "CASE WHEN usage_events.session_id = ?14 THEN COALESCE(excluded.project_path, usage_events.project_path) ELSE COALESCE(usage_events.project_path, excluded.project_path) END"
                 : "COALESCE(excluded.project_path, usage_events.project_path)"
             let values = "?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13"
             let insertValues = mergesMessageUsage

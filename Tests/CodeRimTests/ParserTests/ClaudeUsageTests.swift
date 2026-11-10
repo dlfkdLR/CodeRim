@@ -251,6 +251,7 @@ final class ClaudeUsageTests: XCTestCase {
             struct Expected: Decodable {
                 let inputTokens: Int64; let cachedInputTokens: Int64; let cacheWriteInputTokens: Int64
                 let outputTokens: Int64; let events: Int64; let sessions: Int; let children: Int
+                let projects: [String]?
             }
             let name: String; let files: [File]; let expected: Expected
         }
@@ -272,6 +273,9 @@ final class ClaudeUsageTests: XCTestCase {
             let count = try await fixture.database.eventCount()
             XCTAssertEqual(count, expected.events, contract.name)
             let analytics = try await fixture.collector.analyticsSnapshot(range: .today, through: now, calendar: utc)
+            if let projects = expected.projects {
+                XCTAssertEqual(analytics.projects.map(\.name).sorted(), projects, contract.name)
+            }
             XCTAssertEqual(analytics.sessions.count, expected.sessions, contract.name)
             XCTAssertEqual(analytics.sessions.filter { $0.parentSessionID != nil }.count, expected.children, contract.name)
             let reopened = try SQLiteDatabase(url: fixture.root.appendingPathComponent("Claude.sqlite"))

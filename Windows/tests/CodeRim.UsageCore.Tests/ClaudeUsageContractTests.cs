@@ -30,6 +30,8 @@ public sealed class ClaudeUsageContractTests
             var usage = events.Values.Aggregate(TokenUsage.Zero, (sum, e) => sum.Add(e.Usage));
             Assert.True(usage == new TokenUsage(expected.InputTokens, expected.CachedInputTokens,
                 expected.OutputTokens, expected.CacheWriteInputTokens), contract.Name);
+            if (expected.Projects is { } projects)
+                Assert.Equal(projects, events.Values.Select(e => e.Project).Distinct().Order(StringComparer.Ordinal));
             Assert.Equal(expected.Events, events.Count);
             Assert.Equal(expected.Sessions, events.Values.Select(e => e.SessionId).Distinct().Count());
             Assert.Equal(expected.Children, events.Values.Where(e => e.ImportParentSessionId is not null).Select(e => e.SessionId).Distinct().Count());
@@ -40,5 +42,5 @@ public sealed class ClaudeUsageContractTests
     private sealed record Contract(string Name, Source[] Files, Expected Expected);
     private sealed record Source(string Name, string[] Lines);
     private sealed record Expected(long InputTokens, long CachedInputTokens, long CacheWriteInputTokens,
-        long OutputTokens, int Events, int Sessions, int Children);
+        long OutputTokens, int Events, int Sessions, int Children, string[]? Projects);
 }
