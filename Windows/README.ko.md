@@ -8,7 +8,7 @@ Windows 11 x64·ARM64용 .NET 10 WPF 앱입니다. 트레이·가장자리 노�
 
 - [사용자 설정](../docs/ko/windows.md): 설치·제공업체 연결·제거.
 - [Windows 참고](../Documentation/WINDOWS.ko.md): 플랫폼 차이·데이터·빌드/CI·인증된 설치 업데이트. .NET 10 SDK로 `CodeRim.Windows.sln`을 엽니다.
-- [릴리스 노트](ReleaseNotes/2.1.34.md)와 [변경 기록](../CHANGELOG.md): 버전별 이력. 2.1.34는 선택적인 하위 에이전트 완료 소리를 추가합니다.
+- [릴리스 노트](ReleaseNotes/2.1.34.md)와 [변경 기록](../CHANGELOG.md): 버전별 이력. 2.1.34는 선택적인 하위 에이전트 완료 소리를 추가합니다. macOS 2.1.36은 릴리스됐지만 Windows 2.1.36은 아직 게시되지 않아 Windows는 2.1.34를 유지합니다.
 - [코드 서명 정책](../CODE_SIGNING_POLICY.ko.md): 공개 MSI에는 Authenticode 게시자 인증서가 없습니다. Ed25519 업데이트 인증은 별개이며 SignPath는 미승인입니다.
 - [날짜별 네이티브 비교](../Documentation/WINDOWS_MAC_REFERENCE_PARITY_2026-09-23.md): 당시 증거와 제한이며 현재의 완전한 동등성을 보장하지 않습니다.
 
