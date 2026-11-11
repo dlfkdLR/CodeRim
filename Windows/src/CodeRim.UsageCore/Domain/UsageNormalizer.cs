@@ -1,8 +1,6 @@
-using CodeRim.Core.Domain;
+namespace CodeRim.Core.Domain;
 
-namespace CodeRim.Core.Services;
-
-public sealed record UsageNormalizationState(
+public readonly record struct UsageNormalizationState(
     TokenUsage? CumulativeHighWaterMark,
     DateTimeOffset? LastObservedAt,
     DataQuality Quality)
@@ -12,7 +10,7 @@ public sealed record UsageNormalizationState(
 
 /// <param name="Repaired">The delta is the closest valid value to an inconsistent one. Stored with the
 /// event, so the period stays partial after the source log that showed it is gone.</param>
-public sealed record UsageNormalizationResult(
+public readonly record struct UsageNormalizationResult(
     TokenUsage? Delta,
     UsageNormalizationState State,
     string? Diagnostic)
@@ -24,10 +22,9 @@ public static class UsageNormalizer
 {
     public static UsageNormalizationResult Normalize(
         TokenObservation observation,
-        UsageNormalizationState state)
+        in UsageNormalizationState state)
     {
         ArgumentNullException.ThrowIfNull(observation);
-        ArgumentNullException.ThrowIfNull(state);
 
         if (state.LastObservedAt is not null
             && observation.OccurredAt < state.LastObservedAt.Value)

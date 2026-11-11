@@ -1,3 +1,5 @@
+using CodeRim.Core.Domain;
+
 namespace CodeRim.Core.Services;
 
 public enum AnalyticsAxisUnit { Second, Minute, Hour, Day }
@@ -44,7 +46,7 @@ public static class AnalyticsAxis
         }
         for (var count = 0; count < 128; count++)
         {
-            var tick = AnalyticsTimeline.LocalMidnight(local, zone);
+            var tick = UsageCalendar.LocalMidnight(local, zone);
             if (tick > through) break;
             if (tick >= start) output.Add(new(tick, AnalyticsAxisUnit.Day));
             if (local > DateTime.MaxValue.AddDays(-days)) break;

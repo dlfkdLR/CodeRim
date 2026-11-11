@@ -19,14 +19,12 @@ public sealed class UsageScannerTests
             var source = Path.Combine(root, "identity.jsonl");
             File.WriteAllLines(source, [TokenLine("2026-08-27T01:00:01Z", 1, 100, 60, 20)]);
             var length = new FileInfo(source).Length;
-            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static;
-            var parsed = typeof(UsageScanner).GetMethod("ParseFile", flags)!.Invoke(null,
-                [source, 100, length, TestContext.Current.CancellationToken, "codex", null, false]);
+            var parsed = UsageSourceReader.Read(source, 100, length, "codex", null, false,
+                TestContext.Current.CancellationToken);
+            Assert.NotNull(parsed.Identity);
             var replacement = source + ".replacement";
             File.Copy(source, replacement); File.Move(replacement, source, overwrite: true);
-            var accepted = typeof(UsageScanner).GetMethod("VerifyPrefix", flags)!.Invoke(null,
-                [source, length, parsed, TestContext.Current.CancellationToken]);
-            Assert.Equal(false, accepted);
+            Assert.False(UsageSourceReader.VerifyPrefix(source, length, parsed, TestContext.Current.CancellationToken));
         }
         finally { Directory.Delete(root, true); }
     }
@@ -267,7 +265,7 @@ public sealed class UsageScannerTests
             Assert.Equal(2, retained.Count);
             var reopened = new UsageRepository(path);
             Assert.True(reopened.HasRepairedEventsSince("codex", repaired.OccurredAt));
-            var summary = UsageScanner.Aggregate(retained, repaired.OccurredAt.AddMinutes(1), WeekStart.Monday,
+            var summary = UsageAggregation.Aggregate(retained, repaired.OccurredAt.AddMinutes(1), WeekStart.Monday,
                 reopened.HasRepairedEventsSince("codex", repaired.OccurredAt));
             Assert.Equal(DataQuality.Partial, summary.Quality);
             Assert.Equal(total, summary.AllTime.TotalTokens);
@@ -647,12 +645,12 @@ public sealed class UsageScannerTests
             Assert.All(stored, e => Assert.True(e.Repaired));
 
             // Still September: the month holding the records is partial though no file says so any more.
-            var september = UsageScanner.Aggregate(stored, new DateTimeOffset(2026, 9, 25, 12, 0, 0, TimeSpan.Zero), WeekStart.Monday, partial: false);
+            var september = UsageAggregation.Aggregate(stored, new DateTimeOffset(2026, 9, 25, 12, 0, 0, TimeSpan.Zero), WeekStart.Monday, partial: false);
             Assert.Equal(DataQuality.Partial, september.Quality);
             // October 12: the current week and month are exact, the 30-day range (from September 13) is partial,
             // the 7-day range is not.
             var now = new DateTimeOffset(2026, 10, 12, 12, 0, 0, TimeSpan.Zero);
-            var october = UsageScanner.Aggregate(stored, now, WeekStart.Monday, partial: false);
+            var october = UsageAggregation.Aggregate(stored, now, WeekStart.Monday, partial: false);
             Assert.Equal(DataQuality.Exact, october.Quality);
             var zone = TimeZoneInfo.Utc;
             var thirty = SettingsUsageAnalytics.Build(new AnalyticsSourceFrame(now, october, stored), AnalyticsRange.ThirtyDays, zone);

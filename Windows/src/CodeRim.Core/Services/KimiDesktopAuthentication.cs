@@ -8,12 +8,12 @@ namespace CodeRim.Core.Services;
 /// <summary>Reads the explicitly selected Kimi Desktop plaintext session without decrypting browser data.</summary>
 public static class KimiDesktopAuthentication
 {
-    private readonly record struct Stamp(bool Exists, long Length, long Modified, UsageScanner.FileIdentity? Identity)
+    private readonly record struct Stamp(bool Exists, long Length, long Modified, SourceFileIdentity? Identity)
     {
         public static Stamp Read(string path)
         {
             var file = new FileInfo(path);
-            return file.Exists ? new(true, file.Length, file.LastWriteTimeUtc.Ticks, UsageScanner.FileIdentity.TryRead(path)) : default;
+            return file.Exists ? new(true, file.Length, file.LastWriteTimeUtc.Ticks, SourceFileIdentity.TryRead(path)) : default;
         }
     }
 
@@ -81,7 +81,7 @@ public static class KimiDesktopAuthentication
         // It contains no committed frames. Every pre-existing or nonempty WAL must remain identical.
         var unchangedWal = wal == finalWal || !wal.Exists && finalWal.Exists && finalWal.Length == 0;
         if (main != Stamp.Read(path) || !unchangedWal
-            || UsageScanner.FileIdentity.TryRead(file.SafeFileHandle) != UsageScanner.FileIdentity.TryRead(path))
+            || SourceFileIdentity.TryRead(file.SafeFileHandle) != SourceFileIdentity.TryRead(path))
             throw new IOException("The Kimi Desktop session changed while reading. Retry the connection.");
         return new("web", selected, ExpiresAt: expiry, FilePath: path);
     }

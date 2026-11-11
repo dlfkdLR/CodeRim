@@ -117,16 +117,7 @@ final class MobileAppModel: ObservableObject {
             // The account there is made and the computer joined before anything of the current connection is
             // let go, so an unreachable server or a used code leaves the working connection as it was.
             let client = try makeClient(link.relay)
-            let session: MobileSessionToken = try await client.send("POST", "/v1/accounts", token: nil, body: MobileEmpty())
-            let saved = MobileCredential(endpoint: link.relay, session: session)
-            let joined: MobileClaimResult
-            do {
-                joined = try await client.send("POST", "/v1/pairing/claim", token: saved.token, body: request)
-                try await credentials.save(saved)
-            } catch {
-                let _: MobileOK? = try? await client.send("DELETE", "/v1/account", token: saved.token, body: MobileEmpty())
-                throw error
-            }
+            let (saved, joined) = try await MobileEnrollment.enroll(link, client: client, credentials: credentials)
             // Joined and saved: now the previous server's session is ended, on a best-effort basis.
             if let old = credential, let oldClient = self.client {
                 let _: MobileOK? = try? await oldClient.send("DELETE", "/v1/session", token: old.token, body: MobileEmpty())

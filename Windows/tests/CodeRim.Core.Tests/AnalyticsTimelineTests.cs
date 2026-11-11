@@ -46,14 +46,14 @@ public sealed class AnalyticsTimelineTests
             : new DateTimeOffset(2026, 3, 1, 0, 0, 0, TimeSpan.Zero);
         Assert.Equal(expectedStart, start);
         UsageEvent[] events = [Event("before", start.AddTicks(-1)), Event("first", start.AddMinutes(30)), Event("second", start.AddMinutes(90))];
-        var summary = UsageScanner.Aggregate(events, through, WeekStart.Sunday, false, zone);
+        var summary = UsageAggregation.Aggregate(events, through, WeekStart.Sunday, false, zone);
         var buckets = AnalyticsTimeline.Build(events, AnalyticsRange.Today, through, zone);
         Assert.Equal(hours, buckets.Count);
         Assert.Equal(220, summary.Today.TotalTokens);
         Assert.Equal(summary.Today, summary.Week);
         Assert.Equal(summary.Today, summary.Month);
         Assert.Equal(summary.Today.TotalTokens, buckets.Sum(b => b.Usage.TotalTokens));
-        Assert.Equal(start, UsageScanner.CurrentPeriodStart(through, WeekStart.Sunday, zone));
+        Assert.Equal(start, UsageAggregation.CurrentPeriodStart(through, WeekStart.Sunday, zone));
     }
 
     [Fact]

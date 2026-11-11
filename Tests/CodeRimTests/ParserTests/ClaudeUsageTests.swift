@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import Foundation
 import XCTest
 @testable import CodeRim
@@ -242,6 +243,46 @@ final class ClaudeUsageTests: XCTestCase {
         XCTAssertEqual(actual.allTime.totalTokens, oracle.allTime)
         let count = try await fixture.database.eventCount()
         XCTAssertEqual(count, oracle.events)
+    }
+
+    func testSharedStreamingAndProvenanceContractSurvivesReopen() async throws {
+        struct Contract: Decodable {
+            struct File: Decodable { let name: String; let lines: [String] }
+            struct Expected: Decodable {
+                let inputTokens: Int64; let cachedInputTokens: Int64; let cacheWriteInputTokens: Int64
+                let outputTokens: Int64; let events: Int64; let sessions: Int; let children: Int
+                let projects: [String]?
+            }
+            let name: String; let files: [File]; let expected: Expected
+        }
+        let path = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Fixtures/claude-usage-v1.json")
+        let contracts = try JSONDecoder().decode([Contract].self, from: Data(contentsOf: path))
+        XCTAssertFalse(contracts.isEmpty)
+        XCTAssertEqual(Set(contracts.map(\.name)).count, contracts.count)
+        for contract in contracts {
+            let fixture = try Fixture()
+            defer { fixture.remove() }
+            for file in contract.files { try fixture.write(file.lines, name: file.name) }
+            let now = try date("2026-08-31T12:00:00Z")
+            let first = try await drain(fixture.collector, now: now)
+            let expected = contract.expected
+            XCTAssertEqual(first.today, TokenUsage(inputTokens: expected.inputTokens,
+                cachedInputTokens: expected.cachedInputTokens, cacheWriteInputTokens: expected.cacheWriteInputTokens,
+                outputTokens: expected.outputTokens), contract.name)
+            let count = try await fixture.database.eventCount()
+            XCTAssertEqual(count, expected.events, contract.name)
+            let analytics = try await fixture.collector.analyticsSnapshot(range: .today, through: now, calendar: utc)
+            if let projects = expected.projects {
+                XCTAssertEqual(analytics.projects.map(\.name).sorted(), projects, contract.name)
+            }
+            XCTAssertEqual(analytics.sessions.count, expected.sessions, contract.name)
+            XCTAssertEqual(analytics.sessions.filter { $0.parentSessionID != nil }.count, expected.children, contract.name)
+            let reopened = try SQLiteDatabase(url: fixture.root.appendingPathComponent("Claude.sqlite"))
+            let restarted = CodexUsageCollector(database: reopened, roots: [fixture.sources], provider: .claude)
+            let second = try await drain(restarted, now: now)
+            XCTAssertEqual(second, first, contract.name)
+        }
     }
 
     private var utc: Calendar {

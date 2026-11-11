@@ -1,4 +1,4 @@
-import CryptoKit
+import CodeRimUsageCore
 import Darwin
 import Foundation
 
@@ -21,150 +21,10 @@ struct DataStatistics: Equatable, Sendable {
     static let empty = DataStatistics(databaseBytes: 0, oldestRecord: nil, newestRecord: nil)
 }
 
-private enum CodexUsageCollectorError: Error {
-    case sourceUnavailable
-    case sourceChangedDuringRead
-}
-
 private struct SourceProcessResult {
     let processedBytes: Int64
     let fingerprintBytesRead: Int64
     let hasMore: Bool
-}
-
-private struct FingerprintAdvanceResult {
-    let bytesRead: Int64
-    let reachedTarget: Bool
-}
-
-private struct SourceFingerprintAccumulator {
-    static let versionPrefix = "v2:"
-
-    private var authenticator: HMAC<SHA256>
-    private var legacyAuthenticator: HMAC<SHA256>?
-    private(set) var authenticatedOffset: Int64 = 0
-
-    init(key: Data, legacyOffset: Int64? = nil) {
-        let symmetricKey = SymmetricKey(data: key)
-        var authenticator = HMAC<SHA256>(key: symmetricKey)
-        authenticator.update(data: Data("CodeRim.source-fingerprint.v2|".utf8))
-        self.authenticator = authenticator
-
-        if let legacyOffset {
-            var legacy = HMAC<SHA256>(key: symmetricKey)
-            legacy.update(data: Data("size:\(legacyOffset)|".utf8))
-            legacyAuthenticator = legacy
-        }
-    }
-
-    mutating func advance(
-        fileDescriptor: Int32,
-        to offset: Int64,
-        maximumBytes: Int64
-    ) throws -> FingerprintAdvanceResult {
-        guard offset >= authenticatedOffset else {
-            throw CodexUsageCollectorError.sourceChangedDuringRead
-        }
-        let startingOffset = authenticatedOffset
-        let byteLimit = authenticatedOffset + max(0, maximumBytes)
-        while authenticatedOffset < offset, authenticatedOffset < byteLimit {
-            try Task.checkCancellation()
-            let byteCount = Int(min(
-                Int64(256 * 1_024),
-                offset - authenticatedOffset,
-                byteLimit - authenticatedOffset
-            ))
-            let sample = try readFingerprintSample(
-                fileDescriptor: fileDescriptor,
-                startingAt: authenticatedOffset,
-                byteCount: byteCount
-            )
-            append(sample)
-        }
-        return FingerprintAdvanceResult(
-            bytesRead: authenticatedOffset - startingOffset,
-            reachedTarget: authenticatedOffset == offset
-        )
-    }
-
-    mutating func append(_ data: Data) {
-        authenticator.update(data: data)
-        legacyAuthenticator?.update(data: data)
-        authenticatedOffset += Int64(data.count)
-    }
-
-    var fingerprint: String {
-        let copy = authenticator
-        return Self.versionPrefix + Self.hexDigest(copy.finalize())
-    }
-
-    var legacyFingerprint: String? {
-        guard let copy = legacyAuthenticator else { return nil }
-        return Self.hexDigest(copy.finalize())
-    }
-
-    mutating func discardLegacyFingerprint() {
-        legacyAuthenticator = nil
-    }
-
-    private static func hexDigest(_ authenticationCode: HMAC<SHA256>.MAC) -> String {
-        Data(authenticationCode).map { String(format: "%02x", $0) }.joined()
-    }
-}
-
-private struct FingerprintVerificationState {
-    let fileIdentity: String
-    let generation: Int64
-    let committedOffset: Int64
-    let contentFingerprint: String
-    let observedSize: Int64
-    let modificationTimeNanoseconds: Int64
-    let statusChangeTimeNanoseconds: Int64
-    var accumulator: SourceFingerprintAccumulator
-
-    func matches(
-        _ checkpoint: SourceCheckpoint,
-        openedSize: Int64,
-        openedModificationTime: Int64,
-        openedStatusChangeTime: Int64
-    ) -> Bool {
-        fileIdentity == checkpoint.fileIdentity
-            && generation == checkpoint.generation
-            && committedOffset == checkpoint.committedOffset
-            && contentFingerprint == checkpoint.contentFingerprint
-            && observedSize == openedSize
-            && modificationTimeNanoseconds == openedModificationTime
-            && statusChangeTimeNanoseconds == openedStatusChangeTime
-            && accumulator.authenticatedOffset <= checkpoint.committedOffset
-    }
-}
-
-private func readFingerprintSample(
-    fileDescriptor: Int32,
-    startingAt start: Int64,
-    byteCount: Int
-) throws -> Data {
-    var bytes = [UInt8](repeating: 0, count: byteCount)
-    let readCount = bytes.withUnsafeMutableBytes { buffer -> Int in
-        guard let baseAddress = buffer.baseAddress else { return 0 }
-        var total = 0
-        while total < byteCount {
-            let result = Darwin.pread(
-                fileDescriptor,
-                baseAddress.advanced(by: total),
-                byteCount - total,
-                off_t(start + Int64(total))
-            )
-            if result < 0, errno == EINTR { continue }
-            guard result > 0 else { return total }
-            total += result
-        }
-        return total
-    }
-    guard readCount == byteCount else {
-        throw CodexUsageCollectorError.sourceChangedDuringRead
-    }
-    return Data(bytes)
 }
 
 private enum CollectorResourceLimits {
@@ -184,13 +44,10 @@ actor CodexUsageCollector {
     private let database: SQLiteDatabase
     private let roots: [URL]
     private let discovery = CodexSourceDiscovery()
-    private let parser = CodexJSONLParser()
-    private let normalizer = UsageNormalizer()
     private let maximumBytesPerRefresh: Int64
     private let maximumRefreshDuration: Duration
     private var sourceFingerprintKeyData: Data?
-    private var fingerprintVerificationStates: [String: FingerprintVerificationState] = [:]
-    private var readSnapshots: [String: SourceReadSnapshot] = [:]
+    private let sourceReader = SourceIntegrityReader()
     private var nextSourcePath: String?
     /// The last per-source write the database rejected; kept for diagnostics, never shown as a number.
     private(set) var lastSourceWriteFailure: String?
@@ -244,12 +101,9 @@ actor CodexUsageCollector {
             sources = Array(sources[start...]) + Array(sources[..<start])
         }
         let activeCheckpointKeys = Set(
-            sources.map { storageIdentifier($0.url.standardizedFileURL.path) }
+            sources.map { UsageStorageIdentity.digest($0.url.standardizedFileURL.path) }
         )
-        fingerprintVerificationStates = fingerprintVerificationStates.filter {
-            activeCheckpointKeys.contains($0.key)
-        }
-        readSnapshots = readSnapshots.filter { activeCheckpointKeys.contains($0.key) }
+        sourceReader.prune(activeKeys: activeCheckpointKeys)
         let importPolicy = try await database.importPolicy()
         if lastImportEpoch != importPolicy.dataEpoch {
             analyticsRevision &+= 1
@@ -293,7 +147,7 @@ actor CodexUsageCollector {
                         constrainedSourcePath = source.url.path
                     }
                 }
-            } catch is CodexUsageCollectorError {
+            } catch is SourceReadError {
                 skippedSource = true
             } catch let SQLiteDatabaseError.step(message) {
                 // One source's rejected write must not stop the other sources or the refresh;
@@ -329,8 +183,7 @@ actor CodexUsageCollector {
     }
 
     func clearLocalHistory(at cutoff: Date = Date(), calendar: Calendar = .current, weekStart: WeekStart) async throws -> CollectorRefreshResult {
-        readSnapshots.removeAll()
-        fingerprintVerificationStates.removeAll()
+        sourceReader.reset()
         let compactionStatus = try await database.clearLocalHistory(
             at: cutoff, preservesMessageExclusions: provider == .claude
         )
@@ -357,60 +210,36 @@ actor CodexUsageCollector {
         maximumBytes: Int64,
         deadline: ContinuousClock.Instant
     ) async throws -> SourceProcessResult {
-        let checkpointKey = storageIdentifier(source.url.standardizedFileURL.path)
+        let checkpointKey = UsageStorageIdentity.digest(source.url.standardizedFileURL.path)
         var checkpoint = try await database.checkpoint(for: checkpointKey)
             ?? SourceCheckpoint.fresh(sourcePath: checkpointKey, fileIdentity: source.identity)
         let previousCheckpoint = checkpoint
         let fingerprintKey = try await sourceFingerprintKey()
         var fingerprintBytesRead: Int64 = 0
 
-        let fileDescriptor = Darwin.open(
-            source.url.path,
-            O_RDONLY | O_CLOEXEC | O_NOFOLLOW
-        )
-        guard fileDescriptor >= 0 else {
-            throw CodexUsageCollectorError.sourceUnavailable
-        }
-        let liveHandle = FileHandle(fileDescriptor: fileDescriptor, closeOnDealloc: true)
+        let opened = try sourceReader.open(source)
+        let liveHandle = opened.handle
         defer { try? liveHandle.close() }
         var handle = liveHandle
-        var openedStat = stat()
-        guard fstat(handle.fileDescriptor, &openedStat) == 0,
-              (openedStat.st_mode & S_IFMT) == S_IFREG,
-              "\(UInt64(openedStat.st_dev)):\(UInt64(openedStat.st_ino))" == source.identity
-        else { throw CodexUsageCollectorError.sourceChangedDuringRead }
-        if let snapshot = readSnapshots[checkpointKey], !snapshot.accepts(openedStat) {
-            readSnapshots.removeValue(forKey: checkpointKey)
-            fingerprintVerificationStates.removeValue(forKey: checkpointKey)
-        }
-        let liveWasUnchanged = checkpoint.fileIdentity == source.identity
-            && checkpoint.observedSize == Int64(openedStat.st_size)
-            && checkpoint.modificationTimeNanoseconds == modificationTimeNanoseconds(openedStat)
-            && checkpoint.committedOffset >= Int64(openedStat.st_size) && !checkpoint.hasPendingImport
-        if readSnapshots[checkpointKey] == nil, !liveWasUnchanged,
-           Int64(openedStat.st_size) > maximumBytesPerRefresh / 2 {
-            // Bound open descriptors; pending large files get their turn as
-            // active snapshots finish. Small sources continue to be processed.
-            if readSnapshots.count >= 4 {
-                return SourceProcessResult(processedBytes: 0, fingerprintBytesRead: 0, hasMore: true)
-            }
-            readSnapshots[checkpointKey] = SourceReadSnapshot.capture(descriptor: fileDescriptor, metadata: openedStat)
-        }
-        var snapshotCompleted = false
-        if let snapshot = readSnapshots[checkpointKey] {
+        var openedStat = opened.metadata
+        switch sourceReader.selectRead(key: checkpointKey, descriptor: liveHandle.fileDescriptor,
+            metadata: openedStat, checkpoint: checkpoint, snapshotThreshold: maximumBytesPerRefresh / 2) {
+        case .live: break
+        case .snapshot(let snapshot):
             handle = snapshot.handle
             openedStat = snapshot.metadata
+        case .deferred:
+            return SourceProcessResult(processedBytes: 0, fingerprintBytesRead: 0, hasMore: true)
         }
-        defer {
-            if snapshotCompleted { readSnapshots.removeValue(forKey: checkpointKey) }
-        }
+        var snapshotCompleted = false
+        defer { sourceReader.finishRead(key: checkpointKey, completed: snapshotCompleted) }
         func liveHasBytes(after offset: Int64) -> Bool {
             var current = stat()
             return fstat(liveHandle.fileDescriptor, &current) == 0 && Int64(current.st_size) > offset
         }
         let openedSize = Int64(openedStat.st_size)
-        let openedModificationTime = modificationTimeNanoseconds(openedStat)
-        let openedStatusChangeTime = statusChangeTimeNanoseconds(openedStat)
+        let openedModificationTime = sourceReader.modificationTimeNanoseconds(openedStat)
+        let openedStatusChangeTime = sourceReader.statusChangeTimeNanoseconds(openedStat)
 
         let sameSizeMutation = checkpoint.observedSize > 0
             && checkpoint.observedSize == openedSize
@@ -438,24 +267,8 @@ actor CodexUsageCollector {
             )
         }
 
-        let needsLegacyVerification = checkpoint.contentFingerprint.isEmpty == false
-            && checkpoint.contentFingerprint.hasPrefix(SourceFingerprintAccumulator.versionPrefix) == false
-        var fingerprintAccumulator: SourceFingerprintAccumulator
-        if let savedState = fingerprintVerificationStates[checkpointKey],
-           savedState.matches(
-               checkpoint,
-               openedSize: openedSize,
-               openedModificationTime: openedModificationTime,
-               openedStatusChangeTime: openedStatusChangeTime
-           ) {
-            fingerprintAccumulator = savedState.accumulator
-        } else {
-            fingerprintVerificationStates.removeValue(forKey: checkpointKey)
-            fingerprintAccumulator = SourceFingerprintAccumulator(
-                key: fingerprintKey,
-                legacyOffset: needsLegacyVerification ? checkpoint.committedOffset : nil
-            )
-        }
+        var fingerprintAccumulator = sourceReader.accumulator(key: checkpointKey, checkpoint: checkpoint,
+            keyData: fingerprintKey, metadata: openedStat)
         if checkpoint.committedOffset > 0,
            openedSize >= checkpoint.committedOffset {
             let advance = try fingerprintAccumulator.advance(
@@ -465,7 +278,7 @@ actor CodexUsageCollector {
             )
             fingerprintBytesRead += advance.bytesRead
             guard advance.reachedTarget else {
-                cacheFingerprintState(
+                sourceReader.cacheFingerprintState(
                     checkpointKey: checkpointKey,
                     checkpoint: checkpoint,
                     observedSize: openedSize,
@@ -479,14 +292,14 @@ actor CodexUsageCollector {
                     hasMore: true
                 )
             }
-            try verifyOpenedSourceState(
+            try sourceReader.verifyOpenedSourceState(
                 fileDescriptor: handle.fileDescriptor,
                 expectedIdentity: source.identity,
                 expectedSize: openedSize,
                 expectedModificationTime: openedModificationTime,
                 expectedStatusChangeTime: openedStatusChangeTime
             )
-            fingerprintVerificationStates.removeValue(forKey: checkpointKey)
+            sourceReader.invalidateFingerprint(checkpointKey)
             let fingerprintMatches: Bool
             if checkpoint.contentFingerprint.isEmpty {
                 fingerprintMatches = true
@@ -499,7 +312,7 @@ actor CodexUsageCollector {
                 checkpoint.contentFingerprint = fingerprintAccumulator.fingerprint
                 fingerprintAccumulator.discardLegacyFingerprint()
             } else {
-                fingerprintVerificationStates.removeValue(forKey: checkpointKey)
+                sourceReader.invalidateFingerprint(checkpointKey)
                 checkpoint = SourceCheckpoint.fresh(
                     sourcePath: checkpointKey,
                     fileIdentity: source.identity,
@@ -524,7 +337,7 @@ actor CodexUsageCollector {
                     analyticsRevision &+= 1
                 }
             }
-            cacheFingerprintState(
+            sourceReader.cacheFingerprintState(
                 checkpointKey: checkpointKey,
                 checkpoint: checkpoint,
                 observedSize: openedSize,
@@ -545,7 +358,7 @@ actor CodexUsageCollector {
             snapshotCompleted = true
             checkpoint.hasPendingImport = liveHasBytes(after: checkpoint.committedOffset)
             if checkpoint.contentFingerprint.isEmpty {
-                fingerprintBytesRead += try updateCheckpointFingerprint(
+                fingerprintBytesRead += try sourceReader.updateCheckpointFingerprint(
                     &checkpoint,
                     accumulator: &fingerprintAccumulator,
                     expectedFingerprint: fingerprintAccumulator.fingerprint,
@@ -564,7 +377,7 @@ actor CodexUsageCollector {
                     analyticsRevision &+= 1
                 }
             }
-            cacheFingerprintState(
+            sourceReader.cacheFingerprintState(
                 checkpointKey: checkpointKey,
                 checkpoint: checkpoint,
                 observedSize: checkpoint.observedSize,
@@ -580,46 +393,29 @@ actor CodexUsageCollector {
         }
 
         if checkpoint.sessionID == nil {
-            checkpoint.sessionID = sessionIdentifierFromFilename(source.url)
+            checkpoint.sessionID = UsageStorageIdentity.sessionIdentifierFromFilename(source.url)
         }
 
-        var metadata = SessionMetadata(
-            id: checkpoint.sessionID,
-            model: checkpoint.model,
-            workingDirectory: nil,
-            forkedFromID: checkpoint.inheritsHistory ? "inherited" : nil,
-            parentThreadID: checkpoint.parentSessionID,
-            subagentHistoryStartOrdinal: checkpoint.inheritedHistoryEndOrdinal,
-            occurredAt: checkpoint.sessionStartedAt
-        )
-        var normalizationState = if let sessionID = checkpoint.sessionID {
+        let initialState = if let sessionID = checkpoint.sessionID {
             try await database.normalizationState(for: sessionID)
         } else {
             UsageNormalizationState.empty
         }
-        var persistedNormalizationState = normalizationState
-        var loadedStateSessionID = checkpoint.sessionID
-        var pendingEvents: [UsageEvent] = []
-        var excludedEventKeys: Set<String> = []
-        var pendingEvidence: [PartialEvidence] = []
-        pendingEvents.reserveCapacity(256)
+        var session = SourceImportSession(checkpoint: checkpoint, state: initialState, provider: provider,
+            sourceURL: source.url, importCutoff: importCutoff, projectKey: fingerprintKey,
+            loadState: { [database] id in try await database.normalizationState(for: id) })
         var completedLineCount = 0
-        let startingOffset = checkpoint.committedOffset
+        let startingOffset = session.checkpoint.committedOffset
         var parsedFingerprintAccumulator = fingerprintAccumulator
-
-        guard Darwin.lseek(
-            handle.fileDescriptor,
-            off_t(checkpoint.committedOffset),
-            SEEK_SET
-        ) == off_t(checkpoint.committedOffset) else {
-            throw CodexUsageCollectorError.sourceUnavailable
+        guard Darwin.lseek(handle.fileDescriptor, off_t(startingOffset), SEEK_SET) == off_t(startingOffset) else {
+            throw SourceReadError.sourceUnavailable
         }
 
         var lineBuffer = Data()
         lineBuffer.reserveCapacity(64 * 1024)
-        var lineStartOffset = checkpoint.committedOffset
-        var readOffset = checkpoint.committedOffset
-        var skippingOversizedLine = checkpoint.isSkippingOversizedLine
+        var lineStartOffset = session.checkpoint.committedOffset
+        var readOffset = session.checkpoint.committedOffset
+        var skippingOversizedLine = session.checkpoint.isSkippingOversizedLine
         var stoppedForBudget = false
         let clock = ContinuousClock()
 
@@ -634,7 +430,7 @@ actor CodexUsageCollector {
             do {
                 chunk = try handle.read(upToCount: readLimit) ?? Data()
             } catch {
-                throw CodexUsageCollectorError.sourceUnavailable
+                throw SourceReadError.sourceUnavailable
             }
             guard !chunk.isEmpty else { break }
             try Self.afterSourceReadForTesting?(source.url, readOffset)
@@ -647,9 +443,9 @@ actor CodexUsageCollector {
                     let afterNewline = chunk.index(after: newline)
                     let consumed = chunk.distance(from: chunk.startIndex, to: afterNewline)
                     parsedFingerprintAccumulator.append(chunk[..<afterNewline])
-                    checkpoint.committedOffset = chunkStartOffset + Int64(consumed)
-                    checkpoint.isSkippingOversizedLine = false
-                    lineStartOffset = checkpoint.committedOffset
+                    session.checkpoint.committedOffset = chunkStartOffset + Int64(consumed)
+                    session.checkpoint.isSkippingOversizedLine = false
+                    lineStartOffset = session.checkpoint.committedOffset
                     skippingOversizedLine = false
                     lineBuffer.append(contentsOf: chunk[afterNewline...])
                 } else {
@@ -664,58 +460,45 @@ actor CodexUsageCollector {
             while let newline = lineBuffer[consumedThrough...].firstIndex(of: 0x0A) {
                 let line = Data(lineBuffer[consumedThrough..<newline])
                 let linePosition = lineStartOffset + Int64(lineBuffer.distance(from: lineBuffer.startIndex, to: consumedThrough))
-                try await processLine(
-                    line,
-                    position: linePosition,
-                    source: source,
-                    checkpoint: &checkpoint,
-                    metadata: &metadata,
-                    normalizationState: &normalizationState,
-                    persistedNormalizationState: &persistedNormalizationState,
-                    loadedStateSessionID: &loadedStateSessionID,
-                    pendingEvents: &pendingEvents,
-                    pendingEvidence: &pendingEvidence,
-                    excludedEventKeys: &excludedEventKeys,
-                    importCutoff: importCutoff
-                )
+                try await session.consume(line, position: linePosition)
                 completedLineCount += 1
                 let afterNewline = lineBuffer.index(after: newline)
                 parsedFingerprintAccumulator.append(lineBuffer[consumedThrough..<afterNewline])
                 consumedThrough = afterNewline
-                checkpoint.committedOffset = lineStartOffset
+                session.checkpoint.committedOffset = lineStartOffset
                     + Int64(lineBuffer.distance(from: lineBuffer.startIndex, to: consumedThrough))
 
-                if completedLineCount >= 1_000 || pendingEvents.count >= 256 {
-                    fingerprintBytesRead += try updateCheckpointFingerprint(
-                        &checkpoint,
+                if completedLineCount >= 1_000 || session.pendingEvents.count >= 256 {
+                    fingerprintBytesRead += try sourceReader.updateCheckpointFingerprint(
+                        &session.checkpoint,
                         accumulator: &fingerprintAccumulator,
                         expectedFingerprint: parsedFingerprintAccumulator.fingerprint,
                         expectedStatusChangeTime: openedStatusChangeTime,
                         fileDescriptor: handle.fileDescriptor
                     )
                     let committedNormalizationState = try await database.commit(
-                        events: pendingEvents,
-                        checkpoint: checkpoint,
-                        normalizationState: normalizationState,
+                        events: session.pendingEvents,
+                        checkpoint: session.checkpoint,
+                        normalizationState: session.normalizationState,
                         expectedEpoch: expectedEpoch,
-                        expectedNormalizationState: checkpoint.sessionID == nil ? nil : persistedNormalizationState,
+                        expectedNormalizationState: session.checkpoint.sessionID == nil ? nil : session.persistedNormalizationState,
                         mergesMessageUsage: provider == .claude,
-                        excludedEventKeys: excludedEventKeys,
-                        partialEvidence: pendingEvidence
+                        excludedEventKeys: session.excludedEventKeys,
+                        partialEvidence: session.pendingEvidence
                     )
-                    if !pendingEvents.isEmpty || !excludedEventKeys.isEmpty || !pendingEvidence.isEmpty
-                        || analyticsMetadataChanged(checkpoint, from: previousCheckpoint) {
+                    if !session.pendingEvents.isEmpty || !session.excludedEventKeys.isEmpty || !session.pendingEvidence.isEmpty
+                        || analyticsMetadataChanged(session.checkpoint, from: previousCheckpoint) {
                         analyticsRevision &+= 1
                     }
                     if let committedNormalizationState {
-                        persistedNormalizationState = committedNormalizationState
-                        if normalizationState.cumulativeHighWaterMark != nil {
-                            normalizationState = committedNormalizationState
+                        session.persistedNormalizationState = committedNormalizationState
+                        if session.normalizationState.cumulativeHighWaterMark != nil {
+                            session.normalizationState = committedNormalizationState
                         }
                     }
-                    pendingEvidence.removeAll(keepingCapacity: true)
-                    pendingEvents.removeAll(keepingCapacity: true)
-                    excludedEventKeys.removeAll(keepingCapacity: true)
+                    session.pendingEvidence.removeAll(keepingCapacity: true)
+                    session.pendingEvents.removeAll(keepingCapacity: true)
+                    session.excludedEventKeys.removeAll(keepingCapacity: true)
                     completedLineCount = 0
                 }
             }
@@ -728,60 +511,61 @@ actor CodexUsageCollector {
 
             if lineBuffer.count > CodexJSONLParser.maximumLineBytes {
                 parsedFingerprintAccumulator.append(lineBuffer)
-                normalizationState.quality = .partial
+                session.normalizationState.quality = .partial
                 // Too long to read. If what was read of it is an accounting row (a Codex token count, or a
                 // Claude assistant message, whose usage comes after its content), its tokens are missing.
-                if provider == .claude ? lineBuffer.containsASCII("\"type\":\"assistant\"") : lineBuffer.containsASCII("\"token_count\"") {
-                    recordEvidence(checkpoint: checkpoint, position: lineStartOffset, occurredAt: nil, importCutoff: importCutoff, evidence: &pendingEvidence)
+                let marker = provider == .claude ? "\"type\":\"assistant\"" : "\"token_count\""
+                if lineBuffer.range(of: Data(marker.utf8)) != nil {
+                    session.recordEvidence(position: lineStartOffset, occurredAt: nil)
                 }
                 lineBuffer.removeAll(keepingCapacity: false)
                 skippingOversizedLine = true
-                checkpoint.isSkippingOversizedLine = true
+                session.checkpoint.isSkippingOversizedLine = true
             }
         }
 
         if skippingOversizedLine {
-            checkpoint.committedOffset = readOffset
+            session.checkpoint.committedOffset = readOffset
         }
         var finalStat = stat()
         snapshotCompleted = !stoppedForBudget
         let sourceGrewWhileReading = fstat(liveHandle.fileDescriptor, &finalStat) == 0
             && Int64(finalStat.st_size) > readOffset
-        checkpoint.hasPendingImport = stoppedForBudget || sourceGrewWhileReading
+        session.checkpoint.hasPendingImport = stoppedForBudget || sourceGrewWhileReading
 
-        if checkpoint.committedOffset > startingOffset || checkpoint != previousCheckpoint {
-            fingerprintBytesRead += try updateCheckpointFingerprint(
-                &checkpoint,
+        if session.checkpoint.committedOffset > startingOffset || session.checkpoint != previousCheckpoint {
+            fingerprintBytesRead += try sourceReader.updateCheckpointFingerprint(
+                &session.checkpoint,
                 accumulator: &fingerprintAccumulator,
                 expectedFingerprint: parsedFingerprintAccumulator.fingerprint,
                 expectedStatusChangeTime: openedStatusChangeTime,
                 fileDescriptor: handle.fileDescriptor
             )
             let committedNormalizationState = try await database.commit(
-                events: pendingEvents,
-                checkpoint: checkpoint,
-                normalizationState: normalizationState,
+                events: session.pendingEvents,
+                checkpoint: session.checkpoint,
+                normalizationState: session.normalizationState,
                 expectedEpoch: expectedEpoch,
-                expectedNormalizationState: checkpoint.sessionID == nil ? nil : persistedNormalizationState,
+                expectedNormalizationState: session.checkpoint.sessionID == nil ? nil : session.persistedNormalizationState,
                 mergesMessageUsage: provider == .claude,
-                excludedEventKeys: excludedEventKeys,
-                partialEvidence: pendingEvidence
+                excludedEventKeys: session.excludedEventKeys,
+                partialEvidence: session.pendingEvidence
             )
-            if !pendingEvents.isEmpty || !excludedEventKeys.isEmpty || !pendingEvidence.isEmpty
-                || analyticsMetadataChanged(checkpoint, from: previousCheckpoint) {
+            if !session.pendingEvents.isEmpty || !session.excludedEventKeys.isEmpty || !session.pendingEvidence.isEmpty
+                || analyticsMetadataChanged(session.checkpoint, from: previousCheckpoint) {
                 analyticsRevision &+= 1
             }
-            pendingEvidence.removeAll(keepingCapacity: true)
+            session.pendingEvidence.removeAll(keepingCapacity: true)
             if let committedNormalizationState,
-               normalizationState.cumulativeHighWaterMark != nil {
-                normalizationState = committedNormalizationState
+               session.normalizationState.cumulativeHighWaterMark != nil {
+                session.normalizationState = committedNormalizationState
             }
         }
-        cacheFingerprintState(
+        sourceReader.cacheFingerprintState(
             checkpointKey: checkpointKey,
-            checkpoint: checkpoint,
-            observedSize: checkpoint.observedSize,
-            modificationTimeNanoseconds: checkpoint.modificationTimeNanoseconds,
+            checkpoint: session.checkpoint,
+            observedSize: session.checkpoint.observedSize,
+            modificationTimeNanoseconds: session.checkpoint.modificationTimeNanoseconds,
             fileDescriptor: handle.fileDescriptor,
             accumulator: fingerprintAccumulator
         )
@@ -801,83 +585,6 @@ actor CodexUsageCollector {
             || current.inheritsHistory != previous.inheritsHistory
     }
 
-    /// Fingerprints and checkpoints describe the original identity at capture
-    /// time, while every byte in this pass comes from the same frozen clone.
-    private func readSourceStat(_ descriptor: Int32, _ value: inout stat) -> Int32 {
-        let result = fstat(descriptor, &value)
-        guard result == 0 else { return result }
-        if let snapshot = readSnapshots.values.first(where: { $0.handle.fileDescriptor == descriptor }) {
-            guard value.st_size == snapshot.metadata.st_size else { return -1 }
-            value = snapshot.metadata
-        }
-        return 0
-    }
-
-    private func updateCheckpointFingerprint(
-        _ checkpoint: inout SourceCheckpoint,
-        accumulator: inout SourceFingerprintAccumulator,
-        expectedFingerprint: String,
-        expectedStatusChangeTime: Int64,
-        fileDescriptor: Int32
-    ) throws -> Int64 {
-        var currentStat = stat()
-        guard readSourceStat(fileDescriptor, &currentStat) == 0,
-              (currentStat.st_mode & S_IFMT) == S_IFREG,
-              Int64(currentStat.st_size) >= checkpoint.committedOffset
-        else {
-            throw CodexUsageCollectorError.sourceChangedDuringRead
-        }
-        // Keep the opened metadata: a later append or rewrite must be checked on the next pass.
-        let advance = try accumulator.advance(
-            fileDescriptor: fileDescriptor,
-            to: checkpoint.committedOffset,
-            maximumBytes: checkpoint.committedOffset - accumulator.authenticatedOffset
-        )
-        guard advance.reachedTarget, accumulator.fingerprint == expectedFingerprint,
-              readSourceStat(fileDescriptor, &currentStat) == 0,
-              Int64(currentStat.st_size) > checkpoint.observedSize
-                || (Int64(currentStat.st_size) == checkpoint.observedSize
-                    && modificationTimeNanoseconds(currentStat) == checkpoint.modificationTimeNanoseconds
-                    && statusChangeTimeNanoseconds(currentStat) == expectedStatusChangeTime)
-        else {
-            throw CodexUsageCollectorError.sourceChangedDuringRead
-        }
-        checkpoint.contentFingerprint = accumulator.fingerprint
-        accumulator.discardLegacyFingerprint()
-        return advance.bytesRead
-    }
-
-    private func cacheFingerprintState(
-        checkpointKey: String,
-        checkpoint: SourceCheckpoint,
-        observedSize: Int64,
-        modificationTimeNanoseconds expectedModificationTimeNanoseconds: Int64,
-        fileDescriptor: Int32,
-        accumulator: SourceFingerprintAccumulator
-    ) {
-        var currentStat = stat()
-        guard accumulator.authenticatedOffset <= checkpoint.committedOffset,
-              readSourceStat(fileDescriptor, &currentStat) == 0,
-              (currentStat.st_mode & S_IFMT) == S_IFREG,
-              "\(UInt64(currentStat.st_dev)):\(UInt64(currentStat.st_ino))" == checkpoint.fileIdentity,
-              Int64(currentStat.st_size) == observedSize,
-              modificationTimeNanoseconds(currentStat) == expectedModificationTimeNanoseconds
-        else {
-            fingerprintVerificationStates.removeValue(forKey: checkpointKey)
-            return
-        }
-        fingerprintVerificationStates[checkpointKey] = FingerprintVerificationState(
-            fileIdentity: checkpoint.fileIdentity,
-            generation: checkpoint.generation,
-            committedOffset: checkpoint.committedOffset,
-            contentFingerprint: checkpoint.contentFingerprint,
-            observedSize: observedSize,
-            modificationTimeNanoseconds: expectedModificationTimeNanoseconds,
-            statusChangeTimeNanoseconds: statusChangeTimeNanoseconds(currentStat),
-            accumulator: accumulator
-        )
-    }
-
     private func sourceFingerprintKey() async throws -> Data {
         if let sourceFingerprintKeyData { return sourceFingerprintKeyData }
         let key = await database.sourceFingerprintKey()
@@ -885,336 +592,8 @@ actor CodexUsageCollector {
         return key
     }
 
-    private func modificationTimeNanoseconds(_ value: stat) -> Int64 {
-        Int64(value.st_mtimespec.tv_sec) * 1_000_000_000
-            + Int64(value.st_mtimespec.tv_nsec)
-    }
-
-    private func statusChangeTimeNanoseconds(_ value: stat) -> Int64 {
-        Int64(value.st_ctimespec.tv_sec) * 1_000_000_000
-            + Int64(value.st_ctimespec.tv_nsec)
-    }
-
-    private func verifyOpenedSourceState(
-        fileDescriptor: Int32,
-        expectedIdentity: String,
-        expectedSize: Int64,
-        expectedModificationTime: Int64,
-        expectedStatusChangeTime: Int64
-    ) throws {
-        var currentStat = stat()
-        guard readSourceStat(fileDescriptor, &currentStat) == 0,
-              (currentStat.st_mode & S_IFMT) == S_IFREG,
-              "\(UInt64(currentStat.st_dev)):\(UInt64(currentStat.st_ino))" == expectedIdentity,
-              Int64(currentStat.st_size) == expectedSize,
-              modificationTimeNanoseconds(currentStat) == expectedModificationTime,
-              statusChangeTimeNanoseconds(currentStat) == expectedStatusChangeTime
-        else {
-            throw CodexUsageCollectorError.sourceChangedDuringRead
-        }
-    }
-
-    private func processLine(
-        _ line: Data,
-        position: Int64,
-        source: CodexSessionSource,
-        checkpoint: inout SourceCheckpoint,
-        metadata: inout SessionMetadata,
-        normalizationState: inout UsageNormalizationState,
-        persistedNormalizationState: inout UsageNormalizationState,
-        loadedStateSessionID: inout String?,
-        pendingEvents: inout [UsageEvent],
-        pendingEvidence: inout [PartialEvidence],
-        excludedEventKeys: inout Set<String>,
-        importCutoff: Date?
-    ) async throws {
-        if provider == .claude {
-            try await processClaudeLine(line, position: position, source: source,
-                                        checkpoint: &checkpoint, pendingEvents: &pendingEvents,
-                                        pendingEvidence: &pendingEvidence,
-                                        excludedEventKeys: &excludedEventKeys,
-                                        importCutoff: importCutoff)
-            return
-        }
-        guard line.containsASCII("\"token_count\"")
-                || line.containsASCII("\"session_meta\"")
-                || line.containsASCII("\"task_started\"")
-                || line.containsASCII("\"turn_context\"")
-                || (line.containsASCII("\"response_item\"") && line.containsASCII("\"input_image\""))
-        else { return }
-
-        switch parser.parse(line) {
-        case let .sessionMetadata(parsed):
-            guard checkpoint.committedOffset == 0 else {
-                if checkpoint.inheritsHistory {
-                    checkpoint.historyReplayComplete = false
-                }
-                return
-            }
-            let resolvedID = parsed.id.map(storageIdentifier) ?? checkpoint.sessionID
-            let resolvedModel = canonicalModelID(parsed.model)
-            let project = try await projectProjection(parsed.workingDirectory)
-            let parentSessionID = parsed.parentThreadID.map(storageIdentifier)
-            metadata = SessionMetadata(
-                id: resolvedID,
-                model: resolvedModel,
-                workingDirectory: nil,
-                forkedFromID: parsed.forkedFromID,
-                parentThreadID: parentSessionID,
-                subagentHistoryStartOrdinal: parsed.subagentHistoryStartOrdinal,
-                occurredAt: parsed.occurredAt
-            )
-            checkpoint.sessionID = resolvedID
-            checkpoint.inheritsHistory = parsed.inheritsHistory
-            checkpoint.sessionStartedAt = parsed.occurredAt
-            checkpoint.inheritedHistoryEndOrdinal = parsed.subagentHistoryStartOrdinal
-            checkpoint.historyReplayComplete = !parsed.inheritsHistory
-            checkpoint.model = resolvedModel
-            checkpoint.projectPath = project?.id
-            checkpoint.projectName = project?.name
-            checkpoint.parentSessionID = parentSessionID
-            if resolvedID != loadedStateSessionID, let resolvedID {
-                normalizationState = try await database.normalizationState(for: resolvedID)
-                persistedNormalizationState = normalizationState
-                loadedStateSessionID = resolvedID
-            }
-
-        case let .taskStarted(task):
-            guard checkpoint.inheritsHistory, !checkpoint.historyReplayComplete else { return }
-            if let inheritedHistoryEndOrdinal = checkpoint.inheritedHistoryEndOrdinal,
-               let ordinal = task.ordinal,
-               ordinal > inheritedHistoryEndOrdinal {
-                checkpoint.historyReplayComplete = true
-                return
-            }
-            if checkpoint.inheritedHistoryEndOrdinal == nil,
-               let sessionStartedAt = checkpoint.sessionStartedAt,
-               let taskStartedAt = task.startedAt,
-               taskStartedAt.timeIntervalSince1970.rounded(.down)
-                   >= sessionStartedAt.timeIntervalSince1970.rounded(.down) {
-                checkpoint.historyReplayComplete = true
-            }
-
-        case let .turnContext(context):
-            if let model = canonicalModelID(context.model) {
-                checkpoint.model = model
-                metadata = SessionMetadata(
-                    id: metadata.id,
-                    model: model,
-                    workingDirectory: nil,
-                    forkedFromID: metadata.forkedFromID,
-                    parentThreadID: metadata.parentThreadID,
-                    subagentHistoryStartOrdinal: metadata.subagentHistoryStartOrdinal,
-                    occurredAt: metadata.occurredAt
-                )
-            }
-            if let project = try await projectProjection(context.workingDirectory) {
-                checkpoint.projectPath = project.id
-                checkpoint.projectName = project.name
-            }
-
-        case let .imageAttachments(attachment):
-            if checkpoint.inheritsHistory, !checkpoint.historyReplayComplete,
-               let boundary = checkpoint.inheritedHistoryEndOrdinal,
-               let ordinal = attachment.ordinal, ordinal > boundary {
-                checkpoint.historyReplayComplete = true
-            }
-            guard !checkpoint.inheritsHistory || checkpoint.historyReplayComplete else { return }
-            if let importCutoff, attachment.occurredAt <= importCutoff { return }
-            let result = checkpoint.imageAttachmentCount.addingReportingOverflow(Int64(attachment.count))
-            checkpoint.imageAttachmentCount = result.overflow ? Int64.max : result.partialValue
-
-        case let .token(observation):
-            let isInheritedReplay: Bool
-            if checkpoint.inheritsHistory, !checkpoint.historyReplayComplete {
-                if let inheritedHistoryEndOrdinal = checkpoint.inheritedHistoryEndOrdinal,
-                   let ordinal = observation.ordinal,
-                   ordinal > inheritedHistoryEndOrdinal {
-                    checkpoint.historyReplayComplete = true
-                    isInheritedReplay = false
-                } else {
-                    isInheritedReplay = true
-                }
-            } else {
-                isInheritedReplay = false
-            }
-            let result = normalizer.normalize(observation, metadata: metadata, state: normalizationState)
-            normalizationState = result.state
-            guard !isInheritedReplay else { return }
-            guard let delta = result.delta, !delta.isZero else { return }
-            if let importCutoff, observation.occurredAt <= importCutoff { return }
-            let sessionID = checkpoint.sessionID
-            pendingEvents.append(
-                UsageEvent(
-                    eventKey: eventKey(
-                        sessionID: sessionID,
-                        observation: observation
-                    ),
-                    occurredAt: observation.occurredAt,
-                    sessionID: sessionID,
-                    model: checkpoint.model,
-                    projectPath: checkpoint.projectPath,
-                    usage: delta,
-                    sourcePath: storageIdentifier(source.url.standardizedFileURL.path),
-                    sourcePosition: position,
-                    pricingContext: pricingContext(observation: observation, delta: delta)
-                )
-            )
-
-        case .malformed:
-            normalizationState.quality = .partial
-            // The session's quality alone dates the gap at its last valid row, which a recent period does not
-            // reach; the row's own time (or when it was read) does.
-            recordEvidence(checkpoint: checkpoint, position: position, occurredAt: ClaudeJSONLParser.timestamp(of: line), importCutoff: importCutoff, evidence: &pendingEvidence)
-
-        case .ignored:
-            break
-        }
-    }
-
-    private func recordEvidence(checkpoint: SourceCheckpoint, position: Int64, occurredAt: Date?,
-                                importCutoff: Date?, evidence: inout [PartialEvidence]) {
-        let observedAt = occurredAt ?? Date()
-        if let importCutoff, observedAt <= importCutoff { return }
-        let generation = "\(checkpoint.sourcePath)|\(checkpoint.fileIdentity)|\(checkpoint.generation)"
-        evidence.append(PartialEvidence(source: storageIdentifier(generation), position: position, observedAt: observedAt))
-    }
-
-    private func eventKey(
-        sessionID: String?,
-        observation: CodexTokenObservation
-    ) -> String {
-        let material = [
-            "event-v2",
-            "session:\(sessionID ?? "unknown")",
-            "time:\(observation.occurredAt.timeIntervalSinceReferenceDate.bitPattern)",
-            "ordinal:\(observation.ordinal.map(String.init) ?? "none")",
-            "last:\(usageIdentity(observation.lastUsage))",
-            "cumulative:\(usageIdentity(observation.cumulativeUsage))"
-        ].joined(separator: "|")
-        return storageIdentifier(Data(material.utf8))
-    }
-
-    private func processClaudeLine(
-        _ line: Data,
-        position: Int64,
-        source: CodexSessionSource,
-        checkpoint: inout SourceCheckpoint,
-        pendingEvents: inout [UsageEvent],
-        pendingEvidence: inout [PartialEvidence],
-        excludedEventKeys: inout Set<String>,
-        importCutoff: Date?
-    ) async throws {
-        guard let observation = ClaudeJSONLParser().parse(line) else {
-            // Most lines are not accounting rows. One that is but failed validation leaves tokens uncounted.
-            let rejected = ClaudeJSONLParser.rejectedAccounting(line)
-            if rejected.isAccounting {
-                recordEvidence(checkpoint: checkpoint, position: position, occurredAt: rejected.occurredAt, importCutoff: importCutoff, evidence: &pendingEvidence)
-            }
-            return
-        }
-        let eventKey = storageIdentifier("claude-message|\(observation.messageID)")
-        if let importCutoff, observation.occurredAt <= importCutoff {
-            excludedEventKeys.insert(eventKey)
-            return
-        }
-        let parentID = storageIdentifier("claude-session|\(observation.sessionID)")
-        // Subagent transcripts share the parent sessionId but own their messages.
-        let filename = source.url.deletingPathExtension().lastPathComponent
-        let agentID = observation.agentID.map { $0.hasPrefix("agent-") ? $0 : "agent-\($0)" }
-            ?? (filename.hasPrefix("agent-") ? filename : nil)
-        let sessionID = agentID.map {
-            storageIdentifier("claude-agent|\(observation.sessionID)|\($0)")
-        } ?? parentID
-        let project = try await projectProjection(observation.workingDirectory)
-        checkpoint.sessionID = sessionID
-        checkpoint.parentSessionID = agentID == nil ? nil : parentID
-        checkpoint.sessionStartedAt = min(checkpoint.sessionStartedAt ?? observation.occurredAt,
-                                          observation.occurredAt)
-        checkpoint.model = observation.model
-        checkpoint.projectPath = project?.id ?? checkpoint.projectPath
-        checkpoint.projectName = project?.name ?? checkpoint.projectName
-        pendingEvents.append(UsageEvent(
-            // A response may be repeated for text/tool blocks and in copied history.
-            // Its message ID, not a line UUID, file path or timestamp, is the identity.
-            eventKey: eventKey,
-            occurredAt: observation.occurredAt,
-            sessionID: sessionID,
-            model: observation.model,
-            projectPath: checkpoint.projectPath,
-            usage: observation.usage,
-            sourcePath: storageIdentifier(source.url.standardizedFileURL.path),
-            sourcePosition: position
-        ))
-    }
-
-    private func usageIdentity(_ usage: TokenUsage?) -> String {
-        guard let usage else { return "none" }
-        // Keep the v2 identity compatible with Phase 1 databases. Cache-write
-        // tokens are enrichment metadata for the same source observation, not a
-        // reason to create a second accounting event during the v15 backfill.
-        return "\(usage.inputTokens),\(usage.cachedInputTokens),\(usage.outputTokens)"
-    }
-
-    private func pricingContext(
-        observation: CodexTokenObservation,
-        delta: TokenUsage
-    ) -> PricingContext? {
-        guard delta.inputTokens > PricingContext.highContextInputThreshold else { return .standard }
-        guard observation.lastUsage == delta else { return nil }
-        return .highContext
-    }
-
-    private func sessionIdentifierFromFilename(_ url: URL) -> String? {
-        let stem = url.deletingPathExtension().lastPathComponent
-        guard stem.count >= 36 else { return nil }
-        let suffix = String(stem.suffix(36))
-        guard let identifier = UUID(uuidString: suffix)?.uuidString.lowercased() else { return nil }
-        return storageIdentifier(identifier)
-    }
-
-    private func storageIdentifier(_ value: String) -> String {
-        storageIdentifier(Data(value.utf8))
-    }
-
-    private func storageIdentifier(_ value: Data) -> String {
-        SHA256.hash(data: value).map { String(format: "%02x", $0) }.joined()
-    }
-
-    private func canonicalModelID(_ value: String?) -> String? {
-        guard let value else { return nil }
-        let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !normalized.isEmpty,
-              normalized.utf8.count <= 128,
-              normalized.unicodeScalars.allSatisfy({
-                  CharacterSet.alphanumerics.contains($0) || ".-_".unicodeScalars.contains($0)
-              })
-        else { return nil }
-        return normalized
-    }
-
     private func projectProjection(_ workingDirectory: String?) async throws -> (id: String, name: String)? {
-        guard let workingDirectory,
-              !workingDirectory.isEmpty,
-              workingDirectory.utf8.count <= 4_096,
-              !workingDirectory.contains("\0")
-        else { return nil }
-
-        let standardizedPath = URL(fileURLWithPath: workingDirectory).standardizedFileURL.path
-        let name = URL(fileURLWithPath: standardizedPath).lastPathComponent
-        guard !name.isEmpty,
-              name != ".",
-              name != "..",
-              name.utf8.count <= 128,
-              !name.contains("\0")
-        else { return nil }
-
-        let key = SymmetricKey(data: try await sourceFingerprintKey())
-        let material = Data("CodexMeter.project.v1|\(standardizedPath)".utf8)
-        let digest = HMAC<SHA256>.authenticationCode(for: material, using: key)
-            .map { String(format: "%02x", $0) }
-            .joined()
-        return (digest, name)
+        UsageStorageIdentity.project(workingDirectory, keyData: try await sourceFingerprintKey())
     }
 
 #if DEBUG
@@ -1222,10 +601,4 @@ actor CodexUsageCollector {
         try await projectProjection(workingDirectory)
     }
 #endif
-}
-
-private extension Data {
-    func containsASCII(_ string: String) -> Bool {
-        range(of: Data(string.utf8)) != nil
-    }
 }

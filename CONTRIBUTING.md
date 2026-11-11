@@ -4,7 +4,9 @@
 
 CodeRim favors small, reviewable changes preserving accounting accuracy, local privacy, native behavior, and the existing [design authority](DESIGN.md).
 
-For macOS code changes, run the checks relevant to the affected pipeline; the repository CI also runs these broader checks:
+For macOS code changes, run the checks relevant to the affected pipeline; the repository The dependency-free usage modules are `Sources/CodeRimUsageCore` and `Windows/src/CodeRim.UsageCore`; keep UI, storage, credentials and transport in the runtime layers. Shared synthetic fixtures live in `Tests/Fixtures`. Swift core contracts run in `CodeRimUsageCoreTests`; run both Windows test projects listed in the Windows build instructions.
+
+CI also runs these broader checks:
 
 ```sh
 python3 Scripts/prepare_swift_dependencies.py
@@ -17,7 +19,9 @@ for test_script in Tests/Scripts/*_tests.zsh; do "$test_script"; done
 Scripts/build_release.sh
 ```
 
-CI runs Swift tests, iOS tests, and the Universal release build in parallel. Swift caches are isolated by build variant, toolchain, and pinned dependencies; only content-matching source timestamps are restored for incremental compilation. Windows packages once, then verifies the exact archives on x64 and ARM64 in parallel. Docs, website, Relay, or Windows-only changes keep the fast checks and skip Apple builds. Feature branches use PR checks; pushes to `main` and full manual runs remain supported.
+CI selects Mac tests, iOS tests, and the Universal release build separately. Mac-only changes skip iOS, iOS-only changes skip Mac builds, and shared or unknown inputs select every Apple check. iOS unit tests use the `CodeRimMobileUnitTests` scheme and the selected simulator architecture; the `CodeRimMobile` scheme retains UI tests. Swift caches are isolated by build variant, toolchain, and pinned dependencies; only content-matching source timestamps are restored for incremental compilation. Dependency patch equivalence checks remain required for Mac tests. Windows core tests on ARM64 run alongside packaging; native x64 and ARM64 tests then verify the exact packaged archives. Docs, website, Relay, or Windows-only changes keep the fast checks and skip Apple builds. Changes limited to `Windows/README.md` and `Windows/README.ko.md` skip Windows builds; packaged notices still select Windows checks. Feature branches use PR checks; pushes to `main` and full manual runs remain supported.
+
+Required `build-and-test`, `test-and-package` and `native-arm64` results are always posted. Path selection runs actual Apple/Windows work when its inputs change; documentation-only changes keep fast checks and receive explicit results for unneeded platform work. Failed, cancelled or missing required platform results cannot turn the gate green. The Apple gate includes Mac tests, iOS tests, and the release build. The Windows gates include packaging, native x64 execution, and both `windows-arm64-core` and `windows-arm64-tests`; the required names remain stable.
 
 The preparation command keeps CodexBar at the revision in `Package.resolved`
 and applies the Swift and C warning fixes recorded in `Config/DependencyPatches` to

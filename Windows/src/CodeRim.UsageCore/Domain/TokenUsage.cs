@@ -6,6 +6,7 @@ public readonly record struct TokenUsage(
     long OutputTokens,
     long? CacheWriteInputTokens = null)
 {
+    public const long HighContextInputThreshold = 272_000;
     public static TokenUsage Zero { get; } = new(0, 0, 0, 0);
 
     public bool IsZero => InputTokens == 0 && CachedInputTokens == 0 && OutputTokens == 0 && (CacheWriteInputTokens is null or 0);

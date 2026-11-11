@@ -27,6 +27,7 @@ let package = Package(
             dependencies: [
                 "ClaudeBridgeCore",
                 "CodeRimShared",
+                "CodeRimUsageCore",
                 "CSQLite",
                 .product(name: "CodexBarCore", package: "CodexBar"),
                 .product(name: "SweetCookieKit", package: "SweetCookieKit"),
@@ -50,6 +51,8 @@ let package = Package(
             ]
         ),
         .target(name: "CodeRimShared"),
+        .target(name: "CodeRimUsageCore"),
+        .testTarget(name: "CodeRimUsageCoreTests", dependencies: ["CodeRimUsageCore"]),
         .target(name: "CodeRimWidgetUI", dependencies: ["CodeRimShared"], path: "Sources/CodeRimWidget", exclude: ["CodeRimWidget.swift"]),
         .executableTarget(name: "CodeRimCLI", dependencies: ["CodeRimShared"]),
         .testTarget(name: "CodeRimCompanionTests", dependencies: ["CodeRimShared", "CodeRimCLI", "CodeRimWidgetUI"]),
@@ -64,7 +67,7 @@ let package = Package(
         ),
         .testTarget(
             name: "CodeRimTests",
-            dependencies: ["CodeRim", "ClaudeBridgeCore", "CodeRimShared"],
+            dependencies: ["CodeRim", "ClaudeBridgeCore", "CodeRimShared", "CodeRimUsageCore"],
             path: "Tests/CodeRimTests"
         )
     ]

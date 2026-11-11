@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import XCTest
 @testable import CodeRim
 

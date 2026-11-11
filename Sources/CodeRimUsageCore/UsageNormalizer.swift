@@ -1,11 +1,11 @@
 import Foundation
 
-struct UsageNormalizationState: Equatable, Sendable {
-    var cumulativeHighWaterMark: TokenUsage?
-    var lastObservedAt: Date?
-    var quality: DataQuality
+package struct UsageNormalizationState: Equatable, Sendable {
+    package var cumulativeHighWaterMark: TokenUsage?
+    package var lastObservedAt: Date?
+    package var quality: DataQuality
 
-    init(
+    package init(
         cumulativeHighWaterMark: TokenUsage?,
         lastObservedAt: Date? = nil,
         quality: DataQuality
@@ -15,23 +15,28 @@ struct UsageNormalizationState: Equatable, Sendable {
         self.quality = quality
     }
 
-    static let empty = UsageNormalizationState(
+    package static let empty = UsageNormalizationState(
         cumulativeHighWaterMark: nil,
         lastObservedAt: nil,
         quality: .exact
     )
 }
 
-struct UsageNormalizationResult: Equatable, Sendable {
-    let delta: TokenUsage?
-    let state: UsageNormalizationState
-    let diagnostic: String?
+package struct UsageNormalizationResult: Equatable, Sendable {
+    package let delta: TokenUsage?
+    package let state: UsageNormalizationState
+    package let diagnostic: String?
+
+    package init(delta: TokenUsage?, state: UsageNormalizationState, diagnostic: String?) {
+        self.delta = delta; self.state = state; self.diagnostic = diagnostic
+    }
 }
 
-struct UsageNormalizer: Sendable {
-    func normalize(
+package struct UsageNormalizer: Sendable {
+    package init() {}
+
+    package func normalize(
         _ observation: CodexTokenObservation,
-        metadata: SessionMetadata?,
         state: UsageNormalizationState
     ) -> UsageNormalizationResult {
         if let lastObservedAt = state.lastObservedAt,

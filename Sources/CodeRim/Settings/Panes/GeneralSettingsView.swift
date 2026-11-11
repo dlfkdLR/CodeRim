@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import SwiftUI
 
 struct GeneralSettingsView: View {

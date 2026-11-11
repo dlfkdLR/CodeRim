@@ -39,7 +39,9 @@ class AppleChangesTests(unittest.TestCase):
         result = subprocess.run(['bash', str(SCRIPT), *(base if base is not None else [self.base])],
                                 cwd=self.root, env=self.env, capture_output=True, text=True, timeout=10)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout, f'apple={str(value).lower()}\n')
+        values = value if isinstance(value, tuple) else (value, value, value)
+        self.assertEqual(result.stdout, ''.join(f'{key}={str(selected).lower()}\n'
+            for key, selected in zip(['macos', 'ios', 'release'], values)))
 
     def test_unchanged_checkout_skips_apple_jobs(self):
         self.expect(False)
@@ -72,13 +74,70 @@ class AppleChangesTests(unittest.TestCase):
         self.expect(True)
 
     def test_shared_and_unknown_paths_run_apple_jobs(self):
-        for path in ['Tests/Fixtures/pairing.txt', '.gitattributes', 'Package.swift', 'iOS/App.swift',
+        for path in ['Tests/Fixtures/pairing.txt', '.gitattributes', 'Package.swift', 'Package.resolved',
+                     'Sources/CodeRimShared/MobileModels.swift', 'Config/Info.plist',
                      'Sources/Shared.swift', 'Scripts/test.sh', '.github/workflows/ci.yml', 'unknown/source.txt']:
             with self.subTest(path=path):
                 self.git('reset', '--hard', '--quiet', self.base)
                 self.write(path)
                 self.commit()
                 self.expect(True)
+
+    def test_ios_changes_select_only_ios(self):
+        for path in ['iOS/CodeRimMobile/MobileAppModel.swift', 'iOS/CodeRimLiveActivity/CodeRimLiveViews.swift',
+                     'iOS/CodeRimMobileTests/MobileContractTests.swift', 'iOS/generate_project.py',
+                     'iOS/Config/CodeRimMobile-Info.plist', 'iOS/CodeRimMobile.xcodeproj/project.pbxproj']:
+            with self.subTest(path=path):
+                self.git('reset', '--hard', '--quiet', self.base)
+                self.write(path)
+                self.commit()
+                self.expect((False, True, False))
+
+    def test_mac_runtime_changes_select_tests_and_release(self):
+        for path in ['Sources/CodeRim/Notch/NotchViewModel.swift', 'Sources/CodeRimUsageCore/TokenUsage.swift',
+                     'Sources/CodeRimCLI/main.swift', 'Sources/CodeRimClaudeBridge/main.swift',
+                     'Sources/ClaudeBridgeCore/ClaudeRateLimitCodec.swift', 'Sources/CSQLite/module.modulemap',
+                     'Sources/CodeRimWidget/CodeRimWidget.swift', 'WidgetExtension/CodeRimWidget.xcodeproj/project.pbxproj',
+                     'Assets/AppIcon.icns']:
+            with self.subTest(path=path):
+                self.git('reset', '--hard', '--quiet', self.base)
+                self.write(path)
+                self.commit()
+                self.expect((True, False, True))
+
+    def test_mac_test_changes_skip_ios_and_release(self):
+        for path in ['Tests/CodeRimTests/Providers/ProviderMatrixTests.swift',
+                     'Tests/CodeRimUsageCoreTests/UsageCoreTests.swift',
+                     'Tests/CodeRimCompanionTests/CompanionTests.swift']:
+            with self.subTest(path=path):
+                self.git('reset', '--hard', '--quiet', self.base)
+                self.write(path)
+                self.commit()
+                self.expect((True, False, False))
+
+    def test_mixed_platform_changes_select_both_and_release(self):
+        self.write('Sources/CodeRim/Notch/NotchViewModel.swift')
+        self.write('iOS/CodeRimMobile/MobileAppModel.swift')
+        self.commit()
+        self.expect(True)
+
+    def test_deleted_or_moved_files_keep_the_original_platform_checks(self):
+        for path, expected in [('iOS/CodeRimMobile/App.swift', (False, True, False)),
+                               ('Sources/CodeRim/App.swift', (True, False, True)),
+                               ('Sources/CodeRimShared/MobileModels.swift', (True, True, True))]:
+            for moved in [False, True]:
+                with self.subTest(path=path, moved=moved):
+                    self.git('reset', '--hard', '--quiet', self.base)
+                    self.write(path)
+                    self.commit()
+                    original = self.git('rev-parse', 'HEAD').strip()
+                    if moved:
+                        self.write('Windows/placeholder.txt')
+                        self.git('mv', path, 'Windows/moved.swift')
+                    else:
+                        self.git('rm', path)
+                    self.commit()
+                    self.expect(expected, [original])
 
     def test_missing_or_zero_base_runs_all_jobs(self):
         for base in [[], [''], ['0'], ['0' * 40]]:

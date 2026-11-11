@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../../Windows/src/CodeRim.UsageCore/Domain/TokenUsage.cs" Link="TokenUsage.cs" />
+    <Compile Include="../../../Windows/src/CodeRim.UsageCore/Domain/UsageModels.cs" Link="UsageModels.cs" />
+    <Compile Include="../../../Windows/src/CodeRim.UsageCore/Domain/UsageNormalizer.cs" Link="UsageNormalizer.cs" />
+    <Compile Include="../../../Windows/src/CodeRim.UsageCore/Parsing/CodexJsonlParser.cs" Link="CodexJsonlParser.cs" />
+  </ItemGroup>
+</Project>

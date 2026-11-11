@@ -10,6 +10,7 @@
     <Compile Include="../../tests/MsiUpdateQa.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="../CodeRim.UsageCore/CodeRim.UsageCore.csproj" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />

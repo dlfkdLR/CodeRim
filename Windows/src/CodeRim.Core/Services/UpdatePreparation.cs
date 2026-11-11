@@ -5,7 +5,7 @@ namespace CodeRim.Core.Services;
 // Tracks only files successfully CreateNew'd by this invocation. No unknown/replaced file is eligible for pre-commit cleanup.
 internal sealed class UpdatePreparation : IDisposable
 {
-    private sealed record Owned(string Path, long Size, string Hash, UsageScanner.FileIdentity? Identity);
+    private sealed record Owned(string Path, long Size, string Hash, SourceFileIdentity? Identity);
     private readonly string root;
     private readonly List<Owned> owned = [];
     private bool retained;
@@ -27,7 +27,7 @@ internal sealed class UpdatePreparation : IDisposable
                 else
                 {
                     output.Position = 0;
-                    owned.Add(new(path, output.Length, Convert.ToHexStringLower(SHA256.HashData(output)), UsageScanner.FileIdentity.TryRead(output.SafeFileHandle)));
+                    owned.Add(new(path, output.Length, Convert.ToHexStringLower(SHA256.HashData(output)), SourceFileIdentity.TryRead(output.SafeFileHandle)));
                 }
             }
             catch (Exception exception) when (UpdateBootstrap.Expected(exception)) { incomplete = true; }
@@ -50,7 +50,7 @@ internal sealed class UpdatePreparation : IDisposable
             {
                 InstallFileSystem.CheckPath(file.Path); InstallFileSystem.CheckStreams(file.Path);
                 using var input = new FileStream(file.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
-                if (input.Length != file.Size || UsageScanner.FileIdentity.TryRead(input.SafeFileHandle) != file.Identity
+                if (input.Length != file.Size || SourceFileIdentity.TryRead(input.SafeFileHandle) != file.Identity
                     || Convert.ToHexStringLower(SHA256.HashData(input)) != file.Hash) return;
             }
             foreach (var file in owned) { InstallFileSystem.CheckPath(file.Path); File.Delete(file.Path); }

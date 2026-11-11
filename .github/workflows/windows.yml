@@ -2,9 +2,7 @@ name: Windows
 on:
   push:
     branches: [main]
-    paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', 'Tests/Fixtures/**', '.gitattributes', '.github/workflows/windows.yml']
   pull_request:
-    paths: ['Windows/**', 'Sources/CodeRim/Resources/ProviderScripts/**', 'Tests/Fixtures/**', '.gitattributes', '.github/workflows/windows.yml']
   workflow_dispatch:
     inputs:
       msi_handoff:
@@ -18,8 +16,24 @@ concurrency:
   cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 jobs:
-  test-and-package:
+  windows-changes:
     if: ${{ inputs.msi_handoff != true }}
+    runs-on: ubuntu-24.04
+    outputs:
+      windows: ${{ steps.changes.outputs.windows }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Detect Windows build inputs
+        id: changes
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: bash Scripts/ci_windows_changes.sh "$BASE" >> "$GITHUB_OUTPUT"
+
+  windows-build:
+    needs: windows-changes
+    if: ${{ inputs.msi_handoff != true && needs.windows-changes.outputs.windows == 'true' }}
     runs-on: windows-2025
     timeout-minutes: 60
     steps:
@@ -27,6 +41,8 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.x'
+      - name: Test dependency-free usage core
+        run: dotnet test Windows/tests/CodeRim.UsageCore.Tests --configuration Release
       - name: Test numeric history, scripts, and contracts
         run: dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
       - name: Saved-account probe regression tests
@@ -81,7 +97,7 @@ jobs:
 
   native-x64:
     if: ${{ inputs.msi_handoff != true }}
-    needs: test-and-package
+    needs: windows-build
     runs-on: windows-2025
     timeout-minutes: 60
     steps:
@@ -130,9 +146,9 @@ jobs:
             Artifacts/windows-*.txt
             Artifacts/windows-msi-*.log
 
-  native-arm64:
-    if: ${{ inputs.msi_handoff != true }}
-    needs: test-and-package
+  windows-arm64-core:
+    needs: windows-changes
+    if: ${{ inputs.msi_handoff != true && needs.windows-changes.outputs.windows == 'true' }}
     runs-on: windows-11-arm
     timeout-minutes: 60
     steps:
@@ -140,6 +156,8 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           dotnet-version: '10.0.x'
+      - name: Test dependency-free usage core
+        run: dotnet test Windows/tests/CodeRim.UsageCore.Tests --configuration Release
       - name: Test core on Windows ARM64
         run: dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
       - name: Saved-account probe regression tests
@@ -150,8 +168,26 @@ jobs:
         run: ./Windows/Scripts/test_msix_manifest.ps1
       - name: Validate signed payload manifest generator
         run: python Windows/Scripts/test_update_payload_manifest.py
-      - name: Build WPF application and CLI
-        run: dotnet build Windows/CodeRim.Windows.sln --configuration Release
+      - name: Upload ARM64 core test results
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: CodeRim-Windows-ARM64-Core
+          path: Windows/tests/**/TestResults/**
+          if-no-files-found: ignore
+
+  windows-arm64-tests:
+    if: ${{ inputs.msi_handoff != true }}
+    needs: [windows-build, windows-arm64-core]
+    runs-on: windows-11-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: '10.0.x'
+      - name: Build the independent process fixture for native smoke tests
+        run: dotnet build Windows/tests/CodeRim.ProcessFixture --configuration Release
       - name: Download the release candidate built by the packaging job
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -190,6 +226,38 @@ jobs:
             Artifacts/windows-*.txt
             Artifacts/windows-msi-*.log
             Windows/tests/**/TestResults/**
+
+  test-and-package:
+    needs: [windows-changes, windows-build, native-x64]
+    if: ${{ always() && inputs.msi_handoff != true }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Report the required Windows result
+        env:
+          CHECKS_RESULT: ${{ needs.windows-changes.result }}
+          WINDOWS_REQUIRED: ${{ needs.windows-changes.outputs.windows }}
+          WINDOWS_RESULT: ${{ needs.windows-build.result }}
+          NATIVE_RESULT: ${{ needs.native-x64.result }}
+        run: |
+          bash Scripts/ci_required_result.sh "$CHECKS_RESULT" "$WINDOWS_REQUIRED" "$WINDOWS_RESULT"
+          bash Scripts/ci_required_result.sh "$CHECKS_RESULT" "$WINDOWS_REQUIRED" "$NATIVE_RESULT"
+
+  native-arm64:
+    needs: [windows-changes, windows-arm64-core, windows-arm64-tests]
+    if: ${{ always() && inputs.msi_handoff != true }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Report the required Windows result
+        env:
+          CHECKS_RESULT: ${{ needs.windows-changes.result }}
+          WINDOWS_REQUIRED: ${{ needs.windows-changes.outputs.windows }}
+          WINDOWS_RESULT: ${{ needs.windows-arm64-tests.result }}
+          CORE_RESULT: ${{ needs.windows-arm64-core.result }}
+        run: |
+          bash Scripts/ci_required_result.sh "$CHECKS_RESULT" "$WINDOWS_REQUIRED" "$CORE_RESULT"
+          bash Scripts/ci_required_result.sh "$CHECKS_RESULT" "$WINDOWS_REQUIRED" "$WINDOWS_RESULT"
 
   msi-handoff:
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.msi_handoff == true }}

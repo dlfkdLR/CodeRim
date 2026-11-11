@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import Darwin
 import Foundation
 import XCTest

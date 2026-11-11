@@ -72,7 +72,7 @@ internal sealed partial class DashboardStore
                 return;
             }
             cancellation.Token.ThrowIfCancellationRequested();
-            var periodStart = UsageScanner.CurrentPeriodStart(DateTimeOffset.Now, settings.Current.WeekStart);
+            var periodStart = UsageAggregation.CurrentPeriodStart(DateTimeOffset.Now, settings.Current.WeekStart);
             // As above: a rebuild whose follow-up is cancelled (the two-minute deadline) or fails leaves the next
             // refresh to re-read the rebuilt database, never to reuse the events from before it.
             storedScans.Remove(id);
@@ -91,7 +91,7 @@ internal sealed partial class DashboardStore
             Events[id] = events; SessionDetails[id] = sessions;
             if (labels is not null) CodexAnalyticsLabels = labels;
             // A rebuild reads every source completely; only marked records can make a range partial.
-            Usage[id] = UsageScanner.Aggregate(events, through, settings.Current.WeekStart, repaired, sourcesPartial: false);
+            Usage[id] = UsageAggregation.Aggregate(events, through, settings.Current.WeekStart, repaired, sourcesPartial: false);
             DataStatistics[id] = statistics;
             PublishLocalAnalyticsRead(id, through, epoch, maintenance: true);
             DataOperationMessages[id] = "Statistics rebuilt."; Persist();

@@ -41,11 +41,14 @@ public static class MobileSnapshotBuilder
         var providers = snapshot.Providers.Where(p => p.Enabled).Take(100).Select(p =>
         {
             var reading = p.Limits.Evaluated(now);
-            var tokens = p.LocalUsage?.Totals.GetValueOrDefault("today").TotalTokens;
-            return new MobileProvider(p.Id, Short(p.Name, 32), State(reading.State), reading.Windows.Take(2).Select(w => new MobileWindow(Short(w.Name, 32),
+            var windows = reading.Headline is { } headline
+                ? new[] { headline }.Concat(reading.Windows.Where(window => window.Id != headline.Id)) : reading.Windows;
+            var local = p.LocalUsage?.Evaluated(now);
+            var tokens = local?.Totals.GetValueOrDefault("today").TotalTokens;
+            return new MobileProvider(p.Id, Short(p.Name, 32), State(reading.State), windows.Take(2).Select(w => new MobileWindow(Short(w.Name, 32),
                 w.UsedPercent is { } used && double.IsFinite(used) && used is >= 0 and <= 100 ? 100 - used : null,
                 Seconds(w.ResetsAt))).ToArray(), tokens is >= 0 and <= 9_007_199_254_740_991 ? tokens : null,
-                p.LocalUsage?.State ?? "unavailable", Seconds(reading.UpdatedAt));
+                local is { Stale: true } ? "stale" : local?.State ?? "unavailable", Seconds(reading.UpdatedAt));
         }).ToArray();
         var enabled = providers.Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
         var activity = sessions.Where(s => enabled.Contains(s.Provider)).Select(s => new MobileSession(s.Provider,
@@ -119,9 +122,17 @@ public sealed class MobileRelayClient : IDisposable
         // Disposing the response aborts the connection, and WaitAsync returns at the deadline even if
         // a stream does not observe cancellation itself.
         using var abort = cancellationToken.Register(static state => ((IDisposable)state!).Dispose(), response);
-        await response.Content.LoadIntoBufferAsync(262144, cancellationToken).WaitAsync(cancellationToken).ConfigureAwait(false);
-        var result = await response.Content.ReadFromJsonAsync<T>(Json, cancellationToken).WaitAsync(cancellationToken).ConfigureAwait(false);
-        return result ?? throw new InvalidDataException("Empty relay response.");
+        try
+        {
+            await response.Content.LoadIntoBufferAsync(262144, cancellationToken).WaitAsync(cancellationToken).ConfigureAwait(false);
+            var result = await response.Content.ReadFromJsonAsync<T>(Json, cancellationToken).WaitAsync(cancellationToken).ConfigureAwait(false);
+            return result ?? throw new InvalidDataException("Empty relay response.");
+        }
+        catch (ObjectDisposedException error) when (cancellationToken.IsCancellationRequested)
+        {
+            // The deadline can dispose the content just before buffering starts.
+            throw new OperationCanceledException("Relay request deadline elapsed or was cancelled.", error, cancellationToken);
+        }
     }
     public static MobileToken ValidateIssuedToken(MobileToken issued, DateTimeOffset now)
     {

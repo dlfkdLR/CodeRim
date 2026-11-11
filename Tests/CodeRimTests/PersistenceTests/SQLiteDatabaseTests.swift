@@ -1,4 +1,6 @@
+import CodeRimUsageCore
 import CSQLite
+import Darwin
 import Foundation
 import XCTest
 @testable import CodeRim
@@ -606,6 +608,65 @@ final class SQLiteDatabaseTests: XCTestCase {
         XCTAssertEqual(databaseMode, 0o600)
         XCTAssertEqual(startupLockMode, 0o600)
         XCTAssertEqual(fingerprintKeyMode, 0o600)
+    }
+
+    func testPartialFingerprintKeyWriteDoesNotPreventRetry() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("usage.sqlite")
+        let keyURL = URL(fileURLWithPath: url.path + ".fingerprint-key")
+
+        XCTAssertThrowsError(try SQLiteDatabase.$beforeFingerprintKeyWriteForTesting.withValue({ descriptor in
+            let partial = Data(repeating: 7, count: 8)
+            let count = partial.withUnsafeBytes { Darwin.write(descriptor, $0.baseAddress!, $0.count) }
+            XCTAssertEqual(count, partial.count)
+            throw POSIXError(.ENOSPC)
+        }) {
+            try SQLiteDatabase(url: url)
+        })
+        XCTAssertFalse(FileManager.default.fileExists(atPath: keyURL.path))
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: directory.path), ["usage.sqlite.startup.lock"])
+
+        let database = try SQLiteDatabase(url: url)
+        let key = await database.sourceFingerprintKey()
+        XCTAssertEqual(key.count, 32)
+        XCTAssertEqual(try Data(contentsOf: keyURL), key)
+        let reopened = try SQLiteDatabase(url: url)
+        let reopenedKey = await reopened.sourceFingerprintKey()
+        XCTAssertEqual(reopenedKey, key)
+    }
+
+    func testInvalidExistingFingerprintKeyIsNeverRegenerated() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("usage.sqlite")
+        let keyURL = URL(fileURLWithPath: url.path + ".fingerprint-key")
+        let invalidKey = Data(repeating: 7, count: 8)
+        try invalidKey.write(to: keyURL)
+
+        XCTAssertThrowsError(try SQLiteDatabase(url: url))
+        XCTAssertEqual(try Data(contentsOf: keyURL), invalidKey)
+    }
+
+    func testFingerprintKeyPublishNeverReplacesConcurrentKey() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("usage.sqlite")
+        let keyURL = URL(fileURLWithPath: url.path + ".fingerprint-key")
+        let concurrentKey = Data(repeating: 9, count: 32)
+
+        XCTAssertThrowsError(try SQLiteDatabase.$beforeFingerprintKeyWriteForTesting.withValue({ _ in
+            try concurrentKey.write(to: keyURL)
+        }) {
+            try SQLiteDatabase(url: url)
+        })
+        XCTAssertEqual(try Data(contentsOf: keyURL), concurrentKey)
+        XCTAssertFalse(try FileManager.default.contentsOfDirectory(atPath: directory.path).contains { $0.hasSuffix(".tmp") })
+
+        let database = try SQLiteDatabase(url: url)
+        let key = await database.sourceFingerprintKey()
+        XCTAssertEqual(key, concurrentKey)
     }
 
     func testFutureOnlyEventsDoNotMakeTheCurrentSnapshotLookAvailable() async throws {

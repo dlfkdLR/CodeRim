@@ -35,7 +35,7 @@ The recorded deployment uses project `willbrains-projects/coderim`, [coderim.ver
 vercel deploy --prod --scope willbrains-projects
 ```
 
-The page pins macOS `v2.1.35` and Windows `v2.1.34`. Before deployment, verify the platform-specific published assets and update versions, download/checksum URLs and release-note links together; do not assume `releases/latest` identifies both platforms.
+The page pins macOS `v2.1.36` and Windows `v2.1.34`. Before deployment, verify the platform-specific published assets and update versions, download/checksum URLs and release-note links together; do not assume `releases/latest` identifies both platforms.
 
 ## Images and motion
 

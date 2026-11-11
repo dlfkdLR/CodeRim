@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import Charts
 import SwiftUI
 

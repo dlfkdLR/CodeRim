@@ -44,7 +44,7 @@ internal static partial class NativeSmoke
                 index % 2 == 1 ? "session-0" : null, [new("image-" + index, now.AddDays(-20), 2)]))
                 .Append(new("session-old", "session-0", [])).ToArray());
             store.SessionDetails["codex"] = metadata; store.CodexAnalyticsLabels = new Dictionary<string, CodexAnalyticsLabel>();
-            store.Usage["codex"] = UsageScanner.Aggregate(store.Events["codex"], now, settings.Current.WeekStart, false);
+            store.Usage["codex"] = UsageAggregation.Aggregate(store.Events["codex"], now, settings.Current.WeekStart, false);
             store.RecordLocalAnalyticsRead("codex", now);
             var pane = new UsagePane(store, settings, "codex", _ => { }, initialSection: CodeRim.Core.Services.SettingsUsageSection.Overview) { Width = 360 };
             // Settings owns one outer viewport; do not introduce a popover-sized inner scrollbar.

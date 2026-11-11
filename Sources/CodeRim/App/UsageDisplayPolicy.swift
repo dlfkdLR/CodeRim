@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import Foundation
 
 enum UsageHistoryScope: String, Hashable, Sendable {

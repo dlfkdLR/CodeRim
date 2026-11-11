@@ -85,7 +85,11 @@ if (Test-Path $publishRoot) {
 }
 New-Item -ItemType Directory -Force -Path $publishRoot, $artifactRoot | Out-Null
 
-Publish-Project $projectPath $publishRoot 'Application publish failed.' @("-p:CodeRimPublisherSpkiSha256=$PublisherSpkiSha256")
+$executablePath = Join-Path $publishRoot "CodeRim.exe"
+if ($SigningMode -eq 'Required') {
+    Publish-Project $projectPath $publishRoot 'Application publish failed.' @("-p:CodeRimPublisherSpkiSha256=$PublisherSpkiSha256")
+    if (-not (Test-Path $executablePath)) { throw "Published executable is missing: $executablePath" }
+}
 Publish-Project (Join-Path $windowsRoot "src\CodeRim.CLI\CodeRim.CLI.csproj") $publishRoot 'CLI publish failed.'
 Copy-Item (Join-Path $PSScriptRoot 'install.ps1'), (Join-Path $PSScriptRoot 'connect-claude.ps1') $publishRoot
 New-Item -ItemType Directory -Force (Join-Path $publishRoot 'bin') | Out-Null
@@ -95,11 +99,6 @@ foreach ($notice in @('LICENSE', 'NOTICE')) {
     Copy-Item -LiteralPath (Join-Path $projectRoot $notice) -Destination (Join-Path $publishRoot ($notice + '.txt'))
 }
 Copy-Item (Join-Path $projectRoot 'Documentation\WINDOWS.md') (Join-Path $publishRoot 'README.md')
-$executablePath = Join-Path $publishRoot "CodeRim.exe"
-if (-not (Test-Path $executablePath)) {
-    throw "Published executable is missing: $executablePath"
-}
-
 $workerProject = Join-Path $windowsRoot 'src\CodeRim.UpdateWorker\CodeRim.UpdateWorker.csproj'
 $resourceArguments = @('-p:CodeRimPublisherSpkiSha256=', '-p:CodeRimUpdateWin32Resource=')
 if ($SigningMode -eq 'Required') {
@@ -125,6 +124,7 @@ else {
     # Pin the already-installed bootstrap worker in the GUI before building a public MSI.
     $installerWorkerHash = (Get-FileHash $workerPath -Algorithm SHA256).Hash.ToLowerInvariant()
     Publish-Project $projectPath $publishRoot 'Installer bootstrap pin publish failed.' @("-p:CodeRimInstallerWorkerSha256=$installerWorkerHash", '-p:CodeRimPublisherSpkiSha256=')
+    if (-not (Test-Path $executablePath)) { throw "Published executable is missing: $executablePath" }
     $bootstrap = @{version=$Version; workerSha256=$installerWorkerHash; guiSha256=(Get-FileHash $executablePath -Algorithm SHA256).Hash.ToLowerInvariant()}
     [IO.File]::WriteAllText((Join-Path $publishRoot 'CodeRim.bootstrap.json'), ($bootstrap | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
 }

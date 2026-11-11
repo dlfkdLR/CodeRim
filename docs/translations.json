@@ -90,6 +90,8 @@
     "docs/troubleshooting.md": "docs/ko/troubleshooting.md",
     "Documentation/README.md": "Documentation/README.ko.md",
     "Documentation/ARCHITECTURE.md": "Documentation/ARCHITECTURE.ko.md",
+    "Documentation/REFACTOR_PLAN.md": "Documentation/REFACTOR_PLAN.ko.md",
+    "Experiments/Normalization/README.md": "Experiments/Normalization/README.ko.md",
     "Documentation/USAGE.md": "Documentation/USAGE.ko.md",
     "Documentation/CLAUDE.md": "Documentation/CLAUDE.ko.md",
     "Documentation/ACCOUNTS.md": "Documentation/ACCOUNTS.ko.md",

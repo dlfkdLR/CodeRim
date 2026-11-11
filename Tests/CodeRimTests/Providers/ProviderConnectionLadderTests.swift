@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import AppKit
 import CodexBarCore
 import Darwin
@@ -500,6 +501,23 @@ final class ProviderConnectionLadderTests: XCTestCase {
         XCTAssertEqual(base.host, "127.0.0.1")
         XCTAssertNil(Self.raw(host: Self.lanAddress(), port: base.port!, chunks: [Data("GET / HTTP/1.1\r\n\r\n".utf8)], gap: 0, readTimeout: 1),
                      "another machine on the network must not reach the redirect")
+    }
+
+    func test44b_ConcurrentRedirectsOwnDistinctReachablePorts() async throws {
+        let servers = (0..<32).map { _ in OAuthLoopbackServer(state: "parallel") }
+        defer { servers.forEach { $0.stop() } }
+        let urls = try await withThrowingTaskGroup(of: URL.self) { group in
+            for server in servers { group.addTask { try await server.start() } }
+            var urls: [URL] = []
+            for try await url in group { urls.append(url) }
+            return urls
+        }
+        XCTAssertEqual(Set(urls.compactMap(\.port)).count, servers.count)
+        for url in urls {
+            XCTAssertEqual(url.host, "127.0.0.1")
+            let status = try await Self.status(URL(string: url.absoluteString + "?code=C&state=parallel")!)
+            XCTAssertEqual(status, 200)
+        }
     }
 
     // MARK: Level 3 — GitHub device flow

@@ -4,7 +4,9 @@
 
 CodeRim은 집계 정확성, 로컬 개인정보, 기본 동작, 기존 [디자인 기준](DESIGN.ko.md)을 유지하는 작고 검토 가능한 변경을 지향합니다.
 
-macOS 코드 변경은 영향받는 파이프라인에 맞는 검사를 실행합니다. 저장소 CI는 다음 폭넓은 검사도 실행합니다.
+macOS 코드 변경은 영향받는 파이프라인에 맞는 검사를 실행합니다. 저장소 의존성 없는 사용량 모듈은 `Sources/CodeRimUsageCore`와 `Windows/src/CodeRim.UsageCore`입니다. UI·저장·인증·전송은 실행 계층에 둡니다. 공통 합성 사례는 `Tests/Fixtures`에 저장합니다. Swift 코어 계약은 `CodeRimUsageCoreTests`에서 실행하며 Windows는 빌드 안내에 있는 두 테스트 프로젝트를 모두 실행합니다.
+
+CI는 다음 폭넓은 검사도 실행합니다.
 
 ```sh
 python3 Scripts/prepare_swift_dependencies.py
@@ -17,7 +19,9 @@ for test_script in Tests/Scripts/*_tests.zsh; do "$test_script"; done
 Scripts/build_release.sh
 ```
 
-CI는 Swift 테스트·iOS 테스트·Universal 릴리스 빌드를 병렬 실행합니다. Swift 캐시는 빌드 종류·도구 버전·고정 의존성별로 분리하고, 내용이 일치하는 소스의 시간 정보만 복원해 증분 컴파일을 유지합니다. Windows는 한 번 패키징한 정확한 아카이브를 x64·ARM64에서 병렬 검증합니다. 문서·웹사이트·Relay·Windows만 바꾸면 빠른 검사를 유지하고 Apple 빌드는 생략합니다. 기능 브랜치는 PR 검사로 실행하며, `main` push와 전체 수동 실행도 지원합니다.
+CI는 Mac 테스트·iOS 테스트·Universal 릴리스 빌드를 각각 선택합니다. Mac만 바꾸면 iOS를, iOS만 바꾸면 Mac 빌드를 생략하며, 공통 입력이나 알 수 없는 경로는 Apple 검사를 모두 실행합니다. iOS 단위 테스트는 `CodeRimMobileUnitTests` scheme과 선택한 시뮬레이터 아키텍처를 사용하고, `CodeRimMobile` scheme은 UI 테스트를 유지합니다. Swift 캐시는 빌드 종류·도구 버전·고정 의존성별로 분리하고, 내용이 일치하는 소스의 시간 정보만 복원해 증분 컴파일을 유지합니다. Mac 테스트의 의존성 패치 동일성 검사는 계속 필수로 실행합니다. Windows ARM64 코어 테스트는 패키징과 병렬 실행하고, 이후 x64·ARM64 네이티브 테스트가 정확한 패키지 아카이브를 검증합니다. 문서·웹사이트·Relay·Windows만 바꾸면 빠른 검사를 유지하고 Apple 빌드는 생략합니다. `Windows/README.md`·`Windows/README.ko.md`만 바꾸면 Windows 빌드를 생략하지만 패키지에 포함되는 고지문은 Windows 검사를 실행합니다. 기능 브랜치는 PR 검사로 실행하며, `main` push와 전체 수동 실행도 지원합니다.
+
+필수 `build-and-test`·`test-and-package`·`native-arm64` 결과는 항상 게시합니다. 입력이 바뀌면 실제 Apple·Windows 작업을 실행하며, 문서만 바뀌면 빠른 검사와 필요 없는 플랫폼 작업의 명시적 결과를 유지합니다. 필요한 플랫폼 작업이 실패·취소·누락되면 성공으로 판정하지 않습니다. Apple 최종 결과는 Mac 테스트·iOS 테스트·릴리스 빌드를 모두 포함합니다. Windows 최종 결과는 패키징·x64 네이티브 실행·`windows-arm64-core`·`windows-arm64-tests`를 모두 포함하며 필수 검사 이름은 유지합니다.
 
 준비 명령은 `Config/DependencyPatches`의 검토된 CodexBar Swift·C 경고 수정을 전용 `.build/coderim-build` 안에만 적용하고, 고정 revision과 SwiftPM repository 연결을 유지합니다. 래퍼는 준비·빌드·테스트·사후 소스 해시 및 `Package.resolved` 확인까지 같은 잠금을 유지합니다. CI와 릴리스 빌드는 Swift 컴파일 경고가 있으면 실패합니다. 기존 수동 빌드, editable override, 전역 SwiftPM 캐시는 보존합니다. 별도 `--scratch-path`는 `--run-swift` 앞에 지정하고, 도구 버전에 따른 제품 위치는 `--show-bin-path`로 확인합니다.
 

@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import CSQLite
 import CryptoKit
 import XCTest

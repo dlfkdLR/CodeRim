@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import CodexBarCore
 import Foundation
 import XCTest
@@ -166,6 +167,11 @@ final class ProviderAddFlowMatrixTests: XCTestCase {
         let ids = MainActor.assumeIsolated { providers.map(\.id) }
         for id in ids {
             for flow in Flow.allCases {
+                // Missing-command preflight applies only to terminal sign-ins.
+                if flow == .toolMissing {
+                    let route = MainActor.assumeIsolated { Self.route(for: id) }
+                    guard let route, case .guided(let guided) = route, case .terminal = guided.action else { continue }
+                }
                 let test = ProviderAddFlowMatrixTests(selector: #selector(runCase))
                 test.providerID = id; test.flow = flow
                 suite.addTest(test)

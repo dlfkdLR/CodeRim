@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import SwiftUI
 
 /// A window-sized summary. Totals use the same display policy as the compact

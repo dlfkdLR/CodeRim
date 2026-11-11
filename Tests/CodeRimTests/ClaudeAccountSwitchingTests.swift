@@ -214,6 +214,41 @@ final class ClaudeAccountStoreTests: XCTestCase {
         XCTAssertTrue(fixture.store.message?.contains("2 running Claude Code sessions") == true)
     }
 
+    func testFailedRotatedTokenSavePreservesLiveLoginAndFinishesInvalidation() async throws {
+        let fixture = try ClaudeAccountFixture()
+        let destination = try ClaudeAccountFixture.saved("two")
+        let original = try ClaudeAccountFixture.snapshot("one")
+        var secure = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(original.credentials)) as? [String: Any])
+        var oauth = try XCTUnwrap(secure["claudeAiOauth"] as? [String: Any])
+        oauth["refreshToken"] = "synthetic-rotated-refresh"
+        secure["claudeAiOauth"] = oauth
+        let refreshed = ClaudeLoginSnapshot(
+            credentials: try JSONSerialization.data(withJSONObject: secure, options: .sortedKeys),
+            configuration: original.configuration
+        )
+        fixture.vault.accounts = [destination]
+        fixture.runtime.running = true
+        fixture.login.afterWrite = {
+            fixture.login.value = refreshed
+            fixture.vault.failure = .keychain
+        }
+        var before = 0, after = 0
+        fixture.store.onWillSwitch = { before += 1 }
+        fixture.store.onDidSwitch = { after += 1 }
+
+        await fixture.store.switchAccount(to: destination.id)
+
+        XCTAssertEqual(fixture.login.value, refreshed)
+        XCTAssertEqual(fixture.login.writes, 1, "An unsaved rotated token must never be overwritten")
+        XCTAssertEqual(fixture.store.currentID, try refreshed.account()?.id)
+        XCTAssertTrue(fixture.store.isError)
+        XCTAssertEqual(fixture.store.message, ClaudeAccountError.keychain.errorDescription)
+        XCTAssertFalse(fixture.store.isBusy)
+        XCTAssertEqual(before, 1)
+        XCTAssertEqual(after, 1)
+        XCTAssertTrue(fixture.runtime.verifiedIDs.isEmpty)
+    }
+
     func testAddKeepsCurrentLoginAndWaitsForExplicitSwitch() async throws {
         let fixture = try ClaudeAccountFixture()
         fixture.store.addAccount()
@@ -304,8 +339,10 @@ final class MemoryClaudeProfile: ClaudeProfileStoring {
 final class MemoryClaudeVault: ClaudeAccountVault {
     var accounts: [SavedClaudeAccount] = []
     var writes = 0
+    var failure: ClaudeAccountError?
     func load() throws -> [SavedClaudeAccount] { accounts }
     func save(_ accounts: [SavedClaudeAccount]) throws {
+        if let failure { throw failure }
         guard accounts.count <= 12 else { throw ClaudeAccountError.full }
         self.accounts = accounts; writes += 1
     }
@@ -314,11 +351,13 @@ final class MemoryClaudeVault: ClaudeAccountVault {
 final class MemoryClaudeLogin: ClaudeLoginStoring {
     var value: ClaudeLoginSnapshot
     var writes = 0
+    var afterWrite: () -> Void = {}
     init(_ value: ClaudeLoginSnapshot) { self.value = value }
     func read() throws -> ClaudeLoginSnapshot { value }
     func replace(with account: SavedClaudeAccount, expecting original: ClaudeLoginSnapshot) throws {
         guard original == value else { throw ClaudeAccountError.changedLogin }
         value = try ClaudeAccountFixture.snapshot(String(account.email.split(separator: "@")[0])); writes += 1
+        afterWrite()
     }
 }
 

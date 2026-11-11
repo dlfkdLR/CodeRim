@@ -1,7 +1,7 @@
 import CoreFoundation
 import Foundation
 
-enum CodexParsedLine: Equatable, Sendable {
+package enum CodexParsedLine: Equatable, Sendable {
     case sessionMetadata(SessionMetadata)
     case taskStarted(TaskStartedMetadata)
     case turnContext(TurnContextMetadata)
@@ -11,44 +11,47 @@ enum CodexParsedLine: Equatable, Sendable {
     case malformed(String)
 }
 
-struct CodexTokenObservation: Equatable, Sendable {
-    let occurredAt: Date
-    let ordinal: Int64?
-    let lastUsage: TokenUsage?
-    let cumulativeUsage: TokenUsage?
+package struct TurnContextMetadata: Equatable, Sendable {
+    package let model: String?
+    package let workingDirectory: String?
+
+    package init(model: String?, workingDirectory: String?) {
+        self.model = model; self.workingDirectory = workingDirectory
+    }
 }
 
-struct TurnContextMetadata: Equatable, Sendable {
-    let model: String?
-    let workingDirectory: String?
+package struct TaskStartedMetadata: Equatable, Sendable {
+    package let occurredAt: Date
+    package let startedAt: Date?
+    package let ordinal: Int64?
+
+    package init(occurredAt: Date, startedAt: Date?, ordinal: Int64?) {
+        self.occurredAt = occurredAt; self.startedAt = startedAt; self.ordinal = ordinal
+    }
 }
 
-struct TaskStartedMetadata: Equatable, Sendable {
-    let occurredAt: Date
-    let startedAt: Date?
-    let ordinal: Int64?
-}
+package struct ImageAttachmentMetadata: Equatable, Sendable {
+    package let occurredAt: Date
+    package let count: Int
+    package let ordinal: Int64?
 
-struct ImageAttachmentMetadata: Equatable, Sendable {
-    let occurredAt: Date
-    let count: Int
-    let ordinal: Int64?
-
-    init(occurredAt: Date, count: Int, ordinal: Int64? = nil) {
+    package init(occurredAt: Date, count: Int, ordinal: Int64? = nil) {
         self.occurredAt = occurredAt
         self.count = count
         self.ordinal = ordinal
     }
 }
 
-struct CodexJSONLParser: Sendable {
-    static let maximumLineBytes = 1_048_576
-    static let maximumTokenComponent: Int64 = 1_000_000_000_000
+package struct CodexJSONLParser: Sendable {
+    package init() {}
+
+    package static let maximumLineBytes = 1_048_576
+    package static let maximumTokenComponent: Int64 = 1_000_000_000_000
     private static let maximumIdentifierLength = 256
     private static let maximumModelLength = 256
     private static let maximumPathLength = 4_096
 
-    func parse(_ line: Data) -> CodexParsedLine {
+    package func parse(_ line: Data) -> CodexParsedLine {
         guard !line.isEmpty else { return .ignored }
         guard line.count <= Self.maximumLineBytes else {
             return .malformed("line exceeds the 1 MiB safety limit")

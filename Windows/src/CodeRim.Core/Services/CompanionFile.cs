@@ -16,6 +16,11 @@ public sealed record LocalUsage(string Scope, string State, DateTimeOffset? Upda
     string TimeZoneIdentifier, Dictionary<string, TokenUsage> Totals)
 {
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)] public bool Stale { get; init; }
+
+    public LocalUsage Evaluated(DateTimeOffset now) => State is "ready" or "partial" or "stale"
+        && (Stale || now - PeriodsAsOf > TimeSpan.FromMinutes(5) || PeriodsAsOf > now.AddMinutes(1)
+            || PeriodsAsOf.LocalDateTime.Date != now.LocalDateTime.Date || TimeZoneIdentifier != TimeZoneInfo.Local.Id)
+        ? this with { State = State == "partial" ? "partial" : "stale", Stale = true } : this;
 }
 public static class CompanionFile
 {
@@ -46,9 +51,9 @@ public static class CompanionFile
         var result = JsonSerializer.Deserialize<CompanionSnapshot>(text.ReadToEnd(), JsonOptions)
             ?? throw new InvalidDataException("Snapshot is empty.");
         Validate(result);
-        return result with { Providers = result.Providers.Select(p => p with { Limits = p.Limits.Evaluated(DateTimeOffset.Now), LocalUsage = p.LocalUsage is { } local &&
-            (local.State is "ready" or "partial" or "stale") && (DateTimeOffset.Now - local.PeriodsAsOf > TimeSpan.FromMinutes(5) || local.PeriodsAsOf > DateTimeOffset.Now.AddMinutes(1)
-            || local.PeriodsAsOf.LocalDateTime.Date != DateTime.Today || local.TimeZoneIdentifier != TimeZoneInfo.Local.Id) ? local with { State = local.State == "partial" ? "partial" : "stale", Stale = true } : p.LocalUsage }).ToArray() };
+        var now = DateTimeOffset.Now;
+        return result with { Providers = result.Providers.Select(p => p with
+            { Limits = p.Limits.Evaluated(now), LocalUsage = p.LocalUsage?.Evaluated(now) }).ToArray() };
     }
     public static void Write(CompanionSnapshot snapshot, string? path = null)
     {

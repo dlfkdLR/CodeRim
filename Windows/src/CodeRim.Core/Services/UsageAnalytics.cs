@@ -12,7 +12,7 @@ public sealed record ModelPrice(string Model, decimal InputUSDPerMillionTokens, 
 public sealed record AnalyticsRow(string Name, long Tokens, decimal? Cost, bool Partial);
 public static class UsageAnalytics
 {
-    public const long HighContextInputThreshold = 272_000;
+    public const long HighContextInputThreshold = TokenUsage.HighContextInputThreshold;
     public const string CatalogVersion = "2026-09-14";
     private static readonly Dictionary<string, ModelPrice> Prices = ProviderCatalog.ReadResource<ModelPrice[]>("pricing.json").ToDictionary(x => x.Model, StringComparer.Ordinal);
     public static CostSummary Estimate(IEnumerable<UsageEvent> events, IReadOnlySet<string>? excludingModels = null)

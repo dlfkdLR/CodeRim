@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import Foundation
 
 enum AnalyticsRange: String, CaseIterable, Identifiable, Hashable, Sendable {

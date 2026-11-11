@@ -14,12 +14,24 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeRim.ProcessFixture", "t
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeRim.UpdateWorker", "src\CodeRim.UpdateWorker\CodeRim.UpdateWorker.csproj", "{126E7241-9DDA-46D8-A245-33AF500ED6CD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeRim.UsageCore", "src\CodeRim.UsageCore\CodeRim.UsageCore.csproj", "{79B6A505-E74D-4FEB-992F-25EF91D4A56A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeRim.UsageCore.Tests", "tests\CodeRim.UsageCore.Tests\CodeRim.UsageCore.Tests.csproj", "{3BE54C8E-5605-4CAE-AAB0-22515F7F214C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{79B6A505-E74D-4FEB-992F-25EF91D4A56A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{79B6A505-E74D-4FEB-992F-25EF91D4A56A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{79B6A505-E74D-4FEB-992F-25EF91D4A56A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{79B6A505-E74D-4FEB-992F-25EF91D4A56A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3BE54C8E-5605-4CAE-AAB0-22515F7F214C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3BE54C8E-5605-4CAE-AAB0-22515F7F214C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3BE54C8E-5605-4CAE-AAB0-22515F7F214C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3BE54C8E-5605-4CAE-AAB0-22515F7F214C}.Release|Any CPU.Build.0 = Release|Any CPU
 		{126E7241-9DDA-46D8-A245-33AF500ED6CD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{126E7241-9DDA-46D8-A245-33AF500ED6CD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{126E7241-9DDA-46D8-A245-33AF500ED6CD}.Release|Any CPU.ActiveCfg = Release|Any CPU
