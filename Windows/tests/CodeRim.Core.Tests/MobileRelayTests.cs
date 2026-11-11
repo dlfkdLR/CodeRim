@@ -24,6 +24,51 @@ public sealed class MobileRelayTests
         Assert.Equal("private title", MobileSnapshotBuilder.Create(source, [new("id", "codex", "private title", "waiting", now)], true, now).Sessions[0].Title);
     }
     [Theory]
+    [InlineData("codex")]
+    [InlineData("claude")]
+    public void SnapshotKeepsTheHeadlineBeforeTruncatingWindows(string id)
+    {
+        var now = DateTimeOffset.UtcNow;
+        var reading = new ProviderReading(id, ReadingState.Ready,
+            [new("session", "Session", 25), new("daily", "Daily", 30), new("weekly", "Weekly", 90)], now);
+        var source = new CompanionSnapshot(1, now, [new(id, id, true, null, reading)]);
+        var result = Assert.Single(MobileSnapshotBuilder.Create(source, [], false, now).Providers);
+        Assert.Equal("weekly", reading.Headline!.Id);
+        Assert.Equal("Weekly,Session", string.Join(',', result.Windows.Select(window => window.Name)));
+        Assert.Equal(10, result.Windows[0].RemainingPercent);
+    }
+    [Fact]
+    public void AFailedPartialReadCannotPublishCurrentLocalTokens()
+    {
+        var now = DateTimeOffset.Now;
+        var previous = new UsageSnapshot(new(100, 0, 0), new(100, 0, 0), new(100, 0, 0), new(100, 0, 0), DataQuality.Partial, now)
+            { Through = now, TimeZoneIdentifier = TimeZoneInfo.Local.Id };
+        var local = CompanionFile.Local(LocalTokenPresentation.AfterFailure(previous), now);
+        Assert.Equal("partial", local.State);
+        Assert.True(local.Stale);
+        var source = new CompanionSnapshot(1, now, [new("codex", "Codex", true, local, new("codex", ReadingState.Ready, [], now))]);
+        var result = Assert.Single(MobileSnapshotBuilder.Create(source, [], false, now).Providers);
+        Assert.Equal("stale", result.LocalState);
+        Assert.Equal(100, result.TodayTokens);
+    }
+    [Theory]
+    [InlineData("fresh", "ready")]
+    [InlineData("old", "stale")]
+    [InlineData("future", "stale")]
+    [InlineData("previous-day", "stale")]
+    [InlineData("different-zone", "stale")]
+    public void LocalTokenFreshnessUsesTheOriginalPeriodAndTimeZone(string scenario, string expected)
+    {
+        var midnight = DateTime.SpecifyKind(new DateTime(2026, 11, 11), DateTimeKind.Unspecified);
+        var now = new DateTimeOffset(midnight, TimeZoneInfo.Local.GetUtcOffset(midnight)).AddSeconds(10);
+        var asOf = scenario switch { "old" => now.AddMinutes(-6), "future" => now.AddMinutes(2), "previous-day" => now.AddSeconds(-20), _ => now };
+        var zone = scenario == "different-zone" ? TimeZoneInfo.Local.Id + "-changed" : TimeZoneInfo.Local.Id;
+        var local = new LocalUsage("this-pc", "ready", now, asOf, zone, new() { ["today"] = new(100, 0, 0) });
+        var source = new CompanionSnapshot(1, now, [new("codex", "Codex", true, local, new("codex", ReadingState.Ready, [], now))]);
+        var result = Assert.Single(MobileSnapshotBuilder.Create(source, [], false, now).Providers);
+        Assert.Equal(expected, result.LocalState);
+    }
+    [Theory]
     [InlineData("http://relay.example.com")]
     [InlineData("https://user:password@relay.example.com")]
     [InlineData("https://relay.example.com/path")]

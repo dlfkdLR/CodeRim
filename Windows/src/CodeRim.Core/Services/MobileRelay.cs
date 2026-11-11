@@ -41,11 +41,14 @@ public static class MobileSnapshotBuilder
         var providers = snapshot.Providers.Where(p => p.Enabled).Take(100).Select(p =>
         {
             var reading = p.Limits.Evaluated(now);
-            var tokens = p.LocalUsage?.Totals.GetValueOrDefault("today").TotalTokens;
-            return new MobileProvider(p.Id, Short(p.Name, 32), State(reading.State), reading.Windows.Take(2).Select(w => new MobileWindow(Short(w.Name, 32),
+            var windows = reading.Headline is { } headline
+                ? new[] { headline }.Concat(reading.Windows.Where(window => window.Id != headline.Id)) : reading.Windows;
+            var local = p.LocalUsage?.Evaluated(now);
+            var tokens = local?.Totals.GetValueOrDefault("today").TotalTokens;
+            return new MobileProvider(p.Id, Short(p.Name, 32), State(reading.State), windows.Take(2).Select(w => new MobileWindow(Short(w.Name, 32),
                 w.UsedPercent is { } used && double.IsFinite(used) && used is >= 0 and <= 100 ? 100 - used : null,
                 Seconds(w.ResetsAt))).ToArray(), tokens is >= 0 and <= 9_007_199_254_740_991 ? tokens : null,
-                p.LocalUsage?.State ?? "unavailable", Seconds(reading.UpdatedAt));
+                local is { Stale: true } ? "stale" : local?.State ?? "unavailable", Seconds(reading.UpdatedAt));
         }).ToArray();
         var enabled = providers.Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
         var activity = sessions.Where(s => enabled.Contains(s.Provider)).Select(s => new MobileSession(s.Provider,

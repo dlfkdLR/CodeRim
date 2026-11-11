@@ -18,7 +18,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     outputs:
-      apple: ${{ steps.changes.outputs.apple }}
+      macos: ${{ steps.changes.outputs.macos }}
+      ios: ${{ steps.changes.outputs.ios }}
+      release: ${{ steps.changes.outputs.release }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -47,7 +49,7 @@ jobs:
 
   apple-tests:
     needs: checks
-    if: needs.checks.outputs.apple == 'true'
+    if: needs.checks.outputs.macos == 'true'
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -96,7 +98,7 @@ jobs:
         run: python3 Scripts/ci_source_mtimes.py save
 
   build-and-test:
-    needs: [checks, apple-tests]
+    needs: [checks, apple-tests, ios-tests, release-build]
     if: ${{ always() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -105,13 +107,20 @@ jobs:
       - name: Report the required CI result
         env:
           CHECKS_RESULT: ${{ needs.checks.result }}
-          APPLE_REQUIRED: ${{ needs.checks.outputs.apple }}
+          MACOS_REQUIRED: ${{ needs.checks.outputs.macos }}
           APPLE_RESULT: ${{ needs.apple-tests.result }}
-        run: bash Scripts/ci_required_result.sh "$CHECKS_RESULT" "$APPLE_REQUIRED" "$APPLE_RESULT"
+          IOS_REQUIRED: ${{ needs.checks.outputs.ios }}
+          IOS_RESULT: ${{ needs.ios-tests.result }}
+          RELEASE_REQUIRED: ${{ needs.checks.outputs.release }}
+          RELEASE_RESULT: ${{ needs.release-build.result }}
+        run: |
+          bash Scripts/ci_required_result.sh "$CHECKS_RESULT" "$MACOS_REQUIRED" "$APPLE_RESULT"
+          bash Scripts/ci_required_result.sh "$CHECKS_RESULT" "$IOS_REQUIRED" "$IOS_RESULT"
+          bash Scripts/ci_required_result.sh "$CHECKS_RESULT" "$RELEASE_REQUIRED" "$RELEASE_RESULT"
 
   ios-tests:
     needs: checks
-    if: needs.checks.outputs.apple == 'true'
+    if: needs.checks.outputs.ios == 'true'
     runs-on: macos-26
     timeout-minutes: 20
     steps:
@@ -119,15 +128,15 @@ jobs:
       - name: iPhone app unit tests (simulator, ad-hoc signed)
         run: |
           device="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for r,l in d.items() if "iOS" in r for x in l if x["name"].startswith("iPhone")))')"
-          xcodebuild test -project iOS/CodeRimMobile.xcodeproj -scheme CodeRimMobile \
+          xcodebuild test -project iOS/CodeRimMobile.xcodeproj -scheme CodeRimMobileUnitTests \
             -destination "platform=iOS Simulator,id=${device}" -only-testing:CodeRimMobileTests \
-            -derivedDataPath .build/ios CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= | tail -40
+            -derivedDataPath .build/ios ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= | tail -40
           test "${PIPESTATUS[0]}" -eq 0
         shell: bash
 
   release-build:
     needs: checks
-    if: needs.checks.outputs.apple == 'true'
+    if: needs.checks.outputs.release == 'true'
     runs-on: macos-26
     timeout-minutes: 60
     steps:

@@ -129,7 +129,7 @@ final class ClaudeAccountStore: ObservableObject {
             // A session that is already running has the old account in memory
             // and may write it back when it next refreshes. Hold the switch
             // for a moment and put it back if that happens.
-            if running > 0 { await holdSwitch(selected) }
+            if running > 0 { try await holdSwitch(selected) }
             try await verifyCLIAccount(selected)
             noteDesktop(for: selected, running > 0
                 ? "Account switched. \(running) running Claude Code session\(running == 1 ? "" : "s") use it from the next request; restart one that still shows the old account."
@@ -137,22 +137,22 @@ final class ClaudeAccountStore: ObservableObject {
         } catch {
             if committed {
                 currentID = try? login.read().account()?.id
-                fail(ClaudeAccountError.cliVerificationFailed)
-            } else { fail(error) }
+            }
+            fail(error)
         }
         if notified { await onDidSwitch() }
     }
 
     /// Watch the shared login for a few seconds after a switch with sessions
     /// running, and re-apply the chosen account if one of them overwrote it.
-    private func holdSwitch(_ selected: SavedClaudeAccount) async {
+    private func holdSwitch(_ selected: SavedClaudeAccount) async throws {
         for _ in 0..<4 {
             try? await Task.sleep(for: .milliseconds(1500))
             guard let snapshot = try? login.read() else { continue }
             guard let account = try? snapshot.account(), account.id != selected.id else { continue }
             // Keep whatever refresh the other account just made, then switch back.
-            try? upsert(account)
-            try? login.replace(with: selected, expecting: snapshot)
+            try upsert(account)
+            try login.replace(with: selected, expecting: snapshot)
         }
         currentID = try? login.read().account()?.id
     }

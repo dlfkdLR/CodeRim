@@ -28,6 +28,57 @@ try {
     }
 } finally { $global:LASTEXITCODE = $originalExitCode }
 Write-Host 'PASS publish-arguments-and-failure'
+# Exercise the actual publish/sign/manifest sequence with disposable files and no compiler or certificate.
+$publishStart = $packageSyntax.EndBlock.Statements | Where-Object { $_.Extent.Text -like 'if (Test-Path $publishRoot)*' } | Select-Object -First 1
+$publishEnd = $packageSyntax.EndBlock.Statements | Where-Object { $_.Extent.Text -ceq 'Copy-Item -LiteralPath $workerPath -Destination $publishRoot' } | Select-Object -First 1
+if (-not $publishStart -or -not $publishEnd) { throw 'The packaging publish sequence was not found.' }
+$publishBody = [scriptblock]::Create($packageSyntax.Extent.Text.Substring($publishStart.Extent.StartOffset, $publishEnd.Extent.EndOffset - $publishStart.Extent.StartOffset).Replace('$PSScriptRoot', '$scriptDirectory'))
+foreach ($mode in 'Unsigned', 'Required') {
+    & {
+        param($mode)
+        $SigningMode = $mode; $Version = $expected; $RuntimeIdentifier = 'win-x64'; $architecture = 'x64'
+        $windowsRoot = Join-Path $fixtureRoot "publish-order-$mode"
+        $projectRoot = $windowsRoot; $scriptDirectory = Join-Path $windowsRoot 'Scripts'
+        $publishRoot = Join-Path $windowsRoot 'publish'; $artifactRoot = Join-Path $windowsRoot 'Artifacts'
+        $projectPath = Join-Path $windowsRoot 'src/CodeRim.Windows/CodeRim.Windows.csproj'
+        $PublisherSpkiSha256 = 'fixture-pin'
+        $publishOrder = [Collections.Generic.List[string]]::new()
+        function dotnet {
+            $projectName = [IO.Path]::GetFileNameWithoutExtension($args[1])
+            if ($SigningMode -eq 'Unsigned' -and $projectName -eq 'CodeRim.Windows') {
+                $pin = (Get-FileHash $workerPath -Algorithm SHA256).Hash.ToLowerInvariant()
+                if ($args -cnotcontains "-p:CodeRimInstallerWorkerSha256=$pin") { throw 'The GUI must pin the published worker.' }
+            }
+            $publishOrder.Add($projectName)
+            $output = $args[([Array]::IndexOf($args, '--output') + 1)]
+            New-Item -ItemType Directory -Force $output | Out-Null
+            $file = switch ($projectName) { 'CodeRim.Windows' { 'CodeRim.exe' }; 'CodeRim.CLI' { 'CodeRimCLI.exe' }; 'CodeRim.UpdateWorker' { 'CodeRim.UpdateWorker.exe' }; default { throw 'Unexpected publish project.' } }
+            [IO.File]::WriteAllText((Join-Path $output $file), 'synthetic executable')
+            if ($projectName -eq 'CodeRim.Windows') { [IO.File]::WriteAllText((Join-Path $output 'install.ps1'), '$signedPackage = $false') }
+            $global:LASTEXITCODE = 0
+        }
+        function Copy-Item {}
+        function Sign-PayloadFile([string]$Path) { $publishOrder.Add('sign:' + [IO.Path]::GetFileName($Path)) }
+        function python {
+            $publishOrder.Add('manifest')
+            [IO.File]::WriteAllText($args[([Array]::IndexOf($args, '--resource') + 1)], 'synthetic resource')
+            $global:LASTEXITCODE = 0
+        }
+        . ([scriptblock]::Create($publisher.Extent.Text))
+        . $publishBody
+        $expectedOrder = if ($mode -eq 'Unsigned') { @('CodeRim.CLI', 'CodeRim.UpdateWorker', 'CodeRim.Windows') }
+            else { @('CodeRim.Windows', 'CodeRim.CLI', 'sign:CodeRim.exe', 'sign:CodeRimCLI.exe', 'sign:install.ps1', 'sign:connect-claude.ps1', 'manifest', 'CodeRim.UpdateWorker', 'sign:CodeRim.UpdateWorker.exe') }
+        if (($publishOrder.ToArray() | ConvertTo-Json -Compress) -cne ($expectedOrder | ConvertTo-Json -Compress)) {
+            throw ('Unexpected ' + $mode + ' publish order: ' + ($publishOrder.ToArray() | ConvertTo-Json -Compress))
+        }
+        if ($mode -eq 'Unsigned') {
+            $bootstrap = Get-Content (Join-Path $publishRoot 'CodeRim.bootstrap.json') -Raw | ConvertFrom-Json
+            if ($bootstrap.version -cne $Version -or $bootstrap.guiSha256 -cne (Get-FileHash (Join-Path $publishRoot 'CodeRim.exe') -Algorithm SHA256).Hash.ToLowerInvariant() -or $bootstrap.workerSha256 -cne (Get-FileHash $workerPath -Algorithm SHA256).Hash.ToLowerInvariant()) { throw 'The final GUI and worker were not inventoried.' }
+        }
+    } $mode
+    Write-Host "PASS $mode-publish-order"
+}
+$global:LASTEXITCODE = $originalExitCode
 $cases = @(
     @{ Name = 'consistent'; Pass = $true },
     @{ Name = 'independent-mac-version'; Pass = $true; File = $files[5]; Pattern = '(?m)^MARKETING_VERSION=.*$'; Value = 'MARKETING_VERSION=0.0.1' },
