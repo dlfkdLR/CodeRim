@@ -4,30 +4,36 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.35</title>
-            <pubDate>Mon, 09 Nov 2026 09:20:14 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.35</link>
-            <sparkle:version>20135</sparkle:version>
-            <sparkle:shortVersionString>2.1.35</sparkle:shortVersionString>
+            <title>2.1.36</title>
+            <pubDate>Wed, 11 Nov 2026 14:58:21 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.36</link>
+            <sparkle:version>20136</sparkle:version>
+            <sparkle:shortVersionString>2.1.36</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.35
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.36
 
-A macOS release. Windows stays at 2.1.34; it never had this card.
+This macOS release includes the desktop changes from PR #167. The matching Windows release is also 2.1.36, advancing from 2.1.34.
 
-## The time-left card is removed
+## Usage and accounts
 
-- The "Time left (beta)" card that appeared when hovering a working chat in the notch is gone, along with its Settings → Edge Notch section and the notch panel's reserved width for it.
-- The optional Claude Code compaction hook switch was part of that section and is gone with it. A hook you installed earlier is left as it is; CodeRim no longer reads or manages it from Settings.
-- Nothing else about sessions, the "Done" state or sounds changes.
+- Large Codex and Claude transcripts are read in bounded chunks, and session title caches are bounded. Usage collection checks that the bytes it committed still match the source and keeps partial or repaired data marked as such.
+- A background Codex account renewal saves its rotated login only when the saved login has not been replaced or removed. Local Antigravity access binds the loopback connection to the selected current-user process before sending its CSRF token.
+- Session and credential details are no longer written to the public session log. Extended ACL checks also cover Codex profile reads and temporary login homes; inspection failures stop credential operations.
+- Signed update-feed authentication no longer expires after repeated failures. Startup and release verification require the same signature policy.
 
-## Verification
+## iPhone connection
 
-macOS: build with warnings as errors; the full test suite passes with 0 failures. The removal was not checked by eye on a real session.
+- Pairing uses a code scanned or pasted inside the CodeRim iPhone app. A previously generated `coderim://pair` QR code cannot be used with the updated app; create a new code on the updated desktop client.
+- The matching relay and iPhone app changes preserve Stop across late Live Activity registrations and retries, and an explicit Start resumes updates. Desktop, relay and iPhone versions should be updated together. The iPhone app remains a development app, not an App Store release.
+
+## Verification and limits
+
+The base desktop changes were verified in the upstream repository before release preparation. CI for this release commit checks Swift, iOS simulator, relay, and Universal 2 builds. Real provider accounts, physical iPhone scanning, production APNs, release signing and installed-app behavior remain separate release checks. Preparing this version does not publish a tag or release.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.35/CodeRim-2.1.35.zip" length="32684130" type="application/octet-stream" sparkle:edSignature="RyH1m0z3OHeSyE13lgDsqXsIpSHndM/4VqPJBwwwSLdC42Ydee97JGBJzcOZHKJBJ+O8ESqGUjT2XF40E3NbCQ=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.36/CodeRim-2.1.36.zip" length="32730162" type="application/octet-stream" sparkle:edSignature="Cipa4Dv35+a5k7/9TZNUG204tYQH0X2I0YqloYjrTasC0BNoshYrqOVmHv4v86Bo8fZ7msrqcsL1tWRKTc4wCA=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: pY98VOpZfTzpZhFezjxK5+yJlZFvWf+53x+rtwygZeUN4njxO6FI8htbmIRWKOZMN732SIqqXW3KBS+g93RLAA==
-length: 1928
+edSignature: +tyIrDgJ6b1Gqzh9ARyjdRsQ312eIJK3a89mpaDURrfEFEHkry3uGRDulRrklXYlbgQRNj5yWR6JkoeGX5FgDg==
+length: 3124
 -->
