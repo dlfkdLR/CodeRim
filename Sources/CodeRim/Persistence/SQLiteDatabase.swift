@@ -69,6 +69,9 @@ enum SQLiteDatabaseError: Error, LocalizedError {
 }
 
 actor SQLiteDatabase {
+#if DEBUG
+    @TaskLocal static var beforeFingerprintKeyWriteForTesting: (@Sendable (Int32) throws -> Void)?
+#endif
     static let maximumDatabaseBytes: Int64 = 1_073_741_824
     static let supportedSchemaVersion = SQLiteSchema.version
 
@@ -1495,15 +1498,22 @@ actor SQLiteDatabase {
         }
 
         let key = SymmetricKey(size: .bits256).withUnsafeBytes { Data($0) }
+        let temporaryPath = path + ".\(UUID().uuidString).tmp"
         let createdDescriptor = Darwin.open(
-            path,
+            temporaryPath,
             O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC | O_NOFOLLOW,
             S_IRUSR | S_IWUSR
         )
         guard createdDescriptor >= 0 else {
             throw SQLiteDatabaseError.open("unable to create the source fingerprint key")
         }
-        defer { Darwin.close(createdDescriptor) }
+        defer { Darwin.close(createdDescriptor); Darwin.unlink(temporaryPath) }
+        guard fchmod(createdDescriptor, S_IRUSR | S_IWUSR) == 0 else {
+            throw SQLiteDatabaseError.open("unable to protect the source fingerprint key")
+        }
+#if DEBUG
+        try Self.beforeFingerprintKeyWriteForTesting?(createdDescriptor)
+#endif
         let writeSucceeded = key.withUnsafeBytes { buffer -> Bool in
             guard let baseAddress = buffer.baseAddress else { return false }
             var total = 0
@@ -1522,7 +1532,10 @@ actor SQLiteDatabase {
         guard writeSucceeded, fsync(createdDescriptor) == 0 else {
             throw SQLiteDatabaseError.open("unable to persist the source fingerprint key")
         }
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: path)
+        // Only a complete key becomes visible; never replace a key created by another writer.
+        guard renamex_np(temporaryPath, path, UInt32(RENAME_EXCL)) == 0 else {
+            throw SQLiteDatabaseError.open("unable to publish the source fingerprint key")
+        }
         return key
     }
 

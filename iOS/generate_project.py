@@ -90,4 +90,6 @@ scheme=f'''<?xml version="1.0" encoding="UTF-8"?>
 <AnalyzeAction buildConfiguration="Debug"/><ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES"/>
 </Scheme>'''
 (root/'CodeRimMobile.xcodeproj/xcshareddata/xcschemes/CodeRimMobile.xcscheme').write_text(scheme+'\n')
+unit_scheme = scheme.replace(f'<TestableReference skipped="NO">{ref("CodeRimMobileUITests")}</TestableReference>', '')
+(root/'CodeRimMobile.xcodeproj/xcshareddata/xcschemes/CodeRimMobileUnitTests.xcscheme').write_text(unit_scheme+'\n')
 print('Generated CodeRimMobile.xcodeproj (app, Live Activity extension, contract tests)')

@@ -60,6 +60,25 @@ class WindowsChangesTests(unittest.TestCase):
                 self.commit()
                 self.expect(True)
 
+    def test_windows_landing_readmes_need_no_windows_runner(self):
+        for path in ['Windows/README.md', 'Windows/README.ko.md']:
+            with self.subTest(path=path):
+                self.write(path)
+                self.commit()
+                self.expect(False)
+
+    def test_readme_mixed_with_source_still_requires_windows(self):
+        self.write('Windows/README.md')
+        self.write('Windows/README.ko.md')
+        self.write('Windows/src/App.cs')
+        self.commit()
+        self.expect(True)
+
+    def test_packaged_markdown_still_requires_windows(self):
+        self.write('Windows/ThirdParty/NOTICE.md')
+        self.commit()
+        self.expect(True)
+
     def test_moving_windows_code_to_an_excluded_tree_still_requires_windows(self):
         (self.root / 'Documentation').mkdir()
         self.git('mv', 'Windows/original.cs', 'Documentation/original.md')
