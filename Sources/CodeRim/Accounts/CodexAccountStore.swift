@@ -50,6 +50,8 @@ final class CodexAccountStore: ObservableObject {
     /// is read once rather than on every poll.
     private var hasReadPlan = false
     private var hasReadIdentity = false
+    private enum LoadFailure: Equatable { case vault, login }
+    private var loadFailure: LoadFailure?
 
     init(vault: any AccountVault = KeychainAccountVault(),
          login: any CodexLoginStoring = CodexLoginFile(directory: CodexLoginFile.defaultDirectory),
@@ -63,30 +65,48 @@ final class CodexAccountStore: ObservableObject {
 
     func load() {
         guard !isBusy else { return }
+        do { accounts = try vault.load() }
+        catch {
+            fail(error)
+            loadFailure = .vault
+            return
+        }
         do {
-            accounts = try vault.load()
-            let current = try? readCurrentAccount()
+            let current = try readCurrentAccount()
             updateCurrentMetadata(current)
-        } catch { fail(error) }
+            clearLoadFailure()
+        } catch {
+            fail(error)
+            loadFailure = .login
+            // A failed explicit load must be retried even if its file date
+            // matches the last successful background poll.
+            hasReadPlan = false
+        }
     }
 
     /// Re-read display metadata from the live login, without opening the vault.
     ///
     /// Separate from `load()` so a caller that only needs the plan — the notch,
     /// on every poll — does not also run a Keychain query, which is the
-    /// expensive half and the half that can prompt. Reads nothing when the
-    /// login file has not changed since the last look.
+    /// expensive half and the half that can prompt. Skips a known unchanged
+    /// modification date; an unknown date must be read again.
     func refreshCurrentPlanType() {
         guard !isBusy else { return }
         let stamp = login.lastModified
-        // Re-read when the login changed, or when nothing has been read yet.
-        // Keyed on having read at all rather than on `currentPlanType`, which
-        // is legitimately nil for a login whose token carries no plan claim —
-        // asking again every poll would never produce a different answer.
-        guard stamp != lastPlanStamp || !hasReadPlan else { return }
-        lastPlanStamp = stamp
-        hasReadPlan = true
-        updateCurrentMetadata(try? readCurrentAccount())
+        // A missing modification date cannot prove that the login is unchanged.
+        // A successful read with no plan claim can still be cached when it has a date.
+        guard stamp == nil || stamp != lastPlanStamp || !hasReadPlan else { return }
+        do {
+            let account = try readCurrentAccount()
+            // A failed read can be transient. Do not clear the last verified
+            // identity or mark this stamp as checked before a successful read.
+            lastPlanStamp = stamp
+            hasReadPlan = true
+            updateCurrentMetadata(account)
+            if loadFailure == .login { clearLoadFailure() }
+        } catch {
+            // Retry on the next poll, even if the file's date did not change.
+        }
     }
 
     private func updateCurrentMetadata(_ account: SavedCodexAccount?) {
@@ -97,9 +117,9 @@ final class CodexAccountStore: ObservableObject {
             onAccountWillChange()
         }
         hasReadIdentity = true
-        currentID = account?.id
-        currentAccountEmail = account?.email
-        currentPlanType = account?.planType
+        if currentID != account?.id { currentID = account?.id }
+        if currentAccountEmail != account?.email { currentAccountEmail = account?.email }
+        if currentPlanType != account?.planType { currentPlanType = account?.planType }
         if externalChange { onAccountOperationFinished() }
     }
 
@@ -215,7 +235,9 @@ final class CodexAccountStore: ObservableObject {
             succeed("Account switched for Codex and new CLI sessions. Restart existing CLI sessions to use it.")
         } catch {
             if committed {
-                updateCurrentMetadata(try? readCurrentAccount())
+                // Keep the last verified identity if the login cannot be read
+                // while reporting a committed switch failure.
+                do { updateCurrentMetadata(try readCurrentAccount()) } catch { }
                 isError = true
                 message = didReopen ? AccountSwitchError.cliVerificationFailed.errorDescription
                     : "The shared Codex login was changed, but Codex could not reopen. Open Codex from Applications and restart your CLI sessions."
@@ -232,8 +254,13 @@ final class CodexAccountStore: ObservableObject {
         catch { verified = false }
         // A failed probe can also race an external sign-in. Refresh the badge
         // even when this operation did not write (the account was already active).
-        let current = try? readCurrentAccount()
-        updateCurrentMetadata(current)
+        let current: SavedCodexAccount?
+        do {
+            current = try readCurrentAccount()
+            updateCurrentMetadata(current)
+        } catch {
+            throw AccountSwitchError.cliVerificationFailed
+        }
         guard verified, current?.id == account.id else { throw AccountSwitchError.cliVerificationFailed }
     }
 
@@ -277,8 +304,16 @@ final class CodexAccountStore: ObservableObject {
         try login.read().map { try SavedCodexAccount(loginData: $0) }
     }
 
-    private func succeed(_ text: String) { message = text; isError = false }
+    private func clearLoadFailure() {
+        guard loadFailure != nil else { return }
+        loadFailure = nil
+        message = nil
+        isError = false
+    }
+
+    private func succeed(_ text: String) { loadFailure = nil; message = text; isError = false }
     private func fail(_ error: Error) {
+        loadFailure = nil
         isError = true
         // Never expose raw subprocess, OAuth, file, or Keychain errors.
         message = (error as? AccountSwitchError)?.errorDescription ?? AccountSwitchError.unavailable.errorDescription

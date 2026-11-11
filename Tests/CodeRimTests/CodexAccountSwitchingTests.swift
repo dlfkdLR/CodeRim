@@ -5,6 +5,85 @@ import XCTest
 
 @MainActor
 final class CodexAccountSwitchingTests: XCTestCase {
+    func testLoadReadFailureRetainsLastVerifiedIdentity() throws {
+        let harness = try makeHarness()
+        harness.login.readError = .invalidLogin
+        harness.store.load()
+
+        XCTAssertEqual(harness.store.currentID, harness.departing.id)
+        XCTAssertFalse(harness.trace.events.contains("will-change"))
+        XCTAssertTrue(harness.store.isError)
+
+        harness.login.readError = nil
+        harness.login.data = harness.target.loginData
+        harness.store.load()
+        XCTAssertEqual(harness.store.currentID, harness.target.id)
+        XCTAssertFalse(harness.store.isError)
+        XCTAssertNil(harness.store.message)
+    }
+
+    func testSuccessfulPlanPollClearsRecoveredLoginLoadError() throws {
+        let harness = try makeHarness()
+        harness.login.lastModified = Date()
+        harness.store.refreshCurrentPlanType()
+        harness.login.readError = .invalidLogin
+        harness.store.load()
+        XCTAssertTrue(harness.store.isError)
+
+        harness.login.readError = nil
+        // The file date is unchanged, but the failed explicit load must be retried.
+        harness.store.refreshCurrentPlanType()
+        XCTAssertFalse(harness.store.isError)
+        XCTAssertNil(harness.store.message)
+    }
+
+    func testVaultLoadErrorSurvivesSuccessfulLoginPoll() throws {
+        let harness = try makeHarness()
+        harness.vault.loadError = .unavailable
+        harness.store.load()
+        XCTAssertTrue(harness.store.isError)
+
+        harness.store.refreshCurrentPlanType()
+        XCTAssertTrue(harness.store.isError)
+        XCTAssertEqual(harness.store.message, AccountSwitchError.unavailable.errorDescription)
+
+        harness.vault.loadError = nil
+        harness.store.load()
+        XCTAssertFalse(harness.store.isError)
+    }
+
+    func testPlanRefreshWithoutModificationDateRereadsLogin() throws {
+        let harness = try makeHarness()
+        harness.store.refreshCurrentPlanType()
+        XCTAssertEqual(harness.store.currentID, harness.departing.id)
+
+        harness.login.data = harness.target.loginData
+        harness.store.refreshCurrentPlanType()
+
+        XCTAssertEqual(harness.store.currentID, harness.target.id)
+        XCTAssertTrue(harness.trace.events.contains("will-change"))
+    }
+
+    func testTransientPlanReadFailureRetainsIdentityAndRetriesSameDate() throws {
+        let harness = try makeHarness()
+        let firstDate = Date()
+        harness.login.lastModified = firstDate
+        harness.store.refreshCurrentPlanType()
+        harness.trace.events.removeAll()
+
+        harness.login.data = harness.target.loginData
+        harness.login.lastModified = firstDate.addingTimeInterval(1)
+        harness.login.readError = .invalidLogin
+        harness.store.refreshCurrentPlanType()
+        XCTAssertEqual(harness.store.currentID, harness.departing.id)
+        XCTAssertFalse(harness.trace.events.contains("will-change"))
+
+        harness.login.readError = nil
+        harness.store.refreshCurrentPlanType()
+        XCTAssertEqual(harness.store.currentID, harness.target.id)
+        XCTAssertTrue(harness.trace.events.contains("will-change"))
+    }
+
     func testExternalIdentityChangeDiscardsAnInFlightLimitResponse() async throws {
         let harness = try makeHarness()
         harness.store.refreshCurrentPlanType()
@@ -633,6 +712,21 @@ final class CodexAccountSwitchingTests: XCTestCase {
         XCTAssertEqual(harness.store.message, AccountSwitchError.cliVerificationFailed.errorDescription)
         XCTAssertTrue(harness.store.isError)
         XCTAssertEqual(harness.trace.events.last, "did-finish")
+        harness.store.load()
+        XCTAssertEqual(harness.store.message, AccountSwitchError.cliVerificationFailed.errorDescription)
+        XCTAssertTrue(harness.store.isError)
+    }
+
+    func testUnreadableLoginDuringCLIProbeKeepsCommittedAccountIdentity() async throws {
+        let harness = try makeHarness()
+        harness.runtime.onVerify = { harness.login.readError = .invalidLogin }
+
+        await harness.store.switchAccount(to: harness.target.id)
+
+        XCTAssertEqual(harness.login.data, harness.target.loginData)
+        XCTAssertEqual(harness.store.currentID, harness.target.id)
+        XCTAssertEqual(harness.store.message, AccountSwitchError.cliVerificationFailed.errorDescription)
+        XCTAssertTrue(harness.store.isError)
     }
 
     func testCLIProbeCannotHideAConcurrentWorkspaceChangeWithTheSameEmail() async throws {
@@ -1210,6 +1304,7 @@ private final class AccountSwitchMemoryVault: AccountVault {
 private final class AccountSwitchMemoryLogin: CodexLoginStoring {
     var data: Data?
     var lastModified: Date?
+    var readError: AccountSwitchError?
     private(set) var replaceCount = 0
     private(set) var expectedOriginal: Data?
     private let trace: AccountSwitchTrace
@@ -1221,6 +1316,7 @@ private final class AccountSwitchMemoryLogin: CodexLoginStoring {
 
     func read() throws -> Data? {
         trace.record("login.read")
+        if let readError { throw readError }
         return data
     }
 
