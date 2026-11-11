@@ -8,7 +8,7 @@ Install the matching MSI from [Windows 2.1.34](https://github.com/dlfkdLR/CodeRi
 
 - [User setup](../docs/windows.md): installation, provider connections and removal.
 - [Windows reference](../Documentation/WINDOWS.md): platform differences, data, build/CI and authenticated installer updates. Open `CodeRim.Windows.sln` with .NET 10 SDK.
-- [Release notes](ReleaseNotes/2.1.34.md) and [changelog](../CHANGELOG.md): version history; 2.1.34 adds optional sub-agent completion sound.
+- [Release notes](ReleaseNotes/2.1.34.md) and [changelog](../CHANGELOG.md): version history; 2.1.34 adds optional sub-agent completion sound. macOS 2.1.36 is released; Windows 2.1.36 is not published yet, so Windows stays at 2.1.34.
 - [Code signing policy](../CODE_SIGNING_POLICY.md): public MSIs have no Authenticode publisher certificate. Ed25519 updater authentication is separate; SignPath is not approved.
 - [Dated native comparison](../Documentation/WINDOWS_MAC_REFERENCE_PARITY_2026-09-23.md): recorded evidence and gaps, not a current parity guarantee.
 
