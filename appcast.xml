@@ -4,38 +4,24 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.37</title>
-            <pubDate>Thu, 12 Nov 2026 14:40:47 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.37</link>
-            <sparkle:version>20137</sparkle:version>
-            <sparkle:shortVersionString>2.1.37</sparkle:shortVersionString>
+            <title>2.1.38</title>
+            <pubDate>Thu, 12 Nov 2026 17:20:25 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.38</link>
+            <sparkle:version>20138</sparkle:version>
+            <sparkle:shortVersionString>2.1.38</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.37 for macOS
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.38 for macOS
 
-This patch prepares CodeRim's first Developer ID signed and Apple-notarized macOS download. Publish it only after the artifacts pass the signing, notarization and distribution checks. It advances the Mac app from 2.1.36. Windows installers and the iPhone development app have separate release processes and are not part of this Mac download.
+This patch changes the computer label used by the CodeRim iPhone companion. New connections use the Mac's system Computer Name, and existing connections saved with the old default “Mac” update their label without pairing again. A custom name remains unchanged. Settings displays the active device name.
 
-## Account and usage reliability
+The paired Mac sends its name to the relay using its desktop token. The relay allows a computer to rename only its own record and updates the phone's current view. The relay also lets provider and device navigation finish while an APNs update is in flight. Deploy the matching relay before installing this Mac version. The iPhone app's separate TestFlight build 1.0.0(4) reuses relay connections for Dynamic Island provider and device switching; it is not included in the macOS download.
 
-- If a Codex login file is briefly unreadable, CodeRim retains the last confirmed account and tries again on the next poll. A missing file modification time also triggers a fresh read.
-- Opening account settings no longer hides an error from a failed Codex CLI confirmation, and unchanged account values are not republished.
-- Usage calculations and source import have clearer module boundaries. Claude sessions imported from agent transcripts keep their project attribution. The existing provider, platform and storage policies remain in place.
-
-## macOS distribution
-
-- The release process must sign the Universal 2 app with Developer ID and the Hardened Runtime, notarize and staple it, and confirm Gatekeeper acceptance before packaging.
-- The automatic-update ZIP must use the existing Sparkle Ed25519 key. The app keeps its existing bundle identifier and update feed for the CodeRim and CodexMeter update path.
-- The release must provide DMG, ZIP and SHA-256 files. The DMG is the direct-install format; Homebrew and Sparkle use the ZIP.
-
-## Verification scope
-
-The release gate checks the source tag, clean worktree, Universal 2 binaries, bundle metadata, nested signatures, notarization, Gatekeeper acceptance, ZIP/DMG contents and checksums, and the Sparkle update signature. GitHub assets, the public update feed, Homebrew and installed-app behavior are verified separately after publication.
-
-This release does not claim a Windows certificate, an App Store submission, or production iPhone/APNs deployment.
+The macOS ZIP and DMG are to be Developer ID signed, notarized and stapled. The release process verifies the Universal 2 application, nested signatures, Hardened Runtime, Gatekeeper, Sparkle signature and archive checksums before publication. CI, GitHub assets, public update feed, Homebrew and installed-app behavior are checked separately.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.37/CodeRim-2.1.37.zip" length="32893685" type="application/octet-stream" sparkle:edSignature="5Ux7oAyjBpFwFlFY9EU3Hwxba+ROA8ryKQsDuYuls2m9deDL7O/sRwZ0x7AEljIKvM0gu+pZmHrozTUlnpqzCQ=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.38/CodeRim-2.1.38.zip" length="32901497" type="application/octet-stream" sparkle:edSignature="Z3Ku3jyMrRChL86J4SKqFi6u22U61EyXw8cwHyEbflXooEHTWr/Z4YUmR2crbOPuXn5YxXxLVN+TbwR9+SXQCg=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: IIRFi0wZUpQcdWqvi26YnZPpx0Xr1IEVlmErnd+XO33fkg/cGPPto/q2AjRoAw+ArnjoEy5w/kydFtxCwtAFDg==
-length: 3128
+edSignature: PKOkRfSKnGYgggHYgXBoSblA65bg9sh1tEzhtLqqcDixtHlhB1dxl3w+pnMEyK+ikfwuM+2Kf0HlHEp6OHH8BQ==
+length: 2372
 -->
