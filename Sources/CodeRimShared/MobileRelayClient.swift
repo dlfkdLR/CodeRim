@@ -36,6 +36,9 @@ public protocol MobileRelayServing: Sendable {
 
 public final class MobileRelayClient: MobileRelayServing, Sendable {
     public let endpoint: URL
+    // LiveActivityIntent creates a client for each tap. Reuse the app's ordinary connection so
+    // opening a picker does not pay for a new DNS/TLS connection on every action.
+    private static let sharedSession = URLSession(configuration: configuration(pairingPoll: false))
     private let session: URLSession
     private let pairingSession: URLSession
     private let redirectDelegate = MobileNoRedirect()
@@ -65,7 +68,7 @@ public final class MobileRelayClient: MobileRelayServing, Sendable {
         let ordinary = Self.configuration(pairingPoll: false)
         let pairing = Self.configuration(pairingPoll: true)
         if let protocolClasses { ordinary.protocolClasses = protocolClasses; pairing.protocolClasses = protocolClasses }
-        session = URLSession(configuration: ordinary)
+        session = protocolClasses == nil ? Self.sharedSession : URLSession(configuration: ordinary)
         pairingSession = URLSession(configuration: pairing)
     }
     static func configuration(pairingPoll: Bool) -> URLSessionConfiguration {

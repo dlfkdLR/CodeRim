@@ -1,6 +1,7 @@
 import Combine
 import CodeRimShared
 import Foundation
+import SystemConfiguration
 
 /// The iPhone connection owns its monitors, so hiding the Mac notch cannot stop phone updates.
 @MainActor
@@ -22,7 +23,11 @@ final class MobileConnectionStore: ObservableObject {
         didSet { defaults.set(relayAddress, forKey: "mobileRelayURL") }
     }
     @Published var deviceName: String {
-        didSet { defaults.set(deviceName, forKey: "mobileDeviceName") }
+        didSet {
+            defaults.set(deviceName, forKey: "mobileDeviceName")
+            let run = generation
+            Task { [weak self] in await self?.sendDeviceName(generation: run) }
+        }
     }
     @Published var shareTaskTitles = false {
         didSet { defaults.set(shareTaskTitles, forKey: "mobileShareTaskTitles") }
@@ -42,6 +47,7 @@ final class MobileConnectionStore: ObservableObject {
     /// its ID is this one, so it can neither connect after Cancel nor clear a newer pairing.
     private var pairingID: UUID?
     private var lastSent: (body: MobileSnapshot, at: Date)?
+    private var lastNamed: String?
     private var heartbeat: TimeInterval = 300
 
     private convenience init() {
@@ -55,7 +61,10 @@ final class MobileConnectionStore: ObservableObject {
         self.defaults = defaults; self.credentials = credentials; self.makeClient = makeClient; self.makeMonitors = makeMonitors
         relayAddress = defaults.string(forKey: "mobileRelayURL")
             ?? Bundle.main.object(forInfoDictionaryKey: "CodeRimRelayURL") as? String ?? ""
-        deviceName = defaults.string(forKey: "mobileDeviceName") ?? "Mac"
+        // "Mac" was the old default, not a name the person chose. Upgrade existing pairings too.
+        let savedName = defaults.string(forKey: "mobileDeviceName")
+        if let savedName, savedName != "Mac" { deviceName = savedName }
+        else { deviceName = Self.computerName() }
         shareTaskTitles = defaults.bool(forKey: "mobileShareTaskTitles")
         guard defaults.bool(forKey: "mobileRelayPaired") else { return }
         isBusy = true
@@ -71,6 +80,16 @@ final class MobileConnectionStore: ObservableObject {
     }
 
     func receive(_ snapshot: CompanionSnapshot) { latestSnapshot = snapshot }
+
+    static func computerName() -> String {
+        let name = (SCDynamicStoreCopyComputerName(nil, nil) as String?)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.flatMap { $0.isEmpty ? nil : String($0.prefix(24)) } ?? "Mac"
+    }
+
+    private var advertisedName: String {
+        let trimmed = deviceName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return String((trimmed.isEmpty ? Self.computerName() : trimmed).prefix(24))
+    }
 
     /// Opens a five-minute pairing offer and waits for the iPhone to scan it.
     func startPairing() {
@@ -97,7 +116,7 @@ final class MobileConnectionStore: ObservableObject {
             let endpoint = try MobileRelayClient.validatedEndpoint(relayAddress)
             let client = try makeClient(endpoint)
             let offer: MobilePairingStart = try await client.send("POST", "/v1/pairing/start", token: nil,
-                body: MobileDesktopLabel(platform: "macOS", name: String(deviceName.prefix(24))))
+                body: MobileDesktopLabel(platform: "macOS", name: advertisedName))
             guard isCurrent(id) else { return }
             pairingLink = MobilePairingLink(relay: endpoint, id: offer.id, secret: offer.secret)
             pairingExpiresAt = Date(timeIntervalSince1970: offer.expiresAt)
@@ -155,11 +174,27 @@ final class MobileConnectionStore: ObservableObject {
         monitors = makeMonitors()
         monitors.values.forEach { $0.start() }
         lastSent = nil
+        lastNamed = nil
         loop = Task { [weak self] in
             while !Task.isCancelled {
+                await self?.sendDeviceName(generation: run)
                 await self?.sendSnapshot(generation: run)
                 do { try await Task.sleep(for: .seconds(15)) } catch { break }
             }
+        }
+    }
+
+    private func sendDeviceName(generation run: UUID?) async {
+        guard run == generation, let credential, let client else { return }
+        let name = advertisedName
+        guard lastNamed != name else { return }
+        do {
+            let _: MobileOK = try await client.send("PUT", "/v1/device", token: credential.token,
+                body: MobileDesktopLabel(platform: "macOS", name: name))
+            guard run == generation else { return }
+            lastNamed = name
+        } catch {
+            // The regular connection loop retries, while snapshot sharing can continue.
         }
     }
 
@@ -213,6 +248,7 @@ final class MobileConnectionStore: ObservableObject {
         generation = UUID(); loop?.cancel(); loop = nil
         monitors.values.forEach { $0.stop() }; monitors = [:]
         credential = nil; client = nil; isConnected = false; lastSentAt = nil; lastSent = nil; serverNotice = nil
+        lastNamed = nil
     }
 
     static func shouldSend(_ body: MobileSnapshot, after last: (body: MobileSnapshot, at: Date)?,

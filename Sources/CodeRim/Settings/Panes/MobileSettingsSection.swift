@@ -31,6 +31,7 @@ struct MobileSettingsSection: View {
         SettingsSection(title: "iPhone · Dynamic Island") {
             SettingsValueRow(title: "Status", value: connection.status)
             if connection.isConnected {
+                SettingsValueRow(title: "Device name", value: connection.deviceName)
                 SettingsToggleRow("Share task titles", isOn: $connection.shareTaskTitles)
                 SettingsButtonRow(title: "Disconnect iPhone", systemImage: "iphone.slash") {
                     Task { await connection.disconnect() }
@@ -40,7 +41,7 @@ struct MobileSettingsSection: View {
                 SettingsButtonRow(title: "Cancel", systemImage: "xmark.circle") { connection.cancelPairing() }
             } else {
                 SettingsRow(title: "Device name") {
-                    TextField("Mac", text: $connection.deviceName).textFieldStyle(.roundedBorder).frame(maxWidth: 240)
+                    TextField(MobileConnectionStore.computerName(), text: $connection.deviceName).textFieldStyle(.roundedBorder).frame(maxWidth: 240)
                 }
                 if showsRelay || connection.relayAddress.isEmpty {
                     SettingsRow(title: "Relay server") {

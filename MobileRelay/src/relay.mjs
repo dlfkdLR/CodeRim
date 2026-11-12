@@ -148,10 +148,12 @@ export class Relay {
       return { token, expiresAt, deviceID };
     }
 
-    const role = path === '/v1/snapshot' && method === 'POST' ? null : path === '/v1/session' ? null : 'mobile';
+    const role = path === '/v1/snapshot' && method === 'POST' || path === '/v1/device' && method === 'PUT'
+      ? null : path === '/v1/session' ? null : 'mobile';
     const session = store.auth(bearer, role, now);
     this.limit(`session:${session.hash}`, 120);
-    if (path === '/v1/snapshot' && method === 'POST' && session.role !== 'desktop') throw new HTTPError(403, 'wrong_device_role');
+    if (((path === '/v1/snapshot' && method === 'POST') || (path === '/v1/device' && method === 'PUT'))
+        && session.role !== 'desktop') throw new HTTPError(403, 'wrong_device_role');
     const user = store.user(session.owner);
 
     if (method === 'POST' && path === '/v1/pairing/claim') {
@@ -226,6 +228,22 @@ export class Relay {
       user.preferences = preferences(body); store.saveUser(session.owner, user);
       this.settlePickers(session.owner, { reset: true });
       this.later(() => this.tick(session.owner));
+      return { ok: true };
+    }
+    if (method === 'PUT' && path === '/v1/device') {
+      // Only the paired computer can rename its own record; a phone cannot rename another computer.
+      requireValue(typeof body?.name === 'string' && body.name.trim().length > 0);
+      const device = store.devices(session.owner, now).find(d => d.session === session.hash);
+      if (!device) throw new HTTPError(401, 'pairing_required');
+      const label = deviceLabel({ platform: device.platform, name: body.name });
+      requireValue(label.name.length > 0);
+      if (device.name !== label.name) {
+        device.name = label.name;
+        device.seq = this.contentSequence(session.owner) + 1;
+        store.saveDevice(session.owner, device);
+        this.settlePickers(session.owner, { context: device.id });
+        this.later(() => this.tick(session.owner));
+      }
       return { ok: true };
     }
     if (method === 'POST' && path === '/v1/snapshot') {

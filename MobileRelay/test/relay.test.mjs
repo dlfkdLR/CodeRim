@@ -142,6 +142,25 @@ async function pairDevice(c, platform, name, phone = c.mobile) {
   await c.route('POST', '/v1/pairing/claim', { id: pair.id, secret: pair.secret }, phone);
   return c.route('POST', '/v1/pairing/poll', { id: pair.id, secret: pair.secret }, null);
 }
+test('paired computer can update its own name and existing phone sees it immediately', async t => {
+  const c = setup(t);
+  const mac = await pairDevice(c, 'macOS', 'Mac');
+  const pc = await pairDevice(c, 'windows', 'Work PC');
+  await c.route('POST', '/v1/snapshot', snapshot(), mac.token);
+  await c.route('POST', '/v1/snapshot', snapshot(), pc.token);
+  const before = await c.route('GET', '/v1/snapshot');
+  assert.equal(before.state.focus.deviceName, 'Mac');
+  await assert.rejects(c.route('PUT', '/v1/device', { name: 'Impostor' }), { status: 403 });
+  await assert.rejects(c.route('PUT', '/v1/device', { name: ' ' }, mac.token), { status: 400 });
+  await c.route('PUT', '/v1/device', { name: 'dlfkd의 MacBook Pro' }, mac.token);
+  const after = await c.route('GET', '/v1/snapshot');
+  assert.equal(after.state.focus.deviceName, 'dlfkd의 MacBook Pro');
+  assert.ok(after.state.viewRevision > before.state.viewRevision);
+  assert.ok(after.state.dataVersion > before.state.dataVersion);
+  assert.equal(after.devices.find(d => d.id === pc.deviceID).name, 'Work PC');
+  await c.route('PUT', '/v1/device', { name: 'dlfkd의 MacBook Pro' }, mac.token);
+  assert.equal((await c.route('GET', '/v1/snapshot')).state.viewRevision, after.state.viewRevision);
+});
 test('Mac and Windows coexist; focus never sums vendor quota or local tokens; individual revocation', async t => {
   const c = setup(t);
   const mac = await pairDevice(c, 'macOS', '개인 Mac');

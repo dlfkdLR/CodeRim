@@ -31,6 +31,7 @@ struct IslandNavigationIntent: LiveActivityIntent {
 /// An actor serializes local button actions; the server also guards the view revision.
 actor IslandNavigation {
     static let shared = IslandNavigation()
+    private var relayClient: MobileRelayClient?
     #if DEBUG
     private var previewActivityID = ""
     private var previewPins: [String: [String]] = [:]
@@ -96,7 +97,13 @@ actor IslandNavigation {
         let connection = MobileActivityConnection.id(for: credential.token)
         let activities = Activity<CodeRimActivityAttributes>.activities.filter { $0.attributes.connectionID == connection && ($0.activityState == .active || $0.activityState == .stale) }
         guard !activities.isEmpty else { return }
-        let client = try MobileRelayClient(endpoint: credential.endpoint)
+        let client: MobileRelayClient
+        if let relayClient, MobileRelayClient.sameOrigin(relayClient.endpoint, credential.endpoint) {
+            client = relayClient
+        } else {
+            client = try MobileRelayClient(endpoint: credential.endpoint)
+            relayClient = client
+        }
         let response: MobileSnapshotResponse = try await client.send("POST", "/v1/view", token: credential.token,
             body: MobileNavigation(axis: axis, direction: direction, expectedRevision: revision,
                 providerID: providerID.isEmpty ? nil : providerID, deviceID: deviceID.isEmpty ? nil : deviceID, groupID: groupID.isEmpty ? nil : groupID, pickerVersion: 2))
