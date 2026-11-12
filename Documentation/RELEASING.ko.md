@@ -18,6 +18,8 @@
 Scripts/release_stable.sh
 ```
 
+이 로컬 검증에도 로그인 Keychain의 설정 계정 `HechoLP`에 있는 Sparkle Ed25519 개인 키가 필요하며 Git에 넣지 않습니다.
+
 이 경로는 로컬 패키지 검증용이며, 새 macOS 공개 릴리스는 아래 Developer ID 경로를 사용합니다. `vVERSION`이 정확히 HEAD인 검토된 커밋에서 실행합니다. 태그, 깨끗한 폴더, 릴리스 노트, 저장소, 빌드·패키지 서명, Universal 2, 메타데이터, entitlement·전송, 아카이브, 바이트 수, URL, 체크섬을 확인합니다. ZIP·DMG, 개별 SHA-256, `SHA256SUMS.txt`, 서명 appcast를 만듭니다. ad-hoc 빌드는 Apple 공증이 없으며 Hardened Runtime·library validation 동작은 실제 빌드·서명 스크립트를 따릅니다.
 
 `BUILD_NUMBER`는 Sparkle 비교 값이며 증가해야 합니다. 과거 `1.4.10`은 `1410`, `2.0.0`은 `20000`, `2.0.1`은 `20001`, `2.1.0`은 `20100`입니다. 새 버전 숫자를 단순 연결해 더 작은 값을 만들지 않습니다.

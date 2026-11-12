@@ -36,7 +36,7 @@ Quit the running app and reopen `/Applications/CodeRim.app` after installation; 
 
 ## Homebrew cannot find the CodeRim cask
 
-An unavailable `dlfkdlr/tap/coderim` cask can mean the tap is not registered. Follow [Installation](installation.md) for a fresh install. For an existing install, quit the running app, check the target app, then follow the [migration/reinstall steps](installation.md#moving-from-codexmeter). do not add `--zap` or delete Application Support. Tap trust checks need not be disabled. [Homebrew tap trust](https://docs.brew.sh/Tap-Trust).
+An unavailable `dlfkdlr/tap/coderim` cask can mean the tap is not registered. Follow [Installation](installation.md) for a fresh install. For an existing install, quit the running app, check the target app, then follow the [migration/reinstall steps](installation.md#moving-from-codexmeter). Do not add `--zap` or delete Application Support. Tap trust checks need not be disabled. [Homebrew tap trust](https://docs.brew.sh/Tap-Trust).
 
 ## Homebrew upgrade cannot find CodexMeter.app
 

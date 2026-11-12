@@ -18,6 +18,8 @@ Signed-feed failures never expire: `SUSignedFeedFailureExpirationInterval` is `0
 Scripts/release_stable.sh
 ```
 
+This local gate also needs the Sparkle Ed25519 private key in the login Keychain under the configured account `HechoLP`; keep it out of Git.
+
 This path is for local packaging validation; new public macOS releases use the Developer ID path below. Run from the reviewed commit where `vVERSION` points exactly to HEAD. The gate checks tag, clean tree, release notes, repository, build/package signatures, Universal 2 architectures, metadata, entitlements/transport, archive contents, byte lengths, URLs, and checksums. It creates ZIP/DMG, per-artifact SHA-256, `SHA256SUMS.txt`, and a signed appcast. Ad-hoc builds are not Apple-notarized; Hardened Runtime/library-validation behavior follows the actual build/sign scripts.
 
 `BUILD_NUMBER` is Sparkle's comparison value and must increase. The historical `1.4.10` value was `1410`; `2.0.0` uses `20000`, `2.0.1` uses `20001`, and `2.1.0` uses `20100`. Do not derive a smaller build number by simply concatenating new version digits.
