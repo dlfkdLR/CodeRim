@@ -24,4 +24,4 @@ Codex 교체는 떠나는 로그인을 보존하고 지원 클라이언트 종�
 
 ## 배포 신뢰
 
-인증서 없는 macOS는 ad-hoc·Apple 비공증입니다. 첫 설치 SHA-256을 확인하고 Sparkle은 추출 전 HTTPS 서명 appcast·Ed25519 archive를 요구합니다. Windows MSI는 고정 Ed25519 manifest, 정확한 아키텍처·버전·파일·크기·SHA-256, 인증 worker·설치 검증을 요구합니다. Authenticode 게시자 신뢰는 별개이며 첫 공개 MSI는 경고할 수 있습니다. 이전 관리형 ZIP은 인증서·SPKI를 유지합니다. 경고를 감추려고 경계를 약화하지 않습니다.
+로컬 인증서 없는 macOS 빌드는 ad-hoc·Apple 비공증이며 2.1.37부터 공개 다운로드는 Developer ID 서명과 Apple 공증을 받았습니다. 첫 설치 SHA-256을 확인하고 Sparkle은 추출 전 HTTPS 서명 appcast·Ed25519 archive를 요구합니다. Windows MSI는 고정 Ed25519 manifest, 정확한 아키텍처·버전·파일·크기·SHA-256, 인증 worker·설치 검증을 요구합니다. Authenticode 게시자 신뢰는 별개이며 첫 공개 MSI는 경고할 수 있습니다. 이전 관리형 ZIP은 인증서·SPKI를 유지합니다. 경고를 감추려고 경계를 약화하지 않습니다.

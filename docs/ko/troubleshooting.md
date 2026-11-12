@@ -22,7 +22,7 @@ Claude 연동을 켜고 로그인된 계정을 추가한 뒤 Claude Code 응답�
 
 ## macOS가 앱을 차단함
 
-[체크섬 검증과 첫 실행 안내](installation.md#direct-download-and-macos-first-launch-help)를 따릅니다. 공개 macOS 앱은 ad-hoc 서명이며 Apple 공증을 받지 않았습니다.
+[체크섬 검증과 첫 실행 안내](installation.md#direct-download-and-macos-first-launch-help)를 따릅니다. 2.1.37부터 공개 macOS 앱은 Developer ID 서명과 Apple 공증을 받았습니다.
 
 ## CLI·위젯이 없거나 오래됨
 
@@ -37,7 +37,7 @@ Claude 연동을 켜고 로그인된 계정을 추가한 뒤 Claude Code 응답�
 <a id="homebrew-cannot-find-the-coderim-cask"></a>
 ## Homebrew가 CodeRim cask를 찾지 못함
 
-`dlfkdlr/tap/coderim` cask를 찾지 못하면 tap이 등록되지 않았을 수 있습니다. 새 설치는 [설치 안내](installation.md)를 따릅니다. 기존 설치는 실행 중인 앱을 종료하고 대상 앱을 확인한 뒤 [이전·재설치 절차](installation.md#codexmeter에서-이동)를 따릅니다. 확인한 앱의 격리 해제만 수행하고 `--zap`이나 Application Support 삭제를 추가하지 않습니다. tap 신뢰 검사를 끌 필요는 없습니다. [Homebrew tap trust](https://docs.brew.sh/Tap-Trust).
+`dlfkdlr/tap/coderim` cask를 찾지 못하면 tap이 등록되지 않았을 수 있습니다. 새 설치는 [설치 안내](installation.md)를 따릅니다. 기존 설치는 실행 중인 앱을 종료하고 대상 앱을 확인한 뒤 [이전·재설치 절차](installation.md#codexmeter에서-이동)를 따릅니다. `--zap`이나 Application Support 삭제를 추가하지 않습니다. tap 신뢰 검사를 끌 필요는 없습니다. [Homebrew tap trust](https://docs.brew.sh/Tap-Trust).
 
 <a id="homebrew-upgrade-cannot-find-codexmeterapp"></a>
 ## Homebrew 업그레이드가 CodexMeter.app을 찾지 못함

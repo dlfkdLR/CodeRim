@@ -12,17 +12,30 @@
 
 `SUSignedFeedFailureExpirationInterval`은 `0`이며 `SURequireSignedFeed`·`SUVerifyUpdateBeforeExtraction`을 활성화해 피드 서명 실패가 만료되지 않게 합니다. 앱 시작, 소스 빌드, 원본·ZIP·DMG 앱 검증이 `Scripts/verify_update_policy.sh`의 정책을 적용합니다. 복구·키 교체 시 기존 서명 키를 보관해야 합니다.
 
-## 인증서 없는 macOS 안정판 검증
-
-유지관리자는 깨끗한 불변 태그 작업 폴더, 소스 release·update-feed·Homebrew tap 접근, 설정 계정 `HechoLP`의 로그인 Keychain Sparkle Ed25519 개인 키가 필요합니다. 개인 키, 인증서, Apple 자격 증명, 공증 프로필을 커밋하지 않습니다. 메타데이터에는 공개 키만 넣습니다.
+## 로컬 인증서 없는 macOS 패키지 검증
 
 ```sh
 Scripts/release_stable.sh
 ```
 
-`vVERSION`이 정확히 HEAD인 검토된 커밋에서 실행합니다. 태그, 깨끗한 폴더, 릴리스 노트, 저장소, 빌드·패키지 서명, Universal 2, 메타데이터, entitlement·전송, 아카이브, 바이트 수, URL, 체크섬을 확인합니다. ZIP·DMG, 개별 SHA-256, `SHA256SUMS.txt`, 서명 appcast를 만듭니다. ad-hoc 빌드는 Apple 공증이 없으며 Hardened Runtime·library validation 동작은 실제 빌드·서명 스크립트를 따릅니다.
+이 로컬 검증에도 로그인 Keychain의 설정 계정 `HechoLP`에 있는 Sparkle Ed25519 개인 키가 필요하며 Git에 넣지 않습니다.
+
+이 경로는 로컬 패키지 검증용이며, 새 macOS 공개 릴리스는 아래 Developer ID 경로를 사용합니다. `vVERSION`이 정확히 HEAD인 검토된 커밋에서 실행합니다. 태그, 깨끗한 폴더, 릴리스 노트, 저장소, 빌드·패키지 서명, Universal 2, 메타데이터, entitlement·전송, 아카이브, 바이트 수, URL, 체크섬을 확인합니다. ZIP·DMG, 개별 SHA-256, `SHA256SUMS.txt`, 서명 appcast를 만듭니다. ad-hoc 빌드는 Apple 공증이 없으며 Hardened Runtime·library validation 동작은 실제 빌드·서명 스크립트를 따릅니다.
 
 `BUILD_NUMBER`는 Sparkle 비교 값이며 증가해야 합니다. 과거 `1.4.10`은 `1410`, `2.0.0`은 `20000`, `2.0.1`은 `20001`, `2.1.0`은 `20100`입니다. 새 버전 숫자를 단순 연결해 더 작은 값을 만들지 않습니다.
+
+## Apple 서명 macOS 공개 릴리스
+
+2.1.37부터 macOS 공개 다운로드는 Developer ID 경로를 사용합니다. 설치 안내는 SHA-256을 확인한 뒤 일반적인 macOS 첫 실행 절차를 따릅니다. Sparkle Ed25519는 이후 업데이트를 인증합니다. 깨끗한 태그 커밋에서 실제 인증서·팀·공증 프로필로 릴리스 스크립트를 실행하고 Hardened Runtime, Team ID, 공증, 스테이플, Gatekeeper를 검증합니다.
+
+```sh
+export CODE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+export CODE_SIGN_TEAM_ID="TEAMID"
+export NOTARY_PROFILE="coderim-notary"
+Scripts/release_public.sh
+```
+
+유지관리자는 깨끗한 불변 태그 작업 폴더, 소스 release·update-feed·Homebrew tap 접근, 설정 계정 `HechoLP`의 로그인 Keychain Sparkle Ed25519 개인 키가 필요합니다. 개인 키, 인증서, Apple 자격 증명, 공증 프로필을 커밋하지 않습니다. 메타데이터에는 공개 키만 넣습니다.
 
 1. 필수 CI 통과 후 검토된 릴리스 커밋을 병합하고 정확한 커밋에 태그를 붙입니다. 기존 태그를 다시 쓰지 않습니다.
 2. 정확한 macOS 파일을 빌드·검증하고 GitHub 릴리스에 ZIP, DMG, 체크섬, `appcast.xml`을 올립니다.
@@ -31,24 +44,6 @@ Scripts/release_stable.sh
 5. tap style·audit·새 설치·제거를 검사하고 설치 버전·build·아키텍처·updater·메뉴 막대·Settings·노치·실제 합계를 확인합니다. 로컬 검사, CI, 설치 UI, 게시는 별도 증거입니다.
 
 공개 기본 저장소는 `dlfkdLR/CodeRim`, feed는 `update-feed`입니다. 다른 대상은 `CODERIM_RELEASE_REPOSITORY`·`CODERIM_UPDATE_FEED_BRANCH`를 의도적으로 함께 설정해야 합니다. 이전 CodexMeter feed·저장소 리다이렉트와 공개 보관된 1.0.4 bridge는 호환 경계입니다. 이전 저장소 삭제·재생성, 공개 파일·태그 다시 쓰기를 하지 않습니다.
-
-## 첫 설치와 선택적 Apple 신뢰
-
-설치 안내는 앱별 격리 해제 전에 SHA-256 검증을 요구합니다. Sparkle Ed25519는 이후 업데이트를 인증합니다. 체크섬·ad-hoc 서명은 첫 다운로드를 Apple 신뢰 앱으로 만들지 않습니다.
-
-```sh
-xattr -dr com.apple.quarantine /Applications/CodeRim.app
-open /Applications/CodeRim.app
-```
-
-향후 Developer ID 경로는 실제 인증서·팀·공증 자격 증명으로 Hardened Runtime, Team ID, 공증, stapling, Gatekeeper를 확인합니다. 별도 승인되는 선택적 경로입니다.
-
-```sh
-export CODE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
-export CODE_SIGN_TEAM_ID="TEAMID"
-export NOTARY_PROFILE="coderim-notary"
-Scripts/release_public.sh
-```
 
 ## Windows 릴리스
 

@@ -4,7 +4,7 @@
 
 **macOS 14 or later · Apple silicon and Intel.**
 
-[![Download for macOS](../Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.36/CodeRim-2.1.36.dmg)
+[![Download for macOS](../Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.37/CodeRim-2.1.37.dmg)
 
 [All releases](https://github.com/dlfkdLR/CodeRim/releases/latest) · [Changelog](../CHANGELOG.md)
 
@@ -17,25 +17,18 @@ brew install --cask dlfkdLR/tap/coderim
 
 The explicit `brew tap` step also works when this Mac has never registered the CodeRim repository. If Homebrew still reports an unavailable cask, use the [recovery instructions](troubleshooting.md#homebrew-cannot-find-the-coderim-cask).
 
-The app is **ad-hoc signed, not Apple-notarized**. Homebrew verifies the download checksum. Automatic updates use Sparkle signatures.
+The macOS 2.1.37 app is **Developer ID signed and Apple-notarized**. Homebrew verifies the download checksum. Automatic updates use Sparkle signatures.
 
 ## Direct download and macOS first-launch help
 
-Save the DMG and [SHA256SUMS.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.36/SHA256SUMS.txt) in the same folder and verify the download:
+Save the DMG and [SHA256SUMS.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.37/SHA256SUMS.txt) in the same folder and verify the download:
 
 ```sh
 cd ~/Downloads
-grep ' CodeRim-2.1.36.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
+grep ' CodeRim-2.1.37.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
 ```
 
-After the checksum reports `OK`, open the DMG and drag CodeRim to Applications. If macOS blocks the verified app, remove quarantine from **CodeRim only**, then launch it:
-
-```sh
-xattr -dr com.apple.quarantine /Applications/CodeRim.app
-open /Applications/CodeRim.app
-```
-
-This also applies after a verified Homebrew install.
+After the checksum reports `OK`, open the DMG, drag CodeRim to Applications, and launch it normally. macOS verifies the Developer ID signature and notarization. The same first-launch flow applies after a Homebrew install.
 
 ## Moving from CodexMeter
 
