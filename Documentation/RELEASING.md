@@ -12,17 +12,28 @@ Use the prepared-dependency commands in [Contributing](../CONTRIBUTING.md); do n
 
 Signed-feed failures never expire: `SUSignedFeedFailureExpirationInterval` is `0`, with `SURequireSignedFeed` and `SUVerifyUpdateBeforeExtraction` enabled. Startup, source builds, and original/ZIP/DMG app verification enforce this policy through `Scripts/verify_update_policy.sh`. Keep the signing key available when recovering or rotating keys.
 
-## Certificate-free macOS stable gate
-
-A maintainer needs a clean immutable tagged worktree, GitHub access to the source releases/update-feed and Homebrew tap, and the Sparkle Ed25519 private key in login Keychain under the configured account `HechoLP`. Never commit private keys, certificates, Apple credentials, or notary profiles. Only public signing keys belong in metadata.
+## Local certificate-free macOS package check
 
 ```sh
 Scripts/release_stable.sh
 ```
 
-Run from the reviewed commit where `vVERSION` points exactly to HEAD. The gate checks tag, clean tree, release notes, repository, build/package signatures, Universal 2 architectures, metadata, entitlements/transport, archive contents, byte lengths, URLs, and checksums. It creates ZIP/DMG, per-artifact SHA-256, `SHA256SUMS.txt`, and a signed appcast. Ad-hoc builds are not Apple-notarized; Hardened Runtime/library-validation behavior follows the actual build/sign scripts.
+This path is for local packaging validation; new public macOS releases use the Developer ID path below. Run from the reviewed commit where `vVERSION` points exactly to HEAD. The gate checks tag, clean tree, release notes, repository, build/package signatures, Universal 2 architectures, metadata, entitlements/transport, archive contents, byte lengths, URLs, and checksums. It creates ZIP/DMG, per-artifact SHA-256, `SHA256SUMS.txt`, and a signed appcast. Ad-hoc builds are not Apple-notarized; Hardened Runtime/library-validation behavior follows the actual build/sign scripts.
 
 `BUILD_NUMBER` is Sparkle's comparison value and must increase. The historical `1.4.10` value was `1410`; `2.0.0` uses `20000`, `2.0.1` uses `20001`, and `2.1.0` uses `20100`. Do not derive a smaller build number by simply concatenating new version digits.
+
+## Public Apple-signed macOS release
+
+Starting with 2.1.37, public macOS downloads use the Developer ID path. Installation guidance should verify SHA-256, then use the normal macOS first-launch flow. Sparkle Ed25519 authenticates subsequent updates. Run the release script from the clean, tagged commit with the real certificate, team, and notary profile; it verifies Hardened Runtime, Team ID, notarization, stapling, and Gatekeeper:
+
+```sh
+export CODE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
+export CODE_SIGN_TEAM_ID="TEAMID"
+export NOTARY_PROFILE="coderim-notary"
+Scripts/release_public.sh
+```
+
+A maintainer needs a clean immutable tagged worktree, GitHub access to the source releases/update-feed and Homebrew tap, and the Sparkle Ed25519 private key in login Keychain under the configured account `HechoLP`. Never commit private keys, certificates, Apple credentials, or notary profiles. Only public signing keys belong in metadata.
 
 1. Merge the reviewed release commit after required CI passes; tag that exact commit without rewriting an existing tag.
 2. Build and verify exact macOS artifacts, create the GitHub release, and upload ZIP, DMG, checksums, and `appcast.xml`.
@@ -31,24 +42,6 @@ Run from the reviewed commit where `vVERSION` points exactly to HEAD. The gate c
 5. Run tap style/audit and a clean install/uninstall check, then verify exact installed version/build, architectures, updater, status item, Settings, notch, and live totals. Keep local tests, CI, installed UI, and publication as separate evidence.
 
 Public repo defaults are `dlfkdLR/CodeRim` and `update-feed`; `CODERIM_RELEASE_REPOSITORY` and `CODERIM_UPDATE_FEED_BRANCH` must be intentionally configured together for another destination. Old CodexMeter feed/repository redirects and the archived public 1.0.4 bridge remain compatibility boundaries. Do not delete/recreate legacy repositories or rewrite published assets/tags.
-
-## First-install and optional Apple trust
-
-Installation guidance must verify SHA-256 before app-scoped quarantine removal. Sparkle Ed25519 authenticates subsequent updates; a checksum or ad-hoc signature does not make the first download Apple-trusted.
-
-```sh
-xattr -dr com.apple.quarantine /Applications/CodeRim.app
-open /Applications/CodeRim.app
-```
-
-A later Developer ID path requires real certificate/team/notary credentials and validates Hardened Runtime, Team ID, notarization, stapling, and Gatekeeper. It is optional and separately authorized:
-
-```sh
-export CODE_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)"
-export CODE_SIGN_TEAM_ID="TEAMID"
-export NOTARY_PROFILE="coderim-notary"
-Scripts/release_public.sh
-```
 
 ## Windows releases
 

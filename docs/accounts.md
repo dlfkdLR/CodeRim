@@ -20,7 +20,7 @@ After a switch, CodeRim compares the account Desktop last recorded with the newl
 
 ## History and credentials
 
-Local token history remains a per-Mac ledger across accounts. Credentials are kept out of usage storage and diagnostics. Removing a saved entry does not delete the original session logs. Keychain permission prompts may recur after an ad-hoc signed app update.
+Local token history remains a per-Mac ledger across accounts. Credentials are kept out of usage storage and diagnostics. Removing a saved entry does not delete the original session logs. Keychain permission prompts may recur after an app update, especially when moving from earlier ad-hoc builds to the Developer ID signed release.
 
 [Supported configurations and switching details](../Documentation/ACCOUNTS.md) · [Claude setup](providers/claude.md) · [Privacy](privacy.md) · [Docs](README.md)
 

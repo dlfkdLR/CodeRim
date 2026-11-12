@@ -4,18 +4,18 @@
 
 ## Current status
 
-**CodeRim's Windows installers are not signed with a publisher (Authenticode) certificate today.** The project intends to apply to the [SignPath Foundation](https://signpath.org/) for free code signing for its open-source Windows MSI installers. **No application has been approved, and no SignPath certificate has been issued.** This page will be updated only after SignPath Foundation confirms approval and a signed release is actually published.
+**CodeRim's Windows installers are not signed with a publisher (Authenticode) certificate today.** The project intends to apply to the [SignPath Foundation](https://signpath.org/) for free code signing for its open-source Windows MSI installers. **No application has been approved, and no SignPath certificate has been issued.** The Windows publisher-signing status here will be updated only after SignPath Foundation confirms approval and a signed Windows release is actually published.
 
 Until then, the existing protections stay in force:
 
 - Each release publishes a SHA-256 file per installer and `SHA256SUMS-windows.txt`.
 - In-app Windows updates require the pinned Ed25519 release key, the exact architecture, version, file name, size and SHA-256 from a signed manifest. See [SECURITY.md](SECURITY.md).
 - Installers are built by [GitHub Actions on GitHub-hosted runners](.github/workflows/windows.yml) from this repository's source.
-- The macOS app is ad-hoc signed and not Apple-notarized. It is outside the scope of this policy.
+- The macOS 2.1.37 app is Developer ID signed and Apple-notarized. This policy concerns Windows publisher signing, which is separate.
 
 ## Scope
 
-Only the CodeRim Windows installers (`CodeRim-Windows-<version>-x64-Setup.msi` and `…-arm64-Setup.msi`) built from this repository would be signed. Nothing built elsewhere, no third-party binary, and no macOS or iOS artifact would be signed. Every signing request would be a build produced by the project's release workflow.
+Only the CodeRim Windows installers (`CodeRim-Windows-<version>-x64-Setup.msi` and `…-arm64-Setup.msi`) built from this repository would be submitted to SignPath. Nothing built elsewhere, no third-party binary, and no macOS or iOS artifact would be submitted to SignPath. Every request would be a build produced by the project's release workflow.
 
 ## Team roles
 

@@ -35,7 +35,7 @@ Chrome/Chromium 회귀 검사는 임시 프로필에서 한국어 → 영어 →
 vercel deploy --prod --scope willbrains-projects
 ```
 
-페이지는 macOS `v2.1.36`, Windows `v2.1.34`에 고정합니다. 배포 전에 플랫폼별 실제 공개 파일을 확인하고 버전·다운로드/체크섬 URL·릴리스 노트 링크를 함께 바꿉니다. `releases/latest`가 양쪽 플랫폼을 나타낸다고 가정하지 않습니다.
+페이지는 macOS `v2.1.37`, Windows `v2.1.34`에 고정합니다. 배포 전에 플랫폼별 실제 공개 파일을 확인하고 버전·다운로드/체크섬 URL·릴리스 노트 링크를 함께 바꿉니다. `releases/latest`가 양쪽 플랫폼을 나타낸다고 가정하지 않습니다.
 
 ## 이미지와 동작
 

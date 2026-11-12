@@ -4,18 +4,18 @@
 
 ## 현재 상태
 
-**현재 CodeRim의 Windows 설치 파일에는 게시자(Authenticode) 인증서 서명이 없습니다.** 이 프로젝트는 오픈 소스 Windows MSI 설치 파일의 무료 코드 서명을 위해 [SignPath Foundation](https://signpath.org/)에 신청할 계획입니다. **아직 승인된 신청은 없고, 발급된 SignPath 인증서도 없습니다.** SignPath Foundation이 승인을 확인하고 서명된 릴리스를 실제로 배포한 뒤에만 이 문서를 갱신합니다.
+**현재 CodeRim의 Windows 설치 파일에는 게시자(Authenticode) 인증서 서명이 없습니다.** 이 프로젝트는 오픈 소스 Windows MSI 설치 파일의 무료 코드 서명을 위해 [SignPath Foundation](https://signpath.org/)에 신청할 계획입니다. **아직 승인된 신청은 없고, 발급된 SignPath 인증서도 없습니다.** 여기의 Windows 게시자 서명 상태는 SignPath Foundation이 승인을 확인하고 서명된 Windows 릴리스를 실제로 배포한 뒤에만 갱신합니다.
 
 그때까지 기존 보호 장치는 그대로 유지됩니다.
 
 - 릴리스마다 설치 파일별 SHA-256 파일과 `SHA256SUMS-windows.txt`를 공개합니다.
 - 앱 안의 Windows 업데이트는 고정된 Ed25519 릴리스 키와, 서명된 매니페스트의 아키텍처·버전·파일명·크기·SHA-256 일치를 요구합니다. [SECURITY.ko.md](SECURITY.ko.md)를 참고하세요.
 - 설치 파일은 이 저장소의 소스를 [GitHub 호스티드 러너의 GitHub Actions](.github/workflows/windows.yml)에서 빌드합니다.
-- macOS 앱은 ad-hoc 서명이며 Apple 공증을 받지 않았습니다. 이 정책의 범위가 아닙니다.
+- macOS 2.1.37 앱은 Developer ID로 서명되고 Apple 공증을 받았습니다. 이 정책은 별개인 Windows 게시자 서명에 관한 것입니다.
 
 ## 범위
 
-이 저장소에서 빌드한 CodeRim Windows 설치 파일(`CodeRim-Windows-<버전>-x64-Setup.msi`, `…-arm64-Setup.msi`)만 서명 대상입니다. 다른 곳에서 만든 파일, 서드파티 바이너리, macOS·iOS 결과물은 서명하지 않습니다. 모든 서명 요청은 프로젝트의 릴리스 워크플로가 만든 빌드여야 합니다.
+이 저장소에서 빌드한 CodeRim Windows 설치 파일(`CodeRim-Windows-<버전>-x64-Setup.msi`, `…-arm64-Setup.msi`)만 SignPath 제출 대상입니다. 다른 곳에서 만든 파일, 서드파티 바이너리, macOS·iOS 결과물은 SignPath에 제출하지 않습니다. 모든 요청은 프로젝트의 릴리스 워크플로가 만든 빌드여야 합니다.
 
 ## 팀 역할
 

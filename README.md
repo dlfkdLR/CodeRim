@@ -26,20 +26,20 @@ Local counts cover records on **this computer across accounts**. Cached input is
 
 ## Install
 
-**macOS:** [2.1.36](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.36) · **Windows:** [2.1.34](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.34)
+**macOS:** [2.1.37](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.37) · **Windows:** [2.1.34](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.34)
 
 ### macOS
 
 **macOS 14 or later · Apple silicon and Intel.**
 
-[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.36/CodeRim-2.1.36.dmg)
+[![Download for macOS](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.37/CodeRim-2.1.37.dmg)
 
 ```sh
 brew tap dlfkdLR/tap &&
 brew install --cask dlfkdLR/tap/coderim
 ```
 
-The app is **ad-hoc signed, not Apple-notarized**. See [installation and first launch](docs/installation.md) for checksums, macOS approval, and CodexMeter migration. If Homebrew cannot find the cask or old app, use the [repair guide](docs/troubleshooting.md#homebrew-cannot-find-the-coderim-cask).
+The macOS 2.1.37 app is **Developer ID signed and Apple-notarized**. See [installation and first launch](docs/installation.md) for checksums, normal macOS verification, and CodexMeter migration. If Homebrew cannot find the cask or old app, use the [repair guide](docs/troubleshooting.md#homebrew-cannot-find-the-coderim-cask).
 
 Open **Settings → Providers → Add Provider**, connect your tools, then hover a ring. [Get started](docs/getting-started.md).
 
