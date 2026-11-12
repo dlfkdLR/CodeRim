@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.37 — macOS signing rollout and account recovery
+
+- The macOS release is prepared for Developer ID signing and Apple notarization; publication requires a verified signed artifact.
+- A temporarily unreadable Codex login file no longer clears the last confirmed account, and account reads retry even when the file timestamp has not changed.
+- The usage calculation and source-import boundaries have been consolidated while keeping their existing provider and storage policies. See the [macOS release notes](Documentation/ReleaseNotes/2.1.37.md).
+
 ## 2.1.36 — Safer usage reads and iPhone updates
 
 - Codex and Claude transcript reads are bounded, and usage collection retains partial or repaired provenance. Account renewal and local Antigravity access reject stale or unbound credentials.
