@@ -2,14 +2,14 @@
 
 [English](../iphone.md) · **한국어**
 
-연동 기능은 현재 개발 소스에 있습니다. macOS DMG·Windows MSI 다운로드에 포함되지 않으며, 검증된 App Store·TestFlight 릴리스도 아닙니다.
+버전 1.0.0은 초대된 내부 테스터에게 TestFlight로 제공됩니다. iPhone 앱은 macOS DMG·Windows MSI 다운로드와 별개이며 공개 App Store 심사는 신청하지 않았습니다.
 
-1. Apple 개발 팀과 Push Notifications를 설정해 `iOS/CodeRimMobile.xcodeproj`의 기본 앱을 빌드합니다.
+1. iPhone에서 TestFlight 초대를 수락하고 Apple TestFlight 앱을 통해 CodeRim을 설치합니다. 개발자는 Apple 개발 팀과 Push Notifications를 설정해 `iOS/CodeRimMobile.xcodeproj`에서 직접 빌드할 수도 있습니다.
 2. Mac이나 Windows PC의 CodeRim에서 **Settings → iPhone**을 열고 **Connect iPhone**을 선택합니다. QR 코드가 나타납니다.
 3. CodeRim iPhone 앱에서 **Scan QR code**를 누르고 컴퓨터의 코드를 스캔합니다. 스캔할 수 없으면 컴퓨터에서 **Copy pairing code**를 선택한 뒤 앱의 스캐너에서 붙여넣습니다. 코드는 한 번만 쓸 수 있고 5분 뒤 만료됩니다.
 4. 컴퓨터를 더 추가하려면 홈 화면의 톱니바퀴로 **Settings**를 열고 **Add a computer**를 누른 뒤 그 컴퓨터의 코드를 스캔합니다.
 
-로그인이나 Apple ID는 필요 없습니다. 첫 스캔이 relay에 익명 연결을 만들고, 이 연결 정보는 해당 iPhone의 Keychain에만 보관합니다. 연결된 컴퓨터에서 작업이 시작되면 Dynamic Island가 저절로 나타나고, 작업이 끝나고 2분쯤 뒤 사라집니다. 홈 화면의 **Show in Dynamic Island**(또는 Settings의 **Show now**)로 직접 띄울 수도 있습니다.
+CodeRim 로그인은 필요 없습니다. 첫 스캔이 relay에 익명 연결을 만들고, 이 연결 정보는 해당 iPhone의 Keychain에만 보관합니다. relay push가 설정되고 Live Activities가 허용되어 있으면 연결된 컴퓨터에서 작업이 시작될 때 Dynamic Island가 저절로 나타나며 작업이 끝나고 2분쯤 뒤 사라집니다. `/health`가 `"push": false`를 보고하면 앱을 열어 둔 동안 작업을 따라갈 수 있지만 자동 백그라운드 시작·갱신은 사용할 수 없습니다. 홈 화면의 **Show in Dynamic Island**(또는 Settings의 **Show now**)로 직접 띄울 수도 있습니다.
 
 홈 화면은 컴퓨터가 하는 일을 보여 줍니다. Island와 같은 카드, 작업 중이거나 입력을 기다리는 작업, 선택한 서비스의 사용량 창입니다. 아래로 당겨 새로고침합니다. 서비스는 카드의 메뉴에서, 따라갈 컴퓨터와 제공자는 Settings에서 고릅니다. 큰 글자 크기를 지원하며, Island를 그대로 옮긴 카드만 자기 비율을 유지합니다.
 

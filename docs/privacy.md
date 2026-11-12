@@ -20,7 +20,7 @@ Sparkle queries the GitHub update infrastructure; Windows Setup updates use the 
 
 ## Optional iPhone sharing
 
-The iPhone companion and relay are a separate development feature. A computer joins only after its pairing code is scanned or pasted inside the iPhone app. The desktop sends an allowlisted snapshot of provider names, remaining percentages, reading times, local Today tokens, and task states/counts. Task titles are off by default; enabling **Share task titles** sends those titles too. Service credentials, session IDs, full paths, prompts, and conversation content are not shared.
+The iPhone companion is an internal TestFlight beta, with a separate relay. A computer joins only after its pairing code is scanned or pasted inside the iPhone app. The desktop sends an allowlisted snapshot of provider names, remaining percentages, reading times, local Today tokens, and task states/counts. Task titles are off by default; enabling **Share task titles** sends those titles too. Service credentials, session IDs, full paths, prompts, and conversation content are not shared.
 
 The relay stores the latest snapshot, device and selection metadata, hashed bearer tokens, and the APNs tokens needed to start and update the Live Activity. No sign-in, Apple ID or email is requested; an iPhone is an anonymous account. HTTPS protects transport; the relay can read shared usage. This is not an end-to-end encrypted transport. See [iPhone setup](iphone.md) and the [relay reference](../Documentation/IPHONE.md).
 

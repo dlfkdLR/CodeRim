@@ -19,6 +19,19 @@ final class MobileContractTests: XCTestCase {
         let roundtrip = try JSONDecoder().decode(MobileActivityState.self, from: JSONEncoder().encode(decoded))
         XCTAssertEqual(roundtrip, decoded)
     }
+    func testSnapshotPushAvailabilityDecodesForNewAndOlderRelays() throws {
+        let response = MobileSnapshotResponse(state: .disconnected, preferences: MobilePreferences(), availableProviders: [])
+        var json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(response)) as? [String: Any])
+        json["pushConfigured"] = true
+        let enabled = try JSONDecoder().decode(MobileSnapshotResponse.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertEqual(enabled.pushConfigured, true)
+        json["pushConfigured"] = false
+        let disabled = try JSONDecoder().decode(MobileSnapshotResponse.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertEqual(disabled.pushConfigured, false)
+        json.removeValue(forKey: "pushConfigured")
+        let older = try JSONDecoder().decode(MobileSnapshotResponse.self, from: JSONSerialization.data(withJSONObject: json))
+        XCTAssertNil(older.pushConfigured)
+    }
     func testActivityTokenRegistrationNeverCarriesPermissionToResumeAfterStop() throws {
         let registration = MobileActivityRegistration(activityID: "fixture", pushToken: String(repeating: "a", count: 64))
         let wire = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(registration)) as? [String: String])

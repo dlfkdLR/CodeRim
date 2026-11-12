@@ -2,7 +2,7 @@
 
 **English** · [한국어](IPHONE.ko.md)
 
-This is unreleased source, separate from the public macOS DMG/Windows MSI. iOS 17.2+ uses a native settings app and a WidgetKit Live Activity; phones without Dynamic Island use the Lock Screen. A computer connects by showing a QR code that the iPhone scans; there is no sign-in. One relay serves every CodeRim user and runs on the Cloudflare Workers **Free** plan, which can never bill. A simulator or local relay test does not establish real APNs or Island delivery.
+Version 1.0.0 is available to invited internal TestFlight testers, separate from the public macOS DMG/Windows MSI; public App Store review has not been requested. iOS 17.2+ uses a native settings app and a WidgetKit Live Activity; phones without Dynamic Island use the Lock Screen. A computer connects by showing a QR code that the iPhone scans; there is no sign-in. One relay serves every CodeRim user and runs on the Cloudflare Workers **Free** plan, which can never bill. Automatic Island starts and background Live Activity updates require `/health` to report `"push": true`. A simulator or local relay test does not establish real APNs or Island delivery.
 
 ## Components and provisioning
 

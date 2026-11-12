@@ -2,7 +2,7 @@
 
 [English](IPHONE.md) · **한국어**
 
-공개 macOS DMG·Windows MSI와 별개인 미배포 소스입니다. iOS 17.2 이상은 네이티브 설정 앱과 WidgetKit Live Activity를 사용하며, Dynamic Island가 없는 기기는 잠금 화면에 표시합니다. 컴퓨터가 QR 코드를 보여 주고 iPhone이 스캔해 연결하며, 로그인은 없습니다. 모든 CodeRim 사용자가 relay 하나를 함께 쓰고, 이 relay는 과금이 불가능한 Cloudflare Workers **Free** 플랜에서 실행합니다. 시뮬레이터나 로컬 relay 테스트로는 실제 APNs·Island 전달을 증명할 수 없습니다.
+버전 1.0.0은 초대된 내부 테스터에게 TestFlight로 제공하며 공개 macOS DMG·Windows MSI와는 별개입니다. 공개 App Store 심사는 신청하지 않았습니다. iOS 17.2 이상은 네이티브 설정 앱과 WidgetKit Live Activity를 사용하며, Dynamic Island가 없는 기기는 잠금 화면에 표시합니다. 컴퓨터가 QR 코드를 보여 주고 iPhone이 스캔해 연결하며, 로그인은 없습니다. 모든 CodeRim 사용자가 relay 하나를 함께 쓰고, 이 relay는 과금이 불가능한 Cloudflare Workers **Free** 플랜에서 실행합니다. Island 자동 시작과 백그라운드 Live Activity 갱신에는 `/health`의 `"push": true`가 필요합니다. 시뮬레이터나 로컬 relay 테스트로는 실제 APNs·Island 전달을 증명할 수 없습니다.
 
 ## 구성과 프로비저닝
 

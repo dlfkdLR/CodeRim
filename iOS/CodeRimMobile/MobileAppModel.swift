@@ -36,6 +36,7 @@ final class MobileAppModel: ObservableObject {
     /// both wait for it, so a link never finds the model busy restoring and is never dropped.
     private var restoring: Task<Void, Never>?
     private var pushAvailable = true
+    private var serverPushAvailable = false
     private var foreground = false
     /// The person chose Stop showing; respected until the running tasks finish.
     private var userStopped = false
@@ -148,6 +149,10 @@ final class MobileAppModel: ObservableObject {
         let generation = loginGeneration
         remoteActivities = [
             Task { [weak self] in
+                // A token issued before this launch may not be emitted again as an update.
+                if let token = Activity<CodeRimActivityAttributes>.pushToStartToken {
+                    await self?.registerStarter(token, generation: generation)
+                }
                 for await token in Activity<CodeRimActivityAttributes>.pushToStartTokenUpdates {
                     guard !Task.isCancelled else { break }
                     await self?.registerStarter(token, generation: generation)
@@ -220,7 +225,16 @@ final class MobileAppModel: ObservableObject {
     }
 
     private func apply(_ response: MobileSnapshotResponse, token: String, retryStale: Bool = true) async throws -> Bool {
-        guard credential?.token == token, response.state.supersedes(state) else { return false }
+        guard credential?.token == token else { return false }
+        let hadServerPush = serverPushAvailable
+        serverPushAvailable = response.pushConfigured ?? false
+        if !hadServerPush && serverPushAvailable {
+            let connection = MobileActivityConnection.id(for: token)
+            for activity in Activity<CodeRimActivityAttributes>.activities where activity.attributes.connectionID == connection {
+                if let pushToken = activity.pushToken { register(pushToken, activity: activity) }
+            }
+        }
+        guard response.state.supersedes(state) else { return false }
         let connection = MobileActivityConnection.id(for: token)
         let current = Activity<CodeRimActivityAttributes>.activities.filter { $0.attributes.connectionID == connection }
             .map(\.content.state).max { !$0.supersedes($1) }
@@ -247,19 +261,20 @@ final class MobileAppModel: ObservableObject {
         return true
     }
 
-    /// Without push (an app signed with a free Apple ID) nothing can start or end the Island
-    /// remotely, so while the app is open it follows the tasks itself: shown once one runs,
-    /// ended two minutes after the last one stops.
+    /// While relay push is unavailable, follow tasks on screen and end the local Activity
+    /// two minutes after work stops. With APNs enabled the relay owns remote starts/ends;
+    /// starting locally too could create a duplicate Island.
     private func followTasks() async {
         guard foreground, signedIn else { return }
         if state.workingCount + state.waitingCount > 0 {
             idleSince = nil
-            guard !activityActive, !userStopped, !busy, ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+            guard !serverPushAvailable, !activityActive, !userStopped, !busy,
+                  ActivityAuthorizationInfo().areActivitiesEnabled else { return }
             autoStarted = true
             await startActivity(userInitiated: false)
         } else {
             userStopped = false
-            guard activityActive, autoStarted, !pushAvailable else { idleSince = nil; return }
+            guard activityActive, autoStarted, !serverPushAvailable else { idleSince = nil; return }
             let since = idleSince ?? Date(); idleSince = since
             guard Date().timeIntervalSince(since) >= 120 else { return }
             autoStarted = false; idleSince = nil
@@ -428,7 +443,8 @@ final class MobileAppModel: ObservableObject {
                     let _: MobileOK = try await client.send("POST", "/v1/activities", token: credential.token,
                         body: MobileActivityRegistration(activityID: activity.id, pushToken: hex))
                     guard !Task.isCancelled, self?.loginGeneration == generation else { return }
-                    self?.activityStatus = "Live"; return
+                    self?.activityStatus = self?.serverPushAvailable == true ? "Live" : "Updates while this app is open"
+                    return
                 } catch {
                     if Task.isCancelled { return }
                     self?.activityStatus = "Retrying push connection"
@@ -474,5 +490,6 @@ final class MobileAppModel: ObservableObject {
             catch { errorMessage = Self.message(for: error) }
         }
         serverNotice = nil; preferences = MobilePreferences(); providers = []; displayProviders = []; devices = []; state = .disconnected
+        serverPushAvailable = false
     }
 }
