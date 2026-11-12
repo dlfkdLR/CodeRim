@@ -127,6 +127,8 @@ public struct MobileSnapshotResponse: Codable, Sendable {
     public var state: MobileActivityState
     public var preferences: MobilePreferences
     public var availableProviders: [MobileProviderOption]
+    /// Whether the connected relay can send ActivityKit notifications through APNs.
+    public var pushConfigured: Bool? = nil
     public var devices: [MobileDevice]? = nil
     /// Eligible services on the currently displayed computer, in Island order.
     public var displayProviders: [MobileProviderOption]? = nil

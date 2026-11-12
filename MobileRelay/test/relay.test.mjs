@@ -42,6 +42,13 @@ test('separate accounts cannot read or update each other', async t => {
   assert.deepEqual((await c.route('GET', '/v1/snapshot')).preferences.providerIDs, []);
 });
 
+test('mobile snapshots report whether the relay can deliver Live Activity pushes', async t => {
+  const enabled = setup(t);
+  assert.equal((await enabled.route('GET', '/v1/snapshot')).pushConfigured, true);
+  const disabled = setup(t, { pushConfigured: false });
+  assert.equal((await disabled.route('GET', '/v1/snapshot')).pushConfigured, false);
+});
+
 test('unknown numbers stay unavailable; secrets and paths outside schema are dropped', () => {
   const input = snapshot(); input.accessToken = 'secret'; input.providers[0].accountEmail = 'private@example.com';
   input.providers[0].todayTokens = -1; input.providers[0].windows[0].remainingPercent = 101;

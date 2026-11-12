@@ -340,6 +340,7 @@ export class Relay {
     const displayProviders = eligibleProviders(devices.find(d => d.id === state.focus.deviceID), user.preferences)
       .map(p => ({ id: p.id, name: p.name }));
     return { state, preferences: user.preferences, displayProviders, notice: this.notice(),
+      pushConfigured: this.pushConfigured,
       availableProviders: [...providers.values()].sort((a,b) => a.name.localeCompare(b.name)),
       devices: devices.map(d => ({ id: d.id, name: d.name, platform: d.platform, online: d.receivedAt > 0 && now < d.receivedAt + (d.onlineWindow ?? ONLINE_WINDOW), lastSeen: d.receivedAt })) };
   }
