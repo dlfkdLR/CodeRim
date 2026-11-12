@@ -53,6 +53,20 @@ final class MobilePairingTests: XCTestCase {
         changed.sessions = [MobileSession(providerID: "codex", phase: .working, title: "", since: nil)]
         XCTAssertTrue(MobileConnectionStore.shouldSend(changed, after: (body, now), heartbeat: 300, now: now + 20))
     }
+
+    func testLegacyMacNameUsesComputerNameWhileCustomNameIsPreserved() {
+        let suite = "MobilePairingName.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set("Mac", forKey: "mobileDeviceName")
+        let migrated = MobileConnectionStore(defaults: defaults, credentials: MobileCredentialStore.shared,
+            makeClient: { try MobileRelayClient(endpoint: $0) }, makeMonitors: { [:] })
+        XCTAssertEqual(migrated.deviceName, MobileConnectionStore.computerName())
+        defaults.set("Studio", forKey: "mobileDeviceName")
+        let custom = MobileConnectionStore(defaults: defaults, credentials: MobileCredentialStore.shared,
+            makeClient: { try MobileRelayClient(endpoint: $0) }, makeMonitors: { [:] })
+        XCTAssertEqual(custom.deviceName, "Studio")
+    }
 }
 
 extension MobilePairingTests {
