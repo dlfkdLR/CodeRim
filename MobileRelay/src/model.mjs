@@ -198,6 +198,19 @@ export function selectProvider(devices, prefs, view, providerID, deviceID, now) 
   requireValue(eligibleProviders(device, prefs).some(p => p.id === providerID), 'provider_unavailable');
   return advancedView(devices, view, deviceID, providerID, true);
 }
+// Direct computer selection is bound to the phone's view revision by the route. Never accept an
+// arbitrary computer ID from another account, and remember the last service on each computer.
+export function selectDevice(devices, prefs, view, deviceID, now) {
+  requireValue(typeof deviceID === 'string' && deviceID.length <= 64, 'device_unavailable');
+  const device = devices.find(d => d.id === deviceID);
+  requireValue(device, 'device_unavailable');
+  const current = desktopState(devices, prefs, view, now);
+  const list = eligibleProviders(device, prefs);
+  const recent = historyFor(view, deviceID).recent;
+  const providerID = recent.find(id => list.some(p => p.id === id))
+    ?? (list.some(p => p.id === current.providers[0]?.id) ? current.providers[0].id : list[0]?.id);
+  return advancedView(devices, view, deviceID, providerID);
+}
 export function deviceLabel(body) {
   requireValue(body.platform === undefined || ['macOS', 'windows'].includes(body.platform));
   const platform = body.platform ?? 'macOS';

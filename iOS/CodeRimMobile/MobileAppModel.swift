@@ -20,7 +20,7 @@ final class MobileAppModel: ObservableObject {
     @Published private(set) var statusMessage: String?
     /// Bumped when the Island or a link asks for the dashboard, so the root can pop back to it.
     @Published private(set) var dashboardRequest = 0
-    /// When the relay last answered, for "Updated … ago".
+    /// When the relay last answered, distinct from when the computer last measured usage.
     @Published private(set) var lastRefresh: Date?
     /// The notice the last failed refresh put up, so a later good refresh can take down that one and
     /// leave any other action's error alone.
@@ -310,6 +310,33 @@ final class MobileAppModel: ObservableObject {
         } catch {
             guard generation == loginGeneration else { return false }
             errorMessage = "Could not change the service. Check your connection and try again."
+            if case MobileRelayError.rejected(401) = error { await clearLocalLogin() }
+            if case MobileRelayError.expired = error { await clearLocalLogin() }
+            return false
+        }
+    }
+
+    /// Choose a paired computer directly, without stepping through every computer in the Island.
+    func showDevice(_ id: String) async -> Bool {
+        guard !busy, let credential, let client, devices.contains(where: { $0.id == id }) else { return false }
+        busy = true; errorMessage = nil
+        let generation = loginGeneration
+        defer { busy = false }
+        do {
+            let request = MobileNavigation(axis: "device-select", direction: 1,
+                                           expectedRevision: state.viewRevision ?? 0, deviceID: id)
+            let response: MobileSnapshotResponse = try await client.send("POST", "/v1/view", token: credential.token, body: request)
+            guard generation == loginGeneration else { return false }
+            let applied = try await apply(response, token: credential.token)
+            guard generation == loginGeneration else { return false }
+            guard applied, state.focus?.deviceID == id else {
+                errorMessage = "The Island changed while you were choosing. Please choose again."
+                return false
+            }
+            return true
+        } catch {
+            guard generation == loginGeneration else { return false }
+            errorMessage = "Could not change the computer. Check your connection and try again."
             if case MobileRelayError.rejected(401) = error { await clearLocalLogin() }
             if case MobileRelayError.expired = error { await clearLocalLogin() }
             return false

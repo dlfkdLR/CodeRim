@@ -348,6 +348,71 @@ extension MobileLifecycleTests {
     }
 }
 
+private actor DeviceChoiceRelay: MobileRelayServing {
+    nonisolated let endpoint = URL(string: "https://relay.example.com")!
+    enum ResultMode: Sendable { case success, failure, conflict }
+    let mode: ResultMode
+    var selected = "mac"
+    var revision = 0
+    private(set) var request: MobileNavigation?
+    init(_ mode: ResultMode) { self.mode = mode }
+    func get<Response: Decodable & Sendable>(_ path: String, token: String) throws -> Response {
+        let devices: [MobileDevice] = [
+            .init(id: "mac", name: "Personal Mac", platform: "macOS", online: true, lastSeen: 1_790_000_000),
+            .init(id: "pc", name: "Work PC", platform: "windows", online: false, lastSeen: 1_789_999_000)]
+        let focus = MobileFocus(deviceID: selected, deviceName: selected == "mac" ? "Personal Mac" : "Work PC",
+                                platform: selected == "mac" ? "macOS" : "windows", deviceIndex: selected == "mac" ? 1 : 2,
+                                deviceCount: 2, providerIndex: 1, providerCount: 1)
+        let provider = MobileProvider(id: "codex", name: "Codex", state: "ready",
+                                      windows: [.init(name: "Week", remainingPercent: selected == "mac" ? 75 : 40, resetsAt: nil)],
+                                      todayTokens: nil, localState: "ready", updatedAt: nil)
+        let state = MobileActivityState(focus: focus, viewRevision: revision, connection: selected == "mac" ? "connected" : "offline",
+                                        updatedAt: 0, staleAt: selected == "mac" ? 1_900_000_000 : 0,
+                                        providers: [provider], sessions: [], additionalSessionCount: 0,
+                                        workingCount: 0, waitingCount: 0, unavailableCount: 0)
+        let response = MobileSnapshotResponse(state: state, preferences: MobilePreferences(),
+                                              availableProviders: [.init(id: "codex", name: "Codex")], devices: devices)
+        return try JSONDecoder().decode(Response.self, from: JSONEncoder().encode(response))
+    }
+    func send<Response: Decodable & Sendable, Body: Encodable & Sendable>(_ method: String, _ path: String, token: String?, body: Body) throws -> Response {
+        request = try JSONDecoder().decode(MobileNavigation.self, from: JSONEncoder().encode(body))
+        if mode == .failure { throw URLError(.notConnectedToInternet) }
+        revision += 1
+        if mode == .success { selected = request?.deviceID ?? selected }
+        return try get("/v1/snapshot", token: token ?? "")
+    }
+}
+
+extension MobileLifecycleTests {
+    func testDirectComputerChoiceUsesTheCurrentRevisionAndKeepsIdleUsage() async throws {
+        let relay = DeviceChoiceRelay(.success)
+        let model = MobileAppModel(credentials: MemoryCredentials(credential()), makeClient: { _ in relay })
+        await model.restore()
+        XCTAssertEqual(model.state.workingCount, 0)
+        XCTAssertEqual(model.state.providers.first?.windows.first?.remainingPercent, 75)
+        let changed = await model.showDevice("pc")
+        XCTAssertTrue(changed)
+        XCTAssertEqual(model.state.focus?.deviceID, "pc")
+        XCTAssertEqual(model.state.providers.first?.windows.first?.remainingPercent, 40)
+        let request = await relay.request
+        XCTAssertEqual(request?.axis, "device-select")
+        XCTAssertEqual(request?.deviceID, "pc")
+        XCTAssertEqual(request?.expectedRevision, 0)
+    }
+    func testComputerChoiceFailureOrConflictNeverClaimsSuccess() async throws {
+        for mode in [DeviceChoiceRelay.ResultMode.failure, .conflict] {
+            let relay = DeviceChoiceRelay(mode)
+            let model = MobileAppModel(credentials: MemoryCredentials(credential()), makeClient: { _ in relay })
+            await model.restore()
+            let changed = await model.showDevice("pc")
+            XCTAssertFalse(changed)
+            XCTAssertEqual(model.state.focus?.deviceID, "mac")
+            XCTAssertNotNil(model.errorMessage)
+            XCTAssertFalse(model.busy)
+        }
+    }
+}
+
 private actor PairingRelay: MobileRelayServing {
     nonisolated let endpoint = URL(string: "https://relay.example.com")!
     private(set) var calls: [String] = []

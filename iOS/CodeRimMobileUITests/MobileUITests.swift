@@ -105,6 +105,23 @@ final class MobileUITests: XCTestCase {
     }
 
     @MainActor
+    func testIdleDashboardKeepsUsageAndLetsThePersonChooseAComputer() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["--ui-settings", "--ui-dashboard", "--ui-idle-usage"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["Nothing running"].waitForExistence(timeout: 10))
+        XCTAssertTrue(app.staticTexts["68% left"].exists, "Remaining usage must be visible with no active task")
+        attach("dashboard-idle-usage", app.screenshot())
+        let picker = app.buttons["dashboard-computer-picker"]
+        XCTAssertTrue(picker.exists)
+        picker.tap()
+        XCTAssertTrue(app.navigationBars["Choose computer"].waitForExistence(timeout: 5))
+        app.buttons["show-device-pc"].tap()
+        XCTAssertTrue(app.buttons["dashboard-computer-picker"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Work PC"].exists)
+    }
+
+    @MainActor
     func testAComputerCanBeDisconnectedFromAVisibleMenu() throws {
         let app = XCUIApplication()
         app.launchArguments = ["--ui-settings"]

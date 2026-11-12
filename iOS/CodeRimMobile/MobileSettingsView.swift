@@ -31,6 +31,14 @@ struct MobileSettingsView: View {
                         }
                     }.padding(.vertical, 4)
                 }
+                if model.devices.count > 1 {
+                    NavigationLink {
+                        MobileDevicePicker(model: model)
+                    } label: {
+                        LabeledContent("Showing on", value: model.state.focus?.deviceName ?? "Choose a computer")
+                    }
+                    .accessibilityIdentifier("settings-computer-picker")
+                }
                 ForEach(model.devices) { device in
                     HStack(spacing: 8) {
                         DeviceRow(device: device).frame(maxWidth: .infinity, alignment: .leading)
@@ -59,7 +67,7 @@ struct MobileSettingsView: View {
             } header: { Text("Computers") } footer: {
                 Text(model.devices.isEmpty
                      ? "In CodeRim on your computer, open Settings → iPhone and scan its QR code. Works across different Wi‑Fi networks."
-                     : "Tap ⋯ or swipe left on a computer to disconnect it. Each computer shares while it is awake.")
+                     : "Choose which computer to show, or tap ⋯ to disconnect one. Each computer shares while it is awake.")
             }
 
             Section {
@@ -94,7 +102,7 @@ struct MobileSettingsView: View {
                     .disabled(model.busy || isSettingsPreview)
                 }
             } header: { Text("Dynamic Island") } footer: {
-                Text("The Island appears on its own while a task runs and this app is open. Touch and hold it to see usage and tasks; tap it to open CodeRim.")
+                Text("The Island appears while a task runs. Tap Show now to keep usage visible during idle time for up to eight hours. Touch and hold it for details.")
             }
 
             Section {
@@ -120,6 +128,51 @@ struct MobileSettingsView: View {
             Button("Disconnect this iPhone", role: .destructive) { Task { await model.signOut(deleteAccount: true) } }
             Button("Cancel", role: .cancel) {}
         }
+    }
+}
+
+/// Direct selection is easier than cycling the Island when several computers are paired.
+struct MobileDevicePicker: View {
+    @ObservedObject var model: MobileAppModel
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectingID: String?
+
+    var body: some View {
+        List {
+            Section {
+                ForEach(model.devices) { device in
+                    Button {
+                        selectingID = device.id
+                        Task {
+                            let changed = await model.showDevice(device.id)
+                            selectingID = nil
+                            if changed { dismiss() }
+                        }
+                    } label: {
+                        HStack(spacing: 8) {
+                            DeviceRow(device: device).frame(maxWidth: .infinity, alignment: .leading)
+                            if selectingID == device.id && model.busy { ProgressView() }
+                            else if model.state.focus?.deviceID == device.id {
+                                Image(systemName: "checkmark").font(.body.weight(.semibold)).foregroundStyle(.tint)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(model.busy)
+                    .accessibilityIdentifier("show-device-" + device.id)
+                    .accessibilityAddTraits(model.state.focus?.deviceID == device.id ? .isSelected : [])
+                }
+            } footer: {
+                Text("Offline computers show their last reported usage until they reconnect.")
+            }
+            if let error = model.errorMessage {
+                Section { Label(error, systemImage: "exclamationmark.circle").font(.footnote).foregroundStyle(.red) }
+            }
+        }
+        .navigationTitle("Choose computer")
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await model.refresh() }
     }
 }
 

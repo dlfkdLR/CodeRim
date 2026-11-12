@@ -57,7 +57,7 @@ Steady heartbeats keep unchanged device content in memory; usage-budget reservat
 
 ## Dynamic Island
 
-The iPhone registers an ActivityKit push-to-start token (`POST /v1/push-to-start`). When a connected computer reports a working or waiting task and that iPhone has no Live Activity, the relay starts one with an APNs `start` event (`attributes-type: CodeRimActivityAttributes`, alert, priority 10), at most once every five minutes. iOS gives the app background time to register the new Activity's update token (`POST /v1/activities`). The relay then pushes updates on change, at most every 15 seconds. It ends the Activity two minutes after the last task stops, and iOS ends any Activity after eight hours. Stop suppresses remote starts and ends late registrations until work becomes idle or the user explicitly starts again. Retry alarms do not start activities for offline computers. **Show now** clears suppression through `/v1/activities/resume` before local creation.
+The iPhone registers an ActivityKit push-to-start token (`POST /v1/push-to-start`). When a connected computer reports a working or waiting task and that iPhone has no Live Activity, the relay starts one with an APNs `start` event (`attributes-type: CodeRimActivityAttributes`, alert, priority 10), at most once every five minutes. iOS gives the app background time to register the new Activity's update token (`POST /v1/activities`). The relay then pushes updates on change, at most every 15 seconds. Automatically started Activities end two minutes after the last task stops. **Show now** clears suppression through `/v1/activities/resume` and starts a bounded usage glance that stays visible through idle time until Stop or the eight-hour ActivityKit limit. Stop suppresses remote starts and ends late registrations until work becomes idle or the user explicitly starts again. Retry alarms do not start activities for offline computers.
 
 Live Activity updates use priority 5, except for waiting-for-input and busy-relay alerts (priority 10). The serialized APNs envelope is bounded to 3,800 UTF-8 bytes. ActivityKit wire dates are Unix seconds.
 
@@ -74,7 +74,7 @@ All JSON responses use `Cache-Control: no-store`. Non-public routes require `Aut
 | POST | `/v1/pairing/claim` | Mobile; id/secret → deviceID/name/platform |
 | POST | `/v1/snapshot` | Desktop; sanitized MobileSnapshot → ok/interval/notice |
 | GET | `/v1/snapshot` | Mobile; state/preferences/providers/devices/notice |
-| POST | `/v1/view` | Mobile; axis/direction/expectedRevision and optional providerID/deviceID/groupID/pickerVersion |
+| POST | `/v1/view` | Mobile; axis/direction/expectedRevision and optional providerID/deviceID/groupID/pickerVersion; `device-select` directly chooses an owned computer |
 | DELETE | `/v1/devices/:id` | Mobile; remove only own device |
 | PUT | `/v1/preferences` | Mobile; providerIDs, maximum 100; empty means all |
 | POST/DELETE | `/v1/activities` | Mobile; register or stop the current Live Activity |
@@ -83,7 +83,7 @@ All JSON responses use `Cache-Control: no-store`. Non-public routes require `Aut
 | DELETE | `/v1/session` | Current device; disconnect |
 | DELETE | `/v1/account` | Mobile; delete the account, its computers, and data |
 
-Focus belongs to each iPhone and computer. Direct provider selection through `/v1/view` is device-bound and requires `expectedRevision`. A stale selection returns the latest focus, and the phone asks again instead of reporting success. `pickerVersion: 2` provides Quick access (at most three pinned or recent providers) and All (at most three name ranges per level); a 100-provider catalog takes at most four range choices. Selection, cancel, or a desktop change closes the picker. Catalog or inclusion changes invalidate its revision immediately.
+Focus belongs to each iPhone and computer. Direct provider selection through `/v1/view` is device-bound and requires `expectedRevision`; direct computer selection also requires a current revision and an owned device ID. A stale selection returns the latest focus, and the phone asks again instead of reporting success. The iPhone dashboard keeps its usage section above tasks even when no task is running, and explains missing readings rather than removing the section. `pickerVersion: 2` provides Quick access (at most three pinned or recent providers) and All (at most three name ranges per level); a 100-provider catalog takes at most four range choices. Selection, cancel, or a desktop change closes the picker. Catalog or inclusion changes invalidate its revision immediately.
 
 ## Deletion and verification
 
