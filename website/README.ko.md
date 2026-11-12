@@ -29,10 +29,10 @@ Chrome/Chromium 회귀 검사는 임시 프로필에서 한국어 → 영어 →
 
 `website`만 업로드합니다. Root/Output Directory는 `.`, Framework는 Other, Build/Install 명령은 비워 두고 환경 변수는 필요 없습니다. `vercel.json`과 `.vercelignore`가 정적 출력과 유지보수 문서·스크립트·환경 파일 제외를 정의합니다. `.vercel/`는 Git에 넣지 않습니다. [Vercel 정적 설정](https://vercel.com/docs/builds/configure-a-build#skip-build-step).
 
-기록된 배포는 `willbrains-projects/coderim`, [coderim.vercel.app](https://coderim.vercel.app), [coderim.dlfkd.dev](https://coderim.dlfkd.dev)와 Cloudflare DNS 전용 CNAME을 사용합니다. 당시 Git 배포는 연결하지 않았으며 나중에 연결한다면 Root Directory는 `website`입니다. 이는 기록된 설정이며 새 운영 검증 결과가 아닙니다. 배포가 승인되면 `website`에서 실행합니다.
+2026-11-12 확인한 운영 배포는 `dlfkd/coderim` 프로젝트에서 [coderim.vercel.app](https://coderim.vercel.app)과 [coderim.dlfkd.dev](https://coderim.dlfkd.dev)를 제공합니다. 두 도메인에서 HTTP 200, macOS 2.1.37 및 Windows 2.1.34 링크를 확인했습니다. 이전 기록에는 Cloudflare DNS 전용 CNAME과 Git 배포 미연결이 적혀 있으며, Git을 연결한다면 Root Directory를 `website`로 지정합니다. 배포가 승인되면 `website`에서 실행합니다.
 
 ```sh
-vercel deploy --prod --scope willbrains-projects
+vercel deploy --prod --scope dlfkd
 ```
 
 페이지는 macOS `v2.1.37`, Windows `v2.1.34`에 고정합니다. 배포 전에 플랫폼별 실제 공개 파일을 확인하고 버전·다운로드/체크섬 URL·릴리스 노트 링크를 함께 바꿉니다. `releases/latest`가 양쪽 플랫폼을 나타낸다고 가정하지 않습니다.

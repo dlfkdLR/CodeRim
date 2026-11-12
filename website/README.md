@@ -29,10 +29,10 @@ The installed Chrome/Chromium regression uses a temporary profile to check Korea
 
 Upload only `website`: Root/Output Directory `.`, Framework Other, empty Build/Install commands, no environment variables. `vercel.json` and `.vercelignore` define static output and exclude maintenance docs/scripts/environment files. Keep `.vercel/` out of Git. [Vercel static configuration](https://vercel.com/docs/builds/configure-a-build#skip-build-step).
 
-The recorded deployment uses project `willbrains-projects/coderim`, [coderim.vercel.app](https://coderim.vercel.app) and [coderim.dlfkd.dev](https://coderim.dlfkd.dev), with a DNS-only Cloudflare CNAME. Git deployment was not connected in that record; a future Git connection needs Root Directory `website`. These are recorded settings, not a fresh production check. When deployment is authorized, run from `website`:
+The production deployment verified on 2026-11-12 uses project `dlfkd/coderim` and serves [coderim.vercel.app](https://coderim.vercel.app) and [coderim.dlfkd.dev](https://coderim.dlfkd.dev). Both domains returned HTTP 200 with the macOS 2.1.37 and Windows 2.1.34 links. An earlier record described a DNS-only Cloudflare CNAME and no Git deployment connection; if connecting Git, use Root Directory `website`. When deployment is authorized, run from `website`:
 
 ```sh
-vercel deploy --prod --scope willbrains-projects
+vercel deploy --prod --scope dlfkd
 ```
 
 The page pins macOS `v2.1.37` and Windows `v2.1.34`. Before deployment, verify the platform-specific published assets and update versions, download/checksum URLs and release-note links together; do not assume `releases/latest` identifies both platforms.
