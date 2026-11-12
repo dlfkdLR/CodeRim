@@ -194,7 +194,8 @@ export class Relay {
     }
     if (method === 'GET' && path === '/v1/snapshot') return this.response(session, now);
     if (method === 'POST' && path === '/v1/view') {
-      return this.serial(session.hash, () => {
+      // View changes must not queue behind APNs: a slow push otherwise blocks the next Island tap.
+      return this.serial(`view:${session.hash}`, () => {
         // Waiting for a push must not outlive revocation or reuse an old view.
         store.auth(bearer, 'mobile', this.now());
         const previous = store.view(session.hash);
@@ -445,7 +446,7 @@ export class Relay {
       // Starts and updates run side by side. Each phone's updates stay in order (serial per session),
       // but one phone's slow APNs answer, a start included, holds back no other phone's Island.
       const updates = this.store.activities(owner).map(listed =>
-        this.serial(listed.session, () => this.updateActivity(listed)).catch(() => now + 60));
+        this.serial(`activity:${listed.session}`, () => this.updateActivity(listed)).catch(() => now + 60));
       const [startDue, dues] = await Promise.all([this.startActivities(owner, now), Promise.all(updates)]);
       due = Math.min(due, startDue, ...dues);
     } finally {
