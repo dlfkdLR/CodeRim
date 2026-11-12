@@ -1,5 +1,5 @@
 import { digest, secret } from './crypto.mjs';
-import { HTTPError, requireValue, preferences, sanitizeSnapshot, activityPayload, desktopState, navigate, selectProvider,
+import { HTTPError, requireValue, preferences, sanitizeSnapshot, activityPayload, desktopState, navigate, selectProvider, selectDevice,
   deviceLabel, eligibleProviders, ONLINE_WINDOW, READING_AGE } from './model.mjs';
 
 export { FREE_DAILY } from './budget.mjs';
@@ -204,12 +204,17 @@ export class Relay {
         const freshUser = store.user(session.owner);
         const devices = this.devices(session.owner, this.now());
         if (body.providerID !== undefined) requireValue(body.axis === 'provider' && Number.isSafeInteger(body.expectedRevision));
+        if (body.axis === 'device-select' || (body.deviceID !== undefined && body.providerID === undefined)) {
+          requireValue(body.axis === 'device-select' && body.providerID === undefined && Number.isSafeInteger(body.expectedRevision));
+        }
         requireValue(body.pickerVersion === undefined || body.pickerVersion === 2);
         if (body.groupID !== undefined) requireValue(body.axis === 'provider-group' && typeof body.groupID === 'string' && body.groupID.length <= 16);
         if (['provider-all', 'provider-back', 'provider-group', 'provider-pin'].includes(body.axis) || body.pickerVersion === 2) requireValue(Number.isSafeInteger(body.expectedRevision));
-        const view = body.providerID === undefined
-          ? navigate(devices, freshUser.preferences, previous, body.axis, body.direction, this.now(), { groupID: body.groupID, pickerVersion: body.pickerVersion })
-          : selectProvider(devices, freshUser.preferences, previous, body.providerID, body.deviceID, this.now());
+        const view = body.providerID !== undefined
+          ? selectProvider(devices, freshUser.preferences, previous, body.providerID, body.deviceID, this.now())
+          : body.axis === 'device-select'
+            ? selectDevice(devices, freshUser.preferences, previous, body.deviceID, this.now())
+            : navigate(devices, freshUser.preferences, previous, body.axis, body.direction, this.now(), { groupID: body.groupID, pickerVersion: body.pickerVersion });
         store.saveView(session.hash, view);
         // The relay's own bookkeeping for the new screen (its idle clock, its next wake) follows now.
         this.later(() => this.tick(session.owner));
@@ -284,8 +289,20 @@ export class Relay {
       return { ok: true, interval, notice: this.notice() };
     }
     if (method === 'POST' && path === '/v1/activities/resume') {
-      const starter = store.starters(session.owner).find(s => s.session === session.hash);
-      if (starter?.data.suppressed) { delete starter.data.suppressed; store.saveStarter(starter); }
+      if (this.pushConfigured) {
+        // "Show now" is an explicit, bounded usage glance. Keep it visible through idle time;
+        // automatic task activities still end shortly after work stops.
+        const until = now + ACTIVITY_LIFETIME - 360;
+        const starter = store.starter(session.hash) ?? { session: session.hash, owner: session.owner, data: {} };
+        delete starter.data.suppressed;
+        starter.data.manualUntil = until;
+        store.saveStarter(starter);
+        for (const activity of store.activities(session.owner).filter(a => a.session === session.hash && !a.data.ending)) {
+          activity.data.manualUntil = Math.min(until, activity.data.createdAt + ACTIVITY_LIFETIME - 360);
+          delete activity.data.idleSince;
+          store.saveActivity(activity);
+        }
+      }
       return { ok: true };
     }
     if (method === 'POST' && path === '/v1/activities') {
@@ -295,7 +312,8 @@ export class Relay {
       const id = `${session.hash}:${body.activityID}`;
       const activities = store.activities(session.owner).filter(a => a.session === session.hash);
       const existing = activities.find(a => a.id === id);
-      const suppressed = store.starters(session.owner).some(s => s.session === session.hash && s.data.suppressed);
+      const starter = store.starter(session.hash);
+      const suppressed = Boolean(starter?.data.suppressed);
       if (existing?.data.ending) throw new HTTPError(409, 'activity_ended');
       // Keep every pending end delivery, but bound the retry work a phone can retain.
       if (!existing && activities.length >= MAX_ACTIVITIES_PER_PHONE) throw new HTTPError(429, 'activity_limit');
@@ -303,7 +321,9 @@ export class Relay {
       this.endActivities(activities.filter(a => a.id !== id && !a.data.ending));
       store.saveActivity({ id, owner: session.owner, session: session.hash,
         data: { ...existing?.data, token: body.pushToken, createdAt: existing?.data.createdAt ?? now, sentAt: existing?.data.sentAt ?? 0,
-          sentKey: existing?.data.sentKey ?? '', ending: suppressed, needsPush: true } });
+          sentKey: existing?.data.sentKey ?? '', ending: suppressed, needsPush: true,
+          manualUntil: existing?.data.manualUntil ?? (starter?.data.manualUntil > now ? starter.data.manualUntil : undefined) } });
+      if (starter?.data.manualUntil) { delete starter.data.manualUntil; store.saveStarter(starter); }
       this.later(() => this.tick(session.owner));
       return { ok: true };
     }
@@ -311,7 +331,11 @@ export class Relay {
       // Stop can arrive before ActivityKit has supplied its first push-to-start token.
       const starter = store.starters(session.owner).find(s => s.session === session.hash)
         ?? { session: session.hash, owner: session.owner, data: {} };
-      if (this.pushConfigured && !starter.data.suppressed) { starter.data.suppressed = true; store.saveStarter(starter); }
+      if (this.pushConfigured) {
+        delete starter.data.manualUntil;
+        starter.data.suppressed = true;
+        store.saveStarter(starter);
+      }
       this.endActivities(store.activities(session.owner).filter(a => a.session === session.hash && !a.data.ending));
       this.later(() => this.tick(session.owner));
       return { ok: true };
@@ -525,9 +549,12 @@ export class Relay {
     const session = this.store.one('SELECT expires FROM sessions WHERE hash=?', activity.session);
     if (!session || session.expires <= now || now - a.createdAt >= ACTIVITY_LIFETIME - 360) a.ending = true;
     const state = this.state(activity.owner, activity.session, now);
-    // Only while work is happening: end the Island a little after the last task finishes.
+    // Automatic task activities end shortly after work stops. A person who tapped "Show now"
+    // keeps a usage glance through idle time, bounded by ActivityKit's lifetime.
     if (!a.ending) {
-      if (working(state)) { if (a.idleSince) { delete a.idleSince; this.store.saveActivity(activity); } }
+      if (working(state) || a.manualUntil > now) {
+        if (a.idleSince) { delete a.idleSince; this.store.saveActivity(activity); }
+      }
       else if (!a.idleSince) { a.idleSince = now; this.store.saveActivity(activity); }
       else if (now - a.idleSince >= IDLE_END) a.ending = true;
     }
@@ -539,7 +566,8 @@ export class Relay {
     // A reading also turns stale with time alone, when its limit resets or it grows old; a computer asleep
     // sends nothing then either, so the relay wakes to show it.
     const idleDue = a.ending ? Infinity
-      : Math.min(a.idleSince ? a.idleSince + IDLE_END : working(state) ? state.staleAt : Infinity, freshUntil(state, now));
+      : Math.min(a.manualUntil > now ? a.manualUntil : a.idleSince ? a.idleSince + IDLE_END : working(state) ? state.staleAt : Infinity,
+        freshUntil(state, now));
     if (!changed) return Math.min(idleDue, a.createdAt + ACTIVITY_LIFETIME - 360);
     // APNs budgets Live Activity updates; space routine ones 15 seconds apart.
     if (!a.ending && !a.needsPush && !navigated && now - a.sentAt < 15) return a.sentAt + 15;

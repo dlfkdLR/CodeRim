@@ -61,7 +61,9 @@ private struct DebugSettingsPreview: View {
     init() {
         let empty = ProcessInfo.processInfo.arguments.contains("--ui-empty-settings")
         let relay = DebugSettingsRelay(empty: empty, noServices: ProcessInfo.processInfo.arguments.contains("--ui-no-services"),
-                                       busy: ProcessInfo.processInfo.arguments.contains("--ui-dashboard"))
+                                       busy: ProcessInfo.processInfo.arguments.contains("--ui-dashboard")
+                                           && !ProcessInfo.processInfo.arguments.contains("--ui-idle-usage"),
+                                       idleUsage: ProcessInfo.processInfo.arguments.contains("--ui-idle-usage"))
         _model = StateObject(wrappedValue: MobileAppModel(credentials: DebugSettingsCredentials(),
             makeClient: { _ in relay }))
     }
@@ -89,10 +91,14 @@ private actor DebugSettingsRelay: MobileRelayServing {
     let noServices: Bool
     /// Sample usage and tasks for the dashboard preview.
     let busy: Bool
+    let idleUsage: Bool
     var preferences = MobilePreferences()
     var selectedID = "codex"
+    var selectedDeviceID = "mac"
     var revision = 0
-    init(empty: Bool, noServices: Bool, busy: Bool = false) { self.empty = empty; self.noServices = noServices; self.busy = busy }
+    init(empty: Bool, noServices: Bool, busy: Bool = false, idleUsage: Bool = false) {
+        self.empty = empty; self.noServices = noServices; self.busy = busy; self.idleUsage = idleUsage
+    }
     func get<Response: Decodable & Sendable>(_ path: String, token: String) throws -> Response {
         let now = Date().timeIntervalSince1970
         let options: [MobileProviderOption] = (empty || noServices) ? [] : [.init(id: "codex", name: "Codex"), .init(id: "claude", name: "Claude")]
@@ -100,23 +106,27 @@ private actor DebugSettingsRelay: MobileRelayServing {
         let devices: [MobileDevice] = empty ? [] : [
             .init(id: "mac", name: "Personal Mac", platform: "macOS", online: true, lastSeen: now),
             .init(id: "pc", name: "Work PC", platform: "windows", online: false, lastSeen: now - 600)]
+        let selectedDevice = devices.first { $0.id == selectedDeviceID }
         let displayed = options.filter { preferences.providerIDs.isEmpty || preferences.providerIDs.contains($0.id) }
         let selected = displayed.first(where: { $0.id == selectedID }) ?? displayed.first
         var state = MobileActivityState.disconnected
         state.viewRevision = revision
-        state.focus = .init(deviceID: devices.first?.id ?? "", deviceName: devices.first?.name ?? "No device", platform: "macOS",
-                            deviceIndex: empty ? 0 : 1, deviceCount: devices.count,
+        state.focus = .init(deviceID: selectedDevice?.id ?? "", deviceName: selectedDevice?.name ?? "No device", platform: selectedDevice?.platform ?? "macOS",
+                            deviceIndex: selectedDevice.flatMap { pick in devices.firstIndex(where: { $0.id == pick.id }) }.map { $0 + 1 } ?? 0, deviceCount: devices.count,
                             providerIndex: selected.flatMap { pick in displayed.firstIndex(where: { $0.id == pick.id }) }.map { $0 + 1 } ?? 0,
                             providerCount: displayed.count)
         state.providers = selected.map { [.init(id: $0.id, name: $0.name, state: "unavailable", windows: [], todayTokens: nil, localState: "unavailable", updatedAt: nil)] } ?? []
-        if busy, let id = selected?.id, let name = selected?.name {
-            state.connection = "connected"; state.updatedAt = now; state.staleAt = now + 600
+        if (busy || idleUsage), let id = selected?.id, let name = selected?.name {
+            state.connection = selectedDevice?.online == true ? "connected" : "offline"
+            state.updatedAt = now; state.staleAt = selectedDevice?.online == true ? now + 600 : 0
             state.providers = [.init(id: id, name: name, state: "ready",
                 windows: [.init(name: "5h", remainingPercent: 68, resetsAt: now + 7_800), .init(name: "Week", remainingPercent: 41, resetsAt: now + 260_000)],
                 todayTokens: 284_000, localState: "ready", updatedAt: now)]
-            state.sessions = [.init(providerID: id, phase: .waiting, title: "Review the iPhone dashboard", since: now - 140),
-                              .init(providerID: id, phase: .working, title: "Refactor relay polling", since: now - 610)]
-            state.workingCount = 1; state.waitingCount = 1; state.additionalSessionCount = 1
+            if busy {
+                state.sessions = [.init(providerID: id, phase: .waiting, title: "Review the iPhone dashboard", since: now - 140),
+                                  .init(providerID: id, phase: .working, title: "Refactor relay polling", since: now - 610)]
+                state.workingCount = 1; state.waitingCount = 1; state.additionalSessionCount = 1
+            }
         }
         var response = MobileSnapshotResponse(state: state, preferences: preferences, availableProviders: options, devices: devices, displayProviders: displayed)
         if ProcessInfo.processInfo.arguments.contains("--ui-notice") {
@@ -129,8 +139,12 @@ private actor DebugSettingsRelay: MobileRelayServing {
     ) throws -> Response {
         if path == "/v1/view" {
             let request = try JSONDecoder().decode(MobileNavigation.self, from: JSONEncoder().encode(body))
-            if request.expectedRevision == revision, let id = request.providerID, request.deviceID == "mac" {
-                selectedID = id; revision += 1
+            if request.expectedRevision == revision {
+                if request.axis == "device-select", let id = request.deviceID, ["mac", "pc"].contains(id) {
+                    selectedDeviceID = id; revision += 1
+                } else if let id = request.providerID, request.deviceID == selectedDeviceID {
+                    selectedID = id; revision += 1
+                }
             }
             return try get("/v1/snapshot", token: token ?? "")
         }

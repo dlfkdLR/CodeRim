@@ -14,6 +14,7 @@ struct MobileRootView: View {
                 switch route {
                 case .settings: MobileSettingsView(model: model)
                 case .showing: MobileIslandProviderPicker(model: model)
+                case .computers: MobileDevicePicker(model: model)
                 }
             }
         }
@@ -25,7 +26,7 @@ struct MobileRootView: View {
     }
 }
 
-enum MobileRoute: Hashable { case settings, showing }
+enum MobileRoute: Hashable { case settings, showing, computers }
 
 /// What the connected computers are doing right now: the Island, its tasks and usage.
 struct MobileDashboardView: View {
@@ -43,9 +44,9 @@ struct MobileDashboardView: View {
                 if model.devices.isEmpty { addComputer } else {
                     islandCard
                     if !model.activityActive { islandButton }
+                    usageSummary
+                    tasks
                 }
-                if !model.devices.isEmpty { tasks }
-                if let provider, !provider.windows.isEmpty || provider.todayTokens != nil { usage(provider) }
                 if let error = model.errorMessage {
                     Label(error, systemImage: "exclamationmark.circle.fill")
                         .font(.footnote).foregroundStyle(.red)
@@ -150,8 +151,17 @@ struct MobileDashboardView: View {
                 .accessibilityIdentifier("dashboard-showing")
                 Spacer(minLength: 8)
                 if let focus = state.focus, focus.deviceCount > 0 {
-                    Label(focus.deviceName, systemImage: focus.deviceSymbol)
-                        .font(.caption).foregroundStyle(.white.opacity(0.65)).lineLimit(1)
+                    if focus.deviceCount > 1 {
+                        NavigationLink(value: MobileRoute.computers) {
+                            Label(focus.deviceName, systemImage: focus.deviceSymbol)
+                                .font(.caption).lineLimit(1)
+                        }
+                        .accessibilityLabel("Choose computer, showing \(focus.deviceName)")
+                        .accessibilityIdentifier("dashboard-computer-picker")
+                    } else {
+                        Label(focus.deviceName, systemImage: focus.deviceSymbol)
+                            .font(.caption).lineLimit(1)
+                    }
                 }
             }
             IslandDetails(state: state, stale: state.isStale())
@@ -228,13 +238,34 @@ struct MobileDashboardView: View {
 
     // MARK: Usage
 
+    /// Usage is independent of task activity. An unavailable reading needs an explanation, not an absent card.
+    private var usageSummary: some View {
+        Group {
+            if let provider, !provider.windows.isEmpty || provider.todayTokens != nil {
+                usage(provider)
+            } else {
+                DashboardCard(title: provider.map { "Usage · \($0.name)" } ?? "Usage") {
+                    EmptyView()
+                } content: {
+                    Text(IslandReading(state: state, stale: state.isStale()).quotaMessage ?? "No quota data from this computer yet.")
+                        .font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
     private func usage(_ provider: MobileProvider) -> some View {
         DashboardCard(title: "Usage · \(provider.name)") {
             EmptyView()
         } content: {
             VStack(spacing: 14) {
+                if state.isStale() || provider.state == "stale" {
+                    Label("Last reported usage · may be out of date", systemImage: "clock.arrow.circlepath")
+                        .font(.footnote).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 ForEach(Array(provider.windows.enumerated()), id: \.offset) { _, window in
-                    UsageBar(window: window, drawsQuota: IslandReading.drawsQuota(provider.state))
+                    UsageBar(window: window, drawsQuota: IslandReading.drawsQuota(provider.state) || provider.state == "stale")
                 }
                 if let tokens = provider.todayTokens, ["ready", "partial"].contains(provider.localState) {
                     HStack {
@@ -254,7 +285,7 @@ struct MobileDashboardView: View {
             Group {
                 if let last = model.lastRefresh {
                     let seconds = max(0, Int(context.date.timeIntervalSince(last)))
-                    Text(seconds < 5 ? "Up to date" : "Updated \(seconds < 60 ? "\(seconds)s" : "\(seconds / 60)m") ago")
+                    Text(seconds < 5 ? "Relay checked just now" : "Relay checked \(seconds < 60 ? "\(seconds)s" : "\(seconds / 60)m") ago")
                 } else {
                     Text("Checking…")
                 }

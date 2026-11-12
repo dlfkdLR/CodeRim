@@ -57,7 +57,7 @@ relay의 일일 예산은 요청 100,000개, 행 쓰기 100,000개, 행 읽기 5
 
 ## Dynamic Island
 
-iPhone은 ActivityKit push-to-start 토큰을 등록합니다(`POST /v1/push-to-start`). 연결된 컴퓨터가 작업 중이거나 입력 대기 중인 작업을 보고했는데 그 iPhone에 Live Activity가 없으면, relay가 APNs `start` 이벤트(`attributes-type: CodeRimActivityAttributes`, 알림, 우선순위 10)로 시작합니다. 5분에 한 번까지만 시작합니다. iOS는 앱에 백그라운드 시간을 주어 새 Activity의 업데이트 토큰을 등록하게 합니다(`POST /v1/activities`). 이후 relay는 변경이 있을 때 최대 15초 간격으로 갱신하고, 마지막 작업이 끝나고 2분 뒤 Activity를 끝냅니다. iOS는 어떤 Activity든 8시간 뒤 끝냅니다. Stop은 작업이 유휴 상태가 되거나 사용자가 명시적으로 다시 시작할 때까지 원격 시작을 억제하고 늦은 등록도 종료합니다. 오프라인 컴퓨터에는 재시도 알람으로 Activity를 시작하지 않습니다. **Show now**는 `/v1/activities/resume`으로 억제를 해제한 뒤 로컬 Activity를 만듭니다.
+iPhone은 ActivityKit push-to-start 토큰을 등록합니다(`POST /v1/push-to-start`). 연결된 컴퓨터가 작업 중이거나 입력 대기 중인 작업을 보고했는데 그 iPhone에 Live Activity가 없으면, relay가 APNs `start` 이벤트(`attributes-type: CodeRimActivityAttributes`, 알림, 우선순위 10)로 시작합니다. 5분에 한 번까지만 시작합니다. iOS는 앱에 백그라운드 시간을 주어 새 Activity의 업데이트 토큰을 등록하게 합니다(`POST /v1/activities`). 이후 relay는 변경이 있을 때 최대 15초 간격으로 갱신합니다. 자동으로 시작한 Activity는 마지막 작업이 끝나고 2분 뒤 종료합니다. **Show now**는 `/v1/activities/resume`으로 중지 상태를 해제하고, 작업이 없어도 Stop을 누르거나 ActivityKit의 8시간 제한에 도달할 때까지 사용량을 보여 줍니다. Stop은 작업이 유휴 상태가 되거나 사용자가 명시적으로 다시 시작할 때까지 원격 시작을 억제하고 늦은 등록도 종료합니다. 오프라인 컴퓨터에는 재시도 알람으로 Activity를 시작하지 않습니다.
 
 Live Activity 갱신은 우선순위 5를 쓰고, 입력 대기와 relay 혼잡 알림만 우선순위 10을 씁니다. 직렬화한 APNs envelope는 UTF-8 3,800바이트로 제한합니다. ActivityKit wire 날짜는 Unix 초입니다.
 
@@ -74,7 +74,7 @@ Live Activity 갱신은 우선순위 5를 쓰고, 입력 대기와 relay 혼잡 
 | POST | `/v1/pairing/claim` | 모바일. id/secret → deviceID/name/platform |
 | POST | `/v1/snapshot` | 데스크톱. 정리된 MobileSnapshot → ok/interval/notice |
 | GET | `/v1/snapshot` | 모바일. state/preferences/providers/devices/notice |
-| POST | `/v1/view` | 모바일. axis/direction/expectedRevision과 선택적 providerID/deviceID/groupID/pickerVersion |
+| POST | `/v1/view` | 모바일. axis/direction/expectedRevision과 선택적 providerID/deviceID/groupID/pickerVersion. `device-select`로 본인 컴퓨터 직접 선택 |
 | DELETE | `/v1/devices/:id` | 모바일. 자기 기기만 제거 |
 | PUT | `/v1/preferences` | 모바일. providerIDs 최대 100개, 비어 있으면 전체 |
 | POST/DELETE | `/v1/activities` | 모바일. 현재 Live Activity 등록·중지 |
@@ -83,7 +83,7 @@ Live Activity 갱신은 우선순위 5를 쓰고, 입력 대기와 relay 혼잡 
 | DELETE | `/v1/session` | 현재 기기. 연결 해제 |
 | DELETE | `/v1/account` | 모바일. 계정과 그 컴퓨터·데이터 삭제 |
 
-포커스는 iPhone과 컴퓨터마다 따로 둡니다. `/v1/view`의 직접 제공업체 선택은 기기에 묶이며 `expectedRevision`이 필요합니다. 오래된 선택이면 최신 포커스를 돌려주고, 폰은 성공으로 표시하지 않고 다시 묻습니다. `pickerVersion: 2`는 Quick access(고정·최근 제공업체 최대 3개)와 All(단계마다 이름 범위 최대 3개)을 제공하며, 제공업체 100개 목록도 범위 선택 4번 안에 도달합니다. 선택, 취소, 데스크톱 변경이 있으면 picker를 닫습니다. 목록이나 포함 항목이 바뀌면 revision을 즉시 무효화합니다.
+포커스는 iPhone과 컴퓨터마다 따로 둡니다. `/v1/view`의 직접 제공업체 선택은 기기에 묶이며 `expectedRevision`이 필요합니다. 컴퓨터 직접 선택도 현재 revision과 본인 기기 ID가 필요합니다. 오래된 선택이면 최신 포커스를 돌려주고, 폰은 성공으로 표시하지 않고 다시 묻습니다. iPhone 홈은 작업이 없어도 작업 카드 위에 사용량을 보여 주며 읽은 값이 없으면 이유를 표시합니다. `pickerVersion: 2`는 Quick access(고정·최근 제공업체 최대 3개)와 All(단계마다 이름 범위 최대 3개)을 제공하며, 제공업체 100개 목록도 범위 선택 4번 안에 도달합니다. 선택, 취소, 데스크톱 변경이 있으면 picker를 닫습니다. 목록이나 포함 항목이 바뀌면 revision을 즉시 무효화합니다.
 
 ## 삭제와 검증
 

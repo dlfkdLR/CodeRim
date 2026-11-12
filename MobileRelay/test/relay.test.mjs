@@ -180,6 +180,55 @@ test('Mac and Windows coexist; focus never sums vendor quota or local tokens; in
   await c.route('POST', '/v1/snapshot', windows, pc.token);
   assert.equal((await c.route('GET', '/v1/snapshot')).devices.length, 1);
 });
+
+test('direct computer choice keeps each computer separate and rejects stale or foreign IDs', async t => {
+  const c = setup(t), mac = await pairDevice(c, 'macOS', 'Personal Mac'), pc = await pairDevice(c, 'windows', 'Work PC');
+  const windows = snapshot(); windows.providers[0].todayTokens = 700; windows.sessions = [];
+  await c.route('POST', '/v1/snapshot', snapshot(), mac.token);
+  await c.route('POST', '/v1/snapshot', windows, pc.token);
+  let answer = await c.route('POST', '/v1/view', { axis: 'device-select', direction: 1,
+    deviceID: pc.deviceID, expectedRevision: 0 });
+  assert.equal(answer.state.focus.deviceID, pc.deviceID);
+  assert.equal(answer.state.providers[0].todayTokens, 700);
+  assert.equal(answer.state.workingCount, 0);
+  const stale = await c.route('POST', '/v1/view', { axis: 'device-select', direction: 1,
+    deviceID: mac.deviceID, expectedRevision: 0 });
+  assert.equal(stale.state.focus.deviceID, pc.deviceID, 'an old tap cannot replace a newer focus');
+  await assert.rejects(c.route('POST', '/v1/view', { axis: 'device-select', direction: 1,
+    deviceID: 'another-account', expectedRevision: 1 }), { status: 400 });
+  await assert.rejects(c.route('POST', '/v1/view', { axis: 'device-select', direction: 1,
+    deviceID: mac.deviceID }), { status: 400 });
+  const bob = c.store.issue('bob', 'mobile', epoch).token;
+  await assert.rejects(c.route('POST', '/v1/view', { axis: 'device-select', direction: 1,
+    deviceID: mac.deviceID, expectedRevision: 0 }, bob), { status: 400 });
+  answer = await c.route('POST', '/v1/view', { axis: 'device-select', direction: 1,
+    deviceID: mac.deviceID, expectedRevision: 1 });
+  assert.equal(answer.state.focus.deviceID, mac.deviceID);
+  assert.equal(answer.state.providers[0].todayTokens, 12000);
+});
+
+test('Show now keeps idle usage visible until stopped, while ordinary task activities still end', async t => {
+  const c = setup(t);
+  const idle = snapshot(); idle.sessions = [];
+  await c.route('POST', '/v1/snapshot', idle, c.mac);
+  await c.route('POST', '/v1/activities/resume');
+  await c.route('POST', '/v1/activities', { activityID: 'manual', pushToken: 'a'.repeat(64) });
+  await c.relay.pending;
+  assert.equal(c.sent.at(-1).payload.aps['content-state'].providers[0].windows[0].remainingPercent, 75);
+  c.advance(180); await c.relay.tick();
+  assert.equal(c.store.activities('alice').length, 1);
+  assert.equal(c.sent.filter(s => s.payload.aps.event === 'end').length, 0);
+  const changed = snapshot(c.now()); changed.sessions = []; changed.providers[0].windows[0].remainingPercent = 60;
+  await c.route('POST', '/v1/snapshot', changed, c.mac); await c.relay.pending;
+  assert.equal(c.sent.at(-1).payload.aps['content-state'].providers[0].windows[0].remainingPercent, 60);
+  c.advance(1); await c.route('DELETE', '/v1/activities'); await c.relay.pending;
+  assert.equal(c.sent.at(-1).payload.aps.event, 'end');
+  c.advance(1); await c.route('POST', '/v1/activities/resume');
+  await c.route('POST', '/v1/activities', { activityID: 'bounded', pushToken: 'b'.repeat(64) });
+  await c.relay.pending;
+  c.advance(8 * 3600 + 1); await c.relay.tick();
+  assert.equal(c.store.activities('alice').length, 0, 'manual usage cannot run past ActivityKit’s lifetime');
+});
 test('desktop disconnect leaves the other desktop and phone Live Activity active', async t => {
   const c = setup(t), mac = await pairDevice(c, 'macOS', 'Mac'), pc = await pairDevice(c, 'windows', 'PC');
   await c.route('POST', '/v1/activities', { activityID: 'one', pushToken: 'a'.repeat(64) });
