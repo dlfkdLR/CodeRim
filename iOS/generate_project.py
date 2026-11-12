@@ -63,7 +63,7 @@ for name, sources in target_sources.items():
     configs=[]
     for config in ['Debug','Release']:
         settings={'PRODUCT_NAME':name,'PRODUCT_BUNDLE_IDENTIFIER':'dev.coderim.mobile'+('.liveactivity' if name=='CodeRimLiveActivity' else '.uitests' if name.endswith('UITests') else '.tests' if name.endswith('Tests') else ''),
-                  'MARKETING_VERSION':'1.0.0','CURRENT_PROJECT_VERSION':'1','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','SUPPORTS_MACCATALYST':'NO',
+                  'MARKETING_VERSION':'1.0.0','CURRENT_PROJECT_VERSION':'2','SUPPORTED_PLATFORMS':'iphoneos iphonesimulator','SUPPORTS_MACCATALYST':'NO',
                   'LD_RUNPATH_SEARCH_PATHS':['$(inherited)','@executable_path/Frameworks'], 'GENERATE_INFOPLIST_FILE':'NO'}
         if name.endswith('UITests'):
             settings.update(GENERATE_INFOPLIST_FILE='YES', TEST_TARGET_NAME='CodeRimMobile')
