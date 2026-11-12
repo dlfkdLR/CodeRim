@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.38 — Paired Mac names on iPhone
+
+- New iPhone pairings use this Mac's system computer name. A connection that still has the old default label “Mac” updates its existing device record without a new QR code.
+- The iPhone relay restricts name changes to the paired computer's own token and refreshes the current phone view. Deploy the matching relay before updating the Mac app. See the [macOS release notes](Documentation/ReleaseNotes/2.1.38.md).
+
 ## 2.1.37 — macOS signing rollout and account recovery
 
 - The macOS release is prepared for Developer ID signing and Apple notarization; publication requires a verified signed artifact.

@@ -4,7 +4,7 @@
 
 **macOS 14 이상 · Apple silicon 및 Intel.**
 
-[![macOS 다운로드](../../Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.37/CodeRim-2.1.37.dmg)
+[![macOS 다운로드](../../Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.38/CodeRim-2.1.38.dmg)
 
 [전체 릴리스](https://github.com/dlfkdLR/CodeRim/releases/latest) · [변경 이력](../../CHANGELOG.md)
 
@@ -17,16 +17,16 @@ brew install --cask dlfkdLR/tap/coderim
 
 `brew tap`을 명시하면 CodeRim 저장소를 등록한 적 없는 Mac에서도 설치할 수 있습니다. 여전히 cask를 찾지 못하면 [복구 안내](troubleshooting.md#homebrew-cannot-find-the-coderim-cask)를 따릅니다.
 
-macOS 2.1.37 앱은 **Developer ID로 서명되고 Apple 공증을 받았습니다**. Homebrew는 다운로드 체크섬을 검증합니다. 자동 업데이트는 Sparkle 서명을 사용합니다.
+macOS 2.1.38 앱은 **Developer ID로 서명되고 Apple 공증을 받았습니다**. Homebrew는 다운로드 체크섬을 검증합니다. 자동 업데이트는 Sparkle 서명을 사용합니다.
 
 <a id="direct-download-and-macos-first-launch-help"></a>
 ## 직접 다운로드와 macOS 첫 실행
 
-DMG와 [SHA256SUMS.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.37/SHA256SUMS.txt)를 같은 폴더에 저장하고 검증합니다.
+DMG와 [SHA256SUMS.txt](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.38/SHA256SUMS.txt)를 같은 폴더에 저장하고 검증합니다.
 
 ```sh
 cd ~/Downloads
-grep ' CodeRim-2.1.37.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
+grep ' CodeRim-2.1.38.dmg$' SHA256SUMS.txt | shasum -a 256 -c -
 ```
 
 체크섬 결과가 `OK`이면 DMG를 열고 CodeRim을 Applications에 넣은 뒤 일반적인 방법으로 실행합니다. macOS가 Developer ID 서명과 공증을 확인합니다. Homebrew로 설치한 뒤에도 같은 첫 실행 절차를 따릅니다.

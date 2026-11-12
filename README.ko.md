@@ -26,20 +26,20 @@ CodeRim은 작은 가장자리 노치에서 코딩 도구의 사용 한도, 초�
 
 ## 설치
 
-**macOS:** [2.1.37](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.37) · **Windows:** [2.1.34](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.34)
+**macOS:** [2.1.38](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.38) · **Windows:** [2.1.34](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.34)
 
 ### macOS
 
 **macOS 14 이상 · Apple silicon과 Intel.**
 
-[![macOS 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.37/CodeRim-2.1.37.dmg)
+[![macOS 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.38/CodeRim-2.1.38.dmg)
 
 ```sh
 brew tap dlfkdLR/tap &&
 brew install --cask dlfkdLR/tap/coderim
 ```
 
-macOS 2.1.37 앱은 **Developer ID로 서명되고 Apple 공증을 받았습니다**. [설치·첫 실행](docs/ko/installation.md)에서 체크섬·일반적인 macOS 검증·CodexMeter 이전을 확인합니다. Homebrew가 cask나 이전 앱을 찾지 못하면 [복구 안내](docs/ko/troubleshooting.md#homebrew-cannot-find-the-coderim-cask)를 따릅니다.
+macOS 2.1.38 앱은 **Developer ID로 서명되고 Apple 공증을 받았습니다**. [설치·첫 실행](docs/ko/installation.md)에서 체크섬·일반적인 macOS 검증·CodexMeter 이전을 확인합니다. Homebrew가 cask나 이전 앱을 찾지 못하면 [복구 안내](docs/ko/troubleshooting.md#homebrew-cannot-find-the-coderim-cask)를 따릅니다.
 
 **Settings → Providers → Add Provider**에서 도구를 연결하고 링에 포인터를 올립니다. [시작하기](docs/ko/getting-started.md).
 
