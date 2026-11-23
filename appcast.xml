@@ -4,24 +4,26 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.38</title>
-            <pubDate>Thu, 12 Nov 2026 17:20:25 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.38</link>
-            <sparkle:version>20138</sparkle:version>
-            <sparkle:shortVersionString>2.1.38</sparkle:shortVersionString>
+            <title>2.1.39</title>
+            <pubDate>Mon, 23 Nov 2026 17:40:37 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.39</link>
+            <sparkle:version>20139</sparkle:version>
+            <sparkle:shortVersionString>2.1.39</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.38 for macOS
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.39 for macOS
 
-This patch changes the computer label used by the CodeRim iPhone companion. New connections use the Mac's system Computer Name, and existing connections saved with the old default “Mac” update their label without pairing again. A custom name remains unchanged. Settings displays the active device name.
+- Open **Settings → Usage → Overview → Sessions** to browse token usage across all retained chats, including archived Codex chats. Search by title, date, or session ID, then open a chat to see its token breakdown.
+- If a Codex chat's session log is missing, its local index can still supply the total. CodeRim shows these totals separately from the usage charts under **Usage analytics → All time**.
 
-The paired Mac sends its name to the relay using its desktop token. The relay allows a computer to rename only its own record and updates the phone's current view. The relay also lets provider and device navigation finish while an APNs update is in flight. Deploy the matching relay before installing this Mac version. The iPhone app's separate TestFlight build 1.0.0(4) reuses relay connections for Dynamic Island provider and device switching; it is not included in the macOS download.
+## 한국어
 
-The macOS ZIP and DMG are to be Developer ID signed, notarized and stapled. The release process verifies the Universal 2 application, nested signatures, Hardened Runtime, Gatekeeper, Sparkle signature and archive checksums before publication. CI, GitHub assets, public update feed, Homebrew and installed-app behavior are checked separately.
+- **Settings → Usage → Overview → Sessions**에서 이전 Codex 채팅과 보관된 채팅의 토큰 사용량을 볼 수 있습니다. 제목, 날짜, 세션 ID로 검색하고 채팅을 열면 상세 사용량이 표시됩니다.
+- 세션 로그가 없고 Codex 로컬 색인에 총 토큰 수가 남아 있으면 그 값을 표시합니다. 색인 총량은 **Usage analytics → All time** 차트와 별도로 표시합니다.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.38/CodeRim-2.1.38.zip" length="32901497" type="application/octet-stream" sparkle:edSignature="Z3Ku3jyMrRChL86J4SKqFi6u22U61EyXw8cwHyEbflXooEHTWr/Z4YUmR2crbOPuXn5YxXxLVN+TbwR9+SXQCg=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.39/CodeRim-2.1.39.zip" length="32975560" type="application/octet-stream" sparkle:edSignature="XZeHlrxhAZYhV0Ef8LvGs04w64gBiBDwOzbBf8LE6E8Lz7lVta8dt/u9GCAOh0uuBn0J/j2SJF8gTgvxsx3ZCQ=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: PKOkRfSKnGYgggHYgXBoSblA65bg9sh1tEzhtLqqcDixtHlhB1dxl3w+pnMEyK+ikfwuM+2Kf0HlHEp6OHH8BQ==
-length: 2372
+edSignature: W8psKzg+SHbDg01OjtokcBoQmMDw8JebG4nNOyJrBspdShqr12Wr86A/uZ+Ws+QUu95CdtfhdaRCmreO2ashDA==
+length: 2093
 -->
