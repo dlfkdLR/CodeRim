@@ -29,21 +29,28 @@ struct UsageSettingsAnalytics: View {
                 UsageTypeCard(breakdown: UsageTypeBreakdown(snapshot: snapshot), formatted: formatted)
                 if sessionsEnabled { topSessions(snapshot) }
                 if projectsEnabled { topProjects(snapshot) }
-                toolActivity
-                messageActivity
+                if range != .allTime {
+                    toolActivity
+                    messageActivity
+                }
                 localHistory
                 modelActivity(snapshot)
+            } else if range == .allTime, let snapshot, !snapshot.indexedChats.isEmpty, sessionsEnabled {
+                topSessions(snapshot)
             }
         }
         .padding(24)
         .frame(maxWidth: 960, alignment: .leading)
         .frame(maxWidth: .infinity, alignment: .center)
         .task(id: range) { await store.refreshAnalytics(range: range) }
-        .task(id: activityKey) { await state.refreshActivity(for: activityKey) }
+        .task(id: activityKey) {
+            if range != .allTime { await state.refreshActivity(for: activityKey) }
+        }
         .onChange(of: range) { _, _ in
             state.selectedDate = nil
             state.showsAllSessions = false
             state.expandedSessions = []
+            state.sessionSearch = ""
         }
         .accessibilityIdentifier("settings.usage.analytics")
     }
@@ -78,8 +85,8 @@ struct UsageSettingsAnalytics: View {
                         } else {
                             usageChart(data, line: false)
                             HStack {
-                                Text(data.bucket(at: state.selectedDate)?.start.formatted(date: .abbreviated, time: .omitted)
-                                     ?? "\(range == .sevenDays ? "7" : "30")-day total")
+                                Text(data.bucket(at: state.selectedDate)?.start.formatted(date: range == .allTime ? .complete : .abbreviated, time: .omitted)
+                                     ?? (range == .allTime ? "All-time total" : "\(range == .sevenDays ? "7" : "30")-day total"))
                                 Spacer()
                                 if state.selectedDate != nil {
                                     Button("Clear selection") { state.selectedDate = nil }.buttonStyle(.plain)
@@ -119,8 +126,9 @@ struct UsageSettingsAnalytics: View {
             Picker("Date range", selection: Binding(get: { range }, set: { navigation.usageRange = $0 })) {
                 Text("7 days").tag(AnalyticsRange.sevenDays)
                 Text("30 days").tag(AnalyticsRange.thirtyDays)
+                Text("All time").tag(AnalyticsRange.allTime)
             }
-            .pickerStyle(.segmented).labelsHidden().frame(width: 128)
+            .pickerStyle(.segmented).labelsHidden().frame(width: 210)
             .accessibilityIdentifier("settings.usage.range")
             Picker("Group usage", selection: $state.grouping) {
                 ForEach(SettingsUsageGrouping.allCases) { Text($0.title).tag($0) }
@@ -132,28 +140,37 @@ struct UsageSettingsAnalytics: View {
     }
 
     private func usageChart(_ data: UsageAnalyticsPresentation, line: Bool) -> some View {
-        Chart(data.points) { point in
+        let monthCount = Calendar.current.dateComponents([.month], from: data.snapshot.interval.start,
+                                                         to: data.snapshot.interval.end).month ?? 0
+        let chartUnit: Calendar.Component = range == .allTime
+            ? (monthCount > 120 ? .year : .month) : .day
+        let axisCount = range == .allTime
+            ? max(1, monthCount > 120 ? monthCount / 60 : monthCount / 5)
+            : range == .sevenDays ? 3 : 10
+        return Chart(data.points) { point in
             if line {
-                LineMark(x: .value("Date", point.date, unit: .day), y: .value("Tokens", point.tokens))
+                LineMark(x: .value("Date", point.date, unit: chartUnit), y: .value("Tokens", point.tokens))
                     .foregroundStyle(by: .value("Series", point.seriesID))
                     .lineStyle(StrokeStyle(lineWidth: 2))
                     .symbol(by: .value("Series", point.seriesID))
                     .symbolSize(14)
-                    .accessibilityLabel("\(point.title), \(point.date.formatted(date: .abbreviated, time: .omitted))")
+                    .accessibilityLabel("\(point.title), \(point.date.formatted(date: .complete, time: .omitted))")
                     .accessibilityValue("\(point.tokens.formatted()) tokens")
             } else {
-                BarMark(x: .value("Date", point.date, unit: .day), y: .value("Tokens", point.tokens), width: .ratio(0.55))
+                BarMark(x: .value("Date", point.date, unit: chartUnit), y: .value("Tokens", point.tokens), width: .ratio(0.55))
                     .foregroundStyle(by: .value("Series", point.seriesID))
                     .cornerRadius(2)
-                    .accessibilityLabel("\(point.title), \(point.date.formatted(date: .abbreviated, time: .omitted))")
+                    .accessibilityLabel("\(point.title), \(point.date.formatted(date: .complete, time: .omitted))")
                     .accessibilityValue("\(point.tokens.formatted()) tokens")
             }
         }
         .chartForegroundStyleScale(domain: data.series.map(\.id), range: Array(colors.prefix(data.series.count)))
         .chartLegend(.hidden)
         .chartXAxis {
-            AxisMarks(values: .stride(by: .day, count: range == .sevenDays ? 3 : 10)) {
-                AxisValueLabel(format: .dateTime.month(.abbreviated).day())
+            AxisMarks(values: .stride(by: chartUnit, count: axisCount)) {
+                AxisValueLabel(format: range == .allTime
+                    ? (chartUnit == .year ? .dateTime.year() : .dateTime.month(.abbreviated).year())
+                    : .dateTime.month(.abbreviated).day())
             }
         }
         .chartYAxis {
@@ -166,7 +183,9 @@ struct UsageSettingsAnalytics: View {
         }
         .chartXSelection(value: $state.selectedDate)
         .frame(height: line ? 160 : 190)
-        .accessibilityLabel(line ? "Daily tokens by model" : "Daily token usage")
+        .accessibilityLabel(range == .allTime
+            ? (chartUnit == .year ? "Yearly token usage" : "Monthly token usage")
+            : (line ? "Daily tokens by model" : "Daily token usage"))
     }
 
     private func legend(_ series: [SettingsUsageSeries]) -> some View {
@@ -195,74 +214,115 @@ struct UsageSettingsAnalytics: View {
     }
 
     private func topSessions(_ snapshot: AnalyticsSnapshot) -> some View {
-        let sessions = UsageAnalyticsPresentation.rankedSessions(snapshot.sessions)
+        let sessions = UsageAnalyticsPresentation.matchingSessions(
+            UsageAnalyticsPresentation.rankedSessions(snapshot.sessions), query: state.sessionSearch)
+        let indexed = UsageAnalyticsPresentation.matchingIndexedChats(
+            snapshot.indexedChats, query: state.sessionSearch)
         return VStack(alignment: .leading, spacing: 12) {
-            heading("Top sessions", subtitle: "Sessions ranked by tokens in this period")
-            card {
-                VStack(spacing: 0) {
-                    tableHeader("Session", count: nil)
-                    if sessions.isEmpty {
-                        Divider()
-                        Text("No sessions in this period").font(.callout).foregroundStyle(.secondary).padding(20)
-                    }
-                    ForEach(Array(sessions.prefix(state.showsAllSessions ? sessions.count : 5))) { session in
-                        Divider().opacity(0.6)
-                        DisclosureGroup(isExpanded: Binding(
-                            get: { state.expandedSessions.contains(session.id) },
-                            set: { if $0 { state.expandedSessions.insert(session.id) } else { state.expandedSessions.remove(session.id) } }
-                        )) {
-                            VStack(alignment: .leading, spacing: 14) {
-                                Text(session.id).font(.caption2.monospaced()).foregroundStyle(.tertiary)
-                                    .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
-                                HStack(alignment: .top, spacing: 14) {
-                                    detailPanel("Tokens") { tokenBreakdown(session.usage) }
-                                    detailPanel("Activity") {
-                                        sessionFacts(session)
-                                        textRow("Last active", session.lastActivityAt.formatted(date: .abbreviated, time: .shortened))
-                                    }
-                                }
-                                if !session.models.isEmpty {
-                                    detailPanel("Models") {
-                                        ForEach(session.models.sorted(by: ModelUsageSummary.byUsageThenName)) { model in
-                                            valueRow(model.displayName, value: model.usage.totalTokens)
+            heading(range == .allTime ? "Chat history" : "Top sessions",
+                    subtitle: range == .allTime ? "Retained local sessions and index totals"
+                        : "Sessions ranked by tokens in this period")
+            TextField("Search chats by title, date, or ID", text: $state.sessionSearch)
+                .textFieldStyle(.roundedBorder)
+                .accessibilityIdentifier("settings.usage.sessionSearch")
+            if !sessions.isEmpty || indexed.isEmpty {
+                card {
+                    VStack(spacing: 0) {
+                        tableHeader("Session", count: nil)
+                        if sessions.isEmpty && indexed.isEmpty {
+                            Divider()
+                            Text(state.sessionSearch.isEmpty ? "No sessions in this period" : "No matching chats")
+                                .font(.callout).foregroundStyle(.secondary).padding(20)
+                        }
+                        ForEach(Array(sessions.prefix(state.showsAllSessions || !state.sessionSearch.isEmpty ? 100 : 5))) { session in
+                            Divider().opacity(0.6)
+                            DisclosureGroup(isExpanded: Binding(
+                                get: { state.expandedSessions.contains(session.id) },
+                                set: { if $0 { state.expandedSessions.insert(session.id) } else { state.expandedSessions.remove(session.id) } }
+                            )) {
+                                VStack(alignment: .leading, spacing: 14) {
+                                    Text(session.id).font(.caption2.monospaced()).foregroundStyle(.tertiary)
+                                        .lineLimit(1).truncationMode(.middle).textSelection(.enabled)
+                                    HStack(alignment: .top, spacing: 14) {
+                                        detailPanel("Tokens") { tokenBreakdown(session.usage) }
+                                        detailPanel("Activity") {
+                                            sessionFacts(session)
+                                            textRow("Last active", session.lastActivityAt.formatted(date: .abbreviated, time: .shortened))
                                         }
                                     }
-                                }
-                                if let traits = activity?.traits[session.id] { SessionTraitsPanels(traits: traits) }
-                                MenuLink(destination: .session(id: session.id, range: range)) {
-                                    Label("Session details", systemImage: "arrow.up.right").font(.callout)
-                                }
-                            }.padding(.top, 8).padding(.bottom, 6)
-                        } label: {
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(session.displayName).lineLimit(1).truncationMode(.middle).help(session.displayName)
-                                    if let summary = sessionSubtitle(session) {
-                                        Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                    if !session.models.isEmpty {
+                                        detailPanel("Models") {
+                                            ForEach(session.models.sorted(by: ModelUsageSummary.byUsageThenName)) { model in
+                                                valueRow(model.displayName, value: model.usage.totalTokens)
+                                            }
+                                        }
                                     }
-                                }
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                shareCell(snapshot.usage.totalTokens > 0
-                                          ? Double(session.usage.totalTokens) / Double(snapshot.usage.totalTokens) : 0)
-                                Text(formatted(session.usage.totalTokens)).fontWeight(.medium)
-                                    .frame(width: 84, alignment: .trailing)
-                            }.font(.callout).monospacedDigit()
+                                    MenuLink(destination: .session(id: session.id, range: range)) {
+                                        Label("Session details", systemImage: "arrow.up.right").font(.callout)
+                                    }
+                                }.padding(.top, 8).padding(.bottom, 6)
+                            } label: {
+                                HStack(spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(session.displayName).lineLimit(1).truncationMode(.middle).help(session.displayName)
+                                        if let summary = sessionSubtitle(session) {
+                                            Text(summary).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    shareCell(snapshot.usage.totalTokens > 0
+                                              ? Double(session.usage.totalTokens) / Double(snapshot.usage.totalTokens) : 0)
+                                    Text(formatted(session.usage.totalTokens)).fontWeight(.medium)
+                                        .frame(width: 84, alignment: .trailing)
+                                }.font(.callout).monospacedDigit()
+                            }
+                            .padding(.horizontal, 16).padding(.vertical, 10)
                         }
-                        .padding(.horizontal, 16).padding(.vertical, 10)
                     }
                 }
             }
-            if sessions.count > 5 {
+            if !indexed.isEmpty {
+                heading("Older chats", subtitle: "Codex index totals only · separate from local history charts")
+                card {
+                    VStack(spacing: 0) {
+                        ForEach(Array(indexed.prefix(100))) { chat in
+                            MenuLink(destination: .session(id: chat.id, range: range)) {
+                                HStack(spacing: 12) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(chat.title).lineLimit(1).truncationMode(.middle)
+                                        if let updatedAt = chat.updatedAt {
+                                            Text(updatedAt.formatted(date: .abbreviated, time: .omitted))
+                                                .font(.caption).foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    Spacer(minLength: 8)
+                                    Text(formatted(chat.totalTokens)).monospacedDigit()
+                                }
+                                .font(.callout).padding(.horizontal, 16).padding(.vertical, 10)
+                            }
+                            Divider().opacity(0.6)
+                        }
+                    }
+                }
+                if indexed.count > 100 {
+                    Text("Showing 100 of \(indexed.count.formatted()) indexed chats. Search to narrow the list.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if sessions.count > 100 && (state.showsAllSessions || !state.sessionSearch.isEmpty) {
+                Text("Showing 100 of \(sessions.count.formatted()) chats. Search to narrow the list.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if sessions.count > 5 && state.sessionSearch.isEmpty {
                 Button(state.showsAllSessions ? "Show less" : "Show more") { state.showsAllSessions.toggle() }
-                    .buttonStyle(SettingsPillButtonStyle(compact: true))
-                    .accessibilityIdentifier("settings.usage.moreSessions")
+                    .controlSize(.small).accessibilityIdentifier("settings.usage.moreSessions")
             }
         }
     }
 
-    /// Every model that ran on the selected day, whichever grouping the chart uses.
+    /// Every model that ran in the selected bucket, whichever grouping the chart uses.
     private func dayModels(_ day: UsageBucket) -> some View {
-        detailPanel("Models that day") {
+        detailPanel(range == .allTime ? "Models in this period" : "Models that day") {
             ForEach(day.models.sorted(by: ModelUsageSummary.byUsageThenName)) { model in
                 valueRow(model.displayName, value: model.usage.totalTokens)
             }

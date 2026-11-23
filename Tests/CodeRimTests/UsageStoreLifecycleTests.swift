@@ -117,7 +117,7 @@ final class UsageStoreLifecycleTests: XCTestCase {
         try fixture.write(output: 10)
         await fixture.store.refresh()
         let requests = (0..<20).map { index in
-            Task { await fixture.store.refreshAnalytics(range: AnalyticsRange.allCases[index % 3]) }
+            Task { await fixture.store.refreshAnalytics(range: AnalyticsRange.allCases[index % AnalyticsRange.allCases.count]) }
         }
         await Task.yield()
         await fixture.store.clearLocalHistory()

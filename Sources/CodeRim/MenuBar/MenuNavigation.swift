@@ -36,7 +36,7 @@ final class MenuNavigation: ObservableObject {
     @Published private(set) var path: [MenuDestination]
     @Published var usageRange = AnalyticsRange.sevenDays
     @Published var projectsRange = AnalyticsRange.thirtyDays
-    @Published var sessionsRange = AnalyticsRange.sevenDays
+    @Published var sessionsRange = AnalyticsRange.allTime
     @Published var selectedBucketDate: Date?
 
     init(path: [MenuDestination] = []) {

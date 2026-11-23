@@ -192,6 +192,58 @@ final class AnalyticsConsistencyTests: XCTestCase {
         )
     }
 
+    func testAllTimeIncludesChatsOlderThanThirtyDaysAndMonthlyBuckets() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let database = try SQLiteDatabase(url: directory.appendingPathComponent("db.sqlite"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Asia/Seoul"))
+        let oldDate = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 7, day: 12, hour: 12)))
+        let recentDate = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 18, hour: 12)))
+        let through = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 20, hour: 12)))
+        try await insert(database, sessionID: "old-chat", parentID: nil, source: "/old.jsonl",
+                         projectID: "project", projectName: "Old chat", usage: usage(input: 100, cached: 40, output: 20),
+                         at: oldDate, images: 0)
+        try await insert(database, sessionID: "new-chat", parentID: nil, source: "/new.jsonl",
+                         projectID: "project", projectName: "New chat", usage: usage(input: 200, cached: 50, output: 30),
+                         at: recentDate, images: 0)
+
+        let thirtyDays = try await database.analyticsSnapshot(range: .thirtyDays, through: through, calendar: calendar)
+        let history = try await database.analyticsSnapshot(range: .allTime, through: through, calendar: calendar)
+        XCTAssertEqual(thirtyDays.sessions.map(\.id), ["new-chat"])
+        XCTAssertEqual(Set(history.sessions.map(\.id)), ["old-chat", "new-chat"])
+        XCTAssertEqual(history.usage.totalTokens, 350)
+        XCTAssertEqual(history.buckets.count, 5)
+        XCTAssertEqual(history.buckets.reduce(TokenUsage.zero) { $0.adding($1.usage) }, history.usage)
+        XCTAssertEqual(history.sessions.reduce(TokenUsage.zero) { $0.adding($1.usage) }, history.usage)
+    }
+
+    func testLongAllTimeHistoryUsesCalendarYears() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Asia/Seoul"))
+        let oldest = try XCTUnwrap(calendar.date(from: DateComponents(year: 2010, month: 7, day: 12)))
+        let through = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 20)))
+        let range = AnalyticsRange.allTime
+        let interval = range.interval(through: through, calendar: calendar, oldestEvent: oldest)
+        let buckets = range.bucketIntervals(through: through, calendar: calendar, oldestEvent: oldest)
+        XCTAssertEqual(interval.start, calendar.date(from: DateComponents(year: 2010, month: 1, day: 1)))
+        XCTAssertEqual(buckets.first?.start, interval.start)
+        XCTAssertEqual(buckets.first?.end, calendar.date(from: DateComponents(year: 2011, month: 1, day: 1)))
+        XCTAssertEqual(buckets.count, 17)
+
+        let boundaryOldest = try XCTUnwrap(calendar.date(from: DateComponents(
+            year: 2016, month: 3, day: 31, hour: 12)))
+        let boundaryEnd = try XCTUnwrap(calendar.date(from: DateComponents(
+            year: 2026, month: 4, day: 1, hour: 12)))
+        let boundaryBuckets = range.bucketIntervals(through: boundaryEnd, calendar: calendar,
+                                                    oldestEvent: boundaryOldest)
+        XCTAssertEqual(boundaryBuckets.first?.start,
+                       calendar.date(from: DateComponents(year: 2016, month: 1, day: 1)))
+        XCTAssertEqual(boundaryBuckets.first?.end,
+                       calendar.date(from: DateComponents(year: 2017, month: 1, day: 1)))
+    }
+
     func testLegacyStandardRowsStayPriceableWhenTheirAggregateExceedsHighContextThreshold() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)

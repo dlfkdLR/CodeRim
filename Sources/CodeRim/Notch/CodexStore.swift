@@ -22,6 +22,9 @@ enum CodexStore {
         var model: String? = nil
         var effort: String? = nil
         var daybreak = false
+        var indexedTokens: Int64? = nil
+        var createdAt: Date? = nil
+        var updatedAt: Date? = nil
 
         var displayTitle: String { title ?? agentName ?? "Task \(id.prefix(8))" }
         var projectName: String {
@@ -53,7 +56,17 @@ enum CodexStore {
         let columns = Set(SQLiteStore.rows(in: db, sql: "PRAGMA table_info(threads)", columns: 6).map { $0[1] })
         guard columns.contains("rollout_path") else { return [] }
         let name = columns.contains("name") ? "substr(name, 1, 161)" : "NULL"
-        let order = columns.contains("updated_at_ms") ? "COALESCE(updated_at_ms, updated_at * 1000)" : "updated_at"
+        func timestampColumn(_ seconds: String) -> String {
+            let milliseconds = seconds + "_ms"
+            if columns.contains(milliseconds) && columns.contains(seconds) {
+                return "COALESCE(\(milliseconds), \(seconds) * 1000)"
+            }
+            if columns.contains(milliseconds) { return milliseconds }
+            return columns.contains(seconds) ? "\(seconds) * 1000" : "NULL"
+        }
+        let updated = timestampColumn("updated_at")
+        let created = timestampColumn("created_at")
+        let tokens = columns.contains("tokens_used") ? "tokens_used" : "NULL"
         let project = columns.contains("project_id") ? "project_id" : "NULL"
         let source = columns.contains("source") ? "substr(source, 1, 8193)" : "NULL"
         let nickname = columns.contains("agent_nickname") ? "substr(agent_nickname, 1, 161)" : "NULL"
@@ -64,8 +77,8 @@ enum CodexStore {
         let bound = limit.map { " LIMIT \(max(1, $0))" } ?? ""
         let rows = SQLiteStore.rows(
             in: db,
-            sql: "SELECT id, rollout_path, cwd, \(name), substr(title, 1, 161), \(project), \(source), \(nickname), \(model), \(effort), \(daybreak) FROM threads \(archiveFilter) ORDER BY \(order) DESC\(bound)",
-            columns: 11
+            sql: "SELECT id, rollout_path, cwd, \(name), substr(title, 1, 161), \(project), \(source), \(nickname), \(model), \(effort), \(daybreak), \(tokens), \(created), \(updated) FROM threads \(archiveFilter) ORDER BY \(updated) DESC\(bound)",
+            columns: 14
         )
         let projectRows = SQLiteStore.rows(in: db, sql: "SELECT id, name FROM projects", columns: 2)
         let projects = Dictionary(projectRows.compactMap { row in
@@ -121,8 +134,15 @@ enum CodexStore {
                    cwd: row[2], title: cleanTitle(row[3]) ?? desktopTitles[row[0]] ?? cleanTitle(row[4]),
                    savedProjectName: projects[row[5]], agentName: agentNames[index], parentThread: parent,
                    model: row[8].isEmpty ? nil : row[8], effort: row[9].isEmpty ? nil : row[9],
-                   daybreak: row[10] == "1" || row[10].lowercased() == "true")
+                   daybreak: row[10] == "1" || row[10].lowercased() == "true",
+                   indexedTokens: Int64(row[11]).flatMap { (1...1_000_000_000_000).contains($0) ? $0 : nil },
+                   createdAt: timestamp(milliseconds: row[12]), updatedAt: timestamp(milliseconds: row[13]))
         }
+    }
+
+    private static func timestamp(milliseconds raw: String) -> Date? {
+        guard let value = Int64(raw), (1...4_102_444_800_000).contains(value) else { return nil }
+        return Date(timeIntervalSince1970: TimeInterval(value) / 1_000)
     }
 
     private struct Spawn {

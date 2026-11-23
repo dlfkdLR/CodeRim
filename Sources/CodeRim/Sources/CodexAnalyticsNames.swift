@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 
 /// Resolve display names in memory. The database keeps its existing opaque
@@ -7,7 +6,7 @@ enum CodexAnalyticsNames {
     static func applying(_ threads: [CodexStore.Thread], to snapshot: AnalyticsSnapshot,
                          projectSessions: [String: Set<String>]) -> AnalyticsSnapshot {
         let bySession = Dictionary(threads.map { thread in
-            (SHA256.hash(data: Data(thread.id.utf8)).map { String(format: "%02x", $0) }.joined(), thread)
+            (UsageStorageIdentity.digest(thread.id), thread)
         }, uniquingKeysWith: { first, _ in first })
         var projectNames: [String: Set<String>] = [:]
         for (projectID, sessionIDs) in projectSessions {
@@ -40,5 +39,29 @@ enum CodexAnalyticsNames {
                                  through: snapshot.through, usage: snapshot.usage, quality: snapshot.quality,
                                  buckets: snapshot.buckets, models: snapshot.models,
                                  projects: projects, sessions: sessions)
+    }
+
+    static func indexedChats(_ threads: [CodexStore.Thread], excluding sessions: [SessionUsageSummary],
+                             cutoff: Date?, through end: Date) -> [IndexedChatUsage] {
+        let detailedIDs = Set(sessions.map(\.id))
+        return threads.compactMap { thread -> IndexedChatUsage? in
+            guard let tokens = thread.indexedTokens, tokens > 0,
+                  !FileManager.default.fileExists(atPath: thread.rollout.path) else { return nil }
+            let id = UsageStorageIdentity.digest(thread.id)
+            guard !detailedIDs.contains(id) else { return nil }
+            // An index counter covers the entire chat. After Clear Local History,
+            // it cannot be sliced at the cutoff, so omit any chat that began earlier.
+            if let cutoff {
+                guard let createdAt = thread.createdAt, createdAt > cutoff else { return nil }
+            }
+            if let updatedAt = thread.updatedAt, updatedAt > end { return nil }
+            return IndexedChatUsage(id: id, title: thread.displayTitle,
+                                    totalTokens: tokens, updatedAt: thread.updatedAt)
+        }.sorted {
+            if $0.updatedAt != $1.updatedAt {
+                return ($0.updatedAt ?? .distantPast) > ($1.updatedAt ?? .distantPast)
+            }
+            return $0.id < $1.id
+        }
     }
 }

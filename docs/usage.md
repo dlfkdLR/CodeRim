@@ -4,6 +4,8 @@
 
 Open **Settings → Usage** and choose Codex or a connected Claude Code integration. The macOS app offers **Overview**, **Usage analytics**, and provider **Limits**. Its analytics show period totals, token-type/model charts, projects, sessions, and model/session details.
 
+In **Sessions → All**, search retained chats by title, date, or session ID, including archived Codex chats. Detailed records show input, cached input, output, and model usage. A chat whose session log is missing may still show its total from the local Codex index. The charts under **Usage analytics → All time** aggregate detailed records only. Clearing local history also hides index totals for chats started before the cutoff.
+
 ## Local and account scope
 
 - **Today · This Mac** counts local records since midnight in this Mac's current time zone. Week totals use the configured week start; month totals use the local calendar.

@@ -370,19 +370,38 @@ struct SessionsAnalyticsView: View {
     private var range: AnalyticsRange { navigation.sessionsRange }
     @AppStorage("agentDetailsEnabled") private var agentDetailsEnabled = AppPreferences.defaultAgentDetailsEnabled
     @AppStorage("attachmentMetadataEnabled") private var attachmentMetadataEnabled = AppPreferences.defaultAttachmentMetadataEnabled
+    @State private var searchText = ""
+
+    private var matchingSessions: [SessionUsageSummary] {
+        UsageAnalyticsPresentation.matchingSessions(store.analyticsSnapshots[range]?.sessions ?? [], query: searchText)
+    }
+
+    private var matchingIndexedChats: [IndexedChatUsage] {
+        UsageAnalyticsPresentation.matchingIndexedChats(
+            store.analyticsSnapshots[range]?.indexedChats ?? [], query: searchText)
+    }
 
     var body: some View {
         AnalyticsDetailLayout {
             AnalyticsRangePicker(range: $navigation.sessionsRange)
         } content: {
             VStack(spacing: 0) {
+                TextField("Search chats by title, date, or ID", text: $searchText)
+                    .textFieldStyle(.roundedBorder)
+                    .padding(12)
+                    .accessibilityIdentifier("usage.sessions.search")
                 if store.analyticsSnapshots[range] == nil {
                     analyticsPlaceholder(store: store, title: "Sessions Unavailable", minimumHeight: 180)
-                } else if store.analyticsSnapshots[range]?.sessions.isEmpty == true {
+                } else if store.analyticsSnapshots[range]?.sessions.isEmpty == true
+                    && store.analyticsSnapshots[range]?.indexedChats.isEmpty == true {
                     Text("No sessions in this range.").font(.caption).foregroundStyle(.secondary).padding(24)
                 }
                 if let snapshot = store.analyticsSnapshots[range] {
-                    ForEach(snapshot.sessions) { session in
+                    if !searchText.isEmpty && matchingSessions.isEmpty && matchingIndexedChats.isEmpty
+                        && (!snapshot.sessions.isEmpty || !snapshot.indexedChats.isEmpty) {
+                        Text("No matching chats.").font(.caption).foregroundStyle(.secondary).padding(24)
+                    }
+                    ForEach(Array(matchingSessions.prefix(100))) { session in
                         MenuLink(destination: .session(id: session.id, range: range)) {
                             analyticsRow(
                                 session.displayName,
@@ -393,6 +412,22 @@ struct SessionsAnalyticsView: View {
                                 quality: snapshot.quality
                             )
                         }
+                    }
+                    if !matchingIndexedChats.isEmpty {
+                        Text("Codex index totals · detailed records unavailable")
+                            .font(.caption.weight(.semibold)).foregroundStyle(.secondary).padding(12)
+                        ForEach(Array(matchingIndexedChats.prefix(100))) { chat in
+                            MenuLink(destination: .session(id: chat.id, range: range)) {
+                                analyticsRow(chat.title,
+                                             detail: "Index total · \(chat.updatedAt?.formatted(date: .abbreviated, time: .omitted) ?? "date unknown")",
+                                             tokens: chat.totalTokens, models: [], through: snapshot.through,
+                                             quality: snapshot.quality, showsCost: false)
+                            }
+                        }
+                    }
+                    if matchingSessions.count > 100 || matchingIndexedChats.count > 100 {
+                        Text("Showing up to 100 per section. Search to narrow the list.")
+                            .font(.caption).foregroundStyle(.secondary).padding(12)
                     }
                 }
             }
@@ -477,6 +512,16 @@ struct SessionDetailView: View {
                     }
                     usageBreakdown(session.usage)
                     modelRows(session.models)
+                }
+                .padding(16)
+            } else if let chat = store.analyticsSnapshots[range]?.indexedChats.first(where: { $0.id == id }) {
+                VStack(alignment: .leading, spacing: 14) {
+                    analyticsHeader(chat.title, tokens: chat.totalTokens)
+                    if let updatedAt = chat.updatedAt {
+                        LabeledContent("Index updated", value: updatedAt.formatted(date: .abbreviated, time: .shortened))
+                    }
+                    Text("Total from Codex's local chat index. The original session log is unavailable, so input, output, cache and model details cannot be shown. This value is separate from local history charts and totals.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
                 .padding(16)
             }
