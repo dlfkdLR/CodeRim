@@ -5,6 +5,7 @@ enum AnalyticsRange: String, CaseIterable, Identifiable, Hashable, Sendable {
     case today
     case sevenDays
     case thirtyDays
+    case allTime
 
     var id: Self { self }
 
