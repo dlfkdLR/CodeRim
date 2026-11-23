@@ -49,6 +49,25 @@ final class UsageSettingsAnalyticsTests: XCTestCase {
         XCTAssertEqual(ranked.last?.id, "session-0")
     }
 
+    func testChatSearchMatchesTitleDateAndID() throws {
+        let sessions = fixture().sessions
+        let first = try XCTUnwrap(sessions.first)
+        XCTAssertEqual(UsageAnalyticsPresentation.matchingSessions(sessions, query: "  "), sessions)
+        XCTAssertEqual(UsageAnalyticsPresentation.matchingSessions(sessions, query: first.id).map(\.id), [first.id])
+        XCTAssertTrue(UsageAnalyticsPresentation.matchingSessions(sessions, query: first.displayName)
+            .contains(where: { $0.id == first.id }))
+        let date = first.lastActivityAt.formatted(date: .abbreviated, time: .omitted)
+        XCTAssertTrue(UsageAnalyticsPresentation.matchingSessions(sessions, query: date)
+            .contains(where: { $0.id == first.id }))
+        let isoDate = String(first.lastActivityAt.formatted(.iso8601).prefix(10))
+        XCTAssertTrue(UsageAnalyticsPresentation.matchingSessions(sessions, query: isoDate)
+            .contains(where: { $0.id == first.id }))
+        let indexed = [IndexedChatUsage(id: "opaque-id", title: "Archived chat", totalTokens: 42,
+                                        updatedAt: first.lastActivityAt)]
+        XCTAssertEqual(UsageAnalyticsPresentation.matchingIndexedChats(indexed, query: "archived"), indexed)
+        XCTAssertEqual(UsageAnalyticsPresentation.matchingIndexedChats(indexed, query: "OPAQUE"), indexed)
+    }
+
     func testNativeAnalyticsFitsNarrowWideAndEmptyStatesWithOneViewport() async throws {
         _ = NSApplication.shared
         let suite = "CodeRim.AnalyticsLayout.\(UUID())"
@@ -64,10 +83,19 @@ final class UsageSettingsAnalyticsTests: XCTestCase {
         let limits = AccountLimitStore(provider: AnalyticsNoLimits(), defaults: defaults, pollingInterval: nil)
         for width: CGFloat in [579, 920] {
             for dark in [false, true] {
-                for scenario in ["populated", "expanded", "thirty-days", "empty", "loading", "partial", "disabled"] {
+                for scenario in ["populated", "expanded", "thirty-days", "all-time", "indexed-only", "empty", "loading", "partial", "disabled"] {
                     defaults.set(scenario != "disabled", forKey: "analyticsEnabled")
-                    let selectedRange: AnalyticsRange = scenario == "thirty-days" ? .thirtyDays : .sevenDays
-                    let snapshot = fixture(range: selectedRange, empty: scenario == "empty", quality: scenario == "partial" ? .partial : .exact)
+                    let selectedRange: AnalyticsRange = switch scenario {
+                    case "all-time", "indexed-only": .allTime
+                    case "thirty-days": .thirtyDays
+                    default: .sevenDays
+                    }
+                    var snapshot = fixture(range: selectedRange, empty: scenario == "empty" || scenario == "indexed-only",
+                                           quality: scenario == "partial" ? .partial : .exact)
+                    if scenario == "indexed-only" {
+                        snapshot.indexedChats = [IndexedChatUsage(id: "indexed", title: "Archived chat",
+                                                                  totalTokens: 12_345, updatedAt: now)]
+                    }
                     let store = isolatedLayoutUsageStore(analyticsSnapshots: scenario == "loading" ? [:] : [selectedRange: snapshot],
                         initialSnapshot: UsageSnapshot(today: snapshot.usage, week: snapshot.usage, month: snapshot.usage,
                                                        allTime: snapshot.usage, quality: .exact, updatedAt: now), defaults: defaults)

@@ -89,7 +89,13 @@ actor CodexUsageCollector {
                                includeArchived: true)
         }
         let projectSessions = try await database.projectSessionIDs(from: snapshot.interval.start, through: end)
-        return CodexAnalyticsNames.applying(threads, to: snapshot, projectSessions: projectSessions)
+        var displayed = CodexAnalyticsNames.applying(threads, to: snapshot, projectSessions: projectSessions)
+        if range == .allTime {
+            let cutoff = try await database.importCutoff()
+            displayed.indexedChats = CodexAnalyticsNames.indexedChats(
+                threads, excluding: displayed.sessions, cutoff: cutoff, through: end)
+        }
+        return displayed
     }
 
     func refresh(now: Date = Date(), calendar: Calendar = .current, weekStart: WeekStart) async throws -> CollectorRefreshResult {

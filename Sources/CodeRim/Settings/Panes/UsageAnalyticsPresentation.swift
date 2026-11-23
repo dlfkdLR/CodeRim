@@ -49,7 +49,9 @@ struct UsageAnalyticsPresentation {
         guard let date else { return nil }
         // Charts selects a position within the whole displayed day, including
         // the unfinished part of today's bar after the last recorded event.
-        return snapshot.buckets.first { Calendar.current.isDate(date, inSameDayAs: $0.start) }
+        return snapshot.buckets.first {
+            date >= $0.start && (date < $0.end || ($0.id == snapshot.buckets.last?.id && date == $0.end))
+        }
     }
 
     static func rankedSessions(_ sessions: [SessionUsageSummary]) -> [SessionUsageSummary] {
@@ -58,6 +60,29 @@ struct UsageAnalyticsPresentation {
                 return $0.usage.totalTokens > $1.usage.totalTokens
             }
             return $0.id < $1.id
+        }
+    }
+
+    static func matchingSessions(_ sessions: [SessionUsageSummary], query: String) -> [SessionUsageSummary] {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return sessions }
+        return sessions.filter {
+            $0.displayName.localizedStandardContains(query)
+                || $0.id.localizedStandardContains(query)
+                || $0.lastActivityAt.formatted(date: .abbreviated, time: .omitted).localizedStandardContains(query)
+                || $0.lastActivityAt.formatted(.iso8601).localizedStandardContains(query)
+        }
+    }
+
+    static func matchingIndexedChats(_ chats: [IndexedChatUsage], query: String) -> [IndexedChatUsage] {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return chats }
+        return chats.filter {
+            $0.title.localizedStandardContains(query)
+                || $0.id.localizedStandardContains(query)
+                || ($0.updatedAt?.formatted(date: .abbreviated, time: .omitted)
+                    .localizedStandardContains(query) ?? false)
+                || ($0.updatedAt?.formatted(.iso8601).localizedStandardContains(query) ?? false)
         }
     }
 
@@ -114,6 +139,7 @@ final class SettingsUsageAnalyticsState: ObservableObject {
     @Published var grouping = SettingsUsageGrouping.tokenType
     @Published var selectedDate: Date?
     @Published var showsAllSessions = false
+    @Published var sessionSearch = ""
     @Published var expandedSessions: Set<String> = []
     @Published var expandedPeriods: Set<UsagePeriod> = []
     /// What the agents did in the range, read from their logs, and which

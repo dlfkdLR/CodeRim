@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.39 — Chat token history on macOS
+
+- Browse and search retained chats across all dates. Codex chats whose logs are missing show an index total when available. See the [macOS release notes](Documentation/ReleaseNotes/2.1.39.md).
+
 ## 2.1.38 — Paired Mac names on iPhone
 
 - New iPhone pairings use this Mac's system computer name. A connection that still has the old default label “Mac” updates its existing device record without a new QR code.

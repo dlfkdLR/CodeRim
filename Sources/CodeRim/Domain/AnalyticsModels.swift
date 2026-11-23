@@ -13,11 +13,17 @@ enum AnalyticsRange: String, CaseIterable, Identifiable, Hashable, Sendable {
         case .today: "Today"
         case .sevenDays: "7D"
         case .thirtyDays: "30D"
+        case .allTime: "All"
         }
     }
 
-    func interval(through end: Date, calendar: Calendar) -> DateInterval {
+    func interval(through end: Date, calendar: Calendar, oldestEvent: Date? = nil) -> DateInterval {
         let today = calendar.startOfDay(for: end)
+        let oldest = oldestEvent ?? end
+        let monthStart = calendar.dateInterval(of: .month, for: oldest)?.start ?? today
+        let months = calendar.dateComponents([.month], from: monthStart, to: end).month ?? 0
+        let allTimeStart = calendar.dateInterval(of: months > 120 ? .year : .month,
+                                                 for: monthStart)?.start ?? today
         let start = switch self {
         case .today:
             today
@@ -25,18 +31,24 @@ enum AnalyticsRange: String, CaseIterable, Identifiable, Hashable, Sendable {
             calendar.date(byAdding: .day, value: -6, to: today) ?? today
         case .thirtyDays:
             calendar.date(byAdding: .day, value: -29, to: today) ?? today
+        case .allTime:
+            allTimeStart
         }
         return DateInterval(start: start, end: end)
     }
 
-    func bucketIntervals(through end: Date, calendar: Calendar) -> [DateInterval] {
-        let range = interval(through: end, calendar: calendar)
-        let component: Calendar.Component = self == .today ? .hour : .day
+    func bucketIntervals(through end: Date, calendar: Calendar, oldestEvent: Date? = nil) -> [DateInterval] {
+        let range = interval(through: end, calendar: calendar, oldestEvent: oldestEvent)
+        let component: Calendar.Component = switch self {
+        case .today: .hour
+        case .sevenDays, .thirtyDays: .day
+        case .allTime: (calendar.dateComponents([.month], from: range.start, to: end).month ?? 0) > 120 ? .year : .month
+        }
         var buckets: [DateInterval] = []
         var cursor = range.start
         while cursor <= end {
             let next = calendar.date(byAdding: component, value: 1, to: cursor)
-                ?? cursor.addingTimeInterval(component == .hour ? 3_600 : 86_400)
+                ?? cursor.addingTimeInterval(component == .hour ? 3_600 : component == .day ? 86_400 : 2_678_400)
             buckets.append(DateInterval(start: cursor, end: min(next, end.addingTimeInterval(0.000_001))))
             guard next > cursor, next <= end else { break }
             cursor = next
@@ -142,6 +154,15 @@ struct SessionUsageSummary: Equatable, Sendable, Identifiable {
     }
 }
 
+/// A total from Codex's local thread index when its JSONL transcript is gone.
+/// No token-type or model breakdown can be inferred from this value.
+struct IndexedChatUsage: Equatable, Sendable, Identifiable {
+    let id: String
+    let title: String
+    let totalTokens: Int64
+    let updatedAt: Date?
+}
+
 struct AnalyticsSnapshot: Equatable, Sendable {
     let range: AnalyticsRange
     let interval: DateInterval
@@ -152,6 +173,7 @@ struct AnalyticsSnapshot: Equatable, Sendable {
     let models: [ModelUsageSummary]
     let projects: [ProjectUsageSummary]
     let sessions: [SessionUsageSummary]
+    var indexedChats: [IndexedChatUsage] = []
 
     static func empty(range: AnalyticsRange, through: Date, calendar: Calendar) -> AnalyticsSnapshot {
         AnalyticsSnapshot(

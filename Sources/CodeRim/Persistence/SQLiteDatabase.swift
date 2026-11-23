@@ -626,11 +626,11 @@ actor SQLiteDatabase {
         through end: Date,
         calendar: Calendar
     ) throws -> AnalyticsSnapshot {
-        let interval = range.interval(through: end, calendar: calendar)
-        let bucketIntervals = range.bucketIntervals(through: end, calendar: calendar)
-
         try execute("BEGIN DEFERRED")
         do {
+            let oldestEvent = range == .allTime ? try oldestEventTimestamp(through: end) : nil
+            let interval = range.interval(through: end, calendar: calendar, oldestEvent: oldestEvent)
+            let bucketIntervals = range.bucketIntervals(through: end, calendar: calendar, oldestEvent: oldestEvent)
             let models = try modelUsage(from: interval.start, through: end)
             let buckets = try usageBuckets(intervals: bucketIntervals, through: end)
             let projects = try projectUsage(from: interval.start, through: end)
@@ -653,6 +653,17 @@ actor SQLiteDatabase {
             try? execute("ROLLBACK")
             throw error
         }
+    }
+
+    private func oldestEventTimestamp(through end: Date) throws -> Date? {
+        let statement = try prepare("SELECT MIN(occurred_at) FROM usage_events WHERE occurred_at <= ?1")
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_double(statement, 1, end.timeIntervalSince1970)
+        guard sqlite3_step(statement) == SQLITE_ROW else {
+            throw SQLiteDatabaseError.step(errorMessage)
+        }
+        return sqlite3_column_type(statement, 0) == SQLITE_NULL
+            ? nil : Date(timeIntervalSince1970: sqlite3_column_double(statement, 0))
     }
 
     private func modelUsage(from start: Date, through end: Date) throws -> [ModelUsageSummary] {

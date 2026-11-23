@@ -398,4 +398,30 @@ final class CodexActivityTests: XCTestCase {
         let stored = try await usageDB.analyticsSnapshot(range: .today, through: now, calendar: .current)
         XCTAssertEqual(stored, original)
     }
+
+    func testArchivedChatWithoutRolloutUsesIndexTotalAndRespectsHistoryCutoff() async throws {
+        try execute("ALTER TABLE threads ADD COLUMN tokens_used INTEGER")
+        try execute("ALTER TABLE threads ADD COLUMN created_at INTEGER")
+        let availableRollout = try thread("pending-import", body: "", name: "Pending import")
+        try execute("UPDATE threads SET tokens_used = 99, created_at = \(Int(now.timeIntervalSince1970 - 2000)) WHERE id = 'pending-import'")
+        let rollout = try thread("index-only", body: "", name: "Older chat")
+        try FileManager.default.removeItem(at: rollout)
+        try execute("UPDATE threads SET archived = 1, tokens_used = 12345, created_at = \(Int(now.timeIntervalSince1970 - 1000)) WHERE id = 'index-only'")
+        let usageDB = try SQLiteDatabase(url: root.appendingPathComponent("usage.sqlite"))
+        let collector = CodexUsageCollector(database: usageDB, roots: [root.appendingPathComponent("sessions")])
+
+        let before = try await collector.analyticsSnapshot(range: .allTime, through: now)
+        XCTAssertEqual(before.usage.totalTokens, 0)
+        XCTAssertEqual(before.indexedChats.map(\.totalTokens), [12_345])
+        XCTAssertEqual(before.indexedChats.first?.title, "Older chat")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: availableRollout.path))
+
+        _ = try await usageDB.clearLocalHistory(at: now.addingTimeInterval(-500))
+        let newRollout = try thread("new-index", body: "", name: "Newer chat")
+        try FileManager.default.removeItem(at: newRollout)
+        try execute("UPDATE threads SET tokens_used = 25, created_at = \(Int(now.timeIntervalSince1970 - 100)) WHERE id = 'new-index'")
+        let after = try await collector.analyticsSnapshot(range: .allTime, through: now)
+        XCTAssertEqual(after.indexedChats.map(\.title), ["Newer chat"])
+        XCTAssertEqual(after.indexedChats.map(\.totalTokens), [25])
+    }
 }
