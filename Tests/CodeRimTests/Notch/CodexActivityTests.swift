@@ -399,6 +399,35 @@ final class CodexActivityTests: XCTestCase {
         XCTAssertEqual(stored, original)
     }
 
+    func testAttachmentRequestNamesTheLiveChatAndItsUsageHistory() async throws {
+        let header = "# Files mentioned by the user:\n\n## template.html: /tmp/template.html\n\n## My request:\n"
+        func user(_ text: String) throws -> String {
+            let record: [String: Any] = ["type": "response_item", "payload": [
+                "type": "message", "role": "user", "content": [["type": "input_text", "text": text]]]]
+            return String(decoding: try JSONSerialization.data(withJSONObject: record), as: UTF8.self) + "\n"
+        }
+        try thread("attachment-chat", body: user(header) + user("프로젝트 발표자료를 만들어줘.")
+                   + event("task_started", at: now), name: "")
+        try execute("UPDATE threads SET title = '\(header)'")
+        let sessions = await CodexActivityReader().read(stateStore: store, desktopStore: desktop, now: now)
+        XCTAssertEqual(sessions.first?.detail, "프로젝트 발표자료를 만들어줘.")
+        XCTAssertEqual(sessions.first?.state, .busy)
+        let usageDB = try SQLiteDatabase(url: root.appendingPathComponent("usage.sqlite"))
+        let id = UsageStorageIdentity.digest("attachment-chat")
+        var checkpoint = SourceCheckpoint.fresh(sourcePath: "source", fileIdentity: "fixture")
+        checkpoint.sessionID = id
+        let usage = TokenUsage(inputTokens: 100, cachedInputTokens: 20, outputTokens: 10)
+        _ = try await usageDB.commit(events: [UsageEvent(eventKey: "one", occurredAt: now,
+            sessionID: id, model: "gpt-6-astra", projectPath: nil, usage: usage,
+            sourcePath: "source", sourcePosition: 0)], checkpoint: checkpoint, normalizationState: nil)
+        let collector = CodexUsageCollector(database: usageDB, roots: [root.appendingPathComponent("sessions")])
+        let displayed = try await collector.analyticsSnapshot(range: .allTime, through: now)
+        XCTAssertEqual(displayed.sessions.first?.displayName, "프로젝트 발표자료를 만들어줘.")
+        XCTAssertEqual(displayed.usage, usage)
+        try execute("UPDATE threads SET name = 'Task'")
+        XCTAssertEqual(CodexStore.threads(in: store).first?.displayTitle, "Task", "Keep explicitly assigned names")
+    }
+
     func testArchivedChatWithoutRolloutUsesIndexTotalAndRespectsHistoryCutoff() async throws {
         try execute("ALTER TABLE threads ADD COLUMN tokens_used INTEGER")
         try execute("ALTER TABLE threads ADD COLUMN created_at INTEGER")

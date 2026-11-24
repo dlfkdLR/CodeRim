@@ -504,8 +504,14 @@ private struct SessionRow: View {
         return session.codexThreadID != nil ? session.name : session.detail
     }
 
+    private var tokenText: String? {
+        SessionTokenReader.text(tokenTotal, enabled: depth == 0)
+    }
+
     private var rowDescription: String {
-        [session.locationDescription, openLabel].compactMap { $0 }.joined(separator: ". ")
+        var descriptions = [session.locationDescription, openLabel].compactMap { $0 }
+        if let tokenText { descriptions.append("\(tokenText), including sub-agents") }
+        return descriptions.joined(separator: ". ")
     }
 
     private var openLabel: String {
@@ -546,7 +552,8 @@ private struct SessionRow: View {
             .onHover { isHovered = $0 }
             .help(rowDescription)
             .accessibilityLabel(rowDescription)
-            .accessibilityValue(isContextOnly ? "Parent chat" : stateWord)
+            .accessibilityValue(([isContextOnly ? "Parent chat" : stateWord, tokenText])
+                .compactMap { $0 }.joined(separator: ", "))
             .accessibilityIdentifier("notch.session.\(session.id)")
         } else {
             content
@@ -570,7 +577,7 @@ private struct SessionRow: View {
             .frame(height: NotchLayout.cardBodyLineHeight)
             SplitRow(
                 leading: detail,
-                trailing: "",
+                trailing: tokenText ?? "",
                 leadingColor: NotchPalette.textSecondary
             )
             .frame(height: NotchLayout.cardBodyLineHeight)

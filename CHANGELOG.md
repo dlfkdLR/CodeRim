@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.40 — Chat labels and visible token totals
+
+- Chats created with attachments recover a short label from the actual request when Codex saved only the attachment preamble as the title.
+- The notch now displays the computed token total beside each main chat. That total includes its sub-agents. See the [release notes](Documentation/ReleaseNotes/2.1.40.md).
+
 ## 2.1.39 — Chat token history on macOS
 
 - Browse and search retained chats across all dates. Codex chats whose logs are missing show an index total when available. See the [macOS release notes](Documentation/ReleaseNotes/2.1.39.md).
