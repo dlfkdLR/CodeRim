@@ -4,26 +4,26 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.39</title>
-            <pubDate>Mon, 23 Nov 2026 17:40:37 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.39</link>
-            <sparkle:version>20139</sparkle:version>
-            <sparkle:shortVersionString>2.1.39</sparkle:shortVersionString>
+            <title>2.1.40</title>
+            <pubDate>Tue, 24 Nov 2026 16:54:55 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.40</link>
+            <sparkle:version>20140</sparkle:version>
+            <sparkle:shortVersionString>2.1.40</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.39 for macOS
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.40 for macOS
 
-- Open **Settings → Usage → Overview → Sessions** to browse token usage across all retained chats, including archived Codex chats. Search by title, date, or session ID, then open a chat to see its token breakdown.
-- If a Codex chat's session log is missing, its local index can still supply the total. CodeRim shows these totals separately from the usage charts under **Usage analytics → All time**.
+- Chat rows in the notch display their token totals, including sub-agent usage. The row previously received the computed total but left its label empty.
+- When Codex saves an attachment preamble as a chat title, CodeRim uses the first line of the actual request as its display label. Explicit chat names keep their priority. The same label appears in token history.
 
 ## 한국어
 
-- **Settings → Usage → Overview → Sessions**에서 이전 Codex 채팅과 보관된 채팅의 토큰 사용량을 볼 수 있습니다. 제목, 날짜, 세션 ID로 검색하고 채팅을 열면 상세 사용량이 표시됩니다.
-- 세션 로그가 없고 Codex 로컬 색인에 총 토큰 수가 남아 있으면 그 값을 표시합니다. 색인 총량은 **Usage analytics → All time** 차트와 별도로 표시합니다.
+- 노치의 메인 채팅 행에 하위 에이전트를 포함한 토큰 사용량을 표시합니다. 계산한 값을 화면에 전달하고도 빈칸으로 표시하던 문제를 수정했습니다.
+- Codex가 첨부파일 안내문을 채팅 제목으로 저장한 경우 실제 요청의 첫 줄을 표시합니다. 직접 지정한 채팅 이름이 우선 적용되며, 사용량 기록에도 같은 이름을 표시합니다.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.39/CodeRim-2.1.39.zip" length="32975560" type="application/octet-stream" sparkle:edSignature="XZeHlrxhAZYhV0Ef8LvGs04w64gBiBDwOzbBf8LE6E8Lz7lVta8dt/u9GCAOh0uuBn0J/j2SJF8gTgvxsx3ZCQ=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.40/CodeRim-2.1.40.zip" length="32994503" type="application/octet-stream" sparkle:edSignature="FRDadggYrDYpAKExzzSiqBwC+MJds4p6X8KrVmFwc79P4kk9evAicZASkRkyyRJfHUM54yHrp05jj7+uu870CQ=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: W8psKzg+SHbDg01OjtokcBoQmMDw8JebG4nNOyJrBspdShqr12Wr86A/uZ+Ws+QUu95CdtfhdaRCmreO2ashDA==
-length: 2093
+edSignature: ncf2ZTJiIzu9zsb0sGWd2329hGrFOe6hgiIQwf6T/kOJjb1r4JmdBd/4E35lZnHYxPDED4X2e4jSmqt2xZBMAA==
+length: 2047
 -->
