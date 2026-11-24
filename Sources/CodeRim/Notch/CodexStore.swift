@@ -87,10 +87,13 @@ enum CodexStore {
         let desktopTitles = desktopStore.map(titles(in:)) ?? [:]
         let spawns = rows.map { spawn(in: $0[6], excluding: $0[0]) }
         let agentNames = rows.indices.map { cleanTitle(rows[$0][7]) ?? spawns[$0]?.nickname }
-        var resolvedTitles = Dictionary(rows.indices.map { index in
+        let titles = rows.indices.map { index in
             let row = rows[index]
-            return (row[0], cleanTitle(row[3]) ?? desktopTitles[row[0]] ?? cleanTitle(row[4])
-                    ?? agentNames[index] ?? "Task \(row[0].prefix(8))")
+            return title(name: row[3], desktopTitle: desktopTitles[row[0]], prompt: row[4],
+                         rollout: row[1], isAgent: agentNames[index] != nil || spawns[index] != nil)
+        }
+        var resolvedTitles = Dictionary(rows.indices.map { index in
+            (rows[index][0], titles[index] ?? agentNames[index] ?? "Task \(rows[index][0].prefix(8))")
         }, uniquingKeysWith: { first, _ in first })
         // Resolve the main chat even when an intermediate agent has finished,
         // been archived, or fallen outside the live catalogue's limit.
@@ -106,11 +109,13 @@ enum CodexStore {
                 let ids = Array(missing[start..<min(start + 128, missing.count)])
                 let placeholders = Array(repeating: "?", count: ids.count).joined(separator: ",")
                 let parents = SQLiteStore.rows(in: db,
-                    sql: "SELECT id, \(name), substr(title, 1, 161), \(nickname), \(source) FROM threads WHERE id IN (\(placeholders))",
-                    columns: 5, bindings: ids)
+                    sql: "SELECT id, \(name), substr(title, 1, 161), \(nickname), \(source), rollout_path FROM threads WHERE id IN (\(placeholders))",
+                    columns: 6, bindings: ids)
                 for parent in parents {
-                    resolvedTitles[parent[0]] = cleanTitle(parent[1]) ?? desktopTitles[parent[0]]
-                        ?? cleanTitle(parent[2]) ?? cleanTitle(parent[3]) ?? "Task \(parent[0].prefix(8))"
+                    let isAgent = cleanTitle(parent[3]) != nil || spawn(in: parent[4], excluding: parent[0]) != nil
+                    resolvedTitles[parent[0]] = title(name: parent[1], desktopTitle: desktopTitles[parent[0]],
+                        prompt: parent[2], rollout: parent[5], isAgent: isAgent)
+                        ?? cleanTitle(parent[3]) ?? "Task \(parent[0].prefix(8))"
                     parentIDs[parent[0]] = spawn(in: parent[4], excluding: parent[0])?.parentID
                 }
             }
@@ -131,13 +136,24 @@ enum CodexStore {
             let row = rows[index]
             let parent = mainParent(for: row[0])
             return Thread(id: row[0], rollout: URL(fileURLWithPath: (row[1] as NSString).expandingTildeInPath),
-                   cwd: row[2], title: cleanTitle(row[3]) ?? desktopTitles[row[0]] ?? cleanTitle(row[4]),
+                   cwd: row[2], title: titles[index],
                    savedProjectName: projects[row[5]], agentName: agentNames[index], parentThread: parent,
                    model: row[8].isEmpty ? nil : row[8], effort: row[9].isEmpty ? nil : row[9],
                    daybreak: row[10] == "1" || row[10].lowercased() == "true",
                    indexedTokens: Int64(row[11]).flatMap { (1...1_000_000_000_000).contains($0) ? $0 : nil },
                    createdAt: timestamp(milliseconds: row[12]), updatedAt: timestamp(milliseconds: row[13]))
         }
+    }
+
+    private static func title(name: String, desktopTitle: String?, prompt: String,
+                              rollout: String, isAgent: Bool) -> String? {
+        if let explicit = cleanTitle(name) ?? desktopTitle { return explicit }
+        let attachmentPreamble = prompt.hasPrefix("# Files mentioned by the user:")
+        if !attachmentPreamble, let label = cleanTitle(prompt) { return label }
+        // Only recover the attachment case where Codex saved the generated
+        // preamble as its title. Other unavailable titles retain their fallback.
+        guard !isAgent, attachmentPreamble else { return nil }
+        return CodexChatTitle.read(URL(fileURLWithPath: (rollout as NSString).expandingTildeInPath))
     }
 
     private static func timestamp(milliseconds raw: String) -> Date? {
