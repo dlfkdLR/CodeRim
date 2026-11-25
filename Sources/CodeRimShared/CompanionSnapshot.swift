@@ -161,10 +161,14 @@ public struct CompanionLimits: Codable, Equatable, Sendable {
 
     public func evaluated(at now: Date) -> Self {
         var result = self
-        if state == .ready || state == .stale,
-           isStale(updatedAt, at: now, after: staleAfterSeconds)
-            || windows.contains(where: { $0.resetsAt.map { $0 <= now } ?? false }) {
-            result.state = .stale
+        if state == .ready || state == .partial || state == .stale {
+            // Legacy partial readings can have no timestamp: keep their uncertainty
+            // marker, while known timestamps and reset deadlines still age normally.
+            let staleTimestamp = (state != .partial || updatedAt != nil)
+                && isStale(updatedAt, at: now, after: staleAfterSeconds)
+            if staleTimestamp || windows.contains(where: { $0.resetsAt.map { $0 <= now } ?? false }) {
+                result.state = .stale
+            }
         }
         return result
     }
