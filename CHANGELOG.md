@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.41 — Session, process and relay reliability
+
+- Reevaluate resumed Claude sub-agents using file revisions, bound registry/transcript reads and retire session caches. Expired Companion readings become stale, and unsupported fingerprint-key files cannot block startup. See the [release notes](Documentation/ReleaseNotes/2.1.41.md).
+- Windows observes process input/output failures and cancellation together, including account RPC cleanup. See the [Windows notes](Windows/ReleaseNotes/2.1.41.md).
+- Relay source encrypts pending pairing grants and clears ended display content across retries and late responses. Deploy the matching relay source to enable the server changes.
+
 ## 2.1.40 — Chat labels and visible token totals
 
 - Chats created with attachments recover a short label from the actual request when Codex saved only the attachment preamble as the title.
