@@ -35,7 +35,7 @@ The production deployment verified on 2026-11-12 uses project `dlfkd/coderim` an
 vercel deploy --prod --scope dlfkd
 ```
 
-The page pins macOS `v2.1.37` and Windows `v2.1.34`. Before deployment, verify the platform-specific published assets and update versions, download/checksum URLs and release-note links together; do not assume `releases/latest` identifies both platforms.
+The page pins macOS `v2.1.41` and Windows `v2.1.41`. Before deployment, verify the platform-specific published assets and update versions, download/checksum URLs and release-note links together; do not assume `releases/latest` identifies both platforms.
 
 ## Images and motion
 

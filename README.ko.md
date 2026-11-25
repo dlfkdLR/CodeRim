@@ -26,20 +26,20 @@ CodeRim은 작은 가장자리 노치에서 코딩 도구의 사용 한도, 초�
 
 ## 설치
 
-**macOS:** [2.1.40](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.40) · **Windows:** [2.1.34](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.34)
+**macOS:** [2.1.41](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.41) · **Windows:** [2.1.41](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.41)
 
 ### macOS
 
 **macOS 14 이상 · Apple silicon과 Intel.**
 
-[![macOS 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.40/CodeRim-2.1.40.dmg)
+[![macOS 다운로드](Assets/README/download-macos.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.41/CodeRim-2.1.41.dmg)
 
 ```sh
 brew tap dlfkdLR/tap &&
 brew install --cask dlfkdLR/tap/coderim
 ```
 
-macOS 2.1.40 앱은 **Developer ID로 서명되고 Apple 공증을 받았습니다**. [설치·첫 실행](docs/ko/installation.md)에서 체크섬·일반적인 macOS 검증·CodexMeter 이전을 확인합니다. Homebrew가 cask나 이전 앱을 찾지 못하면 [복구 안내](docs/ko/troubleshooting.md#homebrew-cannot-find-the-coderim-cask)를 따릅니다.
+macOS 2.1.41 앱은 **Developer ID로 서명되고 Apple 공증을 받았습니다**. [설치·첫 실행](docs/ko/installation.md)에서 체크섬·일반적인 macOS 검증·CodexMeter 이전을 확인합니다. Homebrew가 cask나 이전 앱을 찾지 못하면 [복구 안내](docs/ko/troubleshooting.md#homebrew-cannot-find-the-coderim-cask)를 따릅니다.
 
 **Settings → Providers → Add Provider**에서 도구를 연결하고 링에 포인터를 올립니다. [시작하기](docs/ko/getting-started.md).
 
@@ -47,9 +47,9 @@ macOS 2.1.40 앱은 **Developer ID로 서명되고 Apple 공증을 받았습니�
 
 **Windows 11 · x64·ARM64 · .NET 포함.**
 
-[![Windows용 다운로드](Assets/README/download-windows.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-x64-Setup.msi) [![ARM 기반 Windows용 다운로드](Assets/README/download-windows-arm64.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-arm64-Setup.msi)
+[![Windows용 다운로드](Assets/README/download-windows.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.41/CodeRim-Windows-2.1.41-x64-Setup.msi) [![ARM 기반 Windows용 다운로드](Assets/README/download-windows-arm64.svg)](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.41/CodeRim-Windows-2.1.41-arm64-Setup.msi)
 
-MSI를 실행한 뒤 시작 메뉴에서 CodeRim을 엽니다. 관리자 권한 없이 내 계정에 설치되고 `coderim` 명령이 추가되며, 이후 릴리스는 검증을 거쳐 자동으로 업데이트됩니다([x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.34/CodeRim-Windows-2.1.34-arm64-Setup.msi.sha256)).
+MSI를 실행한 뒤 시작 메뉴에서 CodeRim을 엽니다. 관리자 권한 없이 내 계정에 설치되고 `coderim` 명령이 추가되며, 이후 릴리스는 검증을 거쳐 자동으로 업데이트됩니다([x64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.41/CodeRim-Windows-2.1.41-x64-Setup.msi.sha256) · [ARM64 SHA-256](https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.41/CodeRim-Windows-2.1.41-arm64-Setup.msi.sha256)).
 
 MSI에는 아직 게시자 인증서 서명이 없어 **Windows의 PC 보호** 창이 뜰 수 있습니다. **추가 정보 → 실행**을 선택하세요. 스마트 앱 컨트롤이 서명 없는 설치 파일을 막는 PC에서도 설치되는, Microsoft가 서명한 Microsoft Store 버전을 준비하고 있습니다. 무료 코드 서명을 위해 SignPath Foundation 신청을 준비하고 있으며, **아직 제출·승인되지 않았고** 그 인증서로 서명된 파일은 없습니다. [코드 서명 정책](CODE_SIGNING_POLICY.ko.md)을 참고하세요. 업그레이드·CLI·Store 버전은 [Windows 설치](docs/ko/windows.md)에서 확인합니다.
 
