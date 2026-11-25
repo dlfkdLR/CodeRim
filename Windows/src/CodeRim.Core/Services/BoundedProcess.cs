@@ -194,9 +194,20 @@ public static class AppServerClient
         using var process = BoundedProcess.Start(executable, ["app-server"], environment, inheritEnvironment);
         using var stderrCancellation = CancellationTokenSource.CreateLinkedTokenSource(deadline.Token);
         var errorTask = BoundedProcess.ReadBoundedAsync(process.StandardError, 2 * 1024 * 1024, stderrCancellation.Token);
+        Task? pendingIO = null;
+        async Task ObserveIO(Task operation)
+        {
+            pendingIO = operation;
+            var completed = await Task.WhenAny(operation, errorTask).WaitAsync(deadline.Token).ConfigureAwait(false);
+            await completed.ConfigureAwait(false);
+            if (errorTask.IsFaulted) await errorTask.ConfigureAwait(false);
+            await operation.ConfigureAwait(false);
+            pendingIO = null;
+        }
+        Task Send(string line) => ObserveIO(process.StandardInput.WriteLineAsync(line.AsMemory(), deadline.Token));
         try
         {
-            await process.StandardInput.WriteLineAsync("""{"id":1,"method":"initialize","params":{"clientInfo":{"name":"coderim","version":""" + JsonSerializer.Serialize(ReleaseUpdates.CurrentVersion)
+            await Send("""{"id":1,"method":"initialize","params":{"clientInfo":{"name":"coderim","version":""" + JsonSerializer.Serialize(ReleaseUpdates.CurrentVersion)
                 + """},"capabilities":{"optOutNotificationMethods":["remoteControl/status/changed"]}}}""").ConfigureAwait(false);
             var pending = new StringBuilder();
             var buffer = new char[4096];
@@ -205,7 +216,9 @@ public static class AppServerClient
             {
                 deadline.Token.ThrowIfCancellationRequested();
                 if (errorTask.IsFaulted) await errorTask.ConfigureAwait(false);
-                var count = await process.StandardOutput.ReadAsync(buffer.AsMemory(), deadline.Token).ConfigureAwait(false);
+                var read = process.StandardOutput.ReadAsync(buffer.AsMemory(), deadline.Token).AsTask();
+                await ObserveIO(read).ConfigureAwait(false);
+                var count = await read.ConfigureAwait(false);
                 if (count == 0) throw new IOException("The account service ended before returning a reading.");
                 total += count;
                 if (total > 1_048_576) throw new IOException("Account response exceeded its safety limit.");
@@ -221,10 +234,10 @@ public static class AppServerClient
                     if (root.TryGetProperty("error", out _)) throw new IOException("Sign in to the provider and refresh.");
                     if (number == 1)
                     {
-                        await process.StandardInput.WriteLineAsync("""{"method":"initialized","params":{}}""").ConfigureAwait(false);
-                        if (method == "config/read") await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { id = 2, method, @params = new { includeLayers = false } })).ConfigureAwait(false);
-                        else if (method == "account/read") await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { id = 2, method, @params = new { refreshToken = false } })).ConfigureAwait(false);
-                        else await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(new { id = 2, method })).ConfigureAwait(false);
+                        await Send("""{"method":"initialized","params":{}}""").ConfigureAwait(false);
+                        if (method == "config/read") await Send(JsonSerializer.Serialize(new { id = 2, method, @params = new { includeLayers = false } })).ConfigureAwait(false);
+                        else if (method == "account/read") await Send(JsonSerializer.Serialize(new { id = 2, method, @params = new { refreshToken = false } })).ConfigureAwait(false);
+                        else await Send(JsonSerializer.Serialize(new { id = 2, method })).ConfigureAwait(false);
                     }
                     else if (number == 2 && root.TryGetProperty("result", out var result)) return result.Clone();
                 }
@@ -233,10 +246,19 @@ public static class AppServerClient
         }
         finally
         {
-            stderrCancellation.Cancel();
+            deadline.Cancel(); stderrCancellation.Cancel();
             BoundedProcess.Kill(process);
-            await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None).ConfigureAwait(false);
-            try { await errorTask.ConfigureAwait(false); } catch (Exception e) when (e is IOException or OperationCanceledException) { }
+            try
+            {
+                await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                foreach (var task in new Task?[] { pendingIO, errorTask })
+                    if (task is not null)
+                        try { await task.ConfigureAwait(false); }
+                        catch (Exception error) when (error is IOException or OperationCanceledException) { }
+            }
         }
     }
 }
