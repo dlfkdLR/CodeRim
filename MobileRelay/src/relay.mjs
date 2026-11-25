@@ -1,4 +1,4 @@
-import { digest, secret } from './crypto.mjs';
+import { digest, secret, sealPairingGrant, openPairingGrant } from './crypto.mjs';
 import { HTTPError, requireValue, preferences, sanitizeSnapshot, activityPayload, desktopState, navigate, selectProvider, selectDevice,
   deviceLabel, eligibleProviders, ONLINE_WINDOW, READING_AGE } from './model.mjs';
 
@@ -144,8 +144,23 @@ export class Relay {
       if (!current.owner) return { pending: true, expiresAt: current.expires };
       // Kept until the computer uses the token (its first snapshot) or the code expires: an answer lost on
       // the way, or a poll the computer gave up on, is answered again with the same token.
-      const { token, expiresAt, deviceID } = JSON.parse(current.data);
-      return { token, expiresAt, deviceID };
+      const data = JSON.parse(current.data);
+      let token;
+      try {
+        const context = { pairID: current.id, owner: current.owner, session: data.session };
+        const sealed = Object.hasOwn(data, 'grant');
+        token = sealed ? openPairingGrant(data.grant, body.secret, context) : data.token;
+        if (typeof token !== 'string' || token.length > 128 || digest(token) !== data.session
+            || (sealed && Object.hasOwn(data, 'token') && data.token !== token)) throw Error('Invalid pairing grant');
+        // Pending offers written by the previous version are rewrapped only when
+        // their authorized holder supplies the QR secret; no server key is added.
+        if (!sealed || Object.hasOwn(data, 'token')) {
+          const safe = { ...data, grant: sealed ? data.grant : sealPairingGrant(token, body.secret, context) };
+          delete safe.token;
+          store.run('UPDATE pairs SET data=? WHERE id=?', JSON.stringify(safe), current.id);
+        }
+      } catch { throw new HTTPError(401, 'pairing_expired'); }
+      return { token, expiresAt: data.expiresAt, deviceID: data.deviceID };
     }
 
     const role = path === '/v1/snapshot' && method === 'POST' || path === '/v1/device' && method === 'PUT'
@@ -164,10 +179,11 @@ export class Relay {
       requireValue(store.activeDeviceCount(session.owner, now) < 16, 'device_limit');
       const { label } = JSON.parse(pair.data);
       const result = store.transaction(() => {
-        const token = store.issue(session.owner, 'desktop', now), deviceID = secret();
-        store.saveDevice(session.owner, { id: deviceID, session: digest(token.token), ...label, snapshot: null, receivedAt: 0 });
+        const token = store.issue(session.owner, 'desktop', now), deviceID = secret(), hash = digest(token.token);
+        const grant = sealPairingGrant(token.token, body.secret, { pairID: pair.id, owner: session.owner, session: hash });
+        store.saveDevice(session.owner, { id: deviceID, session: hash, ...label, snapshot: null, receivedAt: 0 });
         store.run('UPDATE pairs SET owner=?, data=? WHERE id=?', session.owner,
-          JSON.stringify({ label, token: token.token, expiresAt: token.expiresAt, deviceID, session: digest(token.token) }), pair.id);
+          JSON.stringify({ label, grant, expiresAt: token.expiresAt, deviceID, session: hash }), pair.id);
         return { deviceID, ...label };
       });
       for (const wake of this.waiters.get(pair.id) ?? []) wake();
@@ -372,7 +388,11 @@ export class Relay {
   }
 
   endActivities(activities) {
-    for (const activity of activities) { activity.data.ending = true; this.store.saveActivity(activity); }
+    for (const activity of activities) {
+      activity.data.ending = true;
+      delete activity.data.sentKey;
+      this.store.saveActivity(activity);
+    }
   }
 
   response(session, now) {
@@ -558,6 +578,8 @@ export class Relay {
       else if (!a.idleSince) { a.idleSince = now; this.store.saveActivity(activity); }
       else if (now - a.idleSince >= IDLE_END) a.ending = true;
     }
+    const clearedContent = a.ending && Object.hasOwn(a, 'sentKey');
+    if (clearedContent) delete a.sentKey;
     const key = JSON.stringify({ ...state, updatedAt: 0, staleAt: 0, dataVersion: 0, evaluatedAt: 0 });
     const navigated = a.sentRevision !== undefined && a.sentRevision !== state.viewRevision;
     const changed = a.ending || a.needsPush || navigated || key !== a.sentKey;
@@ -572,8 +594,14 @@ export class Relay {
     // APNs budgets Live Activity updates; space routine ones 15 seconds apart.
     if (!a.ending && !a.needsPush && !navigated && now - a.sentAt < 15) return a.sentAt + 15;
     // APNs timestamps order deliveries. Never enqueue competing content in the same second.
-    if (Math.floor(a.lastEnqueuedAt ?? a.sentAt) >= Math.floor(now)) return now + 1;
-    if (a.retryAfter && now < a.retryAfter) return a.retryAfter;
+    if (Math.floor(a.lastEnqueuedAt ?? a.sentAt) >= Math.floor(now)) {
+      if (clearedContent) this.store.saveActivity(activity);
+      return now + 1;
+    }
+    if (a.retryAfter && now < a.retryAfter) {
+      if (clearedContent) this.store.saveActivity(activity);
+      return a.retryAfter;
+    }
     const alert = state.notice && a.noticeDay !== day(now) ? { title: 'CodeRim', body: state.notice } : undefined;
     try {
       a.lastEnqueuedAt = now; this.store.saveActivity(activity);
@@ -584,8 +612,11 @@ export class Relay {
       if (rejectedToken(result)
           || (result.status === 200 && a.ending)) { this.store.deleteActivity(activity.id); return Infinity; }
       if (result.status === 200) {
-        Object.assign(current.data, { sentAt: now, sentKey: key, sentRevision: state.viewRevision, retryAfter: 0, needsPush: false,
+        Object.assign(current.data, { sentAt: now, sentRevision: state.viewRevision, retryAfter: 0, needsPush: false,
           ...(alert ? { noticeDay: day(now) } : {}) });
+        // A late answer for an earlier update cannot restore content cleared by logout/deletion.
+        if (current.data.ending) delete current.data.sentKey;
+        else current.data.sentKey = key;
         this.store.saveActivity(current);
         return Math.min(idleDue, a.createdAt + ACTIVITY_LIFETIME - 360);
       }
