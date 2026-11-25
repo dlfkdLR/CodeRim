@@ -122,10 +122,18 @@ public static class MsiUpdateExecution
         if (previous.Version != ReleaseUpdates.CurrentVersion) throw new InvalidDataException("The MSI registration does not match the running app.");
         InstallFileSystem.WriteNew(Path.Combine(launcher, "ready"), [1]);
         var exited = parent.WaitAsync(TimeSpan.FromSeconds(60), CancellationToken.None);
-        while (!exited.IsCompleted)
+        using (var polling = new CancellationTokenSource())
         {
-            if (File.Exists(Path.Combine(launcher, "cancelled"))) return Record(location, id, new(MsiUpdateStatus.Cancelled, null));
-            await Task.WhenAny(exited, Task.Delay(100)).ConfigureAwait(false);
+            try
+            {
+                while (!exited.IsCompleted)
+                {
+                    if (File.Exists(Path.Combine(launcher, "cancelled"))) return Record(location, id, new(MsiUpdateStatus.Cancelled, null));
+                    await Task.WhenAny(exited, Task.Delay(100, polling.Token)).ConfigureAwait(false);
+                }
+            }
+            // When the parent exits first, retire the remaining polling timer immediately.
+            finally { polling.Cancel(); }
         }
         if (!await exited.ConfigureAwait(false) || !File.Exists(Path.Combine(launcher, "confirmed")) || File.Exists(Path.Combine(launcher, "cancelled")))
             return Record(location, id, new(MsiUpdateStatus.ParentStillRunning, null));
