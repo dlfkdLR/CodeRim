@@ -4,26 +4,42 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     <channel>
         <title>CodeRim</title>
         <item>
-            <title>2.1.40</title>
-            <pubDate>Tue, 24 Nov 2026 16:54:55 +0900</pubDate>
-            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.40</link>
-            <sparkle:version>20140</sparkle:version>
-            <sparkle:shortVersionString>2.1.40</sparkle:shortVersionString>
+            <title>2.1.41</title>
+            <pubDate>Thu, 26 Nov 2026 08:12:38 +0900</pubDate>
+            <link>https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.41</link>
+            <sparkle:version>20141</sparkle:version>
+            <sparkle:shortVersionString>2.1.41</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.40 for macOS
+            <description sparkle:format="markdown"><![CDATA[# CodeRim 2.1.41
 
-- Chat rows in the notch display their token totals, including sub-agent usage. The row previously received the computed total but left its label empty.
-- When Codex saves an attachment preamble as a chat title, CodeRim uses the first line of the actual request as its display label. Explicit chat names keep their priority. The same label appears in token history.
+## macOS
+
+- Recheck Claude sub-agent activity when a completed or long-quiet file changes, and keep each parent session's cache separate. Atomic file replacements no longer leave resumed work hidden behind an old completed result.
+- Bound Claude registry and transcript reads, validate session metadata, and release caches after sessions disappear. Activity logs omit conversation names and full project paths.
+- Mark Companion readings stale when their known timestamp or reset has expired, while preserving older partial readings without timestamps.
+- Reject unsupported fingerprint-key file types without blocking app startup. Existing valid keys, settings and usage history keep their identities.
+
+## Windows
+
+- Provider and account-RPC processes observe input, output failures and cancellation together, so blocked input does not hold up output-error cleanup. See the [Windows notes](../../Windows/ReleaseNotes/2.1.41.md).
+
+## Relay source
+
+Pending QR pairing grants use authenticated encryption. Ended activities clear retained display content, including retry and late-response paths. These server changes require deployment of the matching relay source; desktop communication remains compatible with the existing protocol.
 
 ## 한국어
 
-- 노치의 메인 채팅 행에 하위 에이전트를 포함한 토큰 사용량을 표시합니다. 계산한 값을 화면에 전달하고도 빈칸으로 표시하던 문제를 수정했습니다.
-- Codex가 첨부파일 안내문을 채팅 제목으로 저장한 경우 실제 요청의 첫 줄을 표시합니다. 직접 지정한 채팅 이름이 우선 적용되며, 사용량 기록에도 같은 이름을 표시합니다.
+- 완료됐거나 오래 조용했던 Claude 하위 에이전트 파일이 바뀌면 활동을 다시 확인하고 부모 세션별 캐시를 분리합니다. 파일이 원자적으로 교체돼도 재개된 작업이 이전 완료 상태에 가려지지 않도록 수정했습니다.
+- Claude 레지스트리·대화 파일의 읽기 크기와 세션 정보를 검증하고, 사라진 세션의 캐시를 정리합니다. 활동 로그에서 대화 이름과 전체 프로젝트 경로를 제외합니다.
+- 측정 시각이나 리셋 시각이 만료된 Companion 사용량은 오래된 값으로 표시합니다. 시각이 없는 이전 partial 데이터와의 호환성은 유지합니다.
+- 지원하지 않는 fingerprint key 파일 형식 때문에 앱 시작이 멈추지 않도록 합니다. 정상적인 기존 키·설정·사용량 기록의 식별자는 유지합니다.
+- Windows는 제공업체·계정 RPC의 입력·출력 오류·취소를 함께 관찰해 막힌 입력이 오류 정리를 지연하지 않게 합니다.
+- 릴레이 소스는 대기 중인 QR 페어링 grant를 인증 암호화하고, 종료된 활동의 표시 내용이 재시도·늦은 응답으로 남거나 복원되지 않게 합니다. 서버 변경은 해당 릴레이 배포가 필요하며 데스크톱 통신 규약의 호환성을 유지합니다.
 ]]></description>
-            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.40/CodeRim-2.1.40.zip" length="32994503" type="application/octet-stream" sparkle:edSignature="FRDadggYrDYpAKExzzSiqBwC+MJds4p6X8KrVmFwc79P4kk9evAicZASkRkyyRJfHUM54yHrp05jj7+uu870CQ=="></enclosure>
+            <enclosure url="https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.41/CodeRim-2.1.41.zip" length="33022789" type="application/octet-stream" sparkle:edSignature="07uuf8SJ20m/snxHjw0r4tsjNQk2YBOXuAkyaGtDc1TwiwKth1NCVs5EPBbuYsKUdw2o3ohUdPhnZzvdW1YbBw=="></enclosure>
         </item>
     </channel>
 </rss><!-- sparkle-signatures:
-edSignature: ncf2ZTJiIzu9zsb0sGWd2329hGrFOe6hgiIQwf6T/kOJjb1r4JmdBd/4E35lZnHYxPDED4X2e4jSmqt2xZBMAA==
-length: 2047
+edSignature: qqwYxmfF7sCtnAI6yJtQHlgYg1rm5Q9YYvFqc9q11VHSUXamNxpXOmQ/1RMFHA5y7y6Tp/ZZvPcqoJoK4dI1CQ==
+length: 3817
 -->
