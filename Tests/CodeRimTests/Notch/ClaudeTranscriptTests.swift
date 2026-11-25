@@ -1,3 +1,4 @@
+import Darwin
 import XCTest
 @testable import CodeRim
 
@@ -510,5 +511,159 @@ extension NotchClaudeTranscriptReaderTests {
         let reader = ClaudeTranscriptReader(projects: projects)
         XCTAssertTrue(reader.subagents(sessionID: "first", cwd: cwd).isEmpty)
         XCTAssertEqual(reader.subagents(sessionID: "second", cwd: cwd).map(\.title), ["Still working"])
+    }
+}
+
+
+extension NotchClaudeTranscriptReaderTests {
+    func testQuietSubagentCanBecomeActiveAgain() throws {
+        let cwd = "/Users/vinz/app", session = "quiet-resume"
+        try write(working, folder: "-Users-vinz-app", session: session)
+        let folder = projects.appendingPathComponent("-Users-vinz-app/\(session)/subagents")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let meta = folder.appendingPathComponent("agent-wait.meta.json")
+        let log = folder.appendingPathComponent("agent-wait.jsonl")
+        try Data(#"{"description":"Long-running task"}"#.utf8).write(to: meta)
+        try Data("{}\n".utf8).write(to: log)
+        let now = Date()
+        try FileManager.default.setAttributes([.modificationDate: now.addingTimeInterval(-3700)], ofItemAtPath: log.path)
+        let reader = ClaudeTranscriptReader(projects: projects)
+        XCTAssertTrue(reader.subagents(sessionID: session, cwd: cwd, now: now).isEmpty)
+        try Data("{}\n{}\n".utf8).write(to: log)
+        try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: log.path)
+        XCTAssertEqual(reader.subagents(sessionID: session, cwd: cwd, now: now).map(\.title), ["Long-running task"])
+    }
+
+    func testFinishedSubagentMetadataCanBeReplacedByResumedWork() throws {
+        let cwd = "/Users/vinz/app", session = "finished-resume"
+        try write(working, folder: "-Users-vinz-app", session: session)
+        let folder = projects.appendingPathComponent("-Users-vinz-app/\(session)/subagents")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let meta = folder.appendingPathComponent("agent-resume.meta.json")
+        let log = folder.appendingPathComponent("agent-resume.jsonl")
+        try Data(#"{"finished":true}"#.utf8).write(to: meta)
+        try Data("{}\n".utf8).write(to: log)
+        let reader = ClaudeTranscriptReader(projects: projects)
+        XCTAssertTrue(reader.subagents(sessionID: session, cwd: cwd).isEmpty)
+        try Data(#"{"finished":false,"description":"Resumed work"}"#.utf8).write(to: meta, options: .atomic)
+        try Data("{}\n{}\n".utf8).write(to: log)
+        XCTAssertEqual(reader.subagents(sessionID: session, cwd: cwd).map(\.title), ["Resumed work"])
+    }
+
+    func testSubagentCacheBenchmarkWhenRequested() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["CODERIM_RUN_SUBAGENT_BENCHMARK"] == "1", "Opt-in local metadata-cache measurement.")
+        let cwd = "/Users/vinz/app", session = "cache-benchmark"
+        try write(working, folder: "-Users-vinz-app", session: session)
+        let folder = projects.appendingPathComponent("-Users-vinz-app/\(session)/subagents")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        for index in 0..<1000 {
+            try Data(#"{"finished":true}"#.utf8).write(to: folder.appendingPathComponent("agent-bench-\(index).meta.json"))
+            try Data("{}\n".utf8).write(to: folder.appendingPathComponent("agent-bench-\(index).jsonl"))
+        }
+        let reader = ClaudeTranscriptReader(projects: projects)
+        XCTAssertTrue(reader.subagents(sessionID: session, cwd: cwd).isEmpty)
+        var samples: [Double] = []
+        for _ in 0..<10 {
+            let start = DispatchTime.now().uptimeNanoseconds
+            let values = reader.subagents(sessionID: session, cwd: cwd)
+            samples.append(Double(DispatchTime.now().uptimeNanoseconds - start) / 1_000_000)
+            XCTAssertTrue(values.isEmpty)
+        }
+        print("CodeRim subagent cache: 1000 settled files, warm milliseconds=\(samples), median=\(samples.sorted()[5])")
+    }
+}
+
+
+extension NotchClaudeTranscriptReaderTests {
+    func testAtomicMetadataReplacementReopensResumedSubagent() throws {
+        let cwd = "/Users/vinz/app", session = "atomic-resume"
+        try write(working, folder: "-Users-vinz-app", session: session)
+        let folder = projects.appendingPathComponent("-Users-vinz-app/\(session)/subagents")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let meta = folder.appendingPathComponent("agent-atomic.meta.json")
+        let log = folder.appendingPathComponent("agent-atomic.jsonl")
+        let stopped = Data(#"{"finished":true,"description":"done"}"#.utf8)
+        let resumed = Data(#"{"finished":false,"description":"run"}"#.utf8)
+        XCTAssertEqual(stopped.count, resumed.count)
+        try stopped.write(to: meta)
+        try Data("{}\n".utf8).write(to: log)
+        let reader = ClaudeTranscriptReader(projects: projects)
+        XCTAssertTrue(reader.subagents(sessionID: session, cwd: cwd).isEmpty)
+        var original = stat()
+        XCTAssertEqual(lstat(meta.path, &original), 0)
+        let replacement = folder.appendingPathComponent("replacement.tmp")
+        try resumed.write(to: replacement)
+        let times = [original.st_atimespec, original.st_mtimespec]
+        let result = times.withUnsafeBufferPointer { Darwin.utimensat(AT_FDCWD, replacement.path, $0.baseAddress, 0) }
+        XCTAssertEqual(result, 0)
+        XCTAssertEqual(rename(replacement.path, meta.path), 0)
+        var current = stat()
+        XCTAssertEqual(lstat(meta.path, &current), 0)
+        XCTAssertEqual(current.st_size, original.st_size)
+        XCTAssertEqual(current.st_mtimespec.tv_sec, original.st_mtimespec.tv_sec)
+        XCTAssertEqual(current.st_mtimespec.tv_nsec, original.st_mtimespec.tv_nsec)
+        XCTAssertNotEqual(current.st_ino, original.st_ino)
+        XCTAssertEqual(reader.subagents(sessionID: session, cwd: cwd).map(\.title), ["run"])
+    }
+
+    func testFinishedMetadataStillSuppressesLaterLogWrites() throws {
+        let cwd = "/Users/vinz/app", session = "finished-log"
+        try write(working, folder: "-Users-vinz-app", session: session)
+        let folder = projects.appendingPathComponent("-Users-vinz-app/\(session)/subagents")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let meta = folder.appendingPathComponent("agent-done.meta.json")
+        let log = folder.appendingPathComponent("agent-done.jsonl")
+        try Data(#"{"finished":true,"description":"Done"}"#.utf8).write(to: meta)
+        try Data("{}\n".utf8).write(to: log)
+        let reader = ClaudeTranscriptReader(projects: projects)
+        XCTAssertTrue(reader.subagents(sessionID: session, cwd: cwd).isEmpty)
+        try Data("{}\n{}\n".utf8).write(to: log)
+        XCTAssertTrue(reader.subagents(sessionID: session, cwd: cwd).isEmpty)
+    }
+}
+
+
+extension NotchClaudeTranscriptReaderTests {
+    func testMetadataPathABAIsNotCachedAsTheReadInode() throws {
+        let cwd = "/Users/vinz/app", session = "metadata-aba"
+        try write(working, folder: "-Users-vinz-app", session: session)
+        let folder = projects.appendingPathComponent("-Users-vinz-app/\(session)/subagents")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let meta = folder.appendingPathComponent("agent-aba.meta.json")
+        let other = folder.appendingPathComponent("other.tmp")
+        let saved = folder.appendingPathComponent("saved.tmp")
+        let original = Data(#"{"finished":false,"description":"A"}"#.utf8)
+        let temporary = Data(#"{"finished":true ,"description":"B"}"#.utf8)
+        XCTAssertEqual(original.count, temporary.count)
+        try original.write(to: meta)
+        try temporary.write(to: other)
+        try Data("{}\n".utf8).write(to: folder.appendingPathComponent("agent-aba.jsonl"))
+        var before = stat()
+        XCTAssertEqual(lstat(meta.path, &before), 0)
+        let times = [before.st_atimespec, before.st_mtimespec]
+        XCTAssertEqual(times.withUnsafeBufferPointer { Darwin.utimensat(AT_FDCWD, other.path, $0.baseAddress, 0) }, 0)
+        let reader = ClaudeTranscriptReader(projects: projects)
+        let during = ClaudeTranscriptReader.$beforeSubagentMetadataOpenForTesting.withValue({ url in
+            XCTAssertEqual(rename(url.path, saved.path), 0)
+            XCTAssertEqual(rename(other.path, url.path), 0)
+        }) {
+            ClaudeTranscriptReader.$afterSubagentMetadataOpenForTesting.withValue({ url in
+                XCTAssertEqual(rename(url.path, other.path), 0)
+                XCTAssertEqual(rename(saved.path, url.path), 0)
+            }) {
+                reader.subagents(sessionID: session, cwd: cwd)
+            }
+        }
+        XCTAssertTrue(during.isEmpty) // The temporary B bytes were read while B occupied the name.
+        var restored = stat()
+        XCTAssertEqual(lstat(meta.path, &restored), 0)
+        XCTAssertEqual(restored.st_dev, before.st_dev)
+        XCTAssertEqual(restored.st_ino, before.st_ino)
+        XCTAssertEqual(restored.st_size, before.st_size)
+        XCTAssertEqual(restored.st_mtimespec.tv_sec, before.st_mtimespec.tv_sec)
+        XCTAssertEqual(restored.st_mtimespec.tv_nsec, before.st_mtimespec.tv_nsec)
+        XCTAssertEqual(try Data(contentsOf: meta), original)
+        XCTAssertEqual(reader.subagents(sessionID: session, cwd: cwd).map(\.title), ["A"])
+        XCTAssertEqual(reader.subagents(sessionID: session, cwd: cwd).map(\.title), ["A"])
     }
 }
