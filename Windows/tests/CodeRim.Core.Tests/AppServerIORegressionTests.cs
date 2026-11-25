@@ -30,8 +30,19 @@ public sealed class AppServerIORegressionTests
         try
         {
             var pidFile = Path.Combine(root, "root.pid");
-            while (!File.Exists(pidFile) && clock.Elapsed < TimeSpan.FromSeconds(2)) await Task.Delay(10, TestContext.Current.CancellationToken);
-            child = Process.GetProcessById(int.Parse(File.ReadAllText(pidFile), System.Globalization.CultureInfo.InvariantCulture));
+            var processID = 0;
+            while (processID <= 0 && clock.Elapsed < TimeSpan.FromSeconds(2))
+            {
+                try
+                {
+                    int.TryParse(File.ReadAllText(pidFile), System.Globalization.NumberStyles.None,
+                        System.Globalization.CultureInfo.InvariantCulture, out processID);
+                }
+                catch (IOException) { }
+                if (processID <= 0) await Task.Delay(10, TestContext.Current.CancellationToken);
+            }
+            Assert.True(processID > 0, "The owned RPC child did not publish a complete PID marker.");
+            child = Process.GetProcessById(processID);
             Assert.True(child.StartTime.ToUniversalTime() >= startedAt.AddSeconds(-1));
             if (mode == "stderr-overflow")
                 await Assert.ThrowsAsync<IOException>(() => response.WaitAsync(TimeSpan.FromSeconds(3), TestContext.Current.CancellationToken));
