@@ -23,19 +23,44 @@ public static class BoundedProcess
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         deadline.CancelAfter(timeout ?? TimeSpan.FromSeconds(15));
         using var process = Start(executable, arguments, environment);
+        Task<string>? output = null; Task<string>? error = null; Task? exited = null; Task? inputWritten = null;
         try
         {
-            var output = ReadBoundedAsync(process.StandardOutput, maximumBytes, deadline.Token);
-            var error = ReadBoundedAsync(process.StandardError, maximumBytes, deadline.Token);
-            if (input is not null) await process.StandardInput.WriteAsync(input.AsMemory(), deadline.Token).ConfigureAwait(false);
-            process.StandardInput.Close();
-            await Task.WhenAll(output, error, process.WaitForExitAsync(deadline.Token)).ConfigureAwait(false);
+            output = ReadBoundedAsync(process.StandardOutput, maximumBytes, deadline.Token);
+            error = ReadBoundedAsync(process.StandardError, maximumBytes, deadline.Token);
+            exited = process.WaitForExitAsync(deadline.Token);
+            async Task WriteInput()
+            {
+                try
+                {
+                    if (input is not null) await process.StandardInput.WriteAsync(input.AsMemory(), deadline.Token).ConfigureAwait(false);
+                }
+                finally { process.StandardInput.Close(); }
+            }
+            inputWritten = WriteInput();
+            // Observe every pipe concurrently: a child may emit output without reading its input.
+            var pending = new List<Task> { output, error, exited, inputWritten };
+            while (pending.Count > 0)
+            {
+                var completed = await Task.WhenAny(pending).ConfigureAwait(false);
+                await completed.ConfigureAwait(false); pending.Remove(completed);
+            }
             return new(process.ExitCode, await output.ConfigureAwait(false), await error.ConfigureAwait(false));
         }
         finally
         {
-            Kill(process);
-            await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None).ConfigureAwait(false);
+            deadline.Cancel(); Kill(process);
+            try
+            {
+                await process.WaitForExitAsync(CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(3), CancellationToken.None).ConfigureAwait(false);
+            }
+            finally
+            {
+                foreach (var pending in new Task?[] { output, error, exited, inputWritten })
+                    if (pending is not null)
+                        try { await pending.ConfigureAwait(false); }
+                        catch (Exception failure) when (failure is IOException or OperationCanceledException) { }
+            }
         }
     }
 
