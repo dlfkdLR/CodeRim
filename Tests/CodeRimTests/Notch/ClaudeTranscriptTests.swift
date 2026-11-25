@@ -457,3 +457,58 @@ extension NotchClaudeTranscriptReaderTests {
         XCTAssertEqual(monitor.sessions.first?.name, "Restarted")
     }
 }
+
+extension NotchClaudeTranscriptTests {
+    func testTailUsesTheRequestedBoundAndRejectsLinks() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let file = root.appendingPathComponent("transcript.jsonl")
+        let expected = Data("the requested tail".utf8)
+        try (Data(repeating: 0x61, count: 100_000) + expected).write(to: file)
+        XCTAssertEqual(ClaudeTranscript.tail(of: file, bytes: expected.count), expected)
+        XCTAssertNil(ClaudeTranscript.tail(of: file, bytes: 0))
+        XCTAssertNil(ClaudeTranscript.tail(of: file, bytes: -1))
+        let link = root.appendingPathComponent("link.jsonl")
+        try FileManager.default.createSymbolicLink(at: link, withDestinationURL: file)
+        XCTAssertNil(ClaudeTranscript.tail(of: link))
+    }
+}
+
+extension NotchClaudeTranscriptReaderTests {
+    func testRetiredSessionsDoNotKeepAnOldTranscriptLocation() throws {
+        let reader = ClaudeTranscriptReader(projects: projects)
+        let original = try write(working, folder: "old-folder", session: "resumed")
+        XCTAssertEqual(reader.activity(sessionID: "resumed", cwd: "/tmp/moved")?.turn, .inFlight)
+        _ = ClaudeSessionMonitor.read(directory: projects.appendingPathComponent("no-registry"), transcripts: reader)
+        try FileManager.default.removeItem(at: original)
+        try write(done, folder: "new-folder", session: "resumed")
+        XCTAssertEqual(reader.activity(sessionID: "resumed", cwd: "/tmp/moved")?.turn, .finished)
+    }
+
+    func testRetiredMissingSessionCanBeDiscoveredWhenItReturns() throws {
+        let reader = ClaudeTranscriptReader(projects: projects)
+        XCTAssertNil(reader.activity(sessionID: "resumed", cwd: "/tmp/moved"))
+        _ = ClaudeSessionMonitor.read(directory: projects.appendingPathComponent("no-registry"), transcripts: reader)
+        try write(done, folder: "new-folder", session: "resumed")
+        XCTAssertEqual(reader.activity(sessionID: "resumed", cwd: "/tmp/moved")?.turn, .finished)
+    }
+}
+
+
+extension NotchClaudeTranscriptReaderTests {
+    func testACompletedSubagentInOneChatCannotHideTheSameIDInAnother() throws {
+        let cwd = "/Users/vinz/app"
+        for session in ["first", "second"] {
+            try write(working, folder: "-Users-vinz-app", session: session)
+            let folder = projects.appendingPathComponent("-Users-vinz-app/\(session)/subagents")
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            let meta = session == "first" ? #"{"finished":true}"# : #"{"description":"Still working"}"#
+            try Data(meta.utf8).write(to: folder.appendingPathComponent("agent-same.meta.json"))
+            try Data("{}\n".utf8).write(to: folder.appendingPathComponent("agent-same.jsonl"))
+        }
+        let reader = ClaudeTranscriptReader(projects: projects)
+        XCTAssertTrue(reader.subagents(sessionID: "first", cwd: cwd).isEmpty)
+        XCTAssertEqual(reader.subagents(sessionID: "second", cwd: cwd).map(\.title), ["Still working"])
+    }
+}

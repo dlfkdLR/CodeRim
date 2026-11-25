@@ -131,13 +131,14 @@ final class ClaudeSessionMonitor: ObservableObject, AgentActivityMonitor {
             .filter { $0.hasSuffix(".json") }
             .compactMap { name -> ClaudeSessionRecord? in
                 let url = directory.appendingPathComponent(name)
-                guard let data = try? Data(contentsOf: url),
+                guard let data = CredentialFileReader.data(at: url),
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let record = ClaudeSessionRecord(json: json),
                       ProcessLiveness.isAlive(pid: record.pid, startedAt: record.startedAt)
                 else { return nil }
                 return record
             }
+        transcripts?.retainSessions(Set(live.compactMap(\.sessionID)))
         return deduplicated(live)
             .flatMap { record -> [AgentSession] in
                 let session = state(of: record, transcripts: transcripts)
