@@ -1472,7 +1472,7 @@ actor SQLiteDatabase {
 
     private static func loadOrCreateSourceFingerprintKey(at databaseURL: URL) throws -> Data {
         let path = databaseURL.path + ".fingerprint-key"
-        let existingDescriptor = Darwin.open(path, O_RDONLY | O_CLOEXEC | O_NOFOLLOW)
+        let existingDescriptor = Darwin.open(path, O_RDONLY | O_NONBLOCK | O_CLOEXEC | O_NOFOLLOW)
         if existingDescriptor >= 0 {
             defer { Darwin.close(existingDescriptor) }
             var fileStat = stat()

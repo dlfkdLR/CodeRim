@@ -42,6 +42,7 @@ internal static partial class NativeSmoke
                 JsonSerializer.Serialize(new { stage, state, elapsedMilliseconds = timer.ElapsedMilliseconds, timeoutSeconds,
                     baselineIncomplete = baseline.Incomplete, observations }, JsonOptions));
             Write("running");
+            using var polling = new CancellationTokenSource();
             try
             {
                 var command = BoundedProcess.RunAsync(executable, arguments, input, timeout: TimeSpan.FromSeconds(timeoutSeconds));
@@ -50,7 +51,7 @@ internal static partial class NativeSmoke
                     var sample = ClaudeCommandProcesses();
                     observations.Add(new { elapsedMilliseconds = timer.ElapsedMilliseconds,
                         probeIncomplete = sample.Incomplete, processes = sample.Processes.Where(x => !existing.Contains((x.Id, x.StartTicks))).ToArray() });
-                    await Task.WhenAny(command, Task.Delay(1000));
+                    await Task.WhenAny(command, Task.Delay(1000, polling.Token));
                 }
                 var result = await command;
                 Write("completed"); return result;
@@ -63,6 +64,7 @@ internal static partial class NativeSmoke
                 { failure = new AggregateException(error, receiptError); }
                 throw new InvalidOperationException("Native Claude command failed: " + stage, failure);
             }
+            finally { polling.Cancel(); }
         }
         File.WriteAllText(Path.Combine(directory, "windows-native-host.json"), JsonSerializer.Serialize(new {
             os_architecture = System.Runtime.InteropServices.RuntimeInformation.OSArchitecture.ToString(),

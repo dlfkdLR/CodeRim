@@ -1,3 +1,4 @@
+import CoreFoundation
 import Foundation
 
 /// One entry in `~/.claude/sessions/<pid>.json`, as Claude Code writes it.
@@ -27,8 +28,12 @@ struct ClaudeSessionRecord {
     /// its own release schedule, and an unknown field must never cost us a
     /// session we could have shown.
     init?(json: [String: Any]) {
-        guard let pid = (json["pid"] as? NSNumber)?.int32Value,
-              let cwd = json["cwd"] as? String else { return nil }
+        guard let number = json["pid"] as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID(),
+              let pid = Int32(exactly: number.doubleValue), pid > 0,
+              let cwd = json["cwd"] as? String,
+              !cwd.isEmpty, cwd.utf8.count <= 4_096, !cwd.contains("\0")
+        else { return nil }
 
         let raw = json["status"] as? String
         let tempo = json["tempo"] as? String        // the normalised form, when present
@@ -44,18 +49,15 @@ struct ClaudeSessionRecord {
         default:                             (state, reportsStatus) = (.idle, false)
         }
 
-        let millis = (json["statusUpdatedAt"] as? NSNumber)?.doubleValue
-            ?? (json["updatedAt"] as? NSNumber)?.doubleValue
+        let updatedAt = Self.timestamp(json["statusUpdatedAt"])
+            ?? Self.timestamp(json["updatedAt"])
 
         self.pid = pid
         self.sessionID = json["sessionId"] as? String
         self.cwd = cwd
         self.reportsStatus = reportsStatus
-        if let started = (json["startedAt"] as? NSNumber)?.doubleValue {
-            self.startedAt = Date(timeIntervalSince1970: started / 1000)
-        } else {
-            self.startedAt = (json["procStart"] as? String).flatMap(Self.parseProcStart)
-        }
+        self.startedAt = Self.timestamp(json["startedAt"])
+            ?? (json["procStart"] as? String).flatMap(Self.parseProcStart)
 
         let folder = (cwd as NSString).lastPathComponent
         self.session = AgentSession(
@@ -70,8 +72,7 @@ struct ClaudeSessionRecord {
             // changed twice a second and sets the notch animating over and
             // over. When the transcript is readable it replaces this anyway;
             // this is what holds still until it is.
-            since: millis.map { Date(timeIntervalSince1970: $0 / 1000) }
-                ?? self.startedAt ?? Date(),
+            since: updatedAt ?? self.startedAt ?? Date(),
             processID: pid, usageSessionID: self.sessionID, workingDirectory: cwd,
             projectKey: folder,
             transcriptID: json["sessionId"] as? String
@@ -88,6 +89,14 @@ struct ClaudeSessionRecord {
                      state: state, waitingFor: nil, since: since, processID: pid, usageSessionID: sessionID,
                      workingDirectory: cwd, projectKey: session.projectKey, followUps: followUps,
                      toolCalls: toolCalls, transcriptID: session.transcriptID, details: details)
+    }
+
+    private static func timestamp(_ value: Any?) -> Date? {
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) != CFBooleanGetTypeID() else { return nil }
+        let seconds = number.doubleValue / 1_000
+        guard seconds.isFinite, (0...253_402_300_799).contains(seconds) else { return nil }
+        return Date(timeIntervalSince1970: seconds)
     }
 
     static func surface(_ entrypoint: String?) -> String {

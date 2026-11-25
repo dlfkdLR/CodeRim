@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 
 /// Read conversation activity from ~/.claude/projects/<slug>/<sessionId>.jsonl. Unlike the terminal
@@ -59,12 +60,26 @@ enum ClaudeTranscript {
 
     /// The last records of the file, without reading the rest of it.
     static func tail(of url: URL, bytes: Int = tailBytes) -> Data? {
-        guard bytes > 0, let handle = try? FileHandle(forReadingFrom: url) else { return nil }
+        guard bytes > 0, let handle = openTranscript(at: url) else { return nil }
         defer { try? handle.close() }
         guard let end = try? handle.seekToEnd() else { return nil }
-        let start = end > UInt64(bytes) ? end - UInt64(bytes) : 0
-        guard (try? handle.seek(toOffset: start)) != nil else { return nil }
-        return try? handle.read(upToCount: bytes)
+        let count = min(UInt64(bytes), end)
+        guard count > 0 else { return Data() }
+        guard (try? handle.seek(toOffset: end - count)) != nil else { return nil }
+        return try? handle.read(upToCount: Int(count))
+    }
+
+    /// Validate the descriptor before any registry-driven transcript read can block or follow a link.
+    fileprivate static func openTranscript(at url: URL) -> FileHandle? {
+        let descriptor = Darwin.open(url.path, O_RDONLY | O_NONBLOCK | O_NOFOLLOW | O_CLOEXEC)
+        guard descriptor >= 0 else { return nil }
+        var info = stat()
+        guard fstat(descriptor, &info) == 0, info.st_mode & S_IFMT == S_IFREG,
+              info.st_uid == getuid(), info.st_size >= 0 else {
+            close(descriptor)
+            return nil
+        }
+        return FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
     }
 
     /// Only conversation records decide activity; bookkeeping continues while idle. Return nil for an
@@ -214,6 +229,10 @@ private extension String {
 /// Cache transcript metadata per monitor; unchanged files need only stat, and growing files trigger
 /// tail reads.
 final class ClaudeTranscriptReader {
+#if DEBUG
+    @TaskLocal static var beforeSubagentMetadataOpenForTesting: (@Sendable (URL) -> Void)?
+    @TaskLocal static var afterSubagentMetadataOpenForTesting: (@Sendable (URL) -> Void)?
+#endif
     private struct Cached {
         let modified: Date
         let size: UInt64
@@ -224,11 +243,39 @@ final class ClaudeTranscriptReader {
     }
 
     private let projects: URL
-    /// Sub-agent ids known to be over.
-    private var settledSubagents: Set<String> = []
+    private struct SettledSubagent: Equatable {
+        let finished: Bool
+        let modifiedSeconds: Int64
+        let modifiedNanoseconds: Int64
+        let size: Int64
+        let device: Int32
+        let inode: UInt64
+        let type: mode_t
+        var modified: Date {
+            Date(timeIntervalSince1970: Double(modifiedSeconds) + Double(modifiedNanoseconds) / 1_000_000_000)
+        }
+
+        init?(path: String, finished: Bool) {
+            var info = stat()
+            guard lstat(path, &info) == 0 else { return nil }
+            self.init(info: info, finished: finished)
+        }
+
+        init(info: stat, finished: Bool) {
+            self.finished = finished
+            modifiedSeconds = Int64(info.st_mtimespec.tv_sec)
+            modifiedNanoseconds = Int64(info.st_mtimespec.tv_nsec)
+            size = info.st_size
+            device = info.st_dev
+            inode = info.st_ino
+            type = info.st_mode & S_IFMT
+        }
+    }
+    /// A settled result is reusable only while its observed file stays unchanged.
+    private var settledSubagents: [String: [String: SettledSubagent]] = [:]
     private let fileManager: FileManager
-    /// Where each session's transcript turned out to be. Sessions come and go;
-    /// this is bounded by how many have run since the app launched.
+    /// Where each live session's transcript turned out to be. The registry
+    /// retires all associated caches when the session leaves.
     private var paths: [String: URL] = [:]
     private var cache: [String: Cached] = [:]
     /// Keep state-entry time separately from append timestamps so continued output does not reset
@@ -261,6 +308,16 @@ final class ClaudeTranscriptReader {
     init(projects: URL, fileManager: FileManager = .default) {
         self.projects = projects
         self.fileManager = fileManager
+    }
+
+    func retainSessions(_ sessionIDs: Set<String>) {
+        paths = paths.filter { sessionIDs.contains($0.key) }
+        cache = cache.filter { sessionIDs.contains($0.key) }
+        entered = entered.filter { sessionIDs.contains($0.key) }
+        scanned.formIntersection(sessionIDs)
+        titles = titles.filter { sessionIDs.contains($0.key) }
+        toolScans = toolScans.filter { sessionIDs.contains($0.key) }
+        settledSubagents = settledSubagents.filter { sessionIDs.contains($0.key) }
     }
 
     /// What the session is doing, and when it last moved. Nil when there is no
@@ -310,7 +367,7 @@ final class ClaudeTranscriptReader {
     private func scanToolUses(sessionID: String, url: URL, size: UInt64) -> [Date] {
         var state = toolScans[sessionID] ?? (size > Self.toolScanFirstLook ? size - Self.toolScanFirstLook : 0, [])
         if size < state.offset { state = (0, []) }
-        if size > state.offset, let handle = try? FileHandle(forReadingFrom: url) {
+        if size > state.offset, let handle = ClaudeTranscript.openTranscript(at: url) {
             defer { try? handle.close() }
             if (try? handle.seek(toOffset: state.offset)) != nil,
                let data = try? handle.read(upToCount: Self.toolScanChunk), !data.isEmpty,
@@ -354,7 +411,7 @@ final class ClaudeTranscriptReader {
         if end < state.cursor.readOffset { state = TitleScan() }   // rewritten from scratch
         titleAccess &+= 1
         state.access = titleAccess
-        if end > state.cursor.readOffset, let handle = try? FileHandle(forReadingFrom: url) {
+        if end > state.cursor.readOffset, let handle = ClaudeTranscript.openTranscript(at: url) {
             defer { try? handle.close() }
             var cursor = state.cursor
             try? cursor.read(handle, through: end) { line in
@@ -380,24 +437,58 @@ final class ClaudeTranscriptReader {
     func subagents(sessionID: String, cwd: String, now: Date = Date()) -> [Subagent] {
         guard let transcript = path(sessionID: sessionID, cwd: cwd) else { return [] }
         let directory = transcript.deletingPathExtension().appendingPathComponent("subagents")
-        guard let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else { return [] }
-        return names.filter { $0.hasSuffix(".meta.json") }.compactMap { name -> Subagent? in
+        guard let names = try? fileManager.contentsOfDirectory(atPath: directory.path) else {
+            settledSubagents[sessionID] = nil
+            return []
+        }
+        let metadata = names.filter { $0.hasSuffix(".meta.json") }
+        if let settled = settledSubagents[sessionID] {
+            let present = Set(metadata.map { String($0.dropLast(".meta.json".count)) })
+            for id in settled.keys where !present.contains(id) { settledSubagents[sessionID]?[id] = nil }
+            if settledSubagents[sessionID]?.isEmpty == true { settledSubagents[sessionID] = nil }
+        }
+        let directoryPath = directory.path + "/"
+        return metadata.compactMap { name -> Subagent? in
             let id = String(name.dropLast(".meta.json".count))
-            // A finished or long-quiet sub-agent never starts again, so it is
-            // looked at once and then skipped without touching the disk.
-            if settledSubagents.contains(id) { return nil }
-            let log = directory.appendingPathComponent(id + ".jsonl")
-            guard let logAttributes = try? fileManager.attributesOfItem(atPath: log.path),
-                  let modified = logAttributes[.modificationDate] as? Date else { return nil }
+            let metaPath = directoryPath + name
+            if let settled = settledSubagents[sessionID]?[id] {
+                let watched = settled.finished ? metaPath : directoryPath + id + ".jsonl"
+                if SettledSubagent(path: watched, finished: settled.finished) == settled { return nil }
+                settledSubagents[sessionID]?[id] = nil
+            }
+            guard let log = SettledSubagent(path: directoryPath + id + ".jsonl", finished: false) else { return nil }
+            let modified = log.modified
             guard now.timeIntervalSince(modified) < 120 else {
-                if now.timeIntervalSince(modified) > 3600 { settledSubagents.insert(id) }
+                if now.timeIntervalSince(modified) > 3600 { settledSubagents[sessionID, default: [:]][id] = log }
                 return nil
             }
             let meta = directory.appendingPathComponent(name)
-            guard let data = try? Data(contentsOf: meta),
+#if DEBUG
+            Self.beforeSubagentMetadataOpenForTesting?(meta)
+#endif
+            guard let input = ClaudeTranscript.openTranscript(at: meta) else { return nil }
+            defer { try? input.close() }
+#if DEBUG
+            Self.afterSubagentMetadataOpenForTesting?(meta)
+#endif
+            var before = stat()
+            let maximum = CredentialFileReader.defaultMaximumBytes
+            guard fstat(input.fileDescriptor, &before) == 0,
+                  before.st_size >= 0, before.st_size <= maximum else { return nil }
+            let observed = SettledSubagent(info: before, finished: true)
+            guard let data = try? input.read(upToCount: Int(before.st_size) + 1), data.count <= maximum,
                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
             else { return nil }
-            if json["finished"] as? Bool == true { settledSubagents.insert(id); return nil }
+            if json["finished"] as? Bool == true {
+                // Bind the parse to the open inode, including when the pathname changes and returns.
+                var after = stat()
+                if fstat(input.fileDescriptor, &after) == 0,
+                   SettledSubagent(info: after, finished: true) == observed,
+                   SettledSubagent(path: metaPath, finished: true) == observed {
+                    settledSubagents[sessionID, default: [:]][id] = observed
+                }
+                return nil
+            }
             let started = ((try? fileManager.attributesOfItem(atPath: meta.path))?[.creationDate] as? Date) ?? modified
             let title = (json["description"] as? String).flatMap { $0.isEmpty ? nil : $0 }
                 ?? (json["agentType"] as? String) ?? "Sub-agent"

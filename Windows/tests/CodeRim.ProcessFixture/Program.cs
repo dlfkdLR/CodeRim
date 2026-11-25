@@ -46,6 +46,20 @@ internal static class Program
                     finally { if (owned && !abandon) mutex.ReleaseMutex(); }
                 }
             case "app-server":
+                var rpcMode = Environment.GetEnvironmentVariable("SYNTHETIC_RPC_MODE");
+                if (rpcMode == "stderr-overflow")
+                {
+                    using var stderr = Console.OpenStandardError();
+                    var block = new byte[65_536]; Array.Fill(block, (byte)'e');
+                    for (var count = 0; count < 40; count++) await stderr.WriteAsync(block).ConfigureAwait(false);
+                    await stderr.FlushAsync().ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
+                    return 0;
+                }
+                if (rpcMode == "repeat-initialize")
+                {
+                    while (true) Console.WriteLine("{\"id\":1,\"result\":{}}");
+                }
                 while (await Console.In.ReadLineAsync().ConfigureAwait(false) is { } line)
                 {
                     using var request = JsonDocument.Parse(line);

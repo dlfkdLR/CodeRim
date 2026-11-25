@@ -296,3 +296,39 @@ extension NotchClaudeSessionRecordTests {
         XCTAssertEqual(first.since.timeIntervalSince1970, 1788731755.247, accuracy: 0.01)
     }
 }
+
+
+extension NotchClaudeSessionRecordTests {
+    func testRejectsInvalidProcessIdentifiers() {
+        for pid in ["true", "false", "0", "-1", "1.5", "4294967297", "2147483648"] {
+            XCTAssertNil(record("{\"pid\":\(pid),\"cwd\":\"/tmp/project\"}"), pid)
+        }
+        XCTAssertEqual(record("{\"pid\":2147483647,\"cwd\":\"/tmp/project\"}")?.pid, Int32.max)
+    }
+
+    func testInvalidTimestampsUseAValidFallback() throws {
+        for invalid in ["true", "-1", "1e300"] {
+            let value = try XCTUnwrap(record("{\"pid\":1,\"cwd\":\"/tmp/project\",\"statusUpdatedAt\":\(invalid),\"updatedAt\":1788731755247,\"startedAt\":\(invalid)}"))
+            XCTAssertNil(value.startedAt)
+            XCTAssertEqual(value.session.since.timeIntervalSince1970, 1788731755.247, accuracy: 0.001)
+        }
+    }
+
+    func testRegistryReadsSkipLinksAndOversizedFiles() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let registry = root.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: registry, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let data = Data("{\"pid\":\(getpid()),\"cwd\":\"/tmp/project\",\"status\":\"busy\",\"statusUpdatedAt\":1788731755247}".utf8)
+        let normal = registry.appendingPathComponent("normal.json")
+        try data.write(to: normal)
+        XCTAssertEqual(ClaudeSessionMonitor.read(directory: registry).count, 1)
+        try FileManager.default.removeItem(at: normal)
+        let outside = root.appendingPathComponent("outside.json")
+        try data.write(to: outside)
+        try FileManager.default.createSymbolicLink(at: registry.appendingPathComponent("link.json"), withDestinationURL: outside)
+        XCTAssertTrue(ClaudeSessionMonitor.read(directory: registry).isEmpty)
+        try Data(repeating: 0x20, count: CredentialFileReader.defaultMaximumBytes + 1).write(to: normal)
+        XCTAssertTrue(ClaudeSessionMonitor.read(directory: registry).isEmpty)
+    }
+}
