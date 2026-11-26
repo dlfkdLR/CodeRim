@@ -56,6 +56,13 @@ def frames():
         pool = ids if len(data) % 9 == 0 else ids[:6]
         append([(rng.choice(["p", "q", "a", "a\u0001b"]), rng.choice(pool), rng.randrange(4), rng.randrange(4))
                 for _ in range(rng.choice([0, 1, 2, 5, 12, 40]))], lane, source)
+    # The stored identity also includes the provider and one separator byte.
+    for key_size in (1, 46, 47, 48, 49, 50, 128, 1024):
+        key = "s" * (key_size - 1)
+        append([("", key, 0, 0)])
+        append([("", key, 0, 0), ("", key + "t", 0, 1)], 1, 0)
+        append([("", key, 1, 0), ("", key + "t", 2, 1)], 2, 1)
+        append([("", key, 1, 0), ("é", "new", 0, 1)], 3, 0)
     return data
 
 

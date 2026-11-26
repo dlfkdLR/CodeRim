@@ -3,21 +3,59 @@ use std::collections::HashSet;
 use std::ffi::c_void;
 use std::slice;
 
+// Fits a provider prefix, separator and a UUID without another allocation.
+const INLINE_CAPACITY: usize = 48;
+
+pub enum SessionKey {
+    Inline {
+        bytes: [u8; INLINE_CAPACITY],
+        len: u8,
+    },
+    Long(Box<[u8]>),
+}
+
+impl SessionKey {
+    fn new(key: &[u8]) -> Self {
+        if key.len() <= INLINE_CAPACITY {
+            let mut bytes = [0; INLINE_CAPACITY];
+            bytes[..key.len()].copy_from_slice(key);
+            Self::Inline {
+                bytes,
+                len: key.len() as u8,
+            }
+        } else {
+            Self::Long(key.into())
+        }
+    }
+    fn as_bytes(&self) -> &[u8] {
+        match self {
+            Self::Inline { bytes, len } => &bytes[..usize::from(*len)],
+            Self::Long(bytes) => bytes,
+        }
+    }
+    fn take_box(&mut self) -> Box<[u8]> {
+        match self {
+            Self::Inline { bytes, len } => Box::from(&bytes[..usize::from(*len)]),
+            Self::Long(bytes) => std::mem::take(bytes),
+        }
+    }
+}
+
 #[derive(Default)]
 pub enum BusyKeys {
     #[default]
     Empty,
-    One(Box<[u8]>),
+    One(SessionKey),
     Many(HashSet<Box<[u8]>>),
 }
 
 impl BusyKeys {
     fn add(&mut self, key: &[u8]) {
         match self {
-            Self::Empty => *self = Self::One(key.into()),
-            Self::One(old) if old.as_ref() == key => {}
+            Self::Empty => *self = Self::One(SessionKey::new(key)),
+            Self::One(old) if old.as_bytes() == key => {}
             Self::One(old) => {
-                *self = Self::Many(HashSet::from([std::mem::take(old), key.into()]));
+                *self = Self::Many(HashSet::from([old.take_box(), key.into()]));
             }
             Self::Many(keys) => {
                 keys.insert(key.into());
@@ -27,7 +65,7 @@ impl BusyKeys {
 
     fn remove(&mut self, key: &[u8]) {
         match self {
-            Self::One(old) if old.as_ref() == key => *self = Self::Empty,
+            Self::One(old) if old.as_bytes() == key => *self = Self::Empty,
             Self::Many(keys) => {
                 keys.remove(key);
             }
@@ -38,7 +76,7 @@ impl BusyKeys {
     fn contains(&self, key: &[u8]) -> bool {
         match self {
             Self::Empty => false,
-            Self::One(old) => old.as_ref() == key,
+            Self::One(old) => old.as_bytes() == key,
             Self::Many(keys) => keys.contains(key),
         }
     }
@@ -106,7 +144,7 @@ pub unsafe extern "C" fn cr_completion_copy_keys(
     let copy = |key: &[u8]| unsafe { receive(context, key.as_ptr(), key.len()) };
     match keys {
         BusyKeys::Empty => {}
-        BusyKeys::One(key) => copy(key),
+        BusyKeys::One(key) => copy(key.as_bytes()),
         BusyKeys::Many(set) => set.iter().for_each(|key| copy(key)),
     }
 }
