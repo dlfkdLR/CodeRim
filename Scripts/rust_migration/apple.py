@@ -176,7 +176,7 @@ def compare_hosts(work):
                   "copilot-quota", "ollama-quota", "ollama-local", "app-server-response", "glyph-render", "activity-fields",
                   "source-discovery", "notch-viewport", "desktop-mobile-order", "companion-export",
                   "sqlite-event-import", "sqlite-checkpoint", "statistics-bounds", "snapshot-quality", "sqlite-legacy-ids", "sqlite-schema-runtime", "sqlite-history-maintenance", "source-fingerprint", "import-selection",
-                  "claude-tail-activity", "session-completion"]:
+                  "claude-tail-activity", "claude-monitor-poll", "session-completion"]:
         subprocess.run(["python3", str(Path(__file__).parent / suite / "check.py"),
                         "--archive", str(archive)], check=True)
 

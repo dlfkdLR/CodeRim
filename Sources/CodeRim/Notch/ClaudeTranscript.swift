@@ -1,5 +1,8 @@
 import Darwin
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// Read conversation activity from ~/.claude/projects/<slug>/<sessionId>.jsonl. Unlike the terminal
 /// registry’s status, engine-written transcripts also cover desktop-hosted sessions.
@@ -273,13 +276,13 @@ final class ClaudeTranscriptReader {
     @TaskLocal static var beforeSubagentMetadataOpenForTesting: (@Sendable (URL) -> Void)?
     @TaskLocal static var afterSubagentMetadataOpenForTesting: (@Sendable (URL) -> Void)?
 #endif
+    typealias Activity = (turn: ClaudeTranscript.Turn, since: Date, eventAt: Date?, followUps: Int,
+                          toolUses: [Date], details: ModelDetails?)
+
     private struct Cached {
         let modified: Date
         let size: UInt64
-        let event: ClaudeTranscript.Event?
-        let queued: [Date]
-        let toolUses: [Date]
-        var details: ModelDetails?
+        let activity: Activity?
     }
 
     private let projects: URL
@@ -362,46 +365,30 @@ final class ClaudeTranscriptReader {
 
     /// What the session is doing, and when it last moved. Nil when there is no
     /// transcript to read, or nothing said in it yet.
-    func activity(sessionID: String, cwd: String)
-        -> (turn: ClaudeTranscript.Turn, since: Date, eventAt: Date?, followUps: Int, toolUses: [Date],
-        details: ModelDetails?)? {
+    func activity(sessionID: String, cwd: String) -> Activity? {
+        let previous = cache[sessionID]
         guard let url = path(sessionID: sessionID, cwd: cwd),
-              let attributes = try? fileManager.attributesOfItem(atPath: url.path),
-              let modified = attributes[.modificationDate] as? Date
-        else { return nil }
-        let size = (attributes[.size] as? NSNumber)?.uint64Value ?? 0
+              let stamp = fileStamp(at: url, previous: previous),
+              let modified = stamp.modified else { return nil }
+        let size = stamp.size ?? 0
+        if stamp.unchanged, let previous { return previous.activity }
 
-        let event: ClaudeTranscript.Event?
-        let queued: [Date]
-        let toolUses: [Date]
-        let details: ModelDetails?
-        if let cached = cache[sessionID], cached.modified == modified, cached.size == size {
-            event = cached.event
-            queued = cached.queued
-            toolUses = cached.toolUses
-            details = cached.details
-        } else {
-            let activity = ClaudeTranscript.tail(of: url).map(ClaudeTranscript.activity(inTail:))
-            event = activity?.event
-            queued = activity?.queued ?? []
-            toolUses = scanToolUses(sessionID: sessionID, url: url, size: size)
-            details = activity?.details
-            cache[sessionID] = Cached(modified: modified, size: size, event: event, queued: queued,
-                                      toolUses: toolUses, details: details)
+        let tail = ClaudeTranscript.tail(of: url).map(ClaudeTranscript.activity(inTail:))
+        let toolUses = scanToolUses(sessionID: sessionID, url: url, size: size)
+        var activity: Activity?
+        if let tail, let event = tail.event {
+            let since: Date
+            if let previous = entered[sessionID], previous.turn == event.turn {
+                since = previous.at
+            } else {
+                since = event.timestamp ?? modified
+                entered[sessionID] = (event.turn, since)
+            }
+            activity = (event.turn, since, event.timestamp, Self.followUps(tail.queued, since: since),
+                        toolUses, tail.details)
         }
-
-        guard let event else { return nil }
-        let turn = event.turn
-        if let previous = entered[sessionID], previous.turn == turn {
-            return (turn, previous.at, event.timestamp, Self.followUps(queued, since: previous.at),
-                    toolUses, details)
-        }
-        // First sight of a change, so the file's own timestamp is the closest
-        // thing there is to when it happened.
-        let since = event.timestamp ?? modified
-        entered[sessionID] = (turn, since)
-        return (turn, since, event.timestamp, Self.followUps(queued, since: since),
-                toolUses, details)
+        cache[sessionID] = Cached(modified: modified, size: size, activity: activity)
+        return activity
     }
 
     private func scanToolUses(sessionID: String, url: URL, size: UInt64) -> [Date] {
@@ -440,14 +427,12 @@ final class ClaudeTranscriptReader {
     /// session.
     func title(sessionID: String, cwd: String) -> String? {
         guard let url = path(sessionID: sessionID, cwd: cwd),
-              let size = (try? fileManager.attributesOfItem(atPath: url.path))?[.size] as? NSNumber
-        else { return titles[sessionID]?.title }
+              let end = fileStamp(at: url)?.size else { return titles[sessionID]?.title }
         if titles[sessionID] == nil, titles.count >= Self.titleCacheLimit,
            let oldest = titles.min(by: { $0.value.access < $1.value.access }) {
             titles.removeValue(forKey: oldest.key)
         }
         var state = titles[sessionID] ?? TitleScan()
-        let end = size.uint64Value
         if end < state.cursor.readOffset { state = TitleScan() }   // rewritten from scratch
         titleAccess &+= 1
         state.access = titleAccess
@@ -534,6 +519,23 @@ final class ClaudeTranscriptReader {
                 ?? (json["agentType"] as? String) ?? "Sub-agent"
             return Subagent(id: id, title: title, startedAt: started)
         }.sorted { $0.startedAt == $1.startedAt ? $0.id < $1.id : $0.startedAt < $1.startedAt }
+    }
+
+    private func fileStamp(at url: URL, previous: Cached? = nil) -> (modified: Date?, size: UInt64?, unchanged: Bool)? {
+#if CODERIM_RUST_ACCOUNTING
+        if fileManager === FileManager.default {
+            var stamp = CRClaudeTranscriptStamp()
+            let result = url.withUnsafeFileSystemRepresentation {
+                cr_claude_transcript_stamp($0, previous?.size ?? 0, previous?.modified.timeIntervalSinceReferenceDate ?? .nan, &stamp)
+            }
+            if result == 1 { return (Date(timeIntervalSinceReferenceDate: stamp.modified), stamp.size, stamp.unchanged) }
+            if result == 0 { return nil }
+        }
+#endif
+        guard let attributes = try? fileManager.attributesOfItem(atPath: url.path) else { return nil }
+        let modified = attributes[.modificationDate] as? Date
+        let size = (attributes[.size] as? NSNumber)?.uint64Value
+        return (modified, size, previous?.modified == modified && previous?.size == (size ?? 0))
     }
 
     private func path(sessionID: String, cwd: String) -> URL? {

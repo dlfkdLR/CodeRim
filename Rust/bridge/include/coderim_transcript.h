@@ -4,6 +4,12 @@
 #include <stddef.h>
 #include <stdint.h>
 
+/* Query the size and modification date of the resolved transcript without following
+   its last component. Result: regular file 1, unavailable 0, delegate other types -1. */
+typedef struct { uint64_t size; double modified; bool unchanged; } CRClaudeTranscriptStamp;
+int8_t cr_claude_transcript_stamp(const char *path, uint64_t previous_size, double previous_modified,
+                                 CRClaudeTranscriptStamp *stamp);
+
 enum { CR_TRANSCRIPT_EMIT = 0, CR_TRANSCRIPT_SKIP, CR_TRANSCRIPT_CARRY, CR_TRANSCRIPT_DISCARD };
 typedef struct {
     size_t end;       /* relative, excludes a terminating LF */
