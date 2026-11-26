@@ -1085,6 +1085,22 @@ actor SQLiteDatabase {
         if let cached = eventBoundsCache, cached.revision == revision {
             bounds = cached
         } else {
+#if CODERIM_RUST_ACCOUNTING
+            guard let connection else { throw SQLiteDatabaseError.statement("database is closed") }
+            var row = cr_statistics_bounds()
+            var message = "Unable to read event bounds"
+            let status = withUnsafeMutablePointer(to: &message) { context in
+                cr_statistics_event_bounds(UnsafeMutableRawPointer(connection.rawValue), &row, { context, text in
+                    guard let context, let text else { return }
+                    context.assumingMemoryBound(to: String.self).pointee = String(cString: text)
+                }, context)
+            }
+            if status == 0 { throw SQLiteDatabaseError.statement(message) }
+            if status != 1 { throw SQLiteDatabaseError.step(message) }
+            bounds = EventBoundsCache(revision: revision,
+                oldest: row.present & 1 == 0 ? nil : Date(timeIntervalSince1970: row.oldest),
+                newest: row.present & 2 == 0 ? nil : Date(timeIntervalSince1970: row.newest))
+#else
             let statement = try prepare("SELECT MIN(occurred_at), MAX(occurred_at) FROM usage_events")
             defer { sqlite3_finalize(statement) }
             guard sqlite3_step(statement) == SQLITE_ROW else {
@@ -1095,11 +1111,16 @@ actor SQLiteDatabase {
                     ? nil : Date(timeIntervalSince1970: sqlite3_column_double(statement, 0)),
                 newest: sqlite3_column_type(statement, 1) == SQLITE_NULL
                     ? nil : Date(timeIntervalSince1970: sqlite3_column_double(statement, 1)))
+#endif
             eventBoundsCache = bounds
         }
+#if CODERIM_RUST_ACCOUNTING
+        let size = databaseURL.withUnsafeFileSystemRepresentation { cr_statistics_database_bytes($0) }
+#else
         let size = [databaseURL.path, databaseURL.path + "-wal", databaseURL.path + "-shm"]
             .compactMap { try? FileManager.default.attributesOfItem(atPath: $0)[.size] as? NSNumber }
             .reduce(Int64(0)) { $0 + $1.int64Value }
+#endif
         return DataStatistics(databaseBytes: size, oldestRecord: bounds.oldest, newestRecord: bounds.newest)
     }
 

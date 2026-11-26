@@ -75,6 +75,8 @@ mod sqlite_legacy_ids;
 #[cfg(target_os = "macos")]
 mod sqlite_periods;
 #[cfg(target_os = "macos")]
+mod sqlite_statistics;
+#[cfg(target_os = "macos")]
 mod storage_identity;
 #[cfg(any(target_os = "macos", test))]
 mod threshold;
