@@ -2,6 +2,7 @@ module CCodeRimAccounting {
     header "coderim_accounting.h"
     header "coderim_account_history.h"
     header "coderim_ollama_key.h"
+    header "coderim_provider_order.h"
     header "coderim_analytics_chart.h"
     header "coderim_activity_distribution.h"
     header "coderim_quota_window.h"

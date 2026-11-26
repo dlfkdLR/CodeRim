@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// The rule that turns a remembered order into a real one.
 ///
@@ -15,6 +18,43 @@ enum ProviderOrder {
     static func arrange<T>(_ items: [T], by order: [String], id: (T) -> String) -> [T] {
         guard !order.isEmpty else { return items }
 
+        #if CODERIM_RUST_ACCOUNTING
+        if items.count == order.count {
+            var firstDifference = 0
+            while firstDifference < items.count && id(items[firstDifference]) == order[firstDifference] {
+                firstDifference += 1
+            }
+            if firstDifference == items.count { return items }
+        }
+        if (128...4096).contains(items.count), (32...4096).contains(order.count) {
+            var remaining = items
+            var result: [T] = []
+            result.reserveCapacity(items.count)
+            // Near the start, scanning a handful of rows costs less than interning
+            // all their names. Switch once aggregate comparisons exceed six passes.
+            var comparisons = 0
+            for (rank, key) in order.enumerated() {
+                if comparisons >= items.count * 6 {
+                    let tail = groupedOrder(remaining, by: order[rank...], id: id)
+                    result.append(contentsOf: tail)
+                    return result
+                }
+                if let i = remaining.firstIndex(where: { id($0) == key }) {
+                    comparisons += i + 1
+                    result.append(remaining.remove(at: i))
+                } else {
+                    comparisons += remaining.count
+                }
+            }
+            result.append(contentsOf: remaining)
+            return result
+        }
+        #endif
+
+        return firstMatchingOrder(items, by: order[...], id: id)
+    }
+
+    private static func firstMatchingOrder<T>(_ items: [T], by order: ArraySlice<String>, id: (T) -> String) -> [T] {
         var remaining = items
         var arranged: [T] = []
         for providerID in order {
@@ -29,6 +69,30 @@ enum ProviderOrder {
         // about what the user chose.
         return arranged + remaining
     }
+
+    #if CODERIM_RUST_ACCOUNTING
+    private static func groupedOrder<T>(_ items: [T], by order: ArraySlice<String>, id: (T) -> String) -> [T] {
+        guard !items.isEmpty else { return [] }
+        // Swift String equality includes canonical Unicode equivalence. Only
+        // interned IDs cross the bridge, never provider or account data.
+        var groups: [String: UInt16] = [:]
+        groups.reserveCapacity(order.count)
+        let preferences = order.map { key in
+            if let existing = groups[key] { return existing }
+            let group = UInt16(groups.count)
+            groups[key] = group
+            return group
+        }
+        let ids = items.map { groups[id($0)] ?? UInt16.max }
+        var positions = [UInt16](repeating: 0, count: items.count)
+        if cr_arrange_providers(ids, UInt16(ids.count), preferences, UInt16(preferences.count),
+                                UInt16(groups.count), &positions) != 0 {
+            return positions.map { items[Int($0)] }
+        }
+        // Fall back to original first-match semantics if the ABI rejects the buffers.
+        return firstMatchingOrder(items, by: order, id: id)
+    }
+    #endif
 
     /// Where a provider goes when it is switched back on: after the ones already
     /// connected, rather than back to wherever it used to sit.
