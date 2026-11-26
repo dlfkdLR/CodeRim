@@ -1,0 +1,1188 @@
+{
+  "releasedSource": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "boundedStream": {
+    "commit": "d4aa6f6f65a7d991e8255f73cf393f4dade1faf3",
+    "run": "https://github.com/dlfkdLR/CodeRim/actions/runs/45809042483",
+    "method": "Synthetic streams and actual scanner, frozen byte count, retained yields, SHA at each enumerator observation, cancellation, read errors, early disposal, CR, empty and oversized lines. Warm counts and elapsed microseconds are same-run medians. Cold elapsed microseconds cover a single first enumeration after constructing the stream and hash in a fresh .NET process, with tiered compilation disabled. Windows jobs were successful.",
+    "platforms": {
+      "x64": {
+        "job": 139871769006,
+        "artifactId": 15113465082,
+        "archiveSHA256": "sha256:ff7984b7eb7a799fc1e713e812dac70f0f5348dbbfb811bc497df7bf56aa6f71",
+        "bridgeSHA256": "f7d24734241973e45c8c852c7e0c9aeaf78887332d45d47056a571328b6d3e3c",
+        "streamCases": 495,
+        "returnedLines": 24638,
+        "exceptions": 53,
+        "contractSHA256": "85aa86abbb44cd4e76ba19e966f1208b3188ee449a1655c67767d63892eb16fa",
+        "scanner": {
+          "SourceCount": 1,
+          "count": 3072,
+          "events": "4773D003A8F12150D7B3EE83903535A1309B4E1B50CAAC900E0579766CB55D6E"
+        },
+        "warmMedians": [
+          {
+            "name": "empty/plain",
+            "release": {
+              "us": 3.217,
+              "bytes": 65784
+            },
+            "managed": {
+              "us": 0.026000000000000002,
+              "bytes": 192
+            },
+            "rust": {
+              "us": 0.026000000000000002,
+              "bytes": 192
+            }
+          },
+          {
+            "name": "empty/prefix",
+            "release": {
+              "us": 2.037,
+              "bytes": 65920
+            },
+            "managed": {
+              "us": 0.299,
+              "bytes": 328
+            },
+            "rust": {
+              "us": 0.392,
+              "bytes": 328
+            }
+          },
+          {
+            "name": "short/plain",
+            "release": {
+              "us": 1.117,
+              "bytes": 65912
+            },
+            "managed": {
+              "us": 0.081,
+              "bytes": 352
+            },
+            "rust": {
+              "us": 0.08,
+              "bytes": 352
+            }
+          },
+          {
+            "name": "short/prefix",
+            "release": {
+              "us": 1.921,
+              "bytes": 66048
+            },
+            "managed": {
+              "us": 0.44799999999999995,
+              "bytes": 488
+            },
+            "rust": {
+              "us": 0.5660000000000001,
+              "bytes": 488
+            }
+          },
+          {
+            "name": "4096/plain",
+            "release": {
+              "us": 14.086666666666668,
+              "bytes": 69936
+            },
+            "managed": {
+              "us": 0.7466666666666666,
+              "bytes": 8472
+            },
+            "rust": {
+              "us": 0.7233333333333333,
+              "bytes": 8472
+            }
+          },
+          {
+            "name": "4096/prefix",
+            "release": {
+              "us": 16.913333333333334,
+              "bytes": 70072
+            },
+            "managed": {
+              "us": 6.52,
+              "bytes": 8608
+            },
+            "rust": {
+              "us": 6.616666666666666,
+              "bytes": 8608
+            }
+          },
+          {
+            "name": "65536/plain",
+            "release": {
+              "us": 218.38333333333333,
+              "bytes": 131376
+            },
+            "managed": {
+              "us": 58.61666666666667,
+              "bytes": 131408
+            },
+            "rust": {
+              "us": 55.225,
+              "bytes": 131408
+            }
+          },
+          {
+            "name": "65536/prefix",
+            "release": {
+              "us": 265.7416666666667,
+              "bytes": 131512
+            },
+            "managed": {
+              "us": 51.666666666666664,
+              "bytes": 131544
+            },
+            "rust": {
+              "us": 48.50833333333333,
+              "bytes": 131544
+            }
+          },
+          {
+            "name": "1048575/plain",
+            "release": {
+              "us": 4079.6,
+              "bytes": 3080592
+            },
+            "managed": {
+              "us": 812.8,
+              "bytes": 3080624
+            },
+            "rust": {
+              "us": 745.25,
+              "bytes": 3080624
+            }
+          },
+          {
+            "name": "1048575/prefix",
+            "release": {
+              "us": 4448.05,
+              "bytes": 3080840
+            },
+            "managed": {
+              "us": 1188.65,
+              "bytes": 3080872
+            },
+            "rust": {
+              "us": 1023.45,
+              "bytes": 3080872
+            }
+          },
+          {
+            "name": "1048576/plain",
+            "release": {
+              "us": 3857.15,
+              "bytes": 3080592
+            },
+            "managed": {
+              "us": 603.5,
+              "bytes": 3080624
+            },
+            "rust": {
+              "us": 717.35,
+              "bytes": 3080624
+            }
+          },
+          {
+            "name": "1048576/prefix",
+            "release": {
+              "us": 4577.2,
+              "bytes": 3080840
+            },
+            "managed": {
+              "us": 1217.05,
+              "bytes": 3080872
+            },
+            "rust": {
+              "us": 1117.05,
+              "bytes": 3080872
+            }
+          },
+          {
+            "name": "1048577/plain",
+            "release": {
+              "us": 3612.8,
+              "bytes": 2031992
+            },
+            "managed": {
+              "us": 538.95,
+              "bytes": 2032024
+            },
+            "rust": {
+              "us": 447.7,
+              "bytes": 2032024
+            }
+          },
+          {
+            "name": "1048577/prefix",
+            "release": {
+              "us": 4146.4,
+              "bytes": 2032172
+            },
+            "managed": {
+              "us": 962.25,
+              "bytes": 2032204
+            },
+            "rust": {
+              "us": 1081.85,
+              "bytes": 2032160
+            }
+          },
+          {
+            "name": "multi-MiB/plain",
+            "release": {
+              "us": 6125.1,
+              "bytes": 2031992
+            },
+            "managed": {
+              "us": 387.2,
+              "bytes": 2032024
+            },
+            "rust": {
+              "us": 258,
+              "bytes": 2032024
+            }
+          },
+          {
+            "name": "multi-MiB/prefix",
+            "release": {
+              "us": 7902.1,
+              "bytes": 2032184
+            },
+            "managed": {
+              "us": 2325.4,
+              "bytes": 2032160
+            },
+            "rust": {
+              "us": 2132.3,
+              "bytes": 2032160
+            }
+          },
+          {
+            "name": "3072-JSONL/plain",
+            "release": {
+              "us": 2460.45,
+              "bytes": 975096
+            },
+            "managed": {
+              "us": 191.85,
+              "bytes": 909896
+            },
+            "rust": {
+              "us": 173.75,
+              "bytes": 909896
+            }
+          },
+          {
+            "name": "3072-JSONL/prefix",
+            "release": {
+              "us": 3112.55,
+              "bytes": 975232
+            },
+            "managed": {
+              "us": 590.25,
+              "bytes": 910032
+            },
+            "rust": {
+              "us": 568.95,
+              "bytes": 910032
+            }
+          },
+          {
+            "name": "3072-full-scanner",
+            "release": {
+              "us": 20539.9,
+              "bytes": 5220800
+            },
+            "managed": {
+              "us": 16176,
+              "bytes": 4565776
+            },
+            "rust": {
+              "us": 7550.7,
+              "bytes": 3933880
+            }
+          }
+        ],
+        "firstEnumerationTieringDisabled": {
+          "0": {
+            "release": {
+              "us": 3225.3,
+              "bytes": 133288
+            },
+            "managed": {
+              "us": 1660.3,
+              "bytes": 128
+            },
+            "rust": {
+              "us": 1629,
+              "bytes": 128
+            }
+          },
+          "5": {
+            "release": {
+              "us": 3637.9,
+              "bytes": 133400
+            },
+            "managed": {
+              "us": 3281,
+              "bytes": 272
+            },
+            "rust": {
+              "us": 3270.9,
+              "bytes": 272
+            }
+          },
+          "4095": {
+            "release": {
+              "us": 3675.4,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 3265,
+              "bytes": 8448
+            },
+            "rust": {
+              "us": 3319.5,
+              "bytes": 8448
+            }
+          },
+          "4096": {
+            "release": {
+              "us": 3657.5,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 3308,
+              "bytes": 8448
+            },
+            "rust": {
+              "us": 3294.7,
+              "bytes": 8448
+            }
+          },
+          "4097": {
+            "release": {
+              "us": 3631.9,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 3296,
+              "bytes": 8456
+            },
+            "rust": {
+              "us": 3356.2,
+              "bytes": 8456
+            }
+          },
+          "16384": {
+            "release": {
+              "us": 3786.8,
+              "bytes": 149776
+            },
+            "managed": {
+              "us": 3320.1,
+              "bytes": 33024
+            },
+            "rust": {
+              "us": 3288.3,
+              "bytes": 33024
+            }
+          },
+          "32768": {
+            "release": {
+              "us": 3823.2,
+              "bytes": 166160
+            },
+            "managed": {
+              "us": 3323.8,
+              "bytes": 65792
+            },
+            "rust": {
+              "us": 3304.5,
+              "bytes": 65792
+            }
+          },
+          "65536": {
+            "release": {
+              "us": 3958.2,
+              "bytes": 198928
+            },
+            "managed": {
+              "us": 3354,
+              "bytes": 131328
+            },
+            "rust": {
+              "us": 3384.7,
+              "bytes": 131328
+            }
+          },
+          "65537": {
+            "release": {
+              "us": 3962,
+              "bytes": 198928
+            },
+            "managed": {
+              "us": 9157.9,
+              "bytes": 200720
+            },
+            "rust": {
+              "us": 10656.3,
+              "bytes": 201560
+            }
+          },
+          "131072": {
+            "release": {
+              "us": 4330.7,
+              "bytes": 395560
+            },
+            "managed": {
+              "us": 9234.5,
+              "bytes": 266256
+            },
+            "rust": {
+              "us": 10693.8,
+              "bytes": 267096
+            }
+          }
+        }
+      },
+      "arm64": {
+        "job": 139871769101,
+        "artifactId": 15112791617,
+        "archiveSHA256": "sha256:27be0f7e0adf8be87cfe7802a973df9b93d9d9ca0ae253b29f2a5876e82a6285",
+        "bridgeSHA256": "5a56508e417322eb4bdea77f07828acbf3fe0ea451cf10ec82ecebe8bd167e33",
+        "streamCases": 495,
+        "returnedLines": 24638,
+        "exceptions": 53,
+        "contractSHA256": "85aa86abbb44cd4e76ba19e966f1208b3188ee449a1655c67767d63892eb16fa",
+        "scanner": {
+          "SourceCount": 1,
+          "count": 3072,
+          "events": "4773D003A8F12150D7B3EE83903535A1309B4E1B50CAAC900E0579766CB55D6E"
+        },
+        "warmMedians": [
+          {
+            "name": "empty/plain",
+            "release": {
+              "us": 2.648,
+              "bytes": 65784
+            },
+            "managed": {
+              "us": 0.031,
+              "bytes": 192
+            },
+            "rust": {
+              "us": 0.031,
+              "bytes": 192
+            }
+          },
+          {
+            "name": "empty/prefix",
+            "release": {
+              "us": 4.082,
+              "bytes": 65926
+            },
+            "managed": {
+              "us": 0.51,
+              "bytes": 328
+            },
+            "rust": {
+              "us": 0.625,
+              "bytes": 328
+            }
+          },
+          {
+            "name": "short/plain",
+            "release": {
+              "us": 2.7539999999999996,
+              "bytes": 65912
+            },
+            "managed": {
+              "us": 0.099,
+              "bytes": 352
+            },
+            "rust": {
+              "us": 0.099,
+              "bytes": 352
+            }
+          },
+          {
+            "name": "short/prefix",
+            "release": {
+              "us": 4.471,
+              "bytes": 66054
+            },
+            "managed": {
+              "us": 0.688,
+              "bytes": 488
+            },
+            "rust": {
+              "us": 0.8370000000000001,
+              "bytes": 488
+            }
+          },
+          {
+            "name": "4096/plain",
+            "release": {
+              "us": 20.303333333333335,
+              "bytes": 69936
+            },
+            "managed": {
+              "us": 0.75,
+              "bytes": 8472
+            },
+            "rust": {
+              "us": 0.75,
+              "bytes": 8472
+            }
+          },
+          {
+            "name": "4096/prefix",
+            "release": {
+              "us": 24.573333333333334,
+              "bytes": 70079
+            },
+            "managed": {
+              "us": 6.0600000000000005,
+              "bytes": 8608
+            },
+            "rust": {
+              "us": 6.09,
+              "bytes": 8608
+            }
+          },
+          {
+            "name": "65536/plain",
+            "release": {
+              "us": 277.45,
+              "bytes": 131376
+            },
+            "managed": {
+              "us": 15.608333333333334,
+              "bytes": 131408
+            },
+            "rust": {
+              "us": 15.566666666666668,
+              "bytes": 131408
+            }
+          },
+          {
+            "name": "65536/prefix",
+            "release": {
+              "us": 319.18333333333334,
+              "bytes": 131530
+            },
+            "managed": {
+              "us": 57.49166666666667,
+              "bytes": 131562
+            },
+            "rust": {
+              "us": 57.00833333333333,
+              "bytes": 131562
+            }
+          },
+          {
+            "name": "1048575/plain",
+            "release": {
+              "us": 4759.75,
+              "bytes": 3080592
+            },
+            "managed": {
+              "us": 563.9,
+              "bytes": 3080624
+            },
+            "rust": {
+              "us": 506.05,
+              "bytes": 3080624
+            }
+          },
+          {
+            "name": "1048575/prefix",
+            "release": {
+              "us": 5409.15,
+              "bytes": 3080840
+            },
+            "managed": {
+              "us": 1188.5,
+              "bytes": 3080872
+            },
+            "rust": {
+              "us": 1226.25,
+              "bytes": 3080872
+            }
+          },
+          {
+            "name": "1048576/plain",
+            "release": {
+              "us": 4709.45,
+              "bytes": 3080592
+            },
+            "managed": {
+              "us": 348.25,
+              "bytes": 3080624
+            },
+            "rust": {
+              "us": 438.8,
+              "bytes": 3080624
+            }
+          },
+          {
+            "name": "1048576/prefix",
+            "release": {
+              "us": 5449.65,
+              "bytes": 3080840
+            },
+            "managed": {
+              "us": 1130.95,
+              "bytes": 3080872
+            },
+            "rust": {
+              "us": 1220.45,
+              "bytes": 3080872
+            }
+          },
+          {
+            "name": "1048577/plain",
+            "release": {
+              "us": 4570.65,
+              "bytes": 2031992
+            },
+            "managed": {
+              "us": 253.5,
+              "bytes": 2032024
+            },
+            "rust": {
+              "us": 369.7,
+              "bytes": 2032024
+            }
+          },
+          {
+            "name": "1048577/prefix",
+            "release": {
+              "us": 5272.05,
+              "bytes": 2032172
+            },
+            "managed": {
+              "us": 947.5,
+              "bytes": 2032272
+            },
+            "rust": {
+              "us": 981.65,
+              "bytes": 2032272
+            }
+          },
+          {
+            "name": "multi-MiB/plain",
+            "release": {
+              "us": 8511.6,
+              "bytes": 2031992
+            },
+            "managed": {
+              "us": 374.1,
+              "bytes": 2032024
+            },
+            "rust": {
+              "us": 380.1,
+              "bytes": 2032024
+            }
+          },
+          {
+            "name": "multi-MiB/prefix",
+            "release": {
+              "us": 10502.7,
+              "bytes": 2032184
+            },
+            "managed": {
+              "us": 2324.5,
+              "bytes": 2032160
+            },
+            "rust": {
+              "us": 2359.2,
+              "bytes": 2032160
+            }
+          },
+          {
+            "name": "3072-JSONL/plain",
+            "release": {
+              "us": 3110.65,
+              "bytes": 975096
+            },
+            "managed": {
+              "us": 223.4,
+              "bytes": 909896
+            },
+            "rust": {
+              "us": 225.7,
+              "bytes": 909896
+            }
+          },
+          {
+            "name": "3072-JSONL/prefix",
+            "release": {
+              "us": 3584.15,
+              "bytes": 975344
+            },
+            "managed": {
+              "us": 687.55,
+              "bytes": 910144
+            },
+            "rust": {
+              "us": 691.05,
+              "bytes": 910144
+            }
+          },
+          {
+            "name": "3072-full-scanner",
+            "release": {
+              "us": 28674.1,
+              "bytes": 5221216
+            },
+            "managed": {
+              "us": 23590.2,
+              "bytes": 4566056
+            },
+            "rust": {
+              "us": 11791.6,
+              "bytes": 3934128
+            }
+          }
+        ],
+        "firstEnumerationTieringDisabled": {
+          "0": {
+            "release": {
+              "us": 3519.3,
+              "bytes": 133288
+            },
+            "managed": {
+              "us": 1795.3,
+              "bytes": 128
+            },
+            "rust": {
+              "us": 1777.6,
+              "bytes": 128
+            }
+          },
+          "5": {
+            "release": {
+              "us": 4327,
+              "bytes": 133400
+            },
+            "managed": {
+              "us": 3632.9,
+              "bytes": 272
+            },
+            "rust": {
+              "us": 3758.5,
+              "bytes": 272
+            }
+          },
+          "4095": {
+            "release": {
+              "us": 4205.3,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 3724.9,
+              "bytes": 8448
+            },
+            "rust": {
+              "us": 3826.3,
+              "bytes": 8448
+            }
+          },
+          "4096": {
+            "release": {
+              "us": 4163.2,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 3794.2,
+              "bytes": 8448
+            },
+            "rust": {
+              "us": 3673.9,
+              "bytes": 8448
+            }
+          },
+          "4097": {
+            "release": {
+              "us": 4314.3,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 3715.8,
+              "bytes": 8456
+            },
+            "rust": {
+              "us": 3703.8,
+              "bytes": 8456
+            }
+          },
+          "16384": {
+            "release": {
+              "us": 4441,
+              "bytes": 149776
+            },
+            "managed": {
+              "us": 3702.1,
+              "bytes": 33024
+            },
+            "rust": {
+              "us": 3724,
+              "bytes": 33024
+            }
+          },
+          "32768": {
+            "release": {
+              "us": 4656.6,
+              "bytes": 166160
+            },
+            "managed": {
+              "us": 3794.1,
+              "bytes": 65792
+            },
+            "rust": {
+              "us": 3636.4,
+              "bytes": 65792
+            }
+          },
+          "65536": {
+            "release": {
+              "us": 4582.5,
+              "bytes": 198928
+            },
+            "managed": {
+              "us": 3771.6,
+              "bytes": 131328
+            },
+            "rust": {
+              "us": 3878.8,
+              "bytes": 131328
+            }
+          },
+          "65537": {
+            "release": {
+              "us": 4678.4,
+              "bytes": 198928
+            },
+            "managed": {
+              "us": 10550.7,
+              "bytes": 200720
+            },
+            "rust": {
+              "us": 12120.4,
+              "bytes": 201560
+            }
+          },
+          "131072": {
+            "release": {
+              "us": 5007.1,
+              "bytes": 395560
+            },
+            "managed": {
+              "us": 10388.2,
+              "bytes": 266256
+            },
+            "rust": {
+              "us": 12916.2,
+              "bytes": 267096
+            }
+          }
+        }
+      }
+    }
+  },
+  "precedingClaudeEventParser": {
+    "commit": "d7f5808c84a26bb99adada0891697a5a00d73a7f",
+    "run": "https://github.com/dlfkdLR/CodeRim/actions/runs/45806153715",
+    "method": "Complete public and transient event fields, exception type, HResult and message. Filesystem scans used 2,048 events with strict and permissive mode. Nanoseconds per parse and milliseconds per scan.",
+    "platforms": {
+      "x64": {
+        "job": 139861839251,
+        "artifactId": 15109688168,
+        "archiveSHA256": "sha256:6bbb9286b7627c90b8cd992b12c8b5389842b178d37565b8597e012d3c0c1b81",
+        "bridgeSHA256": "2a0f00b0c12b753a84694839800ebd501b200cdec4dea4f7599e2744d9cd0de2",
+        "completeEventAndErrorCases": {
+          "count": 688,
+          "sha256": "321d3e08a74231596fd538c9160a9ec5fde8f1df9d9db437fca40e1ca1c6afe6",
+          "ignored": 464,
+          "exceptions": 24
+        },
+        "twoFilesystemScans": {
+          "count": 2,
+          "sha256": "ed6744827235c4a1b2730d00304ac4b8c4feba51cfb229c4ad1a59af894447f2"
+        },
+        "medians": {
+          "release": {
+            "ignored-0": {
+              "ns": 2561.1979166666665,
+              "managedBytes": 136
+            },
+            "ignored-32768": {
+              "ns": 3598.9583333333335,
+              "managedBytes": 136
+            },
+            "ignored-4096": {
+              "ns": 2767.7083333333335,
+              "managedBytes": 136
+            },
+            "nullCount-0": {
+              "ns": 6174.739583333333,
+              "managedBytes": 632
+            },
+            "nullCount-32768": {
+              "ns": 7387.5,
+              "managedBytes": 632
+            },
+            "nullCount-4096": {
+              "ns": 6500.520833333333,
+              "managedBytes": 632
+            },
+            "posix-0": {
+              "ns": 9313.541666666666,
+              "managedBytes": 1856
+            },
+            "posix-32768": {
+              "ns": 10439.583333333334,
+              "managedBytes": 1856
+            },
+            "posix-4096": {
+              "ns": 8573.177083333334,
+              "managedBytes": 1856
+            },
+            "windows-0": {
+              "ns": 8793.75,
+              "managedBytes": 2096
+            },
+            "windows-32768": {
+              "ns": 9748.958333333334,
+              "managedBytes": 2096
+            },
+            "windows-4096": {
+              "ns": 9117.708333333334,
+              "managedBytes": 2096
+            },
+            "scan": {
+              "ms": 38.531
+            }
+          },
+          "rust": {
+            "ignored-0": {
+              "ns": 1061.4583333333333,
+              "managedBytes": 0
+            },
+            "ignored-32768": {
+              "ns": 7479.166666666667,
+              "managedBytes": 0
+            },
+            "ignored-4096": {
+              "ns": 1898.9583333333333,
+              "managedBytes": 0
+            },
+            "nullCount-0": {
+              "ns": 1090.1041666666667,
+              "managedBytes": 0
+            },
+            "nullCount-32768": {
+              "ns": 7508.333333333333,
+              "managedBytes": 0
+            },
+            "nullCount-4096": {
+              "ns": 1920.8333333333333,
+              "managedBytes": 0
+            },
+            "posix-0": {
+              "ns": 4518.75,
+              "managedBytes": 1368
+            },
+            "posix-32768": {
+              "ns": 11232.291666666666,
+              "managedBytes": 1368
+            },
+            "posix-4096": {
+              "ns": 5268.489583333333,
+              "managedBytes": 1368
+            },
+            "windows-0": {
+              "ns": 4843.75,
+              "managedBytes": 1592
+            },
+            "windows-32768": {
+              "ns": 10850,
+              "managedBytes": 1592
+            },
+            "windows-4096": {
+              "ns": 5022.916666666667,
+              "managedBytes": 1592
+            },
+            "scan": {
+              "ms": 26.2219
+            }
+          }
+        }
+      },
+      "arm64": {
+        "job": 139861839103,
+        "artifactId": 15109288636,
+        "archiveSHA256": "sha256:9f77ddb3f697499ca734b4d11d9f950031e220a31921c26ec5fd53290b90bc92",
+        "bridgeSHA256": "df4acf1f86085c4146693b9e5f1d5894f2cf2b2aa314e61f0ae8dbdc70347839",
+        "completeEventAndErrorCases": {
+          "count": 688,
+          "sha256": "321d3e08a74231596fd538c9160a9ec5fde8f1df9d9db437fca40e1ca1c6afe6",
+          "ignored": 464,
+          "exceptions": 24
+        },
+        "twoFilesystemScans": {
+          "count": 2,
+          "sha256": "ed6744827235c4a1b2730d00304ac4b8c4feba51cfb229c4ad1a59af894447f2"
+        },
+        "medians": {
+          "release": {
+            "ignored-0": {
+              "ns": 2427.8645833333335,
+              "managedBytes": 136
+            },
+            "ignored-32768": {
+              "ns": 8637.5,
+              "managedBytes": 136
+            },
+            "ignored-4096": {
+              "ns": 3299.4791666666665,
+              "managedBytes": 136
+            },
+            "nullCount-0": {
+              "ns": 5519.53125,
+              "managedBytes": 632
+            },
+            "nullCount-32768": {
+              "ns": 12075,
+              "managedBytes": 632
+            },
+            "nullCount-4096": {
+              "ns": 6727.083333333333,
+              "managedBytes": 632
+            },
+            "posix-0": {
+              "ns": 8367.708333333334,
+              "managedBytes": 1856
+            },
+            "posix-32768": {
+              "ns": 14496.875,
+              "managedBytes": 1856
+            },
+            "posix-4096": {
+              "ns": 8990.104166666666,
+              "managedBytes": 1856
+            },
+            "windows-0": {
+              "ns": 8540.364583333334,
+              "managedBytes": 2096
+            },
+            "windows-32768": {
+              "ns": 14811.458333333334,
+              "managedBytes": 2096
+            },
+            "windows-4096": {
+              "ns": 9563.020833333334,
+              "managedBytes": 2096
+            },
+            "scan": {
+              "ms": 39.4568
+            }
+          },
+          "rust": {
+            "ignored-0": {
+              "ns": 964.3229166666666,
+              "managedBytes": 0
+            },
+            "ignored-32768": {
+              "ns": 8946.875,
+              "managedBytes": 0
+            },
+            "ignored-4096": {
+              "ns": 1917.4479166666667,
+              "managedBytes": 0
+            },
+            "nullCount-0": {
+              "ns": 893.2291666666666,
+              "managedBytes": 0
+            },
+            "nullCount-32768": {
+              "ns": 8951.041666666666,
+              "managedBytes": 0
+            },
+            "nullCount-4096": {
+              "ns": 1909.8958333333333,
+              "managedBytes": 0
+            },
+            "posix-0": {
+              "ns": 4272.916666666667,
+              "managedBytes": 1368
+            },
+            "posix-32768": {
+              "ns": 12614.583333333334,
+              "managedBytes": 1368
+            },
+            "posix-4096": {
+              "ns": 4415.104166666667,
+              "managedBytes": 1368
+            },
+            "windows-0": {
+              "ns": 3730.2083333333335,
+              "managedBytes": 1592
+            },
+            "windows-32768": {
+              "ns": 11895.833333333334,
+              "managedBytes": 1592
+            },
+            "windows-4096": {
+              "ns": 4723.697916666667,
+              "managedBytes": 1592
+            },
+            "scan": {
+              "ms": 26.9614
+            }
+          }
+        }
+      }
+    }
+  },
+  "independentBoundedStreamChecks": {
+    "platform": "Apple Silicon macOS .NET 10. Native C checks on arm64 and translated x86_64.",
+    "packetDigest": "e9cd5cb5ed85e88be806465d8278dd407ce2bd21f4018c817850fe41d8f4f63c",
+    "counts": {
+      "streams": 380,
+      "returnedLines": 110444,
+      "oversized": 114,
+      "outcomes": {
+        "System.OperationCanceledException": 90,
+        "success": 263,
+        "System.IO.IOException": 27
+      },
+      "nativeChecks": {
+        "arm64": {
+          "blocks": 24000,
+          "uncheckedBytesWritten": 0,
+          "invalid": 8,
+          "layout": 12
+        },
+        "x86_64": {
+          "blocks": 24000,
+          "uncheckedBytesWritten": 0,
+          "invalid": 8,
+          "layout": 12
+        }
+      }
+    },
+    "observationsSHA256": {
+      "candidate": "7859f3479c9d0e17680e631f16cbe22fe7de0765010f2900d62d60402b5c3f9f",
+      "managed": "7859f3479c9d0e17680e631f16cbe22fe7de0765010f2900d62d60402b5c3f9f",
+      "released": "7859f3479c9d0e17680e631f16cbe22fe7de0765010f2900d62d60402b5c3f9f"
+    },
+    "reviewFileSHA256": "d6ab3718877099f6ca8ae3afd0574a7121bccd88170151993d897fbaef8acbed"
+  },
+  "formalBoundedStreamGate": "INCONCLUSIVE"
+}
