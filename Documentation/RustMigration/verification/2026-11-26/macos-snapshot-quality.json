@@ -1,0 +1,1497 @@
+{
+  "candidate": "d8a906a6b613f0c147ca9f13bfd6332a9d00f19a",
+  "previous": "e6af5469",
+  "firstImplementation": "27524e20",
+  "released": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "verifiedUniversalArchiveSHA256": "33ecb63341663ed93a25874e11cd8c005565517ea2674d8a1e1a33f0af72a319",
+  "buildBinding": {
+    "Rust/bridge/src/sqlite_quality.rs": "ffe60d6946dc01cce9e6e707b0265e253d35b84e2128f493adc2ce29d132e2e3",
+    "Rust/bridge/include/coderim_quality.h": "f9ec8168b721e122bde8bd0f32a9ee702d04e3e267872622a86bd2d56e014a6b",
+    "Sources/CodeRim/Persistence/SQLiteDatabase.swift": "e6162e67e9961849ebecf1e8d0121a78e5828f0542693e5e37b6ac9cc9c547d2"
+  },
+  "architecture": "Host is Apple Silicon. arm64 runs natively, x86_64 via Rosetta; measured SQLiteDatabase.usageSnapshot compiled from actual release, intermediate and candidate source in Release optimization. No physical Intel host, distributable UI or Windows performance is inferred.",
+  "archived": {
+    "firstCandidatePacketSHA256": "7a2868386f187756eaa1a2cb442846ce1e29423c6178c21cfd6890b47d98d0f8",
+    "finalPacketSHA256": "ea341544881907eb0172adafabe727f6dc6792d41c8d2f41c6d60eda2041a423",
+    "actualNativeArchiveSHA256": "33ecb63341663ed93a25874e11cd8c005565517ea2674d8a1e1a33f0af72a319",
+    "productSourceSHA256": {
+      "Rust/bridge/src/sqlite_quality.rs": "ffe60d6946dc01cce9e6e707b0265e253d35b84e2128f493adc2ce29d132e2e3",
+      "Rust/bridge/include/coderim_quality.h": "f9ec8168b721e122bde8bd0f32a9ee702d04e3e267872622a86bd2d56e014a6b",
+      "Sources/CodeRim/Persistence/SQLiteDatabase.swift": "e6162e67e9961849ebecf1e8d0121a78e5828f0542693e5e37b6ac9cc9c547d2"
+    },
+    "firstChangePublicDifferenceCount": 39,
+    "guardedPublicDifferenceCount": 34,
+    "finalPublicDifferences": 32,
+    "retainedExistingDamageRows": [
+      {
+        "case": "damaged exact input_tokens 1793491100",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE exact 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact input_tokens 1793491100/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE exact 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact input_tokens 1793491200",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact input_tokens 1793491200/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact input_tokens 1793641320",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact input_tokens 1793641320/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact input_tokens NULL",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact input_tokens NULL/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cached_input_tokens 1793491100",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE exact 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cached_input_tokens 1793491100/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE exact 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cached_input_tokens 1793491200",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cached_input_tokens 1793491200/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cached_input_tokens 1793641320",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cached_input_tokens 1793641320/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cached_input_tokens NULL",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cached_input_tokens NULL/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact output_tokens 1793491100",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE exact 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact output_tokens 1793491100/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE exact 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact output_tokens 1793491200",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact output_tokens 1793491200/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact output_tokens 1793641320",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact output_tokens 1793641320/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact output_tokens NULL",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact output_tokens NULL/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cache_write_input_tokens 1793491100",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE exact 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cache_write_input_tokens 1793491100/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE exact 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cache_write_input_tokens 1793491200",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cache_write_input_tokens 1793491200/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cache_write_input_tokens 1793641320",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cache_write_input_tokens 1793641320/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cache_write_input_tokens NULL",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      },
+      {
+        "case": "damaged exact cache_write_input_tokens NULL/cached",
+        "released": "VALUE exact 0 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4",
+        "observed": "VALUE partial 1 4740122693972525056 9,3,-,4 9,3,-,4 9,3,-,4 9,3,-,4"
+      }
+    ],
+    "scenarioTraces": {
+      "arm64/released": {
+        "combinedSHA256": "a7e66599e723804024ad96a6889496172f0278111424241e1782194322f997a8",
+        "observations": {
+          "SQL": 447,
+          "VALUE": 680,
+          "ERROR": 23
+        }
+      },
+      "arm64/previous": {
+        "combinedSHA256": "baceeaf0624750d4bf70cd3e59b7a2195b35350e82b5792af99f5dfbe125f0b7",
+        "observations": {
+          "SQL": 447,
+          "VALUE": 680,
+          "ERROR": 23
+        }
+      },
+      "arm64/initial": {
+        "combinedSHA256": "fb677a394b2655e5fa04b764d844d5793466d73a98c6bcebd8150c191790235a",
+        "observations": {
+          "SQL": 447,
+          "VALUE": 681,
+          "ERROR": 22
+        }
+      },
+      "arm64/candidate": {
+        "combinedSHA256": "baceeaf0624750d4bf70cd3e59b7a2195b35350e82b5792af99f5dfbe125f0b7",
+        "observations": {
+          "SQL": 447,
+          "VALUE": 680,
+          "ERROR": 23
+        }
+      },
+      "x86_64/released": {
+        "combinedSHA256": "a7e66599e723804024ad96a6889496172f0278111424241e1782194322f997a8",
+        "observations": {
+          "SQL": 447,
+          "VALUE": 680,
+          "ERROR": 23
+        }
+      },
+      "x86_64/previous": {
+        "combinedSHA256": "baceeaf0624750d4bf70cd3e59b7a2195b35350e82b5792af99f5dfbe125f0b7",
+        "observations": {
+          "SQL": 447,
+          "VALUE": 680,
+          "ERROR": 23
+        }
+      },
+      "x86_64/initial": {
+        "combinedSHA256": "fb677a394b2655e5fa04b764d844d5793466d73a98c6bcebd8150c191790235a",
+        "observations": {
+          "SQL": 447,
+          "VALUE": 681,
+          "ERROR": 22
+        }
+      },
+      "x86_64/candidate": {
+        "combinedSHA256": "baceeaf0624750d4bf70cd3e59b7a2195b35350e82b5792af99f5dfbe125f0b7",
+        "observations": {
+          "SQL": 447,
+          "VALUE": 680,
+          "ERROR": 23
+        }
+      }
+    },
+    "shortRosettaFirstPartial": {
+      "initial120CallsPerBlock": {
+        "mediansCPUus": {
+          "released": 108.725,
+          "previous": 89.65,
+          "candidate": 126.96666666666667
+        },
+        "candidateFasterThanPreviousPairs": 0
+      },
+      "long1536CallsPerBlock": {
+        "cpuUs": {
+          "released": [
+            47.171223958333336,
+            46.490885416666664,
+            47.751953125,
+            46.234375,
+            47.457682291666664,
+            52.311197916666664,
+            46.595052083333336
+          ],
+          "previous": [
+            42.91796875,
+            44.579427083333336,
+            43.295572916666664,
+            45.009114583333336,
+            43.59375,
+            51.283203125,
+            44.866536458333336
+          ],
+          "candidate": [
+            40.423828125,
+            41.216145833333336,
+            67.71419270833333,
+            41.317708333333336,
+            39.965494791666664,
+            40.578125,
+            39.884765625
+          ]
+        },
+        "medianCPUus": {
+          "released": 47.171223958333336,
+          "previous": 44.579427083333336,
+          "candidate": 40.578125
+        },
+        "candidateFasterThanPreviousPairs": 6
+      },
+      "limits": "Short and long trial series reversed speed ranking. No stable early-damage speedup conclusion."
+    },
+    "fourVersionsCPUMedians": {
+      "clean-0": {
+        "arm64": {
+          "released": 31.944444444444446,
+          "previous": 28.633333333333333,
+          "initial": 25.955555555555556,
+          "candidate": 27.294444444444444
+        },
+        "x86_64": {
+          "released": 47.63333333333333,
+          "previous": 43.4,
+          "initial": 38.99444444444445,
+          "candidate": 40.583333333333336
+        }
+      },
+      "clean-128": {
+        "arm64": {
+          "released": 36.76111111111111,
+          "previous": 39.18333333333334,
+          "initial": 31.494444444444444,
+          "candidate": 32.7
+        },
+        "x86_64": {
+          "released": 54.36666666666667,
+          "previous": 60.16111111111111,
+          "initial": 47.427777777777784,
+          "candidate": 50.80555555555556
+        }
+      },
+      "clean-8192": {
+        "arm64": {
+          "released": 323.921875,
+          "previous": 619.078125,
+          "initial": 317.5,
+          "candidate": 320.796875
+        },
+        "x86_64": {
+          "released": 493.46875,
+          "previous": 974.953125,
+          "initial": 534.125,
+          "candidate": 517.875
+        }
+      },
+      "clean-65536": {
+        "arm64": {
+          "released": 2453.53125,
+          "previous": 4810.9375,
+          "initial": 2415.6875,
+          "candidate": 2445.28125
+        },
+        "x86_64": {
+          "released": 3963.0,
+          "previous": 7512.125,
+          "initial": 4079.625,
+          "candidate": 3833.53125
+        }
+      },
+      "last-partial": {
+        "arm64": {
+          "released": 2507.71875,
+          "previous": 4847.34375,
+          "initial": 2480.65625,
+          "candidate": 2456.75
+        },
+        "x86_64": {
+          "released": 3760.5625,
+          "previous": 7660.125,
+          "initial": 3775.1875,
+          "candidate": 4100.4375
+        }
+      },
+      "first-partial": {
+        "arm64": {
+          "released": 31.09166666666667,
+          "previous": 28.625,
+          "initial": 25.78333333333333,
+          "candidate": 26.758333333333333
+        },
+        "x86_64": {
+          "released": 46.25833333333333,
+          "previous": 43.166666666666664,
+          "initial": 38.108333333333334,
+          "candidate": 39.88333333333333
+        }
+      },
+      "backfill": {
+        "arm64": {
+          "released": 1197.1875,
+          "previous": 2391.8125,
+          "initial": 2323.15625,
+          "candidate": 2340.15625
+        },
+        "x86_64": {
+          "released": 1799.5,
+          "previous": 3853.15625,
+          "initial": 4087.6875,
+          "candidate": 3870.65625
+        }
+      },
+      "cached-65536": {
+        "arm64": {
+          "released": 3.735,
+          "previous": 3.81,
+          "initial": 3.635,
+          "candidate": 3.9125
+        },
+        "x86_64": {
+          "released": 6.195,
+          "previous": 6.2375,
+          "initial": 6.345,
+          "candidate": 6.2525
+        }
+      }
+    },
+    "oldSchemaReadAndReopen": {
+      "inputVersions": [
+        "1",
+        "4",
+        "9",
+        "14",
+        "17",
+        "18"
+      ],
+      "binariesPerVersion": 6,
+      "restartsPerBinary": 1,
+      "snapshotsEachLaunch": 3,
+      "totalCompleteSnapshots": 216,
+      "allEqual": true,
+      "allEndWithVersion18AndIntegrityOK": true
+    },
+    "SQLOperationsAndReads": 1150,
+    "explicitSubsetAssertions": 57,
+    "schema": 18,
+    "concurrentWriter": {
+      "arm64/released": {
+        "commits": 34,
+        "consistentSnapshotObservationsIncludingFirst": {
+          "exact": 848,
+          "partial": 732
+        },
+        "mixtures": 0
+      },
+      "arm64/previous": {
+        "commits": 41,
+        "consistentSnapshotObservationsIncludingFirst": {
+          "exact": 807,
+          "partial": 773
+        },
+        "mixtures": 0
+      },
+      "arm64/candidate": {
+        "commits": 38,
+        "consistentSnapshotObservationsIncludingFirst": {
+          "exact": 782,
+          "partial": 798
+        },
+        "mixtures": 0
+      },
+      "x86_64/released": {
+        "commits": 56,
+        "consistentSnapshotObservationsIncludingFirst": {
+          "exact": 787,
+          "partial": 793
+        },
+        "mixtures": 0
+      },
+      "x86_64/previous": {
+        "commits": 47,
+        "consistentSnapshotObservationsIncludingFirst": {
+          "exact": 793,
+          "partial": 787
+        },
+        "mixtures": 0
+      },
+      "x86_64/candidate": {
+        "commits": 48,
+        "consistentSnapshotObservationsIncludingFirst": {
+          "exact": 810,
+          "partial": 770
+        },
+        "mixtures": 0
+      }
+    },
+    "ffi": {
+      "arm64": {
+        "ordinaryCalls": 4096,
+        "tempShadowStatus": -1,
+        "interruptStatus": -3,
+        "leakedStatements": 0
+      },
+      "x86_64": {
+        "ordinaryCalls": 4096,
+        "tempShadowStatus": -1,
+        "interruptStatus": -3,
+        "leakedStatements": 0
+      }
+    },
+    "cpuMicrosecondsPerRealPublicCall": {
+      "clean-0": {
+        "arm64": {
+          "mediansCPUus": {
+            "released": 38.61111111111111,
+            "previous": 38.96666666666666,
+            "candidate": 32.172222222222224
+          },
+          "candidateFasterThanPreviousPairs": 3
+        },
+        "x86_64": {
+          "mediansCPUus": {
+            "released": 47.03333333333334,
+            "previous": 44.8,
+            "candidate": 41.16111111111111
+          },
+          "candidateFasterThanPreviousPairs": 6
+        }
+      },
+      "clean-128": {
+        "arm64": {
+          "mediansCPUus": {
+            "released": 37.833333333333336,
+            "previous": 40.50555555555555,
+            "candidate": 33.55555555555556
+          },
+          "candidateFasterThanPreviousPairs": 7
+        },
+        "x86_64": {
+          "mediansCPUus": {
+            "released": 55.59444444444445,
+            "previous": 59.427777777777784,
+            "candidate": 49.87222222222222
+          },
+          "candidateFasterThanPreviousPairs": 6
+        }
+      },
+      "clean-8192": {
+        "arm64": {
+          "mediansCPUus": {
+            "released": 320.234375,
+            "previous": 611.640625,
+            "candidate": 320.9375
+          },
+          "candidateFasterThanPreviousPairs": 7
+        },
+        "x86_64": {
+          "mediansCPUus": {
+            "released": 490.734375,
+            "previous": 1052.90625,
+            "candidate": 521.28125
+          },
+          "candidateFasterThanPreviousPairs": 7
+        }
+      },
+      "clean-65536": {
+        "arm64": {
+          "mediansCPUus": {
+            "released": 3607.8125,
+            "previous": 6326.625,
+            "candidate": 2946.5625
+          },
+          "candidateFasterThanPreviousPairs": 7
+        },
+        "x86_64": {
+          "mediansCPUus": {
+            "released": 4884.5,
+            "previous": 11134.59375,
+            "candidate": 6220.9375
+          },
+          "candidateFasterThanPreviousPairs": 7
+        }
+      },
+      "last-partial": {
+        "arm64": {
+          "mediansCPUus": {
+            "released": 4045.375,
+            "previous": 6989.1875,
+            "candidate": 3529.96875
+          },
+          "candidateFasterThanPreviousPairs": 7
+        },
+        "x86_64": {
+          "mediansCPUus": {
+            "released": 6105.78125,
+            "previous": 11121.0,
+            "candidate": 6034.34375
+          },
+          "candidateFasterThanPreviousPairs": 7
+        }
+      },
+      "first-partial": {
+        "arm64": {
+          "mediansCPUus": {
+            "released": 55.93333333333334,
+            "previous": 51.416666666666664,
+            "candidate": 40.041666666666664
+          },
+          "candidateFasterThanPreviousPairs": 3
+        },
+        "x86_64": {
+          "mediansCPUus": {
+            "released": 108.725,
+            "previous": 89.65,
+            "candidate": 126.96666666666667
+          },
+          "candidateFasterThanPreviousPairs": 0
+        }
+      },
+      "backfill": {
+        "arm64": {
+          "mediansCPUus": {
+            "released": 2339.0,
+            "previous": 4175.9375,
+            "candidate": 4255.4375
+          },
+          "candidateFasterThanPreviousPairs": 3
+        },
+        "x86_64": {
+          "mediansCPUus": {
+            "released": 3476.125,
+            "previous": 6921.0625,
+            "candidate": 6662.875
+          },
+          "candidateFasterThanPreviousPairs": 5
+        }
+      },
+      "cached-65536": {
+        "arm64": {
+          "mediansCPUus": {
+            "released": 4.24,
+            "previous": 6.2275,
+            "candidate": 5.465
+          },
+          "candidateFasterThanPreviousPairs": 4
+        },
+        "x86_64": {
+          "mediansCPUus": {
+            "released": 7.765,
+            "previous": 8.875,
+            "candidate": 7.945
+          },
+          "candidateFasterThanPreviousPairs": 2
+        }
+      }
+    },
+    "method": "Entire actor method CPU clock measured; one warmup precedes measured calls. Strictly descending timestamps force reevaluation in the same time window; ascending timestamps measure cache hits. Seven independent process blocks per architecture and version per case, rotated within each block. No concurrent synthetic writer for the CPU measurements.",
+    "fileSHA256": {
+      "main.swift": "8ea2fba5738979c7b4eea1c16f7417890ebc224edcdff26c6da8ff081949c4d1",
+      "build.py": "c9e38fe491270cd7a968804db024f968ba44e7b59fb6cebda5f17c767426e88f",
+      "verification.py": "99d486c85e770d9efabde7856245080a61def72796e56519cd36af4838acb202",
+      "performance.py": "9fadb728db5ffc7906f274d1d441474ecea4686fb2e49b00bef4ad38fee30cdc",
+      "results.json": "a6b497e427fad4e428eb72530728ab44eef59b5a94859d779602c84fb4b18181",
+      "performance.json": "468fc53e343400f84078701f0e6d903358618c76331830791180c6ab5811a5e3",
+      "concurrency.py": "88ca17ca0035a4919587216217f0a418e11642137aef8a65ce87ec119afa0fc2",
+      "concurrency.json": "4dadbb1109baee4fedd9234d39a10873e7cbfb0dc860fd7a448eca734cede34f",
+      "ffi.c": "65b7c3da88a13d5b79da6be88eefff521c55040ceab113bad75d8a435c19c418",
+      "ffi.py": "d1267836665f9400b219fb882df18737a8c538f784cf96b84c79786f2b253243",
+      "ffi.json": "0a625e135d4d2564ed7b40594cf491c7edc7c35006d93ce35292daf5eacd3fa6",
+      "four-versions-performance.py": "d4138ec4e753028a34498d4912bb3003c1a1d53b092e0eb5b9a5b4665c3149e8",
+      "four-versions-performance.json": "da2c6b0f3cc55dc81e6c3e4dd9669b4935251013e2abc452142f618fa25ddb9b",
+      "early-recheck.json": "6e6ea83465f730f56c6fc53fd7a04045b8e69b1435002828bc05c346cea92cf8",
+      "legacy.py": "68bbbcd10a9d0d9840286c29ac2ead29de37a2d26ce39c6db724a8560caea3b6",
+      "legacy.json": "39db2cec70315fb7f7dcd02bc8dfdf7ff83672506964b140927f3b013ca9d217",
+      "first-results.json": "66a6602376393fcda51fb97796c4c9e9ca4d14c8252b671a036c6b7f776da249",
+      "guarded-results.json": "cf72f0e87fc22f7c97e6d48016eab0c104875b7452790d3f461ae54e97a4bf5d",
+      "guarded-performance.json": "9a07291d06a8a83a74d1549be4939dd0b71bad85eef03071e85f3d3dd79b6176",
+      "arm64-candidate/driver": "1ecafa3a299c185a48ff87bf730bc553cca55ca324643b5ce15fa10d4f7b5894",
+      "x86_64-candidate/driver": "461133eab879a7d5926764a457b2b94c44d2b240bbbaaedb3331e2c0022bd296"
+    }
+  },
+  "packet_digest": "5e44c248b7560e7b2da97120f0ea108a6a4faf449be726502dece3aee8d52461",
+  "timing": {
+    "clean-0": {
+      "counters": 0,
+      "sampleRuns": 7,
+      "invocationsPerRun": 180,
+      "cache": "miss",
+      "results": {
+        "arm64": {
+          "cpuUs": {
+            "released": [
+              34.92222222222222,
+              30.944444444444446,
+              30.95,
+              32.07222222222222,
+              32.86666666666667,
+              31.944444444444446,
+              31.77777777777778
+            ],
+            "previous": [
+              29.666666666666668,
+              28.522222222222222,
+              28.35,
+              28.566666666666666,
+              29.227777777777778,
+              28.633333333333333,
+              28.872222222222224
+            ],
+            "initial": [
+              25.911111111111108,
+              25.88888888888889,
+              25.955555555555556,
+              25.755555555555556,
+              26.683333333333334,
+              26.133333333333333,
+              26.155555555555555
+            ],
+            "candidate": [
+              27.05,
+              27.0,
+              27.294444444444444,
+              27.927777777777777,
+              28.23333333333333,
+              30.85,
+              27.272222222222222
+            ]
+          },
+          "medianCPUus": {
+            "released": 31.944444444444446,
+            "previous": 28.633333333333333,
+            "initial": 25.955555555555556,
+            "candidate": 27.294444444444444
+          },
+          "candidateFasterThanPreviousPairs": 6
+        },
+        "x86_64": {
+          "cpuUs": {
+            "released": [
+              47.09444444444445,
+              46.5,
+              47.677777777777784,
+              47.63333333333333,
+              46.983333333333334,
+              49.24444444444445,
+              59.77777777777778
+            ],
+            "previous": [
+              43.09444444444445,
+              44.17222222222222,
+              44.5,
+              43.266666666666666,
+              43.4,
+              42.67222222222222,
+              76.2388888888889
+            ],
+            "initial": [
+              38.11111111111111,
+              39.61666666666667,
+              39.03888888888889,
+              38.67222222222222,
+              38.68333333333334,
+              38.99444444444445,
+              70.88888888888889
+            ],
+            "candidate": [
+              41.80555555555556,
+              40.44444444444444,
+              40.583333333333336,
+              39.81111111111111,
+              41.03333333333334,
+              40.13888888888889,
+              82.38888888888889
+            ]
+          },
+          "medianCPUus": {
+            "released": 47.63333333333333,
+            "previous": 43.4,
+            "initial": 38.99444444444445,
+            "candidate": 40.583333333333336
+          },
+          "candidateFasterThanPreviousPairs": 6
+        }
+      }
+    },
+    "clean-128": {
+      "counters": 128,
+      "sampleRuns": 7,
+      "invocationsPerRun": 180,
+      "cache": "miss",
+      "results": {
+        "arm64": {
+          "cpuUs": {
+            "released": [
+              36.294444444444444,
+              96.47222222222221,
+              36.87777777777778,
+              36.76111111111111,
+              36.822222222222216,
+              36.74444444444445,
+              36.27222222222222
+            ],
+            "previous": [
+              39.144444444444446,
+              71.2611111111111,
+              39.18333333333334,
+              40.02222222222222,
+              39.22222222222222,
+              39.01111111111111,
+              38.644444444444446
+            ],
+            "initial": [
+              62.76111111111111,
+              62.87777777777778,
+              31.13888888888889,
+              31.494444444444444,
+              31.71111111111111,
+              30.772222222222222,
+              31.227777777777778
+            ],
+            "candidate": [
+              49.5,
+              64.1888888888889,
+              32.7,
+              32.4,
+              32.522222222222226,
+              32.51111111111111,
+              32.8
+            ]
+          },
+          "medianCPUus": {
+            "released": 36.76111111111111,
+            "previous": 39.18333333333334,
+            "initial": 31.494444444444444,
+            "candidate": 32.7
+          },
+          "candidateFasterThanPreviousPairs": 6
+        },
+        "x86_64": {
+          "cpuUs": {
+            "released": [
+              54.57777777777778,
+              53.92222222222222,
+              53.083333333333336,
+              54.98888888888889,
+              54.233333333333334,
+              54.36666666666667,
+              56.98888888888889
+            ],
+            "previous": [
+              60.16111111111111,
+              58.894444444444446,
+              59.24444444444445,
+              63.15555555555555,
+              60.87777777777778,
+              58.24444444444445,
+              68.57222222222222
+            ],
+            "initial": [
+              48.56666666666666,
+              45.48888888888889,
+              48.68888888888889,
+              47.355555555555554,
+              47.00555555555555,
+              47.427777777777784,
+              48.25555555555555
+            ],
+            "candidate": [
+              52.955555555555556,
+              48.43333333333334,
+              59.35,
+              50.40555555555555,
+              50.80555555555556,
+              51.25555555555555,
+              50.677777777777784
+            ]
+          },
+          "medianCPUus": {
+            "released": 54.36666666666667,
+            "previous": 60.16111111111111,
+            "initial": 47.427777777777784,
+            "candidate": 50.80555555555556
+          },
+          "candidateFasterThanPreviousPairs": 6
+        }
+      }
+    },
+    "clean-8192": {
+      "counters": 8192,
+      "sampleRuns": 7,
+      "invocationsPerRun": 64,
+      "cache": "miss",
+      "results": {
+        "arm64": {
+          "cpuUs": {
+            "released": [
+              327.5,
+              317.53125,
+              323.921875,
+              320.359375,
+              317.203125,
+              327.171875,
+              327.796875
+            ],
+            "previous": [
+              631.609375,
+              607.359375,
+              639.796875,
+              618.21875,
+              613.53125,
+              630.953125,
+              619.078125
+            ],
+            "initial": [
+              317.5,
+              312.984375,
+              320.9375,
+              322.171875,
+              320.390625,
+              313.171875,
+              314.46875
+            ],
+            "candidate": [
+              325.140625,
+              314.21875,
+              313.84375,
+              317.078125,
+              321.546875,
+              328.265625,
+              320.796875
+            ]
+          },
+          "medianCPUus": {
+            "released": 323.921875,
+            "previous": 619.078125,
+            "initial": 317.5,
+            "candidate": 320.796875
+          },
+          "candidateFasterThanPreviousPairs": 7
+        },
+        "x86_64": {
+          "cpuUs": {
+            "released": [
+              529.90625,
+              517.171875,
+              484.71875,
+              500.484375,
+              493.46875,
+              476.40625,
+              481.890625
+            ],
+            "previous": [
+              1018.6875,
+              995.3125,
+              960.546875,
+              955.1875,
+              967.390625,
+              974.953125,
+              1021.515625
+            ],
+            "initial": [
+              534.125,
+              539.015625,
+              528.78125,
+              504.359375,
+              534.390625,
+              506.15625,
+              646.984375
+            ],
+            "candidate": [
+              525.78125,
+              521.59375,
+              517.875,
+              512.859375,
+              573.625,
+              513.328125,
+              503.828125
+            ]
+          },
+          "medianCPUus": {
+            "released": 493.46875,
+            "previous": 974.953125,
+            "initial": 534.125,
+            "candidate": 517.875
+          },
+          "candidateFasterThanPreviousPairs": 7
+        }
+      }
+    },
+    "clean-65536": {
+      "counters": 65536,
+      "sampleRuns": 7,
+      "invocationsPerRun": 32,
+      "cache": "miss",
+      "results": {
+        "arm64": {
+          "cpuUs": {
+            "released": [
+              2354.8125,
+              2353.09375,
+              2449.21875,
+              2453.53125,
+              2483.6875,
+              2455.03125,
+              2489.90625
+            ],
+            "previous": [
+              4843.71875,
+              4727.4375,
+              4810.9375,
+              4941.375,
+              4831.65625,
+              4784.6875,
+              4760.28125
+            ],
+            "initial": [
+              2395.59375,
+              2401.03125,
+              2380.34375,
+              2452.75,
+              2415.6875,
+              2446.1875,
+              2452.75
+            ],
+            "candidate": [
+              2367.75,
+              2401.25,
+              2668.65625,
+              2527.8125,
+              2445.28125,
+              2443.75,
+              2492.46875
+            ]
+          },
+          "medianCPUus": {
+            "released": 2453.53125,
+            "previous": 4810.9375,
+            "initial": 2415.6875,
+            "candidate": 2445.28125
+          },
+          "candidateFasterThanPreviousPairs": 7
+        },
+        "x86_64": {
+          "cpuUs": {
+            "released": [
+              3514.9375,
+              4024.78125,
+              4041.71875,
+              4115.90625,
+              3963.0,
+              3756.8125,
+              3615.53125
+            ],
+            "previous": [
+              7310.09375,
+              7716.6875,
+              7460.03125,
+              7706.28125,
+              7396.4375,
+              7947.53125,
+              7512.125
+            ],
+            "initial": [
+              3846.21875,
+              4079.625,
+              4238.625,
+              3865.90625,
+              4140.6875,
+              4501.40625,
+              3985.6875
+            ],
+            "candidate": [
+              4197.9375,
+              3777.125,
+              3905.9375,
+              3980.84375,
+              3763.78125,
+              3754.875,
+              3833.53125
+            ]
+          },
+          "medianCPUus": {
+            "released": 3963.0,
+            "previous": 7512.125,
+            "initial": 4079.625,
+            "candidate": 3833.53125
+          },
+          "candidateFasterThanPreviousPairs": 7
+        }
+      }
+    },
+    "last-partial": {
+      "counters": 65536,
+      "sampleRuns": 7,
+      "invocationsPerRun": 32,
+      "cache": "miss",
+      "results": {
+        "arm64": {
+          "cpuUs": {
+            "released": [
+              2484.09375,
+              2443.53125,
+              2527.40625,
+              2507.71875,
+              2447.21875,
+              2598.125,
+              2543.0
+            ],
+            "previous": [
+              4799.59375,
+              5129.875,
+              4859.90625,
+              4814.78125,
+              4849.78125,
+              4847.34375,
+              4725.0
+            ],
+            "initial": [
+              2515.84375,
+              2484.125,
+              2412.71875,
+              2448.65625,
+              2454.5,
+              2522.8125,
+              2480.65625
+            ],
+            "candidate": [
+              2454.5625,
+              2435.5,
+              2456.75,
+              2453.4375,
+              2461.5,
+              2489.78125,
+              2468.25
+            ]
+          },
+          "medianCPUus": {
+            "released": 2507.71875,
+            "previous": 4847.34375,
+            "initial": 2480.65625,
+            "candidate": 2456.75
+          },
+          "candidateFasterThanPreviousPairs": 7
+        },
+        "x86_64": {
+          "cpuUs": {
+            "released": [
+              3597.21875,
+              3653.6875,
+              3814.3125,
+              3901.0,
+              3760.5625,
+              3856.46875,
+              3514.96875
+            ],
+            "previous": [
+              7903.9375,
+              7470.53125,
+              7421.5,
+              8242.40625,
+              8573.46875,
+              7540.78125,
+              7660.125
+            ],
+            "initial": [
+              4424.78125,
+              3775.1875,
+              3729.28125,
+              3922.28125,
+              3745.4375,
+              3742.1875,
+              3798.96875
+            ],
+            "candidate": [
+              3706.4375,
+              4169.34375,
+              4100.4375,
+              4242.75,
+              3907.65625,
+              4694.125,
+              3744.125
+            ]
+          },
+          "medianCPUus": {
+            "released": 3760.5625,
+            "previous": 7660.125,
+            "initial": 3775.1875,
+            "candidate": 4100.4375
+          },
+          "candidateFasterThanPreviousPairs": 7
+        }
+      }
+    },
+    "first-partial": {
+      "counters": 65536,
+      "sampleRuns": 7,
+      "invocationsPerRun": 120,
+      "cache": "miss",
+      "results": {
+        "arm64": {
+          "cpuUs": {
+            "released": [
+              31.09166666666667,
+              31.058333333333334,
+              31.10833333333333,
+              32.141666666666666,
+              31.008333333333333,
+              30.73333333333333,
+              31.53333333333333
+            ],
+            "previous": [
+              28.475,
+              28.40833333333333,
+              28.275,
+              29.59166666666667,
+              28.625,
+              29.183333333333334,
+              29.275
+            ],
+            "initial": [
+              25.78333333333333,
+              25.441666666666666,
+              26.025,
+              25.791666666666668,
+              25.75,
+              25.98333333333333,
+              25.53333333333333
+            ],
+            "candidate": [
+              27.075,
+              26.59166666666667,
+              26.683333333333334,
+              27.8,
+              26.916666666666668,
+              26.566666666666666,
+              26.758333333333333
+            ]
+          },
+          "medianCPUus": {
+            "released": 31.09166666666667,
+            "previous": 28.625,
+            "initial": 25.78333333333333,
+            "candidate": 26.758333333333333
+          },
+          "candidateFasterThanPreviousPairs": 7
+        },
+        "x86_64": {
+          "cpuUs": {
+            "released": [
+              44.94166666666666,
+              49.88333333333333,
+              47.6,
+              46.03333333333334,
+              45.46666666666666,
+              46.49166666666667,
+              46.25833333333333
+            ],
+            "previous": [
+              48.325,
+              42.30833333333334,
+              42.733333333333334,
+              43.93333333333334,
+              43.166666666666664,
+              44.1,
+              42.94166666666666
+            ],
+            "initial": [
+              38.55833333333334,
+              38.583333333333336,
+              38.38333333333333,
+              37.858333333333334,
+              37.90833333333334,
+              38.108333333333334,
+              37.53333333333334
+            ],
+            "candidate": [
+              44.15833333333334,
+              39.88333333333333,
+              39.541666666666664,
+              39.15833333333334,
+              40.65,
+              40.225,
+              39.575
+            ]
+          },
+          "medianCPUus": {
+            "released": 46.25833333333333,
+            "previous": 43.166666666666664,
+            "initial": 38.108333333333334,
+            "candidate": 39.88333333333333
+          },
+          "candidateFasterThanPreviousPairs": 7
+        }
+      }
+    },
+    "backfill": {
+      "counters": 65536,
+      "sampleRuns": 7,
+      "invocationsPerRun": 32,
+      "cache": "miss",
+      "results": {
+        "arm64": {
+          "cpuUs": {
+            "released": [
+              1179.875,
+              1236.34375,
+              1221.6875,
+              1197.1875,
+              1225.125,
+              1168.90625,
+              1187.09375
+            ],
+            "previous": [
+              2373.46875,
+              2763.5625,
+              2511.5,
+              2415.46875,
+              2338.40625,
+              2340.0,
+              2391.8125
+            ],
+            "initial": [
+              2336.59375,
+              2323.15625,
+              2300.75,
+              2365.875,
+              2349.6875,
+              2321.09375,
+              2303.75
+            ],
+            "candidate": [
+              2343.3125,
+              2355.5,
+              2340.15625,
+              2343.03125,
+              2339.625,
+              2332.53125,
+              2321.3125
+            ]
+          },
+          "medianCPUus": {
+            "released": 1197.1875,
+            "previous": 2391.8125,
+            "initial": 2323.15625,
+            "candidate": 2340.15625
+          },
+          "candidateFasterThanPreviousPairs": 6
+        },
+        "x86_64": {
+          "cpuUs": {
+            "released": [
+              1799.5,
+              1746.8125,
+              2796.125,
+              1762.71875,
+              1860.25,
+              1753.78125,
+              1816.6875
+            ],
+            "previous": [
+              3702.8125,
+              4007.5,
+              4843.78125,
+              4139.0,
+              3853.15625,
+              3725.75,
+              3640.5625
+            ],
+            "initial": [
+              3830.5,
+              4736.125,
+              3834.9375,
+              4453.5625,
+              4087.6875,
+              4408.75,
+              3895.28125
+            ],
+            "candidate": [
+              3870.65625,
+              3777.9375,
+              4244.0,
+              4208.96875,
+              3698.03125,
+              3698.5,
+              6137.5
+            ]
+          },
+          "medianCPUus": {
+            "released": 1799.5,
+            "previous": 3853.15625,
+            "initial": 4087.6875,
+            "candidate": 3870.65625
+          },
+          "candidateFasterThanPreviousPairs": 4
+        }
+      }
+    },
+    "cached-65536": {
+      "counters": 65536,
+      "sampleRuns": 7,
+      "invocationsPerRun": 400,
+      "cache": "hit",
+      "results": {
+        "arm64": {
+          "cpuUs": {
+            "released": [
+              3.6725,
+              3.735,
+              3.65,
+              3.7525,
+              3.6375,
+              3.9725,
+              3.8925
+            ],
+            "previous": [
+              3.74,
+              3.76,
+              3.81,
+              3.675,
+              3.83,
+              3.8725,
+              4.0625
+            ],
+            "initial": [
+              3.635,
+              3.625,
+              3.61,
+              3.625,
+              3.8375,
+              5.8475,
+              3.83
+            ],
+            "candidate": [
+              3.915,
+              3.7075,
+              3.6375,
+              3.8475,
+              4.945,
+              3.93,
+              3.9125
+            ]
+          },
+          "medianCPUus": {
+            "released": 3.735,
+            "previous": 3.81,
+            "initial": 3.635,
+            "candidate": 3.9125
+          },
+          "candidateFasterThanPreviousPairs": 3
+        },
+        "x86_64": {
+          "cpuUs": {
+            "released": [
+              6.22,
+              6.0725,
+              6.195,
+              6.1225,
+              6.38,
+              6.1325,
+              6.24
+            ],
+            "previous": [
+              6.2375,
+              6.2375,
+              6.07,
+              6.23,
+              6.225,
+              6.3275,
+              6.3925
+            ],
+            "initial": [
+              6.155,
+              6.4125,
+              6.3475,
+              6.2975,
+              6.345,
+              6.295,
+              6.49
+            ],
+            "candidate": [
+              6.15,
+              6.085,
+              6.4975,
+              6.3475,
+              6.2025,
+              6.2525,
+              6.3775
+            ]
+          },
+          "medianCPUus": {
+            "released": 6.195,
+            "previous": 6.2375,
+            "initial": 6.345,
+            "candidate": 6.2525
+          },
+          "candidateFasterThanPreviousPairs": 5
+        }
+      }
+    }
+  },
+  "integratedCommit": "4bc8d468",
+  "formalGate": "INCONCLUSIVE",
+  "comparisonsPerArchitecture": {
+    "normalAndDamagedActorObservationsPerVersion": 1150,
+    "versionCount": 4,
+    "initialDifferencesAgainstPrior": 9,
+    "finalDifferencesAgainstPrior": 0,
+    "finalDifferencesAgainstPublicFromExistingNegativeCounterFix": 32
+  }
+}
