@@ -40,7 +40,9 @@ internal sealed class ProfileUsageStore : IDisposable
         ProfileUsageStatus.Idle => "Account totals are ready to sync",
         ProfileUsageStatus.Refreshing => "Updating account totals…",
         ProfileUsageStatus.Ready => "Account totals updated",
-        ProfileUsageStatus.CredentialsUnavailable => OwnedProviderAccess.Enabled ? "Account-wide history requires a CodeRim-owned Codex sign-in." : "Codex sign-in is unavailable",
+        ProfileUsageStatus.CredentialsUnavailable => OwnedProviderAccess.Enabled
+            ? "To view account-wide history, add or select a Codex account in CodeRim Settings."
+            : "Codex sign-in is unavailable",
         _ => "Account totals are unavailable"
     };
     internal ProfileUsageStore(AppSettingsStore settings, bool synthetic,

@@ -111,7 +111,10 @@ internal static partial class NativeSmoke
             unavailable = true; await profile.RefreshAsync(); await Idle();
             Require(profile.Status == ProfileUsageStatus.CredentialsUnavailable && profile.Snapshot is null, "Missing credentials retained another account's history.");
             Require(!Descendants<AnimatedMetric>(pane).Any(x => x.FontSize == 20), "Keyboard focus kept account totals visible after identity was lost.");
-            Require(Descendants<TextBlock>(pane).Any(x => x.Text == "Codex sign-in is unavailable"), "Account error status is missing from Usage.");
+            var reconnect = OwnedProviderAccess.Enabled
+                ? "To view account-wide history, add or select a Codex account in CodeRim Settings."
+                : "Codex sign-in is unavailable";
+            Require(Descendants<TextBlock>(pane).Any(x => x.Text == reconnect), "Account error status is missing from Usage.");
             unavailable = false; response = _ => Task.FromResult(Reading(current, 2000000)); await profile.RefreshAsync();
             busy = true; await profile.RefreshAsync(); Require(profile.Snapshot is null && profile.Status == ProfileUsageStatus.Idle, "Account operation retained history.");
             busy = false; await profile.RefreshAsync();
