@@ -43,6 +43,23 @@ public sealed class MobileSessionOrderTests
         }
     }
 
+    private sealed class EnumerableOnly(SessionActivity[] rows) : IReadOnlyList<SessionActivity>
+    {
+        public int Count => throw new NotSupportedException("Enumeration only");
+        public SessionActivity this[int index] => throw new NotSupportedException("Enumeration only");
+        public IEnumerator<SessionActivity> GetEnumerator() => ((IEnumerable<SessionActivity>)rows).GetEnumerator();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    [Fact]
+    public void PublicInputPreservesEnumerationWithoutIndexing()
+    {
+        var snapshot = new CompanionSnapshot(1, Now, [new("p", "P", true, null, new("p", ReadingState.Ready, [], Now))]);
+        var source = new EnumerableOnly([new("1", "p", "first", "waiting", Now), new("2", "p", "second", "waiting", Now)]);
+        Assert.Collection(MobileSnapshotBuilder.Create(snapshot, source, true, Now).Sessions,
+            row => Assert.Equal("first", row.Title), row => Assert.Equal("second", row.Title));
+    }
+
     [Fact]
     public void MillisecondTiesAtTheLimitKeepInputOrderAcrossTimeZoneOffsets()
     {

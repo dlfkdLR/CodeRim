@@ -45,6 +45,9 @@ internal static class Program
             int iterations = count switch { 4096 => 30, 512 => 100, 64 => 300, _ => 1200 };
             for (int i = 0; i < Math.Min(iterations, 50); i++)
                 checksum += MobileSnapshotBuilder.Create(Snapshot, sessions, share, Now).Sessions.Count;
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            GC.Collect();
             long allocated = GC.GetAllocatedBytesForCurrentThread();
             long start = Stopwatch.GetTimestamp();
             for (int i = 0; i < iterations; i++)
