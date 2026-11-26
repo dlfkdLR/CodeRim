@@ -31,4 +31,6 @@ The installed-app Settings test accepts the exact QA bundle and its verified exe
 
 The official Auggie and Bailian usage commands receive only an absolute executable search path, HOME, locale and timezone. These commands use their own sign-in and return usage data. The Auggie status command has a 15-second deadline and a 64 KiB output limit. Its diagnostic text stays out of the provider message.
 
-Run `python3 Scripts/rust_migration/provider-access/check_cli.py` with the same `--products` and `--quickjs-header` arguments to test both command routes. The fixture compiles two local command stand-ins and checks the actual child environment and arguments, quota decoding, and six Auggie errors in a synthetic home with network and personal files blocked.
+Run `python3 Scripts/rust_migration/provider-access/check_cli.py` with the same `--products` and `--quickjs-header` arguments to test both command routes. The fixture compiles two local command stand-ins and checks the actual child environment and arguments, quota decoding, and thirteen failure cases across both CLIs in a synthetic home with network and personal files blocked.
+
+Run `python3 Scripts/rust_migration/provider-access/compare_auggie.py --products /path/to/Products/Release --upstream /path/to/checkouts/CodexBar` to compare the Auggie command's quota parser with the original dependency method on synthetic output in three time zones.

@@ -1,0 +1,150 @@
+{
+  "date": "2026-11-26",
+  "sourceCommit": "9bcef61f4e5578a2d9c1173e63df3e7b147d2366",
+  "host": {
+    "system": "macOS 26.6.2",
+    "nativeArchitecture": "arm64"
+  },
+  "app": {
+    "executableSHA256": "fdf4f1cac71ff9fc866494fe312d799b38b9bcd0728f920d10fd5a07d2d34156",
+    "architectures": [
+      "x86_64",
+      "arm64"
+    ],
+    "signature": "local ad hoc, codesign --verify --deep --strict passed"
+  },
+  "settings": {
+    "fixture": "Scripts/rust_migration/provider-access/settings_ui.py",
+    "profile": "synthetic, fresh processes, external requests and personal Keychain denied",
+    "navigation": [
+      [
+        1,
+        "Codex"
+      ],
+      [
+        1,
+        "Claude Code"
+      ],
+      [
+        1,
+        "Ollama Cloud"
+      ],
+      [
+        1,
+        "DeepSeek"
+      ],
+      [
+        1,
+        "Cursor"
+      ],
+      [
+        2,
+        "OpenAI"
+      ],
+      [
+        2,
+        "Azure OpenAI"
+      ],
+      [
+        2,
+        "AWS Bedrock"
+      ],
+      [
+        2,
+        "Doubao"
+      ],
+      [
+        3,
+        "Wayfinder"
+      ],
+      [
+        3,
+        "Augment"
+      ],
+      [
+        3,
+        "Alibaba Token Plan"
+      ],
+      [
+        4,
+        "Codex"
+      ],
+      [
+        4,
+        "DeepSeek"
+      ]
+    ],
+    "missingOrObsoleteInstructions": [],
+    "observations": [
+      "Empty Codex profile displayed Account unavailable.",
+      "DeepSeek and OpenAI showed CodeRim API-key forms.",
+      "Ollama showed Enter Ollama key; Cursor showed no verified source.",
+      "Azure OpenAI, AWS Bedrock and Doubao displayed billed-request consent.",
+      "Wayfinder showed a configurable gateway address.",
+      "Augment and Alibaba Token Plan displayed their official CLI directions.",
+      "GitHub Copilot appeared as Not connected in the provider list."
+    ]
+  },
+  "officialCommands": {
+    "fixture": "Scripts/rust_migration/provider-access/check_cli.py",
+    "allowlistedEnvironment": [
+      "PATH",
+      "HOME",
+      "LANG",
+      "LC_ALL",
+      "LC_CTYPE",
+      "TZ"
+    ],
+    "blockedSyntheticEnvironment": [
+      "CODERIM_FIXTURE_SENTINEL",
+      "OPENAI_API_KEY",
+      "AWS_PROFILE",
+      "AUGGIE_CLI_PATH",
+      "HTTPS_PROXY"
+    ],
+    "syntheticPercentUsed": {
+      "augmentPrimary": 25,
+      "bailianPrimary": 25,
+      "bailianSecondary": 75
+    },
+    "bailianFailureCases": [
+      "empty stdout",
+      "malformed JSON",
+      "invalid quota",
+      "nonzero with private stderr",
+      "oversized output",
+      "15-second timeout"
+    ],
+    "timeoutsObservedMilliseconds": {
+      "auggie": 15005,
+      "bl": 15005
+    },
+    "privateDiagnosticInTranscript": false,
+    "auggieFailureCases": [
+      "notAuthenticated",
+      "empty stdout",
+      "malformed quota",
+      "nonzero with private stderr",
+      "oversized output",
+      "missing binary",
+      "15-second timeout"
+    ]
+  },
+  "auggieParser": {
+    "fixture": "Scripts/rust_migration/provider-access/compare_auggie.py",
+    "reference": "CodexBar 51ed16bdd3abe35ec53af99818e1b5f0d2a631d3, AuggieCLIProbe.parse",
+    "timezoneIDs": [
+      "GMT",
+      "Asia/Seoul",
+      "America/Los_Angeles"
+    ],
+    "syntheticInputsPerZone": 1695,
+    "successesPerZone": 469,
+    "matchingErrorsPerZone": 1226,
+    "mismatches": 0
+  },
+  "limits": [
+    "App UI observations used Apple Silicon hardware. The x86_64 Mach-O slice was inspected.",
+    "Command tests used network-denied stand-ins in a temporary home. Live sign-in, paid provider quotas, entitlement and signed-upgrade Keychain ACLs are outside this receipt."
+  ]
+}

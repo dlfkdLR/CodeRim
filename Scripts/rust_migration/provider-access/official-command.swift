@@ -20,7 +20,7 @@ import CodexBarCore
             print("\(strategy) arguments, scoped child environment, parsed quota passed")
         }
         let descriptor = ProviderDescriptorRegistry.descriptor(for: .augment)
-        for mode in ["denied", "empty", "malformed", "failure", "oversized", "missing"] {
+        for mode in ["denied", "empty", "malformed", "failure", "oversized", "missing", "slow"] {
             var runEnv = env
             let marker = URL(fileURLWithPath: env["HOME"]!).appendingPathComponent(mode)
             try Data().write(to: marker)
@@ -34,11 +34,29 @@ import CodexBarCore
                 switch (mode, error) {
                 case ("denied", AuggieCLIError.notAuthenticated), ("empty", AuggieCLIError.noOutput),
                      ("malformed", AuggieCLIError.parseError), ("failure", AuggieCLIError.noOutput),
-                     ("oversized", SubprocessRunnerError.outputTooLarge), ("missing", SubprocessRunnerError.binaryNotFound): break
+                     ("oversized", SubprocessRunnerError.outputTooLarge), ("missing", SubprocessRunnerError.binaryNotFound),
+                     ("slow", SubprocessRunnerError.timedOut): break
                 default: throw error
                 }
             }
         }
-        print("Six CLI error outcomes and bounded private diagnostics passed")
+        print("Augment auth, empty, parse, private stderr, oversized, missing and timeout outcomes passed")
+
+        let bailian = ProviderDescriptorRegistry.descriptor(for: .alibabatokenplan)
+        let unsupported = "Bailian CLI returned an unsupported Token Plan usage response."
+        let failed = "Bailian CLI could not load Token Plan usage. Sign in with 'bl' and try again."
+        for (mode, message) in [("empty", unsupported), ("malformed", unsupported), ("invalid-ratio", unsupported),
+                               ("failure", failed), ("oversized", failed), ("slow", "Bailian CLI Token Plan usage timed out.")] {
+            let marker = URL(fileURLWithPath: env["HOME"]!).appendingPathComponent(mode)
+            try Data().write(to: marker)
+            defer { try? FileManager.default.removeItem(at: marker) }
+            do {
+                _ = try await OfficialUsageCLI.fetch(bailian, strategy: "alibaba-token-plan.cli", context: context(env))
+                preconditionFailure("Expected a failed synthetic Bailian command: " + mode)
+            } catch {
+                precondition(error.localizedDescription == message, "Unexpected public error class for " + mode)
+            }
+        }
+        print("Bailian empty, parse, invalid quota, private stderr, oversized and timeout outcomes passed")
     }
 }
