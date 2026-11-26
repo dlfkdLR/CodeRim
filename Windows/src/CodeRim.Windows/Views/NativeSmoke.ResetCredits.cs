@@ -31,7 +31,15 @@ internal static partial class NativeSmoke
                 settings.Save(settings.Current with { NumberStyle = style });
                 var count = variant switch { "zero" => 0L, "numeric" => 2L, "large" => 2000L, _ => (long?)null };
                 var text = variant switch { "unlimited" => "Unlimited resets", "available" => "Reset count unavailable", _ => null };
-                var expiry = variant switch { "available" => DateTimeOffset.Now.AddDays(3), "expired" => DateTimeOffset.Now.AddDays(-3), _ => (DateTimeOffset?)null };
+                // Hold the displayed local month/day constant across runs, while exercising real
+                // future and past readings. Keep the snapshot acquisition time fresh below.
+                var year = DateTime.Now.Year;
+                var expiry = variant switch
+                {
+                    "available" => new DateTimeOffset(new DateTime(year + 1, 11, 28, 12, 0, 0, DateTimeKind.Local)),
+                    "expired" => new DateTimeOffset(new DateTime(year - 1, 11, 22, 12, 0, 0, DateTimeKind.Local)),
+                    _ => (DateTimeOffset?)null
+                };
                 var credit = new LimitWindow(ProviderDisplayPolicy.ResetCreditsId, "Reset credits", ResetsAt: expiry,
                     RemainingCount: count, Unit: "resets", DisplayValue: text);
                 store.Readings["codex"] = new("codex", ReadingState.Ready, [new("weekly", "Weekly", 20), credit], DateTimeOffset.Now);

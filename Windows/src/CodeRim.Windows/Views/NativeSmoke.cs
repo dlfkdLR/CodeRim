@@ -847,6 +847,12 @@ internal static partial class NativeSmoke
     }
     internal static void Capture(FrameworkElement view, string output)
     {
+        var encoder = new PngBitmapEncoder();
+        encoder.Frames.Add(BitmapFrame.Create(CaptureBitmap(view)));
+        using var file = File.Create(output); encoder.Save(file);
+    }
+    private static RenderTargetBitmap CaptureBitmap(FrameworkElement view)
+    {
         view.UpdateLayout();
         var width = (int)Math.Ceiling(view.ActualWidth); var height = (int)Math.Ceiling(view.ActualHeight);
         Require(width > 0 && height > 0, "Empty capture");
@@ -862,8 +868,8 @@ internal static partial class NativeSmoke
         var brush = new VisualBrush(view) { ViewboxUnits = BrushMappingMode.Absolute, Viewbox = sourceBounds,
             ViewportUnits = BrushMappingMode.Absolute, Viewport = bounds, Stretch = Stretch.None, AlignmentX = AlignmentX.Left, AlignmentY = AlignmentY.Top };
         using (var context = background.RenderOpen()) { context.DrawRectangle((Brush)view.FindResource("WindowBackground"), null, bounds); context.DrawRectangle(brush, null, bounds); }
-        image.Render(background); var encoder = new PngBitmapEncoder(); encoder.Frames.Add(BitmapFrame.Create(image));
-        using var file = File.Create(output); encoder.Save(file);
+        image.Render(background);
+        return image;
     }
     private static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }
     private static IEnumerable<T> Descendants<T>(DependencyObject root) where T : DependencyObject

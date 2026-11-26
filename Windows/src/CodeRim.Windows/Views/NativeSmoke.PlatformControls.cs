@@ -102,6 +102,7 @@ internal static partial class NativeSmoke
                 var glyphPresenter = Descendants<ContentPresenter>(glyphAction).Single(x => ReferenceEquals(x.Content, glyph));
                 Require(ReferenceEquals(glyph.Stroke, System.Windows.Documents.TextElement.GetForeground(glyphPresenter)),
                     "The action glyph overrides the native disabled foreground.");
+                await WaitForStableDisclosure(disclosure);
                 Capture(panel, Path.Combine(directory, "windows-platform-controls-" + (dark ? "dark" : "light") + ".png"));
                 checkbox.IsEnabled = true; action.IsEnabled = true; combo.IsEnabled = true; captioned.IsEnabled = true; glyphAction.IsEnabled = true; await Idle();
                 Require(ReferenceEquals(captions.Single(x => x.Text == "Native caption").Foreground, Application.Current.FindResource("PrimaryText"))
@@ -125,4 +126,30 @@ internal static partial class NativeSmoke
         finally { fixture?.Close(); SettingsTheme.Apply(wasDark, wasContrast); }
         File.WriteAllText(Path.Combine(directory, "windows-platform-controls.json"), JsonSerializer.Serialize(new { completed = true, checks }, JsonOptions));
     }
+    // The framework's Fluent template animates independently of CodeRim's Motion clocks.
+    // Compare the actual viewport pixels and geometry over several dispatcher frames.
+    private static async Task WaitForStableDisclosure(Expander disclosure)
+    {
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+        var lastChange = timer.Elapsed;
+        (int Width, int Height) size = default;
+        byte[]? previous = null;
+        while (timer.Elapsed < TimeSpan.FromSeconds(4))
+        {
+            await MotionFrame();
+            var image = CaptureBitmap(disclosure);
+            var dimensions = (image.PixelWidth, image.PixelHeight);
+            var bytes = new byte[checked(dimensions.PixelWidth * dimensions.PixelHeight * 4)];
+            image.CopyPixels(bytes, checked(dimensions.PixelWidth * 4), 0);
+            if (size != dimensions || previous is null || !previous.AsSpan().SequenceEqual(bytes))
+                lastChange = timer.Elapsed;
+            else if (timer.Elapsed - lastChange >= TimeSpan.FromMilliseconds(250))
+                return;
+            size = dimensions;
+            previous = bytes;
+            await Task.Delay(40);
+        }
+        throw new InvalidOperationException("The native Fluent disclosure did not reach a stable rendered frame.");
+    }
+
 }
