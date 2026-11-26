@@ -417,6 +417,7 @@ actor CodexUsageCollector {
             throw SourceReadError.sourceUnavailable
         }
 
+        var lineBreaks = SourceLineBreaks()
         var lineBuffer = Data()
         lineBuffer.reserveCapacity(64 * 1024)
         var lineStartOffset = session.checkpoint.committedOffset
@@ -444,6 +445,8 @@ actor CodexUsageCollector {
             let chunkStartOffset = readOffset
             readOffset += Int64(chunk.count)
 
+            // The retained prefix was scanned completely in the previous read.
+            let retainedByteCount = lineBuffer.count
             if skippingOversizedLine {
                 if let newline = chunk.firstIndex(of: 0x0A) {
                     let afterNewline = chunk.index(after: newline)
@@ -463,7 +466,8 @@ actor CodexUsageCollector {
             }
 
             var consumedThrough = lineBuffer.startIndex
-            while let newline = lineBuffer[consumedThrough...].firstIndex(of: 0x0A) {
+            lineBreaks.start(at: lineBuffer.startIndex + retainedByteCount)
+            while let newline = lineBreaks.next(in: lineBuffer) {
                 let line = Data(lineBuffer[consumedThrough..<newline])
                 let linePosition = lineStartOffset + Int64(lineBuffer.distance(from: lineBuffer.startIndex, to: consumedThrough))
                 try await session.consume(line, position: linePosition)

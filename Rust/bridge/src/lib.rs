@@ -10,6 +10,8 @@ mod claude_json;
 mod event_json;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod github_device_policy;
+#[cfg(target_os = "macos")]
+mod line_breaks;
 #[cfg(any(target_os = "ios", target_os = "macos", test))]
 mod mobile_selection;
 #[cfg(any(target_os = "macos", test))]

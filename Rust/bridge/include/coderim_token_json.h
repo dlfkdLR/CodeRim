@@ -34,6 +34,9 @@ extern "C" {
 /* Uses the same borrowed-buffer contract. A zero-length metadata span is absent.
    All offsets refer to bytes within this call's input; no pointer is retained. */
 cr_codex_event cr_parse_codex_event(const uint8_t *bytes, size_t length);
+/* Borrow non-overlapping buffers for this call. Write at most capacity LF positions
+   relative to input, stopping once the output is full. Does not retain either pointer. */
+size_t cr_jsonl_line_breaks(const uint8_t *bytes, size_t length, size_t *output, size_t capacity);
 cr_token_json cr_parse_token_json(const uint8_t *bytes, size_t length);
 #ifdef __cplusplus
 }

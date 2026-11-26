@@ -17,6 +17,7 @@ name = "coderim-accounting-bridge"
 version = "0.1.0"
 dependencies = [
  "coderim-usage-core",
+ "memchr",
  "serde",
  "serde_json",
 ]
