@@ -653,8 +653,7 @@ actor SQLiteDatabase {
             let lastUpdated = try maximumEventDate(through: now)
             // The current periods are judged by the sessions seen in them; a partly read session from
             // months ago, or old files still waiting for a re-read, is reported separately.
-            let quality = try databaseQuality(hasEvents: lastUpdated != nil, since: min(week, month), includesBackfill: false)
-            let historyIncomplete = try databaseQuality(hasEvents: lastUpdated != nil) == .partial
+            let (quality, historyIncomplete) = try snapshotQuality(hasEvents: lastUpdated != nil, since: min(week, month))
             let snapshot = UsageSnapshot(
                 today: totals.today,
                 week: totals.week,
@@ -1556,6 +1555,23 @@ actor SQLiteDatabase {
         }
         guard sqlite3_column_type(statement, 0) != SQLITE_NULL else { return nil }
         return Date(timeIntervalSince1970: sqlite3_column_double(statement, 0))
+    }
+
+    private func snapshotQuality(hasEvents: Bool, since: Date) throws -> (DataQuality, Bool) {
+        guard hasEvents else { return (.unavailable, false) }
+#if CODERIM_RUST_ACCOUNTING
+        guard let connection else { throw SQLiteDatabaseError.statement("database is closed") }
+        switch cr_snapshot_quality(UnsafeMutableRawPointer(connection.rawValue), since.timeIntervalSince1970) {
+        case 0: return (.exact, false)
+        case 1: return (.exact, true)
+        case 2: return (.partial, true)
+        case -1: break
+        case -2: throw SQLiteDatabaseError.statement(errorMessage)
+        default: throw SQLiteDatabaseError.step(errorMessage)
+        }
+#endif
+        let current = try databaseQuality(hasEvents: true, since: since, includesBackfill: false)
+        return (current, try databaseQuality(hasEvents: true) == .partial)
     }
 
     /// Partial when a session observed since `since` (any time when nil; a session whose time is unknown
