@@ -27,6 +27,10 @@ if (args[0] == "bench") {
     }
     var manyModels = persisted.Select((e, i) => e with { Model = $"unknown-{i}" }).ToArray();
     workloads.Add(("distinct-unpriced-4096", () => UsageAnalytics.Estimate(manyModels)));
+    var overflowModels = Enumerable.Range(0, 8300).Select(i => Ordinary(i, $"unknown-{i}")).ToArray();
+    workloads.Add(("distinct-unpriced-8300", () => UsageAnalytics.Estimate(overflowModels)));
+    var repeated = overflowModels.Concat(Enumerable.Range(0, overflowModels.Length).Select(i => overflowModels[i * 127 % overflowModels.Length])).ToArray();
+    workloads.Add(("repeated-unpriced-16600", () => UsageAnalytics.Estimate(repeated)));
     var sessions = persisted.GroupBy(e => e.SessionId, StringComparer.Ordinal).ToArray();
     workloads.Add(("sqlite-session-list-4096", () => {
         CostSummary? last = null;
@@ -37,7 +41,7 @@ if (args[0] == "bench") {
     decimal check = 0;
     foreach (var (name, run) in workloads) {
         for (int i = 0; i < 12; i++) _ = run();
-        int repeats = name.EndsWith("4096", StringComparison.Ordinal) ? 20 : 160;
+        int repeats = name.EndsWith("4096", StringComparison.Ordinal) || name.Contains("unpriced", StringComparison.Ordinal) ? 20 : 160;
         var allocated = GC.GetAllocatedBytesForCurrentThread();
         var started = Stopwatch.GetTimestamp();
         for (int i = 0; i < repeats; i++) { var result = run(); check += result.Amount ?? result.ExcludedTokens; }
@@ -60,6 +64,12 @@ foreach (var a in new[] {"session", "project", "model", "day"})
     Console.WriteLine(JsonSerializer.Serialize(UsageAnalytics.Group(persisted, a)));
 foreach (var range in Enum.GetValues<AnalyticsRange>())
     Console.WriteLine(JsonSerializer.Serialize(AnalyticsTimeline.Build(persisted, range, day.AddDays(3), TimeZoneInfo.Utc)));
+var extended = Enumerable.Range(0, 8705).Select(i => Ordinary(i, $"unknown-{i}")).ToArray();
+foreach (int size in new[] {8191, 8192, 8193, 8704, 8705}) {
+    var unique = extended.Take(size).ToArray();
+    Record(unique);
+    Record(unique.Concat(unique.Reverse()).ToArray());
+}
 foreach (int size in new[] {511, 512, 513, 1024, 4096})
 foreach (int distinct in new[] {1, 8, 64, 512, 4096}) {
     var rows = Enumerable.Range(0, size).Select(i =>

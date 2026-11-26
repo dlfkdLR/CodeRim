@@ -33,45 +33,79 @@ internal static class RustModelCost
 
     internal sealed class ModelTable : IDisposable
     {
-        // Retain only ordinary-size buffers in the shared pool. Large, one-off
-        // catalogs can be collected as soon as this computation finishes.
-        private const int MaxPooledModels = 8192;
-        private Summary[] groups = ArrayPool<Summary>.Shared.Rent(8);
+        private const int FirstPageLimit = 8192;
+        private const int ExtraPageSize = 512;
+        private Summary[] first = ArrayPool<Summary>.Shared.Rent(8);
+        private List<Summary[]>? extra;
         internal List<string> Names { get; } = [];
-        internal Summary this[int index] => groups[index];
-
-        private static void Release(Summary[] buffer)
-        {
-            if (buffer.Length is > 0 and <= MaxPooledModels) ArrayPool<Summary>.Shared.Return(buffer);
-        }
+        internal Summary this[int index] => index < FirstPageLimit ? first[index]
+            : extra![(index - FirstPageLimit) / ExtraPageSize][(index - FirstPageLimit) % ExtraPageSize];
 
         internal int Add(string name)
         {
             int index = Names.Count;
-            if (index == groups.Length)
+            if (index < FirstPageLimit)
             {
-                var next = index < MaxPooledModels ? ArrayPool<Summary>.Shared.Rent(index * 2) : new Summary[index * 2];
-                groups.CopyTo(next, 0);
-                Release(groups);
-                groups = next;
+                if (index == first.Length)
+                {
+                    var next = ArrayPool<Summary>.Shared.Rent(index * 2);
+                    first.CopyTo(next, 0);
+                    ArrayPool<Summary>.Shared.Return(first);
+                    first = next;
+                }
+                first[index] = default;
             }
-            // The previous renter may have left any combination of flags or totals.
-            groups[index] = default;
+            else
+            {
+                int offset = (index - FirstPageLimit) % ExtraPageSize;
+                if (offset == 0)
+                    (extra ??= []).Add(ArrayPool<Summary>.Shared.Rent(ExtraPageSize));
+                extra![^1][offset] = default;
+            }
             Names.Add(name);
             return index;
         }
 
         internal unsafe void Fold(Event* buffer, int count)
         {
-            fixed (Summary* output = groups)
-                if (FoldTable(output, (nuint)Names.Count, buffer, (nuint)count, TokenUsage.HighContextInputThreshold) != 1)
+            if (extra is null)
+            {
+                FoldPage(first, Names.Count, buffer, count);
+                return;
+            }
+            // Dense model IDs grow in encounter order. Keep a very large catalog
+            // in bounded pages and preserve the event order for each model.
+            for (int start = 0; start < count;)
+            {
+                int id = buffer[start].Model;
+                int page = id < FirstPageLimit ? -1 : (id - FirstPageLimit) / ExtraPageSize;
+                int origin = page < 0 ? 0 : FirstPageLimit + page * ExtraPageSize;
+                int length = page < 0 ? FirstPageLimit : Math.Min(ExtraPageSize, Names.Count - origin);
+                int end = start;
+                while (end < count && (uint)(buffer[end].Model - origin) < (uint)length)
+                {
+                    if (origin != 0) buffer[end] = buffer[end] with { Model = buffer[end].Model - origin };
+                    end++;
+                }
+                FoldPage(page < 0 ? first : extra[page], length, buffer + start, end - start);
+                start = end;
+            }
+        }
+
+        private static unsafe void FoldPage(Summary[] page, int models, Event* buffer, int count)
+        {
+            fixed (Summary* output = page)
+                if (FoldTable(output, (nuint)models, buffer, (nuint)count, TokenUsage.HighContextInputThreshold) != 1)
                     throw new InvalidDataException("Invalid Windows model cost table.");
         }
 
         public void Dispose()
         {
-            Release(groups);
-            groups = [];
+            if (first.Length == 0) return;
+            ArrayPool<Summary>.Shared.Return(first);
+            first = [];
+            if (extra is not null)
+                foreach (var page in extra) ArrayPool<Summary>.Shared.Return(page);
         }
     }
 
