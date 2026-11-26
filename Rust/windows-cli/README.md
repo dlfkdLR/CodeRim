@@ -2,7 +2,7 @@
 
 `CodeRimRustCLI.exe` is a separate, opt-in executable. The normal MSI, MSIX and command aliases continue to use the existing companion.
 
-The native command processor supports the existing options for `usage` (the default), `tokens`, `limits`, `path`, `help` and `version`. It filters enabled providers, projects the selected local period, evaluates freshness, and renders text or indented JSON. The Windows executable uses the user’s local time zone and regional formats. UTF-8 files emitted by the app can use the native path. External CLR culture overrides, extended snapshot shapes including cost history, and BOM documents use the typed compatibility reader.
+The native command processor supports the existing options for `usage` (the default), `tokens`, `limits`, `path`, `help` and `version`. It filters enabled providers, projects the selected local period, evaluates freshness, and renders text or indented JSON. The Windows executable uses the user’s local time zone and regional formats. UTF-8 files emitted by the app and valid UTF-8, UTF-16 or UTF-32 BOM equivalents can use the native path. External CLR culture overrides, extended snapshot shapes including cost history, and malformed Unicode use the typed compatibility reader.
 
 Each watch iteration opens one snapshot using read and delete sharing. The largest accepted input is 8 MiB. When the native decoder defers, the CLI sends the bytes it already read to the sibling `CodeRimSnapshotHost.exe` on standard input. The helper accepts only the public read-only data commands. No snapshot copy is written to disk.
 

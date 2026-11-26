@@ -267,12 +267,16 @@ fn reading(v: &J, id: &str, now: i64) -> Option<J> {
     ]))
 }
 pub fn render(options: &Options, bytes: &[u8]) -> Option<Result<String, String>> {
-    // The Windows typed reader retains BOM/replacement, extended dates, cost histories and opaque
-    // account metadata. A compatibility handoff receives the exact bytes read from the open handle.
-    if bytes.first() != Some(&b'{') || bytes.len() > 2 * 1024 * 1024 {
+    // Keep the original bytes alive for an exact in-memory handoff when an uncommon
+    // type, legacy encoding error or extended date requires the Windows typed reader.
+    if bytes.len() > 2 * 1024 * 1024 {
         return None;
     }
-    let root: J = serde_json::from_slice(bytes).ok()?;
+    let json = crate::encoding::json_utf8(bytes)?;
+    if json.first() != Some(&b'{') {
+        return None;
+    }
+    let root: J = serde_json::from_slice(&json).ok()?;
     if root.depth() > 63 {
         return None;
     }

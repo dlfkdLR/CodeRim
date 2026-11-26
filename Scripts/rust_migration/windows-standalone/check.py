@@ -83,6 +83,10 @@ with tempfile.TemporaryDirectory(prefix='coderim-standalone-cli-') as tmp:
                     # the real OS time zone and user locale of the hosted runner.
                     native_env=env if os.name=='nt' else dict(env,LANG='en_US.UTF-8',LC_ALL='en_US.UTF-8',TZ='UTC')
                     compare('native '+label+' '+cmd+' '+fmt,[cmd,'--snapshot',data/(label+'.json'),'--format',fmt,'--period','week'],native_env,native_cases)
+        source=(data/'medium.json').read_text(encoding='utf8')
+        for charset,bom in [('utf-8',b'\xef\xbb\xbf'),('utf-16-be',b'\xfe\xff'),('utf-16-le',b'\xff\xfe'),('utf-32-be',b'\0\0\xfe\xff'),('utf-32-le',b'\xff\xfe\0\0')]:
+            blob=data/charset;blob.write_bytes(bom+source.encode(charset))
+            compare('native BOM '+charset,['usage','--snapshot',blob,'--format','json'],registry=native_cases)
         if os.name=='posix':
             for culture in ('ko_KR.UTF-8','de_DE.UTF-8'):
                 for cmd in ('usage','limits','tokens'):
@@ -112,6 +116,9 @@ with tempfile.TemporaryDirectory(prefix='coderim-standalone-cli-') as tmp:
     for charset,bom in [('utf-8',b'\xef\xbb\xbf'),('utf-16-be',b'\xfe\xff'),('utf-16-le',b'\xff\xfe'),('utf-32-be',b'\0\0\xfe\xff'),('utf-32-le',b'\xff\xfe\0\0')]:
         path=data/charset;path.write_bytes(bom+text.encode(charset));unusual.append(path)
     malformed={'invalid-json':b'{','empty-file':b'', 'over-limit':b'x'*(8*1024*1024+1),'wrong-root':b'[]',
+        'odd-be':b'\xfe\xff'+text.encode('utf-16-be')+b'\x00',
+        'unpaired-be':b'\xfe\xff'+text.replace('sample','sam\ud800ple',1).encode('utf-16-be','surrogatepass'),
+        'utf32-range':b'\0\0\xfe\xff'+text.encode('utf-32-be')+b'\0\x11\0\0',
         'duplicate-schema':text.replace('"schemaVersion": 1,','"schemaVersion": false,"schemaVersion": 1,',1).encode('utf8')}
     for name,payload in malformed.items():path=data/name;path.write_bytes(payload);unusual.append(path)
     for path in unusual:
@@ -134,7 +141,7 @@ with tempfile.TemporaryDirectory(prefix='coderim-standalone-cli-') as tmp:
         watched.write_bytes((data/'small.json').read_bytes())
         watchenv=env if os.name=='nt' else dict(env,LC_ALL='en_US.UTF-8',TZ='UTC')
         first=execute(exe,['tokens','--snapshot',watched],watchenv)[1]
-        changed=json.loads(watched.read_bytes());changed['providers'][0]['name']='Synthetic replaced frame'
+        changed=json.loads(watched.read_bytes());changed['providers'][0]['name']='Synthetic replaced frame';changed['extension']={'compatibility':True}
         replacement=data/'replacement';replacement.write_bytes(b'\xfe\xff'+json.dumps(changed).encode('utf-16-be'))
         second=execute(exe,['tokens','--snapshot',replacement],watchenv)[1]
         assert first!=second
@@ -203,13 +210,13 @@ with tempfile.TemporaryDirectory(prefix='coderim-standalone-cli-') as tmp:
     bench={}
     for label,argv in [('version',['version']),('tokens-text',['tokens','--snapshot',data/'small.json']),
         ('usage-json',['usage','--snapshot',data/'medium.json','--format','json']),('limits-text',['limits','--snapshot',data/'large.json']),
-        ('typed-utf16',['tokens','--snapshot',data/'utf-16-be'])]:
+        ('native-utf16',['tokens','--snapshot',data/'utf-16-be']),('typed-extended',['tokens','--snapshot',data/'extra'])]:
         samples={m:[] for m in ['legacy','rust']}
         for pair in range(7):
             for mode in (('legacy','rust') if pair%2==0 else ('rust','legacy')):
                 samples[mode].append(process_sample(oracle if mode=='legacy' else candidate,argv))
         assert len({r['checksum'] for side in samples.values() for r in side})==1
-        if label=='typed-utf16':
+        if label=='typed-extended':
             # The elapsed time includes the child. Parent-only process RSS/CPU is not a tree measurement.
             for sample in samples['rust']:sample.pop('cpuMs');sample.pop('peakRss')
         bench[label]=samples

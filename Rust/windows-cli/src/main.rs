@@ -2,6 +2,7 @@
 //! hook commands or compatibility snapshots. No program lookup through PATH.
 mod date;
 mod display;
+mod encoding;
 mod options;
 mod projection;
 mod system;

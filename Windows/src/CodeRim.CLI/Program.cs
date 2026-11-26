@@ -24,7 +24,10 @@ static async Task<int> RunAsync(string[] arguments)
 {
     string command = "usage", period = "today", format = "text";
     string? provider = null, path = null;
-    var watch = 0; var replaceStatusLine = false;
+    var watch = 0;
+#if !CODERIM_SNAPSHOT_STDIN
+    var replaceStatusLine = false;
+#endif
     try
     {
         var start = 0;
@@ -33,7 +36,9 @@ static async Task<int> RunAsync(string[] arguments)
         {
             switch (arguments[i])
             {
+#if !CODERIM_SNAPSHOT_STDIN
                 case "--replace-statusline": replaceStatusLine = true; break;
+#endif
                 case "--provider": provider = Value(arguments, ref i); break;
                 case "--period": period = Value(arguments, ref i); break;
                 case "--snapshot": path = Value(arguments, ref i); break;
