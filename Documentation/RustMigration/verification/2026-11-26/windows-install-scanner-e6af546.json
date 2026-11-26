@@ -1,0 +1,960 @@
+{
+  "run": 45801672728,
+  "workflowUrl": "https://github.com/dlfkdLR/CodeRim/actions/runs/45801672728",
+  "commit": "e6af546998b2314b778e2617628bfd8c02723bae",
+  "releaseRef": "v2.1.41",
+  "scope": "Four native Windows jobs. CLI reference is the executable installed from the published MSI. Scanner comparisons build from the release tag. QA upgrade MSI version is separate from released payload version.",
+  "method": {
+    "installedCli": "Seven fresh processes per case and version in isolated MSI phases. Input and stdout digests must match each case.",
+    "privateHost": "15 interleaved full and companion cold processes for each workload. Each process starts independently; the file cache may be warm.",
+    "scanner": "Actual UsageScanner with synthetic JSONL. Attachment timings are medians of two ordered process-pair sample medians. Absolute timestamps and equal-time inputs cover visibility boundaries."
+  },
+  "platforms": {
+    "x64": {
+      "jobs": {
+        "scanner": {
+          "id": 139846207368,
+          "name": "windows (windows-2025, x86_64-pc-windows-msvc, x64)",
+          "conclusion": "success"
+        },
+        "package": {
+          "id": 139846207612,
+          "name": "windows-package (windows-2025, x64, x86_64-pc-windows-msvc)",
+          "conclusion": "success"
+        }
+      },
+      "githubArtifacts": {
+        "scanner": {
+          "id": 15108491785,
+          "name": "windows-x64-scanner-sessions",
+          "digest": "sha256:dd70f6cb81f1d7e395b12df283b44e7bfbb930b5f5e0b5b167253625862bcde6"
+        },
+        "package": {
+          "id": 15107374235,
+          "name": "windows-x64-migration-installation",
+          "digest": "sha256:4da3f79cb4d389f9d31268057c006788b698f336425b0c3518f9f42fb33f3aa4"
+        }
+      },
+      "scanner": {
+        "referenceCommit": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+        "bridgeSha256": "17455940b88ca0efa45cc38a2d6a98ab0d3c3e1d0b0d24edfb4082122b9ba9ea",
+        "claudeSessionCases": 20,
+        "actualClaudeScans": [
+          {
+            "SourceCount": 2,
+            "HasMoreWork": false,
+            "events": 720,
+            "tokens": 6480,
+            "sessions": 48,
+            "digest": "E1BE0E47ABEE9DFB1786AAE61C465F7BEC7AE56F41572342FA81CDD5C40B22AC"
+          },
+          {
+            "SourceCount": 2,
+            "HasMoreWork": false,
+            "events": 720,
+            "tokens": 6480,
+            "sessions": 48,
+            "digest": "E1BE0E47ABEE9DFB1786AAE61C465F7BEC7AE56F41572342FA81CDD5C40B22AC"
+          }
+        ],
+        "claudeSessions65536": [
+          {
+            "count": 65536,
+            "distinct": 128,
+            "ties": false,
+            "groups": 128,
+            "release": {
+              "ns": 5353100,
+              "bytes": 1166608
+            },
+            "rust": {
+              "ns": 1742000,
+              "bytes": 1072128
+            }
+          },
+          {
+            "count": 65536,
+            "distinct": 16384,
+            "ties": false,
+            "groups": 16384,
+            "release": {
+              "ns": 26509900,
+              "bytes": 13369728
+            },
+            "rust": {
+              "ns": 3472100,
+              "bytes": 3956736
+            }
+          },
+          {
+            "count": 65536,
+            "distinct": 1,
+            "ties": true,
+            "groups": 1,
+            "release": {
+              "ns": 4500300,
+              "bytes": 1049952
+            },
+            "rust": {
+              "ns": 1181000,
+              "bytes": 1048808
+            }
+          }
+        ],
+        "codexCases": 37,
+        "textContract": {
+          "codeUnits": 65536,
+          "digest": "3C25E2CD60AAAA8F3A5D25768E74A5A048D502F036F4FE977BDD87B850ED0440"
+        },
+        "codex65536Observations": [
+          {
+            "tick": -2,
+            "due": 0,
+            "release": {
+              "ns": 619850.0,
+              "bytes": 4496.0
+            },
+            "rust": {
+              "ns": 228900.0,
+              "bytes": 3752.0
+            }
+          },
+          {
+            "tick": -1,
+            "due": 21846,
+            "release": {
+              "ns": 753250.0,
+              "bytes": 179352.0
+            },
+            "rust": {
+              "ns": 455600.0,
+              "bytes": 178608.0
+            }
+          },
+          {
+            "tick": 0,
+            "due": 43692,
+            "release": {
+              "ns": 847750.0,
+              "bytes": 354120.0
+            },
+            "rust": {
+              "ns": 557700.0,
+              "bytes": 353376.0
+            }
+          },
+          {
+            "tick": 1,
+            "due": 65536,
+            "release": {
+              "ns": 1008450.0,
+              "bytes": 528872.0
+            },
+            "rust": {
+              "ns": 341450.0,
+              "bytes": 528128.0
+            }
+          },
+          {
+            "tick": 2,
+            "due": 65536,
+            "release": {
+              "ns": 1035450.0,
+              "bytes": 528872.0
+            },
+            "rust": {
+              "ns": 420850.0,
+              "bytes": 528128.0
+            }
+          }
+        ]
+      },
+      "installation": {
+        "successfulSteps": {
+          "Build ZIP, MSI and MSIX migration packages": "success",
+          "Compare archived Rust files to build inputs and exercise the ZIP CLI": "success",
+          "Exercise MSI installation, rollback, repair and removal": "success",
+          "Install, activate and remove the Store candidate": "success",
+          "Compare stable and candidate native WPF views": "success"
+        },
+        "publicMsiSha256": "1816cf6866cce5be8f626b5d85af1757ec890a8d9b8677f80a3385d602bf298d",
+        "publicMsiVersion": "2.1.41",
+        "candidatePayloadVersion": "2.1.41",
+        "qaMsiVersion": "2.1.42",
+        "publicMsiPhases": [
+          "published-installed-and-profile-read",
+          "failed-upgrade-restored-public-registration-binaries-and-profile",
+          "upgraded-candidate-loaded-preserved-profile",
+          "direct-downgrade-refused-with-data-intact",
+          "published-msi-reinstalled-and-profile-read",
+          "published-uninstalled-and-data-preserved"
+        ],
+        "msiLifecycle": [
+          "signed-legacy-installation-rejected-before-write",
+          "initial-msi-install",
+          "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+          "installed-rust-cli-and-owned-compatibility-host",
+          "upgrade-current-version",
+          "downgrade-refused-without-changes",
+          "installed-native-ui-and-pinned-worker",
+          "uninstall-preserves-user-data-and-unrelated-path",
+          "portable-migration-failure-restores-files-path-shortcut",
+          "portable-migration-and-repair-keep-one-cli-path",
+          "portable-migration-uninstall-preserves-data-and-unrelated-path",
+          "public-2.1.11-msi-reproduces-duplicate-portable-path",
+          "public-2.1.11-failed-upgrade-restores-installation",
+          "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+          "public-upgrade-uninstall-preserves-user-data-and-path"
+        ],
+        "msix": [
+          "installs-per-user-without-administrator",
+          "cli-aliases-registered",
+          "both-cli-aliases-run-cli",
+          "cli-regressions-through-alias",
+          "packaged-native-ui-smoke",
+          "uninstall-removes-app-and-aliases"
+        ],
+        "packages": [
+          {
+            "name": "CodeRim-Windows-2.1.41-x64.zip",
+            "bytes": 150172901,
+            "sha256": "f2d4f5223bab60b88a05185cc04b1f8d55104bb50c27bb2958a1658179a635b7"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-x64-Setup.msi",
+            "bytes": 142508032,
+            "sha256": "f0034ab190b0e91c520bbf2a008bb67b4c13fc1515b7a64aa928b8f394b72bc2"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-x64.msix",
+            "bytes": 112036626,
+            "sha256": "5867dc5bc53b66e7bedc41a5bc864d17d37c2ceef7bbd095d0da16b4eb2411bb"
+          }
+        ],
+        "zipComponents": [
+          {
+            "name": "CodeRimCLI.exe",
+            "bytes": 467968,
+            "sha256": "c504dc01f896d5ca8079136d63bcc24ead863da22d69ac575d219a952714012a",
+            "fileVersion": "2.1.41.0"
+          },
+          {
+            "name": "CodeRimCLIHost.exe",
+            "bytes": 80402555,
+            "sha256": "913890a013fd7ead8af5da527a3224d100ffa45f9e668f27af898e825eaa7224",
+            "fileVersion": "2.1.41.0"
+          },
+          {
+            "name": "coderim_accounting_bridge.dll",
+            "bytes": 363008,
+            "sha256": "92bc967fbdb00727bd1b9209612ac2880b66763832e3d11657704d498e675e62",
+            "fileVersion": null
+          },
+          {
+            "name": "Rust-CLI-Notices.txt",
+            "bytes": 60341,
+            "sha256": "8aa689635324f50b4fb73598dfd1c04cad34e30dde89f1159574dd40f40a6658",
+            "fileVersion": null
+          },
+          {
+            "name": "Rust-Notices.txt",
+            "bytes": 4440,
+            "sha256": "588116ddd332c153747e94f4dcc14e9f0895d1f8f0a138eb735fc10d968ee41a",
+            "fileVersion": null
+          }
+        ],
+        "sizeBytes": {
+          "installed": {
+            "published": 210192960,
+            "candidate": 206105694,
+            "changeBytes": -4087266,
+            "changePercent": -1.944530397212163
+          },
+          "publicCli": {
+            "published": 85476168,
+            "candidate": 467968,
+            "changeBytes": -85008200,
+            "changePercent": -99.45251640199875
+          },
+          ".zip": {
+            "published": 152266293,
+            "candidate": 150172901,
+            "changeBytes": -2093392,
+            "changePercent": -1.374822988565172
+          },
+          ".msi": {
+            "published": 144211968,
+            "candidate": 142508032,
+            "changeBytes": -1703936,
+            "changePercent": -1.1815496478073118
+          }
+        }
+      },
+      "privateHost": {
+        "fullHostBytes": 85560160,
+        "companionHostBytes": 80402555,
+        "removedAssembly": "BouncyCastle.Cryptography.dll",
+        "removedBytes": 5155728,
+        "retainedUpdaterAssemblyBytes": {
+          "CodeRim.exe": 2613440,
+          "CodeRim.UpdateWorker.exe": 2613440
+        },
+        "coldProcess": {
+          "snapshot-fresh": {
+            "median": {
+              "full": 185.0576,
+              "companion": 184.1847
+            },
+            "fasterPairs": 8,
+            "pairCount": 15
+          },
+          "snapshot-reused": {
+            "median": {
+              "full": 185.043,
+              "companion": 185.5809
+            },
+            "fasterPairs": 8,
+            "pairCount": 15
+          },
+          "hook-fresh": {
+            "median": {
+              "full": 121.7566,
+              "companion": 116.6084
+            },
+            "fasterPairs": 9,
+            "pairCount": 15
+          },
+          "hook-reused": {
+            "median": {
+              "full": 120.2585,
+              "companion": 120.4706
+            },
+            "fasterPairs": 7,
+            "pairCount": 15
+          }
+        }
+      },
+      "publishedAndCandidateCli": {
+        "sha256": {
+          "published": "319b1cb7004a1cd558df214799206f25282c1b753f6b268f3e81024e460204a4",
+          "candidate": "c504dc01f896d5ca8079136d63bcc24ead863da22d69ac575d219a952714012a"
+        },
+        "cases": {
+          "writer": {
+            "inputSha256": "0ac555ac0b00da02d192a74ca272566cff97a5509a07d801985312a2d30a4a92",
+            "stdoutSha256": "e32eec23cb1f16d6e88a579645794bf298575e250a93dba05811c67a10b42aad",
+            "samplesMs": {
+              "published": [
+                243.0169,
+                231.9991,
+                221.9462,
+                242.9102,
+                228.6557,
+                232.726,
+                231.9395
+              ],
+              "candidate": [
+                11.6239,
+                10.4592,
+                10.6511,
+                11.0279,
+                12.1666,
+                11.6519,
+                11.3317
+              ]
+            },
+            "medianMs": {
+              "published": 231.9991,
+              "candidate": 11.3317
+            }
+          },
+          "utcEpoch": {
+            "inputSha256": "da691958e987b14727035ef6ebb3016faff095b7cb9c8b9b592b180826405d4f",
+            "stdoutSha256": "577b7a278cbdf88af9ab52f06841677486514a8cf21370c60da9e6cca50634a8",
+            "samplesMs": {
+              "published": [
+                231.2379,
+                249.0821,
+                222.6214,
+                236.7156,
+                214.3265,
+                210.3445,
+                217.4197
+              ],
+              "candidate": [
+                11.191,
+                10.7584,
+                10.4912,
+                10.6928,
+                10.6048,
+                12.1527,
+                11.9097
+              ]
+            },
+            "medianMs": {
+              "published": 222.6214,
+              "candidate": 10.7584
+            }
+          },
+          "utcFraction": {
+            "inputSha256": "fb20323108fe757539088365d5c7392c7804479a2617e81ff22631daa1a6b3d6",
+            "stdoutSha256": "ea213d199dc7399f9f1e13f5d17e68ac25525a581337353930026da45948671a",
+            "samplesMs": {
+              "published": [
+                213.8226,
+                222.989,
+                214.5695,
+                214.0542,
+                216.5712,
+                214.7369,
+                218.1526
+              ],
+              "candidate": [
+                10.4241,
+                10.5437,
+                10.4546,
+                11.1315,
+                11.8397,
+                11.5364,
+                13.172
+              ]
+            },
+            "medianMs": {
+              "published": 214.7369,
+              "candidate": 11.1315
+            }
+          },
+          "typedLocalWallClock": {
+            "inputSha256": "018d2478e734002144b2563aa62c115f7ed10a53a404e09ce9c6b827515368e7",
+            "stdoutSha256": "9d921de642ced4c2e007309d6d86b3178ce8de3c5a6d0a87dfc9496565a593b7",
+            "samplesMs": {
+              "published": [
+                208.6713,
+                212.2642,
+                213.9243,
+                211.2242,
+                216.5665,
+                213.3229,
+                215.8075
+              ],
+              "candidate": [
+                223.8033,
+                228.5231,
+                225.1004,
+                222.5437,
+                237.3998,
+                223.634,
+                230.822
+              ]
+            },
+            "medianMs": {
+              "published": 213.3229,
+              "candidate": 225.1004
+            }
+          },
+          "rootExtension": {
+            "inputSha256": "42c8252c454c0f6c0cac421bb29e196e6a102f9bd2528ad022a5ee21bee1e050",
+            "stdoutSha256": "e32eec23cb1f16d6e88a579645794bf298575e250a93dba05811c67a10b42aad",
+            "samplesMs": {
+              "published": [
+                219.0455,
+                217.5019,
+                214.746,
+                218.5112,
+                214.7641,
+                222.0145,
+                211.1438
+              ],
+              "candidate": [
+                11.7857,
+                10.8072,
+                10.7915,
+                10.7423,
+                10.6892,
+                11.2369,
+                10.9013
+              ]
+            },
+            "medianMs": {
+              "published": 217.5019,
+              "candidate": 10.8072
+            }
+          }
+        }
+      }
+    },
+    "arm64": {
+      "jobs": {
+        "scanner": {
+          "id": 139846207361,
+          "name": "windows (windows-11-arm, aarch64-pc-windows-msvc, arm64)",
+          "conclusion": "success"
+        },
+        "package": {
+          "id": 139846207434,
+          "name": "windows-package (windows-11-arm, arm64, aarch64-pc-windows-msvc)",
+          "conclusion": "success"
+        }
+      },
+      "githubArtifacts": {
+        "scanner": {
+          "id": 15108317381,
+          "name": "windows-arm64-scanner-sessions",
+          "digest": "sha256:82af357397c78aceaa4f37b70053cf83cb1f5a6b69fa1632db8b30f71451a1e3"
+        },
+        "package": {
+          "id": 15108891709,
+          "name": "windows-arm64-migration-installation",
+          "digest": "sha256:87580cbc77ac05a83ee21d812bcf27d89d300522e9e244f837413d77f6e96d4b"
+        }
+      },
+      "scanner": {
+        "referenceCommit": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+        "bridgeSha256": "94c84ce5b29388395be662577a205f43072b7ce171c4e03fa3e1197a4ea4755f",
+        "claudeSessionCases": 20,
+        "actualClaudeScans": [
+          {
+            "SourceCount": 2,
+            "HasMoreWork": false,
+            "events": 720,
+            "tokens": 6480,
+            "sessions": 48,
+            "digest": "E1BE0E47ABEE9DFB1786AAE61C465F7BEC7AE56F41572342FA81CDD5C40B22AC"
+          },
+          {
+            "SourceCount": 2,
+            "HasMoreWork": false,
+            "events": 720,
+            "tokens": 6480,
+            "sessions": 48,
+            "digest": "E1BE0E47ABEE9DFB1786AAE61C465F7BEC7AE56F41572342FA81CDD5C40B22AC"
+          }
+        ],
+        "claudeSessions65536": [
+          {
+            "count": 65536,
+            "distinct": 128,
+            "ties": false,
+            "groups": 128,
+            "release": {
+              "ns": 7771400,
+              "bytes": 1166608
+            },
+            "rust": {
+              "ns": 1937100,
+              "bytes": 1072128
+            }
+          },
+          {
+            "count": 65536,
+            "distinct": 16384,
+            "ties": false,
+            "groups": 16384,
+            "release": {
+              "ns": 27019600,
+              "bytes": 13369728
+            },
+            "rust": {
+              "ns": 3930700,
+              "bytes": 3956736
+            }
+          },
+          {
+            "count": 65536,
+            "distinct": 1,
+            "ties": true,
+            "groups": 1,
+            "release": {
+              "ns": 3979300,
+              "bytes": 1049952
+            },
+            "rust": {
+              "ns": 1398500,
+              "bytes": 1048808
+            }
+          }
+        ],
+        "codexCases": 37,
+        "textContract": {
+          "codeUnits": 65536,
+          "digest": "3C25E2CD60AAAA8F3A5D25768E74A5A048D502F036F4FE977BDD87B850ED0440"
+        },
+        "codex65536Observations": [
+          {
+            "tick": -2,
+            "due": 0,
+            "release": {
+              "ns": 923600.0,
+              "bytes": 4496.0
+            },
+            "rust": {
+              "ns": 301050.0,
+              "bytes": 3752.0
+            }
+          },
+          {
+            "tick": -1,
+            "due": 21846,
+            "release": {
+              "ns": 1013300.0,
+              "bytes": 179352.0
+            },
+            "rust": {
+              "ns": 621600.0,
+              "bytes": 178608.0
+            }
+          },
+          {
+            "tick": 0,
+            "due": 43692,
+            "release": {
+              "ns": 1183400.0,
+              "bytes": 354120.0
+            },
+            "rust": {
+              "ns": 867200.0,
+              "bytes": 353376.0
+            }
+          },
+          {
+            "tick": 1,
+            "due": 65536,
+            "release": {
+              "ns": 1287150.0,
+              "bytes": 528872.0
+            },
+            "rust": {
+              "ns": 438200.0,
+              "bytes": 528128.0
+            }
+          },
+          {
+            "tick": 2,
+            "due": 65536,
+            "release": {
+              "ns": 1234300.0,
+              "bytes": 528872.0
+            },
+            "rust": {
+              "ns": 472000.0,
+              "bytes": 528128.0
+            }
+          }
+        ]
+      },
+      "installation": {
+        "successfulSteps": {
+          "Build ZIP, MSI and MSIX migration packages": "success",
+          "Compare archived Rust files to build inputs and exercise the ZIP CLI": "success",
+          "Exercise MSI installation, rollback, repair and removal": "success",
+          "Install, activate and remove the Store candidate": "success",
+          "Compare stable and candidate native WPF views": "success"
+        },
+        "publicMsiSha256": "393302b1f679fdf1bf82147906c39eb4a045b2a70ed6b7cbb126cb0b0a401073",
+        "publicMsiVersion": "2.1.41",
+        "candidatePayloadVersion": "2.1.41",
+        "qaMsiVersion": "2.1.42",
+        "publicMsiPhases": [
+          "published-installed-and-profile-read",
+          "failed-upgrade-restored-public-registration-binaries-and-profile",
+          "upgraded-candidate-loaded-preserved-profile",
+          "direct-downgrade-refused-with-data-intact",
+          "published-msi-reinstalled-and-profile-read",
+          "published-uninstalled-and-data-preserved"
+        ],
+        "msiLifecycle": [
+          "signed-legacy-installation-rejected-before-write",
+          "initial-msi-install",
+          "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+          "installed-rust-cli-and-owned-compatibility-host",
+          "upgrade-current-version",
+          "downgrade-refused-without-changes",
+          "installed-native-ui-and-pinned-worker",
+          "uninstall-preserves-user-data-and-unrelated-path",
+          "portable-migration-failure-restores-files-path-shortcut",
+          "portable-migration-and-repair-keep-one-cli-path",
+          "portable-migration-uninstall-preserves-data-and-unrelated-path",
+          "public-2.1.11-msi-reproduces-duplicate-portable-path",
+          "public-2.1.11-failed-upgrade-restores-installation",
+          "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+          "public-upgrade-uninstall-preserves-user-data-and-path"
+        ],
+        "msix": [
+          "installs-per-user-without-administrator",
+          "cli-aliases-registered",
+          "both-cli-aliases-run-cli",
+          "cli-regressions-through-alias",
+          "packaged-native-ui-smoke",
+          "uninstall-removes-app-and-aliases"
+        ],
+        "packages": [
+          {
+            "name": "CodeRim-Windows-2.1.41-arm64.zip",
+            "bytes": 141874493,
+            "sha256": "e19a77a809f68b3e57f1aebab3d2bdefdf6fef92c9dcbefe93899ddc47ee9dee"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-arm64-Setup.msi",
+            "bytes": 133562368,
+            "sha256": "454479d471a8d1e4739e5e0e2a478b1d9562bd583c5c569d521158b66e1d13ab"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-arm64.msix",
+            "bytes": 105619871,
+            "sha256": "4bac7b7824114fdd0e48dd4e29d6d705113405e4b669b927bb0324b5da58d58b"
+          }
+        ],
+        "zipComponents": [
+          {
+            "name": "CodeRimCLI.exe",
+            "bytes": 418304,
+            "sha256": "00b21f2d25583ba8a733aa4aef609dfae184a946a55acca59de5e5696870d41d",
+            "fileVersion": "2.1.41.0"
+          },
+          {
+            "name": "CodeRimCLIHost.exe",
+            "bytes": 89249929,
+            "sha256": "b96b8694b541eca95aaef2ebcf9a85f179dda6f965cf666934dff7104768dc02",
+            "fileVersion": "2.1.41.0"
+          },
+          {
+            "name": "coderim_accounting_bridge.dll",
+            "bytes": 330240,
+            "sha256": "1c39c8e16c57fe2eea277071b4010e1fc1a352fe23c51222a0bab74d346e3d9c",
+            "fileVersion": null
+          },
+          {
+            "name": "Rust-CLI-Notices.txt",
+            "bytes": 60341,
+            "sha256": "8aa689635324f50b4fb73598dfd1c04cad34e30dde89f1159574dd40f40a6658",
+            "fileVersion": null
+          },
+          {
+            "name": "Rust-Notices.txt",
+            "bytes": 4440,
+            "sha256": "588116ddd332c153747e94f4dcc14e9f0895d1f8f0a138eb735fc10d968ee41a",
+            "fileVersion": null
+          }
+        ],
+        "sizeBytes": {
+          "installed": {
+            "published": 213780552,
+            "candidate": 209610859,
+            "changeBytes": -4169693,
+            "changePercent": -1.9504547822479235
+          },
+          "publicCli": {
+            "published": 94323542,
+            "candidate": 418304,
+            "changeBytes": -93905238,
+            "changePercent": -99.55652216707468
+          },
+          ".zip": {
+            "published": 143990124,
+            "candidate": 141874493,
+            "changeBytes": -2115631,
+            "changePercent": -1.4692889631791717
+          },
+          ".msi": {
+            "published": 135503872,
+            "candidate": 133562368,
+            "changeBytes": -1941504,
+            "changePercent": -1.4328033371622029
+          }
+        }
+      },
+      "privateHost": {
+        "fullHostBytes": 94407534,
+        "companionHostBytes": 89249929,
+        "removedAssembly": "BouncyCastle.Cryptography.dll",
+        "removedBytes": 5155728,
+        "retainedUpdaterAssemblyBytes": {
+          "CodeRim.exe": 2613440,
+          "CodeRim.UpdateWorker.exe": 2613440
+        },
+        "coldProcess": {
+          "snapshot-fresh": {
+            "median": {
+              "full": 188.999,
+              "companion": 190.0315
+            },
+            "fasterPairs": 7,
+            "pairCount": 15
+          },
+          "snapshot-reused": {
+            "median": {
+              "full": 186.0548,
+              "companion": 184.8223
+            },
+            "fasterPairs": 10,
+            "pairCount": 15
+          },
+          "hook-fresh": {
+            "median": {
+              "full": 130.1414,
+              "companion": 129.5569
+            },
+            "fasterPairs": 9,
+            "pairCount": 15
+          },
+          "hook-reused": {
+            "median": {
+              "full": 127.8417,
+              "companion": 127.4082
+            },
+            "fasterPairs": 10,
+            "pairCount": 15
+          }
+        }
+      },
+      "publishedAndCandidateCli": {
+        "sha256": {
+          "published": "e4c865c960ece0ca2dda6ea2b2f04c56c9ad27d7103110cdea828f10fcb6dad4",
+          "candidate": "00b21f2d25583ba8a733aa4aef609dfae184a946a55acca59de5e5696870d41d"
+        },
+        "cases": {
+          "writer": {
+            "inputSha256": "0ac555ac0b00da02d192a74ca272566cff97a5509a07d801985312a2d30a4a92",
+            "stdoutSha256": "e32eec23cb1f16d6e88a579645794bf298575e250a93dba05811c67a10b42aad",
+            "samplesMs": {
+              "published": [
+                191.2152,
+                190.4798,
+                186.4021,
+                190.8728,
+                192.8128,
+                192.0882,
+                187.5999
+              ],
+              "candidate": [
+                19.03,
+                14.4339,
+                14.3119,
+                14.4323,
+                13.9997,
+                14.3197,
+                14.0407
+              ]
+            },
+            "medianMs": {
+              "published": 190.8728,
+              "candidate": 14.3197
+            }
+          },
+          "utcEpoch": {
+            "inputSha256": "da691958e987b14727035ef6ebb3016faff095b7cb9c8b9b592b180826405d4f",
+            "stdoutSha256": "577b7a278cbdf88af9ab52f06841677486514a8cf21370c60da9e6cca50634a8",
+            "samplesMs": {
+              "published": [
+                186.7512,
+                189.4231,
+                186.8771,
+                184.5075,
+                187.6529,
+                187.8957,
+                189.6791
+              ],
+              "candidate": [
+                13.8984,
+                13.9963,
+                13.8332,
+                14.1206,
+                14.1069,
+                14.5069,
+                14.2883
+              ]
+            },
+            "medianMs": {
+              "published": 187.6529,
+              "candidate": 14.1069
+            }
+          },
+          "utcFraction": {
+            "inputSha256": "fb20323108fe757539088365d5c7392c7804479a2617e81ff22631daa1a6b3d6",
+            "stdoutSha256": "ea213d199dc7399f9f1e13f5d17e68ac25525a581337353930026da45948671a",
+            "samplesMs": {
+              "published": [
+                193.0007,
+                191.1431,
+                196.0474,
+                189.751,
+                191.2634,
+                193.9612,
+                187.7793
+              ],
+              "candidate": [
+                14.7138,
+                15.1184,
+                14.1627,
+                14.2721,
+                14.5403,
+                14.0619,
+                14.0868
+              ]
+            },
+            "medianMs": {
+              "published": 191.2634,
+              "candidate": 14.2721
+            }
+          },
+          "typedLocalWallClock": {
+            "inputSha256": "018d2478e734002144b2563aa62c115f7ed10a53a404e09ce9c6b827515368e7",
+            "stdoutSha256": "423459988a0bcd13b8115aac148884630bbd23ccffa36ee4f7c334939bd3311a",
+            "samplesMs": {
+              "published": [
+                190.8675,
+                188.5874,
+                186.0825,
+                190.1742,
+                183.3825,
+                184.5407,
+                185.4061
+              ],
+              "candidate": [
+                212.3736,
+                217.0214,
+                215.6211,
+                213.9595,
+                213.0792,
+                212.71,
+                215.1244
+              ]
+            },
+            "medianMs": {
+              "published": 186.0825,
+              "candidate": 213.9595
+            }
+          },
+          "rootExtension": {
+            "inputSha256": "42c8252c454c0f6c0cac421bb29e196e6a102f9bd2528ad022a5ee21bee1e050",
+            "stdoutSha256": "e32eec23cb1f16d6e88a579645794bf298575e250a93dba05811c67a10b42aad",
+            "samplesMs": {
+              "published": [
+                191.7503,
+                186.3441,
+                188.059,
+                187.7335,
+                191.0502,
+                191.3149,
+                189.5496
+              ],
+              "candidate": [
+                14.6477,
+                14.2961,
+                14.4553,
+                13.9185,
+                14.3312,
+                14.4989,
+                14.1385
+              ]
+            },
+            "medianMs": {
+              "published": 189.5496,
+              "candidate": 14.3312
+            }
+          }
+        }
+      }
+    }
+  }
+}

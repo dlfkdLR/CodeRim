@@ -1,0 +1,205 @@
+{
+  "source": "615dce6d00708f23cade19dfd953eda4267fea97",
+  "environment": "Local macOS arm64 .NET 10. Exact pinned source rebuilt locally; all four supplied bundles were independently fingerprinted and executed. This is not a Windows-native run.",
+  "reference": "v2.1.41",
+  "previousProductCommit": "5eace1bd",
+  "casesPerInput": 8,
+  "sourcesSha256": {
+    "Windows/src/CodeRim.UsageCore/Parsing/ClaudeJsonlParser.cs": "9c47060290267e9ffe6193572349172e2f1fc4b0898fe57202a09a70efab82e9",
+    "Windows/src/CodeRim.UsageCore/Parsing/UsageLogSession.cs": "da214bff3cbb63abc623aa1ab81c4036329242e44b110c89c69e03a889abc931"
+  },
+  "releaseAndCandidateEvidence": {
+    "v2.1.41": {
+      "compiledFiles": {
+        "CodeRim.UsageCore.dll": "fe144fab2a36c7d6a321f80ba488aa04c623a7542abd96441f124df56c6a74e5",
+        "CodeRim.UsageCore.Tests.dll": "0a649a9b95e1b844106143a4c84a4f5da120559ca5189d8ebf2ddc2bf281d8b3"
+      },
+      "original": [
+        903,
+        "8581eb1452c55e832832632acf13d2ead39cfb709d6d92f18e047f5d76e48eed",
+        {
+          "failed": 2048,
+          "nulls": 65,
+          "normal": 63423,
+          "sha": "5161CA6031C08C445F4724A9D3CA69DA45C87F0155396B521069028586478FAD"
+        }
+      ],
+      "extra": [
+        251,
+        "06e13815a185b902b76ebd2fcf15d10732d475321f188a2797957958bef5f53d",
+        {
+          "failed": 2048,
+          "nulls": 65,
+          "normal": 63423,
+          "sha": "5161CA6031C08C445F4724A9D3CA69DA45C87F0155396B521069028586478FAD"
+        }
+      ]
+    },
+    "preC5": {
+      "compiledFiles": {
+        "CodeRim.UsageCore.dll": "0464efff094a8079fd3ddd9a1a043676478a028fcc349758a1d4edddf303b925",
+        "CodeRim.UsageCore.Tests.dll": "2401634296a612440d9a37fbc79dd0036ebcccfc1885778b104b5ace4b6c3562"
+      },
+      "original": [
+        903,
+        "8581eb1452c55e832832632acf13d2ead39cfb709d6d92f18e047f5d76e48eed",
+        {
+          "failed": 2048,
+          "nulls": 65,
+          "normal": 63423,
+          "sha": "5161CA6031C08C445F4724A9D3CA69DA45C87F0155396B521069028586478FAD"
+        }
+      ],
+      "extra": [
+        251,
+        "06e13815a185b902b76ebd2fcf15d10732d475321f188a2797957958bef5f53d",
+        {
+          "failed": 2048,
+          "nulls": 65,
+          "normal": 63423,
+          "sha": "5161CA6031C08C445F4724A9D3CA69DA45C87F0155396B521069028586478FAD"
+        }
+      ]
+    },
+    "C5": {
+      "compiledFiles": {
+        "CodeRim.UsageCore.dll": "83c6403993b8bf81eb7539648ea2d8fe5aa95fbf92a6b2c9b2264f47e8dac9f0",
+        "CodeRim.UsageCore.Tests.dll": "f78497724bb707c9d310e817c95f4cf50110ee25316e512adb044473977b6a99"
+      },
+      "original": [
+        903,
+        "8581eb1452c55e832832632acf13d2ead39cfb709d6d92f18e047f5d76e48eed",
+        {
+          "failed": 2048,
+          "nulls": 65,
+          "normal": 63423,
+          "sha": "5161CA6031C08C445F4724A9D3CA69DA45C87F0155396B521069028586478FAD"
+        }
+      ],
+      "extra": [
+        251,
+        "06e13815a185b902b76ebd2fcf15d10732d475321f188a2797957958bef5f53d",
+        {
+          "failed": 2048,
+          "nulls": 65,
+          "normal": 63423,
+          "sha": "5161CA6031C08C445F4724A9D3CA69DA45C87F0155396B521069028586478FAD"
+        }
+      ]
+    },
+    "independentExactC5": {
+      "compiledFiles": {
+        "CodeRim.UsageCore.dll": "6becc03f846ff0991879b470bc7c58accf3a52fd47b3f880ed53122604ae210c",
+        "CodeRim.UsageCore.Tests.dll": "a77316b097d09b0998c53b77a17c2c463d0574bb00816e3705a83a788f956d58"
+      },
+      "original": [
+        903,
+        "8581eb1452c55e832832632acf13d2ead39cfb709d6d92f18e047f5d76e48eed",
+        {
+          "failed": 2048,
+          "nulls": 65,
+          "normal": 63423,
+          "sha": "5161CA6031C08C445F4724A9D3CA69DA45C87F0155396B521069028586478FAD"
+        }
+      ],
+      "extra": [
+        251,
+        "06e13815a185b902b76ebd2fcf15d10732d475321f188a2797957958bef5f53d",
+        {
+          "failed": 2048,
+          "nulls": 65,
+          "normal": 63423,
+          "sha": "5161CA6031C08C445F4724A9D3CA69DA45C87F0155396B521069028586478FAD"
+        }
+      ]
+    }
+  },
+  "checkedFixtureHashes": {
+    "originalFixtures": "1af8a191108ebc7ef561a6690dbfddd265750946fdbfa0b7608844256b91410f",
+    "addedFixtures": "c73c2ae7b29957ee1e0a474cf400b8c4f84214f09a0dba9b7d33c8b946b07549",
+    "driver": "d31ba72f30ed7bde681dc3fee0bce9f109990fa4109fcc589ef3a91d85ca5bda"
+  },
+  "medians": {
+    "previous": [
+      {
+        "perLine": 1,
+        "ordinal": true,
+        "bytes": 1302,
+        "us": 2.4427083333333335
+      },
+      {
+        "perLine": 1,
+        "ordinal": false,
+        "bytes": 3342,
+        "us": 3.35
+      },
+      {
+        "perLine": 8,
+        "ordinal": true,
+        "bytes": 1974,
+        "us": 5.128645833333334
+      },
+      {
+        "perLine": 8,
+        "ordinal": false,
+        "bytes": 15638,
+        "us": 10.698437499999999
+      },
+      {
+        "perLine": 64,
+        "ordinal": true,
+        "bytes": 7350,
+        "us": 24.983854166666664
+      },
+      {
+        "perLine": 64,
+        "ordinal": false,
+        "bytes": 113782,
+        "us": 66.765625
+      }
+    ],
+    "independentlyRebuiltCandidate": [
+      {
+        "perLine": 1,
+        "ordinal": true,
+        "bytes": 958,
+        "us": 2.1703125
+      },
+      {
+        "perLine": 1,
+        "ordinal": false,
+        "bytes": 3150,
+        "us": 3.172916666666667
+      },
+      {
+        "perLine": 8,
+        "ordinal": true,
+        "bytes": 1294,
+        "us": 4.280729166666666
+      },
+      {
+        "perLine": 8,
+        "ordinal": false,
+        "bytes": 15262,
+        "us": 9.886458333333334
+      },
+      {
+        "perLine": 64,
+        "ordinal": true,
+        "bytes": 3982,
+        "us": 22.19322916666667
+      },
+      {
+        "perLine": 64,
+        "ordinal": false,
+        "bytes": 112582,
+        "us": 64.95937500000001
+      }
+    ]
+  },
+  "formalHarness": {
+    "decision": "INCONCLUSIVE",
+    "reason": "The formal harness has no native test adapter and no imported operator review."
+  },
+  "correctedReviewSha256": "2ac9b3fef25c0939a177e15c1e4f1d815c03d33370910c5d500474e9f586f9d0"
+}
