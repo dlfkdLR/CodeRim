@@ -255,13 +255,14 @@ export class Relay {
     if (method === 'PUT' && path === '/v1/device') {
       // Only the paired computer can rename its own record; a phone cannot rename another computer.
       requireValue(typeof body?.name === 'string' && body.name.trim().length > 0);
-      const device = store.devices(session.owner, now).find(d => d.session === session.hash);
+      const devices = store.devices(session.owner, now);
+      const device = devices.find(d => d.session === session.hash);
       if (!device) throw new HTTPError(401, 'pairing_required');
       const label = deviceLabel({ platform: device.platform, name: body.name });
       requireValue(label.name.length > 0);
       if (device.name !== label.name) {
         device.name = label.name;
-        device.seq = this.contentSequence(session.owner) + 1;
+        device.seq = this.nextDeviceSequence(session.owner, devices, user, now);
         store.saveDevice(session.owner, device);
         this.settlePickers(session.owner, { context: device.id });
         this.later(() => this.tick(session.owner));
@@ -269,7 +270,8 @@ export class Relay {
       return { ok: true };
     }
     if (method === 'POST' && path === '/v1/snapshot') {
-      const device = store.devices(session.owner, now).find(d => d.session === session.hash);
+      const devices = store.devices(session.owner, now);
+      const device = devices.find(d => d.session === session.hash);
       if (!device) throw new HTTPError(401, 'pairing_required');
       const next = sanitizeSnapshot(body, now);
       // The computer has its token: the pairing that handed it over is finished.
@@ -285,7 +287,7 @@ export class Relay {
       if (!sameSnapshot(device.snapshot, next) || !device.receivedAt) {
         const previousCatalog = JSON.stringify(device.snapshot?.providers.map(p => [p.id, p.name]) ?? []);
         // Written with the content it numbers, so it costs no extra row write.
-        device.seq = this.contentSequence(session.owner) + 1;
+        device.seq = this.nextDeviceSequence(session.owner, devices, user, now);
         device.snapshot = next; device.receivedAt = now; device.onlineWindow = onlineWindow;
         store.saveDevice(session.owner, device);
         const catalogChanged = previousCatalog !== JSON.stringify(next.providers.map(p => [p.id, p.name]));
@@ -427,6 +429,11 @@ export class Relay {
     const notice = this.notice();
     if (notice) state.notice = notice;
     return state;
+  }
+  nextDeviceSequence(owner, devices, user, now) {
+    // Both desktop write handlers stay synchronous from the owner reads through saveDevice.
+    const projection = this.snapshotRead?.(devices, undefined, user.dataFloor ?? 0, now);
+    return (projection?.dataVersion ?? this.contentSequence(owner)) + 1;
   }
   /** The newest content sequence of an account, including computers that have since been removed. */
   contentSequence(owner) {
