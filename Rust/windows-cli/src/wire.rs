@@ -49,6 +49,9 @@ impl<'de> Deserialize<'de> for J {
             fn visit_seq<A: SeqAccess<'de>>(self, mut a: A) -> Result<J, A::Error> {
                 let mut v = Vec::new();
                 while let Some(x) = a.next_element()? {
+                    if v.len() >= 512 {
+                        return Err(de::Error::custom("compatibility array"));
+                    }
                     v.push(x);
                 }
                 Ok(J::Array(v))

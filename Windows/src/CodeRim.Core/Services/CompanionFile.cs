@@ -42,14 +42,13 @@ public static class CompanionFile
         // Delete sharing lets an atomic replacement publish while this reader
         // finishes the previous immutable snapshot. Size checks bind to this handle.
         using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
-        return ReadCore(input, forCli);
+        return ReadCore(input, forCli, input.Length);
     }
 
-    public static CompanionSnapshot ReadCliSnapshotStream(Stream input) => ReadCore(input, forCli: true);
+    public static CompanionSnapshot ReadCliSnapshotStream(Stream input) => ReadCore(input, forCli: true, length: 0);
 
-    private static CompanionSnapshot ReadCore(Stream input, bool forCli)
+    private static CompanionSnapshot ReadCore(Stream input, bool forCli, long length)
     {
-        var length = input.CanSeek ? input.Length : 0;
         if (length > MaximumBytes) throw new InvalidDataException("Snapshot is too large.");
 #if CODERIM_RUST_ACCOUNTING
         var capacity = forCli ? checked((int)length) : 0;

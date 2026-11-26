@@ -40,6 +40,7 @@ fn sibling(name: &str) -> Result<PathBuf, String> {
         .map_err(|_| INVALID)?;
     let resolved = path.canonicalize().ok();
     if !path.is_file()
+        || resolved.as_ref().and_then(|p| p.file_name()) != path.file_name()
         || resolved.as_ref().and_then(|p| p.parent()) != Some(trusted_directory.as_path())
     {
         return Err(format!(
