@@ -98,18 +98,13 @@ pub unsafe extern "C" fn cr_codex_event_identity(
     if append_usage(&mut material, event.cumulative, event.has_cumulative != 0).is_err() {
         return INVALID;
     }
+    sha256_hex(&material).map_or(INVALID, |ascii| DigestText { ascii, valid: 1 })
+}
+
+pub(super) fn sha256_hex(bytes: &[u8]) -> Option<[u8; 64]> {
+    let length = u32::try_from(bytes.len()).ok()?;
     let mut digest = [0; 32];
-    // SAFETY: CommonCrypto consumes the bounded input synchronously and writes a SHA-256 digest.
-    let output = unsafe {
-        CC_SHA256(
-            material.as_ptr().cast(),
-            material.len() as u32,
-            digest.as_mut_ptr(),
-        )
-    };
-    if output.is_null() {
-        INVALID
-    } else {
-        hex(&digest)
-    }
+    // SAFETY: CommonCrypto synchronously reads the slice and fills the 32-byte digest.
+    let output = unsafe { CC_SHA256(bytes.as_ptr().cast(), length, digest.as_mut_ptr()) };
+    (!output.is_null()).then(|| hex(&digest).ascii)
 }

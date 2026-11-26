@@ -56,7 +56,8 @@ def compare_hosts(work):
                   "notch-cursor", "turn-activity", "log-timestamp", "provider-order",
                   "copilot-quota", "ollama-quota", "ollama-local", "glyph-render", "activity-fields",
                   "source-discovery", "notch-viewport", "desktop-mobile-order", "companion-export",
-                  "sqlite-event-import", "source-fingerprint", "import-selection", "claude-tail-activity"]:
+                  "sqlite-event-import", "sqlite-legacy-ids", "source-fingerprint", "import-selection",
+                  "claude-tail-activity"]:
         subprocess.run(["python3", str(Path(__file__).parent / suite / "check.py"),
                         "--archive", str(archive)], check=True)
 

@@ -1,5 +1,8 @@
 import CSQLite
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// Schema upgrades are independent of query caches and live source collection.
 enum SQLiteSchema {
@@ -205,6 +208,10 @@ enum SQLiteSchema {
                 try execute("COMMIT", on: database)
                 return
             }
+            #if CODERIM_RUST_ACCOUNTING
+            try rewriteLegacyIDs(.session, on: database)
+            try rewriteLegacyIDs(.eventSource, on: database)
+            #else
             let sessionIDs = try distinctTextValues(
                 """
                 SELECT session_id FROM usage_events WHERE session_id IS NOT NULL
@@ -247,6 +254,7 @@ enum SQLiteSchema {
                     on: database
                 )
             }
+            #endif
 
             try execute("UPDATE usage_events SET model = NULL, project_path = NULL", on: database)
             try execute("UPDATE parsing_state SET model = NULL, project_path = NULL", on: database)
@@ -365,6 +373,9 @@ enum SQLiteSchema {
                 try execute("COMMIT", on: database)
                 return
             }
+            #if CODERIM_RUST_ACCOUNTING
+            try rewriteLegacyIDs(.checkpointSource, on: database)
+            #else
             let checkpointPaths = try distinctTextValues(
                 "SELECT source_path FROM parsing_state",
                 on: database
@@ -377,6 +388,7 @@ enum SQLiteSchema {
                     on: database
                 )
             }
+            #endif
             try execute("PRAGMA user_version = 8", on: database)
             try execute("COMMIT", on: database)
         } catch {
@@ -770,6 +782,22 @@ enum SQLiteSchema {
         }
     }
 
+    #if CODERIM_RUST_ACCOUNTING
+    private enum LegacyID: UInt8 {
+        case session, eventSource, checkpointSource
+    }
+
+    private static func rewriteLegacyIDs(_ kind: LegacyID, on database: OpaquePointer) throws {
+        var message = "Unable to rewrite legacy usage identities"
+        let result = withUnsafeMutablePointer(to: &message) { context in
+            cr_rewrite_legacy_ids(UnsafeMutableRawPointer(database), kind.rawValue, { context, error in
+                guard let context, let error else { return }
+                context.assumingMemoryBound(to: String.self).pointee = String(cString: error)
+            }, context)
+        }
+        guard result == 1 else { throw SQLiteDatabaseError.migration(message) }
+    }
+    #else
     private static func distinctTextValues(_ sql: String, on database: OpaquePointer) throws -> [String] {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,
@@ -820,6 +848,8 @@ enum SQLiteSchema {
     private static func stableDigest(_ value: String) -> String {
         UsageStorageIdentity.digest(value)
     }
+
+    #endif
 
     static func execute(_ sql: String, on database: OpaquePointer) throws {
         var error: UnsafeMutablePointer<CChar>?
