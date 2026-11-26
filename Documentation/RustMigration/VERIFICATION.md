@@ -108,6 +108,20 @@ The migration branch also corrects pre-existing overcounting from damaged Apple 
 
 The database was also exercised by the signed, notarized **published** v2.1.41 app, the Rust candidate and the same published app in succession. A synthetic Codex log produced 100, then 25, then 8 additional tokens. All historical event identities and the profile fingerprint key survived. Restoring the pre-upgrade SQLite backup and reopening the published app reproduced all three event identities and the final byte offset. SQLite integrity remained `ok` at schema 18 throughout. The test uses one disposable profile and covers locally stored usage. [Machine result](verification/2026-11-26/v2141-to-0a8c675-sqlite.json) · [Reproduction script](../../Scripts/rust_migration/check_macos_data_rollback.py)
 
+## Mac launch and idle measurements
+
+On an M5 Mac the v2.1.41 ad-hoc rebuild and the similarly signed `6661448` Universal candidate each opened a folded notch in 14 launches. Across seven alternating pairs, median time from spawning the process to observing its layer-25 window was 307.28 → 289.67 ms with a fresh disposable profile and 307.67 → 278.60 ms on reopening that profile. The OS file cache was uncontrolled. This covers first use and profile reuse. [Process samples and binary hashes](verification/2026-11-26/gui-launch-6661448.json)
+
+After the folded and idle presentation timers were changed, a separate three-pair run compared `67879c6` to the published v2.1.41 app. A 45-second settling period preceded each 120-second observation. Median CPU was 1.481% → 1.550%, resident memory 24.20 → 26.71 MB, footprint 23.64 → 23.72 MB, and the process energy counter 3.646 → 3.555 J. Repeating with both binaries ad-hoc signed gave 0.705% → 0.843% CPU, 31.11 → 31.65 MB resident memory, 23.53 → 23.54 MB footprint and 0.847 → 0.853 J. Both runs used AC power and concurrent machine activity varied. Idle CPU, resident memory and battery runtime remain open release gates. [Published build comparison](verification/2026-11-26/gui-idle-67879c6.json) · [Matched-signature comparison](verification/2026-11-26/gui-idle-matched-signatures-67879c6.json)
+
+## Desktop data and analytics
+
+The v2 stored event identifiers matched the original implementation for 2,614 cases on arm64 and x86_64. The collector continues to authenticate bytes with the OS HMAC implementation. The native benchmark for a sequence of 8,192 records gave 21.395 → 3.134 µs per record. [Samples](verification/2026-11-26/usage-identity-timing.json)
+
+The Mac settings activity charts matched the released scanner in 196 scenarios and 2,400 additional distribution cases on each architecture, including duplicate reporting days and ties between names. On hosted Windows, the model-series monthly chart took 62.50 → 16.91 µs on x64 and 71.45 → 18.60 µs on ARM64. The token-type chart uses the existing managed path. Windows session grouping separately matched 119 contract checks and 96 independently traversed synthetic graphs. [Mac activity samples](verification/2026-11-26/activity-distribution-final.json) · [Windows x64 charts](verification/2026-11-26/404018c-x64-settings-chart.json) · [Windows ARM64 charts](verification/2026-11-26/404018c-arm64-settings-chart.json) · [Session grouping samples](verification/2026-11-26/windows-session-totals-final-performance.json)
+
+At `6661448` the counted sources contain 4,644 Rust lines among 95,343 total (4.871%). This source count includes the retained native and fallback implementations. Feature coverage is tracked separately in the inventory. [Language counts](verification/2026-11-26/production-source-lines.json)
+
 ## Release status
 
 The migration branch is experimental. The data-collection and account flows, all UI surfaces, credentials and settings, mobile/relay compatibility, product-wide performance, long-running stability, upgrades, rollback and distribution signatures require further implementation or evidence. The published v2.1.41 artifacts remain the recovery reference. [Inventory](BASELINE.md) · [Build and rollback details](ARCHITECTURE.md)

@@ -1,0 +1,525 @@
+[
+  {
+    "names": 3,
+    "days": 7,
+    "loops": 1200,
+    "samples": {
+      "Swift": [
+        {
+          "checksum": 712080,
+          "microseconds": 1.534375
+        },
+        {
+          "checksum": 712080,
+          "microseconds": 1.6913891666666665
+        },
+        {
+          "checksum": 712080,
+          "microseconds": 1.2722916666666668
+        },
+        {
+          "checksum": 712080,
+          "microseconds": 1.2238541666666667
+        },
+        {
+          "checksum": 712080,
+          "microseconds": 1.2578125
+        },
+        {
+          "checksum": 712080,
+          "microseconds": 1.2139583333333333
+        },
+        {
+          "checksum": 712080,
+          "microseconds": 1.2626741666666668
+        }
+      ],
+      "Rust": [
+        {
+          "checksum": 712080,
+          "microseconds": 0.9823266666666667
+        },
+        {
+          "checksum": 712080,
+          "microseconds": 1.1455558333333333
+        },
+        {
+          "checksum": 712080,
+          "microseconds": 0.9991666666666666
+        },
+        {
+          "checksum": 712080,
+          "microseconds": 1.2571183333333333
+        },
+        {
+          "checksum": 712080,
+          "microseconds": 1.0984025
+        },
+        {
+          "checksum": 712080,
+          "microseconds": 1.0659375
+        },
+        {
+          "checksum": 712080,
+          "microseconds": 0.9974308333333334
+        }
+      ]
+    },
+    "medianUs": {
+      "Swift": 1.2626741666666668,
+      "Rust": 1.0659375
+    }
+  },
+  {
+    "names": 12,
+    "days": 7,
+    "loops": 400,
+    "samples": {
+      "Swift": [
+        {
+          "checksum": 941520,
+          "microseconds": 4.4809375
+        },
+        {
+          "checksum": 941520,
+          "microseconds": 4.366667499999999
+        },
+        {
+          "checksum": 941520,
+          "microseconds": 5.4948950000000005
+        },
+        {
+          "checksum": 941520,
+          "microseconds": 4.545835
+        },
+        {
+          "checksum": 941520,
+          "microseconds": 4.2353125
+        },
+        {
+          "checksum": 941520,
+          "microseconds": 4.291457500000001
+        },
+        {
+          "checksum": 941520,
+          "microseconds": 4.26229
+        }
+      ],
+      "Rust": [
+        {
+          "checksum": 941520,
+          "microseconds": 3.7146875
+        },
+        {
+          "checksum": 941520,
+          "microseconds": 3.747085
+        },
+        {
+          "checksum": 941520,
+          "microseconds": 3.914895
+        },
+        {
+          "checksum": 941520,
+          "microseconds": 4.1015625
+        },
+        {
+          "checksum": 941520,
+          "microseconds": 3.6764575
+        },
+        {
+          "checksum": 941520,
+          "microseconds": 3.825105
+        },
+        {
+          "checksum": 941520,
+          "microseconds": 3.831355
+        }
+      ]
+    },
+    "medianUs": {
+      "Swift": 4.366667499999999,
+      "Rust": 3.825105
+    }
+  },
+  {
+    "names": 24,
+    "days": 30,
+    "loops": 160,
+    "samples": {
+      "Swift": [
+        {
+          "checksum": 3233984,
+          "microseconds": 26.0484375
+        },
+        {
+          "checksum": 3233984,
+          "microseconds": 25.672393749999998
+        },
+        {
+          "checksum": 3233984,
+          "microseconds": 31.00495
+        },
+        {
+          "checksum": 3233984,
+          "microseconds": 26.18828125
+        },
+        {
+          "checksum": 3233984,
+          "microseconds": 25.71745
+        },
+        {
+          "checksum": 3233984,
+          "microseconds": 25.953125
+        },
+        {
+          "checksum": 3233984,
+          "microseconds": 26.500525000000003
+        }
+      ],
+      "Rust": [
+        {
+          "checksum": 3233984,
+          "microseconds": 16.71198125
+        },
+        {
+          "checksum": 3233984,
+          "microseconds": 16.454425
+        },
+        {
+          "checksum": 3233984,
+          "microseconds": 16.17474375
+        },
+        {
+          "checksum": 3233984,
+          "microseconds": 15.8395875
+        },
+        {
+          "checksum": 3233984,
+          "microseconds": 16.91640625
+        },
+        {
+          "checksum": 3233984,
+          "microseconds": 15.71796875
+        },
+        {
+          "checksum": 3233984,
+          "microseconds": 21.892443749999998
+        }
+      ]
+    },
+    "medianUs": {
+      "Swift": 26.0484375,
+      "Rust": 16.454425
+    }
+  },
+  {
+    "names": 100,
+    "days": 30,
+    "loops": 50,
+    "samples": {
+      "Swift": [
+        {
+          "checksum": 4200450,
+          "microseconds": 134.13332
+        },
+        {
+          "checksum": 4200450,
+          "microseconds": 272.06
+        },
+        {
+          "checksum": 4200450,
+          "microseconds": 329.5725
+        },
+        {
+          "checksum": 4200450,
+          "microseconds": 103.9575
+        },
+        {
+          "checksum": 4200450,
+          "microseconds": 121.47332
+        },
+        {
+          "checksum": 4200450,
+          "microseconds": 104.38916
+        },
+        {
+          "checksum": 4200450,
+          "microseconds": 117.9025
+        }
+      ],
+      "Rust": [
+        {
+          "checksum": 4200450,
+          "microseconds": 161.3725
+        },
+        {
+          "checksum": 4200450,
+          "microseconds": 135.59834
+        },
+        {
+          "checksum": 4200450,
+          "microseconds": 97.2875
+        },
+        {
+          "checksum": 4200450,
+          "microseconds": 67.7725
+        },
+        {
+          "checksum": 4200450,
+          "microseconds": 56.41918
+        },
+        {
+          "checksum": 4200450,
+          "microseconds": 69.95
+        },
+        {
+          "checksum": 4200450,
+          "microseconds": 55.93584
+        }
+      ]
+    },
+    "medianUs": {
+      "Swift": 121.47332,
+      "Rust": 69.95
+    }
+  },
+  {
+    "names": 100,
+    "days": 90,
+    "loops": 15,
+    "samples": {
+      "Swift": [
+        {
+          "checksum": 3780378,
+          "microseconds": 388.91113333333334
+        },
+        {
+          "checksum": 3780378,
+          "microseconds": 294.58886666666666
+        },
+        {
+          "checksum": 3780378,
+          "microseconds": 304.4278
+        },
+        {
+          "checksum": 3780378,
+          "microseconds": 299.33893333333333
+        },
+        {
+          "checksum": 3780378,
+          "microseconds": 354.1778
+        },
+        {
+          "checksum": 3780378,
+          "microseconds": 299.8
+        },
+        {
+          "checksum": 3780378,
+          "microseconds": 307.5333333333333
+        }
+      ],
+      "Rust": [
+        {
+          "checksum": 3780378,
+          "microseconds": 145.7972
+        },
+        {
+          "checksum": 3780378,
+          "microseconds": 145.68893333333332
+        },
+        {
+          "checksum": 3780378,
+          "microseconds": 144.1389333333333
+        },
+        {
+          "checksum": 3780378,
+          "microseconds": 146.45553333333334
+        },
+        {
+          "checksum": 3780378,
+          "microseconds": 146.9
+        },
+        {
+          "checksum": 3780378,
+          "microseconds": 145.6444
+        },
+        {
+          "checksum": 3780378,
+          "microseconds": 154.70833333333334
+        }
+      ]
+    },
+    "medianUs": {
+      "Swift": 304.4278,
+      "Rust": 145.7972
+    }
+  },
+  {
+    "workload": "cached-scanner",
+    "names": 3,
+    "days": 7,
+    "loops": 60,
+    "samples": {
+      "Swift": [
+        {
+          "checksum": 4860,
+          "microseconds": 46.39445
+        },
+        {
+          "checksum": 4860,
+          "microseconds": 46.37708333333333
+        },
+        {
+          "checksum": 4860,
+          "microseconds": 47.729166666666664
+        },
+        {
+          "checksum": 4860,
+          "microseconds": 46.34235
+        },
+        {
+          "checksum": 4860,
+          "microseconds": 48.8993
+        }
+      ],
+      "Rust": [
+        {
+          "checksum": 4860,
+          "microseconds": 45.84515
+        },
+        {
+          "checksum": 4860,
+          "microseconds": 56.3514
+        },
+        {
+          "checksum": 4860,
+          "microseconds": 46.39235
+        },
+        {
+          "checksum": 4860,
+          "microseconds": 46.44583333333333
+        },
+        {
+          "checksum": 4860,
+          "microseconds": 48.93193333333333
+        }
+      ]
+    },
+    "medianUs": {
+      "Swift": 46.39445,
+      "Rust": 46.44583333333333
+    }
+  },
+  {
+    "workload": "cached-scanner",
+    "names": 24,
+    "days": 30,
+    "loops": 60,
+    "samples": {
+      "Swift": [
+        {
+          "checksum": 131880,
+          "microseconds": 139.29306666666668
+        },
+        {
+          "checksum": 131880,
+          "microseconds": 141.13471666666666
+        },
+        {
+          "checksum": 131880,
+          "microseconds": 149.50695
+        },
+        {
+          "checksum": 131880,
+          "microseconds": 146.6882
+        },
+        {
+          "checksum": 131880,
+          "microseconds": 145.16736666666668
+        }
+      ],
+      "Rust": [
+        {
+          "checksum": 131880,
+          "microseconds": 124.82638333333334
+        },
+        {
+          "checksum": 131880,
+          "microseconds": 123.01318333333333
+        },
+        {
+          "checksum": 131880,
+          "microseconds": 132.04096666666666
+        },
+        {
+          "checksum": 131880,
+          "microseconds": 136.24861666666666
+        },
+        {
+          "checksum": 131880,
+          "microseconds": 135.83125
+        }
+      ]
+    },
+    "medianUs": {
+      "Swift": 145.16736666666668,
+      "Rust": 132.04096666666666
+    }
+  },
+  {
+    "workload": "cached-scanner",
+    "names": 100,
+    "days": 30,
+    "loops": 60,
+    "samples": {
+      "Swift": [
+        {
+          "checksum": 542280,
+          "microseconds": 410.0639
+        },
+        {
+          "checksum": 542280,
+          "microseconds": 416.4916666666667
+        },
+        {
+          "checksum": 542280,
+          "microseconds": 421.6659666666667
+        },
+        {
+          "checksum": 542280,
+          "microseconds": 408.57916666666665
+        },
+        {
+          "checksum": 542280,
+          "microseconds": 419.86735
+        }
+      ],
+      "Rust": [
+        {
+          "checksum": 542280,
+          "microseconds": 344.8652833333333
+        },
+        {
+          "checksum": 542280,
+          "microseconds": 354.90276666666665
+        },
+        {
+          "checksum": 542280,
+          "microseconds": 349.10695
+        },
+        {
+          "checksum": 542280,
+          "microseconds": 388.82708333333335
+        },
+        {
+          "checksum": 542280,
+          "microseconds": 352.19166666666666
+        }
+      ]
+    },
+    "medianUs": {
+      "Swift": 416.4916666666667,
+      "Rust": 352.19166666666666
+    }
+  }
+]

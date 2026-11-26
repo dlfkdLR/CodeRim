@@ -1,0 +1,22 @@
+{
+  "run": 45739798758,
+  "candidate": "404018c",
+  "results": {
+    "x64": {
+      "installed": {
+        "desktop-hwnd-mismatch": 10
+      },
+      "msix-x64": {
+        "desktop-hwnd-mismatch": 10
+      }
+    },
+    "arm64": {
+      "msix-arm64": {
+        "desktop-hwnd-mismatch": 10
+      },
+      "installed": {
+        "desktop-hwnd-mismatch": 10
+      }
+    }
+  }
+}

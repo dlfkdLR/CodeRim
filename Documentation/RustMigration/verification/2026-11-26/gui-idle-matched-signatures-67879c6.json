@@ -1,0 +1,287 @@
+{
+  "os": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "warmup_s": 45.0,
+  "interval_s": 120.0,
+  "power_source": "Now drawing from 'AC Power'",
+  "scope": "Main app PID. Empty profile, network and personal home blocked. No control of concurrent system load.",
+  "sha256": {
+    "reference": "d1833d92d514bff18552a5afe36caf527466451058b22bdee4751e7ba8688083",
+    "candidate": "979fb7ac9244f8a5f3857b922e07be7eec68e1143824c9884b611d0157d34153"
+  },
+  "samples": [
+    {
+      "pair": 1,
+      "app": "reference",
+      "start": {
+        "visible_notches": 1,
+        "cpu_ms": 987.8045,
+        "resident_bytes": 37847040,
+        "footprint_bytes": 23479160,
+        "peak_footprint_bytes": 24347704,
+        "interrupt_wakeups": 325,
+        "package_idle_wakeups": 10,
+        "disk_read_bytes": 347549696,
+        "disk_written_bytes": 16384,
+        "logical_writes": 487436,
+        "energy_nj": 2137306236
+      },
+      "end": {
+        "visible_notches": 1,
+        "cpu_ms": 1753.11670833,
+        "resident_bytes": 31113216,
+        "footprint_bytes": 24249208,
+        "peak_footprint_bytes": 24494968,
+        "interrupt_wakeups": 1017,
+        "package_idle_wakeups": 51,
+        "disk_read_bytes": 354062336,
+        "disk_written_bytes": 16384,
+        "logical_writes": 487436,
+        "energy_nj": 3436276519
+      },
+      "delta": {
+        "cpu_ms": 765.31220833,
+        "energy_nj": 1298970283,
+        "disk_read_bytes": 6512640,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 692,
+        "package_idle_wakeups": 41,
+        "logical_writes": 0
+      },
+      "seconds": 120.05404025000462,
+      "cpu_percent": 0.6374730968956045
+    },
+    {
+      "pair": 1,
+      "app": "candidate",
+      "start": {
+        "visible_notches": 1,
+        "cpu_ms": 1048.48495833,
+        "resident_bytes": 35061760,
+        "footprint_bytes": 23315248,
+        "peak_footprint_bytes": 23643144,
+        "interrupt_wakeups": 485,
+        "package_idle_wakeups": 48,
+        "disk_read_bytes": 307310592,
+        "disk_written_bytes": 16384,
+        "logical_writes": 479244,
+        "energy_nj": 2712600501
+      },
+      "end": {
+        "visible_notches": 1,
+        "cpu_ms": 5442.461875,
+        "resident_bytes": 29966336,
+        "footprint_bytes": 24249136,
+        "peak_footprint_bytes": 24429360,
+        "interrupt_wakeups": 3289,
+        "package_idle_wakeups": 92,
+        "disk_read_bytes": 361312256,
+        "disk_written_bytes": 16384,
+        "logical_writes": 479244,
+        "energy_nj": 11154864223
+      },
+      "delta": {
+        "cpu_ms": 4393.97691667,
+        "energy_nj": 8442263722,
+        "disk_read_bytes": 54001664,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 2804,
+        "package_idle_wakeups": 44,
+        "logical_writes": 0
+      },
+      "seconds": 120.06443637500342,
+      "cpu_percent": 3.659682291720477
+    },
+    {
+      "pair": 2,
+      "app": "candidate",
+      "start": {
+        "visible_notches": 1,
+        "cpu_ms": 1507.66383333,
+        "resident_bytes": 40517632,
+        "footprint_bytes": 23495496,
+        "peak_footprint_bytes": 24151048,
+        "interrupt_wakeups": 681,
+        "package_idle_wakeups": 20,
+        "disk_read_bytes": 371134464,
+        "disk_written_bytes": 16384,
+        "logical_writes": 487436,
+        "energy_nj": 3675725721
+      },
+      "end": {
+        "visible_notches": 1,
+        "cpu_ms": 2313.103125,
+        "resident_bytes": 31653888,
+        "footprint_bytes": 23544648,
+        "peak_footprint_bytes": 24151048,
+        "interrupt_wakeups": 1253,
+        "package_idle_wakeups": 47,
+        "disk_read_bytes": 375672832,
+        "disk_written_bytes": 16384,
+        "logical_writes": 487436,
+        "energy_nj": 4528789394
+      },
+      "delta": {
+        "cpu_ms": 805.4392916700001,
+        "energy_nj": 853063673,
+        "disk_read_bytes": 4538368,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 572,
+        "package_idle_wakeups": 27,
+        "logical_writes": 0
+      },
+      "seconds": 120.04757391600288,
+      "cpu_percent": 0.6709334186408172
+    },
+    {
+      "pair": 2,
+      "app": "reference",
+      "start": {
+        "visible_notches": 1,
+        "cpu_ms": 790.26120833,
+        "resident_bytes": 32882688,
+        "footprint_bytes": 23446392,
+        "peak_footprint_bytes": 24265832,
+        "interrupt_wakeups": 322,
+        "package_idle_wakeups": 45,
+        "disk_read_bytes": 296456192,
+        "disk_written_bytes": 16384,
+        "logical_writes": 450572,
+        "energy_nj": 1748674305
+      },
+      "end": {
+        "visible_notches": 1,
+        "cpu_ms": 1636.886375,
+        "resident_bytes": 30359552,
+        "footprint_bytes": 23528312,
+        "peak_footprint_bytes": 24265832,
+        "interrupt_wakeups": 904,
+        "package_idle_wakeups": 203,
+        "disk_read_bytes": 301039616,
+        "disk_written_bytes": 16384,
+        "logical_writes": 450572,
+        "energy_nj": 2524197147
+      },
+      "delta": {
+        "cpu_ms": 846.62516667,
+        "energy_nj": 775522842,
+        "disk_read_bytes": 4583424,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 582,
+        "package_idle_wakeups": 158,
+        "logical_writes": 0
+      },
+      "seconds": 120.08320358399942,
+      "cpu_percent": 0.705032128892012
+    },
+    {
+      "pair": 3,
+      "app": "reference",
+      "start": {
+        "visible_notches": 1,
+        "cpu_ms": 880.0835,
+        "resident_bytes": 44007424,
+        "footprint_bytes": 23315320,
+        "peak_footprint_bytes": 24216608,
+        "interrupt_wakeups": 441,
+        "package_idle_wakeups": 41,
+        "disk_read_bytes": 356626432,
+        "disk_written_bytes": 16384,
+        "logical_writes": 450572,
+        "energy_nj": 2153391966
+      },
+      "end": {
+        "visible_notches": 1,
+        "cpu_ms": 1814.44370833,
+        "resident_bytes": 31637504,
+        "footprint_bytes": 23364472,
+        "peak_footprint_bytes": 24216608,
+        "interrupt_wakeups": 1176,
+        "package_idle_wakeups": 83,
+        "disk_read_bytes": 368939008,
+        "disk_written_bytes": 16384,
+        "logical_writes": 450572,
+        "energy_nj": 3000372260
+      },
+      "delta": {
+        "cpu_ms": 934.36020833,
+        "energy_nj": 846980294,
+        "disk_read_bytes": 12312576,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 735,
+        "package_idle_wakeups": 42,
+        "logical_writes": 0
+      },
+      "seconds": 120.0814925829909,
+      "cpu_percent": 0.778105091993459
+    },
+    {
+      "pair": 3,
+      "app": "candidate",
+      "start": {
+        "visible_notches": 1,
+        "cpu_ms": 912.90358333,
+        "resident_bytes": 80560128,
+        "footprint_bytes": 23397216,
+        "peak_footprint_bytes": 24003568,
+        "interrupt_wakeups": 318,
+        "package_idle_wakeups": 37,
+        "disk_read_bytes": 322232320,
+        "disk_written_bytes": 16384,
+        "logical_writes": 458764,
+        "energy_nj": 1893910471
+      },
+      "end": {
+        "visible_notches": 1,
+        "cpu_ms": 1925.54795833,
+        "resident_bytes": 71778304,
+        "footprint_bytes": 23495520,
+        "peak_footprint_bytes": 24003568,
+        "interrupt_wakeups": 980,
+        "package_idle_wakeups": 71,
+        "disk_read_bytes": 322408448,
+        "disk_written_bytes": 16384,
+        "logical_writes": 458764,
+        "energy_nj": 2404949664
+      },
+      "delta": {
+        "cpu_ms": 1012.6443750000001,
+        "energy_nj": 511039193,
+        "disk_read_bytes": 176128,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 662,
+        "package_idle_wakeups": 34,
+        "logical_writes": 0
+      },
+      "seconds": 120.0747817090014,
+      "cpu_percent": 0.8433447561488152
+    }
+  ],
+  "median": {
+    "reference": {
+      "cpu_ms": 846.62516667,
+      "energy_nj": 846980294,
+      "disk_read_bytes": 6512640,
+      "disk_written_bytes": 0,
+      "interrupt_wakeups": 692,
+      "package_idle_wakeups": 42,
+      "logical_writes": 0,
+      "cpu_percent": 0.705032128892012,
+      "resident_bytes": 31113216,
+      "footprint_bytes": 23528312,
+      "peak_footprint_bytes": 24265832
+    },
+    "candidate": {
+      "cpu_ms": 1012.6443750000001,
+      "energy_nj": 853063673,
+      "disk_read_bytes": 4538368,
+      "disk_written_bytes": 0,
+      "interrupt_wakeups": 662,
+      "package_idle_wakeups": 34,
+      "logical_writes": 0,
+      "cpu_percent": 0.8433447561488152,
+      "resident_bytes": 31653888,
+      "footprint_bytes": 23544648,
+      "peak_footprint_bytes": 24151048
+    }
+  }
+}
