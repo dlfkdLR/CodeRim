@@ -182,3 +182,21 @@ iPhone 17 Pro, iOS 26.4.1 시뮬레이터에서 `7b13d53`의 XCTest 48건이 통
 같은 Mac의 ad hoc arm64 Release 두 개에서 노치를 접고 45초 기다린 뒤 120초씩 관찰했다. 화면이 잠겨 있던 첫 두 쌍에서 기존판 CPU는 0.845%, 0.920%, 후보는 0.321%, 0.349%였다. 세 번째 쌍은 후보를 측정할 때 화면이 풀려 비교 조건이 달라졌다. 세 쌍의 RSS 중앙값은 34,766,848→42,434,560바이트, 메모리 footprint는 29,295,432→29,180,768바이트였다. 전원은 시작할 때 배터리였고 앱의 에너지 카운터와 시스템 배터리 수명은 별도 지표다. [시작·끝 잠금 상태와 6개 관측](verification/2026-11-26/macos-idle-v2141-cursor.json)
 
 `220636c`의 제품 소스는 같은 기준으로 101,245줄, 그중 Rust는 9,149줄(9.036%)이었다. 공개 v2.1.41은 88,673줄로 Rust가 없었다. 집계는 공백·주석과 소스 내 테스트를 포함하며 기능 이관율은 별도로 검증한다. [언어별 집계와 대상 경로](verification/2026-11-26/production-source-lines.json)
+
+### macOS 파일 검색, 프로젝트별 집계와 노치 페이지
+
+APFS에서 v2.1.41, Swift 대조군, Rust 후보가 찾은 파일과 순서를 65개 조건에서 비교했다. Apple Silicon과 Rosetta에서 각각 모두 일치했다. 파일 8,192개를 검색한 5회 중앙값은 기존 175.77 ms, 경로 문자열을 캐시한 Swift 120.13 ms, Rust 정렬을 사용한 후보 116.39 ms였다. 경로 문자열의 반복 생성 제거가 개선의 대부분을 설명한다. [파일 검색 측정](verification/2026-11-26/macos-session-discovery.json)
+
+실제 SQLite에서 프로젝트별 사용량과 세션 수를 함께 읽는 후보를 두 아키텍처에서 각각 168개 전체 조회 결과 및 오류와 대조했다. 65,000행에서 7회 중앙값은 기존 359.13 ms, 직전 후보 301.19 ms, 현재 후보 186.07 ms였다. 같은 프로젝트의 표시 이름이 섞인 5,000행은 각각 12.93, 10.37, 11.15 ms였다. [프로젝트별 조회 및 대조 결과](verification/2026-11-26/macos-project-analytics.json)
+
+노치의 네 가장자리, 화면 크기·배율·하드웨어 절개, 경계에서 한 부동소수점 단위 차이, 페이지 이동과 표시 공급자를 포함한 3,962개 모델 결과가 arm64와 Rosetta에서 기존판과 같았다. 공급자 70개로 창 크기를 고정한 상태에서 페이지 용량·범위 텍스트·공급자 ID를 읽는 중앙값은 1.049 ms에서 5.48 µs로 줄었다. 후보는 페이지 용량을 캐시하고 화면에 들어갈 범위를 먼저 계산한다. 실제 창 캡처는 별도로 측정했다. 사용량이 있는 설정 창의 차트 4,056,000픽셀은 네 조건 모두 일치했다. 작은 밝은 창의 첫 캡처에는 툴바 10픽셀 차이가 있었으며 기존판 재촬영에서는 일치했다. [페이지 모델 측정](verification/2026-11-26/macos-notch-viewport.json) · [사용량 설정 화면 원본과 비교](verification/2026-11-26/populated-settings/README.md)
+
+### 계정, 데스크톱 화면과 iPhone
+
+공식 로그인, 사용자가 제공한 API 키, CodeRim 저장소를 계정 연결 범위로 삼았다. Windows x64와 ARM64에서 각각 70개 공급자 목록, 자격 증명이 없을 때 HTTP 요청 0건, 합성 공식 기기 로그인 응답, API 키, DPAPI 저장·복원, 기존 계정 레이블 보존을 확인했다. 두 아키텍처 모두 4개 합성 HTTP 요청을 처리했다. 이 검사는 공급자 실서버 로그인과 설치된 모든 설정 화면의 동작까지 검증하지 않는다. [계정 경계 영수증](verification/2026-11-26/windows-owned-account-boundary.json)
+
+Windows의 MSI와 MSIX에서 실행한 실제 창과 데스크톱의 RGB를 비교한 첫 40건 중 엄격 비교를 통과한 건은 0건이었다. x64는 이미지당 52–12,639픽셀 차이가 있었고, ARM64는 소유 창의 9개 점 모두에서 데스크톱 창 소유권을 확인할 수 없었다. 이 결과는 Windows 화면 동등성의 미해결 항목이다. iOS는 별도 CI에서 iPhone 17 Pro 시뮬레이터의 49개 테스트가 전부 통과했다. [Windows 창과 데스크톱 비교](verification/2026-11-26/windows-native-client-captures.json) · [iOS xcresult 요약](verification/2026-11-26/ios-88cac4c-tests.json)
+
+### 고정 의존성의 보안 권고
+
+2026-11-26 OSV에서 Rust 16개 버전, NuGet 11개 버전, Swift 9개 고정 커밋을 조회했다. Swift Crypto 4.5.2에서 Apple의 High 권고 CVE-2026-86983 한 건이 검색됐다. 영향받는 제품은 CryptoExtras와 그 재노출 모듈이며 수정 버전은 5.0.3이다. CodeRim의 CodexBarCore는 Crypto 제품만 요청한다. 두 macOS 아키텍처의 Release 링크 입력과 심볼, 확인한 앱·의존성 소스에 해당 모듈·연산 참조가 없었다. 고정 버전은 권고 범위에 남아 있어 빌드 대상이나 의존성 변경 시 다시 확인해야 한다. 저장소의 Dependabot 경보 API는 비활성 상태였다. [버전별 조회 결과](verification/2026-11-26/resolved-dependency-advisories.json) · [Darwin 빌드의 링크 범위](verification/2026-11-26/swift-crypto-product-scope.json) · [Apple 보안 권고](https://github.com/apple/swift-crypto/security/advisories/GHSA-jwv7-rv4f-rff2)

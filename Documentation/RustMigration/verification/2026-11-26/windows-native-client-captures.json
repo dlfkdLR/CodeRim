@@ -1,0 +1,89 @@
+{
+  "architectures": [
+    {
+      "run": 45755734587,
+      "commit": "220636cd6c467062dd2125e08a79fac17e4347ef",
+      "architecture": "x64",
+      "artifact": 15087981761,
+      "archiveDigest": "sha256:e6c828c76b4e14e906e02e80fd6ce0fdcdf396e94c139ba7fb9c840328b2463c",
+      "groups": {
+        "installed": {
+          "receipts": 10,
+          "verified": 0,
+          "ownedOnly": 10,
+          "noImage": 0,
+          "status": {
+            "desktop-hwnd-mismatch": 10
+          },
+          "differentPixelsMinMax": [
+            52,
+            12639
+          ],
+          "ownedPoints": {
+            "9": 7,
+            "8": 3
+          }
+        },
+        "msix-x64": {
+          "receipts": 10,
+          "verified": 0,
+          "ownedOnly": 10,
+          "noImage": 0,
+          "status": {
+            "desktop-hwnd-mismatch": 10
+          },
+          "differentPixelsMinMax": [
+            52,
+            12639
+          ],
+          "ownedPoints": {
+            "9": 7,
+            "8": 3
+          }
+        }
+      }
+    },
+    {
+      "run": 45755734587,
+      "commit": "220636cd6c467062dd2125e08a79fac17e4347ef",
+      "architecture": "arm64",
+      "artifact": 15087692990,
+      "archiveDigest": "sha256:6d6ec68162bc709095939a1e3a003d448b7ed14002c409ef8b5542fcb9b26987",
+      "groups": {
+        "installed": {
+          "receipts": 10,
+          "verified": 0,
+          "ownedOnly": 10,
+          "noImage": 0,
+          "status": {
+            "desktop-hwnd-mismatch": 10
+          },
+          "differentPixelsMinMax": [
+            18460,
+            737063
+          ],
+          "ownedPoints": {
+            "0": 10
+          }
+        },
+        "msix-arm64": {
+          "receipts": 10,
+          "verified": 0,
+          "ownedOnly": 10,
+          "noImage": 0,
+          "status": {
+            "desktop-hwnd-mismatch": 10
+          },
+          "differentPixelsMinMax": [
+            18460,
+            737063
+          ],
+          "ownedPoints": {
+            "0": 10
+          }
+        }
+      }
+    }
+  ],
+  "method": "Exact RGB between owned HWND rendering and the composited desktop. Record only numeric differences and the window-owned bitmap. Ownership was sampled at 9 client points."
+}

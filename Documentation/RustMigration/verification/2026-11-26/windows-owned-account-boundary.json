@@ -1,0 +1,33 @@
+{
+  "run": 45756584497,
+  "commit": "3aa8361",
+  "mode": "Native x64 and ARM64 synthetic official-device/API-key requests, direct user-owned fixture DPAPI. No public sign-in credentials used.",
+  "architectures": {
+    "x64": {
+      "id": 15088485973,
+      "receipt": {
+        "rid": "win-x64",
+        "providers": 70,
+        "historicalLabelPreserved": true,
+        "missingSentRequests": 0,
+        "officialDevice": true,
+        "vaultRestored": true,
+        "apiKey": true,
+        "httpRequests": 4
+      }
+    },
+    "arm64": {
+      "id": 15088037378,
+      "receipt": {
+        "rid": "win-arm64",
+        "providers": 70,
+        "historicalLabelPreserved": true,
+        "missingSentRequests": 0,
+        "officialDevice": true,
+        "vaultRestored": true,
+        "apiKey": true,
+        "httpRequests": 4
+      }
+    }
+  }
+}

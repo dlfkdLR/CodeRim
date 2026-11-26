@@ -1,0 +1,135 @@
+{
+  "commit": "2d986c3811fee3f44d167ada425822b1d7173180",
+  "machine": "Apple M5, APFS, macOS 26.6.2",
+  "comparison": "Three complete native filesystem discovery outputs per case, including URL, stat, identity, order, limit and failure. Per-run logical path/mtime hashes can vary with fresh fixtures.",
+  "contracts": [
+    "arm64 65 complete filesystem comparisons 90f005a7d7d17d925566f459898c1850ebf177a4f4ae533e1314bfbdb31d6b87",
+    "x86_64 65 complete filesystem comparisons 4e3be054c2cf4908ca088894ce71628d3904db4ba33026c215755f3d8b7deb9e"
+  ],
+  "independent": [
+    "arm64 65 complete filesystem comparisons cf23144c458ad2fe612c976e839fd063253a3c4492713eaf62d1ffab19bb9785",
+    "x86_64 65 complete filesystem comparisons 383b8f7f609a0ce149b1015a3c27b87dc786424e29ec52469786e3bcab0f6147"
+  ],
+  "timing": {
+    "8": {
+      "samplesMs": {
+        "release": [
+          2.979583,
+          2.044167,
+          1.874125,
+          1.997417,
+          1.887208
+        ],
+        "cached": [
+          2.004291,
+          1.65675,
+          1.892417,
+          1.891958,
+          1.965167
+        ],
+        "rust": [
+          1.782417,
+          1.76,
+          1.953166,
+          2.076292,
+          2.032542
+        ]
+      },
+      "medianMs": {
+        "release": 1.997417,
+        "cached": 1.892417,
+        "rust": 1.953166
+      }
+    },
+    "257": {
+      "samplesMs": {
+        "release": [
+          24.86,
+          25.524791,
+          24.966667,
+          25.173791,
+          25.591042
+        ],
+        "cached": [
+          22.55625,
+          21.672709,
+          22.047542,
+          21.60525,
+          21.421958
+        ],
+        "rust": [
+          13.238541,
+          12.737,
+          13.062375,
+          13.384542,
+          13.315917
+        ]
+      },
+      "medianMs": {
+        "release": 25.173791,
+        "cached": 21.672709,
+        "rust": 13.238541
+      }
+    },
+    "1024": {
+      "samplesMs": {
+        "release": [
+          25.9565,
+          24.8405,
+          25.462417,
+          25.729209,
+          41.162375
+        ],
+        "cached": [
+          18.94075,
+          18.404208,
+          19.342083,
+          18.234458,
+          19.98125
+        ],
+        "rust": [
+          18.021458,
+          18.34725,
+          18.261375,
+          18.277,
+          17.559375
+        ]
+      },
+      "medianMs": {
+        "release": 25.729209,
+        "cached": 18.94075,
+        "rust": 18.261375
+      }
+    },
+    "8192": {
+      "samplesMs": {
+        "release": [
+          188.1265,
+          172.047792,
+          175.544084,
+          176.110666,
+          175.773375
+        ],
+        "cached": [
+          122.961791,
+          120.128542,
+          119.649375,
+          117.5475,
+          138.047333
+        ],
+        "rust": [
+          116.389625,
+          113.221417,
+          114.127292,
+          119.942166,
+          128.243375
+        ]
+      },
+      "medianMs": {
+        "release": 175.773375,
+        "cached": 120.128542,
+        "rust": 116.389625
+      }
+    }
+  }
+}

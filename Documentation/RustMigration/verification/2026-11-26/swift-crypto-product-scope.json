@@ -1,0 +1,62 @@
+{
+  "alert": "CVE-2026-86983",
+  "vendorAdvisory": "https://github.com/apple/swift-crypto/security/advisories/GHSA-jwv7-rv4f-rff2",
+  "vendorSeverity": "High",
+  "affectedTarget": "CryptoExtras and its _CryptoExtras reexport",
+  "fixedVersion": "5.0.3",
+  "lockfile": "Package.resolved",
+  "lockfileSha256": "537f9ce434e34bf47722658e83f1b848b8ec877c6eb9fdc4364bff32b53148b3",
+  "pinned": {
+    "revision": "da9d28d69ebe3894b18376c8f2395c2f37b8448f",
+    "version": "4.5.2"
+  },
+  "dependencyParent": "CodexBarCore requests the Crypto product, with a package range starting at 4.5.2 and below 5.0.0",
+  "parentManifestSha256": "34fc8296e162547590f177317a496f93f63c392dfc3537a20e716b5840c1b382",
+  "filesMentioningAffectedAPIOrModule": {
+    "Sources": 0,
+    "iOS/CodeRimMobile": 0,
+    "iOS/CodeRimLiveActivity": 0,
+    ".build/coderim-build/checkouts/CodexBar/Sources/CodexBarCore": 0,
+    ".build/coderim-build/checkouts/SweetCookieKit/Sources": 0
+  },
+  "releaseCryptoLinkFileLists": {
+    "arm64": [
+      "Crypto.LinkFileList"
+    ],
+    "x86_64": [
+      "Crypto.LinkFileList"
+    ]
+  },
+  "preparedReleaseObjects": {
+    "CodexBarCore.o": {
+      "bytes": 98723360,
+      "sha256": "0806aa84cb24832532a26e2dc11a69d1b00c87b4825599441c461a35ad5d0da3",
+      "symbols": {
+        "arm64": {
+          "count": 162848,
+          "voprfOrCryptoExtras": 0
+        },
+        "x86_64": {
+          "count": 154843,
+          "voprfOrCryptoExtras": 0
+        }
+      }
+    },
+    "Crypto.o": {
+      "bytes": 22160,
+      "sha256": "58495083ef98899ba4ac877f0598ff8e5b871748d373e3c5a59ea5c0a9352886",
+      "symbols": {
+        "arm64": {
+          "count": 59,
+          "voprfOrCryptoExtras": 0
+        },
+        "x86_64": {
+          "count": 60,
+          "voprfOrCryptoExtras": 0
+        }
+      }
+    }
+  },
+  "scope": "The tested Darwin product build selected Crypto, with no CryptoExtras linkage or VOPRF references in the checked sources or objects. The dependency version itself remains in the vendor-affected range. Reassess at any target, dependency, or build-definition change.",
+  "checkedAt": "2026-11-26T04:54:27.913302+00:00"
+}

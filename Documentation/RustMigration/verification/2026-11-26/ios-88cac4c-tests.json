@@ -1,0 +1,21 @@
+{
+  "commit": "88cac4c4c0b6ed3a6798533c231282659218db4c",
+  "run": 45754906213,
+  "job": 139691142123,
+  "artifact": 15087299172,
+  "archiveDigest": "sha256:2dc7676668a966aba0d2148b02175ba7b4a9fa84e8bf30dc5cd423f413b54b32",
+  "device": {
+    "architecture": "arm64",
+    "modelName": "iPhone 17 Pro",
+    "osBuildNumber": "23E254a",
+    "osVersion": "26.4.1",
+    "platform": "iOS Simulator"
+  },
+  "passedTests": 49,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "expectedFailures": 0,
+  "result": "Passed",
+  "runtimeWarnings": [],
+  "testFailures": []
+}
