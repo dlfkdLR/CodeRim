@@ -1,15 +1,39 @@
 //! Indices, equality classes and revision metadata only; provider strings stay in Swift.
-use std::{collections::HashSet, mem::size_of, slice};
+use super::alloc::{collections::BTreeSet, vec::Vec};
+use core::{mem::size_of, ptr, slice};
 
 const MISSING: u8 = 0;
 const ENABLE: u8 = 1;
 const DISABLE: u8 = 2;
 const MAX_SELECTION: usize = 100;
 
+/// Swift assigns equality classes in first-seen order. Each new class is the
+/// next integer, even if both lists contain duplicates.
+fn missing_in_order(keys: &[u32], available: usize) -> Option<Vec<u32>> {
+    let mut next = 0;
+    let mut missing = Vec::new();
+    for (index, &key) in keys.iter().enumerate() {
+        if key > next {
+            return None;
+        }
+        if key == next {
+            next += 1;
+            if index >= available {
+                missing.push(index as u32);
+            }
+        }
+    }
+    Some(missing)
+}
+
 fn plan(operation: u8, keys: &[u32], available: usize, target: u32) -> Option<Vec<u32>> {
     let (connected, saved) = keys.split_at(available);
     if operation == MISSING {
-        let mut known: HashSet<u32> = connected.iter().copied().collect();
+        if let Some(missing) = missing_in_order(keys, available) {
+            return Some(missing);
+        }
+        // The public C function also accepts arbitrary numeric equality classes.
+        let mut known: BTreeSet<u32> = connected.iter().copied().collect();
         return Some(
             saved
                 .iter()
@@ -87,7 +111,7 @@ pub unsafe extern "C" fn cr_mobile_provider_indices(
     if !indices.is_empty() {
         // SAFETY: caller owns capacity writable elements; the Vec is a separate allocation.
         unsafe {
-            std::ptr::copy_nonoverlapping(indices.as_ptr(), output, indices.len());
+            ptr::copy_nonoverlapping(indices.as_ptr(), output, indices.len());
         }
     }
     indices.len()
@@ -161,7 +185,7 @@ pub unsafe extern "C" fn cr_mobile_reconcile_snapshot(
         return FALLBACK;
     }
     // SAFETY: caller lends a populated array, validated above, without retaining it across an await.
-    let versions = unsafe { std::slice::from_raw_parts(versions, count) };
+    let versions = unsafe { slice::from_raw_parts(versions, count) };
     let mut newest = versions[0];
     for next in &versions[1..] {
         // Swift max(by:) replaces the accumulator only when its comparison is true.
@@ -189,6 +213,15 @@ mod tests {
         assert_eq!(plan(ENABLE, &[1, 1], 2, 3).unwrap(), [0, 1, 2]);
         assert_eq!(plan(DISABLE, &[1, 1, 2, 3, 3, 2], 2, 3).unwrap(), [2, 5]);
         assert!(plan(DISABLE, &[1, 1], 2, 1).unwrap().is_empty());
+    }
+
+    #[test]
+    fn missing_retains_the_first_saved_index_for_interned_and_arbitrary_classes() {
+        assert_eq!(plan(MISSING, &[0, 0, 1, 2, 1, 3, 2], 3, 0).unwrap(), [3, 5]);
+        assert_eq!(
+            plan(MISSING, &[0, 1, 2, u32::MAX, 2, u32::MAX, 4], 2, 0).unwrap(),
+            [2, 3, 6]
+        );
     }
 
     #[test]

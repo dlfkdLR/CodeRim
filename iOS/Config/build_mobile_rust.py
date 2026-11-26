@@ -63,8 +63,9 @@ def main():
                 product = Path(directory) / (arch + ".a")
                 subprocess.run([rust, "--edition=2024", "--crate-name", "coderim_mobile",
                                 "--crate-type", "staticlib", "--target", TARGETS[(platform, arch)],
-                                "-C", "opt-level=s", "-C", "panic=abort", "-C", "debuginfo=line-tables-only",
-                                str(SOURCE / "mobile.rs"), "-o", str(product)], check=True)
+                                "-C", "opt-level=s", "-C", "lto=fat", "-C", "codegen-units=1",
+                                "-C", "panic=abort", "-C", "debuginfo=line-tables-only",
+                                str(SOURCE / "mobile_standalone.rs"), "-o", str(product)], check=True)
                 slices.append(product)
             if len(slices) == 1:
                 slices[0].replace(merged)

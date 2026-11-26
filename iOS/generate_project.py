@@ -90,6 +90,7 @@ for name, sources in target_sources.items():
             settings.update(GENERATE_INFOPLIST_FILE='YES',TEST_HOST='$(BUILT_PRODUCTS_DIR)/CodeRimMobile.app/CodeRimMobile',BUNDLE_LOADER='$(TEST_HOST)')
         else: settings['INFOPLIST_FILE']='Config/'+name+'-Info.plist'
         if name=='CodeRimMobile':
+            if config=='Release': settings['SWIFT_COMPILATION_MODE']='wholemodule'
             settings.update(ASSETCATALOG_COMPILER_APPICON_NAME='AppIcon',CODE_SIGN_ENTITLEMENTS='Config/CodeRimMobile-NoPush.entitlements' if os.environ.get('CODERIM_NO_PUSH') else 'Config/CodeRimMobile.entitlements',APS_ENVIRONMENT='development' if config=='Debug' else 'production')
         if name=='CodeRimLiveActivity':
             settings.update(APPLICATION_EXTENSION_API_ONLY='YES',SKIP_INSTALL='YES',LD_RUNPATH_SEARCH_PATHS=['$(inherited)','@executable_path/Frameworks','@executable_path/../../Frameworks'])

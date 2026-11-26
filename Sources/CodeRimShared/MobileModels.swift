@@ -205,19 +205,27 @@ extension MobilePreferences {
     private func providerIndices(_ available: [MobileProviderOption], operation: Int, target: String? = nil) -> [Int]? {
         let (count, overflow) = available.count.addingReportingOverflow(providerIDs.count)
         guard !overflow, UInt32(exactly: count) != nil else { return nil }
-        var keyByID: [String: UInt32] = [:]
-        func key(_ id: String) -> UInt32 {
-            if let existing = keyByID[id] { return existing }
-            let next = UInt32(keyByID.count)
-            keyByID[id] = next
-            return next
-        }
         var keys: [UInt32] = []
         keys.reserveCapacity(count)
-        for option in available { keys.append(key(option.id)) }
-        for id in providerIDs { keys.append(key(id)) }
-        let targetKey = target.map(key) ?? 0
-        let capacity = operation == CR_MOBILE_MISSING ? providerIDs.count : 100
+        let targetKey: UInt32
+        if let target {
+            // A toggle tests each ID only against this target.
+            targetKey = 1
+            for option in available { keys.append(option.id == target ? 1 : 0) }
+            for id in providerIDs { keys.append(id == target ? 1 : 0) }
+        } else {
+            targetKey = 0
+            var keyByID: [String: UInt32] = [:]
+            func key(_ id: String) -> UInt32 {
+                if let existing = keyByID[id] { return existing }
+                let next = UInt32(keyByID.count)
+                keyByID[id] = next
+                return next
+            }
+            for option in available { keys.append(key(option.id)) }
+            for id in providerIDs { keys.append(key(id)) }
+        }
+        let capacity = operation == CR_MOBILE_MISSING ? providerIDs.count : min(100, count + 1)
         var output = [UInt32](repeating: 0, count: capacity)
         let written = keys.withUnsafeBufferPointer { inputs in
             output.withUnsafeMutableBufferPointer { indices in
