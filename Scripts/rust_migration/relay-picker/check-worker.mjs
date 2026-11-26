@@ -10,7 +10,7 @@ const { Miniflare, convertV4MiniflareOptions } = require('miniflare');
 const root = fileURLToPath(new URL('../../../MobileRelay/', import.meta.url));
 const config = await readFile(join(root, 'wrangler.toml'), 'utf8');
 const compatibilityDate = /^compatibility_date = "([^"]+)"/m.exec(config)[1];
-async function replay(entry, read = false) {
+async function replay(entry, bindings = {}) {
   const files = new Set([entry]);
   for (const name of await readdir(join(root, 'src'))) {
     if (name.endsWith('.mjs') && name !== 'node-sql.mjs') files.add('src/' + name);
@@ -25,7 +25,7 @@ async function replay(entry, read = false) {
     type: file.endsWith('.wasm') ? 'CompiledWasm' : 'ESModule' }));
   let outbound = 0;
   const mf = new Miniflare(convertV4MiniflareOptions({ modules, modulesRoot: root, compatibilityDate,
-    bindings: { CODERIM_RUST_SNAPSHOT_READ: read ? '1' : '' },
+    bindings,
     compatibilityFlags: ['nodejs_compat'], cf: false, host: '127.0.0.1', port: 0,
     durableObjects: { RELAY: { className: 'RelayObject', useSQLite: true } },
     outboundService: () => { outbound++; throw new Error('Unexpected outbound service request'); } }));
@@ -63,7 +63,12 @@ async function replay(entry, read = false) {
     await mf.dispose();
   }
 }
+const configured = /^main = "([^"]+)"$/m.exec(config)[1];
+const defaults = Object.fromEntries([...config.matchAll(/^(CODERIM_RUST_[A-Z_]+) = "([^"]+)"$/gm)]
+  .map(([, name, value]) => [name, value]));
+assert.equal(configured, 'migration/worker.mjs');
+assert.deepEqual(defaults, { CODERIM_RUST_SNAPSHOT_READ: '1', CODERIM_RUST_PUSH_STARTER: '1' });
 const oracle = await replay('src/worker.mjs');
-assert.deepEqual(await replay('migration/worker.mjs'), oracle);
-assert.deepEqual(await replay('migration/worker.mjs', true), oracle);
-console.log('Three local SQLite Durable Object modes matched provider picker, content generation, current computer, online flags and persisted GET.');
+assert.deepEqual(await replay(configured, {}), oracle);
+assert.deepEqual(await replay(configured, defaults), oracle);
+console.log('Default Wrangler entry and bindings matched the JavaScript reference on a local SQLite Durable Object.');

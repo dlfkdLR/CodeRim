@@ -6,8 +6,11 @@ Cloudflare Worker with one SQLite-backed Durable Object. Deploy it on the Worker
 
 ```sh
 npm test                 # Node 24, no dependencies
+npx wrangler deploy --dry-run --outdir ./.wrangler/local-build
 npx wrangler deploy      # after `wrangler login` and the secrets in the reference
 ```
+
+Wrangler packages the checked-in Rust module. After editing the relay Rust sources, run `npm run build` in this directory with rustup installed and commit the generated Wasm alongside the source. CI rebuilds it with the pinned compiler and compares the exact bytes.
 
 [Deployment, free-plan limits, pairing protocol, and verification limits](../Documentation/IPHONE.md).
 

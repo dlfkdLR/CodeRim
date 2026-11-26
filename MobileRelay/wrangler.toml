@@ -1,7 +1,7 @@
 # Deploy on the Workers Free plan only. It cannot bill: when a daily allowance is
 # used up, requests fail until 00:00 UTC. Never add a paid plan to this account.
 name = "coderim-relay"
-main = "src/worker.mjs"
+main = "migration/worker.mjs"
 compatibility_date = "2026-09-01"
 compatibility_flags = ["nodejs_compat"]
 # The relay is served through the Pages front in pages/, because some Korean networks
@@ -17,6 +17,8 @@ tag = "v1"
 new_sqlite_classes = ["RelayObject"]
 
 [vars]
+CODERIM_RUST_SNAPSHOT_READ = "1"
+CODERIM_RUST_PUSH_STARTER = "1"
 APPLE_BUNDLE_ID = "dev.coderim.mobile"
 APNS_ENVIRONMENT = "production"
 # Secrets (wrangler secret put): APPLE_TEAM_ID, APNS_KEY_ID, APNS_PRIVATE_KEY

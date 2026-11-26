@@ -6,8 +6,11 @@ SQLite 기반 Durable Object 하나를 쓰는 Cloudflare Worker입니다. Worker
 
 ```sh
 npm test                 # Node 24, no dependencies
+npx wrangler deploy --dry-run --outdir ./.wrangler/local-build
 npx wrangler deploy      # after `wrangler login` and the secrets in the reference
 ```
+
+Wrangler는 저장소에 포함된 Rust 모듈을 패키징합니다. 릴레이 Rust 코드를 수정하면 rustup이 설치된 환경에서 이 디렉터리의 `npm run build`를 실행하고 생성된 Wasm을 소스와 함께 커밋합니다. CI가 고정된 컴파일러로 다시 빌드해 바이트를 대조합니다.
 
 [배포·무료 플랜 한도·연결 프로토콜·검증 제한 상세](../Documentation/IPHONE.ko.md).
 

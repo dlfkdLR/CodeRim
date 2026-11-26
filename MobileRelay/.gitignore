@@ -1,4 +1,4 @@
 .dev.vars
 .wrangler/
 node_modules/
-/migration/quick_picker.wasm
+/migration/.wasm-build-*/
