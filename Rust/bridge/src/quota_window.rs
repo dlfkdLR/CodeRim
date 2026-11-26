@@ -2,6 +2,49 @@
 //! All account data, calendar arithmetic, localized dates and UI remain in Swift.
 #[repr(C)]
 #[derive(Clone, Copy)]
+pub struct MenuRow {
+    minutes: isize,
+    index: usize,
+    codex: bool,
+}
+
+/// # Safety
+/// The caller provides `count` initialized, exclusively borrowed rows. The
+/// synchronous comparator may only read the separate original windows by index.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cr_quota_menu_order(
+    rows: *mut MenuRow,
+    count: usize,
+    additional: bool,
+    windows: *const core::ffi::c_void,
+    compare: extern "C" fn(*const core::ffi::c_void, usize, usize) -> i32,
+) -> usize {
+    if count == 0 {
+        return 0;
+    }
+    // SAFETY: the caller owns a writable buffer of precisely this length.
+    let rows = unsafe { core::slice::from_raw_parts_mut(rows, count) };
+    let mut visible = 0;
+    for index in 0..count {
+        let row = rows[index];
+        if additional || row.codex {
+            rows[visible] = row;
+            visible += 1;
+        }
+    }
+    let weekly = |row: &MenuRow| row.codex && (9_000..=11_000).contains(&row.minutes);
+    rows[..visible].sort_unstable_by(|lhs, rhs| {
+        weekly(rhs)
+            .cmp(&weekly(lhs))
+            .then_with(|| lhs.minutes.cmp(&rhs.minutes))
+            .then_with(|| compare(windows, lhs.index, rhs.index).cmp(&0))
+            .then_with(|| lhs.index.cmp(&rhs.index))
+    });
+    visible
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
 pub struct Number {
     value: i64,
     style: u32,

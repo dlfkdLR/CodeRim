@@ -2,6 +2,13 @@
 #define CODERIM_QUOTA_WINDOW_H
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
+
+// Original indices are valid in the live host buffer. Foundation compares tied names and IDs.
+typedef struct { intptr_t minutes; size_t index; bool codex; } cr_quota_menu_row;
+typedef int32_t (*cr_quota_menu_compare)(const void *windows, size_t lhs, size_t rhs);
+size_t cr_quota_menu_order(cr_quota_menu_row *rows, size_t count, bool additional,
+                           const void *windows, cr_quota_menu_compare compare);
 
 // Numbers are integers or integer tenths. The host owns all localized text.
 enum { CR_QUOTA_WHOLE, CR_QUOTA_TENTHS, CR_QUOTA_BELOW_TENTH, CR_QUOTA_ABOVE_99_9, CR_QUOTA_UNAVAILABLE };
