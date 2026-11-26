@@ -1,4 +1,7 @@
 import AppKit
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// Reference-pixel measurements use the conversion in NotchDesign.
 enum NotchLayout {
@@ -200,6 +203,27 @@ enum NotchLayout {
         bodyLength(cellCount: cellCount, edge: edge) + 2 * flare
     }
 
+#if CODERIM_RUST_ACCOUNTING
+    // The same AppKit font and design measurements feed drawing, placement and hit testing.
+    private static let cardMetrics = cr_card_metrics(
+        header: 2 * cardPadding + max(glyphSize, cardTitleLineHeight), header_gap: headerToBlock,
+        account_block: headerToBlock + accountRowHeight, today_block: headerToBlock + cardBodyLineHeight,
+        full_row: 2 * cardBodyLineHeight + labelToBar + barHeight + barToUsed,
+        body_line: cardBodyLineHeight, spacing: blockSpacing,
+        group_extra: cardBodyLineHeight + NotchDesign.px(12) + 2 * NotchDesign.px(16),
+        group_gap: NotchDesign.px(28) - blockSpacing, group_bottom: NotchDesign.px(8),
+        token_block: codexUsageTop + hairline + blockSpacing + codexMetricTop + codexMetricHeight
+            + codexMetricBottom + hairline + 2 * cardBodyLineHeight + codexUsageRowGap + codexChartTop + codexChartHeight,
+        session_section: blockSpacing + hairline + blockSpacing,
+        session_row: 2 * cardBodyLineHeight + sessionRowGap, hidden_line: blockSpacing + cardBodyLineHeight
+    )
+
+    private static func cardFlags(hasAccount: Bool, hasToday: Bool, hasBlock: Bool, hasTokens: Bool) -> UInt32 {
+        UInt32((hasAccount ? CR_CARD_ACCOUNT : 0) | (hasToday ? CR_CARD_TODAY : 0)
+            | (hasBlock ? CR_CARD_BLOCK : 0) | (hasTokens ? CR_CARD_TOKENS : 0))
+    }
+#endif
+
     /// The tooltip's height for a given number of limit windows and live
     /// sessions. Worked out here rather than left to SwiftUI so the hover region
     /// can be computed before the card is ever laid out.
@@ -211,6 +235,15 @@ enum NotchLayout {
                            hasTodaysTokens: Bool = false,
                            hasAccountRow: Bool = false,
                            compactRowCount: Int = 0) -> CGFloat {
+#if CODERIM_RUST_ACCOUNTING
+        let content = cr_card_content(windows: Int64(windowCount), compact: Int64(compactRowCount),
+            groups: Int64(groupCount), sessions: Int64(sessionCount), cap: Int64(sessionCap),
+            flags: cardFlags(hasAccount: hasAccountRow, hasToday: hasTodaysTokens,
+                             hasBlock: blockMessage != nil, hasTokens: hasTokenUsage),
+            status_height: windowCount > 0 ? 0 : bodyTextHeight(statusMessage ?? ""),
+            block_height: blockMessage.map { Double(bodyTextHeight($0)) } ?? 0)
+        return cr_notch_card_height(cardMetrics, content)
+#else
         let header = max(glyphSize, cardTitleLineHeight)
         var height = 2 * cardPadding + header
         if hasAccountRow { height += headerToBlock + accountRowHeight }
@@ -273,6 +306,7 @@ enum NotchLayout {
             }
         }
         return height
+#endif
     }
 
     /// Drawing, tooltip placement and mouse hit testing share every row flag.
@@ -312,6 +346,13 @@ enum NotchLayout {
                                 hasTokenUsage: Bool = false,
                                 hasTodaysTokens: Bool = false,
                                 hasAccountRow: Bool = false) -> Int {
+#if CODERIM_RUST_ACCOUNTING
+        let content = cr_card_content(windows: Int64(windowCount), compact: 0, groups: Int64(groupCount),
+            sessions: 0, cap: 0, flags: cardFlags(hasAccount: hasAccountRow, hasToday: hasTodaysTokens,
+                                                hasBlock: false, hasTokens: hasTokenUsage),
+            status_height: cardBodyLineHeight, block_height: 0)
+        return Int(cr_notch_sessions_fitting(cardMetrics, content, cardBudget, Int32(sessionCeiling)))
+#else
         var fits = 0
         for n in 1...sessionCeiling {
             // Costed as though something were still hidden, so that admitting
@@ -326,6 +367,7 @@ enum NotchLayout {
             fits = n
         }
         return fits
+#endif
     }
 
     /// Past this many rows the list has stopped being glanceable, and counting

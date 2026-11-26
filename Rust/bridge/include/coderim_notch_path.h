@@ -27,6 +27,20 @@ typedef struct {
     double width, height, curl_radius, corner_radius, bezel_fillet, hardware_height;
 } cr_notch_parameters;
 
+/* Screen points from AppKit typography and the existing design metrics. */
+typedef struct {
+    double header, header_gap, account_block, today_block, full_row, body_line, spacing;
+    double group_extra, group_gap, group_bottom, token_block, session_section, session_row, hidden_line;
+} cr_card_metrics;
+enum { CR_CARD_ACCOUNT = 1, CR_CARD_TODAY = 2, CR_CARD_BLOCK = 4, CR_CARD_TOKENS = 8 };
+typedef struct {
+    int64_t windows, compact, groups, sessions, cap;
+    uint32_t flags;
+    double status_height, block_height;
+} cr_card_content;
+double cr_notch_card_height(cr_card_metrics metrics, cr_card_content content);
+int32_t cr_notch_sessions_fitting(cr_card_metrics metrics, cr_card_content content, double budget, int32_t ceiling);
+
 /* Zero commands requests the native fallback. No caller-owned buffer is retained. */
 cr_notch_path cr_make_notch_path(cr_notch_parameters parameters);
 #ifdef __cplusplus

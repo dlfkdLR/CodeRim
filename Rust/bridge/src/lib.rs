@@ -5,6 +5,8 @@ mod account_history;
 mod aggregation;
 #[cfg(any(target_os = "macos", test))]
 mod analytics_chart;
+#[cfg(any(target_os = "macos", test))]
+mod card_layout;
 mod claude_json;
 mod event_json;
 #[cfg(any(target_os = "macos", test))]
