@@ -27,4 +27,25 @@ typedef void (*cr_visit_project)(void *, cr_project_summary);
    delivers complete model/bucket rows and delegates only projects to the host. */
 int32_t cr_read_apple_project_analytics(void *statement, void *metadata, const double *ends, size_t count, int64_t threshold,
                                         void *context, cr_visit_analytics visit, cr_visit_project projects);
+typedef struct {
+    const uint8_t *bytes;
+    size_t length;
+} cr_analytics_text;
+typedef struct {
+    cr_analytics_text id, project, name, parent;
+    double start, activity;
+    int32_t has_start;
+    int64_t images;
+    size_t children;
+    const cr_analytics_summary *models;
+    size_t model_count;
+} cr_session_summary;
+typedef void (*cr_visit_session)(void *, cr_session_summary);
+/* Metadata returns project_name, started_at, parent_session_id and image_attachment_count.
+   A session visitor requires a writable sessions_complete flag. It becomes 1 after all
+   session rows are delivered, including for the empty result. When 0, use the released
+   session query. The model and project status codes are the same as above. */
+int32_t cr_read_apple_session_analytics(void *statement, void *metadata, const double *ends, size_t count,
+                                        int64_t threshold, void *context, cr_visit_analytics visit,
+                                        cr_visit_project projects, cr_visit_session sessions, int32_t *sessions_complete);
 #endif

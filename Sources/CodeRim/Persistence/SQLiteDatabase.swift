@@ -42,6 +42,7 @@ private struct ModelUsageAccumulator {
 private final class AnalyticsQueryOutput {
     var models: [ModelUsageSummary] = []
     var buckets: [[ModelUsageSummary]]
+    var sessions: [SessionUsageSummary] = []
 
     init(count: Int) {
         buckets = Array(repeating: [], count: count)
@@ -72,6 +73,21 @@ private final class AnalyticsQueryOutput {
             return ProjectUsageSummary(id: id, name: project.name,
                 usage: models.reduce(TokenUsage.zero) { $0.adding($1.usage) }, models: models, sessionCount: project.count)
         }.sorted(by: ProjectUsageSummary.byUsageThenName)
+    }
+
+    func append(_ row: cr_session_summary) {
+        func text(_ field: cr_analytics_text) -> String? {
+            field.bytes.map { String(decoding: UnsafeBufferPointer(start: $0, count: field.length), as: UTF8.self) }
+        }
+        let models = UnsafeBufferPointer(start: row.models, count: row.model_count)
+            .map(Self.summary).sorted(by: ModelUsageSummary.byUsageThenName)
+        sessions.append(SessionUsageSummary(
+            id: text(row.id) ?? "unknown-session", projectID: text(row.project), projectName: text(row.name),
+            startedAt: row.has_start == 0 ? nil : Date(timeIntervalSince1970: row.start),
+            lastActivityAt: Date(timeIntervalSince1970: row.activity),
+            usage: models.reduce(TokenUsage.zero) { $0.adding($1.usage) }, models: models,
+            directSubagentCount: row.children, imageAttachmentCount: Int(row.images), parentSessionID: text(row.parent)
+        ))
     }
 
     private static func usage(_ value: cr_usage) -> TokenUsage {
@@ -642,9 +658,9 @@ actor SQLiteDatabase {
             let oldestEvent = range == .allTime ? try oldestEventTimestamp(through: end) : nil
             let interval = range.interval(through: end, calendar: calendar, oldestEvent: oldestEvent)
             let bucketIntervals = range.bucketIntervals(through: end, calendar: calendar, oldestEvent: oldestEvent)
-            let (models, buckets, scannedProjects) = try analyticsGroups(from: interval.start, through: end, intervals: bucketIntervals)
+            let (models, buckets, scannedProjects, scannedSessions) = try analyticsGroups(from: interval.start, through: end, intervals: bucketIntervals)
             let projects = try scannedProjects ?? projectUsage(from: interval.start, through: end)
-            let sessions = try sessionUsage(from: interval.start, through: end)
+            let sessions = try scannedSessions ?? sessionUsage(from: interval.start, through: end)
             let usage = models.reduce(TokenUsage.zero) { $0.adding($1.usage) }
             let snapshot = AnalyticsSnapshot(
                 range: range,
@@ -677,7 +693,7 @@ actor SQLiteDatabase {
     }
 
     private func analyticsGroups(from start: Date, through end: Date, intervals: [DateInterval]) throws
-        -> ([ModelUsageSummary], [UsageBucket], [ProjectUsageSummary]?) {
+        -> ([ModelUsageSummary], [UsageBucket], [ProjectUsageSummary]?, [SessionUsageSummary]?) {
 #if CODERIM_RUST_ACCOUNTING
         if intervals.first?.start == start, intervals.count <= 512,
            zip(intervals, intervals.dropFirst()).allSatisfy({ $0.end == $1.start }) {
@@ -690,30 +706,39 @@ actor SQLiteDatabase {
             defer { sqlite3_finalize(statement) }
             sqlite3_bind_double(statement, 1, start.timeIntervalSince1970)
             sqlite3_bind_double(statement, 2, end.timeIntervalSince1970)
-            let metadata = try prepare("SELECT project_name FROM session_metadata WHERE session_id = ?1")
+            let metadata = try prepare("""
+                SELECT project_name, started_at, parent_session_id, COALESCE(image_attachment_count, 0)
+                FROM session_metadata WHERE session_id = ?1
+                """)
             defer { sqlite3_finalize(metadata) }
             let ends = intervals.map { $0.end.timeIntervalSince1970 }
             let output = AnalyticsQueryOutput(count: intervals.count)
+            var sessionsComplete: Int32 = 0
             let status = ends.withUnsafeBufferPointer { bounds in
-                cr_read_apple_project_analytics(UnsafeMutableRawPointer(statement), UnsafeMutableRawPointer(metadata), bounds.baseAddress, bounds.count,
+                cr_read_apple_session_analytics(UnsafeMutableRawPointer(statement), UnsafeMutableRawPointer(metadata), bounds.baseAddress, bounds.count,
                     PricingContext.highContextInputThreshold, Unmanaged.passUnretained(output).toOpaque(), { context, row in
                         guard let context else { return }
                         Unmanaged<AnalyticsQueryOutput>.fromOpaque(context).takeUnretainedValue().append(row)
                     }, { context, row in
                         guard let context else { return }
                         Unmanaged<AnalyticsQueryOutput>.fromOpaque(context).takeUnretainedValue().append(row)
-                    })
+                    }, { context, row in
+                        guard let context else { return }
+                        Unmanaged<AnalyticsQueryOutput>.fromOpaque(context).takeUnretainedValue().append(row)
+                    }, &sessionsComplete)
             }
             if status == 0 || status == 3 {
                 let buckets = zip(intervals, output.buckets).map { interval, models in
                     UsageBucket(start: interval.start, end: interval.end, models: models.sorted(by: ModelUsageSummary.byUsageThenName))
                 }
-                return (output.models.sorted(by: ModelUsageSummary.byUsageThenName), buckets, status == 0 ? output.projectSummaries() : nil)
+                return (output.models.sorted(by: ModelUsageSummary.byUsageThenName), buckets,
+                        status == 0 ? output.projectSummaries() : nil,
+                        sessionsComplete == 0 ? nil : output.sessions.sorted(by: SessionUsageSummary.byActivityThenID))
             }
             if status == 2 { throw SQLiteDatabaseError.step(errorMessage) }
         }
 #endif
-        return try (modelUsage(from: start, through: end), usageBuckets(intervals: intervals, through: end), nil)
+        return try (modelUsage(from: start, through: end), usageBuckets(intervals: intervals, through: end), nil, nil)
     }
 
     private func modelUsage(from start: Date, through end: Date) throws -> [ModelUsageSummary] {

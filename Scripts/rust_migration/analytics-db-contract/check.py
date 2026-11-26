@@ -48,8 +48,11 @@ def build(work, arch, archive=None, revision=None, driver=None):
     if archive:
         host.append(stage("Sources/CodeRim/Sources/UsageStorageIdentity.swift"))
         extra = ["-D","CODERIM_RUST_ACCOUNTING","-I",ROOT/"Rust/bridge/include",archive]
+        batch = "Sources/CodeRim/Persistence/RustSQLiteEventBatch.swift"
+        if revision is None or subprocess.run(["git", "cat-file", "-e", f"{revision}:{batch}"],
+                                               cwd=ROOT, stderr=subprocess.DEVNULL).returncode == 0:
+            host.append(stage(batch))
         if revision is None:
-            host.append(stage("Sources/CodeRim/Persistence/RustSQLiteEventBatch.swift"))
             extra += ["-D", "PROJECT_ANALYTICS_PROBE"]
     exe = work/"driver"
     subprocess.run([*flags, "-I",work, "-I",ROOT/"Sources/CSQLite", "-L",work, "-lCodeRimUsageCore", stats,*host,
@@ -110,10 +113,10 @@ def main():
             "project-unicode": (3, "UPDATE usage_events SET project_path = CASE WHEN source_position % 2 = 0 THEN 'é' ELSE 'é' END"),
             "project-blob": (3, "UPDATE usage_events SET session_id = CAST(session_id AS BLOB)"),
         }
+        linked_rows = [event(-i, None if i % 6 == 0 else "m"+str(i % 3), 300000 + i, 4, 13,
+                             None if i % 5 == 0 else 3, [None, 0, 1][i % 3]) for i in range(90)]
         for key, (expected, modify) in project_cases.items():
-            rows = [event(-i, None if i % 6 == 0 else "m"+str(i % 3), 300000 + i, 4, 13,
-                          None if i % 5 == 0 else 3, [None, 0, 1][i % 3]) for i in range(90)]
-            path = fixture(base, work/(key+".sqlite"), rows)
+            path = fixture(base, work/(key+".sqlite"), linked_rows)
             with closing(sqlite3.connect(path)) as db:
                 db.executemany("INSERT INTO session_metadata(session_id,parent_session_id,project_name,started_at,image_attachment_count,updated_at) VALUES (?,?,?,?,?,?)",
                                [("s"+str(i), "s0" if i else None, "개발 도구", END-200, i % 4, END) for i in range(7)])
@@ -125,6 +128,33 @@ def main():
             paths[key] = path
         if subprocess.check_output([bins["rust"],paths["project-stable"],"projects-interrupted"],env=ENV).split() != [b"2", b"0", b"0"]:
             raise RuntimeError("Interrupted project scan delivered partial rows")
+        session_cases = {
+            "session-tree": (1, 7, "UPDATE session_metadata SET parent_session_id=CASE session_id WHEN 's1' THEN 's0' WHEN 's2' THEN 's0' WHEN 's3' THEN 's2' WHEN 's4' THEN 'missing' WHEN 's5' THEN 's5' END"),
+            "session-moves": (0, 0, "UPDATE usage_events SET project_path='moved' WHERE source_position=11"),
+            "session-null": (1, 2, "UPDATE usage_events SET session_id=CASE WHEN source_position%2=0 THEN NULL ELSE 's0' END, project_path=NULL"),
+            "session-reserved-id": (0, 0, "UPDATE usage_events SET session_id=CASE WHEN source_position%2=0 THEN NULL ELSE 'unknown-session' END"),
+            "session-canonical": (0, 0, "UPDATE usage_events SET session_id=CASE WHEN source_position%2=0 THEN 'é' ELSE 'é' END"),
+            "session-legacy-date": (0, 0, "UPDATE session_metadata SET started_at='legacy' WHERE session_id='s2'"),
+            "session-legacy-parent": (0, 0, "UPDATE session_metadata SET parent_session_id=CAST('s1' AS BLOB) WHERE session_id='s3'"),
+            "session-missing-metadata": (1, 7, "DELETE FROM session_metadata WHERE session_id IN ('s0','s2','s3')"),
+            "session-display-name": (1, 7, "UPDATE session_metadata SET project_name='이름' || CHAR(0) || '끝'"),
+        }
+        for key, (complete, count, change) in session_cases.items():
+            path = fixture(base, work/(key+".sqlite"), linked_rows)
+            with closing(sqlite3.connect(path)) as db:
+                db.execute("UPDATE usage_events SET project_path=session_id")
+                db.executemany("INSERT INTO session_metadata(session_id, started_at, project_name, image_attachment_count, updated_at) VALUES (?,?,?,?,?)",
+                               [("s"+str(i), END-450+i/8, "이름"+str(i), i*2, END) for i in range(7)])
+                db.execute(change)
+                db.commit()
+            status, delivered, models, sessions = map(int, subprocess.check_output([bins["rust"], path, "sessions"], env=ENV).split())
+            if status != 0 or delivered != complete or models == 0 or sessions != count:
+                raise RuntimeError(f"{key}: session result {status}/{delivered}/{models}/{sessions}")
+            paths[key] = path
+        for key, action, expected in [("empty","sessions",[0,1,0,0]), ("session-tree","sessions-interrupted",[2,0,0,0])]:
+            actual = list(map(int, subprocess.check_output([bins["rust"], paths[key], action], env=ENV).split()))
+            if actual != expected:
+                raise RuntimeError(f"{key}/{action}: expected {expected}, got {actual}")
         digests = {}
         for key, path in paths.items():
             for zone in ("UTC","America/Los_Angeles","Asia/Kathmandu"):

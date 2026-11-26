@@ -33,9 +33,9 @@ struct Project {
 
 // SAFETY: the caller has stepped the statement to a row. The borrowed bytes
 // are consumed synchronously, before the statement steps or resets.
-struct Row(*mut c_void);
+pub(super) struct Row(pub(super) *mut c_void);
 impl Row {
-    fn text(&self, column: i32, limit: i32) -> Option<Option<&[u8]>> {
+    pub(super) fn text(&self, column: i32, limit: i32) -> Option<Option<&[u8]>> {
         let stmt = self.0;
         match unsafe { sqlite3_column_type(stmt, column) } {
             SQLITE_NULL => Some(None),
@@ -52,14 +52,34 @@ impl Row {
     }
 }
 
-pub(super) enum ProjectError {
+// Bind the original SQLite value with its exact storage class. Both statements
+// are exclusively borrowed from the same read transaction.
+pub(super) unsafe fn step_metadata(
+    stmt: *mut c_void,
+    metadata: *mut c_void,
+) -> Result<bool, DimensionError> {
+    let value = unsafe { sqlite3_column_value(stmt, 8) };
+    if value.is_null()
+        || unsafe { sqlite3_reset(metadata) } != 0
+        || unsafe { sqlite3_bind_value(metadata, 1, value) } != 0
+    {
+        return Err(DimensionError::Database);
+    }
+    match unsafe { sqlite3_step(metadata) } {
+        SQLITE_ROW => Ok(true),
+        SQLITE_DONE => Ok(false),
+        _ => Err(DimensionError::Database),
+    }
+}
+
+pub(super) enum DimensionError {
     Fallback,
     Database,
 }
-use ProjectError::{Database, Fallback};
+use DimensionError::Fallback;
 
 impl Project {
-    fn observe_name(&mut self, name: Option<&[u8]>) -> Result<(), ProjectError> {
+    fn observe_name(&mut self, name: Option<&[u8]>) -> Result<(), DimensionError> {
         if let Some(known) = &self.name {
             // SQLite chooses the MAX name in its first model/pricing group. Leave
             // historical renames and ambiguous old metadata to that same query.
@@ -85,7 +105,7 @@ impl Projects {
         model: usize,
         class: usize,
         usage: RawUsage,
-    ) -> Result<(), ProjectError> {
+    ) -> Result<(), DimensionError> {
         let row = Row(stmt);
         let stored_id = row.text(7, 256).ok_or(Fallback)?;
         let id = stored_id.unwrap_or(b"unknown-project");
@@ -114,19 +134,10 @@ impl Projects {
                 }
                 // Both SELECTs share the host's read transaction. Once a project/session
                 // pair is known, its joined name cannot change during this snapshot.
-                let value = unsafe { sqlite3_column_value(stmt, 8) };
-                if value.is_null()
-                    || unsafe { sqlite3_reset(metadata) } != 0
-                    || unsafe { sqlite3_bind_value(metadata, 1, value) } != 0
-                {
-                    return Err(Database);
-                }
-                match unsafe { sqlite3_step(metadata) } {
-                    SQLITE_ROW => {
-                        project.observe_name(Row(metadata).text(0, 512).ok_or(Fallback)?)?
-                    }
-                    SQLITE_DONE => project.observe_name(None)?,
-                    _ => return Err(Database),
+                if unsafe { step_metadata(stmt, metadata) }? {
+                    project.observe_name(Row(metadata).text(0, 512).ok_or(Fallback)?)?
+                } else {
+                    project.observe_name(None)?
                 }
                 project.sessions.insert(session.to_vec());
                 self.pairs += 1;

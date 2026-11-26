@@ -4,7 +4,10 @@ use crate::{RawUsage, TokenUsage};
 use std::{collections::HashMap, ffi::c_void, slice};
 #[path = "sqlite_analytics_projects.rs"]
 mod projects;
-use projects::{ProjectError, Projects, VisitProject};
+use projects::{DimensionError, Projects, VisitProject};
+#[path = "sqlite_analytics_sessions.rs"]
+mod sessions;
+use sessions::{Sessions, VisitSession};
 
 #[repr(C)]
 pub struct Summary {
@@ -157,8 +160,46 @@ pub unsafe extern "C" fn cr_read_apple_project_analytics(
     visit: Option<Visit>,
     project_visit: Option<VisitProject>,
 ) -> i32 {
+    unsafe {
+        cr_read_apple_session_analytics(
+            stmt,
+            metadata,
+            ends,
+            count,
+            threshold,
+            context,
+            visit,
+            project_visit,
+            None,
+            std::ptr::null_mut(),
+        )
+    }
+}
+
+/// # Safety
+/// The statements and callback context follow the exclusive borrowing contract above.
+/// A session visitor also requires four metadata columns (name, start, parent, image count)
+/// and a writable completion flag. Callback text and model arrays expire when it returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cr_read_apple_session_analytics(
+    stmt: *mut c_void,
+    metadata: *mut c_void,
+    ends: *const f64,
+    count: usize,
+    threshold: i64,
+    context: *mut c_void,
+    visit: Option<Visit>,
+    project_visit: Option<VisitProject>,
+    session_visit: Option<VisitSession>,
+    sessions_complete: *mut i32,
+) -> i32 {
+    if !sessions_complete.is_null() {
+        unsafe { sessions_complete.write(0) };
+    }
     let Some(visit) = visit else { return 1 };
-    if project_visit.is_some() && metadata.is_null() {
+    if ((project_visit.is_some() || session_visit.is_some()) && metadata.is_null())
+        || (session_visit.is_some() && sessions_complete.is_null())
+    {
         return 1;
     }
     if stmt.is_null() || ends.is_null() || count == 0 || count > 512 {
@@ -175,6 +216,7 @@ pub unsafe extern "C" fn cr_read_apple_project_analytics(
     let mut buckets: HashMap<(usize, usize), Groups> = HashMap::new();
     let mut bucket = 0;
     let mut projects = project_visit.map(|_| Projects::default());
+    let mut sessions = session_visit.map(|_| Sessions::default());
     loop {
         // SAFETY: the host owns the transaction and the statement is exclusively borrowed.
         match unsafe { sqlite3_step(stmt) } {
@@ -226,8 +268,15 @@ pub unsafe extern "C" fn cr_read_apple_project_analytics(
         if let Some(rows) = &mut projects {
             match unsafe { rows.add(stmt, metadata, id, class, row) } {
                 Ok(()) => {}
-                Err(ProjectError::Fallback) => projects = None,
-                Err(ProjectError::Database) => return 2,
+                Err(DimensionError::Fallback) => projects = None,
+                Err(DimensionError::Database) => return 2,
+            }
+        }
+        if let Some(rows) = &mut sessions {
+            match unsafe { rows.add(stmt, metadata, id, class, row, stamp) } {
+                Ok(()) => {}
+                Err(DimensionError::Fallback) => sessions = None,
+                Err(DimensionError::Database) => return 2,
             }
         }
         while bucket < ends.len() && stamp >= ends[bucket] {
@@ -260,6 +309,10 @@ pub unsafe extern "C" fn cr_read_apple_project_analytics(
         if let Some(summary) = groups.summary(bucket as i32, names[id], threshold) {
             visit(context, summary)
         }
+    }
+    if let (Some(rows), Some(visit)) = (sessions, session_visit) {
+        rows.emit(&names, threshold, context, visit);
+        unsafe { sessions_complete.write(1) };
     }
     if let Some(visit) = project_visit {
         let Some(projects) = projects else {

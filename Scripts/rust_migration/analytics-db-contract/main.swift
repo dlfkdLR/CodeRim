@@ -4,7 +4,7 @@ import Foundation
 import CCodeRimAccounting
 import CSQLite
 
-private func probe(_ path: String, interrupted: Bool, projects: Bool) throws {
+private func probe(_ path: String, interrupted: Bool, projects: Bool, sessions: Bool) throws {
     var connection: OpaquePointer?
     // A newly copied WAL database can lack its shared-memory sidecar. The product
     // uses a writable connection. query_only prevents database changes during the probe.
@@ -13,7 +13,7 @@ private func probe(_ path: String, interrupted: Bool, projects: Bool) throws {
     defer { sqlite3_close(connection) }
     let restricted = sqlite3_exec(connection, "PRAGMA query_only=ON", nil, nil, nil)
     guard restricted == SQLITE_OK else { throw NSError(domain: "Set query-only mode", code: Int(restricted)) }
-    let query = projects ? """
+    let query = projects || sessions ? """
         SELECT occurred_at, model, high_context_pricing, input_tokens, cached_input_tokens, output_tokens,
                cache_write_input_tokens, project_path, session_id
         FROM usage_events
@@ -29,6 +29,23 @@ private func probe(_ path: String, interrupted: Bool, projects: Bool) throws {
     if interrupted { sqlite3_progress_handler(connection, 1, { _ in 1 }, nil) }
     var end = Double.greatestFiniteMagnitude
     #if PROJECT_ANALYTICS_PROBE
+    if sessions {
+        var metadata: OpaquePointer?
+        let sql = "SELECT project_name, started_at, parent_session_id, COALESCE(image_attachment_count,0) FROM session_metadata WHERE session_id=?1"
+        let result = sqlite3_prepare_v2(connection, sql, -1, &metadata, nil)
+        guard result == SQLITE_OK else { throw NSError(domain: "Prepare session lookup", code: Int(result)) }
+        defer { sqlite3_finalize(metadata) }
+        var callbacks = (models: 0, sessions: 0)
+        var complete: Int32 = -1
+        let status = cr_read_apple_session_analytics(UnsafeMutableRawPointer(statement), UnsafeMutableRawPointer(metadata), &end, 1,
+            PricingContext.highContextInputThreshold, &callbacks, { context, _ in
+                context!.assumingMemoryBound(to: (Int, Int).self).pointee.0 += 1
+            }, nil, { context, _ in
+                context!.assumingMemoryBound(to: (Int, Int).self).pointee.1 += 1
+            }, &complete)
+        print(status, complete, callbacks.models, callbacks.sessions)
+        return
+    }
     if projects {
         var metadata: OpaquePointer?
         let result = sqlite3_prepare_v2(connection, "SELECT project_name FROM session_metadata WHERE session_id=?1", -1, &metadata, nil)
@@ -71,9 +88,9 @@ private func run() async throws {
     let args = CommandLine.arguments
     let source = URL(fileURLWithPath: args[1])
     #if CODERIM_RUST_ACCOUNTING
-    if ["probe", "interrupt", "projects", "projects-interrupted"].contains(args[2]) {
-        try probe(source.path, interrupted: ["interrupt", "projects-interrupted"].contains(args[2]),
-                  projects: args[2].hasPrefix("projects"))
+    if ["probe", "interrupt", "projects", "projects-interrupted", "sessions", "sessions-interrupted"].contains(args[2]) {
+        try probe(source.path, interrupted: args[2] == "interrupt" || args[2].hasSuffix("-interrupted"),
+                  projects: args[2].hasPrefix("projects"), sessions: args[2].hasPrefix("sessions"))
         return
     }
     #endif
