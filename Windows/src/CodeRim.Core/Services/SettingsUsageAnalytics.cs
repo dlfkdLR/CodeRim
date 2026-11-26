@@ -20,9 +20,11 @@ public static class LocalHistoryQuality
     {
         ArgumentNullException.ThrowIfNull(rangeEvents);
         if (local is null || rangeEvents.Aggregate(TokenUsage.Zero, (sum, e) => sum.Add(e.Usage)).IsZero) return DataQuality.Unavailable;
-        if (local.SourcesPartial || local.RetainsPartialHistory || rangeEvents.Any(e => e.Repaired)) return DataQuality.Partial;
-        return local.Quality == DataQuality.Partial ? DataQuality.Exact : local.Quality;
+        return ForNonemptyRange(local, local.SourcesPartial || local.RetainsPartialHistory || rangeEvents.Any(e => e.Repaired));
     }
+
+    internal static DataQuality ForNonemptyRange(UsageSnapshot local, bool partial) =>
+        partial ? DataQuality.Partial : local.Quality == DataQuality.Partial ? DataQuality.Exact : local.Quality;
 }
 
 /// <summary>Local Settings projections. Account/server totals never participate.</summary>
@@ -34,28 +36,41 @@ public static class SettingsUsageAnalytics
         if (!Enum.IsDefined(range)) throw new ArgumentOutOfRangeException(nameof(range));
         if (range == AnalyticsRange.Today) range = AnalyticsRange.SevenDays;
         var start = AnalyticsTimeline.Start(range, frame.Through, zone);
-        var events = frame.Events.Where(e => e.OccurredAt >= start && e.OccurredAt <= frame.Through)
-            .OrderBy(e => e.OccurredAt).ToArray();
+        var selected = frame.Events.Where(e => e.OccurredAt >= start && e.OccurredAt <= frame.Through);
+#if CODERIM_RUST_ACCOUNTING
+        var input = selected.ToArray();
+        if (RustSettingsHistory.TryBuild(frame, range, start, zone, input) is { } projection) return projection;
+        selected = input;
+#endif
+        var events = selected.OrderBy(e => e.OccurredAt).ToArray();
         var total = Sum(events);
         var days = new List<SettingsUsageDay>(); var index = 0;
-        for (var cursor = start; cursor <= frame.Through;)
+        foreach (var (cursor, end) in DayBounds(start, frame.Through, zone))
         {
-            var date = TimeZoneInfo.ConvertTime(cursor, zone).Date;
-            var next = date == DateTime.MaxValue.Date ? DateTimeOffset.MaxValue
-                : UsageCalendar.LocalMidnight(date.AddDays(1), zone);
-            var end = next <= frame.Through ? next : frame.Through == DateTimeOffset.MaxValue ? frame.Through : frame.Through.AddTicks(1);
             var rows = new List<UsageEvent>();
             while (index < events.Length && (events[index].OccurredAt < end || end == DateTimeOffset.MaxValue && events[index].OccurredAt == end))
                 rows.Add(events[index++]);
             days.Add(new(cursor, end, Sum(rows), Models(rows)));
-            if (next <= cursor || next > frame.Through || next == DateTimeOffset.MaxValue) break;
-            cursor = next;
         }
         var sessions = events.GroupBy(e => e.SessionId, StringComparer.Ordinal)
             .Select(g => new SettingsUsageSession(g.Key, Sum(g), g.Max(e => e.OccurredAt)))
             .OrderByDescending(s => s.Usage.TotalTokens).ThenBy(s => s.Id, StringComparer.Ordinal).ToArray();
         var quality = LocalHistoryQuality.ForRange(frame.Local, events);
         return new(range, frame.Through, total, quality, days.AsReadOnly(), Models(events), Array.AsReadOnly(sessions));
+    }
+
+    internal static IEnumerable<(DateTimeOffset Start, DateTimeOffset End)> DayBounds(DateTimeOffset start, DateTimeOffset through, TimeZoneInfo zone)
+    {
+        for (var cursor = start; cursor <= through;)
+        {
+            var date = TimeZoneInfo.ConvertTime(cursor, zone).Date;
+            var next = date == DateTime.MaxValue.Date ? DateTimeOffset.MaxValue
+                : UsageCalendar.LocalMidnight(date.AddDays(1), zone);
+            var end = next <= through ? next : through == DateTimeOffset.MaxValue ? through : through.AddTicks(1);
+            yield return (cursor, end);
+            if (next <= cursor || next > through || next == DateTimeOffset.MaxValue) break;
+            cursor = next;
+        }
     }
 
     public static Func<SettingsUsageDay?, IReadOnlyList<SettingsUsageSeries>> CreateSeriesProjection(
