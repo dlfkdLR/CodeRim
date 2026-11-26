@@ -29,11 +29,15 @@ internal static class Program
             var limit = Stopwatch.StartNew();
             while (!File.Exists(prefix + ".ready") && !process.HasExited && limit.Elapsed < TimeSpan.FromSeconds(155))
                 await Task.Delay(50);
-            if (!File.Exists(prefix + ".ready")) throw new InvalidOperationException("Fixture did not reach the account screen.");
-            using var offer = JsonDocument.Parse(File.ReadAllBytes(prefix + ".ready"));
-            nint hwnd = (nint)offer.RootElement.GetProperty("hwnd").GetInt64();
-            if (offer.RootElement.GetProperty("pid").GetInt32() != pid || !NativeCapture.Owned(hwnd, pid)) return 4;
-            result = await Probe(hwnd, process, directory, prefix);
+            if (!File.Exists(prefix + ".ready"))
+                result = new { status = "fixture-not-reached", processExited = process.HasExited };
+            else
+            {
+                using var offer = JsonDocument.Parse(File.ReadAllBytes(prefix + ".ready"));
+                nint hwnd = (nint)offer.RootElement.GetProperty("hwnd").GetInt64();
+                if (offer.RootElement.GetProperty("pid").GetInt32() != pid || !NativeCapture.Owned(hwnd, pid)) return 4;
+                result = await Probe(hwnd, process, directory, prefix);
+            }
         }
         catch (Exception ex) when (ex is COMException or UnauthorizedAccessException or NotSupportedException or TimeoutException)
         {
