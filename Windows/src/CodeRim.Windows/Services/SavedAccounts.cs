@@ -16,11 +16,42 @@ internal sealed class SavedAccounts(CredentialVault vault, Func<AccountOperation
     private readonly Func<AccountOperationLease> acquireOperation = operationLease ?? AccountOperationLease.Acquire;
     private static int switching;
     internal static bool OperationInProgress => Volatile.Read(ref switching) != 0;
+
+    internal IReadOnlyList<string> PreviousAccountLabels(string provider)
+    {
+        if (!OwnedProviderAccess.Enabled || vault.Load("accounts:" + provider) is not { } json) return [];
+        using var document = JsonDocument.Parse(json);
+        if (document.RootElement.ValueKind != JsonValueKind.Array) return [];
+        var verified = Read(provider).Select(account => account.Identity.Id).ToHashSet(StringComparer.Ordinal);
+        return document.RootElement.EnumerateArray().Take(12)
+            .Select(account => Get(account, "Identity"))
+            .Where(identity => Text(identity, "Id") is { } id && !verified.Contains(id))
+            .Select(identity => Text(identity, "Email"))
+            .OfType<string>().Where(email => email.Length is > 0 and <= 320 && !email.Any(char.IsControl)).ToArray();
+    }
+
+    // The old collection combined user imports and isolated sign-ins without origin metadata.
+    // Only the isolated official flow populates the new collection.
+    private static string AccountsKey(string provider) =>
+        (OwnedProviderAccess.Enabled ? "official-accounts:" : "accounts:") + provider;
+
     internal IReadOnlyList<SavedLogin> Read(string provider)
     {
-        var json = vault.Load("accounts:" + provider);
+        var json = vault.Load(AccountsKey(provider));
         if (json is null) return [];
         return ParseSaved(provider, json);
+    }
+    internal SavedLogin? SelectedForCodeRim(string provider)
+    {
+        var id = vault.Load("selected-account:" + provider);
+        return id is null ? null : Read(provider).SingleOrDefault(account => account.Identity.Id == id);
+    }
+    internal void SelectForCodeRim(SavedLogin account)
+    {
+        using var lease = acquireOperation();
+        if (!Read(account.Provider).Any(saved => saved.Identity.Id == account.Identity.Id))
+            throw new InvalidDataException("This saved account is unavailable.");
+        vault.Save("selected-account:" + account.Provider, account.Identity.Id);
     }
     private static SavedLogin[] ParseSaved(string provider, string json)
     {
@@ -30,7 +61,9 @@ internal sealed class SavedAccounts(CredentialVault vault, Func<AccountOperation
             if (account.Provider != provider || Identity(provider, account.Credential, account.Profile) != account.Identity) throw new InvalidDataException("Saved account identity is invalid.");
         return saved;
     }
-    internal static SavedLogin Current(string provider) => ReadLogin(provider, Paths(provider));
+    internal static SavedLogin Current(string provider) => OwnedProviderAccess.Enabled
+        ? throw new InvalidOperationException("Select a saved account in CodeRim.")
+        : ReadLogin(provider, Paths(provider));
     internal static SavedLogin ReadLogin(string provider, (string Credential, string? Profile) paths)
     {
         var credential = GuardedFile.Read(paths.Credential);
@@ -55,14 +88,14 @@ internal sealed class SavedAccounts(CredentialVault vault, Func<AccountOperation
     internal bool StoreRotated(SavedLogin original, string renewedCredential)
     {
         var provider = original.Provider; var id = original.Identity.Id;
-        var snapshot = vault.LoadVersioned("accounts:" + provider);
+        var snapshot = vault.LoadVersioned(AccountsKey(provider));
         if (snapshot is null) return false;
         var renewed = ParseLogin(provider, renewedCredential, null);
         if (renewed.Identity.Id != id) return false;
         var accounts = ParseSaved(provider, snapshot.Value);
         if (accounts.SingleOrDefault(x => x.Identity.Id == id)?.Credential != original.Credential) return false;
         var updated = accounts.Select(x => x.Identity.Id == id ? renewed : x).ToArray();
-        return vault.SaveIfUnchanged("accounts:" + provider, snapshot.Version, JsonSerializer.Serialize(updated));
+        return vault.SaveIfUnchanged(AccountsKey(provider), snapshot.Version, JsonSerializer.Serialize(updated));
     }
     internal static string? CurrentAccountLabel(string provider, bool synthetic)
     {
@@ -109,14 +142,14 @@ internal sealed class SavedAccounts(CredentialVault vault, Func<AccountOperation
         {
             using var lease = acquireOperation();
             token.ThrowIfCancellationRequested();
-            CheckPolicy(provider, Paths(provider).Credential);
-            if (provider == "codex")
+            if (!OwnedProviderAccess.Enabled) CheckPolicy(provider, Paths(provider).Credential);
+            if (provider == "codex" && !OwnedProviderAccess.Enabled)
             {
                 var policy = await AppServerClient.ReadAsync(executable, "config/read", token).ConfigureAwait(true);
                 LoginIdentity.ValidateCodexSignInPolicy(Get(policy, "config"));
             }
             var added = await IsolatedAccountSignIn.RunAsync(provider, executable, token: token).ConfigureAwait(true);
-            if (provider == "codex")
+            if (provider == "codex" && !OwnedProviderAccess.Enabled)
             {
                 var configuration = await AppServerClient.ReadAsync(executable, "config/read", token).ConfigureAwait(true);
                 LoginIdentity.ValidateCodexPolicy(Get(configuration, "config"), added.Identity.Organization);
@@ -155,16 +188,23 @@ internal sealed class SavedAccounts(CredentialVault vault, Func<AccountOperation
         if (entries.Length > 12) throw new InvalidOperationException("You can save up to 12 accounts per provider.");
         var json = JsonSerializer.Serialize(entries);
         if (json.Length > 500000) throw new InvalidOperationException("The saved account vault is full.");
-        vault.Save("accounts:" + account.Provider, json);
+        vault.Save(AccountsKey(account.Provider), json);
     }
     internal void Remove(string provider, string id)
     {
         if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new AccountOperationBusyException();
-        try { using var lease = acquireOperation(); vault.Save("accounts:" + provider, JsonSerializer.Serialize(Read(provider).Where(x => x.Identity.Id != id).ToArray())); }
+        try
+        {
+            using var lease = acquireOperation();
+            vault.Save(AccountsKey(provider), JsonSerializer.Serialize(Read(provider).Where(x => x.Identity.Id != id).ToArray()));
+            if (OwnedProviderAccess.Enabled && vault.Load("selected-account:" + provider) == id)
+                vault.Delete("selected-account:" + provider);
+        }
         finally { Interlocked.Exchange(ref switching, 0); }
     }
     internal async Task SwitchAsync(SavedLogin selected, string executable, Func<Task>? waitForRefresh = null, CodexRpc? codexRpc = null, CancellationToken token = default)
     {
+        if (OwnedProviderAccess.Enabled) throw new InvalidOperationException("Select this account in CodeRim instead.");
         token.ThrowIfCancellationRequested();
         if (Interlocked.CompareExchange(ref switching, 1, 0) != 0) throw new AccountOperationBusyException();
         try

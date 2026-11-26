@@ -55,6 +55,7 @@ public sealed record LoginIdentity(string Id, string Email, string Organization,
     }
     public static string? CurrentClaudeScope()
     {
+        if (OwnedProviderAccess.Enabled) return null;
         try
         {
             var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);

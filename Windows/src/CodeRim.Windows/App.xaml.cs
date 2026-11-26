@@ -41,6 +41,19 @@ public partial class App : System.Windows.Application
     protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
+        if (OwnedProviderAccess.Enabled && e.Args is ["--smoke-test-owned-accounts", var receipt])
+        {
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            try
+            {
+                using var output = new StreamWriter(new FileStream(receipt, FileMode.CreateNew, FileAccess.Write, FileShare.Read));
+                try { await output.WriteAsync(await NativeSmoke.OwnedAccountsAsync()); Shutdown(0); }
+                catch (Exception error) when (error is not OutOfMemoryException)
+                { await output.WriteAsync(error.GetType().Name + ": " + error.Message); Shutdown(1); }
+            }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException) { Shutdown(1); }
+            return;
+        }
 #if CODERIM_MSI_QA
         if (e.Args.Length == 2 && e.Args[0] == "--qa-msi-update")
         {

@@ -28,6 +28,14 @@ internal sealed partial class ProviderConnections
         if (!NativeAccountSummary.Supports(id)) return null;
         try
         {
+            if (OwnedProviderAccess.Enabled)
+            {
+                var owned = OwnedCredential(id);
+                if (owned is null) return null;
+                return id == "glm" && GlmAuthentication.Clean(owned) is { } glm
+                    ? NativeAccountSummary.Glm(new(glm, OwnedSetting(id, "Z_AI_REGION") ?? "global", "api"))
+                    : NativeAccountSummary.FromCredential(id, owned);
+            }
             if (id == "glm")
             {
                 // Use exactly the script connector's effective key selection.

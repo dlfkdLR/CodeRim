@@ -47,7 +47,9 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     public bool Synthetic { get; }
     private readonly ClaudeIntegrationHost claudeHost;
     internal ClaudeIntegration Claude => claudeHost.Integration;
-    internal bool ClaudeAvailable => Claude.Available;
+    internal bool ClaudeAvailable => OwnedProviderAccess.Enabled && !Synthetic
+        ? settings.Current.EnabledProviders.Contains("claude", StringComparer.Ordinal) && connections.SelectedAccount("claude") is not null
+        : Claude.Available;
     internal string[] AvailableUsageProviders => ClaudeAvailable ? ["codex", "claude"] : ["codex"];
     private string[] ReadableProviders => settings.Current.EnabledProviders.Where(id => id is not ("codex" or "claude"))
         .Concat(AvailableUsageProviders).Distinct(StringComparer.Ordinal).ToArray();
@@ -57,7 +59,7 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     private void ClaudeChanged()
     {
         if (disposed) return;
-        var next = ClaudeAvailable ? Claude.Account?.Id : null;
+        var next = ClaudeAvailable ? OwnedProviderAccess.Enabled && !Synthetic ? connections.SelectedAccount("claude")?.Identity.Id : Claude.Account?.Id : null;
         if (next != claudeAvailabilityKey)
         {
             claudeAvailabilityKey = next; InvalidateAccount("claude");
@@ -70,7 +72,10 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     public DashboardStore(AppSettingsStore settings, CredentialVault vault, bool synthetic = false, ProviderConnections? providerConnections = null, ProfileUsageStore? profileHistory = null, UsageRepository? usageRepository = null, ClaudeIntegration? claudeIntegration = null)
     {
         this.settings = settings; Synthetic = synthetic; connections = providerConnections ?? new ProviderConnections(vault);
-        ProfileHistory = profileHistory ?? new ProfileUsageStore(settings, synthetic || providerConnections is not null); ProfileHistory.Changed += Changed;
+        ProfileHistory = profileHistory ?? new ProfileUsageStore(settings, synthetic || providerConnections is not null,
+            credentialLoader: OwnedProviderAccess.Enabled && !synthetic && providerConnections is null
+                ? () => connections.SelectedAccount("codex") is { } selected ? ProfileCredential.Parse(selected.Credential) : throw new ProfileCredentialException()
+                : null); ProfileHistory.Changed += Changed;
         repository = usageRepository ?? new UsageRepository(Path.Combine(CompanionFile.DataDirectory, "usage.sqlite"));
         projectKey = ProjectKey(Path.Combine(CompanionFile.DataDirectory, "project-key.bin"));
         foreach (var id in new[] { "codex", "claude" })

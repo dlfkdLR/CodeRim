@@ -9,10 +9,12 @@ internal sealed class ClaudeIntegrationHost : IDisposable
 {
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromSeconds(120) };
     internal ClaudeIntegration Integration { get; }
+    private bool IntegrationUsesOwnedSources { get; }
     internal TimeSpan PollInterval => timer.Interval;
     internal bool Polling => timer.IsEnabled;
     internal ClaudeIntegrationHost(AppSettingsStore settings, bool synthetic, ClaudeIntegration? supplied = null)
     {
+        IntegrationUsesOwnedSources = supplied is null && !synthetic;
         var preferences = supplied is not null || synthetic ? (Preferences: new ClaudeIntegrationPreferences(false, null), Error: (string?)null) : ReadPreferences(settings);
         Integration = supplied ?? (synthetic
             ? new ClaudeIntegration(new(true, "preview-claude"), new PreviewOperations(), (_, _) => { })
@@ -20,7 +22,12 @@ internal sealed class ClaudeIntegrationHost : IDisposable
                 settings.Save(settings.Current with { ClaudeIntegration = next, UsageProvider = selectCodex ? "codex" : settings.Current.UsageProvider }), preferences.Error));
         timer.Tick += Tick;
     }
-    internal void Start() { if (!timer.IsEnabled) { timer.Start(); _ = Integration.RefreshAsync(); } }
+    internal void Start()
+    {
+        if (timer.IsEnabled || (OwnedProviderAccess.Enabled && IntegrationUsesOwnedSources)) return;
+        timer.Start();
+        _ = Integration.RefreshAsync();
+    }
     internal Task PollAsync() => SavedAccounts.OperationInProgress ? Task.CompletedTask : Integration.RefreshAsync();
     private async void Tick(object? sender, EventArgs e) => await PollAsync();
     public void Dispose() { timer.Stop(); timer.Tick -= Tick; Integration.Dispose(); }
@@ -28,6 +35,7 @@ internal sealed class ClaudeIntegrationHost : IDisposable
     internal static (ClaudeIntegrationPreferences Preferences, string? Error) ReadPreferences(AppSettingsStore settings)
     {
         if (settings.Current.ClaudeIntegration is { } current) return (current, null);
+        if (OwnedProviderAccess.Enabled) return (new(false, null), null);
         var managed = ClaudeHookInstaller.HasManagedInstallation();
         var owner = LoginIdentity.CurrentClaudeScope(); string? linked = null;
         if (managed && owner is not null)
@@ -49,7 +57,7 @@ internal sealed class ClaudeIntegrationHost : IDisposable
     }
     private sealed class Operations : IClaudeIntegrationOperations
     {
-        public string? CurrentAccountId => LoginIdentity.CurrentClaudeScope();
+        public string? CurrentAccountId => OwnedProviderAccess.Enabled ? null : LoginIdentity.CurrentClaudeScope();
         public async Task<LoginIdentity?> ProbeAsync(CancellationToken token)
         {
             if (CurrentAccountId is null) return null;

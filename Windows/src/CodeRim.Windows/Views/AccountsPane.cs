@@ -32,7 +32,7 @@ internal sealed class AccountsPane : DockPanel
         Margin = new Thickness(24); LastChildFill = true;
         var header = new StackPanel(); DockPanel.SetDock(header, Dock.Top); Children.Add(header);
         header.Children.Add(Ui.Text((provider == "codex" ? "Codex" : "Claude") + " Accounts", 17, weight: FontWeights.SemiBold));
-        header.Children.Add(Ui.Text(provider == "codex" ? "Select an account for Codex and its CLI."
+        header.Children.Add(Ui.Text(OwnedProviderAccess.Enabled ? "Select an account for CodeRim. Sign-in opens the official provider in a private profile." : provider == "codex" ? "Select an account for Codex and its CLI."
             : "Select an account for the Claude Code CLI. Claude Desktop keeps its own sign-in.", color: "#A6A6AA"));
         header.Margin = new Thickness(0, 0, 0, 14);
         var footer = new StackPanel();
@@ -47,14 +47,14 @@ internal sealed class AccountsPane : DockPanel
             catch (Exception error) when (error is not OutOfMemoryException) { feedback.Text = error is AccountOperationBusyException blocked ? blocked.UserMessage : "The official CLI could not verify a file-backed subscription login. Finish sign-in through the CLI and retry."; }
             finally { SetBusy(false); }
         });
-        System.Windows.Automation.AutomationProperties.SetAutomationId(save, "accounts.saveCurrent"); actions.Children.Add(save);
+        System.Windows.Automation.AutomationProperties.SetAutomationId(save, "accounts.saveCurrent"); if (!OwnedProviderAccess.Enabled) actions.Children.Add(save);
         var add = Ui.AsyncButton("Add Account…", SignInAsync);
         System.Windows.Automation.AutomationProperties.SetAutomationId(add, "accounts.add"); actions.Children.Add(add);
         refresh = Ui.AsyncButton("Refresh Accounts", RefreshAccountsAsync); actions.Children.Add(refresh);
         cancel = Ui.Button("Cancel sign-in", CancelSignIn); cancel.Visibility = Visibility.Collapsed; actions.Children.Add(cancel);
         footer.Children.Add(actions); footer.Children.Add(feedback);
         System.Windows.Automation.AutomationProperties.SetAutomationId(feedback, "accounts.status");
-        var note = Ui.Text("Close running provider sessions before switching. Removing a saved account preserves the current CLI login and local history.", 11, "#A6A6AA");
+        var note = Ui.Text(OwnedProviderAccess.Enabled ? "Saved accounts are protected in the CodeRim vault." : "Close running provider sessions before switching. Removing a saved account preserves the current CLI login and local history.", 11, "#A6A6AA");
         note.Margin = new Thickness(0, 10, 0, 0); footer.Children.Add(note);
         var scroll = new ScrollViewer { Content = list, VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
         System.Windows.Automation.AutomationProperties.SetAutomationId(scroll, "accounts.list");
@@ -113,7 +113,12 @@ internal sealed class AccountsPane : DockPanel
         using var cancellation = new CancellationTokenSource(); accountRefreshCancellation = cancellation;
         var revision = ++refreshRevision;
         string? verified = null;
-        if (!store.Synthetic)
+        if (OwnedProviderAccess.Enabled)
+        {
+            try { verified = accounts.SelectedForCodeRim(provider)?.Identity.Id; }
+            catch (Exception error) when (error is not OutOfMemoryException) { }
+        }
+        else if (!store.Synthetic)
         {
             try { verified = await SavedAccounts.VerifyCurrentIdAsync(provider, Executable(), cancellation.Token).ConfigureAwait(true); }
             catch (Exception e) when (e is not OutOfMemoryException) { }
@@ -129,10 +134,20 @@ internal sealed class AccountsPane : DockPanel
         {
             var saved = accounts.Read(provider);
             var current = verifiedCurrentId;
+            if (OwnedProviderAccess.Enabled)
+            {
+                try
+                {
+                    foreach (var label in accounts.PreviousAccountLabels(provider))
+                        list.Children.Add(Ui.Text(label + " — choose Add Account to reconnect through the official provider.", color: "#A6A6AA"));
+                }
+                catch (Exception error) when (error is IOException or System.Text.Json.JsonException or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException)
+                { list.Children.Add(Ui.Text("Previous accounts could not be displayed. Choose Add Account to reconnect.")); }
+            }
             if (saved.Count == 0)
             {
                 list.Children.Add(Ui.Text("No saved accounts", weight: FontWeights.SemiBold));
-                list.Children.Add(Ui.Text("Save your current login, or sign in to add another account.", color: "#A6A6AA"));
+                list.Children.Add(Ui.Text(OwnedProviderAccess.Enabled ? "Sign in to add an account to CodeRim." : "Save your current login, or sign in to add another account.", color: "#A6A6AA"));
             }
             foreach (var account in saved)
             {
@@ -153,6 +168,20 @@ internal sealed class AccountsPane : DockPanel
                 Grid.SetColumn(actions, 1);
                 var select = Ui.AsyncButton("Switch", async () =>
                 {
+                    if (OwnedProviderAccess.Enabled)
+                    {
+                        try
+                        {
+                            accounts.SelectForCodeRim(account);
+                            store.InvalidateAccount(provider);
+                            await RefreshAccountsAsync();
+                            await store.RefreshProviderAsync(provider);
+                            feedback.Text = "Account selected for CodeRim.";
+                        }
+                        catch (Exception error) when (error is IOException or InvalidOperationException or UnauthorizedAccessException)
+                        { feedback.Text = "The saved account could not be selected."; }
+                        return;
+                    }
                     if (MessageBox.Show(Window.GetWindow(this), "Switch the CLI to " + account.Identity.Email + "? Close its running sessions before continuing.", "Switch account", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
                     SetBusy(true); verifiedCurrentId = null; feedback.Text = "Verifying account…";
                     try
@@ -230,7 +259,7 @@ internal sealed class AccountsPane : DockPanel
                     System.Windows.Automation.AutomationProperties.SetName(view, "View limits for " + account.Identity.Email);
                     view.Margin = new Thickness(0, 0, 4, 0); actions.Children.Add(view);
                 }
-                var remove = Ui.Button("Remove", () => Run(() => { if (MessageBox.Show(Window.GetWindow(this), "Remove the saved login for " + account.Identity.Email + "? Its current CLI session and usage history are preserved.", "Remove saved account", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) { accounts.Remove(provider, account.Identity.Id); Populate(); } }));
+                var remove = Ui.Button("Remove", () => Run(() => { if (MessageBox.Show(Window.GetWindow(this), "Remove the saved login for " + account.Identity.Email + "? Its current CLI session and usage history are preserved.", "Remove saved account", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes) { accounts.Remove(provider, account.Identity.Id); if (OwnedProviderAccess.Enabled) store.InvalidateAccount(provider); Populate(); } }));
                 System.Windows.Automation.AutomationProperties.SetName(remove, "Remove saved account " + account.Identity.Email);
                 // A borderless minus-in-circle, as macOS draws it.
                 remove.Content = new System.Windows.Shapes.Path { Data = System.Windows.Media.Geometry.Parse("M8,1 A7,7 0 1 1 7.99,1 Z M4.5,8 H11.5"),

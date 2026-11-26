@@ -37,6 +37,11 @@ internal sealed partial class ProviderConnections : IDisposable
     {
         try
         {
+            if (OwnedProviderAccess.Enabled)
+            {
+                if (browserOverride is not null) return new(id, ReadingState.Unsupported, [], Message: OwnedProviderAccess.Unavailable);
+                return await FetchOwnedAsync(id, settings, token).ConfigureAwait(false);
+            }
             if (id == "jetbrains") return JetBrainsQuota.Read(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "JetBrains"));
             if (id == "codex")
             {
@@ -48,20 +53,7 @@ internal sealed partial class ProviderConnections : IDisposable
                 return new(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, DateTimeOffset.Now,
                     windows.Count > 0 ? null : "No account limit was returned.");
             }
-            if (id == "claude")
-            {
-                var path = Path.Combine(CompanionFile.DataDirectory, "claude-limits.json");
-                if (!File.Exists(path)) return new(id, ReadingState.Loading, [], Message: "Use Claude Code once, then refresh");
-                if (new FileInfo(path).Length > 1_048_576) throw new InvalidDataException();
-                using var document = JsonDocument.Parse(await File.ReadAllTextAsync(path, token).ConfigureAwait(false));
-                var root = document.RootElement;
-                var scope = LoginIdentity.CurrentClaudeScope();
-                if (scope is null || ProviderParsers.Text(root, "accountScope") != scope)
-                    return new(id, ReadingState.Loading, [], Message: "Start a new Claude Code session, then refresh");
-                var updated = ProviderParsers.Date(ProviderParsers.Get(root, "updatedAt"));
-                var windows = ProviderParsers.Claude(root);
-                return new ProviderReading(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, updated).Evaluated(DateTimeOffset.Now);
-            }
+            if (id == "claude") return await ReadClaudeSnapshotAsync(LoginIdentity.CurrentClaudeScope, token).ConfigureAwait(false);
             if (browserOverride is null && await FetchChromiumAsync(id, capture, token).ConfigureAwait(false) is { } imported) return imported;
             string? NativeSetting(string key) => EffectiveSetting(vault, id, key);
             if (id == "copilot")
@@ -230,11 +222,28 @@ internal sealed partial class ProviderConnections : IDisposable
             return new(id, ReadingState.Error, [], Message: "Unable to read the provider. Check its connection and refresh.");
         }
     }
+    private static async Task<ProviderReading> ReadClaudeSnapshotAsync(Func<string?> getScope, CancellationToken token)
+    {
+        const string id = "claude";
+        var path = Path.Combine(CompanionFile.DataDirectory, "claude-limits.json");
+        if (!File.Exists(path)) return new(id, ReadingState.Loading, [], Message: "Use Claude Code once, then refresh");
+        if (new FileInfo(path).Length > 1_048_576) throw new InvalidDataException();
+        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(path, token).ConfigureAwait(false));
+        var root = document.RootElement;
+        var scope = getScope();
+        if (scope is null || ProviderParsers.Text(root, "accountScope") != scope)
+            return new(id, ReadingState.Loading, [], Message: "Start a new Claude Code session, then refresh");
+        var updated = ProviderParsers.Date(ProviderParsers.Get(root, "updatedAt"));
+        var windows = ProviderParsers.Claude(root);
+        return new ProviderReading(id, windows.Count > 0 ? ReadingState.Ready : ReadingState.Unavailable, windows, updated).Evaluated(DateTimeOffset.Now);
+    }
+
     internal static string? EffectiveSetting(CredentialVault vault, string id, string key)
         => vault.Load("setting:" + id + ":" + key)?.Trim() is { Length: > 0 } saved ? saved
             : Environment.GetEnvironmentVariable(key)?.Trim() is { Length: > 0 } environment ? environment : null;
     internal bool CanCache(string id)
     {
+        if (OwnedProviderAccess.Enabled) return OwnedProviderAccess.HasKey(id);
         if (id == "alibabatokenplan") return AlibabaSource(vault) == "web";
         if (id == "jetbrains") return false;
         if (id == "copilot") return GitHubAuthentication.Configured(vault.Load("provider:copilot"),
@@ -253,6 +262,7 @@ internal sealed partial class ProviderConnections : IDisposable
         string? Version(string key) => replacement?.Key == key ? replacement.Snapshot.Version : vault.Version(key);
         try
         {
+            if (OwnedProviderAccess.Enabled) return OwnedScope(id);
             if (ChromiumScope(id, replacement) is { } importedScope) return importedScope;
             if (id == "copilot" && !CanCache(id))
                 return ScopeHash(JsonSerializer.Serialize(new { id, process = Environment.ProcessId, config = CopilotConnection.Directory, hosts = CopilotConnection.ScopeMarker() }));

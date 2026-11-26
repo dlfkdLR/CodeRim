@@ -27,6 +27,12 @@ internal sealed partial class DashboardStore
         var capturedScope = scopes.GetValueOrDefault(id);
         if (id is "codex" or "claude")
         {
+            if (OwnedProviderAccess.Enabled)
+            {
+                var selected = connections.SelectedAccount(id);
+                var visible = capturedScope == selected?.Identity.Id ? reading : null;
+                return (visible, selected?.Identity.Email, selected?.Identity.Plan ?? visible?.Plan, selected?.Identity.Plan, selected?.Identity.Id);
+            }
             try
             {
                 var login = SavedAccounts.Current(id); var identity = login.Identity;

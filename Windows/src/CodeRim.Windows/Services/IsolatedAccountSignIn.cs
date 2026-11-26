@@ -29,6 +29,11 @@ internal static class IsolatedAccountSignIn
             if (provider == "codex")
             {
                 GuardedFile.WritePrivate(Path.Combine(root, "config.toml"), "cli_auth_credentials_store = \"file\"\n");
+                if (OwnedProviderAccess.Enabled)
+                {
+                    var policy = await rpc(executable, "config/read", environment, token).ConfigureAwait(false);
+                    LoginIdentity.ValidateCodexSignInPolicy(Get(policy, "config"));
+                }
                 var probe = await rpc(executable, "account/read", environment, token).ConfigureAwait(false);
                 // An old CLI that ignores the isolated home must never launch login.
                 if (Get(probe, "account").ValueKind != JsonValueKind.Null) throw new InvalidOperationException("The temporary Codex login is not isolated.");
@@ -49,6 +54,11 @@ internal static class IsolatedAccountSignIn
             var account = SavedAccounts.ReadLogin(provider, paths);
             if (provider == "codex")
             {
+                if (OwnedProviderAccess.Enabled)
+                {
+                    var policy = await rpc(executable, "config/read", environment, token).ConfigureAwait(false);
+                    LoginIdentity.ValidateCodexPolicy(Get(policy, "config"), account.Identity.Organization);
+                }
                 var result = await rpc(executable, "account/read", environment, token).ConfigureAwait(false);
                 var active = Get(result, "account");
                 if (Text(active, "type") != "chatgpt" || Text(active, "email") != account.Identity.Email)

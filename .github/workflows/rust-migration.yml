@@ -165,6 +165,15 @@ jobs:
           rustup target add ${{ matrix.target }}
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cargo build --locked --manifest-path Rust/Cargo.toml --target ${{ matrix.target }} --release -p coderim-accounting-bridge
+      - name: Verify owned Windows accounts using synthetic device authorization and DPAPI
+        run: |
+          $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
+          python Scripts/rust_migration/windows-owned-accounts/check.py --library "$library" --rid "win-${{ matrix.arch }}" --output "windows-${{ matrix.arch }}-owned-accounts.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-${{ matrix.arch }}-owned-accounts
+          path: windows-${{ matrix.arch }}-owned-accounts.json
+          if-no-files-found: error
       - name: Build and compare the opt-in standalone Windows companion
         run: |
           cargo build --locked --manifest-path Rust/Cargo.toml --release --target ${{ matrix.target }} -p coderim-windows-companion

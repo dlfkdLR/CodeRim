@@ -394,7 +394,12 @@ internal sealed partial class DashboardWindow : Window
         // pasted key opens on its settings, instead of leaving a second "Set up" step to find.
         if (addedIds.Count == 0) { Render(); return; }
         foreach (var id in addedIds) if (id != "claude") { justAdded.Add(id); connector.Begin(id); }
-        if (addedIds.Contains("claude")) { _ = ConnectAddedClaudeAsync(); return; }
+        if (addedIds.Contains("claude"))
+        {
+            if (OwnedProviderAccess.Enabled && !store.Synthetic) Navigate("claude-accounts");
+            else _ = ConnectAddedClaudeAsync();
+            return;
+        }
         Navigate(addedIds[^1]);
     }
     // One watcher for the window: a sign-in started here keeps being watched while the user moves between pages.
@@ -418,6 +423,7 @@ internal sealed partial class DashboardWindow : Window
                 return store.Readings.GetValueOrDefault(id)?.State is ReadingState.Ready or ReadingState.Partial;
             },
             ProviderSignInLauncher.Launch,
+            plan: ConnectionPlan,
             openInstallPage: plan => { if (plan.InstallUrl is { } url) ProviderSignInLauncher.Launch(new SignInPlan(SignInKind.Browser, plan.Name, null, url, plan.Note)); },
             runInApp: RunInAppSignInAsync,
             // A reading that can never succeed by waiting longer — a plan without usage, a disabled source.
@@ -431,6 +437,9 @@ internal sealed partial class DashboardWindow : Window
         }));
         return created;
     }
+    private SignInPlan ConnectionPlan(string id) => OwnedProviderAccess.Enabled
+        ? OwnedProviderAccess.Plan(id, key => vault.Load("setting:" + id + ":" + key))
+        : ProviderSignIn.For(id);
     private static readonly System.Net.Http.HttpClient SignInHttp = new() { Timeout = TimeSpan.FromSeconds(30) };
     /// <summary>Sign-ins CodeRim runs itself, storing what they return in its own credential vault.</summary>
     // The flows resume off the UI thread; what they store goes back through the dispatcher to the store.
@@ -444,7 +453,7 @@ internal sealed partial class DashboardWindow : Window
                     code => Dispatcher.Invoke(() => { try { Clipboard.SetText(code); } catch (System.Runtime.InteropServices.COMException) { } }),
                     token => Dispatcher.Invoke(() => { vault.Save("provider:copilot", token); store.InvalidateAccount("copilot"); }), cancellation).ConfigureAwait(true);
             case InAppKind.AntigravityGoogle:
-                return await AntigravityGoogleSignIn.RunAsync(ProviderSignIn.AntigravityClient(), SignInHttp, update,
+                return await AntigravityGoogleSignIn.RunAsync((OwnedProviderAccess.Enabled ? OwnedProviderAccess.ExplicitGoogleClient(key => vault.Load("setting:gemini:" + key)) : ProviderSignIn.AntigravityClient()), SignInHttp, update,
                     url => { Open(url); return true; },
                     json => Dispatcher.Invoke(() => { vault.Save("provider:gemini", json); store.InvalidateAccount("gemini"); }), cancellation).ConfigureAwait(true);
             default:
@@ -469,7 +478,7 @@ internal sealed partial class DashboardWindow : Window
             || store.Readings.GetValueOrDefault(id)?.State is ReadingState.Ready or ReadingState.Partial;
         if (connected && state is null) { connectionBanner.Visibility = Visibility.Collapsed; return; }
         connectionBanner.Visibility = Visibility.Visible;
-        var plan = ProviderSignIn.For(id);
+        var plan = ConnectionPlan(id);
         string text = state?.Phase switch
         {
             ProviderConnector.Phase.Checking => "Connecting…",
@@ -511,9 +520,9 @@ internal sealed partial class DashboardWindow : Window
         var accountDisplay = store.AccountDisplay(id);
         body.Children.Add(SettingsUi.Action("‹ All Providers", () => Navigate("providers")));
         var header = new DockPanel { Margin = new Thickness(14) };
-        if (id == "claude") AddClaudeHeader(header);
+        if (id == "claude" && (!OwnedProviderAccess.Enabled || store.Synthetic)) AddClaudeHeader(header);
         var refresh = Ui.RefreshButton("Refresh " + provider.Name, async () =>
-        { if (id == "claude") await store.Claude.RefreshAsync(); await store.RefreshProviderAsync(id); });
+        { if (id == "claude" && (!OwnedProviderAccess.Enabled || store.Synthetic)) await store.Claude.RefreshAsync(); await store.RefreshProviderAsync(id); });
         if (id == "claude") claudeRefresh = refresh;
         System.Windows.Automation.AutomationProperties.SetAutomationId(refresh, "provider.refresh");
         DockPanel.SetDock(refresh, Dock.Right); header.Children.Add(refresh);
@@ -529,16 +538,21 @@ internal sealed partial class DashboardWindow : Window
         var headerCard = new Border { Child = header, CornerRadius = new CornerRadius(12), Margin = new Thickness(18, 0, 18, 4) };
         headerCard.SetResourceReference(Border.BackgroundProperty, "CardBackground"); body.Children.Add(headerCard);
         if (id != "claude") AddConnectionBanner(id);
-        if (id == "claude") AddClaudeAccount();
+        if (id == "claude")
+        {
+            if (OwnedProviderAccess.Enabled && !store.Synthetic)
+                body.Children.Add(SettingsUi.Section("Account", SettingsUi.Action("Manage Accounts…", () => Navigate("claude-accounts"))));
+            else AddClaudeAccount();
+        }
         if (id == "codex")
         {
             var accountRows = new List<UIElement> {
                 SettingsUi.Row("Account", ProviderValue("provider.account", accountDisplay.Label ?? "Not connected")),
                 SettingsUi.Row("Plan", ProviderValue("provider.plan", accountDisplay.Plan ?? "Unavailable"))
             };
-            if (id == "claude") accountRows.Add(SettingsUi.Action("Manage Accounts…", () => Navigate(id + "-accounts")));
+            if (OwnedProviderAccess.Enabled) accountRows.Add(SettingsUi.Action("Manage Accounts…", () => Navigate(id + "-accounts")));
             body.Children.Add(SettingsUi.Section("Account", accountRows.ToArray()));
-            if (id == "codex") body.Children.Add(SettingsUi.Note("Add or switch accounts from the account menu in Settings ▸ Usage."));
+            if (!OwnedProviderAccess.Enabled) body.Children.Add(SettingsUi.Note("Add or switch accounts from the account menu in Settings ▸ Usage."));
         }
         if (id == "codex")
             body.Children.Add(SettingsUi.Section("Limits",
@@ -571,6 +585,27 @@ internal sealed partial class DashboardWindow : Window
         UpdateProviderReading(id);
         var connectionStart = body.Children.Count;
         if (provider.HasLocalHistory) Ui.Section(body, "Connection");
+        if (OwnedProviderAccess.Enabled) AddOwnedConnection(id);
+        else AddLegacyConnection(id);
+        if (!provider.HasLocalHistory) GroupProviderConnection(connectionStart, provider.GuideUrl);
+        if (provider.HasLocalHistory)
+        {
+            Ui.Section(body, "Notch order");
+            var order = new WrapPanel(); order.Children.Add(Ui.Button("Move earlier", () => MoveProvider(id, -1))); order.Children.Add(Ui.Button("Move later", () => MoveProvider(id, 1)));
+            order.Children.Add(Ui.Button("Remove from notch", () => { Save(settings.Current with { EnabledProviders = settings.Current.EnabledProviders.Where(x => x != id).ToArray() }); Navigate("providers"); })); body.Children.Add(order);
+        }
+        else AddProviderAlerts(id);
+        if (provider.HasLocalHistory)
+        {
+            AddProviderLocalData(id, provider.Name);
+        }
+        foreach (var child in body.Children.OfType<FrameworkElement>())
+            if (child != providerReading && child.Margin.Left == 0 && child.Margin.Right == 0)
+                child.Margin = new Thickness(18, child.Margin.Top, 18, child.Margin.Bottom);
+        UpdateProviderControlStates();
+    }
+    private void AddLegacyConnection(string id)
+    {
         if (id == "copilot") body.Children.Add(Ui.Text("Uses your GitHub CLI sign-in when there is one. Otherwise choose Sign in to GitHub — CodeRim shows a code to approve on github.com — or paste an access token below.", 12));
         if (id == "glm") body.Children.Add(Ui.Text("Detects a GLM login from Claude Code, ZCode or OpenCode. A key entered below takes precedence.", 12));
         if (id == "codebuff") body.Children.Add(Ui.Text("Uses your current Codebuff CLI sign-in. A key entered below takes precedence.", 12));
@@ -799,22 +834,6 @@ internal sealed partial class DashboardWindow : Window
                 { MessageBox.Show(this, "Could not remove the imported sign-in.", "CodeRim"); }
             }));
         }
-        if (!provider.HasLocalHistory) GroupProviderConnection(connectionStart, provider.GuideUrl);
-        if (provider.HasLocalHistory)
-        {
-            Ui.Section(body, "Notch order");
-            var order = new WrapPanel(); order.Children.Add(Ui.Button("Move earlier", () => MoveProvider(id, -1))); order.Children.Add(Ui.Button("Move later", () => MoveProvider(id, 1)));
-            order.Children.Add(Ui.Button("Remove from notch", () => { Save(settings.Current with { EnabledProviders = settings.Current.EnabledProviders.Where(x => x != id).ToArray() }); Navigate("providers"); })); body.Children.Add(order);
-        }
-        else AddProviderAlerts(id);
-        if (provider.HasLocalHistory)
-        {
-            AddProviderLocalData(id, provider.Name);
-        }
-        foreach (var child in body.Children.OfType<FrameworkElement>())
-            if (child != providerReading && child.Margin.Left == 0 && child.Margin.Right == 0)
-                child.Margin = new Thickness(18, child.Margin.Top, 18, child.Margin.Bottom);
-        UpdateProviderControlStates();
     }
     private static readonly string[] AlibabaCodingSources = ["API", "Web"];
     private static readonly string[] DeepSeekSources = ["Auto", "API", "Web"];
@@ -892,7 +911,18 @@ internal sealed partial class DashboardWindow : Window
             if (key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password.Length == 0 : string.IsNullOrWhiteSpace(password.Password)) return;
             if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal) && MiniMaxAuthentication.Parse(password.Password, key.Split(':')[^1]) is null)
             { result.Text = "Enter a valid cookie or copied request for this region."; return; }
-            try { vault.Save(key, key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password : password.Password.Trim()); if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id); if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal)) vault.Delete("browser:minimax:" + key.Split(':')[^1]); ClearChromiumForManual(id, key); password.Clear(); store.InvalidateAccount(id); result.Text = "Saved.";
+            if (OwnedProviderAccess.Enabled && id is ("factory" or "groq") && !OwnedProviderAccess.IsPlainApiKey(password.Password))
+            { result.Text = "Enter a provider API key."; return; }
+            try
+            {
+                vault.Save(key, key == "setting:stepfun:STEPFUN_PASSWORD" ? password.Password : password.Password.Trim());
+                if (!OwnedProviderAccess.Enabled)
+                {
+                    if (key == "provider:" + id && id != "amp" || key == "cookie:" + id) vault.Delete("browser:" + id);
+                    if (key.StartsWith("cookie:minimax:", StringComparison.Ordinal)) vault.Delete("browser:minimax:" + key.Split(':')[^1]);
+                    ClearChromiumForManual(id, key);
+                }
+                password.Clear(); store.InvalidateAccount(id); result.Text = "Saved.";
                 // A provider waiting for exactly this key connects now instead of staying "Enter your key".
                 if (connectorField?.StateOf(id)?.Phase is ProviderConnector.Phase.NeedsKey or ProviderConnector.Phase.Failed) connector.Begin(id);
                 else _ = store.RefreshProviderAsync(id); }

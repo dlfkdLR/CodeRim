@@ -40,7 +40,7 @@ internal sealed class ProfileUsageStore : IDisposable
         ProfileUsageStatus.Idle => "Account totals are ready to sync",
         ProfileUsageStatus.Refreshing => "Updating account totals…",
         ProfileUsageStatus.Ready => "Account totals updated",
-        ProfileUsageStatus.CredentialsUnavailable => "Codex sign-in is unavailable",
+        ProfileUsageStatus.CredentialsUnavailable => OwnedProviderAccess.Enabled ? "Account-wide history requires a CodeRim-owned Codex sign-in." : "Codex sign-in is unavailable",
         _ => "Account totals are unavailable"
     };
     internal ProfileUsageStore(AppSettingsStore settings, bool synthetic,
@@ -49,7 +49,7 @@ internal sealed class ProfileUsageStore : IDisposable
         Func<bool>? accountBusy = null, Func<DateTimeOffset>? clock = null)
     {
         allowsAccountTotals = !synthetic || fetch is not null;
-        this.settings = settings; this.credentialLoader = credentialLoader ?? (synthetic ? () => throw new ProfileCredentialException() : LoadCredential);
+        this.settings = settings; this.credentialLoader = credentialLoader ?? (synthetic || OwnedProviderAccess.Enabled ? () => throw new ProfileCredentialException() : LoadCredential);
         this.accountBusy = accountBusy ?? (() => SavedAccounts.OperationInProgress); this.clock = clock ?? (() => DateTimeOffset.Now);
         if (fetch is null && !synthetic)
         {
