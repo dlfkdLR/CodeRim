@@ -25,6 +25,10 @@ pub unsafe extern "C" fn cr_codex_import_candidate(data: *const u8, length: usiz
         return false;
     }
     let bytes = unsafe { slice::from_raw_parts(data, length) };
+    is_import_candidate(bytes)
+}
+
+pub(super) fn is_import_candidate(bytes: &[u8]) -> bool {
     let [token, session, task, turn, response, image] = &*IMPORT_MARKERS;
     token.find(bytes).is_some()
         || session.find(bytes).is_some()

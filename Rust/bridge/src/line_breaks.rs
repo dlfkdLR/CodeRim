@@ -31,3 +31,45 @@ pub unsafe extern "C" fn cr_jsonl_line_breaks(
     }
     written
 }
+
+#[repr(C)]
+#[derive(Default)]
+pub struct ImportRun {
+    consumed: usize,
+    lines: usize,
+    candidate_length: usize,
+}
+
+/// Consume complete rows through the next Codex import candidate or commit boundary.
+/// The carried prefix contains no LF but can contain a marker, or part of one.
+///
+/// # Safety
+/// A non-null input spans length readable bytes for this call. All returned values
+/// are counts, so no reference to the caller's buffer survives the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cr_codex_import_run(
+    input: *const u8,
+    length: usize,
+    carried: usize,
+    max_lines: usize,
+) -> ImportRun {
+    let mut run = ImportRun::default();
+    if input.is_null() || length > isize::MAX as usize || carried >= length || max_lines == 0 {
+        return run;
+    }
+    let bytes = unsafe { slice::from_raw_parts(input, length) };
+    for newline in memchr::memchr_iter(b'\n', &bytes[carried..]) {
+        let end = carried + newline;
+        let line = &bytes[run.consumed..end];
+        run.consumed = end + 1;
+        run.lines += 1;
+        if super::activity_fields::is_import_candidate(line) {
+            run.candidate_length = line.len();
+            break;
+        }
+        if run.lines == max_lines {
+            break;
+        }
+    }
+    run
+}

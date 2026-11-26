@@ -466,19 +466,23 @@ actor CodexUsageCollector {
             }
 
             var consumedThrough = lineBuffer.startIndex
+            var fingerprintStart = consumedThrough
             lineBreaks.start(at: lineBuffer.startIndex + retainedByteCount)
-            while let newline = lineBreaks.next(in: lineBuffer) {
-                let line = Data(lineBuffer[consumedThrough..<newline])
-                let linePosition = lineStartOffset + Int64(lineBuffer.distance(from: lineBuffer.startIndex, to: consumedThrough))
-                try await session.consume(line, position: linePosition)
-                completedLineCount += 1
-                let afterNewline = lineBuffer.index(after: newline)
-                parsedFingerprintAccumulator.append(lineBuffer[consumedThrough..<afterNewline])
-                consumedThrough = afterNewline
-                session.checkpoint.committedOffset = lineStartOffset
-                    + Int64(lineBuffer.distance(from: lineBuffer.startIndex, to: consumedThrough))
+            while let run = lineBreaks.nextImportRun(in: lineBuffer, from: consumedThrough,
+                                                     codex: provider == .codex, maxLines: 1_000 - completedLineCount) {
+                if let selected = run.selected {
+                    let position = lineStartOffset + Int64(selected.lowerBound - lineBuffer.startIndex)
+                    // Ignored rows still advance the replay ledger before a metadata row is decoded.
+                    session.checkpoint.committedOffset = position
+                    try await session.consume(Data(lineBuffer[selected]), position: position, preselected: run.preselected)
+                }
+                completedLineCount += run.lines
+                consumedThrough = run.end
+                session.checkpoint.committedOffset = lineStartOffset + Int64(run.end - lineBuffer.startIndex)
 
                 if completedLineCount >= 1_000 || session.pendingEvents.count >= 256 {
+                    parsedFingerprintAccumulator.append(lineBuffer[fingerprintStart..<consumedThrough])
+                    fingerprintStart = consumedThrough
                     fingerprintBytesRead += try sourceReader.updateCheckpointFingerprint(
                         &session.checkpoint,
                         accumulator: &fingerprintAccumulator,
@@ -513,6 +517,9 @@ actor CodexUsageCollector {
                 }
             }
 
+            if fingerprintStart < consumedThrough {
+                parsedFingerprintAccumulator.append(lineBuffer[fingerprintStart..<consumedThrough])
+            }
             if consumedThrough != lineBuffer.startIndex {
                 let consumedCount = lineBuffer.distance(from: lineBuffer.startIndex, to: consumedThrough)
                 lineBuffer.removeSubrange(lineBuffer.startIndex..<consumedThrough)

@@ -35,6 +35,11 @@ CRActivityField cr_activity_field(const uint8_t *data, size_t length, const uint
 /* True when a bounded local Codex log row contains the accounting, metadata or image
    markers considered by the released importer. The decoder still validates the row. */
 bool cr_codex_import_candidate(const uint8_t *data, size_t length);
+/* A nonempty candidate is always the last completed row in this run. Consumed
+   includes its terminating LF. A partial final row never advances the ledger. */
+typedef struct { size_t consumed, lines, candidate_length; } CRCodexImportRun;
+CRCodexImportRun cr_codex_import_run(const uint8_t *bytes, size_t length,
+                                     size_t carried, size_t max_lines);
 // Returns seconds since 2001 or NaN to delegate to the original Foundation parser.
 // The formatter used by macOS transcript display has millisecond precision.
 double cr_log_reference_date(const char *text, size_t length, bool milliseconds);

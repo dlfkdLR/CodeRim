@@ -22,6 +22,27 @@ struct SourceLineBreaks {
         #endif
     }
 
+    /// End only at a complete line. The last one may need the full parser.
+    mutating func nextImportRun(in bytes: Data, from start: Data.Index, codex: Bool, maxLines: Int)
+        -> (end: Data.Index, lines: Int, selected: Range<Data.Index>?, preselected: Bool)? {
+        #if CODERIM_RUST_ACCOUNTING
+        if codex {
+            let offset = start - bytes.startIndex
+            let run = bytes.withUnsafeBytes { (buffer: UnsafeRawBufferPointer) in
+                cr_codex_import_run(buffer.bindMemory(to: UInt8.self).baseAddress?.advanced(by: offset),
+                                    buffer.count - offset, cursor - start, maxLines)
+            }
+            guard run.lines > 0 else { return nil }
+            cursor = start + run.consumed
+            let newline = cursor - 1
+            let selected = run.candidate_length == 0 ? nil : (newline - run.candidate_length)..<newline
+            return (cursor, run.lines, selected, true)
+        }
+        #endif
+        guard let newline = next(in: bytes) else { return nil }
+        return (newline + 1, 1, start..<newline, false)
+    }
+
     mutating func next(in bytes: Data) -> Data.Index? {
         #if CODERIM_RUST_ACCOUNTING
         if slot == count {

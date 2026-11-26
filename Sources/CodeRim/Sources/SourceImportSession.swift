@@ -36,13 +36,13 @@ struct SourceImportSession: Sendable {
         pendingEvents.reserveCapacity(256)
     }
 
-    mutating func consume(_ line: Data, position: Int64,
+    mutating func consume(_ line: Data, position: Int64, preselected: Bool = false,
                           isolation: isolated (any Actor)? = #isolation) async throws {
         if provider == .claude {
             processClaudeLine(line, position: position)
             return
         }
-        guard line.isCodexImportCandidate else { return }
+        guard preselected || line.isCodexImportCandidate else { return }
 
         switch parser.parse(line) {
         case let .sessionMetadata(parsed):
