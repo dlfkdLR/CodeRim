@@ -1,0 +1,275 @@
+{
+  "os": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "warmup_s": 15,
+  "interval_s": 65,
+  "power_source": "Now drawing from 'AC Power'",
+  "scope": "Main app PID. Empty profile, network and personal home blocked. No control of concurrent system load.",
+  "sha256": {
+    "reference": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64",
+    "candidate": "c2e262b57d40dc8b7d1db780ccacf4591174508e413503834e1cd8c33449d165"
+  },
+  "samples": [
+    {
+      "pair": 1,
+      "app": "reference",
+      "start": {
+        "cpu_ms": 1125.64658333,
+        "resident_bytes": 45498368,
+        "footprint_bytes": 22594448,
+        "peak_footprint_bytes": 24478704,
+        "interrupt_wakeups": 292,
+        "package_idle_wakeups": 0,
+        "disk_read_bytes": 362852352,
+        "disk_written_bytes": 16384,
+        "logical_writes": 446476,
+        "energy_nj": 2932159942
+      },
+      "end": {
+        "cpu_ms": 2896.321125,
+        "resident_bytes": 45580288,
+        "footprint_bytes": 23249808,
+        "peak_footprint_bytes": 24478704,
+        "interrupt_wakeups": 1514,
+        "package_idle_wakeups": 114,
+        "disk_read_bytes": 365842432,
+        "disk_written_bytes": 16384,
+        "logical_writes": 446476,
+        "energy_nj": 6321429537
+      },
+      "delta": {
+        "cpu_ms": 1770.6745416699998,
+        "energy_nj": 3389269595,
+        "disk_read_bytes": 2990080,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 1222,
+        "package_idle_wakeups": 114,
+        "logical_writes": 0
+      },
+      "seconds": 65.0074804169999,
+      "cpu_percent": 2.723801215355143
+    },
+    {
+      "pair": 1,
+      "app": "candidate",
+      "start": {
+        "cpu_ms": 949.66591667,
+        "resident_bytes": 75350016,
+        "footprint_bytes": 23004000,
+        "peak_footprint_bytes": 24200272,
+        "interrupt_wakeups": 442,
+        "package_idle_wakeups": 0,
+        "disk_read_bytes": 325222400,
+        "disk_written_bytes": 16384,
+        "logical_writes": 487436,
+        "energy_nj": 2926867507
+      },
+      "end": {
+        "cpu_ms": 2334.78358333,
+        "resident_bytes": 44154880,
+        "footprint_bytes": 23266168,
+        "peak_footprint_bytes": 24200272,
+        "interrupt_wakeups": 1366,
+        "package_idle_wakeups": 46,
+        "disk_read_bytes": 325742592,
+        "disk_written_bytes": 16384,
+        "logical_writes": 487436,
+        "energy_nj": 5241693120
+      },
+      "delta": {
+        "cpu_ms": 1385.11766666,
+        "energy_nj": 2314825613,
+        "disk_read_bytes": 520192,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 924,
+        "package_idle_wakeups": 46,
+        "logical_writes": 0
+      },
+      "seconds": 65.01185233400611,
+      "cpu_percent": 2.1305617620980764
+    },
+    {
+      "pair": 2,
+      "app": "candidate",
+      "start": {
+        "cpu_ms": 1017.7555,
+        "resident_bytes": 83836928,
+        "footprint_bytes": 23659336,
+        "peak_footprint_bytes": 23954440,
+        "interrupt_wakeups": 398,
+        "package_idle_wakeups": 16,
+        "disk_read_bytes": 338731008,
+        "disk_written_bytes": 16384,
+        "logical_writes": 962572,
+        "energy_nj": 2440887440
+      },
+      "end": {
+        "cpu_ms": 1596.68491667,
+        "resident_bytes": 48168960,
+        "footprint_bytes": 23692104,
+        "peak_footprint_bytes": 23954440,
+        "interrupt_wakeups": 832,
+        "package_idle_wakeups": 61,
+        "disk_read_bytes": 340434944,
+        "disk_written_bytes": 16384,
+        "logical_writes": 962572,
+        "energy_nj": 3159659025
+      },
+      "delta": {
+        "cpu_ms": 578.9294166699999,
+        "energy_nj": 718771585,
+        "disk_read_bytes": 1703936,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 434,
+        "package_idle_wakeups": 45,
+        "logical_writes": 0
+      },
+      "seconds": 65.01088412498939,
+      "cpu_percent": 0.8905115265883095
+    },
+    {
+      "pair": 2,
+      "app": "reference",
+      "start": {
+        "cpu_ms": 665.65975,
+        "resident_bytes": 88145920,
+        "footprint_bytes": 23593848,
+        "peak_footprint_bytes": 23938128,
+        "interrupt_wakeups": 164,
+        "package_idle_wakeups": 5,
+        "disk_read_bytes": 350756864,
+        "disk_written_bytes": 16384,
+        "logical_writes": 454668,
+        "energy_nj": 1981805165
+      },
+      "end": {
+        "cpu_ms": 1299.13820833,
+        "resident_bytes": 46481408,
+        "footprint_bytes": 23593848,
+        "peak_footprint_bytes": 23938128,
+        "interrupt_wakeups": 594,
+        "package_idle_wakeups": 35,
+        "disk_read_bytes": 352608256,
+        "disk_written_bytes": 16384,
+        "logical_writes": 454668,
+        "energy_nj": 2764261731
+      },
+      "delta": {
+        "cpu_ms": 633.47845833,
+        "energy_nj": 782456566,
+        "disk_read_bytes": 1851392,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 430,
+        "package_idle_wakeups": 30,
+        "logical_writes": 0
+      },
+      "seconds": 65.01733762500226,
+      "cpu_percent": 0.9743223599583343
+    },
+    {
+      "pair": 3,
+      "app": "reference",
+      "start": {
+        "cpu_ms": 611.888125,
+        "resident_bytes": 88342528,
+        "footprint_bytes": 23806840,
+        "peak_footprint_bytes": 24150904,
+        "interrupt_wakeups": 183,
+        "package_idle_wakeups": 12,
+        "disk_read_bytes": 338153472,
+        "disk_written_bytes": 16384,
+        "logical_writes": 425996,
+        "energy_nj": 1924549560
+      },
+      "end": {
+        "cpu_ms": 1476.051125,
+        "resident_bytes": 52854784,
+        "footprint_bytes": 24216440,
+        "peak_footprint_bytes": 24314744,
+        "interrupt_wakeups": 744,
+        "package_idle_wakeups": 95,
+        "disk_read_bytes": 338939904,
+        "disk_written_bytes": 16384,
+        "logical_writes": 425996,
+        "energy_nj": 3053865653
+      },
+      "delta": {
+        "cpu_ms": 864.163,
+        "energy_nj": 1129316093,
+        "disk_read_bytes": 786432,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 561,
+        "package_idle_wakeups": 83,
+        "logical_writes": 0
+      },
+      "seconds": 65.01289716700558,
+      "cpu_percent": 1.329217797785772
+    },
+    {
+      "pair": 3,
+      "app": "candidate",
+      "start": {
+        "cpu_ms": 1244.85454167,
+        "resident_bytes": 84443136,
+        "footprint_bytes": 23905120,
+        "peak_footprint_bytes": 24363872,
+        "interrupt_wakeups": 495,
+        "package_idle_wakeups": 25,
+        "disk_read_bytes": 348602368,
+        "disk_written_bytes": 16384,
+        "logical_writes": 475148,
+        "energy_nj": 2736848687
+      },
+      "end": {
+        "cpu_ms": 2706.305375,
+        "resident_bytes": 30998528,
+        "footprint_bytes": 23774024,
+        "peak_footprint_bytes": 24363872,
+        "interrupt_wakeups": 1519,
+        "package_idle_wakeups": 51,
+        "disk_read_bytes": 350846976,
+        "disk_written_bytes": 16384,
+        "logical_writes": 475148,
+        "energy_nj": 5709185503
+      },
+      "delta": {
+        "cpu_ms": 1461.45083333,
+        "energy_nj": 2972336816,
+        "disk_read_bytes": 2244608,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 1024,
+        "package_idle_wakeups": 26,
+        "logical_writes": 0
+      },
+      "seconds": 65.12866908298747,
+      "cpu_percent": 2.243943955722184
+    }
+  ],
+  "median": {
+    "reference": {
+      "cpu_ms": 864.163,
+      "energy_nj": 1129316093,
+      "disk_read_bytes": 1851392,
+      "disk_written_bytes": 0,
+      "interrupt_wakeups": 561,
+      "package_idle_wakeups": 83,
+      "logical_writes": 0,
+      "cpu_percent": 1.329217797785772,
+      "resident_bytes": 46481408,
+      "footprint_bytes": 23593848,
+      "peak_footprint_bytes": 24314744
+    },
+    "candidate": {
+      "cpu_ms": 1385.11766666,
+      "energy_nj": 2314825613,
+      "disk_read_bytes": 1703936,
+      "disk_written_bytes": 0,
+      "interrupt_wakeups": 924,
+      "package_idle_wakeups": 45,
+      "logical_writes": 0,
+      "cpu_percent": 2.1305617620980764,
+      "resident_bytes": 44154880,
+      "footprint_bytes": 23692104,
+      "peak_footprint_bytes": 24200272
+    }
+  }
+}
