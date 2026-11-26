@@ -34,6 +34,7 @@ pub struct ImportResult {
 #[link(name = "sqlite3")]
 unsafe extern "C" {
     fn sqlite3_db_handle(stmt: *mut c_void) -> *mut c_void;
+    fn sqlite3_get_autocommit(db: *mut c_void) -> c_int;
     fn sqlite3_changes(db: *mut c_void) -> c_int;
     fn sqlite3_bind_parameter_count(stmt: *mut c_void) -> c_int;
     fn sqlite3_clear_bindings(stmt: *mut c_void) -> c_int;
@@ -200,9 +201,139 @@ pub unsafe extern "C" fn cr_import_usage_events(
     }
 }
 
+/// # Safety
+/// The caller exclusively lends the two prepared statements on one connection in an open
+/// transaction. The UTF-8 key must remain readable until this call returns.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cr_exclude_usage_message(
+    insert: *mut c_void,
+    remove_event: *mut c_void,
+    key: *const u8,
+    length: usize,
+) -> i32 {
+    if insert.is_null()
+        || remove_event.is_null()
+        || insert == remove_event
+        || (length != 0 && key.is_null())
+    {
+        return 4;
+    }
+    if length > i32::MAX as usize {
+        return 1;
+    }
+    // Both mutations must be rolled back together if a trigger or constraint fails.
+    let db = unsafe { sqlite3_db_handle(insert) };
+    if db.is_null()
+        || unsafe { sqlite3_db_handle(remove_event) != db || sqlite3_get_autocommit(db) != 0 }
+        || unsafe {
+            sqlite3_bind_parameter_count(insert) != 1
+                || sqlite3_bind_parameter_count(remove_event) != 1
+        }
+    {
+        return 4;
+    }
+    let key = if length == 0 {
+        &[]
+    } else {
+        // SAFETY: the caller lends these bytes and SQLite copies text bindings.
+        unsafe { slice::from_raw_parts(key, length) }
+    };
+    for statement in [insert, remove_event] {
+        // These one-parameter statements are reused for every key in Swift Set iteration order.
+        unsafe { sqlite3_reset(statement) };
+        if let Err(status) = Statement(statement).text(1, Some(key)) {
+            return status;
+        }
+        if unsafe { sqlite3_step(statement) } != SQLITE_DONE {
+            return 3;
+        }
+    }
+    0
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn exclusion_checks_the_transaction_and_keeps_the_key_in_both_steps() {
+        unsafe extern "C" {
+            fn sqlite3_open(name: *const c_char, db: *mut *mut c_void) -> c_int;
+            fn sqlite3_close(db: *mut c_void) -> c_int;
+            fn sqlite3_prepare_v2(
+                db: *mut c_void,
+                sql: *const c_char,
+                size: c_int,
+                stmt: *mut *mut c_void,
+                tail: *mut *const c_char,
+            ) -> c_int;
+            fn sqlite3_finalize(stmt: *mut c_void) -> c_int;
+        }
+        let mut db = std::ptr::null_mut();
+        // All statements belong to this private in-memory database and remain live until finalized.
+        unsafe {
+            assert_eq!(sqlite3_open(c":memory:".as_ptr(), &mut db), 0);
+            let prepare = |sql: &std::ffi::CStr| {
+                let mut stmt = std::ptr::null_mut();
+                assert_eq!(
+                    sqlite3_prepare_v2(db, sql.as_ptr(), -1, &mut stmt, std::ptr::null_mut()),
+                    0
+                );
+                stmt
+            };
+            let execute = |sql: &std::ffi::CStr| {
+                let stmt = prepare(sql);
+                assert_eq!(sqlite3_step(stmt), SQLITE_DONE);
+                assert_eq!(sqlite3_finalize(stmt), 0);
+            };
+            execute(c"CREATE TABLE exclusions(key TEXT PRIMARY KEY)");
+            execute(c"CREATE TABLE events(key TEXT PRIMARY KEY)");
+            execute(c"INSERT INTO events VALUES('기록')");
+            let insert = prepare(c"INSERT OR IGNORE INTO exclusions VALUES(?)");
+            let delete = prepare(c"DELETE FROM events WHERE key=?");
+            let key = "기록".as_bytes();
+            assert_eq!(
+                cr_exclude_usage_message(insert, delete, key.as_ptr(), key.len()),
+                4
+            );
+            execute(c"BEGIN");
+            assert_eq!(
+                cr_exclude_usage_message(insert, insert, key.as_ptr(), key.len()),
+                4
+            );
+            assert_eq!(
+                cr_exclude_usage_message(insert, delete, std::ptr::null(), 1),
+                4
+            );
+            assert_eq!(
+                cr_exclude_usage_message(insert, delete, key.as_ptr(), i32::MAX as usize + 1),
+                1
+            );
+            assert_eq!(
+                cr_exclude_usage_message(insert, delete, b"a\0b".as_ptr(), 3),
+                1
+            );
+            assert_eq!(
+                cr_exclude_usage_message(insert, delete, key.as_ptr(), key.len()),
+                0
+            );
+            assert_eq!(
+                cr_exclude_usage_message(insert, delete, std::ptr::null(), 0),
+                0
+            );
+            let matches = |sql: &std::ffi::CStr| {
+                let stmt = prepare(sql);
+                assert_eq!(sqlite3_step(stmt), SQLITE_ROW);
+                assert_eq!(sqlite3_finalize(stmt), 0);
+            };
+            matches(c"SELECT 1 WHERE (SELECT count(*) FROM exclusions WHERE key IN ('기록',''))=2 AND NOT EXISTS (SELECT 1 FROM events)");
+            execute(c"ROLLBACK");
+            matches(c"SELECT 1 WHERE NOT EXISTS (SELECT 1 FROM exclusions) AND EXISTS (SELECT 1 FROM events WHERE key='기록')");
+            assert_eq!(sqlite3_finalize(insert), 0);
+            assert_eq!(sqlite3_finalize(delete), 0);
+            assert_eq!(sqlite3_close(db), 0);
+        }
+    }
 
     #[test]
     fn text_spans_preserve_null_empty_and_bounds() {

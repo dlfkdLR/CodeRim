@@ -1318,6 +1318,20 @@ actor SQLiteDatabase {
         let delete = try prepare("DELETE FROM usage_events WHERE event_key = ?1")
         defer { sqlite3_finalize(delete) }
         for eventKey in eventKeys {
+            #if CODERIM_RUST_ACCOUNTING
+            var key = eventKey
+            let status = key.withUTF8 { bytes in
+                cr_exclude_usage_message(UnsafeMutableRawPointer(insert), UnsafeMutableRawPointer(delete),
+                                         bytes.baseAddress, bytes.count)
+            }
+            switch status {
+            case 0: break
+            case 1: throw SQLiteDatabaseError.statement("text value is not safe to store")
+            case 2: throw SQLiteDatabaseError.statement(errorMessage)
+            case 3: throw SQLiteDatabaseError.step(errorMessage)
+            default: throw SQLiteDatabaseError.statement("invalid message exclusion statement")
+            }
+            #else
             for statement in [insert, delete] {
                 sqlite3_reset(statement)
                 sqlite3_clear_bindings(statement)
@@ -1326,6 +1340,7 @@ actor SQLiteDatabase {
                     throw SQLiteDatabaseError.step(errorMessage)
                 }
             }
+            #endif
         }
     }
 

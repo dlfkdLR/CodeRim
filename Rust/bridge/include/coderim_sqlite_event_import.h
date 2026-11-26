@@ -18,4 +18,7 @@ typedef struct { int32_t status, changes; } cr_import_result;
 cr_import_result cr_import_usage_events(void *statement, const cr_import_event *events, size_t count,
                                        const uint8_t *text, size_t length, int64_t generation,
                                        uint8_t merge_messages);
+// Runs the exclusion INSERT and usage DELETE in that order on the caller's transaction.
+// The one-parameter statements and key bytes are borrowed. Status values match cr_import_result.
+int32_t cr_exclude_usage_message(void *insert, void *remove_event, const uint8_t *key, size_t length);
 #endif
