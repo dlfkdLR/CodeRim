@@ -15,13 +15,19 @@ internal static class Program
 {
     private static async Task<int> Main(string[] args)
     {
-        if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" || args.Length != 2 ||
+        if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true" || args.Length is not (2 or 3) ||
             !int.TryParse(args[0], out int pid)) return 2;
         NativeCapture.SetProcessDpiAwarenessContext(-4); // PER_MONITOR_AWARE_V2, before reading geometry.
         string directory = Path.GetFullPath(args[1]), prefix = Path.Combine(directory, "account-compositor");
         using var process = Process.GetProcessById(pid);
         _ = process.SafeHandle; // Keep the installed fixture's process identity alive for the entire rendezvous.
         string installed = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "CodeRim", "CodeRim.exe");
+        if (args.Length == 3)
+        {
+            if (args[2] is not ("release" or "candidate")) return 2;
+            installed = Path.Combine(Environment.GetEnvironmentVariable("RUNNER_TEMP") ?? throw new InvalidOperationException(),
+                "coderim-controlled-source", args[2], "app", "CodeRim.exe");
+        }
         if (!string.Equals(process.MainModule?.FileName, installed, StringComparison.OrdinalIgnoreCase)) return 3;
         object result;
         try
@@ -89,7 +95,7 @@ internal static class Program
         object backing = bitmap.BitmapAlphaMode == BitmapAlphaMode.Ignore
             ? new { status = "compositor-alpha-unavailable" }
             : OwnedBackdrop.Compare(hwnd, process.Id, client, pixels, bitmap.BitmapAlphaMode == BitmapAlphaMode.Straight);
-        return new { status = "compositor-owned-frame", independent, backing };
+        return new { status = "compositor-owned-frame", client.X, client.Y, client.Width, client.Height, independent, backing };
     }
 
     private static object Compare(byte[] pixels, Size size, string ownedPath, int frameWidth, int frameHeight)

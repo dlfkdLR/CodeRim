@@ -379,6 +379,7 @@ jobs:
         with:
           dotnet-version: '10.0.x'
       - name: Build ZIP, MSI and MSIX migration packages
+        id: packages
         run: |
           if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne '${{ matrix.arch }}') { throw 'Unexpected OS architecture' }
           rustup target add ${{ matrix.triple }}
@@ -418,6 +419,23 @@ jobs:
           ./Windows/Scripts/test-msix.ps1 -Package $package.FullName -Architecture ${{ matrix.arch }} -OwnedAccounts
           $outcome = Get-Content Artifacts/msix-${{ matrix.arch }}/msix-checks.json -Raw | ConvertFrom-Json
           if ($outcome -notcontains 'packaged-native-ui-smoke') { throw 'The runner did not exercise packaged GUI activation.' }
+      - name: Check out the stable WPF account history fixture
+        if: ${{ !cancelled() && steps.packages.outcome == 'success' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 14c332b30fd35cd266b40a4f9384b4b065b63707 # v2.1.41
+          path: .migration-display-oracle
+      - name: Compare stable and candidate native account history windows
+        if: ${{ !cancelled() && steps.packages.outcome == 'success' }}
+        run: |
+          $library = (Resolve-Path 'Rust/target/${{ matrix.triple }}/release/coderim_accounting_bridge.dll').Path
+          $probeDirectory = Join-Path $env:RUNNER_TEMP 'coderim-window-capture-probe'
+          $probe = Join-Path $probeDirectory 'CodeRim.WindowCapture.dll'
+          if (!(Test-Path -LiteralPath $probe)) {
+            dotnet build Windows/tests/CodeRim.WindowCapture -c Release -o $probeDirectory
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          python Windows/tests/CodeRim.WindowCapture/source_pair.py --reference-source .migration-display-oracle --library "$library" --probe "$probe" --output "Artifacts/windows-source-frame-pair.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
@@ -425,6 +443,7 @@ jobs:
           path: |
             Artifacts/*.sha256
             Artifacts/windows-msi-lifecycle.json
+            Artifacts/windows-source-frame-pair.json
             Artifacts/windows-public-msi-*.json
             Artifacts/installed/**/*.json
             Artifacts/installed/**/*.png

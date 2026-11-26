@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 
 [assembly: DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
 
@@ -17,7 +18,10 @@ internal static class OwnedBackdrop
     internal static object Compare(nint source, int pid, Rectangle client, byte[] frame, bool straightAlpha)
     {
         var top = Samples(source, 0, client);
-        if (top != 9) return new { status = "fixture-not-visible", initiallyOwned = top };
+        if (top != 9) return new { status = "fixture-not-visible", initiallyOwned = top,
+            fixtureVisible = IsWindowVisible(source), fixtureMinimized = IsIconic(source),
+            fixtureForeground = GetForegroundWindow() == source, interactive = Environment.UserInteractive,
+            remoteSession = System.Windows.Forms.SystemInformation.TerminalServerSession };
         nint instance = GetModuleHandleW(null);
         nint brush = CreateSolidBrush((uint)(BackColor.R | BackColor.G << 8 | BackColor.B << 16));
         if (brush == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
@@ -50,28 +54,34 @@ internal static class OwnedBackdrop
             if (!after.Complete || !NativeCapture.Owned(source, pid))
                 return new { status = "controlled-ownership-incomplete-after", before, after };
             int different = 0, transparent = 0, partial = 0;
+            using var digest = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
             var surface = physical.LockBits(new Rectangle(Point.Empty, client.Size), ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
             try
             {
                 var row = new byte[client.Width * 4];
+                var bgr = new byte[client.Width * 3];
                 for (int y = 0; y < client.Height; y++)
                 {
                     Marshal.Copy(surface.Scan0 + y * surface.Stride, row, 0, row.Length);
                     for (int i = 0; i < row.Length; i += 4)
                     {
                         int k = y * row.Length + i, alpha = frame[k + 3];
+                        int dest = i / 4 * 3;
+                        bgr[dest] = row[i]; bgr[dest + 1] = row[i + 1]; bgr[dest + 2] = row[i + 2];
                         if (alpha == 0) transparent++;
                         else if (alpha < 255) partial++;
                         if (Blend(frame[k], BackColor.B, alpha, straightAlpha) != row[i] ||
                             Blend(frame[k + 1], BackColor.G, alpha, straightAlpha) != row[i + 1] ||
                             Blend(frame[k + 2], BackColor.R, alpha, straightAlpha) != row[i + 2]) different++;
                     }
+                    digest.AppendData(bgr);
                 }
             }
             finally { physical.UnlockBits(surface); }
             return new { status = "controlled-frame-compared", before, after, different, transparent, partial,
                 total = frame.Length / 4, backingRgb = new[] { BackColor.R, BackColor.G, BackColor.B }.Select(v => (int)v),
-                exact = different == 0, straightAlpha };
+                exact = different == 0, straightAlpha,
+                physicalBgrSha256 = Convert.ToHexStringLower(digest.GetHashAndReset()) };
         }
         finally
         {
@@ -136,6 +146,9 @@ internal static class OwnedBackdrop
     [DllImport("user32.dll", SetLastError = true)] private static extern bool SetWindowPos(nint target, nint after, int x, int y, int width, int height, uint flags);
     [DllImport("user32.dll")] private static extern bool DestroyWindow(nint hwnd);
     [DllImport("user32.dll")] private static extern bool UpdateWindow(nint hwnd);
+    [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hwnd);
+    [DllImport("user32.dll")] private static extern bool IsIconic(nint hwnd);
+    [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
     [DllImport("user32.dll")] private static extern nint WindowFromPoint(Point point);
     [DllImport("user32.dll")] private static extern nint GetAncestor(nint hwnd, uint flag);
     [DllImport("dwmapi.dll")] private static extern int DwmFlush();
