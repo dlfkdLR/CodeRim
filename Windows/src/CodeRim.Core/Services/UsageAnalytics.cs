@@ -17,7 +17,9 @@ public static class UsageAnalytics
     private static readonly Dictionary<string, ModelPrice> Prices = ProviderCatalog.ReadResource<ModelPrice[]>("pricing.json").ToDictionary(x => x.Model, StringComparer.Ordinal);
     public static CostSummary Estimate(IEnumerable<UsageEvent> events, IReadOnlySet<string>? excludingModels = null)
     {
-        if (events is UsageEvent[] { Length: 0 } or List<UsageEvent> { Count: 0 })
+        // A derived List may reimplement IEnumerable and yield rows even with an empty backing list.
+        if (events is UsageEvent[] { Length: 0 }
+            || events is List<UsageEvent> { Count: 0 } list && list.GetType() == typeof(List<UsageEvent>))
             return new CostSummary(0m, 0, []);
         decimal amount = 0;
         long excluded = 0;
