@@ -44,9 +44,9 @@ mod transcript;
 #[cfg(target_os = "macos")]
 mod window_placement;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
-mod windows_history;
-#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod windows_companion;
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
+mod windows_history;
 
 use coderim_usage_core::{
     Diagnostic, Observation, Quality, State, TokenUsage, ZeroPolicy, normalize,
