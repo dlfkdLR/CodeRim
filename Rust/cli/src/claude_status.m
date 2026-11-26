@@ -16,9 +16,6 @@ bool cr_status_interrupted(void) {
 
 char *cr_status_output(const char *arg) {
     @autoreleasepool {
-        NSString *path = [NSString stringWithUTF8String:arg];
-        if (!path) return NULL;
-        NSURL *output = [NSURL fileURLWithPath:path].URLByStandardizingPath;
         NSFileManager *manager = NSFileManager.defaultManager;
         NSURL *support = [manager URLsForDirectory:NSApplicationSupportDirectory
                                          inDomains:NSUserDomainMask].firstObject;
@@ -26,6 +23,20 @@ char *cr_status_output(const char *arg) {
             support = [manager.homeDirectoryForCurrentUser
                 URLByAppendingPathComponent:@"Library/Application Support" isDirectory:YES];
         }
+        // The installer persists this exact absolute path. Alternate URL spellings
+        // still go through the released Foundation comparison below.
+        const char *base = support.path.UTF8String;
+        if (base) {
+            size_t length = strlen(base);
+            if (strncmp(arg, base, length) == 0 &&
+                (strcmp(arg + length, "/CodexMeter/Claude/ClaudeLimits.json") == 0 ||
+                 strcmp(arg + length, "/CodexMeter-Development/Claude/ClaudeLimits.json") == 0)) {
+                return strdup(arg);
+            }
+        }
+        NSString *path = [NSString stringWithUTF8String:arg];
+        if (!path) return NULL;
+        NSURL *output = [NSURL fileURLWithPath:path].URLByStandardizingPath;
         for (NSString *name in @[@"CodexMeter", @"CodexMeter-Development"]) {
             NSURL *product = [support URLByAppendingPathComponent:name isDirectory:YES];
             NSURL *directory = [product URLByAppendingPathComponent:@"Claude" isDirectory:YES];

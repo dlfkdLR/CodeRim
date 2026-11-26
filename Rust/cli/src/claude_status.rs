@@ -41,7 +41,8 @@ mod bridge {
         fn cr_status_publish(path: *const c_char, data: *const u8, length: usize) -> i32;
         fn cr_status_interrupted() -> bool;
         fn CFAbsoluteTimeGetCurrent() -> f64;
-        fn malloc(bytes: usize) -> *mut c_void;
+        fn calloc(count: usize, bytes: usize) -> *mut c_void;
+        fn cr_status_number(out: *mut u8, capacity: usize, value: f64, scientific: bool) -> usize;
         fn free(memory: *mut c_void);
         fn read(fd: i32, buffer: *mut c_void, bytes: usize) -> isize;
         fn write(fd: i32, buffer: *const c_void, bytes: usize) -> isize;
@@ -85,40 +86,16 @@ mod bridge {
     }
 
     fn number(out: &mut Buffer<256>, value: f64) -> fmt::Result {
-        // JSONEncoder chooses scientific notation outside this binary64 range.
-        // zmij supplies the shortest round-to-even significand, including halfway cases.
-        let mut converted = zmij::Buffer::new();
-        let rendered = converted.format_finite(value);
-        if value == 0.0 || (0.0001..=9_007_199_254_740_992.0).contains(&value.abs()) {
-            // zmij uses fixed notation for this entire interval.
-            return out.write_str(rendered.strip_suffix(".0").unwrap_or(rendered));
+        let scientific = value != 0.0 && !(0.0001..=9_007_199_254_740_992.0).contains(&value.abs());
+        let remaining = &mut out.bytes[out.len..];
+        // to_chars writes at most the supplied capacity and does not add a terminator.
+        let count =
+            unsafe { cr_status_number(remaining.as_mut_ptr(), remaining.len(), value, scientific) };
+        if count == 0 || count > remaining.len() {
+            return Err(fmt::Error);
         }
-        if let Some((mantissa, exp)) = rendered.split_once('e') {
-            let exponent = exp.parse::<i32>().map_err(|_| fmt::Error)?;
-            return write!(out, "{mantissa}e{exponent:+03}");
-        }
-        // Reposition the decimal point for the small interval where only Swift
-        // chooses an exponent. Keep the shortest significand unchanged.
-        let decimal = rendered.strip_prefix('-').unwrap_or(rendered);
-        if rendered.starts_with('-') {
-            out.write_char('-')?;
-        }
-        let decimal_at = decimal.find('.').unwrap_or(decimal.len());
-        let mut digits = Buffer::<32>::new();
-        for ch in decimal.chars().filter(|c| *c != '.') {
-            digits.write_char(ch)?;
-        }
-        let digits = core::str::from_utf8(digits.contents()).map_err(|_| fmt::Error)?;
-        let significant = digits.trim_start_matches('0');
-        let exponent = decimal_at as i32 - (digits.len() - significant.len()) as i32 - 1;
-        let significant = significant.trim_end_matches('0');
-        let (first, rest) = significant.split_at(1);
-        out.write_str(first)?;
-        if !rest.is_empty() {
-            out.write_char('.')?;
-            out.write_str(rest)?;
-        }
-        write!(out, "e{exponent:+03}")
+        out.len += count;
+        Ok(())
     }
 
     fn encode(
@@ -127,14 +104,16 @@ mod bridge {
         summary: &mut Buffer<64>,
     ) -> Result<Buffer<256>, fmt::Error> {
         let mut json = Buffer::new();
-        json.write_str("{\"fetchedAt\":")?;
-        number(&mut json, fetched)?;
         for ((key, label), w) in [("fiveHour", "5h"), ("sevenDay", "7d")]
             .into_iter()
             .zip(windows)
         {
             if w.has_used == 0 || !(0.0..=100.0).contains(&w.used) {
                 continue;
+            }
+            if json.len == 0 {
+                json.write_str("{\"fetchedAt\":")?;
+                number(&mut json, fetched)?;
             }
             write!(json, ",\"{key}\":{{")?;
             if w.has_reset != 0 && w.reset.is_finite() {
@@ -157,17 +136,12 @@ mod bridge {
         Ok(json)
     }
 
-    fn read_input(buffer: &Allocation) -> Result<usize, Failure> {
+    fn fill(buffer: &mut [u8]) -> Result<usize, Failure> {
         let mut count = 0;
-        while count <= MAX_INPUT {
-            // The uninitialized suffix is writable up to the one-byte overflow sentinel.
-            let n = unsafe {
-                read(
-                    0,
-                    buffer.0.cast::<u8>().add(count).cast(),
-                    MAX_INPUT + 1 - count,
-                )
-            };
+        while count < buffer.len() {
+            let suffix = &mut buffer[count..];
+            // read writes at most suffix.len() bytes and never retains its pointer.
+            let n = unsafe { read(0, suffix.as_mut_ptr().cast(), suffix.len()) };
             if n < 0 {
                 if unsafe { cr_status_interrupted() } {
                     continue;
@@ -175,11 +149,46 @@ mod bridge {
                 return Err(FAILED);
             }
             if n == 0 {
-                return Ok(count);
+                break;
             }
             count += n as usize;
         }
-        Err((1, "Status-line input is too large."))
+        Ok(count)
+    }
+
+    fn decode(input: &[u8]) -> Result<([Numbers; 2], f64), Failure> {
+        let mut windows = [Numbers::default(); 2];
+        if input == b"{}" || input == b"{}\n" {
+            return Ok((windows, 0.0));
+        }
+        let fetched = unsafe { CFAbsoluteTimeGetCurrent() } + EPOCH;
+        // Foundation borrows the document to preserve all encodings, NSNumber
+        // semantics and duplicate keys. Only the two requested windows leave the call.
+        if unsafe { cr_status_parse(input.as_ptr(), input.len(), windows.as_mut_ptr()) } != 1 {
+            return Err(FAILED);
+        }
+        Ok((windows, fetched))
+    }
+
+    fn read_windows() -> Result<([Numbers; 2], f64), Failure> {
+        let mut small = [0u8; 4096];
+        let count = fill(&mut small)?;
+        if count < small.len() {
+            return decode(&small[..count]);
+        }
+        let allocation = Allocation(unsafe { calloc(1, MAX_INPUT + 1) });
+        if allocation.0.is_null() {
+            return Err(FAILED);
+        }
+        // calloc initialized this entire allocation; its owner outlives decoding.
+        let data =
+            unsafe { core::slice::from_raw_parts_mut(allocation.0.cast::<u8>(), MAX_INPUT + 1) };
+        data[..count].copy_from_slice(&small);
+        let total = count + fill(&mut data[count..])?;
+        if total > MAX_INPUT {
+            return Err((1, "Status-line input is too large."));
+        }
+        decode(&data[..total])
     }
 
     fn print(fd: i32, message: &[u8]) {
@@ -210,19 +219,7 @@ mod bridge {
         if path.0.is_null() {
             return Err((2, "Output path is outside CodeRim application support."));
         }
-        let data = Allocation(unsafe { malloc(MAX_INPUT + 1) });
-        if data.0.is_null() {
-            return Err(FAILED);
-        }
-        let count = read_input(&data)?;
-        let fetched = unsafe { CFAbsoluteTimeGetCurrent() } + EPOCH;
-        let mut windows = [Numbers::default(); 2];
-        // The Foundation decoder borrows the initialized prefix, respecting all
-        // JSON encodings, NSNumber semantics and duplicate keys of the Swift codec.
-        if unsafe { cr_status_parse(data.0.cast(), count, windows.as_mut_ptr()) } != 1 {
-            return Err(FAILED);
-        }
-        drop(data);
+        let (windows, fetched) = read_windows()?;
         let mut summary = Buffer::new();
         let json = encode(windows, fetched, &mut summary).map_err(|_| FAILED)?;
         if summary.len == 0 {

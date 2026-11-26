@@ -20,7 +20,6 @@ libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value", "float_roundtrip"] }
 unicode-segmentation = "1"
-zmij = "1"
 
 [build-dependencies]
 cc = "1"
