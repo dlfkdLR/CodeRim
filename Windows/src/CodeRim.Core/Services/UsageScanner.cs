@@ -312,15 +312,22 @@ public sealed class UsageScanner
                 };
         return new ScanResult(snapshot, sources.Count, status.Replace("Codex", provider == "claude" ? "Claude Code" : "Codex", StringComparison.Ordinal), hasMoreWork) { Events = events,
             ContentVersion = contentVersion.ToString(CultureInfo.InvariantCulture) + ":" + dueAttachments.ToString(CultureInfo.InvariantCulture),
-            Sessions = provider == "claude" ? events.GroupBy(x => x.SessionId, StringComparer.Ordinal).Select(group =>
-            {
-                var named = group.Where(x => x.ProjectId != "unknown").OrderByDescending(x => x.OccurredAt)
-                    .ThenBy(x => x.Project, StringComparer.Ordinal).FirstOrDefault();
-                return new SessionDetails(group.Key, group.Select(x => x.ImportParentSessionId).FirstOrDefault(x => x is not null), []) { StartedAt = group.Min(x => x.OccurredAt),
-                    ProjectName = named?.Project, ProjectObservedAt = named?.OccurredAt };
-            }).ToArray() : cache.Values.Where(x => x.Details is not null).Select(x => x.Details! with {
+            Sessions = provider == "claude" ? ClaudeSessions(events) : cache.Values.Where(x => x.Details is not null).Select(x => x.Details! with {
                 Attachments = x.Details!.Attachments.Where(a => a.OccurredAt <= now).ToArray() }).ToArray() };
     }
+
+    internal static SessionDetails[] ClaudeSessions(List<UsageEvent> events) =>
+#if CODERIM_RUST_ACCOUNTING
+        RustClaudeScanSessions.Project(events);
+#else
+        events.GroupBy(x => x.SessionId, StringComparer.Ordinal).Select(group =>
+        {
+            var named = group.Where(x => x.ProjectId != "unknown").OrderByDescending(x => x.OccurredAt)
+                .ThenBy(x => x.Project, StringComparer.Ordinal).FirstOrDefault();
+            return new SessionDetails(group.Key, group.Select(x => x.ImportParentSessionId).FirstOrDefault(x => x is not null), []) { StartedAt = group.Min(x => x.OccurredAt),
+                ProjectName = named?.Project, ProjectObservedAt = named?.OccurredAt };
+        }).ToArray();
+#endif
 
     private sealed record CachedFile(FileStamp Stamp, IReadOnlyList<UsageEvent> Events, bool Partial, SessionDetails? Details);
     private readonly record struct FileStamp(long Length, long LastWriteTicks, long CreationTimeTicks)
