@@ -17,8 +17,7 @@ fn restore_owner_access(directory: RawFd, name: &CStr, kind: libc::mode_t) -> io
     // A profile restored from backup can have no owner read/write bits.
     let mut stat = MaybeUninit::<libc::stat>::uninit();
     let flags = libc::AT_SYMLINK_NOFOLLOW;
-    // SAFETY: fstatat initializes the whole struct on success. Both calls address the final
-    // component without following a symbolic link.
+    // SAFETY: fstatat initializes the whole struct on success and does not follow the final link.
     if unsafe { libc::fstatat(directory, name.as_ptr(), stat.as_mut_ptr(), flags) } != 0 {
         return Err(io::Error::last_os_error());
     }
@@ -34,8 +33,38 @@ fn restore_owner_access(directory: RawFd, name: &CStr, kind: libc::mode_t) -> io
     } else {
         return Err(io::ErrorKind::PermissionDenied.into());
     };
-    // SAFETY: name is live and the directory descriptor is borrowed until the call returns.
-    if unsafe { libc::fchmodat(directory, name.as_ptr(), mode, flags) } != 0 {
+    let same_entry = |entry: &fs::Metadata| {
+        entry.dev() == u64::from(stat.st_dev as u32)
+            && entry.ino() == stat.st_ino
+            && entry.uid() == uid
+            && if kind == libc::S_IFDIR {
+                entry.is_dir()
+            } else {
+                entry.is_file() && entry.nlink() == 1
+            }
+    };
+    // Prefer an open file description on filesystems that allow reading the restored entry.
+    let open_flags = libc::O_RDONLY | libc::O_NONBLOCK | libc::O_NOFOLLOW | libc::O_CLOEXEC;
+    // SAFETY: directory and name are live for the synchronous lookup.
+    let fd = unsafe { libc::openat(directory, name.as_ptr(), open_flags) };
+    if fd >= 0 {
+        // SAFETY: openat returned a newly owned descriptor.
+        let entry = unsafe { File::from_raw_fd(fd) };
+        let metadata = entry.metadata()?;
+        if !same_entry(&metadata) {
+            return Err(io::ErrorKind::PermissionDenied.into());
+        }
+        return entry.set_permissions(fs::Permissions::from_mode(u32::from(mode)));
+    }
+    // A mode-000 file has no readable descriptor. Darwin's volume-relative object address
+    // binds the repair to the inspected object across directory renames. It is never stored.
+    let reference = CString::new(format!("/.vol/{}/{}", stat.st_dev as u32, stat.st_ino))?;
+    let entry = fs::symlink_metadata(Path::new(OsStr::from_bytes(reference.to_bytes())))?;
+    if !same_entry(&entry) {
+        return Err(io::ErrorKind::PermissionDenied.into());
+    }
+    // SAFETY: reference is a NUL-terminated volume/object lookup, using the verified identity.
+    if unsafe { libc::fchmodat(libc::AT_FDCWD, reference.as_ptr(), mode, flags) } != 0 {
         return Err(io::Error::last_os_error());
     }
     Ok(())
