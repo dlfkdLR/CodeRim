@@ -1,0 +1,379 @@
+{
+  "release": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "candidate": "95d9e48ecca4918e8b8c53e925db89d4b3087320",
+  "run": "https://github.com/dlfkdLR/CodeRim/actions/runs/45765334202",
+  "native": {
+    "x64": {
+      "run": 45765334202,
+      "artifact": 15092370203,
+      "digest": "sha256:9f03e5b680f78883b75b5f48f00c8f34d8a19f019e157a0ae878f86091835b88",
+      "evidence": {
+        "architecture": "AMD64",
+        "scope": "WPF offscreen geometry and native WPF raster",
+        "masks": {
+          "release": {
+            "paths": 1680,
+            "images": 128,
+            "cached": 0,
+            "vectors": "6A379AE13CE73C4DD970CF8F98857C771CE89B9EC04BF643B4C9BDDB22FC7225",
+            "pixels": "3190AF52978E18446B6E5D8DBD81B967F96DEDC08D19371B3D75663A121049CE"
+          },
+          "candidate": {
+            "paths": 1680,
+            "images": 128,
+            "cached": 1400,
+            "vectors": "6A379AE13CE73C4DD970CF8F98857C771CE89B9EC04BF643B4C9BDDB22FC7225",
+            "pixels": "3190AF52978E18446B6E5D8DBD81B967F96DEDC08D19371B3D75663A121049CE"
+          }
+        },
+        "timings": [
+          {
+            "workload": "steady",
+            "samples": {
+              "release": [
+                {
+                  "ns": 16110.498046875,
+                  "bytes": 3632
+                },
+                {
+                  "ns": 16229.6630859375,
+                  "bytes": 3632
+                },
+                {
+                  "ns": 16000.1708984375,
+                  "bytes": 3632
+                },
+                {
+                  "ns": 16255.46875,
+                  "bytes": 3632
+                },
+                {
+                  "ns": 16065.576171875,
+                  "bytes": 3632
+                },
+                {
+                  "ns": 16140.13671875,
+                  "bytes": 3632
+                },
+                {
+                  "ns": 18564.16015625,
+                  "bytes": 3632
+                }
+              ],
+              "candidate": [
+                {
+                  "ns": 87.7197265625,
+                  "bytes": 0
+                },
+                {
+                  "ns": 84.3994140625,
+                  "bytes": 0
+                },
+                {
+                  "ns": 84.27734375,
+                  "bytes": 0
+                },
+                {
+                  "ns": 87.646484375,
+                  "bytes": 0
+                },
+                {
+                  "ns": 85.3271484375,
+                  "bytes": 0
+                },
+                {
+                  "ns": 84.3017578125,
+                  "bytes": 0
+                },
+                {
+                  "ns": 84.423828125,
+                  "bytes": 0
+                }
+              ]
+            },
+            "medians": {
+              "release": {
+                "ns": 16140.13671875,
+                "bytes": 3632
+              },
+              "candidate": {
+                "ns": 84.423828125,
+                "bytes": 0
+              }
+            }
+          },
+          {
+            "workload": "animation",
+            "samples": {
+              "release": [
+                {
+                  "ns": 16407.958984375,
+                  "bytes": 3656
+                },
+                {
+                  "ns": 16474.0966796875,
+                  "bytes": 3656
+                },
+                {
+                  "ns": 16724.9267578125,
+                  "bytes": 3656
+                },
+                {
+                  "ns": 16575.927734375,
+                  "bytes": 3656
+                },
+                {
+                  "ns": 16637.6220703125,
+                  "bytes": 3656
+                },
+                {
+                  "ns": 16515.2587890625,
+                  "bytes": 3656
+                },
+                {
+                  "ns": 16584.66796875,
+                  "bytes": 3656
+                }
+              ],
+              "candidate": [
+                {
+                  "ns": 8629.150390625,
+                  "bytes": 1840
+                },
+                {
+                  "ns": 8546.6064453125,
+                  "bytes": 1840
+                },
+                {
+                  "ns": 8658.88671875,
+                  "bytes": 1840
+                },
+                {
+                  "ns": 8652.2216796875,
+                  "bytes": 1840
+                },
+                {
+                  "ns": 10388.916015625,
+                  "bytes": 1840
+                },
+                {
+                  "ns": 8698.6572265625,
+                  "bytes": 1840
+                },
+                {
+                  "ns": 8483.837890625,
+                  "bytes": 1840
+                }
+              ]
+            },
+            "medians": {
+              "release": {
+                "ns": 16575.927734375,
+                "bytes": 3656
+              },
+              "candidate": {
+                "ns": 8652.2216796875,
+                "bytes": 1840
+              }
+            }
+          }
+        ]
+      }
+    },
+    "arm64": {
+      "run": 45765334202,
+      "artifact": 15091941681,
+      "digest": "sha256:9aa38fc50a847eb5accda8f72b5de538931d50353eff97deeed058b355909079",
+      "evidence": {
+        "architecture": "ARM64",
+        "scope": "WPF offscreen geometry and native WPF raster",
+        "masks": {
+          "release": {
+            "paths": 1680,
+            "images": 128,
+            "cached": 0,
+            "vectors": "6A379AE13CE73C4DD970CF8F98857C771CE89B9EC04BF643B4C9BDDB22FC7225",
+            "pixels": "3190AF52978E18446B6E5D8DBD81B967F96DEDC08D19371B3D75663A121049CE"
+          },
+          "candidate": {
+            "paths": 1680,
+            "images": 128,
+            "cached": 1400,
+            "vectors": "6A379AE13CE73C4DD970CF8F98857C771CE89B9EC04BF643B4C9BDDB22FC7225",
+            "pixels": "3190AF52978E18446B6E5D8DBD81B967F96DEDC08D19371B3D75663A121049CE"
+          }
+        },
+        "timings": [
+          {
+            "workload": "steady",
+            "samples": {
+              "release": [
+                {
+                  "ns": 17179.58984375,
+                  "bytes": 3632
+                },
+                {
+                  "ns": 16910.05859375,
+                  "bytes": 3632
+                },
+                {
+                  "ns": 16997.3876953125,
+                  "bytes": 3632
+                },
+                {
+                  "ns": 16827.294921875,
+                  "bytes": 3632
+                },
+                {
+                  "ns": 16708.447265625,
+                  "bytes": 3632
+                },
+                {
+                  "ns": 16982.470703125,
+                  "bytes": 3632
+                },
+                {
+                  "ns": 16756.0546875,
+                  "bytes": 3632
+                }
+              ],
+              "candidate": [
+                {
+                  "ns": 96.6064453125,
+                  "bytes": 0
+                },
+                {
+                  "ns": 95.654296875,
+                  "bytes": 0
+                },
+                {
+                  "ns": 97.0458984375,
+                  "bytes": 0
+                },
+                {
+                  "ns": 97.9248046875,
+                  "bytes": 0
+                },
+                {
+                  "ns": 101.220703125,
+                  "bytes": 0
+                },
+                {
+                  "ns": 95.5810546875,
+                  "bytes": 0
+                },
+                {
+                  "ns": 98.4619140625,
+                  "bytes": 0
+                }
+              ]
+            },
+            "medians": {
+              "release": {
+                "ns": 16910.05859375,
+                "bytes": 3632
+              },
+              "candidate": {
+                "ns": 97.0458984375,
+                "bytes": 0
+              }
+            }
+          },
+          {
+            "workload": "animation",
+            "samples": {
+              "release": [
+                {
+                  "ns": 18783.544921875,
+                  "bytes": 3656
+                },
+                {
+                  "ns": 17432.9833984375,
+                  "bytes": 3656
+                },
+                {
+                  "ns": 17821.1181640625,
+                  "bytes": 3656
+                },
+                {
+                  "ns": 17456.3720703125,
+                  "bytes": 3656
+                },
+                {
+                  "ns": 17333.6181640625,
+                  "bytes": 3656
+                },
+                {
+                  "ns": 17272.7294921875,
+                  "bytes": 3656
+                },
+                {
+                  "ns": 17176.025390625,
+                  "bytes": 3656
+                }
+              ],
+              "candidate": [
+                {
+                  "ns": 9628.5400390625,
+                  "bytes": 1840
+                },
+                {
+                  "ns": 9621.5087890625,
+                  "bytes": 1840
+                },
+                {
+                  "ns": 9416.064453125,
+                  "bytes": 1840
+                },
+                {
+                  "ns": 9489.74609375,
+                  "bytes": 1840
+                },
+                {
+                  "ns": 9582.0068359375,
+                  "bytes": 1840
+                },
+                {
+                  "ns": 9543.1640625,
+                  "bytes": 1840
+                },
+                {
+                  "ns": 9565.5517578125,
+                  "bytes": 1840
+                }
+              ]
+            },
+            "medians": {
+              "release": {
+                "ns": 17432.9833984375,
+                "bytes": 3656
+              },
+              "candidate": {
+                "ns": 9565.5517578125,
+                "bytes": 1840
+              }
+            }
+          }
+        ]
+      }
+    }
+  },
+  "independentABI": {
+    "tested": 153561,
+    "fields": 614244,
+    "differences": 0,
+    "nanFields": 44882,
+    "abiSize": 32,
+    "offsets": [
+      0,
+      8,
+      16,
+      24
+    ],
+    "arch": "Arm64"
+  },
+  "harness": {
+    "verdict": "REJECT",
+    "reason": "The generic controller protects workflow changes as verification inputs. The WPF checks ran in both native Windows jobs."
+  }
+}

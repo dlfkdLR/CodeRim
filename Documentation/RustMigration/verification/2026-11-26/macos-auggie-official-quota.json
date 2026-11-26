@@ -1,0 +1,152 @@
+{
+  "commit": "1cf62a6",
+  "baseline": "pinned AugmentStatusProbe.parseCreditsUsage and the published native date parsing",
+  "input": "Synthetic output of the official Auggie CLI. No live credentials or provider calls.",
+  "arm64Cases": 5412,
+  "rosettaX86_64Cases": 5412,
+  "independentDifferentialRecords": 9135,
+  "independentABIPerArch": 79,
+  "officialCLIProcess": {
+    "success": 2,
+    "boundedFailures": 13
+  },
+  "timingScope": "Seven paired rounds; nanoseconds per quota parse in optimized arm64 processes on one Mac. Local clock and concurrent processes can change elapsed times.",
+  "samples": [
+    {
+      "fixture": "current",
+      "medianNs": {
+        "original": 13137.92,
+        "rust": 679.58
+      },
+      "samplesNs": {
+        "original": [
+          13145,
+          13014.58,
+          14900,
+          12016.66,
+          11926.25,
+          19373.34,
+          13137.92
+        ],
+        "rust": [
+          679.58,
+          659.17,
+          637.08,
+          689.58,
+          647.5,
+          729.16,
+          682.09
+        ]
+      }
+    },
+    {
+      "fixture": "legacy",
+      "medianNs": {
+        "original": 24429.17,
+        "rust": 573.34
+      },
+      "samplesNs": {
+        "original": [
+          32449.17,
+          25330.42,
+          24429.17,
+          24600.41,
+          23967.91,
+          23940,
+          23793.34
+        ],
+        "rust": [
+          632.08,
+          616.67,
+          573.34,
+          593.33,
+          558.33,
+          572.09,
+          560.84
+        ]
+      }
+    },
+    {
+      "fixture": "billing-date",
+      "medianNs": {
+        "original": 63055.42,
+        "rust": 38810.84
+      },
+      "samplesNs": {
+        "original": [
+          61186.66,
+          66851.25,
+          66478.75,
+          63055.42,
+          60176.25,
+          61184.58,
+          92205.83
+        ],
+        "rust": [
+          37895.41,
+          41994.58,
+          39482.09,
+          43214.58,
+          38810.84,
+          37110.41,
+          38311.66
+        ]
+      }
+    },
+    {
+      "fixture": "invalid",
+      "medianNs": {
+        "original": 11501.25,
+        "rust": 1399.58
+      },
+      "samplesNs": {
+        "original": [
+          4236.25,
+          4085.42,
+          11794.59,
+          11501.25,
+          12202.91,
+          17117.5,
+          4077.92
+        ],
+        "rust": [
+          955.41,
+          919.58,
+          1412.09,
+          2807.92,
+          2957.09,
+          1191.66,
+          1399.58
+        ]
+      }
+    },
+    {
+      "fixture": "unicode-decimal",
+      "medianNs": {
+        "original": 21291.25,
+        "rust": 20768.75
+      },
+      "samplesNs": {
+        "original": [
+          32911.25,
+          21842.08,
+          21291.25,
+          29828.33,
+          19864.58,
+          20998.75,
+          19818.33
+        ],
+        "rust": [
+          38953.75,
+          20873.75,
+          20768.75,
+          20886.25,
+          20070.41,
+          20199.58,
+          20067.5
+        ]
+      }
+    }
+  ],
+  "harness": "INCONCLUSIVE"
+}

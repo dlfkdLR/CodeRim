@@ -1,0 +1,1114 @@
+{
+  "releaseTag": "v2.1.41",
+  "releaseSourceCommit": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "observation": "Actual WPF application navigated with synthetic local and account data; Windows Graphics Capture targets the process-owned client. Physical measurements require per-pixel ownership before and after the read with a fixture-owned, solid-color backing.",
+  "scope": "17 compared views. The signed public application was not modified. The stable source fixture replaces the original unrestricted screen read, uses the same UI and actions and offers its HWND to the probe.",
+  "before": {
+    "run": 45763172081,
+    "byArchitecture": {
+      "x64": {
+        "commit": "4fb5bc793ffede78710877a49f0c24de75850d82",
+        "artifactId": 15091382284,
+        "artifactSha256": "736f8ae2fd39ae07d787892de9b97b4fdc080456d31af7126ef2cc90a8a22301",
+        "sourceTestUrl": "https://github.com/dlfkdLR/CodeRim/actions/runs/45763172081/artifacts/15091382284",
+        "compositorExact": 16,
+        "physicalCompared": 17,
+        "physicalExact": 16,
+        "syntheticAccountMetrics": {
+          "release": {
+            "localToday": 179456,
+            "displayedToday": 179456,
+            "formattedToday": "179,456",
+            "accountLifetime": 1000000
+          },
+          "candidate": {
+            "localToday": 179456,
+            "displayedToday": 179456,
+            "formattedToday": "179,456",
+            "accountLifetime": 1000000
+          }
+        },
+        "codexSwitch": null,
+        "accountWindowCapture": {
+          "release": {
+            "raised": null,
+            "backing": {
+              "status": "controlled-frame-compared",
+              "before": {
+                "Target": 705548,
+                "Backing": 52,
+                "Complete": true
+              },
+              "after": {
+                "Target": 705548,
+                "Backing": 52,
+                "Complete": true
+              },
+              "different": 0,
+              "transparent": 52,
+              "partial": 0,
+              "total": 705600,
+              "backingRgb": [
+                31,
+                101,
+                179
+              ],
+              "exact": true,
+              "straightAlpha": false,
+              "physicalBgrSha256": "26003e257a9809da82c2e5116cbb26672c2205e27a5e9801e1f69bc877ef0ee6"
+            }
+          },
+          "candidate": {
+            "raised": null,
+            "backing": {
+              "status": "controlled-frame-compared",
+              "before": {
+                "Target": 705548,
+                "Backing": 52,
+                "Complete": true
+              },
+              "after": {
+                "Target": 705548,
+                "Backing": 52,
+                "Complete": true
+              },
+              "different": 0,
+              "transparent": 52,
+              "partial": 0,
+              "total": 705600,
+              "backingRgb": [
+                31,
+                101,
+                179
+              ],
+              "exact": true,
+              "straightAlpha": false,
+              "physicalBgrSha256": "26003e257a9809da82c2e5116cbb26672c2205e27a5e9801e1f69bc877ef0ee6"
+            }
+          }
+        },
+        "views": {
+          "account": {
+            "bounds": [
+              22,
+              0,
+              980,
+              720
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "normal-general": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "normal-notch": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "normal-providers": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "normal-codex": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 120213,
+            "physicalScreensEqual": false,
+            "bothWgcMatchPhysical": true,
+            "changedBounds": [
+              242,
+              293,
+              975,
+              680
+            ]
+          },
+          "normal-diagnostics": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "normal-about": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-dark-general": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-dark-usage": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-dark-providers": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-dark-notch": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-light-general": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-light-usage": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-light-providers": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-light-notch": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "analytics-selected": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "session-detail": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          }
+        },
+        "fixtureErrors": {
+          "accountRelease": null,
+          "accountCandidate": null,
+          "viewsRelease": null,
+          "viewsCandidate": null
+        }
+      },
+      "arm64": {
+        "commit": "4fb5bc793ffede78710877a49f0c24de75850d82",
+        "artifactId": 15091715492,
+        "artifactSha256": "c4919ad3ae5881f09b9232382d35f4eb462feef3812644af4546050e31dfb9c7",
+        "sourceTestUrl": "https://github.com/dlfkdLR/CodeRim/actions/runs/45763172081/artifacts/15091715492",
+        "compositorExact": 16,
+        "physicalCompared": 0,
+        "physicalExact": 0,
+        "syntheticAccountMetrics": {
+          "release": {
+            "localToday": 179456,
+            "displayedToday": 179456,
+            "formattedToday": "179,456",
+            "accountLifetime": 1000000
+          },
+          "candidate": {
+            "localToday": 179456,
+            "displayedToday": 179456,
+            "formattedToday": "179,456",
+            "accountLifetime": 1000000
+          }
+        },
+        "codexSwitch": null,
+        "accountWindowCapture": {
+          "release": {
+            "raised": null,
+            "backing": {
+              "status": "fixture-not-visible",
+              "initiallyOwned": 0,
+              "fixtureVisible": true,
+              "fixtureMinimized": false,
+              "fixtureForeground": false,
+              "interactive": true,
+              "remoteSession": false
+            }
+          },
+          "candidate": {
+            "raised": null,
+            "backing": {
+              "status": "fixture-not-visible",
+              "initiallyOwned": 0,
+              "fixtureVisible": true,
+              "fixtureMinimized": false,
+              "fixtureForeground": false,
+              "interactive": true,
+              "remoteSession": false
+            }
+          }
+        },
+        "views": {
+          "account": {
+            "bounds": [
+              22,
+              0,
+              980,
+              720
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "normal-general": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "normal-notch": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "normal-providers": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "normal-codex": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 120213,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null,
+            "changedBounds": [
+              242,
+              293,
+              975,
+              680
+            ]
+          },
+          "normal-diagnostics": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "normal-about": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-dark-general": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-dark-usage": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-dark-providers": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-dark-notch": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-light-general": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-light-usage": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-light-providers": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-light-notch": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "analytics-selected": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "session-detail": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          }
+        },
+        "fixtureErrors": {
+          "accountRelease": null,
+          "accountCandidate": null,
+          "viewsRelease": null,
+          "viewsCandidate": null
+        }
+      }
+    }
+  },
+  "after": {
+    "run": 45765334202,
+    "byArchitecture": {
+      "x64": {
+        "commit": "95d9e48ecca4918e8b8c53e925db89d4b3087320",
+        "artifactId": 15091044868,
+        "artifactSha256": "157d1e43e25b19b2ba250d79d4016b384e6997babdf0c43ba8199060e93843bd",
+        "sourceTestUrl": "https://github.com/dlfkdLR/CodeRim/actions/runs/45765334202/artifacts/15091044868",
+        "compositorExact": 17,
+        "physicalCompared": 17,
+        "physicalExact": 17,
+        "syntheticAccountMetrics": {
+          "release": {
+            "localToday": 179456,
+            "displayedToday": 179456,
+            "formattedToday": "179,456",
+            "accountLifetime": 1000000
+          },
+          "candidate": {
+            "localToday": 179456,
+            "displayedToday": 179456,
+            "formattedToday": "179,456",
+            "accountLifetime": 1000000
+          }
+        },
+        "codexSwitch": {
+          "release": {
+            "action": "Switch",
+            "keyboardAccessible": true,
+            "opened": "Codex Accounts",
+            "emptyVault": true,
+            "addAccount": true,
+            "showsSaveCurrent": true,
+            "officialLogin": false
+          },
+          "candidate": {
+            "action": "Switch",
+            "keyboardAccessible": true,
+            "opened": "Codex Accounts",
+            "emptyVault": true,
+            "addAccount": true,
+            "showsSaveCurrent": false,
+            "officialLogin": true
+          }
+        },
+        "accountWindowCapture": {
+          "release": {
+            "raised": false,
+            "backing": {
+              "status": "controlled-frame-compared",
+              "before": {
+                "Target": 705548,
+                "Backing": 52,
+                "Complete": true
+              },
+              "after": {
+                "Target": 705548,
+                "Backing": 52,
+                "Complete": true
+              },
+              "different": 0,
+              "transparent": 52,
+              "partial": 0,
+              "total": 705600,
+              "backingRgb": [
+                31,
+                101,
+                179
+              ],
+              "exact": true,
+              "straightAlpha": false,
+              "physicalBgrSha256": "26003e257a9809da82c2e5116cbb26672c2205e27a5e9801e1f69bc877ef0ee6"
+            }
+          },
+          "candidate": {
+            "raised": false,
+            "backing": {
+              "status": "controlled-frame-compared",
+              "before": {
+                "Target": 705548,
+                "Backing": 52,
+                "Complete": true
+              },
+              "after": {
+                "Target": 705548,
+                "Backing": 52,
+                "Complete": true
+              },
+              "different": 0,
+              "transparent": 52,
+              "partial": 0,
+              "total": 705600,
+              "backingRgb": [
+                31,
+                101,
+                179
+              ],
+              "exact": true,
+              "straightAlpha": false,
+              "physicalBgrSha256": "26003e257a9809da82c2e5116cbb26672c2205e27a5e9801e1f69bc877ef0ee6"
+            }
+          }
+        },
+        "views": {
+          "account": {
+            "bounds": [
+              22,
+              0,
+              980,
+              720
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "normal-general": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "normal-notch": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "normal-providers": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "normal-codex": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "normal-diagnostics": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "normal-about": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-dark-general": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-dark-usage": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-dark-providers": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-dark-notch": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-light-general": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-light-usage": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-light-providers": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "min-light-notch": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "analytics-selected": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          },
+          "session-detail": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": true,
+            "bothWgcMatchPhysical": true
+          }
+        },
+        "fixtureErrors": {
+          "accountRelease": null,
+          "accountCandidate": null,
+          "viewsRelease": null,
+          "viewsCandidate": null
+        }
+      },
+      "arm64": {
+        "commit": "95d9e48ecca4918e8b8c53e925db89d4b3087320",
+        "artifactId": 15092186480,
+        "artifactSha256": "368dd513949052b35e02c59bfe64db9d973135c2c6594a97d9457f127ea9fb47",
+        "sourceTestUrl": "https://github.com/dlfkdLR/CodeRim/actions/runs/45765334202/artifacts/15092186480",
+        "compositorExact": 17,
+        "physicalCompared": 0,
+        "physicalExact": 0,
+        "syntheticAccountMetrics": {
+          "release": {
+            "localToday": 179456,
+            "displayedToday": 179456,
+            "formattedToday": "179,456",
+            "accountLifetime": 1000000
+          },
+          "candidate": {
+            "localToday": 179456,
+            "displayedToday": 179456,
+            "formattedToday": "179,456",
+            "accountLifetime": 1000000
+          }
+        },
+        "codexSwitch": {
+          "release": {
+            "action": "Switch",
+            "keyboardAccessible": true,
+            "opened": "Codex Accounts",
+            "emptyVault": true,
+            "addAccount": true,
+            "showsSaveCurrent": true,
+            "officialLogin": false
+          },
+          "candidate": {
+            "action": "Switch",
+            "keyboardAccessible": true,
+            "opened": "Codex Accounts",
+            "emptyVault": true,
+            "addAccount": true,
+            "showsSaveCurrent": false,
+            "officialLogin": true
+          }
+        },
+        "accountWindowCapture": {
+          "release": {
+            "raised": true,
+            "backing": {
+              "status": "fixture-not-visible",
+              "initiallyOwned": 0,
+              "fixtureVisible": true,
+              "fixtureMinimized": false,
+              "fixtureForeground": false,
+              "foregroundPresent": true,
+              "fixtureDesktopReceivesInput": true,
+              "interactive": true,
+              "remoteSession": false
+            }
+          },
+          "candidate": {
+            "raised": true,
+            "backing": {
+              "status": "fixture-not-visible",
+              "initiallyOwned": 0,
+              "fixtureVisible": true,
+              "fixtureMinimized": false,
+              "fixtureForeground": false,
+              "foregroundPresent": true,
+              "fixtureDesktopReceivesInput": true,
+              "interactive": true,
+              "remoteSession": false
+            }
+          }
+        },
+        "views": {
+          "account": {
+            "bounds": [
+              22,
+              0,
+              980,
+              720
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "normal-general": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "normal-notch": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "normal-providers": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "normal-codex": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "normal-diagnostics": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "normal-about": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-dark-general": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-dark-usage": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-dark-providers": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-dark-notch": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-light-general": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-light-usage": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-light-providers": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "min-light-notch": {
+            "bounds": [
+              92,
+              80,
+              840,
+              608
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "analytics-selected": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          },
+          "session-detail": {
+            "bounds": [
+              22,
+              20,
+              980,
+              680
+            ],
+            "compositorChangedPixels": 0,
+            "physicalScreensEqual": null,
+            "bothWgcMatchPhysical": null
+          }
+        },
+        "fixtureErrors": {
+          "accountRelease": null,
+          "accountCandidate": null,
+          "viewsRelease": null,
+          "viewsCandidate": null
+        }
+      }
+    }
+  }
+}

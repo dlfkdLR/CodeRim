@@ -227,3 +227,17 @@ CLI·위젯용 파일을 발행하는 두 프로세스와 읽는 프로세스를
 - Windows의 데스크톱→모바일 발행은 양쪽 CPU에서 각각 198개 전체 스냅샷이 원본과 같았다. 제목을 공유하는 4,096개 세션에서 x64는 2.446→0.122 ms, ARM64는 2.013→0.118 ms였다. Mac의 CLI·위젯 발행은 비활성 공급자까지 매번 JSON으로 미리 인코딩하던 일을 줄였다. 70개 중 하나만 활성일 때 329.25→36.03 µs였고, 모두 활성일 때의 개선은 확인되지 않았다. [Windows 모바일 발행](verification/2026-11-26/windows-mobile-sessions-9bcef61.json) · [Mac 카탈로그 전체 대조](verification/2026-11-26/macos-companion-provider-projection.json)
 
 Windows 계정 설정 원본·후보의 980×720 전체 WGC 프레임은 x64·ARM64에서 각각 변경 0픽셀이었다. x64는 동일 창과 테스트 배경이 차지하는 실제 화면의 BGR 값도 일치했다. ARM64에서 두 창의 WGC 프레임은 같았고 실제 화면 소유권이 0/9여서 그 화면의 물리 합성 결과는 계속 미검증이다. [화면별 해시·창 소유권](verification/2026-11-26/windows-account-windows-f21e863.json) · [Windows CLI 종료 및 재시도](verification/2026-11-26/windows-watch-fix-f21e863.json)
+
+### Windows 설정 17개 화면과 노치 렌더링
+
+공개판과 `95d9e48`에서 동일한 합성 계정·사용량 상태를 열었다. x64와 ARM64 모두 17개 창의 Windows Graphics Capture 클라이언트 이미지가 픽셀 단위로 같았다. Codex 설정에서 앞선 후보의 120,213픽셀 차이가 사라졌다. 두 아키텍처에서 키보드로 접근한 Switch가 계정 창을 열었다. x64는 실제 화면 합성도 17/17 일치했다. ARM64는 전경 소유권 확인이 0/9여서 실제 화면 비교가 가능한 창은 0/17개였다. [화면별 해시와 계정 전환](verification/2026-11-26/windows-settings-capture-95d9e48.json)
+
+두 Windows 작업에서 각각 노치의 WPF 경로 1,680개와 래스터 128개가 공개판과 일치했다. 같은 모양을 다시 그리는 프레임은 3,632→0바이트, 애니메이션 프레임은 3,656→1,840바이트를 할당했다. x64의 프레임 구성 중앙값은 각각 16,140→84 ns와 16,576→8,652 ns였다. 이 측정은 기하 생성 구간에 한정된다. [네이티브 WPF 원자료](verification/2026-11-26/windows-notch-geometry-95d9e48.json)
+
+같은 커밋에서 사용량 4,096행 저장은 x64에서 Codex 130.16→113.25 ms, Claude 121.18→114.47 ms였다. ARM64에서는 각각 132.80→114.90 ms와 127.14→116.20 ms였다. 0·1행의 소요 시간은 경우에 따라 달랐고 관리 힙 할당은 56~64바이트 늘었다. [두 플랫폼의 저장 및 복구 측정](verification/2026-11-26/windows-event-writes-95d9e48.json)
+
+### macOS 공식 Auggie 사용량과 설정 연결 안내
+
+공식 Auggie CLI 출력 중 사용량과 잔여량을 Rust에서 읽는다. 날짜는 네이티브 포매터를 사용한다. Apple Silicon과 Rosetta Intel에서 각각 합성 출력 5,412건이 기존 구현과 일치했다. 국제 표제, Unicode 숫자와 날짜 슬래시의 경계도 비교했다. 실계정 사용량과 네트워크 지연은 이 측정에 포함되지 않는다. [파싱 표본과 시간](verification/2026-11-26/macos-auggie-official-quota.json)
+
+Command Code는 현재 검증한 공식 연결 경로가 없어, 제공자 설정과 노치 양쪽에서 해당 제한을 표시한다. 실제 제공자 객체를 조회하는 테스트와 연결 관련 테스트 12개가 로컬에서 통과했다. macOS 네이티브 비교 작업은 얕은 체크아웃에서도 `v2.1.41` 태그를 가져와 공개판 SHA를 검증한다. 이 방식의 새 로컬 체크아웃에서 전체 Apple 비교 스크립트가 통과했다.
