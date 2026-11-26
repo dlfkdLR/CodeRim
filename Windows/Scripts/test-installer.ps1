@@ -1,4 +1,4 @@
-param([ValidateSet('x64','arm64')][string]$Architecture='x64',[Parameter(Mandatory)][string]$Installer,[switch]$VerifyRustAccounting)
+param([ValidateSet('x64','arm64')][string]$Architecture='x64',[Parameter(Mandatory)][string]$Installer,[switch]$VerifyRustAccounting,[switch]$VerifyLatestPublicUpgrade)
 $ErrorActionPreference='Stop'
 if ($env:CI -ne 'true') { throw 'MSI lifecycle tests require a disposable CI runner.' }
 $windowsRoot=Split-Path -Parent $PSScriptRoot
@@ -192,6 +192,10 @@ try {
     if($remaining.TrimEnd(';') -cne $originalPath.TrimEnd(';')){throw 'Public upgrade uninstall changed unrelated PATH values.'}
     Assert-RustFiles $false
     $results.Add('public-upgrade-uninstall-preserves-user-data-and-path')
+    if ($VerifyLatestPublicUpgrade) {
+        . (Join-Path $repo 'Scripts/rust_migration/check_public_msi.ps1')
+        Test-PublicMsiTransition
+    }
 } finally {
     @{architecture=$Architecture;passed=@($results);completed=($results.Count -eq 14);qaDirectory=$qa} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $repo 'Artifacts/windows-msi-lifecycle.json')
 }

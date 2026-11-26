@@ -317,7 +317,7 @@ jobs:
           dotnet build Windows/tests/CodeRim.ProcessFixture --configuration Release
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $setup = Get-Item 'Artifacts/CodeRim-Windows-*-${{ matrix.arch }}-Setup.msi'
-          ./Windows/Scripts/test-installer.ps1 -Architecture ${{ matrix.arch }} -Installer $setup.FullName -VerifyRustAccounting
+          ./Windows/Scripts/test-installer.ps1 -Architecture ${{ matrix.arch }} -Installer $setup.FullName -VerifyRustAccounting -VerifyLatestPublicUpgrade
       - name: Install, activate and remove the Store candidate
         shell: powershell
         run: |
@@ -332,6 +332,7 @@ jobs:
           path: |
             Artifacts/*.sha256
             Artifacts/windows-msi-lifecycle.json
+            Artifacts/windows-public-msi-*.json
             Artifacts/installed/**/*.json
             Artifacts/installed/**/*.png
             Artifacts/msix-*/msix-checks.json
