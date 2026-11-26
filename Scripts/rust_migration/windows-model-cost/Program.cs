@@ -25,6 +25,8 @@ if (args[0] == "bench") {
         workloads.Add(($"one-model-{count}", () => UsageAnalytics.Estimate(single)));
         if (count >= 128) workloads.Add(($"sqlite-mixed-{count}", () => UsageAnalytics.Estimate(rows)));
     }
+    var manyModels = persisted.Select((e, i) => e with { Model = $"unknown-{i}" }).ToArray();
+    workloads.Add(("distinct-unpriced-4096", () => UsageAnalytics.Estimate(manyModels)));
     var sessions = persisted.GroupBy(e => e.SessionId, StringComparer.Ordinal).ToArray();
     workloads.Add(("sqlite-session-list-4096", () => {
         CostSummary? last = null;
@@ -58,6 +60,18 @@ foreach (var a in new[] {"session", "project", "model", "day"})
     Console.WriteLine(JsonSerializer.Serialize(UsageAnalytics.Group(persisted, a)));
 foreach (var range in Enum.GetValues<AnalyticsRange>())
     Console.WriteLine(JsonSerializer.Serialize(AnalyticsTimeline.Build(persisted, range, day.AddDays(3), TimeZoneInfo.Utc)));
+foreach (int size in new[] {511, 512, 513, 1024, 4096})
+foreach (int distinct in new[] {1, 8, 64, 512, 4096}) {
+    var rows = Enumerable.Range(0, size).Select(i =>
+        Ordinary(i, i % distinct < models.Length ? models[i % distinct] : $"모델-{i % distinct}")).ToArray();
+    Record(rows);
+    Record(rows.Reverse().ToArray());
+    foreach (var usage in new[] {TokenUsage.Zero, new TokenUsage(1, 0, 0, 0), new TokenUsage(-1, 0, 0, 0)}) {
+        rows[size / 2] = rows[size / 2] with {Model = null!, Usage = usage};
+        try { Record(rows); }
+        catch (ArgumentException error) { Console.WriteLine(JsonSerializer.Serialize(new {Type = error.GetType().Name, error.ParamName})); }
+    }
+}
 foreach (var n in new[] {0, 1, 31, 32, 33, 127, 128, 129, 256, 257, 4096})
 foreach (var model in models)
 foreach (var scenario in Enumerable.Range(0, 15)) {

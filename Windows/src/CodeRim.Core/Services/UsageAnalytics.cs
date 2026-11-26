@@ -25,26 +25,21 @@ public static class UsageAnalytics
         long excluded = 0;
         var models = new HashSet<string>(StringComparer.Ordinal);
         var any = false;
+#if CODERIM_RUST_ACCOUNTING
+        if (events is UsageEvent[] { Length: >= 512 and <= 1_000_000 } rows)
+        {
+            using var table = RustModelCost.SummarizeModels(rows);
+            for (int i = 0; i < table.Names.Count; i++)
+                any |= AddPricedModel(table.Names[i], table[i], excludingModels, models, ref amount, ref excluded);
+        }
+        else
+#endif
         foreach (var group in events.GroupBy(item => item.Model, StringComparer.Ordinal))
         {
 #if CODERIM_RUST_ACCOUNTING
             if (group is ICollection<UsageEvent> { Count: >= 32 })
             {
-                var summary = RustModelCost.Summarize(group);
-                var total = summary.Total.ToUsage();
-                var validRows = !summary.Flags.HasFlag(RustModelCost.Status.InvalidUsage) && total.IsValid;
-                if (validRows && total.IsZero) continue;
-                if (!validRows || !CoveredPrice(group.Key, total, excludingModels, out var nativePrice)
-                    || nativePrice.HighContextInputMultiplier is not null && summary.Flags.HasFlag(RustModelCost.Status.UnknownContext))
-                {
-                    Exclude(group.Key, total, models, ref excluded);
-                    continue;
-                }
-                any = true;
-                bool firstHigh = summary.Flags.HasFlag(RustModelCost.Status.FirstHigh);
-                if (firstHigh) amount += TierCost(summary.High.ToUsage(), nativePrice, true);
-                if (summary.Flags.HasFlag(RustModelCost.Status.Standard)) amount += TierCost(summary.Standard.ToUsage(), nativePrice, false);
-                if (!firstHigh && summary.Flags.HasFlag(RustModelCost.Status.High)) amount += TierCost(summary.High.ToUsage(), nativePrice, true);
+                any |= AddPricedModel(group.Key, RustModelCost.Summarize(group), excludingModels, models, ref amount, ref excluded);
                 continue;
             }
 #endif
@@ -70,6 +65,27 @@ public static class UsageAnalytics
         }
         return new CostSummary(any || models.Count == 0 ? amount : null, excluded, models.Order(StringComparer.Ordinal).ToArray());
     }
+#if CODERIM_RUST_ACCOUNTING
+    private static bool AddPricedModel(string name, RustModelCost.Summary summary, IReadOnlySet<string>? excludingModels,
+        HashSet<string> models, ref decimal amount, ref long excluded)
+    {
+        var total = summary.Total.ToUsage();
+        var validRows = !summary.Flags.HasFlag(RustModelCost.Status.InvalidUsage) && total.IsValid;
+        if (validRows && total.IsZero) return false;
+        if (!validRows || !CoveredPrice(name, total, excludingModels, out var price)
+            || price.HighContextInputMultiplier is not null && summary.Flags.HasFlag(RustModelCost.Status.UnknownContext))
+        {
+            Exclude(name, total, models, ref excluded);
+            return false;
+        }
+        bool firstHigh = summary.Flags.HasFlag(RustModelCost.Status.FirstHigh);
+        if (firstHigh) amount += TierCost(summary.High.ToUsage(), price, true);
+        if (summary.Flags.HasFlag(RustModelCost.Status.Standard)) amount += TierCost(summary.Standard.ToUsage(), price, false);
+        if (!firstHigh && summary.Flags.HasFlag(RustModelCost.Status.High)) amount += TierCost(summary.High.ToUsage(), price, true);
+        return true;
+    }
+#endif
+
     private static bool CoveredPrice(string name, TokenUsage usage, IReadOnlySet<string>? excludingModels,
         [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ModelPrice? price)
     {
