@@ -44,7 +44,9 @@ struct SettingsView: View {
     private var pane: some View {
         switch navigation.category {
         case .usage: UsageSettingsView()
-        case .providers: ProvidersSettingsView(detailSelection: $navigation.providerDetailID)
+        case .providers:
+            ProvidersSettingsView(detailSelection: Binding(get: { navigation.providerDetailID },
+                                                          set: { navigation.setProviderDetail($0) }))
         case .notch: NotchSettingsView()
         case .general: GeneralSettingsView()
         case .advanced: AdvancedSettingsView()

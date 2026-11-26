@@ -28,15 +28,22 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSToolbarDeleg
     }
 
     func present() {
-        navigation.columnVisibility = .all
-        let environment = self.environment ?? SettingsEnvironment()
-        let window = settingsWindow ?? makeWindow(environment: environment)
-        if window.contentViewController == nil, let settingsContentController {
-            let frame = window.frame
-            window.contentViewController = settingsContentController
-            NSLayoutConstraint.activate(viewportConstraints)
-            // AppKit may resize a window when assigning its content controller.
-            window.setFrame(frame, display: false)
+        let action = navigation.prepareWindow(exists: settingsWindow != nil,
+                                              hasContent: settingsWindow?.contentViewController != nil)
+        let window: NSWindow
+        switch action {
+        case .create:
+            window = makeWindow(environment: environment ?? SettingsEnvironment())
+        case .reattach, .raise:
+            guard let existing = settingsWindow else { return }
+            window = existing
+            if action == .reattach, existing.contentViewController == nil, let settingsContentController {
+                let frame = window.frame
+                window.contentViewController = settingsContentController
+                NSLayoutConstraint.activate(viewportConstraints)
+                // AppKit can resize a window when assigning its content controller.
+                window.setFrame(frame, display: false)
+            }
         }
         // An accessory app is restricted from activating and compositing its
         // own windows, which is how "Settings…" can look like it did nothing.
@@ -55,6 +62,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSToolbarDeleg
 
     func windowWillClose(_ notification: Notification) {
         if let window = notification.object as? NSWindow, window === settingsWindow {
+            navigation.closedWindow()
             // Retain the same SwiftUI hierarchy and its navigation state, but
             // disconnect the closed window's live layout/rendering surface.
             NSLayoutConstraint.deactivate(viewportConstraints)
@@ -84,7 +92,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSToolbarDeleg
         toolbar.delegate = self
         toolbar.displayMode = .iconOnly
         window.toolbar = toolbar
-        navigation.$category.sink { [weak window] category in
+        navigation.$selection.map(\.category).removeDuplicates().sink { [weak window] category in
             window?.title = category?.title ?? "Settings"
         }.store(in: &navigationObservers)
         navigation.$columnVisibility.sink { [weak toolbar] visibility in
