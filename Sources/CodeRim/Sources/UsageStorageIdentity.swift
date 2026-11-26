@@ -1,5 +1,8 @@
 import CryptoKit
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 enum UsageStorageIdentity {
     static func sessionIdentifierFromFilename(_ url: URL) -> String? {
@@ -15,8 +18,26 @@ enum UsageStorageIdentity {
     }
 
     static func digest(_ value: Data) -> String {
-        SHA256.hash(data: value).map { String(format: "%02x", $0) }.joined()
+        lowercaseDigest(SHA256.hash(data: value))
     }
+
+    static func lowercaseDigest<Bytes: ContiguousBytes>(_ digest: Bytes) -> String {
+        digest.withUnsafeBytes { buffer in
+            #if CODERIM_RUST_ACCOUNTING
+            if let encoded = string(cr_digest_hex(buffer.bindMemory(to: UInt8.self).baseAddress, buffer.count)) {
+                return encoded
+            }
+            #endif
+            return buffer.map { String(format: "%02x", $0) }.joined()
+        }
+    }
+
+    #if CODERIM_RUST_ACCOUNTING
+    static func string(_ digest: cr_digest_text) -> String? {
+        guard digest.valid != 0 else { return nil }
+        return withUnsafeBytes(of: digest.ascii) { String(decoding: $0, as: UTF8.self) }
+    }
+    #endif
 
     static func project(_ workingDirectory: String?, keyData: Data) -> (id: String, name: String)? {
         guard let workingDirectory,
@@ -36,9 +57,7 @@ enum UsageStorageIdentity {
 
         let key = SymmetricKey(data: keyData)
         let material = Data("CodexMeter.project.v1|\(standardizedPath)".utf8)
-        let digest = HMAC<SHA256>.authenticationCode(for: material, using: key)
-            .map { String(format: "%02x", $0) }
-            .joined()
+        let digest = lowercaseDigest(HMAC<SHA256>.authenticationCode(for: material, using: key))
         return (digest, name)
     }
 

@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 
 /// Counts what the agents did, from their own logs: the messages sent to each
@@ -171,6 +170,6 @@ actor UsageActivityScanner {
 
     /// The analytics keeps no raw session id; it files each under the SHA-256 of it.
     static func identifier(_ value: String) -> String {
-        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+        UsageStorageIdentity.digest(value)
     }
 }

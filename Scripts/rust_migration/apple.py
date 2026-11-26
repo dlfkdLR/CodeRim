@@ -51,7 +51,7 @@ def compare_hosts(work):
         print(f"{suite}: {len(json.loads(outputs[0]))} records matched including timestamp bits.")
 
     for suite in ["pricing-contract", "claude-parser-contract", "analytics-chart-contract", "notch-card-contract",
-                  "line-breaks-contract"]:
+                  "line-breaks-contract", "storage-identity-contract"]:
         subprocess.run(["python3", str(Path(__file__).parent / suite / "check.py"),
                         "--archive", str(archive)], check=True)
 

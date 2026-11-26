@@ -1,5 +1,4 @@
 import CSQLite
-import CryptoKit
 import Foundation
 
 /// Schema upgrades are independent of query caches and live source collection.
@@ -819,7 +818,7 @@ enum SQLiteSchema {
     }
 
     private static func stableDigest(_ value: String) -> String {
-        SHA256.hash(data: Data(value.utf8)).map { String(format: "%02x", $0) }.joined()
+        UsageStorageIdentity.digest(value)
     }
 
     static func execute(_ sql: String, on database: OpaquePointer) throws {

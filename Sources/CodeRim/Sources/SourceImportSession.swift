@@ -1,5 +1,8 @@
 import CodeRimUsageCore
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// One source's import state. Persistence is supplied only as a counter-state reader.
 struct SourceImportSession: Sendable {
@@ -13,6 +16,7 @@ struct SourceImportSession: Sendable {
     var excludedEventKeys: Set<String> = []
     private let provider: UsageProvider
     private let sourceURL: URL
+    private lazy var storedSourcePath = UsageStorageIdentity.digest(sourceURL.standardizedFileURL.path)
     private let importCutoff: Date?
     private let projectKey: Data
     private let loadState: @Sendable (String) async throws -> UsageNormalizationState
@@ -168,7 +172,7 @@ struct SourceImportSession: Sendable {
                     model: checkpoint.model,
                     projectPath: checkpoint.projectPath,
                     usage: delta,
-                    sourcePath: UsageStorageIdentity.digest(sourceURL.standardizedFileURL.path),
+                    sourcePath: storedSourcePath,
                     sourcePosition: position,
                     pricingContext: pricingContext(observation: observation, delta: delta)
                 )
@@ -196,6 +200,21 @@ struct SourceImportSession: Sendable {
         sessionID: String?,
         observation: CodexTokenObservation
     ) -> String {
+        #if CODERIM_RUST_ACCOUNTING
+        func usage(_ value: TokenUsage?) -> cr_identity_usage {
+            cr_identity_usage(input: value?.inputTokens ?? 0, cached: value?.cachedInputTokens ?? 0,
+                              output: value?.outputTokens ?? 0)
+        }
+        var id = sessionID ?? "unknown"
+        let fields = cr_event_identity(timestamp_bits: observation.occurredAt.timeIntervalSinceReferenceDate.bitPattern,
+            ordinal: observation.ordinal ?? 0, last: usage(observation.lastUsage), cumulative: usage(observation.cumulativeUsage),
+            has_ordinal: observation.ordinal == nil ? 0 : 1, has_last: observation.lastUsage == nil ? 0 : 1,
+            has_cumulative: observation.cumulativeUsage == nil ? 0 : 1)
+        let encoded = id.withUTF8 { bytes in
+            UsageStorageIdentity.string(cr_codex_event_identity(bytes.baseAddress, bytes.count, fields))
+        }
+        if let encoded { return encoded }
+        #endif
         let material = [
             "event-v2",
             "session:\(sessionID ?? "unknown")",
@@ -246,7 +265,7 @@ struct SourceImportSession: Sendable {
             model: observation.model,
             projectPath: checkpoint.projectPath,
             usage: observation.usage,
-            sourcePath: UsageStorageIdentity.digest(sourceURL.standardizedFileURL.path),
+            sourcePath: storedSourcePath,
             sourcePosition: position,
             importParentSessionID: agentID == nil ? nil : parentID
         ))

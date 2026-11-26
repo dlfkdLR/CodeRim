@@ -19,7 +19,7 @@ root = Path(__file__).resolve().parents[3]
 app = root / "Sources/CodeRim"
 core = root / "Sources/CodeRimUsageCore"
 sources = [app / s for s in ("Domain/AnalyticsModels.swift", "Domain/ActivityModels.swift", "Domain/UsageProvider.swift",
-                             "App/AppPaths.swift", "Utilities/TranscriptLines.swift", "Sources/UsageActivityScanner.swift",
+                             "App/AppPaths.swift", "Utilities/TranscriptLines.swift", "Sources/UsageActivityScanner.swift", "Sources/UsageStorageIdentity.swift",
                              "Sources/ActivityLogParser.swift", "Settings/Panes/UsageAnalyticsPresentation.swift")]
 compiler = ["swiftc", "-target", args.arch+"-apple-macos14.0", "-swift-version", "6", "-O",
             "-whole-module-optimization", "-warnings-as-errors", "-Xlinker", "-fatal_warnings", "-package-name", "CodeRim"]

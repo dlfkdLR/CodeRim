@@ -83,7 +83,7 @@ struct SourceFingerprintAccumulator {
     }
 
     private static func hexDigest(_ authenticationCode: HMAC<SHA256>.MAC) -> String {
-        Data(authenticationCode).map { String(format: "%02x", $0) }.joined()
+        UsageStorageIdentity.lowercaseDigest(authenticationCode)
     }
 }
 
