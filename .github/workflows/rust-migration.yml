@@ -501,6 +501,7 @@ jobs:
             Artifacts/windows-cli-host-size.json
             Artifacts/windows-source-frame-pair.json
             Artifacts/windows-public-msi-*.json
+            Artifacts/windows-installed-cli-*.json
             Artifacts/installed/**/*.json
             Artifacts/installed/**/*.png
             Artifacts/msix-*/msix-checks.json

@@ -73,6 +73,14 @@ function Test-PublicMsiTransition {
         Require-OneCliPath
         $publicInventory = Get-InstalledInventory
         $expected = Read-InstalledTokens
+        $writerSnapshot = Join-Path $qa 'cli-writer-snapshot.json'
+        $dateProbe = Join-Path $repo 'Scripts/rust_migration/windows-standalone/installed_dates.py'
+        $publishedSamples = Join-Path $qa 'published-cli-samples.json'
+        $installedCli = Join-Path $app 'CodeRimCLI.exe'
+        dotnet run --project (Join-Path $repo 'Scripts/rust_migration/windows-cli/OfflineContract.csproj') -c Release --no-launch-profile -- write $writerSnapshot 8 4
+        if ($LASTEXITCODE) { throw 'Could not generate the owned CLI snapshot.' }
+        python $dateProbe --cli $installedCli --writer-snapshot $writerSnapshot --output $publishedSamples
+        if ($LASTEXITCODE) { throw 'The installed published CLI failed the snapshot timings.' }
         $footprint.published = Measure-InstalledFiles
         $footprint.publishedMsiBytes = (Get-Item -LiteralPath $stableMsi).Length
         $phases.Add('published-installed-and-profile-read')
@@ -97,6 +105,9 @@ function Test-PublicMsiTransition {
         Assert-RustFiles $true
         Require-OneCliPath
         if ((Read-InstalledTokens) -cne $expected) { throw 'Candidate changed CLI output.' }
+        $pairedSamples = Join-Path $repo "Artifacts/windows-installed-cli-$Architecture.json"
+        python $dateProbe --cli $installedCli --writer-snapshot $writerSnapshot --published $publishedSamples --output $pairedSamples
+        if ($LASTEXITCODE) { throw 'Installed candidate CLI disagrees with the public MSI.' }
         $footprint.candidate = Measure-InstalledFiles
         $footprint.candidateMsiBytes = (Get-Item -LiteralPath $Installer).Length
         $phases.Add('upgraded-candidate-loaded-preserved-profile')
