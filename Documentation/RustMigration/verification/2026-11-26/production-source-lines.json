@@ -1,5 +1,5 @@
 {
-  "scope": "Physical lines including comments and blanks. Roots: Sources, iOS mobile and Live Activity targets, Windows/src, MobileRelay/src, pages and migration, Rust core/bridge/CLI/widget src. Omits tests outside source roots, tools, packaging, marketing website, dependencies, headers and Xcode project files. Includes inline test modules inside Rust source.",
+  "scope": "Physical lines including comments and blanks. Roots: Sources, iOS mobile and Live Activity targets, Windows/src, MobileRelay/src, pages and migration, Rust core/bridge/Apple CLI/Windows CLI/widget src. Omits tests outside source roots, tools, packaging, marketing website, dependencies, headers and Xcode project files. Includes inline test modules inside Rust source.",
   "revisions": {
     "v2.1.41": {
       "lines": {
@@ -46,6 +46,18 @@
       },
       "total": 98112,
       "rustPercent": 6.728
+    },
+    "220636c": {
+      "lines": {
+        "JavaScript": 4458,
+        "Rust": 9149,
+        "Objective-C": 119,
+        "Swift": 44970,
+        "C#": 42384,
+        "XAML": 165
+      },
+      "total": 101245,
+      "rustPercent": 9.036
     }
   }
 }

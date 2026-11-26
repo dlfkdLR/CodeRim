@@ -1,0 +1,19 @@
+{
+  "run": 45752244999,
+  "commit": "7b13d539bac2f2897df478ad57862297fd819437",
+  "job": 139682532793,
+  "device": {
+    "architecture": "arm64",
+    "modelName": "iPhone 17 Pro",
+    "osVersion": "26.4.1",
+    "osBuildNumber": "23E254a",
+    "platform": "iOS Simulator"
+  },
+  "passedTests": 48,
+  "failedTests": 0,
+  "skippedTests": 0,
+  "expectedFailures": 0,
+  "result": "Passed",
+  "runtimeWarnings": [],
+  "testFailures": []
+}

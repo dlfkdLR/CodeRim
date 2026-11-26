@@ -1,0 +1,145 @@
+{
+  "commit": "e6e4b93",
+  "reference": "v2.1.41",
+  "comparisonsPerArchitecture": 24800,
+  "architectures": [
+    "arm64",
+    "x86_64-Rosetta"
+  ],
+  "sha256": "d438803c79149d2abcd0f40f842236197c3b3e144d2ddd779e8f7ffdb9f2c39b",
+  "workloads": {
+    "codex-60": {
+      "released": {
+        "medianMs": 3.473541,
+        "samplesMs": [
+          3.382042,
+          3.600416,
+          3.473541,
+          3.345041,
+          3.923333
+        ]
+      },
+      "rust": {
+        "medianMs": 1.469417,
+        "samplesMs": [
+          1.636083,
+          1.392833,
+          1.50325,
+          1.254167,
+          1.469417
+        ]
+      }
+    },
+    "codex-1440": {
+      "released": {
+        "medianMs": 37.511083,
+        "samplesMs": [
+          37.247042,
+          37.511083,
+          38.061458,
+          37.152792,
+          37.561
+        ]
+      },
+      "rust": {
+        "medianMs": 2.521166,
+        "samplesMs": [
+          2.434542,
+          2.581083,
+          2.432583,
+          2.521166,
+          2.613125
+        ]
+      }
+    },
+    "codex-10080": {
+      "released": {
+        "medianMs": 258.901292,
+        "samplesMs": [
+          261.999792,
+          256.118167,
+          258.901292,
+          258.372833,
+          260.787
+        ]
+      },
+      "rust": {
+        "medianMs": 18.115208,
+        "samplesMs": [
+          17.183958,
+          18.780625,
+          16.963,
+          18.115208,
+          18.323583
+        ]
+      }
+    },
+    "claude-60": {
+      "released": {
+        "medianMs": 1.836083,
+        "samplesMs": [
+          1.747292,
+          1.742458,
+          4.185834,
+          2.055583,
+          1.836083
+        ]
+      },
+      "rust": {
+        "medianMs": 0.320167,
+        "samplesMs": [
+          0.320167,
+          0.285292,
+          0.327875,
+          0.302875,
+          0.392083
+        ]
+      }
+    },
+    "claude-1440": {
+      "released": {
+        "medianMs": 39.845833,
+        "samplesMs": [
+          37.732834,
+          38.118208,
+          50.123417,
+          39.845833,
+          40.157417
+        ]
+      },
+      "rust": {
+        "medianMs": 3.839542,
+        "samplesMs": [
+          3.983667,
+          3.783125,
+          3.839542,
+          4.222,
+          3.827333
+        ]
+      }
+    },
+    "claude-10080": {
+      "released": {
+        "medianMs": 267.755958,
+        "samplesMs": [
+          267.57475,
+          267.295625,
+          269.824666,
+          267.755958,
+          272.341042
+        ]
+      },
+      "rust": {
+        "medianMs": 25.824041,
+        "samplesMs": [
+          25.663542,
+          25.433708,
+          25.824041,
+          27.598291,
+          25.970875
+        ]
+      }
+    }
+  },
+  "scope": "Five paired optimized complete parses of synthetic Codex/Claude activity records from Data, including date bucketing. Excludes on-disk collection, persistence and UI."
+}

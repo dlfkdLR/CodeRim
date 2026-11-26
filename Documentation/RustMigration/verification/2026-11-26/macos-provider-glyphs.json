@@ -1,0 +1,233 @@
+{
+  "commit": "24b691d",
+  "reference": "v2.1.41",
+  "perArchitecture": {
+    "pathComparisons": 156,
+    "images": 312,
+    "rgbaPixels": 1562184,
+    "repeatedComparisons": 3,
+    "activeWorkers": 48,
+    "retainedObjects": 6144
+  },
+  "architectures": {
+    "arm64": "3c9a5016915b8d8e1aa909c93f91f03e7777d2c64bb902ccc5008d1703908042",
+    "x86_64-Rosetta": "8dbedb92bbd2c7a057532c42f82170e4662d6905b347cf728eea97d11b0924dc"
+  },
+  "nsPerShape": {
+    "claude-fixed": {
+      "original": {
+        "medianNs": 4265.896,
+        "samples": [
+          4133.427,
+          4150.125,
+          4088.65625,
+          4280.02075,
+          4661.3335,
+          4265.896,
+          4333.51025
+        ]
+      },
+      "candidate": {
+        "medianNs": 1679.26025,
+        "samples": [
+          1679.26025,
+          1925.177,
+          1558.875,
+          1523.604,
+          1556.6145,
+          2186.08325,
+          1896.34375
+        ]
+      }
+    },
+    "claude-resizing": {
+      "original": {
+        "medianNs": 4068.271,
+        "samples": [
+          4057.77075,
+          5031.5625,
+          4004.552,
+          4598.604,
+          4852.22925,
+          4039.77075,
+          4068.271
+        ]
+      },
+      "candidate": {
+        "medianNs": 3179.5415,
+        "samples": [
+          3083.125,
+          3254.375,
+          3440.927,
+          3179.5415,
+          3249.45825,
+          2928.29175,
+          2839.76025
+        ]
+      }
+    },
+    "openai-fixed": {
+      "original": {
+        "medianNs": 6430.77075,
+        "samples": [
+          6029.104,
+          6601.6875,
+          5999.47925,
+          6430.77075,
+          7070.65625,
+          6633.427,
+          6196.6875
+        ]
+      },
+      "candidate": {
+        "medianNs": 2841.28125,
+        "samples": [
+          2630.3125,
+          3392.82275,
+          2841.28125,
+          2719.0835,
+          2916.6875,
+          2900.1145,
+          2310.33325
+        ]
+      }
+    },
+    "openai-resizing": {
+      "original": {
+        "medianNs": 6259.604,
+        "samples": [
+          5981.34375,
+          6730.70825,
+          5992.15625,
+          6028.91675,
+          6945.271,
+          6259.604,
+          6620.0
+        ]
+      },
+      "candidate": {
+        "medianNs": 4889.75,
+        "samples": [
+          4889.75,
+          4924.677,
+          4895.61475,
+          4774.80225,
+          4738.354,
+          4870.573,
+          4963.5
+        ]
+      }
+    },
+    "copilot-fixed": {
+      "original": {
+        "medianNs": 7716.09375,
+        "samples": [
+          7532.4375,
+          7999.88525,
+          7538.34375,
+          7846.69775,
+          7716.09375,
+          7525.28125,
+          7770.4585
+        ]
+      },
+      "candidate": {
+        "medianNs": 2920.4165,
+        "samples": [
+          2920.4165,
+          3510.0105,
+          3504.6355,
+          2818.5,
+          2862.0,
+          3233.61475,
+          2830.7915
+        ]
+      }
+    },
+    "copilot-resizing": {
+      "original": {
+        "medianNs": 7642.03125,
+        "samples": [
+          7642.03125,
+          8251.10425,
+          7374.04175,
+          7483.21875,
+          8091.427,
+          7642.5625,
+          7576.75
+        ]
+      },
+      "candidate": {
+        "medianNs": 5862.09375,
+        "samples": [
+          5964.604,
+          5839.83325,
+          6529.96875,
+          5539.76025,
+          6426.72925,
+          5862.09375,
+          5685.5105
+        ]
+      }
+    },
+    "ollama-fixed": {
+      "original": {
+        "medianNs": 13192.3125,
+        "samples": [
+          12836.29175,
+          13719.59375,
+          12535.3125,
+          13224.5105,
+          13192.3125,
+          12591.45825,
+          13659.01025
+        ]
+      },
+      "candidate": {
+        "medianNs": 5085.96875,
+        "samples": [
+          5701.08325,
+          6073.4375,
+          4835.25,
+          4957.8855,
+          6053.4375,
+          4918.72925,
+          5085.96875
+        ]
+      }
+    },
+    "ollama-resizing": {
+      "original": {
+        "medianNs": 12847.6145,
+        "samples": [
+          12902.3645,
+          13156.9895,
+          12574.04175,
+          13201.0,
+          12514.25,
+          12538.948,
+          12847.6145
+        ]
+      },
+      "candidate": {
+        "medianNs": 9075.5625,
+        "samples": [
+          8770.9895,
+          9936.5625,
+          8846.59375,
+          9075.5625,
+          9214.55225,
+          9147.78125,
+          9051.19775
+        ]
+      }
+    }
+  },
+  "scope": "Actual SwiftUI ImageRenderer into an explicit sRGB bitmap. Geometry timings include lookup and projection. Unpinned renderer also produced cold differences between repeated executions of the released binary.",
+  "independentOwnershipPerArchitecture": {
+    "constructed": 400,
+    "retained": 800,
+    "released": 1200,
+    "releasedOnThreadExit": 44
+  }
+}

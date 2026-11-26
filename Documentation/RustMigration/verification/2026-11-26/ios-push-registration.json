@@ -1,0 +1,71 @@
+{
+  "commit": "311939737078ca5f399d5c12c842bfc37c166a6d",
+  "stable": "v2.1.41",
+  "builds": {
+    "IOS": {
+      "sha256": "223513bba9b58d762c7ded8a443e906461a1134645e91f89ff0bfd714576a817",
+      "minimumOS": "17.2",
+      "hasRegistrationStepSymbol": true
+    },
+    "IOSSIMULATOR": {
+      "sha256": "5ecb73ef363c2c13d99f098ecd587a8e5cfd7fadcfae8e90251b4e3975a639ca",
+      "minimumOS": "17.2",
+      "hasRegistrationStepSymbol": true
+    }
+  },
+  "releaseMethodTraces": [
+    "arm64 720 5e30a8e43332781e363a56855768307be591899343e96ee7649bf1bf1cca831c",
+    "x86_64 720 5e30a8e43332781e363a56855768307be591899343e96ee7649bf1bf1cca831c"
+  ],
+  "isolatedXCTest": "Executed 1 with 0 failures",
+  "nsPerCompleteRegistration": {
+    "release": 21872.975,
+    "native": 21691.093055555557,
+    "rust": 21620.50763888889
+  },
+  "scope": "Real Swift Task cancellation and replacement; virtual sleeps and local synthetic HTTP-shaped requests. No live APNs or physical iPhone.",
+  "integratedCommit": "8a5004b",
+  "samples": {
+    "nsPerRegistration": {
+      "release": [
+        21747.47847222222,
+        21872.975,
+        28103.361805555556,
+        22220.791666666668,
+        20158.62361111111,
+        21182.178472222222,
+        21689.18125,
+        22214.524305555555,
+        22182.099305555555
+      ],
+      "native": [
+        20159.95902777778,
+        21912.305555555555,
+        23033.415277777778,
+        21420.638194444444,
+        20606.1375,
+        21767.068055555555,
+        21691.093055555557,
+        20879.272222222222,
+        22455.872916666667
+      ],
+      "rust": [
+        44122.3875,
+        21620.50763888889,
+        20313.843055555557,
+        21237.41875,
+        21084.793055555554,
+        20980.854166666668,
+        21728.256944444445,
+        22386.31527777778,
+        21937.994444444445
+      ]
+    },
+    "medians": {
+      "release": 21872.975,
+      "native": 21691.093055555557,
+      "rust": 21620.50763888889
+    },
+    "checksum": 16105555190088348158
+  }
+}

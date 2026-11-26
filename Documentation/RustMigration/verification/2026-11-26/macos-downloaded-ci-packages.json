@@ -1,0 +1,91 @@
+{
+  "run": 45752244999,
+  "commit": "7b13d539bac2f2897df478ad57862297fd819437",
+  "artifactId": 15087217039,
+  "artifactDigest": "sha256:28c482ab2f62efd235b3159518a333d83c78245a8cfa27a143e1e4abe37351bf",
+  "downloadedBytes": 56346660,
+  "platform": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "signing": "ad hoc QA",
+  "localInstalls": {
+    "zip": {
+      "executableSha256": "2da3710ea0570be5d2cba9752c3edbefd2a92247135a402681ceff89bb30cec1",
+      "widgetSha256": "216eebf42f1662c42fb08c222fd5598ae4080967f5b68885bc1eeaffb183ef37",
+      "restartHelperSha256": "39fa78a7eae9121267f6c4453c22ee446e978e71bca7b67c35928297d1da1837",
+      "verifiedRustWidget": true,
+      "version": "CodeRim CLI 2.1.41 (schema 1)",
+      "packageSha256": "65b633cad329023ab3dc435b2c0928e2b47f4468189ef0f1ccd83f7b5c92752c",
+      "bytes": 26469519
+    },
+    "dmg": {
+      "executableSha256": "2da3710ea0570be5d2cba9752c3edbefd2a92247135a402681ceff89bb30cec1",
+      "widgetSha256": "216eebf42f1662c42fb08c222fd5598ae4080967f5b68885bc1eeaffb183ef37",
+      "restartHelperSha256": "39fa78a7eae9121267f6c4453c22ee446e978e71bca7b67c35928297d1da1837",
+      "verifiedRustWidget": true,
+      "version": "CodeRim CLI 2.1.41 (schema 1)",
+      "packageSha256": "33034618a82e7399446f27e80a70c11a05301f11b0b8b93f783587b3f0f59ccd",
+      "bytes": 29876573
+    }
+  },
+  "cliChecksPerPackage": 116,
+  "hostedRestart": {
+    "arch": "arm64",
+    "results": [
+      {
+        "case": "published",
+        "callback": "sh",
+        "launchServicesEvent": "launched",
+        "observedWaitChildren": 5,
+        "waitChildNames": [
+          "(sleep)",
+          "sleep"
+        ],
+        "secondsToReopen": 0.1055
+      },
+      {
+        "case": "rust",
+        "callback": "CodeRimRestart",
+        "launchServicesEvent": "launched",
+        "observedWaitChildren": 0,
+        "waitChildNames": [],
+        "secondsToReopen": 0.1252
+      },
+      {
+        "case": "rapid-exit",
+        "callback": "CodeRimRestart",
+        "launchServicesEvent": "launched",
+        "observedWaitChildren": 0,
+        "waitChildNames": [],
+        "secondsToReopen": 0.1621
+      },
+      {
+        "case": "rolled-back-bundle",
+        "callback": "sh",
+        "launchServicesEvent": "launched",
+        "observedWaitChildren": 3,
+        "waitChildNames": [
+          "sleep"
+        ],
+        "secondsToReopen": 0.3027
+      },
+      {
+        "case": "published-veto-through-timeout",
+        "callback": "sh",
+        "launchServicesEvent": "reopen-running",
+        "observedWaitChildren": 4,
+        "waitChildNames": [
+          "(kill)",
+          "sleep"
+        ],
+        "secondsToReopen": 66.9682
+      },
+      {
+        "case": "veto-through-timeout",
+        "callback": "CodeRimRestart",
+        "launchServicesEvent": "reopen-running",
+        "observedWaitChildren": 0,
+        "waitChildNames": [],
+        "secondsToReopen": 60.0108
+      }
+    ]
+  }
+}
