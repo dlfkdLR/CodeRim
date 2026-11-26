@@ -1,4 +1,7 @@
 import SwiftUI
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// Which mark a provider cell draws.
 enum ProviderGlyph: String, Codable, Equatable, Hashable {
@@ -125,43 +128,92 @@ enum ProviderGlyph: String, Codable, Equatable, Hashable {
         }
     }
 
-    var outline: [[CGPoint]] {
+    fileprivate var trace: (index: UInt8, contours: [[CGPoint]])? {
         switch self {
-        case .claude: return GlyphOutline.claude
-        case .openai: return GlyphOutline.openai
-        case .third:  return []
-        case .cursor: return GlyphOutline.cursor
-        case .antigravity: return GlyphOutline.antigravity
-        case .geminiSpark: return GlyphOutline.gemini
-        case .glm:    return GlyphOutline.glm
-        case .grok:   return GlyphOutline.grok
-        case .opencode: return GlyphOutline.opencode
-        case .commandcode: return GlyphOutline.commandcode
-        case .copilot: return GlyphOutline.copilot
-        case .ollama, .ollamaLocal: return GlyphOutline.ollama
-        default: return []
+        case .claude: return (0, GlyphOutline.claude)
+        case .openai: return (1, GlyphOutline.openai)
+        case .third:  return nil
+        case .cursor: return (2, GlyphOutline.cursor)
+        case .antigravity: return (3, GlyphOutline.antigravity)
+        case .geminiSpark: return (4, GlyphOutline.gemini)
+        case .glm:    return (5, GlyphOutline.glm)
+        case .grok:   return (6, GlyphOutline.grok)
+        case .opencode: return (7, GlyphOutline.opencode)
+        case .commandcode: return (8, GlyphOutline.commandcode)
+        case .copilot: return (9, GlyphOutline.copilot)
+        case .ollama, .ollamaLocal: return (10, GlyphOutline.ollama)
+        default: return nil
         }
     }
+
+    var outline: [[CGPoint]] { trace?.contours ?? [] }
 }
 
 /// A traced outline scaled into the view's bounds, filled even-odd so the
 /// counters inside a knot stay open.
 struct GlyphShape: Shape {
-    let outline: [[CGPoint]]
+    let glyph: ProviderGlyph
 
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        for loop in outline {
-            guard let first = loop.first else { continue }
-            path.move(to: point(first, in: rect))
-            for p in loop.dropFirst() { path.addLine(to: point(p, in: rect)) }
-            path.closeSubpath()
+    private struct Drawing {
+        let contours: [[CGPoint]]
+        let rect: CGRect
+
+        // Let SwiftUI form its own path. Its coordinate representation can vary
+        // with the size and position of the drawing, including in the same OS.
+        func path() -> Path {
+            var path = Path()
+            for loop in contours {
+                guard let first = loop.first else { continue }
+                #if CODERIM_RUST_ACCOUNTING
+                let projected = [CGPoint](unsafeUninitializedCapacity: loop.count) { dest, count in
+                    let success = loop.withUnsafeBufferPointer {
+                        cr_project_glyph_points($0.baseAddress, dest.baseAddress, loop.count,
+                                                rect.minX, rect.minY, rect.width, rect.height)
+                    }
+                    count = success != 0 ? loop.count : 0
+                }
+                if !projected.isEmpty {
+                    path.addLines(projected)
+                    path.closeSubpath()
+                    continue
+                }
+                #endif
+                func point(_ p: CGPoint) -> CGPoint {
+                    CGPoint(x: rect.minX + p.x * rect.width, y: rect.minY + p.y * rect.height)
+                }
+                path.move(to: point(first))
+                for p in loop.dropFirst() { path.addLine(to: point(p)) }
+                path.closeSubpath()
+            }
+            return path
         }
-        return path
     }
 
-    private func point(_ p: CGPoint, in rect: CGRect) -> CGPoint {
-        CGPoint(x: rect.minX + p.x * rect.width, y: rect.minY + p.y * rect.height)
+    #if CODERIM_RUST_ACCOUNTING
+    private final class StoredPath {
+        let value: Path
+        init(_ value: Path) { self.value = value }
+    }
+    #endif
+
+    func path(in rect: CGRect) -> Path {
+        guard let trace = glyph.trace else { return Path() }
+        let drawing = Drawing(contours: trace.contours, rect: rect)
+        #if CODERIM_RUST_ACCOUNTING
+        let retained = withUnsafePointer(to: drawing) { source in
+            cr_provider_glyph(trace.index, rect.minX, rect.minY, rect.width, rect.height, source, { context in
+                guard let context else { return nil }
+                let value = context.assumingMemoryBound(to: Drawing.self).pointee.path()
+                return Unmanaged.passRetained(StoredPath(value)).toOpaque()
+            }, { raw, retain in
+                guard let raw else { return }
+                let object = Unmanaged<StoredPath>.fromOpaque(raw)
+                if retain != 0 { _ = object.retain() } else { object.release() }
+            })
+        }
+        if let retained { return Unmanaged<StoredPath>.fromOpaque(retained).takeRetainedValue().value }
+        #endif
+        return drawing.path()
     }
 }
 
@@ -200,7 +252,7 @@ struct ProviderGlyphView: View {
                     .resizable()
                     .scaledToFit()
             } else {
-                GlyphShape(outline: glyph.outline)
+                GlyphShape(glyph: glyph)
                     .fill(style: FillStyle(eoFill: true))
             }
         }

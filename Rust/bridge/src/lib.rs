@@ -14,6 +14,8 @@ mod claude_json;
 #[cfg(target_os = "macos")]
 mod copilot_quota;
 mod event_json;
+#[cfg(target_os = "macos")]
+mod glyph_path;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod github_device_policy;
 #[cfg(target_os = "macos")]
