@@ -1,0 +1,2277 @@
+{
+  "scope": "Synthetic in-memory Swift normalization and JSONL parse-plus-normalize only. Parser suites pass every row to CodexJSONLParser; the app also filters log lines before parsing. Each sample warms up once in-process; startup is outside the timed interval. Peak RSS covers the entire benchmark process. These figures do not measure the desktop app.",
+  "machine": "arm64",
+  "macOS": "26.6.2",
+  "hardware": "Mac17,2",
+  "swift": "Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)\nTarget: arm64-apple-macosx26.0",
+  "rust": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "gitHead": "76db61b7b0ac5e44670b190d39466fbe69c21660",
+  "swiftFlags": [
+    "-target",
+    "arm64-apple-macosx14.0",
+    "-swift-version",
+    "6",
+    "-package-name",
+    "CodeRim",
+    "-O",
+    "-whole-module-optimization",
+    "-warnings-as-errors"
+  ],
+  "inputSha256": {
+    "Sources/CodeRimUsageCore/TokenUsage.swift": "30a53e8b24d7c61ec91f34da45bcccf68aaf70f0a50f9010fcbe5082dcc6d0d3",
+    "Sources/CodeRimUsageCore/UsageSnapshot.swift": "6aea615df046a729ddcb879f04333a87cd4bb90cefc03818a0e69fc1f93e9a59",
+    "Sources/CodeRimUsageCore/CodexTokenObservation.swift": "fa46edc323e0b6d0c2216b816d75bd190bcf07380133a8b7260d7ec47c424c7a",
+    "Sources/CodeRimUsageCore/UsageNormalizer.swift": "162e562f77a2025fba2edae14b911e2136ed03ef5db36f8d9dbd34e68ee433bf",
+    "Sources/CodeRimUsageCore/RustUsageNormalizer.swift": "0da4796b915202da90d766b2fc5d8bfe017904f00f8821635a1e4be8792321dd",
+    "Sources/CodeRimUsageCore/UsageEvent.swift": "b5fb74c547f29de5c07a9e32ebd605a5f9ea7c92dfa385a36644400541298ec6",
+    "Sources/CodeRimUsageCore/CodexJSONLParser.swift": "913f55874472957025df61ab3d1f8ebd1a261951da3eff91dfe927a688e71c74",
+    "Sources/CodeRimUsageCore/RustCodexTokenParser.swift": "eb9e076aa37361ef98b498a6ebc97d2f5951b1bfa9a1cdb194e7874baef6e4fb",
+    "Scripts/rust_migration/benchmark/main.swift": "947ad4f25bbe8686fa014e465a098681e3f96cba059e75f71a03798272c2b46e",
+    "Tests/Fixtures/usage-normalization-v1.json": "694320f02c35fb6d362c653ffafc281709b198e3ad1655bd398714f0d58bf856",
+    "Scripts/rust_migration/benchmark_macos.py": "318c90f821f7ad271887678b11a77c4585e1cdfa666586b68d94148a7f8a50e5",
+    "Rust/bridge/include/module.modulemap": "540b7f9a170b51c826c9f1d0cedf92efe27b791e5cb9dfa54809f2860a6c6574",
+    "Rust/bridge/include/coderim_accounting.h": "103e9994d7edbcbb5ae24328b87f0c1fa2940bd102d7edd4be517728a584caab",
+    "Rust/Cargo.toml": "e2c5d1ae88b6219fd86eb78bf02952303c41b88b92cbde0ef97ce222ade833dc",
+    "Rust/bridge/Cargo.toml": "d402fe191699ad860a82b91881ce7c1371851284e805aa109138257c51cb6a48",
+    "Rust/Cargo.lock": "382df3b923d77d40da24986dca599d410b5784213ae04f9b76a28724eb722a42",
+    "Rust/src/lib.rs": "e2ee5c10a3e635085b09b34e91780dfe1f7ef7c16b72450b6ed2e66d48a0813f",
+    "Rust/src/normalization.rs": "202a01ded4271631203e5ea671c481bd38d03426fd71c668e1e42d5efdb05ead",
+    "Rust/bridge/src/lib.rs": "29b18c7c94687c4aa89432e58807fea4a134ea5b223737f07ae6cdeafc8a3c3a",
+    "Rust/bridge/src/token_json.rs": "d4634992f1e4c9529a373cd1eb13287ba6b1bb37193ba5371ba3682a08066b0a"
+  },
+  "binarySha256": {
+    "swift": "ad13af9cebe182d78a141c0a5be0b9217788cf83c4dd4bd66b971e5603f869d3",
+    "rust": "e63b5c56ae40d8c2dfdedb9f7eeb6ab20b88a1a77eacc3891c5f559be83e5ce3"
+  },
+  "rustProfileEnvironment": {
+    "RUSTFLAGS": null,
+    "CARGO_PROFILE_RELEASE_LTO": null,
+    "CARGO_PROFILE_RELEASE_CODEGEN_UNITS": null,
+    "RUSTUP_TOOLCHAIN": "1.99.1"
+  },
+  "staticLibrarySha256": "86579e509245e5f6c017592a13bab14d253615c2f36bde1aff21483338af35b6",
+  "binaryBytes": {
+    "swift": 257696,
+    "rust": 1975600
+  },
+  "samples": [
+    {
+      "checksum": "5393236390879310460",
+      "cpuNs": 39569000,
+      "elapsedNs": 39899208,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6537216,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 1,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "5393236390879310460",
+      "cpuNs": 54150000,
+      "elapsedNs": 59664375,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6684672,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 1,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "5393236390879310460",
+      "cpuNs": 46596000,
+      "elapsedNs": 46842375,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6701056,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 2,
+      "position": 1
+    },
+    {
+      "checksum": "5393236390879310460",
+      "cpuNs": 39559000,
+      "elapsedNs": 39579375,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6537216,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 2,
+      "position": 2
+    },
+    {
+      "checksum": "5393236390879310460",
+      "cpuNs": 38291000,
+      "elapsedNs": 38310125,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6537216,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 3,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "5393236390879310460",
+      "cpuNs": 45574000,
+      "elapsedNs": 45622875,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6684672,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 3,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "5393236390879310460",
+      "cpuNs": 44663000,
+      "elapsedNs": 44677875,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6684672,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 4,
+      "position": 1
+    },
+    {
+      "checksum": "5393236390879310460",
+      "cpuNs": 37785000,
+      "elapsedNs": 37804000,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6537216,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 4,
+      "position": 2
+    },
+    {
+      "checksum": "5393236390879310460",
+      "cpuNs": 39381000,
+      "elapsedNs": 39422666,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6537216,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 5,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "5393236390879310460",
+      "cpuNs": 45423000,
+      "elapsedNs": 45535833,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6684672,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 5,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "5393236390879310460",
+      "cpuNs": 45802000,
+      "elapsedNs": 45819208,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6684672,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 6,
+      "position": 1
+    },
+    {
+      "checksum": "5393236390879310460",
+      "cpuNs": 37438000,
+      "elapsedNs": 37463250,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6537216,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 6,
+      "position": 2
+    },
+    {
+      "checksum": "5393236390879310460",
+      "cpuNs": 38512000,
+      "elapsedNs": 38532042,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6537216,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 7,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "5393236390879310460",
+      "cpuNs": 45776000,
+      "elapsedNs": 45807333,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6684672,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 7,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "5393236390879310460",
+      "cpuNs": 47608000,
+      "elapsedNs": 47645666,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6684672,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 8,
+      "position": 1
+    },
+    {
+      "checksum": "5393236390879310460",
+      "cpuNs": 36660000,
+      "elapsedNs": 36673417,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6537216,
+      "rows": 31,
+      "workload": "contract",
+      "pair": 8,
+      "position": 2
+    },
+    {
+      "checksum": "9673838776586848872",
+      "cpuNs": 33636000,
+      "elapsedNs": 33642375,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 1,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "9673838776586848872",
+      "cpuNs": 40147000,
+      "elapsedNs": 40161000,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 1,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "9673838776586848872",
+      "cpuNs": 40353000,
+      "elapsedNs": 40370958,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 2,
+      "position": 1
+    },
+    {
+      "checksum": "9673838776586848872",
+      "cpuNs": 34063000,
+      "elapsedNs": 34081375,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 2,
+      "position": 2
+    },
+    {
+      "checksum": "9673838776586848872",
+      "cpuNs": 35243000,
+      "elapsedNs": 35254458,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 3,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "9673838776586848872",
+      "cpuNs": 39211000,
+      "elapsedNs": 39223834,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 3,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "9673838776586848872",
+      "cpuNs": 42817000,
+      "elapsedNs": 42846541,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 4,
+      "position": 1
+    },
+    {
+      "checksum": "9673838776586848872",
+      "cpuNs": 34740000,
+      "elapsedNs": 34751709,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 4,
+      "position": 2
+    },
+    {
+      "checksum": "9673838776586848872",
+      "cpuNs": 33615000,
+      "elapsedNs": 33629583,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 5,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "9673838776586848872",
+      "cpuNs": 39949000,
+      "elapsedNs": 39993000,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 5,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "9673838776586848872",
+      "cpuNs": 39613000,
+      "elapsedNs": 39633333,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 6,
+      "position": 1
+    },
+    {
+      "checksum": "9673838776586848872",
+      "cpuNs": 34640000,
+      "elapsedNs": 34719792,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 6,
+      "position": 2
+    },
+    {
+      "checksum": "9673838776586848872",
+      "cpuNs": 32936000,
+      "elapsedNs": 32950625,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 7,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "9673838776586848872",
+      "cpuNs": 41234000,
+      "elapsedNs": 41253750,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 7,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "9673838776586848872",
+      "cpuNs": 38353000,
+      "elapsedNs": 38379125,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 8,
+      "position": 1
+    },
+    {
+      "checksum": "9673838776586848872",
+      "cpuNs": 33835000,
+      "elapsedNs": 33855875,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "normal",
+      "pair": 8,
+      "position": 2
+    },
+    {
+      "checksum": "3406053555840054971",
+      "cpuNs": 34167000,
+      "elapsedNs": 34177083,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "large",
+      "pair": 1,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "3406053555840054971",
+      "cpuNs": 40196000,
+      "elapsedNs": 40223292,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "large",
+      "pair": 1,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "3406053555840054971",
+      "cpuNs": 39888000,
+      "elapsedNs": 39949125,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "large",
+      "pair": 2,
+      "position": 1
+    },
+    {
+      "checksum": "3406053555840054971",
+      "cpuNs": 33620000,
+      "elapsedNs": 33663458,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "large",
+      "pair": 2,
+      "position": 2
+    },
+    {
+      "checksum": "3406053555840054971",
+      "cpuNs": 33179000,
+      "elapsedNs": 33212000,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "large",
+      "pair": 3,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "3406053555840054971",
+      "cpuNs": 38898000,
+      "elapsedNs": 38948167,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "large",
+      "pair": 3,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "3406053555840054971",
+      "cpuNs": 39746000,
+      "elapsedNs": 39789792,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "large",
+      "pair": 4,
+      "position": 1
+    },
+    {
+      "checksum": "3406053555840054971",
+      "cpuNs": 33501000,
+      "elapsedNs": 33543292,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "large",
+      "pair": 4,
+      "position": 2
+    },
+    {
+      "checksum": "3406053555840054971",
+      "cpuNs": 33822000,
+      "elapsedNs": 34142750,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "large",
+      "pair": 5,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "3406053555840054971",
+      "cpuNs": 40373000,
+      "elapsedNs": 40657000,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "large",
+      "pair": 5,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "3406053555840054971",
+      "cpuNs": 41005000,
+      "elapsedNs": 41040208,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "large",
+      "pair": 6,
+      "position": 1
+    },
+    {
+      "checksum": "3406053555840054971",
+      "cpuNs": 31775000,
+      "elapsedNs": 31801666,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "large",
+      "pair": 6,
+      "position": 2
+    },
+    {
+      "checksum": "3406053555840054971",
+      "cpuNs": 35016000,
+      "elapsedNs": 35098542,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "large",
+      "pair": 7,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "3406053555840054971",
+      "cpuNs": 40465000,
+      "elapsedNs": 40937125,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "large",
+      "pair": 7,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "3406053555840054971",
+      "cpuNs": 41347000,
+      "elapsedNs": 41629416,
+      "iterations": 1000000,
+      "mode": "rust",
+      "parsedRowClasses": {},
+      "peakRssBytes": 6144000,
+      "rows": 128,
+      "workload": "large",
+      "pair": 8,
+      "position": 1
+    },
+    {
+      "checksum": "3406053555840054971",
+      "cpuNs": 34202000,
+      "elapsedNs": 34245208,
+      "iterations": 1000000,
+      "mode": "swift",
+      "parsedRowClasses": {},
+      "peakRssBytes": 5996544,
+      "rows": 128,
+      "workload": "large",
+      "pair": 8,
+      "position": 2
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 154171000,
+      "elapsedNs": 154286208,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50249728,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 1,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 22640000,
+      "elapsedNs": 22705375,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 1,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 22629000,
+      "elapsedNs": 22679334,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 2,
+      "position": 1
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 155174000,
+      "elapsedNs": 155355208,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50282496,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 2,
+      "position": 2
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 152645000,
+      "elapsedNs": 152754416,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50249728,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 3,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 22128000,
+      "elapsedNs": 22142208,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 3,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 25056000,
+      "elapsedNs": 25693083,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 4,
+      "position": 1
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 156859000,
+      "elapsedNs": 157330333,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50282496,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 4,
+      "position": 2
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 155366000,
+      "elapsedNs": 155478000,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50249728,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 5,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 22175000,
+      "elapsedNs": 22183250,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 5,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 22002000,
+      "elapsedNs": 22016542,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9666560,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 6,
+      "position": 1
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 160349000,
+      "elapsedNs": 160459666,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50249728,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 6,
+      "position": 2
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 152699000,
+      "elapsedNs": 152762167,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50249728,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 7,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 22605000,
+      "elapsedNs": 22609417,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 7,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 22136000,
+      "elapsedNs": 22148708,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 8,
+      "position": 1
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 157321000,
+      "elapsedNs": 157490916,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50249728,
+      "rows": 128,
+      "workload": "parse-normal",
+      "pair": 8,
+      "position": 2
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 199411000,
+      "elapsedNs": 200101167,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 68354048,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 1,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 28980000,
+      "elapsedNs": 29035125,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 1,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 28859000,
+      "elapsedNs": 28900292,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 2,
+      "position": 1
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 198148000,
+      "elapsedNs": 199947417,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 68354048,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 2,
+      "position": 2
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 190624000,
+      "elapsedNs": 190800250,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 68354048,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 3,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 28451000,
+      "elapsedNs": 28468334,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9715712,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 3,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 28661000,
+      "elapsedNs": 28687625,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 4,
+      "position": 1
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 187762000,
+      "elapsedNs": 187871667,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 68386816,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 4,
+      "position": 2
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 192126000,
+      "elapsedNs": 192284375,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 68354048,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 5,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 28372000,
+      "elapsedNs": 28430250,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 5,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 28138000,
+      "elapsedNs": 28158667,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 6,
+      "position": 1
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 187633000,
+      "elapsedNs": 187818792,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 68354048,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 6,
+      "position": 2
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 189908000,
+      "elapsedNs": 190013334,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 68386816,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 7,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 39342000,
+      "elapsedNs": 43084666,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 7,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 128,
+      "checksum": "13341113253451474507",
+      "cpuNs": 28870000,
+      "elapsedNs": 29185625,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 9682944,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 8,
+      "position": 1
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 186097000,
+      "elapsedNs": 186210541,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 68354048,
+      "rows": 128,
+      "workload": "parse-rate-untagged",
+      "pair": 8,
+      "position": 2
+    },
+    {
+      "checksum": "725757654821527599",
+      "cpuNs": 123483000,
+      "elapsedNs": 123638167,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 40435712,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 1,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 48,
+      "checksum": "725757654821527599",
+      "cpuNs": 68238000,
+      "elapsedNs": 68324167,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 20938752,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 1,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 48,
+      "checksum": "725757654821527599",
+      "cpuNs": 68530000,
+      "elapsedNs": 68727167,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 20938752,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 2,
+      "position": 1
+    },
+    {
+      "checksum": "725757654821527599",
+      "cpuNs": 120172000,
+      "elapsedNs": 120305042,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 40452096,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 2,
+      "position": 2
+    },
+    {
+      "checksum": "725757654821527599",
+      "cpuNs": 120077000,
+      "elapsedNs": 120184250,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 40435712,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 3,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 48,
+      "checksum": "725757654821527599",
+      "cpuNs": 66866000,
+      "elapsedNs": 66932166,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 20922368,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 3,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 48,
+      "checksum": "725757654821527599",
+      "cpuNs": 66984000,
+      "elapsedNs": 67012000,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 20938752,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 4,
+      "position": 1
+    },
+    {
+      "checksum": "725757654821527599",
+      "cpuNs": 122778000,
+      "elapsedNs": 122887000,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 40435712,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 4,
+      "position": 2
+    },
+    {
+      "checksum": "725757654821527599",
+      "cpuNs": 119858000,
+      "elapsedNs": 119933041,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 40435712,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 5,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 48,
+      "checksum": "725757654821527599",
+      "cpuNs": 66569000,
+      "elapsedNs": 66591458,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 20889600,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 5,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 48,
+      "checksum": "725757654821527599",
+      "cpuNs": 68228000,
+      "elapsedNs": 68305041,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 20922368,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 6,
+      "position": 1
+    },
+    {
+      "checksum": "725757654821527599",
+      "cpuNs": 122533000,
+      "elapsedNs": 122608875,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 40435712,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 6,
+      "position": 2
+    },
+    {
+      "checksum": "725757654821527599",
+      "cpuNs": 122649000,
+      "elapsedNs": 122938625,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 40435712,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 7,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 48,
+      "checksum": "725757654821527599",
+      "cpuNs": 68302000,
+      "elapsedNs": 68546292,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 20955136,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 7,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 48,
+      "checksum": "725757654821527599",
+      "cpuNs": 67915000,
+      "elapsedNs": 68005208,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 20955136,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 8,
+      "position": 1
+    },
+    {
+      "checksum": "725757654821527599",
+      "cpuNs": 122602000,
+      "elapsedNs": 122689500,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 16,
+        "ignored": 16,
+        "image": 16,
+        "session": 16,
+        "token": 64
+      },
+      "peakRssBytes": 40435712,
+      "rows": 128,
+      "workload": "parse-mixed",
+      "pair": 8,
+      "position": 2
+    },
+    {
+      "checksum": "15080234515521811073",
+      "cpuNs": 54859000,
+      "elapsedNs": 54918500,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 20824064,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 1,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "15080234515521811073",
+      "cpuNs": 59299000,
+      "elapsedNs": 59359750,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 21118976,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 1,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "15080234515521811073",
+      "cpuNs": 60678000,
+      "elapsedNs": 60706000,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 21168128,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 2,
+      "position": 1
+    },
+    {
+      "checksum": "15080234515521811073",
+      "cpuNs": 54129000,
+      "elapsedNs": 54158417,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 20824064,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 2,
+      "position": 2
+    },
+    {
+      "checksum": "15080234515521811073",
+      "cpuNs": 55158000,
+      "elapsedNs": 55204000,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 20824064,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 3,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "15080234515521811073",
+      "cpuNs": 60838000,
+      "elapsedNs": 61098542,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 21250048,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 3,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "15080234515521811073",
+      "cpuNs": 62066000,
+      "elapsedNs": 62116709,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 21135360,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 4,
+      "position": 1
+    },
+    {
+      "checksum": "15080234515521811073",
+      "cpuNs": 54342000,
+      "elapsedNs": 54394375,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 20824064,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 4,
+      "position": 2
+    },
+    {
+      "checksum": "15080234515521811073",
+      "cpuNs": 54621000,
+      "elapsedNs": 54673917,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 20856832,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 5,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "15080234515521811073",
+      "cpuNs": 59596000,
+      "elapsedNs": 59634083,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 21135360,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 5,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "15080234515521811073",
+      "cpuNs": 73968000,
+      "elapsedNs": 80714333,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 21118976,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 6,
+      "position": 1
+    },
+    {
+      "checksum": "15080234515521811073",
+      "cpuNs": 56804000,
+      "elapsedNs": 57222292,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 20824064,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 6,
+      "position": 2
+    },
+    {
+      "checksum": "15080234515521811073",
+      "cpuNs": 56335000,
+      "elapsedNs": 56598791,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 20873216,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 7,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "15080234515521811073",
+      "cpuNs": 60705000,
+      "elapsedNs": 60797209,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 21168128,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 7,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "15080234515521811073",
+      "cpuNs": 61213000,
+      "elapsedNs": 61371334,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 21151744,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 8,
+      "position": 1
+    },
+    {
+      "checksum": "15080234515521811073",
+      "cpuNs": 54250000,
+      "elapsedNs": 54298125,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "context": 21,
+        "ignored": 21,
+        "image": 21,
+        "malformed": 21,
+        "session": 22,
+        "task": 22
+      },
+      "peakRssBytes": 20824064,
+      "rows": 128,
+      "workload": "parse-nontoken",
+      "pair": 8,
+      "position": 2
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 159980000,
+      "elapsedNs": 160840500,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50298880,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 1,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "13341113253451474507",
+      "cpuNs": 163069000,
+      "elapsedNs": 163152416,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50659328,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 1,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "13341113253451474507",
+      "cpuNs": 165035000,
+      "elapsedNs": 165153208,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50642944,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 2,
+      "position": 1
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 157727000,
+      "elapsedNs": 157832875,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50298880,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 2,
+      "position": 2
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 154435000,
+      "elapsedNs": 154547375,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50298880,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 3,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "13341113253451474507",
+      "cpuNs": 173260000,
+      "elapsedNs": 173448041,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50642944,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 3,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "13341113253451474507",
+      "cpuNs": 166999000,
+      "elapsedNs": 167176458,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50642944,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 4,
+      "position": 1
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 158395000,
+      "elapsedNs": 158522500,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50331648,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 4,
+      "position": 2
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 156567000,
+      "elapsedNs": 156688666,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50331648,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 5,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "13341113253451474507",
+      "cpuNs": 165737000,
+      "elapsedNs": 165910042,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50659328,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 5,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "13341113253451474507",
+      "cpuNs": 165893000,
+      "elapsedNs": 166152583,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50692096,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 6,
+      "position": 1
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 165239000,
+      "elapsedNs": 166260000,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50282496,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 6,
+      "position": 2
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 161556000,
+      "elapsedNs": 161717417,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50298880,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 7,
+      "position": 1
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "13341113253451474507",
+      "cpuNs": 169198000,
+      "elapsedNs": 169361417,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50642944,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 7,
+      "position": 2
+    },
+    {
+      "acceleratedRows": 0,
+      "checksum": "13341113253451474507",
+      "cpuNs": 165521000,
+      "elapsedNs": 165611167,
+      "iterations": 20000,
+      "mode": "rust",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50708480,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 8,
+      "position": 1
+    },
+    {
+      "checksum": "13341113253451474507",
+      "cpuNs": 160045000,
+      "elapsedNs": 160309625,
+      "iterations": 20000,
+      "mode": "swift",
+      "parsedRowClasses": {
+        "token": 128
+      },
+      "peakRssBytes": 50315264,
+      "rows": 128,
+      "workload": "parse-fallback",
+      "pair": 8,
+      "position": 2
+    }
+  ],
+  "summary": {
+    "contract": {
+      "swift": {
+        "medianWallNsPerRow": 38.4210835,
+        "medianCpuNsPerRow": 38.4015,
+        "medianProcessPeakRssBytes": 6537216.0
+      },
+      "rust": {
+        "medianWallNsPerRow": 45.8132705,
+        "medianCpuNsPerRow": 45.789,
+        "medianProcessPeakRssBytes": 6684672.0
+      },
+      "pairedRustOverSwiftWallRatios": [
+        1.495377427040657,
+        1.1835046662560993,
+        1.190882958486823,
+        1.1818293037773782,
+        1.1550673158431244,
+        1.2230441299139823,
+        1.1888114572282467,
+        1.2991880740210273
+      ],
+      "medianPairedWallRatio": 1.1898472078575348
+    },
+    "normal": {
+      "swift": {
+        "medianWallNsPerRow": 33.968625,
+        "medianCpuNsPerRow": 33.949,
+        "medianProcessPeakRssBytes": 5996544.0
+      },
+      "rust": {
+        "medianWallNsPerRow": 40.077,
+        "medianCpuNsPerRow": 40.048,
+        "medianProcessPeakRssBytes": 6144000.0
+      },
+      "pairedRustOverSwiftWallRatios": [
+        1.19376233098882,
+        1.1845460460442103,
+        1.112592172031123,
+        1.232933350126752,
+        1.189220811926214,
+        1.1415198858334175,
+        1.2519868743005633,
+        1.133603104335658
+      ],
+      "medianPairedWallRatio": 1.1868834289852122
+    },
+    "large": {
+      "swift": {
+        "medianWallNsPerRow": 33.903104,
+        "medianCpuNsPerRow": 33.721,
+        "medianProcessPeakRssBytes": 5996544.0
+      },
+      "rust": {
+        "medianWallNsPerRow": 40.440146,
+        "medianCpuNsPerRow": 40.2845,
+        "medianProcessPeakRssBytes": 6144000.0
+      },
+      "pairedRustOverSwiftWallRatios": [
+        1.1769082809085842,
+        1.1867207759820753,
+        1.1727136878236781,
+        1.186222032113008,
+        1.1907945317820035,
+        1.2905049691421826,
+        1.166348305864101,
+        1.2156274828291305
+      ],
+      "medianPairedWallRatio": 1.1864714040475417
+    },
+    "parse-normal": {
+      "swift": {
+        "medianWallNsPerRow": 7770.8302,
+        "medianCpuNsPerRow": 7763.5,
+        "medianProcessPeakRssBytes": 50249728.0
+      },
+      "rust": {
+        "medianWallNsPerRow": 1119.816675,
+        "medianCpuNsPerRow": 1119.5,
+        "medianProcessPeakRssBytes": 9682944.0
+      },
+      "pairedRustOverSwiftWallRatios": [
+        0.14716399666780325,
+        0.14598373811838997,
+        0.1449529812611113,
+        0.16330660788724066,
+        0.14267774218860546,
+        0.13720919748144061,
+        0.14800403427112946,
+        0.14063482874148753
+      ],
+      "medianPairedWallRatio": 0.14546835968975064
+    },
+    "parse-rate-untagged": {
+      "swift": {
+        "medianWallNsPerRow": 9520.3396,
+        "medianCpuNsPerRow": 9513.3,
+        "medianProcessPeakRssBytes": 68354048.0
+      },
+      "rust": {
+        "medianWallNsPerRow": 1439.697925,
+        "medianCpuNsPerRow": 1438.0,
+        "medianProcessPeakRssBytes": 9682944.0
+      },
+      "pairedRustOverSwiftWallRatios": [
+        0.14510222721489674,
+        0.1445394615925446,
+        0.1492049093227079,
+        0.15269798505593715,
+        0.14785522744632787,
+        0.1499246518420798,
+        0.22674548724038493,
+        0.15673454812635984
+      ],
+      "medianPairedWallRatio": 0.14956478058239386
+    },
+    "parse-mixed": {
+      "swift": {
+        "medianWallNsPerRow": 6132.459375,
+        "medianCpuNsPerRow": 6128.375,
+        "medianProcessPeakRssBytes": 40435712.0
+      },
+      "rust": {
+        "medianWallNsPerRow": 3407.756225,
+        "medianCpuNsPerRow": 3403.575,
+        "medianProcessPeakRssBytes": 20938752.0
+      },
+      "pairedRustOverSwiftWallRatios": [
+        0.5526138785283027,
+        0.5712742031210961,
+        0.556912956564608,
+        0.5453139876471881,
+        0.5552386351981186,
+        0.5570970372250785,
+        0.5575651427694104,
+        0.5542871068836371
+      ],
+      "medianPairedWallRatio": 0.5560757958813634
+    },
+    "parse-nontoken": {
+      "swift": {
+        "medianWallNsPerRow": 2739.810425,
+        "medianCpuNsPerRow": 2737.0,
+        "medianProcessPeakRssBytes": 20824064.0
+      },
+      "rust": {
+        "medianWallNsPerRow": 3047.393775,
+        "medianCpuNsPerRow": 3038.575,
+        "medianProcessPeakRssBytes": 21143552.0
+      },
+      "pairedRustOverSwiftWallRatios": [
+        1.080869834390961,
+        1.120896868163632,
+        1.1067774436635027,
+        1.1419693488527076,
+        1.0907227115262292,
+        1.41054002171042,
+        1.074178580952374,
+        1.1302661740161377
+      ],
+      "medianPairedWallRatio": 1.1138371559135674
+    },
+    "parse-fallback": {
+      "swift": {
+        "medianWallNsPerRow": 7970.803125,
+        "medianCpuNsPerRow": 7959.375,
+        "medianProcessPeakRssBytes": 50298880.0
+      },
+      "rust": {
+        "medianWallNsPerRow": 8301.565625,
+        "medianCpuNsPerRow": 8290.75,
+        "medianProcessPeakRssBytes": 50651136.0
+      },
+      "pairedRustOverSwiftWallRatios": [
+        1.0143739667558855,
+        1.0463802804073612,
+        1.1222969073399014,
+        1.0545913545395764,
+        1.058851582794125,
+        0.9993539215686275,
+        1.047267635990006,
+        1.033070640643068
+      ],
+      "medianPairedWallRatio": 1.0468239581986836
+    }
+  }
+}

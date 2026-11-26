@@ -1,0 +1,22 @@
+{
+  "legacy": {
+    "version": "2.1.41",
+    "build": "20141",
+    "bundle": "dev.codexmeter.CodexMeter",
+    "archs": "x86_64 arm64",
+    "gui_bytes": 109469552,
+    "cli_bytes": 2359632,
+    "gui_sha256": "d1833d92d514bff18552a5afe36caf527466451058b22bdee4751e7ba8688083",
+    "cli_sha256": "cf3626a28f31ba7c88e84679a9ad97afd838e8249911ff6ab95fc583da6802d1"
+  },
+  "candidate": {
+    "version": "2.1.41",
+    "build": "20141",
+    "bundle": "dev.codexmeter.CodexMeter",
+    "archs": "x86_64 arm64",
+    "gui_bytes": 110653888,
+    "cli_bytes": 2360016,
+    "gui_sha256": "9ee597223b2b55f306c667ecd1948b82f8f6d155d7002502e96693d8ae8f3396",
+    "cli_sha256": "9cc81d0468ba6c9a9c452295ff65b6c048976ffe65eaec16e062a0953de7bf0f"
+  }
+}
