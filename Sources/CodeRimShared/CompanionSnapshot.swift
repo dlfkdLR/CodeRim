@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_WIDGET
+import CCodeRimWidget
+#endif
 
 /// A credential-free interchange format. Local totals never include account-wide history.
 public struct CompanionSnapshot: Codable, Equatable, Sendable {
@@ -264,4 +267,67 @@ extension CompanionProvider {
 
 private func isStale(_ updatedAt: Date?, at now: Date, after interval: TimeInterval) -> Bool {
     updatedAt.map { now.timeIntervalSince($0) > interval || $0 > now.addingTimeInterval(60) } ?? true
+}
+
+extension CompanionSnapshot {
+    /// WidgetKit requests one provider for every date of a timeline. A saved
+    /// snapshot can contain multiple records with the same identifier; the first wins.
+    func widgetReadings(for id: String, at dates: [Date], calendar: Calendar = .current) -> [CompanionProvider?] {
+        guard let provider = providers.first(where: { $0.id == id }) else {
+            return Array(repeating: nil, count: dates.count)
+        }
+        #if CODERIM_RUST_WIDGET
+        let local = provider.localUsage, history = provider.history, limits = provider.limits
+        lazy var zone = calendar.timeZone.identifier
+        let readable: (CompanionState) -> Bool = { $0 == .ready || $0 == .partial || $0 == .stale }
+        // NaN never satisfies a reset deadline comparison.
+        let reset = limits.windows.lazy.compactMap { $0.resetsAt?.timeIntervalSinceReferenceDate }
+            .filter { !$0.isNaN }.min()
+        var input = CRWidgetFreshness()
+        if let local, readable(local.state) {
+            input.flags |= UInt32(CR_WIDGET_LOCAL)
+            if let updated = local.updatedAt {
+                input.flags |= UInt32(CR_WIDGET_LOCAL_DATE)
+                input.local_updated = updated.timeIntervalSinceReferenceDate
+            }
+        }
+        if let history, readable(history.state) {
+            input.flags |= UInt32(CR_WIDGET_HISTORY)
+            input.history_updated = history.updatedAt.timeIntervalSinceReferenceDate
+        }
+        if readable(limits.state) {
+            input.flags |= UInt32(CR_WIDGET_LIMITS)
+            if limits.state == .partial { input.flags |= UInt32(CR_WIDGET_PARTIAL_LIMITS) }
+            if let updated = limits.updatedAt {
+                input.flags |= UInt32(CR_WIDGET_LIMIT_DATE)
+                input.limits_updated = updated.timeIntervalSinceReferenceDate
+            }
+            if let reset {
+                input.flags |= UInt32(CR_WIDGET_RESET_DATE)
+                input.earliest_reset = reset
+            }
+            input.limit_age = limits.staleAfterSeconds
+        }
+        return dates.map { now in
+            var stale = cr_widget_stale_states(input, now.timeIntervalSinceReferenceDate)
+            // Avoid Foundation calendar work for readings that have already aged out.
+            let fresh = input.flags & ~stale
+            if let local, fresh & UInt32(CR_WIDGET_LOCAL) != 0,
+               local.timeZoneIdentifier != zone || !calendar.isDate(local.periodsAsOf, inSameDayAs: now) {
+                stale |= UInt32(CR_WIDGET_LOCAL)
+            }
+            if let history, fresh & UInt32(CR_WIDGET_HISTORY) != 0,
+               history.timeZoneIdentifier != zone || !calendar.isDate(history.updatedAt, inSameDayAs: now) {
+                stale |= UInt32(CR_WIDGET_HISTORY)
+            }
+            var result = provider
+            if stale & UInt32(CR_WIDGET_LOCAL) != 0 { result.localUsage?.state = .stale }
+            if stale & UInt32(CR_WIDGET_LIMITS) != 0 { result.limits.state = .stale }
+            if stale & UInt32(CR_WIDGET_HISTORY) != 0 { result.history?.state = .stale }
+            return result
+        }
+        #else
+        return dates.map { provider.evaluated(at: $0, calendar: calendar) }
+        #endif
+    }
 }

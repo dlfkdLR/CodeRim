@@ -203,7 +203,7 @@ pub struct Day {
     pub cost_is_partial: bool,
 }
 fn stale(date: Option<Date>, now: f64, max_age: f64) -> bool {
-    date.is_none_or(|d| now - d.timestamp() > max_age || d.timestamp() > now + 60.0)
+    coderim_usage_core::freshness::stale_timestamp(date.map(|d| d.timestamp()), now, max_age)
 }
 fn correct_day(date: Date, zone: &str, now: f64, current_zone: &str) -> bool {
     zone == current_zone && platform::same_day(date.timestamp(), now)
@@ -239,14 +239,17 @@ impl Provider {
             u.state = State::Stale
         }
         let limits = &mut self.limits;
-        let old = (limits.state != State::Partial || limits.updated_at.is_some())
-            && stale(limits.updated_at, now, limits.stale_after_seconds);
         if limits.state.readable()
-            && (old
-                || limits
+            && coderim_usage_core::freshness::stale_limits(
+                limits.state == State::Partial,
+                limits.updated_at.map(|d| d.timestamp()),
+                limits.stale_after_seconds,
+                now,
+                limits
                     .windows
                     .iter()
-                    .any(|w| w.resets_at.is_some_and(|d| d.timestamp() <= now)))
+                    .any(|w| w.resets_at.is_some_and(|d| d.timestamp() <= now)),
+            )
         {
             limits.state = State::Stale
         }

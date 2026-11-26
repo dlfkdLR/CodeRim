@@ -20,3 +20,8 @@ module CCodeRimMobile {
     header "coderim_mobile.h"
     export *
 }
+
+module CCodeRimWidget {
+    header "coderim_widget.h"
+    export *
+}

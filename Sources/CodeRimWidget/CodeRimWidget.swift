@@ -131,17 +131,24 @@ private enum WidgetSnapshotReader {
 
     static func entry(provider id: CompanionProviderID, date: Date, reading: Reading,
                       metric: CompanionWidgetMetric = .automatic) -> UsageEntry {
-        let provider = reading.snapshot?.evaluated(at: date).providers.first { $0.id == id.rawValue }
-            ?? CompanionProvider(id: id.rawValue, name: id.name, localUsage: nil,
-                limits: CompanionLimits(state: reading.state, updatedAt: nil, windows: [], message: reading.message))
-        return UsageEntry(date: date, provider: provider, providerName: id.name, metric: metric)
+        let provider = reading.snapshot?.widgetReadings(for: id.rawValue, at: [date]).first ?? nil
+        return entry(provider: provider, id: id, date: date, reading: reading, metric: metric)
+    }
+
+    private static func entry(provider: CompanionProvider?, id: CompanionProviderID, date: Date,
+                              reading: Reading, metric: CompanionWidgetMetric) -> UsageEntry {
+        let value = provider ?? CompanionProvider(id: id.rawValue, name: id.name, localUsage: nil,
+            limits: CompanionLimits(state: reading.state, updatedAt: nil, windows: [], message: reading.message))
+        return UsageEntry(date: date, provider: value, providerName: id.name, metric: metric)
     }
 
     static func timeline(provider: CompanionProviderID, metric: CompanionWidgetMetric = .automatic) -> Timeline<UsageEntry> {
         let now = Date()
         let reading = read()
-        let entries = (0...15).map { minute in
-            entry(provider: provider, date: now.addingTimeInterval(Double(minute) * 60), reading: reading, metric: metric)
+        let dates = (0...15).map { now.addingTimeInterval(Double($0) * 60) }
+        let values = reading.snapshot?.widgetReadings(for: provider.rawValue, at: dates)
+        let entries = dates.enumerated().map { index, date in
+            entry(provider: values?[index], id: provider, date: date, reading: reading, metric: metric)
         }
         return Timeline(entries: entries, policy: .after(now.addingTimeInterval(300)))
     }

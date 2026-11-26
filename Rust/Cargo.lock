@@ -26,6 +26,7 @@ name = "coderim-companion-cli"
 version = "0.1.0"
 dependencies = [
  "cc",
+ "coderim-usage-core",
  "libc",
  "serde",
  "serde_json",
@@ -38,6 +39,13 @@ version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "coderim-widget"
+version = "0.1.0"
+dependencies = [
+ "coderim-usage-core",
 ]
 
 [[package]]

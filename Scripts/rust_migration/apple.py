@@ -15,9 +15,9 @@ TARGET = Path(os.environ.get("CARGO_TARGET_DIR", RUST / "target")).resolve()
 ARCHIVE = "libcoderim_accounting_bridge.a"
 
 
-def build_library(triple=None):
+def build_library(triple=None, package="coderim-accounting-bridge"):
     command = ["cargo", "build", "--manifest-path", str(RUST / "Cargo.toml"),
-               "--locked", "--release", "--target-dir", str(TARGET), "-p", "coderim-accounting-bridge"]
+               "--locked", "--release", "--target-dir", str(TARGET), "-p", package]
     output = TARGET
     env = {**os.environ, "MACOSX_DEPLOYMENT_TARGET": "14.0"}
     if triple:
@@ -26,7 +26,7 @@ def build_library(triple=None):
         command.extend(["--target", triple])
         output /= triple
     subprocess.run(command, check=True, env=env)
-    return output / "release" / ARCHIVE
+    return output / "release" / ("lib" + package.replace("-", "_") + ".a")
 
 
 def compare_hosts(work):
@@ -53,6 +53,9 @@ def compare_hosts(work):
     for suite in ["pricing-contract", "claude-parser-contract", "analytics-chart-contract", "notch-card-contract"]:
         subprocess.run(["python3", str(Path(__file__).parent / suite / "check.py"),
                         "--archive", str(archive)], check=True)
+
+    widget = build_library(package="coderim-widget")
+    subprocess.run(["python3", Path(__file__).parent / "widget-contract/check.py", "--archive", widget], check=True)
 
 
 def test_product():
@@ -86,9 +89,14 @@ def build_app(work, output):
     })
     universal = work / ARCHIVE
     subprocess.run(["lipo", "-create", *libraries, "-output", universal], check=True)
+    widget = work / "libcoderim_widget.a"
+    widget_archives = [build_library(triple, "coderim-widget")
+                       for triple in ("aarch64-apple-darwin", "x86_64-apple-darwin")]
+    subprocess.run(["lipo", "-create", *widget_archives, "-output", widget], check=True)
     subprocess.run([ROOT / "Scripts/build_release.sh"], cwd=ROOT, check=True, env={
         **os.environ, "CODERIM_RUST_ACCOUNTING_ARCHIVE": str(universal),
         "CODERIM_APP_PATH": str(output / "CodeRim.app"), "CODERIM_BUILD_CACHE": str(work),
+        "CODERIM_RUST_WIDGET_ARCHIVE": str(widget),
         "CODERIM_MIGRATION_SYMBOLS_DIR": str(output / "Symbols"), "CODERIM_MIGRATION_CLI": str(cli),
     })
     # The shipping builder also compiled the Swift helper with its original bundle contract.

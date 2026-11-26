@@ -3,6 +3,7 @@
 #![forbid(unsafe_code)]
 
 mod aggregation;
+pub mod freshness;
 mod normalization;
 pub use aggregation::{PeriodBounds, PeriodTotals};
 pub use normalization::{
