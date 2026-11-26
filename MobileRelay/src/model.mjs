@@ -95,7 +95,7 @@ function advancedView(devices, view, deviceID, providerID, remember = false) {
   return { deviceID, providerID, providerHistory: history, pickerVersion: view?.pickerVersion,
     revision: (view?.revision ?? 0) + 1 };
 }
-function catalogPicker(device, list, view, current, now) {
+function catalogPicker(device, list, view, current, now, quickPicker) {
   const history = historyFor(view, device.id);
   const pinned = history.pinned.filter(id => list.some(p => p.id === id));
   const phase = id => {
@@ -107,6 +107,11 @@ function catalogPicker(device, list, view, current, now) {
   const result = { mode: view?.pickerMode === 'all' ? 'all' : 'quick', groups: [], canGoBack: false,
     isCurrentPinned: pinned.includes(current?.id), canPinCurrent: Boolean(current && (pinned.includes(current.id) || pinned.length < 3)) };
   if (result.mode === 'quick') {
+    if (quickPicker) {
+      const online = !(now >= device.receivedAt + (device.onlineWindow ?? ONLINE_WINDOW));
+      const options = quickPicker(list, pinned, history.recent, current, online ? (device.snapshot?.sessions ?? []) : []);
+      if (options) return { ...result, options };
+    }
     const active = [...list].sort((a, b) => (phase(a.id) === 'waiting' ? 0 : phase(a.id) === 'working' ? 1 : 2) - (phase(b.id) === 'waiting' ? 0 : phase(b.id) === 'working' ? 1 : 2));
     const ids = [...new Set([...pinned, ...history.recent, current?.id, ...active.map(p => p.id)])];
     result.options = ids.map(id => list.find(p => p.id === id)).filter(Boolean).slice(0, 3).map(option);
@@ -127,7 +132,7 @@ function catalogPicker(device, list, view, current, now) {
   return result;
 }
 // Each display has one source. Matching provider names never imply matching accounts.
-export function desktopState(devices, prefs, view, now) {
+export function desktopState(devices, prefs, view, now, quickPicker) {
   const device = devices.find(d => d.id === view?.deviceID) ?? devices.find(d => d.receivedAt + (d.onlineWindow ?? ONLINE_WINDOW) > now) ?? devices[0];
   const list = eligibleProviders(device, prefs);
   const provider = list.find(p => p.id === view?.providerID) ?? list[0];
@@ -142,14 +147,14 @@ export function desktopState(devices, prefs, view, now) {
     options: list.slice(page * 3, page * 3 + 3).map(p => ({ id: p.id, name: p.name })) };
   // An explicit capability prevents an older app from labeling shortcuts as catalog pages.
   if (view?.pickerVersion === 2 && view?.pickerMode !== 'legacy' && device) {
-    Object.assign(state.providerPicker, catalogPicker(device, list, view?.deviceID === device.id ? view : {}, provider, now));
+    Object.assign(state.providerPicker, catalogPicker(device, list, view?.deviceID === device.id ? view : {}, provider, now, quickPicker));
   }
   state.viewRevision = view?.revision ?? 0;
   return state;
 }
-export function navigate(devices, prefs, view, axis, direction, now, { groupID, pickerVersion } = {}) {
+export function navigate(devices, prefs, view, axis, direction, now, { groupID, pickerVersion, quickPicker } = {}) {
   requireValue(['provider', 'device', 'provider-picker', 'provider-page', 'provider-all', 'provider-back', 'provider-group', 'provider-pin'].includes(axis) && [-1, 1].includes(direction));
-  const current = desktopState(devices, prefs, view, now);
+  const current = desktopState(devices, prefs, view, now, quickPicker);
   let deviceID = current.focus.deviceID, providerID = current.providers[0]?.id;
   const next = advancedView(devices, view, deviceID, providerID);
   if (axis === 'provider-picker') {
@@ -191,8 +196,8 @@ export function navigate(devices, prefs, view, axis, direction, now, { groupID, 
   return advancedView(devices, view, deviceID, providerID, axis === 'provider');
 }
 // Direct selection is tied to the computer and revision the phone actually showed.
-export function selectProvider(devices, prefs, view, providerID, deviceID, now) {
-  const current = desktopState(devices, prefs, view, now);
+export function selectProvider(devices, prefs, view, providerID, deviceID, now, quickPicker) {
+  const current = desktopState(devices, prefs, view, now, quickPicker);
   requireValue(typeof providerID === 'string' && deviceID === current.focus.deviceID, 'display_changed');
   const device = devices.find(d => d.id === deviceID);
   requireValue(eligibleProviders(device, prefs).some(p => p.id === providerID), 'provider_unavailable');
@@ -200,11 +205,11 @@ export function selectProvider(devices, prefs, view, providerID, deviceID, now) 
 }
 // Direct computer selection is bound to the phone's view revision by the route. Never accept an
 // arbitrary computer ID from another account, and remember the last service on each computer.
-export function selectDevice(devices, prefs, view, deviceID, now) {
+export function selectDevice(devices, prefs, view, deviceID, now, quickPicker) {
   requireValue(typeof deviceID === 'string' && deviceID.length <= 64, 'device_unavailable');
   const device = devices.find(d => d.id === deviceID);
   requireValue(device, 'device_unavailable');
-  const current = desktopState(devices, prefs, view, now);
+  const current = desktopState(devices, prefs, view, now, quickPicker);
   const list = eligibleProviders(device, prefs);
   const recent = historyFor(view, deviceID).recent;
   const providerID = recent.find(id => list.some(p => p.id === id))

@@ -25,8 +25,8 @@ const freshUntil = (state, now) => Math.min(Infinity, ...state.providers
 
 export class Relay {
   constructor({ store, push = async () => ({ status: 200 }), now = () => Date.now() / 1000, budgets = FREE_DAILY,
-    pollWait = 20000, schedule = () => {}, pushConfigured = true }) {
-    Object.assign(this, { store, push, now, budgets, pollWait, schedule, pushConfigured });
+    pollWait = 20000, schedule = () => {}, pushConfigured = true, quickPicker }) {
+    Object.assign(this, { store, push, now, budgets, pollWait, schedule, pushConfigured, quickPicker });
     this.serialTasks = new Map();
     this.ticking = new Map();
     this.inflight = new Set();
@@ -227,10 +227,10 @@ export class Relay {
         if (body.groupID !== undefined) requireValue(body.axis === 'provider-group' && typeof body.groupID === 'string' && body.groupID.length <= 16);
         if (['provider-all', 'provider-back', 'provider-group', 'provider-pin'].includes(body.axis) || body.pickerVersion === 2) requireValue(Number.isSafeInteger(body.expectedRevision));
         const view = body.providerID !== undefined
-          ? selectProvider(devices, freshUser.preferences, previous, body.providerID, body.deviceID, this.now())
+          ? selectProvider(devices, freshUser.preferences, previous, body.providerID, body.deviceID, this.now(), this.quickPicker)
           : body.axis === 'device-select'
-            ? selectDevice(devices, freshUser.preferences, previous, body.deviceID, this.now())
-            : navigate(devices, freshUser.preferences, previous, body.axis, body.direction, this.now(), { groupID: body.groupID, pickerVersion: body.pickerVersion });
+            ? selectDevice(devices, freshUser.preferences, previous, body.deviceID, this.now(), this.quickPicker)
+            : navigate(devices, freshUser.preferences, previous, body.axis, body.direction, this.now(), { groupID: body.groupID, pickerVersion: body.pickerVersion, quickPicker: this.quickPicker });
         store.saveView(session.hash, view);
         // The relay's own bookkeeping for the new screen (its idle clock, its next wake) follows now.
         this.later(() => this.tick(session.owner));
@@ -408,7 +408,7 @@ export class Relay {
       devices: devices.map(d => ({ id: d.id, name: d.name, platform: d.platform, online: d.receivedAt > 0 && now < d.receivedAt + (d.onlineWindow ?? ONLINE_WINDOW), lastSeen: d.receivedAt })) };
   }
   state(owner, sessionHash, now, devices = this.devices(owner, now)) {
-    const state = desktopState(devices, this.store.user(owner).preferences, this.store.view(sessionHash), now);
+    const state = desktopState(devices, this.store.user(owner).preferences, this.store.view(sessionHash), now, this.quickPicker);
     // Orders answers that share a view revision: a stored sequence that grows with every content change
     // from any of the account's computers, survives restarts and never repeats for different content.
     state.dataVersion = this.contentSequence(owner);
@@ -438,13 +438,13 @@ export class Relay {
     for (const { session } of sessions) {
       const view = this.store.view(session);
       // `context` names a computer when only phones showing that computer are affected.
-      const affected = context === true || (context && desktopState(devices, prefs, view, this.now()).focus.deviceID === context);
+      const affected = context === true || (context && desktopState(devices, prefs, view, this.now(), this.quickPicker).focus.deviceID === context);
       if (affected) {
         this.store.saveView(session, { ...view, pickerOpen: false, pickerPage: undefined, pickerPath: undefined, revision: (view.revision ?? 0) + 1 });
         continue;
       }
       if (!view.pickerOpen) continue;
-      const state = desktopState(this.devices(owner, this.now()), this.store.user(owner).preferences, view, this.now());
+      const state = desktopState(this.devices(owner, this.now()), this.store.user(owner).preferences, view, this.now(), this.quickPicker);
       if (reset || (deviceID !== null && view.deviceID === deviceID) || !state.providerPicker.isOpen) {
         this.store.saveView(session, { ...view, pickerOpen: false, pickerPage: undefined, pickerPath: undefined, revision: (view.revision ?? 0) + 1 });
       }
