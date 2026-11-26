@@ -16,6 +16,7 @@ unsafe extern "C" {
         tail: *mut *const c_char,
     ) -> c_int;
     fn sqlite3_finalize(statement: *mut c_void) -> c_int;
+    fn sqlite3_get_autocommit(db: *mut c_void) -> c_int;
     fn sqlite3_errmsg(db: *mut c_void) -> *const c_char;
 }
 
@@ -56,46 +57,60 @@ pub unsafe extern "C" fn cr_statistics_event_bounds(
                 SELECT bounds.oldest, bounds.newest FROM indexed CROSS JOIN
                     (SELECT min(occurred_at) AS oldest, max(occurred_at) AS newest FROM usage_events) AS bounds
                     WHERE NOT available";
-    let mut statement = ptr::null_mut();
-    unsafe {
-        let mut rc = sqlite3_prepare_v2(db, sql.as_ptr(), -1, &mut statement, ptr::null_mut());
-        // A connection may allow the original aggregate while restricting schema
-        // reads, compound queries or SQL length. Use its original prepare errors
-        // and avoid retrying lock waits, interruptions or I/O failures.
-        const SQLITE_ERROR: c_int = 1;
-        // SQLite also returns NOMEM when its per-connection bytecode limit is reached.
-        const SQLITE_NOMEM: c_int = 7;
-        const SQLITE_TOOBIG: c_int = 18;
-        const SQLITE_AUTH: c_int = 23;
-        if matches!(
-            rc & 0xff,
-            SQLITE_ERROR | SQLITE_NOMEM | SQLITE_TOOBIG | SQLITE_AUTH
-        ) {
-            let original = c"SELECT MIN(occurred_at), MAX(occurred_at) FROM usage_events";
-            rc = sqlite3_prepare_v2(db, original.as_ptr(), -1, &mut statement, ptr::null_mut());
-        }
+    let original = c"SELECT MIN(occurred_at), MAX(occurred_at) FROM usage_events";
+    // SQLite can roll back the entire active transaction on allocation failure.
+    // Preserve its uncommitted values and writer lock by using the original plan.
+    const SQLITE_ERROR: c_int = 1;
+    const SQLITE_NOMEM: c_int = 7;
+    const SQLITE_TOOBIG: c_int = 18;
+    const SQLITE_AUTH: c_int = 23;
+    let mut use_index = unsafe { sqlite3_get_autocommit(db) } != 0;
+    loop {
+        let query = if use_index { sql } else { original };
+        let mut statement = ptr::null_mut();
+        let rc =
+            unsafe { sqlite3_prepare_v2(db, query.as_ptr(), -1, &mut statement, ptr::null_mut()) };
         if rc != 0 || statement.is_null() {
-            report(context, sqlite3_errmsg(db));
+            // The catalog, SQL length or bytecode limit can restrict the larger plan.
+            // NOMEM also covers VDBE instruction limits.
+            if use_index
+                && matches!(
+                    rc & 0xff,
+                    SQLITE_ERROR | SQLITE_NOMEM | SQLITE_TOOBIG | SQLITE_AUTH
+                )
+            {
+                use_index = false;
+                continue;
+            }
+            unsafe { report(context, sqlite3_errmsg(db)) };
             return 0;
         }
-        let status = if sqlite3_step(statement) == SQLITE_ROW {
-            let mut row = EventBounds::default();
-            if sqlite3_column_type(statement, 0) != SQLITE_NULL {
-                row.oldest = sqlite3_column_double(statement, 0);
-                row.present |= 1;
+        let step = unsafe { sqlite3_step(statement) };
+        if use_index && step & 0xff == SQLITE_NOMEM {
+            unsafe { sqlite3_finalize(statement) };
+            use_index = false;
+            continue;
+        }
+        let status = unsafe {
+            if step == SQLITE_ROW {
+                let mut row = EventBounds::default();
+                if sqlite3_column_type(statement, 0) != SQLITE_NULL {
+                    row.oldest = sqlite3_column_double(statement, 0);
+                    row.present |= 1;
+                }
+                if sqlite3_column_type(statement, 1) != SQLITE_NULL {
+                    row.newest = sqlite3_column_double(statement, 1);
+                    row.present |= 2;
+                }
+                bounds.write(row);
+                1
+            } else {
+                report(context, sqlite3_errmsg(db));
+                2
             }
-            if sqlite3_column_type(statement, 1) != SQLITE_NULL {
-                row.newest = sqlite3_column_double(statement, 1);
-                row.present |= 2;
-            }
-            bounds.write(row);
-            1
-        } else {
-            report(context, sqlite3_errmsg(db));
-            2
         };
-        sqlite3_finalize(statement);
-        status
+        unsafe { sqlite3_finalize(statement) };
+        return status;
     }
 }
 
