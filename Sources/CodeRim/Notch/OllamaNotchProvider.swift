@@ -55,12 +55,15 @@ final class OllamaNotchProvider: NotchProvider {
             throw NotchProviderError.badResponse(status: status)
         }
 
-        let body = String(data: data, encoding: .utf8) ?? ""
         // Size only — see the note in `CursorNotchProvider`. An account's usage
         // response is not something to write into the system log.
         NotchLog.usage.debug("ollama usage -> \(data.count, privacy: .public) bytes")
 
-        let result = try OllamaUsage.parse(body)
+        #if CODERIM_RUST_ACCOUNTING
+        let result = try OllamaUsage.parse(data)
+        #else
+        let result = try OllamaUsage.parse(String(data: data, encoding: .utf8) ?? "")
+        #endif
         return ProviderSnapshot(
             id: id, displayName: displayName, glyph: glyph,
             fidelity: .official, status: .ok,
