@@ -1,0 +1,700 @@
+{
+  "completeFrameMatches": 29,
+  "identicalBelowStatusArea": 29,
+  "onlyInReference": [],
+  "onlyInCandidate": [],
+  "rows": [
+    {
+      "test": "MobileUITests/testChooseFirstProviderAndSearchLongList()",
+      "state": "choice-claude",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "756d81533ea83e4f738a7cd6368eea8cba200e7bcace7f4917724a44a1ed9d5e",
+        "756d81533ea83e4f738a7cd6368eea8cba200e7bcace7f4917724a44a1ed9d5e"
+      ]
+    },
+    {
+      "test": "MobileUITests/testChooseFirstProviderAndSearchLongList()",
+      "state": "choice-empty",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "01c07c003a2718e6ec7994cb31d4f56778166857fe1136559b3aa3999b089104",
+        "01c07c003a2718e6ec7994cb31d4f56778166857fe1136559b3aa3999b089104"
+      ]
+    },
+    {
+      "test": "MobileUITests/testChooseFirstProviderAndSearchLongList()",
+      "state": "choice-list",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "69376eae0bf096a591207e3757d833d95cd9a105f4e7db727b3c25a8b49fccd4",
+        "69376eae0bf096a591207e3757d833d95cd9a105f4e7db727b3c25a8b49fccd4"
+      ]
+    },
+    {
+      "test": "MobileUITests/testChooseFirstProviderAndSearchLongList()",
+      "state": "choice-search",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "04b6da3540cbe85eb21786c3edc57c26b3d62039e3d34d4b15c84adc9b4ab058",
+        "04b6da3540cbe85eb21786c3edc57c26b3d62039e3d34d4b15c84adc9b4ab058"
+      ]
+    },
+    {
+      "test": "MobileUITests/testChooseFirstProviderAndSearchLongList()",
+      "state": "choice-settings",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 14990,
+      "belowSystemStatusArea": 14990,
+      "outsideTimeRegion": 14990,
+      "bounds": [
+        1188,
+        779,
+        1196,
+        2444
+      ],
+      "pngSha256": [
+        "0ff17e45f867eb32df8a4650e2e92e2a2c2b5af2c10928f612ee07a6dbfd0a0f",
+        "8b37efcba07444eb8024c4ce785d8f1801e71ad2428dfec9964562489d71c916"
+      ]
+    },
+    {
+      "test": "MobileUITests/testExpandedQuotaBoundariesOfflineAndUnknownStates()",
+      "state": "dynamic-island-auth-working",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "3e6b66b250e588c57ff15e7e60de40f0e97f28b11efaa2ac0ce0c9b0bf9e6d27",
+        "3e6b66b250e588c57ff15e7e60de40f0e97f28b11efaa2ac0ce0c9b0bf9e6d27"
+      ]
+    },
+    {
+      "test": "MobileUITests/testExpandedQuotaBoundariesOfflineAndUnknownStates()",
+      "state": "dynamic-island-denied",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 1200,
+      "belowSystemStatusArea": 1200,
+      "outsideTimeRegion": 1200,
+      "bounds": [
+        52,
+        2114,
+        1154,
+        2570
+      ],
+      "pngSha256": [
+        "e032579f2be4b02ed5b197a1460440b799448868c1c02c0b4032c654dd410427",
+        "635be7d6c1f606786ed5f9f098f8157a0a196848518ce0aefed14285baa1fdfd"
+      ]
+    },
+    {
+      "test": "MobileUITests/testExpandedQuotaBoundariesOfflineAndUnknownStates()",
+      "state": "dynamic-island-full",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 1200,
+      "belowSystemStatusArea": 1200,
+      "outsideTimeRegion": 1200,
+      "bounds": [
+        52,
+        2114,
+        1154,
+        2570
+      ],
+      "pngSha256": [
+        "2b67e06bfbec042bf59ddd6af53b45ba01848fba5153e90f5da42c523c5b8284",
+        "0e09e47d2e7c15cd626ffb45bb9dc84f4d93438429e15d382a33cdcada0f260e"
+      ]
+    },
+    {
+      "test": "MobileUITests/testExpandedQuotaBoundariesOfflineAndUnknownStates()",
+      "state": "dynamic-island-generic",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "fea2678558b7e79c2a6db6c53f2a5243e514bdcfbb7b723e8239b4cd045c2739",
+        "fea2678558b7e79c2a6db6c53f2a5243e514bdcfbb7b723e8239b4cd045c2739"
+      ]
+    },
+    {
+      "test": "MobileUITests/testExpandedQuotaBoundariesOfflineAndUnknownStates()",
+      "state": "dynamic-island-low",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "6807c6fdb47bd1d6393e75a61703627578b9a115f9891a4a0b5d1e9efeed1033",
+        "6807c6fdb47bd1d6393e75a61703627578b9a115f9891a4a0b5d1e9efeed1033"
+      ]
+    },
+    {
+      "test": "MobileUITests/testExpandedQuotaBoundariesOfflineAndUnknownStates()",
+      "state": "dynamic-island-offline",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "c80ba2a44f9ae0a78dbb39386c69c6420a0b4fa1bbebad26df18c0ca70d8751e",
+        "c80ba2a44f9ae0a78dbb39386c69c6420a0b4fa1bbebad26df18c0ca70d8751e"
+      ]
+    },
+    {
+      "test": "MobileUITests/testExpandedQuotaBoundariesOfflineAndUnknownStates()",
+      "state": "dynamic-island-unknown",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "44f91b013da8dc69a0065d5f16546acc80debbeea4182a5d0f5188565d20d0a1",
+        "44f91b013da8dc69a0065d5f16546acc80debbeea4182a5d0f5188565d20d0a1"
+      ]
+    },
+    {
+      "test": "MobileUITests/testExpandedQuotaBoundariesOfflineAndUnknownStates()",
+      "state": "dynamic-island-unpaired",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 1200,
+      "belowSystemStatusArea": 1200,
+      "outsideTimeRegion": 1200,
+      "bounds": [
+        52,
+        2114,
+        1154,
+        2570
+      ],
+      "pngSha256": [
+        "5ed0d295cec2fb16b99d860cd8dd39381b55d0a3fad0a1f0625871cb544588a4",
+        "2fe64af72b939862d1ab39eecf134c627d4c01eedb11607dd1c3c2e2f09c623c"
+      ]
+    },
+    {
+      "test": "MobileUITests/testExpandedQuotaBoundariesOfflineAndUnknownStates()",
+      "state": "dynamic-island-user-content",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 1200,
+      "belowSystemStatusArea": 1200,
+      "outsideTimeRegion": 1200,
+      "bounds": [
+        52,
+        2114,
+        1154,
+        2570
+      ],
+      "pngSha256": [
+        "d940d5ca62d3c0aba3f3b44c5d4d28334a14054e3eff3ad7233f3013361742ac",
+        "964b4d42868209e7e0908b122accadbd3d704d14ec30d26e7248aef5de9a372d"
+      ]
+    },
+    {
+      "test": "MobileUITests/testHundredProvidersQuickAccessPinsAndRangeNavigation()",
+      "state": "scale-all-100",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "c9ae312baf1c207a28a0dd2f647005c202ec20348d6581037ad8d29ea7657278",
+        "c9ae312baf1c207a28a0dd2f647005c202ec20348d6581037ad8d29ea7657278"
+      ]
+    },
+    {
+      "test": "MobileUITests/testHundredProvidersQuickAccessPinsAndRangeNavigation()",
+      "state": "scale-pinned-recent",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "1d1c7cccdd2e4d1b31c8ea0231ffc36859c81a4722b8f38a1a61698cb6236e05",
+        "1d1c7cccdd2e4d1b31c8ea0231ffc36859c81a4722b8f38a1a61698cb6236e05"
+      ]
+    },
+    {
+      "test": "MobileUITests/testHundredProvidersQuickAccessPinsAndRangeNavigation()",
+      "state": "scale-quick-access",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "f0578bd9149edec25c9a3899b8a9e221387f7d2f37e415d290788b4ed3966538",
+        "f0578bd9149edec25c9a3899b8a9e221387f7d2f37e415d290788b4ed3966538"
+      ]
+    },
+    {
+      "test": "MobileUITests/testHundredProvidersQuickAccessPinsAndRangeNavigation()",
+      "state": "scale-range-leaf",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "3aa6ee9cf35e26961ab2bbd88b9638e4da026ee33ef9feb7fcf95f9bb9e5ddce",
+        "3aa6ee9cf35e26961ab2bbd88b9638e4da026ee33ef9feb7fcf95f9bb9e5ddce"
+      ]
+    },
+    {
+      "test": "MobileUITests/testIdleDashboardKeepsUsageAndLetsThePersonChooseAComputer()",
+      "state": "dashboard-idle-usage",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 1044,
+      "belowSystemStatusArea": 1044,
+      "outsideTimeRegion": 1044,
+      "bounds": [
+        45,
+        587,
+        86,
+        628
+      ],
+      "pngSha256": [
+        "820617434bf829dadda0344a16da1aaaa0ae58b5629c619ecaf27af8e686786d",
+        "d98ac1f665f5d628d6b27c9500ea4a895571b1853c63e08a1cbef1f6a89e313e"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSettingsAndRealDynamicIslandPresentation()",
+      "state": "dynamic-island-claude",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "eb99d541918b17b4f786b007fbc6012e0c64a2aec586e1b4fb4ca5ddf5bbcce9",
+        "eb99d541918b17b4f786b007fbc6012e0c64a2aec586e1b4fb4ca5ddf5bbcce9"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSettingsAndRealDynamicIslandPresentation()",
+      "state": "dynamic-island-compact",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "eeeaa2441ac04093a947237be483ded5f915a314650d805bc55b7e502c32b479",
+        "eeeaa2441ac04093a947237be483ded5f915a314650d805bc55b7e502c32b479"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSettingsAndRealDynamicIslandPresentation()",
+      "state": "dynamic-island-expanded",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "0d407b08ab0e09fab907f7e6bfede595a282a6f85a3bcf0132d49aacb6e1f4d3",
+        "0d407b08ab0e09fab907f7e6bfede595a282a6f85a3bcf0132d49aacb6e1f4d3"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSettingsAndRealDynamicIslandPresentation()",
+      "state": "dynamic-island-windows",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "99ab9cbf49af2afdd9ba3a9d2cd0060c1e20fa9af02e72d8fdd623c6fbed08ae",
+        "99ab9cbf49af2afdd9ba3a9d2cd0060c1e20fa9af02e72d8fdd623c6fbed08ae"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSettingsAndRealDynamicIslandPresentation()",
+      "state": "island-provider-picker",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "8e0af7bf462a460925fa96c12a5e6a3d5d6b455ab7d82f822761fe58004ba801",
+        "8e0af7bf462a460925fa96c12a5e6a3d5d6b455ab7d82f822761fe58004ba801"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSettingsAndRealDynamicIslandPresentation()",
+      "state": "live-and-offline-views",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "ebfa987e34ede7a937f225a9e038f2eb921b40a81b81679d6054c09c7248d6f8",
+        "ebfa987e34ede7a937f225a9e038f2eb921b40a81b81679d6054c09c7248d6f8"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSettingsAndRealDynamicIslandPresentation()",
+      "state": "settings",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 989,
+      "belowSystemStatusArea": 989,
+      "outsideTimeRegion": 989,
+      "bounds": [
+        142,
+        985,
+        492,
+        1140
+      ],
+      "pngSha256": [
+        "28b5e06937c57a49b5338bb0948354cda4148a66a7654d3c05661acaf3dc6289",
+        "28957b65c248d49948d0ad88594bd19910abc80a03c847752db0a04fb53cef36"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSettingsAndRealDynamicIslandPresentation()",
+      "state": "settings-scanner",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "8a636fb209d91c0c491982ee4abfe6c383ccafc24e15440c6cfcce70a8e1fde9",
+        "8a636fb209d91c0c491982ee4abfe6c383ccafc24e15440c6cfcce70a8e1fde9"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSetupAppearanceAndProviderDiscovery()",
+      "state": "providers",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "695a9edf6a64cb59670f7b5a99f50ba5518c406f65c02596057d3bb5f4fd6e44",
+        "695a9edf6a64cb59670f7b5a99f50ba5518c406f65c02596057d3bb5f4fd6e44"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSetupAppearanceAndProviderDiscovery()",
+      "state": "providers-empty",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "7b730a1a2536d39e4cb6ac3616ffd95818e35826f90e6c6f2ef6910e7f1b6784",
+        "7b730a1a2536d39e4cb6ac3616ffd95818e35826f90e6c6f2ef6910e7f1b6784"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSetupAppearanceAndProviderDiscovery()",
+      "state": "providers-no-results",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "00466827e145516fc8d77b67c39d610fc4ac6bcdeeeee37afd9acbfdad453dd2",
+        "00466827e145516fc8d77b67c39d610fc4ac6bcdeeeee37afd9acbfdad453dd2"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSetupAppearanceAndProviderDiscovery()",
+      "state": "providers-search",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "3d27aeaec35fd6aee4af2c66887b99247a5b82f6256fbefdf2b533028d73a5cc",
+        "3d27aeaec35fd6aee4af2c66887b99247a5b82f6256fbefdf2b533028d73a5cc"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSetupAppearanceAndProviderDiscovery()",
+      "state": "providers-waiting-for-computer",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "d2dcc3a66d741b40f25e34666e780dabd70ce777af7ff9d30d449ef9bae21926",
+        "d2dcc3a66d741b40f25e34666e780dabd70ce777af7ff9d30d449ef9bae21926"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSetupAppearanceAndProviderDiscovery()",
+      "state": "settings-connected",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "3024476f7804dc7e9aeeb22340436a28c259555c3e646b0a2d6b968e8ca1fd7d",
+        "3024476f7804dc7e9aeeb22340436a28c259555c3e646b0a2d6b968e8ca1fd7d"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSetupAppearanceAndProviderDiscovery()",
+      "state": "settings-empty",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "c3ea554a71b252c235c4956d967f619b958f8d0f48375b7387ed3df30ab9f03c",
+        "c3ea554a71b252c235c4956d967f619b958f8d0f48375b7387ed3df30ab9f03c"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSetupAppearanceAndProviderDiscovery()",
+      "state": "settings-pairing",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "f840a6f0956534fc06ec34fa38c1c8582419844fb899f888b4ce08104f2c98e1",
+        "f840a6f0956534fc06ec34fa38c1c8582419844fb899f888b4ce08104f2c98e1"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSetupAppearanceAndProviderDiscovery()",
+      "state": "welcome-dark",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 1732,
+      "belowSystemStatusArea": 1732,
+      "outsideTimeRegion": 1732,
+      "bounds": [
+        446,
+        980,
+        497,
+        1031
+      ],
+      "pngSha256": [
+        "4e564113bf24530f6196090868fba72b8dc77cdbc74e4610ea900c580e559f8c",
+        "f826c76a0dc6d5774cafcf4eaed3c1f8ff9219b72ee38bedd547c72ac2161477"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSetupAppearanceAndProviderDiscovery()",
+      "state": "welcome-large-text",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 974,
+      "belowSystemStatusArea": 974,
+      "outsideTimeRegion": 974,
+      "bounds": [
+        142,
+        1340,
+        610,
+        1588
+      ],
+      "pngSha256": [
+        "02859dd9bfbbd759b524122215a65bc6cf8559c8b157d8816d584157e19c3ba5",
+        "587e8179b2f03ece710adde677f10470601f257dc8c9263c5dcb276b63cc34a1"
+      ]
+    },
+    {
+      "test": "MobileUITests/testSetupAppearanceAndProviderDiscovery()",
+      "state": "welcome-large-text-connect",
+      "width": 1206,
+      "height": 2622,
+      "changedPixels": 0,
+      "belowSystemStatusArea": 0,
+      "outsideTimeRegion": 0,
+      "bounds": null,
+      "pngSha256": [
+        "e2372a4884182d251adc9ef866400ae06e4ae1714cfffafba915b291c8b05d73",
+        "e2372a4884182d251adc9ef866400ae06e4ae1714cfffafba915b291c8b05d73"
+      ]
+    }
+  ],
+  "sameVersionAdditionalFrames": [
+    {
+      "state": "choice-settings",
+      "stableFrames": 8,
+      "variablePixels": 19784,
+      "candidateMismatch": 14990,
+      "candidateOutsideObservedStableMotion": 0,
+      "outsideBounds": null
+    },
+    {
+      "state": "dashboard-idle-usage",
+      "stableFrames": 8,
+      "variablePixels": 6972,
+      "candidateMismatch": 1044,
+      "candidateOutsideObservedStableMotion": 0,
+      "outsideBounds": null
+    },
+    {
+      "state": "dynamic-island-denied",
+      "stableFrames": 8,
+      "variablePixels": 108383,
+      "candidateMismatch": 1200,
+      "candidateOutsideObservedStableMotion": 1200,
+      "outsideBounds": [
+        52,
+        2114,
+        1154,
+        2570
+      ]
+    },
+    {
+      "state": "dynamic-island-full",
+      "stableFrames": 8,
+      "variablePixels": 109583,
+      "candidateMismatch": 1200,
+      "candidateOutsideObservedStableMotion": 0,
+      "outsideBounds": null
+    },
+    {
+      "state": "dynamic-island-unpaired",
+      "stableFrames": 8,
+      "variablePixels": 109583,
+      "candidateMismatch": 1200,
+      "candidateOutsideObservedStableMotion": 0,
+      "outsideBounds": null
+    },
+    {
+      "state": "dynamic-island-user-content",
+      "stableFrames": 8,
+      "variablePixels": 109583,
+      "candidateMismatch": 1200,
+      "candidateOutsideObservedStableMotion": 0,
+      "outsideBounds": null
+    },
+    {
+      "state": "settings",
+      "stableFrames": 8,
+      "variablePixels": 7449,
+      "candidateMismatch": 989,
+      "candidateOutsideObservedStableMotion": 0,
+      "outsideBounds": null
+    },
+    {
+      "state": "welcome-dark",
+      "stableFrames": 8,
+      "variablePixels": 6983,
+      "candidateMismatch": 1732,
+      "candidateOutsideObservedStableMotion": 0,
+      "outsideBounds": null
+    },
+    {
+      "state": "welcome-large-text",
+      "stableFrames": 8,
+      "variablePixels": 7626,
+      "candidateMismatch": 974,
+      "candidateOutsideObservedStableMotion": 1,
+      "outsideBounds": [
+        169,
+        1568,
+        169,
+        1568
+      ]
+    }
+  ],
+  "scope": {
+    "stable": "v2.1.41",
+    "candidate": "2a3295f",
+    "sourceTestSuite": "unchanged public MobileUITests suite; XCTest attachment names matched by test identifier and name",
+    "hardware": "one iPhone 17 Pro iOS 26.5 simulator on arm64 Mac",
+    "clock": "09:41, 100 percent and identical Wi-Fi and cellular state",
+    "comparator": "Full decoded RGBA for 1206x2622 frames. Follow-up observed stable variability by running the public UI with its original assertions plus 5 more samples of each of 9 nonidentical states. The earlier stable capture was also inspected. Full screenshot match totals use the two unmodified test runs.",
+    "stableXCTest": "49 passed, 0 failed, 0 skipped",
+    "candidateXCTest": "56 passed, 0 failed, 0 skipped",
+    "discardedRuns": "Two overlapping original-version replays interrupted each other on the QA simulator and were excluded. A standalone run using a retained prior app also opened the welcome screen instead of seeded settings on first launch. The serial release and candidate runs used separate clean installations."
+  },
+  "residuals": [
+    {
+      "state": "dynamic-island-denied",
+      "maxChannelDifferenceAcrossOriginalPair": 1,
+      "changedInExpandedIslandFramePlusUpperHomeArea": 0,
+      "residualPixelChannelDifference": null
+    },
+    {
+      "state": "welcome-large-text",
+      "maxChannelDifferenceAcrossOriginalPair": 13,
+      "changedInExpandedIslandFramePlusUpperHomeArea": null,
+      "residualPixelChannelDifference": 1
+    }
+  ],
+  "exampleScreenshots": {
+    "ios-dynamic-island-low-reference.png": "6807c6fdb47bd1d6393e75a61703627578b9a115f9891a4a0b5d1e9efeed1033",
+    "ios-dynamic-island-low-candidate.png": "6807c6fdb47bd1d6393e75a61703627578b9a115f9891a4a0b5d1e9efeed1033",
+    "ios-choice-settings-reference.png": "0ff17e45f867eb32df8a4650e2e92e2a2c2b5af2c10928f612ee07a6dbfd0a0f",
+    "ios-choice-settings-candidate.png": "8b37efcba07444eb8024c4ce785d8f1801e71ad2428dfec9964562489d71c916"
+  }
+}
