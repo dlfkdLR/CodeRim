@@ -17,7 +17,11 @@ public static partial class SessionPresentation
     {
         cancellationToken.ThrowIfCancellationRequested();
 #if CODERIM_RUST_ACCOUNTING
-        if (sessions.Count <= 64 && RustSessionPresentation.TryTotals(sessions, provider, events, metadata, cancellationToken) is { } result)
+        // DashboardStore captures array/list snapshots. Keep custom enumerator and exception order
+        // for other callers, including collections with observable Count or repeated reads.
+        if (sessions is SessionActivity[] { Length: <= 64 } or List<SessionActivity> { Count: <= 64 }
+            && metadata is SessionDetails[] or List<SessionDetails>
+            && RustSessionPresentation.TryTotals(sessions, provider, events, metadata, cancellationToken) is { } result)
             return result;
 #endif
         var parents = new HashSet<string>(StringComparer.Ordinal);

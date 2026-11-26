@@ -13,19 +13,6 @@ internal static class RustSessionPresentation
         IReadOnlyList<UsageEvent> events, IReadOnlyList<SessionDetails> metadata, CancellationToken token)
     {
         var nodes = new Dictionary<string, int>(StringComparer.Ordinal);
-        var owners = new Dictionary<string, int>(StringComparer.Ordinal);
-        var roots = new List<RustSessionTotals.Root>();
-        foreach (var session in sessions)
-        {
-            token.ThrowIfCancellationRequested();
-            if (session.Provider != provider || session.RemoteHostId is not null || string.IsNullOrEmpty(session.UsageSessionId)) continue;
-            var owner = owners.Count;
-            // Repeated display IDs can be first reached in different orders for different descendants.
-            if (session.Id is null || !owners.TryAdd(session.Id, owner)) return null;
-            roots.Add(new(Intern(nodes, session.UsageSessionId), owner));
-        }
-        var result = new Dictionary<string, long>(StringComparer.Ordinal);
-        if (roots.Count == 0) return result;
         var edges = new List<RustSessionTotals.Edge>();
         foreach (var detail in metadata)
         {
@@ -34,6 +21,18 @@ internal static class RustSessionPresentation
             if (detail.Id is null) return null;
             edges.Add(new(Intern(nodes, detail.ParentId), Intern(nodes, detail.Id)));
         }
+        var owners = new Dictionary<string, int>(StringComparer.Ordinal);
+        var roots = new List<RustSessionTotals.Root>();
+        foreach (var session in sessions)
+        {
+            if (session.Provider != provider || session.RemoteHostId is not null || string.IsNullOrEmpty(session.UsageSessionId)) continue;
+            var owner = owners.Count;
+            // Repeated display IDs can be first reached in different orders for different descendants.
+            if (session.Id is null || !owners.TryAdd(session.Id, owner)) return null;
+            roots.Add(new(Intern(nodes, session.UsageSessionId), owner));
+        }
+        var result = new Dictionary<string, long>(StringComparer.Ordinal);
+        if (roots.Count == 0) return result;
         var masks = new ulong[nodes.Count];
         RustSessionTotals.Attribute(CollectionsMarshal.AsSpan(roots), CollectionsMarshal.AsSpan(edges), masks, token);
         if (!masks.AsSpan().ContainsAnyExcept(0UL)) return result;

@@ -68,7 +68,15 @@ if (args.Length == 0)
         cases.Add(new([Session("a", "root"), Session("b", "other")], rows, []));
     }
     foreach (var f in cases)
-        Console.WriteLine(JsonSerializer.Serialize(Project(f).ToArray())); // Preserve actual dictionary enumeration order.
+        Console.WriteLine(JsonSerializer.Serialize(Project(new(f.Sessions.ToArray(), f.Events, f.Links.ToArray())).ToArray())); // Preserve actual dictionary enumeration order.
+    foreach (var roots in new[] { Array.Empty<SessionActivity>(), new[] { Session("remote", "r", host: "ssh") },
+        new[] { Session("other", "r", provider: "claude") } })
+    {
+        using var noRoots = new CancellationTokenSource();
+        var metadata = new CancellingList<SessionDetails>(new[] { Link("child", "absent") }, noRoots, 0);
+        try { Project(new(roots, [], metadata), noRoots.Token); throw new Exception("Metadata cancellation lost without visible roots."); }
+        catch (OperationCanceledException ex) when (ex.CancellationToken == noRoots.Token) { Console.WriteLine("metadata cancelled without visible roots"); }
+    }
     var history = Generate(1, 3, 8, 700, false);
     foreach (var at in new[] {"metadata", "event before block", "event after block"})
     {
