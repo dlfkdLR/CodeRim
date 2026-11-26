@@ -177,7 +177,9 @@ def compare(root, folder, release, current):
     coords = ("X", "Y", "Width", "Height")
     mapped = (release.get("fullClient") is True and current.get("fullClient") is True
               and all(k in release and k in current for k in coords))
-    steady = mapped and all(release[k] == current[k] for k in coords)
+    size_equal = (release["Width"], release["Height"]) == (current["Width"], current["Height"]) if mapped else None
+    position_equal = (release["X"], release["Y"]) == (current["X"], current["Y"]) if mapped else None
+    steady = size_equal is True and position_equal is True
     a, b = (r.get("backing", {}) for r in (release, current))
     def completely_owned(sample):
         return (sample.get("status") == "controlled-frame-compared"
@@ -188,10 +190,10 @@ def compare(root, folder, release, current):
 
     compared = steady and all(completely_owned(v) for v in (a, b))
     ai, bi = (r.get("independent", {}) for r in (release, current))
-    compositor = bool(mapped and release["Width"] == current["Width"] and release["Height"] == current["Height"]
-                      and all(v.get("varied") and v.get("bgraSha256") for v in (ai, bi)))
-    receipt = {"release": release,
-               "candidate": current, "sameMappedClient": steady, "physicalPixelsCompared": compared,
+    compositor = bool(size_equal and all(v.get("varied") and v.get("bgraSha256") for v in (ai, bi)))
+    receipt = {"release": release, "candidate": current, "sameMappedClient": steady,
+               "clientSizeEqual": size_equal, "clientPositionEqual": position_equal,
+               "physicalPixelsCompared": compared,
                "physicalPixelsEqual": a["physicalBgrSha256"] == b["physicalBgrSha256"] if compared else None,
                "bothBlendChecksExact": all(v.get("exact") is True for v in (a, b)) if compared else None,
                "compositorPixelsEqual": ai["bgraSha256"] == bi["bgraSha256"] if compositor else None}
@@ -235,8 +237,11 @@ def main():
     different = []
     for name, record in (("account", account), *views.items()):
         print(name, json.dumps({k: v for k, v in record.items() if k not in ("release", "candidate")}))
-        if record["physicalPixelsEqual"] is False or record["compositorPixelsEqual"] is False:
+        if any(record[k] is False for k in ("clientSizeEqual", "clientPositionEqual", "physicalPixelsEqual",
+                                            "compositorPixelsEqual", "bothBlendChecksExact")):
             different.append(name)
+        if any(record[k].get("fullClient") is False for k in ("release", "candidate")):
+            different.append(name + " (client clipped)")
         if record["physicalPixelsEqual"] is None or record["compositorPixelsEqual"] is None:
             print(f"::warning::{name} has incomplete native display evidence. See the ownership and WGC receipts.")
     if not account["accountMetricsEqual"]:
@@ -244,7 +249,7 @@ def main():
     if any(errors.values()):
         raise SystemExit("One or more synthetic fixture sequences failed; see the per-view results")
     if different:
-        raise SystemExit("Stable and candidate window pixels differ on " + ", ".join(different))
+        raise SystemExit("Window geometry, pixels or physical composition differed on " + ", ".join(different))
 
 
 if __name__ == "__main__":
