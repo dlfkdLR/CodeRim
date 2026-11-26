@@ -396,8 +396,6 @@ internal static partial class NativeSmoke
             Record("GLM tool credentials, region and fixed-host isolation, explicit settings and account replacement");
             await CodebuffAuthenticationRegression(settings.Current, vault, directory);
             Record("Codebuff DPAPI/environment/local login precedence, optional subscription and account replacement isolation");
-            await MoonshotRegionRegression(dashboard, settings, vault, directory);
-            Record("Moonshot region switching preserves separate encrypted keys");
             await KimiConnectionRegression(dashboard, settings, vault, directory);
             Record("Kimi CLI and Web sources preserve credentials, quota priority and verified browser import");
             await StepFunConnectionRegression(dashboard, settings, vault, directory);
@@ -423,6 +421,8 @@ internal static partial class NativeSmoke
             await OwnedConnectionViewsRegression(dashboard, vault, directory);
             Record("Owned account settings, explicit keys and rejected external connection controls");
         }
+        await MoonshotRegionRegression(dashboard, settings, vault, directory);
+        Record("Moonshot region switching preserves separate encrypted keys");
         await ProviderRowsRegression(dashboard, store, settings, directory);
         if (!OwnedProviderAccess.Enabled) await ProviderAccountOwnershipRegression(settings, vault, directory);
         await ProviderPickersRegression(dashboard, store, settings, directory);

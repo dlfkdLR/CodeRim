@@ -55,6 +55,17 @@ public sealed class OwnedProviderAccessTests
     public void OnlyExplicitApiKeyVariablesCanSupplyCredentials(string name, bool allowed) =>
         Assert.Equal(allowed, OwnedProviderAccess.IsExplicitApiKey(name));
 
+    [Theory]
+    [InlineData("MOONSHOT_REGION", true)]
+    [InlineData("MINIMAX_REGION", true)]
+    [InlineData("AWS_ACCESS_KEY_ID", true)]
+    [InlineData("AWS_SESSION_TOKEN", false)]
+    [InlineData("AWS_PROFILE", false)]
+    [InlineData("GROQ_SESSION_JWT", false)]
+    [InlineData("OPENROUTER_API_URL", false)]
+    public void OnlyNonSecretScopeFieldsCanFollowTheEnvironment(string field, bool allowed) =>
+        Assert.Equal(allowed, OwnedProviderAccess.AllowsEnvironmentSetting(field));
+
     [Fact]
     public void EveryCatalogProviderHasAnExplicitPlanAndKeysExcludeCopiedSessions()
     {

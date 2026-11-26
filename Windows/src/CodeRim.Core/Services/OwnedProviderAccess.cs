@@ -38,6 +38,13 @@ public static class OwnedProviderAccess
         key.EndsWith("_API_KEY", StringComparison.Ordinal) || key.EndsWith("_ADMIN_KEY", StringComparison.Ordinal)
         || key is "DEEPSEEK_KEY" or "MOONSHOT_KEY" or "FIREWORKS_KEY" or "VENICE_KEY" or "AWS_SECRET_ACCESS_KEY";
 
+    // Non-secret identifiers select the scope of an explicitly supplied key.
+    // Endpoint overrides and OAuth session sources remain owned by the application.
+    public static bool AllowsEnvironmentSetting(string key) => key is
+        "MOONSHOT_REGION" or "MINIMAX_REGION" or "AWS_ACCESS_KEY_ID" or "AWS_REGION" or "AWS_DEFAULT_REGION"
+        or "FIREWORKS_ACCOUNT_SLUG" or "OPENAI_PROJECT_ID" or "DEEPGRAM_PROJECT_ID" or "XAI_TEAM_ID"
+        or "AZURE_OPENAI_DEPLOYMENT_NAME" or "AZURE_OPENAI_API_VERSION";
+
     public static bool IsPlainApiKey(string value) => value.Trim() is { Length: > 0 } key
         && !key.Equals("Session", StringComparison.OrdinalIgnoreCase) && !key.Contains("stytch_session", StringComparison.Ordinal)
         && key.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_');

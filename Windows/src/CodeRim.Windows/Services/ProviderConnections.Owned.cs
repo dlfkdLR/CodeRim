@@ -8,7 +8,9 @@ namespace CodeRim.Windows.Services;
 internal sealed partial class ProviderConnections
 {
     internal string? OwnedSetting(string id, string key) =>
-        OwnedProviderAccess.IsConnectionSetting(key) ? vault.Load("setting:" + id + ":" + key)?.Trim() : null;
+        !OwnedProviderAccess.IsConnectionSetting(key) ? null
+        : OwnedProviderAccess.AllowsEnvironmentSetting(key) ? EffectiveSetting(vault, id, key)
+        : vault.Load("setting:" + id + ":" + key)?.Trim();
 
     private string? OwnedCredential(string id)
     {

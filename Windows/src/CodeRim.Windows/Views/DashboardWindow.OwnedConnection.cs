@@ -30,10 +30,11 @@ internal sealed partial class DashboardWindow
             AddKeyLink(id);
             var key = id switch
             {
-                "moonshot" => "provider:moonshot:" + (MoonshotAuthentication.Region(vault.Load("setting:moonshot:MOONSHOT_REGION")) ?? "international"),
-                "minimax" => "provider:minimax:" + (MiniMaxAuthentication.Region(vault.Load("setting:minimax:MINIMAX_REGION")) ?? "global"),
+                "moonshot" => "provider:moonshot:" + (MoonshotAuthentication.Region(ProviderConnections.EffectiveSetting(vault, id, "MOONSHOT_REGION")) ?? "international"),
+                "minimax" => "provider:minimax:" + (MiniMaxAuthentication.Region(ProviderConnections.EffectiveSetting(vault, id, "MINIMAX_REGION")) ?? "global"),
                 _ => "provider:" + id
             };
+            if (id == "moonshot") body.Children.Add(Ui.Text(key.EndsWith(":china", StringComparison.Ordinal) ? "Moonshot China API key" : "Moonshot International API key"));
             if (id == "ollama") AddOwnedOllamaKey(key);
             else AddSecretField(key, id, id == "copilot" ? "Save access token" : "Save API key");
         }
@@ -43,8 +44,20 @@ internal sealed partial class DashboardWindow
         foreach (var field in fields.DistinctBy(x => x.Key))
         {
             if (!OwnedProviderAccess.IsConnectionSetting(field.Key) || OwnedProviderAccess.CredentialKeys(id).Contains(field.Key)) continue;
-            body.Children.Add(Ui.Text(field.Title, 12));
             string key = "setting:" + id + ":" + field.Key;
+            if (field.Key is "MOONSHOT_REGION" or "MINIMAX_REGION")
+            {
+                var moonshot = id == "moonshot";
+                var region = ProviderConnections.EffectiveSetting(vault, id, field.Key);
+                var local = moonshot ? "International" : "Global";
+                var selected = (moonshot ? MoonshotAuthentication.Region(region) == "china" : MiniMaxAuthentication.Region(region) == "cn")
+                    ? "China" : local;
+                body.Children.Add(SettingsUi.Picker("Region", new[] { local, "China" }, selected, value =>
+                    SaveProviderSetting(id, key, value == "China" ? (moonshot ? "china" : "cn") : local.ToLowerInvariant(),
+                        "Could not save the region.")));
+                continue;
+            }
+            body.Children.Add(Ui.Text(field.Title, 12));
             if (field.Type == "secure") AddSecretField(key, id, "Save credential");
             else AddSettingField(key, id);
         }
