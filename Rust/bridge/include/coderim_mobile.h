@@ -25,6 +25,12 @@ size_t cr_mobile_provider_indices(uint8_t operation, const uint32_t *keys, size_
                                   size_t available_count, uint32_t target,
                                   uint32_t *output, size_t capacity);
 uint8_t cr_mobile_supersedes(cr_mobile_version candidate, cr_mobile_version current);
+typedef struct { bool register_push, check_activities; } cr_mobile_refresh_plan;
+enum { CR_REFRESH_ACCEPT, CR_REFRESH_KEEP, CR_REFRESH_RETRY, CR_REFRESH_FALLBACK };
+cr_mobile_refresh_plan cr_mobile_refresh_header(cr_mobile_version incoming, cr_mobile_version displayed,
+                                                bool previous_push, bool next_push);
+uint8_t cr_mobile_reconcile_snapshot(cr_mobile_version incoming, const cr_mobile_version *versions,
+                                     size_t count, bool may_retry);
 /* The follow policy first requests an OS permission or clock observation when necessary. */
 enum { CR_FOLLOW_REFRESH, CR_FOLLOW_USER_STOP, CR_FOLLOW_RESUMED };
 enum { CR_FOLLOW_NONE, CR_FOLLOW_PERMISSION, CR_FOLLOW_CLOCK, CR_FOLLOW_START, CR_FOLLOW_STOP };

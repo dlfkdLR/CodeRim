@@ -93,6 +93,7 @@ pub unsafe extern "C" fn cr_mobile_provider_indices(
     indices.len()
 }
 
+#[derive(Clone, Copy)]
 #[repr(C)]
 pub struct Version {
     revision: i64,
@@ -118,6 +119,64 @@ pub extern "C" fn cr_mobile_supersedes(candidate: Version, current: Version) -> 
         candidate.stale_at >= current.stale_at
     };
     u8::from(newer)
+}
+
+#[repr(C)]
+pub struct RefreshHeader {
+    register_push: bool,
+    check_activities: bool,
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn cr_mobile_refresh_header(
+    incoming: Version,
+    displayed: Version,
+    previous_push: bool,
+    next_push: bool,
+) -> RefreshHeader {
+    RefreshHeader {
+        register_push: next_push && !previous_push,
+        check_activities: cr_mobile_supersedes(incoming, displayed) != 0,
+    }
+}
+
+/// # Safety
+/// Nonempty versions must point to count initialized, contiguous version values for this call.
+/// Only the current login's activities are included by the caller, in ActivityKit order.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cr_mobile_reconcile_snapshot(
+    incoming: Version,
+    versions: *const Version,
+    count: usize,
+    may_retry: bool,
+) -> u8 {
+    const ACCEPT: u8 = 0;
+    const KEEP: u8 = 1;
+    const REFRESH: u8 = 2;
+    const FALLBACK: u8 = 3;
+    if count == 0 {
+        return ACCEPT;
+    }
+    if versions.is_null() || count > isize::MAX as usize / size_of::<Version>() {
+        return FALLBACK;
+    }
+    // SAFETY: caller lends a populated array, validated above, without retaining it across an await.
+    let versions = unsafe { std::slice::from_raw_parts(versions, count) };
+    let mut newest = versions[0];
+    for next in &versions[1..] {
+        // Swift max(by:) replaces the accumulator only when its comparison is true.
+        // Older relays may omit evaluation times, so this fold must retain its source order.
+        if cr_mobile_supersedes(newest, *next) == 0 {
+            newest = *next;
+        }
+    }
+    if cr_mobile_supersedes(incoming, newest) != 0 {
+        ACCEPT
+    } else if may_retry {
+        REFRESH
+    } else {
+        KEEP
+    }
 }
 
 #[cfg(test)]

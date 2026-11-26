@@ -39,6 +39,30 @@ private actor FlakyRelay: MobileRelayServing {
 
 @MainActor
 final class MobileLifecycleTests: XCTestCase {
+    func testSnapshotsCheckPushBeforeRejectingAndRetryAnOlderIslandOnlyOnce() {
+        func version(_ revision: Int?, _ data: Double?, _ evaluated: Double?, _ stale: Double) -> MobileActivityState {
+            var s = MobileActivityState.disconnected
+            s.viewRevision = revision
+            s.dataVersion = data
+            s.evaluatedAt = evaluated
+            s.staleAt = stale
+            return s
+        }
+        let incoming = version(1, 3, 8, 90)
+        let laterDashboard = version(2, nil, nil, 10)
+        let header = incoming.refreshHeader(over: laterDashboard, previousPush: false, nextPush: true)
+        XCTAssertTrue(header.registerPush)
+        XCTAssertFalse(header.checkActivities)
+        let newer = version(1, 3, 9, 60)
+        XCTAssertEqual(incoming.resolveSnapshot(against: [newer], mayRetry: true, stateFor: { $0 }), .retry)
+        XCTAssertEqual(incoming.resolveSnapshot(against: [newer], mayRetry: false, stateFor: { $0 }), .keep)
+        XCTAssertEqual(incoming.resolveSnapshot(against: [incoming, incoming], mayRetry: false, stateFor: { $0 }), .accept)
+        XCTAssertEqual(incoming.resolveSnapshot(against: [MobileActivityState](), mayRetry: true, stateFor: { $0 }), .accept)
+        // A legacy entry has no evaluatedAt. Comparison then uses staleAt and retains array order.
+        let olderRelay = version(1, 3, nil, 95)
+        XCTAssertEqual(incoming.resolveSnapshot(against: [olderRelay, newer], mayRetry: false, stateFor: { $0 }), .keep)
+    }
+
     func testForegroundFollowingRespectsManualStopAndTimesOnlyLocallyStartedActivities() {
         var following = MobileActivityFollowing()
         var permissions = 0, clockReads = 0

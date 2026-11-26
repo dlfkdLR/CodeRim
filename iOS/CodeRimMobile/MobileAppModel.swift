@@ -222,6 +222,31 @@ final class MobileAppModel: ObservableObject {
 
     private func apply(_ response: MobileSnapshotResponse, token: String, retryStale: Bool = true) async throws -> Bool {
         guard credential?.token == token else { return false }
+        #if CODERIM_RUST_MOBILE_SELECTION
+        let nextPush = response.pushConfigured ?? false
+        let plan = response.state.refreshHeader(over: state, previousPush: serverPushAvailable, nextPush: nextPush)
+        serverPushAvailable = nextPush
+        if plan.registerPush {
+            let connection = MobileActivityConnection.id(for: token)
+            for activity in Activity<CodeRimActivityAttributes>.activities where activity.attributes.connectionID == connection {
+                if let pushToken = activity.pushToken { register(pushToken, activity: activity) }
+            }
+        }
+        guard plan.checkActivities else { return false }
+        let connection = MobileActivityConnection.id(for: token)
+        let decision = response.state.resolveSnapshot(against: Activity<CodeRimActivityAttributes>.activities, mayRetry: retryStale) {
+            $0.attributes.connectionID == connection ? $0.content.state : nil
+        }
+        switch decision {
+        case .keep: return false
+        case .retry:
+            // Keep the screen and its lists together until one fresh relay response catches up.
+            guard let client else { return false }
+            let latest: MobileSnapshotResponse = try await client.get("/v1/snapshot", token: token)
+            return try await apply(latest, token: token, retryStale: false)
+        case .accept: break
+        }
+        #else
         let hadServerPush = serverPushAvailable
         serverPushAvailable = response.pushConfigured ?? false
         if !hadServerPush && serverPushAvailable {
@@ -243,6 +268,7 @@ final class MobileAppModel: ObservableObject {
             }
             return false
         }
+        #endif
         preferences = response.preferences; providers = response.availableProviders; devices = response.devices ?? []
         serverNotice = response.notice
         displayProviders = response.displayProviders ?? []

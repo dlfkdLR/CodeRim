@@ -110,6 +110,48 @@ public struct MobileActivityState: Codable, Hashable, Sendable {
 #endif
 }
 
+enum MobileSnapshotResolution { case accept, keep, retry }
+
+extension MobileActivityState {
+    func refreshHeader(over displayed: Self, previousPush: Bool, nextPush: Bool) -> (registerPush: Bool, checkActivities: Bool) {
+        #if CODERIM_RUST_MOBILE_SELECTION
+        let result = cr_mobile_refresh_header(comparisonVersion, displayed.comparisonVersion, previousPush, nextPush)
+        return (result.register_push, result.check_activities)
+        #else
+        return (!previousPush && nextPush, supersedes(displayed))
+        #endif
+    }
+
+    @inline(__always)
+    func resolveSnapshot<C: Collection>(against activities: C, mayRetry: Bool,
+                                        stateFor: (C.Element) -> Self?) -> MobileSnapshotResolution {
+        #if CODERIM_RUST_MOBILE_SELECTION
+        guard !activities.isEmpty else { return .accept }
+        return withUnsafeTemporaryAllocation(of: cr_mobile_version.self, capacity: activities.count) { buffer in
+            var count = 0
+            for activity in activities {
+                if let state = stateFor(activity) {
+                    buffer[count] = state.comparisonVersion
+                    count += 1
+                }
+            }
+            if count == 0 { return .accept }
+            switch Int(cr_mobile_reconcile_snapshot(comparisonVersion, buffer.baseAddress, count, mayRetry)) {
+            case CR_REFRESH_ACCEPT: return .accept
+            case CR_REFRESH_KEEP: return .keep
+            case CR_REFRESH_RETRY: return .retry
+            default: preconditionFailure("Invalid snapshot version buffer")
+            }
+        }
+        #else
+        if let newest = activities.compactMap(stateFor).max(by: { !$0.supersedes($1) }), !supersedes(newest) {
+            return mayRetry ? .retry : .keep
+        }
+        return .accept
+        #endif
+    }
+}
+
 public struct MobilePreferences: Codable, Sendable {
     public var providerIDs: [String]
     public init(providerIDs: [String] = []) { self.providerIDs = providerIDs }
