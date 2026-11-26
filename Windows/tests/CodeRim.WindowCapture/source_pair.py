@@ -1,5 +1,6 @@
 """Exercise the original account navigation fixture from each source tree with owner-checked capture only."""
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -96,6 +97,26 @@ def run(version, source, root, probe, library):
             fixture.wait()
 
 
+def changed_pixels(root, size, expected):
+    width, height = size
+    paths = [root / version / "observed/owned-frame.bgra" for version in ("release", "candidate")]
+    frames = [path.read_bytes() for path in paths]
+    if any(len(frame) != width * height * 4 or hashlib.sha256(frame).hexdigest() != digest
+           for frame, digest in zip(frames, expected)):
+        raise RuntimeError("Inconsistent temporary HWND frame")
+    if frames[0] == frames[1]:
+        return {"count": 0}
+    left, top, right, bottom = width, height, -1, -1
+    count = 0
+    for i in range(0, len(frames[0]), 4):
+        if frames[0][i:i + 4] != frames[1][i:i + 4]:
+            y, x = divmod(i // 4, width)
+            left, top = min(left, x), min(top, y)
+            right, bottom = max(right, x), max(bottom, y)
+            count += 1
+    return {"count": count, "bounds": [left, top, right + 1, bottom + 1]}
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reference-source", required=True, type=Path)
@@ -111,7 +132,8 @@ def main():
     release = run("release", args.reference_source.resolve(), root, args.probe.resolve(), None)
     current = run("candidate", candidate, root, args.probe.resolve(), args.library.resolve())
     coords = ("X", "Y", "Width", "Height")
-    mapped = all(k in release and k in current for k in coords)
+    mapped = (release.get("fullClient") is True and current.get("fullClient") is True
+              and all(k in release and k in current for k in coords))
     steady = mapped and all(release[k] == current[k] for k in coords)
     a, b = (r.get("backing", {}) for r in (release, current))
     def completely_owned(sample):
@@ -129,6 +151,9 @@ def main():
                "physicalPixelsEqual": a["physicalBgrSha256"] == b["physicalBgrSha256"] if compared else None,
                "bothBlendChecksExact": all(v.get("exact") is True for v in (a, b)) if compared else None,
                "compositorPixelsEqual": ai["bgraSha256"] == bi["bgraSha256"] if compositor else None}
+    if compositor:
+        receipt["changedCompositorPixels"] = changed_pixels(
+            root, (release["Width"], release["Height"]), (ai["bgraSha256"], bi["bgraSha256"]))
     args.output.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({k: v for k, v in receipt.items() if k not in ("release", "candidate")}))
     if receipt["physicalPixelsEqual"] is False or receipt["compositorPixelsEqual"] is False:

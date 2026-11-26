@@ -42,7 +42,7 @@ internal static class Program
                 using var offer = JsonDocument.Parse(File.ReadAllBytes(prefix + ".ready"));
                 nint hwnd = (nint)offer.RootElement.GetProperty("hwnd").GetInt64();
                 if (offer.RootElement.GetProperty("pid").GetInt32() != pid || !NativeCapture.Owned(hwnd, pid)) return 4;
-                result = await Probe(hwnd, process, directory, prefix);
+                result = await Probe(hwnd, process, directory, prefix, args.Length == 3);
             }
         }
         catch (Exception ex) when (ex is COMException or UnauthorizedAccessException or NotSupportedException or TimeoutException)
@@ -54,7 +54,7 @@ internal static class Program
         return 0;
     }
 
-    private static async Task<object> Probe(nint hwnd, Process process, string directory, string prefix)
+    private static async Task<object> Probe(nint hwnd, Process process, string directory, string prefix, bool sourceComparison)
     {
         if (!GraphicsCaptureSession.IsSupported()) return new { status = "compositor-unsupported" };
         var geometry = NativeCapture.Bounds(hwnd);
@@ -90,12 +90,16 @@ internal static class Program
             Array.Copy(data, ((y + top) * width + left) * 4, pixels, y * client.Width * 4, client.Width * 4);
         string ownedPath = Path.Combine(directory, "windows-account-history-overview.screen.hwnd.png");
         var independent = Compare(pixels, client.Size, ownedPath, width, height);
+        // A source comparison uses only pixels supplied by the validated HWND's WGC item.
+        // Keep this temporary surface outside the artifacts, never the physical screen copy.
+        if (sourceComparison)
+            File.WriteAllBytes(Path.Combine(directory, "owned-frame.bgra"), pixels);
         // Finish WGC before reading the controlled desktop so its highlight cannot change the fixture.
         session.Dispose();
         object backing = bitmap.BitmapAlphaMode == BitmapAlphaMode.Ignore
             ? new { status = "compositor-alpha-unavailable" }
             : OwnedBackdrop.Compare(hwnd, process.Id, client, pixels, bitmap.BitmapAlphaMode == BitmapAlphaMode.Straight);
-        return new { status = "compositor-owned-frame", client.X, client.Y, client.Width, client.Height, independent, backing };
+        return new { status = "compositor-owned-frame", client.X, client.Y, client.Width, client.Height, fullClient = client == geometry.Client, independent, backing };
     }
 
     private static object Compare(byte[] pixels, Size size, string ownedPath, int frameWidth, int frameHeight)
