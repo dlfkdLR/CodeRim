@@ -58,6 +58,8 @@ jobs:
           rustup target add wasm32-unknown-unknown
           bash Scripts/rust_migration/relay-picker/build.sh
           node Scripts/rust_migration/relay-picker/check.mjs "$RUNNER_TEMP/relay-picker.json"
+          git fetch --no-tags --depth=1 origin refs/tags/v2.1.41:refs/tags/v2.1.41
+          node Scripts/rust_migration/relay-read/check.mjs > "$RUNNER_TEMP/relay-read.json"
       - name: Replay both Worker entry points on local SQLite Durable Objects
         run: |
           npm install --prefix "$RUNNER_TEMP/relay-runtime" --no-audit --no-fund miniflare@5.20261123.1-beta
@@ -65,7 +67,9 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: relay-picker-replay
-          path: ${{ runner.temp }}/relay-picker.json
+          path: |
+            ${{ runner.temp }}/relay-picker.json
+            ${{ runner.temp }}/relay-read.json
           if-no-files-found: error
       - name: Verify iPhone wire, lifecycle and dashboard compatibility
         shell: bash
