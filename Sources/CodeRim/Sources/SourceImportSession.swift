@@ -42,12 +42,7 @@ struct SourceImportSession: Sendable {
             processClaudeLine(line, position: position)
             return
         }
-        guard line.containsASCII("\"token_count\"")
-                || line.containsASCII("\"session_meta\"")
-                || line.containsASCII("\"task_started\"")
-                || line.containsASCII("\"turn_context\"")
-                || (line.containsASCII("\"response_item\"") && line.containsASCII("\"input_image\""))
-        else { return }
+        guard line.isCodexImportCandidate else { return }
 
         switch parser.parse(line) {
         case let .sessionMetadata(parsed):
@@ -303,5 +298,14 @@ struct SourceImportSession: Sendable {
 }
 
 private extension Data {
-    func containsASCII(_ string: String) -> Bool { range(of: Data(string.utf8)) != nil }
+    var isCodexImportCandidate: Bool {
+        #if CODERIM_RUST_ACCOUNTING
+        withUnsafeBytes { cr_codex_import_candidate($0.bindMemory(to: UInt8.self).baseAddress, $0.count) }
+        #else
+        func containsASCII(_ string: String) -> Bool { range(of: Data(string.utf8)) != nil }
+        return containsASCII("\"token_count\"") || containsASCII("\"session_meta\"")
+            || containsASCII("\"task_started\"") || containsASCII("\"turn_context\"")
+            || (containsASCII("\"response_item\"") && containsASCII("\"input_image\""))
+        #endif
+    }
 }

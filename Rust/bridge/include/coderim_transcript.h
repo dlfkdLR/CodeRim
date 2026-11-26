@@ -32,6 +32,9 @@ bool cr_turn_scan(int32_t fd, uint64_t lower, uint64_t end, bool include_first,
 typedef struct { intptr_t start; size_t end; } CRActivityField;
 CRActivityField cr_activity_field(const uint8_t *data, size_t length, const uint8_t *marker,
                                   size_t marker_length, size_t from, bool quoted);
+/* True when a bounded local Codex log row contains the accounting, metadata or image
+   markers considered by the released importer. The decoder still validates the row. */
+bool cr_codex_import_candidate(const uint8_t *data, size_t length);
 // Returns seconds since 2001 or NaN to delegate to the original Foundation parser.
 // The formatter used by macOS transcript display has millisecond precision.
 double cr_log_reference_date(const char *text, size_t length, bool milliseconds);

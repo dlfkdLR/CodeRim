@@ -1,6 +1,37 @@
 //! Compact byte markers used by the two supported local activity-log formats.
 use memchr::{memchr2, memmem};
 use std::slice;
+use std::sync::LazyLock;
+
+// Keep the released raw-byte test, including quoted markers inside malformed
+// records and images reported separately from the response_item marker.
+static IMPORT_MARKERS: LazyLock<[memmem::Finder<'static>; 6]> = LazyLock::new(|| {
+    [
+        b"\"token_count\"".as_slice(),
+        b"\"session_meta\"",
+        b"\"task_started\"",
+        b"\"turn_context\"",
+        b"\"response_item\"",
+        b"\"input_image\"",
+    ]
+    .map(memmem::Finder::new)
+});
+
+/// # Safety
+/// If non-null, data points to length initialized bytes for this synchronous call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cr_codex_import_candidate(data: *const u8, length: usize) -> bool {
+    if length == 0 || length > isize::MAX as usize || data.is_null() {
+        return false;
+    }
+    let bytes = unsafe { slice::from_raw_parts(data, length) };
+    let [token, session, task, turn, response, image] = &*IMPORT_MARKERS;
+    token.find(bytes).is_some()
+        || session.find(bytes).is_some()
+        || task.find(bytes).is_some()
+        || turn.find(bytes).is_some()
+        || (response.find(bytes).is_some() && image.find(bytes).is_some())
+}
 
 #[repr(C)]
 pub struct Field {

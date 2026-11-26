@@ -54,8 +54,9 @@ def compare_hosts(work):
                   "line-breaks-contract", "storage-identity-contract", "activity-distribution", "quota-window",
                   "transcript-contract", "threshold-contract", "analytics-db-contract", "window-placement",
                   "notch-cursor", "turn-activity", "log-timestamp", "provider-order",
-                  "copilot-quota", "ollama-quota", "ollama-local", "glyph-render", "activity-fields", "source-discovery", "notch-viewport",
-                  "desktop-mobile-order", "companion-export", "sqlite-event-import", "source-fingerprint"]:
+                  "copilot-quota", "ollama-quota", "ollama-local", "glyph-render", "activity-fields",
+                  "source-discovery", "notch-viewport", "desktop-mobile-order", "companion-export",
+                  "sqlite-event-import", "source-fingerprint", "import-selection"]:
         subprocess.run(["python3", str(Path(__file__).parent / suite / "check.py"),
                         "--archive", str(archive)], check=True)
 
