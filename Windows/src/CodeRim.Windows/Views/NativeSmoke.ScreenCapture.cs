@@ -86,6 +86,7 @@ internal static partial class NativeSmoke
                         {
                             var attempt = VerifyDesktopPixels(handle, clientArea, visibleClient, output, ownedOutput, flag);
                             attempts.Add(attempt);
+                            if (attempt.OwnedBefore is int sampled) ownedSamplePoints = sampled;
                             reason = attempt.Status;
                             if (reason == "verified") break;
                         }

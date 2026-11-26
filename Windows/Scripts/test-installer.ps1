@@ -1,4 +1,4 @@
-param([ValidateSet('x64','arm64')][string]$Architecture='x64',[Parameter(Mandatory)][string]$Installer,[switch]$VerifyRustAccounting,[switch]$VerifyLatestPublicUpgrade)
+param([ValidateSet('x64','arm64')][string]$Architecture='x64',[Parameter(Mandatory)][string]$Installer,[switch]$VerifyRustAccounting,[switch]$VerifyLatestPublicUpgrade,[string]$WindowCaptureProbe)
 $ErrorActionPreference='Stop'
 if ($env:CI -ne 'true') { throw 'MSI lifecycle tests require a disposable CI runner.' }
 $windowsRoot=Split-Path -Parent $PSScriptRoot
@@ -114,7 +114,23 @@ try {
     [void](Invoke-Msi @('/i',('"'+$oldMsi+'"'),'LAUNCHAPP=0') $false)
     Compare-State $after (Product-State);$results.Add('downgrade-refused-without-changes')
     $capture=Join-Path $repo 'Artifacts/installed/windows-installed-dashboard.png'
+    if ($WindowCaptureProbe) {
+        $captureDirectory = Split-Path -Parent $capture
+        New-Item -ItemType Directory -Force $captureDirectory | Out-Null
+        foreach ($suffix in @('ready','done','tmp','json')) {
+            Remove-Item -LiteralPath (Join-Path $captureDirectory "account-compositor.$suffix") -Force -ErrorAction SilentlyContinue
+        }
+        [IO.File]::WriteAllText((Join-Path $captureDirectory 'account-compositor.request'), '')
+    }
     $smoke=Start-Process (Join-Path $app 'CodeRim.exe') -ArgumentList '--smoke-test','--capture',('"'+$capture+'"') -PassThru
+    if ($WindowCaptureProbe) {
+        try {
+            dotnet $WindowCaptureProbe $smoke.Id $captureDirectory
+            if ($LASTEXITCODE) { throw 'Installed window compositor probe failed' }
+        } finally {
+            Remove-Item -LiteralPath (Join-Path $captureDirectory 'account-compositor.request') -Force -ErrorAction SilentlyContinue
+        }
+    }
     if(-not $smoke.WaitForExit(180000) -or $smoke.ExitCode -ne 0 -or -not(Test-Path $capture)){
         Get-Content ([IO.Path]::ChangeExtension($capture,'error.txt')) -ErrorAction SilentlyContinue
         throw 'Installed native app smoke failed'

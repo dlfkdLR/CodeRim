@@ -398,7 +398,10 @@ jobs:
           dotnet build Windows/tests/CodeRim.ProcessFixture --configuration Release
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $setup = Get-Item 'Artifacts/CodeRim-Windows-*-${{ matrix.arch }}-Setup.msi'
-          ./Windows/Scripts/test-installer.ps1 -Architecture ${{ matrix.arch }} -Installer $setup.FullName -VerifyRustAccounting -VerifyLatestPublicUpgrade
+          $captureProbe = Join-Path $env:RUNNER_TEMP 'coderim-window-capture-probe'
+          dotnet build Windows/tests/CodeRim.WindowCapture -c Release -o $captureProbe
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ./Windows/Scripts/test-installer.ps1 -Architecture ${{ matrix.arch }} -Installer $setup.FullName -VerifyRustAccounting -VerifyLatestPublicUpgrade -WindowCaptureProbe (Join-Path $captureProbe 'CodeRim.WindowCapture.dll')
       - name: Install, activate and remove the Store candidate
         shell: powershell
         run: |

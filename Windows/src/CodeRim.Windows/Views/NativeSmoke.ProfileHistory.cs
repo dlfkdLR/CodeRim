@@ -93,6 +93,8 @@ internal static partial class NativeSmoke
                     screen.Bounds.Width, screen.Bounds.Height).Contains(metricScreenBounds)),
                 "The account-history Today metric is clipped or outside the visible monitor geometry.");
 
+            await OfferCompositorWindow(window, directory);
+
             var ownerA = current; var oldCompletion = Pause(); var old = profile.RefreshAsync(true); tasks.Add(old); await Idle();
             current = Credential("b"); response = _ => Task.FromResult(Reading(current, 2000000));
             await profile.RefreshAsync(); oldCompletion.SetResult(Reading(ownerA, 1000000)); await old;
