@@ -31,15 +31,35 @@ struct ExtendedProviderSettingsView: View {
     var body: some View {
         #if CODERIM_RUST_ACCOUNTING
         Group {
-            if MigrationProviderAccess.api[descriptor.id.rawValue] != nil || descriptor.id == .copilot {
+            if MigrationProviderAccess.api[descriptor.id.rawValue] != nil || [.copilot, .wayfinder, .alibabatokenplan].contains(descriptor.id) {
                 SettingsSection(title: "Connection settings") {
                     VStack(alignment: .leading, spacing: 12) {
-                        SecureField(apiKeyLabel, text: field(\.apiKey))
-                            .accessibilityIdentifier("provider.\(localID).apiKey")
-                        if descriptor.credentials?.usesRegion == true { TextField("Region", text: field(\.region)) }
+                        if descriptor.id != .wayfinder && descriptor.id != .alibabatokenplan {
+                            SecureField(migrationKeyLabel, text: Binding(
+                                get: { MigrationProviderAccess.savedAPIKey(configuration, for: descriptor.id) ?? "" },
+                                set: { MigrationProviderAccess.setAPIKey($0, in: &configuration, for: descriptor.id) }))
+                                .accessibilityIdentifier("provider.\(localID).apiKey")
+                        }
+                        if descriptor.id == .bedrock {
+                            SecureField("AWS secret access key", text: field(\.secretKey))
+                            SecureField("AWS session token (optional)", text: environmentBinding("AWS_SESSION_TOKEN"))
+                        }
+                        if descriptor.id == .doubao {
+                            SecureField("Volcengine secret access key (for a signed key pair)", text: field(\.secretKey))
+                        }
+                        if descriptor.id == .openrouter {
+                            SecureField("Management API key (optional)", text: environmentBinding("OPENROUTER_MANAGEMENT_API_KEY"))
+                        }
+                        if descriptor.id == .openai {
+                            SecureField("OpenAI API key (optional)", text: environmentBinding("OPENAI_API_KEY"))
+                        }
+                        if let notice = ExtendedProviderConfiguration.billableNotice(for: descriptor.id) {
+                            Toggle("Allow potentially billed monitoring requests", isOn: $configuration.allowBillableRequests)
+                            Text(notice).font(.caption).foregroundStyle(.secondary)
+                        }
+                        if descriptor.id != .bedrock, descriptor.credentials?.usesRegion == true { TextField("Region", text: field(\.region)) }
                         ForEach((MigrationProviderAccess.options[descriptor.id.rawValue] ?? []).sorted(), id: \.self) { key in
-                            TextField(key, text: Binding(get: { configuration.environment[key] ?? "" },
-                                set: { configuration.environment[key] = configuration.environmentInput($0, for: key) }))
+                            TextField(key, text: environmentBinding(key))
                         }
                         Button(isConnected ? "Save and refresh" : "Connect") { save() }
                             .disabled(!loaded)
@@ -55,6 +75,22 @@ struct ExtendedProviderSettingsView: View {
         legacySettings
         #endif
     }
+
+    #if CODERIM_RUST_ACCOUNTING
+    private var migrationKeyLabel: String {
+        switch descriptor.id {
+        case .bedrock: "AWS access key ID"
+        case .openai: "OpenAI admin key"
+        default: apiKeyLabel
+        }
+    }
+
+    private func environmentBinding(_ key: String) -> Binding<String> {
+        Binding(get: { MigrationProviderAccess.savedOption(key, in: configuration) ?? "" },
+                set: { configuration.environment[key] = configuration.environmentInput($0, for: key) })
+    }
+
+    #endif
 
     private func loadConfiguration() {
         do {

@@ -1,5 +1,8 @@
 import Foundation
 import Security
+#if EXTENDED_PROVIDER_FIXTURE
+import LocalAuthentication
+#endif
 
 // Test-only. Every Security query must name the private keychain before it reaches the OS.
 final class PrivateKeychain: @unchecked Sendable {
@@ -51,16 +54,30 @@ final class PrivateKeychain: @unchecked Sendable {
     }
 
     private func scoped(_ request: CFDictionary, add: Bool = false) -> CFDictionary {
-        let expectedKeys = Set([kSecClass, kSecAttrService, kSecAttrAccount, kSecAttrSynchronizable,
+        #if EXTENDED_PROVIDER_FIXTURE
+        let extraKeys = [kSecUseAuthenticationContext as String]
+        let services = ["dev.codexmeter.CodexMeter.extended-providers"]
+        let accounts = ["openai", "azureopenai", "deepseek", "bedrock", "copilot", "openrouter"]
+        #else
+        let extraKeys: [String] = []
+        let services = [OllamaCredentials.keychainService, "dev.codexmeter.test.ollama.sibling"]
+        let accounts = [OllamaCredentials.keychainAccount]
+        #endif
+        let expectedKeys = Set(extraKeys + [kSecClass, kSecAttrService, kSecAttrAccount, kSecAttrSynchronizable,
                                 kSecReturnData, kSecMatchLimit, kSecValueData].map { $0 as String })
         guard var values = request as? [String: Any], Set(values.keys).isSubset(of: expectedKeys),
               let service = values[kSecAttrService as String] as? String,
-              [OllamaCredentials.keychainService, "dev.codexmeter.test.ollama.sibling"].contains(service),
-              values[kSecAttrAccount as String] as? String == OllamaCredentials.keychainAccount,
+              services.contains(service),
+              let account = values[kSecAttrAccount as String] as? String, accounts.contains(account),
               values[kSecClass as String] as? String == kSecClassGenericPassword as String,
               values[kSecAttrSynchronizable as String] as? Bool == false,
               values[kSecMatchSearchList as String] == nil, values[kSecUseKeychain as String] == nil
         else { fatalError("Unexpected fixture query") }
+        #if EXTENDED_PROVIDER_FIXTURE
+        if let context = values[kSecUseAuthenticationContext as String] {
+            precondition((context as? LAContext)?.interactionNotAllowed == true)
+        }
+        #endif
         if add { values[kSecUseKeychain as String] = handle }
         else { values[kSecMatchSearchList as String] = [handle] }
         return values as CFDictionary

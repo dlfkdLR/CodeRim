@@ -43,14 +43,16 @@ final class ExtendedNotchProvider: NotchProvider {
     func accountIdentity() -> String? {
         #if CODERIM_RUST_ACCOUNTING
         if ownedOnly {
-            guard let mode = MigrationProviderAccess.api[descriptor.id.rawValue],
-                  let config = try? configuration(), let env = MigrationProviderAccess.environment(for: config, descriptor: descriptor),
-                  let key = env[mode.key] else { return nil }
-            // A provider may use the same administrative key to read different teams or endpoints.
+            guard MigrationProviderAccess.supports(descriptor.id) else { return nil }
+            if MigrationProviderAccess.officialCLI(descriptor.id) != nil || descriptor.id == .wayfinder { return nil }
+            guard let config = try? configuration(), let env = MigrationProviderAccess.environment(for: config, descriptor: descriptor)
+            else { return nil }
+            let keyName = MigrationProviderAccess.api[descriptor.id.rawValue]?.key
+            let primary = keyName.flatMap { env[$0] }
             let scope = env.sorted { $0.key < $1.key }.compactMap { name, value in
-                name == mode.key ? nil : "\(name.utf8.count):\(name)\(value.utf8.count):\(value)"
+                name == keyName && primary != nil ? nil : "\(name.utf8.count):\(name)\(value.utf8.count):\(value)"
             }.joined()
-            return AccountIdentity.fingerprint(id, key, scope, config.provider.region ?? "")
+            return AccountIdentity.fingerprint(id, primary ?? "", scope, config.provider.region ?? "")
         }
         #endif
         return currentAccount?.label.map { AccountIdentity.fingerprint(descriptor.id.rawValue, $0.lowercased()) }
@@ -75,12 +77,18 @@ final class ExtendedNotchProvider: NotchProvider {
     func fetchSnapshot() async throws -> ProviderSnapshot {
         let version = revision
         #if CODERIM_RUST_ACCOUNTING
-        if ownedOnly, MigrationProviderAccess.api[descriptor.id.rawValue] == nil {
+        if ownedOnly, !MigrationProviderAccess.supports(descriptor.id) {
             return empty(.unsupported(MigrationProviderAccess.unavailable))
         }
         #endif
         let config: ExtendedProviderConfiguration
-        do { config = try configuration() }
+        do {
+            #if CODERIM_RUST_ACCOUNTING
+            config = ownedOnly && descriptor.id == .augment ? .init(providerID: .augment) : try configuration()
+            #else
+            config = try configuration()
+            #endif
+        }
         catch let error as ExtendedProviderConfigurationStore.StoreError {
             if error.status == errSecInteractionNotAllowed || error.status == errSecAuthFailed || error.status == errSecUserCanceled {
                 throw NotchProviderError.accessDenied
@@ -160,7 +168,7 @@ final class ExtendedNotchProvider: NotchProvider {
         direct.provider.apiKey = config.provider.apiKey
         direct.provider.region = config.provider.region
         direct.provider.cookieSource = .off
-        let context = ProviderFetchContext(runtime: .app, sourceMode: .api,
+        let context = ProviderFetchContext(runtime: .app, sourceMode: MigrationProviderAccess.officialCLI(descriptor.id) == nil ? .api : .cli,
             includeCredits: true, includeOptionalUsage: false, webTimeout: 20, webDebugDumpHTML: false, verbose: false,
             env: environment, settings: direct.settings(environment: environment), fetcher: UsageFetcher(environment: environment),
             claudeFetcher: ClaudeUsageFetcher(browserDetection: browser, environment: environment), browserDetection: browser)
