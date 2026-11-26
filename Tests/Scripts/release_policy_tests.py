@@ -19,6 +19,25 @@ def executable(path, source):
     path.chmod(0o755)
 
 
+def build_universal_fixture(root):
+    source = root / "main.c"
+    source.write_text("int main(void) { return 0; }\n")
+    objects = []
+    executables = []
+    for arch in ("arm64", "x86_64"):
+        obj = root / (arch + ".o")
+        binary = root / (arch + ".bin")
+        subprocess.run(["xcrun", "clang", "-arch", arch, "-g", "-c", source, "-o", obj], check=True)
+        subprocess.run(["xcrun", "clang", "-arch", arch, obj, "-o", binary], check=True)
+        objects.append(obj)
+        executables.append(binary)
+    archive = root / "fixture.a"
+    cli = root / "fixture-cli"
+    subprocess.run(["xcrun", "libtool", "-static", "-o", archive, *objects], check=True)
+    subprocess.run(["lipo", "-create", *executables, "-output", cli], check=True)
+    return archive, cli
+
+
 class ReleasePolicyTests(unittest.TestCase):
     def test_signer_and_verifier_companion_policies(self):
         policy = (ROOT / "Scripts/verify_release.sh").read_text().split("<<'PY_ENTITLEMENTS'\n", 1)[1].split("\nPY_ENTITLEMENTS", 1)[0]
@@ -70,7 +89,9 @@ elif "-d" in args:
             with self.subTest(workflow=workflow, custom=custom), tempfile.TemporaryDirectory(
                     prefix="coderim-release-", dir=Path.home() if custom == "tilde" else None) as directory:
                 root = Path(directory)
-                for name in ["Config/Release.env", "Config/Info.plist", "Assets/AppIcon.icns", "LICENSE", "NOTICE",
+                archive, cli = build_universal_fixture(root)
+                for name in ["Rust/THIRD-PARTY-NOTICES.txt", "Rust/cli/THIRD-PARTY-NOTICES.txt",
+                             "Scripts/rust_migration/apple.py", "Config/Release.env", "Config/Info.plist", "Assets/AppIcon.icns", "LICENSE", "NOTICE",
                              "Sources/CodeRim/Resources/ProviderLogos/OpenAI.svg", "Sources/CodeRim/Resources/ProviderLogos/Claude.svg"]:
                     target = root / name
                     target.parent.mkdir(parents=True, exist_ok=True)
@@ -103,7 +124,7 @@ else:
     (products / "Frameworks/Sparkle.framework").mkdir(parents=True, exist_ok=True)
     for name in ["CodeRim", "CodeRimCLI", "CodeRimClaudeBridge"]:
         target = products / name
-        target.write_text("synthetic executable")
+        target.write_bytes(pathlib.Path(os.environ["CODERIM_MIGRATION_CLI"]).read_bytes())
         target.chmod(0o755)
     tools = scratch / "artifacts/sparkle/Sparkle/bin"
     tools.mkdir(parents=True, exist_ok=True)
@@ -128,6 +149,8 @@ else:
                 scratch = root / ("custom scratch" if custom else ".build/coderim-build")
                 env = {**os.environ, "PATH": str(root / "bin") + os.pathsep + os.environ["PATH"],
                        "CODERIM_BUILD_CACHE": str(root / "cache"), "EXPECTED_SCRATCH": str(scratch),
+                       "CODERIM_RUST_ACCOUNTING_ARCHIVE": str(archive), "CODERIM_RUST_WIDGET_ARCHIVE": str(archive),
+                       "CODERIM_MIGRATION_CLI": str(cli), "CODERIM_MIGRATION_RESTART": "1",
                        "FAKE_SPARKLE_TOOL": str(root / "fake_sparkle_tool.py"),
                        "CODE_SIGN_IDENTITY": "Developer ID Application: synthetic", "CODE_SIGN_TEAM_ID": "TESTTEAM", "NOTARY_PROFILE": "synthetic"}
                 env.pop("CODERIM_APP_PATH", None)
@@ -139,6 +162,12 @@ else:
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 self.assertTrue((scratch / "artifacts/sparkle/Sparkle/bin/generate_appcast").is_file())
                 self.assertTrue((root / "Artifacts/appcast.xml").is_file())
+                contents = root / "cache/CodeRim.app/Contents"
+                self.assertEqual((contents / "Helpers/CodeRimCLI").read_bytes(), cli.read_bytes())
+                self.assertEqual(os.readlink(contents / "Helpers/CodeRimRestart"), "CodeRimCLI")
+                for notice, original in [("Rust-Notices.txt", "Rust/THIRD-PARTY-NOTICES.txt"),
+                                         ("Rust-CLI-Notices.txt", "Rust/cli/THIRD-PARTY-NOTICES.txt")]:
+                    self.assertEqual((contents / "Resources" / notice).read_bytes(), (root / original).read_bytes())
                 self.assertFalse((root / ".build/artifacts").exists())
 
     def test_workflow_action_pins_are_full_commit_ids(self):
