@@ -1,0 +1,116 @@
+{
+  "desktop": {
+    "sessions": [
+      {
+        "since": 1790000000,
+        "providerID": "codex",
+        "phase": "working",
+        "title": ""
+      }
+    ],
+    "schemaVersion": 1,
+    "generatedAt": 1790000000,
+    "providers": [
+      {
+        "name": "Codex",
+        "id": "codex",
+        "state": "ready",
+        "windows": [
+          {
+            "remainingPercent": 75,
+            "resetsAt": 1790000600,
+            "name": "Weekly"
+          }
+        ],
+        "localState": "unavailable",
+        "updatedAt": 1790000000
+      }
+    ]
+  },
+  "response": {
+    "state": {
+      "connection": "connected",
+      "updatedAt": 1790000000,
+      "staleAt": 1790000660,
+      "providers": [
+        {
+          "id": "codex",
+          "name": "Codex",
+          "state": "ready",
+          "windows": [
+            {
+              "name": "Weekly",
+              "remainingPercent": 75,
+              "resetsAt": 1790000600
+            }
+          ],
+          "todayTokens": null,
+          "localState": "unavailable",
+          "updatedAt": 1790000000
+        }
+      ],
+      "sessions": [
+        {
+          "providerID": "codex",
+          "phase": "working",
+          "title": "",
+          "since": 1790000000
+        }
+      ],
+      "additionalSessionCount": 0,
+      "workingCount": 1,
+      "waitingCount": 0,
+      "unavailableCount": 0,
+      "focus": {
+        "deviceID": "fixture-mac",
+        "deviceName": "Mac",
+        "platform": "macOS",
+        "deviceIndex": 1,
+        "deviceCount": 1,
+        "providerIndex": 1,
+        "providerCount": 1
+      },
+      "providerPicker": {
+        "isOpen": false,
+        "page": 0,
+        "pageCount": 1,
+        "options": [
+          {
+            "id": "codex",
+            "name": "Codex"
+          }
+        ]
+      },
+      "viewRevision": 1,
+      "dataVersion": 1,
+      "evaluatedAt": 1790000000
+    },
+    "preferences": {
+      "providerIDs": [
+        "codex"
+      ]
+    },
+    "displayProviders": [
+      {
+        "id": "codex",
+        "name": "Codex"
+      }
+    ],
+    "pushConfigured": false,
+    "availableProviders": [
+      {
+        "id": "codex",
+        "name": "Codex"
+      }
+    ],
+    "devices": [
+      {
+        "id": "fixture-mac",
+        "name": "Mac",
+        "platform": "macOS",
+        "online": true,
+        "lastSeen": 1790000000
+      }
+    ]
+  }
+}

@@ -2,6 +2,21 @@ import XCTest
 @testable import CodeRimMobile
 
 final class MobileContractTests: XCTestCase {
+    func testRetainedDesktopSnapshotThroughRelayDecodesOnThePhone() throws {
+        struct Fixture: Decodable { let response: MobileSnapshotResponse }
+        let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "mobile-desktop-v2141", withExtension: "json"))
+        let reply = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: url)).response
+        XCTAssertEqual(reply.preferences.providerIDs, ["codex"])
+        XCTAssertEqual(reply.devices?.first?.id, "fixture-mac")
+        XCTAssertEqual(reply.state.connection, "connected")
+        XCTAssertEqual(reply.state.workingCount, 1)
+        XCTAssertEqual(reply.state.sessions.first?.title, "")
+        XCTAssertEqual(reply.state.providers.first?.windows.first?.remainingPercent, 75)
+        XCTAssertEqual(reply.state.providers.first?.windows.first?.resetsAt, 1_790_000_600)
+        XCTAssertNil(reply.state.providers.first?.todayTokens)
+        XCTAssertEqual(reply.pushConfigured, false)
+    }
+
     func testEndpointRejectsInsecureURLsAndAmbiguousOrigins() throws {
         for text in ["http://example.com", "https://name:password@example.com", "https://example.com/other", "https://example.com?token=x", "https://example.com#fragment", "file:///tmp"] {
             XCTAssertThrowsError(try MobileRelayClient.validatedEndpoint(text), text)

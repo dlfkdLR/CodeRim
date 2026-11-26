@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { Store } from '../src/store.mjs';
 import { alarmScheduler } from '../src/alarms.mjs';
 import { Relay } from '../src/relay.mjs';
@@ -32,6 +33,16 @@ function setup(t, options = {}) {
     } };
 }
 import { digest as hash } from '../src/crypto.mjs';
+
+test('the 2.1.41 desktop snapshot still produces the retained iPhone response', async t => {
+  const fixture = JSON.parse(await readFile(new URL('../../Tests/Fixtures/mobile-desktop-v2141.json', import.meta.url), 'utf8'));
+  const c = setup(t, { pushConfigured: false });
+  await c.route('POST', '/v1/snapshot', fixture.desktop, c.mac);
+  await c.route('PUT', '/v1/preferences', { providerIDs: ['codex'] });
+  // JSON serialization drops absent optional response fields, as does the actual HTTP boundary.
+  assert.deepEqual(JSON.parse(JSON.stringify(await c.route('GET', '/v1/snapshot'))), fixture.response);
+  assert.deepEqual(c.sent, []);
+});
 
 test('separate accounts cannot read or update each other', async t => {
   const c = setup(t), bob = c.store.issue('bob', 'mobile', epoch).token;

@@ -13,7 +13,13 @@ final class MobileSnapshotTests: XCTestCase {
             state: .busy, waitingFor: nil, since: now, codexThreadID: "private-thread")
         let result = MobileConnectionStore.snapshot(.init(generatedAt: now, providers: [provider]),
             sessions: ["codex": [session]], shareTitles: false, now: now)
-        let json = String(decoding: try JSONEncoder().encode(result), as: UTF8.self)
+        let encoded = try JSONEncoder().encode(result)
+        let fixtureURL = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/mobile-desktop-v2141.json")
+        let fixture = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: fixtureURL)) as? [String: Any])
+        XCTAssertEqual(try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? NSDictionary),
+                       try XCTUnwrap(fixture["desktop"] as? NSDictionary))
+        let json = String(decoding: encoded, as: UTF8.self)
         for forbidden in ["private-session", "/Users/private", "Private title", "private-thread"] { XCTAssertFalse(json.contains(forbidden)) }
         XCTAssertEqual(result.providers[0].windows[0].remainingPercent, 75)
         XCTAssertEqual(result.sessions[0].phase, .working)

@@ -32,11 +32,13 @@ for source in sorted(set(sum(target_sources.values(), []))):
 resources = {}
 for source, kind in [('CodeRimMobile/Assets.xcassets', 'folder.assetcatalog'), ('CodeRimMobile/PrivacyInfo.xcprivacy', 'text.xml')]:
     resources[source] = add('file:'+source, 'PBXFileReference', lastKnownFileType=kind, path=source, sourceTree='SOURCE_ROOT')
+test_fixture = '../Tests/Fixtures/mobile-desktop-v2141.json'
+fixture_ref = add('file:'+test_fixture, 'PBXFileReference', lastKnownFileType='text.json', path=test_fixture, sourceTree='SOURCE_ROOT')
 products = {}
 for name, ext, kind in [('CodeRimMobile','app','wrapper.application'), ('CodeRimLiveActivity','appex','wrapper.app-extension'), ('CodeRimMobileTests','xctest','wrapper.cfbundle'), ('CodeRimMobileUITests','xctest','wrapper.cfbundle')]:
     products[name] = add('product:'+name, 'PBXFileReference', explicitFileType=kind, path=name+'.'+ext, sourceTree='BUILT_PRODUCTS_DIR')
 products_group = add('products', 'PBXGroup', children=list(products.values()), name='Products', sourceTree='<group>')
-main_group = add('main', 'PBXGroup', children=list(files.values())+list(resources.values())+[products_group], sourceTree='<group>')
+main_group = add('main', 'PBXGroup', children=list(files.values())+list(resources.values())+[fixture_ref, products_group], sourceTree='<group>')
 project_configs=[]
 for config in ['Debug','Release']:
     project_configs.append(add('project:'+config,'XCBuildConfiguration',name=config,buildSettings={
@@ -51,7 +53,8 @@ for config in ['Debug','Release']:
 project_configlist=add('project-configs','XCConfigurationList',buildConfigurations=project_configs,defaultConfigurationIsVisible='0',defaultConfigurationName='Release')
 for name, sources in target_sources.items():
     source_phase=add('sources:'+name,'PBXSourcesBuildPhase',buildActionMask='2147483647',files=[add(name+':'+s,'PBXBuildFile',fileRef=files[s]) for s in sources],runOnlyForDeploymentPostprocessing='0')
-    resources_phase=add('resources:'+name,'PBXResourcesBuildPhase',buildActionMask='2147483647',files=[add('resource:'+source,'PBXBuildFile',fileRef=ref) for source, ref in resources.items()] if name=='CodeRimMobile' else [],runOnlyForDeploymentPostprocessing='0')
+    target_resources = resources if name=='CodeRimMobile' else {test_fixture: fixture_ref} if name=='CodeRimMobileTests' else {}
+    resources_phase=add('resources:'+name,'PBXResourcesBuildPhase',buildActionMask='2147483647',files=[add('resource:'+source,'PBXBuildFile',fileRef=ref) for source, ref in target_resources.items()],runOnlyForDeploymentPostprocessing='0')
     phases=[source_phase,resources_phase]; dependencies=[]
     if name=='CodeRimMobile':
         embed=add('embed-widget','PBXCopyFilesBuildPhase',buildActionMask='2147483647',dstPath='',dstSubfolderSpec='13',files=[add('embed-widget-file','PBXBuildFile',fileRef=products['CodeRimLiveActivity'],settings={'ATTRIBUTES':['RemoveHeadersOnCopy']})],name='Embed App Extensions',runOnlyForDeploymentPostprocessing='0')
