@@ -325,5 +325,6 @@ jobs:
             Artifacts/installed/**/*.json
             Artifacts/installed/**/*.png
             Artifacts/msix-*/msix-checks.json
+            Artifacts/msix-*/*.screen.png.capture.json
             Artifacts/msix-*/*.png
           if-no-files-found: warn

@@ -74,23 +74,24 @@ internal static partial class NativeSmoke
                 && todayMetric.Text == TokenFormatter.Format(expectedToday, settings.Current.NumberStyle),
                 "Account history navigation changed the Today total or its formatted text.");
             Capture(window, Path.Combine(directory, "windows-account-history-overview.png"));
-            var screenBounds = CaptureScreen(window, Path.Combine(directory, "windows-account-history-overview.screen.png"));
+            var screen = CaptureScreen(window, Path.Combine(directory, "windows-account-history-overview.screen.png"));
             var metricOrigin = todayMetric.PointToScreen(new Point());
             var metricDpi = System.Windows.Media.VisualTreeHelper.GetDpi(todayMetric);
             var metricScreenBounds = new Rect(metricOrigin, new Size(todayMetric.ActualWidth * metricDpi.DpiScaleX,
                 todayMetric.ActualHeight * metricDpi.DpiScaleY));
             File.WriteAllText(Path.Combine(directory, "windows-account-history-overview-render.json"), JsonSerializer.Serialize(new
             {
-                expectedToday, todayMetric.DisplayedValue, todayMetric.Text, window.IsActive, screenBounds, metricScreenBounds,
+                expectedToday, todayMetric.DisplayedValue, todayMetric.Text, window.IsActive, screenPixelsVerified = screen.Verified,
+                screenBounds = screen.Verified ? (Rect?)screen.Geometry : null, visibleBounds = screen.Geometry, metricScreenBounds,
                 dpi = System.Windows.Media.VisualTreeHelper.GetDpi(window).PixelsPerInchX,
                 metricBounds = todayMetric.TransformToAncestor(window).TransformBounds(new Rect(todayMetric.RenderSize)),
                 todayMetric.DesiredSize, todayMetric.RenderSize, todayMetric.ActualWidth, todayMetric.ActualHeight
             }, JsonOptions));
 
-            Require(screenBounds.Contains(metricScreenBounds)
+            Require(screen.Geometry.Contains(metricScreenBounds)
                 && System.Windows.Forms.Screen.AllScreens.Any(screen => new Rect(screen.Bounds.X, screen.Bounds.Y,
                     screen.Bounds.Width, screen.Bounds.Height).Contains(metricScreenBounds)),
-                "The account-history Today metric is clipped or outside an actual monitor in the desktop pixel capture.");
+                "The account-history Today metric is clipped or outside the visible monitor geometry.");
 
             var ownerA = current; var oldCompletion = Pause(); var old = profile.RefreshAsync(true); tasks.Add(old); await Idle();
             current = Credential("b"); response = _ => Task.FromResult(Reading(current, 2000000));

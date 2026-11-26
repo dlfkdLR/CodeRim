@@ -26,6 +26,7 @@ internal static partial class NativeSmoke
     {
         var directory = Path.GetDirectoryName(Path.GetFullPath(output))!;
         Directory.CreateDirectory(directory);
+        VerifyDesktopComparison();
         var checks = new List<string>();
         void Record(string message)
         {

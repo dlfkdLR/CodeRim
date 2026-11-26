@@ -69,9 +69,9 @@ internal static partial class NativeSmoke
                 Require(workArea.Contains(bounds), "Settings window extends beyond the selected display's working area: " + scenario);
                 Require(shown.MinWidth <= area.Width / dpi.DpiScaleX && shown.MinHeight <= area.Height / dpi.DpiScaleY,
                     "Window minimum prevents fitting the display: " + scenario);
-                var pixels = CaptureScreen(shown, Path.Combine(directory, "windows-settings-frame-" + scenario + ".screen.png"));
-                Require(pixels.Width >= Math.Floor(bounds.Width) && pixels.Height >= Math.Floor(bounds.Height),
-                    "The fitted settings window is still clipped in the desktop capture: " + scenario);
+                var screen = CaptureScreen(shown, Path.Combine(directory, "windows-settings-frame-" + scenario + ".screen.png"));
+                Require(screen.Geometry.Width >= Math.Floor(bounds.Width) && screen.Geometry.Height >= Math.Floor(bounds.Height),
+                    "The fitted settings window is still clipped by the monitor bounds: " + scenario);
             }
         }
         catch (Exception error) when (error is not OutOfMemoryException) { failure = error; }
