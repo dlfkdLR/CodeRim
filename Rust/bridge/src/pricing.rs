@@ -73,6 +73,7 @@ pub struct Rates {
 }
 type MakeDecimal = extern "C" fn(i64) -> AppleDecimal;
 #[repr(C)]
+#[derive(Default)]
 pub struct Breakdown {
     uncached_input: AppleDecimal,
     cached_input: AppleDecimal,
@@ -184,4 +185,41 @@ pub extern "C" fn cr_apple_price_total(value: Breakdown) -> AppleDecimal {
         .plus(value.cached_input)
         .plus(value.written_input)
         .plus(value.output)
+}
+
+// Display subtotals retain each independently priceable model. Unlike the billing
+// estimate they do not discard a priced subtotal when another model is excluded.
+#[repr(C)]
+pub struct DisplaySubtotal {
+    available: i64,
+    amount: AppleDecimal,
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn cr_apple_add_display_price(
+    total: RawUsage,
+    high: RawUsage,
+    unknown_context: i64,
+    rates: PreparedRates,
+    subtotal: AppleDecimal,
+    decimal: MakeDecimal,
+) -> DisplaySubtotal {
+    let sample = cr_apple_price_sample(
+        total,
+        high,
+        unknown_context,
+        rates,
+        Breakdown::default(),
+        decimal,
+    );
+    if sample.status != 0 {
+        return DisplaySubtotal {
+            available: 0,
+            amount: subtotal,
+        };
+    }
+    DisplaySubtotal {
+        available: 1,
+        amount: subtotal.plus(cr_apple_price_total(sample.accumulated)),
+    }
 }

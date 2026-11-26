@@ -1,6 +1,12 @@
 import CodeRimUsageCore
 import Foundation
 
+#if CODERIM_RUST_ACCOUNTING
+private typealias DisplayRates = RustCostEstimator.DisplayRates
+#else
+private struct DisplayRates {}
+#endif
+
 /// A displayable subtotal with explicit omissions. The billing estimator stays
 /// all-or-nothing; callers must not present this subtotal as a complete cost.
 struct CostDisplaySummary: Equatable, Sendable {
@@ -22,9 +28,20 @@ struct CostDisplaySummary: Equatable, Sendable {
         quality: DataQuality,
         excludingModelIDs: Set<String> = []
     ) {
-        guard quality != .unavailable else {
-            amountUSD = nil
-            excludedModels = []
+        var rates = DisplayRates()
+        self.init(models: models, through: through, quality: quality, excludingModelIDs: excludingModelIDs,
+                  rates: &rates)
+    }
+
+    fileprivate init(empty quality: DataQuality) {
+        amountUSD = quality == .unavailable ? nil : .zero
+        excludedModels = []
+    }
+
+    fileprivate init(models: [ModelUsageSummary], through: Date, quality: DataQuality,
+                     excludingModelIDs: Set<String>, rates: inout DisplayRates) {
+        guard quality != .unavailable, !models.isEmpty else {
+            self = CostDisplaySummary(empty: quality)
             return
         }
 
@@ -32,13 +49,25 @@ struct CostDisplaySummary: Equatable, Sendable {
         var pricedCount = 0
         var excluded: [ModelUsageSummary] = []
         for model in models where !model.usage.isZero {
-            if !excludingModelIDs.contains(model.id),
-               let amount = estimatedCost(for: [model], through: through, quality: quality) {
+            guard !excludingModelIDs.contains(model.id) else {
+                excluded.append(model)
+                continue
+            }
+#if CODERIM_RUST_ACCOUNTING
+            if rates.add(modelID: model.modelID ?? "unknown", usage: model.usage, high: model.highContextUsage,
+                         unknownContext: model.hasUnknownPricingContext, to: &subtotal) {
+                pricedCount += 1
+            } else {
+                excluded.append(model)
+            }
+#else
+            if let amount = estimatedCost(for: [model], through: through, quality: quality) {
                 subtotal += amount
                 pricedCount += 1
             } else {
                 excluded.append(model)
             }
+#endif
         }
         amountUSD = pricedCount > 0 || excluded.isEmpty ? subtotal : nil
         excludedModels = excluded
@@ -59,11 +88,20 @@ struct CostChartSummary: Sendable {
     var hasUnavailableIntervals: Bool { buckets.contains { $0.cost.amountUSD == nil } }
 
     init(snapshot: AnalyticsSnapshot) {
-        let total = CostDisplaySummary(models: snapshot.models, through: snapshot.through, quality: snapshot.quality)
+        if snapshot.models.isEmpty && snapshot.buckets.isEmpty {
+            total = CostDisplaySummary(empty: snapshot.quality)
+            buckets = []
+            return
+        }
+        var rates = DisplayRates()
+        let total = CostDisplaySummary(models: snapshot.models, through: snapshot.through, quality: snapshot.quality,
+                                       excludingModelIDs: [], rates: &rates)
         self.total = total
         // Use the same model coverage in the chart and the range subtotal.
         // Otherwise a model with incomplete metadata in one interval could
         // appear in other bars while being excluded from the displayed subtotal.
+        guard !snapshot.buckets.isEmpty else { buckets = []; return }
+        let excludedModelIDs = total.excludedModelIDs
         buckets = snapshot.buckets.map { bucket in
             CostChartBucket(
                 bucket: bucket,
@@ -71,7 +109,7 @@ struct CostChartSummary: Sendable {
                     models: bucket.models,
                     through: bucket.end,
                     quality: snapshot.quality,
-                    excludingModelIDs: total.excludedModelIDs
+                    excludingModelIDs: excludedModelIDs, rates: &rates
                 )
             )
         }

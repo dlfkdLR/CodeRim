@@ -46,6 +46,29 @@ enum RustCostEstimator {
         return CostEstimate(amountUSD: cr_apple_price_total(total), breakdown: breakdown, coverage: .complete, pricingBasis: basis)
     }
 
+    // One chart can contain the same model in its total and every daily bucket.
+    // This immutable-catalog cache is local to that rendering operation.
+    struct DisplayRates {
+        private var byModel: [String: cr_prepared_rates] = [:]
+
+        mutating func add(modelID: String, usage: TokenUsage, high: TokenUsage, unknownContext: Bool,
+                          to subtotal: inout Decimal) -> Bool {
+            let rates: cr_prepared_rates
+            if let prepared = byModel[modelID] {
+                rates = prepared
+            } else {
+                guard let price = PricingCatalog.current.pricing(for: modelID) else { return false }
+                rates = RustCostEstimator.prepare(price)
+                if byModel.count < 256 { byModel[modelID] = rates }
+            }
+            let result = cr_apple_add_display_price(RustCostEstimator.pack(usage), RustCostEstimator.pack(high),
+                                                    unknownContext ? 1 : 0, rates, subtotal) { Decimal($0) }
+            guard result.available == 1 else { return false }
+            subtotal = result.amount
+            return true
+        }
+    }
+
     private static func prepare(_ price: ModelPricing) -> cr_prepared_rates {
         let rates = cr_pricing_rates(
             input: price.inputUSDPerMillionTokens, cached: price.cachedInputUSDPerMillionTokens,

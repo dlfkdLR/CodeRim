@@ -33,4 +33,8 @@ cr_price_result cr_apple_price_sample(cr_usage total, cr_usage high, int64_t unk
                                      cr_prepared_rates rates, cr_price_breakdown accumulated,
                                      cr_price_integer make_decimal);
 NSDecimal cr_apple_price_total(cr_price_breakdown value);
+typedef struct { int64_t available; NSDecimal amount; } cr_display_subtotal;
+cr_display_subtotal cr_apple_add_display_price(cr_usage total, cr_usage high, int64_t unknown_context,
+                                            cr_prepared_rates rates, NSDecimal subtotal,
+                                            cr_price_integer make_decimal);
 #endif

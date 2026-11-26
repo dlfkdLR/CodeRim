@@ -169,7 +169,7 @@ def compare_hosts(work):
             raise SystemExit(f"{suite}: mismatch between Swift and Rust.")
         print(f"{suite}: {len(json.loads(outputs[0]))} records matched including timestamp bits.")
 
-    for suite in ["pricing-contract", "claude-parser-contract", "analytics-chart-contract", "notch-card-contract",
+    for suite in ["pricing-contract", "cost-display", "claude-parser-contract", "analytics-chart-contract", "notch-card-contract",
                   "line-breaks-contract", "storage-identity-contract", "activity-distribution", "quota-window",
                   "transcript-contract", "threshold-contract", "analytics-db-contract", "window-placement",
                   "notch-cursor", "turn-activity", "log-timestamp", "provider-order",
