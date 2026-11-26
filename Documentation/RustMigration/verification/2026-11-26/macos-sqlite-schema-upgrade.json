@@ -1,0 +1,502 @@
+{
+  "productCommit": "24ca8745459f0855a1041a59a28163dec4f4c70c",
+  "release": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "baseline": "e6af546998b2314b778e2617628bfd8c02723bae",
+  "packet": "321086351e30bfa40667f4e1d831614e61e3cb531e0cf70d74802d81ac6f4d20",
+  "originalSchemaSha256": "e14ce6b0dd374a1a705fa4c3b20d0725d2fce22f0add8b3f9aec4a14239e0a9d",
+  "archives": {
+    "runtime.a": "b9cba14db3eab20ef636a9ac00ac78947d060617f02d4cec701e8917abd66f82",
+    "abi": "aa2f4e2e5584a002aa23dc393bacf2e225c4c4e1846296440e7a3110b6fd64dc"
+  },
+  "plan": {
+    "versions": 18,
+    "SQLStatements": 50,
+    "historicalIdentityOperations": 3,
+    "host": "SQLite configure/open stays native; default links the synchronous Rust stage/rollback runtime and optional Swift uses the same SQL table."
+  },
+  "direct": {
+    "arm64": {
+      "fullSchemaComparisonsPerVariant": 96,
+      "variants": [
+        "public v2.1.41",
+        "optional Swift",
+        "default Rust"
+      ],
+      "legacyRowErrorReopenComparisons": 48,
+      "wholeAnalyticsSnapshotsOrErrors": 276,
+      "rawCApiInvocations": 11,
+      "timing": {
+        "0-x1": {
+          "samplesNs": {
+            "release": [
+              2836125,
+              2737708,
+              2671583,
+              2254500,
+              2638292,
+              3007875,
+              3087792,
+              2547000,
+              2540500
+            ],
+            "swift": [
+              2917916,
+              4545125,
+              2748458,
+              2876875,
+              3132958,
+              3625083,
+              2469583,
+              2779959,
+              2547667
+            ],
+            "rust": [
+              2394334,
+              4010083,
+              2541458,
+              2516167,
+              2953208,
+              2579000,
+              3874333,
+              2948208,
+              2939292
+            ]
+          },
+          "medianUsPerCall": {
+            "release": 2671.583,
+            "swift": 2876.875,
+            "rust": 2939.292
+          }
+        },
+        "2-x1": {
+          "samplesNs": {
+            "release": [
+              2638834,
+              3409208,
+              1752167,
+              2214834,
+              2108125,
+              2061292,
+              2045542,
+              1946375,
+              2182000
+            ],
+            "swift": [
+              2359834,
+              2356209,
+              1928875,
+              2823500,
+              1940375,
+              2368833,
+              2081000,
+              2022500,
+              2015833
+            ],
+            "rust": [
+              3585500,
+              2238583,
+              2135625,
+              2196083,
+              2091000,
+              2085709,
+              1855041,
+              2021041,
+              2159875
+            ]
+          },
+          "medianUsPerCall": {
+            "release": 2108.125,
+            "swift": 2081.0,
+            "rust": 2135.625
+          }
+        },
+        "17-x1": {
+          "samplesNs": {
+            "release": [
+              542333,
+              501208,
+              657334,
+              701084,
+              811666,
+              775208,
+              538875,
+              7896209,
+              720792
+            ],
+            "swift": [
+              690708,
+              656458,
+              797708,
+              723250,
+              665584,
+              920208,
+              2183792,
+              956500,
+              17490417
+            ],
+            "rust": [
+              2306208,
+              768666,
+              814375,
+              523500,
+              657083,
+              702167,
+              1165500,
+              629416,
+              733000
+            ]
+          },
+          "medianUsPerCall": {
+            "release": 701.084,
+            "swift": 797.708,
+            "rust": 733.0
+          }
+        },
+        "18-x1": {
+          "samplesNs": {
+            "release": [
+              9666,
+              8000,
+              8333,
+              7333,
+              7625,
+              8084,
+              7166,
+              7958,
+              7292
+            ],
+            "swift": [
+              8375,
+              8333,
+              6916,
+              6875,
+              7208,
+              7584,
+              7208,
+              6958,
+              7250
+            ],
+            "rust": [
+              56333,
+              8958,
+              8833,
+              8500,
+              9250,
+              10292,
+              8875,
+              9208,
+              8917
+            ]
+          },
+          "medianUsPerCall": {
+            "release": 7.958,
+            "swift": 7.208,
+            "rust": 8.958
+          }
+        },
+        "18-x1000": {
+          "samplesNs": {
+            "release": [
+              1581250,
+              1481750,
+              1557292,
+              1945625,
+              1497792,
+              1538666,
+              1506875,
+              1574875,
+              1572792
+            ],
+            "swift": [
+              1488583,
+              1494833,
+              1521750,
+              1416667,
+              1441417,
+              1590250,
+              1595875,
+              1589125,
+              1529667
+            ],
+            "rust": [
+              1583708,
+              1547917,
+              1544417,
+              1467500,
+              1451875,
+              1500916,
+              1507875,
+              1547875,
+              1540500
+            ]
+          },
+          "medianUsPerCall": {
+            "release": 1.557292,
+            "swift": 1.52175,
+            "rust": 1.5405
+          }
+        }
+      },
+      "contentionScenarios": [
+        "two independent upgrade processes both initially observed version 0",
+        "second writer commits a future version after the first reader checks it",
+        "busy-handler confirms real write-lock wait while another transaction commits version 18"
+      ]
+    },
+    "x86_64": {
+      "fullSchemaComparisonsPerVariant": 96,
+      "variants": [
+        "public v2.1.41",
+        "optional Swift",
+        "default Rust"
+      ],
+      "legacyRowErrorReopenComparisons": 48,
+      "wholeAnalyticsSnapshotsOrErrors": 276,
+      "rawCApiInvocations": 11,
+      "timing": {
+        "0-x1": {
+          "samplesNs": {
+            "release": [
+              3896583,
+              3564708,
+              4302708,
+              3372584,
+              3920666,
+              4326500,
+              3316792,
+              3310375,
+              3352375
+            ],
+            "swift": [
+              3388875,
+              3644042,
+              3330583,
+              3393417,
+              4858792,
+              3313167,
+              3351958,
+              3374958,
+              3227125
+            ],
+            "rust": [
+              3537333,
+              3385542,
+              3748292,
+              3700000,
+              3635375,
+              3472625,
+              3523042,
+              3326000,
+              3163709
+            ]
+          },
+          "medianUsPerCall": {
+            "release": 3564.708,
+            "swift": 3374.958,
+            "rust": 3523.042
+          }
+        },
+        "2-x1": {
+          "samplesNs": {
+            "release": [
+              3108292,
+              3011375,
+              3845625,
+              2920958,
+              2920500,
+              2903500,
+              2911875,
+              2960959,
+              3512000
+            ],
+            "swift": [
+              4456875,
+              3026708,
+              3047375,
+              2986042,
+              3030208,
+              3012500,
+              3036417,
+              3675167,
+              2966667
+            ],
+            "rust": [
+              3308125,
+              2948792,
+              3237292,
+              3107167,
+              3002416,
+              3005625,
+              2960833,
+              3007125,
+              2950291
+            ]
+          },
+          "medianUsPerCall": {
+            "release": 2960.959,
+            "swift": 3030.208,
+            "rust": 3005.625
+          }
+        },
+        "17-x1": {
+          "samplesNs": {
+            "release": [
+              746834,
+              625792,
+              596792,
+              639666,
+              616750,
+              583459,
+              619375,
+              568125,
+              581750
+            ],
+            "swift": [
+              575292,
+              661541,
+              628209,
+              642375,
+              726167,
+              618167,
+              646625,
+              593167,
+              824917
+            ],
+            "rust": [
+              636250,
+              605833,
+              670125,
+              644375,
+              659416,
+              580625,
+              695625,
+              629708,
+              664917
+            ]
+          },
+          "medianUsPerCall": {
+            "release": 616.75,
+            "swift": 642.375,
+            "rust": 644.375
+          }
+        },
+        "18-x1": {
+          "samplesNs": {
+            "release": [
+              11209,
+              11000,
+              19583,
+              11625,
+              11625,
+              9959,
+              10833,
+              11291,
+              11250
+            ],
+            "swift": [
+              12125,
+              11500,
+              13958,
+              11417,
+              12917,
+              11958,
+              11666,
+              11167,
+              12625
+            ],
+            "rust": [
+              14625,
+              11958,
+              14375,
+              13666,
+              11750,
+              12000,
+              15208,
+              11333,
+              14500
+            ]
+          },
+          "medianUsPerCall": {
+            "release": 11.25,
+            "swift": 11.958,
+            "rust": 13.666
+          }
+        },
+        "18-x1000": {
+          "samplesNs": {
+            "release": [
+              2214792,
+              2257000,
+              2235584,
+              2199166,
+              2187458,
+              2171000,
+              2279542,
+              2212042,
+              2241125
+            ],
+            "swift": [
+              2217542,
+              2222041,
+              2272166,
+              2203500,
+              2247458,
+              2203208,
+              2242041,
+              2203375,
+              2229875
+            ],
+            "rust": [
+              2233834,
+              2197250,
+              2203875,
+              2270041,
+              2263000,
+              2226125,
+              2278375,
+              2223375,
+              2191792
+            ]
+          },
+          "medianUsPerCall": {
+            "release": 2.214792,
+            "swift": 2.222041,
+            "rust": 2.226125
+          }
+        }
+      },
+      "contentionScenarios": [
+        "two independent upgrade processes both initially observed version 0",
+        "second writer commits a future version after the first reader checks it",
+        "busy-handler confirms real write-lock wait while another transaction commits version 18"
+      ]
+    }
+  },
+  "invariants": [
+    "released fixtures for every 0..18 seed and all 18 populated historical DBs",
+    "denied user_version write and COMMIT at every stage, rollback/reopen/retry from released checkpoint",
+    "active caller transaction, busy timeout, interrupted BEGIN recheck, writer completion after busy handler, stale openers and concurrently advanced future version",
+    "full original error categories/text and step traces, including failed rollback after a view-index error, SQL statement length limits, embedded NUL/Unicode identity and uniqueness",
+    "19 immutable fixture backups SHA checked at test exit; no personal histories, live DBs or remote services accessed"
+  ],
+  "limits": "Apple Silicon native arm64 and x86_64 via Rosetta. Synthetic real SQLite, not physical Intel. First-touch and filesystem time show host variance; no general speedup claim.",
+  "rustTests": 60,
+  "clippy": "passed -D warnings",
+  "sourceHashes": {
+    "Rust/bridge/src/sqlite_schema_runtime.rs": "aabb2f6a1b182047aef2939e6ffe5476ea00f8d6ac5b1bb56f49a81bc0d69492",
+    "Sources/CodeRim/Persistence/SQLiteSchema.swift": "1eb1f4325c01afc37ff0c776b594b3daf2dd78ea98c741733a25553827d35998",
+    "Rust/bridge/src/sqlite_legacy_ids.rs": "e7dd9d91cfb0ae290b8897ac00fa9b65f8df96e653b4176bb4244d3e2df272c6"
+  },
+  "independent": {
+    "sha256": "5f2c7c9af290b7f4c8f130d46505f50eafa497c6d6e96d2e9cc2bf36164dcc07",
+    "packetDigest": "321086351e30bfa40667f4e1d831614e61e3cb531e0cf70d74802d81ac6f4d20",
+    "verification": "37 scheduled interruption positions per architecture including 35 immediate process exits; both released-to-candidate and candidate-to-released reopen, rows/catalog/PRAGMA/integrity agreed."
+  },
+  "harness": {
+    "runId": "run-d1c135918077452399866505e3b4921a",
+    "gate": "INCONCLUSIVE",
+    "record": "gate.json",
+    "candidateAndBaselineAdapter": "No repository root test command detected by the generic adapter; direct native results are recorded above. A human TTY attestation is required for formal import."
+  },
+  "integrationCommit": "13987e20"
+}

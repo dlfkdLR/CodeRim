@@ -1,0 +1,507 @@
+{
+  "scope": "Independent network-blocked profiles on one Mac, one synthetic Codex session each.",
+  "durationMinutesRequested": 30,
+  "cadenceSeconds": 30,
+  "sha256": {
+    "reference": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64",
+    "candidate": "aec9c4802bfb25e00f6fb2b506fda296e031343572e6335f7f6191e1061f7c92"
+  },
+  "completed": true,
+  "observedSeconds": 1800.9577655829999,
+  "reference": "v2.1.41",
+  "candidate": "f50fd5c",
+  "checks": "Each observation verified the complete token delta list, cumulative watermark, terminal file offset, schema 18 and integrity_check. One visible notch and locked console on both processes.",
+  "sampleCount": 61,
+  "firstAndLastProcessCounters": {
+    "reference": [
+      {
+        "session_locked": 1,
+        "visible_notches": 1,
+        "cpu_ms": 372.513,
+        "resident_bytes": 168869888,
+        "footprint_bytes": 23937984,
+        "peak_footprint_bytes": 23970728,
+        "interrupt_wakeups": 40,
+        "package_idle_wakeups": 0,
+        "disk_read_bytes": 131936256,
+        "disk_written_bytes": 16384,
+        "logical_writes": 499724,
+        "energy_nj": 1286511956
+      },
+      {
+        "session_locked": 1,
+        "visible_notches": 1,
+        "cpu_ms": 12004.41754167,
+        "resident_bytes": 30490624,
+        "footprint_bytes": 23249760,
+        "peak_footprint_bytes": 24151120,
+        "interrupt_wakeups": 8925,
+        "package_idle_wakeups": 688,
+        "disk_read_bytes": 863744000,
+        "disk_written_bytes": 16384,
+        "logical_writes": 4972556,
+        "energy_nj": 18760100529
+      }
+    ],
+    "candidate": [
+      {
+        "session_locked": 1,
+        "visible_notches": 1,
+        "cpu_ms": 271.810375,
+        "resident_bytes": 91734016,
+        "footprint_bytes": 23217016,
+        "peak_footprint_bytes": 23233400,
+        "interrupt_wakeups": 43,
+        "package_idle_wakeups": 0,
+        "disk_read_bytes": 31629312,
+        "disk_written_bytes": 16384,
+        "logical_writes": 495628,
+        "energy_nj": 930941368
+      },
+      {
+        "session_locked": 1,
+        "visible_notches": 1,
+        "cpu_ms": 4306.02079167,
+        "resident_bytes": 29786112,
+        "footprint_bytes": 22135696,
+        "peak_footprint_bytes": 23282552,
+        "interrupt_wakeups": 8297,
+        "package_idle_wakeups": 602,
+        "disk_read_bytes": 59076608,
+        "disk_written_bytes": 16384,
+        "logical_writes": 5210124,
+        "energy_nj": 5610164177
+      }
+    ]
+  },
+  "samples": [
+    {
+      "step": 0,
+      "tokens": 1,
+      "offset": 341,
+      "referenceSec": 2.017,
+      "candidateSec": 2.084
+    },
+    {
+      "step": 1,
+      "tokens": 3,
+      "offset": 626,
+      "referenceSec": 31.124,
+      "candidateSec": 31.165
+    },
+    {
+      "step": 2,
+      "tokens": 6,
+      "offset": 911,
+      "referenceSec": 61.116,
+      "candidateSec": 61.149
+    },
+    {
+      "step": 3,
+      "tokens": 10,
+      "offset": 1197,
+      "referenceSec": 90.858,
+      "candidateSec": 90.921
+    },
+    {
+      "step": 4,
+      "tokens": 15,
+      "offset": 1483,
+      "referenceSec": 121.087,
+      "candidateSec": 121.12
+    },
+    {
+      "step": 5,
+      "tokens": 21,
+      "offset": 1769,
+      "referenceSec": 150.847,
+      "candidateSec": 150.883
+    },
+    {
+      "step": 6,
+      "tokens": 28,
+      "offset": 2055,
+      "referenceSec": 181.116,
+      "candidateSec": 181.152
+    },
+    {
+      "step": 7,
+      "tokens": 29,
+      "offset": 2341,
+      "referenceSec": 211.07,
+      "candidateSec": 211.108
+    },
+    {
+      "step": 8,
+      "tokens": 31,
+      "offset": 2627,
+      "referenceSec": 240.869,
+      "candidateSec": 240.91
+    },
+    {
+      "step": 9,
+      "tokens": 34,
+      "offset": 2913,
+      "referenceSec": 270.828,
+      "candidateSec": 270.859
+    },
+    {
+      "step": 10,
+      "tokens": 38,
+      "offset": 3199,
+      "referenceSec": 300.83,
+      "candidateSec": 300.862
+    },
+    {
+      "step": 11,
+      "tokens": 43,
+      "offset": 3485,
+      "referenceSec": 330.824,
+      "candidateSec": 330.854
+    },
+    {
+      "step": 12,
+      "tokens": 49,
+      "offset": 3771,
+      "referenceSec": 361.087,
+      "candidateSec": 361.118
+    },
+    {
+      "step": 13,
+      "tokens": 56,
+      "offset": 4057,
+      "referenceSec": 391.084,
+      "candidateSec": 391.118
+    },
+    {
+      "step": 14,
+      "tokens": 57,
+      "offset": 4343,
+      "referenceSec": 421.107,
+      "candidateSec": 421.141
+    },
+    {
+      "step": 15,
+      "tokens": 59,
+      "offset": 4629,
+      "referenceSec": 450.832,
+      "candidateSec": 450.87
+    },
+    {
+      "step": 16,
+      "tokens": 62,
+      "offset": 4915,
+      "referenceSec": 480.823,
+      "candidateSec": 480.854
+    },
+    {
+      "step": 17,
+      "tokens": 66,
+      "offset": 5201,
+      "referenceSec": 510.826,
+      "candidateSec": 510.863
+    },
+    {
+      "step": 18,
+      "tokens": 71,
+      "offset": 5487,
+      "referenceSec": 540.828,
+      "candidateSec": 540.858
+    },
+    {
+      "step": 19,
+      "tokens": 77,
+      "offset": 5773,
+      "referenceSec": 570.827,
+      "candidateSec": 570.856
+    },
+    {
+      "step": 20,
+      "tokens": 84,
+      "offset": 6059,
+      "referenceSec": 601.085,
+      "candidateSec": 601.117
+    },
+    {
+      "step": 21,
+      "tokens": 85,
+      "offset": 6345,
+      "referenceSec": 631.085,
+      "candidateSec": 631.115
+    },
+    {
+      "step": 22,
+      "tokens": 87,
+      "offset": 6631,
+      "referenceSec": 660.826,
+      "candidateSec": 660.858
+    },
+    {
+      "step": 23,
+      "tokens": 90,
+      "offset": 6917,
+      "referenceSec": 691.094,
+      "candidateSec": 691.126
+    },
+    {
+      "step": 24,
+      "tokens": 94,
+      "offset": 7203,
+      "referenceSec": 720.846,
+      "candidateSec": 720.877
+    },
+    {
+      "step": 25,
+      "tokens": 99,
+      "offset": 7489,
+      "referenceSec": 750.818,
+      "candidateSec": 750.846
+    },
+    {
+      "step": 26,
+      "tokens": 105,
+      "offset": 7776,
+      "referenceSec": 780.845,
+      "candidateSec": 780.878
+    },
+    {
+      "step": 27,
+      "tokens": 112,
+      "offset": 8063,
+      "referenceSec": 810.818,
+      "candidateSec": 810.852
+    },
+    {
+      "step": 28,
+      "tokens": 113,
+      "offset": 8350,
+      "referenceSec": 840.839,
+      "candidateSec": 840.87
+    },
+    {
+      "step": 29,
+      "tokens": 115,
+      "offset": 8637,
+      "referenceSec": 870.851,
+      "candidateSec": 870.883
+    },
+    {
+      "step": 30,
+      "tokens": 118,
+      "offset": 8924,
+      "referenceSec": 901.199,
+      "candidateSec": 900.895
+    },
+    {
+      "step": 31,
+      "tokens": 122,
+      "offset": 9211,
+      "referenceSec": 930.846,
+      "candidateSec": 930.878
+    },
+    {
+      "step": 32,
+      "tokens": 127,
+      "offset": 9498,
+      "referenceSec": 961.073,
+      "candidateSec": 961.104
+    },
+    {
+      "step": 33,
+      "tokens": 133,
+      "offset": 9785,
+      "referenceSec": 990.827,
+      "candidateSec": 990.859
+    },
+    {
+      "step": 34,
+      "tokens": 140,
+      "offset": 10072,
+      "referenceSec": 1021.114,
+      "candidateSec": 1021.148
+    },
+    {
+      "step": 35,
+      "tokens": 141,
+      "offset": 10359,
+      "referenceSec": 1051.108,
+      "candidateSec": 1051.142
+    },
+    {
+      "step": 36,
+      "tokens": 143,
+      "offset": 10646,
+      "referenceSec": 1080.853,
+      "candidateSec": 1080.886
+    },
+    {
+      "step": 37,
+      "tokens": 146,
+      "offset": 10933,
+      "referenceSec": 1110.825,
+      "candidateSec": 1110.857
+    },
+    {
+      "step": 38,
+      "tokens": 150,
+      "offset": 11220,
+      "referenceSec": 1141.118,
+      "candidateSec": 1140.831
+    },
+    {
+      "step": 39,
+      "tokens": 155,
+      "offset": 11507,
+      "referenceSec": 1170.846,
+      "candidateSec": 1170.879
+    },
+    {
+      "step": 40,
+      "tokens": 161,
+      "offset": 11794,
+      "referenceSec": 1200.827,
+      "candidateSec": 1200.864
+    },
+    {
+      "step": 41,
+      "tokens": 168,
+      "offset": 12081,
+      "referenceSec": 1231.106,
+      "candidateSec": 1231.141
+    },
+    {
+      "step": 42,
+      "tokens": 169,
+      "offset": 12368,
+      "referenceSec": 1260.83,
+      "candidateSec": 1260.867
+    },
+    {
+      "step": 43,
+      "tokens": 171,
+      "offset": 12655,
+      "referenceSec": 1290.845,
+      "candidateSec": 1290.877
+    },
+    {
+      "step": 44,
+      "tokens": 174,
+      "offset": 12942,
+      "referenceSec": 1321.12,
+      "candidateSec": 1321.153
+    },
+    {
+      "step": 45,
+      "tokens": 178,
+      "offset": 13229,
+      "referenceSec": 1350.86,
+      "candidateSec": 1350.891
+    },
+    {
+      "step": 46,
+      "tokens": 183,
+      "offset": 13516,
+      "referenceSec": 1381.131,
+      "candidateSec": 1380.827
+    },
+    {
+      "step": 47,
+      "tokens": 189,
+      "offset": 13803,
+      "referenceSec": 1411.084,
+      "candidateSec": 1411.116
+    },
+    {
+      "step": 48,
+      "tokens": 196,
+      "offset": 14090,
+      "referenceSec": 1443.479,
+      "candidateSec": 1443.517
+    },
+    {
+      "step": 49,
+      "tokens": 197,
+      "offset": 14377,
+      "referenceSec": 1470.843,
+      "candidateSec": 1470.876
+    },
+    {
+      "step": 50,
+      "tokens": 199,
+      "offset": 14664,
+      "referenceSec": 1501.087,
+      "candidateSec": 1501.121
+    },
+    {
+      "step": 51,
+      "tokens": 202,
+      "offset": 14951,
+      "referenceSec": 1530.832,
+      "candidateSec": 1530.862
+    },
+    {
+      "step": 52,
+      "tokens": 206,
+      "offset": 15238,
+      "referenceSec": 1560.826,
+      "candidateSec": 1560.858
+    },
+    {
+      "step": 53,
+      "tokens": 211,
+      "offset": 15525,
+      "referenceSec": 1590.836,
+      "candidateSec": 1590.878
+    },
+    {
+      "step": 54,
+      "tokens": 217,
+      "offset": 15812,
+      "referenceSec": 1620.843,
+      "candidateSec": 1620.876
+    },
+    {
+      "step": 55,
+      "tokens": 224,
+      "offset": 16099,
+      "referenceSec": 1651.096,
+      "candidateSec": 1651.128
+    },
+    {
+      "step": 56,
+      "tokens": 225,
+      "offset": 16386,
+      "referenceSec": 1680.842,
+      "candidateSec": 1680.874
+    },
+    {
+      "step": 57,
+      "tokens": 227,
+      "offset": 16673,
+      "referenceSec": 1710.855,
+      "candidateSec": 1710.887
+    },
+    {
+      "step": 58,
+      "tokens": 230,
+      "offset": 16960,
+      "referenceSec": 1741.12,
+      "candidateSec": 1741.154
+    },
+    {
+      "step": 59,
+      "tokens": 234,
+      "offset": 17247,
+      "referenceSec": 1771.088,
+      "candidateSec": 1771.127
+    },
+    {
+      "step": 60,
+      "tokens": 239,
+      "offset": 17534,
+      "referenceSec": 1800.913,
+      "candidateSec": 1800.957
+    }
+  ],
+  "limitation": "One concurrent synthetic run on one Mac. Kernel process energy counters do not measure battery discharge. This run does not isolate unrelated machine load or OS cache state."
+}

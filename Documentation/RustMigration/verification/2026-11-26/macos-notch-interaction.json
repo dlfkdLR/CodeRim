@@ -1,0 +1,590 @@
+{
+  "commit": "aa2cfe6d0784cb835e08bf61d1d97a487a50047f",
+  "parent": "32071aaf5fb302cc90f7b5560c518261c65254c5",
+  "publishedTag": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "scope": "Default macOS notch hover, fold, tooltip-clear and completion peek scheduling, menu and pin holds, hidden/always visibility and independent native windows. Swift owns native windows, clock, animations, focus actions and menu dispatch; Rust owns each timer generation and presentation transitions. Standalone Swift builds retain an equivalent reducer.",
+  "binaryEvidence": {
+    "released": {
+      "appSHA256": "811c632153a63382c1b1ee5fbe61855fc93e3310f96e69dd6cdfbae27af84d2a",
+      "suiteSHA256": "2854ade580ebb0e48d3f0799ccbf33dac1ae3965a78c73d1fb736d923aa61fb9",
+      "appArchitecture": "arm64",
+      "suiteArchitecture": "arm64",
+      "appIncludesRustTransition": false,
+      "suiteIncludesRustTransition": false
+    },
+    "candidate": {
+      "appSHA256": "3ceb0ee9c4bf049780d9081633bc3a01c4447ffc1a087894a1759801101113ad",
+      "suiteSHA256": "dcc12bd63b788be61b330119203789326d84e3ea1e3625fc157e64775063ddf0",
+      "appArchitecture": "arm64",
+      "suiteArchitecture": "arm64",
+      "appIncludesRustTransition": true,
+      "suiteIncludesRustTransition": true
+    }
+  },
+  "nativeAppKit": {
+    "testSource": "Complete product sources built from v2.1.41 and candidate with one identical temporary synthetic XCTest. Remaining repository tests were unchanged except the explicit new restart regression test in the candidate. The real AppKit mouseDown and NSMenu.performActionForItem exercise product routing.",
+    "sameStateRows": 11,
+    "actions": [
+      "initial",
+      "entered",
+      "ring-click",
+      "menu-pin",
+      "unpin-fold",
+      "replaced-peek",
+      "last-peek-expired",
+      "always-outranks-peek",
+      "hidden-outranks-peek",
+      "hover-mode",
+      "restart"
+    ],
+    "sameControlsGeometryRetention": true,
+    "twoIndependentWindows": true,
+    "captures": "Two-times scale, 650x840 owned native cached view and SwiftUI renderer. No desktop compositor captures while console locked.",
+    "swiftUIViewPairs": 5,
+    "swiftUIExact": 5,
+    "settledNativePairs": 10,
+    "settledNativeExact": 10,
+    "immediateNativeChangedPixels": {
+      "always-outranks-peek-appkit-immediate.png": 0,
+      "entered-appkit-immediate.png": 74695,
+      "initial-appkit-immediate.png": 0,
+      "menu-pin-appkit-immediate.png": 66078,
+      "unpin-fold-appkit-immediate.png": 2127
+    },
+    "immediateSameVersionResponse": {
+      "initial": {
+        "releasedImmediateRepeatChanged": 0,
+        "candidateImmediateRepeatChanged": 0,
+        "immediateComparisonChanged": 0,
+        "crossDifferenceUnchangedBetweenBothRepeats": 0
+      },
+      "entered": {
+        "releasedImmediateRepeatChanged": 86073,
+        "candidateImmediateRepeatChanged": 95996,
+        "immediateComparisonChanged": 74695,
+        "crossDifferenceUnchangedBetweenBothRepeats": 0
+      },
+      "menu-pin": {
+        "releasedImmediateRepeatChanged": 66078,
+        "candidateImmediateRepeatChanged": 65921,
+        "immediateComparisonChanged": 66078,
+        "crossDifferenceUnchangedBetweenBothRepeats": 0
+      },
+      "unpin-fold": {
+        "releasedImmediateRepeatChanged": 489,
+        "candidateImmediateRepeatChanged": 1058,
+        "immediateComparisonChanged": 2127,
+        "crossDifferenceUnchangedBetweenBothRepeats": 1627
+      },
+      "always-outranks-peek": {
+        "releasedImmediateRepeatChanged": 0,
+        "candidateImmediateRepeatChanged": 0,
+        "immediateComparisonChanged": 0,
+        "crossDifferenceUnchangedBetweenBothRepeats": 0
+      }
+    },
+    "consoleScreenLocked": true,
+    "limitations": [
+      "The two XCTest edge crossfade/arrival checks fail identically on v2.1.41, the pre-change build, and the candidate. The real screen and its animation timing remain unverified.",
+      "Immediate AppKit frames differ in three transient states; all five states agree after settling in each of two observations."
+    ]
+  },
+  "timerRegression": {
+    "sequence": "Leave an expanded, unpinned notch. Stop the window controller while its fold callback is pending and show it again without moving back over it. The previous code retained a canceled work item as its pending fold. The new session invalidates all timer identities at stop. The application preference toggle also calls apply(.hidden) and apply(.onHover), so this direct controller failure is not asserted for every normal visibility toggle.",
+    "afterRestartReference": {
+      "always": false,
+      "expandedAfterRestartOutside": true,
+      "menu": false,
+      "pinned": false
+    },
+    "afterRestartCandidate": {
+      "always": false,
+      "expandedAfterRestartOutside": false,
+      "menu": false,
+      "pinned": false
+    },
+    "checkedInRegression": "Tests/CodeRimTests/Notch/NotchDismissalTests.swift:testRestartWhileFoldIsPendingStillFoldsOutside"
+  },
+  "rustWorkspaceTestsPassed": 67,
+  "clippyDenyWarnings": true,
+  "rustfmt": true,
+  "legacyNativeTests": {
+    "passedSource": {
+      "total": 23,
+      "failed": 2
+    },
+    "previous": {
+      "total": 23,
+      "failed": 2
+    },
+    "candidate": {
+      "total": 23,
+      "failed": 2
+    }
+  },
+  "additionalCandidateRegressionPass": true,
+  "matrix": {
+    "steps": 60000,
+    "perProgram": {
+      "arm64/rust": "5f89b4da26f0824eb3311401d84c4f7195b1edb20b35bfb58fbcc26b1d9fdc7c",
+      "arm64/swift": "5f89b4da26f0824eb3311401d84c4f7195b1edb20b35bfb58fbcc26b1d9fdc7c",
+      "x86_64/rust": "5f89b4da26f0824eb3311401d84c4f7195b1edb20b35bfb58fbcc26b1d9fdc7c",
+      "x86_64/swift": "5f89b4da26f0824eb3311401d84c4f7195b1edb20b35bfb58fbcc26b1d9fdc7c"
+    },
+    "programs": "Swift fallback and Rust-enabled Swift, arm64 native and x86_64 via Rosetta. Each runtime received the same deterministic stream of interleaved windows, current/stale/other timer generations, empty timers and exact peek deadlines."
+  },
+  "timing": {
+    "samples": {
+      "released": [
+        {
+          "nativeMenuToggleWallMs": 58.15756775,
+          "nativePinSelectorCPUUs": 57.155,
+          "repeatedClickBeforePanelNs": 254.16
+        },
+        {
+          "nativeMenuToggleWallMs": 54.4423855,
+          "nativePinSelectorCPUUs": 67.8975,
+          "repeatedClickBeforePanelNs": 244.94
+        },
+        {
+          "nativeMenuToggleWallMs": 60.7350365,
+          "nativePinSelectorCPUUs": 59.998,
+          "repeatedClickBeforePanelNs": 247.52
+        },
+        {
+          "nativeMenuToggleWallMs": 55.93756775,
+          "nativePinSelectorCPUUs": 57.165,
+          "repeatedClickBeforePanelNs": 264.4
+        },
+        {
+          "nativeMenuToggleWallMs": 54.449015625,
+          "nativePinSelectorCPUUs": 68.482,
+          "repeatedClickBeforePanelNs": 240.8
+        },
+        {
+          "nativeMenuToggleWallMs": 57.942489625,
+          "nativePinSelectorCPUUs": 67.666,
+          "repeatedClickBeforePanelNs": 242.56
+        },
+        {
+          "nativeMenuToggleWallMs": 56.41800525,
+          "nativePinSelectorCPUUs": 68.967,
+          "repeatedClickBeforePanelNs": 266.28
+        },
+        {
+          "nativeMenuToggleWallMs": 54.3636145,
+          "nativePinSelectorCPUUs": 70.313,
+          "repeatedClickBeforePanelNs": 264.72
+        },
+        {
+          "nativeMenuToggleWallMs": 52.59834375,
+          "nativePinSelectorCPUUs": 65.4185,
+          "repeatedClickBeforePanelNs": 243.78
+        }
+      ],
+      "candidate": [
+        {
+          "nativeMenuToggleWallMs": 53.71659375,
+          "nativePinSelectorCPUUs": 38.1245,
+          "repeatedClickBeforePanelNs": 139.86
+        },
+        {
+          "nativeMenuToggleWallMs": 54.56108325,
+          "nativePinSelectorCPUUs": 42.4655,
+          "repeatedClickBeforePanelNs": 141.36
+        },
+        {
+          "nativeMenuToggleWallMs": 58.787224,
+          "nativePinSelectorCPUUs": 33.825,
+          "repeatedClickBeforePanelNs": 137.1
+        },
+        {
+          "nativeMenuToggleWallMs": 60.735333375,
+          "nativePinSelectorCPUUs": 36.5105,
+          "repeatedClickBeforePanelNs": 130.66
+        },
+        {
+          "nativeMenuToggleWallMs": 57.61925,
+          "nativePinSelectorCPUUs": 41.662,
+          "repeatedClickBeforePanelNs": 136.44
+        },
+        {
+          "nativeMenuToggleWallMs": 54.1138385,
+          "nativePinSelectorCPUUs": 42.534,
+          "repeatedClickBeforePanelNs": 136.1
+        },
+        {
+          "nativeMenuToggleWallMs": 59.417802125,
+          "nativePinSelectorCPUUs": 42.403,
+          "repeatedClickBeforePanelNs": 137.54
+        },
+        {
+          "nativeMenuToggleWallMs": 57.6537605,
+          "nativePinSelectorCPUUs": 33.379,
+          "repeatedClickBeforePanelNs": 133.5
+        },
+        {
+          "nativeMenuToggleWallMs": 55.3921615,
+          "nativePinSelectorCPUUs": 46.482,
+          "repeatedClickBeforePanelNs": 198.58
+        }
+      ]
+    },
+    "median": {
+      "released": {
+        "nativeMenuToggleWallMs": 55.93756775,
+        "nativePinSelectorCPUUs": 67.666,
+        "repeatedClickBeforePanelNs": 247.52
+      },
+      "candidate": {
+        "nativeMenuToggleWallMs": 57.61925,
+        "nativePinSelectorCPUUs": 41.662,
+        "repeatedClickBeforePanelNs": 137.1
+      }
+    },
+    "scope": "Nine alternating product XCTest processes per build on the same Apple Silicon Mac. CPU time for 2000 actual NSMenu Keep open dispatches to a shown panel, or 50000 repeated handleClick calls before a panel exists."
+  },
+  "independentReview": {
+    "run_id": "run-76dce3e7f9ec4320b0a7d8ae38d87473",
+    "packet_digest": "641077b6e8bc534ffc2a78211ea282da80ca1e596ebc5ddc31f237d0cba9e73f",
+    "reviewer_id": "/root/windows_install/auggie_parser",
+    "dimensions": {
+      "functionality": {
+        "winner": "INCONCLUSIVE",
+        "reason": "Ordinary transitions match; opening, exiting, stop and re-show with a pending fold changes visible behavior on the release-source AppKit implementation.",
+        "evidence": [
+          "candidate/Rust/bridge/src/notch_interaction.rs",
+          "candidate/Sources/CodeRim/Notch/NotchWindowController.swift",
+          "baseline/Sources/CodeRim/Notch/NotchWindowController.swift",
+          "candidate/Tests/CodeRimTests/Notch/NotchDismissalTests.swift"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "No source or UX copy edits.",
+        "evidence": [
+          "candidate/Rust/bridge/src/notch_interaction.rs",
+          "candidate/Sources/CodeRim/Notch/NotchWindowController.swift",
+          "baseline/Sources/CodeRim/Notch/NotchWindowController.swift",
+          "candidate/Tests/CodeRimTests/Notch/NotchDismissalTests.swift"
+        ]
+      },
+      "security": {
+        "winner": "TIE",
+        "reason": "Null state returns no actions. AppKit retains a per-window state on MainActor; C ABI stores only scalars and never retains the pointer. Timer callbacks capture IDs, weak window and execute on main dispatch.",
+        "evidence": [
+          "candidate/Rust/bridge/src/notch_interaction.rs",
+          "candidate/Sources/CodeRim/Notch/NotchWindowController.swift",
+          "baseline/Sources/CodeRim/Notch/NotchWindowController.swift",
+          "candidate/Tests/CodeRimTests/Notch/NotchDismissalTests.swift"
+        ]
+      },
+      "maintainability": {
+        "winner": "A",
+        "reason": "Stable explicit timer decision table and caps in one owned Rust state; wire-order parity and standalone Swift fallback still need tests.",
+        "evidence": [
+          "candidate/Rust/bridge/src/notch_interaction.rs",
+          "candidate/Sources/CodeRim/Notch/NotchWindowController.swift",
+          "baseline/Sources/CodeRim/Notch/NotchWindowController.swift",
+          "candidate/Tests/CodeRimTests/Notch/NotchDismissalTests.swift"
+        ]
+      },
+      "scope": {
+        "winner": "INCONCLUSIVE",
+        "reason": "The release allows an unpinned notch to stay open when a pending fold is interrupted by stop and show. Candidate fixes this visible case; owner decides acceptance.",
+        "evidence": [
+          "candidate/Rust/bridge/src/notch_interaction.rs",
+          "candidate/Sources/CodeRim/Notch/NotchWindowController.swift",
+          "baseline/Sources/CodeRim/Notch/NotchWindowController.swift",
+          "candidate/Tests/CodeRimTests/Notch/NotchDismissalTests.swift"
+        ]
+      },
+      "performance": {
+        "winner": "A",
+        "reason": "Actual menu selector CPU and pre-panel repeated click CPU improved in interleaved trials; menu wall medians close.",
+        "evidence": [
+          "candidate/Rust/bridge/src/notch_interaction.rs",
+          "candidate/Sources/CodeRim/Notch/NotchWindowController.swift",
+          "baseline/Sources/CodeRim/Notch/NotchWindowController.swift",
+          "candidate/Tests/CodeRimTests/Notch/NotchDismissalTests.swift"
+        ]
+      }
+    },
+    "independent_source_sha256": "3c6c44edbe275230c27a0a309f9d8fe55b19f7bd87c0461cdbcf2967ea123f0d",
+    "unchangedReviewerReceipt": {
+      "source": "aa2cfe6d0784cb835e08bf61d1d97a487a50047f",
+      "packetSha256": "409fd5ed5e50d709a1c1c3b83c84afc25e531d5634ae82c8426c46916c3914b2",
+      "nativeSourceFilesVerified": [
+        "Rust/bridge/include/coderim_notch_interaction.h",
+        "Rust/bridge/include/module.modulemap",
+        "Rust/bridge/src/lib.rs",
+        "Rust/bridge/src/notch_interaction.rs",
+        "Sources/CodeRim/Notch/NotchInteraction.swift",
+        "Sources/CodeRim/Notch/NotchWindowController.swift",
+        "Tests/CodeRimTests/Notch/NotchDismissalTests.swift"
+      ],
+      "independentModel": {
+        "arm64": {
+          "states": 120000,
+          "sessions": 16,
+          "codes": 21,
+          "layout": 48,
+          "hoverOffset": 32
+        },
+        "x86_64": {
+          "states": 120000,
+          "sessions": 16,
+          "codes": 21,
+          "layout": 48,
+          "hoverOffset": 32
+        }
+      },
+      "nativeAppKit": {
+        "released/testInterruptedFoldAcrossShow": {
+          "exit": 0,
+          "count": [
+            1,
+            0
+          ],
+          "sha256": "a509ec1b5f41c1bf9aa63d7025e499e28e0650cbe25ea737888ce8ea13b9881c"
+        },
+        "released/testRealMenuTime": {
+          "exit": 0,
+          "count": [
+            1,
+            0
+          ],
+          "sha256": "e9e5d984eefb4b506de6df9c622f5c22971c0475f9d318ad8f83a7101fb3a128"
+        },
+        "released/interrupted": {
+          "always": false,
+          "expandedAfterRestartOutside": true,
+          "menu": false,
+          "pinned": false
+        },
+        "released/bench": {
+          "nativeMenuToggleWallMs": 56.327265625,
+          "nativePinSelectorCPUUs": 67.3725,
+          "repeatedClickBeforePanelNs": 248.48
+        },
+        "candidate/testInterruptedFoldAcrossShow": {
+          "exit": 0,
+          "count": [
+            1,
+            0
+          ],
+          "sha256": "15b7c09611faaa1898291bc6e910f6a8ca2e51bb5d3dc81469c3b142152a01fa"
+        },
+        "candidate/testRestartWhileFoldIsPendingStillFoldsOutside": {
+          "exit": 0,
+          "count": [
+            1,
+            0
+          ],
+          "sha256": "94c70eedccdd0f5a081fb65b4d41c81e282e7c215b1d40f66c5aaee4774c6392"
+        },
+        "candidate/testRealMenuTime": {
+          "exit": 0,
+          "count": [
+            1,
+            0
+          ],
+          "sha256": "edd53ae7b85e5bcc4601574617d61584cf00a2879011d13e3c57551f8b6b3ce4"
+        },
+        "candidate/interrupted": {
+          "always": false,
+          "expandedAfterRestartOutside": false,
+          "menu": false,
+          "pinned": false
+        },
+        "candidate/bench": {
+          "nativeMenuToggleWallMs": 61.303036375,
+          "nativePinSelectorCPUUs": 27.0345,
+          "repeatedClickBeforePanelNs": 137.44
+        }
+      },
+      "interleavedMenu": {
+        "samples": {
+          "released": [
+            {
+              "nativeMenuToggleWallMs": 58.250453125,
+              "nativePinSelectorCPUUs": 61.611,
+              "repeatedClickBeforePanelNs": 259.72
+            },
+            {
+              "nativeMenuToggleWallMs": 56.3609635,
+              "nativePinSelectorCPUUs": 56.313,
+              "repeatedClickBeforePanelNs": 241.62
+            },
+            {
+              "nativeMenuToggleWallMs": 60.89625,
+              "nativePinSelectorCPUUs": 55.025,
+              "repeatedClickBeforePanelNs": 252.7
+            },
+            {
+              "nativeMenuToggleWallMs": 60.187958375,
+              "nativePinSelectorCPUUs": 54.5515,
+              "repeatedClickBeforePanelNs": 257.24
+            },
+            {
+              "nativeMenuToggleWallMs": 58.049948,
+              "nativePinSelectorCPUUs": 65.689,
+              "repeatedClickBeforePanelNs": 323.3
+            },
+            {
+              "nativeMenuToggleWallMs": 60.997947875,
+              "nativePinSelectorCPUUs": 53.1655,
+              "repeatedClickBeforePanelNs": 252.16
+            }
+          ],
+          "candidate": [
+            {
+              "nativeMenuToggleWallMs": 55.984724,
+              "nativePinSelectorCPUUs": 42.271,
+              "repeatedClickBeforePanelNs": 138.42
+            },
+            {
+              "nativeMenuToggleWallMs": 55.3892135,
+              "nativePinSelectorCPUUs": 41.7715,
+              "repeatedClickBeforePanelNs": 134.52
+            },
+            {
+              "nativeMenuToggleWallMs": 60.0428645,
+              "nativePinSelectorCPUUs": 27.2065,
+              "repeatedClickBeforePanelNs": 134.68
+            },
+            {
+              "nativeMenuToggleWallMs": 61.28871875,
+              "nativePinSelectorCPUUs": 27.1665,
+              "repeatedClickBeforePanelNs": 123.34
+            },
+            {
+              "nativeMenuToggleWallMs": 58.54946875,
+              "nativePinSelectorCPUUs": 27.7705,
+              "repeatedClickBeforePanelNs": 137.56
+            },
+            {
+              "nativeMenuToggleWallMs": 59.2037395,
+              "nativePinSelectorCPUUs": 27.2025,
+              "repeatedClickBeforePanelNs": 132.36
+            }
+          ]
+        },
+        "medians": {
+          "released": {
+            "nativeMenuToggleWallMs": 59.21920575,
+            "nativePinSelectorCPUUs": 55.669,
+            "repeatedClickBeforePanelNs": 254.97
+          },
+          "candidate": {
+            "nativeMenuToggleWallMs": 58.876604125,
+            "nativePinSelectorCPUUs": 27.4885,
+            "repeatedClickBeforePanelNs": 134.60000000000002
+          }
+        }
+      },
+      "dimensions": {
+        "functionality": {
+          "winner": "INCONCLUSIVE",
+          "reason": "Ordinary transitions match; opening, exiting, stop and re-show with a pending fold changes visible behavior on the release-source AppKit implementation."
+        },
+        "facts": {
+          "winner": "TIE",
+          "reason": "No source or UX copy edits."
+        },
+        "security": {
+          "winner": "TIE",
+          "reason": "Null state returns no actions. AppKit retains a per-window state on MainActor; C ABI stores only scalars and never retains the pointer. Timer callbacks capture IDs, weak window and execute on main dispatch."
+        },
+        "maintainability": {
+          "winner": "A",
+          "reason": "Stable explicit timer decision table and caps in one owned Rust state; wire-order parity and standalone Swift fallback still need tests."
+        },
+        "scope": {
+          "winner": "INCONCLUSIVE",
+          "reason": "The release allows an unpinned notch to stay open when a pending fold is interrupted by stop and show. Candidate fixes this visible case; owner decides acceptance."
+        },
+        "performance": {
+          "winner": "A",
+          "reason": "Actual menu selector CPU and pre-panel repeated click CPU improved in interleaved trials; menu wall medians close."
+        }
+      },
+      "evidencePaths": [
+        "candidate/Rust/bridge/src/notch_interaction.rs",
+        "candidate/Sources/CodeRim/Notch/NotchWindowController.swift",
+        "baseline/Sources/CodeRim/Notch/NotchWindowController.swift",
+        "candidate/Tests/CodeRimTests/Notch/NotchDismissalTests.swift"
+      ],
+      "limitations": [
+        "Apple Silicon AppKit, Rust C on Apple Silicon plus x86_64 via Rosetta; no physical Intel UI or formal human TTY review.",
+        "Stop/show replay uses code compiled from release tag, with synthetic cursor and real AppKit controller.",
+        "No external Team ID or production-signing tests as part of this state change."
+      ],
+      "reviewerArtifacts": {
+        "verify.c": "eb7924f85fada632a7b8fde852731f4e5975d29e4fa23fd506eb1b0709715fff",
+        "gui.py": "a84960b40d0f1530d40f9e524bcdc57809d35397e19ecd982d878c40b8e6ca45",
+        "bench.py": "90296dd76e0653c2bcd39fe793fa5600662d901386150a35d3b292abbc70f631",
+        "gui.json": "b60d23f40af1145c2bbf33d5144064e3cec0903c339391af579901dd51ddc9a5",
+        "model.json": "fb8183cfaecd1329576e996cfa5917d1986bccdd035f15f58431226593063bde",
+        "timing.json": "2445a33079bd467ca5193621dafa248efc2922cb11a8876156fae0bac98c3b2c"
+      }
+    }
+  },
+  "formalGate": {
+    "run_id": "run-76dce3e7f9ec4320b0a7d8ae38d87473",
+    "decision": "INCONCLUSIVE",
+    "candidate_hash": "1c2d245e6a34b47fb44de6ed4802f46d50424bf4511d9537dabbb4d89ff19349",
+    "gate_order": [
+      "SECURITY",
+      "FACTUAL",
+      "CONTENT",
+      "FUNCTIONAL",
+      "ACCESSIBILITY",
+      "RESPONSIVE",
+      "VISUAL_UX",
+      "CODE_QUALITY",
+      "PERFORMANCE"
+    ],
+    "blockers": [],
+    "missing_evidence": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "improved": false,
+    "regression_ready": false,
+    "dimensions": {},
+    "time": "2026-11-26T10:48:54.326628+00:00"
+  },
+  "packetDigest": "641077b6e8bc534ffc2a78211ea282da80ca1e596ebc5ddc31f237d0cba9e73f",
+  "publicActions": "No remote changes, merge or deployment.",
+  "artifactSHA256": {
+    "change.patch": "a1d4dabca89c470c5232bae5ffa56c5dd5c7cc9d69bb72e8e237d406bdd3f54e",
+    "replay.swift": "3e797ba49d42b5458c71411ed48c3848df932118e36fde3993443c1df02f86c4",
+    "matrix.json": "1c45eacaa2168113dd2e875233128e50189f88a66fc9a0f6c8ba6989b2357cc9",
+    "transitions.swift": "9b267f183805eee4c0b385587f899621f4815124ae2b9de880a745de3ec82b99",
+    "immediate-variability.json": "eed8d523383b3f096ac0aa7b9229898925e2b3b2bff3ab241e7032dcbaca69d7",
+    "pixels.json": "3e61615c8c2d4c067075a59652a4f9a7f33e5bc3aae7e724f982140277fe2128",
+    "pixels-first.json": "dd36c6d68f38dd1407a4e583cdad35e44b847ccb97264e1d099f835b6847100d",
+    "gui-candidate/state.json": "d57a08fe2011ff57f5f2009af68bd6d250e7a3f55fcfb4a0667932135e7a1424",
+    "gui-released/state.json": "d57a08fe2011ff57f5f2009af68bd6d250e7a3f55fcfb4a0667932135e7a1424",
+    "gui-candidate/interrupted.json": "9259bc6bceada820d7ef0d0b040ed412d5f87230eb45296775abb855dc6da680",
+    "gui-released/interrupted.json": "c37414b34218a1eb4c8df75c6265740031f456ded5e98ecb881285eb9b5e8b95",
+    "timing.json": "362bc3d74d36c105205fa2c0d0232b7122be7e7ee2dcd877473c730be0cda962",
+    "rust-tests.log": "dc8005ef8d15c8fe8ed977a9a350e2d93848dd8e11344b0746d1564e37e05fda",
+    "rust-clippy.log": "07607eebf9242d69ba927605b4bf80506c6cf21e2a5ca3ba0237922ee60a24d2",
+    "rust-fmt-check.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "released-native-tests.json": "f25e76b364d15f271bc53a90eed50b7630f7b294f58b947c3688d2143d97a1fb",
+    "candidate-native-tests.json": "231385dc2a6ef25748daae314d8dba9f08b6d299097bae48766d0f895f30e1c3",
+    "before-native-tests.json": "6d4c1de8e83019083884d57c454b9517e5fe5cbed88bf895bd379496ff28c6e7",
+    "gui-candidate-extra.log": "45504a0d86036063efd7fdb8df5d8699e64ea99b2da02311e1dd1295408358fe",
+    "gui-candidate.log": "0168a7b7bc281d493c4d55e5a1e212e027243abdac4cb3f2c746cc4395644d08",
+    "gui-released.log": "8e593f4c31f221c92394dc97997b5f5a86d4613041912b5e80f268b663348282",
+    "packet.json": "409fd5ed5e50d709a1c1c3b83c84afc25e531d5634ae82c8426c46916c3914b2",
+    "independent-review.json": "7152ebc18ea9cc8f059f6c86592efbdffd89490136a6eb32519842378692669d",
+    "gate.json": "deb4677787c285e772b02240a2dfcd74b538aed0c80e5de3a3b55245c625aaa3",
+    "summary.json": "34ad32396636a6f2fc843700b5f25cd361a2ad6d81eab278239f25af71a1c990",
+    "review-import.json": "f44c48e774df41f9b4599a15978aea9960141e1a98f880a81a3e612bc1e1093b"
+  },
+  "integrationCommit": "e382d098"
+}
