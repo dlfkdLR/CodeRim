@@ -1,0 +1,342 @@
+{
+  "githubRunUrl": "https://github.com/dlfkdLR/CodeRim/actions/runs/45765334202",
+  "commit": "95d9e48ecca4918e8b8c53e925db89d4b3087320",
+  "previousReceipt": "windows-event-writes-555b912.json",
+  "protocol": "Release v2.1.41, the same candidate with the managed fallback, and the default Rust candidate used synthetic disposable SQLite databases. The measurement is elapsed nanoseconds and managed bytes allocated for the complete write. The table records the median of seven interleaved samples.",
+  "outcomes": {
+    "x64CoreJob": "success",
+    "arm64CoreJob": "success",
+    "x64PackageJob": "success",
+    "arm64PackageJob": "success",
+    "crossArchitectureAndPreviousRunScenarioDigestsEqual": 18
+  },
+  "databaseChecks": {
+    "codex/merge": "60bc2c74e547a2977703b9ddd13f25ba1d63d3e8ee95fd9f3a5d8c378f32077c",
+    "codex/rebuild": "da0ed8d080aaf923a4f2e1fe220b8c3ef0ec4f79ecdef735ba2bbf1508bf1a32",
+    "codex/corrupt": "60bc2c74e547a2977703b9ddd13f25ba1d63d3e8ee95fd9f3a5d8c378f32077c",
+    "codex/cleared": "73f3856cc63924a392ebce486ae484c358d26e4c86df83c30f0b55cff1489076",
+    "codex/failure": "f3ecf4f71eed1977f1823cd8188e76063845a0df029cfdeaf90dd0e34a0ae3d1",
+    "codex/future": "b81f282d109b5e416a2a8f2d2abcde33fcfcfd8063b5c29766f65435fc0db7c8",
+    "claude/merge": "159d16ff408f1c3f95db25d1fe57b5e629acd6871b35f800ab7a20dd2b5cd50c",
+    "claude/rebuild": "6d892a3313bdedbea7a3b51ee872d1a45f6fdaef606abe4c2fe300ddaa89b13f",
+    "claude/corrupt": "159d16ff408f1c3f95db25d1fe57b5e629acd6871b35f800ab7a20dd2b5cd50c",
+    "claude/cleared": "083b2db10f267bd28e15420cb8c3321c189c1ef58348a22b75ab12ed7edbefc7",
+    "claude/failure": "f568ebb53cf5a7b73d8c594eed98e7d602f3b2e00331a5f3ada18630527f3a2a",
+    "claude/future": "50f3876ce932f3fcbbcee45f30b80ca0afe8a400519238b93bcad34243f0cd39",
+    "other/merge": "51d165ef3ddc9bf7651222223ee50b02ac3b325c0b2ee6043cb1ac7ed72f263c",
+    "other/rebuild": "a019a5f9e806275a070506243b34b155700c747187cd5d2881d9ffb78589ff9b",
+    "other/corrupt": "51d165ef3ddc9bf7651222223ee50b02ac3b325c0b2ee6043cb1ac7ed72f263c",
+    "other/cleared": "4c05805097aba358391a1c1c4f98d1eb036c67b34fc61d02a00836a501053c90",
+    "other/failure": "cfe10e933ee7c5a96e79b42101809514a8ecf5292a4c275107b729931408c590",
+    "other/future": "da23f66ee7a4e8a914e5e538ab58844cc22fbed03fcf3737a4a91a6183fd00d9"
+  },
+  "platforms": {
+    "x64": {
+      "id": 15091987736,
+      "sha256": "sha256:e8089d70c2e7ecd354ade57018627792ca78df7d70b717b51a2d9932a16a2681",
+      "jobId": 139724759387,
+      "runner": "AMD64",
+      "librarySha256": "7e6cc06eca5beef3a9f12af27c9dd0ae15d7522f14ccf8ec21496c916d951500",
+      "timings": [
+        {
+          "rows": 0,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 19368700,
+              "allocation": 15608
+            },
+            "managed": {
+              "ns": 18905600,
+              "allocation": 15608
+            },
+            "rust": {
+              "ns": 19661000,
+              "allocation": 15672
+            }
+          }
+        },
+        {
+          "rows": 1,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 21915700,
+              "allocation": 22384
+            },
+            "managed": {
+              "ns": 21965000,
+              "allocation": 22384
+            },
+            "rust": {
+              "ns": 21890400,
+              "allocation": 22448
+            }
+          }
+        },
+        {
+          "rows": 128,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 30729000,
+              "allocation": 390808
+            },
+            "managed": {
+              "ns": 29822400,
+              "allocation": 290968
+            },
+            "rust": {
+              "ns": 30388200,
+              "allocation": 291024
+            }
+          }
+        },
+        {
+          "rows": 4096,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 130164800,
+              "allocation": 11831840
+            },
+            "managed": {
+              "ns": 121407200,
+              "allocation": 8624480
+            },
+            "rust": {
+              "ns": 113248300,
+              "allocation": 8624536
+            }
+          }
+        },
+        {
+          "rows": 0,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 19529800,
+              "allocation": 15616
+            },
+            "managed": {
+              "ns": 20277400,
+              "allocation": 15616
+            },
+            "rust": {
+              "ns": 18289000,
+              "allocation": 15672
+            }
+          }
+        },
+        {
+          "rows": 1,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 26851900,
+              "allocation": 22392
+            },
+            "managed": {
+              "ns": 24662500,
+              "allocation": 22392
+            },
+            "rust": {
+              "ns": 22668700,
+              "allocation": 22448
+            }
+          }
+        },
+        {
+          "rows": 128,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 89489400,
+              "allocation": 404160
+            },
+            "managed": {
+              "ns": 67986800,
+              "allocation": 304320
+            },
+            "rust": {
+              "ns": 40712000,
+              "allocation": 304376
+            }
+          }
+        },
+        {
+          "rows": 4096,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 121181400,
+              "allocation": 11815336
+            },
+            "managed": {
+              "ns": 115981400,
+              "allocation": 8607976
+            },
+            "rust": {
+              "ns": 114473100,
+              "allocation": 8608040
+            }
+          }
+        }
+      ]
+    },
+    "arm64": {
+      "id": 15091543584,
+      "sha256": "sha256:667f09c1e7036e18282d3a10f59c49594fcdd0d94b20c131aae8d9ebbc164337",
+      "jobId": 139724759836,
+      "runner": "ARM64",
+      "librarySha256": "6b5c0c8d78c402f60b7e8a7826cff0593d05e45c4b24cd0b0cb18fd6666009f2",
+      "timings": [
+        {
+          "rows": 0,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 19917000,
+              "allocation": 15608
+            },
+            "managed": {
+              "ns": 23964100,
+              "allocation": 15608
+            },
+            "rust": {
+              "ns": 20099100,
+              "allocation": 15672
+            }
+          }
+        },
+        {
+          "rows": 1,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 34154900,
+              "allocation": 22384
+            },
+            "managed": {
+              "ns": 27853100,
+              "allocation": 22384
+            },
+            "rust": {
+              "ns": 25629300,
+              "allocation": 22448
+            }
+          }
+        },
+        {
+          "rows": 128,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 40357700,
+              "allocation": 390808
+            },
+            "managed": {
+              "ns": 32596100,
+              "allocation": 290968
+            },
+            "rust": {
+              "ns": 32642200,
+              "allocation": 291024
+            }
+          }
+        },
+        {
+          "rows": 4096,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 132802600,
+              "allocation": 11831840
+            },
+            "managed": {
+              "ns": 118368100,
+              "allocation": 8624480
+            },
+            "rust": {
+              "ns": 114895600,
+              "allocation": 8624536
+            }
+          }
+        },
+        {
+          "rows": 0,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 19649800,
+              "allocation": 15616
+            },
+            "managed": {
+              "ns": 20389100,
+              "allocation": 15616
+            },
+            "rust": {
+              "ns": 20234300,
+              "allocation": 15672
+            }
+          }
+        },
+        {
+          "rows": 1,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 23503400,
+              "allocation": 22392
+            },
+            "managed": {
+              "ns": 25327700,
+              "allocation": 22392
+            },
+            "rust": {
+              "ns": 25440800,
+              "allocation": 22448
+            }
+          }
+        },
+        {
+          "rows": 128,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 36679500,
+              "allocation": 404160
+            },
+            "managed": {
+              "ns": 30634200,
+              "allocation": 304320
+            },
+            "rust": {
+              "ns": 29714400,
+              "allocation": 304376
+            }
+          }
+        },
+        {
+          "rows": 4096,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 127143800,
+              "allocation": 11815336
+            },
+            "managed": {
+              "ns": 122694400,
+              "allocation": 8607976
+            },
+            "rust": {
+              "ns": 116199600,
+              "allocation": 8608040
+            }
+          }
+        }
+      ]
+    }
+  },
+  "interpretation": "The current default reduced elapsed time and managed allocations for 128 and 4096 rows for both providers on both runners. For zero and one row, the elapsed changes had mixed signs and the default allocated 56 to 64 bytes more than release. A previous slowdown for a 4096-row Codex write on ARM64 did not recur in this run."
+}
