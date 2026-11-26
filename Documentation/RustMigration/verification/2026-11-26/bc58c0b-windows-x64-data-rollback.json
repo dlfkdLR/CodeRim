@@ -1,0 +1,80 @@
+{
+  "releaseCommit": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "candidateCommit": "bc58c0b993f4cd818e692b40b83aaed1a60538d9",
+  "bridgeSha256": "46733e48ab7bafc8505bcaba01a8f7bf4ac2fb1cb0bc86939f7a31de8f792df7",
+  "tables": {
+    "attachments": 1,
+    "cutoffs": 1,
+    "events": 5,
+    "exclusions": 1,
+    "repaired_events": 1,
+    "session_links": 2,
+    "session_metadata": 2
+  },
+  "phases": [
+    {
+      "phase": "release-seed",
+      "host": "stable",
+      "architecture": "X64",
+      "schema": 2,
+      "events": 3,
+      "totalTokens": 173
+    },
+    {
+      "phase": "candidate-opens-release",
+      "host": "candidate",
+      "architecture": "X64",
+      "schema": 2,
+      "events": 3,
+      "totalTokens": 173
+    },
+    {
+      "phase": "candidate-appends",
+      "host": "candidate",
+      "architecture": "X64",
+      "schema": 2,
+      "events": 4,
+      "totalTokens": 213
+    },
+    {
+      "phase": "candidate-replays",
+      "host": "candidate",
+      "architecture": "X64",
+      "schema": 2,
+      "events": 4,
+      "totalTokens": 213
+    },
+    {
+      "phase": "release-opens-candidate",
+      "host": "stable",
+      "architecture": "X64",
+      "schema": 2,
+      "events": 4,
+      "totalTokens": 213
+    },
+    {
+      "phase": "release-appends",
+      "host": "stable",
+      "architecture": "X64",
+      "schema": 2,
+      "events": 5,
+      "totalTokens": 222
+    },
+    {
+      "phase": "release-replays",
+      "host": "stable",
+      "architecture": "X64",
+      "schema": 2,
+      "events": 5,
+      "totalTokens": 222
+    },
+    {
+      "phase": "release-opens-restored-backup",
+      "host": "stable",
+      "architecture": "X64",
+      "schema": 2,
+      "events": 3,
+      "totalTokens": 173
+    }
+  ]
+}

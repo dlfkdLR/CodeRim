@@ -73,6 +73,23 @@ Windows period aggregation on `df7091d` processed 524,288 retained events in 13.
 
 A first empty-profile desktop measurement covered the published app and `df7091d` on an Apple M5 plugged into AC power. Each of three interleaved pairs used a 15-second warm-up and a 65-second observation. The medians across runs were 1.33% → 2.13% CPU, 1.13 → 2.31 joules charged to the app PID, and 46.48 → 44.15 MB final resident memory. Two individual pairs favored the candidate on CPU and energy. Background build activity and memory pressure varied, and window visibility was not explicitly sampled. Battery runtime and steady-state power remain open. [Every sample](verification/2026-11-26/gui-idle-preliminary.json)
 
+### Windows parser and profile recovery
+
+The nine jobs at `bc58c0b` passed, including native macOS Intel and arm64, native Windows x64 Server 2025 and Windows 11 ARM64, both Windows installers and the macOS product and package runs. The Windows test processes used a real SQLite profile seeded by the v2.1.41 scanner. Across eight launches the candidate read 173 tokens, appended to 213, and the old scanner reopened that profile and appended to 222. Restoring the pre-upgrade backup returned 173. Both architectures retained all seven populated tables at schema 2. [CI](https://github.com/dlfkdLR/CodeRim/actions/runs/45736150901) · [x64 profile](verification/2026-11-26/bc58c0b-windows-x64-data-rollback.json) · [ARM64 profile](verification/2026-11-26/bc58c0b-windows-arm64-data-rollback.json)
+
+| Native Windows parse workload | Managed median | Rust candidate median |
+|---|---:|---:|
+| x64 token records | 137.33 ms | 37.12 ms ([samples](verification/2026-11-26/bc58c0b-windows-x64-parse-tokens.json)) |
+| x64 mixed input | 258.41 ms | 191.62 ms ([samples](verification/2026-11-26/bc58c0b-windows-x64-parse-mixed.json)) |
+| ARM64 token records | 122.03 ms | 29.87 ms ([samples](verification/2026-11-26/bc58c0b-windows-arm64-parse-tokens.json)) |
+| ARM64 mixed input | 239.66 ms | 168.87 ms ([samples](verification/2026-11-26/bc58c0b-windows-arm64-parse-mixed.json)) |
+
+### Apple interface and phone integration
+
+Across 204 chart presentations on each architecture the decoded points, stack positions, legend and selection outputs were identical. The arm64 notch sizing comparison matched all 12,000 values, including wrapped status text and boundaries one floating-point step apart. The median session-fit operation took 60.02 ns in Swift and 23.84 ns in the Rust candidate across nine pairs of 250,000 operations. [Chart process samples](verification/2026-11-26/analytics-chart.json) · [Session-fit samples](verification/2026-11-26/notch-card-fit.json)
+
+The retained v2.1.41 desktop snapshot passed through the local SQLite relay and the iPhone decoder. The local relay passed 101 tests. An iPhone 17 Pro simulator on iOS 26.5 passed 41 unit/lifecycle cases and two dashboard UI tests. The separate mobile policy comparison exercised 920 provider selections and 5,000 Live Activity version comparisons, with identical outputs for the stable Swift, current Swift and Rust paths. [Mobile build and test details](MOBILE.md)
+
 ## Data recovery
 
 The migration branch also corrects pre-existing overcounting from damaged Apple SQLite checkpoints. A focused Apple run covered the collector, database and normalizer with 68 passing cases. The new unchanged-source assertion first failed against the implementation that could report exact quality while a negative counter was stored. Its fix is in `3a83589`. The regression keeps 100 historic tokens, anchors at 120 without charging the missing interval, then records 7 at 127 and keeps 107 after reopening. [Recovery behavior and limits](ACCOUNTING.md#restoring-a-damaged-apple-sqlite-checkpoint)
