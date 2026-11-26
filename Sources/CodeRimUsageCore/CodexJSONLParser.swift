@@ -1,5 +1,8 @@
 import CoreFoundation
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 package enum CodexParsedLine: Equatable, Sendable {
     case sessionMetadata(SessionMetadata)
@@ -245,6 +248,13 @@ package struct CodexJSONLParser: Sendable {
     }
 
     private func parseTimestamp(_ value: String) -> Date? {
+        #if CODERIM_RUST_ACCOUNTING
+        let length = value.utf8.count
+        if (20...35).contains(length) {
+            let seconds = cr_log_reference_date(value, length, false)
+            if seconds.isFinite { return Date(timeIntervalSinceReferenceDate: seconds) }
+        }
+        #endif
         let fractional = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
         if let date = try? fractional.parse(value) {
             return date

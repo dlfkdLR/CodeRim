@@ -22,6 +22,13 @@ enum TranscriptLines {
     }
 
     static func parse(_ stamp: String) -> Date? {
+        #if CODERIM_RUST_ACCOUNTING
+        let length = stamp.utf8.count
+        if (20...35).contains(length) {
+            let seconds = cr_log_reference_date(stamp, length, true)
+            if seconds.isFinite { return Date(timeIntervalSinceReferenceDate: seconds) }
+        }
+        #endif
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         if let date = formatter.date(from: stamp) { return date }

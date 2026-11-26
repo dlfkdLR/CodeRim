@@ -16,6 +16,8 @@ mod event_json;
 mod github_device_policy;
 #[cfg(target_os = "macos")]
 mod line_breaks;
+#[cfg(target_os = "macos")]
+mod log_timestamp;
 #[cfg(any(target_os = "ios", target_os = "macos", test))]
 mod mobile_reading;
 #[cfg(any(target_os = "ios", target_os = "macos", test))]
