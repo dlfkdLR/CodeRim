@@ -295,16 +295,17 @@ public sealed partial class UsageRepository
         command.Transaction = transaction;
         // A row marked when it was saved keeps the mark: every range that holds it reads as partial, whenever
         // that range is looked at and whether or not its source files still exist.
-        const string existingMark = "EXISTS(SELECT 1 FROM repaired_events r WHERE r.provider=e.provider AND r.id=e.id)";
-        var mark = existingMark;
+        const string prefix = "SELECT e.id,e.time,e.input,e.cached,e.output,e.written,e.model,e.project,e.session,e.projectId,e.highContext,";
+        const string mark = "EXISTS(SELECT 1 FROM repaired_events r WHERE r.provider=e.provider AND r.id=e.id)";
+        const string suffix = " FROM events e WHERE e.provider=$provider ORDER BY e.time";
+        const string legacy = prefix + mark + suffix;
 #if CODERIM_RUST_ACCOUNTING
         // A clean ledger needs one table emptiness check for its entire statement snapshot.
-        // Future schemas retain the previous query and materializer exactly.
-        if (!newerSchema)
-            mark = "CASE WHEN EXISTS(SELECT 1 FROM repaired_events) THEN " + existingMark + " ELSE 0 END";
+        const string current = prefix + "CASE WHEN EXISTS(SELECT 1 FROM repaired_events) THEN " + mark + " ELSE 0 END" + suffix;
+        command.CommandText = newerSchema ? legacy : current;
+#else
+        command.CommandText = legacy;
 #endif
-        command.CommandText = "SELECT e.id,e.time,e.input,e.cached,e.output,e.written,e.model,e.project,e.session,e.projectId,e.highContext,"
-            + mark + " FROM events e WHERE e.provider=$provider ORDER BY e.time";
         command.Parameters.AddWithValue("$provider", provider);
         using var reader = command.ExecuteReader();
         var result = new List<UsageEvent>();
