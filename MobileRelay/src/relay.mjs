@@ -9,6 +9,13 @@ const IDLE_END = 120, START_COOLDOWN = 300, START_RETRY = 60, ACTIVITY_LIFETIME 
 const MAX_ACTIVITIES_PER_PHONE = 16;
 
 const sameSnapshot = (a, b) => a && b && JSON.stringify({ ...a, generatedAt: 0 }) === JSON.stringify({ ...b, generatedAt: 0 });
+// Actions shared with the default Worker's Rust device_report export.
+const REPORT_CONTENT = 1, REPORT_DEADLINE = 2, REPORT_TICK = 4;
+function deviceReport(changed, received, seen, previousWindow, nextWindow, now) {
+  if (changed) return REPORT_CONTENT | REPORT_TICK;
+  return (previousWindow !== nextWindow ? REPORT_DEADLINE : 0)
+    | (now >= Math.max(received, seen) + previousWindow ? REPORT_TICK : 0);
+}
 const rejectedToken = result => result.status === 410 || (result.status === 400 && ['BadDeviceToken', 'DeviceTokenNotForTopic'].includes(result.reason));
 const day = now => Math.floor(now / 86400);
 
@@ -270,8 +277,7 @@ export class Relay {
       return { ok: true };
     }
     if (method === 'POST' && path === '/v1/snapshot') {
-      const devices = store.devices(session.owner, now);
-      const device = devices.find(d => d.session === session.hash);
+      const device = store.reportingDevice(session.owner, session.hash);
       if (!device) throw new HTTPError(401, 'pairing_required');
       const next = sanitizeSnapshot(body, now);
       // The computer has its token: the pairing that handed it over is finished.
@@ -281,29 +287,33 @@ export class Relay {
         }
       }
       const interval = HEARTBEAT[this.level()], onlineWindow = Math.max(ONLINE_WINDOW, interval + 60);
-      const reconnecting = now >= Math.max(device.receivedAt, this.seen.get(device.id) ?? 0) + (device.onlineWindow ?? ONLINE_WINDOW);
+      const lastSeen = this.seen.get(device.id) ?? 0;
+      const previousWindow = device.onlineWindow ?? ONLINE_WINDOW;
       this.seen.set(device.id, now);
       // Steady unchanged content is a heartbeat: remembered in memory, never written.
-      if (!sameSnapshot(device.snapshot, next) || !device.receivedAt) {
-        const previousCatalog = JSON.stringify(device.snapshot?.providers.map(p => [p.id, p.name]) ?? []);
+      const changed = !device.receivedAt || !sameSnapshot(device.snapshot, next);
+      const plan = this.deviceReport?.(changed, device.receivedAt, lastSeen, previousWindow, onlineWindow, now)
+        ?? deviceReport(changed, device.receivedAt, lastSeen, previousWindow, onlineWindow, now);
+      if (plan & REPORT_CONTENT) {
+        const previousProviders = device.snapshot?.providers ?? [];
         // Written with the content it numbers, so it costs no extra row write.
-        device.seq = this.nextDeviceSequence(session.owner, devices, user, now);
+        const versions = this.snapshotRead ? [device, ...store.otherDeviceVersions(session.owner, session.hash)] : undefined;
+        device.seq = this.nextDeviceSequence(session.owner, versions, user, now);
         device.snapshot = next; device.receivedAt = now; device.onlineWindow = onlineWindow;
         store.saveDevice(session.owner, device);
-        const catalogChanged = previousCatalog !== JSON.stringify(next.providers.map(p => [p.id, p.name]));
+        // The new report has already been sanitized: both catalog fields are strings.
+        const catalogChanged = previousProviders.length !== next.providers.length
+          || !previousProviders.every((p, index) => p.id === next.providers[index].id && p.name === next.providers[index].name);
         if (catalogChanged
             || eligibleProviders(device, user.preferences).length < 2) {
-          this.settlePickers(session.owner, { deviceID: device.id, context: catalogChanged && previousCatalog !== '[]' ? device.id : false });
+          this.settlePickers(session.owner, { deviceID: device.id, context: catalogChanged && previousProviders.length > 0 ? device.id : false });
         }
-        this.later(() => this.tick(session.owner));
-      } else {
-        if ((device.onlineWindow ?? ONLINE_WINDOW) !== onlineWindow) {
-          // Persist the advertised deadline once per interval change, without changing the content sequence.
-          device.onlineWindow = onlineWindow; device.receivedAt = now;
-          store.saveDevice(session.owner, device);
-        }
-        if (reconnecting) this.later(() => this.tick(session.owner));
+      } else if (plan & REPORT_DEADLINE) {
+        // Persist the advertised deadline once per interval change, without changing the content sequence.
+        device.onlineWindow = onlineWindow; device.receivedAt = now;
+        store.saveDevice(session.owner, device);
       }
+      if (plan & REPORT_TICK) this.later(() => this.tick(session.owner));
       return { ok: true, interval, notice: this.notice() };
     }
     if (method === 'POST' && path === '/v1/activities/resume') {

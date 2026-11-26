@@ -1189,3 +1189,35 @@ test("one account's rows are read through indexes, and rows read count toward th
   while (c.relay.usage.reads < 950) { c.advance(1); await c.route('GET', '/v1/snapshot'); }
   assert.equal(c.relay.level(), 'critical');
 });
+
+test('a desktop heartbeat reads one device and a changed report advances past its siblings', async t => {
+  const module = await WebAssembly.instantiate(await readFile(new URL('../migration/quick_picker.wasm', import.meta.url)));
+  const exports = module.instance.exports;
+  const { wasmSnapshotRead } = await import('../migration/snapshot-read.mjs');
+  const c = setup(t, { pushConfigured: false, snapshotRead: wasmSnapshotRead(() => exports) });
+  c.relay.deviceReport = exports.device_report;
+  const initial = snapshot();
+  await c.route('POST', '/v1/snapshot', initial, c.mac);
+  await c.relay.settle();
+  for (let i = 0; i < 15; i++) {
+    const session = c.store.issue('alice', 'desktop', epoch);
+    c.store.saveDevice('alice', { id: 'sibling-' + i, session: hash(session.token), name: 'Computer ' + i,
+      platform: 'macOS', receivedAt: epoch, seq: 70 + i, snapshot: initial });
+  }
+  let deviceRows = 0;
+  const all = c.sql.all.bind(c.sql);
+  c.sql.all = (query, ...args) => {
+    const rows = all(query, ...args);
+    if (/\bFROM devices\b/i.test(query)) deviceRows += rows.length;
+    return rows;
+  };
+  c.advance(5);
+  await c.route('POST', '/v1/snapshot', { ...initial, generatedAt: c.now() }, c.mac);
+  await c.relay.settle();
+  assert.equal(deviceRows, 1);
+  c.advance(1);
+  await c.route('POST', '/v1/snapshot', snapshot(c.now()), c.mac);
+  await c.relay.settle();
+  const updated = c.store.devices('alice', c.now()).find(device => device.id === 'fixture-mac');
+  assert.equal(updated.seq, 85);
+});

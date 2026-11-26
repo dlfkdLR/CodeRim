@@ -59,6 +59,16 @@ export class Store {
       .map(row => { const data = JSON.parse(row.data); return { id: row.id, session: row.session, ...data,
         receivedAt: row.expires > now ? data.receivedAt : 0 }; });
   }
+  reportingDevice(owner, session) {
+    // The desktop was authenticated synchronously for this request.
+    const row = this.one('SELECT id, data FROM devices WHERE owner=? AND session=?', owner, session);
+    return row && { ...JSON.parse(row.data), id: row.id, session };
+  }
+  otherDeviceVersions(owner, session) {
+    // Keep the original JSON number conversion, including for rows saved by older relays.
+    return this.sql.all("SELECT data -> '$.seq' AS seq FROM devices WHERE owner=? AND session<>?", owner, session)
+      .map(row => ({ seq: row.seq == null ? 0 : JSON.parse(row.seq), receivedAt: 0 }));
+  }
   saveDevice(owner, device) {
     const { id, session, ...data } = device;
     this.run('INSERT INTO devices VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data', id, owner, session, JSON.stringify(data));
