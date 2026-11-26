@@ -1,3 +1,6 @@
+using System.Buffers.Binary;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CodeRim.Core.Domain;
@@ -59,12 +62,23 @@ public static class CompanionFile
 #if CODERIM_RUST_ACCOUNTING
         if (forCli)
         {
-            ReadOnlySpan<byte> payload = bytes.GetBuffer().AsSpan(0, checked((int)bytes.Length));
-            // UTF-16BE's preamble is unambiguous. Use the same .NET replacement decoder
-            // directly on the bounded bytes, avoiding StreamReader's intermediate strings.
-            if (payload is [0xfe, 0xff, ..])
-                result = JsonSerializer.Deserialize<CompanionSnapshot>(System.Text.Encoding.BigEndianUnicode.GetString(payload[2..]), JsonOptions)
+            Span<byte> bufferContents = bytes.GetBuffer().AsSpan(0, checked((int)bytes.Length));
+            ReadOnlySpan<byte> payload = bufferContents;
+            if (payload is [0xfe, 0xff, ..] && payload.Length % 2 == 0)
+            {
+                // This buffer belongs to this read. Swap complete UTF-16 code units in
+                // place so the normal JSON reader can consume a native-order character span.
+                Span<ushort> units = MemoryMarshal.Cast<byte, ushort>(bufferContents[2..]);
+                if (BitConverter.IsLittleEndian)
+                    BinaryPrimitives.ReverseEndianness(units, units);
+                ReadOnlySpan<char> chars = MemoryMarshal.Cast<ushort, char>(units);
+                // System.Text.Json rejects lone UTF-16 surrogates. StreamReader instead
+                // replaces them, so keep the framework's decoder for these uncommon inputs.
+                if (chars.IndexOfAnyInRange('\ud800', '\udfff') >= 0)
+                    chars = (BitConverter.IsLittleEndian ? Encoding.Unicode : Encoding.BigEndianUnicode).GetString(payload[2..]);
+                result = JsonSerializer.Deserialize<CompanionSnapshot>(chars, JsonOptions)
                     ?? throw new InvalidDataException("Snapshot is empty.");
+            }
             // Other BOMs and unusual documents retain the original StreamReader path.
             else if (payload.TrimStart(" \t\r\n"u8).StartsWith("{"u8))
                 result = RustCompanionSnapshot.TryRead(payload);

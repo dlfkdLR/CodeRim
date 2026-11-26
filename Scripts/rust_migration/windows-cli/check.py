@@ -60,13 +60,17 @@ with tempfile.TemporaryDirectory(prefix="coderim-offline-cli-") as temp:
     for label,encoding,bom in [("utf8-bom","utf8",b"\xef\xbb\xbf"),("utf16le","utf-16-le",b"\xff\xfe"),("utf16be","utf-16-be",b"\xfe\xff"),
                                ("utf32le","utf-32-le",b"\xff\xfe\x00\x00"),("utf32be","utf-32-be",b"\x00\x00\xfe\xff")]:
         (snapshots/label).write_bytes(bom+original.decode("utf8").encode(encoding))
-    # Compare the framework's UTF-16 replacement and trailing-byte behavior in actual CLI
-    # text, including an invalid surrogate exactly across a normal StreamReader block.
-    for label,name in [("be-lone-high","a"*510+"\ud800Z"),("be-lone-low","x\udc00z"),
-                       ("be-pair-boundary","a"*510+"😀"),("be-interior-mark","A\ufeffB")]:
-        data=copy.deepcopy(wire);data["providers"][0]["name"]=name
-        text=json.dumps(data,ensure_ascii=False)
-        (snapshots/label).write_bytes(b"\xfe\xff"+text.encode("utf-16-be","surrogatepass"))
+    # Place the first surrogate at the final UTF-16 unit of a 1024-byte StreamReader block.
+    # Its successor is read by a subsequent call to the framework decoder.
+    marker="BOM-FIXTURE-NAME"
+    data=copy.deepcopy(wire);data["providers"][0]["name"]=marker
+    template=json.dumps(data,ensure_ascii=False)
+    prefix=2+len(template[:template.index(marker)].encode("utf-16-be"))
+    padding="a"*(((1022-prefix)%1024)//2)
+    assert (prefix+2*len(padding))%1024==1022
+    for label,name in [("be-lone-high",padding+"\ud800Z"),("be-lone-low","x\udc00z"),
+                       ("be-pair-boundary",padding+"😀"),("be-interior-mark","A\ufeffB")]:
+        (snapshots/label).write_bytes(b"\xfe\xff"+template.replace(marker,name).encode("utf-16-be","surrogatepass"))
     (snapshots/"be-odd-tail").write_bytes(b"\xfe\xff"+original.decode("utf8").encode("utf-16-be")+b"\x00")
     (snapshots/"be-repeat-bom").write_bytes(b"\xfe\xff\xfe\xff"+original.decode("utf8").encode("utf-16-be"))
     (snapshots/"be-null").write_bytes(b"\xfe\xff"+"null".encode("utf-16-be"))
