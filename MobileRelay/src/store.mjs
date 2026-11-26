@@ -65,9 +65,27 @@ export class Store {
     return row && { ...JSON.parse(row.data), id: row.id, session };
   }
   otherDeviceVersions(owner, session) {
-    // Keep the original JSON number conversion, including for rows saved by older relays.
-    return this.sql.all("SELECT data -> '$.seq' AS seq FROM devices WHERE owner=? AND session<>?", owner, session)
-      .map(row => ({ seq: row.seq == null ? 0 : JSON.parse(row.seq), receivedAt: 0 }));
+    // Ordinary rows have a single integer sequence. For unusual or duplicate keys,
+    // use JSON.parse on that row so a restored database keeps its original JS semantics.
+    let rows;
+    try {
+      rows = this.sql.all(`SELECT (
+          SELECT CASE
+            WHEN count(*)=0 THEN NULL
+            WHEN count(*)=1 AND type='integer' AND typeof(value)='integer' THEN CAST(value AS TEXT)
+            ELSE devices.data END
+          FROM json_each(devices.data) WHERE key='seq'
+        ) AS version
+        FROM devices WHERE owner=? AND session<>?`, owner, session);
+    } catch (error) {
+      // SQLite JSON also rejects some deeply nested objects that JSON.parse can read.
+      if (!String(error.message).includes('malformed JSON')) throw error;
+      rows = this.sql.all('SELECT data AS version FROM devices WHERE owner=? AND session<>?', owner, session);
+    }
+    return rows.map(row => {
+      const value = row.version == null ? 0 : JSON.parse(row.version);
+      return { seq: typeof value === 'number' ? value : value.seq, receivedAt: 0 };
+    });
   }
   saveDevice(owner, device) {
     const { id, session, ...data } = device;

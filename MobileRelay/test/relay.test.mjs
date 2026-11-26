@@ -1220,4 +1220,12 @@ test('a desktop heartbeat reads one device and a changed report advances past it
   await c.relay.settle();
   const updated = c.store.devices('alice', c.now()).find(device => device.id === 'fixture-mac');
   assert.equal(updated.seq, 85);
+  // JSON.stringify emits just one seq. A restored valid JSON object can have more.
+  const sibling = c.store.one("SELECT data FROM devices WHERE id='sibling-0'");
+  const restored = sibling.data.slice(0, -1) + String.raw`, "\u0073eq":4096}`;
+  c.store.run("UPDATE devices SET data=? WHERE id='sibling-0'", restored);
+  c.advance(1);
+  await c.route('POST', '/v1/snapshot', snapshot(c.now()), c.mac);
+  const next = c.store.devices('alice', c.now()).find(device => device.id === 'fixture-mac');
+  assert.equal(next.seq, 4097);
 });
