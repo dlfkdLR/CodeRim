@@ -60,6 +60,16 @@ with tempfile.TemporaryDirectory(prefix="coderim-offline-cli-") as temp:
     for label,encoding,bom in [("utf8-bom","utf8",b"\xef\xbb\xbf"),("utf16le","utf-16-le",b"\xff\xfe"),("utf16be","utf-16-be",b"\xfe\xff"),
                                ("utf32le","utf-32-le",b"\xff\xfe\x00\x00"),("utf32be","utf-32-be",b"\x00\x00\xfe\xff")]:
         (snapshots/label).write_bytes(bom+original.decode("utf8").encode(encoding))
+    # Compare the framework's UTF-16 replacement and trailing-byte behavior in actual CLI
+    # text, including an invalid surrogate exactly across a normal StreamReader block.
+    for label,name in [("be-lone-high","a"*510+"\ud800Z"),("be-lone-low","x\udc00z"),
+                       ("be-pair-boundary","a"*510+"😀"),("be-interior-mark","A\ufeffB")]:
+        data=copy.deepcopy(wire);data["providers"][0]["name"]=name
+        text=json.dumps(data,ensure_ascii=False)
+        (snapshots/label).write_bytes(b"\xfe\xff"+text.encode("utf-16-be","surrogatepass"))
+    (snapshots/"be-odd-tail").write_bytes(b"\xfe\xff"+original.decode("utf8").encode("utf-16-be")+b"\x00")
+    (snapshots/"be-repeat-bom").write_bytes(b"\xfe\xff\xfe\xff"+original.decode("utf8").encode("utf-16-be"))
+    (snapshots/"be-null").write_bytes(b"\xfe\xff"+"null".encode("utf-16-be"))
     (snapshots/"truncated").write_bytes(original[:400])
     (snapshots/"empty-file").write_bytes(b"")
     (snapshots/"oversize").write_bytes(b" "*(8*1024*1024+1))
@@ -72,6 +82,20 @@ with tempfile.TemporaryDirectory(prefix="coderim-offline-cli-") as temp:
     hits=dict(zip(names,map(int,probe.splitlines()),strict=True))
     assert [hits[n] for n in ("small.json","medium.json","large.json","empty.json")]==[1,8,35,0],hits
     assert all(hits[n]==-1 for n in ("extra","utf16be","duplicate","bad-token-array")),hits
+
+    # These inputs must work in the ordinary opted-in executable even if its native
+    # sidecar is temporarily unavailable. Only move the test-owned output copy.
+    sidecar=work/"rust"/library.name
+    inactive=sidecar.with_name(sidecar.name+".fixture-inactive")
+    independent_encodings=["utf8-bom","utf16le","utf16be","utf32le","utf32be"]
+    sidecar.rename(inactive)
+    try:
+        for name in independent_encodings:
+            argv=["tokens","--snapshot",snapshots/name]
+            legacy=subprocess.check_output(command("managed","CodeRimCLI",argv),env=env)
+            assert legacy==subprocess.check_output(command("rust","CodeRimCLI",argv),env=env)
+    finally:
+        inactive.rename(sidecar)
 
     pairs=[]
     def compare(label,argv,culture="en-US"):
@@ -113,7 +137,7 @@ with tempfile.TemporaryDirectory(prefix="coderim-offline-cli-") as temp:
         updated=json.loads(watched.read_bytes())
         updated["providers"][0]["name"]="Replaced fixture"
         replacement=snapshots/"replacement.json"
-        replacement.write_text(json.dumps(updated),encoding="utf-8")
+        replacement.write_bytes(b"\xfe\xff"+json.dumps(updated).encode("utf-16-be"))
         second=subprocess.check_output(command(mode,"CodeRimCLI",["tokens","--snapshot",replacement]),env=env)
         assert first!=second
         output=work/(mode+"-watch.stdout")
@@ -173,11 +197,11 @@ with tempfile.TemporaryDirectory(prefix="coderim-offline-cli-") as temp:
         path=snapshots/("utf16be" if label=="utf16be" else label+".json")
         for case in ("read","process"):
             runs={m:[] for m in modes}
-            for n in range(5):
+            for n in range(11 if label=="utf16be" and case=="process" else 5):
                 for m in modes if n%2==0 else modes[::-1]:
                     runs[m].append(measure(m,"OfflineContract",["read",path,repeat]) if case=="read"
                                    else measure(m,"CodeRimCLI",["tokens","--format","text","--snapshot",path],True))
             assert len({s['checksum'] for batch in runs.values() for s in batch})==1
             benches[label+"-"+case]=runs
-    args.output.write_text(json.dumps(dict(cases=pairs,native=hits,watch=dict(atomicReplacement=watched_states[0],interruptExitVerified=os.name=="posix"),benchmarks=benches),indent=2)+"\n")
+    args.output.write_text(json.dumps(dict(cases=pairs,native=hits,withoutNativeLibrary=independent_encodings,watch=dict(atomicReplacement=watched_states[0],interruptExitVerified=os.name=="posix"),benchmarks=benches),indent=2)+"\n")
     print(f"Matched {len(pairs)} real CLI cases, {len(benches)} paired measurements and {len(hits)} native decoder controls.")

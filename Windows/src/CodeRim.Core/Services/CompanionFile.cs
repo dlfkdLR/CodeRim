@@ -57,7 +57,18 @@ public static class CompanionFile
         }
         CompanionSnapshot? result = null;
 #if CODERIM_RUST_ACCOUNTING
-        if (forCli) result = RustCompanionSnapshot.TryRead(bytes.GetBuffer().AsSpan(0, checked((int)bytes.Length)));
+        if (forCli)
+        {
+            ReadOnlySpan<byte> payload = bytes.GetBuffer().AsSpan(0, checked((int)bytes.Length));
+            // UTF-16BE's preamble is unambiguous. Use the same .NET replacement decoder
+            // directly on the bounded bytes, avoiding StreamReader's intermediate strings.
+            if (payload is [0xfe, 0xff, ..])
+                result = JsonSerializer.Deserialize<CompanionSnapshot>(System.Text.Encoding.BigEndianUnicode.GetString(payload[2..]), JsonOptions)
+                    ?? throw new InvalidDataException("Snapshot is empty.");
+            // Other BOMs and unusual documents retain the original StreamReader path.
+            else if (payload.TrimStart(" \t\r\n"u8).StartsWith("{"u8))
+                result = RustCompanionSnapshot.TryRead(payload);
+        }
 #endif
         if (result is null)
         {
