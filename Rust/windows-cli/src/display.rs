@@ -37,12 +37,9 @@ fn percent(value: f64, l: &Locale) -> Option<String> {
         format!("{}{}{}", tenths / 10, l.decimal, tenths % 10)
     })
 }
-pub fn text(o: &Options, time: &str, rows: &[J]) -> Option<String> {
+pub fn text(o: &Options, time: i64, rows: &[J]) -> Option<String> {
     let locale = system::locale()?;
-    let mut lines = vec![format!(
-        "CodeRim · {}",
-        system::format_date(date::parse(time)?.utc, &locale)?
-    )];
+    let mut lines = vec![format!("CodeRim · {}", system::format_date(time, &locale)?)];
     for row in rows {
         lines.push(row.get("name")?.s()?.to_owned());
         let local = row.get("localUsage")?;

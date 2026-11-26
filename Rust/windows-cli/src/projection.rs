@@ -70,8 +70,8 @@ fn local(v: &J, period: &str, now: i64) -> Option<J> {
     }
     let mut state = v.get("state")?.s()?;
     let updated = date::canonical(v.get("updatedAt")?)?;
-    let asof = v.get("periodsAsOf")?.s()?;
-    let clock = date::parse(asof)?.utc;
+    let asof = date::parse(v.get("periodsAsOf")?.s()?)?;
+    let clock = asof.utc;
     let zone = v.get("timeZoneIdentifier")?.s()?;
     let raw = v.get("totals")?.obj()?;
     if raw.len() > 4 {
@@ -104,7 +104,7 @@ fn local(v: &J, period: &str, now: i64) -> Option<J> {
         ("scope", J::text("this-pc")),
         ("state", J::text(state)),
         ("updatedAt", updated),
-        ("periodsAsOf", J::Date(asof.into())),
+        ("periodsAsOf", asof.json()),
         ("timeZoneIdentifier", J::text(zone)),
         ("totals", J::Obj(selected)),
     ]);
@@ -284,8 +284,8 @@ pub fn render(options: &Options, bytes: &[u8]) -> Option<Result<String, String>>
     if root.get("schemaVersion")?.int()? != 1 {
         return None;
     }
-    let generated = root.get("generatedAt")?.s()?;
-    if date::parse(generated)?.utc == 0 {
+    let generated = date::parse(root.get("generatedAt")?.s()?)?;
+    if generated.utc == 0 {
         return None;
     }
     let input = root.get("providers")?.array()?;
@@ -352,11 +352,11 @@ pub fn render(options: &Options, bytes: &[u8]) -> Option<Result<String, String>>
         return Some(Err("Unable to read valid CodeRim data.".into()));
     }
     if !options.json {
-        return crate::display::text(options, generated, &output).map(Ok);
+        return crate::display::text(options, generated.utc, &output).map(Ok);
     }
     let result = J::object([
         ("schemaVersion", J::Int(1)),
-        ("generatedAt", J::Date(generated.to_owned())),
+        ("generatedAt", generated.json()),
         ("command", J::text(&options.command)),
         ("period", J::text(&options.period)),
         ("providers", J::Array(output)),

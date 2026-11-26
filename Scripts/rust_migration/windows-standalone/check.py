@@ -77,14 +77,23 @@ with private_fixture() as tmp:
     try:
         for label,argv in [('help',['help']),('version',['--version']),('path',['path']),('path literal',['path','--snapshot','folder/example.json']),('period error',['--period','yesterday']),('watch error',['--watch','3601']),('missing value',['--format']),('unknown provider',['--provider','fake','--version']),('unknown command',['snapshot'])]:
             compare('native '+label,argv,registry=native_cases)
+        # On Unix use a known portable culture. On Windows this exercises
+        # the real OS time zone and user locale of the hosted runner.
+        native_env=env if os.name=='nt' else dict(env,LANG='en_US.UTF-8',LC_ALL='en_US.UTF-8',TZ='UTC')
         for label in ('small','medium','large','empty'):
             for cmd in ('tokens','limits','usage'):
                 for fmt in ('text','json'):
-                    # On Unix use a known portable culture. On Windows this exercises
-                    # the real OS time zone and user locale of the hosted runner.
-                    native_env=env if os.name=='nt' else dict(env,LANG='en_US.UTF-8',LC_ALL='en_US.UTF-8',TZ='UTC')
                     compare('native '+label+' '+cmd+' '+fmt,[cmd,'--snapshot',data/(label+'.json'),'--format',fmt,'--period','week'],native_env,native_cases)
         source=(data/'medium.json').read_text(encoding='utf8')
+        # DateTimeOffset accepts UTC Z and emits +00:00, trimming sub-tick digits.
+        # Replace every owned-writer timestamp to cover nested local usage and limits.
+        stamp = originals['generatedAt']
+        for index, value in enumerate(('1970-01-01T00:00:00Z', '2024-02-29T23:59:59.00000000Z',
+                                       '2024-03-01T00:00:00.12000Z', '2023-06-15T09:20:10.1234567891234567Z')):
+            path = data / f'utc-{index}.json'
+            path.write_text(source.replace(stamp, value), encoding='utf-8')
+            for fmt in ('json', 'text'):
+                compare(f'native UTC {index} {fmt}', ['usage', '--snapshot', path, '--format', fmt], native_env, native_cases)
         for charset,bom in [('utf-8',b'\xef\xbb\xbf'),('utf-16-be',b'\xfe\xff'),('utf-16-le',b'\xff\xfe'),('utf-32-be',b'\0\0\xfe\xff'),('utf-32-le',b'\xff\xfe\0\0')]:
             blob=data/charset;blob.write_bytes(bom+source.encode(charset))
             compare('native BOM '+charset,['usage','--snapshot',blob,'--format','json'],registry=native_cases)
