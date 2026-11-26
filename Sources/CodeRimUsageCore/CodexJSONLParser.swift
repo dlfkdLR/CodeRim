@@ -57,6 +57,11 @@ package struct CodexJSONLParser: Sendable {
             return .malformed("line exceeds the 1 MiB safety limit")
         }
 
+#if CODERIM_RUST_ACCOUNTING
+        if let token = RustCodexTokenParser.parse(line, parseTimestamp: parseTimestamp) {
+            return token
+        }
+#endif
         let object: Any
         do {
             object = try JSONSerialization.jsonObject(with: line)

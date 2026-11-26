@@ -1,4 +1,5 @@
 module CCodeRimAccounting {
     header "coderim_accounting.h"
+    header "coderim_token_json.h"
     export *
 }

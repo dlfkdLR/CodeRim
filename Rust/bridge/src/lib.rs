@@ -1,5 +1,7 @@
 //! The two fixed-layout host entry points take and return values by copy.
 //! Presence flags distinguish an absent measurement from any signed counter.
+mod token_json;
+
 use coderim_usage_core::{
     Diagnostic, Observation, Quality, State, TokenUsage, ZeroPolicy, normalize,
 };

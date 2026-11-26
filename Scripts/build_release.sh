@@ -32,9 +32,17 @@ fi
 "${script_dir}/verify_update_policy.sh" "${project_root}/Config/Info.plist"
 
 cd "${project_root}"
+accounting_flags=()
+if [[ -n "${CODERIM_RUST_ACCOUNTING_ARCHIVE:-}" ]]; then
+  archive=${CODERIM_RUST_ACCOUNTING_ARCHIVE:A}
+  lipo "${archive}" -verify_arch arm64
+  lipo "${archive}" -verify_arch x86_64
+  accounting_flags=(-Xswiftc -DCODERIM_RUST_ACCOUNTING -Xswiftc -I
+    -Xswiftc "${project_root}/Rust/bridge/include" -Xlinker "${archive}")
+fi
 for product in "${PRODUCT_NAME}" CodeRimCLI CodeRimClaudeBridge; do
   python3 "${script_dir}/prepare_swift_dependencies.py" --scratch-path "${swift_scratch_path}" \
-    --run-swift build -c release --arch arm64 --arch x86_64 --product "${product}" -Xswiftc -warnings-as-errors
+    --run-swift build -c release --arch arm64 --arch x86_64 --product "${product}" -Xswiftc -warnings-as-errors "${accounting_flags[@]}"
 done
 product_directory=$(python3 "${script_dir}/prepare_swift_dependencies.py" --scratch-path "${swift_scratch_path}" \
   --show-bin-path -c release --arch arm64 --arch x86_64)

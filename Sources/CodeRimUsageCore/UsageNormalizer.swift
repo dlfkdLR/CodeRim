@@ -39,6 +39,9 @@ package struct UsageNormalizer: Sendable {
         _ observation: CodexTokenObservation,
         state: UsageNormalizationState
     ) -> UsageNormalizationResult {
+#if CODERIM_RUST_ACCOUNTING
+        return RustUsageNormalizer.normalize(observation, state: state)
+#else
         if let lastObservedAt = state.lastObservedAt,
            observation.occurredAt < lastObservedAt {
             return UsageNormalizationResult(
@@ -133,6 +136,7 @@ package struct UsageNormalizer: Sendable {
             ),
             diagnostic: nil
         )
+#endif
     }
 
     /// A cumulative value used as a delta (first snapshot, counter restart) must be storable as well.
