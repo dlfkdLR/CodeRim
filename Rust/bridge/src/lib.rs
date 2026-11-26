@@ -11,6 +11,8 @@ mod analytics_chart;
 #[cfg(target_os = "macos")]
 mod apple_sqlite;
 #[cfg(any(target_os = "macos", test))]
+mod auggie_quota;
+#[cfg(any(target_os = "macos", test))]
 mod card_layout;
 mod claude_json;
 #[cfg(target_os = "macos")]

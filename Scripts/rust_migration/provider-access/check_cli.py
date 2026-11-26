@@ -13,7 +13,9 @@ def main():
     args = argparse.ArgumentParser(description=__doc__)
     args.add_argument("--products", required=True, type=Path)
     args.add_argument("--quickjs-header", required=True, type=Path)
+    args.add_argument("--archive", type=Path, help="Rust accounting bridge static archive")
     config = args.parse_args()
+    archive = (config.archive or ROOT / "Rust/target/release/libcoderim_accounting_bridge.a").resolve(strict=True)
     products = config.products.resolve()
     with tempfile.TemporaryDirectory(prefix="coderim-official-cli-", dir="/private/tmp") as folder:
         root = Path(folder)
@@ -24,7 +26,7 @@ def main():
         modulemap = root / "module.modulemap"
         modulemap.write_text(f'module CQuickJS {{ header "{config.quickjs_header.resolve()}" export * }}')
         binary = root / "fixture"
-        subprocess.run(["swiftc", "-parse-as-library", "-O", "-D", "CODERIM_RUST_ACCOUNTING", "-I", products,
+        subprocess.run(["swiftc", "-parse-as-library", "-O", "-D", "CODERIM_RUST_ACCOUNTING", "-I", products, "-I", ROOT / "Rust/bridge/include", archive,
                         "-Xcc", "-fmodule-map-file=" + str(modulemap),
                         ROOT / "Sources/CodeRim/Providers/OfficialUsageCLI.swift", HERE / "official-command.swift",
                         *[products / (lib + ".o") for lib in ("CodexBarCore", "Crypto", "CQuickJS", "SweetCookieKit", "Logging")],

@@ -1,4 +1,5 @@
 #if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
 import CodexBarCore
 import Foundation
 
@@ -50,10 +51,39 @@ enum OfficialUsageCLI {
             sourceLabel: "cli", strategyID: "augment.cli", strategyKind: .cli)
     }
 
+    static func parseAuggie(_ output: String) throws -> AugmentStatusSnapshot {
+        var contiguous = output
+        return try contiguous.withUTF8 { bytes in
+            var quota = CRAuggieQuota()
+            let status = cr_auggie_quota(bytes.baseAddress, bytes.count, &quota)
+            if status == CR_AUGGIE_UNICODE { return try parseUnicodeAuggie(output) }
+            guard status == CR_AUGGIE_QUOTA else {
+                throw AuggieCLIError.parseError("Could not extract credits from output")
+            }
+            var end: Date?
+            if quota.date_length > 0 {
+                let span = quota.date_start..<(quota.date_start + quota.date_length)
+                let date = String(decoding: bytes[span], as: UTF8.self).trimmingCharacters(in: .whitespaces)
+                end = billingDate(date)
+            }
+            return AugmentStatusSnapshot(creditsRemaining: Double(quota.remaining), creditsUsed: Double(quota.used),
+                creditsLimit: Double(quota.total), billingCycleEnd: end, accountEmail: nil,
+                accountPlan: quota.plan >= 0 ? "\(quota.plan.formatted()) credits/month" : nil, rawJSON: nil)
+        }
+    }
+
+    private static func billingDate(_ text: String) -> Date? {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "M/d/yyyy"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone.current
+        return formatter.date(from: text)
+    }
+
     // CodexBar 51ed16b, AuggieCLIProbe.parse. The public fetch method forwards the ambient
     // environment. Keep its private quota-format parser, omitting its raw-output diagnostic.
     // Copyright (c) 2026 Peter Steinberger. MIT license in Resources/ThirdPartyLicenses/CodexBar.txt.
-    static func parseAuggie(_ output: String) throws -> AugmentStatusSnapshot {
+    private static func parseUnicodeAuggie(_ output: String) throws -> AugmentStatusSnapshot {
         // Legacy output:
         // Max Plan 450,000 credits / month
         // 11,657 remaining · 953,170 / 964,827 credits used
@@ -129,11 +159,7 @@ enum OfficialUsageCLI {
                         .replacingOccurrences(of: "ends", with: "")
                         .trimmingCharacters(in: .whitespaces)
 
-                    let formatter = DateFormatter()
-                    formatter.dateFormat = "M/d/yyyy"
-                    formatter.locale = Locale(identifier: "en_US_POSIX")
-                    formatter.timeZone = TimeZone.current
-                    billingCycleEnd = formatter.date(from: dateStr)
+                    billingCycleEnd = billingDate(dateStr)
                 }
             }
         }

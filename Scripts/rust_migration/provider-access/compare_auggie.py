@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import itertools
 import json
+import platform
 from pathlib import Path
 import random
 import subprocess
@@ -11,9 +12,13 @@ import tempfile
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--products", required=True, type=Path)
 parser.add_argument("--upstream", required=True, type=Path, help="Pinned CodexBar dependency checkout")
+parser.add_argument("--archive", type=Path, help="Rust accounting bridge static archive")
+parser.add_argument("--arch", choices=["arm64", "x86_64"], default=platform.machine())
+parser.add_argument("--benchmark-output", type=Path, help="Write paired release and candidate parser timings")
 args = parser.parse_args()
 fixture = Path(__file__).resolve().parent
 source = fixture.parents[2]
+archive = (args.archive or source / "Rust/target/release/libcoderim_accounting_bridge.a").resolve(strict=True)
 products = args.products.resolve()
 upstream = args.upstream.resolve()
 baseline = upstream / "Sources/CodexBarCore/Providers/Augment/AuggieCLIProbe.swift"
@@ -41,6 +46,17 @@ for _ in range(512):
              f"{rng.choice(amounts)} remaining · {rng.choice(amounts)} / {rng.choice(amounts)} credits used",
              "billing cycle ends " + rng.choice(dates), "  ", "unrelated synthetic text"]
     fixtures.append("\n".join(rng.choice(parts) for _ in range(rng.randint(0, 8))))
+# The original regexes accept more whitespace than their literal replacements
+# remove. Exercise that difference and Swift's treatment of CRLF as a grapheme.
+for ws in [" ", "  ", "\t", "\v", "\f", "\r", "\r\n", "\u00a0", "\u2028", " \t", "\t "]:
+    for tail in [f"1,2{ws}credits{ws}/{ws}month", f"1,2{ws}credits{ws}remaining",
+                 f"1,2{ws}remaining · 7{ws}/{ws}4{ws}credits used", f"billing cycle ends{ws}1/2/2026"]:
+        fixtures.append("2 credits remaining\nMax Plan 8 credits\n" + tail + "\n9 credits / month")
+        fixtures.append("2 credits remaining\r\nMax Plan 8 credits\r\n" + tail + "\r\n9 credits / month")
+fixtures += [u + " 7 credits / month\n2 credits remaining" for u in
+             ["구독", "🎁", "\ufeff", "3\u0301", "3\u200d", "३", "١٢", "²", "ㆍ", "\x00", "3,９,Ω"]]
+fixtures += ["," * 65000 + " credits remaining\n12 credits / month",
+             "x" * 65490 + "\n2 credits remaining\n7 credits / month"]
 with tempfile.TemporaryDirectory(dir="/private/tmp", prefix="coderim-auggie-quota-oracle-") as folder:
     tmp = Path(folder)
     oracle = tmp / "original.swift"
@@ -50,7 +66,7 @@ with tempfile.TemporaryDirectory(dir="/private/tmp", prefix="coderim-auggie-quot
     module.write_text(f'module CQuickJS {{ header "{header}" export * }}')
     app = tmp / "oracle-check"
     candidate = source / "Sources/CodeRim/Providers/OfficialUsageCLI.swift"
-    subprocess.run(["swiftc", "-O", "-parse-as-library", "-D", "CODERIM_RUST_ACCOUNTING", "-I", products,
+    subprocess.run(["swiftc", "-target", args.arch + "-apple-macos14.0", "-O", "-parse-as-library", "-D", "CODERIM_RUST_ACCOUNTING", "-I", products, "-I", source / "Rust/bridge/include", archive,
                     "-Xcc", "-fmodule-map-file=" + str(module), candidate, oracle, fixture / "auggie-quota-comparison.swift",
                     *[products / (name + ".o") for name in ["CodexBarCore", "Crypto", "CQuickJS", "SweetCookieKit", "Logging"]],
                     "-lsqlite3", "-lc++", "-lz", "-Xlinker", "-dead_strip", "-o", app], check=True)
@@ -61,3 +77,8 @@ with tempfile.TemporaryDirectory(dir="/private/tmp", prefix="coderim-auggie-quot
         subprocess.run(["/usr/bin/sandbox-exec", "-D", f"APP={app}", "-D", "PERSONAL=" + str(Path.home()),
                         "-p", policy, app], input=json.dumps(fixtures).encode(), cwd=tmp,
                        env={"TZ": tz, "HOME": str(tmp), "PATH": "/usr/bin:/bin", "LC_CTYPE": "en_US.UTF-8"}, check=True)
+    if args.benchmark_output:
+        samples = subprocess.check_output(["/usr/bin/sandbox-exec", "-D", f"APP={app}",
+            "-D", "PERSONAL=" + str(Path.home()), "-p", policy, app, "benchmark"], cwd=tmp,
+            env={"TZ": "UTC", "HOME": str(tmp), "PATH": "/usr/bin:/bin", "LC_CTYPE": "en_US.UTF-8"})
+        args.benchmark_output.write_bytes(samples)
