@@ -1,0 +1,70 @@
+{
+  "source": "a38c0bfbfe35b5b4ada2f086370a91cac56ae308",
+  "baseline": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "packetDigest": "f13d5305c5b1e568a2117869c8edfab68a37e9e9c5d5f22f0f417442726c6210",
+  "verified": {
+    "placement-arm.rows": {
+      "count": 2020,
+      "sha256": "147df5dad4f6cc5b180d12a5b85bdc78a2a0b365cefb4d9dbe097fbff5ed1d46"
+    },
+    "placement-intel.rows": {
+      "count": 2020,
+      "sha256": "147df5dad4f6cc5b180d12a5b85bdc78a2a0b365cefb4d9dbe097fbff5ed1d46"
+    }
+  },
+  "benchmarks": {
+    "frames": {
+      "medianNs": {
+        "release": 21.69357638888889,
+        "rust": 22.930847222222223
+      },
+      "candidateOverStable": 1.0570339722300028,
+      "pairs": 7
+    },
+    "handles": {
+      "medianNs": {
+        "release": 56.53038194444444,
+        "rust": 19.362555555555556
+      },
+      "candidateOverStable": 0.34251591603580916,
+      "pairs": 7
+    },
+    "interactive": {
+      "medianNs": {
+        "release": 75.26995833333334,
+        "rust": 34.553385416666664
+      },
+      "candidateOverStable": 0.4590594465808902,
+      "pairs": 7
+    },
+    "selection": {
+      "medianNs": {
+        "release": 290.9583333333333,
+        "rust": 290.61371527777777
+      },
+      "candidateOverStable": 0.9988155759224785,
+      "pairs": 7
+    },
+    "window": {
+      "medianNs": {
+        "release": 34281.901041666664,
+        "rust": 29137.369791666668
+      },
+      "candidateOverStable": 0.8499344816453653,
+      "pairs": 7
+    }
+  },
+  "inputs": "Real invisible application-owned NSPanel coordinate conversion, frame updates and NSHostingView/container hitTest, plus synthetic NSScreen facts and monitor arrangement fixtures. Physical current display and its backing scale are reported in the raw output. Test does not change display configuration or cursor.",
+  "architecture": "macOS ARM64 on Apple Silicon, x86_64 with Rosetta. Benchmark is ARM64 only.",
+  "limitations": [
+    "No capture, real multi-display, fully visible production window, timing of animation, physical mouse move or hardware-notch test on a second Mac.",
+    "Swift retains native monitor reads and display identity matching, animations, cursor events, CoreGraphics conversions, and the existing NotchPlacement along/across conventions used by other views."
+  ],
+  "raw": [
+    "placement-final-arm.log",
+    "placement-intel.log",
+    "placement-final.json",
+    "placement-fmt.log",
+    "placement-clippy.log"
+  ]
+}

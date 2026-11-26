@@ -1,0 +1,345 @@
+{
+  "ref": "v2.1.41",
+  "scalarCases": 1692,
+  "recoverySteps": 7,
+  "responseSha256": "73351da84099b09f5b58c1b7679aeb18c4c6588904194d71503d26c0e8032adc",
+  "wasmSha256": "a263e7e80b50f4352a4834b3bfb70c9d0b3bda88e5f85a50ce0d2eb0ffcd5f55",
+  "timing": [
+    {
+      "devices": 1,
+      "providers": 3,
+      "requestsPerSample": 48,
+      "checksum": "aa9131ef56d278fe67eed2c5a5aa2bf098c9ead74752c3f43d8f07e1757c0365",
+      "counts": {
+        "wasm": {
+          "queries": 240,
+          "readRows": 240,
+          "duplicateCatalogReads": 0
+        },
+        "release": {
+          "queries": 384,
+          "readRows": 384,
+          "duplicateCatalogReads": 48
+        },
+        "native": {
+          "queries": 384,
+          "readRows": 384,
+          "duplicateCatalogReads": 48
+        },
+        "pickerOnly": {
+          "queries": 384,
+          "readRows": 384,
+          "duplicateCatalogReads": 48
+        },
+        "projectedJS": {
+          "queries": 240,
+          "readRows": 240,
+          "duplicateCatalogReads": 0
+        }
+      },
+      "medians": {
+        "release": 4.790583499999997,
+        "native": 4.9857290000000205,
+        "pickerOnly": 5.1794994999999915,
+        "projectedJS": 3.7494164999999953,
+        "wasm": 3.991500000000002
+      },
+      "samples": [
+        {
+          "release": 5.303374999999988,
+          "native": 5.1370000000000005,
+          "pickerOnly": 5.892832999999996,
+          "projectedJS": 4.068916999999999,
+          "wasm": 5.557791999999949
+        },
+        {
+          "native": 5.729624999999999,
+          "pickerOnly": 5.041958000000022,
+          "projectedJS": 3.8169579999999996,
+          "wasm": 3.9653749999999945,
+          "release": 4.8390830000000165
+        },
+        {
+          "pickerOnly": 5.317040999999961,
+          "projectedJS": 4.724249999999984,
+          "wasm": 4.184624999999983,
+          "release": 5.012166000000036,
+          "native": 4.982500000000016
+        },
+        {
+          "projectedJS": 3.374375000000043,
+          "wasm": 3.217583999999988,
+          "release": 4.576208000000008,
+          "native": 4.988958000000025,
+          "pickerOnly": 4.230542000000014
+        },
+        {
+          "wasm": 4.0176250000000095,
+          "release": 5.0100419999999986,
+          "native": 4.432999999999993,
+          "pickerOnly": 4.51195800000005,
+          "projectedJS": 3.8224589999999807
+        },
+        {
+          "release": 4.515416999999957,
+          "native": 10.865499999999997,
+          "pickerOnly": 5.960833000000093,
+          "projectedJS": 3.699707999999987,
+          "wasm": 5.430541000000062
+        },
+        {
+          "native": 4.7542909999999665,
+          "pickerOnly": 5.327457999999979,
+          "projectedJS": 3.7991250000000036,
+          "wasm": 4.732499999999959,
+          "release": 4.601167000000032
+        },
+        {
+          "pickerOnly": 4.55437500000005,
+          "projectedJS": 3.212709000000018,
+          "wasm": 3.208250000000021,
+          "release": 4.742083999999977,
+          "native": 4.450749999999971
+        },
+        {
+          "projectedJS": 3.208332999999925,
+          "wasm": 3.5947080000000824,
+          "release": 4.993584000000055,
+          "native": 4.589417000000026,
+          "pickerOnly": 4.484541999999919
+        },
+        {
+          "wasm": 3.5608330000000024,
+          "release": 4.703999999999951,
+          "native": 5.807000000000016,
+          "pickerOnly": 5.358084000000076,
+          "projectedJS": 3.426667000000066
+        }
+      ]
+    },
+    {
+      "devices": 4,
+      "providers": 24,
+      "requestsPerSample": 48,
+      "checksum": "957207cb27e5334519a33901b80e8276fc591c94ca593f1dd3f8149506a8ad99",
+      "counts": {
+        "wasm": {
+          "queries": 240,
+          "readRows": 384,
+          "duplicateCatalogReads": 0
+        },
+        "release": {
+          "queries": 384,
+          "readRows": 672,
+          "duplicateCatalogReads": 48
+        },
+        "native": {
+          "queries": 384,
+          "readRows": 672,
+          "duplicateCatalogReads": 48
+        },
+        "pickerOnly": {
+          "queries": 384,
+          "readRows": 672,
+          "duplicateCatalogReads": 48
+        },
+        "projectedJS": {
+          "queries": 240,
+          "readRows": 384,
+          "duplicateCatalogReads": 0
+        }
+      },
+      "medians": {
+        "release": 13.762750000000096,
+        "native": 13.47399949999999,
+        "pickerOnly": 12.393000499999971,
+        "projectedJS": 7.960229000000027,
+        "wasm": 7.935812500000111
+      },
+      "samples": [
+        {
+          "release": 31.054209000000014,
+          "native": 15.428666999999905,
+          "pickerOnly": 12.938500000000204,
+          "projectedJS": 7.950708000000077,
+          "wasm": 7.917208000000073
+        },
+        {
+          "native": 12.648750000000064,
+          "pickerOnly": 11.906166999999868,
+          "projectedJS": 7.660417000000052,
+          "wasm": 7.557749999999942,
+          "release": 15.185208999999986
+        },
+        {
+          "pickerOnly": 12.083249999999907,
+          "projectedJS": 8.106375000000071,
+          "wasm": 8.055458000000044,
+          "release": 12.609250000000202,
+          "native": 13.249666000000161
+        },
+        {
+          "projectedJS": 7.938625000000002,
+          "wasm": 7.954417000000149,
+          "release": 13.084208999999873,
+          "native": 12.80925000000002,
+          "pickerOnly": 12.69395899999995
+        },
+        {
+          "wasm": 7.820375000000013,
+          "release": 13.569709000000103,
+          "native": 14.984083000000055,
+          "pickerOnly": 13.712917000000061,
+          "projectedJS": 8.403999999999996
+        },
+        {
+          "release": 13.926292000000103,
+          "native": 16.684334000000035,
+          "pickerOnly": 13.690249999999878,
+          "projectedJS": 8.539125000000013,
+          "wasm": 8.149541
+        },
+        {
+          "native": 13.69833299999982,
+          "pickerOnly": 11.948583000000099,
+          "projectedJS": 7.7462920000000395,
+          "wasm": 8.01995799999986,
+          "release": 14.025041999999985
+        },
+        {
+          "pickerOnly": 13.663250000000062,
+          "projectedJS": 8.157624999999825,
+          "wasm": 7.880290999999943,
+          "release": 13.59920800000009,
+          "native": 14.001999999999953
+        },
+        {
+          "projectedJS": 7.969749999999976,
+          "wasm": 7.80070899999987,
+          "release": 12.513374999999996,
+          "native": 12.693667000000005,
+          "pickerOnly": 12.092041999999992
+        },
+        {
+          "wasm": 8.140707999999904,
+          "release": 15.54629100000011,
+          "native": 13.022707999999966,
+          "pickerOnly": 12.048250000000053,
+          "projectedJS": 7.6944579999999405
+        }
+      ]
+    },
+    {
+      "devices": 16,
+      "providers": 100,
+      "requestsPerSample": 48,
+      "checksum": "2ab0c7bda88731cc4e4cd45711e9c33447b198cc5e2b936af5ee730bab5b6189",
+      "counts": {
+        "wasm": {
+          "queries": 240,
+          "readRows": 960,
+          "duplicateCatalogReads": 0
+        },
+        "release": {
+          "queries": 384,
+          "readRows": 1824,
+          "duplicateCatalogReads": 48
+        },
+        "native": {
+          "queries": 384,
+          "readRows": 1824,
+          "duplicateCatalogReads": 48
+        },
+        "pickerOnly": {
+          "queries": 384,
+          "readRows": 1824,
+          "duplicateCatalogReads": 48
+        },
+        "projectedJS": {
+          "queries": 240,
+          "readRows": 960,
+          "duplicateCatalogReads": 0
+        }
+      },
+      "medians": {
+        "release": 107.89662499999986,
+        "native": 108.89854150000019,
+        "pickerOnly": 107.78937500000029,
+        "projectedJS": 57.58860400000026,
+        "wasm": 57.42235449999998
+      },
+      "samples": [
+        {
+          "release": 111.2291250000003,
+          "native": 107.01362500000005,
+          "pickerOnly": 104.15512499999977,
+          "projectedJS": 63.93616599999996,
+          "wasm": 74.4787080000001
+        },
+        {
+          "native": 117.87920900000017,
+          "pickerOnly": 113.77833400000009,
+          "projectedJS": 57.668874999999844,
+          "wasm": 56.48958300000004,
+          "release": 106.3252080000002
+        },
+        {
+          "pickerOnly": 129.28274999999985,
+          "projectedJS": 94.97820899999988,
+          "wasm": 62.581750000000284,
+          "release": 107.63337500000034,
+          "native": 111.35004200000003
+        },
+        {
+          "projectedJS": 57.42954099999952,
+          "wasm": 56.44329099999959,
+          "release": 107.64499999999953,
+          "native": 112.07324999999946,
+          "pickerOnly": 113.63220799999999
+        },
+        {
+          "wasm": 58.09612500000003,
+          "release": 108.14825000000019,
+          "native": 106.21950000000015,
+          "pickerOnly": 107.359958,
+          "projectedJS": 111.60970799999996
+        },
+        {
+          "release": 117.47924999999941,
+          "native": 107.77629100000013,
+          "pickerOnly": 107.73574999999983,
+          "projectedJS": 57.137666999999965,
+          "wasm": 57.95058400000016
+        },
+        {
+          "native": 108.05695800000012,
+          "pickerOnly": 105.77629100000013,
+          "projectedJS": 56.72612500000014,
+          "wasm": 56.75075000000015,
+          "release": 106.58866599999965
+        },
+        {
+          "pickerOnly": 105.96466599999985,
+          "projectedJS": 56.91416699999991,
+          "wasm": 56.8941249999998,
+          "release": 107.2358750000003,
+          "native": 109.74012500000026
+        },
+        {
+          "projectedJS": 57.508333000000675,
+          "wasm": 56.656583999999384,
+          "release": 116.19954200000029,
+          "native": 106.73779099999956,
+          "pickerOnly": 110.3740829999997
+        },
+        {
+          "wasm": 59.371083,
+          "release": 131.38895899999898,
+          "native": 116.1244170000009,
+          "pickerOnly": 107.84300000000076,
+          "projectedJS": 60.27320800000052
+        }
+      ]
+    }
+  ]
+}

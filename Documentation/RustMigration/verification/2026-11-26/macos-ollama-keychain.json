@@ -1,0 +1,88 @@
+{
+  "arch": "arm64",
+  "candidate": "1095a7abc3760374f8924caee198e25f3bdc3b76",
+  "macOS": "26.6.2",
+  "phases": [
+    {
+      "operations": [
+        "read:-25300",
+        "update:-25300",
+        "add:0",
+        "update:-25300",
+        "add:0",
+        "read:0",
+        "read:0"
+      ],
+      "phase": "original-save",
+      "verified": true
+    },
+    {
+      "operations": [
+        "read:0",
+        "read:0",
+        "read:0"
+      ],
+      "phase": "reopen-original",
+      "verified": true
+    },
+    {
+      "operations": [
+        "update:0",
+        "read:0",
+        "read:0"
+      ],
+      "phase": "replace",
+      "verified": true
+    },
+    {
+      "operations": [
+        "read:0",
+        "read:0"
+      ],
+      "phase": "blank",
+      "verified": true
+    },
+    {
+      "operations": [
+        "read:0",
+        "read:0"
+      ],
+      "phase": "discard",
+      "verified": true
+    },
+    {
+      "operations": [
+        "update:-25293",
+        "read:0",
+        "read:0"
+      ],
+      "phase": "locked-replace",
+      "verified": true
+    },
+    {
+      "operations": [
+        "delete:0",
+        "read:-25300",
+        "read:0"
+      ],
+      "phase": "remove",
+      "verified": true
+    },
+    {
+      "operations": [
+        "read:-25300",
+        "read:-25300",
+        "delete:-25300",
+        "read:0"
+      ],
+      "phase": "reopen-removed",
+      "verified": true
+    }
+  ],
+  "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "rustPolicyLinked": true,
+  "securityStoreSourceSha256": "bfa583f479f0e3e03de433bf264a9be35ed9e5774d2923f547e06356073df069",
+  "separateProcesses": 8,
+  "temporaryDirectoryRemoved": true,
+  "vaultFileObserved": true
+}

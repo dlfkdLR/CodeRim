@@ -1,0 +1,252 @@
+{
+  "x64": {
+    "artifactId": 15082426522,
+    "digest": "sha256:b46f71f13c7e25520a42dca2e53d4080c58e2c639700165ea21fab30d2ce8360",
+    "cases": 69,
+    "native": {
+      "small.json": 1,
+      "medium.json": 8,
+      "large.json": 35,
+      "empty.json": 0,
+      "extra": -1,
+      "utf16be": -1,
+      "duplicate": -1,
+      "bad-token-array": -1
+    },
+    "watch": {
+      "atomicReplacement": "00ebd2c0eb54af028c3b154d15d539ca9481a896ee32b446db61913e2f7b5903",
+      "interruptExitVerified": false
+    },
+    "benchmarks": {
+      "small-read": {
+        "managed": {
+          "wallUs": 214.966,
+          "cpuUs": 218.75,
+          "managedBytes": 96440,
+          "peakRss": 85450752
+        },
+        "rust": {
+          "wallUs": 167.907,
+          "cpuUs": 156.25,
+          "managedBytes": 13672,
+          "peakRss": 42364928
+        }
+      },
+      "small-process": {
+        "managed": {
+          "wallMs": 287.667,
+          "cpuMs": 281.25,
+          "peakRss": 40796160
+        },
+        "rust": {
+          "wallMs": 268.049,
+          "cpuMs": 265.625,
+          "peakRss": 40607744
+        }
+      },
+      "medium-read": {
+        "managed": {
+          "wallUs": 556.663,
+          "cpuUs": 558.036,
+          "managedBytes": 302680,
+          "peakRss": 81637376
+        },
+        "rust": {
+          "wallUs": 397.134,
+          "cpuUs": 446.429,
+          "managedBytes": 113384,
+          "peakRss": 52678656
+        }
+      },
+      "medium-process": {
+        "managed": {
+          "wallMs": 288.641,
+          "cpuMs": 281.25,
+          "peakRss": 41033728
+        },
+        "rust": {
+          "wallMs": 270.317,
+          "cpuMs": 250.0,
+          "peakRss": 40759296
+        }
+      },
+      "large-read": {
+        "managed": {
+          "wallUs": 1837.322,
+          "cpuUs": 1562.5,
+          "managedBytes": 1625043,
+          "peakRss": 46260224
+        },
+        "rust": {
+          "wallUs": 1693.963,
+          "cpuUs": 1562.5,
+          "managedBytes": 507118,
+          "peakRss": 42688512
+        }
+      },
+      "large-process": {
+        "managed": {
+          "wallMs": 290.871,
+          "cpuMs": 296.875,
+          "peakRss": 42598400
+        },
+        "rust": {
+          "wallMs": 271.777,
+          "cpuMs": 265.625,
+          "peakRss": 41156608
+        }
+      },
+      "utf16be-read": {
+        "managed": {
+          "wallUs": 779.844,
+          "cpuUs": 781.25,
+          "managedBytes": 463268,
+          "peakRss": 49090560
+        },
+        "rust": {
+          "wallUs": 777.457,
+          "cpuUs": 781.25,
+          "managedBytes": 338984,
+          "peakRss": 74014720
+        }
+      },
+      "utf16be-process": {
+        "managed": {
+          "wallMs": 291.656,
+          "cpuMs": 281.25,
+          "peakRss": 41259008
+        },
+        "rust": {
+          "wallMs": 302.934,
+          "cpuMs": 296.875,
+          "peakRss": 41426944
+        }
+      }
+    }
+  },
+  "arm64": {
+    "artifactId": 15081654135,
+    "digest": "sha256:9a17a9fd48baec50a48eeb20ec90ec5dfadb313768679a07bf10d95933e7953b",
+    "cases": 69,
+    "native": {
+      "small.json": 1,
+      "medium.json": 8,
+      "large.json": 35,
+      "empty.json": 0,
+      "extra": -1,
+      "utf16be": -1,
+      "duplicate": -1,
+      "bad-token-array": -1
+    },
+    "watch": {
+      "atomicReplacement": "fed6d5997191a484b5aa9a6ee1e4aefdf5243161769807bd701b7a6d50d75bf8",
+      "interruptExitVerified": false
+    },
+    "benchmarks": {
+      "small-read": {
+        "managed": {
+          "wallUs": 326.405,
+          "cpuUs": 312.5,
+          "managedBytes": 96460,
+          "peakRss": 45916160
+        },
+        "rust": {
+          "wallUs": 304.442,
+          "cpuUs": 312.5,
+          "managedBytes": 13673,
+          "peakRss": 45359104
+        }
+      },
+      "small-process": {
+        "managed": {
+          "wallMs": 264.384,
+          "cpuMs": 265.625,
+          "peakRss": 44036096
+        },
+        "rust": {
+          "wallMs": 245.642,
+          "cpuMs": 234.375,
+          "peakRss": 43917312
+        }
+      },
+      "medium-read": {
+        "managed": {
+          "wallUs": 610.052,
+          "cpuUs": 558.036,
+          "managedBytes": 302747,
+          "peakRss": 46055424
+        },
+        "rust": {
+          "wallUs": 512.606,
+          "cpuUs": 558.036,
+          "managedBytes": 113402,
+          "peakRss": 45416448
+        }
+      },
+      "medium-process": {
+        "managed": {
+          "wallMs": 265.281,
+          "cpuMs": 250.0,
+          "peakRss": 44285952
+        },
+        "rust": {
+          "wallMs": 244.892,
+          "cpuMs": 250.0,
+          "peakRss": 44048384
+        }
+      },
+      "large-read": {
+        "managed": {
+          "wallUs": 2039.18,
+          "cpuUs": 1953.125,
+          "managedBytes": 1624711,
+          "peakRss": 48013312
+        },
+        "rust": {
+          "wallUs": 1817.247,
+          "cpuUs": 1562.5,
+          "managedBytes": 507149,
+          "peakRss": 46215168
+        }
+      },
+      "large-process": {
+        "managed": {
+          "wallMs": 261.976,
+          "cpuMs": 265.625,
+          "peakRss": 46698496
+        },
+        "rust": {
+          "wallMs": 248.21,
+          "cpuMs": 250.0,
+          "peakRss": 44437504
+        }
+      },
+      "utf16be-read": {
+        "managed": {
+          "wallUs": 807.571,
+          "cpuUs": 781.25,
+          "managedBytes": 463327,
+          "peakRss": 48173056
+        },
+        "rust": {
+          "wallUs": 725.234,
+          "cpuUs": 781.25,
+          "managedBytes": 339053,
+          "peakRss": 46526464
+        }
+      },
+      "utf16be-process": {
+        "managed": {
+          "wallMs": 261.037,
+          "cpuMs": 250.0,
+          "peakRss": 44486656
+        },
+        "rust": {
+          "wallMs": 276.834,
+          "cpuMs": 265.625,
+          "peakRss": 44711936
+        }
+      }
+    }
+  }
+}

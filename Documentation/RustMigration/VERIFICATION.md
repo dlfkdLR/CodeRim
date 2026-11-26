@@ -125,3 +125,21 @@ At `6661448` the counted sources contain 4,644 Rust lines among 95,343 total (4.
 ## Release status
 
 The migration branch is experimental. The data-collection and account flows, all UI surfaces, credentials and settings, mobile/relay compatibility, product-wide performance, long-running stability, upgrades, rollback and distribution signatures require further implementation or evidence. The published v2.1.41 artifacts remain the recovery reference. [Inventory](BASELINE.md) · [Build and rollback details](ARCHITECTURE.md)
+
+## 데스크톱 데이터와 배포 경로 추가 검증
+
+`61e8b95`에서 같은 기준으로 센 제품 소스는 98,112줄이며 Rust는 6,601줄(6.728%)이다. 공개 v2.1.41은 88,673줄이다. 두 구현을 대조하는 기간에는 기존 네이티브 코드와 호환 경로도 소스에 포함된다. [언어별 집계](verification/2026-11-26/production-source-lines.json)
+
+| 사용자가 거치는 경로 | 대조한 결과 | 범위와 근거 |
+|---|---|---|
+| macOS 설정의 기간별·모델별 통계 | CPU 두 종류에서 각각 실제 DB 96가지의 전체 결과 또는 오류가 같았다. 65,000행을 조회한 9쌍의 중앙값은 공개 소스 162.34ms, 같은 브랜치의 Swift 161.73ms, Rust 경로 122.52ms였다. | 기존 SQLite 읽기 트랜잭션을 공유한다. 행 합계의 범위를 넘거나 지원하지 않는 모델 키는 기존 SQL에서 처리한다. [크기별 측정](verification/2026-11-26/macos-analytics-full-scan.json) · [같은 조건의 세 구현](verification/2026-11-26/macos-analytics-control.json) |
+| macOS 세션과 활동 상태 | 정방향 읽기는 8MiB, 128바이트 간격에서 19.71→4.56ms였다. 역방향 활동 조회는 arm64와 Rosetta에서 각각 1,144개 관측값이 일치했다. 뒤에 8MiB가 쌓인 2KiB 간격 로그는 21.28→1.97ms였다. 작은 64바이트 꼬리는 0.182→0.191ms였다. | 마지막 줄의 미완성 상태, 파일 교체, 추가 쓰기, 잘린 파일, 읽기 한도와 타임스탬프를 포함한다. 실사용 채팅 파일 접근 없이 임시 파일의 실제 디스크립터로 실행했다. [정방향](verification/2026-11-26/macos-transcript-read.json) · [역방향](verification/2026-11-26/macos-turn-boundaries.json) |
+| macOS 노치 위치와 알림 | 화면 가장자리·패널·컨트롤의 좌표 2,020개가 각 CPU에서 같았다. 알림 정책은 4,731개 상태를 대조했다. | AppKit이 실제 패널과 마우스 이벤트를 소유한다. 좌표 계산 단독과 창 이동을 포함한 시간은 각각 기록했다. [노치 배치](verification/2026-11-26/macos-notch-panel-placement.json) · [알림 정책](verification/2026-11-26/macos-quota-alerts.json) |
+| macOS 명시적 Ollama 키 | 별도의 Security 키체인에서 저장·교체·공백·취소·잠금·삭제 후 다음 프로세스가 본 결과를 확인했다. 여덟 단계에서 같은 키체인의 다른 항목도 유지됐다. | 테스트 전용 키체인에서 합성 키만 사용했다. [저장소 결과](verification/2026-11-26/macos-ollama-keychain.json) · [실제 설정 UI](MAC_OLLAMA_KEY.md) |
+| macOS 업데이트와 재시작 | 공개 v2.1.41 앱·ZIP·피드 서명, 각 1비트 변조 거부, 공식 Sparkle 2.9.6의 QA 피드 7건을 확인했다. 종료를 보류한 임시 앱은 원본 64.78초, 후보 60.18초에 LaunchServices의 다시 열기 이벤트를 받았다. 정상 종료와 롤백된 번들에서는 해당 앱이 다시 실행됐다. | Rust는 기존에 서명하는 CLI 실행 파일을 번들 내부 별칭으로 호출한다. Sparkle 자체가 설치하는 새 서명 버전과 공개 채널 업그레이드는 최종 게이트로 남는다. [Sparkle 검사](verification/2026-11-26/macos-sparkle-stable.json) · [실제 앱 이벤트](verification/2026-11-26/macos-update-reopen.json) |
+| Windows 사용 기록과 CLI | x64·ARM64에서 각 33개 실제 SQLite 프로필의 복원 결과 및 69개 CLI 사례의 출력·오류·종료 상태를 비교했다. 4만 행 복원 중앙값은 x64 81.75→68.81ms, ARM64 128.54→93.15ms였다. 관리 코드로 같은 커서를 사용하면 각각 66.31ms, 93.27ms였다. | SQLite 커서를 바꾼 효과가 측정치에 포함된다. CLI의 UTF-16 입력 속도는 이 실행 이후에도 별도로 추적한다. [기록 복원](verification/2026-11-26/windows-retained-history-native.json) · [CLI](verification/2026-11-26/windows-cli-native.json) · [설정 차트](verification/2026-11-26/windows-settings-chart-process.json) |
+| Windows MSI 복구 | 배포한 v2.1.41 MSI를 각 CPU에 설치하고 업그레이드 중 실패를 주입했다. 원래 바이너리·등록 상태·PATH·바로가기·CLI 읽기를 확인한 뒤, 정상 업그레이드·다운그레이드 거부·제거·공개 원본 재설치를 검증했다. | 업그레이드 경로를 만들기 위해 QA MSI의 등록 버전만 2.1.42로 사용했다. [단계별 결과와 CI 아티팩트 해시](verification/2026-11-26/windows-stable-msi-replay.json) |
+| iPhone 대시보드와 Live Activity | 원격 iPhone 17 Pro 시뮬레이터에서 46개 테스트가 통과했다. 초기 빈 화면, 기기 선택, 오프라인 할당량과 작업 제목을 다룬다. | 실기기 잠금화면에 표시되는 Live Activity는 추가 확인이 필요하다. [XCTest](verification/2026-11-26/ios-1095a7a-tests.json) · [12,000개 상태](verification/2026-11-26/ios-island-reading.json) |
+| 모바일 릴레이 기기 상태 읽기 | 이미 가져온 기기 데이터에서 응답을 구성해 건당 SQL 조회가 8회에서 5회로 줄었다. 16개 기기·100개 서비스에서 연속 48회 요청의 중앙값은 108.90→57.42ms였고, 같은 방식으로 최적화한 JS는 57.59ms였다. | 로컬 SQLite에서 1,692개 경계 입력과 재개방을 검증했다. 배포된 릴레이 변경은 별도의 승인 조건에 속한다. [응답·저장 결과와 측정치](verification/2026-11-26/relay-snapshot-read.json) |
+
+개별 기능의 비교 결과와 정식 승인 판정은 별도로 기록한다. 설정 통계와 역방향 로그의 development-harness 결과는 INCONCLUSIVE였다. 업데이트 재시작은 검증 워크플로까지 바꾼 패치가 고정된 검증 입력 및 작업 경로 조건에 걸려 REJECT였다. 공개 서명, GUI 동작, 프로세스 성능, 장시간 수집과 물리 기기 검증을 포함한 전체 병합 요건은 계속 적용된다.

@@ -1,0 +1,220 @@
+{
+  "x64": {
+    "cases": 33,
+    "measurements": {
+      "small": {
+        "managed": {
+          "wallUs": 1284.963,
+          "cpuUs": 1250,
+          "managedBytes": 36576,
+          "peakRss": 37961728
+        },
+        "sql-only": {
+          "wallUs": 1259.894,
+          "cpuUs": 1250,
+          "managedBytes": 36136,
+          "peakRss": 37863424
+        },
+        "managed-cursor": {
+          "wallUs": 1254.903,
+          "cpuUs": 1250,
+          "managedBytes": 36136,
+          "peakRss": 37937152
+        },
+        "rust": {
+          "wallUs": 1282.527,
+          "cpuUs": 1250,
+          "managedBytes": 36768,
+          "peakRss": 38105088
+        }
+      },
+      "clean": {
+        "managed": {
+          "wallUs": 20126.8625,
+          "cpuUs": 19531.25,
+          "managedBytes": 3532909,
+          "peakRss": 73924608
+        },
+        "sql-only": {
+          "wallUs": 17898.2125,
+          "cpuUs": 17578.125,
+          "managedBytes": 3532469,
+          "peakRss": 73900032
+        },
+        "managed-cursor": {
+          "wallUs": 15042.9875,
+          "cpuUs": 15625,
+          "managedBytes": 3532469,
+          "peakRss": 73867264
+        },
+        "rust": {
+          "wallUs": 15176,
+          "cpuUs": 15625,
+          "managedBytes": 3533101,
+          "peakRss": 74145792
+        }
+      },
+      "marked": {
+        "managed": {
+          "wallUs": 21626.25,
+          "cpuUs": 21484.375,
+          "managedBytes": 3532909,
+          "peakRss": 73965568
+        },
+        "sql-only": {
+          "wallUs": 20390.1625,
+          "cpuUs": 21484.375,
+          "managedBytes": 3532469,
+          "peakRss": 73900032
+        },
+        "managed-cursor": {
+          "wallUs": 17666.9375,
+          "cpuUs": 17578.125,
+          "managedBytes": 3532469,
+          "peakRss": 73908224
+        },
+        "rust": {
+          "wallUs": 17654.325,
+          "cpuUs": 17578.125,
+          "managedBytes": 3533101,
+          "peakRss": 74158080
+        }
+      },
+      "archive": {
+        "managed": {
+          "wallUs": 81754.46666666666,
+          "cpuUs": 78125,
+          "managedBytes": 14129573,
+          "peakRss": 104923136
+        },
+        "sql-only": {
+          "wallUs": 77783.3,
+          "cpuUs": 78125,
+          "managedBytes": 14130210,
+          "peakRss": 104935424
+        },
+        "managed-cursor": {
+          "wallUs": 66312.3,
+          "cpuUs": 67708.33333333333,
+          "managedBytes": 14129610,
+          "peakRss": 106946560
+        },
+        "rust": {
+          "wallUs": 68808.36666666667,
+          "cpuUs": 67708.33333333333,
+          "managedBytes": 14130306,
+          "peakRss": 107229184
+        }
+      }
+    }
+  },
+  "arm64": {
+    "cases": 33,
+    "measurements": {
+      "small": {
+        "managed": {
+          "wallUs": 1787.9,
+          "cpuUs": 1718.75,
+          "managedBytes": 36576,
+          "peakRss": 38567936
+        },
+        "sql-only": {
+          "wallUs": 1788.213,
+          "cpuUs": 1718.75,
+          "managedBytes": 36136,
+          "peakRss": 38494208
+        },
+        "managed-cursor": {
+          "wallUs": 1704.567,
+          "cpuUs": 1718.75,
+          "managedBytes": 36136,
+          "peakRss": 38621184
+        },
+        "rust": {
+          "wallUs": 1747.184,
+          "cpuUs": 1718.75,
+          "managedBytes": 36768,
+          "peakRss": 38866944
+        }
+      },
+      "clean": {
+        "managed": {
+          "wallUs": 31542.375,
+          "cpuUs": 31250,
+          "managedBytes": 3532909,
+          "peakRss": 60436480
+        },
+        "sql-only": {
+          "wallUs": 28146.4625,
+          "cpuUs": 27343.75,
+          "managedBytes": 3532469,
+          "peakRss": 60469248
+        },
+        "managed-cursor": {
+          "wallUs": 21974.9875,
+          "cpuUs": 21484.375,
+          "managedBytes": 3532469,
+          "peakRss": 60440576
+        },
+        "rust": {
+          "wallUs": 22324.85,
+          "cpuUs": 21484.375,
+          "managedBytes": 3533101,
+          "peakRss": 60715008
+        }
+      },
+      "marked": {
+        "managed": {
+          "wallUs": 33429.7,
+          "cpuUs": 33203.125,
+          "managedBytes": 3532909,
+          "peakRss": 60440576
+        },
+        "sql-only": {
+          "wallUs": 30652.1125,
+          "cpuUs": 31250,
+          "managedBytes": 3532469,
+          "peakRss": 60440576
+        },
+        "managed-cursor": {
+          "wallUs": 24666.3625,
+          "cpuUs": 25390.625,
+          "managedBytes": 3532469,
+          "peakRss": 60465152
+        },
+        "rust": {
+          "wallUs": 24860.95,
+          "cpuUs": 25390.625,
+          "managedBytes": 3533101,
+          "peakRss": 60731392
+        }
+      },
+      "archive": {
+        "managed": {
+          "wallUs": 128537.23333333334,
+          "cpuUs": 130208.33333333333,
+          "managedBytes": 14128821,
+          "peakRss": 64184320
+        },
+        "sql-only": {
+          "wallUs": 117748.3,
+          "cpuUs": 119791.66666666667,
+          "managedBytes": 14128381,
+          "peakRss": 64180224
+        },
+        "managed-cursor": {
+          "wallUs": 93273.53333333333,
+          "cpuUs": 93750,
+          "managedBytes": 14128381,
+          "peakRss": 66441216
+        },
+        "rust": {
+          "wallUs": 93153.53333333333,
+          "cpuUs": 88541.66666666667,
+          "managedBytes": 14129013,
+          "peakRss": 66752512
+        }
+      }
+    }
+  }
+}

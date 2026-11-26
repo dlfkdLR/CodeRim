@@ -1,0 +1,53 @@
+{
+  "source": "80918aa176c8c6146f5c370a0cf7c30607787047",
+  "baseline": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "nativeRuntimes": [
+    "macOS arm64",
+    "macOS x86_64 under Rosetta"
+  ],
+  "integration": "ThresholdNotifier.observe with actual ProviderSnapshot.headline, native dictionary, synthetic account IDs, real synchronous closures, in-memory mute and alert sink; fixture glyph is inert",
+  "verified": {
+    "threshold-arm.rows": {
+      "observations": 4731,
+      "sha256": "1d2026423437c97feb7ac5775938082f2c0ccc72abcbf54434e0bda09a3d2bdc"
+    },
+    "threshold-intel.rows": {
+      "observations": 4731,
+      "sha256": "1d2026423437c97feb7ac5775938082f2c0ccc72abcbf54434e0bda09a3d2bdc"
+    }
+  },
+  "benchmark": {
+    "platform": "macOS arm64",
+    "pairs": 7,
+    "nanosPerObservedSnapshot": {
+      "single": {
+        "swift": 190.375625,
+        "rust": 103.364165,
+        "swift-control": 105.03708
+      },
+      "idle": {
+        "swift": 217.713335,
+        "rust": 127.678125,
+        "swift-control": 129.22667
+      },
+      "switch": {
+        "swift": 229.423175,
+        "rust": 122.89296875,
+        "swift-control": 130.35859375
+      },
+      "cross": {
+        "swift": 244.974475,
+        "rust": 147.4463625,
+        "swift-control": 146.0323
+      }
+    },
+    "raw": "threshold-final.json",
+    "interpretation": "Most gain is shared by a Swift-only control using the candidate's single headline and single dictionary lookup. Repeated crossing is ~1% slower than that control."
+  },
+  "state": "Crossed state is instance-local. A restart may emit 80 and 100 again. Mute consumes the crossing. Callback reentry observes the updated state.",
+  "notExercised": [
+    "UNUserNotificationCenter, delivery authorization or OS deduplication",
+    "real provider accounts",
+    "end-to-end CPU or energy"
+  ]
+}

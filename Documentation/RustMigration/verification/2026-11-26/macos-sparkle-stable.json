@@ -1,0 +1,96 @@
+{
+  "publicStable": {
+    "version": "2.1.41",
+    "build": "20141",
+    "archiveUrl": "https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.41/CodeRim-2.1.41.zip",
+    "archiveBytes": 33022789,
+    "archiveSHA256": "4ac0af13250c2517683f3dd423df612db04a496913625cfea4021b19a0d4cf78",
+    "appcastSHA256": "f21700279768529589085b94d9b9682cf5508f26521d460dea15b4947e8efbd5",
+    "signedBodyBytes": 3817,
+    "feedURL": "https://raw.githubusercontent.com/dlfkdLR/CodeRim/update-feed/appcast.xml",
+    "publicKey": "QzPdedAiOhC1Go03slQo9j+4TNqvw62c+3OYX10/mik=",
+    "verifiedDeveloperIDBundle": true,
+    "invalidControls": [
+      "appcast",
+      "archive"
+    ]
+  },
+  "localQA": {
+    "mode": "upstream sparkle-cli --probe",
+    "framework": "2.9.6",
+    "qaBundle": "org.coderim.qa.sparkle.f8b08e1c549f47359fbac912e5d928a5",
+    "signedArchiveBytes": 4722,
+    "cases": [
+      {
+        "case": "newer",
+        "exit": 0,
+        "requested": [
+          "/appcast.xml"
+        ],
+        "diagnostic": [
+          "Update available!"
+        ]
+      },
+      {
+        "case": "same",
+        "exit": 4,
+        "requested": [
+          "/appcast.xml"
+        ],
+        "diagnostic": [
+          "No new update available!"
+        ]
+      },
+      {
+        "case": "tampered",
+        "exit": 1,
+        "requested": [
+          "/appcast.xml"
+        ],
+        "diagnostic": [
+          "Error: Update has failed due to error 1000 (SUSparkleErrorDomain). The update feed is improperly signed and could not be validated. Please try again later or contact the app developer."
+        ]
+      },
+      {
+        "case": "wrongKey",
+        "exit": 1,
+        "requested": [
+          "/appcast.xml"
+        ],
+        "diagnostic": [
+          "Error: Update has failed due to error 1000 (SUSparkleErrorDomain). The update feed is improperly signed and could not be validated. Please try again later or contact the app developer."
+        ]
+      },
+      {
+        "case": "unsigned",
+        "exit": 1,
+        "requested": [
+          "/appcast.xml"
+        ],
+        "diagnostic": [
+          "Error: Update has failed due to error 1000 (SUSparkleErrorDomain). The update feed is improperly signed and could not be validated. Please try again later or contact the app developer."
+        ]
+      },
+      {
+        "case": "publishedNewer",
+        "exit": 0,
+        "requested": [
+          "/appcast.xml"
+        ],
+        "diagnostic": [
+          "Update available!"
+        ]
+      },
+      {
+        "case": "publishedCurrent",
+        "exit": 4,
+        "requested": [
+          "/appcast.xml"
+        ],
+        "diagnostic": [
+          "No new update available!"
+        ]
+      }
+    ]
+  }
+}

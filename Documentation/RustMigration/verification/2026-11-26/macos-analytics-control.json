@@ -1,0 +1,190 @@
+{
+  "benchmark": "65000 events, full analyticsSnapshot, nine reads per process, rotated/reversed order",
+  "samples": {
+    "release": [
+      {
+        "measuredWallMs": 186.205523,
+        "totalCpuMs": 173.00555555555556,
+        "fullProcessWallMs": 187.2179074465142,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 161.259717,
+        "totalCpuMs": 160.45588888888886,
+        "fullProcessWallMs": 162.10490744560957,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 162.343629,
+        "totalCpuMs": 161.43099999999998,
+        "fullProcessWallMs": 163.08468511366905,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 175.480768,
+        "totalCpuMs": 170.89566666666647,
+        "fullProcessWallMs": 176.40820366796106,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 160.104597,
+        "totalCpuMs": 159.73999999999987,
+        "fullProcessWallMs": 160.8687916692967,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 156.194426,
+        "totalCpuMs": 156.61800000000022,
+        "fullProcessWallMs": 156.94218977781324,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 160.919037,
+        "totalCpuMs": 159.87399999999977,
+        "fullProcessWallMs": 161.6374537795006,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 165.062203,
+        "totalCpuMs": 163.3936666666665,
+        "fullProcessWallMs": 165.8463425539796,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 170.249319,
+        "totalCpuMs": 166.04000000000013,
+        "fullProcessWallMs": 170.98472222116672,
+        "checksum": "24420844008"
+      }
+    ],
+    "swift": [
+      {
+        "measuredWallMs": 185.946699,
+        "totalCpuMs": 170.0054444444444,
+        "fullProcessWallMs": 240.9967314451933,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 163.262592,
+        "totalCpuMs": 161.61799999999988,
+        "fullProcessWallMs": 164.0653239996431,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 161.733425,
+        "totalCpuMs": 161.73655555555547,
+        "fullProcessWallMs": 162.60950933145875,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 184.18131,
+        "totalCpuMs": 176.98877777777773,
+        "fullProcessWallMs": 185.04137499904675,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 161.218018,
+        "totalCpuMs": 161.05033333333347,
+        "fullProcessWallMs": 162.06142588958352,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 158.074449,
+        "totalCpuMs": 158.46866666666676,
+        "fullProcessWallMs": 158.78543055280008,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 158.349879,
+        "totalCpuMs": 158.5824444444447,
+        "fullProcessWallMs": 159.04865744394354,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 169.737236,
+        "totalCpuMs": 167.56744444444456,
+        "fullProcessWallMs": 170.59737966822772,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 158.936412,
+        "totalCpuMs": 158.63211111111087,
+        "fullProcessWallMs": 159.87666200251422,
+        "checksum": "24420844008"
+      }
+    ],
+    "rust": [
+      {
+        "measuredWallMs": 122.518685,
+        "totalCpuMs": 122.79766666666666,
+        "fullProcessWallMs": 123.46629633167241,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 121.003509,
+        "totalCpuMs": 120.64644444444441,
+        "fullProcessWallMs": 121.83190733453051,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 121.245111,
+        "totalCpuMs": 120.94822222222234,
+        "fullProcessWallMs": 122.1014212221942,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 127.6428,
+        "totalCpuMs": 125.13377777777785,
+        "fullProcessWallMs": 128.4651482225551,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 122.542148,
+        "totalCpuMs": 121.22699999999996,
+        "fullProcessWallMs": 123.32081944461808,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 119.439236,
+        "totalCpuMs": 119.5946666666668,
+        "fullProcessWallMs": 120.26161110972882,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 120.019236,
+        "totalCpuMs": 119.70244444444425,
+        "fullProcessWallMs": 120.7635647798371,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 141.710963,
+        "totalCpuMs": 133.7096666666665,
+        "fullProcessWallMs": 142.50300922301702,
+        "checksum": "24420844008"
+      },
+      {
+        "measuredWallMs": 125.117648,
+        "totalCpuMs": 124.69399999999979,
+        "fullProcessWallMs": 125.93104166767768,
+        "checksum": "24420844008"
+      }
+    ]
+  },
+  "medians": {
+    "release": {
+      "measuredWallMs": 162.343629,
+      "totalCpuMs": 161.43099999999998,
+      "fullProcessWallMs": 163.08468511366905
+    },
+    "swift": {
+      "measuredWallMs": 161.733425,
+      "totalCpuMs": 161.61799999999988,
+      "fullProcessWallMs": 162.60950933145875
+    },
+    "rust": {
+      "measuredWallMs": 122.518685,
+      "totalCpuMs": 121.22699999999996,
+      "fullProcessWallMs": 123.32081944461808
+    }
+  }
+}

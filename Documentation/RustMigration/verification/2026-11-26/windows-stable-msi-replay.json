@@ -1,0 +1,64 @@
+{
+  "arm64": {
+    "id": 15083475136,
+    "digest": "sha256:73d4aebe131352ccff17057131024a0cea9c3718ed70f792c97dc283c003c499",
+    "size": 15541267,
+    "results": {
+      "windows-msi-lifecycle.json": [
+        "signed-legacy-installation-rejected-before-write",
+        "initial-msi-install",
+        "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+        "upgrade-current-version",
+        "downgrade-refused-without-changes",
+        "installed-native-ui-and-pinned-worker",
+        "uninstall-preserves-user-data-and-unrelated-path",
+        "portable-migration-failure-restores-files-path-shortcut",
+        "portable-migration-and-repair-keep-one-cli-path",
+        "portable-migration-uninstall-preserves-data-and-unrelated-path",
+        "public-2.1.11-msi-reproduces-duplicate-portable-path",
+        "public-2.1.11-failed-upgrade-restores-installation",
+        "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+        "public-upgrade-uninstall-preserves-user-data-and-path"
+      ],
+      "windows-public-msi-arm64.json": [
+        "published-installed-and-profile-read",
+        "failed-upgrade-restored-public-registration-binaries-and-profile",
+        "upgraded-candidate-loaded-preserved-profile",
+        "direct-downgrade-refused-with-data-intact",
+        "published-msi-reinstalled-and-profile-read",
+        "published-uninstalled-and-data-preserved"
+      ]
+    }
+  },
+  "x64": {
+    "id": 15082531581,
+    "digest": "sha256:6f11a007cb5db96078676671a72fbe6cc230b8048e3c612453b9fbffc3ee4875",
+    "size": 15538917,
+    "results": {
+      "windows-msi-lifecycle.json": [
+        "signed-legacy-installation-rejected-before-write",
+        "initial-msi-install",
+        "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+        "upgrade-current-version",
+        "downgrade-refused-without-changes",
+        "installed-native-ui-and-pinned-worker",
+        "uninstall-preserves-user-data-and-unrelated-path",
+        "portable-migration-failure-restores-files-path-shortcut",
+        "portable-migration-and-repair-keep-one-cli-path",
+        "portable-migration-uninstall-preserves-data-and-unrelated-path",
+        "public-2.1.11-msi-reproduces-duplicate-portable-path",
+        "public-2.1.11-failed-upgrade-restores-installation",
+        "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+        "public-upgrade-uninstall-preserves-user-data-and-path"
+      ],
+      "windows-public-msi-x64.json": [
+        "published-installed-and-profile-read",
+        "failed-upgrade-restored-public-registration-binaries-and-profile",
+        "upgraded-candidate-loaded-preserved-profile",
+        "direct-downgrade-refused-with-data-intact",
+        "published-msi-reinstalled-and-profile-read",
+        "published-uninstalled-and-data-preserved"
+      ]
+    }
+  }
+}

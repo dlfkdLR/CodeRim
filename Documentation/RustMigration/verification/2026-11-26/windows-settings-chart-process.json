@@ -1,0 +1,284 @@
+{
+  "windows-arm64-session-totals.json": {
+    "small": {
+      "managed": {
+        "cpuUs": 2.604,
+        "wallUs": 2.732,
+        "peakRss": 40009728
+      },
+      "rust": {
+        "cpuUs": 2.083,
+        "wallUs": 2.101,
+        "peakRss": 40644608
+      }
+    },
+    "daily": {
+      "managed": {
+        "cpuUs": 125,
+        "wallUs": 129.603,
+        "peakRss": 41431040
+      },
+      "rust": {
+        "cpuUs": 62.5,
+        "wallUs": 80.489,
+        "peakRss": 42033152
+      }
+    },
+    "sparse-history": {
+      "managed": {
+        "cpuUs": 446.429,
+        "wallUs": 548.297,
+        "peakRss": 43823104
+      },
+      "rust": {
+        "cpuUs": 446.429,
+        "wallUs": 442.249,
+        "peakRss": 42090496
+      }
+    },
+    "shared-history": {
+      "managed": {
+        "cpuUs": 1704.545,
+        "wallUs": 1527.84,
+        "peakRss": 47943680
+      },
+      "rust": {
+        "cpuUs": 1136.364,
+        "wallUs": 1046.129,
+        "peakRss": 45420544
+      }
+    },
+    "over-64": {
+      "managed": {
+        "cpuUs": 128.676,
+        "wallUs": 118.384,
+        "peakRss": 39653376
+      },
+      "rust": {
+        "cpuUs": 110.294,
+        "wallUs": 119.135,
+        "peakRss": 39612416
+      }
+    }
+  },
+  "windows-arm64-settings-chart.json": {
+    "TokenType-week": {
+      "managed": {
+        "cpuUs": 0,
+        "wallUs": 1.365,
+        "peakRss": 33341440
+      },
+      "rust": {
+        "cpuUs": 0,
+        "wallUs": 1.166,
+        "peakRss": 32509952
+      }
+    },
+    "TokenType-month": {
+      "managed": {
+        "cpuUs": 0,
+        "wallUs": 5.346,
+        "peakRss": 33853440
+      },
+      "rust": {
+        "cpuUs": 0,
+        "wallUs": 4.573,
+        "peakRss": 32964608
+      }
+    },
+    "TokenType-long": {
+      "managed": {
+        "cpuUs": 0,
+        "wallUs": 18.341,
+        "peakRss": 37101568
+      },
+      "rust": {
+        "cpuUs": 0,
+        "wallUs": 15.376,
+        "peakRss": 36147200
+      }
+    },
+    "Model-week": {
+      "managed": {
+        "cpuUs": 12.5,
+        "wallUs": 13.035,
+        "peakRss": 35905536
+      },
+      "rust": {
+        "cpuUs": 6.25,
+        "wallUs": 4.308,
+        "peakRss": 36270080
+      }
+    },
+    "Model-month": {
+      "managed": {
+        "cpuUs": 78.125,
+        "wallUs": 72.776,
+        "peakRss": 36933632
+      },
+      "rust": {
+        "cpuUs": 26.042,
+        "wallUs": 19.079,
+        "peakRss": 37191680
+      }
+    },
+    "Model-long": {
+      "managed": {
+        "cpuUs": 347.222,
+        "wallUs": 413.264,
+        "peakRss": 39452672
+      },
+      "rust": {
+        "cpuUs": 173.611,
+        "wallUs": 125.68,
+        "peakRss": 39702528
+      }
+    }
+  },
+  "arm64": {
+    "artifact": 15082410393,
+    "digest": "sha256:c88a77549ebdd829eb8cd3ab948ad554642028778008de96aaeb4aa95993eaee",
+    "size": 4928
+  },
+  "windows-x64-session-totals.json": {
+    "small": {
+      "managed": {
+        "cpuUs": 2.604,
+        "wallUs": 2.878,
+        "peakRss": 49397760
+      },
+      "rust": {
+        "cpuUs": 2.083,
+        "wallUs": 2.218,
+        "peakRss": 50147328
+      }
+    },
+    "daily": {
+      "managed": {
+        "cpuUs": 125,
+        "wallUs": 127.78,
+        "peakRss": 49553408
+      },
+      "rust": {
+        "cpuUs": 93.75,
+        "wallUs": 79.895,
+        "peakRss": 50130944
+      }
+    },
+    "sparse-history": {
+      "managed": {
+        "cpuUs": 446.429,
+        "wallUs": 430.996,
+        "peakRss": 40456192
+      },
+      "rust": {
+        "cpuUs": 223.214,
+        "wallUs": 361.741,
+        "peakRss": 40513536
+      }
+    },
+    "shared-history": {
+      "managed": {
+        "cpuUs": 1420.455,
+        "wallUs": 1522.28,
+        "peakRss": 44654592
+      },
+      "rust": {
+        "cpuUs": 852.273,
+        "wallUs": 1093.5,
+        "peakRss": 45006848
+      }
+    },
+    "over-64": {
+      "managed": {
+        "cpuUs": 110.294,
+        "wallUs": 110.309,
+        "peakRss": 49844224
+      },
+      "rust": {
+        "cpuUs": 110.294,
+        "wallUs": 108.515,
+        "peakRss": 49913856
+      }
+    }
+  },
+  "windows-x64-settings-chart.json": {
+    "TokenType-week": {
+      "managed": {
+        "cpuUs": 0,
+        "wallUs": 1.582,
+        "peakRss": 33185792
+      },
+      "rust": {
+        "cpuUs": 0,
+        "wallUs": 2.137,
+        "peakRss": 32378880
+      }
+    },
+    "TokenType-month": {
+      "managed": {
+        "cpuUs": 0,
+        "wallUs": 5.833,
+        "peakRss": 33529856
+      },
+      "rust": {
+        "cpuUs": 0,
+        "wallUs": 4.989,
+        "peakRss": 32665600
+      }
+    },
+    "TokenType-long": {
+      "managed": {
+        "cpuUs": 0,
+        "wallUs": 23.077,
+        "peakRss": 35463168
+      },
+      "rust": {
+        "cpuUs": 0,
+        "wallUs": 19.129,
+        "peakRss": 34484224
+      }
+    },
+    "Model-week": {
+      "managed": {
+        "cpuUs": 18.75,
+        "wallUs": 15.744,
+        "peakRss": 45264896
+      },
+      "rust": {
+        "cpuUs": 6.25,
+        "wallUs": 5.052,
+        "peakRss": 39686144
+      }
+    },
+    "Model-month": {
+      "managed": {
+        "cpuUs": 78.125,
+        "wallUs": 82.259,
+        "peakRss": 45752320
+      },
+      "rust": {
+        "cpuUs": 26.042,
+        "wallUs": 21.097,
+        "peakRss": 38486016
+      }
+    },
+    "Model-long": {
+      "managed": {
+        "cpuUs": 347.222,
+        "wallUs": 431.507,
+        "peakRss": 48201728
+      },
+      "rust": {
+        "cpuUs": 173.611,
+        "wallUs": 121.931,
+        "peakRss": 40001536
+      }
+    }
+  },
+  "x64": {
+    "artifact": 15081624028,
+    "digest": "sha256:529ea611ce1dc06c3e3f824b6b3079c2c9a24a599e02cc8046f7f86a15f2ed57",
+    "size": 4972
+  }
+}

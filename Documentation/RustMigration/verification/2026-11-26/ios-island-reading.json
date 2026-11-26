@@ -1,0 +1,118 @@
+{
+  "baseline": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "candidate": "a19f8c4849edc351ef38f8408413f530256ec209",
+  "optIn": "CODERIM_RUST_MOBILE_SELECTION",
+  "rowsPerArm": 12000,
+  "statusTitles": [
+    "Check permissions",
+    "Check status",
+    "Connect a computer",
+    "Idle",
+    "Needs input",
+    "Offline",
+    "Sign in required",
+    "Working"
+  ],
+  "rowsSha256": [
+    "fccbbe13fa51406ac015837adf9b4980374f57e109e1ad1efb2f8277d24367de",
+    "fccbbe13fa51406ac015837adf9b4980374f57e109e1ad1efb2f8277d24367de"
+  ],
+  "implementations": [
+    "v2.1.41",
+    "Swift default",
+    "Rust opt-in"
+  ],
+  "hostTargets": [
+    "arm64 native",
+    "x86_64 Rosetta"
+  ],
+  "localXCTest": {
+    "count": 1,
+    "failures": 0,
+    "host": "macOS arm64 native XCTest, kernel sandbox denies network",
+    "selected": "testIslandReadingKeepsTheTaskTitleAndSuppressesQuotaWhileOffline"
+  },
+  "cargoUnitTests": 22,
+  "iosProducts": {
+    "deviceCodeRimLiveActivity": {
+      "sha256": "9e287275f4489adafd6b78d582a158430e76830857341ff82bbde99a06fbd013",
+      "rustProjection": true,
+      "load": [
+        "platform IOS",
+        "    minos 17.2",
+        "      sdk 27.2"
+      ]
+    },
+    "deviceCodeRimMobile": {
+      "sha256": "cf6ea9186d0e50f2792f93cf5650d6eb3f7323911467871e8426fe50f9e44bc9",
+      "rustProjection": true,
+      "load": [
+        "platform IOS",
+        "    minos 17.2",
+        "      sdk 27.2"
+      ]
+    },
+    "simCodeRimLiveActivity": {
+      "sha256": "1588ecde501539875bda53986aa5827aac83886bd6d7cc32e854c657ac78be3c",
+      "rustProjection": true,
+      "load": [
+        "platform IOSSIMULATOR",
+        "    minos 17.2",
+        "      sdk 27.2"
+      ]
+    },
+    "simCodeRimMobile": {
+      "sha256": "f16788ea6252c05cd55d43c1fac5c4793f079214d30e282af7f0c47a3eba1681",
+      "rustProjection": true,
+      "load": [
+        "platform IOSSIMULATOR",
+        "    minos 17.2",
+        "      sdk 27.2"
+      ]
+    }
+  },
+  "simulatorTestsBuilt": true,
+  "secondsBenchmarkDetail": "batched-benchmark.json",
+  "benchmark": {
+    "nsPerReading": {
+      "original": [
+        120.62064583333333,
+        122.67533333333333,
+        126.78991666666667,
+        120.69270833333333,
+        125.49652083333334,
+        121.375,
+        124.52691666666666,
+        130.79252083333333
+      ],
+      "swift": [
+        115.42795833333334,
+        111.828125,
+        112.49739583333333,
+        114.12847916666666,
+        115.48697916666667,
+        113.65016666666666,
+        116.45397916666667,
+        120.95747916666667
+      ],
+      "rust": [
+        96.40104166666667,
+        94.81077083333334,
+        93.5859375,
+        96.74914583333333,
+        97.11979166666667,
+        95.4626875,
+        98.26995833333334,
+        101.00520833333333
+      ]
+    },
+    "checksum": 3004000,
+    "medians": {
+      "original": 123.601125,
+      "swift": 114.77821875000001,
+      "rust": 96.57509375000001
+    }
+  },
+  "formalGate": "INCONCLUSIVE",
+  "localDeviceInstallation": false
+}
