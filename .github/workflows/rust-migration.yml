@@ -164,10 +164,23 @@ jobs:
 
       - name: Verify offline install from the release ZIP and DMG
         run: python3 Scripts/rust_migration/check_macos_package.py "$RUNNER_TEMP/rust-app/CodeRim.app" "$RUNNER_TEMP/migration-packages"
+      - name: Reopen published usage data across upgrade, rollback and backup replay
+        run: |
+          reference="$RUNNER_TEMP/published-v2.1.41"
+          mkdir "$reference"
+          cd "$reference"
+          curl --fail --location --silent --show-error --retry 2 --output reference.zip \
+            https://github.com/dlfkdLR/CodeRim/releases/download/v2.1.41/CodeRim-2.1.41.zip
+          echo '4ac0af13250c2517683f3dd423df612db04a496913625cfea4021b19a0d4cf78  reference.zip' | shasum -a 256 -c -
+          ditto -x -k reference.zip .
+          python3 "$GITHUB_WORKSPACE/Scripts/rust_migration/check_macos_data_rollback.py" \
+            "$reference/CodeRim.app" "$RUNNER_TEMP/rust-app/CodeRim.app" "$RUNNER_TEMP/migration-packages/rollback.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: macos-migration-installation
-          path: ${{ runner.temp }}/migration-packages/verified.json
+          path: |
+            ${{ runner.temp }}/migration-packages/verified.json
+            ${{ runner.temp }}/migration-packages/rollback.json
           if-no-files-found: error
 
   windows-package:
