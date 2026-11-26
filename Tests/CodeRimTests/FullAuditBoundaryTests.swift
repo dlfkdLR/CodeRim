@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import Foundation
 import XCTest
 @testable import CodeRim
@@ -154,15 +155,28 @@ final class FullAuditEdgeTransitionTests: XCTestCase {
         var finish: (@MainActor () -> Void)?
         let controller = NotchWindowController(animateEdge: { _, callback in finish = callback },
                                                reduceMotion: { false })
-        controller.show()
-        defer { controller.stop() }
+        // Install the real panel without the independent hover timer. A live pointer
+        // outside the notch legitimately folds it while a loaded runner waits.
+        controller.relocate()
+        defer { controller.retire() }
+        XCTAssertNotNil(controller.panelContentViewForTesting)
         controller.model.isExpanded = true
+        let reopened = expectation(description: "The fallback lands folded and reopens at the new edge")
+        var changes: [Bool] = []
+        let subscription = controller.model.$isExpanded.dropFirst().sink { expanded in
+            changes.append(expanded)
+            if expanded { reopened.fulfill() }
+        }
+        defer { subscription.cancel() }
         controller.apply(edge: .top)
-        try await Task.sleep(for: .milliseconds(600))
+        await fulfillment(of: [reopened], timeout: 5)
+        XCTAssertEqual(changes, [false, true])
         XCTAssertEqual(controller.model.edge, .top)
         XCTAssertTrue(controller.model.isExpanded)
         XCTAssertEqual(controller.panelAlphaForTesting, 1)
-        finish?()
+        let lateCompletion = try XCTUnwrap(finish)
+        lateCompletion()
+        XCTAssertEqual(changes, [false, true], "A late completion repeated the edge transition")
         XCTAssertTrue(controller.model.isExpanded, "A late completion folded the already settled notch")
     }
 
