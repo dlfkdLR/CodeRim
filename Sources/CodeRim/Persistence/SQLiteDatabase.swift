@@ -142,10 +142,11 @@ actor SQLiteDatabase {
     private let sourceFingerprintKeyData: Data
     private var connection: SQLiteConnection?
 #if CODERIM_RUST_ACCOUNTING
-    private struct CheckpointCursor: @unchecked Sendable {
+    private struct ReadCursor: @unchecked Sendable {
         var value = cr_source_checkpoint_cursor()
     }
-    private var checkpointCursor = CheckpointCursor()
+    private var checkpointCursor = ReadCursor()
+    private var counterCursor = ReadCursor()
     private var qualitySchema = cr_quality_schema()
 #endif
 
@@ -241,11 +242,26 @@ actor SQLiteDatabase {
     deinit {
 #if CODERIM_RUST_ACCOUNTING
         if let statement = checkpointCursor.value.statement { sqlite3_finalize(OpaquePointer(statement)) }
+        if let statement = counterCursor.value.statement { sqlite3_finalize(OpaquePointer(statement)) }
 #endif
         if let connection {
             sqlite3_close(connection.rawValue)
         }
     }
+
+#if CODERIM_RUST_ACCOUNTING
+    private func cursorRow(_ cursor: ReadCursor, status: Int32) throws -> OpaquePointer? {
+        switch status {
+        case SQLITE_DONE: return nil
+        case -2: throw SQLiteDatabaseError.statement("text value is not safe to store")
+        case -1, -3: throw SQLiteDatabaseError.statement(errorMessage)
+        case SQLITE_ROW:
+            guard let statement = OpaquePointer(cursor.value.statement) else { throw SQLiteDatabaseError.step(errorMessage) }
+            return statement
+        default: throw SQLiteDatabaseError.step(errorMessage)
+        }
+    }
+#endif
 
     func checkpoint(for sourcePath: String) throws -> SourceCheckpoint? {
 #if CODERIM_RUST_ACCOUNTING
@@ -256,16 +272,7 @@ actor SQLiteDatabase {
                                        bytes.baseAddress, bytes.count)
         }
         defer { cr_finish_source_checkpoint(&checkpointCursor.value, status) }
-        switch status {
-        case SQLITE_DONE: return nil
-        case -2: throw SQLiteDatabaseError.statement("text value is not safe to store")
-        case -1, -3: throw SQLiteDatabaseError.statement(errorMessage)
-        case SQLITE_ROW: break
-        default: throw SQLiteDatabaseError.step(errorMessage)
-        }
-        guard let statement = OpaquePointer(checkpointCursor.value.statement) else {
-            throw SQLiteDatabaseError.step(errorMessage)
-        }
+        guard let statement = try cursorRow(checkpointCursor, status: status) else { return nil }
 #else
         let statement = try prepare(
             """
@@ -323,6 +330,16 @@ actor SQLiteDatabase {
     }
 
     private func normalizationStateWithinTransaction(for sessionID: String) throws -> UsageNormalizationState {
+#if CODERIM_RUST_ACCOUNTING
+        guard let connection else { throw SQLiteDatabaseError.statement("database is closed") }
+        var key = sessionID
+        let status = key.withUTF8 { bytes in
+            cr_begin_session_counter(UnsafeMutableRawPointer(connection.rawValue), &counterCursor.value,
+                                     bytes.baseAddress, bytes.count)
+        }
+        defer { cr_finish_source_checkpoint(&counterCursor.value, status) }
+        guard let statement = try cursorRow(counterCursor, status: status) else { return .empty }
+#else
         let statement = try prepare(
             """
             SELECT input_tokens, cached_input_tokens, cache_write_input_tokens,
@@ -335,28 +352,27 @@ actor SQLiteDatabase {
         try bind(sessionID, at: 1, to: statement)
 
         switch sqlite3_step(statement) {
-        case SQLITE_ROW:
-            var state = UsageNormalizationState(
-                cumulativeHighWaterMark: TokenUsage(
-                    inputTokens: sqlite3_column_int64(statement, 0),
-                    cachedInputTokens: sqlite3_column_int64(statement, 1),
-                    cacheWriteInputTokens: sqlite3_column_type(statement, 2) == SQLITE_NULL
-                        ? nil
-                        : sqlite3_column_int64(statement, 2),
-                    outputTokens: sqlite3_column_int64(statement, 3)
-                ),
-                lastObservedAt: sqlite3_column_type(statement, 4) == SQLITE_NULL
-                    ? nil
-                    : Date(timeIntervalSince1970: sqlite3_column_double(statement, 4)),
-                quality: DataQuality(rawValue: text(statement, column: 5) ?? "") ?? .partial
-            )
-            if state.hasNegativeCounter { state.quality = .partial }
-            return state
-        case SQLITE_DONE:
-            return .empty
-        default:
-            throw SQLiteDatabaseError.step(errorMessage)
+        case SQLITE_DONE: return .empty
+        case SQLITE_ROW: break
+        default: throw SQLiteDatabaseError.step(errorMessage)
         }
+#endif
+        var state = UsageNormalizationState(
+            cumulativeHighWaterMark: TokenUsage(
+                inputTokens: sqlite3_column_int64(statement, 0),
+                cachedInputTokens: sqlite3_column_int64(statement, 1),
+                cacheWriteInputTokens: sqlite3_column_type(statement, 2) == SQLITE_NULL
+                    ? nil
+                    : sqlite3_column_int64(statement, 2),
+                outputTokens: sqlite3_column_int64(statement, 3)
+            ),
+            lastObservedAt: sqlite3_column_type(statement, 4) == SQLITE_NULL
+                ? nil
+                : Date(timeIntervalSince1970: sqlite3_column_double(statement, 4)),
+            quality: DataQuality(rawValue: text(statement, column: 5) ?? "") ?? .partial
+        )
+        if state.hasNegativeCounter { state.quality = .partial }
+        return state
     }
 
     @discardableResult

@@ -1,4 +1,4 @@
-//! A single reusable, read-only source checkpoint cursor per collector connection.
+//! Reusable collector reads. Each cursor belongs to one connection and one fixed query.
 use super::apple_sqlite::{SQLITE_DONE, SQLITE_ROW, sqlite3_reset, sqlite3_step};
 use std::ffi::{c_char, c_int, c_void};
 use std::{ptr, slice};
@@ -9,10 +9,13 @@ pub struct Cursor {
     data_version: u32,
 }
 
-const QUERY: &std::ffi::CStr = c"SELECT file_identity, generation, committed_offset, skipping_oversized_line,
+const CHECKPOINT: &std::ffi::CStr = c"SELECT file_identity, generation, committed_offset, skipping_oversized_line,
     observed_size, modification_time_ns, content_fingerprint, has_pending_import,
     session_id, inherits_history, session_started_at, inherited_history_end_ordinal, history_replay_complete,
     model, project_path, parent_session_id, project_name, image_attachment_count FROM parsing_state WHERE source_path = ?1";
+
+const COUNTER: &std::ffi::CStr = c"SELECT input_tokens, cached_input_tokens, cache_write_input_tokens,
+    output_tokens, last_observed_at, quality FROM session_counters WHERE session_id = ?1";
 
 #[link(name = "sqlite3")]
 unsafe extern "C" {
@@ -51,6 +54,29 @@ pub unsafe extern "C" fn cr_begin_source_checkpoint(
     text: *const u8,
     length: usize,
 ) -> i32 {
+    unsafe { begin(db, cursor, text, length, CHECKPOINT) }
+}
+
+/// # Safety
+/// Same exclusive ownership and valid byte-span requirements as cr_begin_source_checkpoint.
+/// This cursor must be dedicated to the session counter query.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cr_begin_session_counter(
+    db: *mut c_void,
+    cursor: *mut Cursor,
+    text: *const u8,
+    length: usize,
+) -> i32 {
+    unsafe { begin(db, cursor, text, length, COUNTER) }
+}
+
+unsafe fn begin(
+    db: *mut c_void,
+    cursor: *mut Cursor,
+    text: *const u8,
+    length: usize,
+    query: &std::ffi::CStr,
+) -> i32 {
     if db.is_null() || cursor.is_null() {
         return -1;
     }
@@ -79,7 +105,7 @@ pub unsafe extern "C" fn cr_begin_source_checkpoint(
         && unsafe {
             sqlite3_prepare_v2(
                 db,
-                QUERY.as_ptr(),
+                query.as_ptr(),
                 -1,
                 &mut cursor.statement,
                 ptr::null_mut(),
