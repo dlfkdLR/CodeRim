@@ -14,7 +14,7 @@ python Windows/tests/update_worker_regression_tests.py "./Windows/artifacts/publ
 if ($LASTEXITCODE -ne 0) { throw 'Unsigned update worker regression checks failed.' }
 & "./Windows/artifacts/publish/win-$Architecture/CodeRimCLI.exe" version
 if ($LASTEXITCODE -ne 0) { throw 'CLI startup failed.' }
-python Windows/tests/cli_regression_tests.py "./Windows/artifacts/publish/win-$Architecture/CodeRimCLI.exe"
+python Windows/tests/cli_regression_tests.py --owned-accounts "./Windows/artifacts/publish/win-$Architecture/CodeRimCLI.exe"
 if ($LASTEXITCODE -ne 0) { throw 'CLI regression checks failed.' }
 & "./Windows/artifacts/publish/win-$Architecture/install.ps1" -AddCliToPath
 $cliBin = Join-Path $env:LOCALAPPDATA 'Programs\CodeRim\bin'

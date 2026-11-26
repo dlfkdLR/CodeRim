@@ -1,4 +1,4 @@
-//! Opt-in companion. Only a sibling from this executable's own installation handles
+//! Only a sibling from this executable's own installation handles
 //! hook commands or compatibility snapshots. No program lookup through PATH.
 #[cfg(windows)]
 mod console;
@@ -34,8 +34,16 @@ fn line(out: &mut impl Write, text: &str, _error: bool) -> io::Result<()> {
     out.write_all(ending.as_bytes())?;
     out.flush()
 }
-fn sibling(name: &str) -> Result<PathBuf, String> {
+fn compatibility_command(snapshot: bool) -> Result<Command, String> {
     let current = env::current_exe().map_err(|_| INVALID.to_owned())?;
+    // Only the separately built comparison tool knows the historical test siblings.
+    // Renaming the installed binary cannot redirect it to a public CLI or a test host.
+    let standalone = cfg!(feature = "comparison-hosts");
+    let name = match (standalone, snapshot) {
+        (false, _) => "CodeRimCLIHost",
+        (true, true) => "CodeRimSnapshotHost",
+        (true, false) => "CodeRimCLI",
+    };
     let path = current
         .parent()
         .ok_or(INVALID)?
@@ -46,7 +54,10 @@ fn sibling(name: &str) -> Result<PathBuf, String> {
         .canonicalize()
         .map_err(|_| INVALID)?;
     let resolved = path.canonicalize().ok();
-    if !path.is_file()
+    if current.file_name().is_some_and(|n| {
+        path.file_name()
+            .is_some_and(|target| n.eq_ignore_ascii_case(target))
+    }) || !path.is_file()
         || resolved.as_ref().and_then(|p| p.file_name()) != path.file_name()
         || resolved.as_ref().and_then(|p| p.parent()) != Some(trusted_directory.as_path())
     {
@@ -54,10 +65,14 @@ fn sibling(name: &str) -> Result<PathBuf, String> {
             "The Windows companion compatibility component {name} could not be found."
         ));
     }
-    Ok(path)
+    let mut command = Command::new(path);
+    if !standalone && snapshot {
+        command.arg("--coderim-snapshot-stdin");
+    }
+    Ok(command)
 }
 fn delegate(args: &[OsString]) -> Result<i32, String> {
-    let status = Command::new(sibling("CodeRimCLI")?)
+    let status = compatibility_command(false)?
         .args(args)
         .status()
         .map_err(|_| INVALID.to_owned())?;
@@ -99,7 +114,7 @@ fn read_file(path: &Path) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 fn compatible(options: &options::Options, bytes: &[u8]) -> Result<i32, String> {
-    let mut command = Command::new(sibling("CodeRimSnapshotHost")?);
+    let mut command = compatibility_command(true)?;
     command.arg(&options.command).args([
         "--period",
         &options.period,

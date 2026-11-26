@@ -13,12 +13,13 @@ $originalExitCode = $global:LASTEXITCODE
 try {
     & {
         $RuntimeIdentifier = 'win-arm64'; $Version = $expected
+        $accountingArguments = @('-p:CodeRimRustAccounting=true', '-p:CodeRimRustAccountingLibrary=fixture bridge.dll')
         $script:publishExit = 0
         function dotnet { $script:publishArguments = @($args); $global:LASTEXITCODE = $script:publishExit }
         . ([scriptblock]::Create($publisher.Extent.Text))
         Publish-Project 'fixture app.csproj' 'output path' 'Fixture publish failed.' @('-p:Pin=fixture', '-p:Resource=fixture path')
         $expectedArguments = @('publish', 'fixture app.csproj', '--configuration', 'Release', '--runtime', 'win-arm64', '--self-contained', 'true', '--output', 'output path',
-            "-p:Version=$expected", '-p:CodeRimMsiQa=false', '-p:DebugType=None', '-p:DebugSymbols=false', '-p:Pin=fixture', '-p:Resource=fixture path')
+            "-p:Version=$expected", '-p:CodeRimMsiQa=false', '-p:DebugType=None', '-p:DebugSymbols=false', '-p:CodeRimRustAccounting=true', '-p:CodeRimRustAccountingLibrary=fixture bridge.dll', '-p:Pin=fixture', '-p:Resource=fixture path')
         if (($script:publishArguments | ConvertTo-Json -Compress) -cne ($expectedArguments | ConvertTo-Json -Compress)) { throw ('Publish flags or path boundaries changed: ' + ($script:publishArguments | ConvertTo-Json -Compress)) }
         $script:publishExit = 17
         $failure = $null
@@ -42,6 +43,8 @@ foreach ($mode in 'Unsigned', 'Required') {
         $publishRoot = Join-Path $windowsRoot 'publish'; $artifactRoot = Join-Path $windowsRoot 'Artifacts'
         $projectPath = Join-Path $windowsRoot 'src/CodeRim.Windows/CodeRim.Windows.csproj'
         $PublisherSpkiSha256 = 'fixture-pin'
+        $RustCliExecutable = Join-Path $windowsRoot 'fixture-rust-cli.exe'
+        $accountingArguments = @('-p:CodeRimRustAccounting=true')
         $publishOrder = [Collections.Generic.List[string]]::new()
         function dotnet {
             $projectName = [IO.Path]::GetFileNameWithoutExtension($args[1])
@@ -52,13 +55,16 @@ foreach ($mode in 'Unsigned', 'Required') {
             $publishOrder.Add($projectName)
             $output = $args[([Array]::IndexOf($args, '--output') + 1)]
             New-Item -ItemType Directory -Force $output | Out-Null
-            $file = switch ($projectName) { 'CodeRim.Windows' { 'CodeRim.exe' }; 'CodeRim.CLI' { 'CodeRimCLI.exe' }; 'CodeRim.UpdateWorker' { 'CodeRim.UpdateWorker.exe' }; default { throw 'Unexpected publish project.' } }
+            $file = switch ($projectName) { 'CodeRim.Windows' { 'CodeRim.exe' }; 'CodeRim.CLI' { if ($args -cnotcontains '-p:CodeRimInstalledCliHost=true') { throw 'Missing installed CLI host mode.' }; 'CodeRimCLIHost.exe' }; 'CodeRim.UpdateWorker' { 'CodeRim.UpdateWorker.exe' }; default { throw 'Unexpected publish project.' } }
             [IO.File]::WriteAllText((Join-Path $output $file), 'synthetic executable')
-            if ($projectName -eq 'CodeRim.Windows') { [IO.File]::WriteAllText((Join-Path $output 'install.ps1'), '$signedPackage = $false') }
+            if ($projectName -eq 'CodeRim.Windows') {
+                [IO.File]::WriteAllText((Join-Path $output 'install.ps1'), '$signedPackage = $false')
+                [IO.File]::WriteAllText((Join-Path $output 'coderim_accounting_bridge.dll'), 'fixture bridge')
+            }
             $global:LASTEXITCODE = 0
         }
         # This fixture observes the publish/sign order. ZIP and installer jobs compare actual Rust bytes.
-        function Assert-RustAccountingPayload {}
+        function Assert-RustPayload {}
         function Copy-Item {}
         function Sign-PayloadFile([string]$Path) { $publishOrder.Add('sign:' + [IO.Path]::GetFileName($Path)) }
         function python {
@@ -69,7 +75,7 @@ foreach ($mode in 'Unsigned', 'Required') {
         . ([scriptblock]::Create($publisher.Extent.Text))
         . $publishBody
         $expectedOrder = if ($mode -eq 'Unsigned') { @('CodeRim.CLI', 'CodeRim.UpdateWorker', 'CodeRim.Windows') }
-            else { @('CodeRim.Windows', 'CodeRim.CLI', 'sign:CodeRim.exe', 'sign:CodeRimCLI.exe', 'sign:install.ps1', 'sign:connect-claude.ps1', 'manifest', 'CodeRim.UpdateWorker', 'sign:CodeRim.UpdateWorker.exe') }
+            else { @('CodeRim.Windows', 'CodeRim.CLI', 'sign:coderim_accounting_bridge.dll', 'sign:CodeRim.exe', 'sign:CodeRimCLI.exe', 'sign:CodeRimCLIHost.exe', 'sign:install.ps1', 'sign:connect-claude.ps1', 'manifest', 'CodeRim.UpdateWorker', 'sign:CodeRim.UpdateWorker.exe') }
         if (($publishOrder.ToArray() | ConvertTo-Json -Compress) -cne ($expectedOrder | ConvertTo-Json -Compress)) {
             throw ('Unexpected ' + $mode + ' publish order: ' + ($publishOrder.ToArray() | ConvertTo-Json -Compress))
         }

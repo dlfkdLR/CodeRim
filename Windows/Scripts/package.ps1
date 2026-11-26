@@ -9,6 +9,7 @@ param(
     [string]$SignToolPath,
     [uri]$TimestampServer = 'https://timestamp.digicert.com',
     [string]$RustAccountingLibrary,
+    [string]$RustCliExecutable,
     [switch]$CheckVersionOnly
 )
 
@@ -78,17 +79,51 @@ function Sign-PayloadFile([string]$Path) {
 }
 $triple = if ($architecture -eq 'x64') { 'x86_64-pc-windows-msvc' } else { 'aarch64-pc-windows-msvc' }
 $targetRoot = Join-Path $projectRoot 'Rust/target'
+$packages = @()
 if (-not $RustAccountingLibrary) {
-    cargo build --locked --manifest-path (Join-Path $projectRoot 'Rust/Cargo.toml') --target-dir $targetRoot --release --target $triple -p coderim-accounting-bridge
-    if ($LASTEXITCODE -ne 0) { throw "Rust accounting build failed for $triple." }
+    $packages += @('-p', 'coderim-accounting-bridge')
     $RustAccountingLibrary = Join-Path $targetRoot "$triple/release/coderim_accounting_bridge.dll"
 }
+if (-not $RustCliExecutable) {
+    $packages += @('-p', 'coderim-windows-companion')
+    $RustCliExecutable = Join-Path $targetRoot "$triple/release/CodeRimRustCLI.exe"
+}
+if ($packages.Count) {
+    cargo build --locked --manifest-path (Join-Path $projectRoot 'Rust/Cargo.toml') --target-dir $targetRoot --release --target $triple @packages
+    if ($LASTEXITCODE -ne 0) { throw "Rust Windows payload build failed for $triple." }
+}
 $RustAccountingLibrary = (Resolve-Path -LiteralPath $RustAccountingLibrary).Path
+$RustCliExecutable = (Resolve-Path -LiteralPath $RustCliExecutable).Path
+
+# Check prebuilt inputs before modifying the previous publish directory.
+Add-Type -AssemblyName System.Reflection.Metadata
+function Assert-RustMachine([string]$Path, [bool]$IsDll) {
+    $stream = [IO.File]::OpenRead($Path)
+    try {
+        $reader = [System.Reflection.PortableExecutable.PEReader]::new($stream)
+        try {
+            $headers = $reader.PEHeaders
+            $machine = if ($architecture -eq 'x64') { 'Amd64' } else { 'Arm64' }
+            if ($headers.CoffHeader.Machine.ToString() -ne $machine -or $headers.IsDll -ne $IsDll -or
+                $headers.PEHeader.Magic.ToString() -ne 'PE32Plus' -or $null -ne $headers.CorHeader) {
+                throw "Rust binary does not match $RuntimeIdentifier or its payload type: $Path"
+            }
+        } finally { $reader.Dispose() }
+    } finally { $stream.Dispose() }
+}
+Assert-RustMachine $RustAccountingLibrary $true
+Assert-RustMachine $RustCliExecutable $false
+$cliInfo = [Diagnostics.FileVersionInfo]::GetVersionInfo($RustCliExecutable)
+if ($cliInfo.OriginalFilename -cne 'CodeRimCLI.exe' -or $cliInfo.FileVersion -cne $binaryVersion -or $cliInfo.ProductVersion -cne $Version) {
+    throw 'The Rust companion executable has an incompatible package version or identity.'
+}
 $accountingArguments = @('-p:CodeRimRustAccounting=true', "-p:CodeRimRustAccountingLibrary=$RustAccountingLibrary")
 
-function Assert-RustAccountingPayload {
+function Assert-RustPayload {
     $expectedFiles = @{
         'coderim_accounting_bridge.dll' = $RustAccountingLibrary
+        'CodeRimCLI.exe' = $RustCliExecutable
+        'Rust-CLI-Notices.txt' = (Join-Path $projectRoot 'Rust/windows-cli/THIRD-PARTY-NOTICES.txt')
         'Rust-Notices.txt' = (Join-Path $projectRoot 'Rust/THIRD-PARTY-NOTICES.txt')
     }
     foreach ($name in $expectedFiles.Keys) {
@@ -114,7 +149,9 @@ if ($SigningMode -eq 'Required') {
     Publish-Project $projectPath $publishRoot 'Application publish failed.' @("-p:CodeRimPublisherSpkiSha256=$PublisherSpkiSha256")
     if (-not (Test-Path $executablePath)) { throw "Published executable is missing: $executablePath" }
 }
-Publish-Project (Join-Path $windowsRoot "src\CodeRim.CLI\CodeRim.CLI.csproj") $publishRoot 'CLI publish failed.'
+Publish-Project (Join-Path $windowsRoot "src\CodeRim.CLI\CodeRim.CLI.csproj") $publishRoot 'CLI compatibility host publish failed.' @('-p:CodeRimInstalledCliHost=true')
+Copy-Item -LiteralPath $RustCliExecutable -Destination (Join-Path $publishRoot 'CodeRimCLI.exe')
+Copy-Item -LiteralPath (Join-Path $projectRoot 'Rust/windows-cli/THIRD-PARTY-NOTICES.txt') -Destination (Join-Path $publishRoot 'Rust-CLI-Notices.txt')
 Copy-Item (Join-Path $PSScriptRoot 'install.ps1'), (Join-Path $PSScriptRoot 'connect-claude.ps1') $publishRoot
 New-Item -ItemType Directory -Force (Join-Path $publishRoot 'bin') | Out-Null
 Copy-Item (Join-Path $PSScriptRoot 'coderim.cmd') (Join-Path $publishRoot 'bin')
@@ -129,11 +166,11 @@ if ($SigningMode -eq 'Required') {
     $installer = Join-Path $publishRoot 'install.ps1'
     $script = [IO.File]::ReadAllText($installer).Replace('$signedPackage = $false', '$signedPackage = $true')
     [IO.File]::WriteAllText($installer, $script, [Text.UTF8Encoding]::new($true))
-    Assert-RustAccountingPayload
+    Assert-RustPayload
     $accountingDll = Join-Path $publishRoot 'coderim_accounting_bridge.dll'
     if (Test-Path -LiteralPath $accountingDll) { Sign-PayloadFile $accountingDll }
     # Final signed application/CLI/script bytes are inventoried before the worker embeds their manifest.
-    foreach ($file in @($executablePath, (Join-Path $publishRoot 'CodeRimCLI.exe'), $installer, (Join-Path $publishRoot 'connect-claude.ps1'))) { Sign-PayloadFile $file }
+    foreach ($file in @($executablePath, (Join-Path $publishRoot 'CodeRimCLI.exe'), (Join-Path $publishRoot 'CodeRimCLIHost.exe'), $installer, (Join-Path $publishRoot 'connect-claude.ps1'))) { Sign-PayloadFile $file }
     $resourceRoot = Join-Path $windowsRoot ('artifacts\update-resource-' + [Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $resourceRoot | Out-Null
     $resourcePath = Join-Path $resourceRoot 'payload.res'
@@ -152,14 +189,14 @@ else {
     $installerWorkerHash = (Get-FileHash $workerPath -Algorithm SHA256).Hash.ToLowerInvariant()
     Publish-Project $projectPath $publishRoot 'Installer bootstrap pin publish failed.' @("-p:CodeRimInstallerWorkerSha256=$installerWorkerHash", '-p:CodeRimPublisherSpkiSha256=')
     if (-not (Test-Path $executablePath)) { throw "Published executable is missing: $executablePath" }
-    Assert-RustAccountingPayload
+    Assert-RustPayload
     $bootstrap = @{version=$Version; workerSha256=$installerWorkerHash; guiSha256=(Get-FileHash $executablePath -Algorithm SHA256).Hash.ToLowerInvariant()}
     [IO.File]::WriteAllText((Join-Path $publishRoot 'CodeRim.bootstrap.json'), ($bootstrap | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
 }
 Copy-Item -LiteralPath $workerPath -Destination $publishRoot
 
 # Verify emitted PE metadata as well as source declarations before creating a release archive.
-$versionedExecutables = @('CodeRim.exe', 'CodeRimCLI.exe')
+$versionedExecutables = @('CodeRim.exe', 'CodeRimCLI.exe', 'CodeRimCLIHost.exe')
 # A Required worker replaces VERSIONINFO with its authenticated RT_RCDATA payload manifest.
 # SignedInstallPayload/WindowsUpdateWorker compare the authenticated manifest with the release request.
 if ($SigningMode -eq 'Unsigned') { $versionedExecutables += 'CodeRim.UpdateWorker.exe' }

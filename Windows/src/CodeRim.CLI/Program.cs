@@ -6,11 +6,15 @@ using CodeRim.Core.Providers;
 using CodeRim.Core.Services;
 
 #if CODERIM_SNAPSHOT_STDIN
-// This separately built compatibility reader may only render a bounded, already-opened
-// snapshot. The ordinary installed CLI retains all public commands and its filesystem path.
-if (args.Length == 0 || args[0] is not ("usage" or "tokens" or "limits") ||
-    args.Skip(1).Where((_, index) => index % 2 == 0).Any(option => option is not ("--provider" or "--period" or "--format"))) return 1;
+var snapshotStdin = true;
+#elif CODERIM_INSTALLED_CLI_HOST
+var snapshotStdin = args.Length > 0 && args[0] == "--coderim-snapshot-stdin";
+if (snapshotStdin) args = args[1..];
+#else
+var snapshotStdin = false;
 #endif
+if (snapshotStdin && (args.Length == 0 || args[0] is not ("usage" or "tokens" or "limits") ||
+    args.Skip(1).Where((_, index) => index % 2 == 0).Any(option => option is not ("--provider" or "--period" or "--format")))) return 1;
 
 // Piped CLI data has the same UTF-8 contract on both platforms. Replace only
 // redirected readers/writers so a user's attached console code page is unchanged.
@@ -18,9 +22,9 @@ var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInval
 if (Console.IsOutputRedirected) Console.SetOut(new StreamWriter(Console.OpenStandardOutput(), utf8) { AutoFlush = true });
 if (Console.IsErrorRedirected) Console.SetError(new StreamWriter(Console.OpenStandardError(), utf8) { AutoFlush = true });
 if (Console.IsInputRedirected) Console.SetIn(new StreamReader(Console.OpenStandardInput(), utf8));
-return await RunAsync(args).ConfigureAwait(false);
+return await RunAsync(args, snapshotStdin).ConfigureAwait(false);
 
-static async Task<int> RunAsync(string[] arguments)
+static async Task<int> RunAsync(string[] arguments, bool snapshotStdin)
 {
     string command = "usage", period = "today", format = "text";
     string? provider = null, path = null;
@@ -94,11 +98,7 @@ static async Task<int> RunAsync(string[] arguments)
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
         do
         {
-#if CODERIM_SNAPSHOT_STDIN
-            var snapshot = CompanionFile.ReadCliSnapshotStream(Console.OpenStandardInput());
-#else
-            var snapshot = CompanionFile.ReadForCli(path);
-#endif
+            var snapshot = snapshotStdin ? CompanionFile.ReadCliSnapshotStream(Console.OpenStandardInput()) : CompanionFile.ReadForCli(path);
             var providers = snapshot.Providers.Where(x => x.Enabled && (provider is null || x.Id == provider)).ToArray();
             if (provider is not null && providers.Length == 0) throw new InvalidDataException("This provider is not enabled in the snapshot.");
             if (format == "json")

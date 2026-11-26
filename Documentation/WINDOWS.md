@@ -148,12 +148,16 @@ Windows release versions are declared in `Windows/Release.env`, `Windows/Directo
 dotnet test Windows/tests/CodeRim.UsageCore.Tests --configuration Release
 dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
 dotnet build Windows/CodeRim.Windows.sln --configuration Release
+rustup target add x86_64-pc-windows-msvc aarch64-pc-windows-msvc
 ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-x64 -ResetManifest
 ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-arm64
 ./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-x64
 ./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-arm64
 ./Windows/artifacts/publish/win-x64/CodeRim.exe --smoke-test --capture dashboard.png
 ```
+
+The Windows package builds its Rust accounting DLL and public CLI for the selected architecture. It also includes the matching CodeRim-owned compatibility host and both Rust notices. Build on Windows with the Rust MSVC toolchain and Windows SDK. To supply existing target-matched binaries, pass `-RustAccountingLibrary` and/or `-RustCliExecutable` to `package.ps1`. The CLI must be the standard build with the repository release version.
+
 
 The smoke test uses an isolated temporary directory and synthetic values. It does not connect accounts or read the user's chat history. It proves only native startup/rendering if executed on Windows; inspect the capture separately. The GitHub workflow packages both MSI architectures and tests installation, an injected upgrade failure and rollback, successful upgrade, downgrade refusal, installed native UI, and uninstall/data preservation on disposable x64 and ARM64 runners. A separate Windows ARM64 job downloads the packaging artifact, verifies its ZIP checksum, then executes that exact ARM64 archive and records OS/process architecture. Consult the release commit's workflow result for the native x64 verification status. The x64 checks also cover minimum-size light/dark/high-contrast layouts, popup dismissal, provider removal/navigation state, keyboard focus, image/sub-agent controls, isolated DPAPI/ACL storage, CLI PATH idempotence and Claude hook preservation. Read the actual workflow result before treating ARM64 execution as verified. Physical mixed-DPI monitors and live provider responses remain separate checks.
 

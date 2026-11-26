@@ -4,7 +4,10 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 license = "MIT"
-description = "Opt-in native Windows companion command processor"
+description = "Windows companion command processor"
+
+[features]
+comparison-hosts = []
 
 [dependencies]
 serde = "1"

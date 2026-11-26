@@ -178,7 +178,7 @@ jobs:
           if-no-files-found: error
       - name: Build and compare the opt-in standalone Windows companion
         run: |
-          cargo build --locked --manifest-path Rust/Cargo.toml --release --target ${{ matrix.target }} -p coderim-windows-companion
+          cargo build --locked --manifest-path Rust/Cargo.toml --release --target ${{ matrix.target }} -p coderim-windows-companion --features comparison-hosts
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $exe = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/CodeRimRustCLI.exe').Path
           python Scripts/rust_migration/windows-standalone/check.py --binary "$exe" --rid "win-${{ matrix.arch }}" --synthetic-hook-install --output "windows-${{ matrix.arch }}-standalone.json" --artifacts "windows-${{ matrix.arch }}-standalone"
@@ -431,7 +431,12 @@ jobs:
           $dest = Join-Path $env:RUNNER_TEMP 'coderim-migration-zip'
           Expand-Archive $archive.FullName $dest
           $library = 'Rust/target/${{ matrix.triple }}/release/coderim_accounting_bridge.dll'
-          $sidecars = @{'coderim_accounting_bridge.dll' = $library; 'Rust-Notices.txt' = 'Rust/THIRD-PARTY-NOTICES.txt'}
+          $sidecars = @{
+            'coderim_accounting_bridge.dll' = $library
+            'CodeRimCLI.exe' = 'Rust/target/${{ matrix.triple }}/release/CodeRimRustCLI.exe'
+            'Rust-Notices.txt' = 'Rust/THIRD-PARTY-NOTICES.txt'
+            'Rust-CLI-Notices.txt' = 'Rust/windows-cli/THIRD-PARTY-NOTICES.txt'
+          }
           foreach ($name in $sidecars.Keys) {
             if ((Get-FileHash (Join-Path $dest $name)).Hash -ne (Get-FileHash $sidecars[$name]).Hash) { throw "ZIP payload mismatch: $name" }
           }

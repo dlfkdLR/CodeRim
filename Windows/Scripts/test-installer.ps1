@@ -26,7 +26,7 @@ function Invoke-Msi([string[]]$Arguments,[bool]$Success=$true) {
 }
 function Assert-RustFiles([bool]$Present) {
     if (-not $VerifyRustAccounting) { return }
-    foreach ($name in @('coderim_accounting_bridge.dll', 'Rust-Notices.txt')) {
+    foreach ($name in @('coderim_accounting_bridge.dll', 'Rust-Notices.txt', 'CodeRimCLIHost.exe', 'Rust-CLI-Notices.txt')) {
         $installedFile = Join-Path $app $name
         if (-not $Present) {
             if (Test-Path -LiteralPath $installedFile) { throw "Unexpected remaining Rust payload: $name" }
@@ -110,6 +110,15 @@ try {
     $after=Product-State
     if($after.version -ne $version -or [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $app 'CodeRim.exe')).FileVersion -ne "$version.0"){throw 'Upgrade version mismatch'}
     Assert-RustFiles $true
+    if ($VerifyRustAccounting) {
+        $installedCli = Join-Path $app 'CodeRimCLI.exe'
+        if ((Get-FileHash -LiteralPath $installedCli).Hash -cne (Get-FileHash (Join-Path $current 'CodeRimCLI.exe')).Hash) { throw 'Installed public CLI hash differs from its Rust input.' }
+        python (Join-Path $windowsRoot 'tests/cli_regression_tests.py') --owned-accounts $installedCli
+        if ($LASTEXITCODE -ne 0) { throw 'Installed public CLI failed its offline or owned-account contract.' }
+        python (Join-Path $windowsRoot 'tests/installed_cli_probe.py') $installedCli
+        if ($LASTEXITCODE -ne 0) { throw 'Installed public CLI selected an incorrect compatibility host.' }
+        $results.Add('installed-rust-cli-and-owned-compatibility-host')
+    }
     $results.Add('upgrade-current-version')
     [void](Invoke-Msi @('/i',('"'+$oldMsi+'"'),'LAUNCHAPP=0') $false)
     Compare-State $after (Product-State);$results.Add('downgrade-refused-without-changes')

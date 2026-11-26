@@ -7,5 +7,12 @@
     <SelfContained Condition="'$(RuntimeIdentifier)' != ''">true</SelfContained>
     <IncludeNativeLibrariesForSelfExtract Condition="'$(RuntimeIdentifier)' != ''">true</IncludeNativeLibrariesForSelfExtract>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(CodeRimInstalledCliHost)' == 'true'">
+    <AssemblyName>CodeRimCLIHost</AssemblyName>
+    <DefineConstants>$(DefineConstants);CODERIM_INSTALLED_CLI_HOST</DefineConstants>
+  </PropertyGroup>
+  <Target Name="RequireOwnedCliHost" BeforeTargets="PrepareForBuild" Condition="'$(CodeRimInstalledCliHost)' == 'true' and '$(CodeRimRustAccounting)' != 'true'">
+    <Error Text="The installed CLI compatibility host requires the CodeRim-owned account boundary." />
+  </Target>
   <ItemGroup><ProjectReference Include="../CodeRim.Core/CodeRim.Core.csproj" /></ItemGroup>
 </Project>
