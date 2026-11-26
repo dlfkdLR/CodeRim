@@ -6,6 +6,38 @@ import XCTest
 @testable import CodeRim
 
 final class SQLiteDatabaseTests: XCTestCase {
+    func testPeriodTotalsKeepUnknownWritesLocalToTheAffectedWindows() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let db = try SQLiteDatabase(url: directory.appendingPathComponent("usage.sqlite"))
+        let checkpoint = SourceCheckpoint.fresh(sourcePath: "period-fixture", fileIdentity: "1:2")
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
+        func day(_ month: Int, _ number: Int) throws -> Date {
+            try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: month, day: number)))
+        }
+        let rows: [(Date, Int64, Int64?)] = try [
+            (day(5, 30), 10, 2), (day(6, 2), 20, 5), (day(6, 8), 30, nil),
+            (day(6, 12), 40, 7), (day(6, 13), 256, 10)
+        ]
+        let events = rows.enumerated().map { index, row in
+            UsageEvent(eventKey: "period-\(index)", occurredAt: row.0, sessionID: nil, model: nil,
+                       projectPath: nil, usage: TokenUsage(inputTokens: row.1, cachedInputTokens: 0,
+                                                           cacheWriteInputTokens: row.2, outputTokens: 0),
+                       sourcePath: checkpoint.sourcePath, sourcePosition: Int64(index))
+        }
+        try await db.commit(events: events, checkpoint: checkpoint, normalizationState: nil)
+        let active = try await db.usageSnapshot(now: day(6, 12), calendar: calendar, weekStart: .monday)
+        XCTAssertEqual([active.today, active.week, active.month, active.allTime].map(\.inputTokens), [40, 70, 90, 100])
+        XCTAssertEqual([active.today, active.week, active.month, active.allTime].map(\.cacheWriteInputTokens),
+                       [7, nil, nil, nil])
+        let dormant = try await db.usageSnapshot(now: day(9, 21), calendar: calendar, weekStart: .monday)
+        XCTAssertEqual([dormant.today, dormant.week, dormant.month], [.zero, .zero, .zero])
+        XCTAssertEqual(dormant.allTime.inputTokens, 356)
+        XCTAssertNil(dormant.allTime.cacheWriteInputTokens)
+        XCTAssertEqual(dormant.updatedAt, try day(6, 13))
+    }
+
     func testReadFailuresRollbackAfterSQLiteAndRowAggregationErrors() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

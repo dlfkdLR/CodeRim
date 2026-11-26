@@ -60,6 +60,16 @@ typedef struct {
 #ifdef __cplusplus
 extern "C" {
 #endif
+#ifdef __APPLE__
+typedef struct {
+    int32_t status;
+    cr_usage today, week, month, all_time;
+} cr_sqlite_period_totals;
+/* Borrow a live, exclusive sqlite3_stmt for the whole call. The caller binds
+   the SELECT parameters, finalizes it, and owns the transaction. Status 1
+   delegates unusual counters to the legacy scan; 2 reports a SQLite error. */
+cr_sqlite_period_totals cr_read_apple_periods(void *statement, double today, double week, double month);
+#endif
 /* Read count initialized, aligned rows in one immutable allocation for this call.
    Valid count is 1..256. Use latest_index=-1 initially. A returned index of
    -2 reports invalid arguments. The host retains the original timestamp offset. */

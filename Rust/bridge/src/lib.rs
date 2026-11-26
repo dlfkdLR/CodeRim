@@ -7,6 +7,8 @@ mod event_json;
 mod notch_path;
 #[cfg(target_os = "macos")]
 mod pricing;
+#[cfg(target_os = "macos")]
+mod sqlite_periods;
 mod token_json;
 
 use coderim_usage_core::{

@@ -1,5 +1,8 @@
 import CodeRimUsageCore
 import CSQLite
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 import CryptoKit
 import Darwin
 import Foundation
@@ -594,20 +597,17 @@ actor SQLiteDatabase {
                 try execute("COMMIT")
                 return cached.snapshot
             }
-            let todayUsage = try sum(from: today, through: now)
-            let weekUsage = try sum(from: week, through: now)
-            let monthUsage = try sum(from: month, through: now)
-            let allTimeUsage = try sum(from: nil, through: now)
+            let totals = try usageTotals(today: today, week: week, month: month, through: now)
             let lastUpdated = try maximumEventDate(through: now)
             // The current periods are judged by the sessions seen in them; a partly read session from
             // months ago, or old files still waiting for a re-read, is reported separately.
             let quality = try databaseQuality(hasEvents: lastUpdated != nil, since: min(week, month), includesBackfill: false)
             let historyIncomplete = try databaseQuality(hasEvents: lastUpdated != nil) == .partial
             let snapshot = UsageSnapshot(
-                today: todayUsage,
-                week: weekUsage,
-                month: monthUsage,
-                allTime: allTimeUsage,
+                today: totals.today,
+                week: totals.week,
+                month: totals.month,
+                allTime: totals.allTime,
                 quality: quality,
                 updatedAt: lastUpdated,
                 historyIncomplete: historyIncomplete
@@ -1296,6 +1296,59 @@ actor SQLiteDatabase {
             """
         )
     }
+
+    private func usageTotals(today: Date, week: Date, month: Date, through end: Date) throws
+        -> (today: TokenUsage, week: TokenUsage, month: TokenUsage, allTime: TokenUsage) {
+#if CODERIM_RUST_ACCOUNTING
+        // A dormant account can have years of history and no events in a current
+        // period. Let the date index rule out all three windows before decoding any timestamps.
+        let starts = [today.timeIntervalSince1970, week.timeIntervalSince1970, month.timeIntervalSince1970]
+        if starts.allSatisfy(\.isFinite), let earliest = starts.min(),
+           try !hasPeriodEvent(since: earliest, through: end.timeIntervalSince1970) {
+            return try (.zero, .zero, .zero, sum(from: nil, through: end))
+        }
+        // Finish or finalize the combined statement before opening the original
+        // scans on rows whose overflow or NULL behavior can depend on row order.
+        let result = try readPeriodTotals(today: today, week: week, month: month, through: end)
+        if result.status == 0 {
+            func usage(_ row: cr_usage) -> TokenUsage {
+                TokenUsage(inputTokens: row.input, cachedInputTokens: row.cached,
+                           cacheWriteInputTokens: row.has_written == 0 ? nil : row.written, outputTokens: row.output)
+            }
+            return (usage(result.today), usage(result.week), usage(result.month), usage(result.all_time))
+        }
+#endif
+        return try (sum(from: today, through: end), sum(from: week, through: end),
+                    sum(from: month, through: end), sum(from: nil, through: end))
+    }
+
+#if CODERIM_RUST_ACCOUNTING
+    private func hasPeriodEvent(since start: TimeInterval, through end: TimeInterval) throws -> Bool {
+        let statement = try prepare("SELECT 1 FROM usage_events WHERE occurred_at >= ?1 AND occurred_at <= ?2 LIMIT 1")
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_double(statement, 1, start)
+        sqlite3_bind_double(statement, 2, end)
+        switch sqlite3_step(statement) {
+        case SQLITE_ROW: return true
+        case SQLITE_DONE: return false
+        default: throw SQLiteDatabaseError.step(errorMessage)
+        }
+    }
+
+    private func readPeriodTotals(today: Date, week: Date, month: Date, through end: Date) throws
+        -> cr_sqlite_period_totals {
+        let statement = try prepare("""
+            SELECT input_tokens, cached_input_tokens, cache_write_input_tokens, output_tokens, occurred_at
+            FROM usage_events WHERE occurred_at <= ?1
+            """)
+        defer { sqlite3_finalize(statement) }
+        sqlite3_bind_double(statement, 1, end.timeIntervalSince1970)
+        let result = cr_read_apple_periods(UnsafeMutableRawPointer(statement), today.timeIntervalSince1970,
+                                          week.timeIntervalSince1970, month.timeIntervalSince1970)
+        guard result.status == 0 || result.status == 1 else { throw SQLiteDatabaseError.step(errorMessage) }
+        return result
+    }
+#endif
 
     private func sum(from start: Date?, through end: Date) throws -> TokenUsage {
         let statement: OpaquePointer
