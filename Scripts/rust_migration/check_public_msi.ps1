@@ -7,25 +7,26 @@ function Test-PublicMsiTransition {
         x64 = '1816cf6866cce5be8f626b5d85af1757ec890a8d9b8677f80a3385d602bf298d'
         arm64 = '393302b1f679fdf1bf82147906c39eb4a045b2a70ed6b7cbb126cb0b0a401073'
     }
-    $stableMsi = Join-Path $qa 'published-2.1.41.msi'
-    $url = "https://github.com/dlfkdLR/CodeRim/releases/download/v$stableVersion/CodeRim-Windows-$stableVersion-$Architecture-Setup.msi"
-    Invoke-WebRequest $url -OutFile $stableMsi
-    if ((Get-FileHash $stableMsi).Hash.ToLowerInvariant() -cne $hashes[$Architecture]) { throw 'Published 2.1.41 MSI hash mismatch.' }
-    $upgrade = Join-Path $qa 'migration-upgrade.msi'
-    $failure = Join-Path $qa 'migration-rollback.msi'
-    Build-Fixture $fixtureVersion $current $template $upgrade
-    Build-Fixture $fixtureVersion $current $failureTemplate $failure
-
-    # Use the real default profile location on the ephemeral runner. Preserve unexpected preexisting files.
-    $profileRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'CodeRim'
-    $settings = Join-Path $profileRoot 'settings.json'
-    $snapshot = Join-Path $profileRoot 'snapshot.json'
-    if ((Test-Path $settings) -or (Test-Path $snapshot)) { throw 'Published MSI test needs an unused default CodeRim profile.' }
-    [void][IO.Directory]::CreateDirectory($profileRoot)
     $previousRoot = $env:CODERIM_DATA_DIR
-    Remove-Item Env:CODERIM_DATA_DIR -ErrorAction Stop
     $phases = [Collections.Generic.List[string]]::new()
+    $finished = $false
     try {
+        $stableMsi = Join-Path $qa 'published-2.1.41.msi'
+        $url = "https://github.com/dlfkdLR/CodeRim/releases/download/v$stableVersion/CodeRim-Windows-$stableVersion-$Architecture-Setup.msi"
+        Invoke-WebRequest $url -OutFile $stableMsi
+        if ((Get-FileHash $stableMsi).Hash.ToLowerInvariant() -cne $hashes[$Architecture]) { throw 'Published 2.1.41 MSI hash mismatch.' }
+        $upgrade = Join-Path $qa 'migration-upgrade.msi'
+        $failure = Join-Path $qa 'migration-rollback.msi'
+        Build-Fixture $fixtureVersion $current $template $upgrade
+        Build-Fixture $fixtureVersion $current $failureTemplate $failure
+
+        # Use the real default profile location on the ephemeral runner. Preserve unexpected preexisting files.
+        $profileRoot = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) 'CodeRim'
+        $settings = Join-Path $profileRoot 'settings.json'
+        $snapshot = Join-Path $profileRoot 'snapshot.json'
+        if ((Test-Path $settings) -or (Test-Path $snapshot)) { throw 'Published MSI test needs an unused default CodeRim profile.' }
+        [void][IO.Directory]::CreateDirectory($profileRoot)
+        Remove-Item Env:CODERIM_DATA_DIR -ErrorAction Stop
         $stamp = '2024-01-02T03:04:05+00:00'
         $usage = @{inputTokens=100;cachedInputTokens=25;outputTokens=13;cacheWriteInputTokens=4}
         $provider = @{
@@ -91,7 +92,10 @@ function Test-PublicMsiTransition {
         if ((Read-InstalledTokens) -cne $expected) { throw 'Candidate changed CLI output.' }
         $phases.Add('upgraded-candidate-loaded-preserved-profile')
 
-        [void](Invoke-Msi @('/i', ('"'+$stableMsi+'"'), 'LAUNCHAPP=0') $false)
+        $refused = Invoke-Msi @('/i', ('"'+$stableMsi+'"'), 'LAUNCHAPP=0') $false
+        $downgradeLog = Get-Content (Join-Path $repo "Artifacts/windows-msi-$Architecture-$script:logIndex.log") -Raw
+        if ($refused -ne 1603 -or $downgradeLog -notmatch 'A newer CodeRim version is already installed\.' -or
+            $downgradeLog -notmatch 'WIX_DOWNGRADE_DETECTED') { throw 'Published MSI failed without confirming the downgrade guard.' }
         Compare-State $candidate (Product-State)
         if ((Read-InstalledTokens) -cne $expected) { throw 'Refused downgrade changed CLI output.' }
         $phases.Add('direct-downgrade-refused-with-data-intact')
@@ -115,10 +119,11 @@ function Test-PublicMsiTransition {
         Assert-ProfileFiles
         $phases.Add('published-uninstalled-and-data-preserved')
         Remove-Item -LiteralPath $settings,$snapshot
+        $finished = $true
     } finally {
         $env:CODERIM_DATA_DIR = $previousRoot
         $receipt = @{architecture=$Architecture;publishedVersion=$stableVersion;publishedMsiSha256=$hashes[$Architecture];
-            testMsiVersion=$fixtureVersion;candidatePayloadVersion=$version;phases=@($phases);completed=($phases.Count -eq 6)}
+            testMsiVersion=$fixtureVersion;candidatePayloadVersion=$version;phases=@($phases);completed=$finished}
         $receipt | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $repo "Artifacts/windows-public-msi-$Architecture.json")
     }
 }

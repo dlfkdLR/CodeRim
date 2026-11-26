@@ -14,6 +14,7 @@ $env:CODERIM_DATA_DIR=$data
 $sentinel=Join-Path $data 'account-settings-history-sentinel';[IO.File]::WriteAllText($sentinel,'preserve')
 $msi=Join-Path $env:WINDIR 'System32\msiexec.exe'
 $logIndex=0
+$publicUpgradeVerified=$false
 function Invoke-Msi([string[]]$Arguments,[bool]$Success=$true) {
     $script:logIndex++
     $log=Join-Path $repo "Artifacts/windows-msi-$Architecture-$script:logIndex.log"
@@ -195,7 +196,8 @@ try {
     if ($VerifyLatestPublicUpgrade) {
         . (Join-Path $repo 'Scripts/rust_migration/check_public_msi.ps1')
         Test-PublicMsiTransition
+        $publicUpgradeVerified=$true
     }
 } finally {
-    @{architecture=$Architecture;passed=@($results);completed=($results.Count -eq 14);qaDirectory=$qa} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $repo 'Artifacts/windows-msi-lifecycle.json')
+    @{architecture=$Architecture;passed=@($results);completed=($results.Count -eq 14 -and (-not $VerifyLatestPublicUpgrade -or $publicUpgradeVerified));qaDirectory=$qa} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $repo 'Artifacts/windows-msi-lifecycle.json')
 }
