@@ -158,12 +158,16 @@ Windows version은 `Windows/Release.env`·`Windows/Directory.Build.props`·WPF p
 dotnet test Windows/tests/CodeRim.UsageCore.Tests --configuration Release
 dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release
 dotnet build Windows/CodeRim.Windows.sln --configuration Release
+rustup target add x86_64-pc-windows-msvc aarch64-pc-windows-msvc
 ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-x64 -ResetManifest
 ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-arm64
 ./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-x64
 ./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-arm64
 ./Windows/artifacts/publish/win-x64/CodeRim.exe --smoke-test --capture dashboard.png
 ```
+
+Windows 패키지는 선택한 아키텍처에 맞춰 Rust 사용량 집계 DLL과 공개 CLI를 빌드합니다. CodeRim 자체 계정 데이터를 사용하는 호환성 도우미와 Rust 구성 요소 두 개의 라이선스 고지도 함께 설치합니다. Windows에서 Rust MSVC 도구 체인과 Windows SDK로 빌드하세요. 미리 빌드한 파일을 쓰려면 `package.ps1`에 `-RustAccountingLibrary`, `-RustCliExecutable` 중 필요한 옵션을 지정하세요. 두 파일 모두 대상 아키텍처와 일치해야 하며, CLI는 저장소의 릴리스 버전으로 빌드한 기본 실행 파일이어야 합니다.
+
 
 smoke는 격리 임시 폴더·합성 값이며 계정·원본 history를 읽지 않습니다. Windows에서 실행해야 native startup/render 증거이며 capture도 따로 봅니다. workflow는 두 MSI·install·주입 upgrade 실패/rollback·정상 upgrade·downgrade 거절·installed UI·uninstall/data 보존을 disposable x64/ARM64에서 검사합니다. 별도 ARM64 job은 packaging artifact ZIP hash를 확인해 정확한 archive를 실행하고 OS/process architecture를 기록합니다. 실제 release commit 결과를 확인합니다. x64는 최소 크기 light/dark/high-contrast·popup·removal/navigation·focus·image/sub-agent·DPAPI/ACL·PATH idempotence·Claude hook도 검사합니다. 실제 job 결과 전 ARM64 성공을 주장하지 않습니다. 물리 mixed-DPI·실제 provider는 별도입니다.
 
