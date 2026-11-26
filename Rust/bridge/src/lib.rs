@@ -42,6 +42,8 @@ mod token_json;
 #[cfg(target_os = "macos")]
 mod transcript;
 #[cfg(target_os = "macos")]
+mod turn_activity;
+#[cfg(target_os = "macos")]
 mod window_placement;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod windows_settings_history;

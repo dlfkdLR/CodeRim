@@ -12,4 +12,11 @@ typedef struct {
 
 size_t cr_transcript_plan(const uint8_t *bytes, size_t length, size_t carried,
                           bool discarding, size_t limit, CRTranscriptSpan *output, size_t capacity);
+typedef struct {
+    uint64_t completed_offset, boundary_start, boundary_end;
+} CRTurnScan;
+typedef bool (*CRTurnDecoder)(void *context, const uint8_t *record, size_t length);
+// Returns false on a short read or I/O error. UINT64_MAX marks absent offsets.
+bool cr_turn_scan(int32_t fd, uint64_t lower, uint64_t end, bool include_first,
+                  size_t record_limit, void *context, CRTurnDecoder decode, CRTurnScan *output);
 #endif

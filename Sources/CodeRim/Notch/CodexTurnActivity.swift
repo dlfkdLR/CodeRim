@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 enum CodexTurnActivity {
     struct Event: Equatable, Sendable {
@@ -108,6 +111,24 @@ enum CodexTurnActivity {
     /// joins markers split across chunks; unfinished final records are ignored.
     private static func scan(_ handle: FileHandle, from lowerBound: UInt64, through end: UInt64,
                              includesFirstRecord: Bool) throws -> (event: Event?, offset: UInt64?, boundary: Range<UInt64>?) {
+        #if CODERIM_RUST_ACCOUNTING
+        var event: Event?
+        var result = CRTurnScan()
+        let ok = withUnsafeMutablePointer(to: &event) { context in
+            cr_turn_scan(handle.fileDescriptor, lowerBound, end, includesFirstRecord, maximumRecordBytes, context, { context, bytes, count in
+                guard let context, let bytes else { return false }
+                // The decoder uses the borrowed bytes synchronously and retains only a Boolean and a Date.
+                let line = Data(bytesNoCopy: UnsafeMutableRawPointer(mutating: bytes), count: count, deallocator: .none)
+                guard let decoded = CodexTurnActivity.event(in: line) else { return false }
+                context.assumingMemoryBound(to: Event?.self).pointee = decoded
+                return true
+            }, &result)
+        }
+        guard ok else { throw CocoaError(.fileReadUnknown) }
+        let offset = result.completed_offset == UInt64.max ? nil : result.completed_offset
+        let boundary = result.boundary_start == UInt64.max ? nil : result.boundary_start..<result.boundary_end
+        return (event, offset, boundary)
+        #else
         var position = end
         var lineEnd: UInt64?
         var completedOffset: UInt64?
@@ -163,6 +184,7 @@ enum CodexTurnActivity {
             return (event, completedOffset, lowerBound..<finish)
         }
         return (nil, completedOffset, nil)
+        #endif
     }
 
     static func event(in line: Data) -> Event? {
