@@ -2,9 +2,24 @@ import ActivityKit
 import AppIntents
 import CryptoKit
 import Foundation
+#if CODERIM_RUST_MOBILE_DIGEST
+import CCodeRimMobile
+#endif
 
 struct MobileActivityConnection {
-    static func id(for token: String) -> String { SHA256.hash(data: Data(token.utf8)).map { String(format: "%02x", $0) }.joined() }
+    static func id(for token: String) -> String {
+        let digest = SHA256.hash(data: Data(token.utf8))
+        #if CODERIM_RUST_MOBILE_DIGEST
+        let encoded = digest.withUnsafeBytes { bytes in
+            String(unsafeUninitializedCapacity: 64) { output in
+                cr_mobile_digest_hex(bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count,
+                                    output.baseAddress, output.count) ? 64 : 0
+            }
+        }
+        if !encoded.isEmpty { return encoded }
+        #endif
+        return digest.map { String(format: "%02x", $0) }.joined()
+    }
 }
 
 struct IslandNavigationIntent: LiveActivityIntent {

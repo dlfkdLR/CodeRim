@@ -1,4 +1,7 @@
 // An optional CODERIM_MOBILE_RUST_ARCHIVE supplies a prebuilt library to the build phase.
 CODERIM_MOBILE_LINK_ARCHIVE = $(OBJROOT)/CodeRimRust/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libcoderim_mobile.a
-OTHER_SWIFT_FLAGS = $(inherited) -DCODERIM_RUST_MOBILE_SELECTION -I "$(SRCROOT)/../Rust/bridge/include"
+// Older external archives contain the selection ABI only. Enable the digest entry point for source builds.
+CODERIM_DIGEST_FLAGS_ = -DCODERIM_RUST_MOBILE_DIGEST
+CODERIM_DIGEST_FLAGS = $(CODERIM_DIGEST_FLAGS_$(CODERIM_MOBILE_RUST_ARCHIVE:identifier))
+OTHER_SWIFT_FLAGS = $(inherited) -DCODERIM_RUST_MOBILE_SELECTION $(CODERIM_DIGEST_FLAGS) -I "$(SRCROOT)/../Rust/bridge/include"
 OTHER_LDFLAGS = $(inherited) "$(CODERIM_MOBILE_LINK_ARCHIVE)"

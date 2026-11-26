@@ -12,12 +12,7 @@ pub struct DigestText {
 }
 
 fn hex(bytes: &[u8; 32]) -> DigestText {
-    let alphabet = b"0123456789abcdef";
-    let mut ascii = [0; 64];
-    for (&byte, pair) in bytes.iter().zip(ascii.as_chunks_mut::<2>().0) {
-        pair[0] = alphabet[usize::from(byte >> 4)];
-        pair[1] = alphabet[usize::from(byte & 15)];
-    }
+    let ascii = crate::digest_text::lowercase_sha256(bytes);
     DigestText { ascii, valid: 1 }
 }
 

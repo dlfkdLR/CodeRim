@@ -44,6 +44,7 @@ def main():
                 raise SystemExit("Install rustup and the iOS Rust targets listed in iOS/README.md.")
         key.extend([subprocess.check_output([rust, "-vV"], text=True), digest(Path(__file__))])
         key.extend(digest(path) for path in sorted(SOURCE.glob("mobile*.rs")))
+        key.append(digest(SOURCE / "digest_text.rs"))
     signature = hashlib.sha256("\n".join(key).encode()).hexdigest()
     stamp = output.with_suffix(".sha256")
     if output.is_file() and stamp.is_file():

@@ -6,6 +6,7 @@ use core::ffi::c_void;
 use core::panic::PanicInfo;
 use core::ptr;
 
+mod digest_text;
 mod mobile;
 
 unsafe extern "C" {
