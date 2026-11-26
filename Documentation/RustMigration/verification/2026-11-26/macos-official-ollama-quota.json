@@ -1,0 +1,69 @@
+{
+  "commit": "fac7b3ceba8b403764fcbab01f82783df7942ae9",
+  "base": "313a4b2ba80ce1d04e72e609287c81521fdd8643",
+  "referenceRelease": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "host": {
+    "arch": "arm64",
+    "macOS": "26.6.2",
+    "intel": "Rosetta x86_64"
+  },
+  "userFacingScope": "Ollama quota response -> monthly, session, weekly and model rows; complete errors, values, representation and headline compared with release.",
+  "syntheticCasesPerArchitecture": 2738,
+  "nativeRustPerArchitecture": 1709,
+  "compatibilityPerArchitecture": 1029,
+  "observed": {
+    "originalAndCandidateInProcessURLProtocol": 7,
+    "sharedCopilotRegression": 718,
+    "rustBridgeUnitTests": 45,
+    "strictWarnings": [
+      "Swift 6",
+      "Swift linker",
+      "clippy"
+    ],
+    "compatibilityFailureFoundAndFixed": "Foundation removes an initial BOM from an object key or a decoded model name; this signature uses the original parser.",
+    "directStandaloneABIPerArch": {
+      "nullArguments": 4,
+      "wholeDocumentFallbacks": 4,
+      "synchronousCallbacksOnSuccess": 1,
+      "rows": 4,
+      "verified": "ordered periods, model name offsets/length, exact UTF-8 bytes, empty model name, request count, fractions, headline"
+    }
+  },
+  "arm64MedianNanoseconds": {
+    "monthly-three-models": {
+      "original": 6308.458,
+      "candidate": 793.25
+    },
+    "legacy-two-periods": {
+      "original": 5722.334,
+      "candidate": 650.333
+    },
+    "monthly-32-models": {
+      "original": 33931.959,
+      "candidate": 4795.375
+    },
+    "ordinary-empty": {
+      "original": 957.875,
+      "candidate": 104.291
+    },
+    "unicode-model": {
+      "original": 3782.209,
+      "candidate": 342.583
+    },
+    "foundation-escaped-model": {
+      "original": 2943.5,
+      "candidate": 2991.209
+    }
+  },
+  "limits": [
+    "Generated responses and synthetic transport; no real vendor account, provider network, display or physical Intel host in these checks.",
+    "Parser timings exclude network latency."
+  ],
+  "formalVerdict": "INCONCLUSIVE",
+  "integratedCommit": "97aaad0",
+  "independentPerArchitecture": {
+    "swift": 1333,
+    "cABI": 384,
+    "cArgumentChecks": 5
+  }
+}

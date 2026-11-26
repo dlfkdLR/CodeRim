@@ -1,0 +1,275 @@
+{
+  "commit": "3d7a53f",
+  "release": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "previous": "313a4b2",
+  "scope": "Complete analyticsSnapshot on temporary synthetic SQLite databases. Foundation applies the released Unicode ordering and calendar rules. Rust shares the model/project event scan and declines historical ambiguous states before session callbacks.",
+  "arm64SnapshotsOrErrors": 276,
+  "rosettaX86_64SnapshotsOrErrors": 276,
+  "independent": {
+    "preparedCorpus": {
+      "inputs": 10,
+      "producer": "Release-initialized synthetic schema-18 SQLite DBs with captured SHA-256 values",
+      "casesPerBinary": 80,
+      "successfulPerBinary": 76,
+      "matchingIntegerOverflowPerBinary": 4,
+      "returnedTotalAcrossIntervalsPerBinary": 316,
+      "outputsSha256": "2ee47a8e2181fb280e8bf39f5ce49f5dbbd6664c831a02fe8d8c9925092862c8",
+      "candidateSuccessfulRoutesPerArchitecture": {
+        "sql-fallback": 24,
+        "rust-scan": 52
+      },
+      "fields": "id, parent, project id/name, timestamp bit patterns, direct child and image counts, usage, model ids, nullable cache writes, high and unknown pricing",
+      "adversarialInputs": [
+        "self, cyclic, missing and metadata-only parents",
+        "project moves and lexical group selection",
+        "unknown-session text and SQL NULL; empty text",
+        "NFC/NFD Korean and Latin, invalid UTF-8 and BLOB fields; embedded NUL",
+        "tied totals and dates, negative and fractional timestamps, inclusive start/end",
+        "explicit and inferred pricing at threshold; nullable cache writes; checked overflow"
+      ]
+    },
+    "productionEntry": {
+      "name": "SQLiteDatabase.analyticsSnapshot(...).sessions",
+      "arch": "arm64",
+      "separateBinaries": true,
+      "syntheticDatabases": 12,
+      "comparisons": 60,
+      "matchingSqliteErrors": 5,
+      "periods": [
+        "today",
+        "sevenDays",
+        "allTime"
+      ],
+      "timeZones": [
+        "UTC",
+        "America/Los_Angeles",
+        "Asia/Seoul",
+        "Europe/Berlin"
+      ],
+      "dates": "includes US 2026 spring-forward and fall-back",
+      "mismatchCount": 0
+    },
+    "boundaryExtension": {
+      "arch": "arm64",
+      "comparisons": 16,
+      "mismatchCount": 0,
+      "routes": {
+        "rust-scan": 10,
+        "sql-fallback": 6
+      },
+      "detail": "65,535 and 65,536 unique session IDs or per-session/model groups use scan; 65,537 uses original SQL. ASCII family with self-parent, cycles, absent parents, empty/null ID runs on both partial and full range. Field limits at id/parent 256/257, project 512/513 and metadata name 1024/1025 preserve released output on both sides of each cap."
+    },
+    "performance": {
+      "method": "Native arm64 optimized Swift analyticsSnapshot(.sevenDays); each independent process warms 2 snapshots then times 6; 9 rotating-order rounds; round sample is ns per call; result 256 sessions on every call.",
+      "fixtureSha256": "68013b2bc9834c1f96fcb290ab4ea04e96ac7e76978242e17ede1ebe40088a30",
+      "medianNs": {
+        "v2.1.41": 12482895,
+        "313a4b2": 7088048,
+        "2eb2e90": 3086680
+      },
+      "percentChangeMedian": {
+        "v2.1.41": -75.27272319441924,
+        "313a4b2": -56.45232650794689
+      },
+      "previousRustBuild": "Rebuilt from the exact prior Git Rust subtree with the same official rustc 1.99.1, compiler fingerprint and release profile as the candidate. Each implementation uses its own optimized executable."
+    }
+  },
+  "samples": [
+    {
+      "rows": 0,
+      "mixedNames": false,
+      "sha256": "cf91ae34650a502a4b2b742c9a433ac8290b299e36506e1577fb313f8cc57fcf",
+      "samplesMs": {
+        "release": [
+          0.217326,
+          0.135395,
+          0.14425,
+          0.099427,
+          0.102024,
+          0.100583,
+          0.104777
+        ],
+        "previous": [
+          0.05743,
+          0.163013,
+          0.044045,
+          0.044006,
+          0.044416,
+          0.047333,
+          0.041555
+        ],
+        "candidate": [
+          0.045034,
+          0.030013,
+          0.044649,
+          0.031333,
+          0.030145,
+          0.029854,
+          0.0301
+        ]
+      },
+      "medianMs": {
+        "release": 0.104777,
+        "previous": 0.044416,
+        "candidate": 0.030145
+      }
+    },
+    {
+      "rows": 85,
+      "mixedNames": false,
+      "sha256": "8235b6ab572dc31430440c8943e96f6c0331de77be1838793c185d8e15da0c71",
+      "samplesMs": {
+        "release": [
+          0.305718,
+          0.303187,
+          0.306,
+          0.313975,
+          0.310656,
+          0.508274,
+          0.329722
+        ],
+        "previous": [
+          0.161343,
+          0.166159,
+          0.163666,
+          0.161479,
+          0.162864,
+          0.181979,
+          0.159013
+        ],
+        "candidate": [
+          0.109583,
+          0.10752,
+          0.109534,
+          0.104406,
+          0.106906,
+          0.10535,
+          0.107361
+        ]
+      },
+      "medianMs": {
+        "release": 0.310656,
+        "previous": 0.162864,
+        "candidate": 0.107361
+      }
+    },
+    {
+      "rows": 5000,
+      "mixedNames": false,
+      "sha256": "d9557ca4e9321bff68ec3995d8cbbd7316e4d6201412ae5b8afe93fd4726e760",
+      "samplesMs": {
+        "release": [
+          11.858881,
+          20.073298,
+          14.145472,
+          12.099757,
+          13.998684,
+          12.137774,
+          12.108017
+        ],
+        "previous": [
+          6.667475,
+          6.523079,
+          6.025882,
+          6.206441,
+          6.564635,
+          6.323996,
+          6.333645
+        ],
+        "candidate": [
+          3.535322,
+          4.118402,
+          4.067177,
+          3.080447,
+          2.758357,
+          3.008836,
+          2.683541
+        ]
+      },
+      "medianMs": {
+        "release": 12.137774,
+        "previous": 6.333645,
+        "candidate": 3.080447
+      }
+    },
+    {
+      "rows": 65000,
+      "mixedNames": false,
+      "sha256": "91246ae7526d0bf84411d1ab205904d2e4ae327b227435b85e6e5ca71af20acf",
+      "samplesMs": {
+        "release": [
+          287.628166,
+          328.769569,
+          335.263028,
+          309.261666,
+          291.826291,
+          296.667861,
+          317.187389
+        ],
+        "previous": [
+          148.485944,
+          150.133333,
+          156.492736,
+          160.382763,
+          145.98568,
+          146.330764,
+          149.972278
+        ],
+        "candidate": [
+          55.457611,
+          62.557902,
+          64.767597,
+          54.271291,
+          58.292041,
+          58.179653,
+          54.92618
+        ]
+      },
+      "medianMs": {
+        "release": 309.261666,
+        "previous": 149.972278,
+        "candidate": 58.179653
+      }
+    },
+    {
+      "rows": 5000,
+      "mixedNames": true,
+      "sha256": "df8561236fa7e3dea2586d68d4114c057b53a0d564d13f54a21dbb731eb1fe2e",
+      "samplesMs": {
+        "release": [
+          11.960097,
+          11.797204,
+          12.166444,
+          11.972388,
+          11.987826,
+          12.037868,
+          11.825222
+        ],
+        "previous": [
+          9.429211,
+          9.432444,
+          9.991125,
+          11.053441,
+          9.400295,
+          10.872166,
+          9.277968
+        ],
+        "candidate": [
+          6.104559,
+          6.176187,
+          6.386729,
+          6.279343,
+          6.247916,
+          6.062382,
+          6.169333
+        ]
+      },
+      "medianMs": {
+        "release": 11.972388,
+        "previous": 9.432444,
+        "candidate": 6.176187
+      }
+    }
+  ],
+  "harness": "INCONCLUSIVE"
+}

@@ -241,3 +241,11 @@ Windows 계정 설정 원본·후보의 980×720 전체 WGC 프레임은 x64·AR
 공식 Auggie CLI 출력 중 사용량과 잔여량을 Rust에서 읽는다. 날짜는 네이티브 포매터를 사용한다. Apple Silicon과 Rosetta Intel에서 각각 합성 출력 5,412건이 기존 구현과 일치했다. 국제 표제, Unicode 숫자와 날짜 슬래시의 경계도 비교했다. 실계정 사용량과 네트워크 지연은 이 측정에 포함되지 않는다. [파싱 표본과 시간](verification/2026-11-26/macos-auggie-official-quota.json)
 
 Command Code는 현재 검증한 공식 연결 경로가 없어, 제공자 설정과 노치 양쪽에서 해당 제한을 표시한다. 실제 제공자 객체를 조회하는 테스트와 연결 관련 테스트 12개가 로컬에서 통과했다. macOS 네이티브 비교 작업은 얕은 체크아웃에서도 `v2.1.41` 태그를 가져와 공개판 SHA를 검증한다. 이 방식의 새 로컬 체크아웃에서 전체 Apple 비교 스크립트가 통과했다.
+
+성능·계정 상태의 후속 검증에서 Windows x64·ARM64의 MSI·MSIX 네 조합 모두 Ollama 설정 9개가 통과했다. 공백 교체, 저장 실패, 초안 폐기, 저장·삭제 후 다른 패널을 거쳐 다시 열 때의 실제 화면을 확인했다. [설치 조합별 결과](verification/2026-11-26/windows-ollama-settings-reopen-313a4b2.json)
+
+### macOS 세션별 사용량과 공식 Ollama 응답
+
+기존 Rust 이벤트 조회에서 세션 순서·모델별 사용량·프로젝트·자식 세션 수까지 계산한다. 같은 세션이 도중에 프로젝트를 옮기거나 기존 문자열 비교 규칙이 필요한 DB는 같은 읽기 트랜잭션에서 기존 SQL을 사용한다. Apple Silicon·Rosetta Intel에서 각각 공개판의 전체 통계 276개가 일치했다. 독립 시험에서는 각 아키텍처의 80개 조건, Apple Silicon의 실제 진입점 60개와 경계 16개가 일치했다. 시간대, 부모 순환, 65,537개 세션과 그룹의 기존 SQL 복귀도 포함한다. 합성 65,000행 전체 통계의 로컬 중앙값은 공개판 309.26 ms, 직전 Rust 후보 149.97 ms, 새 후보 58.18 ms였다. [조회 조건과 개별 시간](verification/2026-11-26/macos-sqlite-session-analytics.json)
+
+공식 Ollama 사용량 응답에서 월·주·세션·모델별 할당량을 읽는다. Apple Silicon과 Rosetta Intel에서 각각 합성 응답 2,738개, 별도 검토자가 만든 Swift 비교 1,333개가 공개판과 같았다. 같은 합성 HTTP 응답 7개로 실제 요청 진입점의 값과 오류를 확인했다. 3모델 응답은 6.31→0.79 µs였고, 이스케이프 문자열의 기존 Foundation 경로는 2.94→2.99 µs였다. [공식 응답 재생 결과](verification/2026-11-26/macos-official-ollama-quota.json)
