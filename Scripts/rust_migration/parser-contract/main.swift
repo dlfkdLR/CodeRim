@@ -33,9 +33,11 @@ let stamp = "2026-11-25T02:03:04.125Z"
 let counts = #"{"input_tokens":100,"cached_input_tokens":20,"output_tokens":5}"#
 let line = #"{"timestamp":"STAMP","type":"event_msg","ordinal":4,"payload":{"type":"token_count","info":{"last_token_usage":COUNTS,"total_token_usage":COUNTS}}}"#
     .replacingOccurrences(of: "STAMP", with: stamp).replacingOccurrences(of: "COUNTS", with: counts)
+@MainActor
 func add(_ name: String, _ value: String, fast: Bool) {
     cases.append(Case(name: name, data: Data(value.utf8), fast: fast))
 }
+@MainActor
 func replacing(_ key: String, _ value: String) -> String { line.replacingOccurrences(of: key, with: value) }
 
 add("canonical", line, fast: true)

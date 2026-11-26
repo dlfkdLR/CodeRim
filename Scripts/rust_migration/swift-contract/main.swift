@@ -36,6 +36,7 @@ let fixtures = try JSONDecoder().decode([Scenario].self, from: Data(contentsOf: 
 let normalizer = UsageNormalizer()
 var rows: [Row] = []
 
+@MainActor
 func record(_ name: String, _ step: Int, _ result: UsageNormalizationResult) {
     rows.append(Row(scenario: name, step: step,
                     highWater: result.state.cumulativeHighWaterMark,
