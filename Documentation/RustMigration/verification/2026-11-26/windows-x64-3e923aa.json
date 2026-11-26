@@ -1,0 +1,152 @@
+{
+  "workload": "Public .NET Normalize; pre-parsed monotone counters; 32 warmup sessions per process",
+  "system": "Windows-2025Server-10.0.26100-SP0",
+  "tieredCompilation": false,
+  "medianElapsedMs": {
+    "managed": 59.6337,
+    "rust": 22.0226
+  },
+  "rustOverManaged": 0.3692978969944847,
+  "samples": [
+    {
+      "round": 1,
+      "backend": "managed",
+      "elapsedMs": 70.4287,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    },
+    {
+      "round": 1,
+      "backend": "rust",
+      "elapsedMs": 23.0757,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    },
+    {
+      "round": 2,
+      "backend": "rust",
+      "elapsedMs": 23.1831,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    },
+    {
+      "round": 2,
+      "backend": "managed",
+      "elapsedMs": 60.9753,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    },
+    {
+      "round": 3,
+      "backend": "managed",
+      "elapsedMs": 59.6337,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    },
+    {
+      "round": 3,
+      "backend": "rust",
+      "elapsedMs": 19.4484,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    },
+    {
+      "round": 4,
+      "backend": "rust",
+      "elapsedMs": 22.0226,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    },
+    {
+      "round": 4,
+      "backend": "managed",
+      "elapsedMs": 53.1444,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    },
+    {
+      "round": 5,
+      "backend": "managed",
+      "elapsedMs": 47.1417,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    },
+    {
+      "round": 5,
+      "backend": "rust",
+      "elapsedMs": 19.2134,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    },
+    {
+      "round": 6,
+      "backend": "rust",
+      "elapsedMs": 23.3586,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    },
+    {
+      "round": 6,
+      "backend": "managed",
+      "elapsedMs": 66.835,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    },
+    {
+      "round": 7,
+      "backend": "managed",
+      "elapsedMs": 49.0207,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    },
+    {
+      "round": 7,
+      "backend": "rust",
+      "elapsedMs": 20.6367,
+      "allocatedBytes": 0,
+      "checksum": 17825792,
+      "observations": 524288,
+      "architecture": "X64",
+      "runtime": ".NET 10.0.15"
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "service": "https://api.osv.dev/v1/querybatch",
+  "checkedAt": "2026-11-26T00:57:43.698790+00:00",
+  "cargoLockSha256": "3a65ffc9604bb1c9a248cb5223931e549996f738573ec2ed48f0b098e55231a0",
+  "packages": [
+    {
+      "name": "cc",
+      "version": "1.11.3",
+      "vulns": []
+    },
+    {
+      "name": "find-msvc-tools",
+      "version": "0.1.15",
+      "vulns": []
+    },
+    {
+      "name": "itoa",
+      "version": "1.0.19",
+      "vulns": []
+    },
+    {
+      "name": "libc",
+      "version": "0.2.191",
+      "vulns": []
+    },
+    {
+      "name": "memchr",
+      "version": "2.8.3",
+      "vulns": []
+    },
+    {
+      "name": "proc-macro2",
+      "version": "1.0.107",
+      "vulns": []
+    },
+    {
+      "name": "quote",
+      "version": "1.0.47",
+      "vulns": []
+    },
+    {
+      "name": "serde",
+      "version": "1.0.229",
+      "vulns": []
+    },
+    {
+      "name": "serde_core",
+      "version": "1.0.229",
+      "vulns": []
+    },
+    {
+      "name": "serde_derive",
+      "version": "1.0.229",
+      "vulns": []
+    },
+    {
+      "name": "serde_json",
+      "version": "1.0.154",
+      "vulns": []
+    },
+    {
+      "name": "shlex",
+      "version": "2.0.1",
+      "vulns": []
+    },
+    {
+      "name": "syn",
+      "version": "3.0.10",
+      "vulns": []
+    },
+    {
+      "name": "unicode-ident",
+      "version": "1.0.27",
+      "vulns": []
+    },
+    {
+      "name": "unicode-segmentation",
+      "version": "1.13.3",
+      "vulns": []
+    },
+    {
+      "name": "zmij",
+      "version": "1.0.23",
+      "vulns": []
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "rasters": 48,
+  "elements": 8208,
+  "pixels": 1505280,
+  "points": 12096,
+  "paths": 720,
+  "cgpath.bin": {
+    "sha256": "fbe57f7337c671de90cb7024e0cd6f508136afc9af7fbbcb1cc68768059fe8e1",
+    "bytes": 204624,
+    "changed_bytes": 0
+  },
+  "pixels.bin": {
+    "sha256": "ce92eb33cf728299707b4fbf826774767adae488c6e2878ce057951fb99b767b",
+    "bytes": 1505280,
+    "changed_bytes": 0
+  },
+  "byte_identical_pngs": 48
+}

@@ -1,0 +1,18 @@
+{
+  "bundleID": "dev.codexmeter.CodexMeter",
+  "version": "2.1.41",
+  "installations": {
+    "zip": {
+      "executableSha256": "41b66cc3d1dc6777d4701676987af27875446cad3db9693b59355dba2f2016db",
+      "version": "CodeRim CLI 2.1.41 (schema 1)",
+      "bytes": 25649585,
+      "packageSha256": "555bddb8e5d40545b1d965fa7eee5731bb5cec9e72e5b8ce8025039bcec06a03"
+    },
+    "dmg": {
+      "executableSha256": "41b66cc3d1dc6777d4701676987af27875446cad3db9693b59355dba2f2016db",
+      "version": "CodeRim CLI 2.1.41 (schema 1)",
+      "bytes": 29026185,
+      "packageSha256": "a955cbf1f5e30d729a87818b041cb89e06f370d0fa1ad6b8596dad48c0902403"
+    }
+  }
+}

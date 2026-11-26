@@ -1,0 +1,106 @@
+{
+  "bundles": {
+    "reference": {
+      "id": "dev.codexmeter.CodexMeter",
+      "version": "2.1.41",
+      "build": "20141",
+      "executableSha256": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64"
+    },
+    "candidate": {
+      "id": "dev.codexmeter.CodexMeter",
+      "version": "2.1.41",
+      "build": "20141",
+      "executableSha256": "1264285e5783a6d598a9b59d80c28dcadac636317540e0ed8fc27877a19fd7ae"
+    }
+  },
+  "stable": {
+    "schema": 18,
+    "integrity": "ok",
+    "events": [
+      [
+        "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+        100
+      ]
+    ],
+    "watermarks": [
+      100
+    ],
+    "offsets": [
+      352
+    ],
+    "version": "reference",
+    "fingerprintPreserved": true
+  },
+  "upgrade": {
+    "schema": 18,
+    "integrity": "ok",
+    "events": [
+      [
+        "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+        100
+      ],
+      [
+        "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+        25
+      ]
+    ],
+    "watermarks": [
+      125
+    ],
+    "offsets": [
+      635
+    ],
+    "version": "candidate",
+    "fingerprintPreserved": true
+  },
+  "rollback": {
+    "schema": 18,
+    "integrity": "ok",
+    "events": [
+      [
+        "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+        100
+      ],
+      [
+        "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+        25
+      ],
+      [
+        "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+        8
+      ]
+    ],
+    "watermarks": [
+      133
+    ],
+    "offsets": [
+      917
+    ],
+    "version": "reference",
+    "fingerprintPreserved": true
+  },
+  "restoredAndReplayed": {
+    "schema": 18,
+    "integrity": "ok",
+    "events": [
+      [
+        "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+        100
+      ],
+      [
+        "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+        25
+      ],
+      [
+        "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+        8
+      ]
+    ],
+    "watermarks": [
+      133
+    ],
+    "offsets": [
+      917
+    ]
+  }
+}

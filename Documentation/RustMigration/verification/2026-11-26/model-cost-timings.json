@@ -1,0 +1,15 @@
+{
+  "Swift": {
+    "wall_ns_per_sample_median": 26823.750813802082,
+    "cpu_ns_per_sample_median": 26575.358072916668,
+    "peak_rss_bytes_median": 8011776,
+    "checksum": "1036169.3700178336555665125182102113517"
+  },
+  "Rust": {
+    "wall_ns_per_sample_median": 22993.808268229168,
+    "cpu_ns_per_sample_median": 22609.212239583332,
+    "peak_rss_bytes_median": 8142848,
+    "checksum": "1036169.3700178336555665125182102113517"
+  },
+  "median_paired_cpu_ratio": 0.8354650876501871
+}

@@ -1,0 +1,892 @@
+{
+  "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "architecture": "arm64",
+  "pairs": 13,
+  "warmups": 2,
+  "sample_note": "Same sandbox-exec policy, executable/output in /private/tmp, direct new processes. Pipe and sandbox startup included; randomized variant order per pair. Synthetic 70 providers, two 30-day histories. macOS wait4 ru_maxrss is in bytes.",
+  "fixture_bytes": 23804,
+  "summary": {
+    "version": {
+      "Swift": {
+        "wall_ms": 11.152875,
+        "cpu_ms": 8.779,
+        "peak_rss_bytes": 7077888
+      },
+      "Rust": {
+        "wall_ms": 11.469791,
+        "cpu_ms": 8.751,
+        "peak_rss_bytes": 6897664
+      }
+    },
+    "catalog": {
+      "Swift": {
+        "wall_ms": 16.4885,
+        "cpu_ms": 12.633,
+        "peak_rss_bytes": 8650752
+      },
+      "Rust": {
+        "wall_ms": 13.285625,
+        "cpu_ms": 10.416,
+        "peak_rss_bytes": 6602752
+      }
+    },
+    "usage_text": {
+      "Swift": {
+        "wall_ms": 17.647542,
+        "cpu_ms": 14.313999999999998,
+        "peak_rss_bytes": 10895360
+      },
+      "Rust": {
+        "wall_ms": 14.278875,
+        "cpu_ms": 11.205,
+        "peak_rss_bytes": 10043392
+      }
+    },
+    "usage_json": {
+      "Swift": {
+        "wall_ms": 14.065292,
+        "cpu_ms": 11.17,
+        "peak_rss_bytes": 10141696
+      },
+      "Rust": {
+        "wall_ms": 13.028041,
+        "cpu_ms": 10.098999999999998,
+        "peak_rss_bytes": 9437184
+      }
+    }
+  },
+  "samples": [
+    {
+      "command": "version",
+      "variant": "Rust",
+      "round": 0,
+      "wall_ms": 10.795542,
+      "cpu_ms": 8.527,
+      "peak_rss_bytes": 6914048
+    },
+    {
+      "command": "version",
+      "variant": "Swift",
+      "round": 0,
+      "wall_ms": 11.152875,
+      "cpu_ms": 8.779,
+      "peak_rss_bytes": 7077888
+    },
+    {
+      "command": "version",
+      "variant": "Rust",
+      "round": 1,
+      "wall_ms": 10.364459,
+      "cpu_ms": 8.161999999999999,
+      "peak_rss_bytes": 6897664
+    },
+    {
+      "command": "version",
+      "variant": "Swift",
+      "round": 1,
+      "wall_ms": 10.790375,
+      "cpu_ms": 8.531,
+      "peak_rss_bytes": 7077888
+    },
+    {
+      "command": "version",
+      "variant": "Swift",
+      "round": 2,
+      "wall_ms": 10.815083,
+      "cpu_ms": 8.552999999999999,
+      "peak_rss_bytes": 7077888
+    },
+    {
+      "command": "version",
+      "variant": "Rust",
+      "round": 2,
+      "wall_ms": 12.189375,
+      "cpu_ms": 8.325,
+      "peak_rss_bytes": 6897664
+    },
+    {
+      "command": "version",
+      "variant": "Swift",
+      "round": 3,
+      "wall_ms": 10.678375,
+      "cpu_ms": 8.397,
+      "peak_rss_bytes": 7077888
+    },
+    {
+      "command": "version",
+      "variant": "Rust",
+      "round": 3,
+      "wall_ms": 10.885333,
+      "cpu_ms": 8.418999999999999,
+      "peak_rss_bytes": 6897664
+    },
+    {
+      "command": "version",
+      "variant": "Rust",
+      "round": 4,
+      "wall_ms": 11.469791,
+      "cpu_ms": 8.974,
+      "peak_rss_bytes": 6897664
+    },
+    {
+      "command": "version",
+      "variant": "Swift",
+      "round": 4,
+      "wall_ms": 10.701708,
+      "cpu_ms": 8.355,
+      "peak_rss_bytes": 7077888
+    },
+    {
+      "command": "version",
+      "variant": "Swift",
+      "round": 5,
+      "wall_ms": 13.014625,
+      "cpu_ms": 10.161999999999999,
+      "peak_rss_bytes": 7110656
+    },
+    {
+      "command": "version",
+      "variant": "Rust",
+      "round": 5,
+      "wall_ms": 11.3715,
+      "cpu_ms": 8.751,
+      "peak_rss_bytes": 6897664
+    },
+    {
+      "command": "version",
+      "variant": "Rust",
+      "round": 6,
+      "wall_ms": 10.465625,
+      "cpu_ms": 8.197,
+      "peak_rss_bytes": 6914048
+    },
+    {
+      "command": "version",
+      "variant": "Swift",
+      "round": 6,
+      "wall_ms": 10.953458,
+      "cpu_ms": 8.581999999999999,
+      "peak_rss_bytes": 7077888
+    },
+    {
+      "command": "version",
+      "variant": "Swift",
+      "round": 7,
+      "wall_ms": 10.970625,
+      "cpu_ms": 8.689,
+      "peak_rss_bytes": 7077888
+    },
+    {
+      "command": "version",
+      "variant": "Rust",
+      "round": 7,
+      "wall_ms": 10.849583,
+      "cpu_ms": 8.623000000000001,
+      "peak_rss_bytes": 6914048
+    },
+    {
+      "command": "version",
+      "variant": "Swift",
+      "round": 8,
+      "wall_ms": 13.48125,
+      "cpu_ms": 10.645999999999999,
+      "peak_rss_bytes": 7094272
+    },
+    {
+      "command": "version",
+      "variant": "Rust",
+      "round": 8,
+      "wall_ms": 11.904125,
+      "cpu_ms": 9.717,
+      "peak_rss_bytes": 6914048
+    },
+    {
+      "command": "version",
+      "variant": "Rust",
+      "round": 9,
+      "wall_ms": 13.533667,
+      "cpu_ms": 10.77,
+      "peak_rss_bytes": 6897664
+    },
+    {
+      "command": "version",
+      "variant": "Swift",
+      "round": 9,
+      "wall_ms": 12.172125,
+      "cpu_ms": 9.548,
+      "peak_rss_bytes": 7077888
+    },
+    {
+      "command": "version",
+      "variant": "Rust",
+      "round": 10,
+      "wall_ms": 12.764334,
+      "cpu_ms": 10.315999999999999,
+      "peak_rss_bytes": 6930432
+    },
+    {
+      "command": "version",
+      "variant": "Swift",
+      "round": 10,
+      "wall_ms": 16.09925,
+      "cpu_ms": 11.799999999999997,
+      "peak_rss_bytes": 7110656
+    },
+    {
+      "command": "version",
+      "variant": "Swift",
+      "round": 11,
+      "wall_ms": 42.463375,
+      "cpu_ms": 13.987,
+      "peak_rss_bytes": 7110656
+    },
+    {
+      "command": "version",
+      "variant": "Rust",
+      "round": 11,
+      "wall_ms": 17.964333,
+      "cpu_ms": 13.517999999999999,
+      "peak_rss_bytes": 6897664
+    },
+    {
+      "command": "version",
+      "variant": "Swift",
+      "round": 12,
+      "wall_ms": 17.8885,
+      "cpu_ms": 14.245,
+      "peak_rss_bytes": 7110656
+    },
+    {
+      "command": "version",
+      "variant": "Rust",
+      "round": 12,
+      "wall_ms": 15.631541,
+      "cpu_ms": 11.851,
+      "peak_rss_bytes": 6897664
+    },
+    {
+      "command": "catalog",
+      "variant": "Rust",
+      "round": 0,
+      "wall_ms": 17.825709,
+      "cpu_ms": 13.825000000000001,
+      "peak_rss_bytes": 6635520
+    },
+    {
+      "command": "catalog",
+      "variant": "Swift",
+      "round": 0,
+      "wall_ms": 22.967542,
+      "cpu_ms": 15.528,
+      "peak_rss_bytes": 8699904
+    },
+    {
+      "command": "catalog",
+      "variant": "Swift",
+      "round": 1,
+      "wall_ms": 16.4885,
+      "cpu_ms": 12.982999999999999,
+      "peak_rss_bytes": 8634368
+    },
+    {
+      "command": "catalog",
+      "variant": "Rust",
+      "round": 1,
+      "wall_ms": 16.018709,
+      "cpu_ms": 12.701,
+      "peak_rss_bytes": 6619136
+    },
+    {
+      "command": "catalog",
+      "variant": "Rust",
+      "round": 2,
+      "wall_ms": 17.049334,
+      "cpu_ms": 12.302,
+      "peak_rss_bytes": 6602752
+    },
+    {
+      "command": "catalog",
+      "variant": "Swift",
+      "round": 2,
+      "wall_ms": 19.919209,
+      "cpu_ms": 16.385,
+      "peak_rss_bytes": 8716288
+    },
+    {
+      "command": "catalog",
+      "variant": "Rust",
+      "round": 3,
+      "wall_ms": 19.501417,
+      "cpu_ms": 14.589999999999998,
+      "peak_rss_bytes": 6619136
+    },
+    {
+      "command": "catalog",
+      "variant": "Swift",
+      "round": 3,
+      "wall_ms": 18.523417,
+      "cpu_ms": 13.895999999999999,
+      "peak_rss_bytes": 8650752
+    },
+    {
+      "command": "catalog",
+      "variant": "Rust",
+      "round": 4,
+      "wall_ms": 15.872375,
+      "cpu_ms": 12.164,
+      "peak_rss_bytes": 6602752
+    },
+    {
+      "command": "catalog",
+      "variant": "Swift",
+      "round": 4,
+      "wall_ms": 16.371292,
+      "cpu_ms": 12.376999999999999,
+      "peak_rss_bytes": 8667136
+    },
+    {
+      "command": "catalog",
+      "variant": "Swift",
+      "round": 5,
+      "wall_ms": 15.205583,
+      "cpu_ms": 11.594,
+      "peak_rss_bytes": 8650752
+    },
+    {
+      "command": "catalog",
+      "variant": "Rust",
+      "round": 5,
+      "wall_ms": 12.472708,
+      "cpu_ms": 9.748999999999999,
+      "peak_rss_bytes": 6602752
+    },
+    {
+      "command": "catalog",
+      "variant": "Swift",
+      "round": 6,
+      "wall_ms": 14.921375,
+      "cpu_ms": 11.487999999999998,
+      "peak_rss_bytes": 8683520
+    },
+    {
+      "command": "catalog",
+      "variant": "Rust",
+      "round": 6,
+      "wall_ms": 13.285625,
+      "cpu_ms": 10.291,
+      "peak_rss_bytes": 6586368
+    },
+    {
+      "command": "catalog",
+      "variant": "Swift",
+      "round": 7,
+      "wall_ms": 14.030708,
+      "cpu_ms": 10.832999999999998,
+      "peak_rss_bytes": 8634368
+    },
+    {
+      "command": "catalog",
+      "variant": "Rust",
+      "round": 7,
+      "wall_ms": 13.187041,
+      "cpu_ms": 10.416,
+      "peak_rss_bytes": 6586368
+    },
+    {
+      "command": "catalog",
+      "variant": "Swift",
+      "round": 8,
+      "wall_ms": 16.46475,
+      "cpu_ms": 12.633,
+      "peak_rss_bytes": 8650752
+    },
+    {
+      "command": "catalog",
+      "variant": "Rust",
+      "round": 8,
+      "wall_ms": 14.333041,
+      "cpu_ms": 11.387999999999998,
+      "peak_rss_bytes": 6619136
+    },
+    {
+      "command": "catalog",
+      "variant": "Swift",
+      "round": 9,
+      "wall_ms": 19.50225,
+      "cpu_ms": 15.108,
+      "peak_rss_bytes": 8650752
+    },
+    {
+      "command": "catalog",
+      "variant": "Rust",
+      "round": 9,
+      "wall_ms": 12.306667,
+      "cpu_ms": 9.713999999999999,
+      "peak_rss_bytes": 6619136
+    },
+    {
+      "command": "catalog",
+      "variant": "Rust",
+      "round": 10,
+      "wall_ms": 12.499375,
+      "cpu_ms": 9.508,
+      "peak_rss_bytes": 6619136
+    },
+    {
+      "command": "catalog",
+      "variant": "Swift",
+      "round": 10,
+      "wall_ms": 24.336208,
+      "cpu_ms": 12.445999999999998,
+      "peak_rss_bytes": 8650752
+    },
+    {
+      "command": "catalog",
+      "variant": "Swift",
+      "round": 11,
+      "wall_ms": 25.591584,
+      "cpu_ms": 17.805999999999997,
+      "peak_rss_bytes": 8650752
+    },
+    {
+      "command": "catalog",
+      "variant": "Rust",
+      "round": 11,
+      "wall_ms": 11.125458,
+      "cpu_ms": 8.821,
+      "peak_rss_bytes": 6586368
+    },
+    {
+      "command": "catalog",
+      "variant": "Swift",
+      "round": 12,
+      "wall_ms": 11.974375,
+      "cpu_ms": 9.315,
+      "peak_rss_bytes": 8650752
+    },
+    {
+      "command": "catalog",
+      "variant": "Rust",
+      "round": 12,
+      "wall_ms": 10.802084,
+      "cpu_ms": 8.626999999999999,
+      "peak_rss_bytes": 6602752
+    },
+    {
+      "command": "usage_text",
+      "variant": "Swift",
+      "round": 0,
+      "wall_ms": 19.151916,
+      "cpu_ms": 15.389,
+      "peak_rss_bytes": 10928128
+    },
+    {
+      "command": "usage_text",
+      "variant": "Rust",
+      "round": 0,
+      "wall_ms": 14.278875,
+      "cpu_ms": 11.171000000000001,
+      "peak_rss_bytes": 10043392
+    },
+    {
+      "command": "usage_text",
+      "variant": "Swift",
+      "round": 1,
+      "wall_ms": 17.168125,
+      "cpu_ms": 13.85,
+      "peak_rss_bytes": 10911744
+    },
+    {
+      "command": "usage_text",
+      "variant": "Rust",
+      "round": 1,
+      "wall_ms": 14.22275,
+      "cpu_ms": 11.06,
+      "peak_rss_bytes": 10043392
+    },
+    {
+      "command": "usage_text",
+      "variant": "Rust",
+      "round": 2,
+      "wall_ms": 13.55825,
+      "cpu_ms": 10.686,
+      "peak_rss_bytes": 10076160
+    },
+    {
+      "command": "usage_text",
+      "variant": "Swift",
+      "round": 2,
+      "wall_ms": 16.352333,
+      "cpu_ms": 13.438,
+      "peak_rss_bytes": 10895360
+    },
+    {
+      "command": "usage_text",
+      "variant": "Rust",
+      "round": 3,
+      "wall_ms": 13.785792,
+      "cpu_ms": 10.78,
+      "peak_rss_bytes": 9977856
+    },
+    {
+      "command": "usage_text",
+      "variant": "Swift",
+      "round": 3,
+      "wall_ms": 16.091208,
+      "cpu_ms": 13.078999999999999,
+      "peak_rss_bytes": 10878976
+    },
+    {
+      "command": "usage_text",
+      "variant": "Rust",
+      "round": 4,
+      "wall_ms": 14.38925,
+      "cpu_ms": 11.205,
+      "peak_rss_bytes": 10059776
+    },
+    {
+      "command": "usage_text",
+      "variant": "Swift",
+      "round": 4,
+      "wall_ms": 18.352667,
+      "cpu_ms": 14.738,
+      "peak_rss_bytes": 10895360
+    },
+    {
+      "command": "usage_text",
+      "variant": "Rust",
+      "round": 5,
+      "wall_ms": 16.561083,
+      "cpu_ms": 13.075,
+      "peak_rss_bytes": 10076160
+    },
+    {
+      "command": "usage_text",
+      "variant": "Swift",
+      "round": 5,
+      "wall_ms": 18.560459,
+      "cpu_ms": 15.197,
+      "peak_rss_bytes": 10895360
+    },
+    {
+      "command": "usage_text",
+      "variant": "Swift",
+      "round": 6,
+      "wall_ms": 17.852792,
+      "cpu_ms": 14.594999999999999,
+      "peak_rss_bytes": 10895360
+    },
+    {
+      "command": "usage_text",
+      "variant": "Rust",
+      "round": 6,
+      "wall_ms": 14.438708,
+      "cpu_ms": 11.57,
+      "peak_rss_bytes": 10108928
+    },
+    {
+      "command": "usage_text",
+      "variant": "Swift",
+      "round": 7,
+      "wall_ms": 17.647542,
+      "cpu_ms": 14.313999999999998,
+      "peak_rss_bytes": 10928128
+    },
+    {
+      "command": "usage_text",
+      "variant": "Rust",
+      "round": 7,
+      "wall_ms": 15.751708,
+      "cpu_ms": 12.392,
+      "peak_rss_bytes": 10092544
+    },
+    {
+      "command": "usage_text",
+      "variant": "Swift",
+      "round": 8,
+      "wall_ms": 18.137458,
+      "cpu_ms": 14.589,
+      "peak_rss_bytes": 10895360
+    },
+    {
+      "command": "usage_text",
+      "variant": "Rust",
+      "round": 8,
+      "wall_ms": 14.431417,
+      "cpu_ms": 11.469999999999999,
+      "peak_rss_bytes": 10027008
+    },
+    {
+      "command": "usage_text",
+      "variant": "Swift",
+      "round": 9,
+      "wall_ms": 18.754542,
+      "cpu_ms": 15.199999999999998,
+      "peak_rss_bytes": 10895360
+    },
+    {
+      "command": "usage_text",
+      "variant": "Rust",
+      "round": 9,
+      "wall_ms": 14.285583,
+      "cpu_ms": 11.296000000000001,
+      "peak_rss_bytes": 10043392
+    },
+    {
+      "command": "usage_text",
+      "variant": "Swift",
+      "round": 10,
+      "wall_ms": 16.693875,
+      "cpu_ms": 13.743,
+      "peak_rss_bytes": 10895360
+    },
+    {
+      "command": "usage_text",
+      "variant": "Rust",
+      "round": 10,
+      "wall_ms": 14.059791,
+      "cpu_ms": 11.312,
+      "peak_rss_bytes": 10043392
+    },
+    {
+      "command": "usage_text",
+      "variant": "Swift",
+      "round": 11,
+      "wall_ms": 17.34125,
+      "cpu_ms": 14.207999999999998,
+      "peak_rss_bytes": 10895360
+    },
+    {
+      "command": "usage_text",
+      "variant": "Rust",
+      "round": 11,
+      "wall_ms": 14.168875,
+      "cpu_ms": 11.121999999999998,
+      "peak_rss_bytes": 10043392
+    },
+    {
+      "command": "usage_text",
+      "variant": "Rust",
+      "round": 12,
+      "wall_ms": 13.774708,
+      "cpu_ms": 10.705,
+      "peak_rss_bytes": 9994240
+    },
+    {
+      "command": "usage_text",
+      "variant": "Swift",
+      "round": 12,
+      "wall_ms": 16.9295,
+      "cpu_ms": 13.79,
+      "peak_rss_bytes": 10895360
+    },
+    {
+      "command": "usage_json",
+      "variant": "Swift",
+      "round": 0,
+      "wall_ms": 13.88725,
+      "cpu_ms": 10.882,
+      "peak_rss_bytes": 10125312
+    },
+    {
+      "command": "usage_json",
+      "variant": "Rust",
+      "round": 0,
+      "wall_ms": 13.673375,
+      "cpu_ms": 10.098999999999998,
+      "peak_rss_bytes": 9453568
+    },
+    {
+      "command": "usage_json",
+      "variant": "Rust",
+      "round": 1,
+      "wall_ms": 12.711875,
+      "cpu_ms": 9.879000000000001,
+      "peak_rss_bytes": 9404416
+    },
+    {
+      "command": "usage_json",
+      "variant": "Swift",
+      "round": 1,
+      "wall_ms": 13.787459,
+      "cpu_ms": 10.732999999999999,
+      "peak_rss_bytes": 10174464
+    },
+    {
+      "command": "usage_json",
+      "variant": "Rust",
+      "round": 2,
+      "wall_ms": 12.797875,
+      "cpu_ms": 9.852,
+      "peak_rss_bytes": 9404416
+    },
+    {
+      "command": "usage_json",
+      "variant": "Swift",
+      "round": 2,
+      "wall_ms": 14.46375,
+      "cpu_ms": 11.318999999999999,
+      "peak_rss_bytes": 10125312
+    },
+    {
+      "command": "usage_json",
+      "variant": "Rust",
+      "round": 3,
+      "wall_ms": 13.454125,
+      "cpu_ms": 10.038,
+      "peak_rss_bytes": 9453568
+    },
+    {
+      "command": "usage_json",
+      "variant": "Swift",
+      "round": 3,
+      "wall_ms": 13.718416,
+      "cpu_ms": 10.767,
+      "peak_rss_bytes": 10141696
+    },
+    {
+      "command": "usage_json",
+      "variant": "Rust",
+      "round": 4,
+      "wall_ms": 12.356084,
+      "cpu_ms": 9.619,
+      "peak_rss_bytes": 9420800
+    },
+    {
+      "command": "usage_json",
+      "variant": "Swift",
+      "round": 4,
+      "wall_ms": 14.065292,
+      "cpu_ms": 11.07,
+      "peak_rss_bytes": 10125312
+    },
+    {
+      "command": "usage_json",
+      "variant": "Swift",
+      "round": 5,
+      "wall_ms": 14.6665,
+      "cpu_ms": 11.17,
+      "peak_rss_bytes": 10174464
+    },
+    {
+      "command": "usage_json",
+      "variant": "Rust",
+      "round": 5,
+      "wall_ms": 12.855416,
+      "cpu_ms": 9.979,
+      "peak_rss_bytes": 9437184
+    },
+    {
+      "command": "usage_json",
+      "variant": "Swift",
+      "round": 6,
+      "wall_ms": 14.502542,
+      "cpu_ms": 11.424,
+      "peak_rss_bytes": 10174464
+    },
+    {
+      "command": "usage_json",
+      "variant": "Rust",
+      "round": 6,
+      "wall_ms": 13.515458,
+      "cpu_ms": 10.589999999999998,
+      "peak_rss_bytes": 9404416
+    },
+    {
+      "command": "usage_json",
+      "variant": "Swift",
+      "round": 7,
+      "wall_ms": 16.110208,
+      "cpu_ms": 12.749,
+      "peak_rss_bytes": 10141696
+    },
+    {
+      "command": "usage_json",
+      "variant": "Rust",
+      "round": 7,
+      "wall_ms": 13.002,
+      "cpu_ms": 10.193999999999999,
+      "peak_rss_bytes": 9420800
+    },
+    {
+      "command": "usage_json",
+      "variant": "Rust",
+      "round": 8,
+      "wall_ms": 13.149709,
+      "cpu_ms": 10.31,
+      "peak_rss_bytes": 9453568
+    },
+    {
+      "command": "usage_json",
+      "variant": "Swift",
+      "round": 8,
+      "wall_ms": 14.230625,
+      "cpu_ms": 11.206,
+      "peak_rss_bytes": 10141696
+    },
+    {
+      "command": "usage_json",
+      "variant": "Swift",
+      "round": 9,
+      "wall_ms": 14.045541,
+      "cpu_ms": 11.081999999999999,
+      "peak_rss_bytes": 10141696
+    },
+    {
+      "command": "usage_json",
+      "variant": "Rust",
+      "round": 9,
+      "wall_ms": 13.028041,
+      "cpu_ms": 10.183,
+      "peak_rss_bytes": 9453568
+    },
+    {
+      "command": "usage_json",
+      "variant": "Swift",
+      "round": 10,
+      "wall_ms": 13.923541,
+      "cpu_ms": 11.112,
+      "peak_rss_bytes": 10141696
+    },
+    {
+      "command": "usage_json",
+      "variant": "Rust",
+      "round": 10,
+      "wall_ms": 13.604667,
+      "cpu_ms": 10.665999999999999,
+      "peak_rss_bytes": 9469952
+    },
+    {
+      "command": "usage_json",
+      "variant": "Swift",
+      "round": 11,
+      "wall_ms": 13.887333,
+      "cpu_ms": 11.184,
+      "peak_rss_bytes": 10174464
+    },
+    {
+      "command": "usage_json",
+      "variant": "Rust",
+      "round": 11,
+      "wall_ms": 12.783417,
+      "cpu_ms": 9.992999999999999,
+      "peak_rss_bytes": 9404416
+    },
+    {
+      "command": "usage_json",
+      "variant": "Swift",
+      "round": 12,
+      "wall_ms": 15.897166,
+      "cpu_ms": 12.511,
+      "peak_rss_bytes": 10158080
+    },
+    {
+      "command": "usage_json",
+      "variant": "Rust",
+      "round": 12,
+      "wall_ms": 14.855417,
+      "cpu_ms": 11.653,
+      "peak_rss_bytes": 9469952
+    }
+  ]
+}

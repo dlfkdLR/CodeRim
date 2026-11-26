@@ -40,9 +40,36 @@ Optimized arm64 builds used the same in-memory synthetic rows. Times are medians
 
 These workloads omit file scanning, SQLite commits, remote services and drawing. [Full 128 samples and input hashes](verification/2026-11-26/apple-accounting.json)
 
+## Integrated desktop results
+
+The migration build combines the Rust macOS companion CLI, Apple model cost estimation and notch path generation with shared accounting. The Windows desktop uses Rust for normalization and period aggregation. Stock native builds remain available for comparison. Product source in the counted directories changed from 88,673 lines at v2.1.41 to 92,397 at `df7091d`. Rust accounts for 3,021 lines (3.27%). These counts include retained implementations, comments and inline Rust tests. [Counts and scope](verification/2026-11-26/production-source-lines.json)
+
+| Check | Actual outcome |
+|---|---|
+| macOS CLI | The integrated Universal candidate at `df7091d` matched stdout, stderr and exit status across 246 paired Swift/Rust invocations and passed 116 standalone checks covering 70 providers. The native arm64 and Intel CI jobs passed. Local Intel-slice comparisons used Rosetta. |
+| Apple JSONL and pricing | The expanded parser at `670e8e5` matched 1,104 reference outputs. At `df7091d` the compiled host contract matched 102 normalization and 96 parser rows. The pricing driver compared 774 estimates, including missing models, incomplete data, custom rates and the four exact Foundation Decimal components on arm64 and Intel. [Parser oracle](verification/2026-11-26/apple-jsonl-records.json) |
+| Real macOS window | The publicly distributed v2.1.41 app and the Universal candidate at `0a8c675` used the same screen and separate disposable profiles. All six folded/expanded pairs matched every RGBA pixel. Switching state changed 32,517 pixels. The separate path oracle matched 720 paths, 12,096 coordinates and 48 rendered images. [Window comparison](verification/2026-11-26/v2141-to-0a8c675-empty-windows.json) · [Path and image comparison](verification/2026-11-26/notch-shape.json) |
+| Populated Apple views | Thirteen static states matched every pixel. These included light and dark menus, account settings and provider cards. A running-session card differed only within its 17 × 17 pixel activity indicator, whose animation also changes between identical-binary captures. [Fixtures and independent repeats](UI_COMPARISON.md) |
+| Windows installation | At `3e923aa` the x64 Windows Server 2025 and Windows 11 ARM64 runners passed all 4,620 product tests each. Both package jobs verified their ZIP, 14 MSI lifecycle checks and six MSIX checks, including native GUI activation, both aliases and uninstall. Real Windows 11 x64 desktop coverage remains open. [Receipts](verification/2026-11-26/windows-install-3e923aa.json) |
+| Integration CI | The `095ec6b` run passed. The later `3e923aa` run failed in one macOS test (two assertions), after a live hover timer could fold a notch while the test waited for an edge transition. `ca03287` keeps a real panel, separates cursor input, and observes the actual fold/reopen sequence. The four affected tests passed locally. All nine jobs then passed at `df7091d`, including the macOS product and stress tests. [Subsequent passing run](https://github.com/dlfkdLR/CodeRim/actions/runs/45734164394). [Earlier passing run](https://github.com/dlfkdLR/CodeRim/actions/runs/45730445252) · [Failure](https://github.com/dlfkdLR/CodeRim/actions/runs/45732393905) · [Integrated run](https://github.com/dlfkdLR/CodeRim/actions/runs/45734164394) |
+| macOS install and restore | The rebuilt legacy ZIP and DMG measured 32,952,955 and 38,431,334 bytes. With external dSYM files and the Rust CLI, local `3e923aa` packages measured 25,649,585 and 29,026,185 bytes. Both installed copies passed signature, checksum, architecture and CLI checks. Candidate signatures were ad hoc. Symbol separation accounts for much of the size change. [Installation receipt](verification/2026-11-26/rust-cli-installation.json) |
+| Dependencies | The recorded OSV query returned zero matching published advisories for all 16 registry package versions in this exact lockfile on 2026-11-26. [Lockfile hash and per-version result](verification/2026-11-26/cargo-advisories.json) |
+
+### Paired measurements
+
+| Workload | Reference | Rust candidate | Conditions |
+|---|---:|---:|---|
+| Windows x64 normalization | 59.63 ms | 22.02 ms | 524,288 in-memory observations, matched output, seven pairs at `3e923aa`. [Samples](verification/2026-11-26/windows-x64-3e923aa.json) |
+| Windows ARM64 normalization | 27.27 ms | 10.84 ms | Same workload, different hardware from x64. [Samples](verification/2026-11-26/windows-arm64-3e923aa.json) |
+| Windows period aggregation | x64 13.81 ms, ARM64 11.14 ms | x64 10.10 ms, ARM64 8.17 ms | Native runners at `df7091d`. Each process aggregated 8,192 retained events 64 times. [x64](verification/2026-11-26/windows-x64-df7091d-periods.json) · [ARM64](verification/2026-11-26/windows-arm64-df7091d-periods.json) |
+| macOS CLI usage text, wall | 17.65 ms | 14.28 ms | 13 pairs, native arm64, 70 synthetic providers. Process CPU went from 14.31 to 11.21 ms and peak RSS from 10.39 to 9.58 MiB. The `--version` wall median increased from 11.15 to 11.47 ms. These measurements predate the final numeric-boundary fixes. [Raw samples](verification/2026-11-26/cli-timings.json) |
+| macOS pricing, CPU per sample | 26.58 µs | 22.61 µs | Nine alternating process pairs with 6,144 samples per process. Wall time fell from 26.82 to 22.99 µs. Median peak RSS rose by 128 KiB. [Measurements](verification/2026-11-26/model-cost-timings.json) |
+
 ## Data recovery
 
 The migration branch also corrects pre-existing overcounting from damaged Apple SQLite checkpoints. A focused Apple run covered the collector, database and normalizer with 68 passing cases. The new unchanged-source assertion first failed against the implementation that could report exact quality while a negative counter was stored. Its fix is in `3a83589`. The regression keeps 100 historic tokens, anchors at 120 without charging the missing interval, then records 7 at 127 and keeps 107 after reopening. [Recovery behavior and limits](ACCOUNTING.md#restoring-a-damaged-apple-sqlite-checkpoint)
+
+The database was also exercised by the signed, notarized **published** v2.1.41 app, the Rust candidate and the same published app in succession. A synthetic Codex log produced 100, then 25, then 8 additional tokens. All historical event identities and the profile fingerprint key survived. Restoring the pre-upgrade SQLite backup and reopening the published app reproduced all three event identities and the final byte offset. SQLite integrity remained `ok` at schema 18 throughout. The test uses one disposable profile and covers locally stored usage. [Machine result](verification/2026-11-26/v2141-to-0a8c675-sqlite.json) · [Reproduction script](../../Scripts/rust_migration/check_macos_data_rollback.py)
 
 ## Release status
 

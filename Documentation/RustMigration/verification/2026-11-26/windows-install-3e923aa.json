@@ -1,0 +1,60 @@
+{
+  "x64": {
+    "archive": "sha256:0144fce2fb05627086a6f20d2871b62f3ea92069c56e984450d9d58569c6eee2",
+    "artifactID": 15078190036,
+    "run": "45732393905",
+    "msi": [
+      "signed-legacy-installation-rejected-before-write",
+      "initial-msi-install",
+      "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+      "upgrade-current-version",
+      "downgrade-refused-without-changes",
+      "installed-native-ui-and-pinned-worker",
+      "uninstall-preserves-user-data-and-unrelated-path",
+      "portable-migration-failure-restores-files-path-shortcut",
+      "portable-migration-and-repair-keep-one-cli-path",
+      "portable-migration-uninstall-preserves-data-and-unrelated-path",
+      "public-2.1.11-msi-reproduces-duplicate-portable-path",
+      "public-2.1.11-failed-upgrade-restores-installation",
+      "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+      "public-upgrade-uninstall-preserves-user-data-and-path"
+    ],
+    "msix": [
+      "installs-per-user-without-administrator",
+      "cli-aliases-registered",
+      "both-cli-aliases-run-cli",
+      "cli-regressions-through-alias",
+      "packaged-native-ui-smoke",
+      "uninstall-removes-app-and-aliases"
+    ]
+  },
+  "arm64": {
+    "archive": "sha256:2f5c721d18775e3a2a937d85c3735d138b08fa085013497adb4a0e5cb3c3cb60",
+    "artifactID": 15077831683,
+    "run": "45732393905",
+    "msi": [
+      "signed-legacy-installation-rejected-before-write",
+      "initial-msi-install",
+      "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+      "upgrade-current-version",
+      "downgrade-refused-without-changes",
+      "installed-native-ui-and-pinned-worker",
+      "uninstall-preserves-user-data-and-unrelated-path",
+      "portable-migration-failure-restores-files-path-shortcut",
+      "portable-migration-and-repair-keep-one-cli-path",
+      "portable-migration-uninstall-preserves-data-and-unrelated-path",
+      "public-2.1.11-msi-reproduces-duplicate-portable-path",
+      "public-2.1.11-failed-upgrade-restores-installation",
+      "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+      "public-upgrade-uninstall-preserves-user-data-and-path"
+    ],
+    "msix": [
+      "installs-per-user-without-administrator",
+      "cli-aliases-registered",
+      "both-cli-aliases-run-cli",
+      "cli-regressions-through-alias",
+      "packaged-native-ui-smoke",
+      "uninstall-removes-app-and-aliases"
+    ]
+  }
+}
