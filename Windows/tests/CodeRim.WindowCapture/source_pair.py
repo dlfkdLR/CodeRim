@@ -244,14 +244,23 @@ def main():
             different.append(name)
         if any(record[k].get("fullClient") is False for k in ("release", "candidate")):
             different.append(name + " (client clipped)")
-        if record["physicalPixelsEqual"] is None or record["compositorPixelsEqual"] is None:
-            print(f"::warning::{name} has incomplete native display evidence. See the ownership and WGC receipts.")
+        if record["compositorPixelsEqual"] is None:
+            missing.append(name + " (WGC)")
+        if record["physicalPixelsEqual"] is None:
+            if args.arch == "x64":
+                missing.append(name + " (desktop)")
+            else:
+                print(f"::warning::{name}: ARM64 desktop comparison is unverified. See the ownership receipts.")
     if not account["accountMetricsEqual"]:
         raise SystemExit("Synthetic account totals or their displayed text differ or are missing")
     if any(errors.values()):
         raise SystemExit("One or more synthetic fixture sequences failed; see the per-view results")
-    if different:
-        raise SystemExit("Window geometry, pixels or physical composition differed on " + ", ".join(different))
+    if different or missing:
+        if different:
+            print("::error::Window geometry, pixels or composition differed on " + ", ".join(different))
+        if missing:
+            print("::error::Required native display evidence missing on " + ", ".join(missing))
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
