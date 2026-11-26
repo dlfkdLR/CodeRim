@@ -1,6 +1,7 @@
 //! Independent of the relay transport. All ordinals refer to the host's eligible
 //! provider list. Session titles, provider names and credentials never enter Wasm.
 #![no_std]
+mod session_summary;
 mod snapshot_read;
 mod starter;
 use core::ptr::addr_of_mut;

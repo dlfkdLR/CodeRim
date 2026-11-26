@@ -417,7 +417,7 @@ export class Relay {
     // Pushes and foreground reads use the same account-local device rows. Compute this at the start
     // of each synchronous state read, including when two queued activity updates run far apart.
     const projection = context ? context.projection : this.snapshotRead?.(devices, view, user.dataFloor ?? 0, now);
-    const state = desktopState(devices, user.preferences, view, now, this.quickPicker, projection?.focused);
+    const state = desktopState(devices, user.preferences, view, now, this.quickPicker, projection?.focused, this.activitySessions);
     // Orders answers that share a view revision: a stored sequence that grows with every content change
     // from any of the account's computers, survives restarts and never repeats for different content.
     state.dataVersion = projection ? projection.dataVersion : this.contentSequence(owner);

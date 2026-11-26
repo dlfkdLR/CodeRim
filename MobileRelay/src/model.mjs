@@ -46,22 +46,37 @@ export function sanitizeSnapshot(input, now) {
   });
   return { schemaVersion: 1, generatedAt: input.generatedAt, providers, sessions };
 }
-export function contentState(snapshot, prefs, receivedAt, now, onlineWindow = ONLINE_WINDOW) {
+export function contentState(snapshot, prefs, receivedAt, now, onlineWindow = ONLINE_WINDOW, activitySessions) {
   const staleAt = receivedAt ? receivedAt + onlineWindow : now;
   const connection = !snapshot || now >= staleAt ? 'offline' : 'connected';
   const providers = prefs.providerIDs.map(id => snapshot?.providers.find(p => p.id === id)).filter(Boolean).map(p => ({
     ...p,
     state: (p.state === 'ready' || p.state === 'partial') && (!p.updatedAt || now - p.updatedAt > READING_AGE || p.windows.some(w => w.resetsAt && w.resetsAt <= now)) ? 'stale' : p.state,
   }));
+  const rows = snapshot?.sessions ?? [];
+  const state = { connection, updatedAt: snapshot?.generatedAt ?? now, staleAt, providers,
+    sessions: [], additionalSessionCount: 0, workingCount: 0, waitingCount: 0, unavailableCount: 0 };
+  if (Array.isArray(rows) && rows.length <= 1) {
+    if (!(0 in rows)) return state;
+    const row = rows[0];
+    if (prefs.providerIDs.includes(row.providerID)) {
+      state.sessions.push(row);
+      state.workingCount = Number(row.phase === 'working');
+      state.waitingCount = Number(row.phase === 'waiting');
+      state.unavailableCount = Number(row.phase === 'unavailable');
+    }
+    return state;
+  }
+  if (prefs.providerIDs.length === 1 && activitySessions?.(rows, prefs.providerIDs[0], state)) return state;
   const rank = { waiting: 0, working: 1, idle: 2, unavailable: 3 };
-  const all = (snapshot?.sessions ?? []).filter(s => prefs.providerIDs.includes(s.providerID)).sort((a, b) => rank[a.phase] - rank[b.phase] || (b.since ?? 0) - (a.since ?? 0));
-  return {
-    connection, updatedAt: snapshot?.generatedAt ?? now, staleAt,
-    providers, sessions: all.slice(0, 2), additionalSessionCount: Math.max(0, all.length - 2),
-    workingCount: all.filter(s => s.phase === 'working').length,
-    waitingCount: all.filter(s => s.phase === 'waiting').length,
-    unavailableCount: all.filter(s => s.phase === 'unavailable').length,
-  };
+  const all = rows.filter(s => prefs.providerIDs.includes(s.providerID))
+    .sort((a,b) => rank[a.phase] - rank[b.phase] || (b.since ?? 0) - (a.since ?? 0));
+  state.sessions = all.slice(0,2);
+  state.additionalSessionCount = Math.max(0, all.length - 2);
+  state.workingCount = all.filter(s => s.phase === 'working').length;
+  state.waitingCount = all.filter(s => s.phase === 'waiting').length;
+  state.unavailableCount = all.filter(s => s.phase === 'unavailable').length;
+  return state;
 }
 export function activityPayload(state, now, event = 'update', { alert, attributes } = {}) {
   const payload = { aps: { timestamp: Math.floor(now), event, 'content-state': state, 'stale-date': Math.floor(state.staleAt) } };
@@ -132,12 +147,12 @@ function catalogPicker(device, list, view, current, now, quickPicker) {
   return result;
 }
 // Each display has one source. Matching provider names never imply matching accounts.
-export function desktopState(devices, prefs, view, now, quickPicker, focusedIndex) {
+export function desktopState(devices, prefs, view, now, quickPicker, focusedIndex, activitySessions) {
   const device = focusedIndex !== undefined ? devices[focusedIndex]
     : devices.find(d => d.id === view?.deviceID) ?? devices.find(d => d.receivedAt + (d.onlineWindow ?? ONLINE_WINDOW) > now) ?? devices[0];
   const list = eligibleProviders(device, prefs);
   const provider = list.find(p => p.id === view?.providerID) ?? list[0];
-  const state = contentState(device?.snapshot, { providerIDs: provider ? [provider.id] : [] }, device?.receivedAt ?? 0, now, device?.onlineWindow);
+  const state = contentState(device?.snapshot, { providerIDs: provider ? [provider.id] : [] }, device?.receivedAt ?? 0, now, device?.onlineWindow, activitySessions);
   state.focus = { deviceID: device?.id ?? '', deviceName: device?.name ?? 'No device', platform: device?.platform ?? 'macOS',
     deviceIndex: device ? devices.indexOf(device) + 1 : 0, deviceCount: devices.length,
     providerIndex: provider ? list.indexOf(provider) + 1 : 0, providerCount: list.length };
