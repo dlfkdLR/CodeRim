@@ -1,3 +1,4 @@
-// Supply the static archive built for the selected SDK and architecture.
+// An optional CODERIM_MOBILE_RUST_ARCHIVE supplies a prebuilt library to the build phase.
+CODERIM_MOBILE_LINK_ARCHIVE = $(OBJROOT)/CodeRimRust/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)/libcoderim_mobile.a
 OTHER_SWIFT_FLAGS = $(inherited) -DCODERIM_RUST_MOBILE_SELECTION -I "$(SRCROOT)/../Rust/bridge/include"
-OTHER_LDFLAGS = $(inherited) "$(CODERIM_MOBILE_RUST_ARCHIVE)"
+OTHER_LDFLAGS = $(inherited) "$(CODERIM_MOBILE_LINK_ARCHIVE)"

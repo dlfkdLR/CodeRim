@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Deterministically generate the dependency-free native iPhone Xcode project."""
+"""Deterministically generate the native iPhone Xcode project."""
 import hashlib
 import json, os
 from pathlib import Path
@@ -37,11 +37,13 @@ fixture_ref = add('file:'+test_fixture, 'PBXFileReference', lastKnownFileType='t
 products = {}
 for name, ext, kind in [('CodeRimMobile','app','wrapper.application'), ('CodeRimLiveActivity','appex','wrapper.app-extension'), ('CodeRimMobileTests','xctest','wrapper.cfbundle'), ('CodeRimMobileUITests','xctest','wrapper.cfbundle')]:
     products[name] = add('product:'+name, 'PBXFileReference', explicitFileType=kind, path=name+'.'+ext, sourceTree='BUILT_PRODUCTS_DIR')
+rust_config = add('file:rust-config', 'PBXFileReference', lastKnownFileType='text.xcconfig',
+                  path='Config/RustMobile.xcconfig', sourceTree='SOURCE_ROOT')
 products_group = add('products', 'PBXGroup', children=list(products.values()), name='Products', sourceTree='<group>')
-main_group = add('main', 'PBXGroup', children=list(files.values())+list(resources.values())+[fixture_ref, products_group], sourceTree='<group>')
+main_group = add('main', 'PBXGroup', children=list(files.values())+list(resources.values())+[fixture_ref, rust_config, products_group], sourceTree='<group>')
 project_configs=[]
 for config in ['Debug','Release']:
-    project_configs.append(add('project:'+config,'XCBuildConfiguration',name=config,buildSettings={
+    project_configs.append(add('project:'+config,'XCBuildConfiguration',name=config,baseConfigurationReference=rust_config,buildSettings={
         'SDKROOT':'iphoneos','IPHONEOS_DEPLOYMENT_TARGET':'17.2','SWIFT_VERSION':'6.0',
         'SWIFT_STRICT_CONCURRENCY':'complete','TARGETED_DEVICE_FAMILY':'1','CLANG_ENABLE_MODULES':'YES',
         'SWIFT_OPTIMIZATION_LEVEL':'-Onone' if config=='Debug' else '-O',
@@ -51,6 +53,19 @@ for config in ['Debug','Release']:
         'CODERIM_RELAY_URL':'', 'CODE_SIGN_STYLE':'Automatic', 'DEVELOPMENT_TEAM':'',
     }))
 project_configlist=add('project-configs','XCConfigurationList',buildConfigurations=project_configs,defaultConfigurationIsVisible='0',defaultConfigurationName='Release')
+rust_name = 'CodeRimMobileRust'
+rust_phase = add('build-mobile-rust', 'PBXShellScriptBuildPhase', buildActionMask='2147483647', files=[],
+                 name='Compile mobile Rust policies', alwaysOutOfDate='1',
+                 inputPaths=['$(SRCROOT)/Config/build_mobile_rust.py'], outputPaths=['$(CODERIM_MOBILE_LINK_ARCHIVE)'],
+                 shellPath='/bin/sh', shellScript='exec /usr/bin/python3 "$SRCROOT/Config/build_mobile_rust.py"',
+                 runOnlyForDeploymentPostprocessing='0')
+rust_configs = [add('mobile-rust:'+config, 'XCBuildConfiguration', name=config,
+                    buildSettings={'SUPPORTED_PLATFORMS':'iphoneos iphonesimulator', 'SKIP_INSTALL':'YES'})
+                for config in ('Debug','Release')]
+rust_configs = add('mobile-rust-configs', 'XCConfigurationList', buildConfigurations=rust_configs,
+                   defaultConfigurationIsVisible='0', defaultConfigurationName='Release')
+add('target:'+rust_name, 'PBXAggregateTarget', name=rust_name, productName=rust_name,
+    buildConfigurationList=rust_configs, buildPhases=[rust_phase], dependencies=[])
 for name, sources in target_sources.items():
     source_phase=add('sources:'+name,'PBXSourcesBuildPhase',buildActionMask='2147483647',files=[add(name+':'+s,'PBXBuildFile',fileRef=files[s]) for s in sources],runOnlyForDeploymentPostprocessing='0')
     target_resources = resources if name=='CodeRimMobile' else {test_fixture: fixture_ref} if name=='CodeRimMobileTests' else {}
@@ -60,6 +75,7 @@ for name, sources in target_sources.items():
         embed=add('embed-widget','PBXCopyFilesBuildPhase',buildActionMask='2147483647',dstPath='',dstSubfolderSpec='13',files=[add('embed-widget-file','PBXBuildFile',fileRef=products['CodeRimLiveActivity'],settings={'ATTRIBUTES':['RemoveHeadersOnCopy']})],name='Embed App Extensions',runOnlyForDeploymentPostprocessing='0')
         phases.append(embed)
     dependency = 'CodeRimLiveActivity' if name=='CodeRimMobile' else 'CodeRimMobile' if name.endswith('Tests') else None
+    if name=='CodeRimLiveActivity': dependency=rust_name
     if dependency:
         proxy=add('proxy:'+name,'PBXContainerItemProxy',containerPortal=identifier('project'),proxyType='1',remoteGlobalIDString=identifier('target:'+dependency),remoteInfo=dependency)
         dependencies=[add('dependency:'+name,'PBXTargetDependency',target=identifier('target:'+dependency),targetProxy=proxy)]
@@ -80,7 +96,7 @@ for name, sources in target_sources.items():
         configs.append(add(name+':config:'+config,'XCBuildConfiguration',name=config,buildSettings=settings))
     configs=add(name+':configs','XCConfigurationList',buildConfigurations=configs,defaultConfigurationIsVisible='0',defaultConfigurationName='Release')
     add('target:'+name,'PBXNativeTarget',name=name,productName=name,productReference=products[name],productType='com.apple.product-type.application' if name=='CodeRimMobile' else 'com.apple.product-type.app-extension' if name=='CodeRimLiveActivity' else 'com.apple.product-type.bundle.ui-testing' if name.endswith('UITests') else 'com.apple.product-type.bundle.unit-test',buildConfigurationList=configs,buildPhases=phases,buildRules=[],dependencies=dependencies)
-add('project','PBXProject',attributes={'LastUpgradeCheck':'2700','BuildIndependentTargetsInParallel':'YES'},buildConfigurationList=project_configlist,compatibilityVersion='Xcode 14.0',developmentRegion='en',knownRegions=['en','Base'],mainGroup=main_group,productRefGroup=products_group,projectDirPath='',projectRoot='',targets=[identifier('target:'+name) for name in target_sources])
+add('project','PBXProject',attributes={'LastUpgradeCheck':'2700','BuildIndependentTargetsInParallel':'YES'},buildConfigurationList=project_configlist,compatibilityVersion='Xcode 14.0',developmentRegion='en',knownRegions=['en','Base'],mainGroup=main_group,productRefGroup=products_group,projectDirPath='',projectRoot='',targets=[identifier('target:'+name) for name in [*target_sources,rust_name]])
 project={'archiveVersion':'1','classes':{},'objectVersion':'56','objects':objects,'rootObject':identifier('project')}
 (root/'CodeRimMobile.xcodeproj/project.pbxproj').write_text('// !$*UTF8*$!\n'+plist(project)+'\n')
 ref=lambda name: f'<BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="{identifier("target:"+name)}" BuildableName="{name}.{"app" if name=="CodeRimMobile" else "xctest"}" BlueprintName="{name}" ReferencedContainer="container:CodeRimMobile.xcodeproj"/>'

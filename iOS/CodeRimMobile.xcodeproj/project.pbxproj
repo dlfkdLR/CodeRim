@@ -161,6 +161,12 @@
 			"path" = "CodeRimMobileUITests.xctest";
 			"sourceTree" = "BUILT_PRODUCTS_DIR";
 		};
+		"EDE39728E8CCD7F896B14221" = {
+			"isa" = "PBXFileReference";
+			"lastKnownFileType" = "text.xcconfig";
+			"path" = "Config/RustMobile.xcconfig";
+			"sourceTree" = "SOURCE_ROOT";
+		};
 		"FBDC4F23F93125BBEEAE800C" = {
 			"isa" = "PBXGroup";
 			"children" = ("359B964DD74C4E44B6C83152", "A77729C7295E97692963ED5B", "28D1D3102546042B2B4A56C5", "28A9A18CA0BF4844DD9B5428");
@@ -169,12 +175,13 @@
 		};
 		"B28B7AF69320201D1CF206EB" = {
 			"isa" = "PBXGroup";
-			"children" = ("F08DD2AD424A0FD5C73F4B7F", "BA325AF2B5E9E8B564764994", "E779274533C1E287CB6FF303", "D854F66B2EF654B00D6B6CF6", "819F24CBB8E7FEEB55614C0A", "972FDE3AD0A44A92F006540C", "885EABAF8753719EA99D1C09", "E926E979E45D5047C5627CED", "5A38B7F2189CDAB9C1D9DF7C", "89E26E7D1533D0778BAB8A9E", "B54EE7371A85C6ED912E65F9", "BAE0BA7C9BB959C61925DABA", "9B285E820CFF9FB6D83C488F", "C19079C1E14B54227854E7B4", "F510D2A46D2AA00F444F8054", "377921FC9440FAF289C55FA9", "259A5A6645516163D029A866", "6C8B4EF3D7507512A076764F", "8A19F47D69446363E3462788", "55926207B34768151CAD735C", "4C58E1194DE895E712E2B83B", "CAA7157F2F26C3D69C3C42B8", "FBDC4F23F93125BBEEAE800C");
+			"children" = ("F08DD2AD424A0FD5C73F4B7F", "BA325AF2B5E9E8B564764994", "E779274533C1E287CB6FF303", "D854F66B2EF654B00D6B6CF6", "819F24CBB8E7FEEB55614C0A", "972FDE3AD0A44A92F006540C", "885EABAF8753719EA99D1C09", "E926E979E45D5047C5627CED", "5A38B7F2189CDAB9C1D9DF7C", "89E26E7D1533D0778BAB8A9E", "B54EE7371A85C6ED912E65F9", "BAE0BA7C9BB959C61925DABA", "9B285E820CFF9FB6D83C488F", "C19079C1E14B54227854E7B4", "F510D2A46D2AA00F444F8054", "377921FC9440FAF289C55FA9", "259A5A6645516163D029A866", "6C8B4EF3D7507512A076764F", "8A19F47D69446363E3462788", "55926207B34768151CAD735C", "4C58E1194DE895E712E2B83B", "CAA7157F2F26C3D69C3C42B8", "EDE39728E8CCD7F896B14221", "FBDC4F23F93125BBEEAE800C");
 			"sourceTree" = "<group>";
 		};
 		"AB52CB08E0FDF02BF6C67C33" = {
 			"isa" = "XCBuildConfiguration";
 			"name" = "Debug";
+			"baseConfigurationReference" = "EDE39728E8CCD7F896B14221";
 			"buildSettings" = {
 				"SDKROOT" = "iphoneos";
 				"IPHONEOS_DEPLOYMENT_TARGET" = "17.2";
@@ -194,6 +201,7 @@
 		"5283471FF90C511CFE244FFF" = {
 			"isa" = "XCBuildConfiguration";
 			"name" = "Release";
+			"baseConfigurationReference" = "EDE39728E8CCD7F896B14221";
 			"buildSettings" = {
 				"SDKROOT" = "iphoneos";
 				"IPHONEOS_DEPLOYMENT_TARGET" = "17.2";
@@ -215,6 +223,48 @@
 			"buildConfigurations" = ("AB52CB08E0FDF02BF6C67C33", "5283471FF90C511CFE244FFF");
 			"defaultConfigurationIsVisible" = "0";
 			"defaultConfigurationName" = "Release";
+		};
+		"D5815F02F8A0032C042CB7D8" = {
+			"isa" = "PBXShellScriptBuildPhase";
+			"buildActionMask" = "2147483647";
+			"files" = ();
+			"name" = "Compile mobile Rust policies";
+			"alwaysOutOfDate" = "1";
+			"inputPaths" = ("$(SRCROOT)/Config/build_mobile_rust.py");
+			"outputPaths" = ("$(CODERIM_MOBILE_LINK_ARCHIVE)");
+			"shellPath" = "/bin/sh";
+			"shellScript" = "exec /usr/bin/python3 \"$SRCROOT/Config/build_mobile_rust.py\"";
+			"runOnlyForDeploymentPostprocessing" = "0";
+		};
+		"B211986C8356D3D505A525E2" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Debug";
+			"buildSettings" = {
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SKIP_INSTALL" = "YES";
+			};
+		};
+		"9FD8BCA010F7CCA723606476" = {
+			"isa" = "XCBuildConfiguration";
+			"name" = "Release";
+			"buildSettings" = {
+				"SUPPORTED_PLATFORMS" = "iphoneos iphonesimulator";
+				"SKIP_INSTALL" = "YES";
+			};
+		};
+		"7BC6C3270AFECBD7233FECF8" = {
+			"isa" = "XCConfigurationList";
+			"buildConfigurations" = ("B211986C8356D3D505A525E2", "9FD8BCA010F7CCA723606476");
+			"defaultConfigurationIsVisible" = "0";
+			"defaultConfigurationName" = "Release";
+		};
+		"3B588220798598250F50632E" = {
+			"isa" = "PBXAggregateTarget";
+			"name" = "CodeRimMobileRust";
+			"productName" = "CodeRimMobileRust";
+			"buildConfigurationList" = "7BC6C3270AFECBD7233FECF8";
+			"buildPhases" = ("D5815F02F8A0032C042CB7D8");
+			"dependencies" = ();
 		};
 		"EAA711F20C688B551490FB2A" = {
 			"isa" = "PBXBuildFile";
@@ -421,6 +471,18 @@
 			"files" = ();
 			"runOnlyForDeploymentPostprocessing" = "0";
 		};
+		"33ABF9A954B88A10939C88E6" = {
+			"isa" = "PBXContainerItemProxy";
+			"containerPortal" = "98F54143AB4E86B28C3AFEE0";
+			"proxyType" = "1";
+			"remoteGlobalIDString" = "3B588220798598250F50632E";
+			"remoteInfo" = "CodeRimMobileRust";
+		};
+		"6854FE7C119779E4A031C9F8" = {
+			"isa" = "PBXTargetDependency";
+			"target" = "3B588220798598250F50632E";
+			"targetProxy" = "33ABF9A954B88A10939C88E6";
+		};
 		"FA256B075BA61E6B54493282" = {
 			"isa" = "XCBuildConfiguration";
 			"name" = "Debug";
@@ -470,7 +532,7 @@
 			"buildConfigurationList" = "1EAB418AA512C70244EB629A";
 			"buildPhases" = ("94410D101B106D386D75B89B", "959A98C68702C114F983454F");
 			"buildRules" = ();
-			"dependencies" = ();
+			"dependencies" = ("6854FE7C119779E4A031C9F8");
 		};
 		"79F4BCDF1E0FC197CE0A1568" = {
 			"isa" = "PBXBuildFile";
@@ -646,7 +708,7 @@
 			"productRefGroup" = "FBDC4F23F93125BBEEAE800C";
 			"projectDirPath" = "";
 			"projectRoot" = "";
-			"targets" = ("46F0588A5C5DA2C04DE2B8C2", "5E3B6B0510B4AE2C77DAA22E", "51DAC21FBC3EB1462AFC9746", "EF89205DB7574F6F46DA7B3E");
+			"targets" = ("46F0588A5C5DA2C04DE2B8C2", "5E3B6B0510B4AE2C77DAA22E", "51DAC21FBC3EB1462AFC9746", "EF89205DB7574F6F46DA7B3E", "3B588220798598250F50632E");
 		};
 	};
 	"rootObject" = "98F54143AB4E86B28C3AFEE0";

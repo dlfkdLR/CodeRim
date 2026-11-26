@@ -33,13 +33,7 @@ mod line_breaks;
 #[cfg(target_os = "macos")]
 mod log_timestamp;
 #[cfg(any(target_os = "ios", target_os = "macos", test))]
-mod mobile_follow;
-#[cfg(any(target_os = "ios", target_os = "macos", test))]
-mod mobile_reading;
-#[cfg(any(target_os = "ios", target_os = "macos", test))]
-mod mobile_registration;
-#[cfg(any(target_os = "ios", target_os = "macos", test))]
-mod mobile_selection;
+mod mobile;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod mobile_session_order;
 #[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux", test))]

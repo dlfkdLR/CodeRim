@@ -125,6 +125,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install Rust targets for the iPhone simulator
+        run: rustup target add aarch64-apple-ios-sim x86_64-apple-ios
       - name: iPhone app unit tests (simulator, ad-hoc signed)
         run: |
           device="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for r,l in d.items() if "iOS" in r for x in l if x["name"].startswith("iPhone")))')"
