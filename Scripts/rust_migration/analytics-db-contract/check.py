@@ -20,12 +20,12 @@ RELEASE = "14c332b30fd35cd266b40a4f9384b4b065b63707"
 END = 1793530800.0
 ENV = {**os.environ, "SWIFT_DETERMINISTIC_HASHING": "1"}
 
-def build(work, arch, archive=None):
+def build(work, arch, archive=None, revision=None):
     work.mkdir()
     def source(name):
-        if archive is not None:
+        if archive is not None and revision is None:
             return (ROOT / name).read_text()
-        return subprocess.check_output(["git", "show", RELEASE + ":" + name], cwd=ROOT, text=True)
+        return subprocess.check_output(["git", "show", (revision or RELEASE) + ":" + name], cwd=ROOT, text=True)
     def stage(name):
         path = work / Path(name).name
         path.write_text(source(name))
@@ -48,6 +48,8 @@ def build(work, arch, archive=None):
     if archive:
         host.append(stage("Sources/CodeRim/Sources/UsageStorageIdentity.swift"))
         extra = ["-D","CODERIM_RUST_ACCOUNTING","-I",ROOT/"Rust/bridge/include",archive]
+        if revision is None:
+            extra += ["-D", "PROJECT_ANALYTICS_PROBE"]
     exe = work/"driver"
     subprocess.run([*flags, "-I",work, "-I",ROOT/"Sources/CSQLite", "-L",work, "-lCodeRimUsageCore", stats,*host,
                     HERE/"main.swift", *extra, "-o",exe], check=True)
@@ -99,6 +101,29 @@ def main():
                 raise RuntimeError(f"{key}: unexpected projection status or callback count {status}/{callbacks}")
         if subprocess.check_output([bins["rust"],paths["normal"],"interrupt"],env=ENV).split() != [b"2",b"0"]:
             raise RuntimeError("Interrupted SQLite scan delivered partial output")
+        project_cases = {
+            "project-stable": (0, "UPDATE usage_events SET project_path = CASE WHEN source_position % 4 = 0 THEN NULL ELSE 'p' END"),
+            "project-null-sessions": (0, "UPDATE usage_events SET session_id=NULL, project_path='no-session' WHERE source_position % 2=0"),
+            "project-renamed": (3, "UPDATE session_metadata SET project_name='Previous' WHERE session_id='s0'"),
+            "project-collision": (3, "UPDATE usage_events SET project_path = CASE WHEN source_position % 3 = 0 THEN NULL ELSE 'unknown-project' END"),
+            "project-unicode": (3, "UPDATE usage_events SET project_path = CASE WHEN source_position % 2 = 0 THEN 'é' ELSE 'é' END"),
+            "project-blob": (3, "UPDATE usage_events SET session_id = CAST(session_id AS BLOB)"),
+        }
+        for key, (expected, modify) in project_cases.items():
+            rows = [event(-i, None if i % 6 == 0 else "m"+str(i % 3), 300000 + i, 4, 13,
+                          None if i % 5 == 0 else 3, [None, 0, 1][i % 3]) for i in range(90)]
+            path = fixture(base, work/(key+".sqlite"), rows)
+            with closing(sqlite3.connect(path)) as db:
+                db.executemany("INSERT INTO session_metadata(session_id,parent_session_id,project_name,started_at,image_attachment_count,updated_at) VALUES (?,?,?,?,?,?)",
+                               [("s"+str(i), "s0" if i else None, "개발 도구", END-200, i % 4, END) for i in range(7)])
+                db.execute(modify)
+                db.commit()
+            status, models, projects = map(int, subprocess.check_output([bins["rust"],path,"projects"],env=ENV).split())
+            if status != expected or models == 0 or bool(projects) != (expected == 0):
+                raise RuntimeError(f"{key}: invalid project result {status}/{models}/{projects}")
+            paths[key] = path
+        if subprocess.check_output([bins["rust"],paths["project-stable"],"projects-interrupted"],env=ENV).split() != [b"2", b"0", b"0"]:
+            raise RuntimeError("Interrupted project scan delivered partial rows")
         digests = {}
         for key, path in paths.items():
             for zone in ("UTC","America/Los_Angeles","Asia/Kathmandu"):

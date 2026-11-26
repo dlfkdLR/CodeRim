@@ -2,6 +2,13 @@
 use std::ffi::{c_int, c_void};
 #[link(name = "sqlite3")]
 unsafe extern "C" {
+    pub(super) fn sqlite3_reset(stmt: *mut c_void) -> c_int;
+    pub(super) fn sqlite3_column_value(stmt: *mut c_void, column: c_int) -> *mut c_void;
+    pub(super) fn sqlite3_bind_value(
+        stmt: *mut c_void,
+        parameter: c_int,
+        value: *mut c_void,
+    ) -> c_int;
     pub(super) fn sqlite3_step(stmt: *mut c_void) -> c_int;
     pub(super) fn sqlite3_column_int64(stmt: *mut c_void, column: c_int) -> i64;
     pub(super) fn sqlite3_column_double(stmt: *mut c_void, column: c_int) -> f64;

@@ -4,7 +4,7 @@ import Foundation
 import CCodeRimAccounting
 import CSQLite
 
-private func probe(_ path: String, interrupted: Bool) throws {
+private func probe(_ path: String, interrupted: Bool, projects: Bool) throws {
     var connection: OpaquePointer?
     // A newly copied WAL database can lack its shared-memory sidecar. The product
     // uses a writable connection. query_only prevents database changes during the probe.
@@ -13,7 +13,12 @@ private func probe(_ path: String, interrupted: Bool) throws {
     defer { sqlite3_close(connection) }
     let restricted = sqlite3_exec(connection, "PRAGMA query_only=ON", nil, nil, nil)
     guard restricted == SQLITE_OK else { throw NSError(domain: "Set query-only mode", code: Int(restricted)) }
-    let query = """
+    let query = projects ? """
+        SELECT occurred_at, model, high_context_pricing, input_tokens, cached_input_tokens, output_tokens,
+               cache_write_input_tokens, project_path, session_id
+        FROM usage_events
+        ORDER BY occurred_at
+        """ : """
         SELECT occurred_at, model, high_context_pricing, input_tokens, cached_input_tokens,
                output_tokens, cache_write_input_tokens FROM usage_events ORDER BY occurred_at
         """
@@ -23,12 +28,31 @@ private func probe(_ path: String, interrupted: Bool) throws {
     defer { sqlite3_finalize(statement) }
     if interrupted { sqlite3_progress_handler(connection, 1, { _ in 1 }, nil) }
     var end = Double.greatestFiniteMagnitude
-    var callbacks = 0
-    let status = cr_read_apple_analytics(UnsafeMutableRawPointer(statement), &end, 1,
-                                        PricingContext.highContextInputThreshold, &callbacks) { context, _ in
-        context!.assumingMemoryBound(to: Int.self).pointee += 1
+    #if PROJECT_ANALYTICS_PROBE
+    if projects {
+        var metadata: OpaquePointer?
+        let result = sqlite3_prepare_v2(connection, "SELECT project_name FROM session_metadata WHERE session_id=?1", -1, &metadata, nil)
+        guard result == SQLITE_OK else { throw NSError(domain: "Prepare project lookup", code: Int(result)) }
+        defer { sqlite3_finalize(metadata) }
+        var callbacks = (models: 0, projects: 0)
+        let status = cr_read_apple_project_analytics(UnsafeMutableRawPointer(statement), UnsafeMutableRawPointer(metadata), &end, 1,
+            PricingContext.highContextInputThreshold, &callbacks, { context, _ in
+                context!.assumingMemoryBound(to: (Int, Int).self).pointee.0 += 1
+            }, { context, _ in
+                context!.assumingMemoryBound(to: (Int, Int).self).pointee.1 += 1
+            })
+        print(status, callbacks.models, callbacks.projects)
+        return
     }
-    print(status, callbacks)
+    #endif
+    do {
+        var callbacks = 0
+        let status = cr_read_apple_analytics(UnsafeMutableRawPointer(statement), &end, 1,
+                                            PricingContext.highContextInputThreshold, &callbacks) { context, _ in
+            context!.assumingMemoryBound(to: Int.self).pointee += 1
+        }
+        print(status, callbacks)
+    }
 }
 #endif
 
@@ -47,8 +71,9 @@ private func run() async throws {
     let args = CommandLine.arguments
     let source = URL(fileURLWithPath: args[1])
     #if CODERIM_RUST_ACCOUNTING
-    if args[2] == "probe" || args[2] == "interrupt" {
-        try probe(source.path, interrupted: args[2] == "interrupt")
+    if ["probe", "interrupt", "projects", "projects-interrupted"].contains(args[2]) {
+        try probe(source.path, interrupted: ["interrupt", "projects-interrupted"].contains(args[2]),
+                  projects: args[2].hasPrefix("projects"))
         return
     }
     #endif
@@ -74,7 +99,11 @@ private func run() async throws {
         "usage": usage(s.usage), "quality": s.quality.rawValue, "models": models(s.models), "buckets": buckets(s.buckets),
         "projects": s.projects.map { ["id": $0.id, "name": $0.name, "usage": usage($0.usage), "models": models($0.models),
                                       "count": $0.sessionCount] as [String: Any] },
-        "sessions": s.sessions.map { ["id": $0.id, "usage": usage($0.usage), "models": models($0.models)] as [String: Any] }]
+        "sessions": s.sessions.map { ["id": $0.id, "usage": usage($0.usage), "models": models($0.models),
+            "project": $0.projectID as Any, "projectName": $0.projectName as Any,
+            "started": $0.startedAt.map { String($0.timeIntervalSince1970.bitPattern) } as Any,
+            "last": String($0.lastActivityAt.timeIntervalSince1970.bitPattern),
+            "parent": $0.parentSessionID as Any, "children": $0.directSubagentCount, "images": $0.imageAttachmentCount] as [String: Any] }]
     FileHandle.standardOutput.write(try JSONSerialization.data(withJSONObject: results, options: [.sortedKeys]))
 }
 do { try await run() } catch { print("error", error.localizedDescription) }

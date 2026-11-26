@@ -47,11 +47,31 @@ private final class AnalyticsQueryOutput {
         buckets = Array(repeating: [], count: count)
     }
 
-    func append(_ row: cr_analytics_summary) {
+    private var projects: [String: (name: String, count: Int, models: [ModelUsageSummary])] = [:]
+
+    private static func summary(_ row: cr_analytics_summary) -> ModelUsageSummary {
         let name = row.model.map { String(decoding: UnsafeBufferPointer(start: $0, count: row.length), as: UTF8.self) }
-        let summary = ModelUsageSummary(modelID: name, usage: Self.usage(row.usage), highContextUsage: Self.usage(row.high),
-                                        hasUnknownPricingContext: row.unknown != 0)
-        if row.bucket < 0 { models.append(summary) } else { buckets[Int(row.bucket)].append(summary) }
+        return ModelUsageSummary(modelID: name, usage: usage(row.usage), highContextUsage: usage(row.high),
+                                 hasUnknownPricingContext: row.unknown != 0)
+    }
+
+    func append(_ row: cr_analytics_summary) {
+        let model = Self.summary(row)
+        if row.bucket < 0 { models.append(model) } else { buckets[Int(row.bucket)].append(model) }
+    }
+
+    func append(_ row: cr_project_summary) {
+        let id = String(decoding: UnsafeBufferPointer(start: row.id, count: row.id_len), as: UTF8.self)
+        let name = row.name.map { String(decoding: UnsafeBufferPointer(start: $0, count: row.name_len), as: UTF8.self) }
+        projects[id, default: (name ?? "Unknown Project", row.sessions, [])].models.append(Self.summary(row.model))
+    }
+
+    func projectSummaries() -> [ProjectUsageSummary] {
+        projects.map { id, project in
+            let models = project.models.sorted(by: ModelUsageSummary.byUsageThenName)
+            return ProjectUsageSummary(id: id, name: project.name,
+                usage: models.reduce(TokenUsage.zero) { $0.adding($1.usage) }, models: models, sessionCount: project.count)
+        }.sorted(by: ProjectUsageSummary.byUsageThenName)
     }
 
     private static func usage(_ value: cr_usage) -> TokenUsage {
@@ -656,8 +676,8 @@ actor SQLiteDatabase {
             let oldestEvent = range == .allTime ? try oldestEventTimestamp(through: end) : nil
             let interval = range.interval(through: end, calendar: calendar, oldestEvent: oldestEvent)
             let bucketIntervals = range.bucketIntervals(through: end, calendar: calendar, oldestEvent: oldestEvent)
-            let (models, buckets) = try analyticsGroups(from: interval.start, through: end, intervals: bucketIntervals)
-            let projects = try projectUsage(from: interval.start, through: end)
+            let (models, buckets, scannedProjects) = try analyticsGroups(from: interval.start, through: end, intervals: bucketIntervals)
+            let projects = try scannedProjects ?? projectUsage(from: interval.start, through: end)
             let sessions = try sessionUsage(from: interval.start, through: end)
             let usage = models.reduce(TokenUsage.zero) { $0.adding($1.usage) }
             let snapshot = AnalyticsSnapshot(
@@ -691,37 +711,43 @@ actor SQLiteDatabase {
     }
 
     private func analyticsGroups(from start: Date, through end: Date, intervals: [DateInterval]) throws
-        -> ([ModelUsageSummary], [UsageBucket]) {
+        -> ([ModelUsageSummary], [UsageBucket], [ProjectUsageSummary]?) {
 #if CODERIM_RUST_ACCOUNTING
         if intervals.first?.start == start, intervals.count <= 512,
            zip(intervals, intervals.dropFirst()).allSatisfy({ $0.end == $1.start }) {
             let statement = try prepare("""
                 SELECT occurred_at, model, high_context_pricing, input_tokens, cached_input_tokens,
-                       output_tokens, cache_write_input_tokens
-                FROM usage_events WHERE occurred_at >= ?1 AND occurred_at <= ?2 ORDER BY occurred_at
+                       output_tokens, cache_write_input_tokens, project_path, session_id
+                FROM usage_events
+                WHERE occurred_at >= ?1 AND occurred_at <= ?2 ORDER BY occurred_at
                 """)
             defer { sqlite3_finalize(statement) }
             sqlite3_bind_double(statement, 1, start.timeIntervalSince1970)
             sqlite3_bind_double(statement, 2, end.timeIntervalSince1970)
+            let metadata = try prepare("SELECT project_name FROM session_metadata WHERE session_id = ?1")
+            defer { sqlite3_finalize(metadata) }
             let ends = intervals.map { $0.end.timeIntervalSince1970 }
             let output = AnalyticsQueryOutput(count: intervals.count)
             let status = ends.withUnsafeBufferPointer { bounds in
-                cr_read_apple_analytics(UnsafeMutableRawPointer(statement), bounds.baseAddress, bounds.count,
-                    PricingContext.highContextInputThreshold, Unmanaged.passUnretained(output).toOpaque()) { context, row in
-                    guard let context else { return }
-                    Unmanaged<AnalyticsQueryOutput>.fromOpaque(context).takeUnretainedValue().append(row)
-                }
+                cr_read_apple_project_analytics(UnsafeMutableRawPointer(statement), UnsafeMutableRawPointer(metadata), bounds.baseAddress, bounds.count,
+                    PricingContext.highContextInputThreshold, Unmanaged.passUnretained(output).toOpaque(), { context, row in
+                        guard let context else { return }
+                        Unmanaged<AnalyticsQueryOutput>.fromOpaque(context).takeUnretainedValue().append(row)
+                    }, { context, row in
+                        guard let context else { return }
+                        Unmanaged<AnalyticsQueryOutput>.fromOpaque(context).takeUnretainedValue().append(row)
+                    })
             }
-            if status == 0 {
+            if status == 0 || status == 3 {
                 let buckets = zip(intervals, output.buckets).map { interval, models in
                     UsageBucket(start: interval.start, end: interval.end, models: models.sorted(by: ModelUsageSummary.byUsageThenName))
                 }
-                return (output.models.sorted(by: ModelUsageSummary.byUsageThenName), buckets)
+                return (output.models.sorted(by: ModelUsageSummary.byUsageThenName), buckets, status == 0 ? output.projectSummaries() : nil)
             }
             if status == 2 { throw SQLiteDatabaseError.step(errorMessage) }
         }
 #endif
-        return try (modelUsage(from: start, through: end), usageBuckets(intervals: intervals, through: end))
+        return try (modelUsage(from: start, through: end), usageBuckets(intervals: intervals, through: end), nil)
     }
 
     private func modelUsage(from start: Date, through end: Date) throws -> [ModelUsageSummary] {

@@ -2,6 +2,9 @@
 use super::apple_sqlite::*;
 use crate::{RawUsage, TokenUsage};
 use std::{collections::HashMap, ffi::c_void, slice};
+#[path = "sqlite_analytics_projects.rs"]
+mod projects;
+use projects::{ProjectError, Projects, VisitProject};
 
 #[repr(C)]
 pub struct Summary {
@@ -125,7 +128,39 @@ pub unsafe extern "C" fn cr_read_apple_analytics(
     context: *mut c_void,
     visit: Option<Visit>,
 ) -> i32 {
+    unsafe {
+        cr_read_apple_project_analytics(
+            stmt,
+            std::ptr::null_mut(),
+            ends,
+            count,
+            threshold,
+            context,
+            visit,
+            None,
+        )
+    }
+}
+
+/// # Safety
+/// Uses the same exclusive statement and callback contract as cr_read_apple_analytics.
+/// With a project visitor the SELECT additionally supplies project ID, session ID and a separate
+/// exclusive read-only statement to look up its display name by session. Status 3 delivers complete model/bucket results only.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cr_read_apple_project_analytics(
+    stmt: *mut c_void,
+    metadata: *mut c_void,
+    ends: *const f64,
+    count: usize,
+    threshold: i64,
+    context: *mut c_void,
+    visit: Option<Visit>,
+    project_visit: Option<VisitProject>,
+) -> i32 {
     let Some(visit) = visit else { return 1 };
+    if project_visit.is_some() && metadata.is_null() {
+        return 1;
+    }
     if stmt.is_null() || ends.is_null() || count == 0 || count > 512 {
         return 1;
     }
@@ -139,6 +174,7 @@ pub unsafe extern "C" fn cr_read_apple_analytics(
     let mut totals: HashMap<usize, Groups> = HashMap::new();
     let mut buckets: HashMap<(usize, usize), Groups> = HashMap::new();
     let mut bucket = 0;
+    let mut projects = project_visit.map(|_| Projects::default());
     loop {
         // SAFETY: the host owns the transaction and the statement is exclusively borrowed.
         match unsafe { sqlite3_step(stmt) } {
@@ -187,6 +223,13 @@ pub unsafe extern "C" fn cr_read_apple_analytics(
         if totals.entry(id).or_default().add(class, row).is_none() {
             return 1;
         }
+        if let Some(rows) = &mut projects {
+            match unsafe { rows.add(stmt, metadata, id, class, row) } {
+                Ok(()) => {}
+                Err(ProjectError::Fallback) => projects = None,
+                Err(ProjectError::Database) => return 2,
+            }
+        }
         while bucket < ends.len() && stamp >= ends[bucket] {
             bucket += 1;
         }
@@ -217,6 +260,12 @@ pub unsafe extern "C" fn cr_read_apple_analytics(
         if let Some(summary) = groups.summary(bucket as i32, names[id], threshold) {
             visit(context, summary)
         }
+    }
+    if let Some(visit) = project_visit {
+        let Some(projects) = projects else {
+            return 3;
+        };
+        projects.emit(&names, threshold, context, visit);
     }
     0
 }
