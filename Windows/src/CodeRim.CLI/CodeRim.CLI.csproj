@@ -11,6 +11,11 @@
     <AssemblyName>CodeRimCLIHost</AssemblyName>
     <DefineConstants>$(DefineConstants);CODERIM_INSTALLED_CLI_HOST</DefineConstants>
   </PropertyGroup>
+  <ItemGroup Condition="'$(CodeRimInstalledCliHost)' == 'true' and '$(CodeRimCliPackageDependencies)' == 'Companion'">
+    <!-- Only GUI/worker installer manifest verification uses this assembly. The private
+         companion handles local snapshots and hooks and exposes no update commands. -->
+    <PackageReference Include="BouncyCastle.Cryptography" Version="$(CodeRimBouncyCastleVersion)" ExcludeAssets="runtime" PrivateAssets="all" />
+  </ItemGroup>
   <Target Name="RequireOwnedCliHost" BeforeTargets="PrepareForBuild" Condition="'$(CodeRimInstalledCliHost)' == 'true' and '$(CodeRimRustAccounting)' != 'true'">
     <Error Text="The installed CLI compatibility host requires the CodeRim-owned account boundary." />
   </Target>

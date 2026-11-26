@@ -416,6 +416,8 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Build ZIP, MSI and MSIX migration packages
         id: packages
+        env:
+          CodeRimCliPackageDependencies: Companion
         run: |
           if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne '${{ matrix.arch }}') { throw 'Unexpected OS architecture' }
           rustup target add ${{ matrix.triple }}
@@ -450,6 +452,11 @@ jobs:
           [ordered]@{commit=$env:GITHUB_SHA; architecture='${{ matrix.arch }}'; packages=@($inventory); zipPayload=@($inputs)} |
             ConvertTo-Json -Depth 5 | Set-Content 'Artifacts/windows-rust-package.json'
           python Windows/tests/cli_regression_tests.py --owned-accounts (Join-Path $dest 'CodeRimCLI.exe')
+      - name: Compare cold compatibility commands and verify the updater signing dependency
+        run: |
+          $publish = Join-Path $PWD 'Windows/artifacts/publish/win-${{ matrix.arch }}'
+          $library = (Resolve-Path 'Rust/target/${{ matrix.triple }}/release/coderim_accounting_bridge.dll').Path
+          python Scripts/rust_migration/windows-cli-host-size/check.py --public (Join-Path $publish 'CodeRimCLI.exe') --companion-host (Join-Path $publish 'CodeRimCLIHost.exe') --rid win-${{ matrix.arch }} --library $library --output 'Artifacts/windows-cli-host-size.json'
       - name: Exercise MSI installation, rollback, repair and removal
         run: |
           dotnet build Windows/tests/CodeRim.ProcessFixture --configuration Release
@@ -491,6 +498,7 @@ jobs:
             Artifacts/*.sha256
             Artifacts/windows-msi-lifecycle.json
             Artifacts/windows-rust-package.json
+            Artifacts/windows-cli-host-size.json
             Artifacts/windows-source-frame-pair.json
             Artifacts/windows-public-msi-*.json
             Artifacts/installed/**/*.json

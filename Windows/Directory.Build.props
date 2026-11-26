@@ -4,5 +4,6 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <Version>2.1.41</Version>
     <Deterministic>true</Deterministic>
+    <CodeRimBouncyCastleVersion>2.7.0</CodeRimBouncyCastleVersion>
   </PropertyGroup>
 </Project>
