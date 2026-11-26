@@ -88,10 +88,43 @@ enum ClaudeTranscript {
         event(inTail: data)?.turn
     }
 
+    /// An activity tail can end with a complete JSON object that has no LF yet.
+    /// The incremental tool reader uses the same iterator on newline-terminated input.
+    private struct Lines: Sequence, IteratorProtocol {
+        let data: Data
+        var start: Data.Index
+        var breaks = SourceLineBreaks()
+
+        init(_ data: Data) {
+            self.data = data
+            start = data.startIndex
+            breaks.start(at: start)
+        }
+
+        mutating func next() -> Data? {
+            while start < data.endIndex {
+                let lower = start
+                let upper = breaks.next(in: data) ?? data.endIndex
+                start = upper == data.endIndex ? upper : data.index(after: upper)
+                if lower < upper { return data[lower..<upper] }
+            }
+            return nil
+        }
+    }
+
+    fileprivate static func activity(inTail data: Data) -> (event: Event?, queued: [Date], details: ModelDetails?) {
+        let lines = Array(Lines(data))
+        return (event(in: lines), queuedInstructions(in: lines), details(in: lines))
+    }
+
     /// The model and tier of the latest assistant message in the tail.
     static func details(inTail data: Data) -> ModelDetails? {
-        for line in data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true).reversed() {
-            guard let json = (try? JSONSerialization.jsonObject(with: Data(line))) as? [String: Any],
+        details(in: Array(Lines(data)))
+    }
+
+    private static func details(in lines: [Data]) -> ModelDetails? {
+        for line in lines.reversed() {
+            guard let json = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any],
                   json["type"] as? String == "assistant", json["isSidechain"] as? Bool != true,
                   let message = json["message"] as? [String: Any],
                   let model = message["model"] as? String, !model.hasPrefix("<") else { continue }
@@ -102,11 +135,14 @@ enum ClaudeTranscript {
     }
 
     static func event(inTail data: Data) -> Event? {
-        let lines = data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true)
+        event(in: Array(Lines(data)))
+    }
+
+    private static func event(in lines: [Data]) -> Event? {
         for line in lines.reversed() {
             // The first line of the tail is usually cut in half; it fails to
             // parse and is skipped, which is the whole handling it needs.
-            guard let json = (try? JSONSerialization.jsonObject(with: Data(line)))
+            guard let json = (try? JSONSerialization.jsonObject(with: line))
                     as? [String: Any] else { continue }
             // A subagent's records are interleaved with its parent's, and the
             // parent's turn is the one being reported on.
@@ -151,10 +187,10 @@ enum ClaudeTranscript {
     /// JSON.
     static func toolUses(inTail data: Data) -> [Date] {
         let needle = Data("\"tool_use\"".utf8)
+        guard data.range(of: needle) != nil else { return [] }
         var stamps: [Date] = []
-        for line in data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true)
-        where line.range(of: needle) != nil {
-            guard let json = (try? JSONSerialization.jsonObject(with: Data(line))) as? [String: Any],
+        for line in Lines(data) where line.range(of: needle) != nil {
+            guard let json = (try? JSONSerialization.jsonObject(with: line)) as? [String: Any],
                   json["type"] as? String == "assistant", json["isSidechain"] as? Bool != true,
                   let message = json["message"] as? [String: Any],
                   let content = message["content"] as? [[String: Any]],
@@ -168,19 +204,23 @@ enum ClaudeTranscript {
     /// Queued instructions do not start a new turn; retain their timestamps separately from activity
     /// transitions.
     static func queuedInstructions(inTail data: Data) -> [Date] {
-        data.split(separator: UInt8(ascii: "\n"), omittingEmptySubsequences: true)
-            .compactMap { line -> Date? in
-                // Cheap rejection before parsing: the tail is mostly other records.
-                guard line.range(of: Data("queue-operation".utf8)) != nil,
-                      let json = (try? JSONSerialization.jsonObject(with: Data(line)))
-                        as? [String: Any],
-                      json["type"] as? String == "queue-operation",
-                      json["operation"] as? String == "enqueue",
-                      let stamp = json["timestamp"] as? String else { return nil }
-                let formatter = ISO8601DateFormatter()
-                formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-                return formatter.date(from: stamp)
-            }
+        queuedInstructions(in: Lines(data))
+    }
+
+    private static func queuedInstructions(in lines: some Sequence<Data>) -> [Date] {
+        let needle = Data("queue-operation".utf8)
+        return lines.compactMap { line -> Date? in
+            // Cheap rejection before parsing: the tail is mostly other records.
+            guard line.range(of: needle) != nil,
+                  let json = (try? JSONSerialization.jsonObject(with: line))
+                    as? [String: Any],
+                  json["type"] as? String == "queue-operation",
+                  json["operation"] as? String == "enqueue",
+                  let stamp = json["timestamp"] as? String else { return nil }
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return formatter.date(from: stamp)
+        }
     }
 
     /// Pressing Esc writes a user turn saying so, which is what makes "stopped"
@@ -341,11 +381,11 @@ final class ClaudeTranscriptReader {
             toolUses = cached.toolUses
             details = cached.details
         } else {
-            let tail = ClaudeTranscript.tail(of: url)
-            event = tail.flatMap(ClaudeTranscript.event(inTail:))
-            queued = tail.map(ClaudeTranscript.queuedInstructions(inTail:)) ?? []
+            let activity = ClaudeTranscript.tail(of: url).map(ClaudeTranscript.activity(inTail:))
+            event = activity?.event
+            queued = activity?.queued ?? []
             toolUses = scanToolUses(sessionID: sessionID, url: url, size: size)
-            details = tail.flatMap(ClaudeTranscript.details(inTail:))
+            details = activity?.details
             cache[sessionID] = Cached(modified: modified, size: size, event: event, queued: queued,
                                       toolUses: toolUses, details: details)
         }
@@ -373,7 +413,7 @@ final class ClaudeTranscriptReader {
                let data = try? handle.read(upToCount: Self.toolScanChunk), !data.isEmpty,
                let lastNewline = data.lastIndex(of: UInt8(ascii: "\n")) {
                 let whole = data[data.startIndex...lastNewline]
-                state.stamps += ClaudeTranscript.toolUses(inTail: Data(whole))
+                state.stamps += ClaudeTranscript.toolUses(inTail: whole)
                 state.offset += UInt64(whole.count)
                 // A call older than any plausible turn belongs to none that is running.
                 let cutoff = Date().addingTimeInterval(-6 * 3600)
