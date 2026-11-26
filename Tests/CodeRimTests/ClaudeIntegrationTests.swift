@@ -21,6 +21,18 @@ final class ClaudeAccountPlanTests: XCTestCase {
         return try JSONSerialization.data(withJSONObject: ["oauthAccount": account])
     }
 
+    #if CODERIM_RUST_ACCOUNTING
+    func testMaxAccountUsesOfficialStatusWithoutReadingExternalProfile() throws {
+        let reply = Data(#"{"loggedIn":true,"orgId":"synthetic","email":"test@example.invalid","subscriptionType":"max"}"#.utf8)
+        let account = try ClaudeCLIService.statusAccount(from: reply) {
+            XCTFail("Official status must not load the CLI profile")
+            return nil
+        }
+        XCTAssertEqual(account?.subscriptionType, "max")
+        XCTAssertNil(account?.rateLimitTier)
+    }
+    #endif
+
     func testMaxTierComesFromTheMatchingLocalAccountProfile() throws {
         for (tier, label) in [("default_claude_max_5x", "Max 5x"), ("default_claude_max_20x", "Max 20x")] {
             let account = try XCTUnwrap(ClaudeCLIService.account(

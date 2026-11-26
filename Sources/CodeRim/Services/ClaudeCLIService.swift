@@ -105,10 +105,18 @@ struct ClaudeCLIService: ClaudeAuthenticating {
             maximumOutputBytes: Self.maximumStatusBytes,
             acceptsNonzeroExit: true
         )
+        return try Self.statusAccount(from: data, loadConfiguration: Self.readConfiguration)
+    }
+
+    static func statusAccount(from data: Data, loadConfiguration: () -> Data?) throws -> ClaudeAccount? {
         let account = try Self.account(from: data)
+        #if CODERIM_RUST_ACCOUNTING
+        return account
+        #else
         guard account?.subscriptionType?.lowercased() == "max",
               account?.rateLimitTier == nil else { return account }
-        return try Self.account(from: data, configurationData: Self.readConfiguration())
+        return try Self.account(from: data, configurationData: loadConfiguration())
+        #endif
     }
 
     /// `claude auth login` opens the browser and returns once the CLI holds
