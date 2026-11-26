@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>CodeRim.Core.Tests</AssemblyName>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DefineConstants Condition="'$(CodeRimRustAccounting)' == 'true'">$(DefineConstants);CODERIM_RUST_ACCOUNTING</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(CodeRimSource)/Windows/src/CodeRim.Core/CodeRim.Core.csproj" />
+    <Compile Include="$(ReleasedProjection)" Condition="'$(CodeRimRustAccounting)' != 'true'" />
+  </ItemGroup>
+</Project>
