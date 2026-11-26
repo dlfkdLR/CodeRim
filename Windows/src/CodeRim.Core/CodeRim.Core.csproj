@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <DefineConstants Condition="'$(CodeRimRustAccounting)' == 'true'">$(DefineConstants);CODERIM_RUST_ACCOUNTING</DefineConstants>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>

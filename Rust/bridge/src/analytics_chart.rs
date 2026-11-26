@@ -1,4 +1,4 @@
-//! Token and model stacks used by the macOS Usage Analytics settings chart.
+//! Token and model stacks used by the Apple and Windows Usage Analytics settings charts.
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct ChartRow {

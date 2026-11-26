@@ -58,17 +58,30 @@ public static class SettingsUsageAnalytics
         return new(range, frame.Through, total, quality, days.AsReadOnly(), Models(events), Array.AsReadOnly(sessions));
     }
 
+    public static Func<SettingsUsageDay?, IReadOnlyList<SettingsUsageSeries>> CreateSeriesProjection(
+        SettingsUsageSnapshot snapshot, SettingsUsageGrouping grouping, bool showsCachedInput)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (!Enum.IsDefined(grouping)) throw new ArgumentOutOfRangeException(nameof(grouping));
+#if CODERIM_RUST_ACCOUNTING
+        return grouping == SettingsUsageGrouping.TokenType
+            ? day => TokenSeries(day?.Usage ?? snapshot.Usage, showsCachedInput)
+            : new RustSettingsSeries(snapshot).Project;
+#else
+        return day => Series(snapshot, grouping, showsCachedInput, day);
+#endif
+    }
+
     public static IReadOnlyList<SettingsUsageSeries> Series(SettingsUsageSnapshot snapshot, SettingsUsageGrouping grouping,
         bool showsCachedInput, SettingsUsageDay? day = null)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         if (!Enum.IsDefined(grouping)) throw new ArgumentOutOfRangeException(nameof(grouping));
-        var usage = day?.Usage ?? snapshot.Usage;
         if (grouping == SettingsUsageGrouping.TokenType)
-            return showsCachedInput
-                ? [new("input", "Uncached input", Math.Max(0, usage.InputTokens - usage.CachedInputTokens)),
-                    new("cached", "Cached input", usage.CachedInputTokens), new("output", "Output", usage.OutputTokens)]
-                : [new("input", "Input", usage.InputTokens), new("output", "Output", usage.OutputTokens)];
+            return TokenSeries(day?.Usage ?? snapshot.Usage, showsCachedInput);
+#if CODERIM_RUST_ACCOUNTING
+        return new RustSettingsSeries(snapshot).Project(day);
+#else
         var leading = snapshot.Models.OrderByDescending(m => m.Usage.TotalTokens).ThenBy(m => m.Id, StringComparer.Ordinal).Take(5).ToArray();
         var models = day?.Models ?? snapshot.Models;
         var ids = leading.Select(m => m.Id).ToHashSet(StringComparer.Ordinal);
@@ -78,7 +91,14 @@ public static class SettingsUsageAnalytics
             result.Add(new("other-models", "Other models", models.Where(m => !ids.Contains(m.Id))
                 .Aggregate(TokenUsage.Zero, (sum, m) => sum.Add(m.Usage)).TotalTokens));
         return result.AsReadOnly();
+#endif
     }
+
+    private static IReadOnlyList<SettingsUsageSeries> TokenSeries(TokenUsage usage, bool showsCachedInput) =>
+        showsCachedInput
+            ? [new("input", "Uncached input", Math.Max(0, usage.InputTokens - usage.CachedInputTokens)),
+                new("cached", "Cached input", usage.CachedInputTokens), new("output", "Output", usage.OutputTokens)]
+            : [new("input", "Input", usage.InputTokens), new("output", "Output", usage.OutputTokens)];
 
     public static SettingsUsageDay? DayAt(SettingsUsageSnapshot snapshot, DateTimeOffset? date, TimeZoneInfo zone)
     {

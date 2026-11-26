@@ -3,7 +3,6 @@
 #[cfg(any(target_os = "macos", test))]
 mod account_history;
 mod aggregation;
-#[cfg(any(target_os = "macos", test))]
 mod analytics_chart;
 #[cfg(any(target_os = "macos", test))]
 mod card_layout;

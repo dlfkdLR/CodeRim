@@ -43,8 +43,9 @@ internal sealed partial class UsagePane
 
     private Grid SettingsUsageChart(SettingsUsageSnapshot snapshot, SettingsUsageGrouping grouping, bool line)
     {
-        var series = SettingsUsageAnalytics.Series(snapshot, grouping, settings.Current.ShowCachedInput);
-        var days = snapshot.Days.Select(day => (Day: day, Series: SettingsUsageAnalytics.Series(snapshot, grouping, settings.Current.ShowCachedInput, day))).ToArray();
+        var project = SettingsUsageAnalytics.CreateSeriesProjection(snapshot, grouping, settings.Current.ShowCachedInput);
+        var series = project(null);
+        var days = snapshot.Days.Select(day => (Day: day, Series: project(day))).ToArray();
         var maximum = line ? days.SelectMany(day => day.Series).Select(s => (double)s.Tokens).DefaultIfEmpty(0).Max()
             : days.Select(day => day.Series.Sum(s => (double)s.Tokens)).DefaultIfEmpty(0).Max();
         // A desired count is a scale hint. Round to an automatic readable step,
