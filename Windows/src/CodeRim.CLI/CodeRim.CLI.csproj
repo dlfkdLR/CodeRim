@@ -9,6 +9,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(CodeRimInstalledCliHost)' == 'true'">
     <AssemblyName>CodeRimCLIHost</AssemblyName>
+    <CodeRimCliPackageDependencies Condition="'$(CodeRimCliPackageDependencies)' == ''">Companion</CodeRimCliPackageDependencies>
     <DefineConstants>$(DefineConstants);CODERIM_INSTALLED_CLI_HOST</DefineConstants>
   </PropertyGroup>
   <ItemGroup Condition="'$(CodeRimInstalledCliHost)' == 'true' and '$(CodeRimCliPackageDependencies)' == 'Companion'">

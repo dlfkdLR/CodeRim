@@ -425,8 +425,6 @@ jobs:
           dotnet-version: '10.0.x'
       - name: Build ZIP, MSI and MSIX migration packages
         id: packages
-        env:
-          CodeRimCliPackageDependencies: Companion
         run: |
           if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne '${{ matrix.arch }}') { throw 'Unexpected OS architecture' }
           rustup target add ${{ matrix.triple }}
