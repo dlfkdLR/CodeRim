@@ -1,0 +1,1632 @@
+{
+  "run": "45796690019",
+  "commit": "b8b77bef0e44fd38b74cd4b5d77a11a2e44751d6",
+  "platforms": {
+    "arm64": {
+      "artifactDigest": "sha256:ac83646c165b7c38920db287b5ba6579ee6683b255cbf5035ea0fa78a4eb94a1",
+      "job": 139829038933,
+      "receipts": {
+        "windows-arm64-scanner-sessions.json": {
+          "system": "Windows",
+          "architecture": "ARM64",
+          "referenceCommit": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+          "sourceExpressionSha256": "f88bc611a9265310bbb5a979b58ab24d2d68f46f439a7006b7ced21146051acb",
+          "librarySha256": "7fcf709ea84ec6e4d958b10dff7fbe3b7345791ad09adc76ee1a99e2870b8a9d",
+          "contract": [
+            {
+              "count": 0,
+              "distinct": 1,
+              "ties": false,
+              "groups": 0,
+              "digest": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+            },
+            {
+              "count": 0,
+              "distinct": 1,
+              "ties": false,
+              "groups": 0,
+              "digest": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+            },
+            {
+              "count": 1,
+              "distinct": 1,
+              "ties": false,
+              "groups": 1,
+              "digest": "667471D44C23F72A83E7A124EDCBAE014E735706C4767151351E5D5B23DE272F"
+            },
+            {
+              "count": 1,
+              "distinct": 1,
+              "ties": false,
+              "groups": 1,
+              "digest": "667471D44C23F72A83E7A124EDCBAE014E735706C4767151351E5D5B23DE272F"
+            },
+            {
+              "count": 8,
+              "distinct": 2,
+              "ties": true,
+              "groups": 2,
+              "digest": "E72FF553538C707A38129D3EEF516065BEC3C69F2A40F470086273B971E5FF3A"
+            },
+            {
+              "count": 8,
+              "distinct": 2,
+              "ties": true,
+              "groups": 2,
+              "digest": "087A30680801C86755EFE926EE09791E63468A58F68ED5E9E91170552BA2E8A7"
+            },
+            {
+              "count": 128,
+              "distinct": 12,
+              "ties": true,
+              "groups": 12,
+              "digest": "93C033736844D15F400C5054E153CD8C827991BE9249D78EED68177BB422E709"
+            },
+            {
+              "count": 128,
+              "distinct": 12,
+              "ties": true,
+              "groups": 12,
+              "digest": "FAF484E0AB6A521B1187D361EC8288608DBFB3E7E7E07C95A6945DD748F71AF5"
+            },
+            {
+              "count": 1024,
+              "distinct": 256,
+              "ties": false,
+              "groups": 256,
+              "digest": "0EA364A73B940493B60FF86E1BC98556331BC2FCE0A1BCF452CFD61F9922EADF"
+            },
+            {
+              "count": 1024,
+              "distinct": 256,
+              "ties": false,
+              "groups": 256,
+              "digest": "CB65BAD60D1981F2933EFF692EDA19C9DD299923B9D47937A6A1E57E92284E85"
+            },
+            {
+              "count": 4096,
+              "distinct": 8,
+              "ties": false,
+              "groups": 8,
+              "digest": "5E73F55A292A2E7C2F20BE6DFDE2C1B582E078B7FC6A6B000129778170B630AF"
+            },
+            {
+              "count": 4096,
+              "distinct": 8,
+              "ties": false,
+              "groups": 8,
+              "digest": "8C067B2D3823622913EA72EE5F33FDD8D296F19D876D32CF7316138C4A1FBFEE"
+            },
+            {
+              "count": 4096,
+              "distinct": 4096,
+              "ties": true,
+              "groups": 4096,
+              "digest": "F76C7986ABAE0DD23FDBCC032D03814A03F7B0BF34C9E5DB3E8219F65BA850EC"
+            },
+            {
+              "count": 4096,
+              "distinct": 4096,
+              "ties": true,
+              "groups": 4096,
+              "digest": "1527CFDD51893DE333AAF5384CA845E0C79393B57377104FDAA331C7E2E49F37"
+            },
+            {
+              "count": 65536,
+              "distinct": 128,
+              "ties": false,
+              "groups": 128,
+              "digest": "4DFF2EEC8DD6DF4A3EDF1EC970AC7D69720317C0CB1A09AC5CFBEF442E07D479"
+            },
+            {
+              "count": 65536,
+              "distinct": 128,
+              "ties": false,
+              "groups": 128,
+              "digest": "E74FFEA922FF089BB120D8D2A0B5C4D9556F500C77B1EAB12269FA7C5F32EE60"
+            },
+            {
+              "count": 65536,
+              "distinct": 16384,
+              "ties": false,
+              "groups": 16384,
+              "digest": "F58E42E5D22E449069FDB338876567FBF85D018B4B9AE718228482CC3F65B2FC"
+            },
+            {
+              "count": 65536,
+              "distinct": 16384,
+              "ties": false,
+              "groups": 16384,
+              "digest": "A297D04BBBF3E659B9B2D518D8932AA71C3EA504C8E0219896A57517ADD812FB"
+            },
+            {
+              "count": 65536,
+              "distinct": 1,
+              "ties": true,
+              "groups": 1,
+              "digest": "396AE91902945E475E98329D4C93D1B846F0986F78D2A3D15481CEA5A4B85FD7"
+            },
+            {
+              "count": 65536,
+              "distinct": 1,
+              "ties": true,
+              "groups": 1,
+              "digest": "6BB0B410050242A4EBF33408BBEA6D7FB14ABD47163F02FA9CE648731BEDFA47"
+            }
+          ],
+          "scan": [
+            {
+              "SourceCount": 2,
+              "HasMoreWork": false,
+              "events": 720,
+              "tokens": 6480,
+              "sessions": 48,
+              "digest": "E1BE0E47ABEE9DFB1786AAE61C465F7BEC7AE56F41572342FA81CDD5C40B22AC"
+            },
+            {
+              "SourceCount": 2,
+              "HasMoreWork": false,
+              "events": 720,
+              "tokens": 6480,
+              "sessions": 48,
+              "digest": "E1BE0E47ABEE9DFB1786AAE61C465F7BEC7AE56F41572342FA81CDD5C40B22AC"
+            }
+          ],
+          "samples": {
+            "release": [
+              [
+                {
+                  "count": 0,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 0,
+                  "ns": 276.5625,
+                  "bytes": 256
+                },
+                {
+                  "count": 1,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 1,
+                  "ns": 773.828125,
+                  "bytes": 1008
+                },
+                {
+                  "count": 8,
+                  "distinct": 2,
+                  "ties": true,
+                  "groups": 2,
+                  "ns": 2551.5625,
+                  "bytes": 1888
+                },
+                {
+                  "count": 128,
+                  "distinct": 12,
+                  "ties": true,
+                  "groups": 12,
+                  "ns": 19525,
+                  "bytes": 12752
+                },
+                {
+                  "count": 1024,
+                  "distinct": 256,
+                  "ties": false,
+                  "groups": 256,
+                  "ns": 245104.6875,
+                  "bytes": 209184
+                },
+                {
+                  "count": 4096,
+                  "distinct": 8,
+                  "ties": false,
+                  "groups": 8,
+                  "ns": 304256.25,
+                  "bytes": 73104
+                },
+                {
+                  "count": 4096,
+                  "distinct": 4096,
+                  "ties": true,
+                  "groups": 4096,
+                  "ns": 2743962.5,
+                  "bytes": 2949472
+                },
+                {
+                  "count": 65536,
+                  "distinct": 128,
+                  "ties": false,
+                  "groups": 128,
+                  "ns": 6222600,
+                  "bytes": 1166608
+                },
+                {
+                  "count": 65536,
+                  "distinct": 16384,
+                  "ties": false,
+                  "groups": 16384,
+                  "ns": 25700600,
+                  "bytes": 13369728
+                },
+                {
+                  "count": 65536,
+                  "distinct": 1,
+                  "ties": true,
+                  "groups": 1,
+                  "ns": 3808900,
+                  "bytes": 1049952
+                }
+              ],
+              [
+                {
+                  "count": 0,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 0,
+                  "ns": 282.03125,
+                  "bytes": 256
+                },
+                {
+                  "count": 1,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 1,
+                  "ns": 775.78125,
+                  "bytes": 1008
+                },
+                {
+                  "count": 8,
+                  "distinct": 2,
+                  "ties": true,
+                  "groups": 2,
+                  "ns": 2557.03125,
+                  "bytes": 1888
+                },
+                {
+                  "count": 128,
+                  "distinct": 12,
+                  "ties": true,
+                  "groups": 12,
+                  "ns": 19608.984375,
+                  "bytes": 12752
+                },
+                {
+                  "count": 1024,
+                  "distinct": 256,
+                  "ties": false,
+                  "groups": 256,
+                  "ns": 245909.375,
+                  "bytes": 209184
+                },
+                {
+                  "count": 4096,
+                  "distinct": 8,
+                  "ties": false,
+                  "groups": 8,
+                  "ns": 293956.25,
+                  "bytes": 73104
+                },
+                {
+                  "count": 4096,
+                  "distinct": 4096,
+                  "ties": true,
+                  "groups": 4096,
+                  "ns": 2737118.75,
+                  "bytes": 2949472
+                },
+                {
+                  "count": 65536,
+                  "distinct": 128,
+                  "ties": false,
+                  "groups": 128,
+                  "ns": 6261200,
+                  "bytes": 1166608
+                },
+                {
+                  "count": 65536,
+                  "distinct": 16384,
+                  "ties": false,
+                  "groups": 16384,
+                  "ns": 25612400,
+                  "bytes": 13369728
+                },
+                {
+                  "count": 65536,
+                  "distinct": 1,
+                  "ties": true,
+                  "groups": 1,
+                  "ns": 3801500,
+                  "bytes": 1049952
+                }
+              ],
+              [
+                {
+                  "count": 0,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 0,
+                  "ns": 282.8125,
+                  "bytes": 256
+                },
+                {
+                  "count": 1,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 1,
+                  "ns": 773.046875,
+                  "bytes": 1008
+                },
+                {
+                  "count": 8,
+                  "distinct": 2,
+                  "ties": true,
+                  "groups": 2,
+                  "ns": 2550.390625,
+                  "bytes": 1888
+                },
+                {
+                  "count": 128,
+                  "distinct": 12,
+                  "ties": true,
+                  "groups": 12,
+                  "ns": 19578.90625,
+                  "bytes": 12752
+                },
+                {
+                  "count": 1024,
+                  "distinct": 256,
+                  "ties": false,
+                  "groups": 256,
+                  "ns": 244420.3125,
+                  "bytes": 209184
+                },
+                {
+                  "count": 4096,
+                  "distinct": 8,
+                  "ties": false,
+                  "groups": 8,
+                  "ns": 295193.75,
+                  "bytes": 73104
+                },
+                {
+                  "count": 4096,
+                  "distinct": 4096,
+                  "ties": true,
+                  "groups": 4096,
+                  "ns": 2733600,
+                  "bytes": 2949472
+                },
+                {
+                  "count": 65536,
+                  "distinct": 128,
+                  "ties": false,
+                  "groups": 128,
+                  "ns": 6119800,
+                  "bytes": 1166608
+                },
+                {
+                  "count": 65536,
+                  "distinct": 16384,
+                  "ties": false,
+                  "groups": 16384,
+                  "ns": 25380200,
+                  "bytes": 13369728
+                },
+                {
+                  "count": 65536,
+                  "distinct": 1,
+                  "ties": true,
+                  "groups": 1,
+                  "ns": 3813700,
+                  "bytes": 1049952
+                }
+              ]
+            ],
+            "rust": [
+              [
+                {
+                  "count": 0,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 0,
+                  "ns": 5.46875,
+                  "bytes": 0
+                },
+                {
+                  "count": 1,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 1,
+                  "ns": 219.140625,
+                  "bytes": 208
+                },
+                {
+                  "count": 8,
+                  "distinct": 2,
+                  "ties": true,
+                  "groups": 2,
+                  "ns": 452.34375,
+                  "bytes": 448
+                },
+                {
+                  "count": 128,
+                  "distinct": 12,
+                  "ties": true,
+                  "groups": 12,
+                  "ns": 4106.640625,
+                  "bytes": 2264
+                },
+                {
+                  "count": 1024,
+                  "distinct": 256,
+                  "ties": false,
+                  "groups": 256,
+                  "ns": 31857.8125,
+                  "bytes": 48960
+                },
+                {
+                  "count": 4096,
+                  "distinct": 8,
+                  "ties": false,
+                  "groups": 8,
+                  "ns": 84156.25,
+                  "bytes": 1320
+                },
+                {
+                  "count": 4096,
+                  "distinct": 4096,
+                  "ties": true,
+                  "groups": 4096,
+                  "ns": 389675,
+                  "bytes": 877432
+                },
+                {
+                  "count": 65536,
+                  "distinct": 128,
+                  "ties": false,
+                  "groups": 128,
+                  "ns": 1754700,
+                  "bytes": 1072128
+                },
+                {
+                  "count": 65536,
+                  "distinct": 16384,
+                  "ties": false,
+                  "groups": 16384,
+                  "ns": 3572100,
+                  "bytes": 3956736
+                },
+                {
+                  "count": 65536,
+                  "distinct": 1,
+                  "ties": true,
+                  "groups": 1,
+                  "ns": 1104300,
+                  "bytes": 1048808
+                }
+              ],
+              [
+                {
+                  "count": 0,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 0,
+                  "ns": 5.46875,
+                  "bytes": 0
+                },
+                {
+                  "count": 1,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 1,
+                  "ns": 217.578125,
+                  "bytes": 208
+                },
+                {
+                  "count": 8,
+                  "distinct": 2,
+                  "ties": true,
+                  "groups": 2,
+                  "ns": 453.515625,
+                  "bytes": 448
+                },
+                {
+                  "count": 128,
+                  "distinct": 12,
+                  "ties": true,
+                  "groups": 12,
+                  "ns": 4159.765625,
+                  "bytes": 2264
+                },
+                {
+                  "count": 1024,
+                  "distinct": 256,
+                  "ties": false,
+                  "groups": 256,
+                  "ns": 32339.0625,
+                  "bytes": 48960
+                },
+                {
+                  "count": 4096,
+                  "distinct": 8,
+                  "ties": false,
+                  "groups": 8,
+                  "ns": 84237.5,
+                  "bytes": 1320
+                },
+                {
+                  "count": 4096,
+                  "distinct": 4096,
+                  "ties": true,
+                  "groups": 4096,
+                  "ns": 386781.25,
+                  "bytes": 877432
+                },
+                {
+                  "count": 65536,
+                  "distinct": 128,
+                  "ties": false,
+                  "groups": 128,
+                  "ns": 1770000,
+                  "bytes": 1072128
+                },
+                {
+                  "count": 65536,
+                  "distinct": 16384,
+                  "ties": false,
+                  "groups": 16384,
+                  "ns": 3799300,
+                  "bytes": 3956736
+                },
+                {
+                  "count": 65536,
+                  "distinct": 1,
+                  "ties": true,
+                  "groups": 1,
+                  "ns": 1134200,
+                  "bytes": 1048808
+                }
+              ],
+              [
+                {
+                  "count": 0,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 0,
+                  "ns": 5.46875,
+                  "bytes": 0
+                },
+                {
+                  "count": 1,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 1,
+                  "ns": 213.671875,
+                  "bytes": 208
+                },
+                {
+                  "count": 8,
+                  "distinct": 2,
+                  "ties": true,
+                  "groups": 2,
+                  "ns": 449.21875,
+                  "bytes": 448
+                },
+                {
+                  "count": 128,
+                  "distinct": 12,
+                  "ties": true,
+                  "groups": 12,
+                  "ns": 4104.296875,
+                  "bytes": 2264
+                },
+                {
+                  "count": 1024,
+                  "distinct": 256,
+                  "ties": false,
+                  "groups": 256,
+                  "ns": 32221.875,
+                  "bytes": 48960
+                },
+                {
+                  "count": 4096,
+                  "distinct": 8,
+                  "ties": false,
+                  "groups": 8,
+                  "ns": 84575,
+                  "bytes": 1320
+                },
+                {
+                  "count": 4096,
+                  "distinct": 4096,
+                  "ties": true,
+                  "groups": 4096,
+                  "ns": 392962.5,
+                  "bytes": 877432
+                },
+                {
+                  "count": 65536,
+                  "distinct": 128,
+                  "ties": false,
+                  "groups": 128,
+                  "ns": 1737700,
+                  "bytes": 1072128
+                },
+                {
+                  "count": 65536,
+                  "distinct": 16384,
+                  "ties": false,
+                  "groups": 16384,
+                  "ns": 3475000,
+                  "bytes": 3956736
+                },
+                {
+                  "count": 65536,
+                  "distinct": 1,
+                  "ties": true,
+                  "groups": 1,
+                  "ns": 1126500,
+                  "bytes": 1048808
+                }
+              ]
+            ]
+          },
+          "measurements": [
+            {
+              "count": 0,
+              "distinct": 1,
+              "ties": false,
+              "groups": 0,
+              "release": {
+                "ns": 282.03125,
+                "bytes": 256
+              },
+              "rust": {
+                "ns": 5.46875,
+                "bytes": 0
+              }
+            },
+            {
+              "count": 1,
+              "distinct": 1,
+              "ties": false,
+              "groups": 1,
+              "release": {
+                "ns": 773.828125,
+                "bytes": 1008
+              },
+              "rust": {
+                "ns": 217.578125,
+                "bytes": 208
+              }
+            },
+            {
+              "count": 8,
+              "distinct": 2,
+              "ties": true,
+              "groups": 2,
+              "release": {
+                "ns": 2551.5625,
+                "bytes": 1888
+              },
+              "rust": {
+                "ns": 452.34375,
+                "bytes": 448
+              }
+            },
+            {
+              "count": 128,
+              "distinct": 12,
+              "ties": true,
+              "groups": 12,
+              "release": {
+                "ns": 19578.90625,
+                "bytes": 12752
+              },
+              "rust": {
+                "ns": 4106.640625,
+                "bytes": 2264
+              }
+            },
+            {
+              "count": 1024,
+              "distinct": 256,
+              "ties": false,
+              "groups": 256,
+              "release": {
+                "ns": 245104.6875,
+                "bytes": 209184
+              },
+              "rust": {
+                "ns": 32221.875,
+                "bytes": 48960
+              }
+            },
+            {
+              "count": 4096,
+              "distinct": 8,
+              "ties": false,
+              "groups": 8,
+              "release": {
+                "ns": 295193.75,
+                "bytes": 73104
+              },
+              "rust": {
+                "ns": 84237.5,
+                "bytes": 1320
+              }
+            },
+            {
+              "count": 4096,
+              "distinct": 4096,
+              "ties": true,
+              "groups": 4096,
+              "release": {
+                "ns": 2737118.75,
+                "bytes": 2949472
+              },
+              "rust": {
+                "ns": 389675,
+                "bytes": 877432
+              }
+            },
+            {
+              "count": 65536,
+              "distinct": 128,
+              "ties": false,
+              "groups": 128,
+              "release": {
+                "ns": 6222600,
+                "bytes": 1166608
+              },
+              "rust": {
+                "ns": 1754700,
+                "bytes": 1072128
+              }
+            },
+            {
+              "count": 65536,
+              "distinct": 16384,
+              "ties": false,
+              "groups": 16384,
+              "release": {
+                "ns": 25612400,
+                "bytes": 13369728
+              },
+              "rust": {
+                "ns": 3572100,
+                "bytes": 3956736
+              }
+            },
+            {
+              "count": 65536,
+              "distinct": 1,
+              "ties": true,
+              "groups": 1,
+              "release": {
+                "ns": 3808900,
+                "bytes": 1049952
+              },
+              "rust": {
+                "ns": 1126500,
+                "bytes": 1048808
+              }
+            }
+          ]
+        }
+      }
+    },
+    "x64": {
+      "artifactDigest": "sha256:29ce634f5e8513187b7fefedc370516c37daf35e52cb3932ee95e6a37ed6c67f",
+      "job": 139829038874,
+      "receipts": {
+        "windows-x64-scanner-sessions.json": {
+          "system": "Windows",
+          "architecture": "AMD64",
+          "referenceCommit": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+          "sourceExpressionSha256": "f88bc611a9265310bbb5a979b58ab24d2d68f46f439a7006b7ced21146051acb",
+          "librarySha256": "7d769bde0091646531d7ec347936604d9411835ec1276554d1f094286ac461e4",
+          "contract": [
+            {
+              "count": 0,
+              "distinct": 1,
+              "ties": false,
+              "groups": 0,
+              "digest": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+            },
+            {
+              "count": 0,
+              "distinct": 1,
+              "ties": false,
+              "groups": 0,
+              "digest": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+            },
+            {
+              "count": 1,
+              "distinct": 1,
+              "ties": false,
+              "groups": 1,
+              "digest": "667471D44C23F72A83E7A124EDCBAE014E735706C4767151351E5D5B23DE272F"
+            },
+            {
+              "count": 1,
+              "distinct": 1,
+              "ties": false,
+              "groups": 1,
+              "digest": "667471D44C23F72A83E7A124EDCBAE014E735706C4767151351E5D5B23DE272F"
+            },
+            {
+              "count": 8,
+              "distinct": 2,
+              "ties": true,
+              "groups": 2,
+              "digest": "E72FF553538C707A38129D3EEF516065BEC3C69F2A40F470086273B971E5FF3A"
+            },
+            {
+              "count": 8,
+              "distinct": 2,
+              "ties": true,
+              "groups": 2,
+              "digest": "087A30680801C86755EFE926EE09791E63468A58F68ED5E9E91170552BA2E8A7"
+            },
+            {
+              "count": 128,
+              "distinct": 12,
+              "ties": true,
+              "groups": 12,
+              "digest": "93C033736844D15F400C5054E153CD8C827991BE9249D78EED68177BB422E709"
+            },
+            {
+              "count": 128,
+              "distinct": 12,
+              "ties": true,
+              "groups": 12,
+              "digest": "FAF484E0AB6A521B1187D361EC8288608DBFB3E7E7E07C95A6945DD748F71AF5"
+            },
+            {
+              "count": 1024,
+              "distinct": 256,
+              "ties": false,
+              "groups": 256,
+              "digest": "0EA364A73B940493B60FF86E1BC98556331BC2FCE0A1BCF452CFD61F9922EADF"
+            },
+            {
+              "count": 1024,
+              "distinct": 256,
+              "ties": false,
+              "groups": 256,
+              "digest": "CB65BAD60D1981F2933EFF692EDA19C9DD299923B9D47937A6A1E57E92284E85"
+            },
+            {
+              "count": 4096,
+              "distinct": 8,
+              "ties": false,
+              "groups": 8,
+              "digest": "5E73F55A292A2E7C2F20BE6DFDE2C1B582E078B7FC6A6B000129778170B630AF"
+            },
+            {
+              "count": 4096,
+              "distinct": 8,
+              "ties": false,
+              "groups": 8,
+              "digest": "8C067B2D3823622913EA72EE5F33FDD8D296F19D876D32CF7316138C4A1FBFEE"
+            },
+            {
+              "count": 4096,
+              "distinct": 4096,
+              "ties": true,
+              "groups": 4096,
+              "digest": "F76C7986ABAE0DD23FDBCC032D03814A03F7B0BF34C9E5DB3E8219F65BA850EC"
+            },
+            {
+              "count": 4096,
+              "distinct": 4096,
+              "ties": true,
+              "groups": 4096,
+              "digest": "1527CFDD51893DE333AAF5384CA845E0C79393B57377104FDAA331C7E2E49F37"
+            },
+            {
+              "count": 65536,
+              "distinct": 128,
+              "ties": false,
+              "groups": 128,
+              "digest": "4DFF2EEC8DD6DF4A3EDF1EC970AC7D69720317C0CB1A09AC5CFBEF442E07D479"
+            },
+            {
+              "count": 65536,
+              "distinct": 128,
+              "ties": false,
+              "groups": 128,
+              "digest": "E74FFEA922FF089BB120D8D2A0B5C4D9556F500C77B1EAB12269FA7C5F32EE60"
+            },
+            {
+              "count": 65536,
+              "distinct": 16384,
+              "ties": false,
+              "groups": 16384,
+              "digest": "F58E42E5D22E449069FDB338876567FBF85D018B4B9AE718228482CC3F65B2FC"
+            },
+            {
+              "count": 65536,
+              "distinct": 16384,
+              "ties": false,
+              "groups": 16384,
+              "digest": "A297D04BBBF3E659B9B2D518D8932AA71C3EA504C8E0219896A57517ADD812FB"
+            },
+            {
+              "count": 65536,
+              "distinct": 1,
+              "ties": true,
+              "groups": 1,
+              "digest": "396AE91902945E475E98329D4C93D1B846F0986F78D2A3D15481CEA5A4B85FD7"
+            },
+            {
+              "count": 65536,
+              "distinct": 1,
+              "ties": true,
+              "groups": 1,
+              "digest": "6BB0B410050242A4EBF33408BBEA6D7FB14ABD47163F02FA9CE648731BEDFA47"
+            }
+          ],
+          "scan": [
+            {
+              "SourceCount": 2,
+              "HasMoreWork": false,
+              "events": 720,
+              "tokens": 6480,
+              "sessions": 48,
+              "digest": "E1BE0E47ABEE9DFB1786AAE61C465F7BEC7AE56F41572342FA81CDD5C40B22AC"
+            },
+            {
+              "SourceCount": 2,
+              "HasMoreWork": false,
+              "events": 720,
+              "tokens": 6480,
+              "sessions": 48,
+              "digest": "E1BE0E47ABEE9DFB1786AAE61C465F7BEC7AE56F41572342FA81CDD5C40B22AC"
+            }
+          ],
+          "samples": {
+            "release": [
+              [
+                {
+                  "count": 0,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 0,
+                  "ns": 280.859375,
+                  "bytes": 256
+                },
+                {
+                  "count": 1,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 1,
+                  "ns": 1213.671875,
+                  "bytes": 1008
+                },
+                {
+                  "count": 8,
+                  "distinct": 2,
+                  "ties": true,
+                  "groups": 2,
+                  "ns": 3064.0625,
+                  "bytes": 1888
+                },
+                {
+                  "count": 128,
+                  "distinct": 12,
+                  "ties": true,
+                  "groups": 12,
+                  "ns": 19851.171875,
+                  "bytes": 12752
+                },
+                {
+                  "count": 1024,
+                  "distinct": 256,
+                  "ties": false,
+                  "groups": 256,
+                  "ns": 230954.6875,
+                  "bytes": 209184
+                },
+                {
+                  "count": 4096,
+                  "distinct": 8,
+                  "ties": false,
+                  "groups": 8,
+                  "ns": 287918.75,
+                  "bytes": 73104
+                },
+                {
+                  "count": 4096,
+                  "distinct": 4096,
+                  "ties": true,
+                  "groups": 4096,
+                  "ns": 2431756.25,
+                  "bytes": 2949472
+                },
+                {
+                  "count": 65536,
+                  "distinct": 128,
+                  "ties": false,
+                  "groups": 128,
+                  "ns": 6074900,
+                  "bytes": 1166608
+                },
+                {
+                  "count": 65536,
+                  "distinct": 16384,
+                  "ties": false,
+                  "groups": 16384,
+                  "ns": 30361200,
+                  "bytes": 13369728
+                },
+                {
+                  "count": 65536,
+                  "distinct": 1,
+                  "ties": true,
+                  "groups": 1,
+                  "ns": 4464700,
+                  "bytes": 1049952
+                }
+              ],
+              [
+                {
+                  "count": 0,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 0,
+                  "ns": 470.703125,
+                  "bytes": 256
+                },
+                {
+                  "count": 1,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 1,
+                  "ns": 1277.34375,
+                  "bytes": 1008
+                },
+                {
+                  "count": 8,
+                  "distinct": 2,
+                  "ties": true,
+                  "groups": 2,
+                  "ns": 3082.03125,
+                  "bytes": 1888
+                },
+                {
+                  "count": 128,
+                  "distinct": 12,
+                  "ties": true,
+                  "groups": 12,
+                  "ns": 19748.046875,
+                  "bytes": 12752
+                },
+                {
+                  "count": 1024,
+                  "distinct": 256,
+                  "ties": false,
+                  "groups": 256,
+                  "ns": 235026.5625,
+                  "bytes": 209184
+                },
+                {
+                  "count": 4096,
+                  "distinct": 8,
+                  "ties": false,
+                  "groups": 8,
+                  "ns": 287693.75,
+                  "bytes": 73104
+                },
+                {
+                  "count": 4096,
+                  "distinct": 4096,
+                  "ties": true,
+                  "groups": 4096,
+                  "ns": 2498700,
+                  "bytes": 2949472
+                },
+                {
+                  "count": 65536,
+                  "distinct": 128,
+                  "ties": false,
+                  "groups": 128,
+                  "ns": 5178300,
+                  "bytes": 1166608
+                },
+                {
+                  "count": 65536,
+                  "distinct": 16384,
+                  "ties": false,
+                  "groups": 16384,
+                  "ns": 29334400,
+                  "bytes": 13369728
+                },
+                {
+                  "count": 65536,
+                  "distinct": 1,
+                  "ties": true,
+                  "groups": 1,
+                  "ns": 4591700,
+                  "bytes": 1049952
+                }
+              ],
+              [
+                {
+                  "count": 0,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 0,
+                  "ns": 278.125,
+                  "bytes": 256
+                },
+                {
+                  "count": 1,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 1,
+                  "ns": 1213.28125,
+                  "bytes": 1008
+                },
+                {
+                  "count": 8,
+                  "distinct": 2,
+                  "ties": true,
+                  "groups": 2,
+                  "ns": 2942.96875,
+                  "bytes": 1888
+                },
+                {
+                  "count": 128,
+                  "distinct": 12,
+                  "ties": true,
+                  "groups": 12,
+                  "ns": 19364.0625,
+                  "bytes": 12752
+                },
+                {
+                  "count": 1024,
+                  "distinct": 256,
+                  "ties": false,
+                  "groups": 256,
+                  "ns": 232354.6875,
+                  "bytes": 209184
+                },
+                {
+                  "count": 4096,
+                  "distinct": 8,
+                  "ties": false,
+                  "groups": 8,
+                  "ns": 283893.75,
+                  "bytes": 73104
+                },
+                {
+                  "count": 4096,
+                  "distinct": 4096,
+                  "ties": true,
+                  "groups": 4096,
+                  "ns": 2449018.75,
+                  "bytes": 2949472
+                },
+                {
+                  "count": 65536,
+                  "distinct": 128,
+                  "ties": false,
+                  "groups": 128,
+                  "ns": 5369700,
+                  "bytes": 1166608
+                },
+                {
+                  "count": 65536,
+                  "distinct": 16384,
+                  "ties": false,
+                  "groups": 16384,
+                  "ns": 30759800,
+                  "bytes": 13369728
+                },
+                {
+                  "count": 65536,
+                  "distinct": 1,
+                  "ties": true,
+                  "groups": 1,
+                  "ns": 4501000,
+                  "bytes": 1049952
+                }
+              ]
+            ],
+            "rust": [
+              [
+                {
+                  "count": 0,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 0,
+                  "ns": 6.640625,
+                  "bytes": 0
+                },
+                {
+                  "count": 1,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 1,
+                  "ns": 228.125,
+                  "bytes": 208
+                },
+                {
+                  "count": 8,
+                  "distinct": 2,
+                  "ties": true,
+                  "groups": 2,
+                  "ns": 485.9375,
+                  "bytes": 448
+                },
+                {
+                  "count": 128,
+                  "distinct": 12,
+                  "ties": true,
+                  "groups": 12,
+                  "ns": 4244.53125,
+                  "bytes": 2264
+                },
+                {
+                  "count": 1024,
+                  "distinct": 256,
+                  "ties": false,
+                  "groups": 256,
+                  "ns": 26939.0625,
+                  "bytes": 48960
+                },
+                {
+                  "count": 4096,
+                  "distinct": 8,
+                  "ties": false,
+                  "groups": 8,
+                  "ns": 73756.25,
+                  "bytes": 1320
+                },
+                {
+                  "count": 4096,
+                  "distinct": 4096,
+                  "ties": true,
+                  "groups": 4096,
+                  "ns": 325812.5,
+                  "bytes": 877432
+                },
+                {
+                  "count": 65536,
+                  "distinct": 128,
+                  "ties": false,
+                  "groups": 128,
+                  "ns": 1748300,
+                  "bytes": 1072128
+                },
+                {
+                  "count": 65536,
+                  "distinct": 16384,
+                  "ties": false,
+                  "groups": 16384,
+                  "ns": 3536200,
+                  "bytes": 3956736
+                },
+                {
+                  "count": 65536,
+                  "distinct": 1,
+                  "ties": true,
+                  "groups": 1,
+                  "ns": 1132600,
+                  "bytes": 1048808
+                }
+              ],
+              [
+                {
+                  "count": 0,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 0,
+                  "ns": 5.078125,
+                  "bytes": 0
+                },
+                {
+                  "count": 1,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 1,
+                  "ns": 213.28125,
+                  "bytes": 208
+                },
+                {
+                  "count": 8,
+                  "distinct": 2,
+                  "ties": true,
+                  "groups": 2,
+                  "ns": 481.640625,
+                  "bytes": 448
+                },
+                {
+                  "count": 128,
+                  "distinct": 12,
+                  "ties": true,
+                  "groups": 12,
+                  "ns": 4205.859375,
+                  "bytes": 2264
+                },
+                {
+                  "count": 1024,
+                  "distinct": 256,
+                  "ties": false,
+                  "groups": 256,
+                  "ns": 26765.625,
+                  "bytes": 48960
+                },
+                {
+                  "count": 4096,
+                  "distinct": 8,
+                  "ties": false,
+                  "groups": 8,
+                  "ns": 74237.5,
+                  "bytes": 1320
+                },
+                {
+                  "count": 4096,
+                  "distinct": 4096,
+                  "ties": true,
+                  "groups": 4096,
+                  "ns": 327212.5,
+                  "bytes": 877432
+                },
+                {
+                  "count": 65536,
+                  "distinct": 128,
+                  "ties": false,
+                  "groups": 128,
+                  "ns": 1728100,
+                  "bytes": 1072128
+                },
+                {
+                  "count": 65536,
+                  "distinct": 16384,
+                  "ties": false,
+                  "groups": 16384,
+                  "ns": 3427700,
+                  "bytes": 3956736
+                },
+                {
+                  "count": 65536,
+                  "distinct": 1,
+                  "ties": true,
+                  "groups": 1,
+                  "ns": 1170100,
+                  "bytes": 1048808
+                }
+              ],
+              [
+                {
+                  "count": 0,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 0,
+                  "ns": 5.46875,
+                  "bytes": 0
+                },
+                {
+                  "count": 1,
+                  "distinct": 1,
+                  "ties": false,
+                  "groups": 1,
+                  "ns": 214.0625,
+                  "bytes": 208
+                },
+                {
+                  "count": 8,
+                  "distinct": 2,
+                  "ties": true,
+                  "groups": 2,
+                  "ns": 479.6875,
+                  "bytes": 448
+                },
+                {
+                  "count": 128,
+                  "distinct": 12,
+                  "ties": true,
+                  "groups": 12,
+                  "ns": 4187.890625,
+                  "bytes": 2264
+                },
+                {
+                  "count": 1024,
+                  "distinct": 256,
+                  "ties": false,
+                  "groups": 256,
+                  "ns": 27214.0625,
+                  "bytes": 48960
+                },
+                {
+                  "count": 4096,
+                  "distinct": 8,
+                  "ties": false,
+                  "groups": 8,
+                  "ns": 74387.5,
+                  "bytes": 1320
+                },
+                {
+                  "count": 4096,
+                  "distinct": 4096,
+                  "ties": true,
+                  "groups": 4096,
+                  "ns": 314675,
+                  "bytes": 877432
+                },
+                {
+                  "count": 65536,
+                  "distinct": 128,
+                  "ties": false,
+                  "groups": 128,
+                  "ns": 1714300,
+                  "bytes": 1072128
+                },
+                {
+                  "count": 65536,
+                  "distinct": 16384,
+                  "ties": false,
+                  "groups": 16384,
+                  "ns": 4217900,
+                  "bytes": 3956736
+                },
+                {
+                  "count": 65536,
+                  "distinct": 1,
+                  "ties": true,
+                  "groups": 1,
+                  "ns": 1153900,
+                  "bytes": 1048808
+                }
+              ]
+            ]
+          },
+          "measurements": [
+            {
+              "count": 0,
+              "distinct": 1,
+              "ties": false,
+              "groups": 0,
+              "release": {
+                "ns": 280.859375,
+                "bytes": 256
+              },
+              "rust": {
+                "ns": 5.46875,
+                "bytes": 0
+              }
+            },
+            {
+              "count": 1,
+              "distinct": 1,
+              "ties": false,
+              "groups": 1,
+              "release": {
+                "ns": 1213.671875,
+                "bytes": 1008
+              },
+              "rust": {
+                "ns": 214.0625,
+                "bytes": 208
+              }
+            },
+            {
+              "count": 8,
+              "distinct": 2,
+              "ties": true,
+              "groups": 2,
+              "release": {
+                "ns": 3064.0625,
+                "bytes": 1888
+              },
+              "rust": {
+                "ns": 481.640625,
+                "bytes": 448
+              }
+            },
+            {
+              "count": 128,
+              "distinct": 12,
+              "ties": true,
+              "groups": 12,
+              "release": {
+                "ns": 19748.046875,
+                "bytes": 12752
+              },
+              "rust": {
+                "ns": 4205.859375,
+                "bytes": 2264
+              }
+            },
+            {
+              "count": 1024,
+              "distinct": 256,
+              "ties": false,
+              "groups": 256,
+              "release": {
+                "ns": 232354.6875,
+                "bytes": 209184
+              },
+              "rust": {
+                "ns": 26939.0625,
+                "bytes": 48960
+              }
+            },
+            {
+              "count": 4096,
+              "distinct": 8,
+              "ties": false,
+              "groups": 8,
+              "release": {
+                "ns": 287693.75,
+                "bytes": 73104
+              },
+              "rust": {
+                "ns": 74237.5,
+                "bytes": 1320
+              }
+            },
+            {
+              "count": 4096,
+              "distinct": 4096,
+              "ties": true,
+              "groups": 4096,
+              "release": {
+                "ns": 2449018.75,
+                "bytes": 2949472
+              },
+              "rust": {
+                "ns": 325812.5,
+                "bytes": 877432
+              }
+            },
+            {
+              "count": 65536,
+              "distinct": 128,
+              "ties": false,
+              "groups": 128,
+              "release": {
+                "ns": 5369700,
+                "bytes": 1166608
+              },
+              "rust": {
+                "ns": 1728100,
+                "bytes": 1072128
+              }
+            },
+            {
+              "count": 65536,
+              "distinct": 16384,
+              "ties": false,
+              "groups": 16384,
+              "release": {
+                "ns": 30361200,
+                "bytes": 13369728
+              },
+              "rust": {
+                "ns": 3536200,
+                "bytes": 3956736
+              }
+            },
+            {
+              "count": 65536,
+              "distinct": 1,
+              "ties": true,
+              "groups": 1,
+              "release": {
+                "ns": 4501000,
+                "bytes": 1049952
+              },
+              "rust": {
+                "ns": 1153900,
+                "bytes": 1048808
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

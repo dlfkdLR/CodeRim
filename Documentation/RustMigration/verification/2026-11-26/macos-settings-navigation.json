@@ -1,0 +1,377 @@
+{
+  "sourceCommit": "c66f59b04a01d5361aa4e21f0e9a1a919817ba19",
+  "parent": "f50fd5cf27150d2419b3749d440182989aa56827",
+  "gitStatus": "",
+  "productionScope": "Default macOS SettingsNavigation owns category, selected provider and window lifecycle in a per-instance Rust session. The native AppKit menu, SwiftUI rendering, actual NSWindow lifetime and activation continue to use their platform APIs. Optional Swift-only builds retain the previous behavior.",
+  "checks": {
+    "rustWorkspaceTestsPassed": 62,
+    "rustfmt": true,
+    "clippyDenyWarnings": true,
+    "existingNativeSettingsTestsPassed": 6,
+    "localAdHocUniversalApp": {
+      "published": {
+        "binarySHA256": "d1833d92d514bff18552a5afe36caf527466451058b22bdee4751e7ba8688083",
+        "binaryBytes": 109469552,
+        "slices": [
+          "x86_64",
+          "arm64"
+        ],
+        "bundleID": "dev.codexmeter.CodexMeter",
+        "uuids": {
+          "x86_64": "4F4022F9-B034-34D4-B16F-50A2D38352B9",
+          "arm64": "68950D14-8FE5-317F-A986-1A9BCDA24596"
+        },
+        "signature": "Signature=adhoc",
+        "strictDeepSignature": true,
+        "actualBundleLaunch": [
+          {
+            "phase": "fresh profile",
+            "ownedDBExistedBeforeLaunch": false,
+            "ownedDBPresent": true,
+            "runningAfterWarmup": true
+          },
+          {
+            "phase": "profile reopen",
+            "ownedDBExistedBeforeLaunch": true,
+            "ownedDBPresent": true,
+            "runningAfterWarmup": true
+          }
+        ]
+      },
+      "packaged": {
+        "binarySHA256": "6a4eba989eac9d9fbe429d0893c82f719748ec581896121603e32a5b5584baa1",
+        "binaryBytes": 56303360,
+        "slices": [
+          "x86_64",
+          "arm64"
+        ],
+        "bundleID": "dev.codexmeter.CodexMeter",
+        "uuids": {
+          "x86_64": "E13591DA-46B5-35A3-9A02-5C95D963D847",
+          "arm64": "FC3975C6-E509-3C14-9D3D-73FED8BD5FCA"
+        },
+        "signature": "Signature=adhoc",
+        "strictDeepSignature": true,
+        "dsymUUIDs": {
+          "x86_64": "E13591DA-46B5-35A3-9A02-5C95D963D847",
+          "arm64": "FC3975C6-E509-3C14-9D3D-73FED8BD5FCA"
+        },
+        "unstrippedUUIDs": {
+          "x86_64": "E13591DA-46B5-35A3-9A02-5C95D963D847",
+          "arm64": "FC3975C6-E509-3C14-9D3D-73FED8BD5FCA"
+        },
+        "linkedNavigationSymbols": {
+          "x86_64": [
+            "_cr_settings_navigation_close",
+            "_cr_settings_navigation_create",
+            "_cr_settings_navigation_free",
+            "_cr_settings_navigation_present",
+            "_cr_settings_navigation_select"
+          ],
+          "arm64": [
+            "_cr_settings_navigation_close",
+            "_cr_settings_navigation_create",
+            "_cr_settings_navigation_free",
+            "_cr_settings_navigation_present",
+            "_cr_settings_navigation_select"
+          ]
+        },
+        "actualBundleLaunch": [
+          {
+            "phase": "fresh profile",
+            "ownedDBExistedBeforeLaunch": false,
+            "ownedDBPresent": true,
+            "runningAfterWarmup": true
+          },
+          {
+            "phase": "profile reopen",
+            "ownedDBExistedBeforeLaunch": true,
+            "ownedDBPresent": true,
+            "runningAfterWarmup": true
+          }
+        ]
+      }
+    },
+    "publishedDMGsha256": "be3ddcacbdaa298fc5b98bac953a9afda9740c21c993bd4d3accb1925409ff45",
+    "releaseBuildDiagnostic": "Xcode emitted an IDEMacPlaceholder missing operatingSystemVersion diagnostic in the widget target. No compiler warning/error lines.",
+    "candidateProfile": "synthetic; network, personal home data, keychain and subprocess execution blocked by the isolated package profiles",
+    "rustSymbols": 5
+  },
+  "routeDifferential": {
+    "statesPerVariant": 3500,
+    "variantsPerArchitecture": 3,
+    "architectures": [
+      "arm64 native",
+      "x86_64 Rosetta"
+    ],
+    "resultSHA256": "eacd93af743d6693ed45a00c8ee19658ae5e97c81760ddcd8af2bf79d8fd0040",
+    "independentCasesPerVariant": 2200,
+    "independentResultSHA256": "e476fc1b0f16dc7facac97332f4241ce1feebc239820b6b829729dfb1aadaa27",
+    "timingsNsPerRoute": {
+      "arm64/usage": {
+        "medians": {
+          "released": 911.21875,
+          "candidate": 147.5295
+        },
+        "observableNotificationsPer24000": {
+          "released": 48000,
+          "candidate": 0
+        }
+      },
+      "arm64/provider": {
+        "medians": {
+          "released": 918.918375,
+          "candidate": 186.68054166666667
+        },
+        "observableNotificationsPer24000": {
+          "released": 48000,
+          "candidate": 1
+        }
+      },
+      "arm64/alternate": {
+        "medians": {
+          "released": 1145.8038333333334,
+          "candidate": 661.5711666666666
+        },
+        "observableNotificationsPer24000": {
+          "released": 48000,
+          "candidate": 24000
+        }
+      },
+      "x86_64/usage": {
+        "medians": {
+          "released": 1355.31425,
+          "candidate": 137.13366666666667
+        },
+        "observableNotificationsPer24000": {
+          "released": 48000,
+          "candidate": 0
+        }
+      },
+      "x86_64/provider": {
+        "medians": {
+          "released": 1722.3854166666667,
+          "candidate": 180.828125
+        },
+        "observableNotificationsPer24000": {
+          "released": 48000,
+          "candidate": 1
+        }
+      },
+      "x86_64/alternate": {
+        "medians": {
+          "released": 1444.421875,
+          "candidate": 917.9670416666667
+        },
+        "observableNotificationsPer24000": {
+          "released": 48000,
+          "candidate": 24000
+        }
+      }
+    },
+    "timingScope": "Optimized Swift navigation objects with Combine subscribers; actual native window-creation timings recorded separately."
+  },
+  "appkit": {
+    "reference": "The reference product test modules have the four routing/window Swift files identical to the v2.1.41 tag. The Apple-distributed execution environment is local macOS on an Apple Silicon Mac.",
+    "referenceProductSource": "68b114a6cf5abd1bf6f356d54d273a4373a69b29",
+    "identicalPublishedTagFiles": {
+      "Sources/CodeRim/App/StatusItemController.swift": "696041038f0a172b93ab361fb2a10aa6b54130b6e6acd48ba6a16f83df17d3b2",
+      "Sources/CodeRim/Settings/SettingsNavigation.swift": "1c481b4df0381b10311776d5dff30e0d5de7871deb89a192cd53f5b9e1f741d2",
+      "Sources/CodeRim/Settings/SettingsWindowController.swift": "0f7155a5313f8f228c4d4f3fd9a00bd213f02cd6bb7a74806260467dcf0b6528",
+      "Sources/CodeRim/Settings/SettingsView.swift": "0f556f629501ea94f52337ca4f272810f6c201b54c99b0a98d588b562c3477c8"
+    },
+    "normalMenu": [
+      "Token Usage…",
+      "separator",
+      "Show Notch",
+      "Settings…",
+      "Check for Updates…",
+      "separator",
+      "Quit CodeRim"
+    ],
+    "statesIdentical": [
+      "cold",
+      "settings-cold",
+      "information",
+      "hidden-sidebar",
+      "closed",
+      "settings-reopen",
+      "codex-detail",
+      "provider-reopen",
+      "usage-command",
+      "usage-repeat",
+      "closed-again"
+    ],
+    "nativeGeometryAndStateFields": [
+      "action",
+      "attached",
+      "focus",
+      "key",
+      "localViewRole",
+      "minimum",
+      "nativeViews",
+      "policy",
+      "sameRetainedHost",
+      "sameWindow",
+      "sidebar",
+      "size",
+      "title",
+      "toolbar",
+      "visible",
+      "windowRole"
+    ],
+    "inProcessWindowAXNodesMatched": 64,
+    "AXScope": "Native window, toolbar, groups and buttons across eight presented states. Relative bounds, role, label digest and enabled state match. No external VoiceOver tree or key focus when the console is locked.",
+    "pixelExactMeaningfulPairs": 7,
+    "pixelPairs": {
+      "codex-detail.png": {
+        "size": [
+          1960,
+          1360
+        ],
+        "changedPixels": 0,
+        "bounds": null,
+        "referenceNontransparentPixels": 2414900,
+        "candidateNontransparentPixels": 2414900
+      },
+      "hidden-sidebar.png": {
+        "changedPixels": null,
+        "reason": "Empty or truncated image: hidden-sidebar.png",
+        "referenceNontransparentPixels": 0,
+        "candidateNontransparentPixels": 0
+      },
+      "information.png": {
+        "size": [
+          1960,
+          1360
+        ],
+        "changedPixels": 0,
+        "bounds": null,
+        "referenceNontransparentPixels": 608234,
+        "candidateNontransparentPixels": 608234
+      },
+      "provider-reopen.png": {
+        "size": [
+          1960,
+          1360
+        ],
+        "changedPixels": 0,
+        "bounds": null,
+        "referenceNontransparentPixels": 2414900,
+        "candidateNontransparentPixels": 2414900
+      },
+      "settings-cold.png": {
+        "size": [
+          1960,
+          1360
+        ],
+        "changedPixels": 0,
+        "bounds": null,
+        "referenceNontransparentPixels": 608234,
+        "candidateNontransparentPixels": 608234
+      },
+      "settings-reopen.png": {
+        "size": [
+          1960,
+          1360
+        ],
+        "changedPixels": 0,
+        "bounds": null,
+        "referenceNontransparentPixels": 608234,
+        "candidateNontransparentPixels": 608234
+      },
+      "usage-command.png": {
+        "size": [
+          1960,
+          1360
+        ],
+        "changedPixels": 0,
+        "bounds": null,
+        "referenceNontransparentPixels": 608234,
+        "candidateNontransparentPixels": 608234
+      },
+      "usage-repeat.png": {
+        "size": [
+          1960,
+          1360
+        ],
+        "changedPixels": 0,
+        "bounds": null,
+        "referenceNontransparentPixels": 608234,
+        "candidateNontransparentPixels": 608234
+      }
+    },
+    "pixelScope": "Owned NSView.cacheDisplay surfaces at 1960x1360, 7 nonempty pairs exactly equal. Hidden sidebar produced wholly transparent buffers on both sides. The desktop compositor was unavailable.",
+    "interactiveCompositorWindowAndExternalFocus": "PENDING",
+    "consolePreflight": "locked",
+    "inProcessSynchronousAppKitMediansMilliseconds": {
+      "freshSettings": {
+        "reference": 226.1751,
+        "candidate": 226.0588
+      },
+      "close": {
+        "reference": 3.2995,
+        "candidate": 3.2852
+      },
+      "backToUsage": {
+        "reference": 66.4743,
+        "candidate": 66.4065
+      },
+      "openRetained": {
+        "reference": 63.4024,
+        "candidate": 60.4131
+      },
+      "providerRoute": {
+        "reference": 32.3067,
+        "candidate": 32.4841
+      },
+      "repeatUsage": {
+        "reference": 38.9121,
+        "candidate": 36.1488
+      }
+    },
+    "nativeTimingScope": "MainActor in-process real NSMenu dispatch/window close/provider presentation through synchronous AppKit layout; seven alternating fresh XCTest processes with synthetic profiles. GUI console locked, device key status, visible desktop compositor latency and energy not measured.",
+    "publishedPackageColdAndProfileReopen": true,
+    "candidatePackageColdAndProfileReopen": true
+  },
+  "harness": {
+    "run": "run-3c0f66a1f5224bf6ba45e6ab56ecf7e3",
+    "packetDigest": "fb0882b75a608094a8f22395c1b41a4bc20f371dc72baf34f820b41a61098f02",
+    "formalDecision": "INCONCLUSIVE",
+    "missing": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "reviewImport": {
+      "error": "Operator review requires an interactive terminal; a worker JSON/flag cannot attest it",
+      "decision": "INCONCLUSIVE"
+    },
+    "independentSource": "/root"
+  },
+  "evidenceSHA256": {
+    "package-proof.json": "1dd6ee37e63fa23726187f5247ae9fca5f85bf68fda4d86feac53c95e774ee4e",
+    "packet.json": "b5050c170a2a9ca1a6a460b11bc480ded60ef5f25894c20545ece235c6d3c100",
+    "independent-review.json": "100fc77c3fc1f7e11a08e5b1058384e97f46124515c72a84ad006584f484c0a6",
+    "gate.json": "3476c9388f4da38d95139447ba1006e9559d4b3208bbad3074339a9428acf8bc",
+    "summary.json": "bce0a352a6042f4a4558875355cfba959f8262d3d45d39704aabccfab34c7ee0",
+    "route-check.json": "b709af08e64601cfe03293aa506ff48a421a024a8d341ba15db27307e4da84a5",
+    "appkit-comparison.json": "26c3df32a78bd2bbe8871c5445573f0bbc0f332eed6112ae30aa227d80150c28",
+    "gui-reference/trace.json": "6cd315834fb678e57d0e6ea0ad3b69da0b2063e186a44c8129aca07a2212b2e5",
+    "gui-candidate/trace.json": "6cd315834fb678e57d0e6ea0ad3b69da0b2063e186a44c8129aca07a2212b2e5",
+    "gui-reference-ax/trace.json": "a962aec5cb8e7ce419bb267c3d2f5735f4bb5fe80d8195b1f9823823e119a484",
+    "gui-candidate-ax/trace.json": "a962aec5cb8e7ce419bb267c3d2f5735f4bb5fe80d8195b1f9823823e119a484",
+    "appkit-timing.json": "54fa7502204e639ffafedd81196caf2793074cdd7469c8aa01a66df0683b5516",
+    "package.log": "94ebdd121e8d391df7ddbed00fa946d6edf25d798de12a6e7a90013834a71800",
+    "rust-tests.log": "2125936f9a6231b3c9b791dc6561f40e7e06c365db572b243eb8f00d85be48cd",
+    "clippy.log": "1e6950527e21bd17bd2dd3a7c6ec71bfe8eed40a31e019fdea3f2655b3e34fb5",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "settings-xctest.log": "4116cd765bc1e82de58f4c3a6e9747a43f739809cb268eb2c5cba94c3bae528a",
+    "appkit-reference.log": "9ff0644307a6f4156e231f7a658b036b943c0d811f9ae65b559018af5f8ff231",
+    "appkit-candidate.log": "382584152148d6a2e005c23245be9f2c9d867bb3b90b5bf73457e3d8675d6713",
+    "appkit-reference-ax.log": "26d8c822646865c8ebba252a677f13103eb6aa12f97838d2e5a705394037c8e1",
+    "appkit-candidate-ax.log": "ff90651f06d5dba4f74ac12f36550f5a18acf3b8c9ee60897b1bf6ffdd48c675",
+    "gui-prep.log": "0fbf7f5dae17ec034c7b307bdda67038f34956852797d045e53901e987212460"
+  },
+  "integrated": "eeb5eaf9"
+}
