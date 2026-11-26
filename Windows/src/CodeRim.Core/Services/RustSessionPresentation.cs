@@ -45,7 +45,13 @@ internal static class RustSessionPresentation
         var eventKeys = new HashSet<string>(StringComparer.Ordinal);
         Span<long> totals = stackalloc long[owners.Count];
         totals.Fill(-1);
-        Span<RustSessionTotals.Event> batch = stackalloc RustSessionTotals.Event[Math.Min(events.Count, RustSessionTotals.BatchSize)];
+        var capacity = events switch
+        {
+            UsageEvent[] array => Math.Min(array.Length, RustSessionTotals.BatchSize),
+            List<UsageEvent> list => Math.Min(list.Count, RustSessionTotals.BatchSize),
+            _ => RustSessionTotals.BatchSize
+        };
+        Span<RustSessionTotals.Event> batch = stackalloc RustSessionTotals.Event[capacity];
         var count = 0;
         foreach (var e in events)
         {

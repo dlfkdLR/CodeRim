@@ -78,6 +78,8 @@ if (args.Length == 0)
         catch (OperationCanceledException ex) when (ex.CancellationToken == noRoots.Token) { Console.WriteLine("metadata cancelled without visible roots"); }
     }
     var history = Generate(1, 3, 8, 700, false);
+    var enumerateOnly = history with { Events = new EnumerationOnly<UsageEvent>(history.Events) };
+    Console.WriteLine(JsonSerializer.Serialize(Project(enumerateOnly).ToArray()));
     foreach (var at in new[] {"metadata", "event before block", "event after block"})
     {
         using var midRead = new CancellationTokenSource();
@@ -126,5 +128,13 @@ sealed class CancellingList<T>(IReadOnlyList<T> source, CancellationTokenSource 
             yield return source[i];
         }
     }
+    System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+}
+
+sealed class EnumerationOnly<T>(IReadOnlyList<T> source) : IReadOnlyList<T>
+{
+    public int Count => throw new InvalidOperationException("The history caller only supports enumeration.");
+    public T this[int i] => throw new InvalidOperationException("The history caller only supports enumeration.");
+    public IEnumerator<T> GetEnumerator() => source.GetEnumerator();
     System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
 }
