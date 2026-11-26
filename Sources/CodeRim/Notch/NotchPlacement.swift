@@ -1,4 +1,18 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+
+extension NotchEdge {
+    var windowCode: UInt32 {
+        switch self {
+        case .right: UInt32(CR_WINDOW_RIGHT)
+        case .left: UInt32(CR_WINDOW_LEFT)
+        case .top: UInt32(CR_WINDOW_TOP)
+        case .bottom: UInt32(CR_WINDOW_BOTTOM)
+        }
+    }
+}
+#endif
 
 /// The one place in the notch that knows which way round the axes are.
 ///
@@ -17,6 +31,23 @@ import Foundation
 struct NotchPlacement {
     let edge: NotchEdge
     let panelSize: CGSize
+
+    #if CODERIM_RUST_ACCOUNTING
+    func drawnBody(slack: CGFloat, length: CGFloat, scale: CGFloat, depth: CGFloat) -> CGRect {
+        cr_window_body(panelSize, edge.windowCode, slack, length, scale, depth, 0, 0, 0, false)
+    }
+
+    func foldedTarget(slack: CGFloat, length: CGFloat, scale: CGFloat, restingDepth: CGFloat,
+                      restingLength: CGFloat, hotZone: CGFloat, margin: CGFloat) -> CGRect {
+        cr_window_body(panelSize, edge.windowCode, slack, length, scale, restingDepth, restingLength, hotZone, margin, true)
+    }
+
+    func handleGeometry(_ points: [CGPoint], slack: CGFloat, scale: CGFloat, diameter: CGFloat,
+                        cursor: CGPoint? = nil) -> CRWindowHandles {
+        cr_window_handles(points, points.count, panelSize, edge.windowCode, slack, scale,
+                          diameter, cursor ?? .zero, cursor != nil)
+    }
+    #endif
 
     /// A point in panel coordinates.
     func point(along: CGFloat, across: CGFloat) -> CGPoint {

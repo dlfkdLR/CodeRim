@@ -284,18 +284,27 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
 
     /// The notch itself, in panel coordinates with a top-left origin.
     private var notchRect: CGRect {
+        #if CODERIM_RUST_ACCOUNTING
+        placement.drawnBody(slack: model.slack, length: model.shapeLength, scale: model.sizeScale, depth: model.notchDepth)
+        #else
         placement.rect(
             along: model.slack,
             across: 0,
             length: model.shapeLength * model.sizeScale,
             depth: model.notchDepth * model.sizeScale
         )
+        #endif
     }
 
     /// What wakes the folded notch. Deliberately larger than the pill it
     /// surrounds — a 10pt target on a screen edge is a fiddly thing to hit, and
     /// the cost of being generous is only that it opens a little eagerly.
     private var pillRect: CGRect {
+        #if CODERIM_RUST_ACCOUNTING
+        return placement.foldedTarget(slack: model.slack, length: model.shapeLength, scale: model.sizeScale,
+                                      restingDepth: model.restingDepth, restingLength: model.restingLength,
+                                      hotZone: NotchLayout.pillHotZone, margin: NotchLayout.pillHotMargin)
+        #else
         // Whatever the resting shape is — the pill, or the display's own notch
         // when it is joining one — the region that wakes it is that plus a
         // generous band, because both are small targets on a screen edge.
@@ -306,12 +315,17 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             length: length,
             depth: model.restingDepth * model.sizeScale + NotchLayout.pillHotMargin
         )
+        #endif
     }
 
     /// The handle's bounding box, for deciding whether the panel takes events
     /// at all. Whether a point is actually *on* the handle is a finer question
     /// than a box can answer — see `isOverHandle`.
     private var handleRect: CGRect {
+        #if CODERIM_RUST_ACCOUNTING
+        return placement.handleGeometry(model.orbHandlePoints, slack: model.slack, scale: model.sizeScale,
+                                        diameter: NotchLayout.orbHotZone).bounds
+        #else
         let side = NotchLayout.orbHotZone * model.sizeScale
         let boxes = model.orbHandlePoints.map { point -> CGRect in
             let centre = placement.point(along: model.slack + point.x * model.sizeScale,
@@ -320,6 +334,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
                           width: side, height: side)
         }
         return boxes.dropFirst().reduce(boxes.first ?? .zero) { $0.union($1) }
+        #endif
     }
 
     /// Whether the pointer is on the handle itself rather than merely inside
@@ -438,10 +453,20 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             target = current
         }
 
+        #if CODERIM_RUST_ACCOUNTING
+        // setExpanded above can synchronously change the geometry. Evaluate the new model
+        // once, before updateControlHover mutates it again.
+        let handles = placement.handleGeometry(model.orbHandlePoints, slack: model.slack, scale: model.sizeScale,
+                                               diameter: NotchLayout.orbHotZone, cursor: model.isExpanded ? local : nil)
+        let overHandle = handles.hits
+        let controls = handles.bounds.union(model.accountOrbRect)
+        #else
         let overHandle = model.isExpanded && isOverHandle(local)
+        let controls = handleRect.union(model.accountOrbRect)
+        #endif
         model.updateControlHover(overSettings: overHandle,
                                  overAccount: model.accountOrbRect.contains(local),
-                                 insideControls: handleRect.union(model.accountOrbRect).contains(local))
+                                 insideControls: controls.contains(local))
         setPointing(
             Self.wantsPointingHand(isExpanded: model.isExpanded, cellIndex: target)
                 || overHandle || model.isHoveringAccountSwitch

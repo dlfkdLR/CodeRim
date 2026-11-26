@@ -1,4 +1,7 @@
 import AppKit
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// The display's *own* notch — the camera housing on a MacBook, not ours.
 ///
@@ -73,6 +76,10 @@ enum NotchGeometry {
     ) -> CGRect {
         let full = screen.frameValue
         let usable = screen.visibleFrameValue
+        #if CODERIM_RUST_ACCOUNTING
+        return cr_window_panel_frame(full, usable, panelSize, edge.windowCode, alongOffset, slack,
+                                     trailingExtent, leadingExtent, keepsPanelOnScreen, edge == .top && screen.hardwareNotch != nil)
+        #else
         let width = panelSize.width.rounded(.up)
         let height = panelSize.height.rounded(.up)
 
@@ -108,6 +115,7 @@ enum NotchGeometry {
             width: width,
             height: height
         )
+        #endif
     }
 
     static func preferredScreen(
@@ -124,11 +132,20 @@ enum NotchGeometry {
         preference: DisplayPreference,
         activeScreen: Screen?
     ) -> Screen? {
+        #if CODERIM_RUST_ACCOUNTING
+        let pinned: Int?
+        if case .display(let id) = preference { pinned = screens.firstIndex { $0.displayIdentifier == id } }
+        else { pinned = nil }
+        let choice = cr_window_preferred(pinned ?? -1, activeScreen != nil, screens.count)
+        if choice == CR_WINDOW_ACTIVE { return activeScreen }
+        return choice == CR_WINDOW_NONE ? nil : screens[choice]
+        #else
         if case .display(let id) = preference,
            let selected = screens.first(where: { $0.displayIdentifier == id }) {
             return selected
         }
         return activeScreen ?? screens.first
+        #endif
     }
 
     /// Keeps a dragged offset from pushing the visible pill off the screen it
