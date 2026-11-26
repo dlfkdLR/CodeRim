@@ -1,0 +1,29 @@
+CodeRim CLI — local usage and account limits
+
+Usage: coderim [usage|tokens|limits|providers|path] [options]
+
+  --provider ID|both|all            Choose providers (default: enabled)
+  providers                        List all 70 supported provider IDs
+  --period today|week|month|all-time Token period (default: today)
+  --format text|json                Output format (default: text)
+  --json                            Alias for --format json
+  --pretty                          Pretty-print JSON
+  --watch SECONDS                   Read updated snapshots, every 1–3600 seconds
+  --snapshot PATH                   Read a specific snapshot file
+  --color auto|always|never         Terminal colors (default: auto)
+  --no-color                        Disable terminal colors
+  --width 40…200                     Text width (default: terminal width, up to 96)
+  -h, --help                        Show this help
+  -V, --version                     Show CLI version
+
+Examples:
+  coderim
+  coderim usage --provider codex --format json --pretty
+  coderim tokens --period week
+  coderim limits --provider both --watch 5
+
+Reads the latest snapshot exported by the CodeRim macOS app.
+Keep the app running for updates. No login or provider request is made here.
+JSON watch mode emits one compact JSON document per line.
+Exit codes: 0 success, 64 invalid arguments, 69 no usable snapshot.
+Stale readings remain available with an explicit stale state.

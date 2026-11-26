@@ -1,0 +1,25 @@
+[package]
+name = "coderim-companion-cli"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "MIT"
+description = "Opt-in macOS CodeRim snapshot reader"
+
+[features]
+macos-companion = []
+
+[[bin]]
+name = "CodeRimCLI"
+path = "src/main.rs"
+required-features = ["macos-companion"]
+
+[target.'cfg(target_os = "macos")'.dependencies]
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+libc = "0.2"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["raw_value", "float_roundtrip"] }
+unicode-segmentation = "1"
+
+[build-dependencies]
+cc = "1"
