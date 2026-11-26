@@ -204,7 +204,10 @@ with private_fixture() as tmp:
     bench={}
     for label,argv in [('version',['version']),('tokens-text',['tokens','--snapshot',data/'small.json']),
         ('usage-json',['usage','--snapshot',data/'medium.json','--format','json']),('limits-text',['limits','--snapshot',data/'large.json']),
-        ('native-utf16',['tokens','--snapshot',data/'utf-16-be']),('typed-extended',['tokens','--snapshot',data/'extra'])]:
+        ('native-utf16',['tokens','--snapshot',data/'utf-16-be']),
+        ('native-utc-epoch',['usage','--snapshot',data/'utc-0.json','--format','json']),
+        ('native-utc-fraction',['usage','--snapshot',data/'utc-3.json','--format','json']),
+        ('typed-extended',['tokens','--snapshot',data/'extra'])]:
         samples={m:[] for m in ['legacy','rust']}
         for pair in range(7):
             for mode in (('legacy','rust') if pair%2==0 else ('rust','legacy')):
