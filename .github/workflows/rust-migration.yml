@@ -161,6 +161,19 @@ jobs:
           rustup target add ${{ matrix.target }}
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           cargo build --locked --manifest-path Rust/Cargo.toml --target ${{ matrix.target }} --release -p coderim-accounting-bridge
+      - name: Build and compare the opt-in standalone Windows companion
+        run: |
+          cargo build --locked --manifest-path Rust/Cargo.toml --release --target ${{ matrix.target }} -p coderim-windows-companion
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $exe = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/CodeRimRustCLI.exe').Path
+          python Scripts/rust_migration/windows-standalone/check.py --binary "$exe" --rid "win-${{ matrix.arch }}" --synthetic-hook-install --output "windows-${{ matrix.arch }}-standalone.json" --artifacts "windows-${{ matrix.arch }}-standalone"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-${{ matrix.arch }}-standalone-qa
+          path: |
+            windows-${{ matrix.arch }}-standalone.json
+            windows-${{ matrix.arch }}-standalone/
+          if-no-files-found: error
       - name: Reject wrong-architecture bridge at build and publish time
         run: |
           $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
