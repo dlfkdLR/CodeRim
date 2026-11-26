@@ -104,6 +104,12 @@ def replay(arch, archive, work):
             wait(start(side, 1))
             assert location.stat().st_mode & 0o777 == 0o700, (side, folder_mode)
             assert messages(current) == rows + ["refresh_started"] * (index + 1)
+        previous.unlink()
+        previous.mkdir()
+        current.write_bytes(b"B" * LIMIT)
+        wait(start(side, 1))
+        assert previous.is_file() and previous.read_bytes() == b"B" * LIMIT
+        assert messages(current) == ["refresh_started"]
         logs[side] = current, previous
         observed[side] = rows
 

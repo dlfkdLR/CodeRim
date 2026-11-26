@@ -154,8 +154,20 @@ fn append(path: &Path, line: &[u8]) -> io::Result<()> {
     if length >= MAX_LOG_BYTES {
         let dir = directory.as_raw_fd();
         // SAFETY: renameat replaces the previous directory entry atomically within this opened directory.
-        if unsafe { libc::renameat(dir, CURRENT.as_ptr(), dir, PREVIOUS.as_ptr()) } != 0 {
-            return Err(io::Error::last_os_error());
+        let rotate = || unsafe { libc::renameat(dir, CURRENT.as_ptr(), dir, PREVIOUS.as_ptr()) };
+        if rotate() != 0 {
+            let error = io::Error::last_os_error();
+            if error.raw_os_error() != Some(libc::EISDIR) {
+                return Err(error);
+            }
+            // A restored profile may contain an empty archive directory. AT_REMOVEDIR only
+            // removes that empty entry; a directory with user files is preserved.
+            // SAFETY: the directory descriptor and fixed name stay live throughout recovery.
+            if unsafe { libc::unlinkat(dir, PREVIOUS.as_ptr(), libc::AT_REMOVEDIR) } != 0
+                || rotate() != 0
+            {
+                return Err(io::Error::last_os_error());
+            }
         }
         file = open_log(&directory)?;
         length = make_private(&file)?.len();
