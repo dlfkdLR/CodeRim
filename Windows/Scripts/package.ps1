@@ -8,6 +8,7 @@ param(
     [string]$PublisherSpkiSha256,
     [string]$SignToolPath,
     [uri]$TimestampServer = 'https://timestamp.digicert.com',
+    [string]$RustAccountingLibrary,
     [switch]$CheckVersionOnly
 )
 
@@ -75,8 +76,28 @@ function Sign-PayloadFile([string]$Path) {
     $signature = Get-AuthenticodeSignature -LiteralPath $Path
     if ($signature.Status -ne 'Valid' -or -not $signature.TimeStamperCertificate -or $signature.SignerCertificate.Thumbprint -ine $certificate.Thumbprint) { throw 'Publisher signing or timestamp verification failed.' }
 }
+$accountingArguments = @()
+if ($RustAccountingLibrary) {
+    $RustAccountingLibrary = (Resolve-Path -LiteralPath $RustAccountingLibrary).Path
+    $accountingArguments = @('-p:CodeRimRustAccounting=true', "-p:CodeRimRustAccountingLibrary=$RustAccountingLibrary")
+}
+
+function Assert-RustAccountingPayload {
+    if (-not $RustAccountingLibrary) { return }
+    $expectedFiles = @{
+        'coderim_accounting_bridge.dll' = $RustAccountingLibrary
+        'Rust-Notices.txt' = (Join-Path $projectRoot 'Rust/THIRD-PARTY-NOTICES.txt')
+    }
+    foreach ($name in $expectedFiles.Keys) {
+        $packaged = Join-Path $publishRoot $name
+        if ((Get-FileHash -LiteralPath $packaged).Hash -cne (Get-FileHash -LiteralPath $expectedFiles[$name]).Hash) {
+            throw "Published Rust payload differs from its build input: $name"
+        }
+    }
+}
+
 function Publish-Project([string]$Project, [string]$Output, [string]$Failure, [string[]]$ExtraArguments = @()) {
-    dotnet publish $Project --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $Output "-p:Version=$Version" '-p:CodeRimMsiQa=false' '-p:DebugType=None' '-p:DebugSymbols=false' @ExtraArguments
+    dotnet publish $Project --configuration Release --runtime $RuntimeIdentifier --self-contained true --output $Output "-p:Version=$Version" '-p:CodeRimMsiQa=false' '-p:DebugType=None' '-p:DebugSymbols=false' @accountingArguments @ExtraArguments
     if ($LASTEXITCODE -ne 0) { throw $Failure }
 }
 
@@ -105,6 +126,9 @@ if ($SigningMode -eq 'Required') {
     $installer = Join-Path $publishRoot 'install.ps1'
     $script = [IO.File]::ReadAllText($installer).Replace('$signedPackage = $false', '$signedPackage = $true')
     [IO.File]::WriteAllText($installer, $script, [Text.UTF8Encoding]::new($true))
+    Assert-RustAccountingPayload
+    $accountingDll = Join-Path $publishRoot 'coderim_accounting_bridge.dll'
+    if (Test-Path -LiteralPath $accountingDll) { Sign-PayloadFile $accountingDll }
     # Final signed application/CLI/script bytes are inventoried before the worker embeds their manifest.
     foreach ($file in @($executablePath, (Join-Path $publishRoot 'CodeRimCLI.exe'), $installer, (Join-Path $publishRoot 'connect-claude.ps1'))) { Sign-PayloadFile $file }
     $resourceRoot = Join-Path $windowsRoot ('artifacts\update-resource-' + [Guid]::NewGuid().ToString('N'))
@@ -125,6 +149,7 @@ else {
     $installerWorkerHash = (Get-FileHash $workerPath -Algorithm SHA256).Hash.ToLowerInvariant()
     Publish-Project $projectPath $publishRoot 'Installer bootstrap pin publish failed.' @("-p:CodeRimInstallerWorkerSha256=$installerWorkerHash", '-p:CodeRimPublisherSpkiSha256=')
     if (-not (Test-Path $executablePath)) { throw "Published executable is missing: $executablePath" }
+    Assert-RustAccountingPayload
     $bootstrap = @{version=$Version; workerSha256=$installerWorkerHash; guiSha256=(Get-FileHash $executablePath -Algorithm SHA256).Hash.ToLowerInvariant()}
     [IO.File]::WriteAllText((Join-Path $publishRoot 'CodeRim.bootstrap.json'), ($bootstrap | ConvertTo-Json -Compress), [Text.UTF8Encoding]::new($false))
 }

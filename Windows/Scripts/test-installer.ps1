@@ -1,4 +1,4 @@
-param([ValidateSet('x64','arm64')][string]$Architecture='x64',[Parameter(Mandatory)][string]$Installer)
+param([ValidateSet('x64','arm64')][string]$Architecture='x64',[Parameter(Mandatory)][string]$Installer,[switch]$VerifyRustAccounting)
 $ErrorActionPreference='Stop'
 if ($env:CI -ne 'true') { throw 'MSI lifecycle tests require a disposable CI runner.' }
 $windowsRoot=Split-Path -Parent $PSScriptRoot
@@ -22,6 +22,20 @@ function Invoke-Msi([string[]]$Arguments,[bool]$Success=$true) {
     if ($Success -and $process.ExitCode -ne 0) { throw "MSI failed with $($process.ExitCode). See $log" }
     if (-not $Success -and $process.ExitCode -eq 0) { throw 'MSI did not reject the failure fixture.' }
     return $process.ExitCode
+}
+function Assert-RustFiles([bool]$Present) {
+    if (-not $VerifyRustAccounting) { return }
+    foreach ($name in @('coderim_accounting_bridge.dll', 'Rust-Notices.txt')) {
+        $installedFile = Join-Path $app $name
+        if (-not $Present) {
+            if (Test-Path -LiteralPath $installedFile) { throw "Unexpected remaining Rust payload: $name" }
+        } else {
+            $expectedFile = Join-Path $current $name
+            if ((Get-FileHash -LiteralPath $installedFile).Hash -cne (Get-FileHash -LiteralPath $expectedFile).Hash) {
+                throw "Installed Rust payload differs from candidate: $name"
+            }
+        }
+    }
 }
 function Product-State {
     $key=Get-ItemProperty 'HKCU:\Software\CodeRim\Installer' -ErrorAction Stop
@@ -89,10 +103,12 @@ try {
     $failedMsi=Join-Path $qa 'failure.msi';Build-Fixture $version $current $failureTemplate $failedMsi
     [void](Invoke-Msi @('/i',('"'+$failedMsi+'"'),'LAUNCHAPP=0') $false)
     Require-InjectedRollback
+    Assert-RustFiles $false
     Compare-State $before (Product-State);$results.Add('injected-upgrade-failure-restores-binaries-registration-path-shortcut')
     [void](Invoke-Msi @('/i',('"'+$Installer+'"'),'LAUNCHAPP=0'))
     $after=Product-State
     if($after.version -ne $version -or [Diagnostics.FileVersionInfo]::GetVersionInfo((Join-Path $app 'CodeRim.exe')).FileVersion -ne "$version.0"){throw 'Upgrade version mismatch'}
+    Assert-RustFiles $true
     $results.Add('upgrade-current-version')
     [void](Invoke-Msi @('/i',('"'+$oldMsi+'"'),'LAUNCHAPP=0') $false)
     Compare-State $after (Product-State);$results.Add('downgrade-refused-without-changes')
@@ -111,6 +127,7 @@ try {
     if([IO.File]::ReadAllText($sentinel) -cne 'preserve'){throw 'Uninstall changed user data'}
     $remaining=[string][Environment]::GetEnvironmentVariable('Path','User')
     if($remaining.TrimEnd(';') -cne $originalPath.TrimEnd(';')){throw 'Uninstall changed unrelated PATH values'}
+    Assert-RustFiles $false
     $results.Add('uninstall-preserves-user-data-and-unrelated-path')
     # The public ZIP installer creates a CLI path without a trailing separator.
     # This must remain a single path when adopting the portable files into MSI.
@@ -125,6 +142,7 @@ try {
     foreach($name in $portableFiles.Keys){if((Get-FileHash (Join-Path $app $name) -Algorithm SHA256).Hash -cne $portableFiles[$name]){throw "Failed portable migration changed $name"}}
     if((Get-ItemProperty 'HKCU:\Software\CodeRim\Installer' -ErrorAction SilentlyContinue).ProductCode){throw 'Failed portable migration left MSI registration.'}
     if((New-Object -ComObject WScript.Shell).CreateShortcut((Join-Path ([Environment]::GetFolderPath('Programs')) 'CodeRim.lnk')).TargetPath -cne $portableShortcut){throw 'Failed portable migration changed the shortcut.'}
+    Assert-RustFiles $false
     $results.Add('portable-migration-failure-restores-files-path-shortcut')
     [void](Invoke-Msi @('/i',('"'+$Installer+'"'),'LAUNCHAPP=0'))
     Require-OneCliPath;Require-OriginalUnrelatedPath
@@ -132,6 +150,7 @@ try {
     foreach($name in $portableAfter.files.Keys){if($portableAfter.files[$name] -cne (Get-FileHash (Join-Path $current $name) -Algorithm SHA256).Hash){throw "Portable migration retained old $name"}}
     [void](Invoke-Msi @('/fvamus',('"'+$Installer+'"'),'LAUNCHAPP=0'))
     Require-OneCliPath;Require-OriginalUnrelatedPath
+    Assert-RustFiles $true
     $results.Add('portable-migration-and-repair-keep-one-cli-path')
     [void](Invoke-Msi @('/x',$portableAfter.product))
     if(Test-Path (Join-Path $app 'CodeRim.exe')){throw 'Portable migration uninstall left the application binary.'}
@@ -154,6 +173,7 @@ try {
     [void](Invoke-Msi @('/i',('"'+$failedMsi+'"'),'LAUNCHAPP=0') $false)
     Require-InjectedRollback
     Compare-State $publicBefore (Product-State)
+    Assert-RustFiles $false
     $results.Add('public-2.1.11-failed-upgrade-restores-installation')
     [void](Invoke-Msi @('/i',('"'+$Installer+'"'),'LAUNCHAPP=0'))
     Require-OneCliPath;Require-OriginalUnrelatedPath
@@ -163,12 +183,14 @@ try {
         if($publicAfter.files[$name] -cne (Get-FileHash (Join-Path $current $name) -Algorithm SHA256).Hash){throw "Public MSI upgrade did not replace $name with the candidate."}
     }
     if([IO.File]::ReadAllText($sentinel) -cne 'preserve'){throw 'Public MSI upgrade changed user data.'}
+    Assert-RustFiles $true
     $results.Add('public-2.1.11-upgrade-replaces-all-candidate-binaries')
     [void](Invoke-Msi @('/x',$publicAfter.product))
     if(Test-Path (Join-Path $app 'CodeRim.exe')){throw 'Public upgrade uninstall left the application binary.'}
     if([IO.File]::ReadAllText($sentinel) -cne 'preserve'){throw 'Public upgrade uninstall changed user data.'}
     $remaining=[string][Environment]::GetEnvironmentVariable('Path','User')
     if($remaining.TrimEnd(';') -cne $originalPath.TrimEnd(';')){throw 'Public upgrade uninstall changed unrelated PATH values.'}
+    Assert-RustFiles $false
     $results.Add('public-upgrade-uninstall-preserves-user-data-and-path')
 } finally {
     @{architecture=$Architecture;passed=@($results);completed=($results.Count -eq 14);qaDirectory=$qa} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $repo 'Artifacts/windows-msi-lifecycle.json')
