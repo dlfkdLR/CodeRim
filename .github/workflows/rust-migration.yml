@@ -280,6 +280,15 @@ jobs:
             windows-${{ matrix.arch }}-scanner-sessions.json
             windows-${{ matrix.arch }}-codex-attachments.json
           if-no-files-found: error
+      - name: Compare bounded Windows stream reads with the release
+        run: |
+          $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
+          python Scripts/rust_migration/windows-bounded-lines/check.py --reference-source .migration-oracle --library "$library" --output "windows-${{ matrix.arch }}-bounded-lines.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-${{ matrix.arch }}-bounded-lines
+          path: windows-${{ matrix.arch }}-bounded-lines.json
+          if-no-files-found: error
       - name: Compare Settings session names and project detail names with the released WPF views
         run: python Scripts/rust_migration/windows-session-names/check.py --reference-source .migration-oracle --output "windows-${{ matrix.arch }}-session-names.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
