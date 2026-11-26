@@ -14,6 +14,8 @@ mod apple_sqlite;
 mod card_layout;
 mod claude_json;
 #[cfg(target_os = "macos")]
+mod companion_export;
+#[cfg(target_os = "macos")]
 mod copilot_quota;
 mod event_json;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]

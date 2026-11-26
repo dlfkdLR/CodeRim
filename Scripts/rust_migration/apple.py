@@ -55,7 +55,7 @@ def compare_hosts(work):
                   "transcript-contract", "threshold-contract", "analytics-db-contract", "window-placement",
                   "notch-cursor", "turn-activity", "log-timestamp", "provider-order",
                   "copilot-quota", "glyph-render", "activity-fields", "source-discovery", "notch-viewport",
-                  "desktop-mobile-order"]:
+                  "desktop-mobile-order", "companion-export"]:
         subprocess.run(["python3", str(Path(__file__).parent / suite / "check.py"),
                         "--archive", str(archive)], check=True)
 

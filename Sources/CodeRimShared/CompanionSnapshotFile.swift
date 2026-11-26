@@ -1,5 +1,8 @@
 import Foundation
 import Darwin
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 public enum CompanionSnapshotFile {
     public static var appGroup: String {
@@ -90,20 +93,68 @@ public enum CompanionSnapshotFile {
     }
 
     public static func write(_ snapshot: CompanionSnapshot, to url: URL) throws {
-        let manager = FileManager.default
+        #if CODERIM_RUST_ACCOUNTING
+        if url.isFileURL {
+            let data: Data
+            do {
+                data = try encode(snapshot)
+            } catch {
+                // Preserve directory creation and failure precedence for an unencodable snapshot.
+                try prepareDestination(url)
+                throw error
+            }
+            func publish() -> Int32 {
+                url.withUnsafeFileSystemRepresentation { path in
+                    data.withUnsafeBytes { bytes in
+                        cr_publish_companion_file(path, bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count)
+                    }
+                }
+            }
+            var status = publish()
+            if status != 0 && status != ELOOP {
+                // An existing directory was already checked through its open descriptor.
+                // Use Foundation's original directory creation and errors on failure.
+                try prepareDestination(url)
+                if status == ENOENT { status = publish() }
+            }
+            if status == ELOOP { throw SnapshotError.invalidFile }
+            if status != 0 { throw writeError(status, url: url) }
+            return
+        }
+        #endif
+        try prepareDestination(url)
+        let data = try encode(snapshot)
+        try data.write(to: url, options: [.atomic])
+        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    }
+
+    private static func prepareDestination(_ url: URL) throws {
         let directory = url.deletingLastPathComponent()
-        // Never follow a replaced export directory or file into another location.
         for candidate in [directory, url] {
             if (try? candidate.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink) == true {
                 throw SnapshotError.invalidFile
             }
         }
-        try manager.createDirectory(at: directory, withIntermediateDirectories: true,
-                                    attributes: [.posixPermissions: 0o700])
-        let data = try encode(snapshot)
-        try data.write(to: url, options: [.atomic])
-        try manager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
     }
+
+    #if CODERIM_RUST_ACCOUNTING
+    private static func writeError(_ status: Int32, url: URL) -> NSError {
+        let code: CocoaError.Code = switch status {
+        case ENOENT: .fileNoSuchFile
+        case EACCES, EPERM: .fileWriteNoPermission
+        case ENAMETOOLONG: .fileWriteInvalidFileName
+        case ENOSPC, EDQUOT: .fileWriteOutOfSpace
+        case EROFS: .fileWriteVolumeReadOnly
+        case EEXIST: .fileWriteFileExists
+        default: .fileWriteUnknown
+        }
+        return NSError(domain: NSCocoaErrorDomain, code: code.rawValue,
+                       userInfo: [NSFilePathErrorKey: url.path, NSURLErrorKey: url,
+                                  NSUnderlyingErrorKey: NSError(domain: NSPOSIXErrorDomain, code: Int(status))])
+    }
+    #endif
 
     public enum SnapshotError: Error, LocalizedError {
         case invalidFile, unsupportedVersion
