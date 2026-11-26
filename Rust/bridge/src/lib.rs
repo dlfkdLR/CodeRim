@@ -36,7 +36,7 @@ mod mobile_registration;
 mod mobile_selection;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod mobile_session_order;
-#[cfg(any(target_os = "macos", test))]
+#[cfg(any(target_os = "macos", target_os = "windows", target_os = "linux", test))]
 mod notch_path;
 #[cfg(any(target_os = "macos", test))]
 mod notch_viewport;

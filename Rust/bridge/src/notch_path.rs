@@ -71,6 +71,64 @@ pub struct Parameters {
     hardware_height: f64,
 }
 
+fn radii(depth: f64, length: f64, wanted: f64, flare: f64) -> (f64, f64) {
+    let curl = flare.min(length / 2.).min(depth - wanted).max(0.);
+    let corner = wanted.min((length - 2. * curl) / 2.).max(0.);
+    (curl, corner)
+}
+
+#[repr(C)]
+pub struct WindowsOutline {
+    depth: f64,
+    length: f64,
+    curl: f64,
+    corner: f64,
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn cr_windows_notch_outline(
+    full_depth: f64,
+    full_length: f64,
+    expansion: f64,
+    scale: f64,
+    pill_depth: f64,
+    pill_length: f64,
+    curl_radius: f64,
+    corner_radius: f64,
+) -> WindowsOutline {
+    // Non-finite inputs and signed zero can be observed through WPF. Let the
+    // host preserve its exact Math.Min/Max and exception semantics for these.
+    if ![full_depth, full_length, expansion, scale]
+        .into_iter()
+        .all(f64::is_finite)
+        || full_depth <= 0.
+        || full_length <= 0.
+        || scale <= 0.
+    {
+        return WindowsOutline {
+            depth: f64::NAN,
+            length: 0.,
+            curl: 0.,
+            corner: 0.,
+        };
+    }
+    let progress = expansion.clamp(0., 1.);
+    let depth = (pill_depth * scale).min(full_depth) * (1. - progress) + full_depth * progress;
+    let length = (pill_length * scale).min(full_length) * (1. - progress) + full_length * progress;
+    let (curl, corner) = radii(
+        depth,
+        length,
+        (corner_radius * scale).min(depth / 2.),
+        curl_radius * scale,
+    );
+    WindowsOutline {
+        depth,
+        length,
+        curl,
+        corner,
+    }
+}
+
 // SAFETY: coderim_notch_path.h reserves this symbol and its by-value C layouts.
 #[unsafe(no_mangle)]
 pub extern "C" fn cr_make_notch_path(parameters: Parameters) -> NotchPath {
@@ -120,8 +178,7 @@ pub extern "C" fn cr_make_notch_path(parameters: Parameters) -> NotchPath {
     };
     // Claim the outer corner first, preserving it as the resting pill narrows.
     let wanted = corner_radius.min(cap).min(depth / 2.).max(0.);
-    let curl = flare.min(length / 2.).min(depth - wanted).max(0.);
-    let corner = wanted.min((length - 2. * curl) / 2.).max(0.);
+    let (curl, corner) = radii(depth, length, wanted, flare);
     let bottom = length - curl;
 
     let mut path = NotchPath {

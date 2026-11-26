@@ -42,6 +42,21 @@ public static class NotchMetrics
     public const double ControlSpacing = (OrbHotZone + Control) / 2 + 1;
     public static double ControlExtent => Math.Ceiling(ControlSpacing + Control / 2);
 
+    public static NotchOutline OutlineFor(double fullDepth, double fullLength, double expansion, double scale)
+    {
+#if CODERIM_RUST_ACCOUNTING
+        var outline = RustNotchOutline.Calculate(fullDepth, fullLength, expansion, scale, PillDepth, PillLength, Curl, Corner);
+        if (!double.IsNaN(outline.Depth)) return outline;
+#endif
+        var progress = Math.Clamp(expansion, 0, 1);
+        var depth = Math.Min(PillDepth * scale, fullDepth) * (1 - progress) + fullDepth * progress;
+        var length = Math.Min(PillLength * scale, fullLength) * (1 - progress) + fullLength * progress;
+        var wanted = Math.Min(Corner * scale, depth / 2);
+        var curl = Math.Max(0, Math.Min(Curl * scale, Math.Min(length / 2, depth - wanted)));
+        var corner = Math.Max(0, Math.Min(wanted, (length - 2 * curl) / 2));
+        return new NotchOutline(depth, length, curl, corner);
+    }
+
     public static double StartPadding(NotchEdge edge) => edge is NotchEdge.Left or NotchEdge.Right ? PadStart : (PadStart + PadEnd) / 2;
     public static double EndPadding(NotchEdge edge) => edge is NotchEdge.Left or NotchEdge.Right ? PadEnd : (PadStart + PadEnd) / 2;
     public static bool ControlsAtStart(NotchEdge edge, string preference, double bodyLength, double scale, double screenAlong, double offset)
