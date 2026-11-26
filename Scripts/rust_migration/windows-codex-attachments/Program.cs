@@ -5,9 +5,28 @@ using System.Text;
 using System.Text.Json;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
+using CodeRim.Core.Parsing;
 
 var clock = DateTimeOffset.UnixEpoch;
 var cases = new List<object>();
+if (args[0] == "contract")
+{
+    using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+    for (int code = 0; code <= char.MaxValue; code++)
+    {
+        using var doc = JsonDocument.Parse(JsonSerializer.SerializeToUtf8Bytes(new { text = "A" + (char)code + "B" }));
+        string? actual = JsonFields.Text(doc.RootElement, "text");
+        hash.AppendData(Encoding.Unicode.GetBytes(actual ?? ""));
+        if ((actual is null) != char.IsControl((char)code)) throw new InvalidDataException("Control character classification changed");
+    }
+    foreach (int count in new[] { 0, 1, 511, 512, 513 })
+    {
+        using var doc = JsonDocument.Parse(JsonSerializer.SerializeToUtf8Bytes(new { text = new string('a', count) }));
+        if ((JsonFields.Text(doc.RootElement, "text") is not null) != (count > 0 && count <= 512))
+            throw new InvalidDataException("Text length validation changed");
+    }
+    cases.Add(new { codeUnits = 65536, digest = Convert.ToHexString(hash.GetHashAndReset()) });
+}
 foreach (var (files, perFile) in new[] { (0, 0), (4, 0), (5, 3), (4, 65), (2, 32768) })
 {
     var dir = Path.Combine(args[1], $"{files}-{perFile}");
@@ -103,7 +122,7 @@ void Seed(string dir, int files, int perFile)
         for (var i = 0; i < perFile; i++)
         {
             var ts = clock.AddTicks(Offset(f, perFile, i)).ToOffset(TimeSpan.FromHours(i % 3 - 1)).ToString("O", CultureInfo.InvariantCulture);
-            writer.WriteLine(JsonSerializer.Serialize(new { type = "response_item", timestamp = ts, id = $"m-{f}-{i}",
+            writer.WriteLine(JsonSerializer.Serialize(new { type = "response_item", timestamp = ts, id = $"m-{f}-{i}", ordinal = i % 2 == 0 ? (long?)i : null,
                 payload = new { type = "message", role = "user", content = Enumerable.Range(0, i % 2 + 1).Select(n => new { type = "input_image", image_url = $"fixture-{i}-{n}" }) } }));
         }
     }
