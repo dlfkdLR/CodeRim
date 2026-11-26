@@ -39,7 +39,8 @@ def main():
         commands = ["read", insert(0, -500), insert(1, "0.999999999"), "read", "BEGIN",
                     insert(2, 2_000_000_000), "ROLLBACK", "BEGIN", insert(2, 2_000_000_000),
                     "COMMIT", "DELETE FROM usage_events WHERE event_key='0'", "read",
-                    "DROP INDEX usage_events_occurred_at_idx", "read", "DELETE FROM usage_events", "read",
+                    "DROP INDEX usage_events_occurred_at_idx", "read",
+                    "DROP INDEX usage_events_analytics_idx", "read", "DELETE FROM usage_events", "read",
                     "DROP TABLE usage_events", "read"]
         traces = {}
         for name, binary in binaries.items():
@@ -53,14 +54,18 @@ def main():
         report = {"arch": args.arch, "commands": commands, "observations": traces["published"]}
         if args.benchmark_output:
             rows = {}
-            for size in (0, 128, 65536):
-                path = work / f"time-{size}.sqlite"
+            for label, size, unindexed in [("0", 0, False), ("128", 128, False),
+                                          ("65536", 65536, False), ("65536-unindexed", 65536, True)]:
+                path = work / f"time-{label}.sqlite"
                 shutil.copyfile(base, path)
                 db = sqlite3.connect(path)
                 with db:
                     db.executemany("INSERT INTO usage_events(event_key,occurred_at,input_tokens,cached_input_tokens,"
                                    "output_tokens,source_generation,source_path,source_position) VALUES(?,?,1,0,0,0,'fixture',?)",
                                    ((str(i), (i * 117) % 153691 / 7, i) for i in range(size)))
+                    if unindexed:
+                        db.execute("DROP INDEX usage_events_occurred_at_idx")
+                        db.execute("DROP INDEX usage_events_analytics_idx")
                 db.close()
                 for mode in ["changed", "cached"]:
                     results = {k: [] for k in binaries}
@@ -75,7 +80,7 @@ def main():
                             results[k].append({"wallUs": int(wall) / repetitions / 1000,
                                                "cpuUs": int(cpu) / repetitions / 1000, "bounds": value})
                     assert len({r["bounds"] for samples in results.values() for r in samples}) == 1
-                    rows[f"{size}-{mode}"] = {"samples": results, "medianUs": {
+                    rows[f"{label}-{mode}"] = {"samples": results, "medianUs": {
                         name: {key: median(r[key] for r in samples) for key in ["wallUs", "cpuUs"]}
                         for name, samples in results.items()}}
             report["times"] = rows

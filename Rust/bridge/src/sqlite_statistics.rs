@@ -43,14 +43,30 @@ pub unsafe extern "C" fn cr_statistics_event_bounds(
     if db.is_null() || bounds.is_null() {
         return 0;
     }
-    // Separate aggregate subqueries let SQLite seek to each end of the original
-    // occurred_at index. Combining both aggregates in one SELECT scans all rows.
-    let sql = c"SELECT (SELECT min(occurred_at) FROM usage_events), (SELECT max(occurred_at) FROM usage_events)";
+    // Healthy profiles can seek to each end of either timestamp index. If a
+    // restored profile lacks both, compute both aggregates during one table scan.
+    // The left side of the CROSS JOIN tests the guard before scanning any rows.
+    let sql = c"WITH indexed(available) AS MATERIALIZED (
+                    SELECT EXISTS(SELECT 1 FROM sqlite_schema
+                                  WHERE type='index' AND tbl_name='usage_events'
+                                  AND name IN ('usage_events_occurred_at_idx','usage_events_analytics_idx')))
+                SELECT (SELECT min(occurred_at) FROM usage_events), (SELECT max(occurred_at) FROM usage_events)
+                    FROM indexed WHERE available
+                UNION ALL
+                SELECT bounds.oldest, bounds.newest FROM indexed CROSS JOIN
+                    (SELECT min(occurred_at) AS oldest, max(occurred_at) AS newest FROM usage_events) AS bounds
+                    WHERE NOT available";
     let mut statement = ptr::null_mut();
     unsafe {
-        if sqlite3_prepare_v2(db, sql.as_ptr(), -1, &mut statement, ptr::null_mut()) != 0
-            || statement.is_null()
-        {
+        let mut rc = sqlite3_prepare_v2(db, sql.as_ptr(), -1, &mut statement, ptr::null_mut());
+        // A read-only authorizer can permit the event table while restricting schema
+        // introspection. Keep the original authorized aggregate in that case.
+        const SQLITE_AUTH: c_int = 23;
+        if rc == SQLITE_AUTH {
+            let original = c"SELECT MIN(occurred_at), MAX(occurred_at) FROM usage_events";
+            rc = sqlite3_prepare_v2(db, original.as_ptr(), -1, &mut statement, ptr::null_mut());
+        }
+        if rc != 0 || statement.is_null() {
             report(context, sqlite3_errmsg(db));
             return 0;
         }
