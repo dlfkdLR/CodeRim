@@ -17,13 +17,19 @@ foreach (int size in new[] {0, 1, 64, 4096, 16384}) {
     foreach (int metadata in new[] {0, 80, 100})
     foreach (bool expanded in new[] {false, true}) {
         var old = new Legacy(provider);
+        var current = new Current(provider);
         foreach (var s in sessions.Select((x,i) => (x.Id,i)).Where(y => y.i % 100 < metadata)) {
-            if (s.i % 3 == 0) old.store.CodexAnalyticsLabels[s.Id] = new(s.i % 2 == 0 ? "" : $"title-{s.Id}", "");
+            if (s.i % 3 == 0) {
+                string title = s.i % 2 == 0 ? "" : $"title-{s.Id}";
+                old.store.CodexAnalyticsLabels[s.Id] = new(title, "");
+                current.store.CodexAnalyticsLabels[s.Id] = new(title, "");
+            }
             old.analyticsMetadata[s.Id] = new(null,$"metadata-{s.Id}");
+            current.analyticsMetadata[s.Id] = new(null,$"metadata-{s.Id}");
         }
         int shown = expanded ? sessions.Length : Math.Min(5,sessions.Length);
         string[] Original() => sessions.Take(shown).Select(item => old.Name(source.Where(x => x.SessionId == item.Id),item.Id)).ToArray();
-        IReadOnlyList<string> Candidate() => AnalyticsEventNames.ForSessions(source, sessions, shown, old.Published);
+        IReadOnlyList<string> Candidate() => AnalyticsEventNames.ForSessions(source, sessions, shown, current.Published);
         if (!Original().SequenceEqual(Candidate(),StringComparer.Ordinal)) throw new InvalidDataException("Session names differ.");
         checkedFrames++; checkedNames += shown;
         if (provider != "codex" || size < 4096) continue;

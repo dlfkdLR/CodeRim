@@ -35,8 +35,10 @@ sealed class Legacy(string provider)
     current = (root / "Windows/src/CodeRim.Windows/Views/UsagePane.cs").read_text(encoding="utf-8")
     current_methods = current[current.index("    private string? PublishedSessionName("):current.index("    private string SessionListDetail(")]
     legacy_source = (work / "Legacy.cs").read_text(encoding="utf-8")
-    (work / "Current.cs").write_text(legacy_source.replace("sealed class Legacy(", "sealed class Current(")
-                                 .replace(methods, current_methods), encoding="utf-8")
+    prefix = legacy_source[:legacy_source.index("    public string? Published(")]
+    (work / "Current.cs").write_text(prefix.replace("sealed class Legacy(", "sealed class Current(")
+                                    + "    public string? Published(string id) => PublishedSessionName(id);\n"
+                                    + current_methods + "}\n", encoding="utf-8")
     (work / "LabelContract.csproj").write_text('''<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable><LangVersion>12</LangVersion><TreatWarningsAsErrors>true</TreatWarningsAsErrors></PropertyGroup>
