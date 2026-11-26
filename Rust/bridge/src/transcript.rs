@@ -1,5 +1,7 @@
 //! Plan bounded transcript records without retaining a pointer into a file read.
 use std::slice;
+#[path = "transcript_filter.rs"]
+mod filter;
 
 const EMIT: u32 = 0;
 const SKIP: u32 = 1;

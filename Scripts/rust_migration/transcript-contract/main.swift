@@ -87,7 +87,9 @@ private func bench(_ gap: Int) throws {
     }
     print(total, (DispatchTime.now().uptimeNanoseconds - start) / 3)
 }
-if let gap = CommandLine.arguments.dropFirst().first.flatMap(Int.init) {
+if CommandLine.arguments.dropFirst().first == "filter" {
+    try await runFilter(Array(CommandLine.arguments.dropFirst(2)))
+} else if let gap = CommandLine.arguments.dropFirst().first.flatMap(Int.init) {
     try bench(gap)
 } else {
     try cases()

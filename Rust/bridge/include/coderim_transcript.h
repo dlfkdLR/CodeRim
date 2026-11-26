@@ -12,6 +12,14 @@ typedef struct {
 
 size_t cr_transcript_plan(const uint8_t *bytes, size_t length, size_t carried,
                           bool discarding, size_t limit, CRTranscriptSpan *output, size_t capacity);
+typedef bool (*CRTranscriptCancelled)(void);
+typedef void (*CRTranscriptLine)(void *context, const uint8_t *bytes, size_t length);
+/* The caller lends a regular file descriptor and a packed buffer of nonempty UTF-8
+   markers for the synchronous call. Only complete matching records are delivered.
+   A negative result declines before callbacks. 0 = finished, 1 = cancelled, 2 = I/O error. */
+int32_t cr_transcript_match_file(int32_t fd, uint64_t end, size_t line_limit,
+                                 const uint8_t *markers, size_t bytes, const size_t *lengths, size_t count,
+                                 void *context, CRTranscriptCancelled cancelled, CRTranscriptLine visit);
 typedef struct {
     uint64_t completed_offset, boundary_start, boundary_end;
 } CRTurnScan;

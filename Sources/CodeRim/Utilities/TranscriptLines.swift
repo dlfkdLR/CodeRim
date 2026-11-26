@@ -12,14 +12,52 @@ enum TranscriptLines {
                             _ body: (Data) -> Void) {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return }
         defer { try? handle.close() }
+        guard let size = try? handle.seekToEnd() else { return }
+        let end = min(size, fileLimit)
+        #if CODERIM_RUST_ACCOUNTING
+        if visitMatchingLines(handle, through: end, needles: needles, body) { return }
+        #endif
         let needleData = needles.map { Data($0.utf8) }
         func matches(_ line: Data) -> Bool { needleData.contains { line.range(of: $0) != nil } }
         var cursor = TranscriptLineCursor()
-        guard let size = try? handle.seekToEnd() else { return }
-        try? cursor.read(handle, through: min(size, fileLimit)) { line in
+        try? cursor.read(handle, through: end) { line in
             if matches(line) { body(copying ? Data(line) : line) }
         }
     }
+
+    #if CODERIM_RUST_ACCOUNTING
+    private static func visitMatchingLines(_ handle: FileHandle, through end: UInt64, needles: [String],
+                                           _ body: (Data) -> Void) -> Bool {
+        if end == 0 || needles.isEmpty { return true }
+        guard needles.count <= 64 else { return false }
+        var markers = Data()
+        var lengths = [Int]()
+        for needle in needles {
+            let length = needle.utf8.count
+            guard length > 0, length <= 16_384 - markers.count else { return false }
+            markers.append(contentsOf: needle.utf8)
+            lengths.append(length)
+        }
+        return withoutActuallyEscaping(body) { visit in
+            var callback = visit
+            return markers.withUnsafeBytes { bytes in
+                lengths.withUnsafeBufferPointer { sizes in
+                    // The Rust reader borrows the callback until return. Swift Data owns
+                    // every delivered line, including lines the caller retains after this read.
+                    withUnsafeMutablePointer(to: &callback) { callbackPointer in
+                        cr_transcript_match_file(handle.fileDescriptor, end, TranscriptLineCursor.lineBytes,
+                            bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count, sizes.baseAddress, sizes.count,
+                            callbackPointer, { Task.isCancelled }, { context, record, count in
+                                guard let context, let record else { return }
+                                let visit = context.assumingMemoryBound(to: ((Data) -> Void).self).pointee
+                                visit(Data(bytes: record, count: count))
+                            }) >= 0
+                    }
+                }
+            }
+        }
+    }
+    #endif
 
     static func parse(_ stamp: String) -> Date? {
         #if CODERIM_RUST_ACCOUNTING
