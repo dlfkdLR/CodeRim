@@ -1,0 +1,24 @@
+{
+  "bundleID": "dev.codexmeter.CodexMeter",
+  "version": "2.1.41",
+  "installations": {
+    "zip": {
+      "executableSha256": "7dcea9292094adc4ce572211b6c9e8376b7b72f537037fd59974ec2219baf688",
+      "widgetSha256": "0065272be53de0003311f215335096a7021a0b9f714eb3daabb769135a95e898",
+      "restartHelperSha256": "2cae89cffbae053c5083ff0ed1eb152424c451ab0908e89d8ffac76125712430",
+      "verifiedRustWidget": true,
+      "version": "CodeRim CLI 2.1.41 (schema 1)",
+      "bytes": 25827360,
+      "packageSha256": "4329f291318ce93798d749d82fb695a3d312587e1e9196016eab5e642d47882e"
+    },
+    "dmg": {
+      "executableSha256": "7dcea9292094adc4ce572211b6c9e8376b7b72f537037fd59974ec2219baf688",
+      "widgetSha256": "0065272be53de0003311f215335096a7021a0b9f714eb3daabb769135a95e898",
+      "restartHelperSha256": "2cae89cffbae053c5083ff0ed1eb152424c451ab0908e89d8ffac76125712430",
+      "verifiedRustWidget": true,
+      "version": "CodeRim CLI 2.1.41 (schema 1)",
+      "bytes": 29230449,
+      "packageSha256": "d42202dd542352f2686ac92a1dced499c0d369a95bf9f2b2ab20e8e7ff163993"
+    }
+  }
+}

@@ -142,4 +142,6 @@ The migration branch is experimental. The data-collection and account flows, all
 | iPhone 대시보드와 Live Activity | 원격 iPhone 17 Pro 시뮬레이터에서 46개 테스트가 통과했다. 초기 빈 화면, 기기 선택, 오프라인 할당량과 작업 제목을 다룬다. | 실기기 잠금화면에 표시되는 Live Activity는 추가 확인이 필요하다. [XCTest](verification/2026-11-26/ios-1095a7a-tests.json) · [12,000개 상태](verification/2026-11-26/ios-island-reading.json) |
 | 모바일 릴레이 기기 상태 읽기 | 이미 가져온 기기 데이터에서 응답을 구성해 건당 SQL 조회가 8회에서 5회로 줄었다. 16개 기기·100개 서비스에서 연속 48회 요청의 중앙값은 108.90→57.42ms였고, 같은 방식으로 최적화한 JS는 57.59ms였다. | 로컬 SQLite에서 1,692개 경계 입력과 재개방을 검증했다. 배포된 릴레이 변경은 별도의 승인 조건에 속한다. [응답·저장 결과와 측정치](verification/2026-11-26/relay-snapshot-read.json) |
 
-개별 기능의 비교 결과와 정식 승인 판정은 별도로 기록한다. 설정 통계와 역방향 로그의 development-harness 결과는 INCONCLUSIVE였다. 업데이트 재시작은 검증 워크플로까지 바꾼 패치가 고정된 검증 입력 및 작업 경로 조건에 걸려 REJECT였다. 공개 서명, GUI 동작, 프로세스 성능, 장시간 수집과 물리 기기 검증을 포함한 전체 병합 요건은 계속 적용된다.
+개별 기능의 비교 결과와 정식 승인 판정은 별도로 기록한다. 설정 통계의 development-harness 결과는 INCONCLUSIVE였다. 역방향 로그와 업데이트 재시작의 판정은 REJECT였다. 각각 Cargo.lock 및 CI 워크플로의 변경이 고정된 검증 입력에 걸렸다. 업데이트 패치의 CI 파일은 작업 허용 경로에서도 벗어났다. 공개 서명, GUI 동작, 프로세스 성능, 장시간 수집과 물리 기기 검증을 포함한 전체 병합 요건은 계속 적용된다.
+
+macOS에서 통합 후보 `4325275`의 Universal 2 앱을 실제 ZIP·DMG로 만든 뒤 각각 새 디렉터리에 설치했다. 두 설치 모두 번들 서명, 앱·위젯·재시작용 CLI 해시와 CLI 116개 검사를 통과했다. ZIP은 25,827,360바이트, DMG는 29,230,449바이트였다. 기존 공개 ZIP은 33,022,789바이트이며 배포 서명·공증 조건이 다른 두 빌드의 크기다. [설치 결과와 체크섬](verification/2026-11-26/macos-restart-packages.json)
