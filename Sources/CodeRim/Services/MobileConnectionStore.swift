@@ -2,6 +2,9 @@ import Combine
 import CodeRimShared
 import Foundation
 import SystemConfiguration
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// The iPhone connection owns its monitors, so hiding the Mac notch cannot stop phone updates.
 @MainActor
@@ -277,18 +280,25 @@ final class MobileConnectionStore: ObservableObject {
                 updatedAt: provider.limits.updatedAt?.timeIntervalSince1970)
         }
         let selected = Set(providers.map(\.id))
-        let active = sessions.filter { selected.contains($0.key) }.flatMap { provider, values in
-            values.map { session -> MobileSession in
-                let phase: MobileSession.Phase = switch session.state {
-                case .busy: .working
-                case .waiting: .waiting
-                case .idle: .idle
-                case .unavailable: .unavailable
-                }
-                return MobileSession(providerID: provider, phase: phase,
-                    title: shareTitles ? String(session.detail.prefix(60)) : "",
-                    since: session.since == .distantPast ? nil : session.since.timeIntervalSince1970)
+        let groups = sessions.filter { selected.contains($0.key) }
+        func reading(_ provider: String, _ session: AgentSession) -> MobileSession {
+            let phase: MobileSession.Phase = switch session.state {
+            case .busy: .working
+            case .waiting: .waiting
+            case .idle: .idle
+            case .unavailable: .unavailable
             }
+            return MobileSession(providerID: provider, phase: phase,
+                title: shareTitles ? String(session.detail.prefix(60)) : "",
+                since: session.since == .distantPast ? nil : session.since.timeIntervalSince1970)
+        }
+        #if CODERIM_RUST_ACCOUNTING
+        if let ranked = rankedSessions(in: groups, reading: reading) {
+            return MobileSnapshot(generatedAt: now.timeIntervalSince1970, providers: providers, sessions: ranked)
+        }
+        #endif
+        let active = groups.flatMap { provider, values in
+            values.map { reading(provider, $0) }
         }.sorted { a, b in
             let rank: [MobileSession.Phase: Int] = [.waiting: 0, .working: 1, .idle: 2, .unavailable: 3]
             if rank[a.phase] != rank[b.phase] { return rank[a.phase, default: 3] < rank[b.phase, default: 3] }
@@ -296,4 +306,42 @@ final class MobileConnectionStore: ObservableObject {
         }
         return MobileSnapshot(generatedAt: now.timeIntervalSince1970, providers: providers, sessions: Array(active.prefix(64)))
     }
+
+    #if CODERIM_RUST_ACCOUNTING
+    /// Keep private fields on this Mac. Convert only the selected rows to the mobile wire format.
+    private static func rankedSessions(in groups: [String: [AgentSession]],
+                                       reading: (String, AgentSession) -> MobileSession) -> [MobileSession]? {
+        let count = groups.values.reduce(0) { $0 + $1.count }
+        guard count > 0 else { return [] }
+        guard count <= 1_000_000 else { return nil }
+        var keys: [CRMobileSessionKey] = []
+        keys.reserveCapacity(count)
+        var ranges: [(provider: String, rows: [AgentSession], start: Int)] = []
+        for (provider, rows) in groups where !rows.isEmpty {
+            ranges.append((provider, rows, keys.count))
+            for row in rows {
+                let rank: UInt32 = switch row.state {
+                case .waiting: 0
+                case .busy: 1
+                case .idle: 2
+                case .unavailable: 3
+                }
+                let since = row.since == .distantPast ? 0 : row.since.timeIntervalSince1970
+                keys.append(CRMobileSessionKey(since: since, rank: rank, reserved: 0))
+            }
+        }
+        let capacity = min(count, 64)
+        var indices = [UInt32](repeating: 0, count: capacity)
+        let written = cr_mobile_session_order(keys, UInt32(count), &indices, UInt32(capacity))
+        guard written == UInt32(capacity) else { return nil }
+        var result: [MobileSession] = []
+        result.reserveCapacity(capacity)
+        for index in indices {
+            let i = Int(index)
+            guard i < count, let group = ranges.last(where: { $0.start <= i }) else { return nil }
+            result.append(reading(group.provider, group.rows[i - group.start]))
+        }
+        return result
+    }
+    #endif
 }
