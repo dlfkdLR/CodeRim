@@ -42,7 +42,8 @@ final class ProfileUsageStore: ObservableObject {
         self.defaults = defaults
         self.allowsAccountTotals = allowsAccountTotals
         self.fetcher = fetcher
-        let enabled = allowsAccountTotals && (defaults.object(forKey: Self.enabledPreferenceKey) as? Bool ?? false)
+        let enabled = ProfileSyncDecision(allowed: allowsAccountTotals,
+            requested: defaults.object(forKey: Self.enabledPreferenceKey) as? Bool ?? false).enabled
         isEnabled = enabled
         status = enabled ? .idle : .disabled
         observedWeekStartRawValue = Self.storedWeekStartRawValue(in: defaults)
@@ -107,20 +108,21 @@ final class ProfileUsageStore: ObservableObject {
 
     func setEnabled(_ enabled: Bool) {
         defaults.set(enabled, forKey: Self.enabledPreferenceKey)
-        applyEnabledState(allowsAccountTotals && enabled)
+        applyEnabledState(ProfileSyncDecision(allowed: allowsAccountTotals, requested: enabled).enabled)
     }
 
     func synchronizeEnabledPreference() {
-        let enabled = allowsAccountTotals && (defaults.object(forKey: Self.enabledPreferenceKey) as? Bool ?? false)
+        let requested = allowsAccountTotals && (defaults.object(forKey: Self.enabledPreferenceKey) as? Bool ?? false)
         let wasEnabled = isEnabled
         let weekStartRawValue = Self.storedWeekStartRawValue(in: defaults)
-        let weekStartChanged = weekStartRawValue != observedWeekStartRawValue
+        let decision = ProfileSyncDecision(allowed: allowsAccountTotals, requested: requested,
+            wasEnabled: wasEnabled, weekStartChanged: weekStartRawValue != observedWeekStartRawValue)
         observedWeekStartRawValue = weekStartRawValue
-        applyEnabledState(enabled)
-        if enabled, weekStartChanged {
+        applyEnabledState(decision.enabled)
+        if decision.invalidateSnapshot {
             invalidateSnapshotForCalendarContextChange()
         }
-        if enabled, !wasEnabled || weekStartChanged {
+        if decision.scheduleRefresh {
             scheduleAutomaticRefresh()
         }
     }

@@ -1,5 +1,7 @@
 //! Fixed-layout normalization entry points take and return values by copy.
 //! Presence flags distinguish an absent measurement from any signed counter.
+#[cfg(any(target_os = "macos", test))]
+mod account_history;
 mod aggregation;
 mod claude_json;
 mod event_json;

@@ -4,6 +4,28 @@ import XCTest
 @testable import CodeRim
 
 final class UsageDisplayPolicyTests: XCTestCase {
+    func testSyncPolicyOnlyRefreshesEnabledProfilesAfterARelevantChange() {
+        for allowed in [false, true] {
+            for requested in [false, true] {
+                for wasEnabled in [false, true] {
+                    for changed in [false, true] {
+                        var readCount = 0
+                        func readPreference() -> Bool {
+                            readCount += 1
+                            return requested
+                        }
+                        let decision = ProfileSyncDecision(allowed: allowed, requested: readPreference(),
+                            wasEnabled: wasEnabled, weekStartChanged: changed)
+                        XCTAssertEqual(readCount, allowed ? 1 : 0)
+                        XCTAssertEqual(decision.enabled, allowed && requested)
+                        XCTAssertEqual(decision.invalidateSnapshot, allowed && requested && changed)
+                        XCTAssertEqual(decision.scheduleRefresh, allowed && requested && (!wasEnabled || changed))
+                    }
+                }
+            }
+        }
+    }
+
     func testEnablingAccountTotalsDoesNotOverrideAnyLocalPeriod() {
         for period in UsagePeriod.allCases {
             XCTAssertEqual(total(period, .local, local, profile), local.totals(for: period).totalTokens)
