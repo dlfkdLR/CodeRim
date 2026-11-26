@@ -4,6 +4,8 @@
 mod account_history;
 #[cfg(any(target_os = "macos", test))]
 mod activity_distribution;
+#[cfg(target_os = "macos")]
+mod activity_fields;
 mod aggregation;
 mod analytics_chart;
 #[cfg(target_os = "macos")]

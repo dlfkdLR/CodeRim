@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// Reads the few values a log record carries by looking for them in its bytes.
 ///
@@ -9,13 +12,43 @@ import Foundation
 /// read up to its closing quote; none of the ones wanted contain one.
 enum LogBytes {
     static func contains(_ line: Data, _ needle: Data) -> Bool {
-        line.range(of: needle) != nil
+        #if CODERIM_RUST_ACCOUNTING
+        let start = line.withUnsafeBytes { bytes in
+            lookup(bytes, marker: needle, from: 0, quoted: false).start
+        }
+        if start != -2 { return start >= 0 }
+        #endif
+        return line.range(of: needle) != nil
     }
+
+    #if CODERIM_RUST_ACCOUNTING
+    private static func lookup(_ bytes: UnsafeRawBufferPointer, marker: Data, from: Int, quoted: Bool) -> CRActivityField {
+        marker.withUnsafeBytes { key in
+            cr_activity_field(bytes.bindMemory(to: UInt8.self).baseAddress, bytes.count,
+                              key.bindMemory(to: UInt8.self).baseAddress, key.count, from, quoted)
+        }
+    }
+    #endif
 
     /// The text after the first `marker` (for instance `"model":"`) at or after
     /// `from`, up to the closing quote, and where that quote is.
     static func string(after marker: Data, in line: Data, from: Data.Index? = nil)
         -> (value: String, end: Data.Index)? {
+        #if CODERIM_RUST_ACCOUNTING
+        let offset = (from ?? line.startIndex) - line.startIndex
+        if offset >= 0 && offset <= line.count {
+            var delegate = false
+            let result = line.withUnsafeBytes { raw -> (String, Data.Index)? in
+                let bounds = lookup(raw, marker: marker, from: offset, quoted: true)
+                if bounds.start == -2 { delegate = true; return nil }
+                guard bounds.start >= 0 else { return nil }
+                let bytes = raw.bindMemory(to: UInt8.self)
+                let value = String(decoding: bytes[bounds.start..<bounds.end], as: UTF8.self)
+                return (value, line.startIndex + bounds.end)
+            }
+            if !delegate { return result }
+        }
+        #endif
         guard let found = line.range(of: marker, in: (from ?? line.startIndex)..<line.endIndex) else { return nil }
         var bytes: [UInt8] = []
         var index = found.upperBound
@@ -62,7 +95,14 @@ final class ActivityDayResolver {
         guard stamp.count >= 16 else { return nil }
         let key = String(stamp.prefix(16))
         if let cached = cache[key] { return cached }
-        guard let date = formatter.date(from: key + ":00Z") else { return nil }
+        let minute = key + ":00Z"
+        #if CODERIM_RUST_ACCOUNTING
+        let seconds = cr_log_reference_date(minute, minute.utf8.count, true)
+        let resolved = seconds.isFinite ? Date(timeIntervalSinceReferenceDate: seconds) : formatter.date(from: minute)
+        #else
+        let resolved = formatter.date(from: minute)
+        #endif
+        guard let date = resolved else { return nil }
         let day = calendar.startOfDay(for: date)
         cache[key] = day
         return day

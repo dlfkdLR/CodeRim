@@ -19,6 +19,11 @@ typedef bool (*CRTurnDecoder)(void *context, const uint8_t *record, size_t lengt
 // Returns false on a short read or I/O error. UINT64_MAX marks absent offsets.
 bool cr_turn_scan(int32_t fd, uint64_t lower, uint64_t end, bool include_first,
                   size_t record_limit, void *context, CRTurnDecoder decode, CRTurnScan *output);
+// Negative starts mean absent (-1) or delegate to Foundation (-2). Otherwise
+// both offsets are within the caller's immutable Data bytes and end is exclusive.
+typedef struct { intptr_t start; size_t end; } CRActivityField;
+CRActivityField cr_activity_field(const uint8_t *data, size_t length, const uint8_t *marker,
+                                  size_t marker_length, size_t from, bool quoted);
 // Returns seconds since 2001 or NaN to delegate to the original Foundation parser.
 // The formatter used by macOS transcript display has millisecond precision.
 double cr_log_reference_date(const char *text, size_t length, bool milliseconds);

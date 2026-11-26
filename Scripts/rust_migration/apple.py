@@ -53,7 +53,8 @@ def compare_hosts(work):
     for suite in ["pricing-contract", "claude-parser-contract", "analytics-chart-contract", "notch-card-contract",
                   "line-breaks-contract", "storage-identity-contract", "activity-distribution", "quota-window",
                   "transcript-contract", "threshold-contract", "analytics-db-contract", "window-placement",
-                  "notch-cursor", "turn-activity", "log-timestamp", "provider-order", "copilot-quota", "glyph-render"]:
+                  "notch-cursor", "turn-activity", "log-timestamp", "provider-order",
+                  "copilot-quota", "glyph-render", "activity-fields"]:
         subprocess.run(["python3", str(Path(__file__).parent / suite / "check.py"),
                         "--archive", str(archive)], check=True)
 
