@@ -97,7 +97,14 @@ struct AppServerProcessRunner: AppServerProcessRunning {
     }
 
     private func containsResponseID2(_ data: Data) -> Bool {
-        data.split(separator: 0x0A).contains { line in
+        #if CODERIM_RUST_ACCOUNTING
+        switch AccountLimitResponseSelection.find(in: data, last: false) {
+        case .found: return true
+        case .absent: return false
+        case .foundation: break
+        }
+        #endif
+        return data.split(separator: 0x0A).contains { line in
             guard let object = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
                   let identifier = object["id"] as? NSNumber,
                   CFGetTypeID(identifier) != CFBooleanGetTypeID()

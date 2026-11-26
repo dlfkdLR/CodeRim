@@ -54,7 +54,7 @@ def compare_hosts(work):
                   "line-breaks-contract", "storage-identity-contract", "activity-distribution", "quota-window",
                   "transcript-contract", "threshold-contract", "analytics-db-contract", "window-placement",
                   "notch-cursor", "turn-activity", "log-timestamp", "provider-order",
-                  "copilot-quota", "ollama-quota", "ollama-local", "glyph-render", "activity-fields",
+                  "copilot-quota", "ollama-quota", "ollama-local", "app-server-response", "glyph-render", "activity-fields",
                   "source-discovery", "notch-viewport", "desktop-mobile-order", "companion-export",
                   "sqlite-event-import", "sqlite-legacy-ids", "source-fingerprint", "import-selection",
                   "claude-tail-activity"]:

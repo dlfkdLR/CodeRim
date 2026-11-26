@@ -9,6 +9,8 @@ mod activity_fields;
 mod aggregation;
 mod analytics_chart;
 #[cfg(target_os = "macos")]
+mod app_server_response;
+#[cfg(target_os = "macos")]
 mod apple_sqlite;
 #[cfg(any(target_os = "macos", test))]
 mod auggie_quota;

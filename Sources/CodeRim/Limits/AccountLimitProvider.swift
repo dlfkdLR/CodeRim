@@ -1,4 +1,24 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+
+enum AccountLimitResponseSelection {
+    case absent, found(Range<Data.Index>), foundation
+
+    static func find(in data: Data, last: Bool) -> Self {
+        let match = data.withUnsafeBytes { raw in
+            cr_app_server_response(raw.bindMemory(to: UInt8.self).baseAddress, raw.count, last ? 1 : 0)
+        }
+        switch match.status {
+        case UInt32(CR_RPC_ABSENT): return .absent
+        case UInt32(CR_RPC_FOUND):
+            let start = data.startIndex + match.offset
+            return .found(start..<(start + match.length))
+        default: return .foundation
+        }
+    }
+}
+#endif
 
 protocol AccountLimitProviding: Sendable {
     func readLimits() async throws -> AccountLimitsSnapshot
@@ -10,25 +30,37 @@ struct AccountLimitsResponseParser: Sendable {
             throw AccountLimitError.responseTooLarge
         }
 
+        #if CODERIM_RUST_ACCOUNTING
+        switch AccountLimitResponseSelection.find(in: data, last: true) {
+        case .absent: throw AccountLimitError.malformedResponse
+        case .found(let range):
+            if let snapshot = try decode(data[range], fetchedAt: fetchedAt) { return snapshot }
+        case .foundation: break
+        }
+        #endif
         for line in data.split(separator: 0x0A).reversed() {
-            guard let object = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
-                  numericID(object["id"]) == 2
-            else { continue }
-
-            if let error = object["error"] as? [String: Any] {
-                let message = sanitizedText(error["message"]) ?? "Codex app-server rejected the limits request."
-                throw AccountLimitError.server(message)
-            }
-            guard let result = object["result"] as? [String: Any] else {
-                throw AccountLimitError.malformedResponse
-            }
-            return AccountLimitsSnapshot(
-                windows: parseWindows(result),
-                resetCredits: parseResetCredits(result["rateLimitResetCredits"]),
-                fetchedAt: fetchedAt
-            )
+            if let snapshot = try decode(line, fetchedAt: fetchedAt) { return snapshot }
         }
         throw AccountLimitError.malformedResponse
+    }
+
+    private func decode(_ line: Data, fetchedAt: Date) throws -> AccountLimitsSnapshot? {
+        guard let object = try? JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
+              numericID(object["id"]) == 2
+        else { return nil }
+
+        if let error = object["error"] as? [String: Any] {
+            let message = sanitizedText(error["message"]) ?? "Codex app-server rejected the limits request."
+            throw AccountLimitError.server(message)
+        }
+        guard let result = object["result"] as? [String: Any] else {
+            throw AccountLimitError.malformedResponse
+        }
+        return AccountLimitsSnapshot(
+            windows: parseWindows(result),
+            resetCredits: parseResetCredits(result["rateLimitResetCredits"]),
+            fetchedAt: fetchedAt
+        )
     }
 
     private func parseWindows(_ result: [String: Any]) -> [AccountLimitWindow] {
