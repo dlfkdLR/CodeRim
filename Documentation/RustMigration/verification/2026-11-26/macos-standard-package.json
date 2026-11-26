@@ -1,0 +1,259 @@
+{
+  "scope": "Ordinary local macOS package command with reviewed pinned dependencies. Same version/build as stable for compatibility checks; signed ad hoc.",
+  "implementationCommit": "c23b98a",
+  "assembled": {
+    "normalCommand": "Scripts/build_release.sh",
+    "prebuiltRustVariablesSupplied": 0,
+    "originalUnstrippedBytes": 111359568,
+    "binaries": {
+      "app": {
+        "length": 56284336,
+        "sha256": "9783fa8bbd828a6e139d3c08760d6b3389b79aa29e1c242d556fff34f41f2a2b",
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "cli": {
+        "length": 2045888,
+        "sha256": "2cae89cffbae053c5083ff0ed1eb152424c451ab0908e89d8ffac76125712430",
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      },
+      "widget": {
+        "length": 1791792,
+        "sha256": "6b8a7e1f0bb6480ac5390236ed5ef05cc15faefc164da2bafb43bb9ec6d16cd0",
+        "architectures": [
+          "x86_64",
+          "arm64"
+        ]
+      }
+    },
+    "releaseSourceReference": "v2.1.41",
+    "publishedExecutableBytes": 109470416,
+    "buildUUIDs": [
+      "4755C0D5-DFF6-3CC7-93C0-D782E05393EA (arm64)",
+      "88B80B3A-C163-3849-AD35-B69C231E3A7A (x86_64)"
+    ],
+    "dSYMUUIDs": [
+      "4755C0D5-DFF6-3CC7-93C0-D782E05393EA (arm64)",
+      "88B80B3A-C163-3849-AD35-B69C231E3A7A (x86_64)"
+    ],
+    "notices": [
+      "Rust-Notices.txt",
+      "Rust-CLI-Notices.txt"
+    ],
+    "restartTarget": "CodeRimCLI",
+    "identifier": "dev.codexmeter.CodexMeter",
+    "version": "2.1.41",
+    "minimumSystem": "14.0",
+    "feed": "https://raw.githubusercontent.com/dlfkdLR/CodeRim/update-feed/appcast.xml"
+  },
+  "installed": {
+    "bundleID": "dev.codexmeter.CodexMeter",
+    "version": "2.1.41",
+    "installations": {
+      "zip": {
+        "executableSha256": "9783fa8bbd828a6e139d3c08760d6b3389b79aa29e1c242d556fff34f41f2a2b",
+        "widgetSha256": "6b8a7e1f0bb6480ac5390236ed5ef05cc15faefc164da2bafb43bb9ec6d16cd0",
+        "restartHelperSha256": "2cae89cffbae053c5083ff0ed1eb152424c451ab0908e89d8ffac76125712430",
+        "verifiedRustWidget": true,
+        "version": "CodeRim CLI 2.1.41 (schema 1)",
+        "bytes": 25932311,
+        "packageSha256": "57b31aabf6fbec7f59c746e46940a478adb401526757f560415aeff694548684"
+      },
+      "dmg": {
+        "executableSha256": "9783fa8bbd828a6e139d3c08760d6b3389b79aa29e1c242d556fff34f41f2a2b",
+        "widgetSha256": "6b8a7e1f0bb6480ac5390236ed5ef05cc15faefc164da2bafb43bb9ec6d16cd0",
+        "restartHelperSha256": "2cae89cffbae053c5083ff0ed1eb152424c451ab0908e89d8ffac76125712430",
+        "verifiedRustWidget": true,
+        "version": "CodeRim CLI 2.1.41 (schema 1)",
+        "bytes": 29321499,
+        "packageSha256": "25acbfa1dbcda9d5a2c553e953f276e1833db7860167dd828f46a094391a907b"
+      }
+    }
+  },
+  "dataReplay": {
+    "bundles": {
+      "reference": {
+        "id": "dev.codexmeter.CodexMeter",
+        "version": "2.1.41",
+        "build": "20141",
+        "executableSha256": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64"
+      },
+      "candidate": {
+        "id": "dev.codexmeter.CodexMeter",
+        "version": "2.1.41",
+        "build": "20141",
+        "executableSha256": "9783fa8bbd828a6e139d3c08760d6b3389b79aa29e1c242d556fff34f41f2a2b"
+      }
+    },
+    "stable": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ]
+      ],
+      "watermarks": [
+        100
+      ],
+      "offsets": [
+        352
+      ],
+      "version": "reference",
+      "fingerprintPreserved": true
+    },
+    "upgrade": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ]
+      ],
+      "watermarks": [
+        125
+      ],
+      "offsets": [
+        635
+      ],
+      "version": "candidate",
+      "fingerprintPreserved": true
+    },
+    "rollback": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ],
+        [
+          "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+          8
+        ]
+      ],
+      "watermarks": [
+        133
+      ],
+      "offsets": [
+        917
+      ],
+      "version": "reference",
+      "fingerprintPreserved": true
+    },
+    "restoredAndReplayed": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ],
+        [
+          "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+          8
+        ]
+      ],
+      "watermarks": [
+        133
+      ],
+      "offsets": [
+        917
+      ]
+    }
+  },
+  "atomicReplacement": {
+    "concurrentCompleteReads": 2219,
+    "atomicReplacements": 250,
+    "firstInstall": true,
+    "mixedVersions": 0,
+    "previousOutputAvailableInStagingAfterSwap": true
+  },
+  "failedBuild": {
+    "fixture": "An already occupied optional symbol-output directory rejects assembly after Swift products have built.",
+    "exit": 1,
+    "previousVerifiedBundleSha256": {
+      "Contents/Info.plist": "c8bcbdd587977e6ffac7dbb913da4810fd91d48e53b9c64187515d31ee5192be",
+      "Contents/MacOS/CodeRim": "9783fa8bbd828a6e139d3c08760d6b3389b79aa29e1c242d556fff34f41f2a2b",
+      "Contents/Helpers/CodeRimCLI": "2cae89cffbae053c5083ff0ed1eb152424c451ab0908e89d8ffac76125712430",
+      "Contents/PlugIns/CodeRimWidget.appex/Contents/MacOS/CodeRimWidget": "6b8a7e1f0bb6480ac5390236ed5ef05cc15faefc164da2bafb43bb9ec6d16cd0"
+    },
+    "stageDirectoriesRemaining": 0
+  },
+  "cliDifferentialCases": 246,
+  "cliProcessChecks": 116,
+  "integratedBuild": {
+    "productCommit": "8df12ccb5186be01a2afecebe45801a0835d9257",
+    "command": "Scripts/build_release.sh",
+    "prebuiltRustInputs": false,
+    "deepStrictAdHocVerification": true,
+    "binaries": {
+      "gui": {
+        "bytes": 56267984,
+        "sha256": "3896b77f208dfb78418c19c0078f3c821770877c5bdd66f8fc608f3e984dcd44",
+        "architectures": [
+          "arm64",
+          "x86_64"
+        ],
+        "definedRustSymbols": {
+          "arm64": 60,
+          "x86_64": 60
+        }
+      },
+      "widget": {
+        "bytes": 1791616,
+        "sha256": "1eed87dc4955b355627c77d4a51454e7519190123aeb1e43ac89a229218a21f4",
+        "architectures": [
+          "arm64",
+          "x86_64"
+        ],
+        "definedRustSymbols": {
+          "arm64": 1,
+          "x86_64": 1
+        }
+      },
+      "cli": {
+        "bytes": 2045888,
+        "sha256": "2cae89cffbae053c5083ff0ed1eb152424c451ab0908e89d8ffac76125712430",
+        "architectures": [
+          "arm64",
+          "x86_64"
+        ]
+      }
+    },
+    "binaryAndDsymUUIDs": [
+      [
+        "0671C57E-C9F6-31D5-A675-B73E96652305",
+        "(x86_64)"
+      ],
+      [
+        "7A864DB4-535C-349F-B344-C802AE51D445",
+        "(arm64)"
+      ]
+    ],
+    "restartAlias": "CodeRimCLI",
+    "versions": {
+      "arm64": "CodeRim CLI 2.1.41 (schema 1)",
+      "x86_64": "CodeRim CLI 2.1.41 (schema 1)"
+    }
+  }
+}

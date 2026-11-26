@@ -1,0 +1,425 @@
+{
+  "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+  "session": "Locked Apple Silicon desktop on AC power. All 150 post-pilot launches reported a locked session. This measures WindowServer layer 25 presence for the app PID, not unlocked interactive readiness.",
+  "executableHashes": {
+    "published": {
+      "sha256": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64",
+      "bytes": 109470416
+    },
+    "stableQA": {
+      "sha256": "d1833d92d514bff18552a5afe36caf527466451058b22bdee4751e7ba8688083",
+      "bytes": 109469552
+    },
+    "rustQA": {
+      "sha256": "9783fa8bbd828a6e139d3c08760d6b3389b79aa29e1c242d556fff34f41f2a2b",
+      "bytes": 56284336
+    }
+  },
+  "evidence": {
+    "profile.py": "cd9328eed4629296733e61942eca0501553bdff5e431642dcf6667a6eea809f7",
+    "crossover.py": "259496d8c92c51b6ea09ed05a341c710a55ca232caffa68024e83568c9d23a5b",
+    "probe.c": "85e8f7ba5530c73b5744697073609144c75b868ad81a61ccc359bcd535dd24fb",
+    "final.json": "79b7fd693ec7d85ffc566ef3018a1f412b3c81b1e295499ff04995713da5faea",
+    "crossover.json": "bd8961de9938e59f69ff89c8d6dfbeb259ea4874afc309b6fdad358837d94171",
+    "code-identity.json": "72b82e98bc05445477cfc74e500d728cb8b1bec49351d89f779512c9a13dc83b",
+    "code_identity.py": "03d36e4f6c1453894e1e6e6d1499f070e313ae01f6cba387003eacc750891efb",
+    "thread-proof.json": "627553de51855de142fb6ee23f84ed15073cb65384e4580a9c9f6d7805330a9c",
+    "thread-proof.c": "cf7716c558017d786722b5342561a746d3408efea59414850b732cdbf2d2d677",
+    "thread-label.c": "27918a10d13b4621f702e13aae7ee24e9f7f680b8fe7185cc184835d9136a2ca",
+    "summary.py": "97af6e2a6299fbd98e6efddd828905a8b7caf0cacabe75f58ab38aac84c3d521"
+  },
+  "originalBenchmark": {
+    "file": "../macos-default-package-launch.json",
+    "sha256": "5cb74f3ddaf00c7c6d0dba6bf0bdca0d6c6854f4593b9cc53487278a8f3ab51f",
+    "timingsMs": {
+      "reference": {
+        "fresh_profile": 186.33254199994553,
+        "reopened_profile": 181.97645799955353
+      },
+      "candidate": {
+        "fresh_profile": 226.24179200010985,
+        "reopened_profile": 205.96670899976743
+      }
+    }
+  },
+  "tests": {
+    "threeWayResident": {
+      "launches": 78,
+      "firstFreshOnNewlyCopiedBundlesMs": [
+        {
+          "tag": "published",
+          "observer": "resident",
+          "windowMs": 1025.053
+        },
+        {
+          "tag": "stableQA",
+          "observer": "resident",
+          "windowMs": 950.337
+        },
+        {
+          "tag": "rustQA",
+          "observer": "resident",
+          "windowMs": 706.858
+        }
+      ],
+      "blocks": {
+        "resident": {
+          "timing": {
+            "published": {
+              "fresh": {
+                "rounds": 12,
+                "beforeTimingProfilePreparationMs": 0.591,
+                "spawnPopenMs": 1.329,
+                "eventMs": {
+                  "exe": 10.939,
+                  "log.willFinishLaunching": 67.116,
+                  "log.status item installed": 83.432,
+                  "log.didFinishLaunching": 132.387,
+                  "window": 143.38
+                },
+                "mainThreadCpuMsAtFirstWindow": 93.336,
+                "allThreadsCpuMsAtFirstWindow": 230.796,
+                "finalObservationIntervalMs": 5.252,
+                "dbFirstObservedMs": 138.168
+              },
+              "reopen": {
+                "rounds": 12,
+                "beforeTimingProfilePreparationMs": 0.441,
+                "spawnPopenMs": 1.259,
+                "eventMs": {
+                  "exe": 10.95,
+                  "log.willFinishLaunching": 66.844,
+                  "log.status item installed": 81.861,
+                  "log.didFinishLaunching": 129.401,
+                  "window": 139.594
+                },
+                "mainThreadCpuMsAtFirstWindow": 91.192,
+                "allThreadsCpuMsAtFirstWindow": 226.889,
+                "finalObservationIntervalMs": 4.881,
+                "dbFirstObservedMs": null
+              }
+            },
+            "rustQA": {
+              "fresh": {
+                "rounds": 12,
+                "beforeTimingProfilePreparationMs": 0.597,
+                "spawnPopenMs": 1.293,
+                "eventMs": {
+                  "exe": 10.494,
+                  "log.willFinishLaunching": 61.809,
+                  "log.status item installed": 76.842,
+                  "log.didFinishLaunching": 122.637,
+                  "window": 132.501
+                },
+                "mainThreadCpuMsAtFirstWindow": 85.93,
+                "allThreadsCpuMsAtFirstWindow": 108.295,
+                "finalObservationIntervalMs": 5.211,
+                "dbFirstObservedMs": 129.876
+              },
+              "reopen": {
+                "rounds": 12,
+                "beforeTimingProfilePreparationMs": 0.415,
+                "spawnPopenMs": 1.324,
+                "eventMs": {
+                  "exe": 6.892,
+                  "log.willFinishLaunching": 61.889,
+                  "log.status item installed": 77.033,
+                  "log.didFinishLaunching": 123.348,
+                  "window": 132.984
+                },
+                "mainThreadCpuMsAtFirstWindow": 86.788,
+                "allThreadsCpuMsAtFirstWindow": 107.722,
+                "finalObservationIntervalMs": 5.063,
+                "dbFirstObservedMs": null
+              }
+            },
+            "stableQA": {
+              "fresh": {
+                "rounds": 12,
+                "beforeTimingProfilePreparationMs": 0.572,
+                "spawnPopenMs": 1.31,
+                "eventMs": {
+                  "exe": 10.931,
+                  "log.willFinishLaunching": 64.808,
+                  "log.status item installed": 80.3,
+                  "log.didFinishLaunching": 127.487,
+                  "window": 137.715
+                },
+                "mainThreadCpuMsAtFirstWindow": 90.073,
+                "allThreadsCpuMsAtFirstWindow": 228.505,
+                "finalObservationIntervalMs": 5.083,
+                "dbFirstObservedMs": 133.09
+              },
+              "reopen": {
+                "rounds": 12,
+                "beforeTimingProfilePreparationMs": 0.412,
+                "spawnPopenMs": 1.301,
+                "eventMs": {
+                  "exe": 10.848,
+                  "log.willFinishLaunching": 65.31,
+                  "log.status item installed": 80.278,
+                  "log.didFinishLaunching": 127.228,
+                  "window": 137.748
+                },
+                "mainThreadCpuMsAtFirstWindow": 90.197,
+                "allThreadsCpuMsAtFirstWindow": 227.681,
+                "finalObservationIntervalMs": 4.54,
+                "dbFirstObservedMs": null
+              }
+            }
+          },
+          "paired": {
+            "fresh/published": {
+              "pairs": 12,
+              "candidateFasterPairs": 12,
+              "medianGainMs": 8.625,
+              "minGainMs": 2.578,
+              "maxGainMs": 37.414
+            },
+            "fresh/stableQA": {
+              "pairs": 12,
+              "candidateFasterPairs": 12,
+              "medianGainMs": 5.274,
+              "minGainMs": 1.289,
+              "maxGainMs": 8.535
+            },
+            "reopen/published": {
+              "pairs": 12,
+              "candidateFasterPairs": 10,
+              "medianGainMs": 6.163,
+              "minGainMs": -9.401,
+              "maxGainMs": 28.419
+            },
+            "reopen/stableQA": {
+              "pairs": 12,
+              "candidateFasterPairs": 10,
+              "medianGainMs": 4.387,
+              "minGainMs": -6.967,
+              "maxGainMs": 7.783
+            }
+          }
+        }
+      }
+    },
+    "observerCrossover": {
+      "launches": 72,
+      "firstFreshOnNewlyCopiedBundlesMs": [
+        {
+          "tag": "published",
+          "observer": "legacyObserver",
+          "windowMs": 1663.596
+        },
+        {
+          "tag": "published",
+          "observer": "residentObserver",
+          "windowMs": 146.818
+        },
+        {
+          "tag": "rustQA",
+          "observer": "residentObserver",
+          "windowMs": 733.356
+        },
+        {
+          "tag": "rustQA",
+          "observer": "legacyObserver",
+          "windowMs": 192.17
+        }
+      ],
+      "blocks": {
+        "legacyObserver": {
+          "timing": {
+            "published": {
+              "fresh": {
+                "rounds": 8,
+                "beforeTimingProfilePreparationMs": 0.585,
+                "spawnPopenMs": 1.275,
+                "eventMs": {
+                  "exe": 48.769,
+                  "log.willFinishLaunching": 69.615,
+                  "log.status item installed": 91.667,
+                  "log.didFinishLaunching": 147.351,
+                  "window": 180.582
+                },
+                "mainThreadCpuMsAtFirstWindow": 100.051,
+                "allThreadsCpuMsAtFirstWindow": 274.448,
+                "finalObservationIntervalMs": 48.282,
+                "dbFirstObservedMs": 180.582,
+                "finalObserverInvocationMs": 33.192
+              },
+              "reopen": {
+                "rounds": 8,
+                "beforeTimingProfilePreparationMs": 0.476,
+                "spawnPopenMs": 1.261,
+                "eventMs": {
+                  "exe": 48.587,
+                  "log.willFinishLaunching": 69.387,
+                  "log.status item installed": 91.593,
+                  "log.didFinishLaunching": 148.531,
+                  "window": 180.044
+                },
+                "mainThreadCpuMsAtFirstWindow": 99.163,
+                "allThreadsCpuMsAtFirstWindow": 271.81,
+                "finalObservationIntervalMs": 47.577,
+                "dbFirstObservedMs": null,
+                "finalObserverInvocationMs": 32.497
+              }
+            },
+            "rustQA": {
+              "fresh": {
+                "rounds": 8,
+                "beforeTimingProfilePreparationMs": 0.582,
+                "spawnPopenMs": 1.291,
+                "eventMs": {
+                  "exe": 48.711,
+                  "log.willFinishLaunching": 68.857,
+                  "log.status item installed": 91.154,
+                  "log.didFinishLaunching": 147.456,
+                  "window": 178.314
+                },
+                "mainThreadCpuMsAtFirstWindow": 97.276,
+                "allThreadsCpuMsAtFirstWindow": 122.0,
+                "finalObservationIntervalMs": 47.455,
+                "dbFirstObservedMs": 178.314,
+                "finalObserverInvocationMs": 32.555
+              },
+              "reopen": {
+                "rounds": 8,
+                "beforeTimingProfilePreparationMs": 0.444,
+                "spawnPopenMs": 1.309,
+                "eventMs": {
+                  "exe": 48.694,
+                  "log.willFinishLaunching": 68.874,
+                  "log.status item installed": 90.33,
+                  "log.didFinishLaunching": 147.919,
+                  "window": 179.2
+                },
+                "mainThreadCpuMsAtFirstWindow": 95.528,
+                "allThreadsCpuMsAtFirstWindow": 117.539,
+                "finalObservationIntervalMs": 47.594,
+                "dbFirstObservedMs": null,
+                "finalObserverInvocationMs": 32.905
+              }
+            }
+          },
+          "paired": {
+            "fresh/published": {
+              "pairs": 8,
+              "candidateFasterPairs": 5,
+              "medianGainMs": 3.904,
+              "minGainMs": -43.805,
+              "maxGainMs": 10.971
+            },
+            "reopen/published": {
+              "pairs": 8,
+              "candidateFasterPairs": 6,
+              "medianGainMs": 3.331,
+              "minGainMs": -8.141,
+              "maxGainMs": 41.973
+            }
+          }
+        },
+        "residentObserver": {
+          "timing": {
+            "published": {
+              "fresh": {
+                "rounds": 8,
+                "beforeTimingProfilePreparationMs": 0.619,
+                "spawnPopenMs": 1.266,
+                "eventMs": {
+                  "exe": 11.737,
+                  "log.willFinishLaunching": 66.355,
+                  "log.status item installed": 81.898,
+                  "log.didFinishLaunching": 127.436,
+                  "window": 137.365
+                },
+                "mainThreadCpuMsAtFirstWindow": 88.584,
+                "allThreadsCpuMsAtFirstWindow": 226.138,
+                "finalObservationIntervalMs": 5.514,
+                "dbFirstObservedMs": 135.8,
+                "finalObserverInvocationMs": 0.97
+              },
+              "reopen": {
+                "rounds": 8,
+                "beforeTimingProfilePreparationMs": 0.445,
+                "spawnPopenMs": 1.274,
+                "eventMs": {
+                  "exe": 9.289,
+                  "log.willFinishLaunching": 65.79,
+                  "log.status item installed": 81.374,
+                  "log.didFinishLaunching": 127.456,
+                  "window": 137.183
+                },
+                "mainThreadCpuMsAtFirstWindow": 88.365,
+                "allThreadsCpuMsAtFirstWindow": 225.076,
+                "finalObservationIntervalMs": 5.527,
+                "dbFirstObservedMs": null,
+                "finalObserverInvocationMs": 1.377
+              }
+            },
+            "rustQA": {
+              "fresh": {
+                "rounds": 8,
+                "beforeTimingProfilePreparationMs": 0.598,
+                "spawnPopenMs": 1.268,
+                "eventMs": {
+                  "exe": 6.666,
+                  "log.willFinishLaunching": 61.004,
+                  "log.status item installed": 76.192,
+                  "log.didFinishLaunching": 122.676,
+                  "window": 133.988
+                },
+                "mainThreadCpuMsAtFirstWindow": 87.376,
+                "allThreadsCpuMsAtFirstWindow": 109.772,
+                "finalObservationIntervalMs": 5.299,
+                "dbFirstObservedMs": 129.478,
+                "finalObserverInvocationMs": 0.734
+              },
+              "reopen": {
+                "rounds": 8,
+                "beforeTimingProfilePreparationMs": 0.573,
+                "spawnPopenMs": 1.259,
+                "eventMs": {
+                  "exe": 6.57,
+                  "log.willFinishLaunching": 61.02,
+                  "log.status item installed": 75.847,
+                  "log.didFinishLaunching": 123.511,
+                  "window": 134.766
+                },
+                "mainThreadCpuMsAtFirstWindow": 88.748,
+                "allThreadsCpuMsAtFirstWindow": 110.554,
+                "finalObservationIntervalMs": 5.254,
+                "dbFirstObservedMs": null,
+                "finalObserverInvocationMs": 0.723
+              }
+            }
+          },
+          "paired": {
+            "fresh/published": {
+              "pairs": 8,
+              "candidateFasterPairs": 8,
+              "medianGainMs": 6.772,
+              "minGainMs": 1.617,
+              "maxGainMs": 8.432
+            },
+            "reopen/published": {
+              "pairs": 8,
+              "candidateFasterPairs": 7,
+              "medianGainMs": 3.085,
+              "minGainMs": -2.096,
+              "maxGainMs": 11.184
+            }
+          }
+        }
+      }
+    }
+  },
+  "conclusions": [
+    "Full original app bundles were copied to isolated /private/tmp folders once per series and verified. A newly created or retained home was prepared before t0. The ordinary launched process, production lifecycle messages, sandbox, disabled update checks and layer-25 endpoint were held constant. No product source, credentials, bundle information or signature was changed.",
+    "v2.1.41 signed Developer ID and v2.1.41 ad-hoc archive have identical bound file-backed Mach-O sections (both slices) and linked UUIDs. The two plist packaging facts also differ: published uses app-group transport and an app-group ID; both QA builds use local-file. The evidence cannot attribute the whole signed-versus-QA gap to signing alone.",
+    "The original repeated CoreGraphics helper executable takes about 33 ms per final invocation, with 47–48 ms from the previous observation. At 3 ms requested sleeping an already loaded CoreGraphics helper instead took 0.7–1.4 ms per call with 5–6 ms between observations. The paired old observer delayed app lifecycle events as well as the observation itself; original per-sample measurement perturbs the app.",
+    "Application log times and externally collected main-thread counters locate work before AppKit will-finish, during status-item install and before did-finish. The Rust QA candidate started sooner than or similarly to both comparisons in the balanced sample. Increased pre-first-window CPU is not supported. In the matched stableQA comparison 12/12 fresh and 10/12 reopened pairs favored Rust. There is no isolated candidate-specific regression motivating a product change.",
+    "An old-observer crossover from the exact binaries failed to repeat the historical 40/24 ms candidate slowdown. Its paired gains had a range of roughly one complete sampling interval; the historical samples had neither app timestamps nor evidence permitting exact retrospective attribution. System load, daemon/validation cache and WindowServer phase were uncontrolled. Storage caches were not forcibly flushed. Each newly copied bundle first launch is recorded separately from balanced steady OS cache comparisons.",
+    "Thread-level counters use the first libproc enumerated thread. A two-thread native fixture verifies the first thread carries the unique name set on its main thread; the same first-thread handle was present in each measured application. Detailed intervals do not prove specific Swift functions dominate CPU."
+  ],
+  "productChange": null
+}
