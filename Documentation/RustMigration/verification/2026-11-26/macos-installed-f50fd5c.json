@@ -1,0 +1,153 @@
+{
+  "bundleID": "dev.codexmeter.CodexMeter",
+  "version": "2.1.41",
+  "installations": {
+    "zip": {
+      "executableSha256": "aec9c4802bfb25e00f6fb2b506fda296e031343572e6335f7f6191e1061f7c92",
+      "widgetSha256": "e5160e666a780ef99be67849f583a16d224cc60a61227ef851cb9b135ba0aea6",
+      "restartHelperSha256": "d9bd8f15ef46af18c18a8b2ee9c8898eb363a726a7c8e7590ab845ef10316c51",
+      "verifiedRustWidget": true,
+      "version": "CodeRim CLI 2.1.41 (schema 1)",
+      "bytes": 25885679,
+      "packageSha256": "e579a33633362784c6907d8ae58ef694b322691d47ba2a8cac1152ccdb43e233"
+    },
+    "dmg": {
+      "executableSha256": "aec9c4802bfb25e00f6fb2b506fda296e031343572e6335f7f6191e1061f7c92",
+      "widgetSha256": "e5160e666a780ef99be67849f583a16d224cc60a61227ef851cb9b135ba0aea6",
+      "restartHelperSha256": "d9bd8f15ef46af18c18a8b2ee9c8898eb363a726a7c8e7590ab845ef10316c51",
+      "verifiedRustWidget": true,
+      "version": "CodeRim CLI 2.1.41 (schema 1)",
+      "bytes": 29271673,
+      "packageSha256": "c5cf5712df8ebc25896ed11a24171544ac3be1cc1ad5412f14c7369f56914e0b"
+    }
+  },
+  "source": "f50fd5c",
+  "installType": "Unsigned for public distribution; local ad-hoc signature verified after both ZIP extraction and DMG copy.",
+  "buildCommand": "Scripts/build_release.sh, without prebuilt Rust artifacts",
+  "cliChecksPerInstalledCopy": 116,
+  "publicExecutableReference": "Published universal v2.1.41 tag",
+  "mainBinaryBytes": {
+    "published": 109470416,
+    "candidate": 56302432
+  },
+  "dSYM_UUIDs": [
+    "17E236B2-15EC-3BB7-9BE1-943B31BE1C52 (x86_64)",
+    "9D67FA19-4C84-398E-9178-D25B4FB431D8 (arm64)"
+  ],
+  "integratedSymbols": {
+    "arm64": [
+      "_cr_append_diagnostic_line",
+      "_cr_codex_import_run"
+    ],
+    "x86_64": [
+      "_cr_append_diagnostic_line",
+      "_cr_codex_import_run"
+    ]
+  },
+  "rollback": {
+    "bundles": {
+      "reference": {
+        "id": "dev.codexmeter.CodexMeter",
+        "version": "2.1.41",
+        "build": "20141",
+        "executableSha256": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64"
+      },
+      "candidate": {
+        "id": "dev.codexmeter.CodexMeter",
+        "version": "2.1.41",
+        "build": "20141",
+        "executableSha256": "aec9c4802bfb25e00f6fb2b506fda296e031343572e6335f7f6191e1061f7c92"
+      }
+    },
+    "stable": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ]
+      ],
+      "watermarks": [
+        100
+      ],
+      "offsets": [
+        352
+      ],
+      "version": "reference",
+      "fingerprintPreserved": true
+    },
+    "upgrade": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ]
+      ],
+      "watermarks": [
+        125
+      ],
+      "offsets": [
+        635
+      ],
+      "version": "candidate",
+      "fingerprintPreserved": true
+    },
+    "rollback": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ],
+        [
+          "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+          8
+        ]
+      ],
+      "watermarks": [
+        133
+      ],
+      "offsets": [
+        917
+      ],
+      "version": "reference",
+      "fingerprintPreserved": true
+    },
+    "restoredAndReplayed": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ],
+        [
+          "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+          8
+        ]
+      ],
+      "watermarks": [
+        133
+      ],
+      "offsets": [
+        917
+      ]
+    }
+  }
+}
