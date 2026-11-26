@@ -41,35 +41,40 @@ public static class GitHubDeviceFlow
             using var code = JsonDocument.Parse(await codeResponse.Content.ReadAsStringAsync(cancellation).ConfigureAwait(false));
             var userCode = Text(code.RootElement, "user_code"); var deviceCode = Text(code.RootElement, "device_code");
             var verify = Text(code.RootElement, "verification_uri");
-            if (userCode is null || deviceCode is null || verify is null || !Uri.TryCreate(verify, UriKind.Absolute, out var verifyUri) || verifyUri.Scheme != Uri.UriSchemeHttps)
+            var hasHttpsUri = Uri.TryCreate(verify, UriKind.Absolute, out var verifyUri) && verifyUri.Scheme == Uri.UriSchemeHttps;
+            var schedule = GitHubDevicePolicy.Prepare(userCode is not null, deviceCode is not null, hasHttpsUri,
+                Number(code.RootElement, "interval"), Number(code.RootElement, "expires_in"));
+            if (schedule.Prompt == 0)
                 return InAppOutcome.Failed("GitHub's sign-in code was incomplete. Choose Try again.");
-            var interval = TimeSpan.FromSeconds(Math.Clamp(Number(code.RootElement, "interval") ?? 5, 1, 60));
-            var expires = DateTime.UtcNow + TimeSpan.FromSeconds(Math.Clamp(Number(code.RootElement, "expires_in") ?? 900, 60, 1800));
-            copy(userCode);
+            var interval = TimeSpan.FromSeconds(schedule.IntervalSeconds);
+            var expires = DateTime.UtcNow + TimeSpan.FromSeconds(schedule.ValidSeconds);
+            copy(userCode!);
             update($"Enter the code {userCode} on GitHub (it is already copied), approve CodeRim, and it connects on its own.");
-            open(verifyUri);
+            open(verifyUri!);
             while (DateTime.UtcNow < expires)
             {
                 await delay(interval, cancellation).ConfigureAwait(false);
                 using var poll = Form("https://github.com/login/oauth/access_token", new()
                 {
-                    ["client_id"] = ClientId, ["device_code"] = deviceCode, ["grant_type"] = "urn:ietf:params:oauth:grant-type:device_code",
+                    ["client_id"] = ClientId, ["device_code"] = deviceCode!, ["grant_type"] = "urn:ietf:params:oauth:grant-type:device_code",
                 });
                 using var response = await http.SendAsync(poll, cancellation).ConfigureAwait(false);
                 using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellation).ConfigureAwait(false));
-                if (Text(body.RootElement, "access_token") is { Length: > 0 } token)
+                var token = Text(body.RootElement, "access_token");
+                bool approved = token is { Length: > 0 };
+                var next = GitHubDevicePolicy.Next(approved, approved ? null : Text(body.RootElement, "error"), interval);
+                if (next.Action == DevicePollAction.Store)
                 {
-                    try { save(token); }
+                    try { save(token!); }
                     catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or System.Security.Cryptography.CryptographicException)
                     { return InAppOutcome.Failed("GitHub approved the sign-in, but CodeRim could not store it. Choose Try again."); }
                     return InAppOutcome.Success;
                 }
-                switch (Text(body.RootElement, "error"))
+                switch (next.Action)
                 {
-                    case "authorization_pending": continue;
-                    case "slow_down": interval += TimeSpan.FromSeconds(5); continue;
-                    case "expired_token": return InAppOutcome.Failed("The GitHub code expired before it was approved. Choose Try again for a new code.");
-                    case "access_denied": return InAppOutcome.Failed("GitHub sign-in was declined.");
+                    case DevicePollAction.Wait: interval = TimeSpan.FromTicks(next.IntervalTicks); continue;
+                    case DevicePollAction.Expired: return InAppOutcome.Failed("The GitHub code expired before it was approved. Choose Try again for a new code.");
+                    case DevicePollAction.Denied: return InAppOutcome.Failed("GitHub sign-in was declined.");
                     default: return InAppOutcome.Failed("GitHub refused the sign-in. Choose Try again for a new code.");
                 }
             }
