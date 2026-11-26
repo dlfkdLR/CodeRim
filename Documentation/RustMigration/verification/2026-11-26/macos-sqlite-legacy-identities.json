@@ -1,0 +1,247 @@
+{
+  "reference": "v2.1.41",
+  "candidate": "a873210",
+  "workerCommit": "01b70389c9d4bc564c66d49e6c1a6d1a78f10802",
+  "architectures": [
+    "Apple Silicon",
+    "x86_64 under Rosetta"
+  ],
+  "comparisonCasesPerArchitecture": 48,
+  "schemaVersionsTested": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18
+  ],
+  "otherVersions": [
+    -1,
+    19,
+    32767
+  ],
+  "scope": "Compared schema definitions, every retained table row, integrity, error text and reopening with the published migration code. Both historical rewrite steps use the original SQLite write transaction.",
+  "benchmarks": [
+    {
+      "sourceSchema": 2,
+      "distinct": 0,
+      "samplesNs": {
+        "release": [
+          1128375,
+          470666,
+          470000,
+          464916,
+          917542,
+          730834,
+          384750
+        ],
+        "rust": [
+          715583,
+          933584,
+          396792,
+          614125,
+          516292,
+          413625,
+          488916
+        ],
+        "previous": [
+          1056625,
+          720292,
+          1230167,
+          674583,
+          514209,
+          754791,
+          571583
+        ]
+      },
+      "medianMs": {
+        "release": 0.470666,
+        "rust": 0.516292,
+        "previous": 0.720292
+      }
+    },
+    {
+      "sourceSchema": 2,
+      "distinct": 16,
+      "samplesNs": {
+        "release": [
+          2221708,
+          1508125,
+          2050083,
+          1777041,
+          1630625,
+          1721417,
+          1454042
+        ],
+        "rust": [
+          619459,
+          708916,
+          876875,
+          819250,
+          704125,
+          872166,
+          1181959
+        ],
+        "previous": [
+          970209,
+          1504417,
+          938583,
+          1505541,
+          827500,
+          1601375,
+          988750
+        ]
+      },
+      "medianMs": {
+        "release": 1.721417,
+        "rust": 0.81925,
+        "previous": 0.98875
+      }
+    },
+    {
+      "sourceSchema": 2,
+      "distinct": 512,
+      "samplesNs": {
+        "release": [
+          37726416,
+          39561459,
+          38540625,
+          37376167,
+          37326708,
+          36636833,
+          36949584
+        ],
+        "rust": [
+          14613459,
+          15310209,
+          14749083,
+          14627250,
+          15196833,
+          15315083,
+          14677125
+        ],
+        "previous": [
+          17944250,
+          17963375,
+          19200416,
+          17991250,
+          19080417,
+          17539583,
+          18086500
+        ]
+      },
+      "medianMs": {
+        "release": 37.376167,
+        "rust": 14.749083,
+        "previous": 17.99125
+      }
+    },
+    {
+      "sourceSchema": 2,
+      "distinct": 2048,
+      "samplesNs": {
+        "release": [
+          256763750,
+          263246208,
+          257719000,
+          268603292,
+          266508375,
+          266330041,
+          258463584
+        ],
+        "rust": [
+          189391042,
+          171505250,
+          169990625,
+          183600333,
+          170218166,
+          176612666,
+          179058333
+        ],
+        "previous": [
+          181364791,
+          180117833,
+          186076083,
+          186446250,
+          175775958,
+          184778708,
+          184935959
+        ]
+      },
+      "medianMs": {
+        "release": 263.246208,
+        "rust": 176.612666,
+        "previous": 184.778708
+      }
+    },
+    {
+      "sourceSchema": 7,
+      "distinct": 2048,
+      "samplesNs": {
+        "release": [
+          45624667,
+          45592459,
+          46081083,
+          47208667,
+          44125875,
+          47934917,
+          47180166
+        ],
+        "rust": [
+          3843667,
+          3776333,
+          3843500,
+          3762167,
+          3755250,
+          3835875,
+          3542917
+        ],
+        "previous": [
+          7015167,
+          6600375,
+          6891541,
+          6409541,
+          6684292,
+          6555542,
+          13913375
+        ]
+      },
+      "medianMs": {
+        "release": 46.081083,
+        "rust": 3.776333,
+        "previous": 6.684292
+      }
+    }
+  ],
+  "independent": {
+    "databasesPerArchitecture": 24,
+    "errorCases": 13,
+    "retryCases": 6,
+    "triggerAuditRows": 775,
+    "invalidCallGuards": 5,
+    "scope": "Apple Silicon arm64 and x86_64 via Rosetta, synthetic databases and in-memory C probes; no physical Intel measurements or live user data.",
+    "hashes": {
+      "macos-schema-upgrade-independent/abi-arm64.log": "3f4859789049e6605f0f8ea5ce41b174491c434af01f1b15e74b0d7e3434a22c",
+      "macos-schema-upgrade-independent/abi-x86_64.log": "3f4859789049e6605f0f8ea5ce41b174491c434af01f1b15e74b0d7e3434a22c",
+      "macos-schema-upgrade-independent/differential-arm64.log": "54cd3098e5e820341225ea8a4c3c9f037069e67c8c54d492051d5ce49f6193e1",
+      "macos-schema-upgrade-independent/differential-x86_64.log": "15eb5f06ba3c810172e7f10913c14defe26227b867500790bbd8d0e2ffcc4ab3",
+      "macos-schema-upgrade-independent/abi.c": "3b940eecda102be4e69f7f785f1472fd51f298e41c9ea0fdec129f5a6d39393a",
+      "macos-schema-upgrade-independent/differential.py": "017e14c10138e54473d7a7b3b0d39d56afa19f0a9b14974ee1f758279b15f8e1",
+      "macos-schema-upgrade-times.json": "8232af23ddc74675b45cce15bc2ea01e1cb0f25204b4bd99915dab6f7fc4df96"
+    }
+  },
+  "harnessVerdict": "INCONCLUSIVE"
+}

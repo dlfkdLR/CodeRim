@@ -1,0 +1,1158 @@
+{
+  "integrated": "fcfef07",
+  "reference": "v2.1.41",
+  "workerCommit": "7a1939c9813baba8a5af8699e0d41238b7198271",
+  "scope": "Official app-server rate-limit protocol using a synthetic local child with scripted output. No account or personal file needed.",
+  "casesPerISA": 1926,
+  "completionSignals": 1602,
+  "successfulSnapshots": 1166,
+  "independentSwiftCasesPerISA": 1539,
+  "independentCCasesPerISA": 4406,
+  "independentGuardsPerISA": 3,
+  "independentReceiptSha256": "639870ff30d6f60b1f67bce246d9614a3c494c7cac179bbc9c2abc2a0643e0a9",
+  "harnessVerdict": "INCONCLUSIVE",
+  "workloads": [
+    {
+      "notifications": 0,
+      "paced": false,
+      "bytes": 144,
+      "rawNs": {
+        "predicateNS": {
+          "release": [
+            217916,
+            247333,
+            176167,
+            141584,
+            154916,
+            209292
+          ],
+          "candidate": [
+            16541,
+            16583,
+            12333,
+            6042,
+            6208,
+            6917
+          ]
+        },
+        "finalParserNS": {
+          "release": [
+            153166,
+            191417,
+            124458,
+            46834,
+            68708,
+            70834
+          ],
+          "candidate": [
+            76000,
+            57417,
+            50417,
+            38792,
+            34791,
+            38375
+          ]
+        },
+        "fullNS": {
+          "release": [
+            34434208,
+            43405833,
+            56154917,
+            43911750,
+            39312833,
+            45995000
+          ],
+          "candidate": [
+            42454583,
+            41375625,
+            41718875,
+            45532375,
+            45467916,
+            45477666
+          ]
+        }
+      },
+      "medianMs": {
+        "predicateNS": {
+          "release": 0.1927295,
+          "candidate": 0.009625
+        },
+        "finalParserNS": {
+          "release": 0.097646,
+          "candidate": 0.0446045
+        },
+        "fullNS": {
+          "release": 43.6587915,
+          "candidate": 43.9612495
+        }
+      }
+    },
+    {
+      "notifications": 16,
+      "paced": false,
+      "bytes": 1414,
+      "rawNs": {
+        "predicateNS": {
+          "release": [
+            567834,
+            558876,
+            878292,
+            1314167,
+            581166,
+            401833
+          ],
+          "candidate": [
+            12041,
+            15208,
+            14499,
+            9166,
+            21416,
+            63749
+          ]
+        },
+        "finalParserNS": {
+          "release": [
+            149125,
+            149167,
+            331083,
+            111375,
+            166917,
+            127958
+          ],
+          "candidate": [
+            43875,
+            25375,
+            34875,
+            46625,
+            89541,
+            149167
+          ]
+        },
+        "fullNS": {
+          "release": [
+            43953792,
+            41808375,
+            45095875,
+            46265625,
+            43786250,
+            40382000
+          ],
+          "candidate": [
+            41518000,
+            45506583,
+            45493875,
+            45526958,
+            43525291,
+            41865542
+          ]
+        }
+      },
+      "medianMs": {
+        "predicateNS": {
+          "release": 0.5745,
+          "candidate": 0.0148535
+        },
+        "finalParserNS": {
+          "release": 0.149146,
+          "candidate": 0.04525
+        },
+        "fullNS": {
+          "release": 43.870021,
+          "candidate": 44.509583
+        }
+      }
+    },
+    {
+      "notifications": 128,
+      "paced": false,
+      "bytes": 10402,
+      "rawNs": {
+        "predicateNS": {
+          "release": [
+            5173750,
+            2679125,
+            2347000,
+            2098917,
+            2719750,
+            3507501
+          ],
+          "candidate": [
+            60750,
+            50168,
+            68958,
+            44457,
+            20458,
+            15957
+          ]
+        },
+        "finalParserNS": {
+          "release": [
+            301042,
+            146833,
+            265709,
+            130459,
+            264541,
+            256958
+          ],
+          "candidate": [
+            241958,
+            124292,
+            112083,
+            97708,
+            33500,
+            61084
+          ]
+        },
+        "fullNS": {
+          "release": [
+            42676250,
+            47762208,
+            49768500,
+            44785334,
+            45721000,
+            46078833
+          ],
+          "candidate": [
+            40840125,
+            35751708,
+            44858833,
+            42544917,
+            44355750,
+            40717667
+          ]
+        }
+      },
+      "medianMs": {
+        "predicateNS": {
+          "release": 2.6994375,
+          "candidate": 0.0473125
+        },
+        "finalParserNS": {
+          "release": 0.2607495,
+          "candidate": 0.1048955
+        },
+        "fullNS": {
+          "release": 45.8999165,
+          "candidate": 41.692521
+        }
+      }
+    },
+    {
+      "notifications": 1024,
+      "paced": false,
+      "bytes": 83002,
+      "rawNs": {
+        "predicateNS": {
+          "release": [
+            12632293,
+            11882083,
+            14048917,
+            10567834,
+            17945125,
+            11349624
+          ],
+          "candidate": [
+            126416,
+            121334,
+            109957,
+            106000,
+            72875,
+            102291
+          ]
+        },
+        "finalParserNS": {
+          "release": [
+            460291,
+            671334,
+            755458,
+            537500,
+            572250,
+            529041
+          ],
+          "candidate": [
+            58792,
+            44667,
+            40375,
+            37125,
+            40208,
+            39042
+          ]
+        },
+        "fullNS": {
+          "release": [
+            57482041,
+            51497375,
+            58074708,
+            53010167,
+            73829791,
+            51000833
+          ],
+          "candidate": [
+            38021917,
+            56962792,
+            60728083,
+            60724875,
+            45590125,
+            60672917
+          ]
+        }
+      },
+      "medianMs": {
+        "predicateNS": {
+          "release": 12.257188,
+          "candidate": 0.1079785
+        },
+        "finalParserNS": {
+          "release": 0.554875,
+          "candidate": 0.0402915
+        },
+        "fullNS": {
+          "release": 55.246104,
+          "candidate": 58.8178545
+        }
+      }
+    },
+    {
+      "notifications": 1024,
+      "paced": true,
+      "bytes": 83002,
+      "rawNs": {
+        "predicateNS": {
+          "release": [
+            21496583,
+            22611416,
+            23881207,
+            23080791,
+            20756168,
+            24709459
+          ],
+          "candidate": [
+            169166,
+            187750,
+            170916,
+            132000,
+            143959,
+            165750
+          ]
+        },
+        "finalParserNS": {
+          "release": [
+            589625,
+            503625,
+            497958,
+            524333,
+            523208,
+            499209
+          ],
+          "candidate": [
+            45750,
+            40541,
+            45083,
+            43750,
+            43291,
+            42583
+          ]
+        },
+        "fullNS": {
+          "release": [
+            97138708,
+            107240459,
+            97727916,
+            100903541,
+            91301875,
+            102602125
+          ],
+          "candidate": [
+            91481458,
+            92482083,
+            92476792,
+            86370375,
+            83405750,
+            92456875
+          ]
+        }
+      },
+      "medianMs": {
+        "predicateNS": {
+          "release": 22.8461035,
+          "candidate": 0.167458
+        },
+        "finalParserNS": {
+          "release": 0.5134165,
+          "candidate": 0.0435205
+        },
+        "fullNS": {
+          "release": 99.3157285,
+          "candidate": 91.9691665
+        }
+      }
+    },
+    {
+      "notifications": 8192,
+      "paced": false,
+      "bytes": 670778,
+      "rawNs": {
+        "predicateNS": {
+          "release": [
+            82150916,
+            99652625,
+            90866626,
+            97115792,
+            96444750,
+            66862208
+          ],
+          "candidate": [
+            6401664,
+            9464874,
+            5659209,
+            8330042,
+            7284332,
+            6439625
+          ]
+        },
+        "finalParserNS": {
+          "release": [
+            1911792,
+            1799083,
+            1790583,
+            1793542,
+            2111500,
+            1785625
+          ],
+          "candidate": [
+            158708,
+            243459,
+            151416,
+            338083,
+            86709,
+            111792
+          ]
+        },
+        "fullNS": {
+          "release": [
+            247230583,
+            279313792,
+            255355750,
+            279912208,
+            278177041,
+            228852125
+          ],
+          "candidate": [
+            157419083,
+            169857084,
+            161607833,
+            155174333,
+            158413125,
+            152855042
+          ]
+        }
+      },
+      "medianMs": {
+        "predicateNS": {
+          "release": 93.655688,
+          "candidate": 6.8619785
+        },
+        "finalParserNS": {
+          "release": 1.7963125,
+          "candidate": 0.155062
+        },
+        "fullNS": {
+          "release": 266.7663955,
+          "candidate": 157.916104
+        }
+      }
+    }
+  ],
+  "pairedTiming": {
+    "(0, 0)": {
+      "samples": {
+        "release": [
+          {
+            "fullNS": 44445208.5,
+            "predicateNS": 224105,
+            "finalParserNS": 132917
+          },
+          {
+            "fullNS": 39562833.5,
+            "predicateNS": 267312.5,
+            "finalParserNS": 148271
+          },
+          {
+            "fullNS": 43057687.5,
+            "predicateNS": 159542,
+            "finalParserNS": 84625.5
+          },
+          {
+            "fullNS": 40303750,
+            "predicateNS": 202208.5,
+            "finalParserNS": 103708.5
+          },
+          {
+            "fullNS": 43810562.5,
+            "predicateNS": 265188.5,
+            "finalParserNS": 109916.5
+          },
+          {
+            "fullNS": 36680479,
+            "predicateNS": 192208,
+            "finalParserNS": 137125
+          },
+          {
+            "fullNS": 43438333,
+            "predicateNS": 239500,
+            "finalParserNS": 124458
+          },
+          {
+            "fullNS": 40769396,
+            "predicateNS": 126167,
+            "finalParserNS": 77562.5
+          },
+          {
+            "fullNS": 42673229,
+            "predicateNS": 230042,
+            "finalParserNS": 161875
+          }
+        ],
+        "rust": [
+          {
+            "fullNS": 38244854,
+            "predicateNS": 27042,
+            "finalParserNS": 141353.5
+          },
+          {
+            "fullNS": 42141750,
+            "predicateNS": 31103.5,
+            "finalParserNS": 131791.5
+          },
+          {
+            "fullNS": 40560125,
+            "predicateNS": 39749.5,
+            "finalParserNS": 171313
+          },
+          {
+            "fullNS": 40849666.5,
+            "predicateNS": 32750.5,
+            "finalParserNS": 148875
+          },
+          {
+            "fullNS": 42358333.5,
+            "predicateNS": 32499.5,
+            "finalParserNS": 126312.5
+          },
+          {
+            "fullNS": 42257729,
+            "predicateNS": 29626,
+            "finalParserNS": 150604
+          },
+          {
+            "fullNS": 40935749.5,
+            "predicateNS": 27749,
+            "finalParserNS": 122666
+          },
+          {
+            "fullNS": 43033896.5,
+            "predicateNS": 32145,
+            "finalParserNS": 175875.5
+          },
+          {
+            "fullNS": 40168208.5,
+            "predicateNS": 30916.5,
+            "finalParserNS": 156229.5
+          }
+        ]
+      },
+      "medianNS": {
+        "release": {
+          "fullNS": 42673229,
+          "predicateNS": 224105,
+          "finalParserNS": 124458
+        },
+        "rust": {
+          "fullNS": 40935749.5,
+          "predicateNS": 31103.5,
+          "finalParserNS": 148875
+        }
+      },
+      "rustFasterPairs": {
+        "fullNS": 5,
+        "predicateNS": 9,
+        "finalParserNS": 3
+      }
+    },
+    "(16, 0)": {
+      "samples": {
+        "release": [
+          {
+            "fullNS": 41386938,
+            "predicateNS": 398479,
+            "finalParserNS": 134125
+          },
+          {
+            "fullNS": 44214917,
+            "predicateNS": 256021,
+            "finalParserNS": 73479
+          },
+          {
+            "fullNS": 42557250,
+            "predicateNS": 517333,
+            "finalParserNS": 135958.5
+          },
+          {
+            "fullNS": 44270708,
+            "predicateNS": 583917,
+            "finalParserNS": 139062
+          },
+          {
+            "fullNS": 42997562,
+            "predicateNS": 382854,
+            "finalParserNS": 120104
+          },
+          {
+            "fullNS": 42617729,
+            "predicateNS": 351521.5,
+            "finalParserNS": 113750
+          },
+          {
+            "fullNS": 42297916.5,
+            "predicateNS": 556187.5,
+            "finalParserNS": 140000
+          },
+          {
+            "fullNS": 42503583.5,
+            "predicateNS": 273791.5,
+            "finalParserNS": 102229
+          },
+          {
+            "fullNS": 43986291,
+            "predicateNS": 138249.5,
+            "finalParserNS": 39312
+          }
+        ],
+        "rust": [
+          {
+            "fullNS": 43950000,
+            "predicateNS": 38896.5,
+            "finalParserNS": 141937.5
+          },
+          {
+            "fullNS": 41536624.5,
+            "predicateNS": 39270,
+            "finalParserNS": 162083
+          },
+          {
+            "fullNS": 43134417,
+            "predicateNS": 35042,
+            "finalParserNS": 159000
+          },
+          {
+            "fullNS": 45626666.5,
+            "predicateNS": 38354,
+            "finalParserNS": 227000
+          },
+          {
+            "fullNS": 44708187.5,
+            "predicateNS": 23624.5,
+            "finalParserNS": 105291.5
+          },
+          {
+            "fullNS": 43468916,
+            "predicateNS": 31166.5,
+            "finalParserNS": 145833
+          },
+          {
+            "fullNS": 38255645.5,
+            "predicateNS": 40771,
+            "finalParserNS": 150354
+          },
+          {
+            "fullNS": 40980833.5,
+            "predicateNS": 51354,
+            "finalParserNS": 168417
+          },
+          {
+            "fullNS": 41642145.5,
+            "predicateNS": 18459,
+            "finalParserNS": 75416
+          }
+        ]
+      },
+      "medianNS": {
+        "release": {
+          "fullNS": 42617729,
+          "predicateNS": 382854,
+          "finalParserNS": 120104
+        },
+        "rust": {
+          "fullNS": 43134417,
+          "predicateNS": 38354,
+          "finalParserNS": 150354
+        }
+      },
+      "rustFasterPairs": {
+        "fullNS": 4,
+        "predicateNS": 9,
+        "finalParserNS": 1
+      }
+    },
+    "(128, 0)": {
+      "samples": {
+        "release": [
+          {
+            "fullNS": 45373958.5,
+            "predicateNS": 736750,
+            "finalParserNS": 82562.5
+          },
+          {
+            "fullNS": 45499041.5,
+            "predicateNS": 1692354,
+            "finalParserNS": 207771
+          },
+          {
+            "fullNS": 45640166.5,
+            "predicateNS": 2030812.5,
+            "finalParserNS": 148208
+          },
+          {
+            "fullNS": 43207625.5,
+            "predicateNS": 1165480,
+            "finalParserNS": 119750
+          },
+          {
+            "fullNS": 46671958.5,
+            "predicateNS": 1650125,
+            "finalParserNS": 159313
+          },
+          {
+            "fullNS": 46671166.5,
+            "predicateNS": 2077167,
+            "finalParserNS": 198166.5
+          },
+          {
+            "fullNS": 41014250,
+            "predicateNS": 1565604.5,
+            "finalParserNS": 198354.5
+          },
+          {
+            "fullNS": 43772896,
+            "predicateNS": 1302687.5,
+            "finalParserNS": 186166.5
+          },
+          {
+            "fullNS": 43554145.5,
+            "predicateNS": 1598896,
+            "finalParserNS": 370895.5
+          }
+        ],
+        "rust": [
+          {
+            "fullNS": 44602875,
+            "predicateNS": 49292,
+            "finalParserNS": 123750
+          },
+          {
+            "fullNS": 45996750,
+            "predicateNS": 50125.5,
+            "finalParserNS": 145125
+          },
+          {
+            "fullNS": 38175020.5,
+            "predicateNS": 79645.5,
+            "finalParserNS": 122250
+          },
+          {
+            "fullNS": 45649458.5,
+            "predicateNS": 31520.5,
+            "finalParserNS": 44812.5
+          },
+          {
+            "fullNS": 42413958.5,
+            "predicateNS": 56895,
+            "finalParserNS": 130250.5
+          },
+          {
+            "fullNS": 39176625,
+            "predicateNS": 58687.5,
+            "finalParserNS": 121125
+          },
+          {
+            "fullNS": 45167791.5,
+            "predicateNS": 63500,
+            "finalParserNS": 214124.5
+          },
+          {
+            "fullNS": 46619853.5,
+            "predicateNS": 43313,
+            "finalParserNS": 96208
+          },
+          {
+            "fullNS": 44766500,
+            "predicateNS": 66812,
+            "finalParserNS": 182896
+          }
+        ]
+      },
+      "medianNS": {
+        "release": {
+          "fullNS": 45373958.5,
+          "predicateNS": 1598896,
+          "finalParserNS": 186166.5
+        },
+        "rust": {
+          "fullNS": 44766500,
+          "predicateNS": 56895,
+          "finalParserNS": 123750
+        }
+      },
+      "rustFasterPairs": {
+        "fullNS": 4,
+        "predicateNS": 9,
+        "finalParserNS": 7
+      }
+    },
+    "(1024, 0)": {
+      "samples": {
+        "release": [
+          {
+            "fullNS": 53367020.5,
+            "predicateNS": 8914187,
+            "finalParserNS": 693395.5
+          },
+          {
+            "fullNS": 54146562.5,
+            "predicateNS": 10160208.5,
+            "finalParserNS": 470312.5
+          },
+          {
+            "fullNS": 57706145.5,
+            "predicateNS": 11248333.5,
+            "finalParserNS": 489875
+          },
+          {
+            "fullNS": 65121979,
+            "predicateNS": 15111917,
+            "finalParserNS": 502687
+          },
+          {
+            "fullNS": 50895562.5,
+            "predicateNS": 8432604.5,
+            "finalParserNS": 447812.5
+          },
+          {
+            "fullNS": 54317521.5,
+            "predicateNS": 11582582.5,
+            "finalParserNS": 484562.5
+          },
+          {
+            "fullNS": 53343896,
+            "predicateNS": 8208084,
+            "finalParserNS": 593416.5
+          },
+          {
+            "fullNS": 47545458.5,
+            "predicateNS": 8085479,
+            "finalParserNS": 476312.5
+          },
+          {
+            "fullNS": 45100812.5,
+            "predicateNS": 2718166,
+            "finalParserNS": 218042
+          }
+        ],
+        "rust": [
+          {
+            "fullNS": 45346875.5,
+            "predicateNS": 280353.5,
+            "finalParserNS": 179208.5
+          },
+          {
+            "fullNS": 43495708,
+            "predicateNS": 318687,
+            "finalParserNS": 141229
+          },
+          {
+            "fullNS": 46135229,
+            "predicateNS": 265187,
+            "finalParserNS": 187708.5
+          },
+          {
+            "fullNS": 41974146,
+            "predicateNS": 250791.5,
+            "finalParserNS": 176979.5
+          },
+          {
+            "fullNS": 43892729.5,
+            "predicateNS": 231646.5,
+            "finalParserNS": 163146
+          },
+          {
+            "fullNS": 42352771,
+            "predicateNS": 289042,
+            "finalParserNS": 120375
+          },
+          {
+            "fullNS": 41874812.5,
+            "predicateNS": 246979,
+            "finalParserNS": 86229
+          },
+          {
+            "fullNS": 43583625,
+            "predicateNS": 527604,
+            "finalParserNS": 470979.5
+          },
+          {
+            "fullNS": 53105937,
+            "predicateNS": 94916.5,
+            "finalParserNS": 37333
+          }
+        ]
+      },
+      "medianNS": {
+        "release": {
+          "fullNS": 53367020.5,
+          "predicateNS": 8914187,
+          "finalParserNS": 484562.5
+        },
+        "rust": {
+          "fullNS": 43583625,
+          "predicateNS": 265187,
+          "finalParserNS": 163146
+        }
+      },
+      "rustFasterPairs": {
+        "fullNS": 8,
+        "predicateNS": 9,
+        "finalParserNS": 9
+      }
+    },
+    "(1024, 1)": {
+      "samples": {
+        "release": [
+          {
+            "fullNS": 88925812.5,
+            "predicateNS": 5693290.5,
+            "finalParserNS": 219666
+          },
+          {
+            "fullNS": 101440166.5,
+            "predicateNS": 27423125.5,
+            "finalParserNS": 438958
+          },
+          {
+            "fullNS": 96673979,
+            "predicateNS": 20451853.5,
+            "finalParserNS": 539229
+          },
+          {
+            "fullNS": 100222500,
+            "predicateNS": 15103583.5,
+            "finalParserNS": 478021
+          },
+          {
+            "fullNS": 101199333.5,
+            "predicateNS": 22793833.5,
+            "finalParserNS": 482645.5
+          },
+          {
+            "fullNS": 100563000,
+            "predicateNS": 24702437,
+            "finalParserNS": 497937.5
+          },
+          {
+            "fullNS": 107502083.5,
+            "predicateNS": 27508061.5,
+            "finalParserNS": 524437.5
+          },
+          {
+            "fullNS": 97338791.5,
+            "predicateNS": 23712541.5,
+            "finalParserNS": 624708
+          },
+          {
+            "fullNS": 100032104.5,
+            "predicateNS": 21954188.5,
+            "finalParserNS": 493583.5
+          }
+        ],
+        "rust": [
+          {
+            "fullNS": 87141041.5,
+            "predicateNS": 328145,
+            "finalParserNS": 100729
+          },
+          {
+            "fullNS": 86533583.5,
+            "predicateNS": 384021.5,
+            "finalParserNS": 82583.5
+          },
+          {
+            "fullNS": 84670625,
+            "predicateNS": 577855,
+            "finalParserNS": 129271
+          },
+          {
+            "fullNS": 84426187.5,
+            "predicateNS": 175291.5,
+            "finalParserNS": 49896
+          },
+          {
+            "fullNS": 78175521,
+            "predicateNS": 482834.5,
+            "finalParserNS": 136687.5
+          },
+          {
+            "fullNS": 82141500,
+            "predicateNS": 610854.5,
+            "finalParserNS": 279916.5
+          },
+          {
+            "fullNS": 88299395.5,
+            "predicateNS": 508270.5,
+            "finalParserNS": 153771
+          },
+          {
+            "fullNS": 83382187,
+            "predicateNS": 534959,
+            "finalParserNS": 158562.5
+          },
+          {
+            "fullNS": 88284229,
+            "predicateNS": 577918,
+            "finalParserNS": 154145.5
+          }
+        ]
+      },
+      "medianNS": {
+        "release": {
+          "fullNS": 100222500,
+          "predicateNS": 22793833.5,
+          "finalParserNS": 493583.5
+        },
+        "rust": {
+          "fullNS": 84670625,
+          "predicateNS": 508270.5,
+          "finalParserNS": 136687.5
+        }
+      },
+      "rustFasterPairs": {
+        "fullNS": 9,
+        "predicateNS": 9,
+        "finalParserNS": 9
+      }
+    },
+    "(8192, 0)": {
+      "samples": {
+        "release": [
+          {
+            "fullNS": 270365062.5,
+            "predicateNS": 100309479.5,
+            "finalParserNS": 1678750
+          },
+          {
+            "fullNS": 252794209,
+            "predicateNS": 83912917,
+            "finalParserNS": 1412438
+          },
+          {
+            "fullNS": 264022666.5,
+            "predicateNS": 90840937.5,
+            "finalParserNS": 1617729.5
+          },
+          {
+            "fullNS": 258177541.5,
+            "predicateNS": 82939625,
+            "finalParserNS": 1620750
+          },
+          {
+            "fullNS": 255017792,
+            "predicateNS": 88118458.5,
+            "finalParserNS": 1789770.5
+          },
+          {
+            "fullNS": 270754000,
+            "predicateNS": 97246042,
+            "finalParserNS": 1753625
+          },
+          {
+            "fullNS": 281401770.5,
+            "predicateNS": 100743792.5,
+            "finalParserNS": 1617416.5
+          },
+          {
+            "fullNS": 265475396,
+            "predicateNS": 92818249.5,
+            "finalParserNS": 1663083.5
+          },
+          {
+            "fullNS": 262744249.5,
+            "predicateNS": 90843272,
+            "finalParserNS": 1932541.5
+          }
+        ],
+        "rust": [
+          {
+            "fullNS": 145597000,
+            "predicateNS": 6319624.5,
+            "finalParserNS": 188083
+          },
+          {
+            "fullNS": 154153958,
+            "predicateNS": 4792439,
+            "finalParserNS": 108771
+          },
+          {
+            "fullNS": 163975187.5,
+            "predicateNS": 7608395,
+            "finalParserNS": 133083.5
+          },
+          {
+            "fullNS": 159903583.5,
+            "predicateNS": 7907772,
+            "finalParserNS": 178917
+          },
+          {
+            "fullNS": 171604292,
+            "predicateNS": 4181458,
+            "finalParserNS": 116416.5
+          },
+          {
+            "fullNS": 158306604.5,
+            "predicateNS": 6732083.5,
+            "finalParserNS": 185896
+          },
+          {
+            "fullNS": 144722375,
+            "predicateNS": 5208896,
+            "finalParserNS": 122875
+          },
+          {
+            "fullNS": 144120604,
+            "predicateNS": 4792604.5,
+            "finalParserNS": 163250
+          },
+          {
+            "fullNS": 170223667,
+            "predicateNS": 6882165.5,
+            "finalParserNS": 151062.5
+          }
+        ]
+      },
+      "medianNS": {
+        "release": {
+          "fullNS": 264022666.5,
+          "predicateNS": 90843272,
+          "finalParserNS": 1663083.5
+        },
+        "rust": {
+          "fullNS": 158306604.5,
+          "predicateNS": 6319624.5,
+          "finalParserNS": 151062.5
+        }
+      },
+      "rustFasterPairs": {
+        "fullNS": 9,
+        "predicateNS": 9,
+        "finalParserNS": 9
+      }
+    }
+  }
+}

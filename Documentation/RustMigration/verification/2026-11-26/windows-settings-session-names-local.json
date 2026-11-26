@@ -1,0 +1,941 @@
+{
+  "integrated": [
+    "7014ca4",
+    "8faf127"
+  ],
+  "reference": "v2.1.41",
+  "system": "macOS 26.6.2",
+  "architecture": "Arm64",
+  "checkedFrames": 1084,
+  "checkedNames": 5094,
+  "checksum": 206892,
+  "localMeasurements": [
+    {
+      "size": 4096,
+      "metadata": 0,
+      "shown": 5,
+      "runs": [
+        {
+          "side": "release",
+          "ns": 38783.333333333336,
+          "bytes": 4610
+        },
+        {
+          "side": "candidate",
+          "ns": 35566.666666666664,
+          "bytes": 816
+        },
+        {
+          "side": "candidate",
+          "ns": 36566.666666666664,
+          "bytes": 816
+        },
+        {
+          "side": "release",
+          "ns": 36733.333333333336,
+          "bytes": 4600
+        },
+        {
+          "side": "release",
+          "ns": 37000,
+          "bytes": 4600
+        },
+        {
+          "side": "candidate",
+          "ns": 37433.333333333336,
+          "bytes": 816
+        },
+        {
+          "side": "candidate",
+          "ns": 37200,
+          "bytes": 816
+        },
+        {
+          "side": "release",
+          "ns": 36833.333333333336,
+          "bytes": 4600
+        },
+        {
+          "side": "release",
+          "ns": 35666.666666666664,
+          "bytes": 4600
+        },
+        {
+          "side": "candidate",
+          "ns": 35900,
+          "bytes": 816
+        },
+        {
+          "side": "candidate",
+          "ns": 36200,
+          "bytes": 816
+        },
+        {
+          "side": "release",
+          "ns": 35783.333333333336,
+          "bytes": 4600
+        },
+        {
+          "side": "release",
+          "ns": 36550,
+          "bytes": 4600
+        },
+        {
+          "side": "candidate",
+          "ns": 35350,
+          "bytes": 816
+        }
+      ]
+    },
+    {
+      "size": 4096,
+      "metadata": 0,
+      "shown": 256,
+      "runs": [
+        {
+          "side": "release",
+          "ns": 2059600,
+          "bytes": 222432
+        },
+        {
+          "side": "candidate",
+          "ns": 86300,
+          "bytes": 29656
+        },
+        {
+          "side": "candidate",
+          "ns": 86000,
+          "bytes": 29656
+        },
+        {
+          "side": "release",
+          "ns": 2082500,
+          "bytes": 222432
+        },
+        {
+          "side": "release",
+          "ns": 2112000,
+          "bytes": 222432
+        },
+        {
+          "side": "candidate",
+          "ns": 93500,
+          "bytes": 29656
+        },
+        {
+          "side": "candidate",
+          "ns": 90400,
+          "bytes": 29656
+        },
+        {
+          "side": "release",
+          "ns": 2058000,
+          "bytes": 222432
+        },
+        {
+          "side": "release",
+          "ns": 2068000,
+          "bytes": 222432
+        },
+        {
+          "side": "candidate",
+          "ns": 86400,
+          "bytes": 29656
+        },
+        {
+          "side": "candidate",
+          "ns": 86000,
+          "bytes": 29656
+        },
+        {
+          "side": "release",
+          "ns": 2073500,
+          "bytes": 222432
+        },
+        {
+          "side": "release",
+          "ns": 2082500,
+          "bytes": 222432
+        },
+        {
+          "side": "candidate",
+          "ns": 97400,
+          "bytes": 29656
+        }
+      ]
+    },
+    {
+      "size": 4096,
+      "metadata": 80,
+      "shown": 5,
+      "runs": [
+        {
+          "side": "release",
+          "ns": 600,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 116.66666666666667,
+          "bytes": 160
+        },
+        {
+          "side": "candidate",
+          "ns": 100,
+          "bytes": 160
+        },
+        {
+          "side": "release",
+          "ns": 416.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "release",
+          "ns": 400,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 266.6666666666667,
+          "bytes": 160
+        },
+        {
+          "side": "candidate",
+          "ns": 100,
+          "bytes": 160
+        },
+        {
+          "side": "release",
+          "ns": 416.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "release",
+          "ns": 416.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 116.66666666666667,
+          "bytes": 160
+        },
+        {
+          "side": "candidate",
+          "ns": 100,
+          "bytes": 160
+        },
+        {
+          "side": "release",
+          "ns": 516.6666666666666,
+          "bytes": 944
+        },
+        {
+          "side": "release",
+          "ns": 416.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 116.66666666666667,
+          "bytes": 160
+        }
+      ]
+    },
+    {
+      "size": 4096,
+      "metadata": 80,
+      "shown": 256,
+      "runs": [
+        {
+          "side": "release",
+          "ns": 344100,
+          "bytes": 66048
+        },
+        {
+          "side": "candidate",
+          "ns": 49100,
+          "bytes": 9376
+        },
+        {
+          "side": "candidate",
+          "ns": 48200,
+          "bytes": 9376
+        },
+        {
+          "side": "release",
+          "ns": 345300,
+          "bytes": 66048
+        },
+        {
+          "side": "release",
+          "ns": 344100,
+          "bytes": 66048
+        },
+        {
+          "side": "candidate",
+          "ns": 49400,
+          "bytes": 9376
+        },
+        {
+          "side": "candidate",
+          "ns": 48200,
+          "bytes": 9376
+        },
+        {
+          "side": "release",
+          "ns": 339000,
+          "bytes": 66048
+        },
+        {
+          "side": "release",
+          "ns": 339100,
+          "bytes": 66048
+        },
+        {
+          "side": "candidate",
+          "ns": 47700,
+          "bytes": 9376
+        },
+        {
+          "side": "candidate",
+          "ns": 45800,
+          "bytes": 9376
+        },
+        {
+          "side": "release",
+          "ns": 340900,
+          "bytes": 66048
+        },
+        {
+          "side": "release",
+          "ns": 344600,
+          "bytes": 66048
+        },
+        {
+          "side": "candidate",
+          "ns": 46100,
+          "bytes": 9376
+        }
+      ]
+    },
+    {
+      "size": 4096,
+      "metadata": 100,
+      "shown": 5,
+      "runs": [
+        {
+          "side": "release",
+          "ns": 566.6666666666666,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 116.66666666666667,
+          "bytes": 160
+        },
+        {
+          "side": "candidate",
+          "ns": 116.66666666666667,
+          "bytes": 160
+        },
+        {
+          "side": "release",
+          "ns": 416.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "release",
+          "ns": 366.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 266.6666666666667,
+          "bytes": 160
+        },
+        {
+          "side": "candidate",
+          "ns": 100,
+          "bytes": 160
+        },
+        {
+          "side": "release",
+          "ns": 383.3333333333333,
+          "bytes": 944
+        },
+        {
+          "side": "release",
+          "ns": 416.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 100,
+          "bytes": 160
+        },
+        {
+          "side": "candidate",
+          "ns": 100,
+          "bytes": 160
+        },
+        {
+          "side": "release",
+          "ns": 583.3333333333334,
+          "bytes": 944
+        },
+        {
+          "side": "release",
+          "ns": 416.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 100,
+          "bytes": 160
+        }
+      ]
+    },
+    {
+      "size": 4096,
+      "metadata": 100,
+      "shown": 256,
+      "runs": [
+        {
+          "side": "release",
+          "ns": 19600,
+          "bytes": 37088
+        },
+        {
+          "side": "candidate",
+          "ns": 6500,
+          "bytes": 2168
+        },
+        {
+          "side": "candidate",
+          "ns": 6200,
+          "bytes": 2168
+        },
+        {
+          "side": "release",
+          "ns": 19600,
+          "bytes": 37088
+        },
+        {
+          "side": "release",
+          "ns": 19600,
+          "bytes": 37088
+        },
+        {
+          "side": "candidate",
+          "ns": 7200,
+          "bytes": 2168
+        },
+        {
+          "side": "candidate",
+          "ns": 5900,
+          "bytes": 2168
+        },
+        {
+          "side": "release",
+          "ns": 34300,
+          "bytes": 37088
+        },
+        {
+          "side": "release",
+          "ns": 19000,
+          "bytes": 37088
+        },
+        {
+          "side": "candidate",
+          "ns": 6900,
+          "bytes": 2168
+        },
+        {
+          "side": "candidate",
+          "ns": 5900,
+          "bytes": 2168
+        },
+        {
+          "side": "release",
+          "ns": 19300,
+          "bytes": 37088
+        },
+        {
+          "side": "release",
+          "ns": 19500,
+          "bytes": 37088
+        },
+        {
+          "side": "candidate",
+          "ns": 6100,
+          "bytes": 2168
+        }
+      ]
+    },
+    {
+      "size": 16384,
+      "metadata": 0,
+      "shown": 5,
+      "runs": [
+        {
+          "side": "release",
+          "ns": 147583.33333333334,
+          "bytes": 4600
+        },
+        {
+          "side": "candidate",
+          "ns": 138100,
+          "bytes": 816
+        },
+        {
+          "side": "candidate",
+          "ns": 140883.33333333334,
+          "bytes": 816
+        },
+        {
+          "side": "release",
+          "ns": 147750,
+          "bytes": 4600
+        },
+        {
+          "side": "release",
+          "ns": 147000,
+          "bytes": 4600
+        },
+        {
+          "side": "candidate",
+          "ns": 141950,
+          "bytes": 816
+        },
+        {
+          "side": "candidate",
+          "ns": 139816.66666666666,
+          "bytes": 816
+        },
+        {
+          "side": "release",
+          "ns": 147283.33333333334,
+          "bytes": 4600
+        },
+        {
+          "side": "release",
+          "ns": 147216.66666666666,
+          "bytes": 4600
+        },
+        {
+          "side": "candidate",
+          "ns": 142083.33333333334,
+          "bytes": 816
+        },
+        {
+          "side": "candidate",
+          "ns": 140250,
+          "bytes": 816
+        },
+        {
+          "side": "release",
+          "ns": 147366.66666666666,
+          "bytes": 4600
+        },
+        {
+          "side": "release",
+          "ns": 147116.66666666666,
+          "bytes": 4600
+        },
+        {
+          "side": "candidate",
+          "ns": 140000,
+          "bytes": 816
+        }
+      ]
+    },
+    {
+      "size": 16384,
+      "metadata": 0,
+      "shown": 256,
+      "runs": [
+        {
+          "side": "release",
+          "ns": 8806200,
+          "bytes": 222432
+        },
+        {
+          "side": "candidate",
+          "ns": 311700,
+          "bytes": 29656
+        },
+        {
+          "side": "candidate",
+          "ns": 303500,
+          "bytes": 29656
+        },
+        {
+          "side": "release",
+          "ns": 8616500,
+          "bytes": 222432
+        },
+        {
+          "side": "release",
+          "ns": 8728600,
+          "bytes": 222432
+        },
+        {
+          "side": "candidate",
+          "ns": 313000,
+          "bytes": 29656
+        },
+        {
+          "side": "candidate",
+          "ns": 307400,
+          "bytes": 29656
+        },
+        {
+          "side": "release",
+          "ns": 8767300,
+          "bytes": 222432
+        },
+        {
+          "side": "release",
+          "ns": 8762200,
+          "bytes": 222432
+        },
+        {
+          "side": "candidate",
+          "ns": 302600,
+          "bytes": 29656
+        },
+        {
+          "side": "candidate",
+          "ns": 298200,
+          "bytes": 29656
+        },
+        {
+          "side": "release",
+          "ns": 8781500,
+          "bytes": 222432
+        },
+        {
+          "side": "release",
+          "ns": 8856700,
+          "bytes": 222432
+        },
+        {
+          "side": "candidate",
+          "ns": 307800,
+          "bytes": 29656
+        }
+      ]
+    },
+    {
+      "size": 16384,
+      "metadata": 80,
+      "shown": 5,
+      "runs": [
+        {
+          "side": "release",
+          "ns": 416.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 116.66666666666667,
+          "bytes": 160
+        },
+        {
+          "side": "candidate",
+          "ns": 116.66666666666667,
+          "bytes": 160
+        },
+        {
+          "side": "release",
+          "ns": 416.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "release",
+          "ns": 400,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 116.66666666666667,
+          "bytes": 160
+        },
+        {
+          "side": "candidate",
+          "ns": 100,
+          "bytes": 160
+        },
+        {
+          "side": "release",
+          "ns": 416.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "release",
+          "ns": 383.3333333333333,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 116.66666666666667,
+          "bytes": 160
+        },
+        {
+          "side": "candidate",
+          "ns": 133.33333333333334,
+          "bytes": 160
+        },
+        {
+          "side": "release",
+          "ns": 400,
+          "bytes": 944
+        },
+        {
+          "side": "release",
+          "ns": 416.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 100,
+          "bytes": 160
+        }
+      ]
+    },
+    {
+      "size": 16384,
+      "metadata": 80,
+      "shown": 256,
+      "runs": [
+        {
+          "side": "release",
+          "ns": 1382300,
+          "bytes": 66048
+        },
+        {
+          "side": "candidate",
+          "ns": 179400,
+          "bytes": 9376
+        },
+        {
+          "side": "candidate",
+          "ns": 176500,
+          "bytes": 9376
+        },
+        {
+          "side": "release",
+          "ns": 1381400,
+          "bytes": 66048
+        },
+        {
+          "side": "release",
+          "ns": 1380900,
+          "bytes": 66048
+        },
+        {
+          "side": "candidate",
+          "ns": 176700,
+          "bytes": 9376
+        },
+        {
+          "side": "candidate",
+          "ns": 176200,
+          "bytes": 9376
+        },
+        {
+          "side": "release",
+          "ns": 1382500,
+          "bytes": 66048
+        },
+        {
+          "side": "release",
+          "ns": 1382700,
+          "bytes": 66048
+        },
+        {
+          "side": "candidate",
+          "ns": 178700,
+          "bytes": 9376
+        },
+        {
+          "side": "candidate",
+          "ns": 176700,
+          "bytes": 9376
+        },
+        {
+          "side": "release",
+          "ns": 1381500,
+          "bytes": 66048
+        },
+        {
+          "side": "release",
+          "ns": 1383800,
+          "bytes": 66048
+        },
+        {
+          "side": "candidate",
+          "ns": 175800,
+          "bytes": 9376
+        }
+      ]
+    },
+    {
+      "size": 16384,
+      "metadata": 100,
+      "shown": 5,
+      "runs": [
+        {
+          "side": "release",
+          "ns": 533.3333333333334,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 116.66666666666667,
+          "bytes": 160
+        },
+        {
+          "side": "candidate",
+          "ns": 100,
+          "bytes": 160
+        },
+        {
+          "side": "release",
+          "ns": 450,
+          "bytes": 944
+        },
+        {
+          "side": "release",
+          "ns": 533.3333333333334,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 116.66666666666667,
+          "bytes": 160
+        },
+        {
+          "side": "candidate",
+          "ns": 100,
+          "bytes": 160
+        },
+        {
+          "side": "release",
+          "ns": 416.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "release",
+          "ns": 383.3333333333333,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 116.66666666666667,
+          "bytes": 160
+        },
+        {
+          "side": "candidate",
+          "ns": 250,
+          "bytes": 160
+        },
+        {
+          "side": "release",
+          "ns": 400,
+          "bytes": 944
+        },
+        {
+          "side": "release",
+          "ns": 416.6666666666667,
+          "bytes": 944
+        },
+        {
+          "side": "candidate",
+          "ns": 100,
+          "bytes": 160
+        }
+      ]
+    },
+    {
+      "size": 16384,
+      "metadata": 100,
+      "shown": 256,
+      "runs": [
+        {
+          "side": "release",
+          "ns": 20700,
+          "bytes": 37088
+        },
+        {
+          "side": "candidate",
+          "ns": 7300,
+          "bytes": 2168
+        },
+        {
+          "side": "candidate",
+          "ns": 7100,
+          "bytes": 2168
+        },
+        {
+          "side": "release",
+          "ns": 19600,
+          "bytes": 37088
+        },
+        {
+          "side": "release",
+          "ns": 20400,
+          "bytes": 37088
+        },
+        {
+          "side": "candidate",
+          "ns": 6700,
+          "bytes": 2168
+        },
+        {
+          "side": "candidate",
+          "ns": 6600,
+          "bytes": 2168
+        },
+        {
+          "side": "release",
+          "ns": 20200,
+          "bytes": 37088
+        },
+        {
+          "side": "release",
+          "ns": 19700,
+          "bytes": 37088
+        },
+        {
+          "side": "candidate",
+          "ns": 7700,
+          "bytes": 2168
+        },
+        {
+          "side": "candidate",
+          "ns": 6600,
+          "bytes": 2168
+        },
+        {
+          "side": "release",
+          "ns": 19900,
+          "bytes": 37088
+        },
+        {
+          "side": "release",
+          "ns": 19800,
+          "bytes": 37088
+        },
+        {
+          "side": "candidate",
+          "ns": 6700,
+          "bytes": 2168
+        }
+      ]
+    }
+  ],
+  "independentAssertions": 5143,
+  "independentReceiptSha256": "f68a211aa514f78628cee54c69b46251445f7f2fff528c8400e967f774180ecf",
+  "scope": ".NET product view naming and resolver on macOS, WPF cross-build. Desktop window validation is a separate native CI check."
+}

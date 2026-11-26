@@ -1,0 +1,47 @@
+{
+  "integrated": "95108fa",
+  "reference": "v2.1.41",
+  "workerCommit": "9a0f8bdea66b1078ebeedaebeae43b1dcf40df41",
+  "statesPerISA": 29,
+  "monitorLifecycle": "Native arm64 and translated x86_64 independently started, stopped and restarted the real monitor on an owned synthetic registry and recovered the new title.",
+  "nativeTiming": {
+    "quiet-cold": {
+      "release": 8122862,
+      "previous": 8138112,
+      "rust": 777795
+    },
+    "sparse-cold": {
+      "release": 12765208,
+      "previous": 7970486,
+      "rust": 5016111
+    },
+    "dense-cold": {
+      "release": 56269902,
+      "previous": 22149500,
+      "rust": 21400277
+    },
+    "quiet-cached": {
+      "release": 33436,
+      "previous": 34373,
+      "rust": 34665
+    }
+  },
+  "extraCases": {
+    "arm64": {
+      "rows": 819,
+      "sha256": "2c5b5c82d72795a437a6ca5b2e5a92859f2ba3a6dd4f8a8a196813c4d353db32",
+      "bridgeArchiveSha256": "bcf68fc99827d030eb0306969eb6942045a550c52abe73016d3e4e1806872cb3"
+    },
+    "x86_64": {
+      "rows": 819,
+      "sha256": "2c5b5c82d72795a437a6ca5b2e5a92859f2ba3a6dd4f8a8a196813c4d353db32",
+      "bridgeArchiveSha256": "8d46c6dc328c2237d27e7bcf78163496d90afafb80ad5dde6a678c3b862f28f4"
+    }
+  },
+  "workerReceiptSha256": "936c66cfde0146881d5cc6968535cfb916f4dbad81b19b6f540309111675469e",
+  "lifecycleReceiptSha256": "f6d250286d4887e79f3d54cda5505e9dc2a39e295e9b1ed9ecda4cea8a814bbb",
+  "limits": [
+    "Physical Intel Mac was unavailable. The cache-hit timing is effectively unchanged. Real monitor process lifecycle was tested independently of the GUI app and credential system."
+  ],
+  "harnessVerdict": "INCONCLUSIVE"
+}

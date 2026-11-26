@@ -82,6 +82,18 @@
       },
       "total": 106118,
       "rustPercent": 10.928
+    },
+    "412db5f": {
+      "lines": {
+        "JavaScript": 4458,
+        "Rust": 12101,
+        "Objective-C": 119,
+        "Swift": 46428,
+        "C#": 43700,
+        "XAML": 165
+      },
+      "total": 106971,
+      "rustPercent": 11.312
     }
   }
 }
