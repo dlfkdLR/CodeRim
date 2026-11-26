@@ -9,6 +9,7 @@ struct Case {
     let data: Data
     // nil for native fixtures where an optimization's coverage is unconstrained.
     let fast: Bool?
+    var metadataHit: Bool? = nil
 }
 struct Record: Encodable {
     var name: String
@@ -88,6 +89,50 @@ for encoding in [String.Encoding.utf16, .utf16LittleEndian, .utf32BigEndian] {
     cases.append(Case(name: "encoding-\(encoding.rawValue)", data: line.data(using: encoding)!, fast: false))
 }
 
+
+// Exercise strict metadata shapes and every host field through the production parser.
+@MainActor
+func metadata(_ name: String, _ line: String, hit: Bool) {
+    cases.append(Case(name: name, data: Data(line.utf8), fast: false, metadataHit: hit))
+}
+let session = #"{"type":"session_meta","timestamp":"2001-01-01T00:00:00Z","payload":{"id":"session","model":"compact","cwd":"/tmp/example","forked_from_id":"fork","parent_thread_id":"parent","subagent_history_start_ordinal":8}}"#
+let context = #"{"payload":{"cwd":"/tmp","model":"x"},"type":"turn_context"}"#
+let task = #"{"ordinal":9,"type":"event_msg","payload":{"type":"task_started","started_at":1800000000},"timestamp":"2001-01-01T00:00:00Z"}"#
+let ignored = #"{"payload":{"message":"private test fixture","type":"agent_message"},"type":"event_msg"}"#
+metadata("full-session", session, hit: true)
+metadata("empty-session", #"{"type":"session_meta","payload":{}}"#, hit: true)
+metadata("session-date-invalid", session.replacingOccurrences(of: "2001-01-01T00:00:00Z", with: "no-date"), hit: true)
+metadata("null-fields", #"{"type":"session_meta","timestamp":null,"payload":{"id":null,"cwd":null,"model":null,"subagent_history_start_ordinal":null}}"#, hit: true)
+for n in [0, 255, 256, 257] {
+    metadata("session-id-\(n)", session.replacingOccurrences(of: #""session""#, with: "\"" + String(repeating: "a", count: n) + "\""), hit: true)
+}
+for n in [4096, 4097] {
+    metadata("session-path-\(n)", session.replacingOccurrences(of: "/tmp/example", with: String(repeating: "a", count: n)), hit: true)
+}
+metadata("context", context, hit: true)
+metadata("task", task, hit: true)
+metadata("task-with-turn-id", task.replacingOccurrences(of: #""started_at":"#, with: #""turn_id":"ignored","started_at":"#), hit: true)
+metadata("context-with-scalar-content", context.replacingOccurrences(of: #""model":"#, with: #""content":"ignored","model":"#), hit: true)
+metadata("task-no-timestamp", #"{"type":"event_msg","payload":{"type":"task_started"}}"#, hit: true)
+metadata("task-invalid-timestamp", task.replacingOccurrences(of: "2001-01-01T00:00:00Z", with: "bad"), hit: true)
+metadata("ignored-message", ignored, hit: true)
+for (name, value) in [("fractional","0.25"),("whole-float","2.0"),("scientific","1e2"),("negative","-1"),("large","9007199254740993"),("bool","false"),("string",#""2""#)] {
+    metadata("task-started-\(name)", task.replacingOccurrences(of: "1800000000", with: value), hit: false)
+}
+metadata("task-string-ordinal", task.replacingOccurrences(of: #""ordinal":9"#, with: #""ordinal":"9""#), hit: false)
+metadata("session-duplicate-null", session.replacingOccurrences(of: #""model":"compact""#, with: #""model":null,"model":"compact""#), hit: false)
+metadata("session-escaped-key", session.replacingOccurrences(of: #""id":"session""#, with: #""\u0069d":"session""#), hit: false)
+metadata("context-non-ascii", context.replacingOccurrences(of: "/tmp", with: "/학교"), hit: false)
+metadata("context-escaped-path", context.replacingOccurrences(of: "/tmp", with: #"\/tmp"#), hit: false)
+metadata("context-NUL", context.replacingOccurrences(of: "/tmp", with: #"a\u0000b"#), hit: false)
+metadata("context-positional", #"{"type":"turn_context","payload":["x"]}"#, hit: false)
+metadata("unknown-context-field", context.replacingOccurrences(of: #""cwd""#, with: #""future":null,"cwd""#), hit: false)
+metadata("message-is-not-token", ignored.replacingOccurrences(of: "private test fixture", with: "token_count"), hit: false)
+metadata("wrong-shaped-message", ignored.replacingOccurrences(of: #""message":"private test fixture""#, with: #""message":{"x":1}"#), hit: false)
+metadata("late-type-outside-hint", String(repeating: " ", count: 9000) + session, hit: false)
+metadata("long-message-with-early-key", ignored.replacingOccurrences(of: "private test fixture", with: String(repeating: "m", count: 9000)), hit: true)
+
+
 func bits(_ date: Date?) -> UInt64? { date?.timeIntervalSinceReferenceDate.bitPattern }
 let parser = CodexJSONLParser()
 let normalizer = UsageNormalizer()
@@ -98,7 +143,14 @@ for sample in cases {
     if let expected = sample.fast {
         let matched = sample.data.withUnsafeBytes { raw in
             let bytes = raw.bindMemory(to: UInt8.self)
-            return cr_parse_token_json(bytes.baseAddress, bytes.count).timestamp_length > 0
+            let tokenHit = cr_parse_token_json(bytes.baseAddress, bytes.count).timestamp_length > 0
+            let kind = Int(cr_parse_codex_event(bytes.baseAddress, bytes.count).kind)
+            if let metadataHit = sample.metadataHit {
+                precondition((kind != CR_EVENT_MISS) == metadataHit, "Rust metadata coverage mismatch for \(sample.name)")
+            } else {
+                precondition((kind == CR_EVENT_TOKEN) == expected, "Rust event token coverage mismatch for \(sample.name)")
+            }
+            return tokenHit
         }
         precondition(matched == expected, "Rust coverage mismatch for \(sample.name)")
     }

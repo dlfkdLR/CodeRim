@@ -8,6 +8,8 @@ The Rust core owns token arithmetic and cumulative normalization. It accepts the
 
 The Apple candidate links Rust statically. Its optional JSON reader uses Serde on bounded token records and passes timestamp byte indices back to Foundation. Swift retains ownership of the buffer throughout the call. The bridge validates the length before borrowing it, returns owned integer fields, and retains no pointers. JSON records outside the supported shapes use the original parser, including its error messages. The Windows candidate loads its matching bridge from the application directory and passes UTC ticks by value. The installer, updates, SQLite writes and credentials continue through their current owners.
 
+For Apple log metadata, the bridge recognizes simple ASCII session, turn-context, task-start and agent-message records. Identifiers, working directories and model names retain their original length limits. The bridge returns byte ranges for accepted strings and Foundation parses timestamps. Message text is never returned. Escapes, non-ASCII data, arrays, duplicate fields and unsupported shapes go through the existing Swift parser. The token-only C entry point remains available to existing callers.
+
 ## Rendering and system interfaces
 
 | Option | What it provides | CodeRim decision |

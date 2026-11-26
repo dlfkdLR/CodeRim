@@ -6,7 +6,7 @@ use serde::{Deserialize, Deserializer};
 use serde_json::value::RawValue;
 
 const MAX_LINE: usize = 1_048_576;
-const MAX_COUNT: i64 = 1_000_000_000_000;
+pub(super) const MAX_COUNT: i64 = 1_000_000_000_000;
 
 #[repr(C)]
 #[derive(Default)]
@@ -144,7 +144,7 @@ impl Counts {
     }
 }
 
-fn parse(bytes: &[u8]) -> Option<RawTokenJson> {
+pub(super) fn parse(bytes: &[u8]) -> Option<RawTokenJson> {
     // Derived Serde structs accept positional JSON arrays as well as objects.
     // Excluding '[' enforces object shape at every nesting level. Escapes and
     // non-ASCII input go through Foundation, preserving canonical key equality,
@@ -198,6 +198,22 @@ fn parse(bytes: &[u8]) -> Option<RawTokenJson> {
     })
 }
 
+/// Decode while the caller's borrowed slice is live; the result cannot borrow from it.
+///
+/// # Safety
+/// Non-null input of a supported length must be readable and immutable for this call.
+pub(super) unsafe fn decode_borrowed<T: Default>(
+    bytes: *const u8,
+    length: usize,
+    decode: fn(&[u8]) -> Option<T>,
+) -> T {
+    if bytes.is_null() || length == 0 || length > MAX_LINE {
+        return T::default();
+    }
+    // SAFETY: the checked range is live for this call and u8 has alignment one.
+    decode(unsafe { std::slice::from_raw_parts(bytes, length) }).unwrap_or_default()
+}
+
 /// Try the bounded, borrowed-input parser. Zero timestamp length means fallback.
 ///
 /// # Safety
@@ -207,12 +223,8 @@ fn parse(bytes: &[u8]) -> Option<RawTokenJson> {
 // SAFETY: coderim_token_json.h reserves this name and matching C value layout.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn cr_parse_token_json(bytes: *const u8, length: usize) -> RawTokenJson {
-    if bytes.is_null() || length == 0 || length > MAX_LINE {
-        return RawTokenJson::default();
-    }
-    // SAFETY: the caller supplies the checked range for this call; u8 alignment is 1.
-    let slice = unsafe { std::slice::from_raw_parts(bytes, length) };
-    parse(slice).unwrap_or_default()
+    // SAFETY: this entry point has the same input contract as decode_borrowed.
+    unsafe { decode_borrowed(bytes, length, parse) }
 }
 
 #[cfg(test)]

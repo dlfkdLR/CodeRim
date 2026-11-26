@@ -1,5 +1,6 @@
 //! Fixed-layout normalization entry points take and return values by copy.
 //! Presence flags distinguish an absent measurement from any signed counter.
+mod event_json;
 mod token_json;
 
 use coderim_usage_core::{
