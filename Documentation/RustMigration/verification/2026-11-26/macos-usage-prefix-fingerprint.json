@@ -1,0 +1,738 @@
+{
+  "commit": "555b912",
+  "independentC": {
+    "arm64": 52,
+    "x86_64Rosetta": 52
+  },
+  "crossVersion": {
+    "arm64": "arm64: 845 stable snapshots and independent HMAC comparisons; a6a6f49b7dc3d6c99c8f6543376300807c004a65ea621877605c7edc562124d4",
+    "x86_64": "x86_64: 845 stable snapshots and independent HMAC comparisons; a6a6f49b7dc3d6c99c8f6543376300807c004a65ea621877605c7edc562124d4"
+  },
+  "timingScope": "Elapsed time in advance on the same synthetic file. Seven rotating pairs per size. File preparation, key setup and finalization outside timer. Same Apple Silicon Mac with concurrent workloads.",
+  "timings": [
+    {
+      "bytes": 64,
+      "mode": "current",
+      "samplesNs": {
+        "release": [
+          4190.85,
+          4016.63,
+          9129.415,
+          973.525,
+          8186.455,
+          7657.715,
+          2270.02
+        ],
+        "previous": [
+          1986.46,
+          3584.585,
+          5695.21,
+          1134.625,
+          2215.6,
+          932.51,
+          5841.88
+        ],
+        "rust": [
+          1331.475,
+          1539.995,
+          1194.98,
+          11972.905,
+          1565.415,
+          1646.86,
+          1691.255
+        ]
+      },
+      "medianNs": {
+        "release": 4190.85,
+        "previous": 2215.6,
+        "rust": 1565.415
+      }
+    },
+    {
+      "bytes": 64,
+      "mode": "dual",
+      "samplesNs": {
+        "release": [
+          8394.6,
+          9062.33,
+          12851.045,
+          8024.59,
+          6170.415,
+          3747.87,
+          7047.315
+        ],
+        "previous": [
+          10923.335,
+          13091.83,
+          1370.85,
+          2312.26,
+          2843.135,
+          1495.185,
+          2501.45
+        ],
+        "rust": [
+          2601.47,
+          7292.275,
+          1447.755,
+          10766.48,
+          5202.97,
+          1548.75,
+          53676.85
+        ]
+      },
+      "medianNs": {
+        "release": 8024.59,
+        "previous": 2501.45,
+        "rust": 5202.97
+      }
+    },
+    {
+      "bytes": 65536,
+      "mode": "current",
+      "samplesNs": {
+        "release": [
+          37757.375,
+          45960.425,
+          50490.625,
+          33740.525,
+          47314.6,
+          35209.375,
+          47177.05
+        ],
+        "previous": [
+          59837.575,
+          43351.0,
+          42074.025,
+          35477.15,
+          47604.225,
+          35572.925,
+          34022.925
+        ],
+        "rust": [
+          27627.125,
+          35422.875,
+          35426.15,
+          43008.325,
+          37203.1,
+          37874.975,
+          36194.825
+        ]
+      },
+      "medianNs": {
+        "release": 45960.425,
+        "previous": 42074.025,
+        "rust": 36194.825
+      }
+    },
+    {
+      "bytes": 65536,
+      "mode": "dual",
+      "samplesNs": {
+        "release": [
+          60511.55,
+          78005.125,
+          95097.925,
+          75115.65,
+          79869.7,
+          70278.15,
+          71938.55
+        ],
+        "previous": [
+          62404.2,
+          66512.575,
+          110137.475,
+          66708.375,
+          57459.275,
+          61681.2,
+          53436.425
+        ],
+        "rust": [
+          79254.25,
+          69831.325,
+          86848.975,
+          75656.275,
+          73710.35,
+          79461.475,
+          55484.275
+        ]
+      },
+      "medianNs": {
+        "release": 75115.65,
+        "previous": 62404.2,
+        "rust": 75656.275
+      }
+    },
+    {
+      "bytes": 1048576,
+      "mode": "current",
+      "samplesNs": {
+        "release": [
+          588318.75,
+          580468.75,
+          550995.95,
+          605952.2,
+          556337.45,
+          579877.1,
+          459516.65
+        ],
+        "previous": [
+          557560.45,
+          580158.35,
+          601818.75,
+          599306.3,
+          597406.25,
+          554987.55,
+          543689.7
+        ],
+        "rust": [
+          592554.1,
+          548316.5,
+          515006.1,
+          594170.95,
+          546971.0,
+          464831.1,
+          538672.9
+        ]
+      },
+      "medianNs": {
+        "release": 579877.1,
+        "previous": 580158.35,
+        "rust": 546971.0
+      }
+    },
+    {
+      "bytes": 1048576,
+      "mode": "dual",
+      "samplesNs": {
+        "release": [
+          1083535.5,
+          1048154.15,
+          927052.2,
+          1034562.4,
+          926379.1,
+          1019618.85,
+          1037456.3
+        ],
+        "previous": [
+          1031608.35,
+          990972.9,
+          1052193.85,
+          1012095.85,
+          1015418.75,
+          991643.7,
+          947362.45
+        ],
+        "rust": [
+          923006.15,
+          997485.45,
+          917529.25,
+          953827.1,
+          923075.1,
+          1002743.7,
+          980206.15
+        ]
+      },
+      "medianNs": {
+        "release": 1034562.4,
+        "previous": 1012095.85,
+        "rust": 953827.1
+      }
+    },
+    {
+      "bytes": 16777216,
+      "mode": "current",
+      "samplesNs": {
+        "release": [
+          11249750.0,
+          13924875.0,
+          9411583.5,
+          7996417.0,
+          8986354.5,
+          8870958.5,
+          8541000.0
+        ],
+        "previous": [
+          9342145.5,
+          13138937.0,
+          8899562.5,
+          9676145.5,
+          8349312.5,
+          9258125.0,
+          8672229.5
+        ],
+        "rust": [
+          8754313.0,
+          12522583.0,
+          8497708.5,
+          7895958.5,
+          7489437.5,
+          7693250.0,
+          13002188.0
+        ]
+      },
+      "medianNs": {
+        "release": 8986354.5,
+        "previous": 9258125.0,
+        "rust": 8497708.5
+      }
+    },
+    {
+      "bytes": 16777216,
+      "mode": "dual",
+      "samplesNs": {
+        "release": [
+          17781875.5,
+          14829479.5,
+          15209687.5,
+          15972479.0,
+          17683375.0,
+          17275354.0,
+          17201417.0
+        ],
+        "previous": [
+          17010479.0,
+          14844937.5,
+          15232395.5,
+          16348104.5,
+          20777687.5,
+          15389062.5,
+          34980354.0
+        ],
+        "rust": [
+          14282958.5,
+          14103791.5,
+          14256562.0,
+          15334375.0,
+          16818062.5,
+          16649687.0,
+          28779104.0
+        ]
+      },
+      "medianNs": {
+        "release": 17201417.0,
+        "previous": 16348104.5,
+        "rust": 15334375.0
+      }
+    }
+  ],
+  "separateOriginalRun": [
+    {
+      "bytes": 64,
+      "mode": "current",
+      "samplesNs": {
+        "release": [
+          1186.0,
+          868.365,
+          876.495,
+          924.985,
+          921.04,
+          905.84,
+          864.395
+        ],
+        "previous": [
+          814.385,
+          866.665,
+          866.9,
+          801.665,
+          827.75,
+          842.925,
+          850.01
+        ],
+        "rust": [
+          667.075,
+          708.95,
+          672.51,
+          678.785,
+          705.4,
+          698.58,
+          732.73
+        ]
+      },
+      "medianNs": {
+        "release": 905.84,
+        "previous": 842.925,
+        "rust": 698.58
+      }
+    },
+    {
+      "bytes": 64,
+      "mode": "dual",
+      "samplesNs": {
+        "release": [
+          1165.575,
+          1568.535,
+          1369.545,
+          1225.185,
+          1205.43,
+          1244.81,
+          1162.73
+        ],
+        "previous": [
+          984.79,
+          1174.765,
+          1153.345,
+          7898.97,
+          1002.075,
+          1063.98,
+          1017.035
+        ],
+        "rust": [
+          985.2,
+          1109.565,
+          903.765,
+          7244.57,
+          884.99,
+          880.85,
+          937.695
+        ]
+      },
+      "medianNs": {
+        "release": 1225.185,
+        "previous": 1063.98,
+        "rust": 937.695
+      }
+    },
+    {
+      "bytes": 65536,
+      "mode": "current",
+      "samplesNs": {
+        "release": [
+          24160.45,
+          24745.875,
+          24064.6,
+          24959.4,
+          24731.4,
+          24298.95,
+          24537.475
+        ],
+        "previous": [
+          24040.6,
+          24745.75,
+          24550.075,
+          24516.65,
+          24235.45,
+          27501.125,
+          24360.4
+        ],
+        "rust": [
+          22614.6,
+          22820.85,
+          23305.15,
+          22826.225,
+          22738.425,
+          22950.975,
+          22678.175
+        ]
+      },
+      "medianNs": {
+        "release": 24537.475,
+        "previous": 24516.65,
+        "rust": 22820.85
+      }
+    },
+    {
+      "bytes": 65536,
+      "mode": "dual",
+      "samplesNs": {
+        "release": [
+          43882.325,
+          44298.875,
+          43989.55,
+          45005.2,
+          102743.775,
+          44260.35,
+          49554.15
+        ],
+        "previous": [
+          44127.15,
+          45905.25,
+          45130.25,
+          44643.7,
+          43863.575,
+          45185.375,
+          53734.375
+        ],
+        "rust": [
+          42551.0,
+          42771.9,
+          43777.05,
+          42771.775,
+          42393.725,
+          42867.7,
+          44008.4
+        ]
+      },
+      "medianNs": {
+        "release": 44298.875,
+        "previous": 45130.25,
+        "rust": 42771.9
+      }
+    },
+    {
+      "bytes": 1048576,
+      "mode": "current",
+      "samplesNs": {
+        "release": [
+          386637.45,
+          380729.05,
+          363829.2,
+          363285.5,
+          365150.0,
+          386487.6,
+          368912.55
+        ],
+        "previous": [
+          384681.15,
+          359954.2,
+          364225.05,
+          403443.85,
+          370118.75,
+          366089.6,
+          363004.25
+        ],
+        "rust": [
+          342658.25,
+          345510.4,
+          346983.4,
+          375556.3,
+          368077.1,
+          355081.2,
+          366174.9
+        ]
+      },
+      "medianNs": {
+        "release": 368912.55,
+        "previous": 366089.6,
+        "rust": 355081.2
+      }
+    },
+    {
+      "bytes": 1048576,
+      "mode": "dual",
+      "samplesNs": {
+        "release": [
+          692385.5,
+          787493.65,
+          690629.1,
+          746547.8,
+          690735.45,
+          686425.1,
+          685600.0
+        ],
+        "previous": [
+          686687.55,
+          728529.15,
+          814327.2,
+          753054.05,
+          724060.55,
+          688818.75,
+          683627.1
+        ],
+        "rust": [
+          669125.0,
+          696558.35,
+          696297.95,
+          709633.4,
+          683718.6,
+          670322.95,
+          667622.85
+        ]
+      },
+      "medianNs": {
+        "release": 690735.45,
+        "previous": 724060.55,
+        "rust": 683718.6
+      }
+    },
+    {
+      "bytes": 16777216,
+      "mode": "current",
+      "samplesNs": {
+        "release": [
+          6211479.0,
+          6310958.0,
+          6207521.0,
+          6161938.0,
+          6129375.0,
+          6210208.5,
+          6221812.5
+        ],
+        "previous": [
+          6119979.0,
+          6115104.5,
+          6139146.0,
+          6160125.0,
+          6241333.5,
+          6220333.5,
+          6044917.0
+        ],
+        "rust": [
+          5810229.0,
+          5803499.5,
+          5838541.5,
+          5767708.5,
+          5832541.5,
+          5834208.0,
+          5730729.0
+        ]
+      },
+      "medianNs": {
+        "release": 6210208.5,
+        "previous": 6139146.0,
+        "rust": 5810229.0
+      }
+    },
+    {
+      "bytes": 16777216,
+      "mode": "dual",
+      "samplesNs": {
+        "release": [
+          11057937.0,
+          11129688.0,
+          11099125.0,
+          11050625.5,
+          11417229.0,
+          15330750.0,
+          13702792.0
+        ],
+        "previous": [
+          11063688.0,
+          11093667.0,
+          11009208.5,
+          11103250.0,
+          11087708.5,
+          11948770.5,
+          12427645.5
+        ],
+        "rust": [
+          10832500.0,
+          10871313.0,
+          10807562.0,
+          10802083.5,
+          11205562.5,
+          11265020.5,
+          11572750.0
+        ]
+      },
+      "medianNs": {
+        "release": 11129688.0,
+        "previous": 11093667.0,
+        "rust": 10871313.0
+      }
+    }
+  ],
+  "review": {
+    "functionality": "Recompiled and ran all 845 shipping collector advances on arm64 and x86_64 under Rosetta. The v2.1.41, previous migration host and candidate agreed on every row. An independent C consumer also linked the real dylib on both targets and compared every transferred byte for 52 scenarios per target, including partial last chunks and budgeted resumes.",
+    "facts": "The shipping Swift accumulator retains current v2 domain separation, optional original size-prefixed HMAC, copying, discard behavior and offset increment. The independent stdlib HMAC-SHA256 oracle inside the rerun covered both persisted representations and produced identical SHA256 transcripts across both target binaries.",
+    "security": "Inspected signed offset/limit arithmetic and per-read bounds. pread borrows the existing descriptor, retries EINTR and accumulates complete chunks only. The direct ABI client truncated its own temporary file during the second cancellation query, cancelled during preflight and data callbacks, supplied bad and exhausted descriptors and checked ownership and original seek position. The Swift closure synchronously authenticates both HMACs before returning, and retains neither the buffer nor the pointer to its mutable accumulator.",
+    "maintainability": "The header spells out both callback shapes and all three return codes. Rust owns the reusable byte buffer and handles partial reads, Swift is still the one owner of cryptographic state and maps cancelled and changed reads back to the existing public behavior.",
+    "scope": "The host still supplies the selected file descriptor, prefix target, remaining byte budget and current accumulator. Reviewed the actual compile-gated call site. Tests used synthetic byte streams and discarded temporary files.",
+    "performance": "On the original seven-pair APFS receipt, 16 MiB improved against release and the prior candidate for both modes. At 64 B dual the medians were 8.02 us release, 2.50 us previous, 5.20 us Rust; at 64 KiB dual, 75.12 us, 62.40 us and 75.66 us. Those mixed results do not establish a uniform latency gain. Timing comparisons are local to that host and run."
+  },
+  "publishedRollback": {
+    "bundles": {
+      "reference": {
+        "id": "dev.codexmeter.CodexMeter",
+        "version": "2.1.41",
+        "build": "20141",
+        "executableSha256": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64"
+      },
+      "candidate": {
+        "id": "dev.codexmeter.CodexMeter",
+        "version": "2.1.41",
+        "build": "20141",
+        "executableSha256": "eadd19cfb72696b5061a714da8e66218e2ae6d6c078be219fbc4347d40b0e9cb"
+      }
+    },
+    "stable": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ]
+      ],
+      "watermarks": [
+        100
+      ],
+      "offsets": [
+        352
+      ],
+      "version": "reference",
+      "fingerprintPreserved": true
+    },
+    "upgrade": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ]
+      ],
+      "watermarks": [
+        125
+      ],
+      "offsets": [
+        635
+      ],
+      "version": "candidate",
+      "fingerprintPreserved": true
+    },
+    "rollback": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ],
+        [
+          "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+          8
+        ]
+      ],
+      "watermarks": [
+        133
+      ],
+      "offsets": [
+        917
+      ],
+      "version": "reference",
+      "fingerprintPreserved": true
+    },
+    "restoredAndReplayed": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ],
+        [
+          "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+          8
+        ]
+      ],
+      "watermarks": [
+        133
+      ],
+      "offsets": [
+        917
+      ]
+    }
+  }
+}

@@ -1,0 +1,151 @@
+{
+  "commit": "53ba059",
+  "method": "Preflight and project the complete catalog on one Apple Silicon machine, seven alternating pairs. Timer excludes writing to filesystem. Both modes share the same stable fixture rows.",
+  "arm64": "arm64: 84 full catalog snapshots; a224fb6e1a185045215f837d240833b505c31d564e24fe06cb2568ed928a914b",
+  "x86_64Rosetta": "x86_64: 84 full catalog snapshots; a224fb6e1a185045215f837d240833b505c31d564e24fe06cb2568ed928a914b",
+  "timings": [
+    {
+      "selected": 0,
+      "samplesNs": {
+        "release": [
+          362375.525,
+          253772.4,
+          262146.3625,
+          820572.4,
+          307534.9,
+          323366.675,
+          307074.475
+        ],
+        "candidate": [
+          21547.9125,
+          7678.125,
+          8657.2875,
+          16668.75,
+          14367.1875,
+          7746.3625,
+          7804.175
+        ]
+      },
+      "medianNs": {
+        "release": 307534.9,
+        "candidate": 8657.2875
+      }
+    },
+    {
+      "selected": 1,
+      "samplesNs": {
+        "release": [
+          307077.6,
+          301529.1625,
+          331251.0375,
+          329246.35,
+          321067.1875,
+          510448.95,
+          725679.6875
+        ],
+        "candidate": [
+          35547.3875,
+          36030.725,
+          30317.7125,
+          18508.3375,
+          38258.85,
+          60596.35,
+          40306.25
+        ]
+      },
+      "medianNs": {
+        "release": 329246.35,
+        "candidate": 36030.725
+      }
+    },
+    {
+      "selected": 8,
+      "samplesNs": {
+        "release": [
+          624494.275,
+          385212.5,
+          381920.3125,
+          359784.8875,
+          344359.9,
+          345498.9625,
+          315502.075
+        ],
+        "candidate": [
+          170842.7125,
+          176985.9375,
+          113890.1,
+          138189.0625,
+          95382.8125,
+          98316.15,
+          92552.075
+        ]
+      },
+      "medianNs": {
+        "release": 359784.8875,
+        "candidate": 113890.1
+      }
+    },
+    {
+      "selected": 35,
+      "samplesNs": {
+        "release": [
+          473945.3125,
+          487409.375,
+          518703.6375,
+          1077158.3375,
+          763279.6875,
+          613806.7625,
+          532814.0625
+        ],
+        "candidate": [
+          353906.7625,
+          392275.525,
+          482193.225,
+          1338557.3,
+          1025119.2625,
+          554003.65,
+          363755.2
+        ]
+      },
+      "medianNs": {
+        "release": 532814.0625,
+        "candidate": 482193.225
+      }
+    },
+    {
+      "selected": 70,
+      "samplesNs": {
+        "release": [
+          707998.95,
+          657818.75,
+          717931.7625,
+          850205.725,
+          835262.5,
+          736408.85,
+          739602.6
+        ],
+        "candidate": [
+          866625.0,
+          720726.05,
+          754601.5625,
+          793499.475,
+          734014.0625,
+          842910.4125,
+          727126.5625
+        ]
+      },
+      "medianNs": {
+        "release": 736408.85,
+        "candidate": 754601.5625
+      }
+    }
+  ],
+  "independent": {
+    "functionality": "Re-ran the 84 supplied complete snapshots on each Mac target architecture. A second Swift driver separately selected each of the 70 catalog entries with one neighbor, a nonexistent ID and seven reading variants. Both binaries on each target returned 490 byte-identical complete snapshots and satisfied 34,300 per-provider assertions. Closure visits exactly matched the selected catalog IDs.",
+    "facts": "Checked all disabled instances against their own catalog ID and name, false enabled flag, disabled state, fixed Settings message, nil timestamp, plan, history and local usage, and empty windows. For selected entries, injected NaN and both infinities in window percentage, daily cost and total history cost. Only the affected entry became unavailable; its identity, name, enabled flag and unchanged literal message were preserved, and the neighboring valid reading remained present.",
+    "security": "The selected reading is evaluated synchronously, in declaration order, and per-provider JSON validation/fallback remains in place for data-bearing entries. The disabled constructor contains only catalog strings and static fields. No new data sources, filesystem paths, account material or asynchronous work were introduced.",
+    "maintainability": "The change factors the catalog projection into a Swift helper shared with its driver. The shortcut depends on disabled entries remaining constant and encodable. The existing value-type provider and its Codable implementation were inspected directly.",
+    "scope": "The normal snapshot publication path still sends the same ordered model to mobile, CLI and widget; only redundant validation for disabled values was removed. The patch is a host-side optimization; it introduces no new Rust-owned runtime.",
+    "performance": "The supplied seven-pair benchmark improved three sparse selections strongly, from 307.5 to 8.7 us at zero, 329.2 to 36.0 us at one and 359.8 to 113.9 us at eight. All-70-enabled performance varies: supplied mixed inputs were 736.4/754.6 us. In an independent 12-pair test with 120 projections per sample, finite-only rows were 709.4/682.7 us and mixed rows 643.9/651.8 us. The gain applies to catalogs with disabled entries. The complete all-enabled case has no established improvement."
+  }
+}

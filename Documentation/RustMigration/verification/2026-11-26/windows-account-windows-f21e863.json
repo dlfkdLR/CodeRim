@@ -1,0 +1,188 @@
+{
+  "x64": {
+    "run": 45762218250,
+    "commit": "f21e86306922c53d5392c1344ab3c39fbe2b06de",
+    "artifact": 15090343551,
+    "digest": "sha256:375a9f981f313e24866356f932509fb7b11438e8f813756cdcbc96ea58ab58b8",
+    "receipt": {
+      "scope": "stable source and candidate source; original synthetic account navigation",
+      "release": {
+        "status": "compositor-owned-frame",
+        "X": 22,
+        "Y": 0,
+        "Width": 980,
+        "Height": 720,
+        "fullClient": true,
+        "independent": {
+          "status": "compositor-owned-frame",
+          "method": "GraphicsCaptureItem.CreateForWindow",
+          "frameWidth": 980,
+          "frameHeight": 720,
+          "width": 980,
+          "height": 720,
+          "nonOpaque": 52,
+          "varied": true,
+          "differentFromOwnedPrintWindow": null,
+          "exactOpaqueOwnedMatch": false,
+          "bgraSha256": "66cc578d4dad35b71d307f9ed6ffc9da2d16dcdbe3e89b688b7321596f012651"
+        },
+        "backing": {
+          "status": "controlled-frame-compared",
+          "before": {
+            "Target": 705548,
+            "Backing": 52,
+            "Complete": true
+          },
+          "after": {
+            "Target": 705548,
+            "Backing": 52,
+            "Complete": true
+          },
+          "different": 0,
+          "transparent": 52,
+          "partial": 0,
+          "total": 705600,
+          "backingRgb": [
+            31,
+            101,
+            179
+          ],
+          "exact": true,
+          "straightAlpha": false,
+          "physicalBgrSha256": "26003e257a9809da82c2e5116cbb26672c2205e27a5e9801e1f69bc877ef0ee6"
+        }
+      },
+      "candidate": {
+        "status": "compositor-owned-frame",
+        "X": 22,
+        "Y": 0,
+        "Width": 980,
+        "Height": 720,
+        "fullClient": true,
+        "independent": {
+          "status": "compositor-owned-frame",
+          "method": "GraphicsCaptureItem.CreateForWindow",
+          "frameWidth": 980,
+          "frameHeight": 720,
+          "width": 980,
+          "height": 720,
+          "nonOpaque": 52,
+          "varied": true,
+          "differentFromOwnedPrintWindow": null,
+          "exactOpaqueOwnedMatch": false,
+          "bgraSha256": "66cc578d4dad35b71d307f9ed6ffc9da2d16dcdbe3e89b688b7321596f012651"
+        },
+        "backing": {
+          "status": "controlled-frame-compared",
+          "before": {
+            "Target": 705548,
+            "Backing": 52,
+            "Complete": true
+          },
+          "after": {
+            "Target": 705548,
+            "Backing": 52,
+            "Complete": true
+          },
+          "different": 0,
+          "transparent": 52,
+          "partial": 0,
+          "total": 705600,
+          "backingRgb": [
+            31,
+            101,
+            179
+          ],
+          "exact": true,
+          "straightAlpha": false,
+          "physicalBgrSha256": "26003e257a9809da82c2e5116cbb26672c2205e27a5e9801e1f69bc877ef0ee6"
+        }
+      },
+      "sameMappedClient": true,
+      "physicalPixelsCompared": true,
+      "physicalPixelsEqual": true,
+      "bothBlendChecksExact": true,
+      "compositorPixelsEqual": true,
+      "changedCompositorPixels": {
+        "count": 0
+      }
+    }
+  },
+  "arm64": {
+    "run": 45762218250,
+    "commit": "f21e86306922c53d5392c1344ab3c39fbe2b06de",
+    "artifact": 15091051584,
+    "digest": "sha256:e0c4e4bc691aee5cdc5053dae991263276cd160c79626b03699e2412faaf3059",
+    "receipt": {
+      "scope": "stable source and candidate source; original synthetic account navigation",
+      "release": {
+        "status": "compositor-owned-frame",
+        "X": 22,
+        "Y": 0,
+        "Width": 980,
+        "Height": 720,
+        "fullClient": true,
+        "independent": {
+          "status": "compositor-owned-frame",
+          "method": "GraphicsCaptureItem.CreateForWindow",
+          "frameWidth": 980,
+          "frameHeight": 720,
+          "width": 980,
+          "height": 720,
+          "nonOpaque": 52,
+          "varied": true,
+          "differentFromOwnedPrintWindow": null,
+          "exactOpaqueOwnedMatch": false,
+          "bgraSha256": "66cc578d4dad35b71d307f9ed6ffc9da2d16dcdbe3e89b688b7321596f012651"
+        },
+        "backing": {
+          "status": "fixture-not-visible",
+          "initiallyOwned": 0,
+          "fixtureVisible": true,
+          "fixtureMinimized": false,
+          "fixtureForeground": false,
+          "interactive": true,
+          "remoteSession": false
+        }
+      },
+      "candidate": {
+        "status": "compositor-owned-frame",
+        "X": 22,
+        "Y": 0,
+        "Width": 980,
+        "Height": 720,
+        "fullClient": true,
+        "independent": {
+          "status": "compositor-owned-frame",
+          "method": "GraphicsCaptureItem.CreateForWindow",
+          "frameWidth": 980,
+          "frameHeight": 720,
+          "width": 980,
+          "height": 720,
+          "nonOpaque": 52,
+          "varied": true,
+          "differentFromOwnedPrintWindow": null,
+          "exactOpaqueOwnedMatch": false,
+          "bgraSha256": "66cc578d4dad35b71d307f9ed6ffc9da2d16dcdbe3e89b688b7321596f012651"
+        },
+        "backing": {
+          "status": "fixture-not-visible",
+          "initiallyOwned": 0,
+          "fixtureVisible": true,
+          "fixtureMinimized": false,
+          "fixtureForeground": false,
+          "interactive": true,
+          "remoteSession": false
+        }
+      },
+      "sameMappedClient": true,
+      "physicalPixelsCompared": false,
+      "physicalPixelsEqual": null,
+      "bothBlendChecksExact": null,
+      "compositorPixelsEqual": true,
+      "changedCompositorPixels": {
+        "count": 0
+      }
+    }
+  }
+}

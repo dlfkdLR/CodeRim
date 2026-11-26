@@ -1,0 +1,471 @@
+{
+  "architecture": "arm64",
+  "release": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "comparisonDigests": {
+    "normal/0/codex": "ce586776e2cb6c591bd97d6598b575d3d5dfc4a5df4dae50e01a7d4f48e41a66",
+    "normal/0/claude": "2e71c4b19f6594ba2749aaac17fe31320bdadc54327299dca744453ca9b16f4b",
+    "normal/1/codex": "5cecc4dd2f3808a75027ae34441196fd2e7354a84da977ba9d0f4d850d34a146",
+    "normal/1/claude": "ed5350a87ee5fdd77622d0f09b01467973549d65e19b9467f84e849c58c1bbc6",
+    "normal/255/codex": "fa3b919fb6451f27779a27abd681c75559942d693b1d2ca29705f281d4f4898a",
+    "normal/255/claude": "00182cfbc14d8942fd9955c7141ca9c18d6578c8f909c57782a0f86598ad8055",
+    "normal/256/codex": "8a0fb392e7d98e2eb53a39b7e625463e83a959a97f16d1e9de960895b0532833",
+    "normal/256/claude": "e4d80dc74549112aac1b3da1c27f6cc493f2b3444c11cae327abb1059429d5cb",
+    "normal/257/codex": "fed216a6ed101e386811d54192cef3941fff52ba7fdca9f695ce3be44261c240",
+    "normal/257/claude": "248e759919f9660feca168f4df939d36f659a7dccd83d88d5a88f73c19991f5e",
+    "normal/513/codex": "32411bfd9f97107a1eb95439166e04e90d615faac49f27ca15887385d5c8c15c",
+    "normal/513/claude": "5da3982eeaa9c6747c8965f8355efa5471d40f3bbb0942f2c5750b2165706262",
+    "duplicate/259/codex": "4eacccbddd98152a2ce40d84fb24f103bfec78fbe2b75b36078dedd5e7f0e562",
+    "duplicate/259/claude": "84cba87a1cfb1583a7058a108f8dc5d53a6d0392618b401b8508b1417d156497",
+    "exclude/257/claude": "1a8db5dbc3e198807ded4306e53fda0317e3e7babd7571456fd80c894a6099ba",
+    "bad-text/257/codex": "076083f9dc9326e5b77e25e941296485642b806c4bef6aa11b4b4efcb80f6630",
+    "bad-text/257/claude": "6ba9314a7a5c093073831a2fe61bc919b905f8f376fee05c35cfd06192b2d3b0",
+    "bad-parent/257/codex": "fed216a6ed101e386811d54192cef3941fff52ba7fdca9f695ce3be44261c240",
+    "bad-parent/257/claude": "6ba9314a7a5c093073831a2fe61bc919b905f8f376fee05c35cfd06192b2d3b0",
+    "bad-checkpoint/257/codex": "076083f9dc9326e5b77e25e941296485642b806c4bef6aa11b4b4efcb80f6630",
+    "bad-checkpoint/257/claude": "6ba9314a7a5c093073831a2fe61bc919b905f8f376fee05c35cfd06192b2d3b0",
+    "trigger/257/codex": "d9cd53bcc3a13444d7817558d37c9bcfe5a0407bba5b8293e39e3456c45ce73b",
+    "trigger/257/claude": "400abff1732839f542ca807be5e4ce63da024200b8d227e20240dbe7127f70ea",
+    "oversize/3/codex": "f53cc26f5abb387c2108e18780fe851c2759897cf928ae45e757a92989cd93ac",
+    "wide-error/3/claude": "6ba9314a7a5c093073831a2fe61bc919b905f8f376fee05c35cfd06192b2d3b0",
+    "stale/257/codex": "4b9ae1aa53f7fb9dd47a83d124a50bc9ad48a24dc940c795318cc9494378a525"
+  },
+  "timing": [
+    {
+      "rows": 1,
+      "family": "codex",
+      "samplesNs": {
+        "release": [
+          808958,
+          960167,
+          968916,
+          864083,
+          725583,
+          877292,
+          776167
+        ],
+        "candidate": [
+          797625,
+          753583,
+          864084,
+          702375,
+          946125,
+          771250,
+          809208
+        ]
+      },
+      "medianNs": {
+        "release": 864083,
+        "candidate": 797625
+      }
+    },
+    {
+      "rows": 1,
+      "family": "claude",
+      "samplesNs": {
+        "release": [
+          992833,
+          920750,
+          908041,
+          872208,
+          940625,
+          922125,
+          805792
+        ],
+        "candidate": [
+          944417,
+          902375,
+          914583,
+          1450459,
+          954500,
+          1629125,
+          841500
+        ]
+      },
+      "medianNs": {
+        "release": 920750,
+        "candidate": 944417
+      }
+    },
+    {
+      "rows": 32,
+      "family": "codex",
+      "samplesNs": {
+        "release": [
+          799792,
+          820291,
+          840084,
+          963625,
+          1192875,
+          876959,
+          905208
+        ],
+        "candidate": [
+          913208,
+          737250,
+          843292,
+          860000,
+          912958,
+          725750,
+          862667
+        ]
+      },
+      "medianNs": {
+        "release": 876959,
+        "candidate": 860000
+      }
+    },
+    {
+      "rows": 32,
+      "family": "claude",
+      "samplesNs": {
+        "release": [
+          1142292,
+          992000,
+          1096333,
+          1086625,
+          1034209,
+          1081750,
+          973625
+        ],
+        "candidate": [
+          868958,
+          1036042,
+          897500,
+          960333,
+          1010334,
+          1062125,
+          905125
+        ]
+      },
+      "medianNs": {
+        "release": 1081750,
+        "candidate": 960333
+      }
+    },
+    {
+      "rows": 256,
+      "family": "codex",
+      "samplesNs": {
+        "release": [
+          1464292,
+          1572209,
+          1443583,
+          1572083,
+          1425666,
+          1509833,
+          1430084
+        ],
+        "candidate": [
+          1093917,
+          1204875,
+          1257458,
+          1381000,
+          1152334,
+          1131792,
+          1357458
+        ]
+      },
+      "medianNs": {
+        "release": 1464292,
+        "candidate": 1204875
+      }
+    },
+    {
+      "rows": 256,
+      "family": "claude",
+      "samplesNs": {
+        "release": [
+          1766791,
+          1681166,
+          1728417,
+          1805167,
+          1693000,
+          1886291,
+          1743125
+        ],
+        "candidate": [
+          1453709,
+          1439333,
+          1340666,
+          1382833,
+          1449125,
+          1363125,
+          1479125
+        ]
+      },
+      "medianNs": {
+        "release": 1743125,
+        "candidate": 1439333
+      }
+    },
+    {
+      "rows": 4096,
+      "family": "codex",
+      "samplesNs": {
+        "release": [
+          10890875,
+          10575000,
+          10750917,
+          10211125,
+          11095667,
+          10852209,
+          11005042
+        ],
+        "candidate": [
+          6918458,
+          7036875,
+          7098958,
+          7075833,
+          7185042,
+          7004625,
+          7248042
+        ]
+      },
+      "medianNs": {
+        "release": 10852209,
+        "candidate": 7075833
+      }
+    },
+    {
+      "rows": 4096,
+      "family": "claude",
+      "samplesNs": {
+        "release": [
+          14871958,
+          15253375,
+          14150666,
+          14458459,
+          14484792,
+          14530250,
+          14342459
+        ],
+        "candidate": [
+          9727625,
+          9753416,
+          9096041,
+          9619083,
+          9517875,
+          9451375,
+          9382750
+        ]
+      },
+      "medianNs": {
+        "release": 14484792,
+        "candidate": 9517875
+      }
+    }
+  ],
+  "commit": "142cb3d",
+  "timingScope": "Complete SQLiteDatabase.commit on fresh fixture store, seven alternating pairs. All timings in ns.",
+  "x86_64Rosetta": "x86_64: 26 persisted event-transaction comparisons and bidirectional reopens passed.",
+  "cAbiChecks": {
+    "arm64": "23 status/count checks, 2 complete SQL rows with numeric extrema, null and empty, 4 explicit rollbacks",
+    "x86_64": "23 status/count checks, 2 complete SQL rows with numeric extrema, null and empty, 4 explicit rollbacks"
+  },
+  "independent": {
+    "scope": "Only the usage event insert/merge portion of the preexisting schema-18 Swift-owned transaction on Apple. No production database, application credentials, remote or physical Intel host used.",
+    "checks": {
+      "hostArm64": {
+        "stableSeed": 769,
+        "stepFailureIndexZeroBased": 514,
+        "retryRows": 1025,
+        "families": [
+          "codex",
+          "claude"
+        ],
+        "procedure": "Stable opens a private schema-18 database and writes rows. For each compiled stable/Rust writer separately, a trigger aborts the 515th row; compare every row including exact audit timestamps to pre-call state. Remove trigger, retry, repeat, then read with both production Swift SQLiteDatabase builds. Compare all tables between writers, excluding wall-clock update times only on successful imports. Both versions retained schema 18, integrity_check ok and zero foreign_key_check rows.",
+        "matchingPersistedTables": {
+          "codex": 7,
+          "claude": 8
+        },
+        "aggregateAfterReplay": {
+          "codex": "3025 53895 partial true",
+          "claude": "3025 57627 partial true"
+        },
+        "preexistingReplayDetail": "On repeating the identical Claude import, 85 newly inserted rows transitioned cache_write_input_tokens from NULL to 0 due to the existing COALESCE merge, identically in stable and candidate. No other field changed. Codex repetition preserved all audited substantive rows."
+      },
+      "directBindError": "Freshly compiled independent C to Apple SQLite/Rust static ABI. Force SQLITE_TOOBIG on row two via SQLITE_LIMIT_LENGTH=1000. Status 2, result.changes=0; first row temporarily visible inside transaction then absent after rollback. Restore length limit, retry same statement; 2 committed rows, 3000 bytes preserved and NULL/empty remain distinct.",
+      "otherArchitecture": "Original evidence log reports 26 x86_64 execution cases. Reviewer directly tested Apple Silicon only."
+    },
+    "timings": {
+      "independentFiveCounterbalancedPairs": {
+        "1/codex": {
+          "stableNs": 982791,
+          "candidateNs": 1061750,
+          "reductionPercent": -8.03
+        },
+        "1/claude": {
+          "stableNs": 1085833,
+          "candidateNs": 1602583,
+          "reductionPercent": -47.59
+        },
+        "32/codex": {
+          "stableNs": 1033000,
+          "candidateNs": 979709,
+          "reductionPercent": 5.16
+        },
+        "32/claude": {
+          "stableNs": 1434292,
+          "candidateNs": 1492834,
+          "reductionPercent": -4.08
+        },
+        "256/codex": {
+          "stableNs": 1683542,
+          "candidateNs": 1423875,
+          "reductionPercent": 15.42
+        },
+        "256/claude": {
+          "stableNs": 2978083,
+          "candidateNs": 1938667,
+          "reductionPercent": 34.9
+        },
+        "4096/codex": {
+          "stableNs": 20304458,
+          "candidateNs": 13088083,
+          "reductionPercent": 35.54
+        },
+        "4096/claude": {
+          "stableNs": 36194625,
+          "candidateNs": 24030791,
+          "reductionPercent": 33.61
+        }
+      },
+      "independent27RandomizedPairsForSmallBatches": {
+        "1/codex": {
+          "stableNs": 1590334,
+          "candidateNs": 1501834,
+          "medianPairedChangePercent": 0.13,
+          "candidateSlowerOf27": 14
+        },
+        "1/claude": {
+          "stableNs": 1530125,
+          "candidateNs": 1531709,
+          "medianPairedChangePercent": -8.23,
+          "candidateSlowerOf27": 11
+        },
+        "32/codex": {
+          "stableNs": 1917291,
+          "candidateNs": 1616000,
+          "medianPairedChangePercent": -3.99,
+          "candidateSlowerOf27": 12
+        },
+        "32/claude": {
+          "stableNs": 1852375,
+          "candidateNs": 1916917,
+          "medianPairedChangePercent": 6.28,
+          "candidateSlowerOf27": 15
+        }
+      },
+      "suppliedSevenPair4096PercentReduction": {
+        "codex": 34.8,
+        "claude": 34.29
+      }
+    }
+  },
+  "publishedUpgradeRollback": {
+    "bundles": {
+      "reference": {
+        "id": "dev.codexmeter.CodexMeter",
+        "version": "2.1.41",
+        "build": "20141",
+        "executableSha256": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64"
+      },
+      "candidate": {
+        "id": "dev.codexmeter.CodexMeter",
+        "version": "2.1.41",
+        "build": "20141",
+        "executableSha256": "a8e11f203e7ec1205f36afecff84f504919cc61f7f0b20581ea47b7e2f3db34e"
+      }
+    },
+    "stable": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ]
+      ],
+      "watermarks": [
+        100
+      ],
+      "offsets": [
+        352
+      ],
+      "version": "reference",
+      "fingerprintPreserved": true
+    },
+    "upgrade": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ]
+      ],
+      "watermarks": [
+        125
+      ],
+      "offsets": [
+        635
+      ],
+      "version": "candidate",
+      "fingerprintPreserved": true
+    },
+    "rollback": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ],
+        [
+          "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+          8
+        ]
+      ],
+      "watermarks": [
+        133
+      ],
+      "offsets": [
+        917
+      ],
+      "version": "reference",
+      "fingerprintPreserved": true
+    },
+    "restoredAndReplayed": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ],
+        [
+          "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+          8
+        ]
+      ],
+      "watermarks": [
+        133
+      ],
+      "offsets": [
+        917
+      ]
+    }
+  }
+}
