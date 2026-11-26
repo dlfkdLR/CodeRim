@@ -24,6 +24,15 @@ static int visible_notches(int pid) {
     return count;
 }
 
+static int session_locked(void) {
+    CFDictionaryRef session = CGSessionCopyCurrentDictionary();
+    if (!session) return -1;
+    CFTypeRef flag = CFDictionaryGetValue(session, CFSTR("CGSSessionScreenIsLocked"));
+    int locked = flag && CFEqual(flag, kCFBooleanTrue);
+    CFRelease(session);
+    return locked;
+}
+
 int main(int argc, char **argv) {
     if (argc != 2) return 1;
     char *end;
@@ -35,12 +44,12 @@ int main(int argc, char **argv) {
         mach_timebase_info(&timebase) != KERN_SUCCESS) return 1;
     double cpu_ms = (double)(usage.ri_user_time + usage.ri_system_time) *
                     timebase.numer / timebase.denom / 1e6;
-    printf("{\"visible_notches\":%d,\"cpu_ms\":%.8f,\"resident_bytes\":%" PRIu64
+    printf("{\"session_locked\":%d,\"visible_notches\":%d,\"cpu_ms\":%.8f,\"resident_bytes\":%" PRIu64
            ",\"footprint_bytes\":%" PRIu64 ",\"peak_footprint_bytes\":%" PRIu64
            ",\"interrupt_wakeups\":%" PRIu64 ",\"package_idle_wakeups\":%" PRIu64
            ",\"disk_read_bytes\":%" PRIu64 ",\"disk_written_bytes\":%" PRIu64
            ",\"logical_writes\":%" PRIu64 ",\"energy_nj\":%" PRIu64 "}\n",
-           visible_notches((int)value), cpu_ms, usage.ri_resident_size, usage.ri_phys_footprint, usage.ri_lifetime_max_phys_footprint,
+           session_locked(), visible_notches((int)value), cpu_ms, usage.ri_resident_size, usage.ri_phys_footprint, usage.ri_lifetime_max_phys_footprint,
            usage.ri_interrupt_wkups, usage.ri_pkg_idle_wkups, usage.ri_diskio_bytesread,
            usage.ri_diskio_byteswritten, usage.ri_logical_writes, usage.ri_energy_nj);
     return 0;
