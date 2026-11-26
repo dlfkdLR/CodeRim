@@ -184,6 +184,7 @@ def compare_hosts(work):
 
     widget = build_library(package="coderim-widget")
     subprocess.run(["python3", Path(__file__).parent / "widget-contract/check.py", "--archive", widget], check=True)
+    subprocess.run(["python3", Path(__file__).parent / "widget-history/check.py", "--archive", widget], check=True)
 
 
 def test_product():

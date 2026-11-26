@@ -1,5 +1,6 @@
 use crate::date::Date;
 use crate::platform;
+use coderim_usage_core::companion_history::{HistoryDay, valid_history};
 use serde::{Deserialize, Serialize, Serializer, ser::SerializeStruct};
 use std::{
     collections::{BTreeMap, HashSet},
@@ -215,13 +216,15 @@ impl Provider {
             .is_none_or(|u| u.scope == "this-mac" && u.totals.values().all(Tokens::valid))
             && self.history.as_ref().is_none_or(|h| {
                 h.scope == "this-mac"
-                    && h.days.len() <= 366
-                    && h.total_tokens >= 0
-                    && h.days.windows(2).all(|pair| pair[0].date < pair[1].date)
-                    && h.estimated_cost_usd.is_none_or(|a| a >= 0.0)
-                    && h.days.iter().all(|day| {
-                        day.tokens >= 0 && day.estimated_cost_usd.is_none_or(|a| a >= 0.0)
-                    })
+                    && valid_history(
+                        h.days.iter().map(|day| HistoryDay {
+                            reference_seconds: day.date.reference_seconds(),
+                            tokens: day.tokens,
+                            cost: day.estimated_cost_usd.unwrap_or(0.0),
+                        }),
+                        h.total_tokens,
+                        h.estimated_cost_usd.unwrap_or(0.0),
+                    )
             })
             && (1.0..=3600.0).contains(&self.limits.stale_after_seconds)
             && self.limits.windows.iter().all(|w| {

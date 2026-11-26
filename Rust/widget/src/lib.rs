@@ -1,3 +1,4 @@
+use coderim_usage_core::companion_history::{HistoryDay, MAX_HISTORY_DAYS, valid_history};
 use coderim_usage_core::freshness::{stale_limits, stale_timestamp};
 
 const LOCAL: u32 = 1;
@@ -46,4 +47,27 @@ pub extern "C" fn cr_widget_stale_states(s: Freshness, now: f64) -> u32 {
         stale |= HISTORY;
     }
     stale
+}
+
+/// Validates the decoded history without retaining Swift's temporary storage.
+///
+/// # Safety
+/// For nonzero counts of at most 366, `days` must refer to that many initialized,
+/// aligned C history records and remain readable for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cr_widget_valid_history(
+    days: *const HistoryDay,
+    count: usize,
+    total_tokens: i64,
+    cost: f64,
+) -> bool {
+    if count > MAX_HISTORY_DAYS || (count != 0 && days.is_null()) {
+        return false;
+    }
+    let records = if count == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(days, count) }
+    };
+    valid_history(records.iter().copied(), total_tokens, cost)
 }

@@ -10,7 +10,16 @@ if [[ -n "${CODERIM_RUST_WIDGET_ARCHIVE:-}" ]]; then
 fi
 widget_archive=$(python3 "${script_dir}/rust_migration/apple.py" widget-archive \
   "${build_root}/native-archives" "${rust_inputs[@]}")
-rust_flags=('OTHER_SWIFT_FLAGS=$(inherited) -DCODERIM_RUST_WIDGET -I "$(CODERIM_WIDGET_HEADERS)"'
+# A supplied archive may predate the history reader. Both slices must provide
+# the entry point before Swift emits a call from the universal extension.
+history_flag='-DCODERIM_RUST_WIDGET_HISTORY'
+for arch in arm64 x86_64; do
+  if ! otool -arch "${arch}" -Sv "${widget_archive}" | awk '$NF == "_cr_widget_valid_history" { found=1 } END { exit !found }'; then
+    history_flag=''
+    break
+  fi
+done
+rust_flags=('OTHER_SWIFT_FLAGS=$(inherited) -DCODERIM_RUST_WIDGET '"${history_flag}"' -I "$(CODERIM_WIDGET_HEADERS)"'
   'OTHER_LDFLAGS=$(inherited) "$(CODERIM_WIDGET_ARCHIVE)"'
   "CODERIM_WIDGET_HEADERS=${project_root}/Rust/bridge/include"
   "CODERIM_WIDGET_ARCHIVE=${widget_archive}")

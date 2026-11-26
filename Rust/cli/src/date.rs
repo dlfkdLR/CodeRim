@@ -7,6 +7,9 @@ const REFERENCE: i64 = 978_307_200;
 #[derive(Clone, Copy, PartialEq, PartialOrd)]
 pub struct Date(f64);
 impl Date {
+    pub fn reference_seconds(self) -> f64 {
+        self.0
+    }
     pub fn timestamp(self) -> f64 {
         self.0 + REFERENCE as f64
     }
@@ -47,15 +50,22 @@ impl Date {
             zone = remaining;
         }
         let offset = zone_offset(zone)?;
-        let value = platform::reference_date(DateParts {
+        let hour = unsigned(hour)?;
+        let minute = unsigned(minute)?;
+        let midnight = platform::reference_date(DateParts {
             year,
             month: month.into(),
             day: day.into(),
-            hour: unsigned(hour)?.into(),
-            minute: unsigned(minute)?.into(),
-            second: second.into(),
+            hour: 0,
+            minute: 0,
+            second: 0,
         })?;
-        Some(Self(value - offset as f64 + fraction))
+        // Foundation adds the fractional second to local time-of-day before
+        // adding midnight and subtracting the offset. At the 2001 epoch the
+        // intermediate rounding is observable in the stored ordering of days.
+        let local_time =
+            f64::from(hour) * 3600.0 + f64::from(minute) * 60.0 + f64::from(second) + fraction;
+        Some(Self(midnight + local_time - offset as f64))
     }
 }
 fn unsigned(s: &str) -> Option<u32> {

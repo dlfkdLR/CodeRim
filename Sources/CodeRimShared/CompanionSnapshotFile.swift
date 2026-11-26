@@ -1,5 +1,8 @@
 import Foundation
 import Darwin
+#if CODERIM_RUST_WIDGET_HISTORY
+import CCodeRimWidget
+#endif
 #if CODERIM_RUST_ACCOUNTING
 import CCodeRimAccounting
 #endif
@@ -72,15 +75,7 @@ public enum CompanionSnapshotFile {
                               && $0.cachedInputTokens <= $0.inputTokens
                       }
                   } ?? true)
-                  && (provider.history.map { history in
-                      history.scope == "this-mac" && history.days.count <= 366 && history.totalTokens >= 0
-                          && Set(history.days.map(\.date)).count == history.days.count
-                          && history.days.map(\.date) == history.days.map(\.date).sorted()
-                          && (history.estimatedCostUSD.map { $0.isFinite && $0 >= 0 } ?? true)
-                          && history.days.allSatisfy {
-                              $0.tokens >= 0 && ($0.estimatedCostUSD.map { $0.isFinite && $0 >= 0 } ?? true)
-                          }
-                  } ?? true)
+                  && (provider.history.map(validHistory) ?? true)
                   && provider.limits.staleAfterSeconds.isFinite
                   && (1...3600).contains(provider.limits.staleAfterSeconds)
                   && provider.limits.windows.allSatisfy { window in
@@ -90,6 +85,28 @@ public enum CompanionSnapshotFile {
                   }
               }) else { throw SnapshotError.invalidFile }
         return snapshot
+    }
+
+    private static func validHistory(_ history: CompanionHistory) -> Bool {
+        guard history.scope == "this-mac", history.days.count <= 366 else { return false }
+        #if CODERIM_RUST_WIDGET_HISTORY
+        return withUnsafeTemporaryAllocation(of: CRWidgetHistoryDay.self, capacity: history.days.count) { buffer in
+            for (index, day) in history.days.enumerated() {
+                buffer.initializeElement(at: index, to: CRWidgetHistoryDay(
+                    reference_seconds: day.date.timeIntervalSinceReferenceDate, tokens: day.tokens,
+                    cost: day.estimatedCostUSD ?? 0))
+            }
+            return cr_widget_valid_history(buffer.baseAddress, buffer.count, history.totalTokens, history.estimatedCostUSD ?? 0)
+        }
+        #else
+        return history.totalTokens >= 0
+            && Set(history.days.map(\.date)).count == history.days.count
+            && history.days.map(\.date) == history.days.map(\.date).sorted()
+            && (history.estimatedCostUSD.map { $0.isFinite && $0 >= 0 } ?? true)
+            && history.days.allSatisfy {
+                $0.tokens >= 0 && ($0.estimatedCostUSD.map { $0.isFinite && $0 >= 0 } ?? true)
+            }
+        #endif
     }
 
     public static func write(_ snapshot: CompanionSnapshot, to url: URL) throws {
