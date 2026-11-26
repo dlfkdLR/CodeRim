@@ -59,6 +59,8 @@ def compare_hosts(work):
         subprocess.run(["python3", str(Path(__file__).parent / suite / "check.py"),
                         "--archive", str(archive)], check=True)
 
+    subprocess.run(["python3", Path(__file__).parent / "companion-providers/check.py"], check=True)
+
     widget = build_library(package="coderim-widget")
     subprocess.run(["python3", Path(__file__).parent / "widget-contract/check.py", "--archive", widget], check=True)
 

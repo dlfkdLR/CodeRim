@@ -85,10 +85,7 @@ final class CompanionSnapshotPublisher {
         default: .unavailable
         }
         let readings = Dictionary(notch.snapshots.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
-        let providers = CompanionProviderID.allCases.map { id -> CompanionProvider in
-            guard notch.selectedProviderIDs.contains(id.rawValue) else {
-                return Self.disabled(id)
-            }
+        let providers = Self.projectedProviders(selected: notch.selectedProviderIDs) { id in
             switch id {
             case .codex:
                 return CompanionProvider(id: id.rawValue, name: id.name,
@@ -108,7 +105,7 @@ final class CompanionSnapshotPublisher {
                                      updatedAt: notch.lastUpdatedAt(providerID: id.rawValue))
             }
         }
-        let snapshot = CompanionSnapshot(generatedAt: now, providers: providers.map(Self.encodable))
+        let snapshot = CompanionSnapshot(generatedAt: now, providers: providers)
         MobileConnectionStore.shared.receive(snapshot)
         cliWriter.submit(snapshot)
         if !CompanionSnapshotFile.usesLocalFile { widgetWriter.submit(snapshot) }
@@ -149,6 +146,17 @@ final class CompanionSnapshotPublisher {
             totalTokens: snapshot.usage.totalTokens,
             estimatedCostUSD: costs.total.amountUSD.map { NSDecimalNumber(decimal: $0).doubleValue },
             costIsPartial: costs.total.isPartial)
+    }
+
+    static func projectedProviders(
+        selected: Set<String>, reading: (CompanionProviderID) -> CompanionProvider
+    ) -> [CompanionProvider] {
+        CompanionProviderID.allCases.map { id in
+            // Disabled entries contain catalog literals and empty windows. Only an
+            // actual reading can require the per-provider JSON error fallback.
+            guard selected.contains(id.rawValue) else { return disabled(id) }
+            return encodable(reading(id))
+        }
     }
 
     static func disabled(_ id: CompanionProviderID) -> CompanionProvider {
