@@ -1,0 +1,138 @@
+{
+  "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "candidate": "7420b09db592ea788864d9af0ba0af668a3aee0b",
+  "platform": {
+    "macOS": "26.6.2",
+    "architecture": "arm64",
+    "displayPoints": [
+      1800,
+      1169
+    ],
+    "scale": 2
+  },
+  "sameDisplay": true,
+  "pixelFormat": "straight RGBA8",
+  "states": {
+    "notch-readings": {
+      "size": [
+        649,
+        1202
+      ],
+      "changedPixels": 0
+    },
+    "notch-codex-card": {
+      "size": [
+        649,
+        1202
+      ],
+      "changedPixels": 82
+    },
+    "notch-codex-idle-card": {
+      "size": [
+        649,
+        1202
+      ],
+      "changedPixels": 0
+    },
+    "notch-claude-card": {
+      "size": [
+        649,
+        1202
+      ],
+      "changedPixels": 0
+    },
+    "Overview-light": {
+      "size": [
+        744,
+        1248
+      ],
+      "changedPixels": 0
+    },
+    "Overview-dark": {
+      "size": [
+        744,
+        1248
+      ],
+      "changedPixels": 0
+    },
+    "Usage-light": {
+      "size": [
+        744,
+        870
+      ],
+      "changedPixels": 0
+    },
+    "Usage-dark": {
+      "size": [
+        744,
+        870
+      ],
+      "changedPixels": 0
+    },
+    "Projects-light": {
+      "size": [
+        744,
+        1068
+      ],
+      "changedPixels": 0
+    },
+    "Projects-dark": {
+      "size": [
+        744,
+        1068
+      ],
+      "changedPixels": 0
+    },
+    "Sessions-light": {
+      "size": [
+        744,
+        1068
+      ],
+      "changedPixels": 0
+    },
+    "Sessions-dark": {
+      "size": [
+        744,
+        1068
+      ],
+      "changedPixels": 0
+    },
+    "accounts-settings-light": {
+      "size": [
+        1158,
+        1120
+      ],
+      "changedPixels": 0
+    },
+    "accounts-settings-dark": {
+      "size": [
+        1158,
+        1120
+      ],
+      "changedPixels": 0
+    }
+  },
+  "spinnerBoundsInclusive": [
+    331,
+    658,
+    347,
+    674
+  ],
+  "busyCardRepeatPixels": {
+    "reference": 101,
+    "candidate": 116,
+    "paired": 117
+  },
+  "hoverChangedPixels": {
+    "reference": [
+      241007,
+      202125
+    ],
+    "candidate": [
+      241007,
+      202128
+    ]
+  },
+  "staticStatesExact": 13,
+  "animatedDifferencesWithinRepeatBounds": true
+}

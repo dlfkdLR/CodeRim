@@ -1,0 +1,13 @@
+        let display = try XCTUnwrap(NSScreen.screens.first { $0.frame.origin == .zero })
+        let size = view.bounds.size
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: size),
+                              styleMask: .borderless, backing: .buffered, defer: false, screen: display)
+        window.isReleasedWhenClosed = false
+        window.appearance = view.appearance
+        window.setFrameOrigin(NSPoint(x: display.frame.midX-size.width/2, y: display.frame.midY-size.height/2))
+        window.contentView = view
+        defer { window.contentView = nil }
+        view.frame = NSRect(origin: .zero, size: size)
+        for _ in 0..<5 { view.layoutSubtreeIfNeeded() }
+        XCTAssertEqual(window.screen, display)
+        let bitmap = try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in: view.bounds))
