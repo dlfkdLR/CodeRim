@@ -1,0 +1,565 @@
+{
+  "candidate": "0e345f76cdf3a3c78036eb557a6178823af578d8",
+  "integrated": "50d0ec26",
+  "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "independent": {
+    "run_id": "run-96d1b9001e00497bae92ea7bd7fa760e",
+    "packet_digest": "339c5cfb5cda9b870cf7e168226a2bceeb2fe03a01392282fb0562c899ec42d5",
+    "reviewer_id": "independent-windows-install-auggie-parser",
+    "commit": "0e345f76cdf3a3c78036eb557a6178823af578d8",
+    "release": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+    "dimensions": {
+      "functionality": {
+        "winner": "TIE",
+        "reason": "Full event lists and order, complete AgentSession values, provider, reasons and both sound filters agreed in the same process for both implementations. The actual unchanged monitor sink and announceCompletions method with fake output devices produced expected sound name, focused session and five-second duration under every preference combination.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Notch/SessionCompletionWatcher.swift",
+          "candidate/Sources/CodeRim/Notch/SessionCompletionWatcher.swift",
+          "candidate/Sources/CodeRim/Notch/NotchController.swift"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "All state transitions and optional/display/project/source metadata of returned sessions are carried by their original value; canonical Swift equality is honored in Rust-to-Swift crossover and subsequent return to the ASCII path.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Notch/SessionCompletionWatcher.swift",
+          "candidate/Sources/CodeRim/Notch/SessionCompletionWatcher.swift",
+          "candidate/Rust/bridge/src/session_completion.rs"
+        ]
+      },
+      "security": {
+        "winner": "TIE",
+        "reason": "An immutable published Rust set is retained by ARC across copies. New samples allocate a separate set; callbacks synchronously copy keys. Private temporary UserDefaults suite and inert window/audio sinks were used.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Notch/SessionCompletionWatcher.swift",
+          "candidate/Sources/CodeRim/Notch/SessionCompletionWatcher.swift",
+          "candidate/Rust/bridge/src/session_completion.rs"
+        ]
+      },
+      "maintainability": {
+        "winner": "A",
+        "reason": "Published implementation has one dictionary and one traversal. Candidate duplicates a narrow state machine in Swift and Rust and adds FFI lifetime requirements, with differential tests covering those costs.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Notch/SessionCompletionWatcher.swift",
+          "candidate/Sources/CodeRim/Notch/SessionCompletionWatcher.swift",
+          "candidate/Rust/bridge/src/session_completion.rs"
+        ]
+      },
+      "scope": {
+        "winner": "TIE",
+        "reason": "User-visible publisher, sound and peek selection did not change. Only the state kept to detect completion changed in production.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Notch/SessionCompletionWatcher.swift",
+          "candidate/Sources/CodeRim/Notch/SessionCompletionWatcher.swift",
+          "candidate/Sources/CodeRim/Notch/NotchController.swift"
+        ]
+      },
+      "performance": {
+        "winner": "B",
+        "reason": "Large idle, mostly idle, mixed and Unicode scenarios improved. Empty input has a few ns overhead; at 128 always-busy sessions Rosetta candidate takes approximately 3 percent more CPU. Results are per watcher call, not application CPU or energy.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Notch/SessionCompletionWatcher.swift",
+          "candidate/Sources/CodeRim/Notch/SessionCompletionWatcher.swift",
+          "candidate/Rust/bridge/src/session_completion.rs"
+        ]
+      }
+    },
+    "hostMethodAndPublisherSource": {
+      "Legacy": [
+        "95646ee0616b1bd8f5d8227375a7a1ab87dd7fb0aadf91921096270dbe3c9477",
+        "a2837b40f804b5ddaadbc62750c19b3b391279453a74ef58d7d002b4be4090fa"
+      ],
+      "Current": [
+        "95646ee0616b1bd8f5d8227375a7a1ab87dd7fb0aadf91921096270dbe3c9477",
+        "a2837b40f804b5ddaadbc62750c19b3b391279453a74ef58d7d002b4be4090fa"
+      ]
+    },
+    "method": "Compiled the exact pinned release and candidate watchers against the shared real AgentSession. Put each unchanged announceCompletions body and the selected-provider callback body in an independently compiled minimal controller host. Replaced OS audio and real window with recording sinks, and UserDefaults.standard with an isolated real Foundation suite. Debug logging off. Checked expected values explicitly, and compared both in the same process to preserve identical dictionary iteration for exact timestamp ties. No full AppKit window, audio playback or physical Intel machine was exercised.",
+    "boundary": "The ASCII fast branch creates only a new mutable current set. A Unicode rejection discards partial updates and recomputes the complete snapshot using the prior immutable set converted synchronously to native Swift Set. Empty and duplicated joined keys including NUL and separator collisions, Kelvin, decomposed Hangul and Greek omega, four states, rank ties, 31 copied watcher lanes and untouched/reused copies exercised. No asynchronous callback or retained native key span.",
+    "archiveSha256": "07ab81761ed4562a79db2ba60208308050fd6c762be6e50b1804d129de23649b",
+    "artifacts": {
+      "build.py": "ad604721962e82888c40181f29606cdd3e96acf23aee3fb767a5b01b25046d0f",
+      "main.swift": "c4b30e9f6d1f90359f125b2f829b662ac2944f29cbcf01804008677f495d195c",
+      "probe-arm64": "8b529c98f3c61bebe78798da4a73788c81d2a18c633a0aaa867352b540dc7a03",
+      "probe-x86_64": "1b20a7d30f9265a6309e09ea28e1dc60fbda8b00c46597fae04a0d184cbe35ce",
+      "arm64-final.log": "6d54813c21ce268e9d5fa7f02f6a038b8e38cebec507103081106627b7256c59",
+      "x86_64-final.log": "c81c96ceef9ebdcd1635dc36c08550392ede049dfe73af345a901c06c48a9a91"
+    },
+    "results": {
+      "arm64": {
+        "frames": 11000,
+        "crossings": 7195,
+        "copies": 2750,
+        "settingSets": 54,
+        "monitorCallbacks": 1080,
+        "chimes": 168,
+        "peeks": 216,
+        "medianCpuNsReleaseCandidate": {
+          "0/idle": [
+            39,
+            40
+          ],
+          "0/busy": [
+            37,
+            40
+          ],
+          "0/one": [
+            37,
+            39
+          ],
+          "0/mixed": [
+            36,
+            39
+          ],
+          "0/unicode": [
+            37,
+            40
+          ],
+          "1/idle": [
+            168,
+            50
+          ],
+          "1/busy": [
+            167,
+            225
+          ],
+          "1/one": [
+            166,
+            222
+          ],
+          "1/mixed": [
+            267,
+            216
+          ],
+          "1/unicode": [
+            314,
+            246
+          ],
+          "16/idle": [
+            2023,
+            86
+          ],
+          "16/busy": [
+            2016,
+            1861
+          ],
+          "16/one": [
+            2021,
+            788
+          ],
+          "16/mixed": [
+            3136,
+            2259
+          ],
+          "16/unicode": [
+            4863,
+            4048
+          ],
+          "128/idle": [
+            16321,
+            288
+          ],
+          "128/busy": [
+            16187,
+            14320
+          ],
+          "128/one": [
+            16307,
+            4729
+          ],
+          "128/mixed": [
+            24475,
+            16220
+          ],
+          "128/unicode": [
+            40787,
+            35851
+          ]
+        }
+      },
+      "x86_64": {
+        "frames": 11000,
+        "crossings": 7195,
+        "copies": 2750,
+        "settingSets": 54,
+        "monitorCallbacks": 1080,
+        "chimes": 168,
+        "peeks": 216,
+        "medianCpuNsReleaseCandidate": {
+          "0/idle": [
+            79,
+            88
+          ],
+          "0/busy": [
+            79,
+            90
+          ],
+          "0/one": [
+            83,
+            92
+          ],
+          "0/mixed": [
+            82,
+            93
+          ],
+          "0/unicode": [
+            82,
+            92
+          ],
+          "1/idle": [
+            347,
+            109
+          ],
+          "1/busy": [
+            367,
+            530
+          ],
+          "1/one": [
+            360,
+            522
+          ],
+          "1/mixed": [
+            554,
+            469
+          ],
+          "1/unicode": [
+            659,
+            581
+          ],
+          "16/idle": [
+            4032,
+            144
+          ],
+          "16/busy": [
+            4215,
+            4186
+          ],
+          "16/one": [
+            4091,
+            1445
+          ],
+          "16/mixed": [
+            6591,
+            4814
+          ],
+          "16/unicode": [
+            9354,
+            7531
+          ],
+          "128/idle": [
+            28710,
+            404
+          ],
+          "128/busy": [
+            29548,
+            30496
+          ],
+          "128/one": [
+            28707,
+            8315
+          ],
+          "128/mixed": [
+            47606,
+            35811
+          ],
+          "128/unicode": [
+            75315,
+            64481
+          ]
+        }
+      }
+    }
+  },
+  "formalGate": {
+    "run_id": "run-96d1b9001e00497bae92ea7bd7fa760e",
+    "decision": "INCONCLUSIVE",
+    "candidate_hash": "1d982025725bbd0312bf1667ab17fc3f6e500abbb1d87095765351d1cefbdbcb",
+    "gate_order": [
+      "SECURITY",
+      "FACTUAL",
+      "CONTENT",
+      "FUNCTIONAL",
+      "ACCESSIBILITY",
+      "RESPONSIVE",
+      "VISUAL_UX",
+      "CODE_QUALITY",
+      "PERFORMANCE"
+    ],
+    "blockers": [],
+    "missing_evidence": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "improved": false,
+    "regression_ready": false,
+    "dimensions": {},
+    "time": "2026-11-26T11:54:36.737303+00:00"
+  },
+  "fullCall": {
+    "arm64": {
+      "frames": 2312,
+      "traceSha256": "ded05881fc6ae84cde8762997992fe51598b935f1afbb2148c600ba4f1eb27a3",
+      "rawSha256": "1dd534cb528cc584538eaae136d943db1805755a4bf39326a390c5f19ddcaf48",
+      "medianCpuNs": {
+        "0/idle": {
+          "released": 20.083333333333336,
+          "swift": 19.5,
+          "rust": 22.666666666666664
+        },
+        "0/busy": {
+          "released": 21.25,
+          "swift": 19.25,
+          "rust": 23.166666666666668
+        },
+        "0/one-busy": {
+          "released": 20.333333333333332,
+          "swift": 19.166666666666664,
+          "rust": 22.333333333333336
+        },
+        "0/mixed": {
+          "released": 20.333333333333336,
+          "swift": 18.5,
+          "rust": 22.25
+        },
+        "0/unicode": {
+          "released": 20.5,
+          "swift": 18.833333333333336,
+          "rust": 22.333333333333332
+        },
+        "1/idle": {
+          "released": 143.58333333333331,
+          "swift": 23.833333333333336,
+          "rust": 28.833333333333336
+        },
+        "1/busy": {
+          "released": 147.5,
+          "swift": 139.25,
+          "rust": 159.75
+        },
+        "1/one-busy": {
+          "released": 143.75,
+          "swift": 147.91666666666666,
+          "rust": 171.5
+        },
+        "1/mixed": {
+          "released": 198.75,
+          "swift": 113.41666666666666,
+          "rust": 123.41666666666666
+        },
+        "1/unicode": {
+          "released": 275.25,
+          "swift": 142.25,
+          "rust": 181.0
+        },
+        "6/idle": {
+          "released": 894.0,
+          "swift": 36.25,
+          "rust": 45.666666666666664
+        },
+        "6/busy": {
+          "released": 840.0833333333333,
+          "swift": 917.25,
+          "rust": 631.4166666666666
+        },
+        "6/one-busy": {
+          "released": 854.0833333333334,
+          "swift": 527.25,
+          "rust": 482.33333333333337
+        },
+        "6/mixed": {
+          "released": 1084.3333333333333,
+          "swift": 882.25,
+          "rust": 743.25
+        },
+        "6/unicode": {
+          "released": 1646.8333333333333,
+          "swift": 1307.9166666666667,
+          "rust": 1281.0
+        },
+        "64/idle": {
+          "released": 8152.081109925293,
+          "swift": 102.4546424759872,
+          "rust": 113.66061899679829
+        },
+        "64/busy": {
+          "released": 8099.252934898613,
+          "swift": 8124.866595517609,
+          "rust": 6323.372465314835
+        },
+        "64/one-busy": {
+          "released": 8096.584845250801,
+          "swift": 4858.057630736394,
+          "rust": 3780.68303094984
+        },
+        "64/mixed": {
+          "released": 14645.677694770544,
+          "swift": 13910.885805763073,
+          "rust": 11088.046958377801
+        },
+        "64/unicode": {
+          "released": 24437.03308431163,
+          "swift": 19780.68303094984,
+          "rust": 19974.919957310565
+        },
+        "1024/idle": {
+          "released": 151913.7931034483,
+          "swift": 2146.551724137931,
+          "rust": 2086.206896551724
+        },
+        "1024/busy": {
+          "released": 146956.89655172414,
+          "swift": 156362.06896551725,
+          "rust": 103603.44827586206
+        },
+        "1024/one-busy": {
+          "released": 141568.9655172414,
+          "swift": 76172.41379310345,
+          "rust": 61112.06896551725
+        },
+        "1024/mixed": {
+          "released": 315241.3793103448,
+          "swift": 310560.3448275862,
+          "rust": 251241.37931034484
+        },
+        "1024/unicode": {
+          "released": 457543.1034482758,
+          "swift": 395922.4137931034,
+          "rust": 395689.6551724138
+        }
+      }
+    },
+    "x86_64": {
+      "frames": 2312,
+      "traceSha256": "ded05881fc6ae84cde8762997992fe51598b935f1afbb2148c600ba4f1eb27a3",
+      "rawSha256": "e9c79faf8ef4d8939eb11b7cdcafc63647fda62852b03f19412eabadd53e0d31",
+      "medianCpuNs": {
+        "0/idle": {
+          "released": 43.41666666666667,
+          "swift": 41.83333333333333,
+          "rust": 46.5
+        },
+        "0/busy": {
+          "released": 46.0,
+          "swift": 42.666666666666664,
+          "rust": 48.16666666666667
+        },
+        "0/one-busy": {
+          "released": 44.5,
+          "swift": 42.83333333333333,
+          "rust": 48.833333333333336
+        },
+        "0/mixed": {
+          "released": 46.25,
+          "swift": 42.33333333333333,
+          "rust": 47.75
+        },
+        "0/unicode": {
+          "released": 45.083333333333336,
+          "swift": 41.5,
+          "rust": 46.58333333333333
+        },
+        "1/idle": {
+          "released": 277.75,
+          "swift": 50.166666666666664,
+          "rust": 57.66666666666667
+        },
+        "1/busy": {
+          "released": 295.1666666666667,
+          "swift": 317.83333333333337,
+          "rust": 364.33333333333337
+        },
+        "1/one-busy": {
+          "released": 281.25,
+          "swift": 314.83333333333337,
+          "rust": 368.5833333333333
+        },
+        "1/mixed": {
+          "released": 375.5,
+          "swift": 227.33333333333331,
+          "rust": 254.25
+        },
+        "1/unicode": {
+          "released": 491.25,
+          "swift": 270.33333333333337,
+          "rust": 344.75
+        },
+        "6/idle": {
+          "released": 1572.0,
+          "swift": 73.08333333333334,
+          "rust": 80.75
+        },
+        "6/busy": {
+          "released": 1589.5,
+          "swift": 1767.8333333333335,
+          "rust": 1249.0
+        },
+        "6/one-busy": {
+          "released": 1630.8333333333335,
+          "swift": 1123.5,
+          "rust": 894.9166666666667
+        },
+        "6/mixed": {
+          "released": 2148.083333333333,
+          "swift": 1767.3333333333335,
+          "rust": 1512.8333333333335
+        },
+        "6/unicode": {
+          "released": 2995.916666666667,
+          "swift": 2493.4166666666665,
+          "rust": 2481.083333333333
+        },
+        "64/idle": {
+          "released": 15730.52294557097,
+          "swift": 189.4343649946638,
+          "rust": 187.29989327641408
+        },
+        "64/busy": {
+          "released": 15951.974386339381,
+          "swift": 17982.924226254,
+          "rust": 12112.593383137673
+        },
+        "64/one-busy": {
+          "released": 16313.76734258271,
+          "swift": 9766.275346851653,
+          "rust": 6584.311632870864
+        },
+        "64/mixed": {
+          "released": 32002.668089647814,
+          "swift": 28302.027748132336,
+          "rust": 23823.372465314835
+        },
+        "64/unicode": {
+          "released": 45338.84738527215,
+          "swift": 37892.20917822839,
+          "rust": 39372.46531483458
+        },
+        "1024/idle": {
+          "released": 261948.275862069,
+          "swift": 3344.8275862068967,
+          "rust": 3250.0
+        },
+        "1024/busy": {
+          "released": 298862.0689655172,
+          "swift": 313224.1379310345,
+          "rust": 187905.1724137931
+        },
+        "1024/one-busy": {
+          "released": 294215.5172413793,
+          "swift": 161724.1379310345,
+          "rust": 109198.27586206896
+        },
+        "1024/mixed": {
+          "released": 749629.3103448276,
+          "swift": 681129.3103448276,
+          "rust": 565482.7586206896
+        },
+        "1024/unicode": {
+          "released": 893750.0,
+          "swift": 807310.3448275862,
+          "rust": 815068.9655172413
+        }
+      }
+    }
+  }
+}

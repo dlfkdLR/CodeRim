@@ -1,0 +1,573 @@
+{
+  "source": "7506ff5abee85f914ee1656285aa114ad4484710",
+  "parent": "c12ff1609e546c72c45c2b3760b6e8ccfb8b0ed2",
+  "publishedTag": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "packetDigest": "b8e29f652f4b52c879078b3d640d27efe36d775ffbe9bdf2726acf8f598f1906",
+  "packetRun": "run-bd5a9af5c6fc4619a8cb4749a4717aad",
+  "productSourceSHA256": {
+    "Rust/bridge/include/coderim_reading_archive.h": "f73390366f40ecd785a6ebb055b8a177eec7aa6076ac50af080a0b3c0132c480",
+    "Rust/bridge/include/module.modulemap": "a9ddaaa4cb3ac8a8823eb463943f2a231a4ffea547c4990a56f881854c969865",
+    "Rust/bridge/src/lib.rs": "3df9c609b3e89ccaad1ffe4f5439cd8d51e44fdaa59ca27d317a8385e3f1f550",
+    "Rust/bridge/src/reading_archive.rs": "814a8da1e4f16bbdf26f385345c2f6c7a75814d1fcfa1c8ec47daf0ba5f4611d",
+    "Sources/CodeRim/Notch/NotchUsageStore.swift": "e1ee1908cda89d2c09abd268d83246079129a4b2cc1dd612cf03417ed8a53964",
+    "Sources/CodeRim/Notch/UsageArchive.swift": "96dc810e8e76d0f45d149e5a52d91a61f942c8c8276c504f6674d1fe564150bf"
+  },
+  "nativeProduct": {
+    "published": {
+      "app": {
+        "sha256": "811c632153a63382c1b1ee5fbe61855fc93e3310f96e69dd6cdfbae27af84d2a",
+        "hasReadingArchiveSymbols": false
+      },
+      "xctest": {
+        "sha256": "2854ade580ebb0e48d3f0799ccbf33dac1ae3965a78c73d1fb736d923aa61fb9",
+        "hasReadingArchiveSymbols": false
+      }
+    },
+    "candidate": {
+      "app": {
+        "sha256": "bc94c56c5bff4049aaf3a440c981f1242ce5cb130c8e7c1d1818ff7964382cb7",
+        "hasReadingArchiveSymbols": true
+      },
+      "xctest": {
+        "sha256": "2953a43a8db0d911d4a79ad3bbabb6d0a2cc0ef4b58c57d064849e05719b6ae8",
+        "hasReadingArchiveSymbols": true
+      }
+    }
+  },
+  "behavior": {
+    "projectionResults": {
+      "archive/arm64/published": {
+        "rows": 355,
+        "sha256": "4cb2cb812a56cc131c79791773859c45ebec7e916e323e57c6271c7779e5e0d7"
+      },
+      "archive/arm64/previous": {
+        "rows": 355,
+        "sha256": "4cb2cb812a56cc131c79791773859c45ebec7e916e323e57c6271c7779e5e0d7"
+      },
+      "archive/arm64/candidate": {
+        "rows": 355,
+        "sha256": "4cb2cb812a56cc131c79791773859c45ebec7e916e323e57c6271c7779e5e0d7"
+      },
+      "archive/x86_64/published": {
+        "rows": 355,
+        "sha256": "4cb2cb812a56cc131c79791773859c45ebec7e916e323e57c6271c7779e5e0d7"
+      },
+      "archive/x86_64/previous": {
+        "rows": 355,
+        "sha256": "4cb2cb812a56cc131c79791773859c45ebec7e916e323e57c6271c7779e5e0d7"
+      },
+      "archive/x86_64/candidate": {
+        "rows": 355,
+        "sha256": "4cb2cb812a56cc131c79791773859c45ebec7e916e323e57c6271c7779e5e0d7"
+      },
+      "store/arm64/published": {
+        "rows": 14,
+        "sha256": "a2a26d307a56520718fa09dc562b5574b09b14ef2d0faa2cda076ff1091405cd"
+      },
+      "store/arm64/previous": {
+        "rows": 14,
+        "sha256": "c1fe444ef89504c8fecc0703ade47bf5c7b91c5d7ce711e541b0012015f2ec8f"
+      },
+      "store/arm64/candidate": {
+        "rows": 14,
+        "sha256": "c1fe444ef89504c8fecc0703ade47bf5c7b91c5d7ce711e541b0012015f2ec8f"
+      },
+      "store/x86_64/published": {
+        "rows": 14,
+        "sha256": "a2a26d307a56520718fa09dc562b5574b09b14ef2d0faa2cda076ff1091405cd"
+      },
+      "store/x86_64/previous": {
+        "rows": 14,
+        "sha256": "c1fe444ef89504c8fecc0703ade47bf5c7b91c5d7ce711e541b0012015f2ec8f"
+      },
+      "store/x86_64/candidate": {
+        "rows": 14,
+        "sha256": "c1fe444ef89504c8fecc0703ade47bf5c7b91c5d7ce711e541b0012015f2ec8f"
+      },
+      "existing-arm64": [
+        {
+          "published": "cold owner absent a:changedDuringFetch:0.03125|b:-:0.0234375|c:last:0.0234375 a/stale/changedDuringFetch|b/stale/-|c/stale/last",
+          "candidate": "cold owner absent a:changedDuringFetch:0.03125|b:-:0.0234375 a/stale/changedDuringFetch|b/stale/-|c/stale/-"
+        },
+        {
+          "published": "forget reads other store a:changedDuringFetch:0.03125|c:last:0.0234375|outside:external:0.0078125 a/stale/changedDuringFetch|c/stale/last",
+          "candidate": "forget reads other store a:changedDuringFetch:0.03125|outside:external:0.0078125 a/stale/changedDuringFetch|c/stale/-"
+        },
+        {
+          "published": "cold filter disconnected c:-:0.0625 c/stale/-",
+          "candidate": "cold filter disconnected  c/stale/-"
+        },
+        {
+          "published": "denied after cold start c:-:0.0625 c/stale/-",
+          "candidate": "denied after cold start  c/denied/-"
+        }
+      ],
+      "existing-x86_64": [
+        {
+          "published": "cold owner absent a:changedDuringFetch:0.03125|b:-:0.0234375|c:last:0.0234375 a/stale/changedDuringFetch|b/stale/-|c/stale/last",
+          "candidate": "cold owner absent a:changedDuringFetch:0.03125|b:-:0.0234375 a/stale/changedDuringFetch|b/stale/-|c/stale/-"
+        },
+        {
+          "published": "forget reads other store a:changedDuringFetch:0.03125|c:last:0.0234375|outside:external:0.0078125 a/stale/changedDuringFetch|c/stale/last",
+          "candidate": "forget reads other store a:changedDuringFetch:0.03125|outside:external:0.0078125 a/stale/changedDuringFetch|c/stale/-"
+        },
+        {
+          "published": "cold filter disconnected c:-:0.0625 c/stale/-",
+          "candidate": "cold filter disconnected  c/stale/-"
+        },
+        {
+          "published": "denied after cold start c:-:0.0625 c/stale/-",
+          "candidate": "denied after cold start  c/denied/-"
+        }
+      ]
+    },
+    "fixedDatesAndSyntheticKeys": true,
+    "syntheticTypedArchiveChecks": "355 deterministic rows per architecture/delivered app source variant. Each save captures exact raw archive bytes/length and number of real UserDefaults.set invocations. Accounts and limits are synthetic. Cases include old entries without owner or headline, repeated IDs, placeholder glyph, UTF-16/canonical strings, signed zero, mixed numeric extrema, unencodable non-finite values, state recovery, owner lookup by snapshot identifier, full replacements, forgotten or damaged defaults, and externally removed data.",
+    "storeRowsPerArch": 14,
+    "actualStoreCases": "Detached public sources with synthetic providers only, actual NotchUsageStore init/refresh/invalidateAccount/signOut/failure paths, and separate real UserDefaults suites. Controlled overlapping provider responses proved partial writes and cancellation of an outdated owner. A second store overwrote the same suite; sign-out observed its contents and subsequent refresh restored the store map. Existing strictly verified owner handling differs in four observed public rows and matches c12ff160 on both architectures. No actual credential stores or external providers were accessed.",
+    "coreNativeXCTest": {
+      "passedInPublished": 4,
+      "passedInCandidate": 5,
+      "publishedMissingLaterOwnedProviderTest": true,
+      "actualPerCaseLogSHA256": {
+        "published/testAnAnswerForTheAccountSignedOutDuringTheRequestIsReadAgain": "c29e2122b1625b0a4540bb20f52ca8a198bc1a040ae5539da46a104a753b58ab",
+        "published/testAFailedReadAgainAfterAnAccountChangeStillShowsTheCell": "dd80b05b0e306e8801936f638ec7f705ab46c722e7b43a828c6fca85cd673485",
+        "published/testARememberedReadingForAnotherAccountIsNotRestored": "db506d7215501c2b2b4c7d725271e4341f6341aa6acd2547397007552e92d473",
+        "published/ProviderGlyphTests/testArchivedPlaceholderIsResolvedWithoutChangingLegacyIdentifiers": "c329889b90a5e518001ede30bc715bd70f83d85f099b1be09d2fdc43e39a553c",
+        "candidate/testAnAnswerForTheAccountSignedOutDuringTheRequestIsReadAgain": "43689e9a9737a47d1e606cacca9fb446fbfda39ffafa96ee6187dd34fe032d2f",
+        "candidate/testAFailedReadAgainAfterAnAccountChangeStillShowsTheCell": "48fbf500bafafe3d3da89851e42ada41f043976ecf948df1049fc10bc35f8d75",
+        "candidate/testOwnedProviderDoesNotRestoreCachedUsageAfterItsKeyDisappears": "927b5b3d346888f5128d177a93168be0c8dfe690067c7eb3da69ff4145da61c8",
+        "candidate/testARememberedReadingForAnotherAccountIsNotRestored": "d16a204430d179d484580da1423b6ad4d8938b3a167565798d17c4a91b398cd2",
+        "candidate/ProviderGlyphTests/testArchivedPlaceholderIsResolvedWithoutChangingLegacyIdentifiers": "959c26736b0720f2064f1c88a5e76b5afef94d393b2e9624d3b251aec078dc1d"
+      }
+    },
+    "rustWorkspaceTests": 72,
+    "rustfmtClippySucceeded": true,
+    "directNativeABI": {
+      "arm64": {
+        "edits": 6144,
+        "completeOutputsCompared": 18432,
+        "independentStores": 3,
+        "invalid": 9
+      },
+      "x86_64": {
+        "edits": 6144,
+        "completeOutputsCompared": 18432,
+        "independentStores": 3,
+        "invalid": 9
+      }
+    }
+  },
+  "performance": {
+    "measurement": "Complete production store.refresh CPU microseconds for synthetic providers, true UserDefaults read/compare/write after every successful read. Each test process starts its own suite. Published release sources, c12ff160 and candidate rotated in nine process order blocks. Each warm sample contains 12 store.refresh calls. CPU timings and reopening QA ran on Apple Silicon, x86_64 numbers are Rosetta. The native full app/XCTest binaries are arm64.",
+    "perArchitecture": {
+      "arm64": {
+        "1": {
+          "published": {
+            "init": 674.0,
+            "first": 293.0,
+            "warm": 79.66666666666667,
+            "reopen": 20.0
+          },
+          "previous": {
+            "init": 719.0,
+            "first": 304.0,
+            "warm": 81.41666666666667,
+            "reopen": 18.0
+          },
+          "candidate": {
+            "init": 725.0,
+            "first": 264.0,
+            "warm": 77.16666666666667,
+            "reopen": 22.0
+          }
+        },
+        "8": {
+          "published": {
+            "init": 104.0,
+            "first": 695.0,
+            "warm": 795.5833333333334,
+            "reopen": 69.0
+          },
+          "previous": {
+            "init": 118.0,
+            "first": 708.0,
+            "warm": 787.5,
+            "reopen": 70.0
+          },
+          "candidate": {
+            "init": 114.0,
+            "first": 502.0,
+            "warm": 436.25,
+            "reopen": 71.0
+          }
+        },
+        "32": {
+          "published": {
+            "init": 115.0,
+            "first": 5078.0,
+            "warm": 7975.5,
+            "reopen": 228.0
+          },
+          "previous": {
+            "init": 121.0,
+            "first": 5367.0,
+            "warm": 8341.583333333334,
+            "reopen": 223.0
+          },
+          "candidate": {
+            "init": 113.0,
+            "first": 2164.0,
+            "warm": 1878.0,
+            "reopen": 233.0
+          }
+        },
+        "70": {
+          "published": {
+            "init": 121.0,
+            "first": 19885.0,
+            "warm": 35234.666666666664,
+            "reopen": 460.0
+          },
+          "previous": {
+            "init": 125.0,
+            "first": 19674.0,
+            "warm": 35718.75,
+            "reopen": 469.0
+          },
+          "candidate": {
+            "init": 113.0,
+            "first": 4938.0,
+            "warm": 5294.666666666667,
+            "reopen": 471.0
+          }
+        }
+      },
+      "x86_64": {
+        "1": {
+          "published": {
+            "init": 1572.0,
+            "first": 662.0,
+            "warm": 110.91666666666667,
+            "reopen": 29.0
+          },
+          "previous": {
+            "init": 1569.0,
+            "first": 667.0,
+            "warm": 107.91666666666667,
+            "reopen": 30.0
+          },
+          "candidate": {
+            "init": 1523.0,
+            "first": 668.0,
+            "warm": 102.08333333333333,
+            "reopen": 30.0
+          }
+        },
+        "8": {
+          "published": {
+            "init": 156.0,
+            "first": 1048.0,
+            "warm": 1253.9166666666667,
+            "reopen": 119.0
+          },
+          "previous": {
+            "init": 146.0,
+            "first": 1038.0,
+            "warm": 1254.0833333333333,
+            "reopen": 118.0
+          },
+          "candidate": {
+            "init": 141.0,
+            "first": 677.0,
+            "warm": 607.3333333333334,
+            "reopen": 117.0
+          }
+        },
+        "32": {
+          "published": {
+            "init": 146.0,
+            "first": 8341.0,
+            "warm": 14653.416666666666,
+            "reopen": 415.0
+          },
+          "previous": {
+            "init": 151.0,
+            "first": 8450.0,
+            "warm": 13903.166666666666,
+            "reopen": 404.0
+          },
+          "candidate": {
+            "init": 136.0,
+            "first": 2740.0,
+            "warm": 2717.4166666666665,
+            "reopen": 413.0
+          }
+        },
+        "70": {
+          "published": {
+            "init": 234.0,
+            "first": 35818.0,
+            "warm": 64135.333333333336,
+            "reopen": 862.0
+          },
+          "previous": {
+            "init": 165.0,
+            "first": 34505.0,
+            "warm": 62133.333333333336,
+            "reopen": 862.0
+          },
+          "candidate": {
+            "init": 168.0,
+            "first": 7348.0,
+            "warm": 8258.833333333334,
+            "reopen": 868.0
+          }
+        }
+      }
+    },
+    "equivalentSwiftCachedWriter": {
+      "arm64": {
+        "1": {
+          "pure": {
+            "first": 259.0,
+            "warm": 72.6
+          },
+          "candidate": {
+            "first": 250.0,
+            "warm": 72.86666666666666
+          }
+        },
+        "8": {
+          "pure": {
+            "first": 488.0,
+            "warm": 430.26666666666665
+          },
+          "candidate": {
+            "first": 452.0,
+            "warm": 427.8666666666667
+          }
+        },
+        "32": {
+          "pure": {
+            "first": 1845.0,
+            "warm": 1865.3333333333333
+          },
+          "candidate": {
+            "first": 1883.0,
+            "warm": 1857.0666666666666
+          }
+        },
+        "70": {
+          "pure": {
+            "first": 4907.0,
+            "warm": 5296.2
+          },
+          "candidate": {
+            "first": 4850.0,
+            "warm": 5078.066666666667
+          }
+        }
+      },
+      "x86_64": {
+        "1": {
+          "pure": {
+            "first": 617.0,
+            "warm": 100.66666666666667
+          },
+          "candidate": {
+            "first": 624.0,
+            "warm": 97.2
+          }
+        },
+        "8": {
+          "pure": {
+            "first": 669.0,
+            "warm": 590.8666666666667
+          },
+          "candidate": {
+            "first": 697.0,
+            "warm": 573.2
+          }
+        },
+        "32": {
+          "pure": {
+            "first": 2694.0,
+            "warm": 2793.8
+          },
+          "candidate": {
+            "first": 2590.0,
+            "warm": 2581.3333333333335
+          }
+        },
+        "70": {
+          "pure": {
+            "first": 7453.0,
+            "warm": 8343.466666666667
+          },
+          "candidate": {
+            "first": 7131.0,
+            "warm": 7795.4
+          }
+        }
+      }
+    },
+    "equivalentSwiftMeasurement": "Independent implementation choice comparison only, same implementation owner: typed Foundation one-row encoder, cached ascending keys, per-row bytes and capacity-aware Data assembly in Swift versus production Rust BTreeMap and reusable output. Full ordinary store measured across 11 alternating blocks of 15 steady refreshes each. Both first passed the same 355 archive and 14 store rows. Most gains against the published release come from eliminating repeated unchanged-row encodes. Restoring existing archived data on app startup remains Foundation decoding."
+  },
+  "independentReview": {
+    "reviewer_id": "root-independent-defaults-crossover",
+    "run_id": "run-bd5a9af5c6fc4619a8cb4749a4717aad",
+    "packet_digest": "b8e29f652f4b52c879078b3d640d27efe36d775ffbe9bdf2726acf8f598f1906",
+    "reviewed_commit": "7506ff5abee85f914ee1656285aa114ad4484710",
+    "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+    "dimensions": {
+      "functionality": {
+        "winner": "TIE",
+        "reason": "An independently compiled writer and public release produced identical Foundation bytes, write counts and reloaded owner maps at 965 successive checkpoints per 5-process sequence. Four different implementation sequences were compared on arm64 and on x86_64 under Rosetta. Each process used three writer instances in one synthetic defaults suite, including external deletion, invalid plist values, missing and duplicate IDs, invalid floating-point values, ASCII controls and canonically equivalent keys.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Notch/UsageArchive.swift",
+          "candidate/Rust/bridge/src/reading_archive.rs",
+          "candidate/Sources/CodeRim/Notch/NotchUsageStore.swift"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "The baseline and candidate Swift files were read directly using git show from the two fixed commits. Every compared sequence had SHA-256 971991e4c8f8ddba0dbfd6920bd4d2d2ad34793a7d148de0063748d69e666738. The optional timestamp, ownership and error behavior were exercised with generated input.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Notch/UsageArchive.swift",
+          "candidate/Rust/bridge/src/reading_archive.rs",
+          "candidate/Sources/CodeRim/Notch/NotchUsageStore.swift"
+        ]
+      },
+      "security": {
+        "winner": "TIE",
+        "reason": "All defaults suites were fresh random identifiers and removed by the reference executable. The Rust entry pointer is copied before Swift Data returns to its owner, with zero and oversized lengths guarded. No real accounts or credentials were involved.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Notch/UsageArchive.swift",
+          "candidate/Rust/bridge/src/reading_archive.rs",
+          "candidate/Sources/CodeRim/Notch/NotchUsageStore.swift"
+        ]
+      },
+      "maintainability": {
+        "winner": "INCONCLUSIVE",
+        "reason": "Each store owns one cache. Maintaining paired invalidations and the optional Swift fallback increases the future review burden. No evidence measures maintenance cost.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Notch/UsageArchive.swift",
+          "candidate/Rust/bridge/src/reading_archive.rs",
+          "candidate/Sources/CodeRim/Notch/NotchUsageStore.swift"
+        ]
+      },
+      "performance": {
+        "winner": "INCONCLUSIVE",
+        "reason": "Independent restart and mutation traces controlled correctness. The producer measured CPU separately at 1 to 70 active providers. The review did not time a live provider endpoint or inspect system energy.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Notch/UsageArchive.swift",
+          "candidate/Rust/bridge/src/reading_archive.rs",
+          "candidate/Sources/CodeRim/Notch/NotchUsageStore.swift"
+        ]
+      }
+    },
+    "crossover": {
+      "arm64": {
+        "BBBBB": {
+          "stages": 5,
+          "observations": 965,
+          "sha256": "971991e4c8f8ddba0dbfd6920bd4d2d2ad34793a7d148de0063748d69e666738"
+        },
+        "ABABA": {
+          "stages": 5,
+          "observations": 965,
+          "sha256": "971991e4c8f8ddba0dbfd6920bd4d2d2ad34793a7d148de0063748d69e666738"
+        },
+        "BABAB": {
+          "stages": 5,
+          "observations": 965,
+          "sha256": "971991e4c8f8ddba0dbfd6920bd4d2d2ad34793a7d148de0063748d69e666738"
+        },
+        "AABBA": {
+          "stages": 5,
+          "observations": 965,
+          "sha256": "971991e4c8f8ddba0dbfd6920bd4d2d2ad34793a7d148de0063748d69e666738"
+        }
+      },
+      "x86_64": {
+        "BBBBB": {
+          "stages": 5,
+          "observations": 965,
+          "sha256": "971991e4c8f8ddba0dbfd6920bd4d2d2ad34793a7d148de0063748d69e666738"
+        },
+        "ABABA": {
+          "stages": 5,
+          "observations": 965,
+          "sha256": "971991e4c8f8ddba0dbfd6920bd4d2d2ad34793a7d148de0063748d69e666738"
+        },
+        "BABAB": {
+          "stages": 5,
+          "observations": 965,
+          "sha256": "971991e4c8f8ddba0dbfd6920bd4d2d2ad34793a7d148de0063748d69e666738"
+        },
+        "AABBA": {
+          "stages": 5,
+          "observations": 965,
+          "sha256": "971991e4c8f8ddba0dbfd6920bd4d2d2ad34793a7d148de0063748d69e666738"
+        }
+      }
+    },
+    "artifacts": {
+      "independent-sources/main.swift": "bc7be7b25c7ddee5999fa2f84f41bdb1d839ec3102526a7770f9c451720a4ce2",
+      "independent-sources/run.py": "8621aa52cd5d11f68d1d5c048822c85527091386a035b8ffa2d155154bb95f56",
+      "independent-sources/restarts.json": "1b3f998e0347db293b20170881940657ddfe40ceaec67676aeb8fd9a669c2746",
+      "reading-archive.a": "1b4c146acb445d8659babe8acb6bafa86f906ef85506f6d5cb489fb97f3ce64e"
+    }
+  },
+  "formalGate": {
+    "run_id": "run-bd5a9af5c6fc4619a8cb4749a4717aad",
+    "decision": "INCONCLUSIVE",
+    "candidate_hash": "f25bf0c0c38001eb4eda5be281f2ed76572921a078fae27bae54f68c4e94fcd0",
+    "gate_order": [
+      "SECURITY",
+      "FACTUAL",
+      "CONTENT",
+      "FUNCTIONAL",
+      "ACCESSIBILITY",
+      "RESPONSIVE",
+      "VISUAL_UX",
+      "CODE_QUALITY",
+      "PERFORMANCE"
+    ],
+    "blockers": [],
+    "missing_evidence": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "improved": false,
+    "regression_ready": false,
+    "dimensions": {},
+    "time": "2026-11-26T11:53:52.127068+00:00"
+  },
+  "evidenceSHA256": {
+    "change.patch": "a35bb713b151fa5c5bca82790c8b78ab8d7e4c965b7ef7d0df20144530d1dd4c",
+    "packet.json": "07a19a0b7669735f7b063f8ee459bd66b6a7c3195c100020eea0138979a93d31",
+    "comparison.json": "69edc9e453c6deb6e04ed9d0b4935bcb63ec114d35b5d8224773850068bfe8d9",
+    "native-check.json": "15e68b55003a9840d283eed4c0489c13a5ee052e34fc92e5da1309a7e568942c",
+    "abi.json": "f78cf17d4d4532de54fa8c2ef2e1feeff12b633c419f3be3beb95c565ddc658a",
+    "abi.c": "38156186e9be5d6d706fdb63e4814c487979e76a113f231d72ab8be3a36f125d",
+    "main.swift": "b56cf9e34418f58a5d1cdd302476bffb59fd090ae6b534e7439fe760b500e8cc",
+    "store-trace.swift": "f9b78707b0da9b23e2cc119789bc97ae5e4881868312a5ce395963c41fc440c1",
+    "archive-projection.swift": "60063952e55b2e69d9df908691b1de1391aca9f4758dbc319900ef7e0849e381",
+    "paired-writer.json": "c40a1b430a9d07c1a3d367f3f68c5a85e25b6ee00cc5880b84b77e1446125651",
+    "pure-swift-writer.swift": "4780f7946473c07696845972eb9492cf4f9e445405ffaef248e304672b7ceb05",
+    "bench-arm64.json": "5cb17c28f74cd7f2a32bac977dce3b10fe31389082ffb55ae2225359b8be1f45",
+    "bench-x86_64.json": "bd70497c5f5515d9562e2794e4ece9d639843b06c6edf6a97b08b8a3f68d4500",
+    "rust-tests.log": "3f7f37460cab8db69330ba4c4a2910cfe4f1aaacb78ed61dd34faec92c32c7eb",
+    "native-final-build.log": "b6426e4d59b3247c8b89645fb94e9995a92976f11edb4c21720250494a258a33",
+    "clippy.log": "975177105c350c1edbabd0ff104686d7ddd44b59dcd21f10651f51bd089bd83c",
+    "rustfmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "reading-archive.a": "1b4c146acb445d8659babe8acb6bafa86f906ef85506f6d5cb489fb97f3ce64e",
+    "independent.json": "b68db1be7bf77dd4c66603921823e94769945fc02a2322d58dddac212a12f81a",
+    "review-import.log": "f44c48e774df41f9b4599a15978aea9960141e1a98f880a81a3e612bc1e1093b",
+    "gate.json": "fbad304258685d0056eef0bc68aaf7c70830a329a75f65caf1614a4b89630e92",
+    "summary.json": "2928bad46a15556ace325581594053aa70f02ed1b3c30c35b152baf63eebf534"
+  }
+}
