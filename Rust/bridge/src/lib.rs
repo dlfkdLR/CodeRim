@@ -1,6 +1,8 @@
 //! Fixed-layout normalization entry points take and return values by copy.
 //! Presence flags distinguish an absent measurement from any signed counter.
 mod event_json;
+#[cfg(any(target_os = "macos", test))]
+mod notch_path;
 mod token_json;
 
 use coderim_usage_core::{

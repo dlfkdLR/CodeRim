@@ -160,7 +160,8 @@ struct NotchRootView: View {
     }
 
     private func notch(_ place: NotchPlacement) -> some View {
-        SideNotchShape(edge: model.edge, joining: model.joinedNotch)
+        let outline = SideNotchShape(edge: model.edge, joining: model.joinedNotch)
+        return outline
             .fill(NotchPalette.notch)
             .frame(width: model.notchSize.width, height: model.notchSize.height)
             // Aligned to the corner where the stack starts *and* the bezel is,
@@ -174,7 +175,7 @@ struct NotchRootView: View {
             // the cells simply sit on top of a shrinking shape and appear to
             // slide out of the end of it; clipped, they are swallowed by the
             // outline as it closes, which is what a notch should do.
-            .clipShape(SideNotchShape(edge: model.edge, joining: model.joinedNotch))
+            .clipShape(outline)
             // The size choice, applied to the notch and the cells it carries —
             // and to nothing else. Drawn at design-frame size and scaled from
             // there, so `NotchLayout` keeps measuring the one thing it is

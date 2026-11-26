@@ -1,4 +1,7 @@
 import SwiftUI
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// The notch body: a pill welded to one edge of the screen, with *inverse*
 /// rounded corners at each end that flare back out to the edge so it reads as
@@ -31,6 +34,50 @@ struct SideNotchShape: Shape {
     var cornerRadius: CGFloat = NotchLayout.cornerRadius
 
     func path(in rect: CGRect) -> Path {
+#if CODERIM_RUST_ACCOUNTING
+        if let path = rustPath(in: rect) { return path }
+#endif
+        return nativePath(in: rect)
+    }
+
+#if CODERIM_RUST_ACCOUNTING
+    func rustPath(in rect: CGRect) -> Path? {
+        let orientation: UInt32 = switch edge {
+        case .right: UInt32(CR_NOTCH_RIGHT)
+        case .left: UInt32(CR_NOTCH_LEFT)
+        case .top: UInt32(CR_NOTCH_TOP)
+        case .bottom: UInt32(CR_NOTCH_BOTTOM)
+        }
+        var shape = cr_make_notch_path(cr_notch_parameters(
+            edge: orientation, has_hardware: joining == nil ? 0 : 1,
+            width: rect.width, height: rect.height, curl_radius: curlRadius, corner_radius: cornerRadius,
+            bezel_fillet: NotchLayout.bezelFillet, hardware_height: Double(joining?.height ?? 0)
+        ))
+        guard shape.count > 0, shape.count <= CR_NOTCH_MAX_COMMANDS else { return nil }
+        var path = Path()
+        for index in 0..<shape.count {
+            let command = cr_notch_command_at(&shape, index)
+            let point = CGPoint(x: command.x, y: command.y)
+            switch Int(command.verb) {
+            case CR_NOTCH_MOVE: path.move(to: point)
+            case CR_NOTCH_LINE: path.addLine(to: point)
+            case CR_NOTCH_ARC_CW, CR_NOTCH_ARC_CCW:
+                path.addArc(center: point, radius: command.radius,
+                            startAngle: .degrees(Double(command.start_degrees)),
+                            endAngle: .degrees(Double(command.end_degrees)),
+                            clockwise: command.verb == CR_NOTCH_ARC_CW)
+            case CR_NOTCH_CLOSE: path.closeSubpath()
+            default: return nil
+            }
+        }
+        return path
+            .applying(CGAffineTransform(a: shape.a, b: shape.b, c: shape.c, d: shape.d,
+                                        tx: shape.tx, ty: shape.ty))
+            .applying(CGAffineTransform(translationX: rect.minX, y: rect.minY))
+    }
+#endif
+
+    func nativePath(in rect: CGRect) -> Path {
         // Canonical space: depth across the shape, length along it. For a side
         // edge that is already width x height; for a horizontal one it is the
         // rect turned on its side. The bezel is at `maxX`.
