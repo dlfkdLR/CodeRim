@@ -163,6 +163,7 @@ final class ExtendedNotchProvider: NotchProvider {
         if descriptor.id == .fireworks, environment["FIREWORKS_ACCOUNT_SLUG"]?.isEmpty != false {
             return empty(.unsupported("Set FIREWORKS_ACCOUNT_SLUG in Additional provider settings, then save."))
         }
+        let requestEnvironment = MigrationProviderAccess.officialCLI(descriptor.id) == nil ? environment : OfficialUsageCLI.environment()
         let browser = BrowserDetection()
         var direct = ExtendedProviderConfiguration(providerID: descriptor.id)
         direct.provider.apiKey = config.provider.apiKey
@@ -170,8 +171,8 @@ final class ExtendedNotchProvider: NotchProvider {
         direct.provider.cookieSource = .off
         let context = ProviderFetchContext(runtime: .app, sourceMode: MigrationProviderAccess.officialCLI(descriptor.id) == nil ? .api : .cli,
             includeCredits: true, includeOptionalUsage: false, webTimeout: 20, webDebugDumpHTML: false, verbose: false,
-            env: environment, settings: direct.settings(environment: environment), fetcher: UsageFetcher(environment: environment),
-            claudeFetcher: ClaudeUsageFetcher(browserDetection: browser, environment: environment), browserDetection: browser)
+            env: requestEnvironment, settings: direct.settings(environment: environment), fetcher: UsageFetcher(environment: requestEnvironment),
+            claudeFetcher: ClaudeUsageFetcher(browserDetection: browser, environment: requestEnvironment), browserDetection: browser)
         do {
             let result = try await MigrationProviderAccess.fetch(descriptor, context: context)
             try Task.checkCancellation()

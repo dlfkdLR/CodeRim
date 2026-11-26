@@ -198,6 +198,9 @@ enum MigrationProviderAccess {
     }
 
     static func fetch(_ descriptor: ProviderDescriptor, context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        if let cli = officialCLI(descriptor.id) {
+            return try await OfficialUsageCLI.fetch(descriptor, strategy: cli, context: context)
+        }
         if descriptor.id == .xai || descriptor.id == .poe {
             return try await SharedScriptProvider.fetch(descriptor.id, environment: context.env)
         }
@@ -213,13 +216,11 @@ enum MigrationProviderAccess {
                 sourceLabel: "api", strategyID: "codebuff.api", strategyKind: .apiToken)
         }
         let id: String? = switch descriptor.id {
-        case .augment, .alibabatokenplan: officialCLI(descriptor.id)
         case .wayfinder: "wayfinder.api"
         default: api[descriptor.id.rawValue]?.strategy
         }
-        let kind: ProviderFetchKind = officialCLI(descriptor.id) == nil ? .apiToken : .cli
         guard let id, let strategy = await descriptor.fetchPlan.pipeline.resolveStrategies(context)
-            .first(where: { $0.id == id && $0.kind == kind }) else { throw NotchProviderError.needsAuth }
+            .first(where: { $0.id == id && $0.kind == .apiToken }) else { throw NotchProviderError.needsAuth }
         return try await strategy.fetch(context)
     }
 
