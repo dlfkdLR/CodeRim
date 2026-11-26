@@ -38,6 +38,29 @@ def changed(path, value):
 MISSING = object()
 
 
+def sized_record(size, shape):
+    obj = copy.deepcopy(BASE)
+    body = obj["message"]["content"][0]
+    body["text"] = ""
+    if shape == "posix":
+        obj["cwd"] = "/fixture/한글"
+    elif shape == "nullCount":
+        obj["message"]["usage"]["cache_read_input_tokens"] = None
+    elif shape in ("ignored", "ignoredLate"):
+        obj["type"] = "user"
+        if shape == "ignoredLate":
+            obj["type"] = obj.pop("type")
+    space = size - len(row(obj))
+    assert space >= 0
+    if shape == "escaped":
+        body["text"] = "\\" * (space // 2) + "x" * (space % 2)
+    else:
+        body["text"] = "x" * space
+    encoded = row(obj)
+    assert len(encoded) == size
+    return encoded
+
+
 def fixtures(work):
     named = []
     canonical = row(BASE)
@@ -86,6 +109,14 @@ def fixtures(work):
                  canonical + b"true", canonical.replace(b'"content"', b'"bad\x00key"'))])
     named.append(("escaped-size", changed(["cwd"], "\\" * 512)))
     named.append(("cwd-unicode-escape", json.dumps(BASE, ensure_ascii=True).encode()))
+    for size in (2047, 2048, 2049, 8191, 8192, 8193, 16383, 16384, 16385, 32768, 131072):
+        for shape in ("posix", "windows", "nullCount", "ignored", "ignoredLate", "escaped"):
+            data = sized_record(size, shape)
+            named.append((f"exact-{shape}-{size}", data))
+            if shape == "escaped":
+                # The managed path must preserve lazy UTF-8 and surrogate errors.
+                for invalid in (br'\ud800', b'\xff'):
+                    named.append((f"invalid-escaped-{size}", data.replace(b"session.Alpha-1", invalid, 1)))
     (work / "rows.txt").write_bytes(b"\n".join(base64.b64encode(data) for _, data in named))
     logs = work / "logs"
     logs.mkdir()
@@ -102,17 +133,15 @@ def fixtures(work):
         file.write(changed(["message", "usage", "input_tokens"], None) + b"\n")
     bench = work / "bench"
     bench.mkdir()
-    for size in [0, 4096, 32768]:
-        for shape in ["posix", "windows", "nullCount", "ignored"]:
-            obj = copy.deepcopy(BASE)
+    # Retain the historical payload-size cases alongside exact total-byte boundaries.
+    for size in (0, 4096, 32768):
+        for shape in ("posix", "windows", "nullCount", "ignored"):
+            obj = json.loads(sized_record(512, shape))
             obj["message"]["content"][0]["text"] = "x" * size
-            if shape == "posix":
-                obj["cwd"] = "/fixture/한글"
-            elif shape == "nullCount":
-                obj["message"]["usage"]["cache_read_input_tokens"] = None
-            elif shape == "ignored":
-                obj["type"] = "user"
             (bench / f"{shape}-{size}").write_bytes(row(obj))
+    for size in (2048, 8192, 16383, 16384, 32768, 131072):
+        for shape in ("windows", "nullCount", "ignored", "ignoredLate", "escaped"):
+            (bench / f"{shape}-exact-{size}").write_bytes(sized_record(size, shape))
     return [name for name, _ in named]
 
 

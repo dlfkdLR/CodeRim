@@ -12,7 +12,8 @@ public static class ClaudeJsonlParser
     {
         if (line.Length > CodexJsonlParser.MaximumLineBytes) return null;
 #if CODERIM_RUST_ACCOUNTING
-        if (RustClaudeEventParser.TryParse(line.Span, projectKey, sourceName, out var projected)) return projected;
+        if (RustClaudeEventParser.ShouldProject(line.Span)
+            && RustClaudeEventParser.TryParse(line.Span, projectKey, sourceName, out var projected)) return projected;
 #endif
         try
         {

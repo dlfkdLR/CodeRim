@@ -31,6 +31,21 @@ internal static unsafe class RustClaudeEventParser
     [DllImport(BridgeName, EntryPoint = "cr_windows_claude_event", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
     private static extern uint Parse(byte* input, nuint length, byte* scratch, nuint capacity, Event* metadata);
 
+    internal static bool ShouldProject(ReadOnlySpan<byte> line)
+    {
+        bool x64 = RuntimeInformation.ProcessArchitecture == Architecture.X64;
+        if (line.Length >= 16 * 1024 && (x64 || line.StartsWith("{\"type\":\"user\""u8))) return false;
+        // The typed reader handles dense JSON escapes more efficiently on long strings.
+        // Ordinary escaped Windows paths account for only a few bytes per record.
+        if (line.Length < (x64 ? 2048 : 8192)) return true;
+        int quarter = line.Length / 4;
+        return !HasDenseEscapes(line, quarter) && !HasDenseEscapes(line, 2 * quarter)
+            && !HasDenseEscapes(line, 3 * quarter);
+    }
+
+    private static bool HasDenseEscapes(ReadOnlySpan<byte> line, int offset) =>
+        line.Slice(offset, 128).Count((byte)'\\') >= 8;
+
     internal static bool TryParse(ReadOnlySpan<byte> line, byte[]? projectKey, string? sourceName, out UsageEvent? result)
     {
         result = null;
