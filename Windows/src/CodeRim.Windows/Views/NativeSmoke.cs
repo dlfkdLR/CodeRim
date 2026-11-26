@@ -418,7 +418,18 @@ internal static partial class NativeSmoke
         }
         else
         {
-            await OwnedConnectionViewsRegression(dashboard, vault, directory);
+            var enabledBefore = settings.Current.EnabledProviders;
+            string[] inspected = ["cursor", "jetbrains", "kiro", "perplexity", "ollama"];
+            try
+            {
+                settings.Save(settings.Current with { EnabledProviders = enabledBefore.Union(inspected).ToArray() });
+                await OwnedConnectionViewsRegression(dashboard, vault, directory, inspected);
+            }
+            finally
+            {
+                settings.Save(settings.Current with { EnabledProviders = enabledBefore });
+                dashboard.Navigate("usage");
+            }
             Record("Owned account settings, explicit keys and rejected external connection controls");
         }
         await MoonshotRegionRegression(dashboard, settings, vault, directory);

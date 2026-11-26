@@ -99,18 +99,22 @@ internal static partial class NativeSmoke
     }
 
     // The packaged smoke opens the production Settings page within its synthetic application profile.
-    private static async Task OwnedConnectionViewsRegression(DashboardWindow dashboard, CredentialVault vault, string directory)
+    private static async Task OwnedConnectionViewsRegression(DashboardWindow dashboard, CredentialVault vault, string directory, string[] inspected)
     {
-        foreach (var id in new[] { "cursor", "jetbrains", "kiro", "perplexity" })
+        foreach (var id in inspected)
         {
             dashboard.Navigate(id); await Idle();
+            Require(Descendants<TextBlock>(dashboard).Any(text => text.Text == ProviderCatalog.Find(id)!.Name)
+                && Descendants<Button>(dashboard).Any(button => AutomationProperties.GetAutomationId(button) == "provider.refresh"),
+                "The provider Settings page did not open for " + id + ".");
             Require(!Descendants<Button>(dashboard).Any(button => button.Content is string title &&
                     (title.Contains("Import", StringComparison.OrdinalIgnoreCase) || title.Contains("browser profile", StringComparison.OrdinalIgnoreCase))),
                 "An external credential action appeared in " + id + " Settings.");
         }
         dashboard.Navigate("ollama"); await Idle();
         T Control<T>(string id) where T : UIElement =>
-            Descendants<T>(dashboard).Single(control => AutomationProperties.GetAutomationId(control) == "ollama." + id);
+            Descendants<T>(dashboard).SingleOrDefault(control => AutomationProperties.GetAutomationId(control) == "ollama." + id)
+            ?? throw new InvalidDataException("Missing Ollama Settings control: " + id);
         var draft = Control<PasswordBox>("key");
         var save = Control<Button>("save");
         var remove = Control<Button>("remove");
@@ -147,6 +151,5 @@ internal static partial class NativeSmoke
             blankRejected = true, previousKeyPreserved = true, failedReplacementPreservesDraft = true,
             failedRemovalPreservesState = true, replacedKeyReopened = true, removedKeyReopened = true
         }));
-        dashboard.Navigate("usage"); await Idle();
     }
 }
