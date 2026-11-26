@@ -297,7 +297,14 @@ public sealed class UsageScanner
             || cacheAtStart.Any(entry => !cache.TryGetValue(entry.Key, out var current) || !ReferenceEquals(current, entry.Value)))
             contentVersion = Interlocked.Increment(ref contentVersions);
         // Attachments become visible as their time arrives, which changes the stored sessions too.
+#if CODERIM_RUST_ACCOUNTING
+        var dueAttachments = 0;
+        var codexSessions = provider == "claude" ? [] : VisibleCodexSessions(now, out dueAttachments);
+#else
         var dueAttachments = provider == "claude" ? 0 : cache.Values.Sum(x => x.Details?.Attachments.Count(a => a.OccurredAt <= now) ?? 0);
+        var codexSessions = provider == "claude" ? [] : cache.Values.Where(x => x.Details is not null).Select(x => x.Details! with {
+            Attachments = x.Details!.Attachments.Where(a => a.OccurredAt <= now).ToArray() }).ToArray();
+#endif
         var snapshot = UsageAggregation.Aggregate(events, now, weekStart, partial || hasMoreWork, sourcesPartial: gaps || hasMoreWork);
         var status = resourceLimitReached
             ? "Local session data limit reached"
@@ -312,8 +319,7 @@ public sealed class UsageScanner
                 };
         return new ScanResult(snapshot, sources.Count, status.Replace("Codex", provider == "claude" ? "Claude Code" : "Codex", StringComparison.Ordinal), hasMoreWork) { Events = events,
             ContentVersion = contentVersion.ToString(CultureInfo.InvariantCulture) + ":" + dueAttachments.ToString(CultureInfo.InvariantCulture),
-            Sessions = provider == "claude" ? ClaudeSessions(events) : cache.Values.Where(x => x.Details is not null).Select(x => x.Details! with {
-                Attachments = x.Details!.Attachments.Where(a => a.OccurredAt <= now).ToArray() }).ToArray() };
+            Sessions = provider == "claude" ? ClaudeSessions(events) : codexSessions };
     }
 
     internal static SessionDetails[] ClaudeSessions(List<UsageEvent> events) =>
@@ -329,7 +335,45 @@ public sealed class UsageScanner
         }).ToArray();
 #endif
 
-    private sealed record CachedFile(FileStamp Stamp, IReadOnlyList<UsageEvent> Events, bool Partial, SessionDetails? Details);
+#if CODERIM_RUST_ACCOUNTING
+    private SessionDetails[] VisibleCodexSessions(DateTimeOffset now, out int observations)
+    {
+        observations = 0;
+        if (cache.Count == 0) return [];
+        var result = new SessionDetails[cache.Count];
+        var used = 0;
+        foreach (var file in cache.Values)
+        {
+            if (file.Details is not { } details) continue;
+            var attachments = details.Attachments.Count == 0 ? [] : file.VisibleAttachments(now.UtcTicks);
+            result[used++] = details with { Attachments = attachments };
+            observations = checked(observations + attachments.Length);
+        }
+        if (used != result.Length) Array.Resize(ref result, used);
+        return result;
+    }
+#endif
+
+    private sealed record CachedFile(FileStamp Stamp, IReadOnlyList<UsageEvent> Events, bool Partial, SessionDetails? Details)
+    {
+#if CODERIM_RUST_ACCOUNTING
+        // Replacing or invalidating this file drops its visibility window with it.
+        private RustCodexAttachments? visibility;
+
+        internal AttachmentObservation[] VisibleAttachments(long now)
+        {
+            var source = Details!.Attachments;
+            if (source.Count == 0) return [];
+            var current = Volatile.Read(ref visibility);
+            if (current is null || !current.Contains(now))
+            {
+                current = RustCodexAttachments.Select(source, now);
+                Volatile.Write(ref visibility, current);
+            }
+            return current.Materialize(source);
+        }
+#endif
+    }
     private readonly record struct FileStamp(long Length, long LastWriteTicks, long CreationTimeTicks)
     {
         public static FileStamp Read(string path)
