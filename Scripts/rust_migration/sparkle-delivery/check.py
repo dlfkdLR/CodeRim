@@ -174,9 +174,6 @@ length="{qa_archive.stat().st_size}" type="application/octet-stream" sparkle:edS
                       ("tampered", valid.replace(b"Fixture 2", b"Fikture 2"), 1, None),
                       ("wrongKey", feed(other_seed, 2), 1, None), ("unsigned", feed(None, 2), 1, None)]
         cases = [(name, data, status, message, public_key, "1") for name, data, status, message in variations]
-        for name, current, status, message in [("publishedNewer", str(int(stable["build"])-1), 0, "Update available!"),
-                                              ("publishedSame", stable["build"], 4, "No new update")]:
-            cases.append((name, args.feed.read_bytes(), status, message, stable["publicKey"], current))
         for label, current, status, message in [("publishedNewer", str(int(stable["build"])-1), 0, "Update available!"),
                                                ("publishedCurrent", stable["build"], 4, "No new update")]:
             cases.append((label, args.feed.read_bytes(), status, message, stable["publicKey"], current))
