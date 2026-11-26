@@ -122,7 +122,16 @@ def main():
         for category in result["categories"]
     }
     observed = {(e["appearanceRequested"], e["pane"]) for e in entries}
-    if len(entries) != 24 or observed != expected:
+    required_categories = (
+        ["Usage"]
+        if result.get("chartAnchorUTC")
+        else ["General", "Usage", "Providers", "Notch", "Diagnostics", "Information"]
+    )
+    if (
+        result["categories"] != required_categories
+        or len(entries) != len(expected)
+        or observed != expected
+    ):
         raise ValueError(f"Incomplete capture, missing {sorted(expected - observed)}")
     for entry in entries:
         light = entry["appearanceRequested"] == "Light"

@@ -2,6 +2,7 @@
 """Compare only the Settings windows and accessibility controls of two isolated app processes."""
 
 import argparse
+from datetime import datetime, timezone
 import hashlib
 import json
 import plistlib
@@ -15,6 +16,7 @@ import time
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent))
+import populated
 from benchmark_gui_idle import isolated_process
 from check_macos_data_rollback import (
     PROFILE,
@@ -26,15 +28,20 @@ from check_macos_data_rollback import (
 CATEGORIES = ("General", "Usage", "Providers", "Notch", "Diagnostics", "Information")
 
 
-def capture(observer, app, work, output, appearance):
+def capture(observer, app, work, output, appearance, anchor=None):
     work.mkdir()
     policy = work / "fixture.sb"
     policy.write_text(PROFILE)
     home = work / "home"
     source = home / ".codex/sessions/offline-settings.jsonl"
     source.parent.mkdir(parents=True)
-    source.write_text('{"type":"session_meta","payload":{"id":"offline-settings"}}\n')
-    add_tokens(source, 100, 0, 1)
+    if anchor is not None:
+        expected = populated.seed(source.parent, anchor)
+    else:
+        source.write_text(
+            '{"type":"session_meta","payload":{"id":"offline-settings"}}\n'
+        )
+        add_tokens(source, 100, 0, 1)
     with isolated_process(
         app / "Contents/MacOS/CodeRim",
         work,
@@ -54,7 +61,11 @@ def capture(observer, app, work, output, appearance):
         while time.monotonic() < deadline and proc.poll() is None:
             if database.exists():
                 try:
-                    if query(database)["watermarks"] == [100]:
+                    if (
+                        populated.stored_rows(database) == expected
+                        if anchor is not None
+                        else query(database)["watermarks"] == [100]
+                    ):
                         break
                 except sqlite3.OperationalError:
                     pass
@@ -68,11 +79,24 @@ def capture(observer, app, work, output, appearance):
             ("compact", "860", "620"),
         ]:
             observe("resize", width, height)
-            for title in CATEGORIES:
+            for title in ("Usage",) if anchor is not None else CATEGORIES:
                 wid = observe("select", title)
                 time.sleep(1.10)
                 stem = output / (shape + "-" + title.lower())
                 labels = observe("tree").replace(str(home), "<fixture-home>")
+                if anchor is not None:
+                    deadline = time.monotonic() + 12
+                    while (
+                        not populated.chart_visible(labels)
+                        and time.monotonic() < deadline
+                    ):
+                        time.sleep(0.2)
+                        labels = observe("tree").replace(str(home), "<fixture-home>")
+                    if not populated.chart_visible(labels):
+                        stem.with_suffix(".ax.txt").write_text(labels + "\n")
+                        raise RuntimeError(
+                            "Missing populated daily chart in " + str(stem)
+                        )
                 stem.with_suffix(".ax.txt").write_text(labels + "\n")
                 # Snapshot this owned CGWindowID, including its title bar; never take a desktop crop.
                 for suffix in [".png", ".repeat.png"]:
@@ -87,6 +111,8 @@ def capture(observer, app, work, output, appearance):
                         ],
                         check=True,
                     )
+        if anchor is not None:
+            (output / "fixture.json").write_text(json.dumps(expected, indent=2) + "\n")
 
 
 def digest(executable):
@@ -99,7 +125,13 @@ def main():
     parser.add_argument("reference", type=Path)
     parser.add_argument("candidate", type=Path)
     parser.add_argument("output", type=Path)
+    parser.add_argument(
+        "--populated-usage",
+        action="store_true",
+        help="Capture the seven-day chart with current synthetic events and verify its data",
+    )
     args = parser.parse_args()
+    anchor = datetime.now(timezone.utc).date() if args.populated_usage else None
     out = args.output.resolve()
     out.mkdir(exist_ok=False)
     hashes = {
@@ -169,6 +201,7 @@ def main():
                     bundle.parent / "profile",
                     out / kind / appearance,
                     appearance,
+                    anchor,
                 )
                 shutil.rmtree(bundle)
                 print(kind, appearance, flush=True)
@@ -177,9 +210,10 @@ def main():
             {
                 "sha256": hashes,
                 "testedBundles": tested,
-                "categories": list(CATEGORIES),
+                "categories": ["Usage"] if anchor is not None else list(CATEGORIES),
+                "chartAnchorUTC": anchor.isoformat() if anchor is not None else None,
                 "sizesInPoints": [[960, 672], [860, 620]],
-                "sourceTokens": 100,
+                "sourceTokens": 1200 if anchor is not None else 100,
                 "mode": "CGWindowID selected by exact executable PID, title and layer",
             },
             indent=2,

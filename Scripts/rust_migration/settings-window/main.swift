@@ -75,13 +75,19 @@ guard AXIsProcessTrusted(), CGPreflightScreenCaptureAccess() else {
   fail("Per-window recording and accessibility permission required")
 }
 let command = CommandLine.arguments[3]
+if let session = CGSessionCopyCurrentDictionary() as? [String: Any],
+  (session["CGSSessionScreenIsLocked"] as? Bool) == true
+{
+  fail("Unlock the console session before capturing a visible Settings window.")
+}
 if command == "open" {
-  typeComma()
-  for _ in 0..<60 {
+  for attempt in 0..<100 {
     if let window = settingsWindow() {
       print(text(window, kAXTitleAttribute))
       exit(0)
     }
+    // Import can finish before the app has installed its keyboard commands.
+    if attempt.isMultiple(of: 20) { typeComma() }
     Thread.sleep(forTimeInterval: 0.1)
   }
   fail("Command-comma did not expose a Settings window")
