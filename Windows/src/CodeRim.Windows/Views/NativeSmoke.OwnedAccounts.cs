@@ -121,6 +121,20 @@ internal static partial class NativeSmoke
         var feedback = Control<TextBlock>("feedback");
         const string slot = "provider:ollama";
         static void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        async Task Reopen(bool saved)
+        {
+            var priorDraft = draft;
+            dashboard.Navigate("providers"); await Idle();
+            dashboard.Navigate("ollama"); await Idle();
+            draft = Control<PasswordBox>("key");
+            save = Control<Button>("save");
+            remove = Control<Button>("remove");
+            feedback = Control<TextBlock>("feedback");
+            Require(!ReferenceEquals(draft, priorDraft) && draft.Password.Length == 0 && !save.IsEnabled
+                && Equals(save.Content, saved ? "Replace API key" : "Save API key")
+                && remove.IsEnabled == saved && feedback.Text.Length == 0,
+                "Reopened Ollama Settings does not match the persisted key state.");
+        }
         Require(vault.Load(slot) is null && !save.IsEnabled && !remove.IsEnabled, "Unexpected initial key controls.");
         draft.Password = " synthetic-key-one "; Click(save);
         Require(vault.Load(slot) == "synthetic-key-one" && !save.IsEnabled && remove.IsEnabled
@@ -128,6 +142,9 @@ internal static partial class NativeSmoke
         draft.Password = " 	  ";
         Click(save);
         Require(!save.IsEnabled && vault.Load(slot) == "synthetic-key-one", "A whitespace replacement changed the key.");
+        draft.Password = "unsaved-synthetic-replacement";
+        await Reopen(saved: true);
+        Require(new CredentialVault().Load(slot) == "synthetic-key-one", "Leaving an unsaved replacement changed the key.");
         draft.Password = "synthetic-key-two";
         var prior = vault.Version(slot);
         var entry = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(slot))) + ".bin";
@@ -143,13 +160,16 @@ internal static partial class NativeSmoke
         }
         Click(save);
         Require(new CredentialVault().Load(slot) == "synthetic-key-two" && feedback.Text == "Saved.", "Key replacement did not persist.");
+        await Reopen(saved: true);
         Click(remove);
         Require(new CredentialVault().Load(slot) is null && !remove.IsEnabled && Equals(save.Content, "Save API key")
             && feedback.Text == "Removed.", "Key removal did not persist.");
+        await Reopen(saved: false);
         File.WriteAllText(Path.Combine(directory, "windows-owned-connection-settings.json"), JsonSerializer.Serialize(new
         {
             blankRejected = true, previousKeyPreserved = true, failedReplacementPreservesDraft = true,
-            failedRemovalPreservesState = true, replacedKeyReopened = true, removedKeyReopened = true
+            failedRemovalPreservesState = true, replacedKeyReopened = true, removedKeyReopened = true,
+            abandonedDraftPreservedKey = true, savedSettingsReopened = true, removedSettingsReopened = true
         }));
     }
 }
