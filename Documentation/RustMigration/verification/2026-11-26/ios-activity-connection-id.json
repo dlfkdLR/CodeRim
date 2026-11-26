@@ -1,0 +1,473 @@
+{
+  "commit": "6b260f7557e97c7c5ecc6421495b51c1713e69c8",
+  "release": "v2.1.41",
+  "base": "5d3ec410da2e8d9f7449b26a47401e6a5d487636",
+  "harnessPacket": "8a55084e756c22be1fa6425853bb46dadcb3a7bc7b768b77d8f7b5fa232161c5",
+  "productionScope": "CryptoKit still hashes a CodeRim-issued connection token locally. Only the 32-byte digest is passed to a shared lowercase ASCII formatter. Digest equality guards app updates, activity registration and the /v1/view path. Existing external archives use the original formatter.",
+  "providerPicker": "Live preview state is DEBUG only. Production group/pin/recent transitions go through the relay and its existing fast picker. Projecting 100 providers remains dominated by locale collation; this work changes the independent ActivityKit connection identity path.",
+  "correctness": {
+    "arm64/release": {
+      "inputs": 4112,
+      "sha256": "492305f0f1c627e4958557fef197c91fefb36f50ba3b4c49a8d4c25ced92ffe7",
+      "symbolDefined": false
+    },
+    "arm64/plain": {
+      "inputs": 4112,
+      "sha256": "492305f0f1c627e4958557fef197c91fefb36f50ba3b4c49a8d4c25ced92ffe7",
+      "symbolDefined": false
+    },
+    "arm64/external": {
+      "inputs": 4112,
+      "sha256": "492305f0f1c627e4958557fef197c91fefb36f50ba3b4c49a8d4c25ced92ffe7",
+      "symbolDefined": false
+    },
+    "arm64/candidate": {
+      "inputs": 4112,
+      "sha256": "492305f0f1c627e4958557fef197c91fefb36f50ba3b4c49a8d4c25ced92ffe7",
+      "symbolDefined": true
+    },
+    "x86_64/release": {
+      "inputs": 4112,
+      "sha256": "492305f0f1c627e4958557fef197c91fefb36f50ba3b4c49a8d4c25ced92ffe7",
+      "symbolDefined": false
+    },
+    "x86_64/plain": {
+      "inputs": 4112,
+      "sha256": "492305f0f1c627e4958557fef197c91fefb36f50ba3b4c49a8d4c25ced92ffe7",
+      "symbolDefined": false
+    },
+    "x86_64/external": {
+      "inputs": 4112,
+      "sha256": "492305f0f1c627e4958557fef197c91fefb36f50ba3b4c49a8d4c25ced92ffe7",
+      "symbolDefined": false
+    },
+    "x86_64/candidate": {
+      "inputs": 4112,
+      "sha256": "492305f0f1c627e4958557fef197c91fefb36f50ba3b4c49a8d4c25ced92ffe7",
+      "symbolDefined": true
+    }
+  },
+  "activityFlow": {
+    "checksPerVariant": 12,
+    "traces": {
+      "arm64/release": "b034209b1b06402fb59e72d691694f78418f02b08084673011825067a5e11f17",
+      "arm64/external": "b034209b1b06402fb59e72d691694f78418f02b08084673011825067a5e11f17",
+      "arm64/candidate": "b034209b1b06402fb59e72d691694f78418f02b08084673011825067a5e11f17",
+      "x86_64/release": "b034209b1b06402fb59e72d691694f78418f02b08084673011825067a5e11f17",
+      "x86_64/external": "b034209b1b06402fb59e72d691694f78418f02b08084673011825067a5e11f17",
+      "x86_64/candidate": "b034209b1b06402fb59e72d691694f78418f02b08084673011825067a5e11f17"
+    }
+  },
+  "abi": {
+    "arm64": "8192 digests, 8 rejected calls, overlapping full write and three rejected desktop calls",
+    "x86_64": "8192 digests, 8 rejected calls, overlapping full write and three rejected desktop calls"
+  },
+  "timesNs": {
+    "arm64/0": {
+      "release": 17920.753458333333,
+      "external": 19189.232666666667,
+      "candidate": 365.0416666666667
+    },
+    "arm64/16": {
+      "release": 18208.855916666667,
+      "external": 18009.41320833333,
+      "candidate": 393.53991666666667
+    },
+    "arm64/56": {
+      "release": 18003.24133333333,
+      "external": 18409.729166666668,
+      "candidate": 427.53470833333336
+    },
+    "arm64/1024": {
+      "release": 19174.71008333333,
+      "external": 18982.868083333335,
+      "candidate": 749.4114583333334
+    },
+    "x86_64/0": {
+      "release": 44583.036458333336,
+      "external": 40417.78295833334,
+      "candidate": 676.4444583333334
+    },
+    "x86_64/16": {
+      "release": 39149.237875,
+      "external": 38463.62325,
+      "candidate": 740.9288333333334
+    },
+    "x86_64/56": {
+      "release": 39501.963541666664,
+      "external": 39087.484375,
+      "candidate": 938.2985833333333
+    },
+    "x86_64/1024": {
+      "release": 43023.27258333333,
+      "external": 41288.10591666667,
+      "candidate": 3336.0729166666665
+    }
+  },
+  "performanceMeasurement": "Two macOS host executable slices with actual extracted product functions, Release optimization and Apple CryptoKit. x86_64 ran under Rosetta. Seven counterbalanced process samples per case with 24,000 operations after 500 warmups; synthetic values. Whole encryption and screen/network latency were not measured.",
+  "packages": {
+    "source": {
+      "CodeRimMobile": {
+        "bytes": 5716704,
+        "slices": [
+          "x86_64",
+          "arm64"
+        ],
+        "digest": true
+      },
+      "CodeRimLiveActivity": {
+        "bytes": 2503920,
+        "slices": [
+          "x86_64",
+          "arm64"
+        ],
+        "digest": true
+      }
+    },
+    "external": {
+      "CodeRimMobile": {
+        "bytes": 5715712,
+        "slices": [
+          "x86_64",
+          "arm64"
+        ],
+        "digest": false
+      },
+      "CodeRimLiveActivity": {
+        "bytes": 2502928,
+        "slices": [
+          "x86_64",
+          "arm64"
+        ],
+        "digest": false
+      }
+    },
+    "restored": {
+      "CodeRimMobile": {
+        "bytes": 5716704,
+        "slices": [
+          "x86_64",
+          "arm64"
+        ],
+        "digest": true
+      },
+      "CodeRimLiveActivity": {
+        "bytes": 2503920,
+        "slices": [
+          "x86_64",
+          "arm64"
+        ],
+        "digest": true
+      }
+    },
+    "device": {
+      "bundle": 1549260,
+      "binaries": {
+        "CodeRimMobile": {
+          "bytes": 1021664,
+          "sha256": "e075e938e6cbdc16f317bc8355360df40aa5cbff43a03d51e86000166beb96f5",
+          "uuid": "16C67FC8-F706-3D0F-BC06-D9D77DF25ED3",
+          "digestSymbolInMatchingDSYM": true
+        },
+        "CodeRimLiveActivity": {
+          "bytes": 457768,
+          "sha256": "5318896c1de261be2e9af69c7abd963ba373ee09e7b788edca3a57be70665adc",
+          "uuid": "836DD96C-376E-308C-BD47-3FA0E4FA7596",
+          "digestSymbolInMatchingDSYM": true
+        }
+      }
+    },
+    "previous": {
+      "bundle": 1548460,
+      "binaries": {
+        "CodeRimMobile": {
+          "bytes": 1021224,
+          "sha256": "151bd72443f65394df87683f156c64ced1e8d4d3a72b15afe7800927b681010d",
+          "uuid": "64B07151-0D97-3894-B814-51A0123ED954",
+          "digestSymbolInMatchingDSYM": false
+        },
+        "CodeRimLiveActivity": {
+          "bytes": 457408,
+          "sha256": "68b7a7aec5547f5396942a5895553e19814d05ab00da4277d76da5dfecd61de3",
+          "uuid": "CECA022B-8220-3412-BACE-B35D29A0FBDC",
+          "digestSymbolInMatchingDSYM": false
+        }
+      }
+    }
+  },
+  "rustChecks": "60 passed across the workspace, no failing cases, cargo fmt --check and Clippy -D warnings passed.",
+  "hostBoundary": "ActivityKit delivery transport, OS credential state and network response are local fixtures invoking the unmodified product navigation actor and real MobileActivityState models. Dry-run iPhoneOS archive and fat simulator builds only; no device provisioning, APNs, real tokens or physical device.",
+  "sourceFallback": "An empty external archive setting compiles the shared Rust digest by default. A nonempty path retains selection ABI plus Swift digest, including warm source→previous archive→source with identical copied legacy archive and both app and extension relinked.",
+  "bundleChangeBytes": 800,
+  "receipts": {
+    "identity.json": "57a86960e71dc4cea3dcc4080f3c6e5cd52afdf2eff2a5ee9688d0eb7cd138c2",
+    "id-profile.json": "f1e811b150a7ba70b34b4eab565420078d71101e3769d3b3d3920f6e65fe2eb0",
+    "actor.json": "3bb11e5788bb035efa0d8644121c941114d980b67264eed63ee7c7df1b329257",
+    "abi.json": "ab9af2892b75bbf9da32c9e8861855a51f32db336fcbf68d67d14d3ae14647af",
+    "packages.json": "1a0ef1781f44ba372aae255106d25d7e9fd3f26ed9348cd12ffebbda108a23b1",
+    "config-flags.json": "7d915a56145b9db347868d9c9d743271c2a9686054967149dfd870a5786675f5",
+    "group-profile.json": "afa0b5d2fed062efb8e8631f6922900ca225608a4c680c78196643b9b3a33df5",
+    "tests.log": "5e5eeaebd0a2ad0e378ae7bc80db87fe06e5a1e5217aa9209f19c97730da23bb",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "clippy.log": "99d88cac645cc110038609ebe9a62e01958bc5f1e43d6916065ec1510ec5fbe9",
+    "xcode-device.log": "50e24f43275046aa31ffdb552e18b066305a8bed48730e412e644471fadb8650",
+    "xcode-source.log": "049e0287dfba8fb9d32a7ae50be42966fdf45dfc1cfa039b4412fb2c909bbb9d",
+    "xcode-external.log": "0ff8e10b7b5aab87959932faf0797c4542e6a4b3f8f6f485bfa2777d1423408a",
+    "xcode-restored.log": "3a86154f2f228a4dd1caa9711727834f5d0a0268907d025ba43a2cd7e4f9cbb3",
+    "full-packet.json": "0ed2fec006fa53f768b43025c44c3a4f3982501494f53bcf67c5ec771f56e082"
+  },
+  "integratedCommit": "661ab3a",
+  "independentReview": {
+    "reviewer_id": "/root",
+    "run_id": "run-a40093778e8148a4ae52e4ca2d53162a",
+    "packet_id": "packet-35028dfe6d7e452ca8ebad13b298312a",
+    "packet_digest": "8a55084e756c22be1fa6425853bb46dadcb3a7bc7b768b77d8f7b5fa232161c5",
+    "candidate_hash": "921d03ded8b16506f7660d18b216805b3ae4d9c84fb74e074429eff7f2b6e2e8",
+    "reviewed_commit": "6b260f7557e97c7c5ecc6421495b51c1713e69c8",
+    "direct": {
+      "arm64/release": {
+        "matched": 2170,
+        "sha256": "fd8ec0b4b29e18a6a2ae518ec0e83ecef200168bd70f4598ac6c7895aa1dfa83",
+        "containsRustDigestSymbol": false
+      },
+      "arm64/candidate": {
+        "matched": 2170,
+        "sha256": "fd8ec0b4b29e18a6a2ae518ec0e83ecef200168bd70f4598ac6c7895aa1dfa83",
+        "containsRustDigestSymbol": true
+      },
+      "arm64/external": {
+        "matched": 2170,
+        "sha256": "fd8ec0b4b29e18a6a2ae518ec0e83ecef200168bd70f4598ac6c7895aa1dfa83",
+        "containsRustDigestSymbol": false
+      },
+      "x86_64/release": {
+        "matched": 2170,
+        "sha256": "fd8ec0b4b29e18a6a2ae518ec0e83ecef200168bd70f4598ac6c7895aa1dfa83",
+        "containsRustDigestSymbol": false
+      },
+      "x86_64/candidate": {
+        "matched": 2170,
+        "sha256": "fd8ec0b4b29e18a6a2ae518ec0e83ecef200168bd70f4598ac6c7895aa1dfa83",
+        "containsRustDigestSymbol": true
+      },
+      "x86_64/external": {
+        "matched": 2170,
+        "sha256": "fd8ec0b4b29e18a6a2ae518ec0e83ecef200168bd70f4598ac6c7895aa1dfa83",
+        "containsRustDigestSymbol": false
+      }
+    },
+    "dimensions": {
+      "functionality": {
+        "winner": "B",
+        "reason": "Matched the SHA-256 of each synthetic UTF-8 input with an independent hashlib oracle on original, default Rust and external-archive compatibility executables, native and Rosetta. Inputs included embedded NUL, canonical-equivalent spellings that must hash differently, multibyte scalars, lengths on SHA-256 block boundaries, and a 65535-byte sample.",
+        "evidence": [
+          "candidate/iOS/CodeRimLiveActivity/IslandNavigationIntent.swift",
+          "candidate/Rust/bridge/src/mobile.rs"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "nm showed the new C entry only for each default product driver. The previous external archive still builds and calculates all IDs. The actual hash primitive is CryptoKit on both sides.",
+        "evidence": [
+          "candidate/iOS/CodeRimLiveActivity/IslandNavigationIntent.swift",
+          "candidate/iOS/Config/RustMobile.xcconfig"
+        ]
+      },
+      "security": {
+        "winner": "TIE",
+        "reason": "Only a fixed 32-byte digest enters the shared encoder. Source audit found bounded length/capacity checks and no credential lookup, logging, network or keychain operations in the migrated function. All review inputs were generated locally.",
+        "evidence": [
+          "candidate/iOS/CodeRimLiveActivity/IslandNavigationIntent.swift",
+          "candidate/Rust/bridge/src/mobile.rs",
+          "candidate/Rust/bridge/src/digest_text.rs"
+        ]
+      },
+      "maintainability": {
+        "winner": "B",
+        "reason": "Both desktop and mobile call the same lowercase SHA-256 byte encoder; old prebuilt libraries can still run their original path.",
+        "evidence": [
+          "candidate/Rust/bridge/src/digest_text.rs",
+          "candidate/Rust/bridge/src/storage_identity.rs"
+        ]
+      },
+      "scope": {
+        "winner": "TIE",
+        "reason": "The exported name and run-time toggle apply to the normal mobile source and existing prebuilt compatibility path. Navigation permission decisions and account/device ownership checks remain at their public Swift boundaries.",
+        "evidence": [
+          "candidate/iOS/CodeRimLiveActivity/IslandNavigationIntent.swift",
+          "candidate/iOS/Config/RustMobile.xcconfig"
+        ]
+      },
+      "performance": {
+        "winner": "B",
+        "reason": "The new implementation avoids 32 localized format invocations for each connection ID. Reviewed the paired timings for the full 56-byte operation and separately verified exact output for each run.",
+        "evidence": [
+          "candidate/iOS/CodeRimLiveActivity/IslandNavigationIntent.swift",
+          "candidate/Rust/bridge/src/digest_text.rs"
+        ]
+      }
+    }
+  },
+  "navigationActorTiming": {
+    "arm64/0": {
+      "samplesNs": {
+        "release": [
+          39793.75,
+          28187.535,
+          28415.07,
+          28930.625,
+          30358.5075,
+          30409.825833333332,
+          30643.055833333332
+        ],
+        "candidate": [
+          15226.5275,
+          9952.014166666666,
+          6494.409166666666,
+          6954.166666666667,
+          7174.895833333333,
+          7148.229166666667,
+          6774.721666666666
+        ]
+      },
+      "medianNs": {
+        "release": 30358.5075,
+        "candidate": 7148.229166666667
+      }
+    },
+    "arm64/1": {
+      "samplesNs": {
+        "release": [
+          32251.701666666668,
+          31241.0075,
+          32686.666666666668,
+          32052.569166666668,
+          32619.7575,
+          32128.403333333332,
+          34061.285
+        ],
+        "candidate": [
+          5839.930833333333,
+          6029.479166666667,
+          6156.735833333333,
+          6482.916666666667,
+          6594.131666666667,
+          6316.180833333333,
+          6474.444166666667
+        ]
+      },
+      "medianNs": {
+        "release": 32251.701666666668,
+        "candidate": 6316.180833333333
+      }
+    },
+    "arm64/8": {
+      "samplesNs": {
+        "release": [
+          39265.79833333333,
+          31418.020833333332,
+          32653.854166666668,
+          32395.555,
+          34046.42333333333,
+          32070.9025,
+          34424.51416666667
+        ],
+        "candidate": [
+          7186.979166666667,
+          7292.1875,
+          7153.923333333333,
+          7417.535,
+          6893.854166666667,
+          7545.729166666667,
+          7150.0
+        ]
+      },
+      "medianNs": {
+        "release": 32653.854166666668,
+        "candidate": 7186.979166666667
+      }
+    },
+    "x86_64/0": {
+      "samplesNs": {
+        "release": [
+          53184.0275,
+          56152.153333333335,
+          57966.424166666664,
+          51736.6325,
+          56008.715,
+          49663.924166666664,
+          53806.285
+        ],
+        "candidate": [
+          10876.631666666666,
+          11750.381666666666,
+          9781.700833333334,
+          10427.535,
+          10323.993333333334,
+          9977.2575,
+          11521.91
+        ]
+      },
+      "medianNs": {
+        "release": 53806.285,
+        "candidate": 10427.535
+      }
+    },
+    "x86_64/1": {
+      "samplesNs": {
+        "release": [
+          57536.11083333333,
+          57452.8125,
+          59842.534166666665,
+          57165.208333333336,
+          58559.6875,
+          58167.604166666664,
+          59412.916666666664
+        ],
+        "candidate": [
+          15086.5625,
+          14853.611666666666,
+          15083.645833333334,
+          15174.6875,
+          15166.979166666666,
+          14994.653333333334,
+          14860.2775
+        ]
+      },
+      "medianNs": {
+        "release": 58167.604166666664,
+        "candidate": 15083.645833333334
+      }
+    },
+    "x86_64/8": {
+      "samplesNs": {
+        "release": [
+          59453.195,
+          60395.3475,
+          61299.30583333333,
+          59932.291666666664,
+          62417.56916666667,
+          104716.875,
+          58188.299166666664
+        ],
+        "candidate": [
+          17585.3825,
+          17451.354166666668,
+          17702.118333333332,
+          17517.881666666668,
+          17519.895833333332,
+          17552.360833333332,
+          17502.951666666668
+        ]
+      },
+      "medianNs": {
+        "release": 60395.3475,
+        "candidate": 17519.895833333332
+      }
+    }
+  },
+  "formalGate": {
+    "verdict": "REJECT",
+    "reason": "The project contract froze the RustMobile.xcconfig verification input. Independent import requires an interactive operator."
+  }
+}

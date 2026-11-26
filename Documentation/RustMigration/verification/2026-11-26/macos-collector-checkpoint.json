@@ -1,0 +1,639 @@
+{
+  "commit": "4bc6666ac406b65191a3cad2080b8503f52d1c5c",
+  "parent": "74c5865f5f4b54dbc34206945dbf97147ca8f484",
+  "release": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "packet": "2e1f6021c1d4d3a978a97e9fe1cb0ef6fde668b6dd993e7516a829cb9195caf5",
+  "scope": "Read-only CodeRim schema18 source checkpoint SELECT, bounded to one reset statement per SQLiteDatabase actor. No snapshot of row values is retained. No store schema or permission changes. Native host materializes existing UTF8/Date model and closes the final cursor before the database.",
+  "station": "Apple Silicon macOS and translated x86_64; code built for macOS 14. Synthetic temp DB, events and sources only. No physical Intel measurement.",
+  "three_way": {
+    "arm64": {
+      "actions": 624,
+      "reopened_keys": 389,
+      "sha256": "a3e9c8db26b70aadcfd144f1e9efe473a24429c35c1fe73a7aa0dc12e3e8da5b"
+    },
+    "x86_64": {
+      "actions": 624,
+      "reopened_keys": 389,
+      "sha256": "a3e9c8db26b70aadcfd144f1e9efe473a24429c35c1fe73a7aa0dc12e3e8da5b"
+    }
+  },
+  "abi_assertions_each_arch": 6181,
+  "rust_bridge_tests": 55,
+  "actual_swiftpm_xctest": {
+    "CodexUsageCollectorTests": 34,
+    "SQLiteDatabaseTests": 23,
+    "PartialEvidenceTests": 6,
+    "failures": 0
+  },
+  "independent": {
+    "row_observations_each_arch": 966,
+    "receipt_sha256": "8e1c10546cf649abcaa933eeee7e2f61b7c16aec10fa99c1686c3e7bdb2fc95f",
+    "assessment": []
+  },
+  "checkpoint_benchmark_ns": {
+    "arm64": {
+      "bench-1-100-1": {
+        "release": 31833.0,
+        "previous": 35041.0,
+        "candidate": 23833.0
+      },
+      "bench-1-100-1024": {
+        "release": 7143.7,
+        "previous": 6938.8,
+        "candidate": 1882.3
+      },
+      "bench-128-100-16": {
+        "release": 7112.7,
+        "previous": 7188.6,
+        "candidate": 1906.8
+      },
+      "bench-512-50-4": {
+        "release": 7029.9,
+        "previous": 7072.2,
+        "candidate": 1774.0
+      },
+      "bench-1024-0-2": {
+        "release": 6748.3,
+        "previous": 6691.7,
+        "candidate": 1568.6
+      },
+      "collector-1-100-1": {
+        "release": 29959.0,
+        "previous": 30625.0,
+        "candidate": 26250.0
+      },
+      "collector-1-100-1024": {
+        "release": 7081.0,
+        "previous": 7010.5,
+        "candidate": 1904.2
+      },
+      "collector-128-100-16": {
+        "release": 7187.4,
+        "previous": 7423.5,
+        "candidate": 2024.0
+      },
+      "collector-512-50-4": {
+        "release": 7128.0,
+        "previous": 7136.8,
+        "candidate": 1852.8
+      },
+      "collector-1024-0-2": {
+        "release": 6927.0,
+        "previous": 6793.7,
+        "candidate": 1654.4
+      }
+    },
+    "x86_64": {
+      "bench-1-100-1": {
+        "release": 127500.0,
+        "previous": 129250.0,
+        "candidate": 106208.0
+      },
+      "bench-1-100-1024": {
+        "release": 10855.6,
+        "previous": 10952.9,
+        "candidate": 3191.0
+      },
+      "bench-128-100-16": {
+        "release": 10979.4,
+        "previous": 11192.8,
+        "candidate": 3187.9
+      },
+      "bench-512-50-4": {
+        "release": 10806.0,
+        "previous": 10700.7,
+        "candidate": 2924.5
+      },
+      "bench-1024-0-2": {
+        "release": 10388.0,
+        "previous": 10423.4,
+        "candidate": 2640.4
+      },
+      "collector-1-100-1": {
+        "release": 130875.0,
+        "previous": 131708.0,
+        "candidate": 115583.0
+      },
+      "collector-1-100-1024": {
+        "release": 11034.0,
+        "previous": 10939.6,
+        "candidate": 3312.1
+      },
+      "collector-128-100-16": {
+        "release": 10921.6,
+        "previous": 11241.2,
+        "candidate": 3251.6
+      },
+      "collector-512-50-4": {
+        "release": 10861.6,
+        "previous": 10893.4,
+        "candidate": 3014.9
+      },
+      "collector-1024-0-2": {
+        "release": 10596.3,
+        "previous": 10585.0,
+        "candidate": 2678.7
+      }
+    }
+  },
+  "whole_refresh_ms": {
+    "arm64": {
+      "0": {
+        "release": {
+          "startup": 2.295167,
+          "warm": 0.148917
+        },
+        "previous": {
+          "startup": 2.681,
+          "warm": 0.159958
+        },
+        "candidate": {
+          "startup": 2.457625,
+          "warm": 0.164917
+        }
+      },
+      "1": {
+        "release": {
+          "startup": 4.086541,
+          "warm": 0.23175
+        },
+        "previous": {
+          "startup": 3.726541,
+          "warm": 0.190334
+        },
+        "candidate": {
+          "startup": 3.99625,
+          "warm": 0.192792
+        }
+      },
+      "16": {
+        "release": {
+          "startup": 12.135791,
+          "warm": 1.438167
+        },
+        "previous": {
+          "startup": 9.040709,
+          "warm": 0.830458
+        },
+        "candidate": {
+          "startup": 8.853292,
+          "warm": 0.74675
+        }
+      },
+      "128": {
+        "release": {
+          "startup": 80.093125,
+          "warm": 10.925583
+        },
+        "previous": {
+          "startup": 53.577583,
+          "warm": 5.554333
+        },
+        "candidate": {
+          "startup": 55.909375,
+          "warm": 4.79925
+        }
+      }
+    },
+    "x86_64": {
+      "0": {
+        "release": {
+          "startup": 3.657375,
+          "warm": 0.174417
+        },
+        "previous": {
+          "startup": 3.609458,
+          "warm": 0.173208
+        },
+        "candidate": {
+          "startup": 3.593958,
+          "warm": 0.1845
+        }
+      },
+      "1": {
+        "release": {
+          "startup": 6.2525,
+          "warm": 0.330084
+        },
+        "previous": {
+          "startup": 5.655792,
+          "warm": 0.246833
+        },
+        "candidate": {
+          "startup": 5.748791,
+          "warm": 0.250792
+        }
+      },
+      "16": {
+        "release": {
+          "startup": 18.561625,
+          "warm": 2.458375
+        },
+        "previous": {
+          "startup": 11.705958,
+          "warm": 1.062166
+        },
+        "candidate": {
+          "startup": 11.718417,
+          "warm": 0.949042
+        }
+      },
+      "128": {
+        "release": {
+          "startup": 119.042208,
+          "warm": 18.508708
+        },
+        "previous": {
+          "startup": 62.130125,
+          "warm": 7.347125
+        },
+        "candidate": {
+          "startup": 63.692,
+          "warm": 6.386917
+        }
+      }
+    }
+  },
+  "whole_refresh_small_repeat_ms": {
+    "arm64": {
+      "0": {
+        "previous": {
+          "startup": 2.271479,
+          "warm": 0.1317915
+        },
+        "candidate": {
+          "startup": 2.2374995,
+          "warm": 0.1315
+        }
+      },
+      "1": {
+        "previous": {
+          "startup": 3.4434375,
+          "warm": 0.181396
+        },
+        "candidate": {
+          "startup": 3.426916,
+          "warm": 0.179125
+        }
+      },
+      "16": {
+        "previous": {
+          "startup": 8.45,
+          "warm": 0.811813
+        },
+        "candidate": {
+          "startup": 8.5546665,
+          "warm": 0.7141665
+        }
+      }
+    },
+    "x86_64": {
+      "0": {
+        "previous": {
+          "startup": 3.6946045,
+          "warm": 0.1683125
+        },
+        "candidate": {
+          "startup": 3.662625,
+          "warm": 0.171437
+        }
+      },
+      "1": {
+        "previous": {
+          "startup": 5.8302705,
+          "warm": 0.2383955
+        },
+        "candidate": {
+          "startup": 5.9074585,
+          "warm": 0.2320625
+        }
+      },
+      "16": {
+        "previous": {
+          "startup": 11.988958,
+          "warm": 1.043396
+        },
+        "candidate": {
+          "startup": 11.7813955,
+          "warm": 0.9275205
+        }
+      }
+    }
+  },
+  "whole_refresh_method": "Nine alternated triples, independent newly generated temporary files and own database per launch. Exact released and candidate collector.refresh implementations compiled optimized with reachable dependencies. The separate unrelated analyticsSnapshot method is omitted to avoid any external catalog access. First pass parses 0/1/16/128 synthetic JSONL files, following 11 passes read unchanged checkpoints. Within each trial normal source count, bytes processed, total tokens, quality and hasMoreWork agree. Additional 48 interleaved pairs for 0/1/16 isolate tiny fluctuations. No whole app/UI startup, network, real accounts, real history or physical Intel desktop.",
+  "qualifications": [
+    "Warm 16–128 file collector improves on both targets. One-source or zero-source numbers fluctuate; the empty collector never invokes checkpoint().",
+    "Cold first import interleaves writes and frequently reparses the read statement; a consistent cold improvement over the immediately preceding implementation was not demonstrated.",
+    "Operator attestation requires interactive terminal and native check adapter is unavailable. Formal gate remains INCONCLUSIVE."
+  ],
+  "formal": "INCONCLUSIVE",
+  "evidence_files": [
+    "initial-cost.json",
+    "pinned.json",
+    "abi-arm64.log",
+    "abi-x86_64.log",
+    "xctest.log",
+    "clippy.log",
+    "rust-tests.log",
+    "benchmark.json",
+    "full-benchmark.json",
+    "full-small-recheck.json",
+    "independent-review.json",
+    "gate.json"
+  ],
+  "integratedCommit": "876a7da",
+  "independentReview": {
+    "run_id": "run-8544824cf3f745fa8e05fef20de731a6",
+    "packet_digest": "2e1f6021c1d4d3a978a97e9fe1cb0ef6fde668b6dd993e7516a829cb9195caf5",
+    "reviewer_id": "/root/windows_capture",
+    "dimensions": {
+      "functionality": {
+        "winner": "TIE",
+        "reason": "Independent drivers linked to released and candidate SQLiteDatabase actors produced identical 966-operation traces per variant on both macOS slices. Seventy independently specified rows passed actual commit, overwrite, readback, retained snapshot and both-version reopen. A second connection exercised concurrent writes, rollback, busy-write retry, commit, DDL, prepare and step messages before/after independent schema reads, invalid keys and recovery.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "candidate/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "candidate/Rust/bridge/src/sqlite_checkpoint.rs"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "The published 18 projection columns, optional values, SQLite integer/float conversion, source key spellings and localized prepare/bind/step errors were preserved. Integrity check and user_version=18 succeeded on both releases after all probes. No version or schema change.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "candidate/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "baseline/Config/Release.env",
+          "candidate/Config/Release.env"
+        ]
+      },
+      "security": {
+        "winner": "TIE",
+        "reason": "The actor owns the cursor and a single connection. Rust binds a SQLITE_TRANSIENT input using a parameter, caps the byte count to i32 and rejects NUL. An independently compiled native test freed the short-lived original key before consuming the held row. Under another connection’s write, the old row stayed readable until finish, then the WAL could truncate. All statements and both connections closed cleanly.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "candidate/Rust/bridge/src/sqlite_checkpoint.rs",
+          "candidate/Rust/bridge/include/coderim_sqlite_checkpoint.h"
+        ]
+      },
+      "maintainability": {
+        "winner": "TIE",
+        "reason": "The new cursor centralizes prepare, bind and reset with explicit ownership and tests while adding a second copy of the query for native fallback. Swift keeps a common typed projection. No additional regression was observed when a failed bind or stale schema invalidated the retained statement and the next read reparsed it.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "candidate/Rust/bridge/src/sqlite_checkpoint.rs",
+          "candidate/Rust/bridge/include/coderim_sqlite_checkpoint.h",
+          "candidate/Scripts/rust_migration/sqlite-checkpoint/check.py"
+        ]
+      },
+      "scope": {
+        "winner": "TIE",
+        "reason": "Only the collector-owned checkpoint query, small C ABI, feature wiring and its tests change. The read-reuse cursor does not hold the writer transaction open; actual writer timeout, rollback and retry matched the previous implementation.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "candidate/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "candidate/Rust/bridge/src/sqlite_checkpoint.rs",
+          "candidate/Scripts/rust_migration/sqlite-checkpoint/check.py"
+        ]
+      },
+      "performance": {
+        "winner": "B",
+        "reason": "Independent actor-to-actor lookup loops ran nine alternating pairs for 32 hits, 400 mixed keys, and 550 misses. The arm64 medians fell from 7187/6810/6574 ns to 1767/1487/1325 ns. Under Rosetta, medians fell from 10477/10256/9553 ns to 2861/2354/2187 ns with equal offset checksums.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "candidate/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "candidate/Rust/bridge/src/sqlite_checkpoint.rs",
+          "candidate/Scripts/rust_migration/sqlite-checkpoint/check.py"
+        ]
+      }
+    },
+    "concerns": [],
+    "independent_verification": {
+      "commit": "4bc6666ac406b65191a3cad2080b8503f52d1c5c",
+      "cases": {
+        "arm64/release": {
+          "observations": 966,
+          "sha256": "20e9b39e33348dce668a7eac773e0f3e3256d347358c882a74546ac19a75b890",
+          "rowWitnesses": 70
+        },
+        "arm64/candidate": {
+          "observations": 966,
+          "sha256": "20e9b39e33348dce668a7eac773e0f3e3256d347358c882a74546ac19a75b890",
+          "rowWitnesses": 70
+        },
+        "x86_64/release": {
+          "observations": 966,
+          "sha256": "20e9b39e33348dce668a7eac773e0f3e3256d347358c882a74546ac19a75b890",
+          "rowWitnesses": 70
+        },
+        "x86_64/candidate": {
+          "observations": 966,
+          "sha256": "20e9b39e33348dce668a7eac773e0f3e3256d347358c882a74546ac19a75b890",
+          "rowWitnesses": 70
+        }
+      },
+      "direct_abi": {
+        "arm64": "held row/owned transient key; truncation busy then succeeds; 257 lookups; schema repair; SQLITE_TOOBIG bind retry; both connections closed cleanly",
+        "x86_64": "held row/owned transient key; truncation busy then succeeds; 257 lookups; schema repair; SQLITE_TOOBIG bind retry; both connections closed cleanly"
+      },
+      "timings": {
+        "arm64/32/100": {
+          "medians_ns": {
+            "release": 7187.23984375,
+            "candidate": 1767.44765625
+          },
+          "samples_ns": {
+            "release": [
+              11523.53515625,
+              8002.1484375,
+              7187.23984375,
+              9512.59765625,
+              7288.11875,
+              6904.915625,
+              6757.65,
+              6898.95859375,
+              6935.3515625
+            ],
+            "candidate": [
+              7047.94921875,
+              3686.1,
+              1711.2953125,
+              1777.5390625,
+              1673.6328125,
+              4990.625,
+              1655.0453125,
+              1767.44765625,
+              1690.85234375
+            ]
+          },
+          "offset_checksum": "59520"
+        },
+        "arm64/400/22": {
+          "medians_ns": {
+            "release": 6809.618333333333,
+            "candidate": 1486.945
+          },
+          "samples_ns": {
+            "release": [
+              6846.805833333333,
+              6794.0275,
+              6545.2775,
+              6809.618333333333,
+              6718.645833333333,
+              7103.125,
+              6669.860833333333,
+              7256.458333333333,
+              9090.486666666666
+            ],
+            "candidate": [
+              1433.4716666666666,
+              4141.5275,
+              1457.9166666666667,
+              1412.1525,
+              1468.0208333333333,
+              2499.7916666666665,
+              1525.59,
+              1486.945,
+              1597.7083333333333
+            ]
+          },
+          "offset_checksum": "126180"
+        },
+        "arm64/550/0": {
+          "medians_ns": {
+            "release": 6573.889090909091,
+            "candidate": 1324.7981818181818
+          },
+          "samples_ns": {
+            "release": [
+              6639.69696969697,
+              6507.297575757576,
+              6768.6866666666665,
+              6696.6163636363635,
+              6504.545454545455,
+              6488.282424242424,
+              6573.889090909091,
+              6409.469696969697,
+              6643.181818181818
+            ],
+            "candidate": [
+              1321.0854545454545,
+              1377.2224242424243,
+              1321.919393939394,
+              1323.7121212121212,
+              1324.7981818181818,
+              1323.3842424242425,
+              1383.7878787878788,
+              1362.0957575757575,
+              1332.0963636363635
+            ]
+          },
+          "offset_checksum": "-1650"
+        },
+        "x86_64/32/100": {
+          "medians_ns": {
+            "release": 10477.1484375,
+            "candidate": 2860.9046875
+          },
+          "samples_ns": {
+            "release": [
+              12376.009375,
+              10283.26796875,
+              10477.1484375,
+              14563.41171875,
+              12742.67578125,
+              10344.140625,
+              10466.92734375,
+              11122.55859375,
+              10116.66640625
+            ],
+            "candidate": [
+              2949.51171875,
+              2703.90625,
+              4978.6453125,
+              6867.64296875,
+              2860.9046875,
+              2828.18984375,
+              2880.859375,
+              2855.8265625,
+              2834.5375
+            ]
+          },
+          "offset_checksum": "59520"
+        },
+        "x86_64/400/22": {
+          "medians_ns": {
+            "release": 10255.833333333334,
+            "candidate": 2353.576666666667
+          },
+          "samples_ns": {
+            "release": [
+              12139.270833333334,
+              10101.145833333334,
+              14875.868333333334,
+              21706.700833333332,
+              10740.104166666666,
+              10255.833333333334,
+              10213.4725,
+              9792.916666666666,
+              9744.826666666666
+            ],
+            "candidate": [
+              2336.8058333333333,
+              2286.389166666667,
+              2353.576666666667,
+              2338.4375,
+              2341.3541666666665,
+              2410.1383333333333,
+              2412.2575,
+              2362.465,
+              2557.8475
+            ]
+          },
+          "offset_checksum": "126180"
+        },
+        "x86_64/550/0": {
+          "medians_ns": {
+            "release": 9552.550303030303,
+            "candidate": 2186.9442424242425
+          },
+          "samples_ns": {
+            "release": [
+              9851.918787878787,
+              9866.464848484848,
+              9691.540606060606,
+              9552.550303030303,
+              9478.888484848485,
+              9396.84303030303,
+              9779.621212121212,
+              9412.323636363637,
+              9331.338181818182
+            ],
+            "candidate": [
+              2186.9442424242425,
+              2147.2478787878786,
+              2212.5757575757575,
+              2188.358787878788,
+              2204.1157575757575,
+              2159.192121212121,
+              2111.742424242424,
+              2247.4242424242425,
+              2104.267878787879
+            ]
+          },
+          "offset_checksum": "-1650"
+        }
+      },
+      "limits": "Synthetic, CodeRim-owned test stores using system SQLite. Native Apple Silicon plus the macOS x86_64 code under Rosetta; no physical Intel machine. These probes cover synchronous row lifetime and inter-process SQLite transactions, not a full GUI or ongoing production monitoring.",
+      "evidence_hashes": {
+        "compare.py": "31106d0867a49173264f66e80c1ad9acf19f97c49a5dc44c4a83089a1d7560c6",
+        "probe/main.swift": "a30aba4a539569425aa277369bd84aee9e7894e28f4f69c001e6f26f047aa039",
+        "borrow.c": "7d458feeef0ee59995af7562aaf35703aad928a0fa5ccf785347c2c81826a97a",
+        "build.py": "3283507f6b2d69ac7e3898267f7f8b1ebf6b3fa96a7e7becf899f83524e18a3b",
+        "db-result.json": "6d2fd03d99816f879ff40d5a34d306c4e30c47db2a8df4892c5b78a7ba8c1a7e",
+        "abi-result.json": "408f08a9bd53a7d87d9e9a0451f0c7e280df6d7b7bee4a408e75cd9058ccc010",
+        "timing.py": "9a227cb77aa6186ffaf24f8589a35e546931a1a52666ca29c1f631c4b96bda15",
+        "times.json": "3bec09306d8758293f4453888c51aae65b9463558edf887d27a7dad361468c81"
+      }
+    }
+  }
+}

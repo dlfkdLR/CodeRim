@@ -1,0 +1,642 @@
+{
+  "run": 45788826007,
+  "commit": "74c5865f5f4b54dbc34206945dbf97147ca8f484",
+  "platforms": {
+    "arm64": {
+      "jobId": 139802363667,
+      "job": "success",
+      "steps": {
+        "Build ZIP, MSI and MSIX migration packages": "success",
+        "Compare archived Rust files to build inputs and exercise the ZIP CLI": "success",
+        "Exercise MSI installation, rollback, repair and removal": "success",
+        "Install, activate and remove the Store candidate": "success",
+        "Compare stable and candidate native WPF views": "success"
+      },
+      "artifactId": 15102458010,
+      "artifactSha256": "sha256:52981c6a93809508cfdd57090b8a56cd1afd985f98559c9e9a949a54530a00ec",
+      "sourceChecksums": {
+        "CodeRim-Windows-2.1.41-arm64.zip.sha256": "a49061c2f4fef31a35250e6bc78de0f78149c6a5b856e5943aa58a9ce4c3c7aa  CodeRim-Windows-2.1.41-arm64.zip",
+        "CodeRim-Windows-2.1.41-arm64-Setup.msi.sha256": "892a5a7b3b7417c97aae1669b994c317c88c86bcb1cd9291659e4aeea67face0  CodeRim-Windows-2.1.41-arm64-Setup.msi"
+      },
+      "receipts": {
+        "msix-checks.json": [
+          "installs-per-user-without-administrator",
+          "cli-aliases-registered",
+          "both-cli-aliases-run-cli",
+          "cli-regressions-through-alias",
+          "packaged-native-ui-smoke",
+          "uninstall-removes-app-and-aliases"
+        ],
+        "windows-cli-host-size.json": {
+          "architecture": "ARM64",
+          "fullHostBytes": 94401390,
+          "companionHostBytes": 89243785,
+          "removedAssembly": "BouncyCastle.Cryptography.dll",
+          "removedBytes": 5155728,
+          "retainedUpdaterAssemblyBytes": {
+            "CodeRim.exe": 2613440,
+            "CodeRim.UpdateWorker.exe": 2613440
+          },
+          "publicCliSha256": "95e2e9ce64ba489bd3d2c9fd9aabe1f446086fa8da459060df1fcd25a629172e",
+          "wallClock": {
+            "snapshot-fresh": {
+              "samplesMs": {
+                "full": [
+                  4059.5929,
+                  217.0183,
+                  207.3261,
+                  210.9104,
+                  209.6801,
+                  213.6884,
+                  198.2676,
+                  199.5026,
+                  199.6444,
+                  202.4454,
+                  201.75,
+                  201.2449,
+                  211.053,
+                  200.9612,
+                  210.6458
+                ],
+                "companion": [
+                  4690.1005,
+                  290.2721,
+                  210.643,
+                  277.5388,
+                  208.7723,
+                  203.9716,
+                  201.5414,
+                  200.2632,
+                  205.2696,
+                  202.6055,
+                  200.5345,
+                  202.9073,
+                  203.4403,
+                  209.3048,
+                  203.6927
+                ]
+              },
+              "outputSha256": "9063c91d7a94fe88bc5013940e8a8d5fd811458c2aca88d0fa456f5d7dba6a29",
+              "medianMs": {
+                "full": 207.3261,
+                "companion": 203.9716
+              }
+            },
+            "snapshot-reused": {
+              "samplesMs": {
+                "full": [
+                  199.6086,
+                  205.0631,
+                  201.4292,
+                  197.418,
+                  199.8926,
+                  204.2297,
+                  202.9067,
+                  196.3428,
+                  199.4475,
+                  202.5226,
+                  213.1745,
+                  205.1049,
+                  202.0225,
+                  198.7497,
+                  206.2725
+                ],
+                "companion": [
+                  199.6967,
+                  196.4455,
+                  202.2529,
+                  196.7099,
+                  200.6122,
+                  197.839,
+                  201.6326,
+                  199.6386,
+                  199.8947,
+                  201.0272,
+                  218.3132,
+                  203.4695,
+                  203.08,
+                  202.4435,
+                  205.2572
+                ]
+              },
+              "outputSha256": "9063c91d7a94fe88bc5013940e8a8d5fd811458c2aca88d0fa456f5d7dba6a29",
+              "medianMs": {
+                "full": 202.0225,
+                "companion": 201.0272
+              }
+            },
+            "hook-fresh": {
+              "samplesMs": {
+                "full": [
+                  140.5089,
+                  136.5461,
+                  136.8204,
+                  136.058,
+                  138.0393,
+                  135.1613,
+                  135.7982,
+                  137.0098,
+                  137.3231,
+                  135.6643,
+                  138.9038,
+                  136.1184,
+                  137.2578,
+                  137.8627,
+                  139.5536
+                ],
+                "companion": [
+                  140.5893,
+                  135.1314,
+                  137.6635,
+                  139.8643,
+                  136.6349,
+                  137.8443,
+                  137.3023,
+                  138.8346,
+                  139.488,
+                  138.8331,
+                  135.8212,
+                  136.1743,
+                  142.089,
+                  137.8723,
+                  136.8537
+                ]
+              },
+              "outputSha256": "1fc4d3e26c9d0d2a514bae13fe8347341bc375b714003d9d1032df0fa0ad1453",
+              "medianMs": {
+                "full": 137.0098,
+                "companion": 137.8443
+              }
+            },
+            "hook-reused": {
+              "samplesMs": {
+                "full": [
+                  132.9993,
+                  133.696,
+                  132.0657,
+                  131.3717,
+                  132.3282,
+                  132.9149,
+                  130.7702,
+                  134.6381,
+                  134.4261,
+                  131.2208,
+                  131.4277,
+                  132.491,
+                  156.849,
+                  133.6987,
+                  134.9017
+                ],
+                "companion": [
+                  130.7745,
+                  134.2633,
+                  132.4572,
+                  130.6027,
+                  131.5007,
+                  132.6426,
+                  132.2649,
+                  132.7353,
+                  132.8556,
+                  131.1264,
+                  131.3744,
+                  131.5433,
+                  133.9103,
+                  131.1076,
+                  131.3501
+                ]
+              },
+              "outputSha256": "1fc4d3e26c9d0d2a514bae13fe8347341bc375b714003d9d1032df0fa0ad1453",
+              "medianMs": {
+                "full": 132.9149,
+                "companion": 131.5433
+              }
+            }
+          }
+        },
+        "windows-msi-lifecycle.json": {
+          "qaDirectory": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\CodeRim-MSI-QA-79119a914399454088262c2148aefad8",
+          "passed": [
+            "signed-legacy-installation-rejected-before-write",
+            "initial-msi-install",
+            "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+            "installed-rust-cli-and-owned-compatibility-host",
+            "upgrade-current-version",
+            "downgrade-refused-without-changes",
+            "installed-native-ui-and-pinned-worker",
+            "uninstall-preserves-user-data-and-unrelated-path",
+            "portable-migration-failure-restores-files-path-shortcut",
+            "portable-migration-and-repair-keep-one-cli-path",
+            "portable-migration-uninstall-preserves-data-and-unrelated-path",
+            "public-2.1.11-msi-reproduces-duplicate-portable-path",
+            "public-2.1.11-failed-upgrade-restores-installation",
+            "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+            "public-upgrade-uninstall-preserves-user-data-and-path"
+          ],
+          "architecture": "arm64",
+          "completed": true
+        },
+        "windows-public-msi-arm64.json": {
+          "phases": [
+            "published-installed-and-profile-read",
+            "failed-upgrade-restored-public-registration-binaries-and-profile",
+            "upgraded-candidate-loaded-preserved-profile",
+            "direct-downgrade-refused-with-data-intact",
+            "published-msi-reinstalled-and-profile-read",
+            "published-uninstalled-and-data-preserved"
+          ],
+          "testMsiVersion": "2.1.42",
+          "completed": true,
+          "publishedVersion": "2.1.41",
+          "candidatePayloadVersion": "2.1.41",
+          "footprint": {
+            "candidateMsiBytes": 133558272,
+            "published": {
+              "files": 18,
+              "bytes": 213780552.0,
+              "publicCliBytes": 94323542
+            },
+            "publishedMsiBytes": 135503872,
+            "candidate": {
+              "files": 22,
+              "bytes": 209596003.0,
+              "publicCliBytes": 417792
+            }
+          },
+          "architecture": "arm64",
+          "publishedMsiSha256": "393302b1f679fdf1bf82147906c39eb4a045b2a70ed6b7cbb126cb0b0a401073"
+        },
+        "windows-rust-package.json": {
+          "commit": "74c5865f5f4b54dbc34206945dbf97147ca8f484",
+          "architecture": "arm64",
+          "packages": [
+            {
+              "name": "CodeRim-Windows-2.1.41-arm64.zip",
+              "bytes": 141864172,
+              "sha256": "a49061c2f4fef31a35250e6bc78de0f78149c6a5b856e5943aa58a9ce4c3c7aa"
+            },
+            {
+              "name": "CodeRim-Windows-2.1.41-arm64-Setup.msi",
+              "bytes": 133558272,
+              "sha256": "892a5a7b3b7417c97aae1669b994c317c88c86bcb1cd9291659e4aeea67face0"
+            },
+            {
+              "name": "CodeRim-Windows-2.1.41-arm64.msix",
+              "bytes": 105611757,
+              "sha256": "5fc5acef45b944d39058bb40816677c434109a5b3ed88f81e3a0343b2e170740"
+            }
+          ],
+          "zipPayload": [
+            {
+              "name": "CodeRimCLI.exe",
+              "bytes": 417792,
+              "sha256": "95e2e9ce64ba489bd3d2c9fd9aabe1f446086fa8da459060df1fcd25a629172e",
+              "fileVersion": "2.1.41.0"
+            },
+            {
+              "name": "CodeRimCLIHost.exe",
+              "bytes": 89243785,
+              "sha256": "708d1cafaa1640d445de1df4df85390044a229d1bd270c3941b50cf503bf1442",
+              "fileVersion": "2.1.41.0"
+            },
+            {
+              "name": "coderim_accounting_bridge.dll",
+              "bytes": 327168,
+              "sha256": "67a585e2360aae024a0cb10a839c37ff05d9bcdb4757df64a25836b576ec12ad",
+              "fileVersion": null
+            },
+            {
+              "name": "Rust-CLI-Notices.txt",
+              "bytes": 60341,
+              "sha256": "8aa689635324f50b4fb73598dfd1c04cad34e30dde89f1159574dd40f40a6658",
+              "fileVersion": null
+            },
+            {
+              "name": "Rust-Notices.txt",
+              "bytes": 4440,
+              "sha256": "588116ddd332c153747e94f4dcc14e9f0895d1f8f0a138eb735fc10d968ee41a",
+              "fileVersion": null
+            }
+          ]
+        }
+      }
+    },
+    "x64": {
+      "jobId": 139802363426,
+      "job": "success",
+      "steps": {
+        "Build ZIP, MSI and MSIX migration packages": "success",
+        "Compare archived Rust files to build inputs and exercise the ZIP CLI": "success",
+        "Exercise MSI installation, rollback, repair and removal": "success",
+        "Install, activate and remove the Store candidate": "success",
+        "Compare stable and candidate native WPF views": "success"
+      },
+      "artifactId": 15101459124,
+      "artifactSha256": "sha256:3dad3dcf4b92e0b0d46d7f2daf89e68f89b9e7702778a6d61d71a27412256cc4",
+      "sourceChecksums": {
+        "CodeRim-Windows-2.1.41-x64.zip.sha256": "09d19b9221faf7b5788f30d12d25ccd00031eb3f738fd75084409029ef5ad718  CodeRim-Windows-2.1.41-x64.zip",
+        "CodeRim-Windows-2.1.41-x64-Setup.msi.sha256": "d0a9a0ccc52afa6f4480913ecbe2ab7c5b6346fc15584d0cfb998a8904212eb2  CodeRim-Windows-2.1.41-x64-Setup.msi"
+      },
+      "receipts": {
+        "msix-checks.json": [
+          "installs-per-user-without-administrator",
+          "cli-aliases-registered",
+          "both-cli-aliases-run-cli",
+          "cli-regressions-through-alias",
+          "packaged-native-ui-smoke",
+          "uninstall-removes-app-and-aliases"
+        ],
+        "windows-cli-host-size.json": {
+          "architecture": "AMD64",
+          "fullHostBytes": 85554016,
+          "companionHostBytes": 80396411,
+          "removedAssembly": "BouncyCastle.Cryptography.dll",
+          "removedBytes": 5155728,
+          "retainedUpdaterAssemblyBytes": {
+            "CodeRim.exe": 2613440,
+            "CodeRim.UpdateWorker.exe": 2613440
+          },
+          "publicCliSha256": "41aae6128dbba019c3dde4fc5a97e9f966fe628227bc0a906dc5af8f49422d5b",
+          "wallClock": {
+            "snapshot-fresh": {
+              "samplesMs": {
+                "full": [
+                  746.5914,
+                  238.9468,
+                  223.8894,
+                  210.2873,
+                  211.8091,
+                  216.4858,
+                  208.0746,
+                  209.9649,
+                  218.7972,
+                  218.9511,
+                  209.3548,
+                  220.9869,
+                  213.722,
+                  207.4777,
+                  223.8794
+                ],
+                "companion": [
+                  642.9329,
+                  217.1674,
+                  210.4501,
+                  214.0609,
+                  208.5308,
+                  202.5861,
+                  207.136,
+                  210.1306,
+                  208.526,
+                  207.2175,
+                  209.4726,
+                  208.9647,
+                  209.5119,
+                  210.9535,
+                  217.9518
+                ]
+              },
+              "outputSha256": "9063c91d7a94fe88bc5013940e8a8d5fd811458c2aca88d0fa456f5d7dba6a29",
+              "medianMs": {
+                "full": 216.4858,
+                "companion": 209.5119
+              }
+            },
+            "snapshot-reused": {
+              "samplesMs": {
+                "full": [
+                  208.8954,
+                  204.8938,
+                  217.2185,
+                  203.4667,
+                  205.3019,
+                  206.544,
+                  210.8423,
+                  208.845,
+                  204.5758,
+                  204.8224,
+                  213.3001,
+                  206.4278,
+                  208.496,
+                  202.9277,
+                  212.1083
+                ],
+                "companion": [
+                  202.0321,
+                  205.9746,
+                  206.0287,
+                  203.4722,
+                  203.2183,
+                  205.5632,
+                  206.045,
+                  207.1274,
+                  209.3346,
+                  205.1109,
+                  205.4589,
+                  201.5583,
+                  205.0327,
+                  202.2973,
+                  208.903
+                ]
+              },
+              "outputSha256": "9063c91d7a94fe88bc5013940e8a8d5fd811458c2aca88d0fa456f5d7dba6a29",
+              "medianMs": {
+                "full": 206.544,
+                "companion": 205.4589
+              }
+            },
+            "hook-fresh": {
+              "samplesMs": {
+                "full": [
+                  129.7189,
+                  127.7324,
+                  126.7377,
+                  128.3001,
+                  124.8916,
+                  128.0488,
+                  126.2347,
+                  128.2191,
+                  127.9162,
+                  127.8182,
+                  127.9792,
+                  127.6525,
+                  129.1703,
+                  128.342,
+                  127.8095
+                ],
+                "companion": [
+                  136.08,
+                  124.9028,
+                  124.686,
+                  127.299,
+                  127.2611,
+                  130.7344,
+                  126.1766,
+                  132.1276,
+                  125.907,
+                  126.4043,
+                  124.5579,
+                  128.927,
+                  125.8493,
+                  125.3177,
+                  125.5701
+                ]
+              },
+              "outputSha256": "1fc4d3e26c9d0d2a514bae13fe8347341bc375b714003d9d1032df0fa0ad1453",
+              "medianMs": {
+                "full": 127.9162,
+                "companion": 126.1766
+              }
+            },
+            "hook-reused": {
+              "samplesMs": {
+                "full": [
+                  122.6625,
+                  123.4174,
+                  122.8468,
+                  121.9873,
+                  123.2371,
+                  121.5204,
+                  122.8208,
+                  129.6146,
+                  126.7371,
+                  143.1418,
+                  128.7011,
+                  142.3786,
+                  128.4356,
+                  135.1243,
+                  141.0433
+                ],
+                "companion": [
+                  127.7646,
+                  122.6987,
+                  122.3637,
+                  123.9751,
+                  122.892,
+                  127.3005,
+                  123.0421,
+                  129.4732,
+                  136.2826,
+                  131.4115,
+                  129.3409,
+                  128.402,
+                  128.8336,
+                  135.4454,
+                  129.2666
+                ]
+              },
+              "outputSha256": "1fc4d3e26c9d0d2a514bae13fe8347341bc375b714003d9d1032df0fa0ad1453",
+              "medianMs": {
+                "full": 126.7371,
+                "companion": 128.402
+              }
+            }
+          }
+        },
+        "windows-public-msi-x64.json": {
+          "publishedMsiSha256": "1816cf6866cce5be8f626b5d85af1757ec890a8d9b8677f80a3385d602bf298d",
+          "footprint": {
+            "publishedMsiBytes": 144211968,
+            "candidateMsiBytes": 142503936,
+            "published": {
+              "files": 18,
+              "bytes": 210192960.0,
+              "publicCliBytes": 85476168
+            },
+            "candidate": {
+              "files": 22,
+              "bytes": 206090323.0,
+              "publicCliBytes": 466944
+            }
+          },
+          "architecture": "x64",
+          "completed": true,
+          "candidatePayloadVersion": "2.1.41",
+          "publishedVersion": "2.1.41",
+          "testMsiVersion": "2.1.42",
+          "phases": [
+            "published-installed-and-profile-read",
+            "failed-upgrade-restored-public-registration-binaries-and-profile",
+            "upgraded-candidate-loaded-preserved-profile",
+            "direct-downgrade-refused-with-data-intact",
+            "published-msi-reinstalled-and-profile-read",
+            "published-uninstalled-and-data-preserved"
+          ]
+        },
+        "windows-msi-lifecycle.json": {
+          "qaDirectory": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\CodeRim-MSI-QA-ad4a40e73dde4c399d215235856aabd5",
+          "passed": [
+            "signed-legacy-installation-rejected-before-write",
+            "initial-msi-install",
+            "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+            "installed-rust-cli-and-owned-compatibility-host",
+            "upgrade-current-version",
+            "downgrade-refused-without-changes",
+            "installed-native-ui-and-pinned-worker",
+            "uninstall-preserves-user-data-and-unrelated-path",
+            "portable-migration-failure-restores-files-path-shortcut",
+            "portable-migration-and-repair-keep-one-cli-path",
+            "portable-migration-uninstall-preserves-data-and-unrelated-path",
+            "public-2.1.11-msi-reproduces-duplicate-portable-path",
+            "public-2.1.11-failed-upgrade-restores-installation",
+            "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+            "public-upgrade-uninstall-preserves-user-data-and-path"
+          ],
+          "completed": true,
+          "architecture": "x64"
+        },
+        "windows-rust-package.json": {
+          "commit": "74c5865f5f4b54dbc34206945dbf97147ca8f484",
+          "architecture": "x64",
+          "packages": [
+            {
+              "name": "CodeRim-Windows-2.1.41-x64.zip",
+              "bytes": 150161936,
+              "sha256": "09d19b9221faf7b5788f30d12d25ccd00031eb3f738fd75084409029ef5ad718"
+            },
+            {
+              "name": "CodeRim-Windows-2.1.41-x64-Setup.msi",
+              "bytes": 142503936,
+              "sha256": "d0a9a0ccc52afa6f4480913ecbe2ab7c5b6346fc15584d0cfb998a8904212eb2"
+            },
+            {
+              "name": "CodeRim-Windows-2.1.41-x64.msix",
+              "bytes": 112028446,
+              "sha256": "3257f40fe97c349c0e9cee0a92b92bb81b95322c9884d687ef8133cd9f219535"
+            }
+          ],
+          "zipPayload": [
+            {
+              "name": "CodeRimCLI.exe",
+              "bytes": 466944,
+              "sha256": "41aae6128dbba019c3dde4fc5a97e9f966fe628227bc0a906dc5af8f49422d5b",
+              "fileVersion": "2.1.41.0"
+            },
+            {
+              "name": "CodeRimCLIHost.exe",
+              "bytes": 80396411,
+              "sha256": "b5df65e9dde369c1867e8b476e12d678c5f6536831c918ea458e768166ce3513",
+              "fileVersion": "2.1.41.0"
+            },
+            {
+              "name": "coderim_accounting_bridge.dll",
+              "bytes": 359936,
+              "sha256": "d14c288b825c12dba4d4f78da50ae1e98d94d56bf3cd1e2abc41ef7b842d47c4",
+              "fileVersion": null
+            },
+            {
+              "name": "Rust-CLI-Notices.txt",
+              "bytes": 60341,
+              "sha256": "8aa689635324f50b4fb73598dfd1c04cad34e30dde89f1159574dd40f40a6658",
+              "fileVersion": null
+            },
+            {
+              "name": "Rust-Notices.txt",
+              "bytes": 4440,
+              "sha256": "588116ddd332c153747e94f4dcc14e9f0895d1f8f0a138eb735fc10d968ee41a",
+              "fileVersion": null
+            }
+          ]
+        }
+      }
+    }
+  }
+}

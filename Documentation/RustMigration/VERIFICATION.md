@@ -315,3 +315,13 @@ macOS의 일반 패키지에 포함된 Claude 상태줄 도우미는 공개 stdi
 macOS 메뉴와 분석 화면의 사용 한도 정렬은 기본 주간 한도를 앞에 두고, 시간이 같으면 기존 Foundation 이름 비교와 ID 순서를 사용한다. 공개판과 비교한 648개 배열 및 독립 입력 4,480개의 표시 순서가 두 아키텍처에서 일치했다. Apple Silicon 6개 창 정렬 중앙값은 1.36→0.95µs였다. 분석 화면의 추정 비용은 차트 전체에서 이미 준비한 모델 요금을 재사용한다. 30일·8모델 차트에서 2.48→2.09ms였고, 별도 비교에서는 아키텍처마다 1,004행의 금액과 제외 순서가 일치했다. [표시 순서](verification/2026-11-26/macos-quota-menu-order.json) · [비용 차트](verification/2026-11-26/macos-chart-cost-display.json)
 
 iPhone 앱과 Live Activity의 일반 Xcode 빌드는 이제 Rust 정책을 링크한다. 공개 소스를 같은 Xcode로 빌드한 기기용 번들은 1,583,244바이트, 초기 Rust 기본 빌드는 2,244,212바이트, 최종 후보는 1,548,460바이트였다. 컴파일된 확장 실행 파일만 비교하면 공개판보다 184바이트 크다. 후보에서 iPhone 17 Pro 시뮬레이터 테스트 56개, 같은 기기에서 공개판 테스트 49개가 실패·건너뜀 없이 통과했다. 하네스의 기본 Xcode 연결 판정은 CI 입력 변경으로 `REJECT`, 용량 최적화 판정은 `INCONCLUSIVE`였다. [아카이브·심볼·XCTest 및 공급자 토글](verification/2026-11-26/ios-default-device-footprint.json)
+
+### 재실행 수집기, Live Activity 연결 ID 및 Windows 설치 크기
+
+macOS에서 사용량 DB를 열어 128개 합성 파일의 체크포인트를 다시 읽었다. Apple Silicon의 한 번 갱신 중앙값은 공개판 10.93ms, 직전 후보 5.55ms, 준비된 SQLite 문을 재사용한 후보 4.80ms였다. Intel 실행 파일을 Rosetta에서 돌렸을 때는 18.51→7.35→6.39ms였다. 합계는 각 실행에서 21,312토큰이었다. 새 파일 첫 수집의 직전 후보 대비 개선은 일관되지 않았다. 실제 수집기·DB XCTest 63개와 Rust 테스트 55개가 통과했고, 독립 검토는 아키텍처마다 재개방·잠금·재시도·스키마 복구를 포함한 966개 관측값을 비교했다. [수집기·DB 비교와 측정 범위](verification/2026-11-26/macos-collector-checkpoint.json)
+
+iOS는 CodeRim이 발급한 연결 ID의 SHA-256 결과를 Rust에서 기존 소문자 문자열로 바꾼다. 공개판과 아키텍처마다 ID 4,112개, 연결 전환·늦은 응답 등 탐색 시나리오 12개의 결과가 일치했다. Apple Silicon 호스트에서 ActivityKit 전송을 대역으로 바꾼 탐색 한 번은 32.25→6.32µs였다. 새 기기용 미서명 아카이브는 1,549,260바이트였다. 기존 외부 라이브러리를 지정해 다시 빌드하는 경우도 확인했다. 하네스는 고정한 Xcode 설정 파일의 변경을 REJECT로 기록했다. [연결 ID·탐색·기기용 바이너리](verification/2026-11-26/ios-activity-connection-id.json)
+
+Windows 패키징 실험에서는 설치기 전용 암호화 라이브러리를 CLI 전용 호스트에서 제외하고 GUI와 업데이트 도구에 보관했다. CI 45788826007에서 공개 v2.1.41 대비 설치 크기가 x64 4,102,637바이트, ARM64 4,184,549바이트 줄었다. 두 아키텍처에서 MSI 업그레이드·원복, MSIX 설치 및 CLI 별칭 검사가 통과했다. ARM64 설치 직후 최초 한 번의 호스트 실행은 4.06→4.69초였다. 날짜 출력 시간의 이 회차 기준은 마이그레이션 소스의 관리 CLI다. 별도의 CI 45791925630이 공개 MSI의 실행 파일을 직접 측정한다. [패키징 실험](verification/2026-11-26/windows-private-cli-size-experiment.json) · [UTC 날짜 출력과 기준 실행 파일](verification/2026-11-26/windows-cli-utc-native-source-comparison.json)
+
+같은 제품 소스 집계 기준으로 876a7da의 108,038줄 중 Rust는 12,869줄(11.912%)이다. Swift 46,594줄과 C# 43,700줄에는 아직 이관할 제품 로직 및 기존 플랫폼 UI가 있다. [언어별 소스 집계](verification/2026-11-26/production-source-lines.json)
