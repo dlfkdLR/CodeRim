@@ -1,0 +1,56 @@
+{
+  "commit": "313a4b2ba80ce1d04e72e609287c81521fdd8643",
+  "run": 45766496294,
+  "comparisonCommit": "d9b7a5779d0792205232176dfb5bc14b11368c14",
+  "entry": "Installed WPF DashboardWindow settings navigation and routed button clicks with a synthetic CodeRim profile and keys; sealed values are read through fresh DPAPI-backed CredentialVault instances.",
+  "coverageAdded": [
+    "Navigate away from an unsaved replacement and return; the saved key survives and the new password box is empty.",
+    "Navigate away after a saved replacement and return; Replace API key and the remove action reflect the persisted key.",
+    "Navigate away after removal and return; Save API key and disabled remove reflect the empty vault."
+  ],
+  "existingChecks": [
+    "blankRejected",
+    "previousKeyPreserved",
+    "failedReplacementPreservesDraft",
+    "failedRemovalPreservesState",
+    "replacedKeyReopened",
+    "removedKeyReopened"
+  ],
+  "newChecks": [
+    "abandonedDraftPreservedKey",
+    "savedSettingsReopened",
+    "removedSettingsReopened"
+  ],
+  "artifacts": {
+    "x64": {
+      "id": 15092870967,
+      "sha256": "52c5c0e1221bae26cfbe00aade94352e5abe865e834591f3625683beda2228e2",
+      "url": "https://github.com/dlfkdLR/CodeRim/actions/runs/45766496294/artifacts/15092870967",
+      "passed": {
+        "msi": {
+          "checks": 9,
+          "entry": "installed/windows-owned-connection-settings.json"
+        },
+        "msix": {
+          "checks": 9,
+          "entry": "msix-x64/windows-owned-connection-settings.json"
+        }
+      }
+    },
+    "arm64": {
+      "id": 15092602579,
+      "sha256": "aca63c1f227249b117e35c79ed29f6acd2d90f848538368a5c3cdacebb14ca30",
+      "url": "https://github.com/dlfkdLR/CodeRim/actions/runs/45766496294/artifacts/15092602579",
+      "passed": {
+        "msi": {
+          "checks": 9,
+          "entry": "installed/windows-owned-connection-settings.json"
+        },
+        "msix": {
+          "checks": 9,
+          "entry": "msix-arm64/windows-owned-connection-settings.json"
+        }
+      }
+    }
+  }
+}
