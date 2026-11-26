@@ -31,7 +31,8 @@ The first implementation uses the existing native views. There is no measured UI
 - To build the migration app, install the Rust standard library for both `aarch64-apple-darwin` and `x86_64-apple-darwin` and run `python3 Scripts/rust_migration/apple.py app /path/to/new-directory`. This runs the product's Universal release builder and creates a local ad-hoc signed bundle. Use an official Rust toolchain with standard libraries compatible with macOS 14.
 - Run `python3 Scripts/rust_migration/benchmark_macos.py` for the release-mode, paired Swift/Rust comparison. Inspect results by workload, including the fallback and non-token cases.
 - On Windows, build the Rust bridge for the target architecture and supply the absolute DLL path in the MSBuild property `CodeRimRustAccountingLibrary` alongside `CodeRimRustAccounting=true`. The migration CI builds and runs the native and Rust cases. The public GUI, CLI, installer and update worker must be exercised individually before a release.
-- Use the legacy build without migration properties to compare with the candidate. No schema conversion or alternate account store is introduced by this integration.
+- On this branch the normal macOS package command, `Scripts/build_release.sh`, builds the Rust app bridge, widget library and bundled CLI. Install the Rust standard libraries for both Darwin architectures with `rustup target add aarch64-apple-darwin x86_64-apple-darwin`. Existing prebuilt inputs are accepted per component. The builder retains the SwiftPM dSYM and strips the packaged executable. It signs and checks the complete bundle in a sibling directory before replacing the local destination atomically. The release scripts supply signing and update configuration.
+- Use the preserved release source for the macOS reference bundle. The differential suites also exercise their existing Swift fallback paths. Windows comparisons can build without the migration MSBuild properties.
 
 ## Rollback and release
 

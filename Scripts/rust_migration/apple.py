@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """Check the macOS host boundary or build an isolated universal migration candidate."""
 import argparse
+import ctypes
+import errno
 import json
 import os
 import platform
+import shutil
 from pathlib import Path
 import subprocess
 import tempfile
@@ -87,38 +90,68 @@ def test_product():
                    check=True)
 
 
+def prepare_bundle_inputs(directory):
+    # An explicit archive may be supplied by a caller that already cross-compiled it.
+    # Build only the missing inputs. The shell validates all three before assembly.
+    needed = ("CODERIM_RUST_ACCOUNTING_ARCHIVE", "CODERIM_RUST_WIDGET_ARCHIVE", "CODERIM_MIGRATION_CLI")
+    if not all(os.environ.get(key) for key in needed) and shutil.which("cargo") is None:
+        raise SystemExit("Cargo is required to build the missing Rust package components.")
+    for variable, package, name in [
+        ("CODERIM_RUST_ACCOUNTING_ARCHIVE", "coderim-accounting-bridge", ARCHIVE),
+        ("CODERIM_RUST_WIDGET_ARCHIVE", "coderim-widget", "libcoderim_widget.a"),
+    ]:
+        if not os.environ.get(variable):
+            slices = [build_library(arch + "-apple-darwin", package) for arch in ("aarch64", "x86_64")]
+            subprocess.run(["lipo", "-create", *slices, "-output", directory / name], check=True)
+    if not os.environ.get("CODERIM_MIGRATION_CLI"):
+        subprocess.run([RUST / "cli/build-macos.sh", directory / "CodeRimCLI"], cwd=ROOT, check=True, env={
+            **os.environ, "CARGO_TARGET_DIR": str(TARGET), "MACOSX_DEPLOYMENT_TARGET": "14.0",
+        })
+
+
+def replace_bundle(staged, destination):
+    # A new destination is a normal same-volume rename. A nonempty bundle requires
+    # Darwin's atomic exchange so any concurrent reader sees a complete generation.
+    try:
+        staged.rename(destination)
+        return
+    except OSError as error:
+        if error.errno not in (errno.ENOTEMPTY, errno.EEXIST):
+            raise
+    swap = ctypes.CDLL(None, use_errno=True).renamex_np
+    swap.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint]
+    swap.restype = ctypes.c_int
+    rename_swap = 0x00000002  # RENAME_SWAP in Darwin's sys/stdio.h.
+    if swap(os.fsencode(staged), os.fsencode(destination), rename_swap) != 0:
+        number = ctypes.get_errno()
+        raise OSError(number, os.strerror(number), destination)
+
+
 def build_app(work, output):
-    # build_release.sh replaces its destination. Reserve a fresh directory owned
-    # by this invocation, protecting the installed app and previous candidates.
+    # Reserve a new QA destination independently of the normal packaged app path.
     output.mkdir(parents=True, exist_ok=False)
-    libraries = [build_library(arch + "-apple-darwin") for arch in ("aarch64", "x86_64")]
-    cli = work / "CodeRimCLI"
-    subprocess.run([RUST / "cli/build-macos.sh", cli], cwd=ROOT, check=True, env={
-        **os.environ, "CARGO_TARGET_DIR": str(TARGET), "MACOSX_DEPLOYMENT_TARGET": "14.0",
-    })
-    universal = work / ARCHIVE
-    subprocess.run(["lipo", "-create", *libraries, "-output", universal], check=True)
-    widget = work / "libcoderim_widget.a"
-    widget_archives = [build_library(triple, "coderim-widget")
-                       for triple in ("aarch64-apple-darwin", "x86_64-apple-darwin")]
-    subprocess.run(["lipo", "-create", *widget_archives, "-output", widget], check=True)
+    bundle = output / "CodeRim.app"
     subprocess.run([ROOT / "Scripts/build_release.sh"], cwd=ROOT, check=True, env={
-        **os.environ, "CODERIM_RUST_ACCOUNTING_ARCHIVE": str(universal),
-        "CODERIM_APP_PATH": str(output / "CodeRim.app"), "CODERIM_BUILD_CACHE": str(work),
-        "CODERIM_RUST_WIDGET_ARCHIVE": str(widget),
-        "CODERIM_MIGRATION_SYMBOLS_DIR": str(output / "Symbols"), "CODERIM_MIGRATION_CLI": str(cli),
-        "CODERIM_MIGRATION_RESTART": "1",
+        **os.environ, "CODERIM_APP_PATH": str(bundle), "CODERIM_BUILD_CACHE": str(work),
+        "CODERIM_MIGRATION_SYMBOLS_DIR": str(output / "Symbols"),
     })
-    # The shipping builder also compiled the Swift helper with its original bundle contract.
-    # Compare both standalone processes, then exercise the signed installed Rust helper.
+    # Both helpers derive their version from their enclosing bundle. Give the Swift
+    # reference exactly the same Info.plist while running the actual installed Rust helper.
+    scratch = Path(os.environ.get("CODERIM_SWIFT_SCRATCH_PATH", ROOT / ".build/coderim-build"))
     oracle_dir = Path(subprocess.check_output([
-        "python3", ROOT / "Scripts/prepare_swift_dependencies.py", "--show-bin-path",
+        "python3", ROOT / "Scripts/prepare_swift_dependencies.py", "--scratch-path", scratch, "--show-bin-path",
         "-c", "release", "--arch", "arm64", "--arch", "x86_64",
     ], cwd=ROOT, text=True).strip().splitlines()[-1])
-    subprocess.run(["python3", RUST / "cli/tests/differential.py", oracle_dir / "CodeRimCLI", cli],
+    reference = work / "reference/CodeRim.app/Contents"
+    (reference / "Helpers").mkdir(parents=True)
+    shutil.copy2(bundle / "Contents/Info.plist", reference / "Info.plist")
+    reference_cli = reference / "Helpers/CodeRimCLI"
+    shutil.copy2(oracle_dir / "CodeRimCLI", reference_cli)
+    subprocess.run(["python3", RUST / "cli/tests/differential.py", reference_cli,
+                    bundle / "Contents/Helpers/CodeRimCLI"],
                    cwd=ROOT, check=True)
     subprocess.run(["python3", ROOT / "Tests/Scripts/companion_cli_tests.py",
-                    output / "CodeRim.app/Contents/Helpers/CodeRimCLI"], check=True)
+                    bundle / "Contents/Helpers/CodeRimCLI"], check=True)
 
 
 def main():
@@ -126,9 +159,20 @@ def main():
     sub = parser.add_subparsers(dest="action", required=True)
     sub.add_parser("check")
     sub.add_parser("test", help="run the Swift package and CLI tests with Rust accounting")
+    artifacts = sub.add_parser("prepare-bundle", help="build missing Universal 2 Rust inputs for the package builder")
+    artifacts.add_argument("directory", type=Path, help="existing staging directory for the archives and CLI")
+    replace = sub.add_parser("replace-bundle", help="install the finished bundle at its local build destination")
+    replace.add_argument("staged", type=Path)
+    replace.add_argument("destination", type=Path)
     app = sub.add_parser("app", help="build the existing universal release bundle with Rust accounting")
     app.add_argument("output", type=Path, help="new directory for the ad-hoc signed app")
     args = parser.parse_args()
+    if args.action == "replace-bundle":
+        replace_bundle(args.staged, args.destination)
+        return
+    if args.action == "prepare-bundle":
+        prepare_bundle_inputs(args.directory.resolve(strict=True))
+        return
     with tempfile.TemporaryDirectory(prefix="coderim-accounting-") as temporary:
         work = Path(temporary)
         if args.action == "check":

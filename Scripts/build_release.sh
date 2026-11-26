@@ -32,14 +32,26 @@ fi
 "${script_dir}/verify_update_policy.sh" "${project_root}/Config/Info.plist"
 
 cd "${project_root}"
-accounting_flags=()
-if [[ -n "${CODERIM_RUST_ACCOUNTING_ARCHIVE:-}" ]]; then
-  archive=${CODERIM_RUST_ACCOUNTING_ARCHIVE:A}
-  lipo "${archive}" -verify_arch arm64
-  lipo "${archive}" -verify_arch x86_64
-  accounting_flags=(-Xswiftc -DCODERIM_RUST_ACCOUNTING -Xswiftc -I
-    -Xswiftc "${project_root}/Rust/bridge/include" -Xlinker "${archive}")
+rust_inputs=""
+staging_root=""
+cleanup_build() {
+  if [[ -n "${rust_inputs}" ]]; then rm -rf -- "${rust_inputs}"; fi
+  if [[ -n "${staging_root}" ]]; then rm -rf -- "${staging_root}"; fi
+}
+trap cleanup_build EXIT
+if [[ -z "${CODERIM_RUST_ACCOUNTING_ARCHIVE:-}" || -z "${CODERIM_RUST_WIDGET_ARCHIVE:-}" || -z "${CODERIM_MIGRATION_CLI:-}" ]]; then
+  rust_inputs=$(mktemp -d "${TMPDIR:-/tmp}/coderim-rust-bundle.XXXXXXXX")
+  python3 "${script_dir}/rust_migration/apple.py" prepare-bundle "${rust_inputs}"
+  export CODERIM_RUST_ACCOUNTING_ARCHIVE=${CODERIM_RUST_ACCOUNTING_ARCHIVE:-"${rust_inputs}/libcoderim_accounting_bridge.a"}
+  export CODERIM_RUST_WIDGET_ARCHIVE=${CODERIM_RUST_WIDGET_ARCHIVE:-"${rust_inputs}/libcoderim_widget.a"}
+  export CODERIM_MIGRATION_CLI=${CODERIM_MIGRATION_CLI:-"${rust_inputs}/CodeRimCLI"}
 fi
+for rust_input in "${CODERIM_RUST_ACCOUNTING_ARCHIVE}" "${CODERIM_RUST_WIDGET_ARCHIVE}" "${CODERIM_MIGRATION_CLI}"; do
+  lipo "${rust_input}" -verify_arch arm64
+  lipo "${rust_input}" -verify_arch x86_64
+done
+accounting_flags=(-Xswiftc -DCODERIM_RUST_ACCOUNTING -Xswiftc -I
+  -Xswiftc "${project_root}/Rust/bridge/include" -Xlinker "${CODERIM_RUST_ACCOUNTING_ARCHIVE:A}")
 for product in "${PRODUCT_NAME}" CodeRimCLI CodeRimClaudeBridge; do
   python3 "${script_dir}/prepare_swift_dependencies.py" --scratch-path "${swift_scratch_path}" \
     --run-swift build -c release --arch arm64 --arch x86_64 --product "${product}" -Xswiftc -warnings-as-errors "${accounting_flags[@]}"
@@ -48,12 +60,7 @@ product_directory=$(python3 "${script_dir}/prepare_swift_dependencies.py" --scra
   --show-bin-path -c release --arch arm64 --arch x86_64)
 binary_path="${product_directory}/${PRODUCT_NAME}"
 claude_bridge_path="${product_directory}/CodeRimClaudeBridge"
-cli_path="${product_directory}/CodeRimCLI"
-if [[ -n "${CODERIM_MIGRATION_CLI:-}" ]]; then
-  cli_path="${CODERIM_MIGRATION_CLI}"
-  lipo "${cli_path}" -verify_arch arm64
-  lipo "${cli_path}" -verify_arch x86_64
-fi
+cli_path=${CODERIM_MIGRATION_CLI:A}
 sparkle_framework="${product_directory}/Frameworks/Sparkle.framework"
 if [[ ! -d "${sparkle_framework}" && -d "${product_directory}/Sparkle.framework" ]]; then
   sparkle_framework="${product_directory}/Sparkle.framework"
@@ -83,30 +90,39 @@ if [[ "${app_path:t}" != "${PRODUCT_NAME}.app" ]]; then
   print -u2 "Refusing to replace unexpected app path: ${app_path}"
   exit 1
 fi
-rm -rf "${app_path}"
+bundle_destination=${app_path}
+mkdir -p "${bundle_destination:h}"
+staging_root=$(mktemp -d "${bundle_destination:h}/.coderim-build.XXXXXXXX")
+app_path="${staging_root}/${PRODUCT_NAME}.app"
 mkdir -p "${app_path}/Contents/MacOS" "${app_path}/Contents/Resources" \
   "${app_path}/Contents/Frameworks" "${app_path}/Contents/Helpers"
 install -m 755 "${binary_path}" "${app_path}/Contents/MacOS/${PRODUCT_NAME}"
+debug_bundle="${binary_path}.dSYM"
 if [[ -n "${CODERIM_MIGRATION_SYMBOLS_DIR:-}" ]]; then
-  # Keep symbolication outside the delivered app. The original Swift build output is untouched.
   mkdir "${CODERIM_MIGRATION_SYMBOLS_DIR}"
   debug_bundle="${CODERIM_MIGRATION_SYMBOLS_DIR}/${PRODUCT_NAME}.dSYM"
   if [[ -d "${binary_path}.dSYM" ]]; then
     ditto --norsrc --noextattr "${binary_path}.dSYM" "${debug_bundle}"
-  else
-    xcrun dsymutil "${binary_path}" -o "${debug_bundle}"
   fi
-  packaged_binary="${app_path}/Contents/MacOS/${PRODUCT_NAME}"
-  if codesign -d "${packaged_binary}" 2>/dev/null; then
-    codesign --remove-signature "${packaged_binary}"
-  fi
-  xcrun strip -x "${packaged_binary}"
-  diff <(xcrun dwarfdump --uuid "${packaged_binary}" | awk '{print $2, $3}' | sort) \
-       <(xcrun dwarfdump --uuid "${debug_bundle}" | awk '{print $2, $3}' | sort)
+fi
+if [[ ! -d "${debug_bundle}" ]]; then
+  xcrun dsymutil "${binary_path}" -o "${debug_bundle}"
+fi
+# Strip the delivered copy while retaining the matching symbols in the build products.
+packaged_binary="${app_path}/Contents/MacOS/${PRODUCT_NAME}"
+if codesign -d "${packaged_binary}" 2>/dev/null; then
+  codesign --remove-signature "${packaged_binary}"
+fi
+xcrun strip -x "${packaged_binary}"
+packaged_uuids=$(xcrun dwarfdump --uuid "${packaged_binary}" | awk '{print $2, $3}' | sort)
+symbol_uuids=$(xcrun dwarfdump --uuid "${debug_bundle}" | awk '{print $2, $3}' | sort)
+if [[ -z "${packaged_uuids}" || "${packaged_uuids}" != "${symbol_uuids}" ]]; then
+  print -u2 "Packaged executable and dSYM UUIDs must match."
+  exit 1
 fi
 install -m 755 "${claude_bridge_path}" "${app_path}/Contents/Helpers/CodeRimClaudeBridge"
 install -m 755 "${cli_path}" "${app_path}/Contents/Helpers/CodeRimCLI"
-if [[ "${CODERIM_MIGRATION_RESTART:-0}" == "1" ]]; then
+if [[ "${CODERIM_MIGRATION_RESTART:-1}" == "1" ]]; then
   # Both modes share the same signed binary and Rust standard library.
   ln -s CodeRimCLI "${app_path}/Contents/Helpers/CodeRimRestart"
 fi
@@ -117,12 +133,8 @@ install -m 644 "${project_root}/Config/Info.plist" "${app_path}/Contents/Info.pl
 for notice in LICENSE NOTICE; do
   install -m 644 "${project_root}/${notice}" "${app_path}/Contents/Resources/${notice}.txt"
 done
-if [[ -n "${CODERIM_RUST_ACCOUNTING_ARCHIVE:-}" ]]; then
-  install -m 644 "${project_root}/Rust/THIRD-PARTY-NOTICES.txt" "${app_path}/Contents/Resources/Rust-Notices.txt"
-fi
-if [[ -n "${CODERIM_MIGRATION_CLI:-}" ]]; then
-  install -m 644 "${project_root}/Rust/cli/THIRD-PARTY-NOTICES.txt" "${app_path}/Contents/Resources/Rust-CLI-Notices.txt"
-fi
+install -m 644 "${project_root}/Rust/THIRD-PARTY-NOTICES.txt" "${app_path}/Contents/Resources/Rust-Notices.txt"
+install -m 644 "${project_root}/Rust/cli/THIRD-PARTY-NOTICES.txt" "${app_path}/Contents/Resources/Rust-CLI-Notices.txt"
 "${script_dir}/verify_license_notices.sh" "${app_path}"
 provider_logo_source="${project_root}/Sources/CodeRim/Resources/ProviderLogos"
 provider_logo_destination="${app_path}/Contents/Resources/ProviderLogos"
@@ -166,4 +178,6 @@ if [[ "${adhoc_hardened_runtime}" == "1" ]]; then
 elif [[ "${adhoc_hardened_runtime}" == "0" ]]; then
   codesign --force --sign - "${app_path}"
 fi
-print "Built ${app_path}"
+codesign --verify --deep --strict "${app_path}"
+python3 "${script_dir}/rust_migration/apple.py" replace-bundle "${app_path}" "${bundle_destination}"
+print "Built ${bundle_destination}"

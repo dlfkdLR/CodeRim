@@ -144,6 +144,8 @@ jobs:
       - uses: ./.github/actions/swift-cache
         with:
           variant: release
+      - name: Install Rust standard libraries for Universal 2
+        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
       - name: Universal release build
         env:
           CODERIM_SWIFT_SCRATCH_PATH: ${{ github.workspace }}/.build/coderim-build
