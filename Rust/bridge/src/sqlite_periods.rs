@@ -2,18 +2,10 @@
 use crate::RawUsage;
 use std::ffi::{c_int, c_void};
 
-#[link(name = "sqlite3")]
-unsafe extern "C" {
-    fn sqlite3_step(stmt: *mut c_void) -> c_int;
-    fn sqlite3_column_int64(stmt: *mut c_void, column: c_int) -> i64;
-    fn sqlite3_column_double(stmt: *mut c_void, column: c_int) -> f64;
-    fn sqlite3_column_type(stmt: *mut c_void, column: c_int) -> c_int;
-}
-
-const SQLITE_FLOAT: c_int = 2;
-const SQLITE_ROW: c_int = 100;
-const SQLITE_DONE: c_int = 101;
-const SQLITE_NULL: c_int = 5;
+use super::apple_sqlite::{
+    SQLITE_DONE, SQLITE_FLOAT, SQLITE_NULL, SQLITE_ROW, sqlite3_column_double,
+    sqlite3_column_int64, sqlite3_column_type, sqlite3_step,
+};
 
 #[repr(C)]
 #[derive(Default)]

@@ -6,6 +6,8 @@ mod account_history;
 mod activity_distribution;
 mod aggregation;
 mod analytics_chart;
+#[cfg(target_os = "macos")]
+mod apple_sqlite;
 #[cfg(any(target_os = "macos", test))]
 mod card_layout;
 mod claude_json;
@@ -28,6 +30,8 @@ mod pricing;
 mod quota_window;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod session_totals;
+#[cfg(target_os = "macos")]
+mod sqlite_analytics;
 #[cfg(target_os = "macos")]
 mod sqlite_periods;
 #[cfg(target_os = "macos")]
