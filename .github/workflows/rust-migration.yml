@@ -12,6 +12,8 @@ on:
       - 'Scripts/make_dmg.sh'
       - 'Sources/CodeRimUsageCore/**'
       - 'Sources/CodeRim/Domain/SourceCheckpoint.swift'
+      - 'Sources/CodeRim/Notch/SideNotchShape.swift'
+      - 'Sources/CodeRim/Notch/NotchRootView.swift'
       - 'Sources/CodeRim/Persistence/**'
       - 'Sources/CodeRim/Sources/SourceImportSession.swift'
       - 'Windows/Directory.Build.targets'
