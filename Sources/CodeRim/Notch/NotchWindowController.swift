@@ -48,6 +48,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     private var accountPopover: NSPopover?
 #if DEBUG
     var accountPopoverForTesting: NSPopover? { accountPopover }
+    var hasPendingFoldForTesting: Bool { interaction.fold_timer != 0 }
 #endif
     private var panel: NotchPanel?
     private var hostingView: NotchHostingView<NotchRootView>?
@@ -78,11 +79,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     private var peekWork: DispatchWorkItem?
     /// Until expiry, a peek click focuses its session rather than refreshing a ring.
     private var pendingFocus: (session: AgentSession, until: Date)?
-    /// Suppress hover folding until the peek expires; a stationary pointer outside the notch must not
-    /// close it early.
-    private var peekUntil: Date?
-    /// The standing visibility choice, so a peek never overrides Hidden.
-    private var visibility: NotchVisibility = .onHover
+    private var interaction = NotchInteraction()
     private var visibilityChange = 0
     /// Whether we have pushed the pointing hand onto the cursor stack.
     private var isPointing = false
@@ -99,8 +96,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         super.init()
         model.onOpenAccountMenu = { [weak self] in self?.showAccountMenu() }
         model.onPageChange = { [weak self] in
-            self?.clearHoverWork?.cancel()
-            self?.clearHoverWork = nil
+            self?.handleInteraction(.cancelHoverClear)
             self?.relocate()
         }
     }
@@ -110,9 +106,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     private func showAccountMenu() {
         guard let panel, let hostingView, !model.isPresentingAccountMenu else { return }
         let options = accountOptions?() ?? []
-        foldWork?.cancel()
-        foldWork = nil
-        model.isPresentingAccountMenu = true
+        handleInteraction(.menuOpen)
         model.hoveredIndex = nil
         let popover = NSPopover()
         popover.behavior = .transient
@@ -146,7 +140,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
 
     func popoverDidClose(_ notification: Notification) {
         accountPopover = nil
-        model.isPresentingAccountMenu = false
+        handleInteraction(.menuClose)
         cursorMoved()
     }
 
@@ -195,9 +189,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         cancellables.removeAll()
         accountPopover?.close()
         setPointing(false)
-        peekUntil = nil
-        peekWork?.cancel()
-        foldWork?.cancel()
+        handleInteraction(.stop)
         cursorTimer?.invalidate()
         cursorTimer = nil
         clockTimer?.invalidate()
@@ -502,23 +494,14 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         )
 
         if let target {
-            clearHoverWork?.cancel()
-            clearHoverWork = nil
+            if interaction.hover_timer != 0 { handleInteraction(.cancelHoverClear) }
             if model.hoveredIndex != target {
                 withAnimation(.spring(response: 0.18, dampingFraction: 0.85)) {
                     model.hoveredIndex = target
                 }
             }
-        } else if model.hoveredIndex != nil, clearHoverWork == nil {
-            let work = DispatchWorkItem { [weak self] in
-                MainActor.assumeIsolated {
-                    guard let self else { return }
-                    self.clearHoverWork = nil
-                    withAnimation(.easeOut(duration: 0.18)) { self.model.hoveredIndex = nil }
-                }
-            }
-            clearHoverWork = work
-            DispatchQueue.main.asyncAfter(deadline: .now() + hoverGrace, execute: work)
+        } else if model.hoveredIndex != nil, interaction.hover_timer == 0 {
+            handleInteraction(.queueHoverClear)
         }
 
         updateInteractiveRects()
@@ -527,33 +510,64 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     /// Opens on contact, folds shut after a pause — unless it has been pinned
     /// open, in which case the pointer is not what decides.
     private func setExpanded(_ wanted: Bool) {
-        if wanted {
-            foldWork?.cancel()
-            foldWork = nil
-            guard !model.isExpanded else { return }
-            withAnimation(NotchMotion.unfold) { model.isExpanded = true }
-            return
-        }
+        // The wall clock is only needed while a completion peek holds the notch open.
+        let now = !wanted && interaction.peek_timer != 0 ? Date.timeIntervalSinceReferenceDate : 0
+        handleInteraction(wanted ? .enter : .leave, time: now)
+    }
 
-        // A peek holds the notch open for its own duration; only after that
-        // does the pointer get a say again.
-        if let peekUntil, peekUntil > Date() { return }
-        guard model.isExpanded, !model.staysOpen, foldWork == nil else { return }
-        let work = DispatchWorkItem { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                self.foldWork = nil
-                guard !self.model.staysOpen else { return }
-                withAnimation(NotchMotion.unfold) {
-                    self.model.isExpanded = false
-                    self.model.hoveredIndex = nil
-                }
-                self.setPointing(false)
-                self.updateInteractiveRects()
+    private func handleInteraction(_ event: NotchInteraction.Event, time: Double = 0,
+                                   timer: UInt64 = 0, peekDuration: TimeInterval = 0) {
+        let previous = interaction
+        let clearHover = interaction.apply(event, time: time, timer: timer)
+
+        if previous.fold_timer != interaction.fold_timer {
+            Self.schedule(&foldWork, id: interaction.fold_timer, after: foldGrace) { [weak self] id in
+                self?.handleInteraction(.foldFired, timer: id)
             }
         }
-        foldWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + foldGrace, execute: work)
+        if previous.peek_timer != interaction.peek_timer {
+            Self.schedule(&peekWork, id: interaction.peek_timer, after: peekDuration) { [weak self] id in
+                guard let self, let panel = self.panel, id == self.interaction.peek_timer else { return }
+                let inside = self.liveRect.contains(self.localCursor(in: panel.frame))
+                self.handleInteraction(inside ? .peekEndedInside : .peekEndedOutside, timer: id)
+            }
+        }
+        if previous.hover_timer != interaction.hover_timer {
+            Self.schedule(&clearHoverWork, id: interaction.hover_timer, after: hoverGrace) { [weak self] id in
+                self?.handleInteraction(.hoverClearFired, timer: id)
+            }
+        }
+
+        if previous.always_on != interaction.always_on { model.isAlwaysOn = interaction.always_on }
+        if previous.pinned != interaction.pinned { model.isPinned = interaction.pinned }
+        if previous.menu_open != interaction.menu_open { model.isPresentingAccountMenu = interaction.menu_open }
+        if previous.expanded != interaction.expanded || clearHover {
+            let publish = {
+                if self.model.isExpanded != self.interaction.expanded
+                    || (!self.interaction.expanded && self.model.expandedSessionProviderID != nil) {
+                    self.model.isExpanded = self.interaction.expanded
+                }
+                if clearHover, self.model.hoveredIndex != nil { self.model.hoveredIndex = nil }
+            }
+            switch event {
+            case .hidden, .edgeFold: publish()
+            case .hoverClearFired: withAnimation(.easeOut(duration: 0.18), publish)
+            default: withAnimation(NotchMotion.unfold, publish)
+            }
+        }
+        if clearHover, event == .foldFired || event == .peekEndedOutside || event == .focused {
+            setPointing(false)
+            updateInteractiveRects()
+        }
+    }
+
+    private static func schedule(_ work: inout DispatchWorkItem?, id: UInt64, after delay: TimeInterval,
+                                 perform: @escaping @MainActor (UInt64) -> Void) {
+        work?.cancel()
+        guard id != 0 else { work = nil; return }
+        let pending = DispatchWorkItem { MainActor.assumeIsolated { perform(id) } }
+        work = pending
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: pending)
     }
 
     /// The rings are buttons, so they should say so.
@@ -597,15 +611,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         // An unexpired peek wins over refresh and reopening, including clicks arriving during its post-
         // close grace period.
         if takePendingFocus() {
-            peekWork?.cancel()
-            peekWork = nil
-            peekUntil = nil
-            withAnimation(NotchMotion.unfold) {
-                model.isExpanded = false
-                model.hoveredIndex = nil
-            }
-            setPointing(false)
-            updateInteractiveRects()
+            handleInteraction(.focused)
             return
         }
         guard model.isExpanded else {
@@ -664,13 +670,13 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             guard let self, let panel = self.panel, change == self.edgeChange,
                   self.pendingEdge != nil else { return }
             self.pendingEdge = nil
-            let shouldReopen = self.visibility != .hidden && (self.model.isExpanded || self.model.staysOpen)
+            let shouldReopen = !self.interaction.hidden && (self.model.isExpanded || self.model.staysOpen)
             let visibilityChange = self.visibilityChange
 
             // Land folded, and at full strength: the opening *is* the
             // animation, and fading in underneath it would be two at once.
             self.model.edge = edge
-            self.model.isExpanded = false
+            self.handleInteraction(.edgeFold)
             self.relocate()
             self.updateInteractiveRects()
             panel.alphaValue = 1
@@ -682,8 +688,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
             DispatchQueue.main.asyncAfter(deadline: .now() + Self.arrivalBeat) {
                 MainActor.assumeIsolated {
                     guard change == self.edgeChange, visibilityChange == self.visibilityChange,
-                          self.visibility != .hidden else { return }
-                    withAnimation(NotchMotion.unfold) { self.model.isExpanded = true }
+                          !self.interaction.hidden else { return }
+                    self.handleInteraction(.edgeOpen)
                     self.updateInteractiveRects()
                 }
             }
@@ -717,40 +723,16 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     private var edgeChange = 0
 
     func apply(_ visibility: NotchVisibility) {
-        self.visibility = visibility
         visibilityChange &+= 1
-        // A standing choice outranks a peek that happens to be in flight.
-        peekWork?.cancel()
-        peekWork = nil
-        peekUntil = nil
         switch visibility {
         case .alwaysShow:
             panel?.orderFrontRegardless()
-            model.isAlwaysOn = true
-            // Any pin made by hand is subsumed by the setting; leaving it set
-            // would outlive a later switch back to hover.
-            model.isPinned = false
-            foldWork?.cancel()
-            foldWork = nil
-            withAnimation(NotchMotion.unfold) { model.isExpanded = true }
+            handleInteraction(.always)
         case .onHover:
             panel?.orderFrontRegardless()
-            model.isAlwaysOn = false
-            model.isPinned = false
-            // Fold now rather than waiting for the pointer to leave: it may
-            // already be somewhere else, in which case nothing would arrive to
-            // close it and "on hover" would look exactly like "always show".
-            withAnimation(NotchMotion.unfold) {
-                model.isExpanded = false
-                model.hoveredIndex = nil
-            }
+            handleInteraction(.onHover)
         case .hidden:
-            model.isAlwaysOn = false
-            model.isPinned = false
-            model.isExpanded = false
-            model.hoveredIndex = nil
-            // Ordered out rather than made transparent. An invisible panel that
-            // still takes the screen edge would keep swallowing the pointer.
+            handleInteraction(.hidden)
             panel?.orderOut(nil)
         }
         setPointing(false)
@@ -765,7 +747,7 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         // Hidden is a standing choice that the notch is not to be on screen.
         // Something finishing is not grounds to overrule it — the chime still
         // sounds, which is the part that works with nothing visible.
-        guard visibility != .hidden, let panel else {
+        guard !interaction.hidden, let panel else {
             NotchLog.usage.debug("peek skipped: notch hidden")
             return
         }
@@ -774,35 +756,9 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         if let session, SessionFocus.target(for: session) != nil {
             pendingFocus = (session: session, until: Date().addingTimeInterval(duration + Self.focusGrace))
         }
-        peekUntil = Date().addingTimeInterval(duration)
-
         panel.orderFrontRegardless()
-        foldWork?.cancel()
-        foldWork = nil
-        peekWork?.cancel()
-        withAnimation(NotchMotion.unfold) { model.isExpanded = true }
+        handleInteraction(.peek, time: Date.timeIntervalSinceReferenceDate + duration, peekDuration: duration)
         updateInteractiveRects()
-
-        let work = DispatchWorkItem { [weak self] in
-            MainActor.assumeIsolated {
-                guard let self, let panel = self.panel else { return }
-                self.peekWork = nil
-                self.peekUntil = nil
-                guard !self.model.staysOpen else { return }
-                // Left open if the peek did its job and the pointer is already
-                // there; the ordinary hover fold takes it from here.
-                guard !self.liveRect.contains(self.localCursor(in: panel.frame)) else { return }
-                withAnimation(NotchMotion.unfold) {
-                    self.model.isExpanded = false
-                    self.model.hoveredIndex = nil
-                }
-                self.setPointing(false)
-                self.updateInteractiveRects()
-                NotchLog.usage.debug("peek folded")
-            }
-        }
-        peekWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + duration, execute: work)
     }
 
     /// How long after a peek folds a click still counts as answering it. Covers
@@ -828,13 +784,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     /// Only a menu pin is toggleable; the standing Always show setting continues to hold the notch
     /// open.
     func togglePinned() {
-        guard !model.isAlwaysOn else { return }
-        model.isPinned.toggle()
-        if model.isPinned {
-            foldWork?.cancel()
-            foldWork = nil
-            withAnimation(NotchMotion.unfold) { model.isExpanded = true }
-        }
+        guard !interaction.always_on else { return }
+        handleInteraction(.togglePin)
         updateInteractiveRects()
     }
 

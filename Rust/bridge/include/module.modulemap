@@ -22,6 +22,7 @@ module CCodeRimAccounting {
     header "coderim_sqlite_checkpoint.h"
     header "coderim_statistics.h"
     header "coderim_settings_navigation.h"
+    header "coderim_notch_interaction.h"
     header "coderim_source_fingerprint.h"
     header "coderim_sqlite_event_import.h"
     header "coderim_legacy_ids.h"

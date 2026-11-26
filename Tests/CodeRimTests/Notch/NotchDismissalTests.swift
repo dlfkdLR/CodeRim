@@ -130,6 +130,23 @@ final class NotchDismissalTests: XCTestCase {
         XCTAssertFalse(controller.model.isExpanded)
     }
 
+    func testRestartWhileFoldIsPendingStillFoldsOutside() throws {
+        let (controller, cursor) = try makeController()
+        defer { controller.retire() }
+        try enter(cursor, controller: controller)
+        cursor.leave()
+        let timeout = Date().addingTimeInterval(2)
+        while !controller.hasPendingFoldForTesting && Date() < timeout {
+            pump(0.01)
+        }
+        XCTAssertTrue(controller.hasPendingFoldForTesting)
+        controller.stop()
+        controller.show()
+        waitForFold(controller)
+        XCTAssertFalse(controller.model.isExpanded)
+        XCTAssertFalse(controller.model.isPinned)
+    }
+
     func testExplicitKeepOpenAndAlwaysShowSurviveLeaving() throws {
         let (controller, cursor) = try makeController()
         defer { controller.retire() }
