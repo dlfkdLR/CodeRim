@@ -19,6 +19,11 @@ fn number(raw: &str) -> Option<i64> {
     if float.fract() != 0.0 || float >= i64::MAX as f64 || float <= i64::MIN as f64 {
         return None;
     }
+    // Below the exact-integer threshold Foundation returns the integral binary64
+    // value, including fractions that disappear during binary64 parsing.
+    if float.abs() < (1_u64 << 53) as f64 {
+        return Some(float as i64);
+    }
     let (mantissa, exponent) = raw.split_once(['e', 'E']).unwrap_or((raw, "0"));
     let (whole, fraction) = mantissa
         .trim_start_matches('-')
@@ -35,24 +40,21 @@ fn number(raw: &str) -> Option<i64> {
         .checked_sub(fraction.len() as i64)?;
     let significant = significant.trim_end_matches('0');
     let scale = scale.checked_add((digits.len() - digits.trim_end_matches('0').len()) as i64)?;
-    if (0..=18).contains(&scale) {
-        let exact = significant
-            .parse::<i128>()
-            .ok()?
-            .checked_mul(10_i128.pow(scale as u32))?;
-        return i64::try_from(if raw.starts_with('-') { -exact } else { exact }).ok();
-    }
-    // Swift Foundation also accepts a decimal whose rounding error is below
-    // the precision of Double when its fractional part disappears at decode.
-    let places = usize::try_from(scale.checked_neg()?).ok()?;
-    let length = significant.len().saturating_sub(places);
-    if length == 0 {
-        return Some(0);
-    }
-    let integer = significant[..length].parse::<i64>().ok()?;
-    Some(if raw.starts_with('-') {
-        -integer
+    // On larger decimals the decoder requires the *unscaled* magnitude to
+    // fit UInt64 before applying its exponent and the signed output limit.
+    let magnitude = significant.parse::<u64>().ok()?;
+    let value = if scale >= 0 {
+        magnitude.checked_mul(10_u64.checked_pow(u32::try_from(scale).ok()?)?)?
     } else {
-        integer
+        let places = u32::try_from(scale.checked_neg()?).ok()?;
+        10_u64
+            .checked_pow(places)
+            .map_or(0, |denominator| magnitude / denominator)
+    };
+    let signed = i64::try_from(value).ok()?;
+    Some(if raw.starts_with('-') {
+        -signed
+    } else {
+        signed
     })
 }

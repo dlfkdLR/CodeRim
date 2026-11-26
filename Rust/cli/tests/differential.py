@@ -112,7 +112,9 @@ def main():
             value["providers"][0]["limits"]["windows"][0]["usedPercent"]=number
             save(value)
             checked("floating-point output",["--json"])
-        for number in ["1.0","100e-2","0.123","9007199254740993.0","9223372036854775807.0"]:
+        for number in ["1.0","100e-2","0.123","9007199254740993.0","9223372036854775807.0",
+                       "0.99999999999999999","1.99999999999999999","-0.99999999999999999",
+                       "9007199254740993.25","123456789123456789.001","1e-9999"]:
             value=copy.deepcopy(data)
             value["providers"][0]["localUsage"]["totals"]["today"]["outputTokens"]="number here"
             path.write_text(json.dumps(value).replace('"number here"',number))
