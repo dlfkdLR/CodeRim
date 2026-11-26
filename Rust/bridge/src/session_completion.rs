@@ -3,11 +3,50 @@ use std::collections::HashSet;
 use std::ffi::c_void;
 use std::slice;
 
-pub struct BusyKeys(HashSet<Box<[u8]>>);
+#[derive(Default)]
+pub enum BusyKeys {
+    #[default]
+    Empty,
+    One(Box<[u8]>),
+    Many(HashSet<Box<[u8]>>),
+}
+
+impl BusyKeys {
+    fn add(&mut self, key: &[u8]) {
+        match self {
+            Self::Empty => *self = Self::One(key.into()),
+            Self::One(old) if old.as_ref() == key => {}
+            Self::One(old) => {
+                *self = Self::Many(HashSet::from([std::mem::take(old), key.into()]));
+            }
+            Self::Many(keys) => {
+                keys.insert(key.into());
+            }
+        }
+    }
+
+    fn remove(&mut self, key: &[u8]) {
+        match self {
+            Self::One(old) if old.as_ref() == key => *self = Self::Empty,
+            Self::Many(keys) => {
+                keys.remove(key);
+            }
+            _ => {}
+        }
+    }
+
+    fn contains(&self, key: &[u8]) -> bool {
+        match self {
+            Self::Empty => false,
+            Self::One(old) => old.as_ref() == key,
+            Self::Many(keys) => keys.contains(key),
+        }
+    }
+}
 
 #[unsafe(no_mangle)]
 pub extern "C" fn cr_completion_keys_new() -> *mut BusyKeys {
-    Box::into_raw(Box::new(BusyKeys(HashSet::new())))
+    Box::into_raw(Box::default())
 }
 
 /// # Safety
@@ -41,13 +80,12 @@ pub unsafe extern "C" fn cr_completion_observe(
     }
     if let Some(current) = unsafe { current.as_mut() } {
         if state == 0 {
-            current.0.insert(Box::from(key));
+            current.add(key);
         } else {
-            current.0.remove(key);
+            current.remove(key);
         }
     }
-    if matches!(state, 1 | 2) && unsafe { previous.as_ref() }.is_some_and(|old| old.0.contains(key))
-    {
+    if matches!(state, 1 | 2) && unsafe { previous.as_ref() }.is_some_and(|old| old.contains(key)) {
         return state as i8;
     }
     0
@@ -65,7 +103,10 @@ pub unsafe extern "C" fn cr_completion_copy_keys(
     let (Some(keys), Some(receive)) = (unsafe { keys.as_ref() }, receive) else {
         return;
     };
-    for key in &keys.0 {
-        unsafe { receive(context, key.as_ptr(), key.len()) };
+    let copy = |key: &[u8]| unsafe { receive(context, key.as_ptr(), key.len()) };
+    match keys {
+        BusyKeys::Empty => {}
+        BusyKeys::One(key) => copy(key),
+        BusyKeys::Many(set) => set.iter().for_each(|key| copy(key)),
     }
 }
