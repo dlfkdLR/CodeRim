@@ -1,12 +1,16 @@
 import module from './quick_picker.wasm';
 import { RelayObject as ShippingRelayObject } from '../src/worker.mjs';
-import { wasmQuickPicker } from './picker.mjs';
+import { lazyExports, wasmQuickPicker } from './picker.mjs';
+import { wasmSnapshotRead } from './snapshot-read.mjs';
 
 export { default } from '../src/worker.mjs';
-const quickPicker = wasmQuickPicker(module);
+const getExports = lazyExports(module);
+const quickPicker = wasmQuickPicker(module, getExports);
+const snapshotRead = wasmSnapshotRead(getExports);
 export class RelayObject extends ShippingRelayObject {
   constructor(ctx, env) {
     super(ctx, env);
     this.relay.quickPicker = quickPicker;
+    if (env.CODERIM_RUST_SNAPSHOT_READ === '1') this.relay.snapshotRead = snapshotRead;
   }
 }

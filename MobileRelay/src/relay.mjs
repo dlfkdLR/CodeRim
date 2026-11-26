@@ -25,8 +25,8 @@ const freshUntil = (state, now) => Math.min(Infinity, ...state.providers
 
 export class Relay {
   constructor({ store, push = async () => ({ status: 200 }), now = () => Date.now() / 1000, budgets = FREE_DAILY,
-    pollWait = 20000, schedule = () => {}, pushConfigured = true, quickPicker }) {
-    Object.assign(this, { store, push, now, budgets, pollWait, schedule, pushConfigured, quickPicker });
+    pollWait = 20000, schedule = () => {}, pushConfigured = true, quickPicker, snapshotRead }) {
+    Object.assign(this, { store, push, now, budgets, pollWait, schedule, pushConfigured, quickPicker, snapshotRead });
     this.serialTasks = new Map();
     this.ticking = new Map();
     this.inflight = new Set();
@@ -399,19 +399,25 @@ export class Relay {
     const user = this.store.user(session.owner), devices = this.devices(session.owner, now);
     const providers = new Map();
     for (const device of devices) for (const p of device.snapshot?.providers ?? []) providers.set(p.id, { id: p.id, name: p.name });
-    const state = this.state(session.owner, session.hash, now, devices);
+    const view = this.snapshotRead ? this.store.view(session.hash) : undefined;
+    const projection = this.snapshotRead?.(devices, view, user.dataFloor ?? 0, now);
+    const context = projection && { user, view, projection };
+    const state = this.state(session.owner, session.hash, now, devices, context);
     const displayProviders = eligibleProviders(devices.find(d => d.id === state.focus.deviceID), user.preferences)
       .map(p => ({ id: p.id, name: p.name }));
     return { state, preferences: user.preferences, displayProviders, notice: this.notice(),
       pushConfigured: this.pushConfigured,
       availableProviders: [...providers.values()].sort((a,b) => a.name.localeCompare(b.name)),
-      devices: devices.map(d => ({ id: d.id, name: d.name, platform: d.platform, online: d.receivedAt > 0 && now < d.receivedAt + (d.onlineWindow ?? ONLINE_WINDOW), lastSeen: d.receivedAt })) };
+      devices: devices.map((d, i) => ({ id: d.id, name: d.name, platform: d.platform,
+        online: projection ? Boolean(projection.online & (1 << i)) : d.receivedAt > 0 && now < d.receivedAt + (d.onlineWindow ?? ONLINE_WINDOW),
+        lastSeen: d.receivedAt })) };
   }
-  state(owner, sessionHash, now, devices = this.devices(owner, now)) {
-    const state = desktopState(devices, this.store.user(owner).preferences, this.store.view(sessionHash), now, this.quickPicker);
+  state(owner, sessionHash, now, devices = this.devices(owner, now), context) {
+    const user = context ? context.user : this.store.user(owner), view = context ? context.view : this.store.view(sessionHash);
+    const state = desktopState(devices, user.preferences, view, now, this.quickPicker, context?.projection.focused);
     // Orders answers that share a view revision: a stored sequence that grows with every content change
     // from any of the account's computers, survives restarts and never repeats for different content.
-    state.dataVersion = this.contentSequence(owner);
+    state.dataVersion = context ? context.projection.dataVersion : this.contentSequence(owner);
     // Some of an answer changes with time alone: a limit that reset turns stale, a computer that went quiet
     // turns offline. Among answers with the same content, the one evaluated later is the newer one.
     state.evaluatedAt = now;

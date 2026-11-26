@@ -1,11 +1,16 @@
 // A compiled WebAssembly.Module is provided by the Worker module loader, or by
 // the local replay. Instantiate lazily on the first quick-picker request.
-export function wasmQuickPicker(module) {
+export function lazyExports(module) {
+  let exports;
+  return () => (exports ??= new WebAssembly.Instance(module).exports);
+}
+
+export function wasmQuickPicker(module, getExports = lazyExports(module)) {
   let engine;
   return (list, pinned, recent, current, sessions) => {
     if (list.length > 100 || sessions.length > 64 || pinned.length > 3 || recent.length > 3) return null;
     if (!engine) {
-      const { memory, picker_buffer, quick_pick } = new WebAssembly.Instance(module).exports;
+      const { memory, picker_buffer, quick_pick } = getExports();
       const start = picker_buffer();
       // repr(C) byte arrays from quick_picker.rs; the standalone module never grows memory.
       const view = (n, len) => new Uint8Array(memory.buffer, start + n, len);

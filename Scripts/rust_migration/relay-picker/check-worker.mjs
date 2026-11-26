@@ -10,19 +10,21 @@ const { Miniflare, convertV4MiniflareOptions } = require('miniflare');
 const root = fileURLToPath(new URL('../../../MobileRelay/', import.meta.url));
 const config = await readFile(join(root, 'wrangler.toml'), 'utf8');
 const compatibilityDate = /^compatibility_date = "([^"]+)"/m.exec(config)[1];
-async function replay(entry) {
+async function replay(entry, read = false) {
   const files = new Set([entry]);
   for (const name of await readdir(join(root, 'src'))) {
     if (name.endsWith('.mjs') && name !== 'node-sql.mjs') files.add('src/' + name);
   }
   if (entry.startsWith('migration/')) {
     files.add('migration/picker.mjs');
+    files.add('migration/snapshot-read.mjs');
     files.add('migration/quick_picker.wasm');
   }
   const modules = [...files].map(file => ({ path: join(root, file),
     type: file.endsWith('.wasm') ? 'CompiledWasm' : 'ESModule' }));
   let outbound = 0;
   const mf = new Miniflare(convertV4MiniflareOptions({ modules, modulesRoot: root, compatibilityDate,
+    bindings: { CODERIM_RUST_SNAPSHOT_READ: read ? '1' : '' },
     compatibilityFlags: ['nodejs_compat'], cf: false, host: '127.0.0.1', port: 0,
     durableObjects: { RELAY: { className: 'RelayObject', useSQLite: true } },
     outboundService: () => { outbound++; throw new Error('Unexpected outbound service request'); } }));
@@ -54,11 +56,13 @@ async function replay(entry) {
       [['first', undefined], ['fourth', 'waiting'], ['third', 'working']]);
     assert.equal(final.state.providerPicker.options[0].isPinned, true);
     assert.equal(outbound, 0);
-    return [open, pin, final].map(v => v.state.providerPicker);
+    return [before, open, pin, final].map(v => ({ picker: v.state.providerPicker, revision: v.state.viewRevision,
+      generation: v.state.dataVersion, online: v.devices.map(d => d.online), focus: v.state.focus.deviceIndex }));
   } finally {
     await mf.dispose();
   }
 }
 const oracle = await replay('src/worker.mjs');
 assert.deepEqual(await replay('migration/worker.mjs'), oracle);
-console.log('Both local workerd SQLite Durable Objects served matching open, pin and persisted GET picker JSON.');
+assert.deepEqual(await replay('migration/worker.mjs', true), oracle);
+console.log('Three local SQLite Durable Object modes matched provider picker, content generation, current computer, online flags and persisted GET.');

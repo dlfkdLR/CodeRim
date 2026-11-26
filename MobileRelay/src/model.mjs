@@ -132,8 +132,9 @@ function catalogPicker(device, list, view, current, now, quickPicker) {
   return result;
 }
 // Each display has one source. Matching provider names never imply matching accounts.
-export function desktopState(devices, prefs, view, now, quickPicker) {
-  const device = devices.find(d => d.id === view?.deviceID) ?? devices.find(d => d.receivedAt + (d.onlineWindow ?? ONLINE_WINDOW) > now) ?? devices[0];
+export function desktopState(devices, prefs, view, now, quickPicker, focusedIndex) {
+  const device = focusedIndex !== undefined ? devices[focusedIndex]
+    : devices.find(d => d.id === view?.deviceID) ?? devices.find(d => d.receivedAt + (d.onlineWindow ?? ONLINE_WINDOW) > now) ?? devices[0];
   const list = eligibleProviders(device, prefs);
   const provider = list.find(p => p.id === view?.providerID) ?? list[0];
   const state = contentState(device?.snapshot, { providerIDs: provider ? [provider.id] : [] }, device?.receivedAt ?? 0, now, device?.onlineWindow);
