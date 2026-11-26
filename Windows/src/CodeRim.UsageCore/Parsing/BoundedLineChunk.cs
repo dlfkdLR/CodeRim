@@ -14,18 +14,34 @@ internal static class BoundedLineChunk
     internal readonly record struct Result(uint Consumed, uint Count, uint Pending);
 
 #if CODERIM_RUST_ACCOUNTING
-    static BoundedLineChunk() => RustAccountingLibrary.EnsureResolverInstalled();
-
-    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
-    [DllImport(RustAccountingLibrary.BridgeName, EntryPoint = "cr_windows_bounded_lines",
-        CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
-    private static extern unsafe Result Project(byte* input, uint length, uint pending, uint limit, uint* ends, uint capacity);
-
-    internal static unsafe Result Inspect(ReadOnlySpan<byte> bytes, uint pending, uint[] ends)
+    internal static Result Inspect(ReadOnlySpan<byte> bytes, uint pending, uint[] ends)
     {
-        fixed (byte* input = bytes)
-        fixed (uint* output = ends)
-            return Project(input, (uint)bytes.Length, pending, CodexJsonlParser.MaximumLineBytes, output, (uint)ends.Length);
+        int first = bytes.IndexOf((byte)'\n');
+        if (first < 0)
+            return new((uint)bytes.Length, 0, Math.Min(pending + (uint)bytes.Length, CodexJsonlParser.MaximumLineBytes + 1));
+        if (first == bytes.Length - 1)
+        {
+            ends[0] = (uint)first | (pending + (uint)first > CodexJsonlParser.MaximumLineBytes ? Oversized : 0);
+            return new((uint)bytes.Length, 1, 0);
+        }
+        return Native.Inspect(bytes, pending, ends);
+    }
+
+    private static class Native
+    {
+        static Native() => RustAccountingLibrary.EnsureResolverInstalled();
+
+        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+        [DllImport(RustAccountingLibrary.BridgeName, EntryPoint = "cr_windows_bounded_lines",
+            CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
+        private static extern unsafe Result Project(byte* input, uint length, uint pending, uint limit, uint* ends, uint capacity);
+
+        internal static unsafe Result Inspect(ReadOnlySpan<byte> bytes, uint pending, uint[] ends)
+        {
+            fixed (byte* input = bytes)
+            fixed (uint* output = ends)
+                return Project(input, (uint)bytes.Length, pending, CodexJsonlParser.MaximumLineBytes, output, (uint)ends.Length);
+        }
     }
 #else
     internal static Result Inspect(ReadOnlySpan<byte> bytes, uint pending, uint[] ends)

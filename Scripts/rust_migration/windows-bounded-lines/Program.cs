@@ -179,8 +179,56 @@ internal static class Program
         elapsed.Sort();allocated.Sort();
         return new{name,rounds,result,us=elapsed[3],bytes=allocated[3]};
     }
+    static object InterleavedReaders()
+    {
+        const int count = 20;
+        var readers = new IEnumerator<BoundedLine>[count];
+        var streams = new MemoryStream[count];
+        var outputs = Enumerable.Range(0, count).Select(_ => new List<byte[]>()).ToArray();
+        try
+        {
+            for (int i = 0; i < count; i++)
+            {
+                byte[] data = new byte[2 * Block + i * 7];
+                Array.Fill(data, (byte)(i + 50));
+                for (int j = i; j < data.Length; j += 19 + i) data[j] = 10;
+                data[^1] = 10;
+                streams[i] = new MemoryStream(data);
+                readers[i] = BoundedLineReader.Read(streams[i], data.Length, CancellationToken.None).GetEnumerator();
+                if (!readers[i].MoveNext()) throw new InvalidDataException("Expected an initial line");
+                outputs[i].Add(readers[i].Current.Bytes!);
+            }
+            Parallel.For(0, count, i =>
+            {
+                // Each reader is suspended independently while other streams replace or return offset buffers.
+                while (readers[i].MoveNext())
+                {
+                    outputs[i].Add(readers[i].Current.Bytes!);
+                    if (i % 3 == 0 && outputs[i].Count == 151) break;
+                }
+                readers[i].Dispose();
+            });
+            return outputs.Select(rows =>
+            {
+                using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                foreach (var row in rows) { hash.AppendData(row); hash.AppendData([10]); }
+                return new {count = rows.Count, hash = Convert.ToHexString(hash.GetHashAndReset())};
+            }).ToArray();
+        }
+        finally
+        {
+            foreach (var reader in readers) reader?.Dispose();
+            foreach (var stream in streams) stream?.Dispose();
+        }
+    }
+
     static void Main(string[] args)
     {
+        if (args[0] == "interleaved")
+        {
+            Console.WriteLine(JsonSerializer.Serialize(InterleavedReaders()));
+            return;
+        }
         if (args[0] == "first")
         {
             int size = int.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture);

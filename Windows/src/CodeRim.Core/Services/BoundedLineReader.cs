@@ -9,6 +9,7 @@ internal sealed record BoundedLine(byte[]? Bytes, bool Oversized);
 internal static class BoundedLineReader
 {
     private const int ReadBlockBytes = 64 * 1024;
+    private static uint[]? cachedOffsets;
 
     public static IEnumerable<BoundedLine> Read(
         Stream stream,
@@ -49,7 +50,7 @@ internal static class BoundedLineReader
                     length += read - start;
                     break;
                 }
-                yield return new BoundedLine(CopyLine(prefix.AsMemory(0, length), input, start, end - start), false);
+                yield return new BoundedLine(CopyLine(prefix, length, input, start, end - start), false);
                 length = 0;
                 start = end + 1;
             }
@@ -61,13 +62,14 @@ internal static class BoundedLineReader
     private static IEnumerable<BoundedLine> ReadChunks(Stream stream, long maximumBytes, IncrementalHash? prefixHash, CancellationToken cancellationToken)
     {
         var readBuffer = ArrayPool<byte>.Shared.Rent(ReadBlockBytes);
-        ArrayBufferWriter<byte>? prefix = null;
+        byte[]? prefix = null;
+        int prefixLength = 0;
         uint[]? ends = null;
         uint pending = 0;
         var totalBytesRead = 0L;
         try
         {
-            ends = ArrayPool<uint>.Shared.Rent(128);
+            ends = Interlocked.Exchange(ref cachedOffsets, null) ?? new uint[128];
             while (true)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -95,18 +97,17 @@ internal static class BoundedLineReader
                         if ((ends[i] & BoundedLineChunk.Oversized) != 0)
                             yield return new BoundedLine(null, true);
                         else
-                            yield return new BoundedLine(CopyLine(prefix?.WrittenMemory ?? default, readBuffer, start, end - start), false);
-                        prefix?.Clear();
+                            yield return new BoundedLine(CopyLine(prefix, prefixLength, readBuffer, start, end - start), false);
+                        ResetPrefix(prefix, ref prefixLength);
                         start = end + 1;
                     }
 
                     offset += (int)chunk.Consumed;
                     pending = chunk.Pending;
-                    if (pending > CodexJsonlParser.MaximumLineBytes) prefix?.Clear();
+                    if (pending > CodexJsonlParser.MaximumLineBytes) ResetPrefix(prefix, ref prefixLength);
                     else if (offset > start)
                     {
-                        prefix ??= new ArrayBufferWriter<byte>(offset - start);
-                        Append(prefix, readBuffer, start, offset - start);
+                        Append(ref prefix, ref prefixLength, readBuffer, start, offset - start);
                     }
                 }
             }
@@ -116,24 +117,36 @@ internal static class BoundedLineReader
         }
         finally
         {
-            if (ends is not null) ArrayPool<uint>.Shared.Return(ends);
+            if (ends is not null) Interlocked.CompareExchange(ref cachedOffsets, ends, null);
             ArrayPool<byte>.Shared.Return(readBuffer);
         }
     }
 
-    private static byte[] CopyLine(ReadOnlyMemory<byte> prefix, byte[] source, int start, int length)
+    private static byte[] CopyLine(byte[]? prefix, int prefixLength, byte[] source, int start, int length)
     {
-        if (prefix.IsEmpty) return source.AsMemory(start, length).ToArray();
-        var line = new byte[prefix.Length + length];
-        prefix.Span.CopyTo(line);
-        source.AsSpan(start, length).CopyTo(line.AsSpan(prefix.Length));
+        if (prefixLength + length == 0) return [];
+        var line = new byte[prefixLength + length];
+        if (prefixLength != 0) Buffer.BlockCopy(prefix!, 0, line, 0, prefixLength);
+        if (length != 0) Buffer.BlockCopy(source, start, line, prefixLength, length);
         return line;
     }
 
-    private static void Append(ArrayBufferWriter<byte> target, byte[] source, int start, int length)
+    private static void ResetPrefix(byte[]? prefix, ref int used)
     {
-        if (length == 0) return;
-        source.AsSpan(start, length).CopyTo(target.GetSpan(length));
-        target.Advance(length);
+        if (used == 0) return;
+        Array.Clear(prefix!, 0, used);
+        used = 0;
+    }
+
+    private static void Append(ref byte[]? prefix, ref int used, byte[] source, int start, int length)
+    {
+        int needed = used + length;
+        if (prefix is null || needed > prefix.Length)
+        {
+            int capacity = Math.Max(needed, Math.Min(CodexJsonlParser.MaximumLineBytes, 2 * used));
+            Array.Resize(ref prefix, capacity);
+        }
+        Buffer.BlockCopy(source, start, prefix, used, length);
+        used = needed;
     }
 }

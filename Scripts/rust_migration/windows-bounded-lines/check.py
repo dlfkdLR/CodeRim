@@ -76,6 +76,11 @@ def main():
             data = subprocess.check_output([dotnet, binaries[kind], mode, synthetic], env=env)
             return [json.loads(line) for line in data.splitlines()]
 
+        interleaved = run("release", "interleaved")
+        for kind in list(roots)[1:]:
+            if run(kind, "interleaved") != interleaved:
+                raise ValueError(f"{kind} returned different lines with simultaneous readers")
+        report["interleavedReaders"] = interleaved[0]
         contract = run("release","observe")
         for kind in list(roots)[1:]:
             candidate = run(kind,"observe")
