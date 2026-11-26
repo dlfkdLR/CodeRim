@@ -18,6 +18,7 @@ async function replay(entry, read = false) {
   if (entry.startsWith('migration/')) {
     files.add('migration/picker.mjs');
     files.add('migration/snapshot-read.mjs');
+    files.add('migration/starter.mjs');
     files.add('migration/quick_picker.wasm');
   }
   const modules = [...files].map(file => ({ path: join(root, file),

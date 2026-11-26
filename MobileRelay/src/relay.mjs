@@ -495,9 +495,10 @@ export class Relay {
       if (!owner) this.store.prune(now);
       // Starts and updates run side by side. Each phone's updates stay in order (serial per session),
       // but one phone's slow APNs answer, a start included, holds back no other phone's Island.
-      const updates = this.store.activities(owner).map(listed =>
+      const listedActivities = this.store.activities(owner);
+      const updates = listedActivities.map(listed =>
         this.serial(`activity:${listed.session}`, () => this.updateActivity(listed)).catch(() => now + 60));
-      const [startDue, dues] = await Promise.all([this.startActivities(owner, now), Promise.all(updates)]);
+      const [startDue, dues] = await Promise.all([this.startActivities(owner, now, this.starterPlan ? listedActivities : undefined), Promise.all(updates)]);
       due = Math.min(due, startDue, ...dues);
     } finally {
       due = Math.min(due, this.store.nextExpiry());
@@ -510,28 +511,38 @@ export class Relay {
       }
     }
   }
-  async startActivities(owner, now) {
+  async startActivities(owner, now, listedActivities) {
     let due = Infinity;
     const starts = [];
-    const live = new Set(this.store.activities(owner).filter(a => !a.data.ending).map(a => a.session));
+    const live = new Set((listedActivities ?? this.store.activities(owner)).filter(a => !a.data.ending).map(a => a.session));
     for (const starter of this.store.starters(owner)) {
       const authorization = this.store.one('SELECT * FROM sessions WHERE hash=?', starter.session);
       if (!authorization || authorization.owner !== starter.owner || authorization.role !== 'mobile' || authorization.expires <= now) {
         this.store.run('DELETE FROM starters WHERE session=?', starter.session);
         continue;
       }
-      const state = this.state(starter.owner, starter.session, now);
-      if (state.connection !== 'connected') continue;
-      if (starter.data.suppressed) {
-        if (state.workingCount + state.waitingCount === 0) {
-          delete starter.data.suppressed; this.store.saveStarter(starter);
+      let state;
+      const plan = this.starterPlan?.(Boolean(starter.data.suppressed), Boolean(starter.data.token),
+        live.has(starter.session), starter.data.startedAt ?? 0, now, START_COOLDOWN,
+        () => this.state(starter.owner, starter.session, now));
+      if (plan) {
+        if (plan.clear) { delete starter.data.suppressed; this.store.saveStarter(starter); }
+        if (!plan.state) { due = Math.min(due, plan.due); continue; }
+        state = plan.state;
+      } else {
+        state = this.state(starter.owner, starter.session, now);
+        if (state.connection !== 'connected') continue;
+        if (starter.data.suppressed) {
+          if (state.workingCount + state.waitingCount === 0) {
+            delete starter.data.suppressed; this.store.saveStarter(starter);
+          }
+          continue;
         }
-        continue;
+        if (!starter.data.token || live.has(starter.session)) continue;
+        if (state.workingCount + state.waitingCount === 0) continue;
+        const next = (starter.data.startedAt ?? 0) + START_COOLDOWN;
+        if (now < next) { due = Math.min(due, next); continue; }
       }
-      if (!starter.data.token || live.has(starter.session)) continue;
-      if (state.workingCount + state.waitingCount === 0) continue;
-      const next = (starter.data.startedAt ?? 0) + START_COOLDOWN;
-      if (now < next) { due = Math.min(due, next); continue; }
       starter.data.startedAt = now; this.store.saveStarter(starter);
       due = Math.min(due, now + START_COOLDOWN);
       // A token registered while this start was in flight is left as it is, but still gets its turn:
