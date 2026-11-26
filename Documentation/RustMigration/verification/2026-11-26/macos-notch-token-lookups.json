@@ -1,0 +1,286 @@
+{
+  "release": "v2.1.41",
+  "testEnvironment": {
+    "arm64": "Apple Silicon hardware",
+    "x86_64": "Intel binary via Rosetta on the same Apple Silicon Mac",
+    "data": "Synthetic sessions and application-owned SQLite files. Calls enter SessionTokenReader.totals, which supplies the notch. Measures exclude drawing the GUI."
+  },
+  "digest": {
+    "commit": "bbe0b74866ef0dc25f1ad7e0a6cf706fe888d40d",
+    "integrationCommit": "dfd42c8",
+    "behavior": "Preserves the exact lowercase SHA-256 key and provider prefix the importer uses. Uses the shared Rust-backed hex encoder for each displayed root session.",
+    "workerFixtureCasesPerArchitecture": 18,
+    "nativeSwiftFallbackVerified": true,
+    "packageTestsPassed": 4,
+    "independentComparisonPerArchitecture": {
+      "walScenarios": 30,
+      "expectedRootTotals": 3577,
+      "invalidOrAmbiguousStores": 10,
+      "closedWalScenarios": 4,
+      "closedRollbackJournalScenarios": 4,
+      "abiValidDigests": 8192,
+      "abiInvalidCases": 9
+    },
+    "repeatedTiming": "Each entry is the median of 21 post-warmup wall-time samples in microseconds. The timed call includes opening SQLite, reading the recursive session-family totals and closing the connection.",
+    "lookupMicroseconds": {
+      "arm64": {
+        "codex/1": {
+          "rust": 174.542,
+          "stable": 130.458
+        },
+        "codex/8": {
+          "rust": 114.166,
+          "stable": 260.125
+        },
+        "codex/64": {
+          "rust": 323,
+          "stable": 1619.958
+        },
+        "codex/128": {
+          "rust": 543.25,
+          "stable": 3049
+        },
+        "codex/129": {
+          "rust": 576.25,
+          "stable": 3143.667
+        },
+        "codex/257": {
+          "rust": 1055.417,
+          "stable": 6953.583
+        },
+        "claude/1": {
+          "rust": 85.666,
+          "stable": 113.334
+        },
+        "claude/8": {
+          "rust": 106.666,
+          "stable": 294.792
+        },
+        "claude/64": {
+          "rust": 311.083,
+          "stable": 1589.583
+        },
+        "claude/128": {
+          "rust": 548.333,
+          "stable": 4071.25
+        },
+        "claude/129": {
+          "rust": 558.583,
+          "stable": 3464.833
+        },
+        "claude/257": {
+          "rust": 1108.958,
+          "stable": 6575.875
+        }
+      },
+      "x86_64": {
+        "codex/1": {
+          "rust": 125.375,
+          "stable": 172.25
+        },
+        "codex/8": {
+          "rust": 157.75,
+          "stable": 471.167
+        },
+        "codex/64": {
+          "rust": 546.541,
+          "stable": 3156.708
+        },
+        "codex/128": {
+          "rust": 979.834,
+          "stable": 6241.875
+        },
+        "codex/129": {
+          "rust": 1364.625,
+          "stable": 6386.792
+        },
+        "codex/257": {
+          "rust": 2036.125,
+          "stable": 12993.709
+        },
+        "claude/1": {
+          "rust": 120.125,
+          "stable": 165.125
+        },
+        "claude/8": {
+          "rust": 167.917,
+          "stable": 534.583
+        },
+        "claude/64": {
+          "rust": 598.208,
+          "stable": 3222.917
+        },
+        "claude/128": {
+          "rust": 1086.042,
+          "stable": 6366.375
+        },
+        "claude/129": {
+          "rust": 1189.375,
+          "stable": 6483.792
+        },
+        "claude/257": {
+          "rust": 2264.542,
+          "stable": 12679.5
+        }
+      }
+    },
+    "isolatedSingleRootMicroseconds": {
+      "arm64": {
+        "codex": {
+          "stable": {
+            "samples": 336,
+            "medianUs": 100.249,
+            "p90Us": 113.771
+          },
+          "rust": {
+            "samples": 336,
+            "medianUs": 80.916,
+            "p90Us": 87.083
+          }
+        },
+        "claude": {
+          "stable": {
+            "samples": 336,
+            "medianUs": 100.104,
+            "p90Us": 111.641
+          },
+          "rust": {
+            "samples": 336,
+            "medianUs": 80.625,
+            "p90Us": 87.537
+          }
+        }
+      },
+      "x86_64": {
+        "codex": {
+          "stable": {
+            "samples": 336,
+            "medianUs": 156.062,
+            "p90Us": 170.058
+          },
+          "rust": {
+            "samples": 336,
+            "medianUs": 113.666,
+            "p90Us": 122.45
+          }
+        },
+        "claude": {
+          "stable": {
+            "samples": 336,
+            "medianUs": 155.459,
+            "p90Us": 167.075
+          },
+          "rust": {
+            "samples": 336,
+            "medianUs": 113.249,
+            "p90Us": 123.104
+          }
+        }
+      }
+    },
+    "independentAlternatingPairs": {
+      "perProviderRootCountAndArchitecture": 9,
+      "rootCounts": [
+        1,
+        8,
+        128
+      ],
+      "pairsFaster": 108,
+      "totalPairs": 108
+    },
+    "formalGate": "INCONCLUSIVE"
+  },
+  "restoredWal": {
+    "commit": "f8cf98aea9e1c4e69698a3fd6b8046bcbbf02495",
+    "source": "Actual SQLiteDatabase initialization, SQLiteSchema.configure, schema migration and SQLiteDatabase.commit in an application-owned 0700 directory with a 0600 usage database. Each notch query uses a new connection.",
+    "releaseCondition": "A complete standalone WAL-format database restored via SQLite backup, or copied after checkpoint, contains the history but lacks its -wal and -shm sidecars. On the tested system, mode=ro returns SQLITE_OK at open and SQLITE_CANTOPEN (14) at the first schema read. The older notch displayed no value. With the sidecars present the same released reader returned the stored total.",
+    "candidate": "Opens the existing accounting file without SQLITE_OPEN_CREATE. Normal SQLite locking can initialize sidecars in a writable directory. PRAGMA query_only protects the SQL connection. SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE preserves pending committed WAL frames when the last reader closes.",
+    "scenarios": {
+      "restoredAndCheckpointCopy": {
+        "storedTokens": 41,
+        "releaseDisplayed": null,
+        "candidateDisplayed": 41
+      },
+      "liveWriter": {
+        "beforeCommit": 41,
+        "afterCommit": 64,
+        "afterSecondUpdate": 75,
+        "mainFileBytesStayedAtCheckpoint": true
+      },
+      "terminatedWriter": {
+        "observedCommittedTotal": 122,
+        "mainAndWalBytesPreserved": true
+      },
+      "readOnlyDirectory": {
+        "closedWalWithoutSidecars": null,
+        "rollbackJournalTokens": 41
+      },
+      "missingAndDamaged": "Missing file stayed absent. Malformed and zero-byte files retained their original contents.",
+      "concurrentProcesses": [
+        {
+          "arch": "arm64",
+          "readerCalls": 310,
+          "differentWriterProcesses": 9,
+          "firstExpectedTotal": 41,
+          "lastExpectedTotal": 95,
+          "observedCommittedTotals": [
+            41,
+            43,
+            46,
+            55,
+            61,
+            68,
+            76,
+            95
+          ]
+        },
+        {
+          "arch": "x86_64",
+          "readerCalls": 310,
+          "differentWriterProcesses": 9,
+          "firstExpectedTotal": 41,
+          "lastExpectedTotal": 95,
+          "observedCommittedTotals": [
+            41,
+            46,
+            50,
+            55,
+            61,
+            68,
+            85,
+            95
+          ]
+        }
+      ]
+    },
+    "packageTestsPassed": 5,
+    "testSourceSha256": "4e557b424e581fab57b1b52b219ec3ae8d1ca4c73589533baa484fa356012ae8",
+    "independentReview": {
+      "casesPerArchitecture": 17,
+      "writableDirectoryRestores": {
+        "0600 file / 0700 directory": 29,
+        "0644 file / 0755 directory": 29,
+        "0444 file / 0755 directory": 29
+      },
+      "nonwritableWalWithoutSidecars": {
+        "0444 file / 0555 directory": null
+      },
+      "afterWriterTermination": {
+        "readsPerArchitecture": 3,
+        "tokensPerRead": 47,
+        "mainAndWalHashesUnchanged": true
+      },
+      "exclusiveLockAndInvalidHistory": "No fabricated totals."
+    },
+    "formalGate": "INCONCLUSIVE"
+  },
+  "evidenceSha256": {
+    "digestFixture": "96648a7dcbae28adda141e34b5c199ddebb7b6d0709a9dbba5f27532148e2d09",
+    "singleRoot": "666aa30ad198b8811ac850d3178caa518f9b779c2ce563ebb19e72918e178192",
+    "digestIndependentReview": "d260b03a5d0187590767d12295c3b5b6026e7b55374cb579a36fe004fe6a3a92",
+    "digestPackageTests": "0e988417c56a63a46d51c9170e59501470afd0abf906005264b0821253231212",
+    "walFixture": "edfc7f21fc5722267481bd48ffe55f652dcb3394a1fcbe1da56e394eef1ed7c7",
+    "walPackageTests": "03bd74a47e4457524d3d6c03e0718867d9a678e964548fc47fec1b56069f96e7",
+    "walIndependentReview": "37421cdf80a95a9dc3f4c66f0946c53d86c1e95ba51f68725651585c1bba5083"
+  }
+}

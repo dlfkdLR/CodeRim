@@ -1,0 +1,349 @@
+{
+  "release": "v2.1.41",
+  "ciHead": "d8396c00a11884107a0886cf70a7feae649cc703",
+  "run": "https://github.com/dlfkdLR/CodeRim/actions/runs/45774426784",
+  "evaluation": "The native Windows workflow executed the WPF view name-selection methods and the candidate Core resolver with synthetic session lists, dates and names. The timed interval covers name lookup. Metadata was made available when the session index modulo 100 was below the metadata setting.",
+  "samplesPerSideAndScenario": 7,
+  "platforms": {
+    "Arm64": {
+      "system": "Microsoft Windows 10.0.26200",
+      "frameComparisons": 1084,
+      "nameComparisons": 5094,
+      "checksum": 206892,
+      "rawReportSha256": "a8e7cff6e5031aec74d8d99f93ffb87b19d91a10d6d365cb2a3823bd1d080fe0",
+      "artifact": "https://github.com/dlfkdLR/CodeRim/actions/runs/45774426784/artifacts/15095239579",
+      "measurements": [
+        {
+          "events": 4096,
+          "metadataPercentSetting": 0,
+          "visibleSessions": 5,
+          "release": {
+            "medianMicroseconds": 114.233,
+            "medianAllocatedBytes": 4600
+          },
+          "candidate": {
+            "medianMicroseconds": 75.517,
+            "medianAllocatedBytes": 816
+          }
+        },
+        {
+          "events": 4096,
+          "metadataPercentSetting": 0,
+          "visibleSessions": 256,
+          "release": {
+            "medianMicroseconds": 7623.0,
+            "medianAllocatedBytes": 222432
+          },
+          "candidate": {
+            "medianMicroseconds": 202.3,
+            "medianAllocatedBytes": 29656
+          }
+        },
+        {
+          "events": 4096,
+          "metadataPercentSetting": 80,
+          "visibleSessions": 5,
+          "release": {
+            "medianMicroseconds": 1.067,
+            "medianAllocatedBytes": 944
+          },
+          "candidate": {
+            "medianMicroseconds": 0.267,
+            "medianAllocatedBytes": 160
+          }
+        },
+        {
+          "events": 4096,
+          "metadataPercentSetting": 80,
+          "visibleSessions": 256,
+          "release": {
+            "medianMicroseconds": 1135.6,
+            "medianAllocatedBytes": 66048
+          },
+          "candidate": {
+            "medianMicroseconds": 107.9,
+            "medianAllocatedBytes": 9376
+          }
+        },
+        {
+          "events": 4096,
+          "metadataPercentSetting": 100,
+          "visibleSessions": 5,
+          "release": {
+            "medianMicroseconds": 1.083,
+            "medianAllocatedBytes": 944
+          },
+          "candidate": {
+            "medianMicroseconds": 0.233,
+            "medianAllocatedBytes": 160
+          }
+        },
+        {
+          "events": 4096,
+          "metadataPercentSetting": 100,
+          "visibleSessions": 256,
+          "release": {
+            "medianMicroseconds": 42.1,
+            "medianAllocatedBytes": 37088
+          },
+          "candidate": {
+            "medianMicroseconds": 13.1,
+            "medianAllocatedBytes": 2168
+          }
+        },
+        {
+          "events": 16384,
+          "metadataPercentSetting": 0,
+          "visibleSessions": 5,
+          "release": {
+            "medianMicroseconds": 476.683,
+            "medianAllocatedBytes": 4600
+          },
+          "candidate": {
+            "medianMicroseconds": 299.2,
+            "medianAllocatedBytes": 816
+          }
+        },
+        {
+          "events": 16384,
+          "metadataPercentSetting": 0,
+          "visibleSessions": 256,
+          "release": {
+            "medianMicroseconds": 27562.9,
+            "medianAllocatedBytes": 222432
+          },
+          "candidate": {
+            "medianMicroseconds": 730.5,
+            "medianAllocatedBytes": 29656
+          }
+        },
+        {
+          "events": 16384,
+          "metadataPercentSetting": 80,
+          "visibleSessions": 5,
+          "release": {
+            "medianMicroseconds": 1.067,
+            "medianAllocatedBytes": 944
+          },
+          "candidate": {
+            "medianMicroseconds": 0.233,
+            "medianAllocatedBytes": 160
+          }
+        },
+        {
+          "events": 16384,
+          "metadataPercentSetting": 80,
+          "visibleSessions": 256,
+          "release": {
+            "medianMicroseconds": 4203.5,
+            "medianAllocatedBytes": 66048
+          },
+          "candidate": {
+            "medianMicroseconds": 371.9,
+            "medianAllocatedBytes": 9376
+          }
+        },
+        {
+          "events": 16384,
+          "metadataPercentSetting": 100,
+          "visibleSessions": 5,
+          "release": {
+            "medianMicroseconds": 1.067,
+            "medianAllocatedBytes": 944
+          },
+          "candidate": {
+            "medianMicroseconds": 0.25,
+            "medianAllocatedBytes": 160
+          }
+        },
+        {
+          "events": 16384,
+          "metadataPercentSetting": 100,
+          "visibleSessions": 256,
+          "release": {
+            "medianMicroseconds": 42.2,
+            "medianAllocatedBytes": 37088
+          },
+          "candidate": {
+            "medianMicroseconds": 12.9,
+            "medianAllocatedBytes": 2168
+          }
+        }
+      ]
+    },
+    "X64": {
+      "system": "Microsoft Windows 10.0.26100",
+      "frameComparisons": 1084,
+      "nameComparisons": 5094,
+      "checksum": 206892,
+      "rawReportSha256": "220f72da1b7e035e4fcbc9e1d773c2b25c9db88e299ec57427bfb987136ee1a7",
+      "artifact": "https://github.com/dlfkdLR/CodeRim/actions/runs/45774426784/artifacts/15096102290",
+      "measurements": [
+        {
+          "events": 4096,
+          "metadataPercentSetting": 0,
+          "visibleSessions": 5,
+          "release": {
+            "medianMicroseconds": 92.733,
+            "medianAllocatedBytes": 4600
+          },
+          "candidate": {
+            "medianMicroseconds": 82.667,
+            "medianAllocatedBytes": 816
+          }
+        },
+        {
+          "events": 4096,
+          "metadataPercentSetting": 0,
+          "visibleSessions": 256,
+          "release": {
+            "medianMicroseconds": 5658.1,
+            "medianAllocatedBytes": 222432
+          },
+          "candidate": {
+            "medianMicroseconds": 238.9,
+            "medianAllocatedBytes": 29656
+          }
+        },
+        {
+          "events": 4096,
+          "metadataPercentSetting": 80,
+          "visibleSessions": 5,
+          "release": {
+            "medianMicroseconds": 1.133,
+            "medianAllocatedBytes": 944
+          },
+          "candidate": {
+            "medianMicroseconds": 0.233,
+            "medianAllocatedBytes": 160
+          }
+        },
+        {
+          "events": 4096,
+          "metadataPercentSetting": 80,
+          "visibleSessions": 256,
+          "release": {
+            "medianMicroseconds": 723.1,
+            "medianAllocatedBytes": 66048
+          },
+          "candidate": {
+            "medianMicroseconds": 87.8,
+            "medianAllocatedBytes": 9376
+          }
+        },
+        {
+          "events": 4096,
+          "metadataPercentSetting": 100,
+          "visibleSessions": 5,
+          "release": {
+            "medianMicroseconds": 1.217,
+            "medianAllocatedBytes": 944
+          },
+          "candidate": {
+            "medianMicroseconds": 0.25,
+            "medianAllocatedBytes": 160
+          }
+        },
+        {
+          "events": 4096,
+          "metadataPercentSetting": 100,
+          "visibleSessions": 256,
+          "release": {
+            "medianMicroseconds": 45.2,
+            "medianAllocatedBytes": 37088
+          },
+          "candidate": {
+            "medianMicroseconds": 12.7,
+            "medianAllocatedBytes": 2168
+          }
+        },
+        {
+          "events": 16384,
+          "metadataPercentSetting": 0,
+          "visibleSessions": 5,
+          "release": {
+            "medianMicroseconds": 555.45,
+            "medianAllocatedBytes": 4600
+          },
+          "candidate": {
+            "medianMicroseconds": 255.65,
+            "medianAllocatedBytes": 816
+          }
+        },
+        {
+          "events": 16384,
+          "metadataPercentSetting": 0,
+          "visibleSessions": 256,
+          "release": {
+            "medianMicroseconds": 28476.9,
+            "medianAllocatedBytes": 222432
+          },
+          "candidate": {
+            "medianMicroseconds": 704.7,
+            "medianAllocatedBytes": 29656
+          }
+        },
+        {
+          "events": 16384,
+          "metadataPercentSetting": 80,
+          "visibleSessions": 5,
+          "release": {
+            "medianMicroseconds": 1.15,
+            "medianAllocatedBytes": 944
+          },
+          "candidate": {
+            "medianMicroseconds": 0.25,
+            "medianAllocatedBytes": 160
+          }
+        },
+        {
+          "events": 16384,
+          "metadataPercentSetting": 80,
+          "visibleSessions": 256,
+          "release": {
+            "medianMicroseconds": 4411.8,
+            "medianAllocatedBytes": 66048
+          },
+          "candidate": {
+            "medianMicroseconds": 329.1,
+            "medianAllocatedBytes": 9376
+          }
+        },
+        {
+          "events": 16384,
+          "metadataPercentSetting": 100,
+          "visibleSessions": 5,
+          "release": {
+            "medianMicroseconds": 1.117,
+            "medianAllocatedBytes": 944
+          },
+          "candidate": {
+            "medianMicroseconds": 0.25,
+            "medianAllocatedBytes": 160
+          }
+        },
+        {
+          "events": 16384,
+          "metadataPercentSetting": 100,
+          "visibleSessions": 256,
+          "release": {
+            "medianMicroseconds": 46.3,
+            "medianAllocatedBytes": 37088
+          },
+          "candidate": {
+            "medianMicroseconds": 12.8,
+            "medianAllocatedBytes": 2168
+          }
+        }
+      ]
+    }
+  },
+  "earlierIndependentReview": {
+    "assertions": 5143,
+    "matchingVisibleSessionRows": 3024,
+    "matchingProjectRows": 1344,
+    "cultures": 4,
+    "providers": 2,
+    "sha256": "f68a211aa514f78628cee54c69b46251445f7f2fff528c8400e967f774180ecf"
+  }
+}
