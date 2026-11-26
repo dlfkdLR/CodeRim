@@ -39,6 +39,29 @@ private actor FlakyRelay: MobileRelayServing {
 
 @MainActor
 final class MobileLifecycleTests: XCTestCase {
+    #if CODERIM_RUST_MOBILE_SELECTION
+    func testActivityRegistrationReportsEveryRetryAndStopsAfterSixAttempts() async {
+        var delays: [Int] = [], reports: [String] = [], attempts = 0
+        await MobilePushRegistration.run(activity: true, sameLogin: { true }, relayPush: { true },
+                                         report: { reports.append($0) }, sleep: { delays.append($0) }) {
+            attempts += 1
+            throw URLError(.timedOut)
+        }
+        XCTAssertEqual(attempts, 6)
+        XCTAssertEqual(delays, [2, 5, 15, 30, 60])
+        XCTAssertEqual(reports, Array(repeating: "Retrying push connection", count: 6) + ["Push connection failed · Start again"])
+
+        var current = true, starterAttempts = 0
+        await MobilePushRegistration.run(activity: false, sameLogin: { current }, report: { _ in XCTFail() },
+                                         sleep: { delay in XCTAssertEqual(delay, 5); current = false }) {
+            starterAttempts += 1
+            throw URLError(.timedOut)
+        }
+        XCTAssertEqual(starterAttempts, 1)
+    }
+    #endif
+
+
     func testSnapshotsCheckPushBeforeRejectingAndRetryAnOlderIslandOnlyOnce() {
         func version(_ revision: Int?, _ data: Double?, _ evaluated: Double?, _ stale: Double) -> MobileActivityState {
             var s = MobileActivityState.disconnected

@@ -25,6 +25,8 @@ mod mobile_follow;
 #[cfg(any(target_os = "ios", target_os = "macos", test))]
 mod mobile_reading;
 #[cfg(any(target_os = "ios", target_os = "macos", test))]
+mod mobile_registration;
+#[cfg(any(target_os = "ios", target_os = "macos", test))]
 mod mobile_selection;
 #[cfg(any(target_os = "macos", test))]
 mod notch_path;

@@ -31,6 +31,12 @@ cr_mobile_refresh_plan cr_mobile_refresh_header(cr_mobile_version incoming, cr_m
                                                 bool previous_push, bool next_push);
 uint8_t cr_mobile_reconcile_snapshot(cr_mobile_version incoming, const cr_mobile_version *versions,
                                      size_t count, bool may_retry);
+enum { CR_REG_BEGIN, CR_REG_WAKE, CR_REG_SUCCESS, CR_REG_ERROR };
+enum { CR_REG_FINISH, CR_REG_SLEEP, CR_REG_SEND, CR_REG_ADVANCE };
+enum { CR_REG_QUIET, CR_REG_LIVE, CR_REG_FOREGROUND, CR_REG_RETRYING, CR_REG_EXHAUSTED };
+typedef struct { uint8_t action, delay, notice; } cr_registration_step;
+cr_registration_step cr_mobile_registration_step(bool activity, uint8_t attempt, uint8_t event,
+                                                  bool cancelled, bool same_login, bool relay_push);
 /* The follow policy first requests an OS permission or clock observation when necessary. */
 enum { CR_FOLLOW_REFRESH, CR_FOLLOW_USER_STOP, CR_FOLLOW_RESUMED };
 enum { CR_FOLLOW_NONE, CR_FOLLOW_PERMISSION, CR_FOLLOW_CLOCK, CR_FOLLOW_START, CR_FOLLOW_STOP };

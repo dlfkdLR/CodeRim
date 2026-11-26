@@ -167,6 +167,12 @@ final class MobileAppModel: ObservableObject {
     private func registerStarter(_ token: Data, generation: UUID) async {
         guard loginGeneration == generation, let credential, let client else { return }
         let hex = token.map { String(format: "%02x", $0) }.joined()
+        #if CODERIM_RUST_MOBILE_SELECTION
+        await MobilePushRegistration.run(activity: false, sameLogin: { self.loginGeneration == generation }) {
+            let _: MobileOK = try await client.send("POST", "/v1/push-to-start", token: credential.token,
+                                                     body: MobilePushToStart(pushToken: hex))
+        }
+        #else
         for delay in [0, 5, 30, 120] {
             do {
                 if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
@@ -175,6 +181,7 @@ final class MobileAppModel: ObservableObject {
                 return
             } catch { if Task.isCancelled { return } }
         }
+        #endif
     }
 
     func setForeground(_ active: Bool) {
@@ -478,6 +485,15 @@ final class MobileAppModel: ObservableObject {
         let generation = loginGeneration
         let hex = token.map { String(format: "%02x", $0) }.joined()
         registrations[activity.id] = Task { [weak self] in
+            #if CODERIM_RUST_MOBILE_SELECTION
+            await MobilePushRegistration.run(activity: true,
+                                             sameLogin: { self?.loginGeneration == generation },
+                                             relayPush: { self?.serverPushAvailable == true },
+                                             report: { self?.activityStatus = $0 }) {
+                let _: MobileOK = try await client.send("POST", "/v1/activities", token: credential.token,
+                    body: MobileActivityRegistration(activityID: activity.id, pushToken: hex))
+            }
+            #else
             for delay in [0, 2, 5, 15, 30, 60] {
                 do {
                     if delay > 0 { try await Task.sleep(for: .seconds(delay)) }
@@ -493,6 +509,7 @@ final class MobileAppModel: ObservableObject {
                 }
             }
             self?.activityStatus = "Push connection failed · Start again"
+            #endif
         }
     }
 
@@ -535,6 +552,49 @@ final class MobileAppModel: ObservableObject {
         serverPushAvailable = false
     }
 }
+
+
+#if CODERIM_RUST_MOBILE_SELECTION
+/// The relay receives the original Swift request. Rust sees the attempt and outcome only.
+@MainActor
+enum MobilePushRegistration {
+    static func run(activity: Bool, sameLogin: () -> Bool,
+                    relayPush: () -> Bool = { false }, report: (String) -> Void = { _ in },
+                    sleep: (Int) async throws -> Void = { try await Task.sleep(for: .seconds($0)) },
+                    send: () async throws -> Void) async {
+        var attempt: UInt8 = 0
+        var event = CR_REG_BEGIN
+        while true {
+            let next = cr_mobile_registration_step(activity, attempt, UInt8(event), Task.isCancelled, sameLogin(), relayPush())
+            switch Int(next.notice) {
+            case CR_REG_LIVE: report("Live")
+            case CR_REG_FOREGROUND: report("Updates while this app is open")
+            case CR_REG_RETRYING: report("Retrying push connection")
+            case CR_REG_EXHAUSTED:
+                report("Retrying push connection")
+                report("Push connection failed · Start again")
+            default: break
+            }
+            do {
+                switch Int(next.action) {
+                case CR_REG_SLEEP:
+                    try await sleep(Int(next.delay))
+                    event = CR_REG_WAKE
+                case CR_REG_SEND:
+                    try await send()
+                    event = CR_REG_SUCCESS
+                case CR_REG_ADVANCE:
+                    attempt += 1
+                    event = CR_REG_BEGIN
+                default: return
+                }
+            } catch {
+                event = CR_REG_ERROR
+            }
+        }
+    }
+}
+#endif
 
 /// State committed synchronously before the app starts or ends an Activity.
 struct MobileActivityFollowing {
