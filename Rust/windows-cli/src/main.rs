@@ -1,5 +1,7 @@
 //! Opt-in companion. Only a sibling from this executable's own installation handles
 //! hook commands or compatibility snapshots. No program lookup through PATH.
+#[cfg(windows)]
+mod console;
 mod date;
 mod display;
 mod encoding;
@@ -19,7 +21,11 @@ use std::{
 
 const MAX_BYTES: usize = 8 * 1024 * 1024;
 const INVALID: &str = "Unable to read valid CodeRim data.";
-fn line(out: &mut impl Write, text: &str) -> io::Result<()> {
+fn line(out: &mut impl Write, text: &str, _error: bool) -> io::Result<()> {
+    #[cfg(windows)]
+    if let Some(result) = console::line(text, _error) {
+        return result;
+    }
     #[cfg(windows)]
     let ending = "\r\n";
     #[cfg(not(windows))]
@@ -118,7 +124,7 @@ fn run(args: Vec<OsString>) -> Result<i32, String> {
     }
     let options = options::parse(&args)?;
     let out = io::stdout();
-    let print = |s: &str| line(&mut out.lock(), s).map_err(|_| INVALID.to_owned());
+    let print = |s: &str| line(&mut out.lock(), s, false).map_err(|_| INVALID.to_owned());
     match options.command.as_str() {
         "help" => {
             for s in include_str!("help.txt").lines() {
@@ -177,7 +183,7 @@ fn main() {
     let code = match run(env::args_os().skip(1).collect()) {
         Ok(code) => code,
         Err(msg) => {
-            let _ = line(&mut io::stderr().lock(), &msg);
+            let _ = line(&mut io::stderr().lock(), &msg, true);
             1
         }
     };

@@ -167,6 +167,15 @@ with tempfile.TemporaryDirectory(prefix='coderim-standalone-cli-') as tmp:
                 if child.poll() is None:child.terminate()
                 child.wait(timeout=5)
     assert watch_results['legacy']['frames']==watch_results['rust']['frames']
+    console_result = None
+    if os.name == 'nt':
+        private = subprocess.STARTUPINFO()
+        private.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        private.wShowWindow = subprocess.SW_HIDE
+        receipt = base / 'private-console.json'
+        subprocess.run([sys.executable, here/'console_check.py', incumbent, native, data/'small.json', receipt],
+                       env=env, creationflags=subprocess.CREATE_NEW_CONSOLE, startupinfo=private, check=True, timeout=90)
+        console_result = json.loads(receipt.read_text(encoding='utf8'))
     hook_results={}
     if args.synthetic_hook_install:
         assert os.name=='nt' and args.rid
@@ -220,7 +229,7 @@ with tempfile.TemporaryDirectory(prefix='coderim-standalone-cli-') as tmp:
             # The elapsed time includes the child. Parent-only process RSS/CPU is not a tree measurement.
             for sample in samples['rust']:sample.pop('cpuMs');sample.pop('peakRss')
         bench[label]=samples
-    args.output.write_text(json.dumps(dict(native=native_cases,cases=cases,watch=watch_results,syntheticHooks=hook_results,benchmarks=bench,binarySha256=hashlib.sha256(binary.read_bytes()).hexdigest()),indent=2)+'\n')
+    args.output.write_text(json.dumps(dict(native=native_cases,cases=cases,watch=watch_results,console=console_result,syntheticHooks=hook_results,benchmarks=bench,binarySha256=hashlib.sha256(binary.read_bytes()).hexdigest()),indent=2)+'\n')
     if args.artifacts:
         args.artifacts.mkdir(parents=True,exist_ok=True)
         for source in [native,host,repo/'Rust/windows-cli/THIRD-PARTY-NOTICES.txt',repo/'Rust/windows-cli/README.md']:
