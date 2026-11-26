@@ -2,6 +2,36 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using CodeRim.Core.Domain;
+using CodeRim.Core.Services;
+
+if (args is ["aggregate"])
+{
+    const int length = 8192;
+    const int repeats = 64;
+    var now = new DateTimeOffset(2026, 11, 26, 12, 0, 0, TimeSpan.Zero);
+    var events = Enumerable.Range(0, length).Select(i =>
+        new UsageEvent(i.ToString(System.Globalization.CultureInfo.InvariantCulture), now.AddHours(-(i % 1024)), new TokenUsage(29, 7, 5, 2))
+        { Repaired = i == 1024 }).ToArray();
+    long Fold() {
+        var result = UsageAggregation.Aggregate(events, now, WeekStart.Monday, false, TimeZoneInfo.Utc);
+        if (result.AllTime.InputTokens != length * 29L || result.Quality != DataQuality.Partial)
+            throw new InvalidOperationException("Period accounting mismatch.");
+        return result.Today.TotalTokens + result.Week.TotalTokens + result.Month.TotalTokens + result.AllTime.TotalTokens;
+    }
+    for (var i = 0; i < 8; i++) Fold();
+    var before = GC.GetAllocatedBytesForCurrentThread();
+    var timer = Stopwatch.GetTimestamp();
+    long sum = 0;
+    for (var i = 0; i < repeats; i++) sum += Fold();
+    var duration = Stopwatch.GetElapsedTime(timer);
+    var bytes = GC.GetAllocatedBytesForCurrentThread() - before;
+    Console.WriteLine(JsonSerializer.Serialize(new {
+        elapsedMs = duration.TotalMilliseconds, allocatedBytes = bytes, checksum = sum,
+        observations = length * repeats, architecture = RuntimeInformation.ProcessArchitecture.ToString(),
+        runtime = RuntimeInformation.FrameworkDescription
+    }));
+    return;
+}
 
 // The measured region invokes the public host entry point with pre-parsed observations.
 const int observationsPerSession = 4096;

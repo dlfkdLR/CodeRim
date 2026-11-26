@@ -117,10 +117,16 @@ jobs:
         run: |
           $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
           python Scripts/rust_migration/windows_bench.py --library "$library" --output "windows-${{ matrix.arch }}-normalization.json"
+      - name: Compare native and Rust period aggregation on this architecture
+        run: |
+          $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
+          python Scripts/rust_migration/windows_bench.py --library "$library" --workload aggregate --output "windows-${{ matrix.arch }}-aggregate.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-${{ matrix.arch }}-normalization
-          path: windows-${{ matrix.arch }}-normalization.json
+          path: |
+            windows-${{ matrix.arch }}-normalization.json
+            windows-${{ matrix.arch }}-aggregate.json
           if-no-files-found: error
 
   macos-tests:

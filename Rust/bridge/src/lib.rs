@@ -1,5 +1,6 @@
 //! Fixed-layout normalization entry points take and return values by copy.
 //! Presence flags distinguish an absent measurement from any signed counter.
+mod aggregation;
 mod event_json;
 #[cfg(any(target_os = "macos", test))]
 mod notch_path;

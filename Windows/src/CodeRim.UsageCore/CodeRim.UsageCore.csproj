@@ -25,7 +25,7 @@
              CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" ExcludeFromSingleFile="true" />
   </ItemGroup>
   <ItemGroup Condition="'$(CodeRimRustAccounting)' != 'true'">
-    <Compile Remove="Domain/RustUsageNormalizer.cs" />
+    <Compile Remove="Domain/RustUsageNormalizer.cs;Domain/RustAccountingLibrary.cs;Services/RustUsageAggregation.cs" />
   </ItemGroup>
   <Import Project="Build/ValidateRustBridge.targets" Condition="'$(CodeRimRustAccounting)' == 'true'" />
   <Target Name="ValidateCodeRimAccountingLibrary" BeforeTargets="PrepareForBuild;GetCopyToOutputDirectoryItems;ComputeFilesToPublish"

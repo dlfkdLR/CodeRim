@@ -35,6 +35,10 @@ public static class UsageAggregation
             new DateTime(localNow.Year, localNow.Month, 1),
             timeZone);
 
+#if CODERIM_RUST_ACCOUNTING
+        return RustUsageAggregation.Aggregate(events, now, todayStart, weekStartUtc, monthStartUtc,
+            partial, sourcesPartial ?? partial, timeZone.Id);
+#else
         var today = TokenUsage.Zero;
         var week = TokenUsage.Zero;
         var month = TokenUsage.Zero;
@@ -78,6 +82,7 @@ public static class UsageAggregation
             ? partial ? DataQuality.Partial : DataQuality.Unavailable
             : partial || marked ? DataQuality.Partial : DataQuality.Exact;
         return new UsageSnapshot(today, week, month, allTime, quality, newest) { SourcesPartial = sourcesPartial ?? partial, Through = now, TimeZoneIdentifier = timeZone.Id };
+#endif
     }
 
     /// The day's first instant, the same one the charts start the day at: a midnight that happens twice

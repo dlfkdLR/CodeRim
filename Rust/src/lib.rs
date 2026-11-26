@@ -2,7 +2,9 @@
 
 #![forbid(unsafe_code)]
 
+mod aggregation;
 mod normalization;
+pub use aggregation::{PeriodBounds, PeriodTotals};
 pub use normalization::{
     Diagnostic, Normalization, Observation, Quality, State, ZeroPolicy, normalize,
 };

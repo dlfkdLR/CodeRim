@@ -43,9 +43,28 @@ typedef struct {
     int64_t input, cached, output, written;
 } cr_increment_counts;
 
+typedef struct {
+    int64_t through, today, week, month;
+} cr_period_bounds_ticks;
+typedef struct {
+    int64_t at;
+    cr_usage usage;
+    int64_t repaired;
+} cr_period_event_ticks;
+typedef struct {
+    cr_usage today, week, month, all_time;
+    int64_t latest_at;
+    int32_t latest_index, marked;
+} cr_period_totals;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+/* Read count initialized, aligned rows in one immutable allocation for this call.
+   Valid count is 1..256. Use latest_index=-1 initially. A returned index of
+   -2 reports invalid arguments. The host retains the original timestamp offset. */
+cr_period_totals cr_aggregate_windows(cr_period_totals totals, cr_period_bounds_ticks bounds,
+                                     const cr_period_event_ticks *events, int32_t count, int32_t first_index);
 /* For chronological observations with both cumulative snapshots present. A
    negative returned input delegates the entire observation to cr_normalize_windows.
    A successful delta has a known write count exactly when both inputs supplied one. */
