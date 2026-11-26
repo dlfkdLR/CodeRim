@@ -38,9 +38,12 @@ def compare(dotnet, library, rounds, workspace, workload):
         for backend in ("managed", "rust")
     }
     return {
-        "workload": ("Public .NET Aggregate; 8192 retained events, 8 warmup scans per process"
-                     if workload == "aggregate" else
-                     "Public .NET Normalize; pre-parsed monotone counters; 32 warmup sessions per process"),
+        "workload": {
+            "aggregate": "Public .NET Aggregate; 8192 retained events, 8 warmup scans per process",
+            "normalize": "Public .NET Normalize; pre-parsed monotone counters; 32 warmup sessions per process",
+            "parse-tokens": "Public .NET CodexJsonlParser.Parse; token rows with and without rate limits",
+            "parse-mixed": "Public .NET CodexJsonlParser.Parse; token, quoted count, metadata, task and message rows",
+        }[workload],
         "system": platform.platform(),
         "tieredCompilation": False,
         "medianElapsedMs": median,
@@ -54,7 +57,7 @@ def main():
     parser.add_argument("--library", type=Path, required=True, help="compiled Rust accounting bridge for the host")
     parser.add_argument("--output", type=Path, required=True, help="write benchmark samples and medians here")
     parser.add_argument("--dotnet", default="dotnet")
-    parser.add_argument("--workload", choices=["normalize", "aggregate"], default="normalize")
+    parser.add_argument("--workload", choices=["normalize", "aggregate", "parse-tokens", "parse-mixed"], default="normalize")
     parser.add_argument("--rounds", type=int, default=7)
     args = parser.parse_args()
     if args.rounds < 1:

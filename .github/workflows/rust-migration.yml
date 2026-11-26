@@ -138,12 +138,19 @@ jobs:
         run: |
           $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
           python Scripts/rust_migration/windows_bench.py --library "$library" --workload aggregate --output "windows-${{ matrix.arch }}-aggregate.json"
+      - name: Compare canonical and mixed Windows token parsing
+        run: |
+          $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
+          python Scripts/rust_migration/windows_bench.py --library "$library" --workload parse-tokens --output "windows-${{ matrix.arch }}-parse-tokens.json"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python Scripts/rust_migration/windows_bench.py --library "$library" --workload parse-mixed --output "windows-${{ matrix.arch }}-parse-mixed.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-${{ matrix.arch }}-normalization
           path: |
             windows-${{ matrix.arch }}-normalization.json
             windows-${{ matrix.arch }}-aggregate.json
+            windows-${{ matrix.arch }}-parse-*.json
           if-no-files-found: error
 
   macos-tests:

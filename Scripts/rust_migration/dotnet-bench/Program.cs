@@ -4,6 +4,12 @@ using System.Text.Json;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
 
+if (args is ["parse-tokens" or "parse-mixed"])
+{
+    TokenParserBenchmark.Run(args[0]);
+    return;
+}
+
 if (args is ["aggregate"])
 {
     const int length = 8192;

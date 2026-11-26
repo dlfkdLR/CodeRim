@@ -38,6 +38,15 @@ public static class CodexJsonlParser
             return Malformed("line exceeds the 1 MiB safety limit");
         }
 
+#if CODERIM_RUST_ACCOUNTING
+        if (RustCodexTokenParser.TryParse(line.Span) is { } token)
+            return new ParsedLine(ParsedLineKind.Token, Token: token);
+#endif
+        return ParseManaged(line);
+    }
+
+    internal static ParsedLine ParseManaged(ReadOnlyMemory<byte> line)
+    {
         try
         {
             using var document = JsonDocument.Parse(line);
@@ -193,14 +202,17 @@ public static class CodexJsonlParser
             return null;
         }
 
-        return DateTimeOffset.TryParse(
-            element.GetString(),
+        return ParseTimestamp(element.GetString());
+    }
+
+    internal static DateTimeOffset? ParseTimestamp(ReadOnlySpan<char> text) =>
+        DateTimeOffset.TryParse(
+            text,
             CultureInfo.InvariantCulture,
             DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
             out var value)
             ? value
             : null;
-    }
 
     private static DateTimeOffset? TryUnixTimestamp(JsonElement parent, string propertyName)
     {

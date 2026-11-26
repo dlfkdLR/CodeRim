@@ -22,6 +22,6 @@
     <Compile Include="../../src/CodeRim.UsageCore/Domain/ManagedUsageNormalizer.cs" Link="ManagedUsageNormalizer.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(CodeRimRustAccounting)' != 'true'">
-    <Compile Remove="RustNormalizerDifferentialTests.cs" />
+    <Compile Remove="RustNormalizerDifferentialTests.cs;RustCodexTokenParserTests.cs" />
   </ItemGroup>
 </Project>
