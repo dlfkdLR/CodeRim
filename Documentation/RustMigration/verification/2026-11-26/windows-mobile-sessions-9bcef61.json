@@ -1,0 +1,249 @@
+{
+  "commit": "9bcef61f4e5578a2d9c1173e63df3e7b147d2366",
+  "run": 45761632501,
+  "measurement": "Synthetic complete mobile snapshots from the Windows publisher. Per-case timings compare the release with the candidate native Rust library in the same process.",
+  "architectures": {
+    "arm64": {
+      "jobId": 139712745177,
+      "artifactId": 15089789571,
+      "artifactSha256": "adc05d2bb669d455d19a797448cdb0c2051b208b17b0d2367c50e7a73d3767a0",
+      "architecture": "ARM64",
+      "dotnet": "11.0.100",
+      "librarySha256": "4c09fbe155ed073ca614d6943b593f6de2cb29f92b63418117d454cd12607313",
+      "referenceSnapshotsSha256": "80897133849402d8428062523d3b901f5b01a78d0158149b5d42a588b67a30f4",
+      "records": 198,
+      "pairedRounds": 7,
+      "summary": [
+        {
+          "sessions": 0,
+          "shareTitles": false,
+          "releaseNs": 4219.916666666667,
+          "releaseBytes": 3752,
+          "rustNs": 3836.9166666666665,
+          "rustBytes": 3376,
+          "timeRatio": 0.9092399139003534
+        },
+        {
+          "sessions": 0,
+          "shareTitles": true,
+          "releaseNs": 3123.1666666666665,
+          "releaseBytes": 3752,
+          "rustNs": 2746.25,
+          "rustBytes": 3376,
+          "timeRatio": 0.8793158653076472
+        },
+        {
+          "sessions": 1,
+          "shareTitles": false,
+          "releaseNs": 3102.1666666666665,
+          "releaseBytes": 3856,
+          "rustNs": 2737.5833333333335,
+          "rustBytes": 3376,
+          "timeRatio": 0.8824746145167357
+        },
+        {
+          "sessions": 1,
+          "shareTitles": true,
+          "releaseNs": 3090.0833333333335,
+          "releaseBytes": 3856,
+          "rustNs": 2762.25,
+          "rustBytes": 3376,
+          "timeRatio": 0.893907931285564
+        },
+        {
+          "sessions": 8,
+          "shareTitles": false,
+          "releaseNs": 3685.75,
+          "releaseBytes": 4472,
+          "rustNs": 3189.0833333333335,
+          "rustBytes": 3656,
+          "timeRatio": 0.8652467837843949
+        },
+        {
+          "sessions": 8,
+          "shareTitles": true,
+          "releaseNs": 8901.5,
+          "releaseBytes": 8664,
+          "rustNs": 3820.6666666666665,
+          "rustBytes": 4248,
+          "timeRatio": 0.4292160497294463
+        },
+        {
+          "sessions": 64,
+          "shareTitles": false,
+          "releaseNs": 7314.333333333333,
+          "releaseBytes": 8032,
+          "rustNs": 5159.333333333333,
+          "rustBytes": 6024,
+          "timeRatio": 0.7053730118944538
+        },
+        {
+          "sessions": 64,
+          "shareTitles": true,
+          "releaseNs": 38340,
+          "releaseBytes": 42056,
+          "rustNs": 9116,
+          "rustBytes": 10968,
+          "timeRatio": 0.23776734480959832
+        },
+        {
+          "sessions": 512,
+          "shareTitles": false,
+          "releaseNs": 29651,
+          "releaseBytes": 34792,
+          "rustNs": 17310,
+          "rustBytes": 7496,
+          "timeRatio": 0.5837914404235944
+        },
+        {
+          "sessions": 512,
+          "shareTitles": true,
+          "releaseNs": 308839,
+          "releaseBytes": 335176,
+          "rustNs": 22431,
+          "rustBytes": 13632,
+          "timeRatio": 0.07263007586477097
+        },
+        {
+          "sessions": 4096,
+          "shareTitles": false,
+          "releaseNs": 201640,
+          "releaseBytes": 248633,
+          "rustNs": 110166.66666666667,
+          "rustBytes": 7497,
+          "timeRatio": 0.5463532367916419
+        },
+        {
+          "sessions": 4096,
+          "shareTitles": true,
+          "releaseNs": 2013306.6666666667,
+          "releaseBytes": 2568537,
+          "rustNs": 118406.66666666667,
+          "rustBytes": 15337,
+          "timeRatio": 0.05881203724552643
+        }
+      ]
+    },
+    "x64": {
+      "jobId": 139712745290,
+      "artifactId": 15090640178,
+      "artifactSha256": "9db504b2403b13175c55d1013b0deff1630e862b75be6d7665d17b0f4ce14717",
+      "architecture": "AMD64",
+      "dotnet": "11.0.100",
+      "librarySha256": "9daf1959fae2cbc71c14e4180c31f872d3fae090f2c5d2ed1b31c0329ed97691",
+      "referenceSnapshotsSha256": "80897133849402d8428062523d3b901f5b01a78d0158149b5d42a588b67a30f4",
+      "records": 198,
+      "pairedRounds": 7,
+      "summary": [
+        {
+          "sessions": 0,
+          "shareTitles": false,
+          "releaseNs": 4650.166666666667,
+          "releaseBytes": 3752,
+          "rustNs": 4112.083333333333,
+          "rustBytes": 3376,
+          "timeRatio": 0.884287301530411
+        },
+        {
+          "sessions": 0,
+          "shareTitles": true,
+          "releaseNs": 3211.5833333333335,
+          "releaseBytes": 3752,
+          "rustNs": 2745,
+          "rustBytes": 3376,
+          "timeRatio": 0.8547185967461532
+        },
+        {
+          "sessions": 1,
+          "shareTitles": false,
+          "releaseNs": 3216.4166666666665,
+          "releaseBytes": 3856,
+          "rustNs": 2745.3333333333335,
+          "rustBytes": 3376,
+          "timeRatio": 0.8535378397284764
+        },
+        {
+          "sessions": 1,
+          "shareTitles": true,
+          "releaseNs": 3220.75,
+          "releaseBytes": 3856,
+          "rustNs": 2752,
+          "rustBytes": 3376,
+          "timeRatio": 0.8544593650547233
+        },
+        {
+          "sessions": 8,
+          "shareTitles": false,
+          "releaseNs": 4032.3333333333335,
+          "releaseBytes": 4472,
+          "rustNs": 3259.5,
+          "rustBytes": 3656,
+          "timeRatio": 0.8083409109696619
+        },
+        {
+          "sessions": 8,
+          "shareTitles": true,
+          "releaseNs": 10001.416666666666,
+          "releaseBytes": 8664,
+          "rustNs": 3939.75,
+          "rustBytes": 4248,
+          "timeRatio": 0.39391919478073945
+        },
+        {
+          "sessions": 64,
+          "shareTitles": false,
+          "releaseNs": 8240.333333333334,
+          "releaseBytes": 8032,
+          "rustNs": 5428.666666666667,
+          "rustBytes": 6024,
+          "timeRatio": 0.6587921200598681
+        },
+        {
+          "sessions": 64,
+          "shareTitles": true,
+          "releaseNs": 44617.333333333336,
+          "releaseBytes": 42056,
+          "rustNs": 9312,
+          "rustBytes": 10968,
+          "timeRatio": 0.20870812539222425
+        },
+        {
+          "sessions": 512,
+          "shareTitles": false,
+          "releaseNs": 30574,
+          "releaseBytes": 34792,
+          "rustNs": 15338,
+          "rustBytes": 7496,
+          "timeRatio": 0.5016680839929352
+        },
+        {
+          "sessions": 512,
+          "shareTitles": true,
+          "releaseNs": 329915,
+          "releaseBytes": 335176,
+          "rustNs": 20712,
+          "rustBytes": 13632,
+          "timeRatio": 0.06277980691996424
+        },
+        {
+          "sessions": 4096,
+          "shareTitles": false,
+          "releaseNs": 251963.33333333334,
+          "releaseBytes": 248633,
+          "rustNs": 116540,
+          "rustBytes": 7497,
+          "timeRatio": 0.46252761645212925
+        },
+        {
+          "sessions": 4096,
+          "shareTitles": true,
+          "releaseNs": 2446376.6666666665,
+          "releaseBytes": 2568537,
+          "rustNs": 122010,
+          "rustBytes": 15337,
+          "timeRatio": 0.04987375887877719
+        }
+      ]
+    }
+  }
+}

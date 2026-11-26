@@ -1,0 +1,145 @@
+{
+  "commit": "d9b7a5779d0792205232176dfb5bc14b11368c14",
+  "run": 45760622130,
+  "runner": {
+    "x64": "windows-2025",
+    "arm64": "windows-11-arm"
+  },
+  "artifactsVerifiedBy": "SHA-256 from GitHub Actions compared with downloaded ZIP",
+  "architectures": {
+    "x64": {
+      "packageJobId": 139709474341,
+      "installationArtifact": {
+        "id": 15090172391,
+        "sha256": "sha256:e5673055601a9656bb9683470581ed34bd1458f121693e010f6f998056190b77"
+      },
+      "officialPublicMsiSha256": "1816cf6866cce5be8f626b5d85af1757ec890a8d9b8677f80a3385d602bf298d",
+      "qaMsiVersion": "2.1.42",
+      "deviceAndApiKeyArtifact": {
+        "id": 15090156381,
+        "sha256": "sha256:1ac89d73d505773a141f85d7f93b60bb3e1313f360218cb1eb2c2ec5ce5dafc2"
+      },
+      "deviceAndApiKey": {
+        "rid": "win-x64",
+        "providers": 70,
+        "historicalLabelPreserved": true,
+        "missingSentRequests": 0,
+        "officialDevice": true,
+        "vaultRestored": true,
+        "apiKey": true,
+        "httpRequests": 4
+      },
+      "historyCalls": 19,
+      "moonshot": {
+        "fixture": true,
+        "networkRequests": "in-memory only",
+        "requestCount": 3,
+        "regionKeyIsolation": "PASS",
+        "legacyInternational": "PASS",
+        "environmentAlias": "PASS",
+        "scopeAndUi": "PASS"
+      }
+    },
+    "arm64": {
+      "packageJobId": 139709474184,
+      "installationArtifact": {
+        "id": 15089479519,
+        "sha256": "sha256:88f4bce11a030fa8f9fa27c5ccc1fe6becfbb3ea35b8cc9a872445f5ee25b990"
+      },
+      "officialPublicMsiSha256": "393302b1f679fdf1bf82147906c39eb4a045b2a70ed6b7cbb126cb0b0a401073",
+      "qaMsiVersion": "2.1.42",
+      "deviceAndApiKeyArtifact": {
+        "id": 15089802366,
+        "sha256": "sha256:9cf13d8a2ae8987d94104985fa5c61679c188bf3802455876d91cf44ee2f756d"
+      },
+      "deviceAndApiKey": {
+        "rid": "win-arm64",
+        "providers": 70,
+        "historicalLabelPreserved": true,
+        "missingSentRequests": 0,
+        "officialDevice": true,
+        "vaultRestored": true,
+        "apiKey": true,
+        "httpRequests": 4
+      },
+      "historyCalls": 19,
+      "moonshot": {
+        "fixture": true,
+        "networkRequests": "in-memory only",
+        "requestCount": 3,
+        "regionKeyIsolation": "PASS",
+        "legacyInternational": "PASS",
+        "environmentAlias": "PASS",
+        "scopeAndUi": "PASS"
+      }
+    }
+  },
+  "checkedBehaviors": {
+    "msi": [
+      "signed-legacy-installation-rejected-before-write",
+      "initial-msi-install",
+      "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+      "upgrade-current-version",
+      "downgrade-refused-without-changes",
+      "installed-native-ui-and-pinned-worker",
+      "uninstall-preserves-user-data-and-unrelated-path",
+      "portable-migration-failure-restores-files-path-shortcut",
+      "portable-migration-and-repair-keep-one-cli-path",
+      "portable-migration-uninstall-preserves-data-and-unrelated-path",
+      "public-2.1.11-msi-reproduces-duplicate-portable-path",
+      "public-2.1.11-failed-upgrade-restores-installation",
+      "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+      "public-upgrade-uninstall-preserves-user-data-and-path"
+    ],
+    "msix": [
+      "installs-per-user-without-administrator",
+      "cli-aliases-registered",
+      "both-cli-aliases-run-cli",
+      "cli-regressions-through-alias",
+      "packaged-native-ui-smoke",
+      "uninstall-removes-app-and-aliases"
+    ],
+    "publicStableUpgradeAndReinstall": [
+      "published-installed-and-profile-read",
+      "failed-upgrade-restored-public-registration-binaries-and-profile",
+      "upgraded-candidate-loaded-preserved-profile",
+      "direct-downgrade-refused-with-data-intact",
+      "published-msi-reinstalled-and-profile-read",
+      "published-uninstalled-and-data-preserved"
+    ],
+    "officialAccountFixtures": [
+      "codex: success",
+      "codex: cancel",
+      "codex: failure",
+      "codex: not-isolated",
+      "codex: wrong-account",
+      "claude: success",
+      "claude: cancel",
+      "claude: failure",
+      "claude: not-isolated",
+      "claude: wrong-account"
+    ],
+    "accountHistory": [
+      "Fresh installs require opt-in; explicit enable and disable persist; previews remain offline",
+      "Today stays local; server history is never double-counted",
+      "Account and local period details are distinct",
+      "Settings analytics calendar history and details remain local while account history is enabled",
+      "Same-workspace account switch rejects late response",
+      "Transient error retains only same-account snapshot",
+      "Missing credentials and account operations clear history",
+      "Week/day changes invalidate old totals",
+      "Background clock/resume signals marshal to UI and reject late totals",
+      "Disabled/disposed history ignores time signals",
+      "Disable rejects in-flight response"
+    ],
+    "ownedKeySettingsOnBothInstalledPackages": [
+      "blankRejected",
+      "previousKeyPreserved",
+      "failedReplacementPreservesDraft",
+      "failedRemovalPreservesState",
+      "replacedKeyReopened",
+      "removedKeyReopened"
+    ]
+  },
+  "scope": "Both installed UI shells exercised the synthetic Ollama settings with native DPAPI. Public MSI replay used v2.1.41 and QA registration 2.1.42. Codex and Claude accounts were simulated and Moonshot requests were in memory. The x64 host was Windows Server 2025. Desktop pixel comparisons and signing are tracked separately."
+}
