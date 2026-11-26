@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Services;
@@ -40,7 +41,31 @@ else if (args[0] == "read")
     Console.WriteLine(JsonSerializer.Serialize(new{checksum,wallUs=sw.Elapsed.TotalMicroseconds/repeat,
         cpuUs=(proc.TotalProcessorTime-cpu).TotalMicroseconds/repeat,managedBytes=allocated,peakRss=proc.PeakWorkingSet64}));
 }
+else if (args[0] == "probe")
+{
+    // Native hit/miss controls must run in the same verified architecture as the actual
+    // CLI. The host image can provide an x64 Python interpreter on native ARM64 Windows.
+    var library = NativeLibrary.Load(Path.GetFullPath(args[1]));
+    var output = Marshal.AllocHGlobal(70 * 512); // A Windows provider row currently occupies 288 bytes.
+    var date = Marshal.AllocHGlobal(8);
+    try
+    {
+        var decode = Marshal.GetDelegateForFunctionPointer<DecodeEnvelope>(NativeLibrary.GetExport(library, "cr_windows_companion_v1"));
+        foreach (var path in args.Skip(2))
+        {
+            byte[] bytes = File.ReadAllBytes(path);
+            var pinned = GCHandle.Alloc(bytes, GCHandleType.Pinned);
+            try { Console.WriteLine(decode(pinned.AddrOfPinnedObject(), bytes.Length, output, 70, date)); }
+            finally { pinned.Free(); }
+        }
+    }
+    finally { Marshal.FreeHGlobal(date); Marshal.FreeHGlobal(output); NativeLibrary.Free(library); }
+}
 else throw new ArgumentException("Unknown synthetic fixture operation.");
+
+[UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+internal delegate int DecodeEnvelope(nint data, int length, nint rows, int capacity, nint date);
+
 
 // A .NET test startup hook sets cultures on Windows as well as on Unix. It lives only in
 // this synthetic fixture assembly. The production executable has no test culture switch.

@@ -67,13 +67,9 @@ with tempfile.TemporaryDirectory(prefix="coderim-offline-cli-") as temp:
     (snapshots/"invalid-utf8").write_bytes(original.replace(b"sample",b"sam\xffle",1))
 
     # Confirm genuine Rust acceptance for product writes and compatibility deferral for ambiguous input.
-    bridge=ctypes.CDLL(str(library))
-    decode=bridge.cr_windows_companion_v1
-    decode.argtypes=[ctypes.c_void_p,ctypes.c_int,ctypes.c_void_p,ctypes.c_int,ctypes.c_void_p];decode.restype=ctypes.c_int
-    def native(name):
-        payload=(snapshots/name).read_bytes()
-        return decode(payload,len(payload),ctypes.create_string_buffer(70*512),70,ctypes.create_string_buffer(8))
-    hits={name:native(name) for name in ["small.json","medium.json","large.json","empty.json","extra","utf16be","duplicate","bad-token-array"]}
+    names=["small.json","medium.json","large.json","empty.json","extra","utf16be","duplicate","bad-token-array"]
+    probe=subprocess.check_output(command("rust","OfflineContract",["probe",library,*[snapshots/name for name in names]]),env=env)
+    hits=dict(zip(names,map(int,probe.splitlines()),strict=True))
     assert [hits[n] for n in ("small.json","medium.json","large.json","empty.json")]==[1,8,35,0],hits
     assert all(hits[n]==-1 for n in ("extra","utf16be","duplicate","bad-token-array")),hits
 
