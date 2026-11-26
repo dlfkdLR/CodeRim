@@ -1,0 +1,1780 @@
+{
+  "scope": "macOS CodeRim-owned SQLite settings history clearing and statistics rebuild. Common immediate transaction/commit/rollback is shared with the schema runtime. Compaction, file protection, locale/date spelling and UI status remain in their existing native code paths.",
+  "release": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "before": "d7f5808c84a26bb99adada0891697a5a00d73a7f",
+  "product": "52dafde3c2609fbf43e02d98d01a88c4bb46b3a4",
+  "packetDigest": "c03f2cb182f2c0a638ea0d3a622a39e2fa8c7718679ff5dd3b547652bc869952",
+  "runId": "run-ca5c7040247f431c9a7980430cfbb15b",
+  "sourceFiles": {
+    "Sources/CodeRim/Persistence/SQLiteDatabase.swift": "3fe1fea7b687d1a96a5a14af78d229de1b97795d6a83271c5826d2b6e0de0a62",
+    "Rust/bridge/src/sqlite_history_maintenance.rs": "e125aab6f70e9bd3f86b239662127e3e97d26434bedefe5f92fdaa1babb8dcac",
+    "Rust/bridge/src/sqlite_transaction.rs": "8c283129b88abf9d44a7398359851190e0f6fbbc3c97d889d0a5c14f07f6991b",
+    "Rust/bridge/src/sqlite_schema_runtime.rs": "62cbd85429a8e2c088d931b16f74e7908f3af102486bff16cb8c3ded58c7d33c"
+  },
+  "binaries": {
+    "release-arm64": "f0f51512b23e3777aa778b7d606952d9f998cd9e960b834416e88ca52977d73d",
+    "previous-arm64": "ac0eabb794fc4e0db207de924ee4d18a986ba001b58826204bb271f75183e960",
+    "rust-arm64": "f7517073bfdbdc710944ce83a0e2550defacbaebc0a341ea98f42e5a7ee46227",
+    "optional-arm64": "35689e557652298f2e7c35a7826a1006dbef2ec351625709a7188081fc4fa853",
+    "release-x86_64": "d40273f2704a2d3ce1b3e2aba207f8c578861db09f02a08e04dbb67ad799328d",
+    "previous-x86_64": "1622a151ad056faea332e3e2bb19e852d031b22ba7ae1ed87cd4d929b7ff30c6",
+    "rust-x86_64": "5512c4d17b741b6a38e3a68edaa430d9c440e22d7b27371ce550da05778fca57",
+    "optional-x86_64": "449e3d59fb874327bbbeb64946391c38dbf87892e029ec506f358ee4f34d0a05",
+    "reset.a": "fb9b55ae66de83d9723b246cd0ba66ed964b344939014bbee1ca4fa725569878",
+    "previous.a": "71115c98a14aca0f5c01b66d607c2dcd9f4fe1dccd06d745d85667c21a23d314"
+  },
+  "arch": {
+    "arm64": {
+      "comparedMaintenanceScenariosEach": 67,
+      "modes": [
+        "released Swift",
+        "previous Rust host",
+        "new default Rust",
+        "new optional Swift"
+      ],
+      "schemaRuntimeChecks": 96,
+      "realCAbiCalls": 10,
+      "supplementalScenarios": [
+        "Cutoff incl. equality, fractional/subsecond, NaN and infinity, both preserved-message options, old exclusion table, epoch malformed/out-of-range, late guarded write, source recollection, six table deletes plus metadata/epoch/bound-statement trigger errors and retry, independent WAL reader causing deferred compaction, file mode 0644 to 0600."
+      ],
+      "allTimings": [
+        {
+          "rows": 0,
+          "operation": "rebuild",
+          "samplesNs": {
+            "release": [
+              610584,
+              508083,
+              443917,
+              1018208,
+              763042,
+              955125,
+              558542
+            ],
+            "previous": [
+              1352750,
+              21025583,
+              695500,
+              411958,
+              485583,
+              566542,
+              454667
+            ],
+            "rust": [
+              1141333,
+              3054417,
+              2661958,
+              453292,
+              640666,
+              467916,
+              942875
+            ]
+          },
+          "medianMs": {
+            "release": 0.610584,
+            "previous": 0.566542,
+            "rust": 0.942875
+          }
+        },
+        {
+          "rows": 0,
+          "operation": "clear",
+          "samplesNs": {
+            "release": [
+              5237292,
+              4824291,
+              3062458,
+              5051667,
+              7322125,
+              6780708,
+              6507250
+            ],
+            "previous": [
+              9837333,
+              5218167,
+              4825291,
+              6935542,
+              5714959,
+              6729250,
+              5247667
+            ],
+            "rust": [
+              4829709,
+              3800333,
+              3914750,
+              4168292,
+              6683625,
+              5880542,
+              9528833
+            ]
+          },
+          "medianMs": {
+            "release": 5.237292,
+            "previous": 5.714959,
+            "rust": 4.829709
+          }
+        },
+        {
+          "rows": 0,
+          "operation": "exclude",
+          "samplesNs": {
+            "release": [
+              7983458,
+              11150292,
+              7321750,
+              7797875,
+              4979208,
+              8057084,
+              4545625
+            ],
+            "previous": [
+              15265000,
+              16533500,
+              17185750,
+              5422208,
+              4405583,
+              5132292,
+              8921458
+            ],
+            "rust": [
+              6641708,
+              10941750,
+              4786833,
+              4072000,
+              6268958,
+              4162250,
+              17322875
+            ]
+          },
+          "medianMs": {
+            "release": 7.797875,
+            "previous": 8.921458,
+            "rust": 6.268958
+          }
+        },
+        {
+          "rows": 16,
+          "operation": "rebuild",
+          "samplesNs": {
+            "release": [
+              932250,
+              897666,
+              1043416,
+              751834,
+              1153833,
+              2456334,
+              1178917
+            ],
+            "previous": [
+              561042,
+              764083,
+              456125,
+              512792,
+              783333,
+              975167,
+              876291
+            ],
+            "rust": [
+              918042,
+              3550958,
+              778000,
+              1978125,
+              917417,
+              1086000,
+              757209
+            ]
+          },
+          "medianMs": {
+            "release": 1.043416,
+            "previous": 0.764083,
+            "rust": 0.918042
+          }
+        },
+        {
+          "rows": 16,
+          "operation": "clear",
+          "samplesNs": {
+            "release": [
+              9797833,
+              10409250,
+              6180959,
+              40529667,
+              39542125,
+              4636625,
+              3893500
+            ],
+            "previous": [
+              22179208,
+              14037583,
+              274969250,
+              7098167,
+              3974833,
+              3679917,
+              4637000
+            ],
+            "rust": [
+              42658708,
+              10540916,
+              32453250,
+              5775375,
+              26745375,
+              3366791,
+              5995750
+            ]
+          },
+          "medianMs": {
+            "release": 9.797833,
+            "previous": 7.098167,
+            "rust": 10.540916
+          }
+        },
+        {
+          "rows": 16,
+          "operation": "exclude",
+          "samplesNs": {
+            "release": [
+              4850000,
+              5794667,
+              9367709,
+              8445625,
+              5250208,
+              3558333,
+              9915708
+            ],
+            "previous": [
+              5934833,
+              3763125,
+              6562291,
+              8139833,
+              6851333,
+              5899667,
+              6307166
+            ],
+            "rust": [
+              4223291,
+              5902125,
+              3659750,
+              7231541,
+              5663541,
+              7642750,
+              5379209
+            ]
+          },
+          "medianMs": {
+            "release": 5.794667,
+            "previous": 6.307166,
+            "rust": 5.663541
+          }
+        },
+        {
+          "rows": 4096,
+          "operation": "rebuild",
+          "samplesNs": {
+            "release": [
+              1253334,
+              462417,
+              582792,
+              1162417,
+              1348042,
+              2736875,
+              2741541
+            ],
+            "previous": [
+              1540333,
+              841583,
+              926042,
+              1022500,
+              506625,
+              2200833,
+              549416
+            ],
+            "rust": [
+              1323500,
+              821667,
+              914291,
+              1169708,
+              4854959,
+              3762208,
+              967084
+            ]
+          },
+          "medianMs": {
+            "release": 1.253334,
+            "previous": 0.926042,
+            "rust": 1.169708
+          }
+        },
+        {
+          "rows": 4096,
+          "operation": "clear",
+          "samplesNs": {
+            "release": [
+              7522958,
+              6712167,
+              6674750,
+              9061041,
+              6123417,
+              6733125,
+              6585875
+            ],
+            "previous": [
+              10244458,
+              10231042,
+              6725541,
+              8116542,
+              7040750,
+              6299333,
+              11484416
+            ],
+            "rust": [
+              10280209,
+              6473333,
+              7227500,
+              6966250,
+              6443208,
+              7785583,
+              7052708
+            ]
+          },
+          "medianMs": {
+            "release": 6.712167,
+            "previous": 8.116542,
+            "rust": 7.052708
+          }
+        },
+        {
+          "rows": 4096,
+          "operation": "exclude",
+          "samplesNs": {
+            "release": [
+              6423042,
+              6357583,
+              5355750,
+              6714834,
+              9036291,
+              12457667,
+              9262208
+            ],
+            "previous": [
+              8536042,
+              10341375,
+              7024542,
+              7129208,
+              7066750,
+              11289917,
+              6063000
+            ],
+            "rust": [
+              12022917,
+              8486625,
+              6162125,
+              7937959,
+              7646834,
+              10241125,
+              6759250
+            ]
+          },
+          "medianMs": {
+            "release": 6.714834,
+            "previous": 7.129208,
+            "rust": 7.937959
+          }
+        }
+      ]
+    },
+    "x86_64": {
+      "comparedMaintenanceScenariosEach": 67,
+      "modes": [
+        "released Swift",
+        "previous Rust host",
+        "new default Rust",
+        "new optional Swift"
+      ],
+      "schemaRuntimeChecks": 96,
+      "realCAbiCalls": 10,
+      "supplementalScenarios": [
+        "Cutoff incl. equality, fractional/subsecond, NaN and infinity, both preserved-message options, old exclusion table, epoch malformed/out-of-range, late guarded write, source recollection, six table deletes plus metadata/epoch/bound-statement trigger errors and retry, independent WAL reader causing deferred compaction, file mode 0644 to 0600."
+      ],
+      "allTimings": [
+        {
+          "rows": 0,
+          "operation": "rebuild",
+          "samplesNs": {
+            "release": [
+              459250,
+              570791,
+              666000,
+              484958,
+              494167,
+              570792,
+              629417
+            ],
+            "previous": [
+              423750,
+              700417,
+              607167,
+              507750,
+              476125,
+              566625,
+              546209
+            ],
+            "rust": [
+              652000,
+              559458,
+              822583,
+              490042,
+              527000,
+              518625,
+              523250
+            ]
+          },
+          "medianMs": {
+            "release": 0.570791,
+            "previous": 0.546209,
+            "rust": 0.527
+          }
+        },
+        {
+          "rows": 0,
+          "operation": "clear",
+          "samplesNs": {
+            "release": [
+              4585542,
+              3523375,
+              4430416,
+              3974458,
+              4589250,
+              4630875,
+              4303667
+            ],
+            "previous": [
+              5054333,
+              4127583,
+              3614000,
+              4243041,
+              4923959,
+              3881792,
+              3787000
+            ],
+            "rust": [
+              3537792,
+              3147417,
+              5433875,
+              3951625,
+              3493250,
+              3948625,
+              3971459
+            ]
+          },
+          "medianMs": {
+            "release": 4.430416,
+            "previous": 4.127583,
+            "rust": 3.948625
+          }
+        },
+        {
+          "rows": 0,
+          "operation": "exclude",
+          "samplesNs": {
+            "release": [
+              3666791,
+              3774542,
+              3765917,
+              4300791,
+              5536000,
+              3265042,
+              3622959
+            ],
+            "previous": [
+              4421875,
+              3503750,
+              4533250,
+              3356541,
+              4708584,
+              3953125,
+              3435041
+            ],
+            "rust": [
+              3797292,
+              3842292,
+              3655167,
+              8724875,
+              4345708,
+              4302500,
+              3621583
+            ]
+          },
+          "medianMs": {
+            "release": 3.765917,
+            "previous": 3.953125,
+            "rust": 3.842292
+          }
+        },
+        {
+          "rows": 16,
+          "operation": "rebuild",
+          "samplesNs": {
+            "release": [
+              510458,
+              559334,
+              517500,
+              514208,
+              513459,
+              532708,
+              488750
+            ],
+            "previous": [
+              504042,
+              497875,
+              498041,
+              497417,
+              549500,
+              512166,
+              484417
+            ],
+            "rust": [
+              504917,
+              490667,
+              565208,
+              500375,
+              533792,
+              494541,
+              488709
+            ]
+          },
+          "medianMs": {
+            "release": 0.514208,
+            "previous": 0.498041,
+            "rust": 0.500375
+          }
+        },
+        {
+          "rows": 16,
+          "operation": "clear",
+          "samplesNs": {
+            "release": [
+              7901792,
+              3285291,
+              3927459,
+              5351209,
+              4719917,
+              4637458,
+              3854208
+            ],
+            "previous": [
+              5011959,
+              4540875,
+              4274000,
+              3884667,
+              4410084,
+              3986042,
+              3838542
+            ],
+            "rust": [
+              4293625,
+              5091833,
+              3947750,
+              3293041,
+              3568333,
+              4278792,
+              4214375
+            ]
+          },
+          "medianMs": {
+            "release": 4.637458,
+            "previous": 4.274,
+            "rust": 4.214375
+          }
+        },
+        {
+          "rows": 16,
+          "operation": "exclude",
+          "samplesNs": {
+            "release": [
+              4307542,
+              3651500,
+              4045958,
+              3392250,
+              4980292,
+              3648667,
+              4530208
+            ],
+            "previous": [
+              4444375,
+              3494666,
+              4951208,
+              4518542,
+              3765791,
+              4491250,
+              3786709
+            ],
+            "rust": [
+              4863208,
+              3444417,
+              3752292,
+              4456917,
+              3512375,
+              4580708,
+              3715250
+            ]
+          },
+          "medianMs": {
+            "release": 4.045958,
+            "previous": 4.444375,
+            "rust": 3.752292
+          }
+        },
+        {
+          "rows": 4096,
+          "operation": "rebuild",
+          "samplesNs": {
+            "release": [
+              481583,
+              473292,
+              471292,
+              456417,
+              499125,
+              501708,
+              478583
+            ],
+            "previous": [
+              489042,
+              480166,
+              510834,
+              524917,
+              469166,
+              572542,
+              497958
+            ],
+            "rust": [
+              486625,
+              531375,
+              460084,
+              484875,
+              523125,
+              521750,
+              565917
+            ]
+          },
+          "medianMs": {
+            "release": 0.478583,
+            "previous": 0.497958,
+            "rust": 0.52175
+          }
+        },
+        {
+          "rows": 4096,
+          "operation": "clear",
+          "samplesNs": {
+            "release": [
+              6828542,
+              4209667,
+              4251958,
+              3902583,
+              3569708,
+              4516750,
+              3476292
+            ],
+            "previous": [
+              4504250,
+              6350167,
+              3392583,
+              4169958,
+              3851708,
+              3612958,
+              3855917
+            ],
+            "rust": [
+              4278792,
+              4472334,
+              4278583,
+              4778209,
+              2937792,
+              5435292,
+              3076458
+            ]
+          },
+          "medianMs": {
+            "release": 4.209667,
+            "previous": 3.855917,
+            "rust": 4.278792
+          }
+        },
+        {
+          "rows": 4096,
+          "operation": "exclude",
+          "samplesNs": {
+            "release": [
+              3819833,
+              5596541,
+              4105250,
+              3309042,
+              3294917,
+              4070291,
+              4320292
+            ],
+            "previous": [
+              3785417,
+              4471500,
+              5338833,
+              3616875,
+              3063416,
+              4125084,
+              4742708
+            ],
+            "rust": [
+              3537667,
+              4218125,
+              4894334,
+              4475167,
+              2955250,
+              3610167,
+              3917708
+            ]
+          },
+          "medianMs": {
+            "release": 4.070291,
+            "previous": 4.125084,
+            "rust": 3.917708
+          }
+        }
+      ]
+    }
+  },
+  "xctest": {
+    "completedXCTestCount": 42,
+    "firstPassWithoutFixture": {
+      "executed": 42,
+      "passed": 41,
+      "skipped": 1
+    },
+    "skippedTestQualifiedRerun": {
+      "executed": 1,
+      "passed": 1,
+      "fixture": "separate synthetic local projects and known expected totals"
+    },
+    "artifacts": {
+      "debugTestExecutable": "c59b2575a18e963a9290916fb7cb2fe033baa350c060bb6c608bda29b8b6260f",
+      "swiftpmDependencyReceipt": "1b124b98cefbb953ed0e50dc3de7b172a5d16b59ea3272a3e404d4a27bc9b035",
+      "productArchive": "fb9b55ae66de83d9723b246cd0ba66ed964b344939014bbee1ca4fa725569878",
+      "previousArchive": "71115c98a14aca0f5c01b66d607c2dcd9f4fe1dccd06d745d85667c21a23d314",
+      "xctestOut": "b93891d970ef56a12025a9ce15ea0602cfd72502f984c5c6d0783cccfbcaa6ba",
+      "projectionOnlyOut": "d8b86613f98b65695f00552bb6e4148f1df9984e3712d9852b3cf1800c52d827"
+    }
+  },
+  "nativeRust": {
+    "unit": 66,
+    "clippy": "pass, -D warnings"
+  },
+  "limitations": [
+    "Real macOS arm64 and Rosetta x86_64, temporary owned SQLite files, dedicated synthetic collector roots. Physical Intel was not exercised.",
+    "Seven interleaved samples per operation and row count; measured VACUUM and filesystem protection are included in the native action. Direction varies, so no overall latency improvement is claimed.",
+    "Fresh debug compilation initially hit ENOSPC; the original scratch resumed after space was freed; final linked XCTest completed. An initial x86 benchmark exhausted disk space and the isolated full run was repeated successfully. No production or external account profile was involved."
+  ],
+  "profileResets": "No run used an existing user profile.",
+  "independent": {
+    "path": "independent.json",
+    "sha256": "2ccb7af88338b32dd6faf720a37c9548c20b12f2f8ba5dfca93120bcd2cb1ff4",
+    "product": "52dafde3c2609fbf43e02d98d01a88c4bb46b3a4",
+    "dimensions": {
+      "functionality": "TIE",
+      "facts": "TIE",
+      "security": "TIE",
+      "maintainability": "TIE",
+      "scope": "TIE",
+      "performance": "INCONCLUSIVE"
+    },
+    "checks": {
+      "ordinaryStateAndRetry": {
+        "rebuild": {
+          "operation": [
+            "DONE rebuild",
+            "STATE 8 0 4638364568563744768"
+          ],
+          "reopened": [
+            "DONE report",
+            "STATE 8 0 4638364568563744768"
+          ],
+          "retryOldEpoch": [
+            "ERROR The source scan was superseded by a data maintenance operation",
+            "STATE 8 0 4638364568563744768"
+          ],
+          "currentEpoch": [
+            "DONE append",
+            "STATE 8 1 4638364568563744768"
+          ],
+          "state": {
+            "tables": {
+              "analytics_backfill_sources": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "app_metadata": [
+                6,
+                "bbf25fe7c1c44758957db72fd2cda351ec5db15fa21190509b2d6ee2fe34e494"
+              ],
+              "claude_message_exclusions": [
+                1,
+                "ecdead976a6b20f10e6043ce9e68d2f0e0cb229a0059eae0f55086fc0471ccba"
+              ],
+              "parsing_state": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "partial_evidence": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_counters": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_metadata": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "usage_events": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "user_settings": [
+                1,
+                "c8c3465b45d9e8ba1075918f3f2a3468acf5ba3edfce8adadf0316b86bde1baa"
+              ]
+            },
+            "metadata": {
+              "data_epoch": "8",
+              "fixture_language": "한국어",
+              "import_cutoff": "123.125",
+              "Partial_source_quality:keep": "keep",
+              "selected_provider": "qa",
+              "data_epoch_other": "f"
+            },
+            "exclusions": [
+              "already"
+            ]
+          },
+          "inserted": {
+            "tables": {
+              "analytics_backfill_sources": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "app_metadata": [
+                6,
+                "bbf25fe7c1c44758957db72fd2cda351ec5db15fa21190509b2d6ee2fe34e494"
+              ],
+              "claude_message_exclusions": [
+                1,
+                "ecdead976a6b20f10e6043ce9e68d2f0e0cb229a0059eae0f55086fc0471ccba"
+              ],
+              "parsing_state": [
+                1,
+                "86fa28023fc86b7a10612097d356a1afadd8b160f431571715615ff8cb45e4b9"
+              ],
+              "partial_evidence": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_counters": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_metadata": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "usage_events": [
+                1,
+                "ae68f2a63ed0d7322c1821bfe3cdd38e38b3036145f8beea7ab02d5dbd7fcef9"
+              ],
+              "user_settings": [
+                1,
+                "c8c3465b45d9e8ba1075918f3f2a3468acf5ba3edfce8adadf0316b86bde1baa"
+              ]
+            },
+            "metadata": {
+              "data_epoch": "8",
+              "fixture_language": "한국어",
+              "import_cutoff": "123.125",
+              "Partial_source_quality:keep": "keep",
+              "selected_provider": "qa",
+              "data_epoch_other": "f"
+            },
+            "exclusions": [
+              "already"
+            ]
+          }
+        },
+        "clear": {
+          "operation": [
+            "DONE compacted",
+            "STATE 8 0 4745336555194810368"
+          ],
+          "reopened": [
+            "DONE report",
+            "STATE 8 0 4745336555194810368"
+          ],
+          "retryOldEpoch": [
+            "ERROR The source scan was superseded by a data maintenance operation",
+            "STATE 8 0 4745336555194810368"
+          ],
+          "currentEpoch": [
+            "DONE append",
+            "STATE 8 1 4745336555194810368"
+          ],
+          "state": {
+            "tables": {
+              "analytics_backfill_sources": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "app_metadata": [
+                6,
+                "658be96524cee4bf9d0ecb02e833c4da67c2f9ec894fccfd1e04256e31556cf6"
+              ],
+              "claude_message_exclusions": [
+                1,
+                "ecdead976a6b20f10e6043ce9e68d2f0e0cb229a0059eae0f55086fc0471ccba"
+              ],
+              "parsing_state": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "partial_evidence": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_counters": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_metadata": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "usage_events": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "user_settings": [
+                1,
+                "c8c3465b45d9e8ba1075918f3f2a3468acf5ba3edfce8adadf0316b86bde1baa"
+              ]
+            },
+            "metadata": {
+              "data_epoch": "8",
+              "fixture_language": "한국어",
+              "import_cutoff": "1800000000.25",
+              "Partial_source_quality:keep": "keep",
+              "selected_provider": "qa",
+              "data_epoch_other": "f"
+            },
+            "exclusions": [
+              "already"
+            ]
+          },
+          "inserted": {
+            "tables": {
+              "analytics_backfill_sources": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "app_metadata": [
+                6,
+                "658be96524cee4bf9d0ecb02e833c4da67c2f9ec894fccfd1e04256e31556cf6"
+              ],
+              "claude_message_exclusions": [
+                1,
+                "ecdead976a6b20f10e6043ce9e68d2f0e0cb229a0059eae0f55086fc0471ccba"
+              ],
+              "parsing_state": [
+                1,
+                "86fa28023fc86b7a10612097d356a1afadd8b160f431571715615ff8cb45e4b9"
+              ],
+              "partial_evidence": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_counters": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_metadata": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "usage_events": [
+                1,
+                "ae68f2a63ed0d7322c1821bfe3cdd38e38b3036145f8beea7ab02d5dbd7fcef9"
+              ],
+              "user_settings": [
+                1,
+                "c8c3465b45d9e8ba1075918f3f2a3468acf5ba3edfce8adadf0316b86bde1baa"
+              ]
+            },
+            "metadata": {
+              "data_epoch": "8",
+              "fixture_language": "한국어",
+              "import_cutoff": "1800000000.25",
+              "Partial_source_quality:keep": "keep",
+              "selected_provider": "qa",
+              "data_epoch_other": "f"
+            },
+            "exclusions": [
+              "already"
+            ]
+          }
+        },
+        "exclude": {
+          "operation": [
+            "DONE compacted",
+            "STATE 8 0 4745336555194810368"
+          ],
+          "reopened": [
+            "DONE report",
+            "STATE 8 0 4745336555194810368"
+          ],
+          "retryOldEpoch": [
+            "ERROR The source scan was superseded by a data maintenance operation",
+            "STATE 8 0 4745336555194810368"
+          ],
+          "currentEpoch": [
+            "DONE append",
+            "STATE 8 1 4745336555194810368"
+          ],
+          "state": {
+            "tables": {
+              "analytics_backfill_sources": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "app_metadata": [
+                6,
+                "658be96524cee4bf9d0ecb02e833c4da67c2f9ec894fccfd1e04256e31556cf6"
+              ],
+              "claude_message_exclusions": [
+                6,
+                "d4f8797b122a4933276ca631c622b59274499b90a760514dc72a9fd06ebf2d22"
+              ],
+              "parsing_state": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "partial_evidence": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_counters": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_metadata": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "usage_events": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "user_settings": [
+                1,
+                "c8c3465b45d9e8ba1075918f3f2a3468acf5ba3edfce8adadf0316b86bde1baa"
+              ]
+            },
+            "metadata": {
+              "data_epoch": "8",
+              "fixture_language": "한국어",
+              "import_cutoff": "1800000000.25",
+              "Partial_source_quality:keep": "keep",
+              "selected_provider": "qa",
+              "data_epoch_other": "f"
+            },
+            "exclusions": [
+              "already",
+              "ev-0",
+              "ev-1",
+              "ev-3",
+              "ev-4",
+              "ev-6"
+            ]
+          },
+          "inserted": {
+            "tables": {
+              "analytics_backfill_sources": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "app_metadata": [
+                6,
+                "658be96524cee4bf9d0ecb02e833c4da67c2f9ec894fccfd1e04256e31556cf6"
+              ],
+              "claude_message_exclusions": [
+                6,
+                "d4f8797b122a4933276ca631c622b59274499b90a760514dc72a9fd06ebf2d22"
+              ],
+              "parsing_state": [
+                1,
+                "86fa28023fc86b7a10612097d356a1afadd8b160f431571715615ff8cb45e4b9"
+              ],
+              "partial_evidence": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_counters": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_metadata": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "usage_events": [
+                1,
+                "ae68f2a63ed0d7322c1821bfe3cdd38e38b3036145f8beea7ab02d5dbd7fcef9"
+              ],
+              "user_settings": [
+                1,
+                "c8c3465b45d9e8ba1075918f3f2a3468acf5ba3edfce8adadf0316b86bde1baa"
+              ]
+            },
+            "metadata": {
+              "data_epoch": "8",
+              "fixture_language": "한국어",
+              "import_cutoff": "1800000000.25",
+              "Partial_source_quality:keep": "keep",
+              "selected_provider": "qa",
+              "data_epoch_other": "f"
+            },
+            "exclusions": [
+              "already",
+              "ev-0",
+              "ev-1",
+              "ev-3",
+              "ev-4",
+              "ev-6"
+            ]
+          }
+        }
+      },
+      "actualCrashRecovery": {
+        "published-arm64": {
+          "beforeCommitBytesSpilled": 1615072,
+          "processStatusBeforeAndAfter": [
+            -9,
+            -9
+          ],
+          "recoveredPrior": [
+            "DONE report",
+            "STATE 7 16000 4638364568563744768"
+          ],
+          "recoveredCommitted": [
+            "DONE report",
+            "STATE 8 0 4745336555194810368"
+          ]
+        },
+        "previous-arm64": {
+          "beforeCommitBytesSpilled": 1524432,
+          "processStatusBeforeAndAfter": [
+            -9,
+            -9
+          ],
+          "recoveredPrior": [
+            "DONE report",
+            "STATE 7 16000 4638364568563744768"
+          ],
+          "recoveredCommitted": [
+            "DONE report",
+            "STATE 8 0 4745336555194810368"
+          ]
+        },
+        "candidate-arm64": {
+          "beforeCommitBytesSpilled": 1363752,
+          "processStatusBeforeAndAfter": [
+            -9,
+            -9
+          ],
+          "recoveredPrior": [
+            "DONE report",
+            "STATE 7 16000 4638364568563744768"
+          ],
+          "recoveredCommitted": [
+            "DONE report",
+            "STATE 8 0 4745336555194810368"
+          ]
+        },
+        "published-x86_64": {
+          "beforeCommitBytesSpilled": 1409072,
+          "processStatusBeforeAndAfter": [
+            -9,
+            -9
+          ],
+          "recoveredPrior": [
+            "DONE report",
+            "STATE 7 16000 4638364568563744768"
+          ],
+          "recoveredCommitted": [
+            "DONE report",
+            "STATE 8 0 4745336555194810368"
+          ]
+        },
+        "previous-x86_64": {
+          "beforeCommitBytesSpilled": 1676872,
+          "processStatusBeforeAndAfter": [
+            -9,
+            -9
+          ],
+          "recoveredPrior": [
+            "DONE report",
+            "STATE 7 16000 4638364568563744768"
+          ],
+          "recoveredCommitted": [
+            "DONE report",
+            "STATE 8 0 4745336555194810368"
+          ]
+        },
+        "candidate-x86_64": {
+          "beforeCommitBytesSpilled": 1281352,
+          "processStatusBeforeAndAfter": [
+            -9,
+            -9
+          ],
+          "recoveredPrior": [
+            "DONE report",
+            "STATE 7 16000 4638364568563744768"
+          ],
+          "recoveredCommitted": [
+            "DONE report",
+            "STATE 8 0 4745336555194810368"
+          ]
+        }
+      },
+      "twoActorRaces": {
+        "published-arm64": {
+          "epoch": 9,
+          "writer1": "DONE rebuild",
+          "writer2": "DONE compacted",
+          "state": {
+            "tables": {
+              "analytics_backfill_sources": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "app_metadata": [
+                6,
+                "845db4818f0a0195e92e6e7c22dfcc5970d8511f4a0471e6140a3205ca24da77"
+              ],
+              "claude_message_exclusions": [
+                1,
+                "ecdead976a6b20f10e6043ce9e68d2f0e0cb229a0059eae0f55086fc0471ccba"
+              ],
+              "parsing_state": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "partial_evidence": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_counters": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_metadata": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "usage_events": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "user_settings": [
+                1,
+                "c8c3465b45d9e8ba1075918f3f2a3468acf5ba3edfce8adadf0316b86bde1baa"
+              ]
+            },
+            "metadata": {
+              "data_epoch": "9",
+              "fixture_language": "한국어",
+              "import_cutoff": "1800000000.25",
+              "Partial_source_quality:keep": "keep",
+              "selected_provider": "qa",
+              "data_epoch_other": "f"
+            },
+            "exclusions": [
+              "already"
+            ]
+          }
+        },
+        "previous-arm64": {
+          "epoch": 9,
+          "writer1": "DONE rebuild",
+          "writer2": "DONE compacted",
+          "state": {
+            "tables": {
+              "analytics_backfill_sources": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "app_metadata": [
+                6,
+                "845db4818f0a0195e92e6e7c22dfcc5970d8511f4a0471e6140a3205ca24da77"
+              ],
+              "claude_message_exclusions": [
+                1,
+                "ecdead976a6b20f10e6043ce9e68d2f0e0cb229a0059eae0f55086fc0471ccba"
+              ],
+              "parsing_state": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "partial_evidence": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_counters": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_metadata": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "usage_events": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "user_settings": [
+                1,
+                "c8c3465b45d9e8ba1075918f3f2a3468acf5ba3edfce8adadf0316b86bde1baa"
+              ]
+            },
+            "metadata": {
+              "data_epoch": "9",
+              "fixture_language": "한국어",
+              "import_cutoff": "1800000000.25",
+              "Partial_source_quality:keep": "keep",
+              "selected_provider": "qa",
+              "data_epoch_other": "f"
+            },
+            "exclusions": [
+              "already"
+            ]
+          }
+        },
+        "candidate-arm64": {
+          "epoch": 9,
+          "writer1": "DONE rebuild",
+          "writer2": "DONE compacted",
+          "state": {
+            "tables": {
+              "analytics_backfill_sources": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "app_metadata": [
+                6,
+                "845db4818f0a0195e92e6e7c22dfcc5970d8511f4a0471e6140a3205ca24da77"
+              ],
+              "claude_message_exclusions": [
+                1,
+                "ecdead976a6b20f10e6043ce9e68d2f0e0cb229a0059eae0f55086fc0471ccba"
+              ],
+              "parsing_state": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "partial_evidence": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_counters": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_metadata": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "usage_events": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "user_settings": [
+                1,
+                "c8c3465b45d9e8ba1075918f3f2a3468acf5ba3edfce8adadf0316b86bde1baa"
+              ]
+            },
+            "metadata": {
+              "data_epoch": "9",
+              "fixture_language": "한국어",
+              "import_cutoff": "1800000000.25",
+              "Partial_source_quality:keep": "keep",
+              "selected_provider": "qa",
+              "data_epoch_other": "f"
+            },
+            "exclusions": [
+              "already"
+            ]
+          }
+        },
+        "published-x86_64": {
+          "epoch": 9,
+          "writer1": "DONE rebuild",
+          "writer2": "DONE compacted",
+          "state": {
+            "tables": {
+              "analytics_backfill_sources": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "app_metadata": [
+                6,
+                "845db4818f0a0195e92e6e7c22dfcc5970d8511f4a0471e6140a3205ca24da77"
+              ],
+              "claude_message_exclusions": [
+                1,
+                "ecdead976a6b20f10e6043ce9e68d2f0e0cb229a0059eae0f55086fc0471ccba"
+              ],
+              "parsing_state": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "partial_evidence": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_counters": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_metadata": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "usage_events": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "user_settings": [
+                1,
+                "c8c3465b45d9e8ba1075918f3f2a3468acf5ba3edfce8adadf0316b86bde1baa"
+              ]
+            },
+            "metadata": {
+              "data_epoch": "9",
+              "fixture_language": "한국어",
+              "import_cutoff": "1800000000.25",
+              "Partial_source_quality:keep": "keep",
+              "selected_provider": "qa",
+              "data_epoch_other": "f"
+            },
+            "exclusions": [
+              "already"
+            ]
+          }
+        },
+        "previous-x86_64": {
+          "epoch": 9,
+          "writer1": "DONE rebuild",
+          "writer2": "DONE compacted",
+          "state": {
+            "tables": {
+              "analytics_backfill_sources": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "app_metadata": [
+                6,
+                "845db4818f0a0195e92e6e7c22dfcc5970d8511f4a0471e6140a3205ca24da77"
+              ],
+              "claude_message_exclusions": [
+                1,
+                "ecdead976a6b20f10e6043ce9e68d2f0e0cb229a0059eae0f55086fc0471ccba"
+              ],
+              "parsing_state": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "partial_evidence": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_counters": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_metadata": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "usage_events": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "user_settings": [
+                1,
+                "c8c3465b45d9e8ba1075918f3f2a3468acf5ba3edfce8adadf0316b86bde1baa"
+              ]
+            },
+            "metadata": {
+              "data_epoch": "9",
+              "fixture_language": "한국어",
+              "import_cutoff": "1800000000.25",
+              "Partial_source_quality:keep": "keep",
+              "selected_provider": "qa",
+              "data_epoch_other": "f"
+            },
+            "exclusions": [
+              "already"
+            ]
+          }
+        },
+        "candidate-x86_64": {
+          "epoch": 9,
+          "writer1": "DONE rebuild",
+          "writer2": "DONE compacted",
+          "state": {
+            "tables": {
+              "analytics_backfill_sources": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "app_metadata": [
+                6,
+                "845db4818f0a0195e92e6e7c22dfcc5970d8511f4a0471e6140a3205ca24da77"
+              ],
+              "claude_message_exclusions": [
+                1,
+                "ecdead976a6b20f10e6043ce9e68d2f0e0cb229a0059eae0f55086fc0471ccba"
+              ],
+              "parsing_state": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "partial_evidence": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_counters": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "session_metadata": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "usage_events": [
+                0,
+                "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+              ],
+              "user_settings": [
+                1,
+                "c8c3465b45d9e8ba1075918f3f2a3468acf5ba3edfce8adadf0316b86bde1baa"
+              ]
+            },
+            "metadata": {
+              "data_epoch": "9",
+              "fixture_language": "한국어",
+              "import_cutoff": "1800000000.25",
+              "Partial_source_quality:keep": "keep",
+              "selected_provider": "qa",
+              "data_epoch_other": "f"
+            },
+            "exclusions": [
+              "already"
+            ]
+          }
+        }
+      },
+      "failuresAndRetries": {
+        "late-delete": [
+          [
+            "ERROR Database statement failed: fixture late delete",
+            "STATE 7 7 4638364568563744768"
+          ],
+          [
+            "DONE rebuild",
+            "STATE 8 0 4638364568563744768"
+          ]
+        ],
+        "insert-exclusion": [
+          [
+            "ERROR Database operation failed: fixture exclude failure",
+            "STATE 7 7 4638364568563744768"
+          ],
+          [
+            "DONE compacted",
+            "STATE 8 0 4745336555194810368"
+          ]
+        ],
+        "cutoff": [
+          [
+            "ERROR Database operation failed: fixture cutoff failure",
+            "STATE 7 7 4638364568563744768"
+          ],
+          [
+            "DONE compacted",
+            "STATE 8 0 4745336555194810368"
+          ]
+        ],
+        "metadata-cleanup": [
+          [
+            "ERROR Database statement failed: fixture metadata failure",
+            "STATE 7 7 4638364568563744768"
+          ],
+          [
+            "DONE compacted",
+            "STATE 8 0 4745336555194810368"
+          ]
+        ],
+        "held-uncommitted-writer": [
+          [
+            "ERROR Database statement failed: database is locked",
+            "STATE 7 7 4638364568563744768"
+          ],
+          [
+            "DONE rebuild",
+            "STATE 8 0 4638364568563744768"
+          ]
+        ]
+      },
+      "identicalFailuresAcrossSixExecutables": true,
+      "completeProductUsageStore": {
+        "published": {
+          "executed": 6,
+          "failures": 0,
+          "cases": [
+            "testCalendarRecalculationUpdatesLoadedAnalyticsWithoutReadingNewSourceBytes",
+            "testClearAndRebuildDoNotRetainOldAnalyticsOrAffectAnotherProvider",
+            "testConcurrentRequestsCannotRestoreClearedAnalysis",
+            "testFailedMaintenanceKeepsCachedUsageAndReleasesMaintenanceState",
+            "testRebuildRefreshesEveryLoadedRange",
+            "testRefreshUpdatesPreviouslyLoadedRanges"
+          ],
+          "executableSHA256": "2854ade580ebb0e48d3f0799ccbf33dac1ae3965a78c73d1fb736d923aa61fb9",
+          "testLogSHA256": "ba8c9e59c7161d36b37dcf34a35e433b50daf177d7d40871c80193788f0258dc",
+          "usesRustReset": false
+        },
+        "candidate": {
+          "executed": 6,
+          "failures": 0,
+          "cases": [
+            "testCalendarRecalculationUpdatesLoadedAnalyticsWithoutReadingNewSourceBytes",
+            "testClearAndRebuildDoNotRetainOldAnalyticsOrAffectAnotherProvider",
+            "testConcurrentRequestsCannotRestoreClearedAnalysis",
+            "testFailedMaintenanceKeepsCachedUsageAndReleasesMaintenanceState",
+            "testRebuildRefreshesEveryLoadedRange",
+            "testRefreshUpdatesPreviouslyLoadedRanges"
+          ],
+          "executableSHA256": "2fe3ef1a3ea5879d302472c700d8a2a10c0bc0779b5ee38b939c70d3f6b77f30",
+          "testLogSHA256": "30fdcb20eb753138dd87170e04b4c1d4ec48e61abffe7ea46b55718a1fbc9ac3",
+          "usesRustReset": true
+        }
+      },
+      "medianElapsedMs": {
+        "arm64/7/rebuild": {
+          "release": 2.055125,
+          "previous": 1.872375,
+          "rust": 1.616
+        },
+        "arm64/7/clear": {
+          "release": 5.4205,
+          "previous": 4.18075,
+          "rust": 4.65575
+        },
+        "arm64/7/exclude": {
+          "release": 4.995416,
+          "previous": 4.675875,
+          "rust": 4.889625
+        },
+        "x86_64/7/rebuild": {
+          "release": 2.26325,
+          "previous": 1.988541,
+          "rust": 2.043458
+        },
+        "x86_64/7/clear": {
+          "release": 6.026625,
+          "previous": 6.413583,
+          "rust": 5.585916
+        },
+        "x86_64/7/exclude": {
+          "release": 5.476458,
+          "previous": 5.794542,
+          "rust": 5.311958
+        },
+        "arm64/16000/rebuild": {
+          "release": 132.889167,
+          "previous": 135.4785,
+          "rust": 124.645583
+        },
+        "arm64/16000/clear": {
+          "release": 169.471417,
+          "previous": 163.838291,
+          "rust": 157.625042
+        },
+        "arm64/16000/exclude": {
+          "release": 171.873584,
+          "previous": 157.317667,
+          "rust": 176.080458
+        },
+        "x86_64/16000/rebuild": {
+          "release": 157.873041,
+          "previous": 127.46725,
+          "rust": 147.167625
+        },
+        "x86_64/16000/clear": {
+          "release": 170.08325,
+          "previous": 191.29975,
+          "rust": 185.3295
+        },
+        "x86_64/16000/exclude": {
+          "release": 254.684125,
+          "previous": 232.404959,
+          "rust": 224.902292
+        }
+      },
+      "notes": [
+        "Every comparison used independently generated synthetic schema18 files and the complete product public methods. Five mode/trigger/lock failures per executable were retried after removing the injected condition. Before-reset and after-crash state compare hash and count of every table and exact sorted app_metadata and exclusions. Only the wall-clock updated_at stamp of the freshly appended post-reset parsing_state row was checked for current-time range and normalized before cross-process comparison.",
+        "For crash injection, an owned slow SQLite trigger after earlier derived-table writes prolonged the uncommitted transaction. Each interruptible clear spilled more than 1 MiB of uncommitted WAL; a second reader separately saw epoch 7. For the after-commit case, a separate reader saw epoch 8 and an older read transaction still saw all seven events before SIGKILL. Restarted original, predecessor, and candidate retained the appropriate committed generation in every trial.",
+        "Apple Silicon and Rosetta cover SQLite actors; complete UI-model XCTest used Apple Silicon. No physical Intel, Windows, signed deployment or live account was involved."
+      ]
+    }
+  },
+  "formal": {
+    "run": "run-ca5c7040247f431c9a7980430cfbb15b",
+    "decision": "INCONCLUSIVE",
+    "blockers": [],
+    "missingEvidence": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "operatorImport": {
+      "error": "Operator review requires an interactive terminal; a worker JSON/flag cannot attest it",
+      "decision": "INCONCLUSIVE"
+    },
+    "gateSha256": "28a1b498e23150661cc0e08b50000e7f7e8065c95d5efaebf5fe5ed08ee55440",
+    "summary": {
+      "path": "/Users/dlfkd/.local/state/codex-harness/runs/run-ca5c7040247f431c9a7980430cfbb15b/summaries/summary-69c0ec6e0db54e159b4d30eb2bce2b67.json",
+      "decision": "INCONCLUSIVE"
+    }
+  },
+  "nativeHostCalls": {
+    "path": "actual-host-calls.json",
+    "sha256": "da04ebfa0c155b0852aa2a7b5e709485753fc5341ee8728acb5e12250feedab6"
+  },
+  "integrated": "8815ae9571056348b79f53c9c88c5bc6d844c11a",
+  "integrationChecks": {
+    "arm64": {
+      "comparisons": 67,
+      "seedSha256": "9a41f3c5d1d4d448df472ea4405bdb3657ba9f9559d365a4ea54bbe66b031744",
+      "rawSha256": "0c5ddb9d399290b491703b93253070e6a9ebaa3aa331f79bd7a07b69f21b1987"
+    },
+    "x86_64": {
+      "comparisons": 67,
+      "seedSha256": "5ef091ee1b7a78070b07f57f8478c4ec10e96210babe0c28ef32aff71c8440f9",
+      "rawSha256": "7b0265dc96997ec404adb61281b3dc9c117de54b0d0b153dd2054f6fc43232e5"
+    }
+  }
+}
