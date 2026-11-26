@@ -128,26 +128,158 @@
           }
         }
       },
-      "receiptSHA256": "f739b0f04ad9a53a79f102cecbdcbf97f49d357f08f3898c5b058a8e7a2c785c"
+      "receiptSHA256": "f739b0f04ad9a53a79f102cecbdcbf97f49d357f08f3898c5b058a8e7a2c785c",
+      "attempt": 1
     },
     "arm64": {
-      "job": 139894026930,
-      "jobConclusion": "failure",
-      "productTests": {
-        "passed": 4656,
-        "failed": 1,
-        "skipped": 0,
-        "test": "ProviderAccountMetadataTests.MetadataRoundTripAndLegacyAbsenceAreCompatible",
-        "exception": "System.IO.IOException: The process cannot access the file because it is being used by another process.",
-        "stack": [
-          "System.IO.FileSystem.MoveFile",
-          "CompanionFile.Publish",
-          "CompanionFile.Write"
-        ],
-        "testLogArtifact": 15116131668,
-        "archiveSHA256": "6194fbbdcfac86cb6c8307a2a79b20157fc40e3b4a0f1e8332a7743288548cdf"
+      "initialAttempt": {
+        "job": 139894026930,
+        "jobConclusion": "failure",
+        "productTests": {
+          "passed": 4656,
+          "failed": 1,
+          "skipped": 0,
+          "test": "ProviderAccountMetadataTests.MetadataRoundTripAndLegacyAbsenceAreCompatible",
+          "exception": "System.IO.IOException: The process cannot access the file because it is being used by another process.",
+          "stack": [
+            "System.IO.FileSystem.MoveFile",
+            "CompanionFile.Publish",
+            "CompanionFile.Write"
+          ],
+          "testLogArtifact": 15116131668,
+          "archiveSHA256": "6194fbbdcfac86cb6c8307a2a79b20157fc40e3b4a0f1e8332a7743288548cdf"
+        },
+        "scannerBenchmarks": "skipped after the product test failure; the test log did not identify the locking process or file handle",
+        "attempt": 1
       },
-      "scannerBenchmarks": "skipped after the product test failure; the test log did not identify the locking process or file handle"
+      "scannerRetry": {
+        "attempt": 2,
+        "job": 139924206839,
+        "jobConclusion": "success",
+        "artifactArchives": {
+          "scanner-sessions": {
+            "id": 15120710561,
+            "digest": "sha256:a096ad56ae6372d42245f7d2dca46b05d82998a9a88104f742c87032896f5134"
+          },
+          "bounded-lines": {
+            "id": 15119932884,
+            "digest": "sha256:03638ea6ccec7402c601293fa1c8800486d882ba37e31ee9929c870a1ad759bb"
+          }
+        },
+        "parser": {
+          "cases": {
+            "count": 864,
+            "sha256": "cdca2e9e008d4cd4ba36116cce8d7da80f9695a0838e11eee06eabd6af60ae15",
+            "ignored": 530,
+            "exceptions": 68
+          },
+          "scan": {
+            "count": 2,
+            "sha256": "ed6744827235c4a1b2730d00304ac4b8c4feba51cfb229c4ad1a59af894447f2"
+          },
+          "medians": {
+            "release": {
+              "scan": {
+                "ms": 39.4072
+              },
+              "ignored-32768": {
+                "ns": 8570.833333333334,
+                "managedBytes": 136
+              },
+              "windows-32768": {
+                "ns": 14828.125,
+                "managedBytes": 2096
+              },
+              "escaped-exact-131072": {
+                "ns": 244779.16666666666,
+                "managedBytes": 2096
+              },
+              "ignored-exact-131072": {
+                "ns": 26710.416666666668,
+                "managedBytes": 136
+              },
+              "windows-exact-131072": {
+                "ns": 33315.625,
+                "managedBytes": 2096
+              }
+            },
+            "rust": {
+              "scan": {
+                "ms": 17.3356
+              },
+              "ignored-32768": {
+                "ns": 8430.208333333334,
+                "managedBytes": 104
+              },
+              "windows-32768": {
+                "ns": 11979.166666666666,
+                "managedBytes": 1592
+              },
+              "escaped-exact-131072": {
+                "ns": 242598.95833333334,
+                "managedBytes": 1776
+              },
+              "ignored-exact-131072": {
+                "ns": 26592.708333333332,
+                "managedBytes": 104
+              },
+              "windows-exact-131072": {
+                "ns": 36752.083333333336,
+                "managedBytes": 1592
+              }
+            }
+          }
+        },
+        "stream": {
+          "cases": 495,
+          "returned": 24638,
+          "exceptions": 53,
+          "scan": {
+            "SourceCount": 1,
+            "count": 3072,
+            "events": "4773D003A8F12150D7B3EE83903535A1309B4E1B50CAAC900E0579766CB55D6E"
+          },
+          "firstReadMicroseconds": {
+            "coldProcessMedians": {
+              "5": {
+                "release": 4409.6,
+                "rust": 3913.5
+              },
+              "65536": {
+                "release": 4646.1,
+                "rust": 3998.5
+              },
+              "65537": {
+                "release": 4820.5,
+                "rust": 12517.5
+              },
+              "131072": {
+                "release": 5234.9,
+                "rust": 13085.6
+              }
+            },
+            "defaultJitColdProcessMedians": {
+              "5": {
+                "release": 2933.1,
+                "rust": 1879.2
+              },
+              "65536": {
+                "release": 8281,
+                "rust": 1887
+              },
+              "65537": {
+                "release": 8378,
+                "rust": 7806.1
+              },
+              "131072": {
+                "release": 8667.3,
+                "rust": 7962.9
+              }
+            }
+          }
+        },
+        "receiptSHA256": "063bde429759ca52a67163b644b994cce624327becd006909d278ed47bcd9dee"
+      }
     }
   },
   "localOnMac": {
@@ -159,7 +291,24 @@
       "retainedOutputs": 62743,
       "independentReaderInputsPerArchitecture": 90,
       "independentReceiptSHA256": "b485c623c7ba1fca7fc35f9a7258ec0e0adb74c5ea737621b44fa8db94eb35a7",
-      "receiptSHA256": "d8cab253365aabd5fe377a11de32ffd7d25d2761f509e88fd177136b88f6dcaa"
+      "receiptSHA256": "d8cab253365aabd5fe377a11de32ffd7d25d2761f509e88fd177136b88f6dcaa",
+      "independentStress": {
+        "groups": 20,
+        "parallelReadersPerGroup": [
+          2,
+          3,
+          5,
+          8
+        ],
+        "readers": 90,
+        "rows": 23665,
+        "oversized": 72,
+        "exceptions": {
+          "none": 76,
+          "cancel": 7,
+          "IOException:fixture source stopped": 7
+        }
+      }
     },
     "parser": {
       "commit": "3c6fcb9ec50c34acacc080ed2d2c14234458b0f9",
@@ -174,7 +323,89 @@
       "companionPassed": 26,
       "companionWindowsOnlySkipped": 6,
       "harnessGate": "REJECT",
-      "harnessReason": "New verification input CompanionStagingFileTests.cs. Previous concurrency test matches original Git blob 1ff051b0b8cd160bf038524a8218906919e457a8."
+      "harnessReason": "New verification input CompanionStagingFileTests.cs. Previous concurrency test matches original Git blob 1ff051b0b8cd160bf038524a8218906919e457a8.",
+      "independentReviewSHA256": "5597a920a687187f4f463a499ad5e06cf2e199ada012e52e52e69787cee39fe0",
+      "independentCoverage": {
+        "publicationsPerDotnetArchitecture": 240,
+        "readsPerDotnetArchitecture": 1400,
+        "architectures": [
+          "Apple Silicon",
+          "Rosetta x64"
+        ],
+        "windowsSharingExecutedByReviewer": false
+      }
+    }
+  },
+  "packageValidation": {
+    "x64": {
+      "run": 45815481690,
+      "commit": "b7393845cfb8a88f0637455e536f1dbc26b5482b",
+      "job": 139894026802,
+      "conclusion": "success",
+      "archiveSHA256": "sha256:0d2792319acd354b51e6d08c4a34b653b832fabb36b7ceec5b9d6169f93dc8d4",
+      "msiChecks": 15,
+      "msixChecks": 6,
+      "publicUpgradeRollbackPhases": [
+        "published-installed-and-profile-read",
+        "failed-upgrade-restored-public-registration-binaries-and-profile",
+        "upgraded-candidate-loaded-preserved-profile",
+        "direct-downgrade-refused-with-data-intact",
+        "published-msi-reinstalled-and-profile-read",
+        "published-uninstalled-and-data-preserved"
+      ],
+      "installedFootprint": {
+        "candidate": {
+          "files": 22,
+          "bytes": 206153821.0,
+          "publicCliBytes": 467968
+        },
+        "candidateMsiBytes": 142520320,
+        "published": {
+          "files": 18,
+          "bytes": 210192960.0,
+          "publicCliBytes": 85476168
+        },
+        "publishedMsiBytes": 144211968
+      }
+    },
+    "arm64": {
+      "run": 45808612190,
+      "commit": "bd59c6c9cac89ae3fa3097306ee1c5afce42ca07",
+      "job": 139870295283,
+      "conclusion": "success",
+      "archiveSHA256": "sha256:4837ec1375953956bc59763908d473d5f9714206cd03b17980e7d7614a9e17ee",
+      "msiChecks": 15,
+      "msixChecks": 6,
+      "publicUpgradeRollbackPhases": [
+        "published-installed-and-profile-read",
+        "failed-upgrade-restored-public-registration-binaries-and-profile",
+        "upgraded-candidate-loaded-preserved-profile",
+        "direct-downgrade-refused-with-data-intact",
+        "published-msi-reinstalled-and-profile-read",
+        "published-uninstalled-and-data-preserved"
+      ],
+      "installedFootprint": {
+        "published": {
+          "files": 18,
+          "bytes": 213780552.0,
+          "publicCliBytes": 94323542
+        },
+        "publishedMsiBytes": 135503872,
+        "candidate": {
+          "files": 22,
+          "bytes": 209638663.0,
+          "publicCliBytes": 418304
+        },
+        "candidateMsiBytes": 133582848
+      }
+    },
+    "arm64AtB7393845": {
+      "run": 45815481690,
+      "job": 139894026784,
+      "conclusion": "failure",
+      "reason": [
+        "The hosted runner lost communication with the server. Anything in your workflow that terminates the runner process, starves it for CPU/Memory, or blocks its network access can cause this error."
+      ]
     }
   }
 }
