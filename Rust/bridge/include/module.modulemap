@@ -9,6 +9,7 @@ module CCodeRimAccounting {
     header "coderim_activity_distribution.h"
     header "coderim_copilot_quota.h"
     header "coderim_ollama_quota.h"
+    header "coderim_ollama_local.h"
     header "coderim_auggie_quota.h"
     header "coderim_quota_window.h"
     header "coderim_threshold.h"

@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// What `ollama serve` has loaded right now, read from `/api/ps` on loopback.
 ///
@@ -77,6 +80,9 @@ enum OllamaLocalUsage {
     }
 
     static func models(in data: Data) -> [Model] {
+        #if CODERIM_RUST_ACCOUNTING
+        if let models = rustModels(in: data) { return models }
+        #endif
         struct Response: Decodable {
             struct Entry: Decodable {
                 let name: String?
@@ -98,4 +104,31 @@ enum OllamaLocalUsage {
         }
         .sorted { $0.name < $1.name }
     }
+
+    #if CODERIM_RUST_ACCOUNTING
+    private struct Projection {
+        let bytes: UnsafeBufferPointer<UInt8>
+        var models = [Model]()
+    }
+
+    private static func rustModels(in data: Data) -> [Model]? {
+        data.withUnsafeBytes { raw in
+            let bytes = raw.bindMemory(to: UInt8.self)
+            var output = Projection(bytes: bytes)
+            let status = withUnsafeMutablePointer(to: &output) { context in
+                cr_ollama_local_models(bytes.baseAddress, bytes.count, { context, rows, count in
+                    guard let context else { return }
+                    let slot = context.assumingMemoryBound(to: Projection.self)
+                    slot.pointee.models.reserveCapacity(count)
+                    for row in UnsafeBufferPointer(start: rows, count: count) {
+                        let range = row.offset..<(row.offset + row.length)
+                        let name = String(decoding: slot.pointee.bytes[range], as: UTF8.self)
+                        slot.pointee.models.append(Model(name: name, megabytes: Int(row.megabytes)))
+                    }
+                }, context)
+            }
+            return status == 1 ? output.models : nil
+        }
+    }
+    #endif
 }

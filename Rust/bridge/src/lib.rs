@@ -22,6 +22,8 @@ mod copilot_quota;
 #[cfg(target_os = "macos")]
 mod json_compat;
 #[cfg(target_os = "macos")]
+mod ollama_local;
+#[cfg(target_os = "macos")]
 mod ollama_quota;
 mod event_json;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
