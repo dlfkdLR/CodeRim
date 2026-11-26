@@ -425,7 +425,7 @@ jobs:
         with:
           ref: 14c332b30fd35cd266b40a4f9384b4b065b63707 # v2.1.41
           path: .migration-display-oracle
-      - name: Compare stable and candidate native account history windows
+      - name: Compare stable and candidate native WPF views
         if: ${{ !cancelled() && steps.packages.outcome == 'success' }}
         run: |
           $library = (Resolve-Path 'Rust/target/${{ matrix.triple }}/release/coderim_accounting_bridge.dll').Path

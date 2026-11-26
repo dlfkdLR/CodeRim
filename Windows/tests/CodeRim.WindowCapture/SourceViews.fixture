@@ -1,0 +1,122 @@
+using System.IO;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using System.Windows.Input;
+using CodeRim.Windows.Services;
+using CodeRim.Windows.ViewModels;
+
+namespace CodeRim.Windows.Views;
+
+// Compiled only into isolated source copies alongside the original WPF native smoke fixture.
+internal static partial class NativeSmoke
+{
+    private static async Task ControlledViews(DashboardWindow dashboard, DashboardStore store, AppSettingsStore settings, string directory)
+    {
+        Require(store.Synthetic, "Source window comparison requires synthetic data.");
+        var saved = settings.Current;
+        try
+        {
+            settings.Save(saved with { ReduceMotion = true, EnabledProviders = ["codex", "claude"] });
+            await store.RefreshAsync();
+            Require(store.Events.TryGetValue("codex", out var events) && events.Count > 0,
+                "The synthetic Codex sessions must be present for the comparison.");
+
+            SetFrame(980, 680, dark: true);
+            foreach (var page in new[] { "general", "notch", "providers", "codex", "diagnostics", "about" })
+            {
+                dashboard.Navigate(page);
+                await Idle();
+                var section = Descendants<ListBox>(dashboard).Single(x => AutomationProperties.GetName(x) == "Settings sections");
+                Require(section.SelectedItem is ListBoxItem item && Equals(item.Tag, page == "codex" ? "providers" : page),
+                    "Wrong selected settings section for " + page);
+                await Offer("normal-" + page);
+            }
+
+            foreach (var theme in new[] { "dark", "light" })
+            {
+                SetFrame(840, 560, dark: theme == "dark");
+                foreach (var page in new[] { "general", "usage", "providers", "notch" })
+                {
+                    dashboard.Navigate(page);
+                    await Idle();
+                    if (page == "usage")
+                    {
+                        var pane = Descendants<UsagePane>(dashboard).Single();
+                        pane.SelectProvider("codex");
+                        Require(pane.HandleShortcut(Key.D1, ModifierKeys.Control), "Usage Overview shortcut was not handled.");
+                        await Idle();
+                        var mode = Descendants<RadioButton>(pane).Single(x => x.GroupName == "UsageMode" && x.IsChecked == true);
+                        Require(AutomationProperties.GetAutomationId(mode) == "settings.usage.tab.overview",
+                            "Wrong usage tab in the minimum-size settings fixture.");
+                    }
+                    Require(Descendants<ScrollViewer>(dashboard).All(x => x.ScrollableWidth < 1),
+                        "Horizontal overflow in " + theme + "/" + page);
+                    await Offer("min-" + theme + "-" + page);
+                }
+            }
+
+            SetFrame(980, 680, dark: true);
+            dashboard.Navigate("usage");
+            await Idle();
+            var usage = Descendants<UsagePane>(dashboard).Single();
+            usage.SelectProvider("codex");
+            Require(usage.HandleShortcut(Key.D1, ModifierKeys.Control), "Could not navigate to Usage Overview.");
+            await Idle();
+            await Click(Descendants<Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.destination.activity"));
+            Require(Descendants<RadioButton>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.range.7d").IsChecked == true,
+                "Analytics did not show the rolling seven-day range.");
+            await Click(Descendants<Button>(dashboard).Last(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.bucket.tokens.", StringComparison.Ordinal)));
+            var bucket = Descendants<StackPanel>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.bucket-details");
+            var selectedText = Descendants<TextBlock>(bucket).Select(x => x.Text).ToArray();
+            await Click(Descendants<Button>(dashboard).First(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.model.", StringComparison.Ordinal)));
+            usage.Back();
+            await Idle();
+            Require(Descendants<StackPanel>(dashboard).Any(x => AutomationProperties.GetAutomationId(x) == "usage.bucket-details"
+                && Descendants<TextBlock>(x).Select(t => t.Text).SequenceEqual(selectedText)),
+                "Analytics lost the selected bucket after model detail navigation.");
+            await Offer("analytics-selected");
+
+            dashboard.Navigate("sessions:codex");
+            await Idle();
+            Descendants<RadioButton>(dashboard).Single(x => x.GroupName == "UsageRange" && Equals(x.Tag, "7d")).IsChecked = true;
+            await Idle();
+            await Click(Descendants<Button>(dashboard).Single(x => AutomationProperties.GetAutomationId(x) == "usage.session.preview-session"));
+            Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Whole-session images")
+                && Descendants<Button>(dashboard).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.subagent.", StringComparison.Ordinal)),
+                "The session detail must show its synthetic attachment and child session.");
+            await Offer("session-detail");
+        }
+        finally
+        {
+            settings.Save(saved);
+        }
+
+        void SetFrame(double width, double height, bool dark)
+        {
+            SettingsTheme.Apply(dark: dark, highContrast: false);
+            dashboard.WindowState = WindowState.Normal;
+            dashboard.Width = width;
+            dashboard.Height = height;
+            var area = SystemParameters.WorkArea;
+            dashboard.Left = area.Left + Math.Max(0, (area.Width - width) / 2);
+            dashboard.Top = area.Top + Math.Max(0, (area.Height - height) / 2);
+        }
+
+        static async Task Click(Button button)
+        {
+            button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+            await Idle();
+        }
+
+        async Task Offer(string view)
+        {
+            var target = Path.Combine(directory, view);
+            Require(File.Exists(Path.Combine(target, "account-compositor.request")), "No compositor request for " + view);
+            dashboard.Activate();
+            await Idle();
+            await OfferCompositorWindow(dashboard, target);
+        }
+    }
+}

@@ -134,13 +134,13 @@ internal static partial class NativeSmoke
         using var visible = owned.Clone(part, PixelFormat.Format24bppRgb);
         var before = OwnedClientSamples(handle, bounds);
         ClientAttempt comparison;
-        if (before == 9)
+        if (before == 9 && EntireClientOwned(handle, bounds))
         {
             using var physical = new Bitmap(bounds.Width, bounds.Height, PixelFormat.Format24bppRgb);
             using (var graphics = Graphics.FromImage(physical))
                 graphics.CopyFromScreen(bounds.Location, System.Drawing.Point.Empty, bounds.Size, CopyPixelOperation.SourceCopy);
             var after = OwnedClientSamples(handle, bounds);
-            if (after == 9)
+            if (after == 9 && EntireClientOwned(handle, bounds))
             {
                 var cursor = System.Windows.Forms.Cursor.Position;
                 var differences = new PixelDifferences(requested, bounds, cursor);
@@ -156,6 +156,14 @@ internal static partial class NativeSmoke
             visible.Save(ownedOutput, ImageFormat.Png);
         if (comparison.Status == "verified") visible.Save(output, ImageFormat.Png);
         return comparison;
+    }
+
+    private static bool EntireClientOwned(IntPtr handle, Rectangle bounds)
+    {
+        for (int y = bounds.Top; y < bounds.Bottom; y++)
+        for (int x = bounds.Left; x < bounds.Right; x++)
+            if (!IsFixtureAt(handle, x, y)) return false;
+        return true;
     }
 
     private static ClientAttempt OwnershipFailure(Bitmap owned, uint flags) =>
