@@ -10,21 +10,26 @@ func recordOpen(_ event: String) {
 if CommandLine.arguments.contains("--parent") {
     // A real termination veto leaves the process alive until the driver releases it.
     final class Delegate: NSObject, NSApplicationDelegate {
+        func applicationDidFinishLaunching(_ notification: Notification) {
+            DispatchQueue.main.async { UpdateService.relaunch() }
+        }
+
         func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-            recordOpen("reopen-running")
+            if FileManager.default.fileExists(atPath: directory.appendingPathComponent("ready").path) {
+                recordOpen("reopen-running")
+            }
             return true
         }
 
         func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-            try! Data("vetoed".utf8).write(to: directory.appendingPathComponent("ready"), options: .atomic)
+            try! Data(String(ProcessInfo.processInfo.processIdentifier).utf8).write(to: directory.appendingPathComponent("ready"), options: .atomic)
             return .terminateCancel
         }
     }
     let app = NSApplication.shared
     let delegate = Delegate()
     app.delegate = delegate
-    app.setActivationPolicy(.prohibited)
-    DispatchQueue.main.async { UpdateService.relaunch() }
+    app.setActivationPolicy(.accessory)
     app.run()
     withExtendedLifetime(delegate) {}
 } else {

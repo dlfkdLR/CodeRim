@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """Observe update restart and a real AppKit termination veto in disposable signed bundles."""
 import argparse
+import ctypes
 import json
+import os
 from pathlib import Path
 import platform
 import plistlib
 import shutil
+import signal
 import subprocess
 import tempfile
 import time
@@ -53,6 +56,20 @@ def process_tree():
     return children
 
 
+def fixture_pid(directory, binary):
+    ready = directory / "ready"
+    if not ready.is_file():
+        return None
+    pid = int(ready.read_text())
+    executable = ctypes.create_string_buffer(4096)
+    length = ctypes.CDLL("/usr/lib/libproc.dylib").proc_pidpath(pid, executable, len(executable))
+    if length <= 0:
+        return None
+    if Path(os.fsdecode(executable.value)).resolve() != binary.resolve():
+        raise RuntimeError("The PID no longer identifies the owned fixture")
+    return pid
+
+
 def exercise(directory, label, driver, helper, arch, hold):
     directory.mkdir()
     app = directory / "CodeRim QA's 한글.app"
@@ -72,25 +89,36 @@ def exercise(directory, label, driver, helper, arch, hold):
         subprocess.run(["codesign", "--force", "--sign", "-", companion], check=True)
         installed.symlink_to(companion.name)
     subprocess.run(["codesign", "--force", "--sign", "-", app], check=True)
-    parent = subprocess.Popen([binary, "--parent"], stdin=subprocess.DEVNULL,
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    # Register the first instance with LaunchServices just like a Finder launch.
+    # The running accessory app can then receive the production /usr/bin/open event.
+    parent = subprocess.Popen(["/usr/bin/open", "-n", "-W", app, "--args", "--parent"],
+                              stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL)
     opened = directory / "reopened.json"
     try:
         wait_file(directory / "ready", 25, parent)
+        pid = fixture_pid(directory, binary)
+        if pid is None:
+            raise RuntimeError("LaunchServices lost the QA application before its veto")
         begin = time.monotonic()
         expected = "CodeRimRestart" if helper else "sh"
         descendants = set()
         observed = set()
         while time.monotonic() - begin < min(hold, 1.0):
             tree = process_tree()
-            for pid, name in tree.get(parent.pid, []):
+            for child_pid, name in tree.get(pid, []):
                 if name == expected or (helper and name == "CodeRimCLI"):
-                    observed.add(pid)
-                    descendants.update(tree.get(pid, []))
+                    observed.add(child_pid)
+                    descendants.update(tree.get(child_pid, []))
             assert not opened.exists(), "App reopened while a regular parent was still alive"
             time.sleep(.025)
         if hold > 60:
-            wait_file(opened, hold, parent)
+            try:
+                wait_file(opened, max(0, hold - (time.monotonic() - begin)), parent)
+            except RuntimeError as error:
+                descendants = process_tree().get(pid, [])
+                names = [name for _, name in descendants]
+                raise RuntimeError(f"{label}: {error}; fixture children at deadline: {names}") from error
             assert parent.poll() is None, "Parent exited before the bounded veto check"
             elapsed = time.monotonic() - begin
             assert 58 <= elapsed <= hold + 2, elapsed
@@ -100,7 +128,9 @@ def exercise(directory, label, driver, helper, arch, hold):
                 if helper:
                     assert not descendants, descendants
             clear = time.monotonic()
-            parent.kill()
+            if fixture_pid(directory, binary) != pid:
+                raise RuntimeError("The vetoed fixture exited before release")
+            os.kill(pid, signal.SIGKILL)
             parent.wait(timeout=5)
             wait_file(opened, 20)
             elapsed = time.monotonic() - clear
@@ -111,8 +141,14 @@ def exercise(directory, label, driver, helper, arch, hold):
                 "waitChildNames": sorted({name for _, name in descendants}), "secondsToReopen": round(elapsed, 4)}
     finally:
         if parent.poll() is None:
-            parent.kill()
-            parent.wait(timeout=5)
+            owned = fixture_pid(directory, binary)
+            if owned is not None:
+                os.kill(owned, signal.SIGKILL)
+            try:
+                parent.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                parent.kill()
+                parent.wait(timeout=5)
 
 
 def main():
@@ -133,9 +169,17 @@ def main():
                  ("rapid-exit", rust, args.helper, 0), ("rolled-back-bundle", rust, None, .7)]
         if args.veto_timeout:
             cases += [("published-veto-through-timeout", legacy, None, 80), ("veto-through-timeout", rust, args.helper, 72)]
-        results = [exercise(work / label, label, binary, helper, args.arch, hold)
-                   for label, binary, helper, hold in cases]
+        results = []
+        for label, binary, helper, hold in cases:
+            try:
+                row = exercise(work / label, label, binary, helper, args.arch, hold)
+            except (RuntimeError, AssertionError, subprocess.SubprocessError) as error:
+                row = {"case": label, "error": str(error) or type(error).__name__}
+            results.append(row)
+            print(json.dumps(row), flush=True)
     args.output.write_text(json.dumps({"arch": args.arch, "results": results}, indent=2) + "\n")
+    if any("error" in row for row in results):
+        raise SystemExit("One or more production restart callbacks failed")
 
 
 if __name__ == "__main__":
