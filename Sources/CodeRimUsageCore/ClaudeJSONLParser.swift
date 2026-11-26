@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 package struct ClaudeUsageObservation: Sendable {
     package let messageID: String
@@ -46,8 +49,14 @@ package struct ClaudeJSONLParser: Sendable {
     }
 
     package func parse(_ line: Data) -> ClaudeUsageObservation? {
-        guard line.count <= CodexJSONLParser.maximumLineBytes,
-              let row = try? JSONDecoder().decode(Row.self, from: line),
+        guard line.count <= CodexJSONLParser.maximumLineBytes else { return nil }
+#if CODERIM_RUST_ACCOUNTING
+        switch parseRust(line) {
+        case .handled(let observation): return observation
+        case .fallback: break
+        }
+#endif
+        guard let row = try? JSONDecoder().decode(Row.self, from: line),
               row.type == "assistant", row.message.role == "assistant",
               row.isApiErrorMessage != true,
               Self.validIdentifier(row.message.id), Self.validIdentifier(row.sessionId),
@@ -115,3 +124,38 @@ package struct ClaudeJSONLParser: Sendable {
             ?? (try? Date(value, strategy: .iso8601))
     }
 }
+
+#if CODERIM_RUST_ACCOUNTING
+private extension ClaudeJSONLParser {
+    enum Projection {
+        case fallback
+        case handled(ClaudeUsageObservation?)
+    }
+
+    func parseRust(_ line: Data) -> Projection {
+        line.withUnsafeBytes { buffer in
+            let bytes = buffer.bindMemory(to: UInt8.self)
+            let raw = cr_parse_claude_usage(bytes.baseAddress, bytes.count)
+            switch Int(raw.kind) {
+            case CR_CLAUDE_IGNORED: return .handled(nil)
+            case CR_CLAUDE_USAGE: break
+            default: return .fallback
+            }
+            func string(_ field: cr_json_span) -> String? {
+                guard field.offset > 0, field.length >= 0, field.offset <= bytes.count,
+                      field.length <= bytes.count - field.offset else { return nil }
+                return String(decoding: bytes[field.offset..<(field.offset + field.length)], as: UTF8.self)
+            }
+            guard let message = string(raw.message_id), let session = string(raw.session_id),
+                  let model = string(raw.model), let timestamp = string(raw.timestamp) else { return .fallback }
+            guard let date = Self.date(timestamp) else { return .handled(nil) }
+            return .handled(ClaudeUsageObservation(
+                messageID: message, sessionID: session, agentID: string(raw.agent_id), occurredAt: date,
+                model: model.lowercased(), workingDirectory: string(raw.cwd),
+                usage: TokenUsage(inputTokens: raw.usage.input, cachedInputTokens: raw.usage.cached,
+                                  cacheWriteInputTokens: raw.usage.written, outputTokens: raw.usage.output)
+            ))
+        }
+    }
+}
+#endif

@@ -2,6 +2,7 @@ module CCodeRimAccounting {
     header "coderim_accounting.h"
     header "coderim_token_json.h"
     header "coderim_notch_path.h"
+    header "coderim_claude_json.h"
     export *
 }
 
