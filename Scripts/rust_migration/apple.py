@@ -262,6 +262,10 @@ def build_app(work, output):
                         "build", "-c", "release", "--arch", "arm64", "--arch", "x86_64", "--product", product],
                        cwd=ROOT, check=True)
     for arch in ("arm64", "x86_64"):
+        available = subprocess.run(["/usr/bin/arch", "-" + arch, "/usr/bin/true"], capture_output=True)
+        if available.returncode:
+            print(f"Claude status-line {arch} was built but cannot execute on this QA host.", flush=True)
+            continue
         subprocess.run(["python3", ROOT / "Scripts/rust_migration/claude-stdin-bridge/check.py", "--arch", arch,
                         oracle_dir / "CodeRimClaudeBridge", bundle / "Contents/Helpers/CodeRimClaudeBridge"], check=True)
     reference = work / "reference/CodeRim.app/Contents"
