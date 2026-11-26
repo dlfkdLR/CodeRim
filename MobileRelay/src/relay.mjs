@@ -8,7 +8,20 @@ export const HEARTBEAT = { normal: 300, busy: 600, critical: 1800 };
 const IDLE_END = 120, START_COOLDOWN = 300, START_RETRY = 60, ACTIVITY_LIFETIME = 8 * 3600;
 const MAX_ACTIVITIES_PER_PHONE = 16;
 
-const sameSnapshot = (a, b) => a && b && JSON.stringify({ ...a, generatedAt: 0 }) === JSON.stringify({ ...b, generatedAt: 0 });
+function sameSnapshot(previous, next) {
+  if (!previous) return false;
+  // A change to a known reading proves inequality without serializing both full reports.
+  if (Array.isArray(previous.providers) && Array.isArray(previous.sessions)) {
+    if (previous.providers.length !== next.providers.length || previous.sessions.length !== next.sessions.length) return false;
+    for (let i = 0; i < previous.providers.length; i++) {
+      const before = previous.providers[i], after = next.providers[i];
+      if ((typeof before?.state === 'string' && before.state !== after.state)
+          || (Number.isFinite(before?.todayTokens) && before.todayTokens !== after.todayTokens)
+          || (Number.isFinite(before?.updatedAt) && before.updatedAt !== after.updatedAt)) return false;
+    }
+  }
+  return JSON.stringify({ ...previous, generatedAt: 0 }) === JSON.stringify({ ...next, generatedAt: 0 });
+}
 // Actions shared with the default Worker's Rust device_report export.
 const REPORT_CONTENT = 1, REPORT_DEADLINE = 2, REPORT_TICK = 4;
 function deviceReport(changed, received, seen, previousWindow, nextWindow, now) {
@@ -277,8 +290,9 @@ export class Relay {
       return { ok: true };
     }
     if (method === 'POST' && path === '/v1/snapshot') {
-      const device = store.reportingDevice(session.owner, session.hash);
-      if (!device) throw new HTTPError(401, 'pairing_required');
+      const reporting = store.reportingDevice(session.owner, session.hash);
+      if (!reporting) throw new HTTPError(401, 'pairing_required');
+      const { device, hasSiblings } = reporting;
       const next = sanitizeSnapshot(body, now);
       // The computer has its token: the pairing that handed it over is finished.
       if (!device.receivedAt) {
@@ -297,7 +311,8 @@ export class Relay {
       if (plan & REPORT_CONTENT) {
         const previousProviders = device.snapshot?.providers ?? [];
         // Written with the content it numbers, so it costs no extra row write.
-        const versions = this.snapshotRead ? [device, ...store.otherDeviceVersions(session.owner, session.hash)] : undefined;
+        const versions = this.snapshotRead && hasSiblings
+          ? [device, ...store.otherDeviceVersions(session.owner, session.hash)] : [device];
         device.seq = this.nextDeviceSequence(session.owner, versions, user, now);
         device.snapshot = next; device.receivedAt = now; device.onlineWindow = onlineWindow;
         store.saveDevice(session.owner, device);

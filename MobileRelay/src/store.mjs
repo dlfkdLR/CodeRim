@@ -61,8 +61,10 @@ export class Store {
   }
   reportingDevice(owner, session) {
     // The desktop was authenticated synchronously for this request.
-    const row = this.one('SELECT id, data FROM devices WHERE owner=? AND session=?', owner, session);
-    return row && { ...JSON.parse(row.data), id: row.id, session };
+    const row = this.one(`SELECT id, data, EXISTS(
+        SELECT 1 FROM devices other WHERE other.owner=d.owner AND other.session<>d.session
+      ) AS hasSiblings FROM devices d WHERE owner=? AND session=?`, owner, session);
+    return row && { device: { ...JSON.parse(row.data), id: row.id, session }, hasSiblings: Boolean(row.hasSiblings) };
   }
   otherDeviceVersions(owner, session) {
     // Ordinary rows have a single integer sequence. For unusual or duplicate keys,
