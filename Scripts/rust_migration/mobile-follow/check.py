@@ -49,7 +49,7 @@ def main():
             swift=temp/(mode+'.swift')
             swift.write_text(fixture(source,original))
             binary=temp/mode
-            extra=['-D','CODERIM_RUST_MOBILE_SELECTION','-I',ROOT/'Rust/bridge/include',args.archive.resolve()] if mode=='rust' else []
+            extra=['-D','CODERIM_RUST_MOBILE_SELECTION','-I',ROOT/'Rust/bridge/include',args.archive.resolve(),'-framework','CoreGraphics','-lsqlite3'] if mode=='rust' else []
             subprocess.run(['swiftc','-swift-version','6','-O','-parse-as-library','-target',args.arch+'-apple-macosx14.0',swift,*extra,'-o',binary],check=True)
             collection[mode]=binary
         rows={k:subprocess.check_output([v]) for k,v in collection.items()}
