@@ -228,6 +228,15 @@ jobs:
           name: windows-${{ matrix.arch }}-data-rollback
           path: windows-${{ matrix.arch }}-data-rollback.json
           if-no-files-found: error
+      - name: Compare Windows durable event writes across release and migration builds
+        run: |
+          $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
+          python Scripts/rust_migration/windows-event-save/check.py --reference-source .migration-oracle --library "$library" --output "windows-${{ matrix.arch }}-event-save.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-${{ matrix.arch }}-event-save
+          path: windows-${{ matrix.arch }}-event-save.json
+          if-no-files-found: error
       - name: Compare complete release and Rust mobile snapshots on native Windows
         run: |
           $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
