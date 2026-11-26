@@ -93,7 +93,8 @@ fn parse(bytes: &[u8], milliseconds: bool) -> Option<f64> {
     Some(if milliseconds {
         // Darwin's ISO8601DateFormatter consumes integer milliseconds since 1970 before
         // converting to the Foundation reference epoch. The operation order is observable.
-        ((midnight + clock - offset) * 1000 + i64::from(nanos / 1_000_000)) as f64 / 1000.0 - REFERENCE as f64
+        ((midnight + clock - offset) * 1000 + i64::from(nanos / 1_000_000)) as f64 / 1000.0
+            - REFERENCE as f64
     } else {
         // FormatStyle constructs a fractional local Date before applying the zone.
         let time_of_day = clock as f64 + f64::from(nanos) / 1_000_000_000.0;
