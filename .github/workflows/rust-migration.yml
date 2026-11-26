@@ -199,6 +199,10 @@ jobs:
         run: |
           $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
           python Scripts/rust_migration/windows-settings-chart/check.py --library "$library" --benchmark-output "windows-${{ matrix.arch }}-settings-chart.json"
+      - name: Compare complete daily, model and session Settings history
+        run: |
+          $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
+          python Scripts/rust_migration/windows-settings-history/check.py --library "$library" --output "windows-${{ matrix.arch }}-settings-history.json"
       - name: Compare tray session history totals
         run: |
           $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
@@ -223,6 +227,7 @@ jobs:
           path: |
             windows-${{ matrix.arch }}-normalization.json
             windows-${{ matrix.arch }}-settings-chart.json
+            windows-${{ matrix.arch }}-settings-history.json
             windows-${{ matrix.arch }}-sqlite.json
             windows-${{ matrix.arch }}-offline-cli.json
             windows-${{ matrix.arch }}-session-totals.json
