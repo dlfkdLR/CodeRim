@@ -200,3 +200,19 @@ Windows의 MSI와 MSIX에서 실행한 실제 창과 데스크톱의 RGB를 비�
 ### 고정 의존성의 보안 권고
 
 2026-11-26 OSV에서 Rust 16개 버전, NuGet 11개 버전, Swift 9개 고정 커밋을 조회했다. Swift Crypto 4.5.2에서 Apple의 High 권고 CVE-2026-86983 한 건이 검색됐다. 영향받는 제품은 CryptoExtras와 그 재노출 모듈이며 수정 버전은 5.0.3이다. CodeRim의 CodexBarCore는 Crypto 제품만 요청한다. 두 macOS 아키텍처의 Release 링크 입력과 심볼, 확인한 앱·의존성 소스에 해당 모듈·연산 참조가 없었다. 고정 버전은 권고 범위에 남아 있어 빌드 대상이나 의존성 변경 시 다시 확인해야 한다. 저장소의 Dependabot 경보 API는 비활성 상태였다. [버전별 조회 결과](verification/2026-11-26/resolved-dependency-advisories.json) · [Darwin 빌드의 링크 범위](verification/2026-11-26/swift-crypto-product-scope.json) · [Apple 보안 권고](https://github.com/apple/swift-crypto/security/advisories/GHSA-jwv7-rv4f-rff2)
+
+### 설치된 계정 설정과 Windows 화면
+
+Apple Silicon에서 후보 앱 `9bcef61`을 4회 실행해 공급자 12개의 설정 화면을 14회 열었다. 빈 프로필의 Codex 연결 상태와 공식 CLI·API 키 안내가 기대값과 일치했다. 합성 CLI로 사용량과 실패 13건을 검사했고, Auggie 파서 결과 5,085건을 세 시간대에서 원본과 대조했다. 이 검증에 유료 계정 로그인과 배포 서명 키체인 업그레이드는 포함되지 않았다. [실제 설정 화면 및 공식 CLI 검증](verification/2026-11-26/macos-official-provider-ui.json)
+
+Windows x64와 ARM64에서 `d9b7a57`의 MSI와 MSIX를 설치했다. 실제 설정과 DPAPI를 사용해 공백 키 거부, 저장 실패와 기존 키 보존, 재개방 후 교체·삭제 상태를 검증했다. x64에서는 980 × 720 계정 창의 705,548픽셀과 테스트용 배경에 속한 모서리 52픽셀을 모두 확인한 뒤 화면 합성 결과와 비교해 차이 0픽셀을 얻었다. ARM64의 창 캡처에서도 RGB는 일치했으나 화면 소유권을 확인한 표본은 0/9여서 해당 환경의 데스크톱 표시 결과는 미검증이다. 두 환경 모두 합성 계정을 사용했다. [설치·창·키 보존 결과](verification/2026-11-26/windows-installed-account-d9b7a57.json) · [해당 CI 실행](https://github.com/dlfkdLR/CodeRim/actions/runs/45760622130)
+
+### 데스크톱에서 iPhone과 CLI로 보내는 데이터
+
+Mac의 모바일 스냅샷 616개가 Apple Silicon과 Rosetta에서 각각 v2.1.41의 전체 JSON과 일치했다. 제목 공유를 켠 512개 세션을 처리하는 중앙값은 2.55 ms에서 0.276 ms로 줄었다. 같은 조건에서 세션 2개는 18.20 µs에서 18.52 µs로 소폭 늘었다. 이 측정은 데스크톱에서 발행할 내용을 만드는 시간이다. 동일 순위·시간인 세션은 기존 앱이 사용하는 해당 컬렉션의 순서를 보존한다. [전체 측정 및 정렬 대조 결과](verification/2026-11-26/macos-mobile-session-publication.json)
+
+CLI·위젯용 파일을 발행하는 두 프로세스와 읽는 프로세스를 함께 실행했다. 각 아키텍처에서 발행 800회와 읽기 4,000회가 온전한 문서만 반환했고, 두 버전의 교차 열기 8건이 성공했다. APFS의 실제 파일에 제공자 1·8·70개를 기록하는 중앙값은 각각 178.53→146.06, 216.12→183.58, 545.95→500.42 µs였다. [파일 권한·오류·동시 발행 및 측정](verification/2026-11-26/macos-companion-file-publication.json)
+
+### macOS 프로세스 메모리 재측정
+
+서명이 검증된 동일 QA 번들을 격리 프로필에서 기존판·후보·후보·기존판 순으로 실행했다. 165초 시점 RSS는 각각 31.69, 73.89, 30.25, 40.53 MiB였다. 물리 메모리 부담(physical footprint)은 22.25, 21.17, 22.47, 21.89 MiB였다. 가장 높은 RSS가 관측된 실행에서 vmmap의 읽기 전용 라이브러리 상주량은 342.5 MiB였고, 두 번째 후보에서는 247.6 MiB였다. RSS와 vmmap은 집계 범위가 다르며 공유 페이지와 시스템 캐시 상태를 통제하지 않았다. 현재 측정으로 앱 메모리 개선이나 회귀 해소를 판정할 수 없다. [같은 실행 파일의 SHA-256 및 프로세스별 계측](verification/2026-11-26/macos-process-memory-4e9afb7.json)

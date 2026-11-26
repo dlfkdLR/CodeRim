@@ -1,0 +1,94 @@
+{
+  "commit": "a2d26e2",
+  "arm64": "arm64 106 matching file cases, 8 cross-version opens, 800 publications and 4000 complete reads 9f161f89b09d9199b4ec8c7c09ff6096a7b9907ea3dd7916b4266dc88e43b368",
+  "x86_64Rosetta": "x86_64 106 matching file cases, 8 cross-version opens, 800 publications and 4000 complete reads 9f161f89b09d9199b4ec8c7c09ff6096a7b9907ea3dd7916b4266dc88e43b368",
+  "independentCAbi": [
+    "arm64 54 independent ABI, permission, frozen-descriptor and byte checks passed; only original three names present",
+    "x86_64 54 independent ABI, permission, frozen-descriptor and byte checks passed; only original three names present"
+  ],
+  "samples": [
+    {
+      "providers": 1,
+      "samplesNs": {
+        "release": [
+          183068.88666666666,
+          182532.22,
+          176587.5,
+          178533.60666666666,
+          175923.61333333334,
+          176148.88666666666,
+          191585.56
+        ],
+        "candidate": [
+          146060.55333333334,
+          148064.16666666666,
+          144580.28,
+          145520.83333333334,
+          144325.55333333334,
+          147572.78,
+          152611.38666666666
+        ]
+      },
+      "medianNs": {
+        "release": 178533.60666666666,
+        "candidate": 146060.55333333334
+      }
+    },
+    {
+      "providers": 8,
+      "samplesNs": {
+        "release": [
+          214876.66,
+          216122.08,
+          222736.25,
+          214820.41,
+          219025.42,
+          217241.67,
+          210593.75
+        ],
+        "candidate": [
+          176562.08,
+          184648.33,
+          178141.67,
+          184393.33,
+          173857.08,
+          183582.92,
+          185461.25
+        ]
+      },
+      "medianNs": {
+        "release": 216122.08,
+        "candidate": 183582.92
+      }
+    },
+    {
+      "providers": 70,
+      "samplesNs": {
+        "release": [
+          534738.55,
+          537952.075,
+          555589.6,
+          546810.425,
+          548953.125,
+          542858.325,
+          545947.925
+        ],
+        "candidate": [
+          513977.1,
+          496061.45,
+          495888.525,
+          506560.425,
+          484954.15,
+          502484.375,
+          500422.925
+        ]
+      },
+      "medianNs": {
+        "release": 545947.925,
+        "candidate": 500422.925
+      }
+    }
+  ],
+  "unit": "end-to-end nanoseconds per publication on the same Apple Silicon machine and APFS volume; seven alternating pairs per size",
+  "durability": "Existing fsync ordering exercised. No power-cut experiment."
+}

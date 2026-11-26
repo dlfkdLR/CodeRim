@@ -1,0 +1,175 @@
+{
+  "source": "macOS vmmap -summary -wide, main PID of isolated QA bundle; counter snapshots precede memory-map inspection. First settling observation at 45 s, final at 165 s; GUI CPU load and lock not controlled. No live production app or user profile sampled.",
+  "sha256": {
+    "reference": "d1833d92d514bff18552a5afe36caf527466451058b22bdee4751e7ba8688083",
+    "candidate": "44ab21f7b8cc1c759580b58d0443a99411043ff84db1a73fb7f6c1ffa39d071e"
+  },
+  "samples": [
+    {
+      "sequence": 0,
+      "kind": "reference",
+      "45": {
+        "session_locked": 0,
+        "visible_notches": 1,
+        "cpu_ms": 1179.66745833,
+        "resident_bytes": 84754432,
+        "footprint_bytes": 24019832,
+        "peak_footprint_bytes": 24265808,
+        "interrupt_wakeups": 800,
+        "package_idle_wakeups": 0,
+        "disk_read_bytes": 261459968,
+        "disk_written_bytes": 16384,
+        "logical_writes": 393228,
+        "energy_nj": 3726932388
+      },
+      "165": {
+        "session_locked": 0,
+        "visible_notches": 1,
+        "cpu_ms": 3268.01233333,
+        "resident_bytes": 33226752,
+        "footprint_bytes": 23331680,
+        "peak_footprint_bytes": 24347512,
+        "interrupt_wakeups": 2318,
+        "package_idle_wakeups": 135,
+        "disk_read_bytes": 263282688,
+        "disk_written_bytes": 16384,
+        "logical_writes": 393228,
+        "energy_nj": 7379044673
+      },
+      "vmmapStatus": 0,
+      "vmmap": {
+        "readOnlyLibrariesResident": "260.9M",
+        "writableResident": "10.3M",
+        "textResident": "249.6M",
+        "linkeditResident": "11.3M",
+        "mallocAllocated": "9202K"
+      }
+    },
+    {
+      "sequence": 1,
+      "kind": "candidate",
+      "45": {
+        "session_locked": 0,
+        "visible_notches": 1,
+        "cpu_ms": 486.97158333,
+        "resident_bytes": 93896704,
+        "footprint_bytes": 22774576,
+        "peak_footprint_bytes": 23216944,
+        "interrupt_wakeups": 454,
+        "package_idle_wakeups": 75,
+        "disk_read_bytes": 49692672,
+        "disk_written_bytes": 16384,
+        "logical_writes": 393228,
+        "energy_nj": 1127736319
+      },
+      "165": {
+        "session_locked": 0,
+        "visible_notches": 1,
+        "cpu_ms": 1595.88058333,
+        "resident_bytes": 77479936,
+        "footprint_bytes": 22201136,
+        "peak_footprint_bytes": 23446320,
+        "interrupt_wakeups": 2371,
+        "package_idle_wakeups": 344,
+        "disk_read_bytes": 49811456,
+        "disk_written_bytes": 16384,
+        "logical_writes": 393228,
+        "energy_nj": 2650636474
+      },
+      "vmmapStatus": 0,
+      "vmmap": {
+        "readOnlyLibrariesResident": "342.5M",
+        "writableResident": "9377K",
+        "textResident": "327.8M",
+        "linkeditResident": "14.7M",
+        "mallocAllocated": "8355K"
+      }
+    },
+    {
+      "sequence": 2,
+      "kind": "candidate",
+      "45": {
+        "session_locked": 0,
+        "visible_notches": 1,
+        "cpu_ms": 431.480375,
+        "resident_bytes": 77807616,
+        "footprint_bytes": 23135024,
+        "peak_footprint_bytes": 23446320,
+        "interrupt_wakeups": 618,
+        "package_idle_wakeups": 54,
+        "disk_read_bytes": 172032,
+        "disk_written_bytes": 16384,
+        "logical_writes": 393228,
+        "energy_nj": 963949144
+      },
+      "165": {
+        "session_locked": 0,
+        "visible_notches": 1,
+        "cpu_ms": 1358.737375,
+        "resident_bytes": 31719424,
+        "footprint_bytes": 23561008,
+        "peak_footprint_bytes": 23659312,
+        "interrupt_wakeups": 2129,
+        "package_idle_wakeups": 72,
+        "disk_read_bytes": 6295552,
+        "disk_written_bytes": 16384,
+        "logical_writes": 393228,
+        "energy_nj": 2280735487
+      },
+      "vmmapStatus": 0,
+      "vmmap": {
+        "readOnlyLibrariesResident": "247.6M",
+        "writableResident": "6737K",
+        "textResident": "241.3M",
+        "linkeditResident": "6464K",
+        "mallocAllocated": "8478K"
+      }
+    },
+    {
+      "sequence": 3,
+      "kind": "reference",
+      "45": {
+        "session_locked": 0,
+        "visible_notches": 1,
+        "cpu_ms": 1499.30320833,
+        "resident_bytes": 82362368,
+        "footprint_bytes": 22905768,
+        "peak_footprint_bytes": 24069224,
+        "interrupt_wakeups": 1006,
+        "package_idle_wakeups": 137,
+        "disk_read_bytes": 281284608,
+        "disk_written_bytes": 16384,
+        "logical_writes": 393228,
+        "energy_nj": 3647964739
+      },
+      "165": {
+        "session_locked": 0,
+        "visible_notches": 1,
+        "cpu_ms": 4263.101875,
+        "resident_bytes": 42500096,
+        "footprint_bytes": 22954896,
+        "peak_footprint_bytes": 24069224,
+        "interrupt_wakeups": 3396,
+        "package_idle_wakeups": 324,
+        "disk_read_bytes": 281698304,
+        "disk_written_bytes": 16384,
+        "logical_writes": 393228,
+        "energy_nj": 10524328060
+      },
+      "vmmapStatus": 0,
+      "vmmap": {
+        "readOnlyLibrariesResident": "219.9M",
+        "writableResident": "5617K",
+        "textResident": "213.4M",
+        "linkeditResident": "6656K",
+        "mallocAllocated": "8918K"
+      }
+    }
+  ],
+  "finalSampleResumed": true,
+  "methodNotes": [
+    "Each rusage counter snapshot precedes the vmmap inspection. The two tools have different accounting domains, so their figures cannot be subtracted to derive private memory.",
+    "The reference and candidate were sampled in ABBA order. The final run used the same reference executable recovered from its previously verified QA archive after interruption. The executable hash matched.",
+    "Screen unlocked in each 165-second observation. File cache, foreground system activity, compression and power state were uncontrolled."
+  ]
+}

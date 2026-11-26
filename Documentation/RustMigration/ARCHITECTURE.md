@@ -35,6 +35,8 @@ The first implementation uses the existing native views. There is no measured UI
 
 ## Rollback and release
 
+Work continues on `migration/full-rust`. The requested delivery ends with a review pull request once verification is complete. Merging into `main` and publishing a release are reserved for the maintainer.
+
 The published 2.1.41 source is preserved at [the backup branch](https://github.com/dlfkdLR/CodeRim/tree/legacy/pre-rust-migration-v2.1.41) and [the annotated tag](https://github.com/dlfkdLR/CodeRim/tree/pre-rust-migration-v2.1.41-20261126). Its [release artifacts and signatures](https://github.com/dlfkdLR/CodeRim/releases/tag/v2.1.41) remain the reinstall source. Use the hashes and the existing channel-specific signature checks for the exact artifact. The experimental app can be tested in a separate profile and removed from that profile. The production update feed still serves its original release.
 
 Before a future public upgrade, exercise install, update, failure and rollback on copies of legacy profiles, including SQLite, preferences, account references, snapshots and the updater. Check data integrity before and after reopening the stable build. Sparkle and Windows version policies must be observed when repairing a published release. Full feature parity, UI parity, device coverage, system-level performance, signing and release gates are still open.
