@@ -1,0 +1,13 @@
+<Project>
+  <!-- The SDK unsets RuntimeIdentifier on portable references and adds transitive
+       references after project evaluation. Carry the consuming executable RID on both. -->
+  <Target Name="PassCodeRimAccountingHostRid" BeforeTargets="AssignProjectConfiguration"
+          DependsOnTargets="IncludeTransitiveProjectReferences"
+          Condition="'$(CodeRimRustAccounting)' == 'true' And '$(RuntimeIdentifier)' != ''">
+    <ItemGroup>
+      <ProjectReference Update="@(ProjectReference)">
+        <AdditionalProperties>%(ProjectReference.AdditionalProperties);CodeRimAccountingHostRid=$(RuntimeIdentifier)</AdditionalProperties>
+      </ProjectReference>
+    </ItemGroup>
+  </Target>
+</Project>

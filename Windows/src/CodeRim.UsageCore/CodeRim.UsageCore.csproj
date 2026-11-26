@@ -6,4 +6,35 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <LangVersion>12.0</LangVersion>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(CodeRimRustAccounting)' == 'true'">
+    <_CodeRimAccountingTargetRid>$(RuntimeIdentifier)</_CodeRimAccountingTargetRid>
+    <_CodeRimAccountingTargetRid Condition="'$(_CodeRimAccountingTargetRid)' == ''">$(CodeRimAccountingHostRid)</_CodeRimAccountingTargetRid>
+    <_CodeRimAccountingTargetRid Condition="'$(_CodeRimAccountingTargetRid)' == ''">$(NETCoreSdkPortableRuntimeIdentifier)</_CodeRimAccountingTargetRid>
+    <_CodeRimBridgeFilename Condition="$(_CodeRimAccountingTargetRid.StartsWith('win-'))">coderim_accounting_bridge.dll</_CodeRimBridgeFilename>
+    <_CodeRimBridgeFilename Condition="$(_CodeRimAccountingTargetRid.StartsWith('osx-'))">libcoderim_accounting_bridge.dylib</_CodeRimBridgeFilename>
+    <_CodeRimBridgeFilename Condition="$(_CodeRimAccountingTargetRid.StartsWith('linux'))">libcoderim_accounting_bridge.so</_CodeRimBridgeFilename>
+    <_CodeRimInputFilename>$([System.IO.Path]::GetFileName('$(CodeRimRustAccountingLibrary)'))</_CodeRimInputFilename>
+    <DefineConstants>$(DefineConstants);CODERIM_RUST_ACCOUNTING</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(CodeRimRustAccounting)' == 'true'">
+    <Compile Remove="Domain/ManagedUsageNormalizer.cs" />
+    <Content Include="$(CodeRimRustAccountingLibrary)" Condition="'$(CodeRimRustAccountingLibrary)' != ''"
+             Link="$(_CodeRimBridgeFilename)" TargetPath="$(_CodeRimBridgeFilename)"
+             CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" ExcludeFromSingleFile="true" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(CodeRimRustAccounting)' != 'true'">
+    <Compile Remove="Domain/RustUsageNormalizer.cs" />
+  </ItemGroup>
+  <Import Project="Build/ValidateRustBridge.targets" Condition="'$(CodeRimRustAccounting)' == 'true'" />
+  <Target Name="ValidateCodeRimAccountingLibrary" BeforeTargets="PrepareForBuild;GetCopyToOutputDirectoryItems;ComputeFilesToPublish"
+          Condition="'$(CodeRimRustAccounting)' == 'true'">
+    <Error Condition="'$(_CodeRimBridgeFilename)' == ''"
+           Text="Unsupported Rust accounting target RID '$(_CodeRimAccountingTargetRid)'." />
+    <Error Condition="!$([System.IO.Path]::IsPathFullyQualified('$(CodeRimRustAccountingLibrary)'))"
+           Text="Set CodeRimRustAccountingLibrary to the absolute path of the target Rust bridge." />
+    <Error Condition="'$(_CodeRimInputFilename)' != '$(_CodeRimBridgeFilename)' Or !Exists('$(CodeRimRustAccountingLibrary)')"
+           Text="Expected an existing $(_CodeRimBridgeFilename) at CodeRimRustAccountingLibrary for $(_CodeRimAccountingTargetRid)." />
+    <ValidateCodeRimWindowsBridge Path="$(CodeRimRustAccountingLibrary)" RuntimeIdentifier="$(_CodeRimAccountingTargetRid)"
+                                  Condition="$(_CodeRimAccountingTargetRid.StartsWith('win-'))" />
+  </Target>
 </Project>

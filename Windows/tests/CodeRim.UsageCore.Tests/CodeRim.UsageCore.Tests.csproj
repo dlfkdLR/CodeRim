@@ -17,4 +17,11 @@
     <EmbeddedResource Include="../../../Tests/Fixtures/claude-usage-v1.json" LogicalName="claude-usage-v1.json" />
     <EmbeddedResource Include="../../../Tests/Fixtures/codex-token-parser-v1.json" LogicalName="codex-token-parser-v1.json" />
   </ItemGroup>
+  <ItemGroup Condition="'$(CodeRimRustAccounting)' == 'true'">
+    <!-- The managed reference is compiled into the test host only. -->
+    <Compile Include="../../src/CodeRim.UsageCore/Domain/ManagedUsageNormalizer.cs" Link="ManagedUsageNormalizer.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(CodeRimRustAccounting)' != 'true'">
+    <Compile Remove="RustNormalizerDifferentialTests.cs" />
+  </ItemGroup>
 </Project>

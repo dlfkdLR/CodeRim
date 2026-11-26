@@ -1,0 +1,55 @@
+<Project>
+  <UsingTask TaskName="ValidateCodeRimWindowsBridge" TaskFactory="RoslynCodeTaskFactory"
+             AssemblyFile="$(MSBuildToolsPath)/Microsoft.Build.Tasks.Core.dll">
+    <ParameterGroup>
+      <Path ParameterType="System.String" Required="true" />
+      <RuntimeIdentifier ParameterType="System.String" Required="true" />
+    </ParameterGroup>
+    <Task>
+      <Using Namespace="System.IO" />
+      <Code Type="Fragment" Language="cs"><![CDATA[
+        // Inspect metadata without activating the candidate DLL (also works when cross-publishing).
+        ushort expectedMachine;
+        switch (RuntimeIdentifier) {
+            case "win-x64": expectedMachine = 0x8664; break;
+            case "win-arm64": expectedMachine = 0xaa64; break;
+            default: Log.LogError("Unsupported Windows Rust bridge RID: {0}.", RuntimeIdentifier); return false;
+        }
+        try {
+            using (var stream = File.OpenRead(Path))
+            using (var reader = new BinaryReader(stream)) {
+                if (stream.Length < 64 || reader.ReadUInt16() != 0x5a4d)
+                    throw new InvalidDataException("Missing DOS signature.");
+                stream.Position = 0x3c;
+                int offset = reader.ReadInt32();
+                if (offset < 64 || offset > stream.Length - 26)
+                    throw new InvalidDataException("PE header offset is outside the file.");
+                stream.Position = offset;
+                if (reader.ReadUInt32() != 0x00004550)
+                    throw new InvalidDataException("Missing PE signature.");
+                ushort machine = reader.ReadUInt16();
+                stream.Position = (long)offset + 20;
+                ushort optionalHeaderSize = reader.ReadUInt16();
+                ushort characteristics = reader.ReadUInt16();
+                if (optionalHeaderSize < 2 || (long)offset + 24 + optionalHeaderSize > stream.Length ||
+                    (characteristics & 0x2002) != 0x2002 || reader.ReadUInt16() != 0x020b)
+                    throw new InvalidDataException("Expected a PE32+ executable DLL.");
+                if (machine != expectedMachine)
+                    throw new InvalidDataException(string.Format(
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        "PE machine 0x{0:X4}; {1} requires 0x{2:X4}.", machine, RuntimeIdentifier, expectedMachine));
+            }
+        } catch (IOException ex) {
+            Log.LogError("Invalid Rust accounting bridge for {0}: {1}", RuntimeIdentifier, ex.Message);
+            return false;
+        } catch (InvalidDataException ex) {
+            Log.LogError("Invalid Rust accounting bridge for {0}: {1}", RuntimeIdentifier, ex.Message);
+            return false;
+        } catch (UnauthorizedAccessException ex) {
+            Log.LogError("Cannot inspect the Rust accounting bridge: {0}", ex.Message);
+            return false;
+        }
+      ]]></Code>
+    </Task>
+  </UsingTask>
+</Project>
