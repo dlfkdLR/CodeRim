@@ -280,7 +280,23 @@ pub fn render(options: &Options, bytes: &[u8]) -> Option<Result<String, String>>
     if root.depth() > 63 {
         return None;
     }
-    root.shape(&["schemaVersion", "generatedAt", "providers"], &[])?;
+    // CompanionSnapshot has only these three CLR properties. Its typed reader
+    // ignores ordinary extension properties; their values do not enter output.
+    // Keep metadata, unusual names and case aliases with the compatibility reader.
+    const ROOT_FIELDS: [&str; 3] = ["schemaVersion", "generatedAt", "providers"];
+    for (name, _) in root.obj()? {
+        if ROOT_FIELDS.contains(&name.as_str()) {
+            continue;
+        }
+        if name.is_empty()
+            || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+            || ROOT_FIELDS
+                .iter()
+                .any(|known| name.eq_ignore_ascii_case(known))
+        {
+            return None;
+        }
+    }
     if root.get("schemaVersion")?.int()? != 1 {
         return None;
     }
