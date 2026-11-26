@@ -162,3 +162,7 @@ macOS에서 통합 후보 `4325275`의 Universal 2 앱을 실제 ZIP·DMG로 만
 iPhone Live Activity 자동 시작·중지 조건은 각 아키텍처 13,056개 상태 전이, 대시보드 응답과 Island 업데이트 간 충돌 처리는 각각 4,352개 시나리오를 기존 동작과 대조했다. 장치용 Release 빌드와 시뮬레이터용 XCTest 빌드의 심볼도 확인했다. 이는 실기기 APNs 수신의 검증과 별개다. [자동 시작·중지](verification/2026-11-26/ios-follow.json) · [대시보드 갱신](verification/2026-11-26/ios-snapshot-refresh.json)
 
 macOS 업데이트 재시작 실험에서 공개판의 AppKit 재열기 콜백이 CI의 시간 제한에 걸렸다. Finder처럼 LaunchServices에 등록된 accessory 앱을 같은 조건으로 실행하도록 QA 드라이버를 고쳤다. 로컬 수정본의 6개 시나리오를 실행했다. 종료가 거부된 앱을 다시 연 시간은 공개판 63.75초, Rust 60.07초였고, 빠른 종료와 기존 번들 복귀 경로도 원래 번들을 열었다. [LaunchServices 실험](verification/2026-11-26/macos-restart-launchservices.json)
+
+## 한 시간 연속 수집
+
+공개 v2.1.41과 후보 `6661448`을 같은 Mac에서 실행하고 각자의 임시 프로필에 60초 간격으로 합성 Codex 기록을 추가했다. 첫 시도는 36개 관측까지 일치한 뒤 후보가 종료 코드 0으로 끝났다. 원인은 확인되지 않았다. 두 번째 시도는 3,601.11초 동안 두 프로세스가 모두 유지됐다. 61개 관측 모두 각 이벤트의 토큰 수, 누적 워터마크, 파일 오프셋, 스키마 18과 SQLite 무결성을 확인했다. 마지막 누적량은 239토큰, 파일 오프셋은 17,534바이트였다. 이 시간 동안 각 앱의 노치 창은 관측마다 하나였다. [두 시도의 전 구간 관측과 리소스 수치](verification/2026-11-26/macos-collection-soak.json)

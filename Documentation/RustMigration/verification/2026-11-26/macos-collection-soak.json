@@ -1,0 +1,1440 @@
+{
+  "reference": "v2.1.41",
+  "candidate": "6661448",
+  "scope": "Two real app processes on one Mac with separate ephemeral profiles. At each observation, compared exact SQLite event amounts, schema 18, integrity, cumulative watermark and committed log offset. PID resource counters include collection; this is an AC test, not battery life.",
+  "attempts": [
+    {
+      "sha256": {
+        "reference": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64",
+        "candidate": "05a0a824424b3ff16bd38fd178e586ac6eb0dcc840c6002fed93e3451dff33a7"
+      },
+      "durationMinutesRequested": 60,
+      "cadenceSeconds": 60,
+      "completed": false,
+      "observedSeconds": 2160.0107902499876,
+      "iterations": 36,
+      "expectedFinalTokens": 141,
+      "observedFailure": {
+        "process": "candidate",
+        "exitCode": 0,
+        "nextStep": 36,
+        "cause": "unconfirmed"
+      },
+      "samples": [
+        {
+          "step": 0,
+          "events": 1,
+          "tokens": 1,
+          "committedOffset": 341,
+          "observedSeconds": {
+            "reference": 2.3204675000015413,
+            "candidate": 2.350011207992793
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 1,
+          "events": 2,
+          "tokens": 3,
+          "committedOffset": 626,
+          "observedSeconds": {
+            "reference": 60.8220895830018,
+            "candidate": 60.851406040994334
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 2,
+          "events": 3,
+          "tokens": 6,
+          "committedOffset": 911,
+          "observedSeconds": {
+            "reference": 120.83595283298928,
+            "candidate": 120.86337358299352
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 3,
+          "events": 4,
+          "tokens": 10,
+          "committedOffset": 1197,
+          "observedSeconds": {
+            "reference": 181.09279304098163,
+            "candidate": 181.1324948749825
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 4,
+          "events": 5,
+          "tokens": 15,
+          "committedOffset": 1483,
+          "observedSeconds": {
+            "reference": 241.08253779100778,
+            "candidate": 241.11472195798706
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 5,
+          "events": 6,
+          "tokens": 21,
+          "committedOffset": 1769,
+          "observedSeconds": {
+            "reference": 301.19608350000635,
+            "candidate": 301.27637587500794
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 6,
+          "events": 7,
+          "tokens": 28,
+          "committedOffset": 2055,
+          "observedSeconds": {
+            "reference": 361.07767158299976,
+            "candidate": 361.11099512498186
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 7,
+          "events": 8,
+          "tokens": 29,
+          "committedOffset": 2341,
+          "observedSeconds": {
+            "reference": 421.0685172910016,
+            "candidate": 421.0997405829985
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 8,
+          "events": 9,
+          "tokens": 31,
+          "committedOffset": 2627,
+          "observedSeconds": {
+            "reference": 481.085287000009,
+            "candidate": 481.114531040992
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 9,
+          "events": 10,
+          "tokens": 34,
+          "committedOffset": 2913,
+          "observedSeconds": {
+            "reference": 541.0680229999853,
+            "candidate": 541.0996630829904
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 10,
+          "events": 11,
+          "tokens": 38,
+          "committedOffset": 3199,
+          "observedSeconds": {
+            "reference": 601.0661307499831,
+            "candidate": 601.0969874999864
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 11,
+          "events": 12,
+          "tokens": 43,
+          "committedOffset": 3485,
+          "observedSeconds": {
+            "reference": 661.0756879160035,
+            "candidate": 661.1062297909957
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 12,
+          "events": 13,
+          "tokens": 49,
+          "committedOffset": 3771,
+          "observedSeconds": {
+            "reference": 721.0777975829988,
+            "candidate": 721.1126099160028
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 13,
+          "events": 14,
+          "tokens": 56,
+          "committedOffset": 4057,
+          "observedSeconds": {
+            "reference": 781.071658832996,
+            "candidate": 781.0980865410093
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 14,
+          "events": 15,
+          "tokens": 57,
+          "committedOffset": 4343,
+          "observedSeconds": {
+            "reference": 841.0895211659808,
+            "candidate": 841.1205252079963
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 15,
+          "events": 16,
+          "tokens": 59,
+          "committedOffset": 4629,
+          "observedSeconds": {
+            "reference": 901.071326958001,
+            "candidate": 901.1050639579917
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 16,
+          "events": 17,
+          "tokens": 62,
+          "committedOffset": 4915,
+          "observedSeconds": {
+            "reference": 961.0739921659842,
+            "candidate": 961.1062464580027
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 17,
+          "events": 18,
+          "tokens": 66,
+          "committedOffset": 5201,
+          "observedSeconds": {
+            "reference": 1021.0741140830069,
+            "candidate": 1021.1041293330054
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 18,
+          "events": 19,
+          "tokens": 71,
+          "committedOffset": 5487,
+          "observedSeconds": {
+            "reference": 1081.082427375004,
+            "candidate": 1081.111275874995
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 19,
+          "events": 20,
+          "tokens": 77,
+          "committedOffset": 5773,
+          "observedSeconds": {
+            "reference": 1141.085134790992,
+            "candidate": 1141.1254130409943
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 20,
+          "events": 21,
+          "tokens": 84,
+          "committedOffset": 6059,
+          "observedSeconds": {
+            "reference": 1201.0837161250092,
+            "candidate": 1201.1154554159875
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 21,
+          "events": 22,
+          "tokens": 85,
+          "committedOffset": 6345,
+          "observedSeconds": {
+            "reference": 1261.080784500009,
+            "candidate": 1261.1124160830077
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 22,
+          "events": 23,
+          "tokens": 87,
+          "committedOffset": 6631,
+          "observedSeconds": {
+            "reference": 1321.085800707995,
+            "candidate": 1321.116825791003
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 23,
+          "events": 24,
+          "tokens": 90,
+          "committedOffset": 6917,
+          "observedSeconds": {
+            "reference": 1381.0708920000034,
+            "candidate": 1381.101067083
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 24,
+          "events": 25,
+          "tokens": 94,
+          "committedOffset": 7203,
+          "observedSeconds": {
+            "reference": 1441.0946097079868,
+            "candidate": 1441.1287421659945
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 25,
+          "events": 26,
+          "tokens": 99,
+          "committedOffset": 7489,
+          "observedSeconds": {
+            "reference": 1501.0709016659966,
+            "candidate": 1501.1030824159825
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 26,
+          "events": 27,
+          "tokens": 105,
+          "committedOffset": 7776,
+          "observedSeconds": {
+            "reference": 1561.0800585409888,
+            "candidate": 1561.1157852499891
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 27,
+          "events": 28,
+          "tokens": 112,
+          "committedOffset": 8063,
+          "observedSeconds": {
+            "reference": 1621.072950916001,
+            "candidate": 1621.1131907910021
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 28,
+          "events": 29,
+          "tokens": 113,
+          "committedOffset": 8350,
+          "observedSeconds": {
+            "reference": 1681.0840009579988,
+            "candidate": 1681.1231716659822
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 29,
+          "events": 30,
+          "tokens": 115,
+          "committedOffset": 8637,
+          "observedSeconds": {
+            "reference": 1741.107145041009,
+            "candidate": 1741.146570375
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 30,
+          "events": 31,
+          "tokens": 118,
+          "committedOffset": 8924,
+          "observedSeconds": {
+            "reference": 1801.0716711249988,
+            "candidate": 1801.107327040998
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 31,
+          "events": 32,
+          "tokens": 122,
+          "committedOffset": 9211,
+          "observedSeconds": {
+            "reference": 1861.1141814580042,
+            "candidate": 1861.1516429580079
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 32,
+          "events": 33,
+          "tokens": 127,
+          "committedOffset": 9498,
+          "observedSeconds": {
+            "reference": 1921.0863327910047,
+            "candidate": 1921.1193388329848
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 33,
+          "events": 34,
+          "tokens": 133,
+          "committedOffset": 9785,
+          "observedSeconds": {
+            "reference": 1981.0876954579871,
+            "candidate": 1981.1207054999977
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 34,
+          "events": 35,
+          "tokens": 140,
+          "committedOffset": 10072,
+          "observedSeconds": {
+            "reference": 2041.0942847499828,
+            "candidate": 2041.129872083009
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 35,
+          "events": 36,
+          "tokens": 141,
+          "committedOffset": 10359,
+          "observedSeconds": {
+            "reference": 2101.0859573749913,
+            "candidate": 2101.119822499997
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        }
+      ],
+      "resourceDelta": {
+        "reference": {
+          "seconds": 2098.7654898749897,
+          "cpuPercent": 1.7766954159428767,
+          "peakFootprintBytes": 25150352,
+          "finalFootprintBytes": 25002896,
+          "energyCounterJ": 72.379484498,
+          "diskReadBytes": 713801728,
+          "diskWrittenBytes": 0
+        },
+        "candidate": {
+          "seconds": 2098.7698112920043,
+          "cpuPercent": 1.7481622830954324,
+          "peakFootprintBytes": 25445240,
+          "finalFootprintBytes": 25133968,
+          "energyCounterJ": 72.254883587,
+          "diskReadBytes": 687128576,
+          "diskWrittenBytes": 0
+        }
+      }
+    },
+    {
+      "sha256": {
+        "reference": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64",
+        "candidate": "05a0a824424b3ff16bd38fd178e586ac6eb0dcc840c6002fed93e3451dff33a7"
+      },
+      "durationMinutesRequested": 60,
+      "cadenceSeconds": 60,
+      "completed": true,
+      "observedSeconds": 3601.1129047499853,
+      "iterations": 61,
+      "expectedFinalTokens": 239,
+      "observedFailure": null,
+      "samples": [
+        {
+          "step": 0,
+          "events": 1,
+          "tokens": 1,
+          "committedOffset": 341,
+          "observedSeconds": {
+            "reference": 3.042053291981574,
+            "candidate": 3.0897700419882312
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 1,
+          "events": 2,
+          "tokens": 3,
+          "committedOffset": 626,
+          "observedSeconds": {
+            "reference": 60.86526287498418,
+            "candidate": 60.902267832978396
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 2,
+          "events": 3,
+          "tokens": 6,
+          "committedOffset": 911,
+          "observedSeconds": {
+            "reference": 121.12636041699443,
+            "candidate": 121.16866662498796
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 3,
+          "events": 4,
+          "tokens": 10,
+          "committedOffset": 1197,
+          "observedSeconds": {
+            "reference": 181.0768872499757,
+            "candidate": 181.10550325000077
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 4,
+          "events": 5,
+          "tokens": 15,
+          "committedOffset": 1483,
+          "observedSeconds": {
+            "reference": 241.087207457982,
+            "candidate": 241.1181948329904
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 5,
+          "events": 6,
+          "tokens": 21,
+          "committedOffset": 1769,
+          "observedSeconds": {
+            "reference": 301.11349958297797,
+            "candidate": 301.16310954198707
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 6,
+          "events": 7,
+          "tokens": 28,
+          "committedOffset": 2055,
+          "observedSeconds": {
+            "reference": 360.85219891698216,
+            "candidate": 360.89128220800194
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 7,
+          "events": 8,
+          "tokens": 29,
+          "committedOffset": 2341,
+          "observedSeconds": {
+            "reference": 421.07684583298396,
+            "candidate": 421.1052416249877
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 8,
+          "events": 9,
+          "tokens": 31,
+          "committedOffset": 2627,
+          "observedSeconds": {
+            "reference": 481.11742174997926,
+            "candidate": 481.1661148329731
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 9,
+          "events": 10,
+          "tokens": 34,
+          "committedOffset": 2913,
+          "observedSeconds": {
+            "reference": 541.1215757079772,
+            "candidate": 541.1606751249928
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 10,
+          "events": 11,
+          "tokens": 38,
+          "committedOffset": 3199,
+          "observedSeconds": {
+            "reference": 601.0777265829965,
+            "candidate": 601.1093497919792
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 11,
+          "events": 12,
+          "tokens": 43,
+          "committedOffset": 3485,
+          "observedSeconds": {
+            "reference": 661.1068051669863,
+            "candidate": 661.1472085829882
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 12,
+          "events": 13,
+          "tokens": 49,
+          "committedOffset": 3771,
+          "observedSeconds": {
+            "reference": 720.8500823749928,
+            "candidate": 720.8943223749811
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 13,
+          "events": 14,
+          "tokens": 56,
+          "committedOffset": 4057,
+          "observedSeconds": {
+            "reference": 781.0770274169918,
+            "candidate": 781.1216299579828
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 14,
+          "events": 15,
+          "tokens": 57,
+          "committedOffset": 4343,
+          "observedSeconds": {
+            "candidate": 840.8349349999917,
+            "reference": 841.1331292499963
+          },
+          "visibleNotches": {
+            "candidate": 1,
+            "reference": 1
+          }
+        },
+        {
+          "step": 15,
+          "events": 16,
+          "tokens": 59,
+          "committedOffset": 4629,
+          "observedSeconds": {
+            "reference": 901.0835487919976,
+            "candidate": 901.1179208329995
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 16,
+          "events": 17,
+          "tokens": 62,
+          "committedOffset": 4915,
+          "observedSeconds": {
+            "reference": 960.8543191249773,
+            "candidate": 960.8848617499752
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 17,
+          "events": 18,
+          "tokens": 66,
+          "committedOffset": 5201,
+          "observedSeconds": {
+            "reference": 1020.8561808329832,
+            "candidate": 1020.8919452079863
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 18,
+          "events": 19,
+          "tokens": 71,
+          "committedOffset": 5487,
+          "observedSeconds": {
+            "reference": 1081.1017232919985,
+            "candidate": 1081.1406990829855
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 19,
+          "events": 20,
+          "tokens": 77,
+          "committedOffset": 5773,
+          "observedSeconds": {
+            "reference": 1141.125392499991,
+            "candidate": 1141.1924419999996
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 20,
+          "events": 21,
+          "tokens": 84,
+          "committedOffset": 6059,
+          "observedSeconds": {
+            "reference": 1201.103564207995,
+            "candidate": 1201.140520624991
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 21,
+          "events": 22,
+          "tokens": 85,
+          "committedOffset": 6345,
+          "observedSeconds": {
+            "reference": 1261.0887596249813,
+            "candidate": 1261.1270235419797
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 22,
+          "events": 23,
+          "tokens": 87,
+          "committedOffset": 6631,
+          "observedSeconds": {
+            "reference": 1321.0664103749732,
+            "candidate": 1321.0976815829927
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 23,
+          "events": 24,
+          "tokens": 90,
+          "committedOffset": 6917,
+          "observedSeconds": {
+            "reference": 1380.8693505830015,
+            "candidate": 1380.9043224169873
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 24,
+          "events": 25,
+          "tokens": 94,
+          "committedOffset": 7203,
+          "observedSeconds": {
+            "reference": 1441.0727559169754,
+            "candidate": 1441.1033299169794
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 25,
+          "events": 26,
+          "tokens": 99,
+          "committedOffset": 7489,
+          "observedSeconds": {
+            "reference": 1501.1144910829898,
+            "candidate": 1501.1537127079791
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 26,
+          "events": 27,
+          "tokens": 105,
+          "committedOffset": 7776,
+          "observedSeconds": {
+            "reference": 1561.1001897499955,
+            "candidate": 1561.1424949999782
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 27,
+          "events": 28,
+          "tokens": 112,
+          "committedOffset": 8063,
+          "observedSeconds": {
+            "reference": 1621.164607374987,
+            "candidate": 1621.2154659999942
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 28,
+          "events": 29,
+          "tokens": 113,
+          "committedOffset": 8350,
+          "observedSeconds": {
+            "reference": 1681.1030327079934,
+            "candidate": 1681.1376285000006
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 29,
+          "events": 30,
+          "tokens": 115,
+          "committedOffset": 8637,
+          "observedSeconds": {
+            "reference": 1741.1177435419813,
+            "candidate": 1741.155503707996
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 30,
+          "events": 31,
+          "tokens": 118,
+          "committedOffset": 8924,
+          "observedSeconds": {
+            "reference": 1800.8571803329978,
+            "candidate": 1800.890935082978
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 31,
+          "events": 32,
+          "tokens": 122,
+          "committedOffset": 9211,
+          "observedSeconds": {
+            "reference": 1860.837500041991,
+            "candidate": 1860.8671286249883
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 32,
+          "events": 33,
+          "tokens": 127,
+          "committedOffset": 9498,
+          "observedSeconds": {
+            "candidate": 1920.8552050419967,
+            "reference": 1921.1439708749822
+          },
+          "visibleNotches": {
+            "candidate": 1,
+            "reference": 1
+          }
+        },
+        {
+          "step": 33,
+          "events": 34,
+          "tokens": 133,
+          "committedOffset": 9785,
+          "observedSeconds": {
+            "reference": 1980.8525772499852,
+            "candidate": 1980.9113304999773
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 34,
+          "events": 35,
+          "tokens": 140,
+          "committedOffset": 10072,
+          "observedSeconds": {
+            "reference": 2041.1428757499962,
+            "candidate": 2041.207738832978
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 35,
+          "events": 36,
+          "tokens": 141,
+          "committedOffset": 10359,
+          "observedSeconds": {
+            "reference": 2100.837711582979,
+            "candidate": 2100.870623249997
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 36,
+          "events": 37,
+          "tokens": 143,
+          "committedOffset": 10646,
+          "observedSeconds": {
+            "reference": 2161.1058601249824,
+            "candidate": 2161.1447649999755
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 37,
+          "events": 38,
+          "tokens": 146,
+          "committedOffset": 10933,
+          "observedSeconds": {
+            "reference": 2221.0790903329907,
+            "candidate": 2221.1101645829913
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 38,
+          "events": 39,
+          "tokens": 150,
+          "committedOffset": 11220,
+          "observedSeconds": {
+            "reference": 2281.060229582974,
+            "candidate": 2281.114970374998
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 39,
+          "events": 40,
+          "tokens": 155,
+          "committedOffset": 11507,
+          "observedSeconds": {
+            "reference": 2341.0888416249945,
+            "candidate": 2341.117318042001
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 40,
+          "events": 41,
+          "tokens": 161,
+          "committedOffset": 11794,
+          "observedSeconds": {
+            "reference": 2401.09042004199,
+            "candidate": 2401.1235983329825
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 41,
+          "events": 42,
+          "tokens": 168,
+          "committedOffset": 12081,
+          "observedSeconds": {
+            "reference": 2460.8492511669756,
+            "candidate": 2460.880755708
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 42,
+          "events": 43,
+          "tokens": 169,
+          "committedOffset": 12368,
+          "observedSeconds": {
+            "reference": 2521.092158124986,
+            "candidate": 2521.125854541984
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 43,
+          "events": 44,
+          "tokens": 171,
+          "committedOffset": 12655,
+          "observedSeconds": {
+            "reference": 2580.8334641249967,
+            "candidate": 2580.8721398749913
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 44,
+          "events": 45,
+          "tokens": 174,
+          "committedOffset": 12942,
+          "observedSeconds": {
+            "reference": 2641.0874071249855,
+            "candidate": 2641.115127249999
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 45,
+          "events": 46,
+          "tokens": 178,
+          "committedOffset": 13229,
+          "observedSeconds": {
+            "reference": 2700.8485492079926,
+            "candidate": 2700.8822851669975
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 46,
+          "events": 47,
+          "tokens": 183,
+          "committedOffset": 13516,
+          "observedSeconds": {
+            "reference": 2761.124293082976,
+            "candidate": 2761.176299666986
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 47,
+          "events": 48,
+          "tokens": 189,
+          "committedOffset": 13803,
+          "observedSeconds": {
+            "reference": 2820.8436739579774,
+            "candidate": 2820.880427291995
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 48,
+          "events": 49,
+          "tokens": 196,
+          "committedOffset": 14090,
+          "observedSeconds": {
+            "reference": 2881.1244747499877,
+            "candidate": 2881.1568842080014
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 49,
+          "events": 50,
+          "tokens": 197,
+          "committedOffset": 14377,
+          "observedSeconds": {
+            "reference": 2941.0936731249967,
+            "candidate": 2941.1235589579737
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 50,
+          "events": 51,
+          "tokens": 199,
+          "committedOffset": 14664,
+          "observedSeconds": {
+            "reference": 3000.837139832991,
+            "candidate": 3000.8781248329906
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 51,
+          "events": 52,
+          "tokens": 202,
+          "committedOffset": 14951,
+          "observedSeconds": {
+            "reference": 3060.8602674169815,
+            "candidate": 3060.900397707999
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 52,
+          "events": 53,
+          "tokens": 206,
+          "committedOffset": 15238,
+          "observedSeconds": {
+            "reference": 3120.855873458,
+            "candidate": 3120.8931684579875
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 53,
+          "events": 54,
+          "tokens": 211,
+          "committedOffset": 15525,
+          "observedSeconds": {
+            "reference": 3180.8395905419893,
+            "candidate": 3180.8721325829974
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 54,
+          "events": 55,
+          "tokens": 217,
+          "committedOffset": 15812,
+          "observedSeconds": {
+            "reference": 3240.8645772079763,
+            "candidate": 3240.903282332991
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 55,
+          "events": 56,
+          "tokens": 224,
+          "committedOffset": 16099,
+          "observedSeconds": {
+            "reference": 3300.8537705419876,
+            "candidate": 3300.884421166993
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 56,
+          "events": 57,
+          "tokens": 225,
+          "committedOffset": 16386,
+          "observedSeconds": {
+            "reference": 3360.845865832991,
+            "candidate": 3360.874817999982
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 57,
+          "events": 58,
+          "tokens": 227,
+          "committedOffset": 16673,
+          "observedSeconds": {
+            "reference": 3421.1188587079814,
+            "candidate": 3421.153261792002
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 58,
+          "events": 59,
+          "tokens": 230,
+          "committedOffset": 16960,
+          "observedSeconds": {
+            "reference": 3480.8523355419748,
+            "candidate": 3480.8892713329988
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 59,
+          "events": 60,
+          "tokens": 234,
+          "committedOffset": 17247,
+          "observedSeconds": {
+            "reference": 3540.842633458,
+            "candidate": 3540.8732997079787
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        },
+        {
+          "step": 60,
+          "events": 61,
+          "tokens": 239,
+          "committedOffset": 17534,
+          "observedSeconds": {
+            "reference": 3601.080741624988,
+            "candidate": 3601.1128291669884
+          },
+          "visibleNotches": {
+            "reference": 1,
+            "candidate": 1
+          }
+        }
+      ],
+      "resourceDelta": {
+        "reference": {
+          "seconds": 3598.0386883330066,
+          "cpuPercent": 0.9383447462495783,
+          "peakFootprintBytes": 26968976,
+          "finalFootprintBytes": 26624912,
+          "energyCounterJ": 50.726259931,
+          "diskReadBytes": 907300864,
+          "diskWrittenBytes": 0
+        },
+        "candidate": {
+          "seconds": 3598.023059125,
+          "cpuPercent": 0.9027391641997694,
+          "peakFootprintBytes": 26919776,
+          "finalFootprintBytes": 26575712,
+          "energyCounterJ": 49.866996112,
+          "diskReadBytes": 917630976,
+          "diskWrittenBytes": 0
+        }
+      }
+    }
+  ]
+}
