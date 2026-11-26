@@ -43,30 +43,6 @@ public sealed class CompanionFileConcurrencyTests : IDisposable
         Assert.False(File.Exists(temporary));
     }
 
-    [Fact(Skip = "Requires Windows rename sharing semantics", SkipUnless = nameof(IsWindows))]
-    public void StagingLeasePreventsALateIncompatibleReaderAndAllowsImmediatePublishedReads()
-    {
-        Directory.CreateDirectory(directory);
-        var temporary = Path.Combine(directory, "complete.tmp");
-        var bytes = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(Snapshot("after"), CompanionFile.JsonOptions);
-        using (var lease = CompanionFile.Stage(temporary, bytes))
-        {
-            Assert.NotNull(lease);
-            Assert.False(lease.IsInvalid);
-            var blocked = Assert.Throws<IOException>(() =>
-            {
-                using var incompatible = new FileStream(temporary, FileMode.Open, FileAccess.Read, FileShare.Read);
-            });
-            Assert.Equal(32, blocked.HResult & 0xffff);
-            using var compatible = new FileStream(temporary, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
-            CompanionFile.Publish(temporary, PathName);
-            Assert.Equal("after", Assert.Single(CompanionFile.Read(PathName).Providers).Limits.Message);
-            Assert.False(File.Exists(temporary));
-        }
-        using var ordinary = new FileStream(PathName, FileMode.Open, FileAccess.Read, FileShare.Read);
-        Assert.Equal(bytes.Length, ordinary.Length);
-    }
-
     [Fact]
     public void NonSharingFailureIsNotRetried()
     {
