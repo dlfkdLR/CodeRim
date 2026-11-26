@@ -26,11 +26,23 @@ def main():
         count += 1
         return results[0]
 
-    for flags in [["help"], ["--help"], ["--version"], ["-V"], ["path"], ["path","--snapshot","one/two"],
-                  ["providers"], ["providers","--json"], ["providers","--pretty","--json"], ["version"],
-                  ["--watch","inf"], ["--period","unknown"], ["--provider"], ["usage","--provider","enabled"],
-                  ["help","--watch","10"], ["--format","json","--format","text","--pretty"], ["--width","39"]]:
-        compare("options",flags)
+    # Keep argument error tests pointed at a disposable path even if parsing
+    # regresses and the command tries to continue into a snapshot read. Put
+    # the path before the flags so a final missing argument stays missing.
+    with tempfile.TemporaryDirectory(prefix="coderim-cli-options-") as temporary:
+        missing = str(Path(temporary) / "missing.json")
+        for flags in [
+            ["help"], ["--help"], ["--version"], ["-V"], ["path"],
+            ["path", "--snapshot", "one/two"], ["providers"], ["providers", "--json"],
+            ["providers", "--pretty", "--json"], ["version"], ["help", "--watch", "10"],
+        ]:
+            compare("metadata and help", flags)
+        for flags in [
+            ["--watch", "inf"], ["--period", "unknown"], ["--provider"],
+            ["--format", "json", "--format", "text", "--pretty"], ["--width", "39"],
+        ]:
+            compare("argument error", ["--snapshot", missing, *flags])
+        compare("explicit usage argument error", ["usage", "--snapshot", missing, "--provider", "enabled"])
     _, raw, _ = compare("catalog",["providers","--json"])
     catalog = json.loads(raw)
     # A future timestamp makes displayed relative "Updated ... ago" exactly 0s.
