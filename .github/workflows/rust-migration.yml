@@ -14,6 +14,8 @@ on:
       - 'Sources/CodeRim/Domain/SourceCheckpoint.swift'
       - 'Sources/CodeRim/Notch/SideNotchShape.swift'
       - 'Sources/CodeRim/Notch/NotchRootView.swift'
+      - 'Sources/CodeRim/Pricing/**'
+      - 'Tests/CodeRimTests/FullAuditBoundaryTests.swift'
       - 'Sources/CodeRim/Persistence/**'
       - 'Sources/CodeRim/Sources/SourceImportSession.swift'
       - 'Windows/Directory.Build.targets'
