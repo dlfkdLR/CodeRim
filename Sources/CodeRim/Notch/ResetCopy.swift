@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 enum ResetTimeFormat: String, CaseIterable, Identifiable {
     case automatic
@@ -29,6 +32,17 @@ enum ResetCopy {
     static func text(for resetsAt: Date, now: Date = Date(), calendar: Calendar = .current,
                      format: ResetTimeFormat = .automatic) -> String {
         let seconds = resetsAt.timeIntervalSince(now)
+        #if CODERIM_RUST_ACCOUNTING
+        let reset = cr_quota_reset_time(seconds, format == .remaining)
+        switch Int(reset.kind) {
+        case CR_QUOTA_CALENDAR: break
+        case CR_QUOTA_MINUTES: return "Resets in \(reset.amount) min"
+        case CR_QUOTA_HOURS: return "Resets in \(reset.amount)h \(reset.remainder)m"
+        case CR_QUOTA_DAY_COUNT: return "Resets in \(reset.amount) \(reset.amount == 1 ? "Day" : "Days") \(reset.remainder)h"
+        case CR_QUOTA_RESETTING: return "Resetting…"
+        default: return "Reset time unavailable"
+        }
+        #else
         guard seconds.isFinite, let roundedMinutes = Int(exactly: (seconds / 60).rounded()) else {
             return "Reset time unavailable"
         }
@@ -54,6 +68,8 @@ enum ResetCopy {
         if minutes < 60 {
             return "Resets in \(max(1, minutes)) min"
         }
+
+        #endif
 
         let formatter = formatter(for: calendar)
 

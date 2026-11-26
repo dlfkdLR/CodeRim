@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 struct AccountLimitWindow: Equatable, Sendable, Identifiable {
     private static let maximumPaceWindowMinutes = 366 * 24 * 60
@@ -28,6 +31,20 @@ struct AccountLimitWindow: Equatable, Sendable, Identifiable {
     }
 
     func pace(at now: Date) -> AccountLimitPace? {
+        #if CODERIM_RUST_ACCOUNTING
+        guard let resetsAt else { return nil }
+        let pace = cr_quota_account_pace(Int64(windowDurationMinutes), usedPercent,
+                                         resetsAt.timeIntervalSinceReferenceDate, now.timeIntervalSinceReferenceDate)
+        let state: AccountLimitPace.State
+        switch Int(pace.state) {
+        case CR_QUOTA_AHEAD: state = .ahead
+        case CR_QUOTA_ON_PACE: state = .onPace
+        case CR_QUOTA_RESERVE: state = .reserve
+        default: return nil
+        }
+        return AccountLimitPace(state: state, differencePercent: pace.difference,
+                                projectedExhaustion: pace.projected.isNaN ? nil : Date(timeIntervalSinceReferenceDate: pace.projected))
+        #else
         guard windowDurationMinutes > 0,
               windowDurationMinutes <= Self.maximumPaceWindowMinutes,
               let resetsAt,
@@ -70,6 +87,7 @@ struct AccountLimitWindow: Equatable, Sendable, Identifiable {
             differencePercent: abs(difference),
             projectedExhaustion: projectedExhaustion
         )
+        #endif
     }
 }
 

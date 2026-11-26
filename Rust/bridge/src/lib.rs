@@ -22,6 +22,8 @@ mod notch_path;
 mod ollama_key;
 #[cfg(target_os = "macos")]
 mod pricing;
+#[cfg(any(target_os = "macos", test))]
+mod quota_window;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod session_totals;
 #[cfg(target_os = "macos")]

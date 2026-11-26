@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 struct UsagePace {
     /// Used quota minus elapsed time, expressed in percentage points.
@@ -7,6 +10,12 @@ struct UsagePace {
     var isDeficit: Bool { percentagePoints > 0 }
 
     var summary: String {
+        #if CODERIM_RUST_ACCOUNTING
+        let number = cr_quota_pace_magnitude(percentagePoints)
+        if number.style != CR_QUOTA_UNAVAILABLE {
+            return "\(number.displayText)% \(isDeficit ? "deficit" : "reserved")"
+        }
+        #endif
         let magnitude = abs(percentagePoints)
         let rounded = (magnitude * 10).rounded() / 10
         let value = rounded == 0 && magnitude > 0
@@ -19,6 +28,11 @@ struct UsagePace {
 
 extension LimitWindow {
     func usagePace(now: Date) -> UsagePace? {
+        #if CODERIM_RUST_ACCOUNTING
+        guard let usedFraction, let duration, let resetsAt else { return nil }
+        let points = cr_quota_notch_pace(usedFraction, duration, resetsAt.timeIntervalSince(now))
+        return points.isNaN ? nil : UsagePace(percentagePoints: points)
+        #else
         guard let usedFraction, usedFraction.isFinite, usedFraction >= 0,
               let duration, duration.isFinite, duration > 0,
               let resetsAt else { return nil }
@@ -32,5 +46,6 @@ extension LimitWindow {
         return UsagePace(
             percentagePoints: (spentFraction - elapsedFraction) * 100
         )
+        #endif
     }
 }

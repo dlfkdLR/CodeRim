@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// How much to trust a provider's numbers. The UI never presents a derived or
 /// manual figure as if a vendor had published it.
@@ -26,11 +29,29 @@ enum ProviderStatus: Equatable {
     var staleSince: Date? { if case .stale(let since) = self { return since }; return nil }
 }
 
+#if CODERIM_RUST_ACCOUNTING
+extension cr_quota_number {
+    var displayText: String {
+        switch Int(style) {
+        case CR_QUOTA_WHOLE: return String(value)
+        case CR_QUOTA_TENTHS: return "\(value / 10).\(value % 10)"
+        case CR_QUOTA_BELOW_TENTH: return "<0.1"
+        case CR_QUOTA_ABOVE_99_9: return ">99.9"
+        default: return "—"
+        }
+    }
+}
+#endif
+
 /// Use whole percents above one; below one, retain tenths so nonzero usage does not look unused and
 /// used/left still sum correctly.
 enum Percent {
     /// The two halves of a used-fraction, as display text.
     static func halves(for fraction: Double) -> (used: String, left: String) {
+        #if CODERIM_RUST_ACCOUNTING
+        let numbers = cr_quota_percent(fraction, true)
+        return (numbers.used.displayText, numbers.left.displayText)
+        #else
         let value = fraction * 100
         guard value.isFinite, value >= 0 else { return ("—", "—") }
         let fractional = (value > 0 && value < 1) || (value > 99 && value < 100)
@@ -45,16 +66,21 @@ enum Percent {
         // "<0.1" has no number to subtract from a hundred, so the far half
         // makes the same claim from its own end: ">99.9".
         return (small(value), left > 99.9 ? ">99.9" : small(left))
+        #endif
     }
 
     /// One percentage, as display text — the ring's label.
     static func text(for fraction: Double) -> String {
+        #if CODERIM_RUST_ACCOUNTING
+        return cr_quota_percent(fraction, false).used.displayText
+        #else
         let value = fraction * 100
         guard value.isFinite, value >= 0 else { return "—" }
         guard value > 0, value < 1 else {
             return Int(exactly: value.rounded()).map(String.init) ?? "—"
         }
         return small(value)
+        #endif
     }
 
     private static func small(_ value: Double) -> String {
