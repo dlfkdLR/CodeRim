@@ -165,6 +165,10 @@ jobs:
           $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
           dotnet test Windows/tests/CodeRim.UsageCore.Tests --configuration Release -p:CodeRimRustAccounting=true "-p:CodeRimRustAccountingLibrary=$library"
 
+      - name: Verify RPC pipe cleanup and exact process ownership
+        run: |
+          $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
+          dotnet test Windows/tests/CodeRim.Core.Tests --configuration Release '-p:CodeRimRustAccounting=true' "-p:CodeRimRustAccountingLibrary=$library" -- --filter-class '*AppServerIORegressionTests'
       - name: Run product's .NET regression suite with the Rust host
         run: |
           $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
