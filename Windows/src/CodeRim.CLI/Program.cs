@@ -5,6 +5,13 @@ using CodeRim.Core.Domain;
 using CodeRim.Core.Providers;
 using CodeRim.Core.Services;
 
+#if CODERIM_SNAPSHOT_STDIN
+// This separately built compatibility reader may only render a bounded, already-opened
+// snapshot. The ordinary installed CLI retains all public commands and its filesystem path.
+if (args.Length == 0 || args[0] is not ("usage" or "tokens" or "limits") ||
+    args.Skip(1).Where((_, index) => index % 2 == 0).Any(option => option is not ("--provider" or "--period" or "--format"))) return 1;
+#endif
+
 // Piped CLI data has the same UTF-8 contract on both platforms. Replace only
 // redirected readers/writers so a user's attached console code page is unchanged.
 var utf8 = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
@@ -59,6 +66,7 @@ static async Task<int> RunAsync(string[] arguments)
                 """); return 0;
         }
         if (command == "path") { Console.WriteLine(path ?? CompanionFile.SnapshotPath); return 0; }
+#if !CODERIM_SNAPSHOT_STDIN
         if (command == "claude-connect")
         {
             try { ClaudeHookInstaller.Install(replaceStatusLine); }
@@ -75,12 +83,17 @@ static async Task<int> RunAsync(string[] arguments)
         }
         if (command == "claude-session-start") { await RegisterClaudeSessionAsync().ConfigureAwait(false); return 0; }
         if (command == "claude-status") { await CaptureClaudeAsync().ConfigureAwait(false); return 0; }
+#endif
         if (command is not ("usage" or "tokens" or "limits")) throw new ArgumentException("Unknown command.");
         using var cancellation = new CancellationTokenSource();
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
         do
         {
+#if CODERIM_SNAPSHOT_STDIN
+            var snapshot = CompanionFile.ReadCliSnapshotStream(Console.OpenStandardInput());
+#else
             var snapshot = CompanionFile.ReadForCli(path);
+#endif
             var providers = snapshot.Providers.Where(x => x.Enabled && (provider is null || x.Id == provider)).ToArray();
             if (provider is not null && providers.Length == 0) throw new InvalidDataException("This provider is not enabled in the snapshot.");
             if (format == "json")
@@ -136,6 +149,7 @@ static string Value(string[] args, ref int index)
     if (++index >= args.Length) throw new ArgumentException("An option value is missing.");
     return args[index];
 }
+#if !CODERIM_SNAPSHOT_STDIN
 static async Task<JsonDocument> ReadHookInputAsync()
 {
     var buffer = new char[8192]; var text = new System.Text.StringBuilder(); int count;
@@ -177,3 +191,4 @@ static async Task CaptureClaudeAsync()
     }
     Console.WriteLine(string.Join(" · ", windows.Select(x => $"{x.Name} {x.UsedPercent:0}%")));
 }
+#endif

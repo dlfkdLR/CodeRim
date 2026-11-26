@@ -1,0 +1,11 @@
+CodeRim CLI
+  coderim [usage|tokens|limits] [--provider ID] [--period today|week|month|all-time]
+         [--format text|json] [--pretty] [--watch SECONDS] [--snapshot PATH] [--no-color]
+  coderim path | version | help
+  coderim claude-connect [--replace-statusline]
+  coderim claude-disconnect  (restores the previous status line and removes CodeRim hooks)
+  coderim claude-status  (reads Claude status-line JSON from stdin)
+  coderim claude-session-start  (binds a Claude SessionStart hook to the current login)
+
+Usage is local to This PC, across accounts. Limits retain the provider's original units.
+Start CodeRim.exe to keep the companion snapshot up to date.

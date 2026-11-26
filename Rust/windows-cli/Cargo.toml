@@ -1,0 +1,21 @@
+[package]
+name = "coderim-windows-companion"
+version = "0.1.0"
+edition = "2024"
+publish = false
+license = "MIT"
+description = "Opt-in native Windows companion command processor"
+
+[dependencies]
+serde = "1"
+serde_json = { version = "1", features = ["float_roundtrip"] }
+
+[build-dependencies]
+serde_json = "1"
+
+[[bin]]
+name = "CodeRimRustCLI"
+path = "src/main.rs"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
