@@ -131,9 +131,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Verify native architecture
         run: test "$(uname -m)" = "${{ matrix.arch }}"
-      - name: Fetch and verify the published v2.1.41 comparison baseline
+      - name: Fetch and verify the fixed comparison baselines
         run: |
           git fetch --depth=1 --no-tags origin refs/tags/v2.1.41:refs/tags/v2.1.41
+          git fetch --depth=1 --no-tags origin e6af546998b2314b778e2617628bfd8c02723bae
+          test "$(git rev-parse FETCH_HEAD)" = e6af546998b2314b778e2617628bfd8c02723bae
           test "$(git rev-parse 'refs/tags/v2.1.41^{commit}')" = 14c332b30fd35cd266b40a4f9384b4b065b63707
       - run: python3 Scripts/rust_migration/apple.py check
       - name: Check the Rust CLI on the native host
