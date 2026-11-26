@@ -53,6 +53,8 @@ mod session_totals;
 #[cfg(any(target_os = "macos", test))]
 mod source_discovery;
 #[cfg(target_os = "macos")]
+mod source_fingerprint;
+#[cfg(target_os = "macos")]
 mod sqlite_analytics;
 #[cfg(target_os = "macos")]
 mod sqlite_event_import;

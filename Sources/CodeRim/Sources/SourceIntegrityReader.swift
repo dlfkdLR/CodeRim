@@ -1,6 +1,9 @@
 import CryptoKit
 import Darwin
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 enum SourceReadError: Error {
     case sourceUnavailable
@@ -41,7 +44,22 @@ struct SourceFingerprintAccumulator {
             throw SourceReadError.sourceChangedDuringRead
         }
         let startingOffset = authenticatedOffset
-        let byteLimit = authenticatedOffset + max(0, maximumBytes)
+        #if CODERIM_RUST_ACCOUNTING
+        let status = withUnsafeMutablePointer(to: &self) { accumulator in
+            cr_visit_usage_prefix(fileDescriptor, startingOffset, offset, maximumBytes, accumulator) {
+                context, bytes, length in
+                guard let bytes else { return Task.isCancelled ? 1 : 0 }
+                guard let context else { return 1 }
+                let state = context.assumingMemoryBound(to: Self.self)
+                let buffer = UnsafeRawBufferPointer(start: bytes, count: length)
+                state.pointee.append(buffer)
+                return 0
+            }
+        }
+        if status == 2 { throw CancellationError() }
+        guard status == 0 else { throw SourceReadError.sourceChangedDuringRead }
+        #else
+        let byteLimit = authenticatedOffset + min(offset - authenticatedOffset, max(0, maximumBytes))
         while authenticatedOffset < offset, authenticatedOffset < byteLimit {
             try Task.checkCancellation()
             let byteCount = Int(min(
@@ -56,13 +74,14 @@ struct SourceFingerprintAccumulator {
             )
             append(sample)
         }
+        #endif
         return FingerprintAdvanceResult(
             bytesRead: authenticatedOffset - startingOffset,
             reachedTarget: authenticatedOffset == offset
         )
     }
 
-    mutating func append(_ data: Data) {
+    mutating func append<Bytes: DataProtocol>(_ data: Bytes) {
         authenticator.update(data: data)
         legacyAuthenticator?.update(data: data)
         authenticatedOffset += Int64(data.count)
@@ -114,6 +133,7 @@ private struct FingerprintVerificationState {
     }
 }
 
+#if !CODERIM_RUST_ACCOUNTING
 private func readFingerprintSample(
     fileDescriptor: Int32,
     startingAt start: Int64,
@@ -141,6 +161,7 @@ private func readFingerprintSample(
     }
     return Data(bytes)
 }
+#endif
 
 /// File descriptors, frozen reads and authenticated-prefix caches belong to the
 /// collector's executor. This reader never opens the database or interprets rows.
