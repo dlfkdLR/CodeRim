@@ -3,11 +3,13 @@
 import argparse
 import ctypes
 import errno
+import hashlib
 import json
 import os
 import platform
 import shutil
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 
@@ -30,6 +32,77 @@ def build_library(triple=None, package="coderim-accounting-bridge"):
         output /= triple
     subprocess.run(command, check=True, env=env)
     return output / "release" / ("lib" + package.replace("-", "_") + ".a")
+
+
+def swift_options(command):
+    # Flags introduced by -Xswiftc/-Xcc/etc. belong to other tools.
+    options = []
+    arguments = iter(command)
+    for argument in arguments:
+        if argument in ("-Xswiftc", "-Xcc", "-Xcxx", "-Xlinker", "-Xbuild-tools-swiftc",
+                        "-Xmanifest", "-Xxcbuild"):
+            next(arguments, None)
+        else:
+            options.append(argument)
+    return options
+
+
+def swift_architectures(options):
+    parser = argparse.ArgumentParser(add_help=False, allow_abbrev=False)
+    parser.add_argument("--arch", action="append", default=[])
+    parser.add_argument("--triple")
+    targets, _ = parser.parse_known_args(options)
+    arches = targets.arch
+    if targets.triple:
+        match = re.fullmatch(r"(arm64|x86_64)-apple-(?:darwin|macosx?)[0-9.]*", targets.triple)
+        if not match or arches:
+            raise ValueError("Select macOS arm64/x86_64 using either --triple or --arch")
+        arches = [match[1]]
+    arches = sorted(set(arches or [platform.machine()]))
+    if any(arch not in ("arm64", "x86_64") for arch in arches):
+        raise ValueError("The macOS bridge supports arm64 and x86_64")
+    return arches
+
+
+def swift_bridge_flags(command, scratch):
+    # Keep deliberate, complete compiler/linker inputs used by packaging and comparisons.
+    if any(left == "-Xswiftc" and right == "-DCODERIM_RUST_ACCOUNTING"
+           for left, right in zip(command, command[1:])):
+        return []
+    options = swift_options(command)
+    if any(option in options for option in ("--help", "-h", "--version", "--show-bin-path",
+                                             "--skip-build", "--show-codecov-path",
+                                             "--show-code-coverage-path", "--show-coverage-path")):
+        return []
+    arches = swift_architectures(options)
+    libs = [build_library(("aarch64" if arch == "arm64" else arch) + "-apple-darwin")
+            for arch in arches]
+    # SwiftPM does not track changes to an archive passed only as a linker argument.
+    # A new Rust binary must therefore change the link command, including on warm builds.
+    cache = scratch / "rust-bridge"
+    if cache.is_symlink():
+        raise ValueError("The Swift build must own its Rust bridge cache")
+    cache.mkdir(exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=cache) as staging:
+        source = libs[0]
+        if len(libs) > 1:
+            source = Path(staging) / "universal.a"
+            subprocess.run(["lipo", "-create", *libs, "-output", source], check=True)
+        with source.open("rb") as handle:
+            key = hashlib.sha256()
+            for block in iter(lambda: handle.read(1024 * 1024), b""):
+                key.update(block)
+            archive = cache / (key.hexdigest() + ".a")
+            if archive.is_symlink():
+                raise ValueError("The Swift build must own its Rust bridge archive")
+            if not archive.exists():
+                handle.seek(0)
+                staged = Path(staging) / ARCHIVE
+                with staged.open("wb") as destination:
+                    shutil.copyfileobj(handle, destination, 1024 * 1024)
+                staged.replace(archive)
+    return ["-Xswiftc", "-DCODERIM_RUST_ACCOUNTING", "-Xswiftc", "-I",
+            "-Xswiftc", str(RUST / "bridge/include"), "-Xlinker", str(archive)]
 
 
 def compare_hosts(work):
@@ -71,15 +144,12 @@ def compare_hosts(work):
 
 
 def test_product():
-    archive = build_library()
-    flags = ["-Xswiftc", "-DCODERIM_RUST_ACCOUNTING", "-Xswiftc", "-I",
-             "-Xswiftc", str(RUST / "bridge/include"), "-Xlinker", str(archive)]
     # The two runtime-generated XCTest suites use the repository's explicit
     # discovery path. Running them by name also covers SwiftPM versions which omit them.
     wrapper = ["python3", ROOT / "Scripts/prepare_swift_dependencies.py"]
     subprocess.run([*wrapper, "--run-swift", "test", "--skip",
                     "ProviderFetchMatrixTests|ProviderAddFlowMatrixTests",
-                    "-Xswiftc", "-warnings-as-errors", *flags], cwd=ROOT, check=True)
+                    "-Xswiftc", "-warnings-as-errors"], cwd=ROOT, check=True)
     product = Path(subprocess.check_output([*wrapper, "--show-bin-path", "-c", "debug"],
                                           cwd=ROOT, text=True).strip().splitlines()[-1])
     bundle = next(path for path in [product / "CodeRimPackageTests.xctest",

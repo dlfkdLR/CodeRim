@@ -6,6 +6,12 @@ CodeRim favors small, reviewable changes preserving accounting accuracy, local p
 
 For macOS code changes, run the checks relevant to the affected pipeline; the repository The dependency-free usage modules are `Sources/CodeRimUsageCore` and `Windows/src/CodeRim.UsageCore`; keep UI, storage, credentials and transport in the runtime layers. Shared synthetic fixtures live in `Tests/Fixtures`. Swift core contracts run in `CodeRimUsageCoreTests`; run both Windows test projects listed in the Windows build instructions.
 
+The macOS build and test wrapper compiles the Rust core with Cargo from `Rust/Cargo.lock`.
+Install the Rust toolchain for the host. For Universal 2 builds, install both
+targets with `rustup target add aarch64-apple-darwin x86_64-apple-darwin`.
+The SwiftPM CodeRimCLI product serves as the comparison executable. The app
+bundle installs the Rust CLI.
+
 CI also runs these broader checks:
 
 ```sh

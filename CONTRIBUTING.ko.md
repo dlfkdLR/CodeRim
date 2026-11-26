@@ -6,6 +6,11 @@ CodeRim은 집계 정확성, 로컬 개인정보, 기본 동작, 기존 [디자�
 
 macOS 코드 변경은 영향받는 파이프라인에 맞는 검사를 실행합니다. 저장소 의존성 없는 사용량 모듈은 `Sources/CodeRimUsageCore`와 `Windows/src/CodeRim.UsageCore`입니다. UI·저장·인증·전송은 실행 계층에 둡니다. 공통 합성 사례는 `Tests/Fixtures`에 저장합니다. Swift 코어 계약은 `CodeRimUsageCoreTests`에서 실행하며 Windows는 빌드 안내에 있는 두 테스트 프로젝트를 모두 실행합니다.
 
+macOS 빌드·테스트 래퍼는 Cargo로 `Rust/Cargo.lock`에 고정된 Rust 코어를 컴파일합니다.
+현재 Mac용 Rust 도구 체인을 설치하고, Universal 2 빌드에는
+`rustup target add aarch64-apple-darwin x86_64-apple-darwin`으로 두 타깃을 추가합니다.
+SwiftPM의 CodeRimCLI 제품은 동작 비교에 사용하며, 앱 번들에는 Rust CLI를 설치합니다.
+
 CI는 다음 폭넓은 검사도 실행합니다.
 
 ```sh

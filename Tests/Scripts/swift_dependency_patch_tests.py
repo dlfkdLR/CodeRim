@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import os
 
 # Importing the preparation command must not dirty a release checkout.
@@ -51,6 +52,48 @@ do { _ = try ClaudeJSONObject.decode(Data("{broken".utf8)); preconditionFailure(
 catch { }
 print("JSON bridge checks passed")
 '''
+
+
+class SwiftBridgeBuildTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        spec = importlib.util.spec_from_file_location("apple_build", ROOT / "Scripts/rust_migration/apple.py")
+        cls.apple = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.apple)
+
+    def test_architecture_options_and_forwarded_arguments(self):
+        targets = self.apple.swift_architectures
+        self.assertEqual(targets(["--arch=x86_64", "--arch", "arm64"]), ["arm64", "x86_64"])
+        self.assertEqual(targets(["--triple", "x86_64-apple-macosx14.0"]), ["x86_64"])
+        options = self.apple.swift_options(["test", "-Xswiftc", "--arch", "-Xlinker", "--version"])
+        self.assertEqual(options, ["test"])
+        for arguments in (["--arch=armv7"], ["--triple=arm64-apple-ios17.0"],
+                          ["--arch=arm64", "--triple=x86_64-apple-macosx14.0"]):
+            with self.assertRaises(ValueError):
+                targets(arguments)
+
+    def test_default_link_path_tracks_rust_contents(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            scratch = Path(temporary)
+            source = scratch / "input.a"
+            command = ["build", "--product", "CodeRim", "--arch", "arm64"]
+            with patch.object(self.apple, "build_library", return_value=source) as compile_rust:
+                source.write_bytes(b"first")
+                flags = self.apple.swift_bridge_flags(command, scratch)
+                self.assertIn("-DCODERIM_RUST_ACCOUNTING", flags)
+                self.assertEqual(source.read_bytes(), Path(flags[-1]).read_bytes())
+                self.assertEqual(flags, self.apple.swift_bridge_flags(command, scratch))
+                source.write_bytes(b"updated")
+                next_flags = self.apple.swift_bridge_flags(command, scratch)
+                self.assertNotEqual(next_flags[-1], flags[-1])
+                self.assertEqual(Path(next_flags[-1]).read_bytes(), b"updated")
+                self.assertEqual(Path(flags[-1]).read_bytes(), b"first")
+                compile_rust.assert_called_with("aarch64-apple-darwin")
+                for query in (["test", "--skip-build"], ["build", "--version"],
+                              ["build", "--show-bin-path"], command + next_flags):
+                    compile_rust.reset_mock()
+                    self.assertEqual(self.apple.swift_bridge_flags(query, scratch), [])
+                    compile_rust.assert_not_called()
 
 
 class DependencyPatchTests(unittest.TestCase):
