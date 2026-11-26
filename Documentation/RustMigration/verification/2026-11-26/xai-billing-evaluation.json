@@ -1,0 +1,266 @@
+{
+  "decision": "keep existing production xAI billing implementation",
+  "source": "b8b77bef0e44fd38b74cd4b5d77a11a2e44751d6",
+  "publicReference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "billingScriptAndEntryMatchPublic": true,
+  "scope": "Offline successful /prepaid/balance and /usage replies. Input key and team literals synthetic; no account data, external traffic or mutations. No product source changes.",
+  "method": "Existing release QuickJS runtime and core object files linked into isolated macOS executables, exactly one GET, one POST and byte-identical request information. Candidate optimistically assumes injected response status/body has passed transport limits. Rust calculates cents, per-day time-series, sorted chart, sum and partial flag. JS retains toFixed(2), labels, snapshot mapping and legacy error/fallback. Isolated transport independently builds private marker headers and copies Rust result bytes. Program additionally compares warmed medians after three startup rounds with matched sides. Samples cover both full setup and result delivery. Rosetta for x86_64.",
+  "comparisonsPerArch": {
+    "ordinaryDecimalSpends": 600,
+    "legacyDatesAndAmountTypes": 392,
+    "absentOrInvalidHistory": 12,
+    "balanceCases": 15
+  },
+  "publicAndFinalSnapshotsMatchPerArch": 1019,
+  "initialFindings": "The permissive serde positional struct mode accepted three malformed array encodings. Map-only decoding restored 1019/1019 parity.",
+  "times": {
+    "arm64": {
+      "strict": [
+        {
+          "daysOrRecords": 0,
+          "rawBytes": 34,
+          "pinnedMs": 0.7546,
+          "prototypeMs": 0.7611,
+          "pairedDeltaUs": 3.06,
+          "prototypeLowerOf60": 24
+        },
+        {
+          "daysOrRecords": 1,
+          "rawBytes": 87,
+          "pinnedMs": 0.7425,
+          "prototypeMs": 0.7546,
+          "pairedDeltaUs": 11.31,
+          "prototypeLowerOf60": 18
+        },
+        {
+          "daysOrRecords": 8,
+          "rawBytes": 461,
+          "pinnedMs": 0.755,
+          "prototypeMs": 0.7659,
+          "pairedDeltaUs": 9.29,
+          "prototypeLowerOf60": 17
+        },
+        {
+          "daysOrRecords": 30,
+          "rawBytes": 1636,
+          "pinnedMs": 0.8042,
+          "prototypeMs": 0.7979,
+          "pairedDeltaUs": -5.58,
+          "prototypeLowerOf60": 43
+        },
+        {
+          "daysOrRecords": 120,
+          "rawBytes": 6445,
+          "pinnedMs": 0.9486,
+          "prototypeMs": 0.806,
+          "pairedDeltaUs": -138.19,
+          "prototypeLowerOf60": 60
+        },
+        {
+          "daysOrRecords": 960,
+          "rawBytes": 51325,
+          "pinnedMs": 2.2866,
+          "prototypeMs": 0.9106,
+          "pairedDeltaUs": -1370.27,
+          "prototypeLowerOf60": 60
+        }
+      ],
+      "final": [
+        {
+          "daysOrRecords": 0,
+          "rawBytes": 34,
+          "pinnedMs": 0.7471,
+          "prototypeMs": 0.7588,
+          "pairedDeltaUs": 9.12,
+          "prototypeLowerOf60": 17
+        },
+        {
+          "daysOrRecords": 1,
+          "rawBytes": 87,
+          "pinnedMs": 0.7301,
+          "prototypeMs": 0.7392,
+          "pairedDeltaUs": 12.25,
+          "prototypeLowerOf60": 15
+        },
+        {
+          "daysOrRecords": 8,
+          "rawBytes": 461,
+          "pinnedMs": 0.7487,
+          "prototypeMs": 0.7537,
+          "pairedDeltaUs": 2.92,
+          "prototypeLowerOf60": 23
+        },
+        {
+          "daysOrRecords": 30,
+          "rawBytes": 1636,
+          "pinnedMs": 0.8617,
+          "prototypeMs": 0.8561,
+          "pairedDeltaUs": -4.35,
+          "prototypeLowerOf60": 31
+        },
+        {
+          "daysOrRecords": 120,
+          "rawBytes": 6445,
+          "pinnedMs": 1.0006,
+          "prototypeMs": 0.8553,
+          "pairedDeltaUs": -150.23,
+          "prototypeLowerOf60": 57
+        },
+        {
+          "daysOrRecords": 960,
+          "rawBytes": 51325,
+          "pinnedMs": 2.5988,
+          "prototypeMs": 1.0764,
+          "pairedDeltaUs": -1502.81,
+          "prototypeLowerOf60": 60
+        }
+      ]
+    },
+    "x86_64": {
+      "strict": [
+        {
+          "daysOrRecords": 0,
+          "rawBytes": 34,
+          "pinnedMs": 1.3965,
+          "prototypeMs": 1.4262,
+          "pairedDeltaUs": 18.85,
+          "prototypeLowerOf60": 22
+        },
+        {
+          "daysOrRecords": 1,
+          "rawBytes": 87,
+          "pinnedMs": 1.623,
+          "prototypeMs": 1.648,
+          "pairedDeltaUs": 31.73,
+          "prototypeLowerOf60": 24
+        },
+        {
+          "daysOrRecords": 8,
+          "rawBytes": 461,
+          "pinnedMs": 1.7156,
+          "prototypeMs": 1.7259,
+          "pairedDeltaUs": 4.15,
+          "prototypeLowerOf60": 29
+        },
+        {
+          "daysOrRecords": 30,
+          "rawBytes": 1636,
+          "pinnedMs": 1.8923,
+          "prototypeMs": 1.8531,
+          "pairedDeltaUs": -31.75,
+          "prototypeLowerOf60": 50
+        },
+        {
+          "daysOrRecords": 120,
+          "rawBytes": 6445,
+          "pinnedMs": 2.3366,
+          "prototypeMs": 2.0387,
+          "pairedDeltaUs": -297.85,
+          "prototypeLowerOf60": 60
+        },
+        {
+          "daysOrRecords": 960,
+          "rawBytes": 51325,
+          "pinnedMs": 5.1267,
+          "prototypeMs": 2.3877,
+          "pairedDeltaUs": -2724.46,
+          "prototypeLowerOf60": 60
+        }
+      ],
+      "final": [
+        {
+          "daysOrRecords": 0,
+          "rawBytes": 34,
+          "pinnedMs": 1.4767,
+          "prototypeMs": 1.5201,
+          "pairedDeltaUs": 19.6,
+          "prototypeLowerOf60": 21
+        },
+        {
+          "daysOrRecords": 1,
+          "rawBytes": 87,
+          "pinnedMs": 1.5904,
+          "prototypeMs": 1.626,
+          "pairedDeltaUs": 31.96,
+          "prototypeLowerOf60": 25
+        },
+        {
+          "daysOrRecords": 8,
+          "rawBytes": 461,
+          "pinnedMs": 2.4522,
+          "prototypeMs": 2.5448,
+          "pairedDeltaUs": -6.73,
+          "prototypeLowerOf60": 32
+        },
+        {
+          "daysOrRecords": 30,
+          "rawBytes": 1636,
+          "pinnedMs": 1.9647,
+          "prototypeMs": 1.9456,
+          "pairedDeltaUs": -40.29,
+          "prototypeLowerOf60": 42
+        },
+        {
+          "daysOrRecords": 120,
+          "rawBytes": 6445,
+          "pinnedMs": 6.1908,
+          "prototypeMs": 5.534,
+          "pairedDeltaUs": -564.88,
+          "prototypeLowerOf60": 43
+        },
+        {
+          "daysOrRecords": 960,
+          "rawBytes": 51325,
+          "pinnedMs": 6.5382,
+          "prototypeMs": 3.6594,
+          "pairedDeltaUs": -2962.62,
+          "prototypeLowerOf60": 60
+        }
+      ]
+    }
+  },
+  "reason": "The official request already requests SUM(usd) per day with no dimensions for 30 days. 0-8-point end-to-end cases were usually neutral/slower, 30 points saved microseconds. Large 120/960 synthetic duplicate series benefit, but are outside the ordinary one-row-per-day shape. A production compatibility wrapper has two render branches plus trusted metadata, an envelope copy, and explicit filtering of unusual inputs. A new credential/transport path is not warranted.",
+  "limitations": [
+    "Synthetic response size distribution, no live service or customer data.",
+    "The valid-path feasibility prototype can fall back for unsupported numeric/date representations. It does not implement the complete pre/post headers/size/error/cancellation policy needed for a replacement transport; the current application retains that policy.",
+    "No release or cloud changes. Other profiles, signed delivery, Windows and remote service latency were not measured."
+  ],
+  "rawFiles": {
+    "native/src/lib.rs": "bf88876db3e064009fe1f5f0e6b4405d96c2d59b3f0f9219e1a6247bfc414180",
+    "hybrid.swift": "df177f36ace8cd8e2c09b0a6a0dc29bb681b90d731d9cd18f5d2dbf125ed4803",
+    "hybrid.js": "ac21ebd9091da77ce695df232348c12be5e832f5973adedd2b30cdf4d64a6627",
+    "compare.swift": "7cb58da29f26dd9173c738d4174586a9549df547f75c2dc8f2784c184137b258",
+    "differential.jsonl": "25d8ac64dd6326a9d039ed32500f6ff19b0143bcf97af288d3f7a8ee136dc3d6",
+    "strict-equivalence-arm64.json": "d365dc479724fbc5482e52dca1228d9d0fba27be29a570ba0441c75f6a01972d",
+    "strict-equivalence-x86_64.json": "d365dc479724fbc5482e52dca1228d9d0fba27be29a570ba0441c75f6a01972d",
+    "strict-hybrid-arm64.jsonl": "0e4c3411b4033935c80c431190c2c93b98fe85c291d468fe960219c2861b6a3c",
+    "final-hybrid-arm64.jsonl": "bff7100df6261ef6723b66244caf410daa23ee694a3d9d9ed69b512ba01980a6",
+    "strict-hybrid-x86_64.jsonl": "3b2877e2c8379bb63572c09fa1416dcd23c27e5911264016c8695caf591f81a7",
+    "final-hybrid-x86_64.jsonl": "ff07bca3ba82fd8f9852f7cb3c332db5beced4a2f268188412b435fc2568aed3"
+  },
+  "independent": {
+    "casesPerArchitecture": 70,
+    "observations": {
+      "arm64": {
+        "countsEqualDifferent": {
+          "independent-quickjs": [
+            70,
+            0
+          ]
+        },
+        "firstDifferences": []
+      },
+      "x86_64": {
+        "countsEqualDifferent": {
+          "independent-quickjs": [
+            70,
+            0
+          ]
+        },
+        "firstDifferences": []
+      }
+    },
+    "conclusion": "Retain the released plugin. Thirty ordered or unsorted daily points, the normal documented interval, provide little room for measurable end-to-end improvement; the faster dense synthetic case does not justify a new transport boundary."
+  },
+  "formal": "INCONCLUSIVE"
+}

@@ -1,0 +1,191 @@
+{
+  "commit": "7fa15512edcaf784760a79da1d23fb5aa65938b1",
+  "base": "32071aaf5fb302cc90f7b5560c518261c65254c5",
+  "ref": "v2.1.41",
+  "packet": "27300e6820c33f4d544fcfcd93d0aeac2948072908d638454e6613aa35f7db56",
+  "nodePublicBeforeCandidateMatchingScenarios": 5,
+  "window": "Synchronous reads and saveDevice within the same JS turn in POST /v1/snapshot and PUT /v1/device; await only while incoming HTTP body is read, before these loads. No persistent sequence cache; retries/read-after-reopen query committed owner rows. Unavailable/unsafe/over-bound Wasm -> original storage reread.",
+  "workerd": [
+    {
+      "devices": 1,
+      "providers": 1,
+      "digest": "09ad50a9f7648a8d214b8117a05f1b5688f31105b2d6df031dae8369b980edf9",
+      "previous": {
+        "snapshot": 768.4169999999995,
+        "rename": 773.5410000000229
+      },
+      "candidate": {
+        "snapshot": 711.5839999999025,
+        "rename": 742.0830000000933
+      },
+      "readsAndProjectionsBeforeAfterAllInstances": [
+        [
+          [
+            27,
+            0
+          ],
+          [
+            27,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            27
+          ],
+          [
+            0,
+            27
+          ]
+        ]
+      ],
+      "externalRequestsAllSides": 0
+    },
+    {
+      "devices": 4,
+      "providers": 8,
+      "digest": "6bbb9eb651ef72d73b27244afd01c4e0bdaa530fc786e185040d81968f3ff297",
+      "previous": {
+        "snapshot": 787.4170000000049,
+        "rename": 877.4590000000444
+      },
+      "candidate": {
+        "snapshot": 760.4159999996227,
+        "rename": 652.9169999998885
+      },
+      "readsAndProjectionsBeforeAfterAllInstances": [
+        [
+          [
+            27,
+            0
+          ],
+          [
+            27,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            27
+          ],
+          [
+            0,
+            27
+          ]
+        ]
+      ],
+      "externalRequestsAllSides": 0
+    },
+    {
+      "devices": 16,
+      "providers": 32,
+      "digest": "809339868e06b883b936e92f38f18d608457cad9da585832ee9ac574b38ca000",
+      "previous": {
+        "snapshot": 1104.2090000000826,
+        "rename": 1725.0420000000304
+      },
+      "candidate": {
+        "snapshot": 899.0840000001299,
+        "rename": 1043.5419999998885
+      },
+      "readsAndProjectionsBeforeAfterAllInstances": [
+        [
+          [
+            27,
+            0
+          ],
+          [
+            27,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            27
+          ],
+          [
+            0,
+            27
+          ]
+        ]
+      ],
+      "externalRequestsAllSides": 0
+    },
+    {
+      "devices": 32,
+      "providers": 64,
+      "digest": "3b376423b1fcb479acf3a03f6f4511939ba95f085bac517d4e13742c3655a703",
+      "previous": {
+        "snapshot": 2164.166000000023,
+        "rename": 2639.165999999932
+      },
+      "candidate": {
+        "snapshot": 1400.8749999998145,
+        "rename": 2055.6249999999636
+      },
+      "readsAndProjectionsBeforeAfterAllInstances": [
+        [
+          [
+            27,
+            0
+          ],
+          [
+            27,
+            0
+          ]
+        ],
+        [
+          [
+            0,
+            27
+          ],
+          [
+            0,
+            27
+          ]
+        ]
+      ],
+      "externalRequestsAllSides": 0
+    }
+  ],
+  "nativeChecks": "Real host /v1... endpoints via local Miniflare workerd SQLite durable object, synthetic prior/public/candidate. Fully dispose and reconstruct with persistence between write sequences. Four independently booted size scenarios, two owners, old expired device sequence, new/unchanged/repeated writes, paired first snapshot, durable floors. Node SQLite additionally exercises two concurrent callers, nonnumeric old floor, >32 fallback, native rejection trigger and retry.",
+  "ordinaryRelayTests": 101,
+  "formal": {
+    "baseline": "INCONCLUSIVE",
+    "candidate": "INCONCLUSIVE"
+  },
+  "sha256": {
+    "compared.json": "974cf20fe74d6bcf41df9a03ecf25ebbaa26a357039ce45213f7d9d7bb555502",
+    "workerd.json": "e3ef8c9ab65a612e3f746aff7adfda31ca4359dc1fdb914a67e570881b54cba2",
+    "suite.log": "7e0e6d07447816ebbce8740316066d9d33f139fd9938933414a1b7430db2ef45",
+    "change.patch": "1c4601e1fefb613f9a4a66e2331a45768dec88ee9c1613837ce70c730ec1e1ba"
+  },
+  "independent_sha256": "11cd4ec04d467b62c2f68443f82b46e250d026dcee83666f6f38d809420f9a4e",
+  "integrated": "319ea4b2",
+  "independent": {
+    "requests": 256,
+    "owners": 4,
+    "restarts": 4,
+    "stable": {
+      "hash": "679c3f819f569955da942b9830f40875c5a33d74094711ed2ae3cbdfc624886f",
+      "reads": 196,
+      "projs": 0,
+      "statuses": {
+        "200": 216,
+        "401": 40
+      }
+    },
+    "currentResult": {
+      "hash": "679c3f819f569955da942b9830f40875c5a33d74094711ed2ae3cbdfc624886f",
+      "reads": 4,
+      "projs": 192,
+      "statuses": {
+        "200": 216,
+        "401": 40
+      }
+    }
+  }
+}
