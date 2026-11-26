@@ -10,6 +10,11 @@ function Test-PublicMsiTransition {
     $previousRoot = $env:CODERIM_DATA_DIR
     $phases = [Collections.Generic.List[string]]::new()
     $finished = $false
+    $footprint = @{}
+    function Measure-InstalledFiles {
+        $all = @(Get-ChildItem -LiteralPath $app -Recurse -File)
+        return [ordered]@{files=$all.Count; bytes=($all | Measure-Object Length -Sum).Sum; publicCliBytes=(Get-Item (Join-Path $app 'CodeRimCLI.exe')).Length}
+    }
     try {
         $stableMsi = Join-Path $qa 'published-2.1.41.msi'
         $url = "https://github.com/dlfkdLR/CodeRim/releases/download/v$stableVersion/CodeRim-Windows-$stableVersion-$Architecture-Setup.msi"
@@ -68,6 +73,8 @@ function Test-PublicMsiTransition {
         Require-OneCliPath
         $publicInventory = Get-InstalledInventory
         $expected = Read-InstalledTokens
+        $footprint.published = Measure-InstalledFiles
+        $footprint.publishedMsiBytes = (Get-Item -LiteralPath $stableMsi).Length
         $phases.Add('published-installed-and-profile-read')
 
         [void](Invoke-Msi @('/i', ('"'+$failure+'"'), 'LAUNCHAPP=0') $false)
@@ -90,6 +97,8 @@ function Test-PublicMsiTransition {
         Assert-RustFiles $true
         Require-OneCliPath
         if ((Read-InstalledTokens) -cne $expected) { throw 'Candidate changed CLI output.' }
+        $footprint.candidate = Measure-InstalledFiles
+        $footprint.candidateMsiBytes = (Get-Item -LiteralPath $Installer).Length
         $phases.Add('upgraded-candidate-loaded-preserved-profile')
 
         $refused = Invoke-Msi @('/i', ('"'+$stableMsi+'"'), 'LAUNCHAPP=0') $false
@@ -123,7 +132,7 @@ function Test-PublicMsiTransition {
     } finally {
         $env:CODERIM_DATA_DIR = $previousRoot
         $receipt = @{architecture=$Architecture;publishedVersion=$stableVersion;publishedMsiSha256=$hashes[$Architecture];
-            testMsiVersion=$fixtureVersion;candidatePayloadVersion=$version;phases=@($phases);completed=$finished}
+            testMsiVersion=$fixtureVersion;candidatePayloadVersion=$version;footprint=$footprint;phases=@($phases);completed=$finished}
         $receipt | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $repo "Artifacts/windows-public-msi-$Architecture.json")
     }
 }

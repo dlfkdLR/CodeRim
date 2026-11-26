@@ -440,6 +440,15 @@ jobs:
           foreach ($name in $sidecars.Keys) {
             if ((Get-FileHash (Join-Path $dest $name)).Hash -ne (Get-FileHash $sidecars[$name]).Hash) { throw "ZIP payload mismatch: $name" }
           }
+          $inventory = foreach ($file in @($archive) + @(Get-Item 'Artifacts/*-${{ matrix.arch }}-Setup.msi', 'Artifacts/*-${{ matrix.arch }}.msix')) {
+            [ordered]@{name=$file.Name; bytes=$file.Length; sha256=(Get-FileHash -LiteralPath $file.FullName).Hash.ToLowerInvariant()}
+          }
+          $inputs = foreach ($name in @('CodeRimCLI.exe','CodeRimCLIHost.exe','coderim_accounting_bridge.dll','Rust-CLI-Notices.txt','Rust-Notices.txt')) {
+            $file = Get-Item -LiteralPath (Join-Path $dest $name)
+            [ordered]@{name=$name; bytes=$file.Length; sha256=(Get-FileHash -LiteralPath $file.FullName).Hash.ToLowerInvariant(); fileVersion=$file.VersionInfo.FileVersion}
+          }
+          [ordered]@{commit=$env:GITHUB_SHA; architecture='${{ matrix.arch }}'; packages=@($inventory); zipPayload=@($inputs)} |
+            ConvertTo-Json -Depth 5 | Set-Content 'Artifacts/windows-rust-package.json'
           python Windows/tests/cli_regression_tests.py --owned-accounts (Join-Path $dest 'CodeRimCLI.exe')
       - name: Exercise MSI installation, rollback, repair and removal
         run: |
@@ -481,6 +490,7 @@ jobs:
           path: |
             Artifacts/*.sha256
             Artifacts/windows-msi-lifecycle.json
+            Artifacts/windows-rust-package.json
             Artifacts/windows-source-frame-pair.json
             Artifacts/windows-public-msi-*.json
             Artifacts/installed/**/*.json
