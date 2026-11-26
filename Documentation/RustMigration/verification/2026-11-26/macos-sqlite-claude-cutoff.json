@@ -1,0 +1,244 @@
+{
+  "release": "v2.1.41",
+  "commit": "ed154274a0070f67b3e828283bcc1810ecd69708",
+  "integrationCommit": "fca205f3597d2ddca133129cd98422bd1b9c40a5",
+  "performanceBaselineCommit": "2d50c2bbea1b0ba84ce38cd0b18a0a2907e4f322",
+  "scope": "Claude cutoff message exclusions and deletion from the CodeRim-owned user history, within the caller transaction. Same borrowed UTF-8 key, marker then removal; Swift rollback on error.",
+  "testEnvironment": {
+    "arm64": "Native Apple Silicon hardware",
+    "x86_64": "Intel binary translated by Rosetta on the same Mac",
+    "inputs": "Generated SQLite databases and Claude records. Timings cover the database transaction in a product-source executable.",
+    "excluded": [
+      "Installed GUI",
+      "Physical Intel Mac",
+      "Energy, battery life and peak memory",
+      "Remote publication and deployment"
+    ]
+  },
+  "selectionProfile": {
+    "instrumentedCommit": "2d50c2bbea1b0ba84ce38cd0b18a0a2907e4f322",
+    "repetitions": 24,
+    "keys": 1024,
+    "excludedKeyWritesMedianMicroseconds": 2258.94,
+    "wholeCommitMedianMicroseconds": 2421.12
+  },
+  "comparison": {
+    "versions": [
+      "v2.1.41 source",
+      "2d50c2bbea1b0ba84ce38cd0b18a0a2907e4f322",
+      "ed154274a0070f67b3e828283bcc1810ecd69708"
+    ],
+    "stagesPerVersionAndArchitecture": 17,
+    "totalStages": 102,
+    "stages": [
+      "initial history",
+      "no excluded keys",
+      "ignored for codex",
+      "exclude existing, absent and multibyte",
+      "opposite-version late streaming messages",
+      "bad embedded nul",
+      "stale epoch",
+      "trigger INSERT",
+      "retry INSERT",
+      "trigger DELETE",
+      "retry DELETE",
+      "late checkpoint rolls back successful exclusions",
+      "retry after checkpoint failure",
+      "rebuild",
+      "replay after rebuild",
+      "preserving clear",
+      "replay after clear"
+    ],
+    "observations": [
+      "Every table and value after a fresh reopen, including SQLite integrity, foreign keys and error messages. The generated update times were compared by SQLite type across runs and exactly across failed operations on each database.",
+      "Repeated streaming message, opposite-version append, non-ASCII and decomposed UTF-8, empty, long and zero-containing keys, insert/delete/later checkpoint errors, rollback, retry, clear and rebuild.",
+      "The regular bidirectional event contract passed 26 scenarios per architecture. The native full-package ClaudeUsageTests passed all 13 cases, including an independent synthetic 3-event/59-token projection supplied to the opt-in test.",
+      "All 54 tests in the Rust accounting bridge passed. Clippy checked all bridge targets with warnings denied."
+    ],
+    "bidirectionalEventContractsPerArchitecture": 26,
+    "rustBridgeTestsPassed": 54,
+    "claudeSwiftTestsPassed": 13,
+    "syntheticProjection": {
+      "allTime": 59,
+      "events": 3
+    },
+    "independent": {
+      "arm64": {
+        "scenarios": 12,
+        "variants": 3,
+        "fullSnapshotDigest": "9d86180af3296f2af47a8636f3e9007817c88865bf2bf4a0b3867b729695ad1a"
+      },
+      "x86_64": {
+        "scenarios": 12,
+        "variants": 3,
+        "fullSnapshotDigest": "9d86180af3296f2af47a8636f3e9007817c88865bf2bf4a0b3867b729695ad1a"
+      }
+    },
+    "independentFailureCoverage": "Aborted, ignored and rejected writes, second-statement failure, rollback and retry, stale epoch, missing/mutated schema, aliases and multiple connections in C ABI. Complete SQLite rows and errors were compared."
+  },
+  "timing": {
+    "unit": "microseconds per actual SQLiteDatabase.commit",
+    "protocol": "Alternating order for five first removals from new files, plus fifty warm repetitions per combination. Single-key measurements vary; multi-key measurements include opening the transaction, applying changes and completing the actual commit.",
+    "keySize": "64 ASCII bytes per synthetic message digest",
+    "sampleCountsPerSizeArchitectureAndVersion": {
+      "firstRemoval": 5,
+      "alreadyExcluded": 50
+    },
+    "totalRawSamples": 1650,
+    "medians": {
+      "arm64/1": {
+        "firstRemoval": {
+          "stable": 185.583,
+          "previous": 206.416,
+          "rust": 190.208
+        },
+        "alreadyExcluded": {
+          "stable": 137.25,
+          "previous": 139.812,
+          "rust": 139.209
+        }
+      },
+      "arm64/32": {
+        "firstRemoval": {
+          "stable": 299.041,
+          "previous": 294.959,
+          "rust": 221.833
+        },
+        "alreadyExcluded": {
+          "stable": 213.084,
+          "previous": 208.959,
+          "rust": 146.355
+        }
+      },
+      "arm64/256": {
+        "firstRemoval": {
+          "stable": 1167.5,
+          "previous": 1180.625,
+          "rust": 667.708
+        },
+        "alreadyExcluded": {
+          "stable": 885.687,
+          "previous": 887.812,
+          "rust": 339.166
+        }
+      },
+      "arm64/1024": {
+        "firstRemoval": {
+          "stable": 4407.583,
+          "previous": 5940.167,
+          "rust": 3423.041
+        },
+        "alreadyExcluded": {
+          "stable": 3454.979,
+          "previous": 4050.604,
+          "rust": 1216.084
+        }
+      },
+      "arm64/4096": {
+        "firstRemoval": {
+          "stable": 18412.625,
+          "previous": 18306.25,
+          "rust": 9323
+        },
+        "alreadyExcluded": {
+          "stable": 12849.52,
+          "previous": 12595.188,
+          "rust": 3816.229
+        }
+      },
+      "x86_64/1": {
+        "firstRemoval": {
+          "stable": 322.25,
+          "previous": 374.917,
+          "rust": 358.625
+        },
+        "alreadyExcluded": {
+          "stable": 186.646,
+          "previous": 187.167,
+          "rust": 184.209
+        }
+      },
+      "x86_64/32": {
+        "firstRemoval": {
+          "stable": 466.625,
+          "previous": 496.333,
+          "rust": 331.667
+        },
+        "alreadyExcluded": {
+          "stable": 290.897,
+          "previous": 296.938,
+          "rust": 204.334
+        }
+      },
+      "x86_64/256": {
+        "firstRemoval": {
+          "stable": 1686.417,
+          "previous": 1789.417,
+          "rust": 1018.708
+        },
+        "alreadyExcluded": {
+          "stable": 1238.0,
+          "previous": 1220.376,
+          "rust": 498.084
+        }
+      },
+      "x86_64/1024": {
+        "firstRemoval": {
+          "stable": 6255,
+          "previous": 6175.166,
+          "rust": 3760.667
+        },
+        "alreadyExcluded": {
+          "stable": 4310.646,
+          "previous": 4537.562,
+          "rust": 1514.271
+        }
+      },
+      "x86_64/4096": {
+        "firstRemoval": {
+          "stable": 23971.917,
+          "previous": 23734.625,
+          "rust": 11990.833
+        },
+        "alreadyExcluded": {
+          "stable": 17769.354,
+          "previous": 17091.646,
+          "rust": 5290.062
+        }
+      }
+    }
+  },
+  "developmentHarness": {
+    "implementationPacketDigest": "5c2c175b2b6e8058dccddcffdc111e8a7021533e8abfa903590e9d9fe8f73a03",
+    "verdict": "INCONCLUSIVE",
+    "missingEvidence": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "independentDimensions": {
+      "functionality": "TIE",
+      "facts": "TIE",
+      "security": "TIE",
+      "maintainability": "B",
+      "scope": "TIE",
+      "performance": "A"
+    },
+    "candidateSide": "A"
+  },
+  "evidenceSha256": {
+    "verified.json": "d670a21c533b75782c566ebea80fe8275cd597282944114492c417a228b0d0f4",
+    "profile.json": "826121bade1c0643fb4c665965c6ccc2b818f0fb615fefd86f16b52f8184ba41",
+    "differential.json": "61ba8abf9afc9177aeb326f3dac40552df9e0d86d4f265811aa47d2b2e1d15cd",
+    "benchmark.json": "03caaad6a8387555525328ac95ffd47711ac6a1f32ac9dbf6dd02e233755433f",
+    "independent-check.json": "ebfcee0a7d8a1881205d861c9878fed7767eb31053e0f1b73718c15daf7ad4e4",
+    "independent-review.json": "532425fbe258ab0de247c9d4a8d868f5bcea8c5e231ad79f327d6847a688f622",
+    "gate.json": "b7098852c03368df709b4433b1f05e35c01b1f28dc7eb58efec1b08b49fea116",
+    "swift-test-final.log": "435471697c12127dae81d1168a450b6dcd3c560265c8d63d534bfdde6ec26791",
+    "cargo-all.log": "c484f0011a3980bf8f929ff1c2762b596d2020dd5bc5419267d9e57ae7a856df",
+    "clippy.log": "3f4c7bab01f39384e940e6a778444ba246cc04419d318ab94b3780786330a837",
+    "sqlite-check-arm.log": "537d2c1a5008249380a9af56cbbf816af5aa8da710f0799865f5b89d72cef582",
+    "sqlite-check-intel.log": "edf47f461d1b9a648195751ec8129dfc58e3636fd8b1ffeeb882bb96e99a65eb",
+    "full-projection/oracle.json": "dd88acd076caa7b55eec50e6f2f0e75b40fd2ee388d0741d8e42bd7c36412060"
+  }
+}
