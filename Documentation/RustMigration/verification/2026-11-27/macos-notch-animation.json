@@ -1,0 +1,98 @@
+{
+  "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "candidate": "f440a9d052d9a803956dd40686f5977ec1fc08d9",
+  "platform": {
+    "os": "macOS 26.6.2 (25G83)",
+    "architecture": "arm64",
+    "swift": "6.4.2",
+    "screenLocked": false
+  },
+  "input": "Synthetic QA provider, controller-owned cursor, native Keep open action, real per-window timer delivery, NSHostingView test clock. No provider session or account.",
+  "windowContentPixels": [
+    650,
+    840
+  ],
+  "frameOffsetsAt60Hz": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    6,
+    8,
+    10,
+    12,
+    16,
+    20,
+    24,
+    30,
+    36,
+    45,
+    60,
+    90
+  ],
+  "comparison": "Entire AppKit content cache in premultiplied sRGB RGBA. No crop, mask, tolerance, alignment or frame selection.",
+  "direct": {
+    "capturesPerProcess": 85,
+    "processes": 4,
+    "pairings": 6,
+    "pixelMismatches": 0,
+    "logicalStatesMatch": true,
+    "distinctFramesPerPhase": {
+      "always-outranks-peek": 15,
+      "entered": 15,
+      "initial": 1,
+      "menu-pin": 13,
+      "unpin-fold": 13
+    },
+    "testClockCalibration": {
+      "samples": 15,
+      "distinctFrames": 12,
+      "twoRunsEqual": true
+    },
+    "singlePixelNegativeControl": {
+      "modifiedImage": "candidate-r2/entered-006.png",
+      "pixelsChanged": 1,
+      "mismatchingPairs": 3,
+      "checkerRejected": true
+    }
+  },
+  "independent": {
+    "processesIncludingFreshRepeats": 6,
+    "wholePngs": 510,
+    "pairings": 15,
+    "mismatchingFilePairs": 0,
+    "commonPngSequenceSha256": "82e10b077c79cd2b4bf0ae10af2cb2486814faa1e72aa8b3c235139439a3cf65",
+    "commonStateManifestSha256": "8ef02848fd77a6965b879e8b0e94b1a2a3c7e73284aa4ee90ba34205116b3da5",
+    "testBinarySha256": {
+      "released": "ce8cf3f8d371385453778843bf6622a1cea66d8f4dd1d47009ba373fd066724f",
+      "candidate": "b7e8b3f8be6dd6185fbfcb8cfbe4c056276e56e1d08e56cba24287709b3b8448"
+    }
+  },
+  "earlierWallClock": {
+    "differingImmediatePairs": 3,
+    "sampledPairs": 5,
+    "status": "Historical wall-clock measurement. The render-clock run verifies equal pictures at the specified phases."
+  },
+  "nativeEdgeTestsOnUnlockedConsole": {
+    "NotchEdgeArrivalTests": {
+      "releasePassed": 3,
+      "candidatePassed": 3
+    },
+    "NotchEdgeCrossfadeTests": {
+      "releasePassed": 4,
+      "candidatePassed": 4
+    }
+  },
+  "limits": [
+    "The SwiftUI test clock does not measure real elapsed frame pacing, VSync or WindowServer composition.",
+    "No physical Intel Mac or other macOS version exercised."
+  ],
+  "harness": {
+    "run": "run-7344a8b520d24b7185f6eecc6861ec36",
+    "decision": "INCONCLUSIVE",
+    "reason": "The harness could not run native XCTest via its package script adapter. Native checks and independent repeats were executed directly."
+  },
+  "reproduce": "python3 Scripts/rust_migration/notch-animation/check.py --reference v2.1.41 --candidate f440a9d052d9a803956dd40686f5977ec1fc08d9 --output <empty-directory>",
+  "recompare": "python3 Scripts/rust_migration/notch-animation/check.py --compare-only --output <capture-directory>"
+}
