@@ -53,6 +53,23 @@ jobs:
           node-version: 24
       - name: Replay local SQLite relay and retained desktop snapshot
         run: node --test MobileRelay/test/*.test.mjs
+      - name: Build the Rust iOS app and simulator archives
+        shell: bash
+        env:
+          IPHONEOS_DEPLOYMENT_TARGET: "17.2"
+          CARGO_TARGET_DIR: ${{ runner.temp }}/mobile-rust
+        run: |
+          rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+          for target in aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios; do
+            cargo build --manifest-path Rust/Cargo.toml --locked --release --package coderim-accounting-bridge --target "$target"
+          done
+          lipo -create "$CARGO_TARGET_DIR/aarch64-apple-ios-sim/release/libcoderim_accounting_bridge.a" \
+            "$CARGO_TARGET_DIR/x86_64-apple-ios/release/libcoderim_accounting_bridge.a" \
+            -output "$CARGO_TARGET_DIR/libcoderim_mobile_simulator.a"
+          xcodebuild build -project iOS/CodeRimMobile.xcodeproj -scheme CodeRimMobile \
+            -configuration Release -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/ios-device" \
+            -xcconfig iOS/Config/RustMobile.xcconfig CODE_SIGNING_ALLOWED=NO \
+            CODERIM_MOBILE_RUST_ARCHIVE="$CARGO_TARGET_DIR/aarch64-apple-ios/release/libcoderim_accounting_bridge.a"
       - name: Verify iPhone wire, lifecycle and dashboard compatibility
         shell: bash
         run: |
@@ -63,6 +80,8 @@ jobs:
             -only-testing:CodeRimMobileUITests/MobileUITests/testIdleDashboardKeepsUsageAndLetsThePersonChooseAComputer \
             -only-testing:CodeRimMobileUITests/MobileUITests/testHomeScreenOffersToPairWhenEmptyAndShowsTheRelayNotice \
             -derivedDataPath "$RUNNER_TEMP/ios-migration" -resultBundlePath "$RUNNER_TEMP/ios-migration-tests.xcresult" \
+            -xcconfig iOS/Config/RustMobile.xcconfig \
+            CODERIM_MOBILE_RUST_ARCHIVE="$RUNNER_TEMP/mobile-rust/libcoderim_mobile_simulator.a" \
             ONLY_ACTIVE_ARCH=YES CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM=
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
