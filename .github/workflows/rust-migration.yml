@@ -8,6 +8,8 @@ on:
       - 'Rust/**'
       - 'Scripts/rust_migration/**'
       - 'Scripts/build_release.sh'
+      - 'Scripts/package_release.sh'
+      - 'Scripts/make_dmg.sh'
       - 'Sources/CodeRimUsageCore/**'
       - 'Sources/CodeRim/Domain/SourceCheckpoint.swift'
       - 'Sources/CodeRim/Persistence/**'
@@ -124,6 +126,7 @@ jobs:
           variant: rust-migration-tests
       - name: Run Swift package, generated provider suites and CLI with Rust enabled
         env:
+          CODERIM_RUN_STRESS_TESTS: '1'
           CODERIM_ACCOUNT_CAPTURE_DIR: ${{ runner.temp }}/account-layout
         run: python3 Scripts/rust_migration/apple.py test
 
@@ -145,6 +148,14 @@ jobs:
           codesign --verify --strict --deep "$app"
           cmp Rust/THIRD-PARTY-NOTICES.txt "$app/Contents/Resources/Rust-Notices.txt"
           python3 Tests/Scripts/companion_cli_tests.py "$app/Contents/Helpers/CodeRimCLI"
+
+      - name: Verify offline install from the release ZIP and DMG
+        run: python3 Scripts/rust_migration/check_macos_package.py "$RUNNER_TEMP/rust-app/CodeRim.app" "$RUNNER_TEMP/migration-packages"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: macos-migration-installation
+          path: ${{ runner.temp }}/migration-packages/verified.json
+          if-no-files-found: error
 
   windows-package:
     strategy:
