@@ -14,6 +14,7 @@ namespace CodeRim.Windows.Views;
 
 internal static partial class NativeSmoke
 {
+    private readonly record struct ClientAttempt(uint Flags, string Status, int DifferentPixels, bool HasDrawing);
     private readonly record struct DesktopCapture(Rect Geometry, bool Verified);
 
     private static readonly string[] DesktopCaptureNames = [
@@ -31,6 +32,7 @@ internal static partial class NativeSmoke
             var file = Path.Combine(directory, name + ".screen.png");
             File.Delete(file);
             File.Delete(file + ".capture.json");
+            File.Delete(Path.ChangeExtension(file, "hwnd.png"));
         }
     }
 
@@ -41,6 +43,8 @@ internal static partial class NativeSmoke
     {
         File.Delete(output); // A previous run must not survive an unverified attempt.
         File.Delete(output + ".capture.json");
+        var ownedOutput = Path.ChangeExtension(output, "hwnd.png");
+        File.Delete(ownedOutput);
         Require(window.IsVisible, "Screen capture requires a visible fixture window.");
         var origin = window.PointToScreen(new System.Windows.Point());
         var dpi = VisualTreeHelper.GetDpi(window);
@@ -51,9 +55,44 @@ internal static partial class NativeSmoke
         Require(bounds.Width > 0 && bounds.Height > 0, "The fixture window has no capturable screen pixels.");
         var handle = new WindowInteropHelper(window).Handle;
         var reason = "fixture-hwnd-unavailable";
+        Rectangle? nativeClient = null;
+        var attempts = new List<ClientAttempt>();
+        var ownedSamplePoints = 0;
         if (handle != IntPtr.Zero && WindowProcess(handle, out var owner) != 0 && owner == (uint)Environment.ProcessId)
         {
-            try { reason = VerifyDesktopPixels(handle, requested, bounds, output); }
+            try
+            {
+                var topLeft = new PointerPoint();
+                if (CaptureClientRect(handle, out var client) && CaptureClientOrigin(handle, ref topLeft))
+                {
+                    var clientArea = new Rectangle(topLeft.X, topLeft.Y, client.Right - client.Left, client.Bottom - client.Top);
+                    nativeClient = clientArea;
+                    var visibleClient = Rectangle.Intersect(clientArea, virtualScreen);
+                    if (visibleClient.Width > 0 && visibleClient.Height > 0)
+                    {
+                        foreach (int x in new[] { 1, 3, 5 })
+                        foreach (int y in new[] { 1, 3, 5 })
+                        {
+                            var point = new PointerPoint { X = visibleClient.Left + x * visibleClient.Width / 6,
+                                                           Y = visibleClient.Top + y * visibleClient.Height / 6 };
+                            if (WindowProcess(WindowAtPoint(point), out var hit) != 0 && hit == owner)
+                                ownedSamplePoints++;
+                        }
+                        // Use the OS client origin for PW_CLIENTONLY. WPF Window.ActualWidth
+                        // can include non-client chrome, particularly at fractional DPI.
+                        var flags = new uint[] { 3, 1 }; // PW_CLIENTONLY | PW_RENDERFULLCONTENT, then PW_CLIENTONLY.
+                        foreach (uint flag in flags)
+                        {
+                            var attempt = VerifyDesktopPixels(handle, clientArea, visibleClient, output, ownedOutput, flag);
+                            attempts.Add(attempt);
+                            reason = attempt.Status;
+                            if (reason == "verified") break;
+                        }
+                    }
+                    else reason = "client-offscreen";
+                }
+                else reason = "client-geometry-unavailable";
+            }
             catch (System.ComponentModel.Win32Exception) { reason = "desktop-read-unavailable"; }
             catch (ExternalException) { reason = "native-render-unavailable"; }
         }
@@ -61,8 +100,10 @@ internal static partial class NativeSmoke
         if (!verified) File.Delete(output);
         File.WriteAllText(output + ".capture.json", JsonSerializer.Serialize(new {
             captureStatus = reason, screenPixelsVerified = verified, method = "PrintWindow client / desktop exact RGB",
-            requested, virtualScreen, visibleBounds = bounds, captured = verified ? (Rectangle?)bounds : null,
-            fullWindowCaptured = verified && requested == bounds,
+            requested, nativeClient, virtualScreen, visibleBounds = bounds,
+            ownedSamplePoints, samplePoints = 9, attempts,
+            captured = verified && nativeClient.HasValue ? Rectangle.Intersect(nativeClient.Value, virtualScreen) : (Rectangle?)null,
+            fullWindowCaptured = verified && nativeClient.HasValue && requested == nativeClient.Value && requested == bounds,
             window.Left, window.Top, window.ActualWidth, window.ActualHeight, window.IsActive,
             dpi.DpiScaleX, dpi.DpiScaleY,
             monitors = System.Windows.Forms.Screen.AllScreens.Select(screen => new { screen.Bounds, screen.WorkingArea })
@@ -71,7 +112,8 @@ internal static partial class NativeSmoke
         return new(new Rect(bounds.X, bounds.Y, bounds.Width, bounds.Height), verified);
     }
 
-    private static string VerifyDesktopPixels(IntPtr handle, Rectangle requested, Rectangle bounds, string output)
+    private static ClientAttempt VerifyDesktopPixels(IntPtr handle, Rectangle requested, Rectangle bounds,
+        string output, string ownedOutput, uint flags)
     {
         using var owned = new Bitmap(requested.Width, requested.Height, PixelFormat.Format24bppRgb);
         using (var graphics = Graphics.FromImage(owned))
@@ -80,8 +122,8 @@ internal static partial class NativeSmoke
             var dc = graphics.GetHdc();
             try
             {
-                // PW_CLIENTONLY maps to the same client origin as Window.PointToScreen.
-                if (!PrintFixtureWindow(handle, dc, 1)) return "hwnd-render-unavailable";
+                // Both modes paint from the client origin returned by ClientToScreen.
+                if (!PrintFixtureWindow(handle, dc, flags)) return new(flags, "hwnd-render-unavailable", -1, false);
             }
             finally { graphics.ReleaseHdc(dc); }
         }
@@ -90,12 +132,15 @@ internal static partial class NativeSmoke
             graphics.CopyFromScreen(bounds.Location, System.Drawing.Point.Empty, bounds.Size, CopyPixelOperation.SourceCopy);
         var part = new Rectangle(bounds.X - requested.X, bounds.Y - requested.Y, bounds.Width, bounds.Height);
         using var visible = owned.Clone(part, PixelFormat.Format24bppRgb);
-        var verification = CompareFixturePixels(visible, physical);
-        if (verification == "verified") visible.Save(output, ImageFormat.Png);
-        return verification;
+        var comparison = CompareFixturePixels(visible, physical, flags);
+        // Save only the bitmap Windows drew from our process-owned HWND.
+        if (comparison.HasDrawing && (!File.Exists(ownedOutput) || comparison.Status == "verified"))
+            visible.Save(ownedOutput, ImageFormat.Png);
+        if (comparison.Status == "verified") visible.Save(output, ImageFormat.Png);
+        return comparison;
     }
 
-    private static string CompareFixturePixels(Bitmap owned, Bitmap physical)
+    private static ClientAttempt CompareFixturePixels(Bitmap owned, Bitmap physical, uint flags = 0)
     {
         var area = new Rectangle(0, 0, owned.Width, owned.Height);
         var a = owned.LockBits(area, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
@@ -108,16 +153,20 @@ internal static partial class NativeSmoke
                 var actual = new byte[expected.Length];
                 (byte B, byte G, byte R) first = default;
                 var varied = false;
+                var different = 0;
                 for (var y = 0; y < owned.Height; y++)
                 {
                     Marshal.Copy(IntPtr.Add(a.Scan0, y * a.Stride), expected, 0, expected.Length);
                     Marshal.Copy(IntPtr.Add(b.Scan0, y * b.Stride), actual, 0, actual.Length);
-                    if (!expected.AsSpan().SequenceEqual(actual)) return "desktop-hwnd-mismatch";
+                    if (!expected.AsSpan().SequenceEqual(actual))
+                        for (var offset = 0; offset < expected.Length; offset += 3)
+                            if (expected[offset] != actual[offset] || expected[offset + 1] != actual[offset + 1] ||
+                                expected[offset + 2] != actual[offset + 2]) different++;
                     if (y == 0) first = (expected[0], expected[1], expected[2]);
                     for (var x = 0; x < expected.Length && !varied; x += 3)
                         varied = (expected[x], expected[x + 1], expected[x + 2]) != first;
                 }
-                return varied ? "verified" : "uniform-hwnd-render";
+                return new(flags, different > 0 ? "desktop-hwnd-mismatch" : varied ? "verified" : "uniform-hwnd-render", different, varied);
             }
             finally { physical.UnlockBits(b); }
         }
@@ -128,12 +177,26 @@ internal static partial class NativeSmoke
     {
         using var owned = new Bitmap(5, 3, PixelFormat.Format24bppRgb);
         using var physical = new Bitmap(5, 3, PixelFormat.Format24bppRgb);
-        Require(CompareFixturePixels(owned, physical) == "uniform-hwnd-render", "A blank HWND counted as evidence.");
+        Require(CompareFixturePixels(owned, physical) == new ClientAttempt(0, "uniform-hwnd-render", 0, false), "A blank HWND counted as evidence.");
         owned.SetPixel(4, 2, System.Drawing.Color.Red);
-        Require(CompareFixturePixels(owned, physical) == "desktop-hwnd-mismatch", "An occluded pixel counted as evidence.");
+        Require(CompareFixturePixels(owned, physical) == new ClientAttempt(0, "desktop-hwnd-mismatch", 1, true), "An occluded pixel counted as evidence.");
+        physical.SetPixel(0, 1, System.Drawing.Color.Lime);
+        Require(CompareFixturePixels(owned, physical, 3) == new ClientAttempt(3, "desktop-hwnd-mismatch", 2, true),
+            "Pixel differences across scanlines were counted incorrectly.");
+        physical.SetPixel(0, 1, System.Drawing.Color.Black);
         physical.SetPixel(4, 2, System.Drawing.Color.Red);
-        Require(CompareFixturePixels(owned, physical) == "verified", "Matching nonuniform RGB pixels were rejected.");
+        Require(CompareFixturePixels(owned, physical) == new ClientAttempt(0, "verified", 0, true), "Matching nonuniform RGB pixels were rejected.");
     }
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("user32.dll", EntryPoint = "GetClientRect", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CaptureClientRect(IntPtr window, out PointerRectangle rect);
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("user32.dll", EntryPoint = "ClientToScreen", ExactSpelling = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool CaptureClientOrigin(IntPtr window, ref PointerPoint point);
 
     [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
     [DllImport("user32.dll", EntryPoint = "PrintWindow", ExactSpelling = true)]
