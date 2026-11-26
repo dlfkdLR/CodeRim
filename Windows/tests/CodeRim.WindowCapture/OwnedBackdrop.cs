@@ -20,7 +20,8 @@ internal static class OwnedBackdrop
         var top = Samples(source, 0, client);
         if (top != 9) return new { status = "fixture-not-visible", initiallyOwned = top,
             fixtureVisible = IsWindowVisible(source), fixtureMinimized = IsIconic(source),
-            fixtureForeground = GetForegroundWindow() == source, interactive = Environment.UserInteractive,
+            fixtureForeground = GetForegroundWindow() == source, foregroundPresent = GetForegroundWindow() != 0,
+            fixtureDesktopReceivesInput = DesktopReceivesInput(source), interactive = Environment.UserInteractive,
             remoteSession = System.Windows.Forms.SystemInformation.TerminalServerSession };
         nint instance = GetModuleHandleW(null);
         nint brush = CreateSolidBrush((uint)(BackColor.R | BackColor.G << 8 | BackColor.B << 16));
@@ -95,6 +96,14 @@ internal static class OwnedBackdrop
         ? (foreground * alpha + background * (255 - alpha) + 127) / 255
         : Math.Min(255, foreground + (background * (255 - alpha) + 127) / 255);
 
+    private static bool? DesktopReceivesInput(nint fixture)
+    {
+        var thread = GetWindowThreadProcessId(fixture, out _);
+        var desktop = thread == 0 ? 0 : GetThreadDesktop(thread);
+        return desktop != 0 && GetUserObjectInformationW(desktop, 6 /* UOI_IO */, out int input, sizeof(int), out _)
+            ? input != 0 : null;
+    }
+
     private static int Samples(nint target, nint backing, Rectangle area)
     {
         int count = 0;
@@ -149,6 +158,10 @@ internal static class OwnedBackdrop
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(nint hwnd);
     [DllImport("user32.dll")] private static extern bool IsIconic(nint hwnd);
     [DllImport("user32.dll")] private static extern nint GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(nint hwnd, out uint process);
+    [DllImport("user32.dll")] private static extern nint GetThreadDesktop(uint thread);
+    [DllImport("user32.dll", ExactSpelling = true)] private static extern bool GetUserObjectInformationW(
+        nint handle, int index, out int value, int length, out int requiredLength);
     [DllImport("user32.dll")] private static extern nint WindowFromPoint(Point point);
     [DllImport("user32.dll")] private static extern nint GetAncestor(nint hwnd, uint flag);
     [DllImport("dwmapi.dll")] private static extern int DwmFlush();

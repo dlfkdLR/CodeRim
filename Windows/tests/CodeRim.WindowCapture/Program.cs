@@ -42,7 +42,8 @@ internal static class Program
                 using var offer = JsonDocument.Parse(File.ReadAllBytes(prefix + ".ready"));
                 nint hwnd = (nint)offer.RootElement.GetProperty("hwnd").GetInt64();
                 if (offer.RootElement.GetProperty("pid").GetInt32() != pid || !NativeCapture.Owned(hwnd, pid)) return 4;
-                result = await Probe(hwnd, process, directory, prefix, args.Length == 3);
+                bool raised = offer.RootElement.TryGetProperty("raised", out var value) && value.GetBoolean();
+                result = await Probe(hwnd, process, directory, prefix, args.Length == 3, raised);
             }
         }
         catch (Exception ex) when (ex is COMException or UnauthorizedAccessException or NotSupportedException or TimeoutException)
@@ -54,7 +55,7 @@ internal static class Program
         return 0;
     }
 
-    private static async Task<object> Probe(nint hwnd, Process process, string directory, string prefix, bool sourceComparison)
+    private static async Task<object> Probe(nint hwnd, Process process, string directory, string prefix, bool sourceComparison, bool raised)
     {
         if (!GraphicsCaptureSession.IsSupported()) return new { status = "compositor-unsupported" };
         var geometry = NativeCapture.Bounds(hwnd);
@@ -99,7 +100,8 @@ internal static class Program
         object backing = bitmap.BitmapAlphaMode == BitmapAlphaMode.Ignore
             ? new { status = "compositor-alpha-unavailable" }
             : OwnedBackdrop.Compare(hwnd, process.Id, client, pixels, bitmap.BitmapAlphaMode == BitmapAlphaMode.Straight);
-        return new { status = "compositor-owned-frame", client.X, client.Y, client.Width, client.Height, fullClient = client == geometry.Client, independent, backing };
+        return new { status = "compositor-owned-frame", client.X, client.Y, client.Width, client.Height,
+            fullClient = client == geometry.Client, fixtureRaised = raised, independent, backing };
     }
 
     private static object Compare(byte[] pixels, Size size, string ownedPath, int frameWidth, int frameHeight)
