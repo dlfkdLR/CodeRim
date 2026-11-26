@@ -146,6 +146,7 @@ actor SQLiteDatabase {
         var value = cr_source_checkpoint_cursor()
     }
     private var checkpointCursor = CheckpointCursor()
+    private var qualitySchema = cr_quality_schema()
 #endif
 
     private struct ReadRevision: Equatable {
@@ -1561,7 +1562,7 @@ actor SQLiteDatabase {
         guard hasEvents else { return (.unavailable, false) }
 #if CODERIM_RUST_ACCOUNTING
         guard let connection else { throw SQLiteDatabaseError.statement("database is closed") }
-        switch cr_snapshot_quality(UnsafeMutableRawPointer(connection.rawValue), since.timeIntervalSince1970) {
+        switch cr_snapshot_quality(UnsafeMutableRawPointer(connection.rawValue), since.timeIntervalSince1970, &qualitySchema) {
         case 0: return (.exact, false)
         case 1: return (.exact, true)
         case 2: return (.partial, true)

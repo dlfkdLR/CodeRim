@@ -46,7 +46,21 @@ def cases(include_corrupt_counters):
                               "cache_write_input_tokens, output_tokens, quality, last_observed_at) "
                               f"VALUES('s{j}',2,0,{written},1,'{quality}',{at})")
         commands.append("BEGIN;" + ";".join(statements) + ";COMMIT")
-    commands.extend(["DROP TABLE partial_evidence", "", "DELETE FROM usage_events", ""])
+    # Restored views and generated columns may throw while evaluating a row.
+    # Preserve the original short-circuit order between counters and evidence.
+    commands.extend([
+        "DELETE FROM app_metadata; DELETE FROM analytics_backfill_sources; DELETE FROM partial_evidence; "
+        "DELETE FROM session_counters; INSERT INTO session_counters(session_id,input_tokens,cached_input_tokens,"
+        "output_tokens,quality,last_observed_at) VALUES('broken',1,0,1,'partial',null)",
+        "DROP TABLE partial_evidence; CREATE VIEW Partial_Evidence AS "
+        "SELECT 'f' AS source, 1 AS position, abs(-9223372036854775808) AS observed_at",
+        "UPDATE session_counters SET quality='exact'",
+        "DROP VIEW Partial_Evidence; CREATE TABLE partial_evidence(raw_observed_at); "
+        "INSERT INTO partial_evidence VALUES(1); ALTER TABLE partial_evidence ADD COLUMN observed_at "
+        "GENERATED ALWAYS AS (CASE WHEN raw_observed_at=1 THEN abs(-9223372036854775808) ELSE raw_observed_at END) VIRTUAL",
+        "UPDATE session_counters SET quality='partial'",
+        "DROP TABLE partial_evidence", "", "DELETE FROM usage_events", ""
+    ])
     return commands
 
 
