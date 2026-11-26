@@ -176,11 +176,35 @@ fn ambiguous(line: &str) -> bool {
     if line.is_ascii() || !(line.contains("credits") || line.contains("billing cycle")) {
         return false;
     }
-    line.split_ascii_whitespace().any(|word| {
-        !word.is_ascii()
-            && word != "·"
-            && (word.bytes().any(|c| c.is_ascii())
-                || word.chars().any(|c| c.is_numeric() || c.is_whitespace()))
+    const WORDS: [&str; 9] = [
+        "credits",
+        "remaining",
+        "billing",
+        "cycle",
+        "ends",
+        "month",
+        "Max",
+        "Plan",
+        "used",
+    ];
+    line.char_indices().any(|(offset, ch)| {
+        if ch.is_ascii() || ch == '·' {
+            return false;
+        }
+        if ch.is_numeric() || ch.is_whitespace() {
+            return true;
+        }
+        // A mark/format character next to a matched word, amount or date may
+        // change the Swift grapheme boundary. Punctuation around a display
+        // label, such as "(프로모션)", does not belong to any quota field.
+        let before = &line[..offset];
+        let after = &line[offset + ch.len_utf8()..];
+        let numeric_edge = |byte: &u8| numeric_byte(*byte) || *byte == b'/';
+        before.as_bytes().last().is_some_and(numeric_edge)
+            || after.as_bytes().first().is_some_and(numeric_edge)
+            || WORDS
+                .iter()
+                .any(|word| before.ends_with(word) || after.starts_with(word))
     })
 }
 
@@ -246,6 +270,22 @@ pub unsafe extern "C" fn cr_auggie_quota(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ordinary_display_labels_use_the_numeric_parser() {
+        for label in ["(프로모션)", "가입:한글", "공유 [限定]", "États-Unis", "📊"] {
+            let text = format!("7 credits / month\n2 credits remaining {label}");
+            assert_eq!(parse(&text).unwrap().remaining, 2);
+        }
+        assert_eq!(
+            parse("7 credits / month\n2 credits remaining\u{301}").err(),
+            Some(2)
+        );
+        assert_eq!(
+            parse("7 credits / month\n３ credits remaining").err(),
+            Some(2)
+        );
+    }
 
     #[test]
     fn writes_only_valid_results_and_keeps_date_range_in_input() {
