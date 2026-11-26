@@ -87,6 +87,29 @@ internal static partial class NativeSmoke
                 && Descendants<Button>(dashboard).Any(x => AutomationProperties.GetAutomationId(x).StartsWith("usage.subagent.", StringComparison.Ordinal)),
                 "The session detail must show its synthetic attachment and child session.");
             await Offer("session-detail");
+
+            dashboard.Navigate("usage");
+            await Idle();
+            usage = Descendants<UsagePane>(dashboard).Single();
+            usage.SelectProvider("codex");
+            Require(usage.HandleShortcut(Key.D1, ModifierKeys.Control), "Cannot open the Usage overview.");
+            await Idle();
+            var accountSwitch = Descendants<Button>(usage).Single(x => AutomationProperties.GetName(x) == "Switch");
+            Require(accountSwitch.IsVisible && accountSwitch.IsEnabled && accountSwitch.Focusable && accountSwitch.IsTabStop,
+                "The Switch button must be visible and keyboard accessible.");
+            await Click(accountSwitch);
+            var accountWindow = Application.Current.Windows.OfType<Window>().Single(w => w.Owner == dashboard && w.Content is AccountsPane);
+            Require(accountWindow.IsVisible && accountWindow.Title == "Codex Accounts", "Switch did not open the Codex account manager.");
+            var labels = Descendants<TextBlock>(accountWindow).Select(t => t.Text).ToHashSet(StringComparer.Ordinal);
+            var actions = Descendants<Button>(accountWindow).Where(b => b.IsVisible).Select(AutomationProperties.GetAutomationId).ToHashSet();
+            Require(labels.Contains("No saved accounts") && actions.Contains("accounts.add"),
+                "An empty account vault must show its empty state and Add Account action.");
+            File.WriteAllText(Path.Combine(directory, "switch-route.json"),
+                System.Text.Json.JsonSerializer.Serialize(new { action = AutomationProperties.GetName(accountSwitch),
+                    keyboardAccessible = accountSwitch.IsTabStop && accountSwitch.Focusable, opened = accountWindow.Title,
+                    emptyVault = true, addAccount = true, showsSaveCurrent = actions.Contains("accounts.saveCurrent"),
+                    officialLogin = labels.Contains("Sign in to add an account to CodeRim.") }));
+            accountWindow.Close();
         }
         finally
         {

@@ -546,13 +546,10 @@ internal sealed partial class DashboardWindow : Window
         }
         if (id == "codex")
         {
-            var accountRows = new List<UIElement> {
+            body.Children.Add(SettingsUi.Section("Account",
                 SettingsUi.Row("Account", ProviderValue("provider.account", accountDisplay.Label ?? "Not connected")),
-                SettingsUi.Row("Plan", ProviderValue("provider.plan", accountDisplay.Plan ?? "Unavailable"))
-            };
-            if (OwnedProviderAccess.Enabled) accountRows.Add(SettingsUi.Action("Manage Accounts…", () => Navigate(id + "-accounts")));
-            body.Children.Add(SettingsUi.Section("Account", accountRows.ToArray()));
-            if (!OwnedProviderAccess.Enabled) body.Children.Add(SettingsUi.Note("Add or switch accounts from the account menu in Settings ▸ Usage."));
+                SettingsUi.Row("Plan", ProviderValue("provider.plan", accountDisplay.Plan ?? "Unavailable"))));
+            body.Children.Add(SettingsUi.Note("Add or switch accounts from the account menu in Settings ▸ Usage."));
         }
         if (id == "codex")
             body.Children.Add(SettingsUi.Section("Limits",

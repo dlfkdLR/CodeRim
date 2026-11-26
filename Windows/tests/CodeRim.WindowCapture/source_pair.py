@@ -233,7 +233,12 @@ def main():
     releases, errors["viewsRelease"] = run("release", root / "release", probe, seed_clock)
     candidates, errors["viewsCandidate"] = run("candidate", root / "candidate", probe, seed_clock)
     views = {view: compare(root, Path("views") / view, releases[view], candidates[view]) for view in VIEWS}
-    combined = {**account, "previewSeedClock": seed_clock, "views": views, "fixtureErrors": errors}
+    routes = {}
+    for version in ("release", "candidate"):
+        path = root / version / "views/switch-route.json"
+        routes[version] = json.loads(path.read_text()) if path.is_file() else None
+    combined = {**account, "previewSeedClock": seed_clock, "views": views, "fixtureErrors": errors,
+                "codexAccountSwitch": routes}
     args.output.write_text(json.dumps(combined, indent=2) + "\n", encoding="utf-8")
     different = []
     missing = []
@@ -255,6 +260,12 @@ def main():
         raise SystemExit("Synthetic account totals or their displayed text differ or are missing")
     if any(errors.values()):
         raise SystemExit("One or more synthetic fixture sequences failed; see the per-view results")
+    for version, route in routes.items():
+        expected_route = {"action": "Switch", "keyboardAccessible": True, "opened": "Codex Accounts",
+                          "emptyVault": True, "addAccount": True, "showsSaveCurrent": version == "release",
+                          "officialLogin": version == "candidate"}
+        if route != expected_route:
+            raise SystemExit(f"The {version} account route or empty-vault actions did not match")
     if different or missing:
         if different:
             print("::error::Window geometry, pixels or composition differed on " + ", ".join(different))
