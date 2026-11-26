@@ -17,6 +17,8 @@ public static class UsageAnalytics
     private static readonly Dictionary<string, ModelPrice> Prices = ProviderCatalog.ReadResource<ModelPrice[]>("pricing.json").ToDictionary(x => x.Model, StringComparer.Ordinal);
     public static CostSummary Estimate(IEnumerable<UsageEvent> events, IReadOnlySet<string>? excludingModels = null)
     {
+        if (events is UsageEvent[] { Length: 0 } or List<UsageEvent> { Count: 0 })
+            return new CostSummary(0m, 0, []);
         decimal amount = 0;
         long excluded = 0;
         var models = new HashSet<string>(StringComparer.Ordinal);
