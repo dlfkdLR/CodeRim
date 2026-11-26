@@ -38,6 +38,8 @@ mod token_json;
 #[cfg(target_os = "macos")]
 mod transcript;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
+mod windows_history;
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod windows_companion;
 
 use coderim_usage_core::{

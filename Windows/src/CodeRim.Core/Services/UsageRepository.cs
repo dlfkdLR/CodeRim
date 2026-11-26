@@ -6,7 +6,7 @@ using Microsoft.Data.Sqlite;
 namespace CodeRim.Core.Services;
 
 /// Durable numeric history. No credentials, full paths, prompts or response bodies.
-public sealed class UsageRepository
+public sealed partial class UsageRepository
 {
     private const string DeleteHistory = "DELETE FROM events WHERE provider=$provider; DELETE FROM attachments WHERE provider=$provider; DELETE FROM session_links WHERE provider=$provider; DELETE FROM session_metadata WHERE provider=$provider; DELETE FROM repaired_events WHERE provider=$provider";
     private readonly string connectionString;
@@ -249,7 +249,7 @@ public sealed class UsageRepository
             command.Parameters.AddWithValue("$provider", provider); command.Parameters.AddWithValue("$id", id);
             command.Parameters.AddWithValue("$time", time.ToUnixTimeMilliseconds()); command.ExecuteNonQuery();
         }
-        var result = Read(provider, connection, transaction);
+        var result = Read(provider, connection, IsNewerSchema, transaction);
         transaction.Commit();
         LastWriteRepairedEvents = repaired;
         return result;
@@ -269,26 +269,44 @@ public sealed class UsageRepository
     public IReadOnlyList<UsageEvent> Read(string provider)
     {
         using var connection = Open();
-        return Read(provider, connection);
+        return Read(provider, connection, IsNewerSchema);
     }
-    private static List<UsageEvent> Read(string provider, SqliteConnection connection, SqliteTransaction? transaction = null)
+    private static List<UsageEvent> Read(string provider, SqliteConnection connection, bool newerSchema, SqliteTransaction? transaction = null)
     {
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
         // A row marked when it was saved keeps the mark: every range that holds it reads as partial, whenever
         // that range is looked at and whether or not its source files still exist.
+        const string existingMark = "EXISTS(SELECT 1 FROM repaired_events r WHERE r.provider=e.provider AND r.id=e.id)";
+        var mark = existingMark;
+#if CODERIM_RUST_ACCOUNTING
+        // A clean ledger needs one table emptiness check for its entire statement snapshot.
+        // Future schemas retain the previous query and materializer exactly.
+        if (!newerSchema)
+            mark = "CASE WHEN EXISTS(SELECT 1 FROM repaired_events) THEN " + existingMark + " ELSE 0 END";
+#endif
         command.CommandText = "SELECT e.id,e.time,e.input,e.cached,e.output,e.written,e.model,e.project,e.session,e.projectId,e.highContext,"
-            + "EXISTS(SELECT 1 FROM repaired_events r WHERE r.provider=e.provider AND r.id=e.id) FROM events e WHERE e.provider=$provider ORDER BY e.time";
+            + mark + " FROM events e WHERE e.provider=$provider ORDER BY e.time";
         command.Parameters.AddWithValue("$provider", provider);
         using var reader = command.ExecuteReader();
         var result = new List<UsageEvent>();
-        while (reader.Read()) result.Add(new UsageEvent(reader.GetString(0), DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(1)),
+        while (reader.Read())
+        {
+#if CODERIM_RUST_ACCOUNTING
+            result.Add(newerSchema ? ReadEvent(reader, provider) : ReadStoredEvent(reader, provider));
+#else
+            result.Add(ReadEvent(reader, provider));
+#endif
+        }
+        return result;
+    }
+
+    private static UsageEvent ReadEvent(SqliteDataReader reader, string provider) =>
+        new UsageEvent(reader.GetString(0), DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(1)),
             new TokenUsage(reader.GetInt64(2) + reader.GetInt64(3) + (reader.IsDBNull(5) ? 0 : reader.GetInt64(5)), reader.GetInt64(3), reader.GetInt64(4), reader.IsDBNull(5) ? null : reader.GetInt64(5)),
             reader.GetString(6), reader.GetString(7), reader.GetString(8), provider, reader.GetString(9)) {
                 PricingContext = reader.IsDBNull(10) ? null : reader.GetInt64(10) switch { 0 => PricingContext.Standard, 1 => PricingContext.HighContext, _ => null },
-                Repaired = reader.GetInt64(11) != 0 });
-        return result;
-    }
+                Repaired = reader.GetInt64(11) != 0 };
 
     public IReadOnlyList<SessionDetails> ReadSessionDetails(string provider)
     {
