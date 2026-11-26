@@ -1,0 +1,422 @@
+{
+  "node": "v24.14.1",
+  "arch": "arm64",
+  "platform": "darwin",
+  "comparisons": 396,
+  "moduleBytes": 3984,
+  "moduleGzipBytes": 2095,
+  "sha256": "19e72290bf07a81102a8dd795d12aa67bd2643e54c5a38c8ac2b41cdd000e297",
+  "workloads": [
+    {
+      "label": "small",
+      "providers": 3,
+      "sessions": 2,
+      "repeats": 6351,
+      "medianJsMs": 4.922375000000017,
+      "medianWasmMs": 2.8755000000000166,
+      "medianLinearJsMs": 2.9367499999999893,
+      "samples": [
+        {
+          "javascript": {
+            "elapsedMs": 7.777000000000015,
+            "checksum": 215934
+          },
+          "wasm": {
+            "elapsedMs": 6.040832999999992,
+            "checksum": 215934
+          },
+          "linearJs": {
+            "elapsedMs": 6.230917000000005,
+            "checksum": 215934
+          }
+        },
+        {
+          "wasm": {
+            "elapsedMs": 4.319040999999999,
+            "checksum": 215934
+          },
+          "linearJs": {
+            "elapsedMs": 6.0277499999999975,
+            "checksum": 215934
+          },
+          "javascript": {
+            "elapsedMs": 7.1865419999999745,
+            "checksum": 215934
+          }
+        },
+        {
+          "linearJs": {
+            "elapsedMs": 3.7130000000000223,
+            "checksum": 215934
+          },
+          "javascript": {
+            "elapsedMs": 6.052541999999988,
+            "checksum": 215934
+          },
+          "wasm": {
+            "elapsedMs": 3.341916999999995,
+            "checksum": 215934
+          }
+        },
+        {
+          "javascript": {
+            "elapsedMs": 5.713875000000002,
+            "checksum": 215934
+          },
+          "wasm": {
+            "elapsedMs": 2.8542500000000075,
+            "checksum": 215934
+          },
+          "linearJs": {
+            "elapsedMs": 2.9367499999999893,
+            "checksum": 215934
+          }
+        },
+        {
+          "wasm": {
+            "elapsedMs": 2.8755000000000166,
+            "checksum": 215934
+          },
+          "linearJs": {
+            "elapsedMs": 3.0233750000000157,
+            "checksum": 215934
+          },
+          "javascript": {
+            "elapsedMs": 4.922375000000017,
+            "checksum": 215934
+          }
+        },
+        {
+          "linearJs": {
+            "elapsedMs": 2.919750000000022,
+            "checksum": 215934
+          },
+          "javascript": {
+            "elapsedMs": 4.639375000000001,
+            "checksum": 215934
+          },
+          "wasm": {
+            "elapsedMs": 2.917082999999991,
+            "checksum": 215934
+          }
+        },
+        {
+          "javascript": {
+            "elapsedMs": 4.139792,
+            "checksum": 215934
+          },
+          "wasm": {
+            "elapsedMs": 2.7093340000000126,
+            "checksum": 215934
+          },
+          "linearJs": {
+            "elapsedMs": 2.777458000000024,
+            "checksum": 215934
+          }
+        },
+        {
+          "wasm": {
+            "elapsedMs": 2.6962090000000103,
+            "checksum": 215934
+          },
+          "linearJs": {
+            "elapsedMs": 2.7692080000000487,
+            "checksum": 215934
+          },
+          "javascript": {
+            "elapsedMs": 4.57429099999996,
+            "checksum": 215934
+          }
+        },
+        {
+          "linearJs": {
+            "elapsedMs": 2.7871660000000134,
+            "checksum": 215934
+          },
+          "javascript": {
+            "elapsedMs": 4.1532080000000065,
+            "checksum": 215934
+          },
+          "wasm": {
+            "elapsedMs": 2.779124999999965,
+            "checksum": 215934
+          }
+        }
+      ]
+    },
+    {
+      "label": "medium",
+      "providers": 24,
+      "sessions": 20,
+      "repeats": 2246,
+      "medianJsMs": 36.685667000000024,
+      "medianWasmMs": 2.426666999999952,
+      "medianLinearJsMs": 2.5684589999999616,
+      "samples": [
+        {
+          "javascript": {
+            "elapsedMs": 36.39300000000003,
+            "checksum": 94332
+          },
+          "wasm": {
+            "elapsedMs": 2.416499999999985,
+            "checksum": 94332
+          },
+          "linearJs": {
+            "elapsedMs": 2.531041000000016,
+            "checksum": 94332
+          }
+        },
+        {
+          "wasm": {
+            "elapsedMs": 2.3708750000000123,
+            "checksum": 94332
+          },
+          "linearJs": {
+            "elapsedMs": 2.5573329999999714,
+            "checksum": 94332
+          },
+          "javascript": {
+            "elapsedMs": 36.57483300000001,
+            "checksum": 94332
+          }
+        },
+        {
+          "linearJs": {
+            "elapsedMs": 2.5684589999999616,
+            "checksum": 94332
+          },
+          "javascript": {
+            "elapsedMs": 36.56545799999998,
+            "checksum": 94332
+          },
+          "wasm": {
+            "elapsedMs": 2.4505419999999845,
+            "checksum": 94332
+          }
+        },
+        {
+          "javascript": {
+            "elapsedMs": 36.75966600000004,
+            "checksum": 94332
+          },
+          "wasm": {
+            "elapsedMs": 2.4840410000000475,
+            "checksum": 94332
+          },
+          "linearJs": {
+            "elapsedMs": 2.5880829999999833,
+            "checksum": 94332
+          }
+        },
+        {
+          "wasm": {
+            "elapsedMs": 2.426666999999952,
+            "checksum": 94332
+          },
+          "linearJs": {
+            "elapsedMs": 2.5627079999999864,
+            "checksum": 94332
+          },
+          "javascript": {
+            "elapsedMs": 36.685667000000024,
+            "checksum": 94332
+          }
+        },
+        {
+          "linearJs": {
+            "elapsedMs": 2.6189580000000205,
+            "checksum": 94332
+          },
+          "javascript": {
+            "elapsedMs": 36.880791000000045,
+            "checksum": 94332
+          },
+          "wasm": {
+            "elapsedMs": 2.42349999999999,
+            "checksum": 94332
+          }
+        },
+        {
+          "javascript": {
+            "elapsedMs": 37.59458299999994,
+            "checksum": 94332
+          },
+          "wasm": {
+            "elapsedMs": 2.58075000000008,
+            "checksum": 94332
+          },
+          "linearJs": {
+            "elapsedMs": 2.7320000000000846,
+            "checksum": 94332
+          }
+        },
+        {
+          "wasm": {
+            "elapsedMs": 2.4745000000000346,
+            "checksum": 94332
+          },
+          "linearJs": {
+            "elapsedMs": 3.1539169999999785,
+            "checksum": 94332
+          },
+          "javascript": {
+            "elapsedMs": 37.16104199999995,
+            "checksum": 94332
+          }
+        },
+        {
+          "linearJs": {
+            "elapsedMs": 2.5562499999999773,
+            "checksum": 94332
+          },
+          "javascript": {
+            "elapsedMs": 36.54612499999996,
+            "checksum": 94332
+          },
+          "wasm": {
+            "elapsedMs": 2.423416999999972,
+            "checksum": 94332
+          }
+        }
+      ]
+    },
+    {
+      "label": "full",
+      "providers": 100,
+      "sessions": 64,
+      "repeats": 1100,
+      "medianJsMs": 338.03495799999973,
+      "medianWasmMs": 3.793083999999908,
+      "medianLinearJsMs": 3.9035409999999047,
+      "samples": [
+        {
+          "javascript": {
+            "elapsedMs": 371.4447500000001,
+            "checksum": 46200
+          },
+          "wasm": {
+            "elapsedMs": 3.9040840000000117,
+            "checksum": 46200
+          },
+          "linearJs": {
+            "elapsedMs": 4.00283300000001,
+            "checksum": 46200
+          }
+        },
+        {
+          "wasm": {
+            "elapsedMs": 3.793083999999908,
+            "checksum": 46200
+          },
+          "linearJs": {
+            "elapsedMs": 3.9035409999999047,
+            "checksum": 46200
+          },
+          "javascript": {
+            "elapsedMs": 337.0317909999999,
+            "checksum": 46200
+          }
+        },
+        {
+          "linearJs": {
+            "elapsedMs": 4.031208000000106,
+            "checksum": 46200
+          },
+          "javascript": {
+            "elapsedMs": 337.5552910000001,
+            "checksum": 46200
+          },
+          "wasm": {
+            "elapsedMs": 3.5954169999999976,
+            "checksum": 46200
+          }
+        },
+        {
+          "javascript": {
+            "elapsedMs": 339.0030419999998,
+            "checksum": 46200
+          },
+          "wasm": {
+            "elapsedMs": 3.980250000000069,
+            "checksum": 46200
+          },
+          "linearJs": {
+            "elapsedMs": 4.020042000000103,
+            "checksum": 46200
+          }
+        },
+        {
+          "wasm": {
+            "elapsedMs": 3.4553750000000036,
+            "checksum": 46200
+          },
+          "linearJs": {
+            "elapsedMs": 3.643833000000086,
+            "checksum": 46200
+          },
+          "javascript": {
+            "elapsedMs": 335.33220900000015,
+            "checksum": 46200
+          }
+        },
+        {
+          "linearJs": {
+            "elapsedMs": 3.7274999999999636,
+            "checksum": 46200
+          },
+          "javascript": {
+            "elapsedMs": 349.3722080000002,
+            "checksum": 46200
+          },
+          "wasm": {
+            "elapsedMs": 4.13116699999955,
+            "checksum": 46200
+          }
+        },
+        {
+          "javascript": {
+            "elapsedMs": 338.03495799999973,
+            "checksum": 46200
+          },
+          "wasm": {
+            "elapsedMs": 3.5659999999998035,
+            "checksum": 46200
+          },
+          "linearJs": {
+            "elapsedMs": 4.1546659999999065,
+            "checksum": 46200
+          }
+        },
+        {
+          "wasm": {
+            "elapsedMs": 3.50912500000004,
+            "checksum": 46200
+          },
+          "linearJs": {
+            "elapsedMs": 3.763416999999663,
+            "checksum": 46200
+          },
+          "javascript": {
+            "elapsedMs": 336.57199999999966,
+            "checksum": 46200
+          }
+        },
+        {
+          "linearJs": {
+            "elapsedMs": 3.749166999999943,
+            "checksum": 46200
+          },
+          "javascript": {
+            "elapsedMs": 353.96833400000014,
+            "checksum": 46200
+          },
+          "wasm": {
+            "elapsedMs": 4.229417000000012,
+            "checksum": 46200
+          }
+        }
+      ]
+    }
+  ]
+}
