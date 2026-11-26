@@ -67,9 +67,9 @@ def compare(public, full, companion, temp, pairs):
         for bridge in source.parent.glob("*coderim_accounting_bridge.*"):
             shutil.copy2(bridge, target / bridge.name)
 
-    snapshot = temp / "extended.json"
-    snapshot.write_text(json.dumps({"schemaVersion": 1, "generatedAt": "2026-01-02T03:04:05+00:00",
-                                    "providers": [], "futureProperty": [17]}), encoding="utf-8")
+    snapshot = temp / "local-wall-clock.json"
+    snapshot.write_text(json.dumps({"schemaVersion": 1, "generatedAt": "2026-01-02T03:04:05",
+                                    "providers": []}), encoding="utf-8")
     cases = {"snapshot": (["usage", "--snapshot", str(snapshot), "--format", "json"], b""),
              "hook": (["claude-status"], b'{"rate_limits":{"five_hour":{"used_percentage":53}}}')}
     result = {}

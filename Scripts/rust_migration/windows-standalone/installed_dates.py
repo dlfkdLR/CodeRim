@@ -24,7 +24,8 @@ with tempfile.TemporaryDirectory(prefix="coderim-installed-dates-") as directory
             "writer": source,
             "utcEpoch": source.replace(stamp, "1970-01-01T00:00:00Z"),
             "utcFraction": source.replace(stamp, "2023-06-15T09:20:10.1234567891234567Z"),
-            "typedExtension": json.dumps(dict(json.loads(source), futureProperty=["fixture", 1]), ensure_ascii=False),
+            "typedLocalWallClock": source.replace(stamp, "2023-06-15T09:20:10"),
+            "rootExtension": json.dumps(dict(json.loads(source), futureProperty=["fixture", 1]), ensure_ascii=False),
     }.items():
         payload = contents.encode("utf-8")
         path.write_bytes(payload)

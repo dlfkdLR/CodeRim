@@ -28,6 +28,13 @@ with tempfile.TemporaryDirectory(prefix="coderim-installed-cli-") as directory:
     snapshot.write_text(json.dumps({"schemaVersion": 1, "generatedAt": "2026-01-02T03:04:05Z",
                                     "providers": [], "futureField": ["한글", 43]}), encoding="utf-8")
     args = ("usage", "--snapshot", str(snapshot), "--format", "json")
+    extended = run(alone, *args)
+    assert extended.returncode == 0 and not extended.stderr and json.loads(extended.stdout)["providers"] == []
+    complete = run(installed, *args)
+    assert (extended.returncode, extended.stdout, extended.stderr) == (complete.returncode, complete.stdout, complete.stderr)
+    # A local wall-clock date needs the platform's actual UTC offset.
+    snapshot.write_text(json.dumps({"schemaVersion": 1, "generatedAt": "2026-01-02T03:04:05",
+                                    "providers": []}), encoding="utf-8")
     complete = run(installed, *args)
     assert complete.returncode == 0 and not complete.stderr, (complete.stdout, complete.stderr)
     assert json.loads(complete.stdout)["providers"] == []

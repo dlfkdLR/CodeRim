@@ -87,6 +87,11 @@ with private_fixture() as tmp:
         source=(data/'medium.json').read_text(encoding='utf8')
         # DateTimeOffset accepts UTC Z and emits +00:00, trimming sub-tick digits.
         # Replace every owned-writer timestamp to cover nested local usage and limits.
+        extra = data / 'native-extra.json'
+        extra.write_text(json.dumps(dict(originals, futureProperty={"text":"synthetic", "items":[1, False, None]})), encoding='utf8')
+        for cmd in ('usage', 'tokens', 'limits'):
+            for fmt in ('json', 'text'):
+                compare('native root extension '+cmd+' '+fmt, [cmd, '--snapshot', extra, '--format', fmt], native_env, native_cases)
         stamp = originals['generatedAt']
         for index, value in enumerate(('1970-01-01T00:00:00Z', '2024-02-29T23:59:59.00000000Z',
                                        '2024-03-01T00:00:00.12000Z', '2023-06-15T09:20:10.1234567891234567Z')):
@@ -117,6 +122,7 @@ with private_fixture() as tmp:
         wire=copy.deepcopy(originals);mutate(wire)
         target=data/label;target.write_text(json.dumps(wire,ensure_ascii=False),encoding='utf8');return target
     unusual=[variant('extra',lambda v:v.update(unknown={'more':[1]})),
+             variant('local-wall-clock', lambda v:v.update(generatedAt='2026-01-02T03:04:05')),
              variant('bad-disabled',lambda v:v['providers'][4]['localUsage']['totals']['week'].update(cachedInputTokens=99999999)),
              variant('escaped',lambda v:v['providers'][0].update(name='é e\u0301 · 한글 😀 +<>&\'"\\')),
              variant('null-local',lambda v:v['providers'][0].update(localUsage=None)),
@@ -207,13 +213,14 @@ with private_fixture() as tmp:
         ('native-utf16',['tokens','--snapshot',data/'utf-16-be']),
         ('native-utc-epoch',['usage','--snapshot',data/'utc-0.json','--format','json']),
         ('native-utc-fraction',['usage','--snapshot',data/'utc-3.json','--format','json']),
-        ('typed-extended',['tokens','--snapshot',data/'extra'])]:
+        ('native-root-extension',['tokens','--snapshot',data/'extra']),
+        ('typed-local-wall-clock',['tokens','--snapshot',data/'local-wall-clock'])]:
         samples={m:[] for m in ['legacy','rust']}
         for pair in range(7):
             for mode in (('legacy','rust') if pair%2==0 else ('rust','legacy')):
                 samples[mode].append(process_sample(oracle if mode=='legacy' else candidate,argv))
         assert len({r['checksum'] for side in samples.values() for r in side})==1
-        if label=='typed-extended':
+        if label=='typed-local-wall-clock':
             # The elapsed time includes the child. Parent-only process RSS/CPU is not a tree measurement.
             for sample in samples['rust']:sample.pop('cpuMs');sample.pop('peakRss')
         bench[label]=samples
