@@ -84,13 +84,20 @@ internal sealed class UsageLogSession
                     && JsonFields.Text(payload, "role") == "user" && payload.TryGetProperty("content", out var content)
                     && content.ValueKind == System.Text.Json.JsonValueKind.Array)
                 {
-                    var images = content.EnumerateArray().Where(x => JsonFields.Text(x, "type") == "input_image").ToArray();
-                    if (images.Length > 0 && DateTimeOffset.TryParse(JsonFields.Text(root, "timestamp"), CultureInfo.InvariantCulture,
+                    long? ordinal = root.TryGetProperty("ordinal", out var ordinalValue)
+                        && ordinalValue.ValueKind == System.Text.Json.JsonValueKind.Number
+                        && ordinalValue.TryGetInt64(out var number) ? number : null;
+                    var imageCount = 0;
+                    List<System.Text.Json.JsonElement>? identityInputs = null;
+                    foreach (var item in content.EnumerateArray())
+                    {
+                        if (JsonFields.Text(item, "type") != "input_image") continue;
+                        imageCount++;
+                        if (ordinal is null) (identityInputs ??= []).Add(item);
+                    }
+                    if (imageCount > 0 && DateTimeOffset.TryParse(JsonFields.Text(root, "timestamp"), CultureInfo.InvariantCulture,
                         DateTimeStyles.AssumeUniversal, out var timestamp))
                     {
-                        long? ordinal = root.TryGetProperty("ordinal", out var ordinalValue)
-                            && ordinalValue.ValueKind == System.Text.Json.JsonValueKind.Number
-                            && ordinalValue.TryGetInt64(out var number) ? number : null;
                         if (inheritsHistory && !historyReplayComplete)
                         {
                             if (inheritedHistoryEndOrdinal is not null && ordinal > inheritedHistoryEndOrdinal
@@ -103,12 +110,11 @@ internal sealed class UsageLogSession
                             // Stable across copied/reformatted logs. The fallback keeps
                             // only a digest of image observations, never image/text data.
                             var identityKey = ordinal?.ToString(CultureInfo.InvariantCulture)
-                                ?? HashIdentifier(string.Join("|", images.Select(x =>
-                                    ImageIdentity(x))));
-                            attachments.Add(new AttachmentObservation(HashIdentifier($"images|{sessionId}|{timestamp:O}|{identityKey}"), timestamp, images.Length));
+                                ?? HashIdentifier(string.Join("|", identityInputs!.Select(ImageIdentity)));
+                            attachments.Add(new AttachmentObservation(HashIdentifier($"images|{sessionId}|{timestamp:O}|{identityKey}"), timestamp, imageCount));
                         }
                     }
-                    else if (images.Length > 0) partial = uncountedUsage = true;
+                    else if (imageCount > 0) partial = uncountedUsage = true;
                 }
             }
             catch (System.Text.Json.JsonException) { partial = uncountedUsage = true; }

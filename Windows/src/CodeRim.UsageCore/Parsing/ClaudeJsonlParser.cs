@@ -82,7 +82,10 @@ internal static class JsonFields
         var value = Object(parent, name);
         if (value.ValueKind != JsonValueKind.String) return null;
         var text = value.GetString();
-        return text is { Length: > 0 and <= 512 } && !text.Any(char.IsControl) ? text : null;
+        if (text is not { Length: > 0 and <= 512 }) return null;
+        foreach (char character in text)
+            if (char.IsControl(character)) return null;
+        return text;
     }
     internal static bool Flag(JsonElement parent, string name) => Object(parent, name).ValueKind == JsonValueKind.True;
     internal static long? Count(JsonElement parent, string name)
