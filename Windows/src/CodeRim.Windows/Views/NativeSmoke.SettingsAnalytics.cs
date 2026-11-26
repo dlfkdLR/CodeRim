@@ -66,7 +66,9 @@ internal static partial class NativeSmoke
             UsageEvent[] events = [Event("a", yesterday, 300, "a", sessionA, 100, 100, 50), Event("b", yesterday.AddMinutes(1), 400, "b", "b"),
                 Event("c", through.AddMinutes(-5), 100, "a", "c", 40, 0, 30), Event("d", through.AddMinutes(-4), 80, "c", "d"),
                 Event("e", through.AddMinutes(-3), 60, "d", "e"), Event("f", through.AddMinutes(-2), 40, "e", "f"),
-                Event("g", through.AddMinutes(-1), 20, "f", "g"), Event("older-a", through.AddDays(-10), 600, "a", sessionA)];
+                Event("g", through.AddMinutes(-1), 20, "f", "g") with { Project = "Unknown project", ProjectId = "unknown" },
+                Event("older-g", through.AddDays(-40), 0, "f", "g") with { Project = "Earlier project name" },
+                Event("older-a", through.AddDays(-10), 600, "a", sessionA)];
             // Deliberately distinguish local calendar totals from the selected range,
             // and source Through from the last event time.
             var local = new UsageSnapshot(new(901, 0, 0), new(902, 0, 0), new(903, 0, 0), new(904, 0, 0), DataQuality.Exact, yesterday);
@@ -177,6 +179,8 @@ internal static partial class NativeSmoke
             Require(expectedLastActivity != "Date unavailable" && activityText == "Last active " + expectedLastActivity,
                 "Session last activity is not its actual in-range fixture event time");
             await Click("settings.usage.moreSessions"); Require(SessionIds().Length == 7, "Show more did not reveal all ranked sessions");
+            Require(Text(Disclosure("settings.usage.session.g")).Contains("Earlier project name", StringComparison.Ordinal),
+                "Expanded session lost its project name from outside the displayed period");
             await Click("settings.usage.moreSessions"); Require(SessionIds().SequenceEqual(expectedFirst), "Show less did not restore token-ranked top five");
             await Click("settings.usage.moreSessions");
             Disclosure("settings.usage.period.week").IsExpanded = true; await Idle();

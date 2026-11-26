@@ -513,26 +513,24 @@ internal sealed partial class UsagePane : StackPanel
         }
         if (project is not null || session is not null) EntityDetail(events, through);
     }
+    private string? PublishedSessionName(string id)
+    {
+        if (provider == "codex" && store.CodexAnalyticsLabels.GetValueOrDefault(id)?.SessionTitle is { } title) return title;
+        return analyticsMetadata.GetValueOrDefault(id)?.ProjectName is { Length: > 0 } name ? name : null;
+    }
+
     private string AnalyticsEntityName(IEnumerable<UsageEvent> events, string id, bool isSession)
     {
-        if (isSession && provider == "codex" && store.CodexAnalyticsLabels.GetValueOrDefault(id)?.SessionTitle is { } title) return title;
-        if (isSession && analyticsMetadata.GetValueOrDefault(id)?.ProjectName is { Length: > 0 } name)
-            return name;
-        // A session can acquire metadata after its first event. Import order
-        // must not choose the name in either the list or its detail.
-        var named = events.OrderByDescending(HasProjectName).ThenByDescending(x => x.OccurredAt)
-            .ThenBy(x => x.EventKey, StringComparer.Ordinal).ThenBy(x => x.ProjectId, StringComparer.Ordinal)
-            .ThenBy(x => x.Project, StringComparer.Ordinal).First();
+        if (isSession && PublishedSessionName(id) is { } title) return title;
+        var named = AnalyticsEventNames.Preferred(events);
         if (!isSession && provider == "codex" && named.Project.ToLowerInvariant() is "" or "/" or "codex" or ".codex" or "unknown project")
         {
             var names = events.Select(x => store.CodexAnalyticsLabels.GetValueOrDefault(x.SessionId)?.ProjectName).OfType<string>()
                 .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
             if (names.Length > 0) return string.Join(" · ", names.Take(2)) + (names.Length > 2 ? " (+" + (names.Length - 2).ToString(CultureInfo.CurrentCulture) + ")" : "");
         }
-        return !isSession || HasProjectName(named) ? named.Project : "Session " + id[..Math.Min(8, id.Length)];
+        return isSession ? AnalyticsEventNames.SessionName(named, id) : named.Project;
     }
-    private static bool HasProjectName(UsageEvent item) => !string.IsNullOrWhiteSpace(item.Project)
-        && (item.Project != "Unknown project" || item.ProjectId != "unknown");
     private string SessionListDetail(string id, DateTimeOffset lastActivity, IReadOnlyDictionary<string, int> childCounts)
     {
         var parts = new List<string> { AnalyticsDateText.Format(lastActivity, AnalyticsDateStyle.DayAndTime) };

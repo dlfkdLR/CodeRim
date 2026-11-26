@@ -213,10 +213,13 @@ internal sealed partial class UsagePane
         root.Children.Add(SettingsHeading("Top sessions", "Sessions ranked by tokens in this period", section: true));
         var rows = new StackPanel(); AutomationProperties.SetAutomationId(rows, "settings.usage.topSessions");
         rows.Children.Add(SettingsSessionHeader("Session", "Share", "Tokens", secondary: true));
-        foreach (var item in snapshot.Sessions.Take(showsAllSettingsSessions ? snapshot.Sessions.Count : 5))
+        int count = showsAllSettingsSessions ? snapshot.Sessions.Count : Math.Min(5, snapshot.Sessions.Count);
+        var names = AnalyticsEventNames.ForSessions(frame.Events, snapshot.Sessions, count, PublishedSessionName);
+        for (int i = 0; i < count; i++)
         {
+            var item = snapshot.Sessions[i];
             rows.Children.Add(SettingsUi.Divider());
-            var name = AnalyticsEntityName(frame.Events.Where(e => e.SessionId == item.Id), item.Id, isSession: true);
+            var name = names[i];
             var disclosure = SettingsDisclosure("settings.usage.session." + item.Id,
                 SettingsSessionHeader(name, ((double)item.Usage.TotalTokens / snapshot.Usage.TotalTokens).ToString("P1", CultureInfo.CurrentCulture),
                     TokenFormatter.Format(item.Usage.TotalTokens, settings.Current.NumberStyle)), expandedSettingsSessions.Contains(item.Id));
