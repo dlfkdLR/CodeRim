@@ -1,0 +1,187 @@
+{
+  "alert": "CVE-2026-86983",
+  "vendor": "https://github.com/apple/swift-crypto/security/advisories/GHSA-jwv7-rv4f-rff2",
+  "candidateCommit": "ea24faa",
+  "before": {
+    "version": "4.5.2",
+    "revision": "da9d28d69ebe3894b18376c8f2395c2f37b8448f",
+    "lockSHA256": "537f9ce434e34bf47722658e83f1b848b8ec877c6eb9fdc4364bff32b53148b3"
+  },
+  "after": {
+    "version": "5.0.3",
+    "revision": "c2cbadd7263439d8015189668f96ff5b5be565ce",
+    "lockSHA256": "9482b5b4ed0e20dae76d17f901ddba7423636612f93f727d63e9b0d93defa6fa"
+  },
+  "otherLockedIdentitiesPreserved": 8,
+  "osv": {
+    "query": {
+      "queries": [
+        {
+          "commit": "da9d28d69ebe3894b18376c8f2395c2f37b8448f"
+        },
+        {
+          "commit": "c2cbadd7263439d8015189668f96ff5b5be565ce"
+        }
+      ]
+    },
+    "result": {
+      "results": [
+        {
+          "vulns": [
+            {
+              "id": "CVE-2026-86983",
+              "modified": "2026-11-25T21:01:32.735650Z"
+            }
+          ]
+        },
+        {}
+      ]
+    }
+  },
+  "build": {
+    "targets": [
+      "arm64",
+      "x86_64"
+    ],
+    "signature": "ad-hoc QA",
+    "cleanMacBuildWarningCount": 0,
+    "existingPreparedCheckoutBuildWarningCount": 0,
+    "CLIProcessCases": 116,
+    "CLIOutputComparisons": 246,
+    "bundledLicenseAndNotice": "byte-equal to the new upstream checkout"
+  },
+  "rollback": {
+    "bundles": {
+      "reference": {
+        "id": "dev.codexmeter.CodexMeter",
+        "version": "2.1.41",
+        "build": "20141",
+        "executableSha256": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64"
+      },
+      "candidate": {
+        "id": "dev.codexmeter.CodexMeter",
+        "version": "2.1.41",
+        "build": "20141",
+        "executableSha256": "589dd4cab626f61688e75ab68e98ffec7978d5ef1fadb4e92a010543fdfb0bbd"
+      }
+    },
+    "stable": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ]
+      ],
+      "watermarks": [
+        100
+      ],
+      "offsets": [
+        352
+      ],
+      "version": "reference",
+      "fingerprintPreserved": true
+    },
+    "upgrade": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ]
+      ],
+      "watermarks": [
+        125
+      ],
+      "offsets": [
+        635
+      ],
+      "version": "candidate",
+      "fingerprintPreserved": true
+    },
+    "rollback": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ],
+        [
+          "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+          8
+        ]
+      ],
+      "watermarks": [
+        133
+      ],
+      "offsets": [
+        917
+      ],
+      "version": "reference",
+      "fingerprintPreserved": true
+    },
+    "restoredAndReplayed": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ],
+        [
+          "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+          8
+        ]
+      ],
+      "watermarks": [
+        133
+      ],
+      "offsets": [
+        917
+      ]
+    }
+  },
+  "normalOperation": {
+    "arm64": {
+      "directProductionCryptoObject": [
+        "SHA256",
+        "HMAC-SHA256",
+        "AES-GCM",
+        "P256-signature",
+        "P384-agreement"
+      ],
+      "providerCanonicalSHA256": "824f5c0de8a453ebfbe4497bb7c645f00519b01672452b2b25c563484dbd3543",
+      "cliProviders": 70,
+      "cliVersion": "CodeRim CLI 2.1.41 (schema 1)"
+    },
+    "x86_64": {
+      "directProductionCryptoObject": [
+        "SHA256",
+        "HMAC-SHA256",
+        "AES-GCM",
+        "P256-signature",
+        "P384-agreement"
+      ],
+      "providerCanonicalSHA256": "824f5c0de8a453ebfbe4497bb7c645f00519b01672452b2b25c563484dbd3543",
+      "cliProviders": 70,
+      "cliVersion": "CodeRim CLI 2.1.41 (schema 1)"
+    }
+  },
+  "harnessVerdict": "INCONCLUSIVE",
+  "scope": "Local diagnostic and QA packages. Public release and update channel are unchanged."
+}

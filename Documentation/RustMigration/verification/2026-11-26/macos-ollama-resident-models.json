@@ -1,0 +1,101 @@
+{
+  "commit": "5e825f9c4d09f20bf3cdf95e9851ec99c37cde97",
+  "base": "498c4c0cbfbfc0e38fcc79b2c94dfa6f435339eb",
+  "release": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "host": "26.6.2",
+  "unitTests": 50,
+  "casesPerArchitecture": 2603,
+  "rustPerArchitecture": 1175,
+  "compatiblePerArchitecture": 1428,
+  "cloudRegression": 2738,
+  "architectures": [
+    "arm64 native",
+    "x86_64 Rosetta"
+  ],
+  "swiftMinimumMacOS": "14.0",
+  "inputs": "synthetic; private ephemeral loopback servers, temporary home and data files, network sandbox allowed only the allocated ports; no daemon, real account, or model list consulted.",
+  "loopbackFetchesPerSide": 3120,
+  "parseMedianNanoseconds": {
+    "0-models": {
+      "reference": 885.1666666666666,
+      "rust": 40.68033333333333
+    },
+    "1-models": {
+      "rust": 353.8333333333333,
+      "reference": 2472.7363333333333
+    },
+    "2-models": {
+      "reference": 4256.25,
+      "rust": 617.125
+    },
+    "4-models": {
+      "rust": 1145.8335227272728,
+      "reference": 6967.376704545454
+    },
+    "16-models": {
+      "reference": 22252.90990990991,
+      "rust": 4568.225225225226
+    },
+    "64-models": {
+      "rust": 17548.109090909093,
+      "reference": 85849.24545454545
+    },
+    "unicode": {
+      "rust": 2236.236,
+      "reference": 2071.736
+    }
+  },
+  "loopbackMedianMicroseconds": [
+    {
+      "models": 0,
+      "original": 208.7901,
+      "rust": 207.598425,
+      "lowerPairs": 6,
+      "samplePairs": 12
+    },
+    {
+      "models": 1,
+      "original": 213.215625,
+      "rust": 207.4296875,
+      "lowerPairs": 12,
+      "samplePairs": 12
+    },
+    {
+      "models": 2,
+      "original": 213.26771250000002,
+      "rust": 206.1323,
+      "lowerPairs": 12,
+      "samplePairs": 12
+    },
+    {
+      "models": 4,
+      "original": 208.05416250000002,
+      "rust": 205.321875,
+      "lowerPairs": 10,
+      "samplePairs": 12
+    },
+    {
+      "models": 16,
+      "original": 233.5078125,
+      "rust": 212.56509999999997,
+      "lowerPairs": 12,
+      "samplePairs": 12
+    },
+    {
+      "models": 64,
+      "original": 296.647925,
+      "rust": 230.565625,
+      "lowerPairs": 12,
+      "samplePairs": 12
+    }
+  ],
+  "notable": "No consistent end-to-end improvement at 0 models (6/12 pairs); the Unicode compatibility condition incurred a measured 0.164 microseconds in the isolated parser benchmark.",
+  "integratedCommit": "c68b9ae",
+  "independent": {
+    "casesPerISA": 1374,
+    "abiCasesPerISA": 860,
+    "guardCasesPerISA": 5,
+    "reviewSha256": "21804b3d382fb1cedc5efba7c6d684a90e5976582096c315cc164bbba9a0089f"
+  },
+  "harnessVerdict": "INCONCLUSIVE"
+}

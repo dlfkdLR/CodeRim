@@ -1,0 +1,290 @@
+{
+  "candidate": "8a1e76f",
+  "reference": "v2.1.41",
+  "isolatedCommit": "d31f9ca95e9a7601d92d480a70289da762a7d75d",
+  "supportedComparisons": {
+    "casesPerISA": 3523,
+    "importSnapshotsPerISA": 3
+  },
+  "independentOracle": {
+    "rows": 6737,
+    "selected": 2418,
+    "groups": {
+      "truth-table": 192,
+      "near-miss": 249,
+      "offsets": 156,
+      "line-cap": 18,
+      "conjunction": 12,
+      "escaped": 10,
+      "random-bytes": 6100
+    },
+    "inputSha256": "df9ba37a62b5104650e043444a149ff21172551bb83c27e58983308f89ac40d9",
+    "oracleOutputSha256": "7facf8ca2d817c7809980b96f6d3ad0bf1a9f8832819222d991cda8ad26e2236",
+    "observedOutputSha256": {
+      "arm64-release": "7facf8ca2d817c7809980b96f6d3ad0bf1a9f8832819222d991cda8ad26e2236",
+      "arm64-candidate": "7facf8ca2d817c7809980b96f6d3ad0bf1a9f8832819222d991cda8ad26e2236",
+      "x86_64-release": "7facf8ca2d817c7809980b96f6d3ad0bf1a9f8832819222d991cda8ad26e2236",
+      "x86_64-candidate": "7facf8ca2d817c7809980b96f6d3ad0bf1a9f8832819222d991cda8ad26e2236"
+    }
+  },
+  "collector": {
+    "entry": "Real CodexUsageCollector.refresh with real discovery, fingerprint verification, SourceImportSession.consume, normalization and schema-18 SQLite. Database and actor reopen for each phase; same file inode and fixed synthetic copied fingerprint key for all comparisons. Standalone build excludes the uncalled UI name-lookup method CodexUsageCollector.analyticsSnapshot that depends on desktop titles. The exercised refresh method is copied byte-for-byte, and display sessions/totals are read through the real SQLiteDatabase.analyticsSnapshot.",
+    "versions": [
+      "arm64 v2.1.41",
+      "arm64 previous",
+      "arm64 candidate",
+      "x86_64 v2.1.41 (Rosetta)",
+      "x86_64 candidate (Rosetta)"
+    ],
+    "phases": [
+      {
+        "phase": "initial",
+        "usage": 66,
+        "images": 5,
+        "sources": 3,
+        "sessions": 3,
+        "persistedEvents": 6,
+        "partialEvidence": 4
+      },
+      {
+        "phase": "idle-before-finish",
+        "usage": 66,
+        "images": 5,
+        "sources": 3,
+        "sessions": 3,
+        "persistedEvents": 6,
+        "partialEvidence": 4
+      },
+      {
+        "phase": "complete-tail",
+        "usage": 72,
+        "images": 5,
+        "sources": 3,
+        "sessions": 3,
+        "persistedEvents": 7,
+        "partialEvidence": 4
+      },
+      {
+        "phase": "complete-image",
+        "usage": 72,
+        "images": 7,
+        "sources": 3,
+        "sessions": 3,
+        "persistedEvents": 7,
+        "partialEvidence": 4
+      },
+      {
+        "phase": "partial-oversize",
+        "usage": 72,
+        "images": 7,
+        "sources": 3,
+        "sessions": 3,
+        "persistedEvents": 7,
+        "partialEvidence": 5
+      },
+      {
+        "phase": "end-oversize",
+        "usage": 83,
+        "images": 8,
+        "sources": 3,
+        "sessions": 3,
+        "persistedEvents": 8,
+        "partialEvidence": 5
+      },
+      {
+        "phase": "shorter-rewrite",
+        "usage": 93,
+        "images": 6,
+        "sources": 3,
+        "sessions": 3,
+        "persistedEvents": 9,
+        "partialEvidence": 5
+      },
+      {
+        "phase": "archive-copy",
+        "usage": 93,
+        "images": 6,
+        "sources": 4,
+        "sessions": 3,
+        "persistedEvents": 9,
+        "partialEvidence": 5
+      },
+      {
+        "phase": "cold-idle",
+        "usage": 93,
+        "images": 6,
+        "sources": 4,
+        "sessions": 3,
+        "persistedEvents": 9,
+        "partialEvidence": 5
+      }
+    ],
+    "comparison": "7 SQLite tables compared by all column values with BLOB bytes preserved, integrity_check and schema version confirmed; generated audit update times and wall-clock fallback partial evidence are checked against the execution window and normalized before comparison. Fixture-provided occurrence timestamps, source positions, fingerprints, counts, generation and replay flags are exact.",
+    "additionalCases": "Mixed invalid binary, malformed marker records, quoted near-misses, both image markers in opposite order and separately, partial image and token append, normal and oversized complete/incomplete input, per-source read caps, restored child history and archive copy deduplication."
+  },
+  "independentFullRefresh": {
+    "architecture": "native arm64",
+    "method": "Optimized same-host binaries, seven rotated orders, previously initialized fresh SQLite copy per timed scan. Timer brackets only CodexUsageCollector.refresh through hasMoreWork. Expected token count and returned session count were asserted on every sample. Previous Rust library rebuilt from its exact Git tree using the same official compiler.",
+    "cases": {
+      "quiet": {
+        "rows": 28002,
+        "validTokens": 2,
+        "fileBytes": 3013518,
+        "expectedUsage": 8,
+        "medianNs": {
+          "release": 57109416,
+          "previous": 48729250,
+          "candidate": 18286084
+        },
+        "changeVsPreviousPct": -62.47411154491399,
+        "changeVsReleasePct": -67.98061461528515
+      },
+      "mixed": {
+        "rows": 16002,
+        "validTokens": 1000,
+        "fileBytes": 1893232,
+        "expectedUsage": 4000,
+        "medianNs": {
+          "release": 91493500,
+          "previous": 33707208,
+          "candidate": 16687375
+        },
+        "changeVsPreviousPct": -50.49315564789585,
+        "changeVsReleasePct": -81.76113603698624
+      },
+      "dense": {
+        "rows": 5502,
+        "validTokens": 5500,
+        "fileBytes": 1573572,
+        "expectedUsage": 22000,
+        "medianNs": {
+          "release": 334734458,
+          "previous": 41356792,
+          "candidate": 39422792
+        },
+        "changeVsPreviousPct": -4.67637818716693,
+        "changeVsReleasePct": -88.22266693559227
+      }
+    }
+  },
+  "selectorBenchmark": [
+    {
+      "fixture": "quiet",
+      "rows": 1024,
+      "samplesMs": {
+        "release": [
+          1.068249,
+          1.068683,
+          1.162524,
+          1.068702,
+          1.060894,
+          1.146997,
+          1.107302
+        ],
+        "rust": [
+          0.0146,
+          0.01474,
+          0.014529,
+          0.015367,
+          0.015571,
+          0.015202,
+          0.013925
+        ]
+      },
+      "medianMs": {
+        "release": 1.068702,
+        "rust": 0.01474
+      }
+    },
+    {
+      "fixture": "mixed",
+      "rows": 896,
+      "samplesMs": {
+        "release": [
+          0.504863,
+          0.502211,
+          0.549769,
+          0.504641,
+          0.544334,
+          0.538826,
+          0.533796
+        ],
+        "rust": [
+          0.011787,
+          0.011844,
+          0.011946,
+          0.011992,
+          0.012082,
+          0.01197,
+          0.0122
+        ]
+      },
+      "medianMs": {
+        "release": 0.533796,
+        "rust": 0.01197
+      }
+    },
+    {
+      "fixture": "long negative",
+      "rows": 64,
+      "samplesMs": {
+        "release": [
+          0.623184,
+          0.609471,
+          0.615968,
+          0.595989,
+          0.622341,
+          0.604773,
+          0.594171
+        ],
+        "rust": [
+          0.10325,
+          0.103026,
+          0.10175,
+          0.10126,
+          0.103661,
+          0.102294,
+          0.10107
+        ]
+      },
+      "medianMs": {
+        "release": 0.609471,
+        "rust": 0.102294
+      }
+    },
+    {
+      "fixture": "late image",
+      "rows": 64,
+      "samplesMs": {
+        "release": [
+          1.077435,
+          1.097561,
+          1.112563,
+          1.083174,
+          1.079138,
+          1.07875,
+          1.086352
+        ],
+        "rust": [
+          0.067189,
+          0.066158,
+          0.067809,
+          0.0657,
+          0.066899,
+          0.067086,
+          0.066309
+        ]
+      },
+      "medianMs": {
+        "release": 1.083174,
+        "rust": 0.066899
+      }
+    }
+  ],
+  "limits": [
+    "x86_64 execution used Rosetta, not physical Intel hardware. No external transcripts, accounts or credentials. Throughput values cover this host and these synthetic input distributions and do not measure battery or whole-app startup.",
+    "Independent execution evidence; the development harness decides its formal gate separately."
+  ],
+  "independentReceiptSha256": "fe54a842aee396731d1050549b78f05f8cd6a1ee34b66b24373221e1cf30e23c",
+  "harnessVerdict": "INCONCLUSIVE"
+}

@@ -199,7 +199,7 @@ Windows의 MSI와 MSIX에서 실행한 실제 창과 데스크톱의 RGB를 비�
 
 ### 고정 의존성의 보안 권고
 
-2026-11-26 OSV에서 Rust 16개 버전, NuGet 11개 버전, Swift 9개 고정 커밋을 조회했다. Swift Crypto 4.5.2에서 Apple의 High 권고 CVE-2026-86983 한 건이 검색됐다. 영향받는 제품은 CryptoExtras와 그 재노출 모듈이며 수정 버전은 5.0.3이다. CodeRim의 CodexBarCore는 Crypto 제품만 요청한다. 두 macOS 아키텍처의 Release 링크 입력과 심볼, 확인한 앱·의존성 소스에 해당 모듈·연산 참조가 없었다. 고정 버전은 권고 범위에 남아 있어 빌드 대상이나 의존성 변경 시 다시 확인해야 한다. 저장소의 Dependabot 경보 API는 비활성 상태였다. [버전별 조회 결과](verification/2026-11-26/resolved-dependency-advisories.json) · [Darwin 빌드의 링크 범위](verification/2026-11-26/swift-crypto-product-scope.json) · [Apple 보안 권고](https://github.com/apple/swift-crypto/security/advisories/GHSA-jwv7-rv4f-rff2)
+2026-11-26 OSV에서 Rust 16개 버전, NuGet 11개 버전, Swift 9개 고정 커밋을 조회했다. Swift Crypto 4.5.2에서 Apple의 High 권고 CVE-2026-86983 한 건이 검색됐다. 영향받는 제품은 CryptoExtras와 그 재노출 모듈이며 수정 버전은 5.0.3이다. CodeRim의 CodexBarCore는 Crypto 제품만 요청한다. 두 macOS 아키텍처의 Release 링크 입력과 심볼, 확인한 앱·의존성 소스에 해당 모듈·연산 참조가 없었다. 이 조회는 Swift Crypto가 4.5.2로 고정돼 있던 후보에서 수행했다. 저장소의 Dependabot 경보 API는 비활성 상태였다. [버전별 조회 결과](verification/2026-11-26/resolved-dependency-advisories.json) · [Darwin 빌드의 링크 범위](verification/2026-11-26/swift-crypto-product-scope.json) · [Apple 보안 권고](https://github.com/apple/swift-crypto/security/advisories/GHSA-jwv7-rv4f-rff2)
 
 ### 설치된 계정 설정과 Windows 화면
 
@@ -253,3 +253,13 @@ Command Code는 현재 검증한 공식 연결 경로가 없어, 제공자 설�
 활동 화면에서 찾는 JSONL 줄만 선택해 Swift에 전달한다. 두 아키텍처에서 공개판과 완성 줄·보관 데이터 비교 50개 및 기존 증분 커서 469개가 같았다. 독립 시험은 각각 100개 파일 조건과 27개 파일 디스크립터 조건을 다뤘다. 읽는 도중 취소·절단·경로 교체 및 1 MiB 줄 경계의 결과가 일치했다. 합성 49,152줄 중 4,916줄을 고르는 시간은 Apple Silicon에서 공개판 99.54 ms, 직전 Rust 후보 83.23 ms, 새 후보 3.41 ms였다. [대상 파일·실패·성능 원자료](verification/2026-11-26/macos-activity-transcript-filter.json)
 
 같은 방식으로 집계한 `498c4c0`의 제품 소스 106,118줄 중 Rust는 11,597줄(10.928%)이다. 기능별 이관 및 검증 여부는 각 항목의 결과를 사용한다. [언어별 집계](verification/2026-11-26/production-source-lines.json)
+
+### macOS 의존성, 수집기 및 Ollama 로컬 모델
+
+후보 `ea24faa`에서 Swift Crypto를 Apple의 수정판 5.0.3으로 고정했다. 나머지 8개 의존성의 커밋은 같고, 수정 커밋으로 OSV를 다시 조회했을 때 해당 권고가 검색되지 않았다. 새 체크아웃과 기존 캐시 양쪽에서 Universal 앱이 빌드됐고 각각 CLI 비교 246쌍·프로세스 검사 116건이 통과했다. arm64와 Rosetta x86_64에서 SHA-256, HMAC, AES-GCM, P-256 서명과 P-384 키 합의도 확인했다. [의존성·빌드·롤백 검증](verification/2026-11-26/macos-swift-crypto-5.0.3.json) · [Apple 보안 권고](https://github.com/apple/swift-crypto/security/advisories/GHSA-jwv7-rv4f-rff2)
+
+공개판과 `555b912`를 같은 Mac에서 서로 다른 합성 프로필로 실행했다. 3,600.88초 동안 61번 파일을 갱신했고 매번 두 DB의 이벤트별 토큰, 누계, 체크포인트, 스키마와 무결성을 확인했다. 마지막 상태는 61개 이벤트·239토큰·17,534바이트 위치였다. 같은 Mac에서 동시에 실행한 한 시간의 관찰로, 시스템 배터리 사용 시간은 별도 검증 대상이다. [수집 시점별 결과와 프로세스 카운터](verification/2026-11-26/macos-collection-soak-555b912.json)
+
+백그라운드 Codex 수집기는 여섯 가지 이벤트 표식을 Rust에서 찾아 기존 JSON 해석기에 전달한다. 두 아키텍처에서 각각 공개판과 3,523개 입력 및 전체 가져오기 3개가 일치했다. 독립 시험에서는 6,737개 입력을 비교했고, DB를 다시 여는 9단계에서 7개 테이블과 표시 수치가 같았다. 실제 수집 한 번의 중앙값은 드문 일치에서 직전 후보 48.73→18.29 ms, 혼합 입력에서 33.71→16.69 ms, 일치가 많은 입력에서 41.36→39.42 ms였다. [수집기 비교와 재개방 결과](verification/2026-11-26/macos-import-line-selection.json)
+
+공식 Ollama 로컬 `/api/ps`의 표시 이름과 메모리 크기는 Apple Silicon과 Rosetta Intel에서 각각 공개판과 2,603개 모델 목록이 일치했다. 각 버전에서 합성 루프백 서버에 3,120회 요청했고, 16모델은 233.51→212.57 µs, 64모델은 296.65→230.57 µs였다. 빈 목록의 시간 차이는 일관되지 않았고, Unicode 호환 입력의 파서 시간은 약 0.16 µs 늘었다. [로컬 HTTP 및 표시값 비교](verification/2026-11-26/macos-ollama-resident-models.json)
