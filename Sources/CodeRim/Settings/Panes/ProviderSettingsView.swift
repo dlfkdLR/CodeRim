@@ -121,7 +121,11 @@ private struct ProviderSettingsContent: View {
                     SettingsValueRow(title: "Plan", value: plan)
                 }
             }
+            #if CODERIM_RUST_ACCOUNTING
+            SettingsNote("Use the account menu in Settings ▸ Usage to add an account with Codex or select a saved CodeRim account.")
+            #else
             SettingsNote("Add or switch accounts from the account menu in Settings ▸ Usage.")
+            #endif
         } else if claude.isEnabled {
             if claude.isConnected, let account = claude.account {
                 SettingsSection(title: "Account") {
@@ -255,7 +259,17 @@ private struct ProviderSettingsContent: View {
     /// Current login metadata is enough for this read-only pane; saved
     /// credentials are loaded only when the account controls need them.
     private var codexAccountValue: String {
-        codexAccounts.currentAccountDisplayName ?? "Signed in to the Codex app"
+        #if CODERIM_RUST_ACCOUNTING
+        if let name = codexAccounts.currentAccountDisplayName { return name }
+        switch limitStore.status {
+        case .ready: return "Connected through Codex"
+        case .loading: return "Checking…"
+        case .stale: return "Last known account"
+        case .disabled, .unavailable: return "Account unavailable"
+        }
+        #else
+        return codexAccounts.currentAccountDisplayName ?? "Signed in to the Codex app"
+        #endif
     }
 
     private var accountLimitStatus: String {

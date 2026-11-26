@@ -101,6 +101,23 @@ if command == "tree" {
     let value = text(node, kAXValueAttribute)
     print([String(depth), role, title, detail, value].joined(separator: "|"))
   }
+} else if command == "connection" {
+  guard CommandLine.arguments.count == 5 else { fail("Missing connection row") }
+  let name = CommandLine.arguments[4]
+  // These row actions stay inside the owned Settings window. Official sign-in and key mutations
+  // have their own isolated transport/store tests.
+  guard ["Codex", "Claude Code", "Ollama Cloud", "DeepSeek", "Cursor", "All Providers"].contains(name)
+  else { fail("Unexpected connection row") }
+  var buttons: [AXUIElement] = []
+  walk(window, maxDepth: 22) { node, _ in
+    guard text(node, kAXRoleAttribute) == "AXButton" else { return }
+    if [text(node, kAXDescriptionAttribute), text(node, kAXTitleAttribute)].contains(where: {
+      $0 == name || $0.hasPrefix(name + ",")
+    }) { buttons.append(node) }
+  }
+  guard buttons.count == 1,
+        AXUIElementPerformAction(buttons[0], kAXPressAction as CFString) == .success
+  else { fail("Expected one actionable connection row named " + name) }
 } else if command == "resize" {
   guard CommandLine.arguments.count == 6, let width = Double(CommandLine.arguments[4]),
     let height = Double(CommandLine.arguments[5])

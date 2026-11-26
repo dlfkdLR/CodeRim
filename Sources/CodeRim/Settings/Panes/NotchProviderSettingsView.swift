@@ -200,9 +200,16 @@ struct NotchProviderSettingsView: View {
                     notch.providerConfigurationDidChange(providerID)
                 }
             }
+            #if CODERIM_RUST_ACCOUNTING
+            if case .guided = route { SettingsNote(route.explanation) }
+            if case .guidance = route, route.explanation != statusText {
+                SettingsNote(route.explanation)
+            }
+            #else
             SettingsNote(route.switchHint)
             if case .guidance = route { SettingsNote(route.explanation) }
             if case .guided = route { SettingsNote(route.explanation) }
+            #endif
             if let accountActionMessage { SettingsNote(accountActionMessage) }
         } else if !isConnected, let route {
             SettingsSection(title: "Connection") { routeControl(route) }
