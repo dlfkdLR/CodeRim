@@ -1,0 +1,708 @@
+{
+  "source": "5291c958145344c2e71109251ba6045650dd0cb8",
+  "reference": "v2.1.41",
+  "direct": {
+    "comparison": {
+      "release": {
+        "steps": 7,
+        "trace": "523bf5e1777aed4ef4f285c493694b86dfc8c55d3579f68b1cf49d03175a2a78",
+        "stateCases": 6,
+        "stateHash": "f682c4180ea81012747734b3409ac3cdedbf695718724554b2fe09f1d7cbdce4"
+      },
+      "previous": {
+        "steps": 7,
+        "trace": "523bf5e1777aed4ef4f285c493694b86dfc8c55d3579f68b1cf49d03175a2a78",
+        "stateCases": 6,
+        "stateHash": "f682c4180ea81012747734b3409ac3cdedbf695718724554b2fe09f1d7cbdce4"
+      },
+      "candidate": {
+        "steps": 7,
+        "trace": "523bf5e1777aed4ef4f285c493694b86dfc8c55d3579f68b1cf49d03175a2a78",
+        "stateCases": 6,
+        "stateHash": "f682c4180ea81012747734b3409ac3cdedbf695718724554b2fe09f1d7cbdce4"
+      }
+    },
+    "samples": [
+      {
+        "phones": 1,
+        "machines": 1,
+        "providers": 3,
+        "micros": {
+          "release": [
+            84.2207999999971,
+            77.80420000000277,
+            75.6290999999976,
+            79.47919999999726,
+            80.79169999999749,
+            80.0042000000019,
+            80.19170000000031,
+            100.8166000000017,
+            77.29999999999677
+          ],
+          "previous": [
+            61.812500000002046,
+            57.550000000003365,
+            54.03749999999832,
+            56.61670000000072,
+            54.83749999999645,
+            58.070800000001555,
+            55.19160000000056,
+            55.154199999998355,
+            51.7332999999951
+          ],
+          "candidate": [
+            52.11659999999938,
+            53.7208000000021,
+            47.07499999999527,
+            51.57080000000178,
+            48.6665999999957,
+            53.725000000002865,
+            48.9750000000015,
+            48.60830000000078,
+            48.9750000000015
+          ]
+        },
+        "counts": {
+          "release": {
+            "queries": 210,
+            "deviceRereads": 20,
+            "projections": 0,
+            "fallbacks": 0,
+            "rows": 150,
+            "writes": 0
+          },
+          "previous": {
+            "queries": 150,
+            "deviceRereads": 10,
+            "projections": 0,
+            "fallbacks": 0,
+            "rows": 100,
+            "writes": 0
+          },
+          "candidate": {
+            "queries": 130,
+            "deviceRereads": 0,
+            "projections": 10,
+            "fallbacks": 0,
+            "rows": 80,
+            "writes": 0
+          }
+        },
+        "medians": {
+          "release": 80.0042000000019,
+          "previous": 55.19160000000056,
+          "candidate": 48.9750000000015
+        }
+      },
+      {
+        "phones": 4,
+        "machines": 4,
+        "providers": 24,
+        "micros": {
+          "release": [
+            847.0874999999978,
+            904.1957999999966,
+            893.5000000000002,
+            899.5125000000029,
+            869.6792000000016,
+            820.112499999999,
+            850.5833999999993,
+            857.1875000000034,
+            831.5166999999974
+          ],
+          "previous": [
+            463.4959000000037,
+            477.2208000000035,
+            496.74999999999727,
+            484.49170000000095,
+            465.37500000000017,
+            599.6832999999981,
+            467.0499999999947,
+            493.09580000000324,
+            465.59169999999887
+          ],
+          "candidate": [
+            300.12500000000273,
+            310.29159999999933,
+            321.05829999999855,
+            303.89580000000365,
+            297.3375000000033,
+            297.5999999999999,
+            307.77499999999804,
+            293.8250000000039,
+            275.1166000000012
+          ]
+        },
+        "counts": {
+          "release": {
+            "queries": 600,
+            "deviceRereads": 80,
+            "projections": 0,
+            "fallbacks": 0,
+            "rows": 1050,
+            "writes": 0
+          },
+          "previous": {
+            "queries": 390,
+            "deviceRereads": 40,
+            "projections": 0,
+            "fallbacks": 0,
+            "rows": 610,
+            "writes": 0
+          },
+          "candidate": {
+            "queries": 310,
+            "deviceRereads": 0,
+            "projections": 40,
+            "fallbacks": 0,
+            "rows": 410,
+            "writes": 0
+          }
+        },
+        "medians": {
+          "release": 857.1875000000034,
+          "previous": 477.2208000000035,
+          "candidate": 300.12500000000273
+        }
+      },
+      {
+        "phones": 8,
+        "machines": 12,
+        "providers": 64,
+        "micros": {
+          "release": [
+            9650.774999999998,
+            9716.045800000005,
+            9623.1583,
+            9728.245900000002,
+            9542.9167,
+            9458.612500000005,
+            9595.612500000016,
+            9481.587499999978,
+            9481.20829999998
+          ],
+          "previous": [
+            4817.8541,
+            5042.641700000002,
+            4912.262499999997,
+            4961.1875000000055,
+            4844.6333000000095,
+            4844.116699999995,
+            4934.970899999985,
+            4958.087500000011,
+            4846.458299999995
+          ],
+          "candidate": [
+            2544.933400000002,
+            2627.2290999999996,
+            2541.69159999999,
+            2678.583299999991,
+            2537.999999999988,
+            2549.462500000004,
+            2568.379099999993,
+            2589.758400000028,
+            2511.6417000000183
+          ]
+        },
+        "counts": {
+          "release": {
+            "queries": 1120,
+            "deviceRereads": 160,
+            "projections": 0,
+            "fallbacks": 0,
+            "rows": 4650,
+            "writes": 1
+          },
+          "previous": {
+            "queries": 710,
+            "deviceRereads": 80,
+            "projections": 0,
+            "fallbacks": 0,
+            "rows": 2490,
+            "writes": 0
+          },
+          "candidate": {
+            "queries": 550,
+            "deviceRereads": 0,
+            "projections": 80,
+            "fallbacks": 0,
+            "rows": 1450,
+            "writes": 0
+          }
+        },
+        "medians": {
+          "release": 9595.612500000016,
+          "previous": 4912.262499999997,
+          "candidate": 2549.462500000004
+        }
+      }
+    ]
+  },
+  "localWorkerd": {
+    "steps": 7,
+    "sha256": "afdca18f0d1ad6237b67779d5d1c07b90188f2793266796c5f4f0eafb891f327",
+    "outbound": 0,
+    "benchmark": [
+      {
+        "phones": 1,
+        "providers": 24,
+        "checksum": "39e840d6f579f8a64657f710b1ebc81efc44ec869522ff81ec23b3b1461ade5c",
+        "samples": {
+          "release": [
+            685.4166500000019,
+            613.327100000015,
+            518.0646000000252,
+            505.0708499999928,
+            460.22084999999606
+          ],
+          "native": [
+            601.0978999999907,
+            623.7646000000041,
+            774.3062500000178,
+            489.77709999999206,
+            476.0687500000131
+          ],
+          "js": [
+            530.8812500000158,
+            613.9875000000075,
+            559.22079999998,
+            461.57084999999825,
+            605.981249999968
+          ],
+          "wasm": [
+            594.9479500000052,
+            515.1166500000045,
+            565.6812499999887,
+            461.50415000001885,
+            535.8187499999985
+          ]
+        },
+        "medianMicros": {
+          "release": 518.0646000000252,
+          "native": 601.0978999999907,
+          "js": 559.22079999998,
+          "wasm": 535.8187499999985
+        }
+      },
+      {
+        "phones": 8,
+        "providers": 24,
+        "checksum": "86096bf06324e9b01d3b3bf0dbd619ca77ae4f65a627fd1ed94f836c4904e818",
+        "samples": {
+          "release": [
+            1155.9583000000202,
+            1260.1437499999975,
+            1143.6562500000036,
+            1161.870850000014,
+            1324.4771000000128
+          ],
+          "native": [
+            2986.722899999995,
+            1131.808349999983,
+            1140.139599999975,
+            1242.6958500000183,
+            1172.6270999999997
+          ],
+          "js": [
+            1003.7187500000073,
+            831.5583499999775,
+            939.4937500000196,
+            813.0707999999686,
+            813.7437500000033
+          ],
+          "wasm": [
+            709.277099999963,
+            666.116699999975,
+            700.4520500000126,
+            689.9499999999989,
+            714.0937499999836
+          ]
+        },
+        "medianMicros": {
+          "release": 1161.870850000014,
+          "native": 1172.6270999999997,
+          "js": 831.5583499999775,
+          "wasm": 700.4520500000126
+        }
+      }
+    ]
+  },
+  "independentReview": {
+    "run_id": "run-6b7d6664b85145c1b32ed0f0d14ac099",
+    "packet_digest": "497ec743238e030de83f8c5a10e827abb9e8b514c4281993bf40529f9465c6ed",
+    "reviewer_id": "independent-workerd-persisted-state",
+    "dimensions": {
+      "functionality": {
+        "winner": "TIE",
+        "reason": "Four distinct owners with 0, 1, 32, 33 devices retained their exact state, views, push results, due times and all six SQLite table outputs through two separate workerd runtimes sharing a synthetic persisted directory.",
+        "evidence": [
+          "baseline/MobileRelay/src/relay.mjs",
+          "candidate/MobileRelay/src/relay.mjs",
+          "candidate/MobileRelay/migration/snapshot-read.mjs"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "The pre-revision, release, and candidate produced identical staged witness hashes and exactly 10 synthetic push deliveries. The default worker binds both Rust flags and no outbound requests were attempted.",
+        "evidence": [
+          "baseline/MobileRelay/src/relay.mjs",
+          "candidate/MobileRelay/src/relay.mjs",
+          "candidate/MobileRelay/wrangler.toml"
+        ]
+      },
+      "security": {
+        "winner": "TIE",
+        "reason": "All observed focused devices and provider lists stayed within the original owner after updates, expiry, and a stored stale selection, including across process recreation.",
+        "evidence": [
+          "baseline/MobileRelay/src/relay.mjs",
+          "candidate/MobileRelay/src/relay.mjs",
+          "candidate/MobileRelay/migration/snapshot-read.mjs"
+        ]
+      },
+      "scope": {
+        "winner": "TIE",
+        "reason": "Kept existing state shape and the activation flags unchanged; reviewed local static worker and backgrounds only.",
+        "evidence": [
+          "candidate/MobileRelay/src/relay.mjs",
+          "candidate/MobileRelay/migration/snapshot-read.mjs",
+          "candidate/MobileRelay/wrangler.toml"
+        ]
+      },
+      "maintainability": {
+        "winner": "TIE",
+        "reason": "State selects the existing projection synchronously using the current owner, device rows, saved view and evaluation time. The same state path reuses the existing JS fallback.",
+        "evidence": [
+          "baseline/MobileRelay/src/relay.mjs",
+          "candidate/MobileRelay/src/relay.mjs",
+          "candidate/MobileRelay/migration/snapshot-read.mjs"
+        ]
+      },
+      "performance": {
+        "winner": "B",
+        "reason": "Observed 32 background projection invocations and 4 true fallbacks across the four stages. The released and preceding versions reread device data 32 times; the candidate reread only those 4 times. This demonstrates eliminated SQLite queries, not a deployment timing claim.",
+        "evidence": [
+          "baseline/MobileRelay/src/relay.mjs",
+          "candidate/MobileRelay/src/relay.mjs",
+          "candidate/MobileRelay/migration/snapshot-read.mjs"
+        ]
+      }
+    },
+    "concerns": [
+      "Local Workerd on Apple Silicon with synthetic SQLite rows and in-memory APNs responses. Cloudflare deployment, APNs delivery, mobile device, and production database were not exercised."
+    ],
+    "independent_verification": {
+      "commit": "5291c958145344c2e71109251ba6045650dd0cb8",
+      "fixture": "4 synthetic owners and 66 initial rows; full runtime dispose/reconstruct with resourcePersistencePath between stages 1 and 2. Distinct user floors, shifted/expired device, saved view, timestamp, 33→32 fallback change; comparisons include nonmutating state reads and actual updateActivity push payloads, rows and bookkeeping.",
+      "workerd": {
+        "release": {
+          "hash": "cbf063f11c8f33a9421dfccf1cd3472183c0110ced4237d1371710130a9f711a",
+          "stages": 4,
+          "stageHashes": [
+            "ea9e00120abcc0392b21fc0dc67cef74b3676dbc94fe3b986a9ff50c67c3b4a8",
+            "56469be358e3dc2eb07833e2f910879409e23474a1ac6e0438daef740967388c",
+            "d14cfd39aae1ac9476d2989c9afebaea9d6a48fbfd84901ae64434006ec9c1c4",
+            "1a0e59027bdb40ebe02ae10f5124eb83912c5842b2d83d6bbaca1d88232e29f0"
+          ],
+          "localDeliveries": [
+            4,
+            1,
+            3,
+            2
+          ],
+          "outbound": 0,
+          "snapshotCalls": [
+            [],
+            [],
+            [],
+            []
+          ],
+          "fallbackOwnerRereads": [
+            [
+              "oak",
+              "oak",
+              "elm",
+              "elm",
+              "lime",
+              "lime",
+              "pine",
+              "pine"
+            ],
+            [
+              "oak",
+              "oak",
+              "elm",
+              "elm",
+              "lime",
+              "lime",
+              "pine",
+              "pine"
+            ],
+            [
+              "oak",
+              "oak",
+              "elm",
+              "elm",
+              "lime",
+              "lime",
+              "pine",
+              "pine"
+            ],
+            [
+              "oak",
+              "oak",
+              "elm",
+              "elm",
+              "lime",
+              "lime",
+              "pine",
+              "pine"
+            ]
+          ]
+        },
+        "previous": {
+          "hash": "cbf063f11c8f33a9421dfccf1cd3472183c0110ced4237d1371710130a9f711a",
+          "stages": 4,
+          "stageHashes": [
+            "ea9e00120abcc0392b21fc0dc67cef74b3676dbc94fe3b986a9ff50c67c3b4a8",
+            "56469be358e3dc2eb07833e2f910879409e23474a1ac6e0438daef740967388c",
+            "d14cfd39aae1ac9476d2989c9afebaea9d6a48fbfd84901ae64434006ec9c1c4",
+            "1a0e59027bdb40ebe02ae10f5124eb83912c5842b2d83d6bbaca1d88232e29f0"
+          ],
+          "localDeliveries": [
+            4,
+            1,
+            3,
+            2
+          ],
+          "outbound": 0,
+          "snapshotCalls": [
+            [],
+            [],
+            [],
+            []
+          ],
+          "fallbackOwnerRereads": [
+            [
+              "oak",
+              "oak",
+              "elm",
+              "elm",
+              "lime",
+              "lime",
+              "pine",
+              "pine"
+            ],
+            [
+              "oak",
+              "oak",
+              "elm",
+              "elm",
+              "lime",
+              "lime",
+              "pine",
+              "pine"
+            ],
+            [
+              "oak",
+              "oak",
+              "elm",
+              "elm",
+              "lime",
+              "lime",
+              "pine",
+              "pine"
+            ],
+            [
+              "oak",
+              "oak",
+              "elm",
+              "elm",
+              "lime",
+              "lime",
+              "pine",
+              "pine"
+            ]
+          ]
+        },
+        "candidate": {
+          "hash": "cbf063f11c8f33a9421dfccf1cd3472183c0110ced4237d1371710130a9f711a",
+          "stages": 4,
+          "stageHashes": [
+            "ea9e00120abcc0392b21fc0dc67cef74b3676dbc94fe3b986a9ff50c67c3b4a8",
+            "56469be358e3dc2eb07833e2f910879409e23474a1ac6e0438daef740967388c",
+            "d14cfd39aae1ac9476d2989c9afebaea9d6a48fbfd84901ae64434006ec9c1c4",
+            "1a0e59027bdb40ebe02ae10f5124eb83912c5842b2d83d6bbaca1d88232e29f0"
+          ],
+          "localDeliveries": [
+            4,
+            1,
+            3,
+            2
+          ],
+          "outbound": 0,
+          "snapshotCalls": [
+            [
+              [
+                0,
+                true
+              ],
+              [
+                0,
+                true
+              ],
+              [
+                1,
+                true
+              ],
+              [
+                1,
+                true
+              ],
+              [
+                32,
+                true
+              ],
+              [
+                32,
+                true
+              ],
+              [
+                33,
+                false
+              ],
+              [
+                33,
+                false
+              ]
+            ],
+            [
+              [
+                0,
+                true
+              ],
+              [
+                0,
+                true
+              ],
+              [
+                1,
+                true
+              ],
+              [
+                1,
+                true
+              ],
+              [
+                32,
+                true
+              ],
+              [
+                32,
+                true
+              ],
+              [
+                33,
+                false
+              ],
+              [
+                33,
+                false
+              ]
+            ],
+            [
+              [
+                0,
+                true
+              ],
+              [
+                0,
+                true
+              ],
+              [
+                1,
+                true
+              ],
+              [
+                1,
+                true
+              ],
+              [
+                32,
+                true
+              ],
+              [
+                32,
+                true
+              ],
+              [
+                32,
+                true
+              ],
+              [
+                32,
+                true
+              ]
+            ],
+            [
+              [
+                0,
+                true
+              ],
+              [
+                0,
+                true
+              ],
+              [
+                1,
+                true
+              ],
+              [
+                1,
+                true
+              ],
+              [
+                32,
+                true
+              ],
+              [
+                32,
+                true
+              ],
+              [
+                32,
+                true
+              ],
+              [
+                32,
+                true
+              ]
+            ]
+          ],
+          "fallbackOwnerRereads": [
+            [
+              "pine",
+              "pine"
+            ],
+            [
+              "pine",
+              "pine"
+            ],
+            [],
+            []
+          ]
+        }
+      },
+      "scripts": {
+        "check.mjs": "822e8eec28adbbe3e11528c84520be606961579b044582780e51d25451741151",
+        "fixture.mjs": "bd01d97d7cc948b7bcb9836127d1b5e0682dc22fa7666a60452787217a306de0",
+        "workerd.json": "fb6106ee2d8f42733e099335763896c08a0abaeafabdd6865f0202478efa9b17"
+      }
+    }
+  },
+  "formalGate": "INCONCLUSIVE",
+  "qualifications": [
+    "Node benchmarks are full local SQLite alarm passes; read counts are returned row counts. Separate local workerd fixture started a real Durable Object and used mocked APNs.",
+    "Workerd timings compare the entire current Rust package with release and native controls; the Node previous column specifically isolates background Rust state projection.",
+    "At one simulated phone the local workerd median was 518.06 us release and 535.82 us current; at eight it was 1161.87 and 700.45 us."
+  ]
+}

@@ -1,0 +1,262 @@
+{
+  "source": "68b114a6cf5abd1bf6f356d54d273a4373a69b29",
+  "parent": "876a7daa103426eb89d4c0eeb43ca6ca949d8fe4",
+  "release": "v2.1.41",
+  "packet": "540756a4f7c255989fa42b1a9742f078d7e4803fe1cb56c21d4ef772f1dd6513",
+  "mechanism": "Codex full-row markers and LF boundaries use one Rust scan through the next candidate or exact 1,000-complete-line limit. Only selected lines cross the async parser boundary. Every raw byte, including ignored records and LF, is still authenticated and rechecked before writing; 256 events and 1,000 lines keep their original transaction boundaries. No schema/data format change. The shared collector authenticates completed rows in contiguous ranges for either supported provider.",
+  "exercised": "Native macOS arm64, macOS x86_64 under Rosetta. Default project wrapper built the CodeRim application; the arm64 application binary contains cr_codex_import_run. No personal transcripts, remote services or credentials.",
+  "checks": {
+    "defaultXCTest": {
+      "initial": {
+        "run": 47,
+        "passed": 46,
+        "skipped": 1,
+        "failed": 0
+      },
+      "optInPreviouslySkipped": {
+        "syntheticInputs": 4,
+        "oracleTotals": [
+          10,
+          18,
+          27,
+          32
+        ],
+        "passed": 1,
+        "failed": 0
+      },
+      "distinctPassed": 47
+    },
+    "rust": "60 tests passed, rustfmt and Clippy -D warnings clean",
+    "markersAndOffsets": "331 fixture summaries match the release LF scanner, Swift fallback and combined Rust source path per architecture, including consecutive empties, nonzero indices, retained partial markers, 999/1000/1001 and no-final-LF.",
+    "replayPhases": [
+      "initial",
+      "idle-before-finish",
+      "complete-tail",
+      "complete-image",
+      "partial-oversize",
+      "end-oversize",
+      "shorter-rewrite",
+      "archive-copy",
+      "cold-idle"
+    ],
+    "replayDatabases": "Each phase compares all persisted tables and aggregate displays using release/previous/candidate arm64 and release/candidate Rosetta. No differences. Ephemeral update clocks were validated and normalized.",
+    "forcedTransactionFailures": {
+      "negative-then-metadata": {
+        "variants": 6,
+        "committedOffset": 34200,
+        "beforeTables": "d2a21b0c7a9d956f5e494b44bd4631615354703b55782063bef4142a89daaffc",
+        "afterTables": "440dbbc21c1a214a03872d11a71e6e9a8aca14d40583d8158c8f2d55284667ef"
+      },
+      "tokens-before-line-budget": {
+        "variants": 6,
+        "committedOffset": 71866,
+        "beforeTables": "ed95a120e3b4ee85b367bb2f9ce3b65ccbf8b68d03f1131380061007d8a3efc9",
+        "afterTables": "f8ea581b70c09345345455688f7ab34180aee928814b44078af0be0cdcb90dc9"
+      },
+      "claude-shared-fingerprint": {
+        "variants": 6,
+        "committedOffset": 58258,
+        "beforeTables": "3152608ed0883d283bcf85681c716a4de892c2941dc72823f6375d13f66f6a77",
+        "afterTables": "73113aabca8e7c733defc58fce5b0736161cfec853cfa404b84b43df59c0fe7c"
+      },
+      "carry-split-in-first-marker": {
+        "variants": 6,
+        "committedOffset": 292360,
+        "beforeTables": "aae289ff7abf1c593bc6142a22e5642ca875f252a23d9eeffa19bb9a1b0215ee",
+        "afterTables": "6209578a05fe97e66147a3d90a5c44b490155f240a3eec3a3993d613ffae257e"
+      }
+    }
+  },
+  "performance": {
+    "arm64": {
+      "quiet": {
+        "ms": {
+          "release": 57.105,
+          "previous": 18.83,
+          "candidate": 11.61
+        },
+        "pctVsPrevious": -38.34,
+        "fixtureRows": 28002,
+        "repeat": 7
+      },
+      "mixed": {
+        "ms": {
+          "release": 100.697,
+          "previous": 22.001,
+          "candidate": 20.108
+        },
+        "pctVsPrevious": -8.6,
+        "fixtureRows": 16002,
+        "repeat": 7
+      },
+      "dense": {
+        "ms": {
+          "release": 372.224,
+          "previous": 97.202,
+          "candidate": 92.11
+        },
+        "pctVsPrevious": -5.24,
+        "fixtureRows": 5502,
+        "repeat": 7
+      }
+    },
+    "x86_64": {
+      "quiet": {
+        "ms": {
+          "release": 103.674,
+          "previous": 43.258,
+          "candidate": 27.48
+        },
+        "pctVsPrevious": -36.47,
+        "fixtureRows": 28002,
+        "repeat": 7
+      },
+      "mixed": {
+        "ms": {
+          "release": 252.715,
+          "previous": 36.822,
+          "candidate": 29.668
+        },
+        "pctVsPrevious": -19.43,
+        "fixtureRows": 16002,
+        "repeat": 7
+      },
+      "dense": {
+        "ms": {
+          "release": 781.438,
+          "previous": 126.123,
+          "candidate": 126.375
+        },
+        "pctVsPrevious": 0.2,
+        "fixtureRows": 5502,
+        "repeat": 7
+      }
+    }
+  },
+  "evidence": {
+    "arm64-performance.json": "e7ab7e4e649f578d3d68940f1595f1ca1d96f8e90bf703016ea97205a1ec49d6",
+    "x86_64-performance.json": "bc43560cdb1d8c9d3a52f60389972687516383d83e8ceb1f6f6084b827f5c402",
+    "replay-results.json": "a7d790790cb9c7c554cd7afd3a6aa35f5a4ecf97eb20beee7dbe24c5366ec230",
+    "boundaries.json": "85396f7615bb060e9a00b2c2208e4c1985ef026e410e1e92cc368e8a65a24c7e",
+    "line-arm64.log": "00b0506e4d7a18474227256e4a26362aa0761465aedccd04f3a0370947c8ab95",
+    "line-x86_64.log": "2394f40b886ee9068c1300f75b54dcd67c6d6eff107673dce15c45bf6a832994",
+    "standard-xctest.log": "17fb9f0c497d3ee68e75ca9dac48c7afa20b7fdca92814cb6fd1548629fc6a84",
+    "optional-xctest.log": "de57f4ec4114b4c03ec2a24fdffa586da3e9d6d600a3c7307904caac646c0bad",
+    "rust-test.log": "f7b8b16262e1eb0af6a50bae94ecb1127439150cce0541ad4e80ec0bd525e702",
+    "rust-clippy.log": "4d1c1665f0e5da58559fe1c9e5618490fab5ab845995b97e7577511480a34aee",
+    "rust-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "packet.json": "54c4c43b64004201ae4bed34b300cad69de6ba45e99620d5a1618c8e3bffe47b"
+  },
+  "performanceLimits": "Timing covers the complete refresh, database writes, discovery, fingerprint verification, and aggregate query, excluding startup, UI rendering and live user data. The all-token Rosetta median moved +0.20% and is reported separately.",
+  "integratedCommit": "f50fd5c",
+  "independentReview": {
+    "reviewer_id": "/root",
+    "run_id": "run-67239c25650a4e2ab7b6db6bcc592301",
+    "packet_digest": "540756a4f7c255989fa42b1a9742f078d7e4803fe1cb56c21d4ef772f1dd6513",
+    "reviewed_commit": "68b114a6cf5abd1bf6f356d54d273a4373a69b29",
+    "independent_verification": {
+      "programs": [
+        "arm64-release",
+        "arm64-previous",
+        "arm64-candidate",
+        "x86_64-release",
+        "x86_64-previous",
+        "x86_64-candidate"
+      ],
+      "phases": [
+        {
+          "phase": "crossed-multiple-checkpoint-boundaries-with-incomplete-token",
+          "collector": {
+            "bytes": 105708,
+            "hasMore": false,
+            "images": 0,
+            "passes": 1,
+            "sessions": 1,
+            "sources": 1,
+            "usage": 15050
+          },
+          "tableSHA256": "c9e29822271dbe4fd3ecee789da59a8ced53634f26f12864176eb2d66de77346"
+        },
+        {
+          "phase": "completed-carried-token",
+          "collector": {
+            "bytes": 289,
+            "hasMore": false,
+            "images": 0,
+            "passes": 1,
+            "sessions": 1,
+            "sources": 1,
+            "usage": 20465
+          },
+          "tableSHA256": "3ba2289602795ceb2f7d18c859b16ce8b88541ab06e10795f2cb7977df700dc7"
+        },
+        {
+          "phase": "event-marker-split-at-64KiB",
+          "collector": {
+            "bytes": 25304,
+            "hasMore": false,
+            "images": 0,
+            "passes": 1,
+            "sessions": 1,
+            "sources": 1,
+            "usage": 22465
+          },
+          "tableSHA256": "bf08939b257a033b08963149d4681be1dec5ffac55db3b48c2303a565803b048"
+        },
+        {
+          "phase": "oversized-irrelevant-record-then-token",
+          "collector": {
+            "bytes": 1048901,
+            "hasMore": false,
+            "images": 0,
+            "passes": 1,
+            "sessions": 1,
+            "sources": 1,
+            "usage": 22470
+          },
+          "tableSHA256": "c03dc1a5b0c41830e6b5a025896ddb3e7e749e579062947edad98dd9cfa00700"
+        },
+        {
+          "phase": "reopen-without-changes",
+          "collector": {
+            "bytes": 0,
+            "hasMore": false,
+            "images": 0,
+            "passes": 1,
+            "sessions": 1,
+            "sources": 1,
+            "usage": 22470
+          },
+          "tableSHA256": "c03dc1a5b0c41830e6b5a025896ddb3e7e749e579062947edad98dd9cfa00700"
+        },
+        {
+          "phase": "replaced-and-shortened-official-usage-file",
+          "collector": {
+            "bytes": 730,
+            "hasMore": false,
+            "images": 0,
+            "passes": 1,
+            "sessions": 1,
+            "sources": 1,
+            "usage": 22470
+          },
+          "tableSHA256": "38e610bcd32032f7d2ab6f76c1c4b26dc5d25752573d30a8d6ad4a8aaedd2ade"
+        }
+      ],
+      "tableCount": 7,
+      "scope": "Generated usage input and CodeRim-owned SQLite stores under /tmp. No external account access. Rosetta for x86_64."
+    },
+    "concerns": [],
+    "dimensions": {
+      "functionality": {
+        "winner": "TIE",
+        "reason": "All full collector outputs and seven complete SQLite tables agree across the six independently invoked reference and candidate executables."
+      },
+      "safety": {
+        "winner": "TIE",
+        "reason": "Bounded borrowed bytes and stable synchronous references. SQLite and authentication of the consumed byte prefix remain on original commit boundaries."
+      }
+    }
+  },
+  "formalGate": "INCONCLUSIVE"
+}

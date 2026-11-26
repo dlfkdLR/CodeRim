@@ -1,0 +1,803 @@
+{
+  "integratedCommits": [
+    "349e5ad",
+    "b4f439a",
+    "65bf144"
+  ],
+  "source": "d4b3479c925f944473727a8ad8aaa31264dea5cd",
+  "release": "v2.1.41",
+  "scope": "Only the user-enabled CodeRim diagnostic logger in isolated application support directories. Date and event formatting are still produced by the real Swift actor. Normal disabled logging bypasses the file path. Layout, retention and file modes unchanged for regular profiles.",
+  "direct": {
+    "arm64": {
+      "arch": "arm64",
+      "common": {
+        "records": [
+          "refresh_started",
+          "refresh_completed quality=partial sources=10 processed_bytes=11",
+          "refresh_failed cached_snapshot=true",
+          "rebuild_completed quality=stale",
+          "rebuild_failed",
+          "clear_completed",
+          "clear_failed"
+        ],
+        "messageSHA256": "4bb8faa3d0c24e461fe3382bb43c1d44fcab5a01c478dfead7b3a7e9b498454d"
+      },
+      "rotationBoundary": 1048576,
+      "restoredDirectoryModes": [
+        "0o755",
+        "0o500",
+        "0o300",
+        "0o0"
+      ],
+      "restoredLogModes": [
+        "0o400",
+        "0o200",
+        "0o444",
+        "0o0"
+      ],
+      "durationsMs": {
+        "2": {
+          "samples": {
+            "reference": [
+              25.877041,
+              16.402583,
+              20.006833,
+              20.387375,
+              21.041917,
+              15.595209,
+              18.27525
+            ],
+            "candidate": [
+              18.471916,
+              13.9625,
+              13.539542,
+              20.371209,
+              14.446875,
+              22.274459,
+              31.706459
+            ]
+          },
+          "median": {
+            "reference": 20.006833,
+            "candidate": 18.471916
+          }
+        },
+        "300": {
+          "samples": {
+            "reference": [
+              56.445834,
+              51.972667,
+              63.861334,
+              95.236625,
+              148.711709,
+              93.499333,
+              83.689625
+            ],
+            "candidate": [
+              37.259833,
+              35.049917,
+              96.559917,
+              47.703083,
+              51.991708,
+              46.637541,
+              41.238166
+            ]
+          },
+          "median": {
+            "reference": 83.689625,
+            "candidate": 46.637541
+          }
+        }
+      },
+      "concurrentRecordsPerCase": 616
+    },
+    "x86_64": {
+      "arch": "x86_64",
+      "common": {
+        "records": [
+          "refresh_started",
+          "refresh_completed quality=partial sources=10 processed_bytes=11",
+          "refresh_failed cached_snapshot=true",
+          "rebuild_completed quality=stale",
+          "rebuild_failed",
+          "clear_completed",
+          "clear_failed"
+        ],
+        "messageSHA256": "4bb8faa3d0c24e461fe3382bb43c1d44fcab5a01c478dfead7b3a7e9b498454d"
+      },
+      "rotationBoundary": 1048576,
+      "restoredDirectoryModes": [
+        "0o755",
+        "0o500",
+        "0o300",
+        "0o0"
+      ],
+      "restoredLogModes": [
+        "0o400",
+        "0o200",
+        "0o444",
+        "0o0"
+      ],
+      "durationsMs": {
+        "2": {
+          "samples": {
+            "reference": [
+              20.523917,
+              19.652958,
+              46.030333,
+              29.35775,
+              34.594875,
+              34.201875,
+              32.319875
+            ],
+            "candidate": [
+              20.197084,
+              19.640583,
+              24.53175,
+              24.167292,
+              24.281833,
+              24.363875,
+              26.692875
+            ]
+          },
+          "median": {
+            "reference": 32.319875,
+            "candidate": 24.281833
+          }
+        },
+        "300": {
+          "samples": {
+            "reference": [
+              82.827667,
+              79.202333,
+              56.977542,
+              50.220375,
+              50.797292,
+              49.73175,
+              49.911667
+            ],
+            "candidate": [
+              54.664375,
+              52.23025,
+              35.154792,
+              33.910125,
+              34.617958,
+              34.004333,
+              35.01125
+            ]
+          },
+          "median": {
+            "reference": 50.797292,
+            "candidate": 35.01125
+          }
+        }
+      },
+      "concurrentRecordsPerCase": 616
+    }
+  },
+  "regularProfileReview": {
+    "run_id": "run-ee54e5d89c9943e6a130b7be4d1647cf",
+    "packet_digest": "c5e5c5a8c9a4c457f3d78499ccda51463e044d9a64bfd909c196f89839a45101",
+    "reviewer_id": "independent-macos-owned-log-storage",
+    "dimensions": {
+      "functionality": {
+        "winner": "INCONCLUSIVE",
+        "reason": "The released actor and candidate matched all 40 ordinary restored directory/file permission combinations and seven adjacent rotation sizes per architecture. Disabled writes kept the directory absent. Independently verified the candidate kept all 848 distinct complete records across concurrent rotation. Unusual directory entries differed from release as detailed below. There was no claim of universal restored-file equivalence.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Rust/bridge/src/diagnostic_log.rs"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "The same typed diagnostic fields and UTC timestamp shape, exact 1 MiB preappend check, and the same CodeRim application support location were observed.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Rust/bridge/src/diagnostic_log.rs"
+        ]
+      },
+      "security": {
+        "winner": "A",
+        "reason": "Current regular and directory descriptors are no-follow. Files become 0600 and directory 0700, exact 40-mode combinations and limited-write rollback pass. Mode restoration selects and checks volume/object identity for the original APFS entry before permission change.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Rust/bridge/src/diagnostic_log.rs"
+        ]
+      },
+      "maintainability": {
+        "winner": "TIE",
+        "reason": "Swift still owns typed message serialization. Rust native calls are isolated; descriptor and directory locking lifetime are local to each append.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Rust/bridge/src/diagnostic_log.rs"
+        ]
+      },
+      "scope": {
+        "winner": "TIE",
+        "reason": "This opt-in file writer is confined to the CodeRim log directory and preserves the rotation threshold and diagnostic message shapes.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Rust/bridge/src/diagnostic_log.rs"
+        ]
+      },
+      "performance": {
+        "winner": "A",
+        "reason": "400 records in one launched actor were faster on both architectures. One-record process medians fluctuate; full timings are attached.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Rust/bridge/src/diagnostic_log.rs"
+        ]
+      }
+    },
+    "concerns": [
+      "The recovery path using /.vol was verified on the local APFS volume; network and removable filesystems that do not support by-ID resolution were not exercised. Such a volume may leave an optional mode-000 log unwritten.",
+      "Restored non-log directory occupying CodeRim.log.1: the candidate preserves that directory and the full active log, omitting the new record. The release replaced the directory. A directory occupying CodeRim.log stays 0700; the release changed it to 0600. This difference was confined to self-generated malformed entries."
+    ],
+    "independent_verification": {
+      "product_revision": "1d8ef611706ccd51dbae26c6758611be5c6374e2",
+      "machine": "Apple Silicon macOS; macOS14-targeted arm64 and translated x86_64. Sandboxed test subprocesses used only generated directories and typed diagnostic events; actor opt-in/defaults tested in private HOME.",
+      "product": {
+        "arm64": {
+          "release": {
+            "permissions_cases": 40,
+            "permission_divergences": [],
+            "thresholds": [
+              0,
+              1,
+              1048574,
+              1048575,
+              1048576,
+              1048577,
+              2097171
+            ]
+          },
+          "candidate": {
+            "permissions_cases": 40,
+            "permission_divergences": [],
+            "thresholds": [
+              0,
+              1,
+              1048574,
+              1048575,
+              1048576,
+              1048577,
+              2097171
+            ],
+            "concurrent_records": 848,
+            "concurrent_rotated_tail": 1
+          }
+        },
+        "x86_64": {
+          "release": {
+            "permissions_cases": 40,
+            "permission_divergences": [],
+            "thresholds": [
+              0,
+              1,
+              1048574,
+              1048575,
+              1048576,
+              1048577,
+              2097171
+            ]
+          },
+          "candidate": {
+            "permissions_cases": 40,
+            "permission_divergences": [],
+            "thresholds": [
+              0,
+              1,
+              1048574,
+              1048575,
+              1048576,
+              1048577,
+              2097171
+            ],
+            "concurrent_records": 848,
+            "concurrent_rotated_tail": 1
+          }
+        }
+      },
+      "direct": {
+        "arm64": "null/empty/oversize handling, short-write rollback (errno=27), continued append passed",
+        "x86_64": "null/empty/oversize handling, short-write rollback (errno=27), continued append passed"
+      },
+      "performance": {
+        "arm64": {
+          "1": {
+            "release": 16.494417,
+            "candidate": 15.291333
+          },
+          "24": {
+            "release": 13.550459,
+            "candidate": 12.586583
+          },
+          "400": {
+            "release": 55.330375,
+            "candidate": 39.732875
+          }
+        },
+        "x86_64": {
+          "1": {
+            "release": 26.872167,
+            "candidate": 27.487833
+          },
+          "24": {
+            "release": 31.299958,
+            "candidate": 30.183042
+          },
+          "400": {
+            "release": 113.3105,
+            "candidate": 74.51325
+          }
+        }
+      },
+      "timing_scope": "11 matched pairs per architecture per scale; process launch and sandbox included; no cold disk-cache/physical Intel claim.",
+      "mode_zero_OS_probe": {
+        "file": {
+          "decimal": {
+            "same": true,
+            "mode": "0o0",
+            "after": "0o600"
+          },
+          "volume-hex": {
+            "errno": 2,
+            "description": "No such file or directory"
+          }
+        },
+        "directory": {
+          "decimal": {
+            "same": true,
+            "mode": "0o0",
+            "after": "0o700"
+          },
+          "volume-hex": {
+            "errno": 2,
+            "description": "No such file or directory"
+          }
+        }
+      },
+      "independent_scripts": {
+        "driver.swift": "3d7dd3de36eaead9aa803a878c77bd4abd4895d9d935b7ce111e0125fbcc635f",
+        "build.py": "a6765a349d8d9b3ffcb8f312cf947bb12dd6947f1502d3ab9e8b82b1189f008d",
+        "direct.c": "63d1f7501fbc1d87c9e652ebbc5892a667b200205b54c69d6e2f432b2e5e55ff",
+        "independent.py": "c9229e8bb02098c39fc387e02382c729ca8dfc9dcd4ca869999e23392d92bfd0",
+        "perf.py": "1518f7b77462b72d6cbc8e131500b226aacbe2da36ace9e7a572e26b974fe7fb",
+        "descriptor.c": "828f047fe3735e8c48c3de8433ff07211f7a74ed434a7bbfc5c331fa25a9d6d7",
+        "fileref.py": "3807a449f53ab5773b333d1f782a2a121c83ad9131a4827e621c9c5faee6f64e"
+      },
+      "restored_unusual_entries": {
+        "arm64": {
+          "release": {
+            "rotating-locked-regular": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576
+            },
+            "parent-locked": {
+              "active_dir": false,
+              "active_mode": "0o644",
+              "active_size": 3,
+              "archive_dir": false,
+              "archive_size": null
+            },
+            "empty-archive-directory": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576
+            },
+            "active-directory": {
+              "active_dir": true,
+              "active_mode": "0o600",
+              "active_size": null,
+              "archive_dir": false,
+              "archive_size": null
+            }
+          },
+          "candidate": {
+            "rotating-locked-regular": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576
+            },
+            "parent-locked": {
+              "active_dir": false,
+              "active_mode": "0o644",
+              "active_size": 3,
+              "archive_dir": false,
+              "archive_size": null
+            },
+            "empty-archive-directory": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 1048576,
+              "archive_dir": true,
+              "archive_size": null
+            },
+            "active-directory": {
+              "active_dir": true,
+              "active_mode": "0o700",
+              "active_size": null,
+              "archive_dir": false,
+              "archive_size": null
+            }
+          }
+        },
+        "x86_64": {
+          "release": {
+            "rotating-locked-regular": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576
+            },
+            "parent-locked": {
+              "active_dir": false,
+              "active_mode": "0o644",
+              "active_size": 3,
+              "archive_dir": false,
+              "archive_size": null
+            },
+            "empty-archive-directory": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576
+            },
+            "active-directory": {
+              "active_dir": true,
+              "active_mode": "0o600",
+              "active_size": null,
+              "archive_dir": false,
+              "archive_size": null
+            }
+          },
+          "candidate": {
+            "rotating-locked-regular": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576
+            },
+            "parent-locked": {
+              "active_dir": false,
+              "active_mode": "0o644",
+              "active_size": 3,
+              "archive_dir": false,
+              "archive_size": null
+            },
+            "empty-archive-directory": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 1048576,
+              "archive_dir": true,
+              "archive_size": null
+            },
+            "active-directory": {
+              "active_dir": true,
+              "active_mode": "0o700",
+              "active_size": null,
+              "archive_dir": false,
+              "archive_size": null
+            }
+          }
+        }
+      },
+      "product_hashes": {
+        "arm64": "8791ce77b50756559a2d730ed5df1a02a1c03c9495e43ee6cac5e53dbd12bba8",
+        "x86_64": "f9dc6a1003d9b4a5fab944f4744a3dbc7f4882125c0b044c8cafe2d081b5053b"
+      }
+    }
+  },
+  "archiveRecoveryReview": {
+    "run_id": "run-70ffd51c8307461ea9b88eab077e7967",
+    "packet_digest": "1893df09fae7048343686dd939e28dcc0a65dac41fd91d736317f950a37a7e00",
+    "reviewer_id": "independent-macos-owned-log-storage",
+    "dimensions": {
+      "functionality": {
+        "winner": "TIE",
+        "reason": "Supported ordinary and mode-000 regular files and directory permissions match the release. An empty archive directory once again rotates and produces a fresh complete diagnostic. The specified preservation of nonempty directories differs from the released destructive behavior.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Rust/bridge/src/diagnostic_log.rs"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "Fixed names and 1 MiB preappend threshold, archived bytes and public record shape agree. Source and file hashes are bound here.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Rust/bridge/src/diagnostic_log.rs"
+        ]
+      },
+      "security": {
+        "winner": "B",
+        "reason": "The candidate preserves a populated archive directory and its sentinel; AT_REMOVEDIR accepts only an empty directory before retrying under the directory lock. It also leaves an existing directory at the active filename alone. APFS owner-only mode-000 recovery was independently verified in the preceding review.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Rust/bridge/src/diagnostic_log.rs"
+        ]
+      },
+      "maintainability": {
+        "winner": "TIE",
+        "reason": "The retry is bounded to one error-specific empty-directory operation within the existing directory lock and native ownership.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Rust/bridge/src/diagnostic_log.rs"
+        ]
+      },
+      "scope": {
+        "winner": "TIE",
+        "reason": "Changes in the final commit are the diagnostic writer and its synthetic replay only.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Rust/bridge/src/diagnostic_log.rs"
+        ]
+      },
+      "performance": {
+        "winner": "B",
+        "reason": "In 11 alternating process-inclusive pairs for each architecture, both regular and empty-directory rotations were faster in the candidate. Preceding append throughput and timings are referenced separately.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Sources/CodeRim/Services/DiagnosticsLogger.swift",
+          "candidate/Rust/bridge/src/diagnostic_log.rs"
+        ]
+      }
+    },
+    "concerns": [
+      "The candidate preserves entries when a directory with contents occupies CodeRim.log.1, and omits this diagnostic rather than recursively deleting the directory. The base release removed those contents. A directory at CodeRim.log is preserved at 0700, while the release set 0600.",
+      "The mode-000 by-ID recovery was exercised on this local APFS installation; network/removable volumes and physical Intel hardware were not exercised."
+    ],
+    "independent_verification": {
+      "commit": "d4b3479c925f944473727a8ad8aaa31264dea5cd",
+      "local_architectures": [
+        "arm64 Apple Silicon",
+        "x86_64 translated by Rosetta"
+      ],
+      "final_fixtures": {
+        "arm64": {
+          "release": {
+            "rotating-locked-regular": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576,
+              "sentinel_retained": false
+            },
+            "parent-locked": {
+              "active_dir": false,
+              "active_mode": "0o644",
+              "active_size": 3,
+              "archive_dir": false,
+              "archive_size": null,
+              "sentinel_retained": false
+            },
+            "empty-archive-directory": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576,
+              "sentinel_retained": false
+            },
+            "populated-archive-directory": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576,
+              "sentinel_retained": false
+            },
+            "active-directory": {
+              "active_dir": true,
+              "active_mode": "0o600",
+              "active_size": null,
+              "archive_dir": false,
+              "archive_size": null,
+              "sentinel_retained": false
+            }
+          },
+          "candidate": {
+            "rotating-locked-regular": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576,
+              "sentinel_retained": false
+            },
+            "parent-locked": {
+              "active_dir": false,
+              "active_mode": "0o644",
+              "active_size": 3,
+              "archive_dir": false,
+              "archive_size": null,
+              "sentinel_retained": false
+            },
+            "empty-archive-directory": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576,
+              "sentinel_retained": false
+            },
+            "populated-archive-directory": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 1048576,
+              "archive_dir": true,
+              "archive_size": null,
+              "sentinel_retained": true
+            },
+            "active-directory": {
+              "active_dir": true,
+              "active_mode": "0o700",
+              "active_size": null,
+              "archive_dir": false,
+              "archive_size": null,
+              "sentinel_retained": false
+            }
+          }
+        },
+        "x86_64": {
+          "release": {
+            "rotating-locked-regular": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576,
+              "sentinel_retained": false
+            },
+            "parent-locked": {
+              "active_dir": false,
+              "active_mode": "0o644",
+              "active_size": 3,
+              "archive_dir": false,
+              "archive_size": null,
+              "sentinel_retained": false
+            },
+            "empty-archive-directory": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576,
+              "sentinel_retained": false
+            },
+            "populated-archive-directory": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576,
+              "sentinel_retained": false
+            },
+            "active-directory": {
+              "active_dir": true,
+              "active_mode": "0o600",
+              "active_size": null,
+              "archive_dir": false,
+              "archive_size": null,
+              "sentinel_retained": false
+            }
+          },
+          "candidate": {
+            "rotating-locked-regular": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576,
+              "sentinel_retained": false
+            },
+            "parent-locked": {
+              "active_dir": false,
+              "active_mode": "0o644",
+              "active_size": 3,
+              "archive_dir": false,
+              "archive_size": null,
+              "sentinel_retained": false
+            },
+            "empty-archive-directory": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 87,
+              "archive_dir": false,
+              "archive_size": 1048576,
+              "sentinel_retained": false
+            },
+            "populated-archive-directory": {
+              "active_dir": false,
+              "active_mode": "0o600",
+              "active_size": 1048576,
+              "archive_dir": true,
+              "archive_size": null,
+              "sentinel_retained": true
+            },
+            "active-directory": {
+              "active_dir": true,
+              "active_mode": "0o700",
+              "active_size": null,
+              "archive_dir": false,
+              "archive_size": null,
+              "sentinel_retained": false
+            }
+          }
+        }
+      },
+      "final_rotation_concurrency": {
+        "arm64": {
+          "concurrent_writers": 24,
+          "unique_appended": 312,
+          "archived_original_bytes": 1048576,
+          "private_modes": true
+        },
+        "x86_64": {
+          "concurrent_writers": 24,
+          "unique_appended": 312,
+          "archived_original_bytes": 1048576,
+          "private_modes": true
+        }
+      },
+      "final_11_pair_process_duration_ms": {
+        "arm64": {
+          "regular": {
+            "release": 10.129125,
+            "candidate": 9.373791
+          },
+          "empty-directory": {
+            "release": 10.132208,
+            "candidate": 9.452583
+          }
+        },
+        "x86_64": {
+          "regular": {
+            "release": 17.305333,
+            "candidate": 16.373084
+          },
+          "empty-directory": {
+            "release": 18.765333,
+            "candidate": 17.2555
+          }
+        }
+      },
+      "preceding_review": {
+        "commit": "1d8ef611706ccd51dbae26c6758611be5c6374e2",
+        "file": "macos-log-writer-final-independent.json",
+        "sha256": "406373060724d642576bf652e8a076ba35c61d622ec18a602ee84428f1c20a39",
+        "coverage": "40 mode combinations, 7 rotation thresholds, 848 records/arch, actual EFBIG partial write rollback and append; current change only handles EISDIR/ENOTDIR when rotating."
+      },
+      "final_driver_sha256": {
+        "arm64": "74706fd5f63acba7cc4e22bb5d97cab3e081d3f6cb2974d879c40089eda519d6",
+        "x86_64": "f526b4061559c96b0bf168b4e7c28ff3ba183701fbb6c9eacc4dbbfc923a1eb0"
+      },
+      "synthetic_harness_sha256": {
+        "archive-recovery.py": "b30394550e2eb95e03ff9908841ee077741c18ff417c9d4e29241d5017623aa6",
+        "concurrent-archive.py": "dc35db61a2c4bf35fdc5c589e33c2287b2b8124af9f2f99947817806e001e366",
+        "archive-perf.py": "4e82e90d47f956d44d08482f85ab4bae5cad5ef3f7801da475792403286a6d0a"
+      },
+      "scope": "Only temporary generated OS files and sandboxed actual logger actors. No personal data, external accounts, networking, product source edits or release actions."
+    }
+  },
+  "formalGate": "INCONCLUSIVE",
+  "qualification": "A nonempty directory mistakenly named CodeRim.log.1 is preserved and the current record is skipped until the destination is usable. File-ID permission repair of otherwise inaccessible entries was exercised on APFS."
+}
