@@ -35,16 +35,17 @@ def build_library(triple=None, package="coderim-accounting-bridge"):
 
 
 def swift_options(command):
-    # Flags introduced by -Xswiftc/-Xcc/etc. belong to other tools.
     options = []
+    forwarded = {name: [] for name in ("-Xswiftc", "-Xcc", "-Xcxx", "-Xlinker",
+                                        "-Xbuild-tools-swiftc", "-Xmanifest", "-Xxcbuild")}
     arguments = iter(command)
     for argument in arguments:
-        if argument in ("-Xswiftc", "-Xcc", "-Xcxx", "-Xlinker", "-Xbuild-tools-swiftc",
-                        "-Xmanifest", "-Xxcbuild"):
-            next(arguments, None)
+        name, equals, value = argument.partition("=")
+        if name in forwarded:
+            forwarded[name].append(value if equals else next(arguments, ""))
         else:
             options.append(argument)
-    return options
+    return options, forwarded
 
 
 def swift_architectures(options):
@@ -65,15 +66,26 @@ def swift_architectures(options):
 
 
 def swift_bridge_flags(command, scratch):
-    # Keep deliberate, complete compiler/linker inputs used by packaging and comparisons.
-    if any(left == "-Xswiftc" and right == "-DCODERIM_RUST_ACCOUNTING"
-           for left, right in zip(command, command[1:])):
-        return []
-    options = swift_options(command)
+    options, forwarded = swift_options(command)
     if any(option in options for option in ("--help", "-h", "--version", "--show-bin-path",
                                              "--skip-build", "--show-codecov-path",
                                              "--show-code-coverage-path", "--show-coverage-path")):
         return []
+    compiler = forwarded["-Xswiftc"]
+    feature = "CODERIM_RUST_ACCOUNTING"
+    defined = "-D" + feature in compiler or ("-D", feature) in zip(compiler, compiler[1:])
+    # Callers building their own bridge can pair the feature with any named archive
+    # and corresponding module search path. Swift validates the supplied target ABI.
+    has_archive = any(arg.endswith(".a") or arg == "-lcoderim_accounting_bridge"
+                      for arg in forwarded["-Xlinker"] + compiler)
+    includes = [arg[2:] if arg != "-I" else compiler[i + 1] for i, arg in enumerate(compiler)
+                if arg.startswith("-I") and (arg != "-I" or i + 1 < len(compiler))]
+    module_supplied = any((Path(path) / "coderim_accounting.h").is_file() for path in includes)
+    flags = [] if defined else ["-Xswiftc", "-D" + feature]
+    if not module_supplied:
+        flags.extend(["-Xswiftc", "-I", "-Xswiftc", str(RUST / "bridge/include")])
+    if defined and has_archive:
+        return flags
     arches = swift_architectures(options)
     libs = [build_library(("aarch64" if arch == "arm64" else arch) + "-apple-darwin")
             for arch in arches]
@@ -101,8 +113,7 @@ def swift_bridge_flags(command, scratch):
                 with staged.open("wb") as destination:
                     shutil.copyfileobj(handle, destination, 1024 * 1024)
                 staged.replace(archive)
-    return ["-Xswiftc", "-DCODERIM_RUST_ACCOUNTING", "-Xswiftc", "-I",
-            "-Xswiftc", str(RUST / "bridge/include"), "-Xlinker", str(archive)]
+    return [*flags, "-Xlinker", str(archive)]
 
 
 def compare_hosts(work):

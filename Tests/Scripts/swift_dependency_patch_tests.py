@@ -65,7 +65,9 @@ class SwiftBridgeBuildTests(unittest.TestCase):
         targets = self.apple.swift_architectures
         self.assertEqual(targets(["--arch=x86_64", "--arch", "arm64"]), ["arm64", "x86_64"])
         self.assertEqual(targets(["--triple", "x86_64-apple-macosx14.0"]), ["x86_64"])
-        options = self.apple.swift_options(["test", "-Xswiftc", "--arch", "-Xlinker", "--version"])
+        options, tools = self.apple.swift_options(["test", "-Xswiftc", "--arch", "-Xlinker", "--version"])
+        self.assertEqual(tools["-Xswiftc"], ["--arch"])
+        self.assertEqual(tools["-Xlinker"], ["--version"])
         self.assertEqual(options, ["test"])
         for arguments in (["--arch=armv7"], ["--triple=arm64-apple-ios17.0"],
                           ["--arch=arm64", "--triple=x86_64-apple-macosx14.0"]):
@@ -94,6 +96,14 @@ class SwiftBridgeBuildTests(unittest.TestCase):
                     compile_rust.reset_mock()
                     self.assertEqual(self.apple.swift_bridge_flags(query, scratch), [])
                     compile_rust.assert_not_called()
+                for spelling in (["-Xswiftc=-DCODERIM_RUST_ACCOUNTING"],
+                                 ["-Xswiftc", "-D", "-Xswiftc", "CODERIM_RUST_ACCOUNTING"]):
+                    explicit = [*command, *spelling, *flags[2:]]
+                    self.assertEqual(self.apple.swift_bridge_flags(explicit, scratch), [])
+                    compile_rust.assert_not_called()
+                partial = self.apple.swift_bridge_flags([*command, *spelling], scratch)
+                self.assertIn("-Xlinker", partial)
+                self.assertNotIn("-DCODERIM_RUST_ACCOUNTING", partial)
 
 
 class DependencyPatchTests(unittest.TestCase):
