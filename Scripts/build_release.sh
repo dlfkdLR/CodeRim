@@ -50,6 +50,7 @@ for rust_input in "${CODERIM_RUST_ACCOUNTING_ARCHIVE}" "${CODERIM_RUST_WIDGET_AR
   lipo "${rust_input}" -verify_arch arm64
   lipo "${rust_input}" -verify_arch x86_64
 done
+# SwiftPM and the widget builder snapshot their native link inputs by content.
 accounting_flags=(-Xswiftc -DCODERIM_RUST_ACCOUNTING -Xswiftc -I
   -Xswiftc "${project_root}/Rust/bridge/include" -Xlinker "${CODERIM_RUST_ACCOUNTING_ARCHIVE:A}")
 for product in "${PRODUCT_NAME}" CodeRimCLI CodeRimClaudeBridge; do

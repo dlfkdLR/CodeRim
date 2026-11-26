@@ -106,6 +106,29 @@ class SwiftBridgeBuildTests(unittest.TestCase):
                 self.assertNotIn("-DCODERIM_RUST_ACCOUNTING", partial)
 
 
+    def test_explicit_archive_replacement_with_preserved_timestamp(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            scratch = Path(temporary)
+            source = scratch / "manual archive.a"
+            source.write_bytes(b"first")
+            timestamp = source.stat().st_mtime_ns
+            for spelling in (["-Xlinker", str(source)], ["-Xlinker=" + str(source)]):
+                source.write_bytes(b"first")
+                command = ["build", "-Xswiftc", "-DCODERIM_RUST_ACCOUNTING", *spelling]
+                with patch.object(self.apple, "build_library", side_effect=AssertionError("provided")):
+                    first = self.apple.swift_bridge_command(command, scratch)
+                    source.write_bytes(b"other")
+                    os.utime(source, ns=(timestamp, timestamp))
+                    updated = self.apple.swift_bridge_command(command, scratch)
+                    self.assertNotEqual(first, updated)
+                    def archive(args):
+                        arg = next(item for item in args if item.endswith(".a"))
+                        return Path(arg.removeprefix("-Xlinker="))
+                    self.assertEqual(archive(first).read_bytes(), b"first")
+                    self.assertEqual(archive(updated).read_bytes(), b"other")
+                    self.assertTrue(source.is_file())
+
+
 class DependencyPatchTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

@@ -65,6 +65,55 @@ def swift_architectures(options):
     return arches
 
 
+def pin_link_archive(source, cache):
+    # SwiftPM and Xcode can reuse a link result when a manual input has the
+    # previous timestamp. The immutable name describes the bytes actually copied.
+    if cache.is_symlink():
+        raise ValueError("The build must own its native archive cache")
+    cache.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(dir=cache) as staging:
+        staged = Path(staging) / "input.a"
+        digest = hashlib.sha256()
+        with Path(source).open("rb") as incoming, staged.open("wb") as outgoing:
+            for block in iter(lambda: incoming.read(1024 * 1024), b""):
+                digest.update(block)
+                outgoing.write(block)
+        archive = cache / (digest.hexdigest() + ".a")
+        if archive.is_symlink():
+            raise ValueError("Cached native archive cannot be a link")
+        if archive.exists():
+            verified = hashlib.sha256()
+            with archive.open("rb") as existing:
+                for block in iter(lambda: existing.read(1024 * 1024), b""):
+                    verified.update(block)
+            if digest.digest() == verified.digest():
+                return archive
+        staged.chmod(0o444)
+        staged.replace(archive)
+        return archive
+
+
+def swift_bridge_command(command, scratch):
+    flags = swift_bridge_flags(command, scratch)
+    result = list(command)
+    # Preserve both spellings and unrelated forwarded arguments. Resolve relative
+    # link inputs against the same package directory passed to the Swift process.
+    i = 0
+    while i < len(result):
+        option, equals, value = result[i].partition("=")
+        if option in ("-Xlinker", "-Xswiftc"):
+            if not equals:
+                i += 1
+                if i == len(result):
+                    break
+                value = result[i]
+            if not value.startswith("-") and value.endswith(".a") and (ROOT / value).is_file():
+                stable = pin_link_archive(ROOT / value, scratch / "rust-bridge")
+                result[i] = (option + "=" if equals else "") + str(stable)
+        i += 1
+    return [*result, *flags]
+
+
 def swift_bridge_flags(command, scratch):
     options, forwarded = swift_options(command)
     if any(option in options for option in ("--help", "-h", "--version", "--show-bin-path",
@@ -89,30 +138,13 @@ def swift_bridge_flags(command, scratch):
     arches = swift_architectures(options)
     libs = [build_library(("aarch64" if arch == "arm64" else arch) + "-apple-darwin")
             for arch in arches]
-    # SwiftPM does not track changes to an archive passed only as a linker argument.
-    # A new Rust binary must therefore change the link command, including on warm builds.
-    cache = scratch / "rust-bridge"
-    if cache.is_symlink():
-        raise ValueError("The Swift build must own its Rust bridge cache")
-    cache.mkdir(exist_ok=True)
-    with tempfile.TemporaryDirectory(dir=cache) as staging:
-        source = libs[0]
-        if len(libs) > 1:
+    if len(libs) == 1:
+        archive = pin_link_archive(libs[0], scratch / "rust-bridge")
+    else:
+        with tempfile.TemporaryDirectory(dir=scratch) as staging:
             source = Path(staging) / "universal.a"
             subprocess.run(["lipo", "-create", *libs, "-output", source], check=True)
-        with source.open("rb") as handle:
-            key = hashlib.sha256()
-            for block in iter(lambda: handle.read(1024 * 1024), b""):
-                key.update(block)
-            archive = cache / (key.hexdigest() + ".a")
-            if archive.is_symlink():
-                raise ValueError("The Swift build must own its Rust bridge archive")
-            if not archive.exists():
-                handle.seek(0)
-                staged = Path(staging) / ARCHIVE
-                with staged.open("wb") as destination:
-                    shutil.copyfileobj(handle, destination, 1024 * 1024)
-                staged.replace(archive)
+            archive = pin_link_archive(source, scratch / "rust-bridge")
     return [*flags, "-Xlinker", str(archive)]
 
 
@@ -242,12 +274,28 @@ def main():
     sub.add_parser("test", help="run the Swift package and CLI tests with Rust accounting")
     artifacts = sub.add_parser("prepare-bundle", help="build missing Universal 2 Rust inputs for the package builder")
     artifacts.add_argument("directory", type=Path, help="existing staging directory for the archives and CLI")
+    widget = sub.add_parser("widget-archive", help="prepare the universal widget linker input")
+    widget.add_argument("cache", type=Path)
+    widget.add_argument("source", type=Path, nargs="?")
     replace = sub.add_parser("replace-bundle", help="install the finished bundle at its local build destination")
     replace.add_argument("staged", type=Path)
     replace.add_argument("destination", type=Path)
     app = sub.add_parser("app", help="build the existing universal release bundle with Rust accounting")
     app.add_argument("output", type=Path, help="new directory for the ad-hoc signed app")
     args = parser.parse_args()
+    if args.action == "widget-archive":
+        with tempfile.TemporaryDirectory() as directory:
+            source = args.source
+            if source is None:
+                libs = [build_library(arch + "-apple-darwin", "coderim-widget")
+                        for arch in ("aarch64", "x86_64")]
+                source = Path(directory) / "widget.a"
+                subprocess.run(["lipo", "-create", *libs, "-output", source], check=True)
+            archive = pin_link_archive(source, args.cache.absolute())
+            for arch in ("arm64", "x86_64"):
+                subprocess.run(["lipo", archive, "-verify_arch", arch], check=True)
+            print(archive)
+        return
     if args.action == "replace-bundle":
         replace_bundle(args.staged, args.destination)
         return

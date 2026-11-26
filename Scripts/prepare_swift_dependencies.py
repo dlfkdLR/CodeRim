@@ -231,9 +231,9 @@ def main():
                 raise ValueError("SwiftPM changed the pinned dependency lockfile")
             if args.run_swift is not None:
                 sys.dont_write_bytecode = True
-                from rust_migration.apple import swift_bridge_flags
-                bridge_flags = swift_bridge_flags(command, scratch)
-                status = subprocess.run(["swift", *command, *bridge_flags, "--scratch-path", str(scratch),
+                from rust_migration.apple import swift_bridge_command
+                command = swift_bridge_command(command, scratch)
+                status = subprocess.run(["swift", *command, "--scratch-path", str(scratch),
                                          "--cache-path", str(scratch / "dependency-cache")], cwd=root).returncode
                 verify(root, scratch)
                 if digest(root / "Package.resolved") != resolved_hash:
