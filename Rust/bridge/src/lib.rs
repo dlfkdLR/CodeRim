@@ -1,4 +1,4 @@
-//! The two fixed-layout host entry points take and return values by copy.
+//! Fixed-layout normalization entry points take and return values by copy.
 //! Presence flags distinguish an absent measurement from any signed counter.
 mod token_json;
 
@@ -138,4 +138,106 @@ pub extern "C" fn cr_normalize_windows(
     observation: RawObservation<i64>,
 ) -> RawResult<i64> {
     transition(state, observation, ZeroPolicy::RetainRepairedZero)
+}
+
+/// Four scalar counters without native optional-value layout or pointers.
+#[repr(C)]
+#[derive(Clone, Copy, Default)]
+pub struct IncrementCounts {
+    input: i64,
+    cached: i64,
+    output: i64,
+    written: i64,
+}
+
+impl IncrementCounts {
+    fn usage(self, both_writes_known: bool) -> TokenUsage {
+        TokenUsage {
+            input: self.input,
+            cached: self.cached,
+            output: self.output,
+            written: both_writes_known.then_some(self.written),
+        }
+    }
+}
+
+/// Returns a valid increment (including zero), or input = -1 to request the full
+/// transition. The caller already has the accepted timestamp and new watermark.
+/// A successful difference inherits the caller's write-presence bit.
+///
+/// SAFETY: The unique symbol and by-value integer layout match coderim_accounting.h.
+/// This bounded calculation does not retain data or enter the host runtime.
+#[unsafe(no_mangle)]
+pub extern "C" fn cr_try_token_increment(
+    previous: IncrementCounts,
+    current: IncrementCounts,
+    both_writes_known: i32,
+) -> IncrementCounts {
+    let known = both_writes_known != 0;
+    match current
+        .usage(known)
+        .valid_increment_from(previous.usage(known))
+    {
+        Some(delta) => IncrementCounts {
+            input: delta.input,
+            cached: delta.cached,
+            output: delta.output,
+            written: delta.written.unwrap_or_default(),
+        },
+        None => IncrementCounts {
+            input: -1,
+            ..IncrementCounts::default()
+        },
+    }
+}
+
+#[cfg(test)]
+mod increment_tests {
+    use super::{IncrementCounts, cr_try_token_increment};
+
+    #[test]
+    fn ordinary_zero_and_absent_writes_stay_distinct_from_a_retry() {
+        let prior = IncrementCounts {
+            input: 12,
+            cached: 3,
+            output: 2,
+            written: 9,
+        };
+        let current = IncrementCounts {
+            input: 15,
+            cached: 4,
+            output: 4,
+            written: 0,
+        };
+        // Both known: a decreasing write forces the full restart/interleave decision.
+        assert_eq!(cr_try_token_increment(prior, current, 1).input, -1);
+        // Either unknown: ignore its payload, as in the normalizer's optional subtraction.
+        let increment = cr_try_token_increment(prior, current, 0);
+        assert_eq!(
+            (increment.input, increment.cached, increment.output),
+            (3, 1, 2)
+        );
+        assert_eq!(cr_try_token_increment(prior, prior, 1).input, 0);
+    }
+
+    #[test]
+    fn leaves_repair_and_overflow_to_the_full_transition() {
+        let prior = IncrementCounts {
+            input: 20,
+            cached: 3,
+            output: 4,
+            written: 2,
+        };
+        let clamp = IncrementCounts {
+            input: 21,
+            cached: 5,
+            ..prior
+        };
+        assert_eq!(cr_try_token_increment(prior, clamp, 1).input, -1);
+        let corrupt = IncrementCounts {
+            written: i64::MIN,
+            ..prior
+        };
+        assert_eq!(cr_try_token_increment(corrupt, prior, 1).input, -1);
+    }
 }

@@ -81,8 +81,8 @@ impl TokenUsage {
         }
     }
 
-    /// The normalizer calls this only after checking for decreases. An unrepresentable
-    /// positive difference signals an invalid prior watermark.
+    /// A signed difference can overflow for a damaged prior watermark. Keep negative
+    /// results visible so the caller can detect decreases before emitting a delta.
     pub(crate) fn checked_increase_from(self, prior: Self) -> Option<Self> {
         Some(Self {
             input: self.input.checked_sub(prior.input)?,
@@ -93,6 +93,14 @@ impl TokenUsage {
                 _ => None,
             },
         })
+    }
+
+    /// A nonnegative, storable increment without counter resets, arithmetic overflow or repair.
+    /// Missing writes on either side make the difference unknown. All other transitions need
+    /// the full observation and its normalization state.
+    pub fn valid_increment_from(self, prior: Self) -> Option<Self> {
+        self.checked_increase_from(prior)
+            .filter(|delta| delta.is_valid())
     }
 
     pub fn component_wise_max(self, other: Self) -> Self {

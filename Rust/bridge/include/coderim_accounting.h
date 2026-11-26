@@ -39,9 +39,19 @@ typedef struct {
     int64_t has_delta, diagnostic, repaired;
 } cr_result_ticks;
 
+typedef struct {
+    int64_t input, cached, output, written;
+} cr_increment_counts;
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+/* For chronological observations with both cumulative snapshots present. A
+   negative returned input delegates the entire observation to cr_normalize_windows.
+   A successful delta has a known write count exactly when both inputs supplied one. */
+cr_increment_counts cr_try_token_increment(cr_increment_counts previous,
+                                           cr_increment_counts current,
+                                           int32_t both_writes_known);
 cr_result cr_normalize_apple(cr_state state, cr_observation sample);
 cr_result_ticks cr_normalize_windows(cr_state_ticks state, cr_observation_ticks sample);
 #ifdef __cplusplus
