@@ -14,7 +14,8 @@ const CHECKPOINT: &std::ffi::CStr = c"SELECT file_identity, generation, committe
     session_id, inherits_history, session_started_at, inherited_history_end_ordinal, history_replay_complete,
     model, project_path, parent_session_id, project_name, image_attachment_count FROM parsing_state WHERE source_path = ?1";
 
-const COUNTER: &std::ffi::CStr = c"SELECT input_tokens, cached_input_tokens, cache_write_input_tokens,
+const COUNTER: &std::ffi::CStr =
+    c"SELECT input_tokens, cached_input_tokens, cache_write_input_tokens,
     output_tokens, last_observed_at, quality FROM session_counters WHERE session_id = ?1";
 
 #[link(name = "sqlite3")]

@@ -175,7 +175,7 @@ def compare_hosts(work):
                   "notch-cursor", "turn-activity", "log-timestamp", "provider-order",
                   "copilot-quota", "ollama-quota", "ollama-local", "app-server-response", "glyph-render", "activity-fields",
                   "source-discovery", "notch-viewport", "desktop-mobile-order", "companion-export",
-                  "sqlite-event-import", "sqlite-checkpoint", "statistics-bounds", "snapshot-quality", "sqlite-legacy-ids", "sqlite-schema-runtime", "sqlite-history-maintenance", "source-fingerprint", "import-selection",
+                  "sqlite-event-import", "sqlite-checkpoint", "sqlite-session-counter", "statistics-bounds", "snapshot-quality", "sqlite-legacy-ids", "sqlite-schema-runtime", "sqlite-history-maintenance", "source-fingerprint", "import-selection",
                   "claude-tail-activity", "claude-monitor-poll", "session-completion"]:
         subprocess.run(["python3", str(Path(__file__).parent / suite / "check.py"),
                         "--archive", str(archive)], check=True)
