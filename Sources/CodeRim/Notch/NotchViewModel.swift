@@ -1,5 +1,8 @@
 import SwiftUI
 import Combine
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 @MainActor
 final class NotchViewModel: ObservableObject {
@@ -92,10 +95,17 @@ final class NotchViewModel: ObservableObject {
     /// Enter through the resting settings arc; then keep both controls visible
     /// while crossing the gap or using the account menu.
     func updateControlHover(overSettings: Bool, overAccount: Bool, insideControls: Bool) {
+        #if CODERIM_RUST_ACCOUNTING
+        let next = cr_window_cursor_hover(isExpanded, isHoveringSettings, isPresentingAccountMenu,
+                                          overSettings, overAccount, insideControls)
+        let revealed = next.settings
+        let accountHovered = next.account
+        #else
         let revealed = isExpanded && (overSettings || isPresentingAccountMenu
             || (isHoveringSettings && insideControls))
-        if isHoveringSettings != revealed { isHoveringSettings = revealed }
         let accountHovered = revealed && overAccount
+        #endif
+        if isHoveringSettings != revealed { isHoveringSettings = revealed }
         if isHoveringAccountSwitch != accountHovered { isHoveringAccountSwitch = accountHovered }
     }
     /// Keep a direct SwiftUI settings action as a fallback for AppKit mouse routing and hit testing.

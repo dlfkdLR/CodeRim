@@ -385,11 +385,28 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         if model.isExpanded, let index = model.hoveredIndex, let card = tooltipRect(index: index) {
             rects.append(card)
         }
+        #if CODERIM_RUST_ACCOUNTING
+        applyInteractiveRects(rects)
+        #else
         hostingView?.interactiveRects = rects
         if let panel {
             panel.ignoresMouseEvents = !rects.contains { $0.contains(localCursor(in: panel.frame)) }
         }
+        #endif
     }
+
+    #if CODERIM_RUST_ACCOUNTING
+    private func applyInteractiveRects(_ rects: [CGRect]) {
+        if let hostingView, hostingView.interactiveRects != rects {
+            hostingView.interactiveRects = rects
+        }
+        if let panel {
+            let ignores = !rects.contains { $0.contains(localCursor(in: panel.frame)) }
+            // Setting the same value can still enqueue a WindowServer tag change.
+            if panel.ignoresMouseEvents != ignores { panel.ignoresMouseEvents = ignores }
+        }
+    }
+    #endif
 
     // MARK: - Cursor tracking
 
@@ -439,6 +456,18 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
     private func cursorMoved() {
         guard let panel else { return }
         let local = localCursor(in: panel.frame)
+        #if CODERIM_RUST_ACCOUNTING
+        if !model.isExpanded, model.hoveredIndex == nil, !isPointing,
+           !model.isHoveringSettings, !model.isHoveringAccountSwitch {
+            let target = pillRect
+            if !target.contains(local) {
+                // The folded model has no pending hover transition at this point.
+                // Recheck the live routing position normally even for a stationary cursor.
+                applyInteractiveRects([target])
+                return
+            }
+        }
+        #endif
         let overTooltip = model.hoveredIndex
             .flatMap(tooltipRect(index:))
             .map { model.isExpanded && $0.contains(local) } ?? false

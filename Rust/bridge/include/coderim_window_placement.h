@@ -12,6 +12,9 @@ CGRect cr_window_panel_frame(CGRect full, CGRect usable, CGSize size, uint32_t e
                              double offset, double slack, double trailing, double leading, bool keep, bool hardware);
 CGRect cr_window_body(CGSize panel, uint32_t edge, double slack, double shape_length, double scale,
                       double depth, double rest_length, double hot_zone, double hot_margin, bool folded);
+typedef struct { bool settings, account; } CRCursorHover;
+CRCursorHover cr_window_cursor_hover(bool expanded, bool settings_were_visible, bool menu_open,
+                                     bool over_settings, bool over_account, bool inside_controls);
 typedef struct { CGRect bounds; bool hits; } CRWindowHandles;
 CRWindowHandles cr_window_handles(const CGPoint *points, intptr_t count, CGSize panel, uint32_t edge,
                                   double slack, double scale, double diameter, CGPoint cursor, bool hit_test);

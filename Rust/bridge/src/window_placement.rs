@@ -194,6 +194,31 @@ pub extern "C" fn cr_window_body(
     }
 }
 
+#[repr(C)]
+pub struct CursorHover {
+    settings: bool,
+    account: bool,
+}
+
+/// Enter through the settings handle. The gap between controls keeps a revealed
+/// account switcher open, and an open account menu survives pointer movement.
+#[unsafe(no_mangle)]
+pub extern "C" fn cr_window_cursor_hover(
+    expanded: bool,
+    settings_were_visible: bool,
+    menu_open: bool,
+    over_settings: bool,
+    over_account: bool,
+    inside_controls: bool,
+) -> CursorHover {
+    let settings =
+        expanded && (over_settings || menu_open || (settings_were_visible && inside_controls));
+    CursorHover {
+        settings,
+        account: settings && over_account,
+    }
+}
+
 #[derive(Default)]
 #[repr(C)]
 pub struct Handles {
