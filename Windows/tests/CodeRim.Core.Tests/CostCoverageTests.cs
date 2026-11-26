@@ -16,6 +16,20 @@ public sealed class CostCoverageTests
         Assert.Equal(0m, cost.Amount); Assert.False(cost.IsPartial); Assert.Empty(cost.ExcludedModels);
     }
 
+    private sealed class ProjectedList(UsageEvent row) : List<UsageEvent>, IEnumerable<UsageEvent>
+    {
+        IEnumerator<UsageEvent> IEnumerable<UsageEvent>.GetEnumerator() { yield return row; }
+    }
+
+    [Fact]
+    public void AListSubclassCanEnumerateUsageFromOutsideItsBackingList()
+    {
+        var rows = new ProjectedList(Event("projected", new(17, 2, 7, 0), "gpt-6-astra"));
+        var cost = UsageAnalytics.Estimate(rows);
+        Assert.Equal(0.000502m, cost.Amount);
+        Assert.Empty(cost.ExcludedModels);
+    }
+
     [Fact]
     public void ZeroUnknownModelDoesNotInvalidateMeasuredZero()
     {
