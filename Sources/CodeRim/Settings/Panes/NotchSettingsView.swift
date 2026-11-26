@@ -249,9 +249,7 @@ struct NotchSettingsView: View {
                                   isEnabled: !ollamaKeyDraft.isEmpty, action: saveOllamaKey)
                 if ollamaKeyStored {
                     SettingsButtonRow(title: "Remove", role: .destructive) {
-                        _ = OllamaCredentials.delete()
-                        ollamaKeyStored = false
-                        ollamaKeyDraft = ""
+                        editOllamaKey(.remove)
                     }
                 }
             }
@@ -273,11 +271,17 @@ struct NotchSettingsView: View {
     }
 
     private func saveOllamaKey() {
-        guard !ollamaKeyDraft.isEmpty else { return }
-        if OllamaCredentials.store(ollamaKeyDraft) {
-            ollamaKeyStored = true
-            ollamaKeyDraft = ""
+        editOllamaKey(.submit)
+    }
+
+    private func editOllamaKey(_ intent: OllamaKeyPolicy.Intent) {
+        let result = OllamaCredentials.edit(intent, draft: ollamaKeyDraft)
+        switch result.display {
+        case .keep: return
+        case .stored: ollamaKeyStored = true
+        case .absent: ollamaKeyStored = false
         }
+        ollamaKeyDraft = ""
     }
 
 }

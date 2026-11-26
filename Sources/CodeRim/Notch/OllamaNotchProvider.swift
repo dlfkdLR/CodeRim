@@ -70,10 +70,9 @@ enum OllamaCredentials {
 
     static func load(environment: [String: String] = ProcessInfo.processInfo.environment,
                      service: String = keychainService) -> String? {
-        if let env = environment["OLLAMA_API_KEY"], !env.isEmpty {
-            return env
+        OllamaKeyPolicy.resolve(environmentKey: environment["OLLAMA_API_KEY"]) {
+            NotchKeychain.read(service: service, account: keychainAccount)
         }
-        return NotchKeychain.read(service: service, account: keychainAccount)
     }
 
     static var isPresent: Bool { load() != nil }
@@ -86,9 +85,14 @@ enum OllamaCredentials {
 
     @discardableResult
     static func store(_ key: String, service: String = keychainService) -> Bool {
-        let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return delete(service: service) }
-        return NotchKeychain.store(trimmed, service: service, account: keychainAccount)
+        edit(.assign, draft: key, service: service).succeeded
+    }
+
+    static func edit(_ intent: OllamaKeyPolicy.Intent, draft: String, service: String = keychainService)
+        -> (succeeded: Bool, display: OllamaKeyPolicy.Display) {
+        OllamaKeyPolicy.edit(intent, draft: draft, write: {
+            NotchKeychain.store($0, service: service, account: keychainAccount)
+        }, remove: { delete(service: service) })
     }
 
     @discardableResult
