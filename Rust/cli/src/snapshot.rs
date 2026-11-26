@@ -14,7 +14,7 @@ pub const UNAVAILABLE: &str =
 const FILE_LIMIT: u64 = 1_048_576;
 
 #[derive(Clone, Copy, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", try_from = "String")]
 pub enum State {
     Ready,
     Partial,
@@ -25,6 +25,23 @@ pub enum State {
     NeedsAuth,
     AccessDenied,
     Unsupported,
+}
+impl TryFrom<String> for State {
+    type Error = &'static str;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        match value.as_str() {
+            "ready" => Ok(Self::Ready),
+            "partial" => Ok(Self::Partial),
+            "stale" => Ok(Self::Stale),
+            "loading" => Ok(Self::Loading),
+            "disabled" => Ok(Self::Disabled),
+            "unavailable" => Ok(Self::Unavailable),
+            "needsAuth" => Ok(Self::NeedsAuth),
+            "accessDenied" => Ok(Self::AccessDenied),
+            "unsupported" => Ok(Self::Unsupported),
+            _ => Err("unknown companion state"),
+        }
+    }
 }
 impl State {
     pub fn readable(self) -> bool {
@@ -80,6 +97,7 @@ pub struct Snapshot {
     #[serde(deserialize_with = "crate::integer::required")]
     pub schema_version: i64,
     pub generated_at: Date,
+    #[serde(deserialize_with = "crate::record::list")]
     pub providers: Vec<Provider>,
 }
 
@@ -91,11 +109,14 @@ pub struct Provider {
     pub enabled: bool,
     pub fidelity: String,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, deserialize_with = "crate::record::optional")]
     pub local_usage: Option<LocalUsage>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(default, deserialize_with = "crate::record::optional")]
     pub history: Option<History>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plan: Option<String>,
+    #[serde(deserialize_with = "crate::record::required")]
     pub limits: Limits,
 }
 
@@ -108,6 +129,7 @@ pub struct LocalUsage {
     pub updated_at: Option<Date>,
     pub periods_as_of: Date,
     pub time_zone_identifier: String,
+    #[serde(deserialize_with = "crate::record::dictionary")]
     pub totals: BTreeMap<String, Tokens>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub history_complete: Option<bool>,
@@ -119,6 +141,7 @@ pub struct Limits {
     pub state: State,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub updated_at: Option<Date>,
+    #[serde(deserialize_with = "crate::record::list")]
     pub windows: Vec<Window>,
     pub stale_after_seconds: f64,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -158,6 +181,7 @@ pub struct History {
     pub state: State,
     pub updated_at: Date,
     pub time_zone_identifier: String,
+    #[serde(deserialize_with = "crate::record::list")]
     pub days: Vec<Day>,
     #[serde(deserialize_with = "crate::integer::required")]
     pub total_tokens: i64,
@@ -261,7 +285,8 @@ pub fn read(path: &str, filter: &str, now: f64) -> Result<Snapshot, &'static str
         return Err(INVALID);
     }
     let doc = crate::encoding::utf8(&data).ok_or(UNAVAILABLE)?;
-    let mut snapshot: Snapshot = serde_json::from_slice(&doc).map_err(|_| UNAVAILABLE)?;
+    let crate::record::Record(mut snapshot): crate::record::Record<Snapshot> =
+        serde_json::from_slice(&doc).map_err(|_| UNAVAILABLE)?;
     if snapshot.schema_version != 1 {
         return Err("Update the CodeRim CLI to read this snapshot version.");
     }
@@ -269,7 +294,7 @@ pub fn read(path: &str, filter: &str, now: f64) -> Result<Snapshot, &'static str
     if !snapshot
         .providers
         .iter()
-        .all(|p| ids.insert(&p.id) && p.valid())
+        .all(|p| ids.insert(platform::normalized_key(&p.id)) && p.valid())
     {
         return Err(INVALID);
     }

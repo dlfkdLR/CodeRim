@@ -129,7 +129,7 @@ fn section(p: &Provider, o: &Options, now: f64) -> String {
             let value = w
                 .display_value
                 .clone()
-                .or_else(|| percent.map(|v| format!("{v:.1}% left")))
+                .or_else(|| percent.map(platform::percent))
                 .or_else(|| {
                     w.remaining_count
                         .map(|v| format!("{} left", platform::integer(v)))
@@ -260,7 +260,10 @@ fn section(p: &Provider, o: &Options, now: f64) -> String {
                 } else {
                     ("Est. API cost", "")
                 };
-                lines.extend(wrap(label, &format!("${amount:.2} · 30 days{suffix}")));
+                lines.extend(wrap(
+                    label,
+                    &format!("{} · 30 days{suffix}", platform::money(amount)),
+                ));
             }
         }
     }

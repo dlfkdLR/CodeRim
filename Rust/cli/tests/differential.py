@@ -99,7 +99,12 @@ def main():
                               "2024-01-02T08:00:00+09","2024-1-2T8:00:00Z",
                               "2024-01-02T08:00:00.999999999Z","2024-09-31T08:00:00Z",
                               "2024-01-02T24:00:00Z","2024-01-02T08:00:60Z",
-                              "2024-01-02T08:00:00Zsuffix"]:
+                              "2024-01-02T08:00:00Zsuffix","0000-01-01T00:00:00+18",
+                              "0001-01-01T00:00:00Z","1500-02-29T00:00:00Z",
+                              "1582-10-04T23:59:59-01:00","1582-10-05T00:00:00Z",
+                              "1582-10-14T00:00:00Z","1582-10-15T00:00:00Z",
+                              "10000-01-01T00:00:00Z","100000-01-01T00:00:00Z",
+                              "999999-01-01T00:00:00Z","2001-01-01T00:00:00+01:"]:
             save(dict(data,generatedAt=stamp_variant))
             checked("dates",["--json"])
         for number in [0.0,-0.0,0.0001,1e-5,1e-7,1.2300000000000003e-5,1e16,1e308]:
@@ -115,6 +120,53 @@ def main():
         for encoding in ["utf-8-sig","utf-16","utf-16-le","utf-16-be","utf-32","utf-32-le","utf-32-be"]:
             path.write_bytes(json.dumps(data).encode(encoding))
             checked("JSON document encoding", ["--json"])
+        rounded = copy.deepcopy(data)
+        provider_with_usage = rounded["providers"][0]
+        provider_with_usage["limits"]["windows"][0]["usedPercent"] = 12.35
+        provider_with_usage["history"]["estimatedCostUSD"] = 2.675
+        provider_with_usage["localUsage"]["totals"]["Cafe\u0301"] = tokens()
+        provider_with_usage["localUsage"]["totals"]["Café"] = {
+            "inputTokens": 1, "cachedInputTokens": 0, "outputTokens": 1,
+        }
+        save(rounded)
+        for width in ["40", "96"]:
+            for color in ["always", "never"]:
+                checked("POSIX rounding and Unicode width", ["--width", width, "--color", color])
+        for flags in [["--json"], ["--json", "--pretty"]]:
+            checked("canonically equivalent period keys", flags)
+        for key, first_value, duplicate in [
+            ("schemaVersion", "1", "2"), ("schemaVersion", "2", "1"),
+            ("inputTokens", "9223372036854775807", "null"),
+            ("fidelity", '"official"', "null"),
+        ]:
+            raw = json.dumps(data)
+            field = json.dumps(key) + ": " + first_value
+            if key == "schemaVersion" and first_value == "2":
+                raw = raw.replace('"schemaVersion": 1', '"schemaVersion": 2', 1)
+            assert field in raw
+            path.write_text(raw.replace(field, field + ", " + json.dumps(key) + ": " + duplicate, 1))
+            checked("first occurrence of a key", ["--json"])
+        for location in [[], ["providers", 0], ["providers", 0, "limits"],
+                         ["providers", 0, "limits", "windows", 0], ["providers", 0, "localUsage"],
+                         ["providers", 0, "localUsage", "totals", "today"],
+                         ["providers", 0, "history"], ["providers", 0, "history", "days", 0]]:
+            value = copy.deepcopy(data)
+            if location:
+                parent = value
+                for step in location[:-1]:
+                    parent = parent[step]
+                key = location[-1]
+                parent[key] = list(parent[key].values())
+            else:
+                value = list(value.values())
+            save(value)
+            checked("require keyed schema records", ["--json"])
+        for ids in [("Café", "Cafe\u0301"), ("한", "\u1112\u1161\u11ab"),
+                    ("Café\u0000", "Cafe\u0301\u0000")]:
+            value = copy.deepcopy(data)
+            value["providers"][0]["id"], value["providers"][1]["id"] = ids
+            save(value)
+            checked("canonically equivalent provider IDs", ["--json", "--provider", "all"])
         cases=[]
         def mutation(changed):
             result=copy.deepcopy(data)
@@ -131,6 +183,9 @@ def main():
         mutation(lambda v:v["providers"][0]["limits"]["windows"][0].update(remainingCount=-1))
         mutation(lambda v:v["providers"][0]["limits"].update(state="unknown"))
         mutation(lambda v:v["providers"][0].pop("name"))
+        mutation(lambda v:v["providers"][0]["limits"].update(state={"ready": None}))
+        mutation(lambda v:v["providers"][0]["localUsage"].update(state={"partial": None}))
+        mutation(lambda v:v["providers"][0]["history"].update(state={"stale": None}))
         for doc in cases:
             save(doc)
             checked("invalid snapshot",["--json"])

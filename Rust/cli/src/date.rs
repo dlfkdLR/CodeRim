@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDate, SecondsFormat};
+use crate::platform::{self, DateParts};
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 
 // Foundation's Date stores seconds relative to 2001. Round the fraction at that
@@ -11,9 +11,17 @@ impl Date {
         self.0 + REFERENCE as f64
     }
     pub fn iso(self) -> String {
-        DateTime::from_timestamp(self.0.floor() as i64 + REFERENCE, 0)
-            .expect("validated date")
-            .to_rfc3339_opts(SecondsFormat::Secs, true)
+        let p = platform::date_parts(self.0);
+        format!(
+            "{}{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z",
+            if p.year < 0 { "-" } else { "" },
+            p.year.unsigned_abs(),
+            p.month,
+            p.day,
+            p.hour,
+            p.minute,
+            p.second
+        )
     }
     fn parse(s: &str) -> Option<Self> {
         let (year, rest) = s.split_once('-')?;
@@ -22,12 +30,12 @@ impl Date {
         let (hour, rest) = rest.split_once(':')?;
         let (minute, rest) = rest.split_once(':')?;
         let (second, mut zone) = digits(rest, usize::MAX)?;
-        let year = i32::try_from(unsigned(year)?).ok()?;
+        let year = i64::from(unsigned(year)?);
+        let month = unsigned(month)?;
         let day = unsigned(day)?;
-        if !(1..=31).contains(&day) {
+        if !(1..=31).contains(&day) || !(1..=12).contains(&month) {
             return None;
         }
-        let day_one = NaiveDate::from_ymd_opt(year, unsigned(month)?, 1)?.and_hms_opt(0, 0, 0)?;
         let mut fraction = 0.0;
         if let Some(rest) = zone.strip_prefix('.') {
             let (num, remaining) = digits(rest, usize::MAX)?;
@@ -39,15 +47,15 @@ impl Date {
             zone = remaining;
         }
         let offset = zone_offset(zone)?;
-        let seconds = day_one.and_utc().timestamp() - REFERENCE
-            + i64::from(day - 1) * 86400
-            + i64::from(unsigned(hour)?) * 3600
-            + i64::from(unsigned(minute)?) * 60
-            + i64::from(second)
-            - offset;
-        let date = Self(seconds as f64 + fraction);
-        DateTime::from_timestamp(date.0.floor() as i64 + REFERENCE, 0)?;
-        Some(date)
+        let value = platform::reference_date(DateParts {
+            year,
+            month: month.into(),
+            day: day.into(),
+            hour: unsigned(hour)?.into(),
+            minute: unsigned(minute)?.into(),
+            second: second.into(),
+        })?;
+        Some(Self(value - offset as f64 + fraction))
     }
 }
 fn unsigned(s: &str) -> Option<u32> {
@@ -71,12 +79,17 @@ fn zone_offset(s: &str) -> Option<i64> {
         (-1, s.strip_prefix('-')?)
     };
     let (h, rest) = digits(rest, 2)?;
-    let rest = rest.strip_prefix(':').unwrap_or(rest);
-    let (m, rest) = digits(rest, 2).unwrap_or((0, rest));
-    let rest = rest.strip_prefix(':').unwrap_or(rest);
-    let (sec, _) = digits(rest, 2).unwrap_or((0, rest));
+    let (m, rest) = zone_component(rest)?;
+    let (sec, _) = zone_component(rest)?;
     let offset = i64::from(h) * 3600 + i64::from(m) * 60 + i64::from(sec);
     (offset <= 18 * 3600).then_some(offset * sign)
+}
+fn zone_component(s: &str) -> Option<(u32, &str)> {
+    if let Some(rest) = s.strip_prefix(':') {
+        digits(rest, 2)
+    } else {
+        Some(digits(s, 2).unwrap_or((0, s)))
+    }
 }
 impl<'de> Deserialize<'de> for Date {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {

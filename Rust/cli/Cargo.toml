@@ -15,7 +15,6 @@ path = "src/main.rs"
 required-features = ["macos-companion"]
 
 [target.'cfg(target_os = "macos")'.dependencies]
-chrono = { version = "0.4", default-features = false, features = ["std"] }
 libc = "0.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value", "float_roundtrip"] }

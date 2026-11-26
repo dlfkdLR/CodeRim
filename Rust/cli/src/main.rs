@@ -15,6 +15,8 @@ mod options;
 #[cfg(target_os = "macos")]
 mod platform;
 #[cfg(target_os = "macos")]
+mod record;
+#[cfg(target_os = "macos")]
 mod snapshot;
 #[cfg(target_os = "macos")]
 mod terminal;

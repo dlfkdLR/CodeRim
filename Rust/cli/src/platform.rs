@@ -1,6 +1,20 @@
 use std::ffi::{CStr, CString, c_char};
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct DateParts {
+    pub year: i64,
+    pub month: i64,
+    pub day: i64,
+    pub hour: i64,
+    pub minute: i64,
+    pub second: i64,
+}
 unsafe extern "C" {
+    fn cr_cli_reference_date(parts: DateParts, seconds: *mut f64) -> i32;
+    fn cr_cli_date_parts(seconds: f64) -> DateParts;
+    fn cr_cli_format_reading(value: f64, money: i32) -> *mut c_char;
+    fn cr_cli_normalized_key(bytes: *const u8, length: usize, size: *mut usize) -> *mut u8;
     fn cr_cli_path(provided: *const c_char) -> *mut c_char;
     fn cr_cli_version(executable: *const c_char) -> *mut c_char;
     fn cr_cli_format_integer(value: i64) -> *mut c_char;
@@ -59,4 +73,33 @@ pub fn control(c: char) -> bool {
 }
 pub fn terminal_width() -> usize {
     unsafe { cr_cli_terminal_width() as usize }
+}
+
+pub fn reference_date(parts: DateParts) -> Option<f64> {
+    let mut seconds = 0.0;
+    (unsafe { cr_cli_reference_date(parts, &mut seconds) } != 0).then_some(seconds)
+}
+pub fn date_parts(seconds: f64) -> DateParts {
+    unsafe { cr_cli_date_parts(seconds) }
+}
+pub fn percent(value: f64) -> String {
+    copied(unsafe { cr_cli_format_reading(value, 0) }).expect("finite percentage")
+}
+pub fn money(value: f64) -> String {
+    copied(unsafe { cr_cli_format_reading(value, 1) }).expect("finite cost")
+}
+pub fn normalized_key(key: &str) -> std::borrow::Cow<'_, str> {
+    if key.is_ascii() {
+        return key.into();
+    }
+    let mut size = 0;
+    // The native helper returns malloc-owned UTF-8 with an explicit length.
+    // JSON keys may contain NUL, so the C-string copy helper cannot be used.
+    let bytes = unsafe { cr_cli_normalized_key(key.as_ptr(), key.len(), &mut size) };
+    assert!(!bytes.is_null(), "failed to normalize UTF-8");
+    let normalized = unsafe { std::slice::from_raw_parts(bytes, size) }.to_owned();
+    unsafe { libc::free(bytes.cast()) };
+    String::from_utf8(normalized)
+        .expect("Foundation UTF-8 data")
+        .into()
 }
