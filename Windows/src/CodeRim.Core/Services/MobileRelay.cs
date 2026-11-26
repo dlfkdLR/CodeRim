@@ -26,7 +26,7 @@ public static class MobilePairingLink
         "CODERIM-PAIR-1\n" + relay.AbsoluteUri.TrimEnd('/') + "\n" + offer.Id + "\n" + offer.Secret;
 }
 
-public static class MobileSnapshotBuilder
+public static partial class MobileSnapshotBuilder
 {
     private static readonly JsonSerializerOptions Compare = new(JsonSerializerDefaults.Web);
     /// <summary>The free relay can afford changes as they happen plus a heartbeat every few minutes.</summary>
@@ -51,6 +51,10 @@ public static class MobileSnapshotBuilder
                 local is { Stale: true } ? "stale" : local?.State ?? "unavailable", Seconds(reading.UpdatedAt));
         }).ToArray();
         var enabled = providers.Select(p => p.Id).ToHashSet(StringComparer.Ordinal);
+#if CODERIM_RUST_ACCOUNTING
+        if (TrySelectSessions(sessions, enabled, shareTitles) is { } selected)
+            return new(1, now.ToUnixTimeMilliseconds() / 1000d, providers, selected);
+#endif
         var activity = sessions.Where(s => enabled.Contains(s.Provider)).Select(s => new MobileSession(s.Provider,
             s.State switch { "busy" => "working", "waiting" => "waiting", "idle" => "idle", _ => "unavailable" },
             shareTitles ? Short(s.Name, 60) : "", Seconds(s.Since)))
