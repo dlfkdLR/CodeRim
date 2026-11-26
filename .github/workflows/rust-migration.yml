@@ -299,6 +299,7 @@ jobs:
           cmp Rust/cli/THIRD-PARTY-NOTICES.txt "$app/Contents/Resources/Rust-CLI-Notices.txt"
 
       - name: Verify offline install from the release ZIP and DMG
+        id: package
         run: python3 Scripts/rust_migration/check_macos_package.py --require-rust-widget --require-restart-helper "$RUNNER_TEMP/rust-app/CodeRim.app" "$RUNNER_TEMP/migration-packages"
       - name: Observe the production update restart callback and bounded AppKit veto
         run: |
@@ -317,7 +318,20 @@ jobs:
           ditto -x -k reference.zip .
           python3 "$GITHUB_WORKSPACE/Scripts/rust_migration/check_macos_data_rollback.py" \
             "$reference/CodeRim.app" "$RUNNER_TEMP/rust-app/CodeRim.app" "$RUNNER_TEMP/migration-packages/rollback.json"
+      - name: Preserve verified test installers for this commit
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: macos-migration-qa-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/migration-packages/*.zip
+            ${{ runner.temp }}/migration-packages/*.dmg
+            ${{ runner.temp }}/migration-packages/SHA256SUMS.txt
+          retention-days: 3
+          compression-level: 0
+          if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         with:
           name: macos-migration-installation
           path: |
