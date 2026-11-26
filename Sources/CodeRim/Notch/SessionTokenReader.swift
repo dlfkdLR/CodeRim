@@ -1,5 +1,4 @@
 import CSQLite
-import CryptoKit
 import Foundation
 
 /// Reuse imported, deduplicated usage rather than summing cumulative transcript counters.
@@ -13,8 +12,7 @@ enum SessionTokenReader {
             let raw = provider == .codex ? session.codexThreadID : session.usageSessionID
             guard let raw, !raw.isEmpty, raw.utf8.count <= 256 else { return nil }
             let material = provider == .codex ? raw : "claude-session|\(raw)"
-            let stored = SHA256.hash(data: Data(material.utf8)).map { String(format: "%02x", $0) }.joined()
-            return (session.id, stored)
+            return (session.id, UsageStorageIdentity.digest(material))
         }
         guard !identities.isEmpty, let db = SQLiteStore.open(databaseURL) else { return [:] }
         defer { sqlite3_close(db) }
