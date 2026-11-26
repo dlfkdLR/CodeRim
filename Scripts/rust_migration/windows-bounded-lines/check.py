@@ -108,19 +108,31 @@ def main():
                 record[kind] = {unit:statistics.median(row[i][unit] for row in rounds) for unit in ["us","bytes"]}
             medians.append(record)
         report["medians"] = medians
-        cold = {str(size):{kind:[] for kind in roots} for size in (0,5,4095,4096,4097,16384,32768,65536,65537,131072)}
-        for size, variants in cold.items():
-            for pair in range(max(5, args.pairs)):
+        sizes = (0,5,4095,4096,4097,16384,32768,65536,65537,131072)
+        jit_settings = {"tieredcompilation", "tieredcompilation_quickjit", "tieredcompilation_quickjitforloops",
+                        "tieredpgo", "readytorun"}
+        controlled = {prefix + setting for prefix in ("dotnet_", "complus_") for setting in jit_settings}
+        default_env = {key:value for key,value in env.items() if key.lower() not in controlled}
+        environments = {"tieredOff":{**default_env, "DOTNET_TieredCompilation":"0"}, "runtimeDefault":default_env}
+        cold = {policy:{str(size):{kind:[] for kind in roots} for size in sizes} for policy in environments}
+        for size in sizes:
+            for pair in range(5):
                 order = list(roots)
                 shift = pair % len(order)
-                for kind in order[shift:] + order[:shift]:
-                    # A new process per case includes the first managed JIT and native library load.
-                    # Setup of the managed MemoryStream and SHA object precedes the timer.
-                    output = subprocess.check_output([dotnet, binaries[kind], "first", size], env=env)
-                    variants[kind].append(json.loads(output))
-        report["coldProcessSamples"] = cold
-        report["coldProcessMedians"] = {size:{kind:{k:statistics.median(x[k] for x in values) for k in ("us","bytes")}
-                                               for kind,values in variants.items()} for size,variants in cold.items()}
+                policies = list(environments) if pair % 2 == 0 else reversed(environments)
+                for policy in policies:
+                    for kind in order[shift:] + order[:shift]:
+                        # One fresh process per first enumeration. Stream and SHA initialization precede the timer.
+                        output = subprocess.check_output([dotnet, binaries[kind], "first", str(size)], env=environments[policy])
+                        cold[policy][str(size)][kind].append(json.loads(output))
+        report["coldProcessEnvironment"] = {
+            "coldProcessSamples":"tieredOff", "defaultJitColdProcessSamples":"runtimeDefault", "pairsPerPolicy":5,
+            "runtimeDefault":"Tiering, dynamic PGO, QuickJIT, and ReadyToRun environment overrides removed",
+        }
+        for policy,key in [("tieredOff","coldProcess"),("runtimeDefault","defaultJitColdProcess")]:
+            report[key + "Samples"] = cold[policy]
+            report[key + "Medians"] = {size:{kind:{unit:statistics.median(r[unit] for r in values) for unit in ("us","bytes")}
+                                               for kind,values in variants.items()} for size,variants in cold[policy].items()}
     args.output.write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
     print(f"{len(cases)} bounded stream traces and {scan['count']} actual scanner events; {args.pairs} timing pairs")
 
