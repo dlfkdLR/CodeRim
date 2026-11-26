@@ -33,6 +33,8 @@ internal static partial class NativeSmoke
             Task<JsonElement> Rpc(string executable, string method, IReadOnlyDictionary<string, string?> environment, CancellationToken token)
             {
                 _ = Home(environment); token.ThrowIfCancellationRequested();
+                if (OwnedProviderAccess.Enabled && executable == "synthetic.exe" && method == "config/read")
+                    return Task.FromResult(Json("""{"config":{"cli_auth_credentials_store":"file","forced_chatgpt_workspace_id":"synthetic-org"}}"""));
                 Require(executable == "synthetic.exe" && method == "account/read", "Sign-in made an unexpected RPC.");
                 return Task.FromResult(!loggedIn && scenario != "not-isolated" ? Json("{\"account\":null}")
                     : Json(scenario == "wrong-account" ? """{"account":{"type":"chatgpt","email":"wrong@example.invalid"}}"""

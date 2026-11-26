@@ -2,6 +2,11 @@ using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
+using System.Windows;
+using System.Windows.Automation;
+using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
+using Button = System.Windows.Controls.Button;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Providers;
 using CodeRim.Core.Services;
@@ -91,5 +96,57 @@ internal static partial class NativeSmoke
                 historicalLabelPreserved = true, missingSentRequests = 0, officialDevice = signed.SignedIn, vaultRestored = true, apiKey = true, httpRequests = requests.Count });
         }
         finally { Directory.Delete(root, recursive: true); }
+    }
+
+    // The packaged smoke opens the production Settings page within its synthetic application profile.
+    private static async Task OwnedConnectionViewsRegression(DashboardWindow dashboard, CredentialVault vault, string directory)
+    {
+        foreach (var id in new[] { "cursor", "jetbrains", "kiro", "perplexity" })
+        {
+            dashboard.Navigate(id); await Idle();
+            Require(!Descendants<Button>(dashboard).Any(button => button.Content is string title &&
+                    (title.Contains("Import", StringComparison.OrdinalIgnoreCase) || title.Contains("browser profile", StringComparison.OrdinalIgnoreCase))),
+                "An external credential action appeared in " + id + " Settings.");
+        }
+        dashboard.Navigate("ollama"); await Idle();
+        T Control<T>(string id) where T : UIElement =>
+            Descendants<T>(dashboard).Single(control => AutomationProperties.GetAutomationId(control) == "ollama." + id);
+        var draft = Control<PasswordBox>("key");
+        var save = Control<Button>("save");
+        var remove = Control<Button>("remove");
+        var feedback = Control<TextBlock>("feedback");
+        const string slot = "provider:ollama";
+        static void Click(Button button) => button.RaiseEvent(new RoutedEventArgs(ButtonBase.ClickEvent));
+        Require(vault.Load(slot) is null && !save.IsEnabled && !remove.IsEnabled, "Unexpected initial key controls.");
+        draft.Password = " synthetic-key-one "; Click(save);
+        Require(vault.Load(slot) == "synthetic-key-one" && !save.IsEnabled && remove.IsEnabled
+            && Equals(save.Content, "Replace API key") && feedback.Text == "Saved.", "Saved key and displayed state disagree.");
+        draft.Password = " 	  ";
+        Click(save);
+        Require(!save.IsEnabled && vault.Load(slot) == "synthetic-key-one", "A whitespace replacement changed the key.");
+        draft.Password = "synthetic-key-two";
+        var prior = vault.Version(slot);
+        var entry = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(slot))) + ".bin";
+        var encrypted = Path.Combine(CompanionFile.DataDirectory, "vault", entry);
+        using (File.Open(encrypted, FileMode.Open, FileAccess.Read, FileShare.Read))
+        {
+            Click(save);
+            Require(draft.Password == "synthetic-key-two" && feedback.Text == "Could not save the key." && vault.Version(slot) == prior,
+                "A rejected replacement changed the draft, key or success feedback.");
+            Click(remove);
+            Require(feedback.Text == "Could not remove the saved key." && remove.IsEnabled && vault.Version(slot) == prior,
+                "A rejected removal hid the saved key.");
+        }
+        Click(save);
+        Require(new CredentialVault().Load(slot) == "synthetic-key-two" && feedback.Text == "Saved.", "Key replacement did not persist.");
+        Click(remove);
+        Require(new CredentialVault().Load(slot) is null && !remove.IsEnabled && Equals(save.Content, "Save API key")
+            && feedback.Text == "Removed.", "Key removal did not persist.");
+        File.WriteAllText(Path.Combine(directory, "windows-owned-connection-settings.json"), JsonSerializer.Serialize(new
+        {
+            blankRejected = true, previousKeyPreserved = true, failedReplacementPreservesDraft = true,
+            failedRemovalPreservesState = true, replacedKeyReopened = true, removedKeyReopened = true
+        }));
+        dashboard.Navigate("usage"); await Idle();
     }
 }

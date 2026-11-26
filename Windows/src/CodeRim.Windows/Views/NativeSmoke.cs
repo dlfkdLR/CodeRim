@@ -119,76 +119,78 @@ internal static partial class NativeSmoke
         Record("Invalid saved iPhone relay credential fails closed and is removed");
         await UiErrorRecoveryRegression(notch, settings, vault, directory);
         Record("Relay null reply retries, and failed notch gesture/menu saves retain the saved state");
-        var pendingImport = new TaskCompletionSource<BrowserCookieJar>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var importSaved = false; CancellationToken pendingReadToken = default;
-        vault.Save("cookie:qoder", "manual-fixture");
-        var importWindow = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => importSaved = true,
-            [new("Synthetic profile", "unused-fixture-directory")], (_, token) => { pendingReadToken = token; return pendingImport.Task; },
-            (_, _) => Task.FromResult(new ProviderReading("qoder", ReadingState.Ready, [])));
-        importWindow.Show(); await Idle();
-        var importButton = Descendants<Button>(importWindow).Single(x => Equals(x.Content, "Import sign-in"));
-        importButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        importWindow.Close();
-        Require(pendingReadToken.IsCancellationRequested, "Closing import did not cancel its read");
-        pendingImport.SetResult(new BrowserCookieJar([new("session", "fixture", ".qoder.com", "/", true, false, 0)], ["qoder.com", "qoder.com.cn"]));
-        await Until(() => importButton.IsEnabled, "Cancelled import did not finish");
-        Require(!importSaved && vault.Load("browser:qoder") is null && vault.Load("cookie:qoder") == "manual-fixture", "Closing browser import still changed credentials");
-        var successfulImport = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => importSaved = true,
-            [new("Synthetic profile", "unused-fixture-directory")], (_, _) => Task.FromResult(new BrowserCookieJar([new("session", "fixture", ".qoder.com", "/", true, false, 0)], ["qoder.com", "qoder.com.cn"])),
-            (_, _) => Task.FromResult(new ProviderReading("qoder", ReadingState.Ready, [])));
-        successfulImport.Show(); await Idle();
-        Descendants<Button>(successfulImport).Single(x => Equals(x.Content, "Import sign-in")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        await Idle();
-        Require(importSaved && vault.Load("browser:qoder") is not null && vault.Load("cookie:qoder") == "manual-fixture", "Browser import did not preserve manual fallback");
-        var savedJar = vault.Load("browser:qoder");
-        var rejectedImport = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => throw new InvalidOperationException("Rejected import was saved"),
-            [new("Synthetic profile", "unused-fixture-directory")],
-            (_, _) => Task.FromResult(new BrowserCookieJar([new("analytics", "not-auth", ".qoder.com", "/", true, false, 0)], ["qoder.com", "qoder.com.cn"])),
-            (_, _) => Task.FromResult(new ProviderReading("qoder", ReadingState.NeedsAuth, [])));
-        rejectedImport.Show(); await Idle();
-        Descendants<Button>(rejectedImport).Single(x => Equals(x.Content, "Import sign-in")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-        await Idle();
-        Require(vault.Load("browser:qoder") == savedJar, "Failed provider verification overwrote the previous imported account");
-        Require(Descendants<TextBlock>(rejectedImport).Single(x => AutomationProperties.GetAutomationId(x) == "browser-import.status").Text.Contains("Existing connections were kept", StringComparison.Ordinal), "Import failure was not visible");
-        rejectedImport.Close();
-        var verificationPending = new TaskCompletionSource<ProviderReading>(TaskCreationOptions.RunContinuationsAsynchronously);
-        CancellationToken verifyToken = default;
-        var verifyingImport = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => throw new InvalidOperationException("Closed verification was saved"),
-            [new("Synthetic profile", "unused-fixture-directory")],
-            (_, _) => Task.FromResult(new BrowserCookieJar([new("session", "another-fixture", ".qoder.com", "/", true, false, 0)], ["qoder.com", "qoder.com.cn"])),
-            (_, token) => { verifyToken = token; return verificationPending.Task; });
-        verifyingImport.Show(); await Idle();
-        var verifyButton = Descendants<Button>(verifyingImport).Single(x => Equals(x.Content, "Import sign-in"));
-        verifyButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
-        Require(verifyToken.CanBeCanceled, "Verification did not receive its lifetime token");
-        verifyingImport.Close(); Require(verifyToken.IsCancellationRequested, "Closing import did not cancel verification");
-        verificationPending.SetResult(new ProviderReading("qoder", ReadingState.Ready, []));
-        await Until(() => verifyButton.IsEnabled, "Closed verification did not finish");
-        Require(vault.Load("browser:qoder") == savedJar, "Closed verification replaced the saved connection");
-        foreach (var conflict in new[] { "created", "replaced", "deleted" })
+        if (!OwnedProviderAccess.Enabled)
         {
-            if (conflict == "created") vault.Delete("browser:qoder"); else vault.Save("browser:qoder", savedJar!);
-            var pending = new TaskCompletionSource<ProviderReading>(TaskCreationOptions.RunContinuationsAsynchronously);
-            var lateSaved = false;
-            var late = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => lateSaved = true,
-                [new("Synthetic profile", "fixture-only")],
-                (_, _) => Task.FromResult(BrowserCookieJar.Parse(savedJar!, ["qoder.com", "qoder.com.cn"])),
-                (_, _) => pending.Task);
-            late.Show(); await Idle();
-            var submit = Descendants<Button>(late).Single(button => Equals(button.Content, "Import sign-in"));
-            submit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
-            if (conflict == "deleted") vault.Delete("browser:qoder"); else vault.Save("browser:qoder", "replacement-fixture");
-            pending.SetResult(new ProviderReading("qoder", ReadingState.Ready, []));
-            await Until(() => submit.IsEnabled, "Conflicting import did not finish.");
-            Require(!lateSaved && vault.Load("browser:qoder") == (conflict == "deleted" ? null : "replacement-fixture"),
-                "Late browser verification overwrote a changed connection.");
-            Require(Descendants<TextBlock>(late).Any(text => text.Text == "The saved connection changed. Reopen this connection."),
-                "Browser import conflict was not visible.");
-            late.Close();
+            var pendingImport = new TaskCompletionSource<BrowserCookieJar>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var importSaved = false; CancellationToken pendingReadToken = default;
+            vault.Save("cookie:qoder", "manual-fixture");
+            var importWindow = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => importSaved = true,
+                [new("Synthetic profile", "unused-fixture-directory")], (_, token) => { pendingReadToken = token; return pendingImport.Task; },
+                (_, _) => Task.FromResult(new ProviderReading("qoder", ReadingState.Ready, [])));
+            importWindow.Show(); await Idle();
+            var importButton = Descendants<Button>(importWindow).Single(x => Equals(x.Content, "Import sign-in"));
+            importButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            importWindow.Close();
+            Require(pendingReadToken.IsCancellationRequested, "Closing import did not cancel its read");
+            pendingImport.SetResult(new BrowserCookieJar([new("session", "fixture", ".qoder.com", "/", true, false, 0)], ["qoder.com", "qoder.com.cn"]));
+            await Until(() => importButton.IsEnabled, "Cancelled import did not finish");
+            Require(!importSaved && vault.Load("browser:qoder") is null && vault.Load("cookie:qoder") == "manual-fixture", "Closing browser import still changed credentials");
+            var successfulImport = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => importSaved = true,
+                [new("Synthetic profile", "unused-fixture-directory")], (_, _) => Task.FromResult(new BrowserCookieJar([new("session", "fixture", ".qoder.com", "/", true, false, 0)], ["qoder.com", "qoder.com.cn"])),
+                (_, _) => Task.FromResult(new ProviderReading("qoder", ReadingState.Ready, [])));
+            successfulImport.Show(); await Idle();
+            Descendants<Button>(successfulImport).Single(x => Equals(x.Content, "Import sign-in")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Idle();
+            Require(importSaved && vault.Load("browser:qoder") is not null && vault.Load("cookie:qoder") == "manual-fixture", "Browser import did not preserve manual fallback");
+            var savedJar = vault.Load("browser:qoder");
+            var rejectedImport = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => throw new InvalidOperationException("Rejected import was saved"),
+                [new("Synthetic profile", "unused-fixture-directory")],
+                (_, _) => Task.FromResult(new BrowserCookieJar([new("analytics", "not-auth", ".qoder.com", "/", true, false, 0)], ["qoder.com", "qoder.com.cn"])),
+                (_, _) => Task.FromResult(new ProviderReading("qoder", ReadingState.NeedsAuth, [])));
+            rejectedImport.Show(); await Idle();
+            Descendants<Button>(rejectedImport).Single(x => Equals(x.Content, "Import sign-in")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Idle();
+            Require(vault.Load("browser:qoder") == savedJar, "Failed provider verification overwrote the previous imported account");
+            Require(Descendants<TextBlock>(rejectedImport).Single(x => AutomationProperties.GetAutomationId(x) == "browser-import.status").Text.Contains("Existing connections were kept", StringComparison.Ordinal), "Import failure was not visible");
+            rejectedImport.Close();
+            var verificationPending = new TaskCompletionSource<ProviderReading>(TaskCreationOptions.RunContinuationsAsynchronously);
+            CancellationToken verifyToken = default;
+            var verifyingImport = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => throw new InvalidOperationException("Closed verification was saved"),
+                [new("Synthetic profile", "unused-fixture-directory")],
+                (_, _) => Task.FromResult(new BrowserCookieJar([new("session", "another-fixture", ".qoder.com", "/", true, false, 0)], ["qoder.com", "qoder.com.cn"])),
+                (_, token) => { verifyToken = token; return verificationPending.Task; });
+            verifyingImport.Show(); await Idle();
+            var verifyButton = Descendants<Button>(verifyingImport).Single(x => Equals(x.Content, "Import sign-in"));
+            verifyButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+            Require(verifyToken.CanBeCanceled, "Verification did not receive its lifetime token");
+            verifyingImport.Close(); Require(verifyToken.IsCancellationRequested, "Closing import did not cancel verification");
+            verificationPending.SetResult(new ProviderReading("qoder", ReadingState.Ready, []));
+            await Until(() => verifyButton.IsEnabled, "Closed verification did not finish");
+            Require(vault.Load("browser:qoder") == savedJar, "Closed verification replaced the saved connection");
+            foreach (var conflict in new[] { "created", "replaced", "deleted" })
+            {
+                if (conflict == "created") vault.Delete("browser:qoder"); else vault.Save("browser:qoder", savedJar!);
+                var pending = new TaskCompletionSource<ProviderReading>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var lateSaved = false;
+                var late = BrowserConnections.CreateDialog(dashboard, "qoder", vault, () => lateSaved = true,
+                    [new("Synthetic profile", "fixture-only")],
+                    (_, _) => Task.FromResult(BrowserCookieJar.Parse(savedJar!, ["qoder.com", "qoder.com.cn"])),
+                    (_, _) => pending.Task);
+                late.Show(); await Idle();
+                var submit = Descendants<Button>(late).Single(button => Equals(button.Content, "Import sign-in"));
+                submit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); await Idle();
+                if (conflict == "deleted") vault.Delete("browser:qoder"); else vault.Save("browser:qoder", "replacement-fixture");
+                pending.SetResult(new ProviderReading("qoder", ReadingState.Ready, []));
+                await Until(() => submit.IsEnabled, "Conflicting import did not finish.");
+                Require(!lateSaved && vault.Load("browser:qoder") == (conflict == "deleted" ? null : "replacement-fixture"),
+                    "Late browser verification overwrote a changed connection.");
+                Require(Descendants<TextBlock>(late).Any(text => text.Text == "The saved connection changed. Reopen this connection."),
+                    "Browser import conflict was not visible.");
+                late.Close();
+            }
+            vault.Delete("browser:qoder"); vault.Delete("cookie:qoder");
+            Record("Browser import dialog opens; cancel rejects late results; successful import preserves manual fallback");
         }
-        vault.Delete("browser:qoder"); vault.Delete("cookie:qoder");
-        Record("Browser import dialog opens; cancel rejects late results; successful import preserves manual fallback");
-
         var fixturePath = @"C:\fixture-existing";
         {
             var cliDirectory = CliInstaller.Install(() => fixturePath, value => fixturePath = value);
@@ -378,58 +380,75 @@ internal static partial class NativeSmoke
         dashboard.Navigate("usage"); await Idle();
         Record("Rolling analytics range, accessible bucket selection, model drill-down and Back preserve the selected interval");
 
-        await FactorySessionRegression(vault, settings.Current);
-        Record("Factory WorkOS profile refresh, DPAPI rotation, next-fetch stability, account replacement/removal and concurrent credential commits");
-        await AmpSourceRegression(dashboard, settings, vault, directory);
-        Record("Amp API/CLI/Web credential isolation, scoped browser verification, source picker and Web connection controls");
-        await AntigravityRegression(dashboard, settings, vault, directory);
-        Record("Antigravity native WMI identity, TCP owner before TLS, local quota/source isolation and real connector-to-WPF rendering");
-        await NativeSourceRegression(dashboard, store, settings, vault, directory);
-        Record("Amp/Windsurf source selection, volatile local scope, rejected API fallback, Antigravity alias, and Groq/Factory connection controls");
-        await CopilotAuthenticationRegression(settings.Current, vault, directory);
-        Record("Copilot DPAPI/environment/active hosts/CLI discovery, github.com contract and account replacement isolation");
-        await GlmAuthenticationRegression(settings.Current, vault, directory);
-        Record("GLM tool credentials, region and fixed-host isolation, explicit settings and account replacement");
-        await CodebuffAuthenticationRegression(settings.Current, vault, directory);
-        Record("Codebuff DPAPI/environment/local login precedence, optional subscription and account replacement isolation");
-        await MoonshotRegionRegression(dashboard, settings, vault, directory);
-        Record("Moonshot region switching preserves separate encrypted keys");
-        await KimiConnectionRegression(dashboard, settings, vault, directory);
-        Record("Kimi CLI and Web sources preserve credentials, quota priority and verified browser import");
-        await StepFunConnectionRegression(dashboard, settings, vault, directory);
-        Record("StepFun login, refresh and Auto-only browser import reach the ordinary store");
-        await AlibabaConnectionRegression(dashboard, settings, vault, directory);
-        Record("Alibaba CLI/Web/Auto preserves prior Web accounts, regional quota, volatile CLI data and actual native controls");
-        await MiniMaxConnectionRegression(dashboard, settings, vault, directory);
-        Record("MiniMax API/Web and Global/China credentials remain separate through native controls and browser import");
-        await AlibabaCodingSourceRegression(settings, vault, directory);
-        await ChromiumConnectionRegression(settings, vault, directory);
-        await FactoryRotationStoreRegression(settings, vault, directory);
-        Record("Alibaba Coding Plan regional API/Web credentials, quota and import stay separate through native controls");
-        await DeepSeekSourceRegression(settings, vault, directory);
-        Record("DeepSeek API and platform credentials stay separate through native source switching");
-        await AdditionalAuthenticationViews(settings, vault, directory);
-        Record("Four native auth readers render connector results without synthetic preview");
-        await AdditionalBrowserConnectionsRegression(dashboard, settings, vault, directory);
-        Record("Five additional Firefox readers verify scoped login and render native quota");
-        Record("Moonshot regional endpoints, DPAPI key isolation, environment aliases and source UI");
+        if (!OwnedProviderAccess.Enabled)
+        {
+            await FactorySessionRegression(vault, settings.Current);
+            Record("Factory WorkOS profile refresh, DPAPI rotation, next-fetch stability, account replacement/removal and concurrent credential commits");
+            await AmpSourceRegression(dashboard, settings, vault, directory);
+            Record("Amp API/CLI/Web credential isolation, scoped browser verification, source picker and Web connection controls");
+            await AntigravityRegression(dashboard, settings, vault, directory);
+            Record("Antigravity native WMI identity, TCP owner before TLS, local quota/source isolation and real connector-to-WPF rendering");
+            await NativeSourceRegression(dashboard, store, settings, vault, directory);
+            Record("Amp/Windsurf source selection, volatile local scope, rejected API fallback, Antigravity alias, and Groq/Factory connection controls");
+            await CopilotAuthenticationRegression(settings.Current, vault, directory);
+            Record("Copilot DPAPI/environment/active hosts/CLI discovery, github.com contract and account replacement isolation");
+            await GlmAuthenticationRegression(settings.Current, vault, directory);
+            Record("GLM tool credentials, region and fixed-host isolation, explicit settings and account replacement");
+            await CodebuffAuthenticationRegression(settings.Current, vault, directory);
+            Record("Codebuff DPAPI/environment/local login precedence, optional subscription and account replacement isolation");
+            await MoonshotRegionRegression(dashboard, settings, vault, directory);
+            Record("Moonshot region switching preserves separate encrypted keys");
+            await KimiConnectionRegression(dashboard, settings, vault, directory);
+            Record("Kimi CLI and Web sources preserve credentials, quota priority and verified browser import");
+            await StepFunConnectionRegression(dashboard, settings, vault, directory);
+            Record("StepFun login, refresh and Auto-only browser import reach the ordinary store");
+            await AlibabaConnectionRegression(dashboard, settings, vault, directory);
+            Record("Alibaba CLI/Web/Auto preserves prior Web accounts, regional quota, volatile CLI data and actual native controls");
+            await MiniMaxConnectionRegression(dashboard, settings, vault, directory);
+            Record("MiniMax API/Web and Global/China credentials remain separate through native controls and browser import");
+            await AlibabaCodingSourceRegression(settings, vault, directory);
+            await ChromiumConnectionRegression(settings, vault, directory);
+            await FactoryRotationStoreRegression(settings, vault, directory);
+            Record("Alibaba Coding Plan regional API/Web credentials, quota and import stay separate through native controls");
+            await DeepSeekSourceRegression(settings, vault, directory);
+            Record("DeepSeek API and platform credentials stay separate through native source switching");
+            await AdditionalAuthenticationViews(settings, vault, directory);
+            Record("Four native auth readers render connector results without synthetic preview");
+            await AdditionalBrowserConnectionsRegression(dashboard, settings, vault, directory);
+            Record("Five additional Firefox readers verify scoped login and render native quota");
+            Record("Moonshot regional endpoints, DPAPI key isolation, environment aliases and source UI");
+        }
+        else
+        {
+            await OwnedConnectionViewsRegression(dashboard, vault, directory);
+            Record("Owned account settings, explicit keys and rejected external connection controls");
+        }
         await ProviderRowsRegression(dashboard, store, settings, directory);
-        await ProviderAccountOwnershipRegression(settings, vault, directory);
+        if (!OwnedProviderAccess.Enabled) await ProviderAccountOwnershipRegression(settings, vault, directory);
         await ProviderPickersRegression(dashboard, store, settings, directory);
         Record("Mac provider catalogue and searchable Usage popover");
-        await SavedAccountsRegression(vault, directory);
-        Record("Saved account selection reloads current credentials, preserves active logins and retains committed Codex auth on failed verification");
+        if (!OwnedProviderAccess.Enabled)
+        {
+            await SavedAccountsRegression(vault, directory);
+            Record("Saved account selection reloads current credentials, preserves active logins and retains committed Codex auth on failed verification");
+        }
         await IsolatedAccountsRegression(directory);
         Record("Isolated Add Account success, cancellation, verification and cleanup for Codex and Claude");
-        await ClaudeIntegrationRegression(settings, vault, directory);
-        await ClaudeMigrationRegression(vault, directory);
+        if (!OwnedProviderAccess.Enabled)
+        {
+            await ClaudeIntegrationRegression(settings, vault, directory);
+            await ClaudeMigrationRegression(vault, directory);
+        }
         await ProviderPreferencesRegression(dashboard, settings, directory);
         await ProviderDetailsRegression(dashboard, store, settings, directory);
-        await NativeAccountRegression(dashboard, store, settings, vault, directory);
-        await IndependentAccountSummaryRegression(settings, vault, directory);
-        await CursorAgentRegression(settings, vault, directory);
-        await CopilotAccountSummaryRegression(settings, vault, directory);
-        await GlmAccountSummaryRegression(settings, vault, directory);
+        if (!OwnedProviderAccess.Enabled)
+        {
+            await NativeAccountRegression(dashboard, store, settings, vault, directory);
+            await IndependentAccountSummaryRegression(settings, vault, directory);
+            await CursorAgentRegression(settings, vault, directory);
+            await CopilotAccountSummaryRegression(settings, vault, directory);
+            await GlmAccountSummaryRegression(settings, vault, directory);
+        }
         await ProviderPresenceRegression(notch, store, settings, directory);
         await ProviderFailurePresentationRegression(dashboard, notch, store, settings, directory);
         await MacReferenceRegression(dashboard, store, settings, directory);
@@ -572,7 +591,7 @@ internal static partial class NativeSmoke
             dashboard.Navigate(accountProvider + "-accounts"); await Idle();
             var accountsWindow = System.Windows.Application.Current.Windows.OfType<Window>().Single(x => x != dashboard && x.Content is AccountsPane);
             accountsWindow.Width = accountsWindow.MinWidth; accountsWindow.Height = accountsWindow.MinHeight; await Idle();
-            var saveAccount = Descendants<System.Windows.Controls.Button>(accountsWindow).Single(x => AutomationProperties.GetAutomationId(x) == "accounts.saveCurrent");
+            var saveAccount = Descendants<System.Windows.Controls.Button>(accountsWindow).Single(x => AutomationProperties.GetAutomationId(x) == (OwnedProviderAccess.Enabled ? "accounts.add" : "accounts.saveCurrent"));
             var accountList = Descendants<ScrollViewer>(accountsWindow).Single(x => AutomationProperties.GetAutomationId(x) == "accounts.list");
             var footer = Descendants<StackPanel>(accountsWindow).Single(x => AutomationProperties.GetAutomationId(x) == "accounts.footer");
             var status = Descendants<TextBlock>(accountsWindow).Single(x => AutomationProperties.GetAutomationId(x) == "accounts.status");

@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$Package,
-    [Parameter(Mandatory = $true)][ValidateSet("x64", "arm64")][string]$Architecture
+    [Parameter(Mandatory = $true)][ValidateSet("x64", "arm64")][string]$Architecture,
+    [switch]$OwnedAccounts
 )
 
 # Installs the Store package the way Windows will after Microsoft signs it, then checks that the app,
@@ -105,7 +106,10 @@ try {
     }
     if ($activates) {
         $python = (Get-Command python).Source
-        Invoke-Bounded $python @((Join-Path $windowsRoot "tests\cli_regression_tests.py"), (Join-Path $aliases "CodeRimCLI.exe")) 600 'alias-cli-regressions' | Out-Null
+        $cliTestArguments = @((Join-Path $windowsRoot "tests\cli_regression_tests.py"))
+        if ($OwnedAccounts) { $cliTestArguments += '--owned-accounts' }
+        $cliTestArguments += (Join-Path $aliases "CodeRimCLI.exe")
+        Invoke-Bounded $python $cliTestArguments 600 'alias-cli-regressions' | Out-Null
         $results.Add("cli-regressions-through-alias")
 
     # The native UI smoke inside the package: same checks as the MSI build, with package identity.

@@ -392,7 +392,7 @@ jobs:
           foreach ($name in $sidecars.Keys) {
             if ((Get-FileHash (Join-Path $dest $name)).Hash -ne (Get-FileHash $sidecars[$name]).Hash) { throw "ZIP payload mismatch: $name" }
           }
-          python Windows/tests/cli_regression_tests.py (Join-Path $dest 'CodeRimCLI.exe')
+          python Windows/tests/cli_regression_tests.py --owned-accounts (Join-Path $dest 'CodeRimCLI.exe')
       - name: Exercise MSI installation, rollback, repair and removal
         run: |
           dotnet build Windows/tests/CodeRim.ProcessFixture --configuration Release
@@ -403,7 +403,7 @@ jobs:
         shell: powershell
         run: |
           $package = Get-Item 'Artifacts/CodeRim-Windows-*-${{ matrix.arch }}.msix'
-          ./Windows/Scripts/test-msix.ps1 -Package $package.FullName -Architecture ${{ matrix.arch }}
+          ./Windows/Scripts/test-msix.ps1 -Package $package.FullName -Architecture ${{ matrix.arch }} -OwnedAccounts
           $outcome = Get-Content Artifacts/msix-${{ matrix.arch }}/msix-checks.json -Raw | ConvertFrom-Json
           if ($outcome -notcontains 'packaged-native-ui-smoke') { throw 'The runner did not exercise packaged GUI activation.' }
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

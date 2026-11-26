@@ -70,9 +70,12 @@ internal static partial class NativeSmoke
                 if (provider == "codex")
                 {
                     Require(!Descendants<TextBlock>(dashboard).Any(x => x.Text is "Connection" or "Notch order")
-                        && !Descendants<Button>(dashboard).Any(x => x.Content as string is "Refresh" or "Setup guide" or "Manage Accounts…"),
+                        && !Descendants<Button>(dashboard).Any(x => x.Content as string is "Refresh" or "Setup guide"),
                         "Codex details retained extra sections absent from the Mac reference.");
-                    Require(Descendants<TextBlock>(dashboard).Any(x => x.Text == "Add or switch accounts from the account menu in Settings ▸ Usage."),
+                    Require(CodeRim.Core.Services.OwnedProviderAccess.Enabled
+                            ? Descendants<Button>(dashboard).Any(x => x.Content as string == "Manage Accounts…")
+                            : Descendants<TextBlock>(dashboard).Any(x => x.Text == "Add or switch accounts from the account menu in Settings ▸ Usage.")
+                                && !Descendants<Button>(dashboard).Any(x => x.Content as string == "Manage Accounts…"),
                         "Codex details lost the account menu route.");
                     var limits = Toggle("Show account limits"); limits.IsChecked = false; await Idle();
                     Require(!Toggle("Show additional limits").IsEnabled && !Toggle("Show reset credits").IsEnabled,

@@ -7,7 +7,8 @@ import subprocess
 import sys
 import tempfile
 
-runner = sys.argv[1:]
+owned_accounts = sys.argv[1:2] == ["--owned-accounts"]
+runner = sys.argv[2:] if owned_accounts else sys.argv[1:]
 assert runner, "Pass the CLI executable, or dotnet and the CLI DLL"
 now = datetime.datetime.now(datetime.timezone.utc)
 with tempfile.TemporaryDirectory(prefix="coderim-cli-review-") as directory:
@@ -88,24 +89,38 @@ with tempfile.TemporaryDirectory(prefix="coderim-claude-review-") as directory:
                                 timeout=15, env=env, check=True)
         return result.stdout
     snapshot = output / "claude-limits.json"
-    login("A")
-    invoke("claude-status", "A-session")
-    assert not snapshot.exists(), "Unregistered session was attributed"
-    invoke("claude-session-start", "A-session")
-    invoke("claude-status", "A-session")
-    original = snapshot.read_bytes()
-    login("B")
-    invoke("claude-session-start", "A-session")
-    invoke("claude-status", "A-session")
-    assert snapshot.read_bytes() == original, "Old session was relabeled to B"
-    invoke("claude-session-start", "B-session")
-    invoke("claude-status", "B-session")
-    current = snapshot.read_bytes()
-    assert current != original
-    (config / ".credentials.json").unlink()
-    invoke("claude-status", "B-session")
-    assert snapshot.read_bytes() == current, "Unknown login replaced account quota"
-print("PASS: CLI session bindings reject cross-account and unknown-account writes")
+    if owned_accounts:
+        # No external login can bind an incoming event to a CodeRim account.
+        for account, session in (("A", "A-session"), ("B", "B-session")):
+            login(account)
+            invoke("claude-session-start", session)
+            assert "53%" in invoke("claude-status", session)
+            assert not snapshot.exists(), "External hook created an account-scoped reading"
+        output.mkdir(exist_ok=True)
+        preserved = b'{"accountScope":"owned-fixture","sentinel":true}'
+        snapshot.write_bytes(preserved)
+        invoke("claude-session-start", "C-session")
+        assert "53%" in invoke("claude-status", "C-session") and snapshot.read_bytes() == preserved
+        print("PASS: unbound hooks render stdin and preserve CodeRim account data")
+    else:
+        login("A")
+        invoke("claude-status", "A-session")
+        assert not snapshot.exists(), "Unregistered session was attributed"
+        invoke("claude-session-start", "A-session")
+        invoke("claude-status", "A-session")
+        original = snapshot.read_bytes()
+        login("B")
+        invoke("claude-session-start", "A-session")
+        invoke("claude-status", "A-session")
+        assert snapshot.read_bytes() == original, "Old session was relabeled to B"
+        invoke("claude-session-start", "B-session")
+        invoke("claude-status", "B-session")
+        current = snapshot.read_bytes()
+        assert current != original
+        (config / ".credentials.json").unlink()
+        invoke("claude-status", "B-session")
+        assert snapshot.read_bytes() == current, "Unknown login replaced account quota"
+        print("PASS: CLI session bindings reject cross-account and unknown-account writes")
 
 
 # Redirected text must not depend on the Windows console code page, and JSON
