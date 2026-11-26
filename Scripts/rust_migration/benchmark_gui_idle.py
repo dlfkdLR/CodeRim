@@ -19,7 +19,7 @@ COUNTERS = ("cpu_ms", "energy_nj", "disk_read_bytes", "disk_written_bytes",
 
 
 @contextmanager
-def isolated_process(executable, directory, policy):
+def isolated_process(executable, directory, policy, launch_options=()):
     home, tmp = directory / "home", directory / "tmp"
     (home / ".codex/sessions").mkdir(parents=True, exist_ok=True)
     (home / "Library/Application Support").mkdir(parents=True, exist_ok=True)
@@ -30,7 +30,7 @@ def isolated_process(executable, directory, policy):
             "-D", "FIXTURE=" + str(directory), "-D", "APP=" + str(executable), "-f", policy,
             executable, "-registeredApplicationIdentity", f"{bundle}|{build}|CodeRimOpenRim",
             "-showEdgeNotch", "YES", "-notchVisibility", "onHover",
-            "-SUEnableAutomaticChecks", "NO", "-SUAutomaticallyUpdate", "NO"]
+            "-SUEnableAutomaticChecks", "NO", "-SUAutomaticallyUpdate", "NO", *launch_options]
     environment = {"PATH": "/usr/bin:/bin", "CFFIXED_USER_HOME": str(home),
                    "TMPDIR": str(tmp) + "/", "LANG": "en_US.UTF-8"}
     started = time.monotonic()
