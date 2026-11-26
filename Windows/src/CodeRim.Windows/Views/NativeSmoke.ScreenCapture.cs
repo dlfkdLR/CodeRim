@@ -15,7 +15,14 @@ namespace CodeRim.Windows.Views;
 internal static partial class NativeSmoke
 {
     private readonly record struct ClientAttempt(uint Flags, string Status, int DifferentPixels, bool HasDrawing);
-    private readonly record struct DesktopCapture(Rect Geometry, bool Verified);
+    private readonly record struct DesktopCapture(Rect VisibleWindowBounds, Rect? VerifiedClientBounds)
+    {
+        internal static DesktopCapture From(Rectangle windowBounds, Rectangle? comparedClient)
+        {
+            static Rect Pixels(Rectangle r) => new(r.X, r.Y, r.Width, r.Height);
+            return new(Pixels(windowBounds), comparedClient is { } client ? Pixels(client) : null);
+        }
+    }
 
     private static readonly string[] DesktopCaptureNames = [
         "windows-account-history-overview",
@@ -97,19 +104,20 @@ internal static partial class NativeSmoke
             catch (ExternalException) { reason = "native-render-unavailable"; }
         }
         var verified = reason == "verified";
+        Rectangle? captured = verified && nativeClient.HasValue ? Rectangle.Intersect(nativeClient.Value, virtualScreen) : null;
         if (!verified) File.Delete(output);
         File.WriteAllText(output + ".capture.json", JsonSerializer.Serialize(new {
             captureStatus = reason, screenPixelsVerified = verified, method = "PrintWindow client / desktop exact RGB",
             requested, nativeClient, virtualScreen, visibleBounds = bounds,
             ownedSamplePoints, samplePoints = 9, attempts,
-            captured = verified && nativeClient.HasValue ? Rectangle.Intersect(nativeClient.Value, virtualScreen) : (Rectangle?)null,
+            captured,
             fullWindowCaptured = verified && nativeClient.HasValue && requested == nativeClient.Value && requested == bounds,
             window.Left, window.Top, window.ActualWidth, window.ActualHeight, window.IsActive,
             dpi.DpiScaleX, dpi.DpiScaleY,
             monitors = System.Windows.Forms.Screen.AllScreens.Select(screen => new { screen.Bounds, screen.WorkingArea })
         }, JsonOptions));
         if (!verified) Console.WriteLine($"Native screen unverified ({reason}): {Path.GetFileName(output)}");
-        return new(new Rect(bounds.X, bounds.Y, bounds.Width, bounds.Height), verified);
+        return DesktopCapture.From(bounds, captured);
     }
 
     private static ClientAttempt VerifyDesktopPixels(IntPtr handle, Rectangle requested, Rectangle bounds,
@@ -175,6 +183,13 @@ internal static partial class NativeSmoke
 
     private static void VerifyDesktopComparison()
     {
+        var window = new Rectangle(-12, 5, 120, 90);
+        var verified = new Rectangle(0, 9, 104, 80);
+        var capture = DesktopCapture.From(window, verified);
+        Require(capture.VisibleWindowBounds == new Rect(-12, 5, 120, 90) &&
+                capture.VerifiedClientBounds == new Rect(0, 9, 104, 80) &&
+                DesktopCapture.From(window, null).VerifiedClientBounds is null,
+            "Verified native client and visible layout bounds must remain distinct.");
         using var owned = new Bitmap(5, 3, PixelFormat.Format24bppRgb);
         using var physical = new Bitmap(5, 3, PixelFormat.Format24bppRgb);
         Require(CompareFixturePixels(owned, physical) == new ClientAttempt(0, "uniform-hwnd-render", 0, false), "A blank HWND counted as evidence.");

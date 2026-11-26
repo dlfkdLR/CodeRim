@@ -70,7 +70,7 @@ internal static partial class NativeSmoke
                 Require(shown.MinWidth <= area.Width / dpi.DpiScaleX && shown.MinHeight <= area.Height / dpi.DpiScaleY,
                     "Window minimum prevents fitting the display: " + scenario);
                 var screen = CaptureScreen(shown, Path.Combine(directory, "windows-settings-frame-" + scenario + ".screen.png"));
-                Require(screen.Geometry.Width >= Math.Floor(bounds.Width) && screen.Geometry.Height >= Math.Floor(bounds.Height),
+                Require(screen.VisibleWindowBounds.Width >= Math.Floor(bounds.Width) && screen.VisibleWindowBounds.Height >= Math.Floor(bounds.Height),
                     "The fitted settings window is still clipped by the monitor bounds: " + scenario);
             }
         }

@@ -81,14 +81,14 @@ internal static partial class NativeSmoke
                 todayMetric.ActualHeight * metricDpi.DpiScaleY));
             File.WriteAllText(Path.Combine(directory, "windows-account-history-overview-render.json"), JsonSerializer.Serialize(new
             {
-                expectedToday, todayMetric.DisplayedValue, todayMetric.Text, window.IsActive, screenPixelsVerified = screen.Verified,
-                screenBounds = screen.Verified ? (Rect?)screen.Geometry : null, visibleBounds = screen.Geometry, metricScreenBounds,
+                expectedToday, todayMetric.DisplayedValue, todayMetric.Text, window.IsActive, screenPixelsVerified = screen.VerifiedClientBounds.HasValue,
+                screenBounds = screen.VerifiedClientBounds, visibleBounds = screen.VisibleWindowBounds, metricScreenBounds,
                 dpi = System.Windows.Media.VisualTreeHelper.GetDpi(window).PixelsPerInchX,
                 metricBounds = todayMetric.TransformToAncestor(window).TransformBounds(new Rect(todayMetric.RenderSize)),
                 todayMetric.DesiredSize, todayMetric.RenderSize, todayMetric.ActualWidth, todayMetric.ActualHeight
             }, JsonOptions));
 
-            Require(screen.Geometry.Contains(metricScreenBounds)
+            Require(screen.VisibleWindowBounds.Contains(metricScreenBounds)
                 && System.Windows.Forms.Screen.AllScreens.Any(screen => new Rect(screen.Bounds.X, screen.Bounds.Y,
                     screen.Bounds.Width, screen.Bounds.Height).Contains(metricScreenBounds)),
                 "The account-history Today metric is clipped or outside the visible monitor geometry.");
