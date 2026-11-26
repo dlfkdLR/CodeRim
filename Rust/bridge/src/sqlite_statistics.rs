@@ -63,9 +63,14 @@ pub unsafe extern "C" fn cr_statistics_event_bounds(
         // reads, compound queries or SQL length. Use its original prepare errors
         // and avoid retrying lock waits, interruptions or I/O failures.
         const SQLITE_ERROR: c_int = 1;
+        // SQLite also returns NOMEM when its per-connection bytecode limit is reached.
+        const SQLITE_NOMEM: c_int = 7;
         const SQLITE_TOOBIG: c_int = 18;
         const SQLITE_AUTH: c_int = 23;
-        if matches!(rc & 0xff, SQLITE_ERROR | SQLITE_TOOBIG | SQLITE_AUTH) {
+        if matches!(
+            rc & 0xff,
+            SQLITE_ERROR | SQLITE_NOMEM | SQLITE_TOOBIG | SQLITE_AUTH
+        ) {
             let original = c"SELECT MIN(occurred_at), MAX(occurred_at) FROM usage_events";
             rc = sqlite3_prepare_v2(db, original.as_ptr(), -1, &mut statement, ptr::null_mut());
         }

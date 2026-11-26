@@ -30,6 +30,11 @@ def main():
     args = p.parse_args()
     with tempfile.TemporaryDirectory(prefix="coderim-statistics-") as tmp:
         work = Path(tmp)
+        limits = work / "limits"
+        subprocess.run(["xcrun", "clang", "-arch", args.arch, "-mmacosx-version-min=14.0", "-Wall", "-Wextra",
+                        "-Werror", "-I", contract.ROOT / "Rust/bridge/include", HERE / "limits.c",
+                        args.archive.resolve(strict=True), "-Wl,-dead_strip", "-lsqlite3", "-o", limits], check=True)
+        subprocess.run([limits], check=True)
         binaries = {name: contract.build(work / name, args.arch, archive, driver=HERE / "main.swift")
                     for name, archive in [("published", None), ("candidate", args.archive.resolve(strict=True))]}
         base = work / "baseline.sqlite"
