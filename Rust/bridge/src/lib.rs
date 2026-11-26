@@ -77,6 +77,8 @@ mod sqlite_checkpoint;
 #[cfg(target_os = "macos")]
 mod sqlite_event_import;
 #[cfg(target_os = "macos")]
+mod sqlite_history_maintenance;
+#[cfg(target_os = "macos")]
 mod sqlite_legacy_ids;
 #[cfg(target_os = "macos")]
 mod sqlite_periods;
@@ -86,6 +88,8 @@ mod sqlite_quality;
 mod sqlite_schema_runtime;
 #[cfg(target_os = "macos")]
 mod sqlite_statistics;
+#[cfg(target_os = "macos")]
+mod sqlite_transaction;
 #[cfg(target_os = "macos")]
 mod storage_identity;
 #[cfg(any(target_os = "macos", test))]

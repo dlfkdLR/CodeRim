@@ -1,5 +1,9 @@
 //! Version-by-version upgrades of the host's CodeRim database, on its existing connection.
-use super::{apple_sqlite::*, sqlite_legacy_ids::rewrite_group};
+use super::{
+    apple_sqlite::*,
+    sqlite_legacy_ids::rewrite_group,
+    sqlite_transaction::{Connection, Failure},
+};
 use std::ffi::{CStr, CString, c_char, c_int, c_void};
 use std::ptr;
 
@@ -14,33 +18,13 @@ unsafe extern "C" {
     ) -> c_int;
     fn sqlite3_finalize(statement: *mut c_void) -> c_int;
     fn sqlite3_column_int(statement: *mut c_void, column: c_int) -> c_int;
-    fn sqlite3_errmsg(db: *mut c_void) -> *const c_char;
-    fn sqlite3_exec(
-        db: *mut c_void,
-        sql: *const c_char,
-        callback: *const c_void,
-        context: *mut c_void,
-        error: *mut *mut c_char,
-    ) -> c_int;
-    fn sqlite3_free(memory: *mut c_void);
+
 }
 
 type Operation = unsafe extern "C" fn(i32, usize, *mut *const c_char) -> u8;
 type Report = unsafe extern "C" fn(*mut c_void, *const c_char);
 
-enum Failure {
-    Statement(CString),
-    Migration(CString),
-}
-
-struct Connection(*mut c_void);
-
 impl Connection {
-    fn error(&self) -> CString {
-        // SQLite owns this string and may change it when another statement executes.
-        unsafe { CStr::from_ptr(sqlite3_errmsg(self.0)) }.to_owned()
-    }
-
     fn user_version(&self) -> Result<i32, Failure> {
         let mut statement = ptr::null_mut();
         unsafe {
@@ -62,29 +46,6 @@ impl Connection {
             };
             sqlite3_finalize(statement);
             result
-        }
-    }
-
-    fn execute(&self, sql: &CStr) -> Result<(), Failure> {
-        let mut error = ptr::null_mut();
-        unsafe {
-            if sqlite3_exec(
-                self.0,
-                sql.as_ptr(),
-                ptr::null(),
-                ptr::null_mut(),
-                &mut error,
-            ) == 0
-            {
-                return Ok(());
-            }
-            let message = if error.is_null() {
-                self.error()
-            } else {
-                CStr::from_ptr(error).to_owned()
-            };
-            sqlite3_free(error.cast());
-            Err(Failure::Statement(message))
         }
     }
 
@@ -111,7 +72,7 @@ impl Connection {
                 .expect("integer contains no NUL");
             self.execute(&set_version)?;
         }
-        self.execute(c"COMMIT")
+        Ok(())
     }
 }
 
@@ -144,12 +105,7 @@ pub unsafe extern "C" fn cr_migrate_schema(
             return Ok(0);
         }
         for version in (current + 1)..=supported {
-            // A failed BEGIN does not own a transaction and must never roll back its caller.
-            db.execute(c"BEGIN IMMEDIATE")?;
-            if let Err(error) = db.stage(version, operation) {
-                let _ = db.execute(c"ROLLBACK");
-                return Err(error);
-            }
+            db.immediate(|| db.stage(version, operation))?;
         }
         Ok(0)
     })();
@@ -159,7 +115,7 @@ pub unsafe extern "C" fn cr_migrate_schema(
             unsafe { report(context, message.as_ptr()) };
             1
         }
-        Err(Failure::Migration(message)) => {
+        Err(Failure::Migration(message) | Failure::Step(message)) => {
             unsafe { report(context, message.as_ptr()) };
             2
         }

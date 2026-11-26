@@ -30,6 +30,7 @@ module CCodeRimAccounting {
     header "coderim_sqlite_event_import.h"
     header "coderim_legacy_ids.h"
     header "coderim_schema_runtime.h"
+    header "coderim_history_maintenance.h"
     header "coderim_transcript.h"
     header "coderim_mobile_session_order.h"
     header "coderim_notch_viewport.h"

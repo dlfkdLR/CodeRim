@@ -1263,65 +1263,12 @@ actor SQLiteDatabase {
     }
 
     func rebuildStatistics() throws {
-        try execute("BEGIN IMMEDIATE")
-        do {
-            try incrementDataEpoch()
-            try execute("DELETE FROM usage_events")
-            try execute("DELETE FROM parsing_state")
-            try execute("DELETE FROM session_counters")
-            try execute("DELETE FROM session_metadata")
-            try execute("DELETE FROM analytics_backfill_sources")
-            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through') OR key GLOB 'partial_source_quality:*'")
-            try execute("DELETE FROM partial_evidence")
-            try execute("COMMIT")
-        } catch {
-            try? execute("ROLLBACK")
-            throw error
-        }
+        try resetHistory(cutoff: nil, preservesMessageExclusions: false)
         try Self.protectDatabaseFiles(at: databaseURL)
     }
 
     func clearLocalHistory(at cutoff: Date, preservesMessageExclusions: Bool = false) throws -> ClearHistoryCompactionStatus {
-        try execute("BEGIN IMMEDIATE")
-        do {
-            try incrementDataEpoch()
-            if preservesMessageExclusions {
-                try prepareMessageExclusions()
-                let statement = try prepare("""
-                    INSERT OR IGNORE INTO claude_message_exclusions(event_key)
-                    SELECT event_key FROM usage_events WHERE occurred_at <= ?1
-                    """)
-                defer { sqlite3_finalize(statement) }
-                sqlite3_bind_double(statement, 1, cutoff.timeIntervalSince1970)
-                guard sqlite3_step(statement) == SQLITE_DONE else {
-                    throw SQLiteDatabaseError.step(errorMessage)
-                }
-            }
-            try execute("DELETE FROM usage_events")
-            try execute("DELETE FROM parsing_state")
-            try execute("DELETE FROM session_counters")
-            try execute("DELETE FROM session_metadata")
-            try execute("DELETE FROM analytics_backfill_sources")
-            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through') OR key GLOB 'partial_source_quality:*'")
-            try execute("DELETE FROM partial_evidence")
-            do {
-                let statement = try prepare(
-                    """
-                    INSERT INTO app_metadata(key, value) VALUES('import_cutoff', ?1)
-                    ON CONFLICT(key) DO UPDATE SET value = excluded.value
-                    """
-                )
-                defer { sqlite3_finalize(statement) }
-                try bind(String(cutoff.timeIntervalSince1970), at: 1, to: statement)
-                guard sqlite3_step(statement) == SQLITE_DONE else {
-                    throw SQLiteDatabaseError.step(errorMessage)
-                }
-            }
-            try execute("COMMIT")
-        } catch {
-            try? execute("ROLLBACK")
-            throw error
-        }
+        try resetHistory(cutoff: cutoff, preservesMessageExclusions: preservesMessageExclusions)
         var compactionStatus = ClearHistoryCompactionStatus.complete
         do {
             guard let connection else {
@@ -1346,6 +1293,70 @@ actor SQLiteDatabase {
             try? Self.protectDatabaseFiles(at: databaseURL)
         }
         return compactionStatus
+    }
+
+    private func resetHistory(cutoff: Date?, preservesMessageExclusions: Bool) throws {
+        #if CODERIM_RUST_ACCOUNTING
+        guard let connection else { throw SQLiteDatabaseError.statement("database is closed") }
+        let seconds = cutoff?.timeIntervalSince1970
+        let mode: UInt8 = seconds == nil ? 0 : (preservesMessageExclusions ? 2 : 1)
+        let raw = UnsafeMutableRawPointer(connection.rawValue)
+        let cutoffText = seconds.map { String($0) } ?? ""
+        var message = "Invalid usage history maintenance request"
+        let status = cutoffText.withCString { text in
+            withUnsafeMutablePointer(to: &message) { context in
+                cr_reset_usage_history(raw, mode, seconds ?? 0, text, { context, value in
+                    context!.assumingMemoryBound(to: String.self).pointee = String(cString: value!)
+                }, context)
+            }
+        }
+        switch status {
+        case 0: return
+        case 2: throw SQLiteDatabaseError.step(message)
+        default: throw SQLiteDatabaseError.statement(message)
+        }
+        #else
+        try execute("BEGIN IMMEDIATE")
+        do {
+            try incrementDataEpoch()
+            if let cutoff, preservesMessageExclusions {
+                try prepareMessageExclusions()
+                let statement = try prepare("""
+                    INSERT OR IGNORE INTO claude_message_exclusions(event_key)
+                    SELECT event_key FROM usage_events WHERE occurred_at <= ?1
+                    """)
+                defer { sqlite3_finalize(statement) }
+                sqlite3_bind_double(statement, 1, cutoff.timeIntervalSince1970)
+                guard sqlite3_step(statement) == SQLITE_DONE else {
+                    throw SQLiteDatabaseError.step(errorMessage)
+                }
+            }
+            try execute("DELETE FROM usage_events")
+            try execute("DELETE FROM parsing_state")
+            try execute("DELETE FROM session_counters")
+            try execute("DELETE FROM session_metadata")
+            try execute("DELETE FROM analytics_backfill_sources")
+            try execute("DELETE FROM app_metadata WHERE key IN ('legacy_partial_quality', 'legacy_partial_quality_through') OR key GLOB 'partial_source_quality:*'")
+            try execute("DELETE FROM partial_evidence")
+            if let cutoff {
+                let statement = try prepare(
+                    """
+                    INSERT INTO app_metadata(key, value) VALUES('import_cutoff', ?1)
+                    ON CONFLICT(key) DO UPDATE SET value = excluded.value
+                    """
+                )
+                defer { sqlite3_finalize(statement) }
+                try bind(String(cutoff.timeIntervalSince1970), at: 1, to: statement)
+                guard sqlite3_step(statement) == SQLITE_DONE else {
+                    throw SQLiteDatabaseError.step(errorMessage)
+                }
+            }
+            try execute("COMMIT")
+        } catch {
+            try? execute("ROLLBACK")
+            throw error
+        }
+        #endif
     }
 
     /// Claude-only additive metadata, created only by the message-ID importer.
@@ -1424,6 +1435,7 @@ actor SQLiteDatabase {
         return sqlite3_column_int64(statement, 0)
     }
 
+    #if !CODERIM_RUST_ACCOUNTING
     private func incrementDataEpoch() throws {
         try execute(
             """
@@ -1432,6 +1444,7 @@ actor SQLiteDatabase {
             """
         )
     }
+    #endif
 
     private func usageTotals(today: Date, week: Date, month: Date, through end: Date) throws
         -> (today: TokenUsage, week: TokenUsage, month: TokenUsage, allTime: TokenUsage) {
