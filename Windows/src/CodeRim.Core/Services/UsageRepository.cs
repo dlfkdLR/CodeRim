@@ -142,35 +142,54 @@ public sealed partial class UsageRepository
         var importedLinks = new Dictionary<string, string?>(StringComparer.Ordinal);
         var repaired = 0;
         var repairedRows = new List<(string Id, DateTimeOffset Time)>();
+        // Bind the first matching event normally and reuse its parameters for later rows.
+        // Empty or entirely filtered imports do not need an event statement's parameters.
+        bool initialized = false;
+        void SetParameter(int ordinal, string name, object value)
+        {
+            if (initialized) command.Parameters[ordinal].Value = value;
+            else command.Parameters.AddWithValue(name, value);
+        }
         foreach (var usageEvent in events)
         {
             if (usageEvent.Provider != provider) continue;
+            SetParameter(0, "$provider", provider);
+            SetParameter(1, "$id", usageEvent.EventKey);
+            SetParameter(2, "$time", usageEvent.OccurredAt.ToUnixTimeMilliseconds());
             // An inconsistent row is stored as its closest valid value and reported, never dropped silently.
+#if CODERIM_RUST_ACCOUNTING
+            var storedUsage = RustStoredUsage.Prepare(RustAccountingLibrary.RawUsage.From(usageEvent.Usage), usageEvent.Repaired ? 1 : 0);
+            var wasRepaired = storedUsage.Repaired != 0;
+            SetParameter(3, "$input", storedUsage.Exclusive);
+            SetParameter(4, "$cached", storedUsage.Cached);
+            SetParameter(5, "$output", storedUsage.Output);
+            SetParameter(6, "$written", storedUsage.HasWritten != 0 ? (object)storedUsage.Written : DBNull.Value);
+#else
             var usage = usageEvent.Usage;
-            if (usageEvent.Repaired || !usage.IsValid)
+            var wasRepaired = usageEvent.Repaired || !usage.IsValid;
+            if (wasRepaired) usage = usage.ClampedToValid();
+            SetParameter(3, "$input", usage.UncachedInputTokens);
+            SetParameter(4, "$cached", usage.CachedInputTokens);
+            SetParameter(5, "$output", usage.OutputTokens);
+            SetParameter(6, "$written", (object?)usage.CacheWriteInputTokens ?? DBNull.Value);
+#endif
+            if (wasRepaired)
             {
-                usage = usage.ClampedToValid(); repaired++;
+                repaired++;
                 repairedRows.Add((usageEvent.EventKey, usageEvent.OccurredAt));
             }
             if (provider == "claude" && usageEvent.ImportParentSessionId is { } parent)
             {
                 importedLinks[usageEvent.SessionId] = parent; importedLinks.TryAdd(parent, null);
             }
-            command.Parameters.Clear();
-            command.Parameters.AddWithValue("$provider", provider);
-            command.Parameters.AddWithValue("$id", usageEvent.EventKey);
-            command.Parameters.AddWithValue("$time", usageEvent.OccurredAt.ToUnixTimeMilliseconds());
-            command.Parameters.AddWithValue("$input", usage.UncachedInputTokens);
-            command.Parameters.AddWithValue("$cached", usage.CachedInputTokens);
-            command.Parameters.AddWithValue("$output", usage.OutputTokens);
-            command.Parameters.AddWithValue("$written", (object?)usage.CacheWriteInputTokens ?? DBNull.Value);
-            command.Parameters.AddWithValue("$context", provider == "codex" && usageEvent.PricingContext is PricingContext.Standard or PricingContext.HighContext
+            SetParameter(7, "$context", provider == "codex" && usageEvent.PricingContext is PricingContext.Standard or PricingContext.HighContext
                 ? (object)(int)usageEvent.PricingContext.Value : DBNull.Value);
-            command.Parameters.AddWithValue("$model", usageEvent.Model);
-            command.Parameters.AddWithValue("$project", usageEvent.Project);
-            command.Parameters.AddWithValue("$session", usageEvent.SessionId);
-            command.Parameters.AddWithValue("$parent", (object?)usageEvent.ImportParentSessionId ?? DBNull.Value);
-            command.Parameters.AddWithValue("$projectId", usageEvent.ProjectId);
+            SetParameter(8, "$model", usageEvent.Model);
+            SetParameter(9, "$project", usageEvent.Project);
+            SetParameter(10, "$session", usageEvent.SessionId);
+            SetParameter(11, "$parent", (object?)usageEvent.ImportParentSessionId ?? DBNull.Value);
+            SetParameter(12, "$projectId", usageEvent.ProjectId);
+            initialized = true;
             bool stored;
             using (var reader = command.ExecuteReader())
             {
