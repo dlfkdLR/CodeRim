@@ -119,6 +119,11 @@ def main():
             value["providers"][0]["localUsage"]["totals"]["today"]["outputTokens"]="number here"
             path.write_text(json.dumps(value).replace('"number here"',number))
             checked("integer decoding",["--json"])
+        for number in ["-9223372036854775806.0", "-9223372036854775807.0", "-9223372036854775808.0",
+                       "-9223372036854775809.0", "9223372036854775806.0"]:
+            raw = json.dumps(data).replace('"durationMinutes": 60', '"durationMinutes": ' + number, 1)
+            path.write_text(raw)
+            checked("signed Int64 endpoint", ["--json"])
         for encoding in ["utf-8-sig","utf-16","utf-16-le","utf-16-be","utf-32","utf-32-le","utf-32-be"]:
             path.write_bytes(json.dumps(data).encode(encoding))
             checked("JSON document encoding", ["--json"])

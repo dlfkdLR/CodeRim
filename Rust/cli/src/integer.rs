@@ -16,7 +16,7 @@ fn number(raw: &str) -> Option<i64> {
         return Some(integer);
     }
     let float = raw.parse::<f64>().ok()?;
-    if float.fract() != 0.0 || float >= i64::MAX as f64 || float <= i64::MIN as f64 {
+    if float.fract() != 0.0 || float >= i64::MAX as f64 || float < i64::MIN as f64 {
         return None;
     }
     // Below the exact-integer threshold Foundation returns the integral binary64
