@@ -173,8 +173,11 @@ with tempfile.TemporaryDirectory(prefix='coderim-standalone-cli-') as tmp:
         private.dwFlags |= subprocess.STARTF_USESHOWWINDOW
         private.wShowWindow = subprocess.SW_HIDE
         receipt = base / 'private-console.json'
-        subprocess.run([sys.executable, here/'console_check.py', incumbent, native, data/'small.json', receipt],
-                       env=env, creationflags=subprocess.CREATE_NEW_CONSOLE, startupinfo=private, check=True, timeout=90)
+        probe = subprocess.run([sys.executable, here/'console_check.py', incumbent, native, data/'small.json', receipt],
+                               env=env, creationflags=subprocess.CREATE_NEW_CONSOLE, startupinfo=private,
+                               capture_output=True, timeout=100)
+        if probe.returncode:
+            raise RuntimeError("Private Windows console fixture failed: " + probe.stderr.decode('utf8', 'backslashreplace'))
         console_result = json.loads(receipt.read_text(encoding='utf8'))
     hook_results={}
     if args.synthetic_hook_install:

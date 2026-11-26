@@ -40,7 +40,9 @@ def run(legacy, native, snapshot, result):
     processes = api('GetConsoleProcessList', [number, dword], dword)
     # Never modify a console shared with a shell or CI agent.
     pids = (dword * 16)()
-    assert processes(pids, len(pids)) == 1 and pids[0] == os.getpid()
+    attached = processes(pids, len(pids))
+    if attached != 1 or pids[0] != os.getpid():
+        raise RuntimeError(f'Private test console ownership could not be established ({attached} attached).')
     set_page = api('SetConsoleOutputCP', [wintypes.UINT])
     cursor = api('SetConsoleCursorPosition', [handle, Coord])
     fill = api('FillConsoleOutputCharacterW', [handle, wintypes.WCHAR, dword, Coord, number])
@@ -87,7 +89,9 @@ def run(legacy, native, snapshot, result):
                     assert raw.decode('utf-16-le', errors='surrogatepass').strip()
                     pair.append(raw)
                 if pair[0] != pair[1]:
-                    raise ValueError((page, label, pair[0][:240], pair[1][:240]))
+                    index = next(i for i in range(len(pair[0])) if pair[0][i] != pair[1][i])
+                    raise ValueError((page, label, index, pair[0][max(0,index-12):index+20].hex(),
+                                      pair[1][max(0,index-12):index+20].hex()))
                 rows[f'{page}-{label}'] = hashlib.sha256(pair[0]).hexdigest()
         # Generate a control event for this fixture's still-live child group only.
         status = {}
