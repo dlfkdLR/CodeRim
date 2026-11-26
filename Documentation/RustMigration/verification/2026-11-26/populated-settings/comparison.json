@@ -1,0 +1,345 @@
+{
+  "sha256": {
+    "reference": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64",
+    "candidate": "7dcea9292094adc4ce572211b6c9e8376b7b72f537037fd59974ec2219baf688"
+  },
+  "testedBundles": {
+    "reference": {
+      "Dark": {
+        "sha256": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64",
+        "lightInfoOverride": false,
+        "uuid": [
+          "UUID: 4F4022F9-B034-34D4-B16F-50A2D38352B9 (x86_64) <executable>",
+          "UUID: 68950D14-8FE5-317F-A986-1A9BCDA24596 (arm64) <executable>"
+        ]
+      },
+      "Light": {
+        "sha256": "5a3f171b43f5cedc0ddec88f1b136b78233fa7196655874bdbfa90d466a308c0",
+        "lightInfoOverride": true,
+        "uuid": [
+          "UUID: 4F4022F9-B034-34D4-B16F-50A2D38352B9 (x86_64) <executable>",
+          "UUID: 68950D14-8FE5-317F-A986-1A9BCDA24596 (arm64) <executable>"
+        ]
+      }
+    },
+    "candidate": {
+      "Dark": {
+        "sha256": "7dcea9292094adc4ce572211b6c9e8376b7b72f537037fd59974ec2219baf688",
+        "lightInfoOverride": false,
+        "uuid": [
+          "UUID: 3140330A-2CB0-3DE8-A6D2-0CDCFE53709C (x86_64) <executable>",
+          "UUID: A2DFABCC-C9C5-3966-8358-DE704D3C2305 (arm64) <executable>"
+        ]
+      },
+      "Light": {
+        "sha256": "9d433c7d3b6f83b70c34f9d04681a5e22c3f49fd81e5e007fda3f20730fef784",
+        "lightInfoOverride": true,
+        "uuid": [
+          "UUID: 3140330A-2CB0-3DE8-A6D2-0CDCFE53709C (x86_64) <executable>",
+          "UUID: A2DFABCC-C9C5-3966-8358-DE704D3C2305 (arm64) <executable>"
+        ]
+      }
+    }
+  },
+  "categories": [
+    "Usage"
+  ],
+  "chartAnchorUTC": "2026-11-26",
+  "sizesInPoints": [
+    [
+      960,
+      672
+    ],
+    [
+      860,
+      620
+    ]
+  ],
+  "sourceTokens": 1200,
+  "mode": "CGWindowID selected by exact executable PID, title and layer",
+  "pairs": [
+    {
+      "appearanceRequested": "Dark",
+      "pane": "compact-usage",
+      "axEqual": true,
+      "axLines": [
+        157,
+        157
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "2770aa94a7bb0f4f4d4c275a514f2a8069de35b163baa665ce2e298f93c81a85",
+        "reference.repeat": "2770aa94a7bb0f4f4d4c275a514f2a8069de35b163baa665ce2e298f93c81a85",
+        "candidate": "2770aa94a7bb0f4f4d4c275a514f2a8069de35b163baa665ce2e298f93c81a85",
+        "candidate.repeat": "2770aa94a7bb0f4f4d4c275a514f2a8069de35b163baa665ce2e298f93c81a85"
+      },
+      "medianOpaqueRed": {
+        "reference": 30,
+        "candidate": 30
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "usageCard": {
+        "rectanglePixelsHalfOpen": [
+          480,
+          410,
+          1680,
+          1190
+        ],
+        "pixelCount": 936000,
+        "differentFromFirstReference": {
+          "reference.repeat": 0,
+          "candidate": 0,
+          "candidate.repeat": 0
+        },
+        "decodedRGBASHA256": "29fe61c4dee09699cb34cc4a075fb2efde8273239bb63fdfc2b521f0e9ff2fc9"
+      }
+    },
+    {
+      "appearanceRequested": "Dark",
+      "pane": "normal-usage",
+      "axEqual": true,
+      "axLines": [
+        157,
+        157
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "d3d78f7872f120b112cc099e9bd94f33ccfb8620d59c40a2ba84a6fa1283a5e7",
+        "reference.repeat": "d3d78f7872f120b112cc099e9bd94f33ccfb8620d59c40a2ba84a6fa1283a5e7",
+        "candidate": "d3d78f7872f120b112cc099e9bd94f33ccfb8620d59c40a2ba84a6fa1283a5e7",
+        "candidate.repeat": "d3d78f7872f120b112cc099e9bd94f33ccfb8620d59c40a2ba84a6fa1283a5e7"
+      },
+      "medianOpaqueRed": {
+        "reference": 29,
+        "candidate": 29
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "usageCard": {
+        "rectanglePixelsHalfOpen": [
+          480,
+          410,
+          1880,
+          1190
+        ],
+        "pixelCount": 1092000,
+        "differentFromFirstReference": {
+          "reference.repeat": 0,
+          "candidate": 0,
+          "candidate.repeat": 0
+        },
+        "decodedRGBASHA256": "5ec2f777a895557902e4c77f1130d100be6c1e5ac709e76728782fedad1931fd"
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "compact-usage",
+      "axEqual": true,
+      "axLines": [
+        157,
+        157
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "2a6c66a33e9e9ce97c3d47eec9c1a9d9457aa3c11c415a6b21dee1ac66f5a88a",
+        "reference.repeat": "0ae7238b774459832a17fefacd77b0051328abf1b3766d87a611017566c19e27",
+        "candidate": "0ae7238b774459832a17fefacd77b0051328abf1b3766d87a611017566c19e27",
+        "candidate.repeat": "0ae7238b774459832a17fefacd77b0051328abf1b3766d87a611017566c19e27"
+      },
+      "medianOpaqueRed": {
+        "reference": 249,
+        "candidate": 249
+      },
+      "between": {
+        "changedPixels": 10,
+        "bounds": [
+          1608,
+          16,
+          1688,
+          87
+        ]
+      },
+      "referenceRepeat": {
+        "changedPixels": 10,
+        "bounds": [
+          1608,
+          16,
+          1688,
+          87
+        ]
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "usageCard": {
+        "rectanglePixelsHalfOpen": [
+          480,
+          410,
+          1680,
+          1190
+        ],
+        "pixelCount": 936000,
+        "differentFromFirstReference": {
+          "reference.repeat": 0,
+          "candidate": 0,
+          "candidate.repeat": 0
+        },
+        "decodedRGBASHA256": "ebcb5646e22cab58793b688758ea7671d04a0fe92d73e5d26052f471842b11d5"
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "normal-usage",
+      "axEqual": true,
+      "axLines": [
+        157,
+        157
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "0d45e57e5e0cf16258e463483972272ea4ab43fc369f62fbc06446c670e49bf3",
+        "reference.repeat": "0d45e57e5e0cf16258e463483972272ea4ab43fc369f62fbc06446c670e49bf3",
+        "candidate": "0d45e57e5e0cf16258e463483972272ea4ab43fc369f62fbc06446c670e49bf3",
+        "candidate.repeat": "0d45e57e5e0cf16258e463483972272ea4ab43fc369f62fbc06446c670e49bf3"
+      },
+      "medianOpaqueRed": {
+        "reference": 249,
+        "candidate": 249
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "usageCard": {
+        "rectanglePixelsHalfOpen": [
+          480,
+          410,
+          1880,
+          1190
+        ],
+        "pixelCount": 1092000,
+        "differentFromFirstReference": {
+          "reference.repeat": 0,
+          "candidate": 0,
+          "candidate.repeat": 0
+        },
+        "decodedRGBASHA256": "147cca7dd95f8b432bf6850c08a086cf49c4ae1a3dcade217a9d5c7fc11f2a00"
+      }
+    }
+  ],
+  "totalComparedPixels": 9426560,
+  "usageCardPixelsCompared": 4056000,
+  "inputRows": [
+    [
+      1795348800.0,
+      "gpt-5.1",
+      29,
+      7,
+      11
+    ],
+    [
+      1795352400.0,
+      "gpt-5.2",
+      58,
+      14,
+      22
+    ],
+    [
+      1795435200.0,
+      "gpt-5.1",
+      116,
+      28,
+      44
+    ],
+    [
+      1795438800.0,
+      "gpt-5.2",
+      232,
+      56,
+      88
+    ],
+    [
+      1795521600.0,
+      "gpt-5.1",
+      58,
+      14,
+      22
+    ],
+    [
+      1795525200.0,
+      "gpt-5.2",
+      116,
+      28,
+      44
+    ],
+    [
+      1795608000.0,
+      "gpt-5.1",
+      87,
+      21,
+      33
+    ],
+    [
+      1795611600.0,
+      "gpt-5.2",
+      174,
+      42,
+      66
+    ]
+  ],
+  "notes": [
+    "Each bundle was run with a disposable synthetic home. The Light run uses a re-signed QA copy to set only its own appearance. See testedBundles for the executing binary hashes.",
+    "Usage card is compared by decoding to RGBA in each image, top-left origin and half-open bounds. The rectangle encloses the total, bars, date labels, and all three legend entries.",
+    "The strict full-window comparator exited nonzero for the first Light compact pair. All four accessibility trees and repeat-to-candidate images matched."
+  ]
+}
