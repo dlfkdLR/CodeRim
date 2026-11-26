@@ -1,0 +1,4 @@
+module CCodeRimAccounting {
+    header "coderim_accounting.h"
+    export *
+}
