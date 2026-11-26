@@ -10,9 +10,9 @@ crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 coderim-usage-core = { path = ".." }
+memchr = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["raw_value"] }
 
 [target.'cfg(target_os = "macos")'.dependencies]
 libc = "0.2"
-memchr = "2"

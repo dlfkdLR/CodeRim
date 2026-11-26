@@ -11,6 +11,9 @@ public static class ClaudeJsonlParser
     public static UsageEvent? Parse(ReadOnlyMemory<byte> line, byte[]? projectKey = null, string? sourceName = null)
     {
         if (line.Length > CodexJsonlParser.MaximumLineBytes) return null;
+#if CODERIM_RUST_ACCOUNTING
+        if (RustClaudeEventParser.TryParse(line.Span, projectKey, sourceName, out var projected)) return projected;
+#endif
         try
         {
             using var document = JsonDocument.Parse(line);
@@ -22,23 +25,33 @@ public static class ClaudeJsonlParser
             var session = JsonFields.Text(root, "sessionId");
             var model = JsonFields.Text(message, "model");
             if (id is null || session is null || !ValidIdentifier(session) || model is null || !model.StartsWith("claude-", StringComparison.Ordinal)) return null;
-            if (!DateTimeOffset.TryParse(JsonFields.Text(root, "timestamp"), System.Globalization.CultureInfo.InvariantCulture,
-                    System.Globalization.DateTimeStyles.AssumeUniversal, out var date)) return null;
+            if (!TryParseDate(JsonFields.Text(root, "timestamp"), out var date)) return null;
             var usage = JsonFields.Object(message, "usage");
             var input = JsonFields.Count(usage, "input_tokens");
             var output = JsonFields.Count(usage, "output_tokens");
             var read = JsonFields.OptionalCount(usage, "cache_read_input_tokens");
             var write = JsonFields.OptionalCount(usage, "cache_creation_input_tokens");
             if (input is null || output is null || read is null || write is null) return null;
-            var agent = AgentIdentifier(JsonFields.Text(root, "agentId"));
-            if (agent is null && sourceName?.StartsWith("agent-", StringComparison.Ordinal) == true) agent = AgentIdentifier(sourceName);
-            var parent = Hash(session);
-            var owner = agent is null ? parent : Hash("claude-agent|" + session + "|" + agent);
-            return new UsageEvent(Hash(id), date, new TokenUsage(input.Value + read.Value + write.Value, read.Value, output.Value, write.Value),
-                model.ToLowerInvariant(), JsonFields.Folder(JsonFields.Text(root, "cwd")), owner, "claude", ProjectIdentity(JsonFields.Text(root, "cwd"), projectKey))
-                { ImportParentSessionId = agent is null ? null : parent };
+            return CreateEvent(id, session, model, date,
+                new TokenUsage(input.Value + read.Value + write.Value, read.Value, output.Value, write.Value),
+                JsonFields.Text(root, "agentId"), JsonFields.Text(root, "cwd"), projectKey, sourceName);
         }
         catch (JsonException) { return null; }
+    }
+
+    internal static bool TryParseDate(string? timestamp, out DateTimeOffset date) =>
+        DateTimeOffset.TryParse(timestamp, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AssumeUniversal, out date);
+
+    internal static UsageEvent CreateEvent(string id, string session, string model, DateTimeOffset date,
+        TokenUsage usage, string? agentId, string? cwd, byte[]? projectKey, string? sourceName)
+    {
+        var agent = AgentIdentifier(agentId);
+        if (agent is null && sourceName?.StartsWith("agent-", StringComparison.Ordinal) == true) agent = AgentIdentifier(sourceName);
+        var parent = Hash(session);
+        var owner = agent is null ? parent : Hash("claude-agent|" + session + "|" + agent);
+        return new UsageEvent(Hash(id), date, usage, model.ToLowerInvariant(), JsonFields.Folder(cwd), owner, "claude", ProjectIdentity(cwd, projectKey))
+            { ImportParentSessionId = agent is null ? null : parent };
     }
 
     // Stream revisions take maxima of disjoint components, never max(total input).

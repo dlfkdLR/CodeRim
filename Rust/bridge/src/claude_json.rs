@@ -42,7 +42,7 @@ pub struct ParsedClaude {
     cwd: Field,
 }
 
-struct Keyed<T>(T);
+pub(super) struct Keyed<T>(pub(super) T);
 struct KeyedVisitor<T>(PhantomData<T>);
 impl<'de, T: Deserialize<'de>> Visitor<'de> for KeyedVisitor<T> {
     type Value = Keyed<T>;
