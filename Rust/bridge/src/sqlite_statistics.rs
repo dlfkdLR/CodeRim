@@ -59,10 +59,13 @@ pub unsafe extern "C" fn cr_statistics_event_bounds(
     let mut statement = ptr::null_mut();
     unsafe {
         let mut rc = sqlite3_prepare_v2(db, sql.as_ptr(), -1, &mut statement, ptr::null_mut());
-        // A read-only authorizer can permit the event table while restricting schema
-        // introspection. Keep the original authorized aggregate in that case.
+        // A connection may allow the original aggregate while restricting schema
+        // reads, compound queries or SQL length. Use its original prepare errors
+        // and avoid retrying lock waits, interruptions or I/O failures.
+        const SQLITE_ERROR: c_int = 1;
+        const SQLITE_TOOBIG: c_int = 18;
         const SQLITE_AUTH: c_int = 23;
-        if rc == SQLITE_AUTH {
+        if matches!(rc & 0xff, SQLITE_ERROR | SQLITE_TOOBIG | SQLITE_AUTH) {
             let original = c"SELECT MIN(occurred_at), MAX(occurred_at) FROM usage_events";
             rc = sqlite3_prepare_v2(db, original.as_ptr(), -1, &mut statement, ptr::null_mut());
         }
