@@ -67,6 +67,9 @@ final class NotchUsageStore: ObservableObject {
     private var lastAttempt: Date?
 
     private let archive: UsageArchive
+    #if CODERIM_RUST_ACCOUNTING
+    private let archiveWriter = UsageArchive.Writer()
+    #endif
     private var lastGood: [String: (snapshot: ProviderSnapshot, fetchedAt: Date)] = [:]
     /// The account each remembered reading was taken for (`NotchProvider.accountIdentity()`).
     private var lastGoodOwners: [String: String] = [:]
@@ -154,7 +157,7 @@ final class NotchUsageStore: ObservableObject {
     func invalidateAccount(providerID: String) {
         connectionVersions[providerID] = UUID()
         lastGood.removeValue(forKey: providerID)
-        saveArchive()
+        saveArchive(changed: providerID)
         refusedAccess.remove(providerID)
         if let provider = providers.first(where: { $0.id == providerID }),
            let index = snapshots.firstIndex(where: { $0.id == providerID }) {
@@ -387,6 +390,9 @@ final class NotchUsageStore: ObservableObject {
         refusedAccess.remove(providerID)
         snapshots.removeAll { $0.id == providerID }
         lastGood.removeValue(forKey: providerID)
+        #if CODERIM_RUST_ACCOUNTING
+        archiveWriter.reset()
+        #endif
         archive.forget(providerID)
 
         Task { await provider.signOut() }
@@ -455,9 +461,13 @@ final class NotchUsageStore: ObservableObject {
         }
     }
 
-    private func saveArchive() {
+    private func saveArchive(changed: String? = nil) {
         lastGoodOwners = lastGoodOwners.filter { lastGood[$0.key] != nil }
+        #if CODERIM_RUST_ACCOUNTING
+        archiveWriter.save(to: archive, readings: lastGood, owners: lastGoodOwners, changed: changed)
+        #else
         archive.save(lastGood, owners: lastGoodOwners)
+        #endif
     }
 
     private func isCurrent(_ providerID: String, version: UUID?) -> Bool {
@@ -489,7 +499,7 @@ final class NotchUsageStore: ObservableObject {
             fresh.accountIdentity = owner
             lastGood[provider.id] = (fresh, Date())
             lastGoodOwners[provider.id] = owner
-            saveArchive()
+            saveArchive(changed: provider.id)
             refusedAccess.remove(provider.id)
             NotchLog.usage.debug("\(provider.id, privacy: .public): \(fresh.windows.count) window(s)")
             return fresh
@@ -506,7 +516,7 @@ final class NotchUsageStore: ObservableObject {
     /// note that the account changed, and the next refresh reads again.
     private func unattributed(provider: NotchProvider, answer: ProviderSnapshot) -> ProviderSnapshot? {
         lastGood[provider.id] = nil
-        saveArchive()
+        saveArchive(changed: provider.id)
         guard provider.isVisibleWhenAbsent else { return nil }
         var empty = Self.placeholder(provider)
         empty.status = answer.status == .ok || answer.status.isStale
@@ -520,7 +530,7 @@ final class NotchUsageStore: ObservableObject {
     private func degraded(provider: NotchProvider, error: Error) -> ProviderSnapshot? {
         if !provider.isVisibleWhenAbsent {
             lastGood[provider.id] = nil
-            saveArchive()
+            saveArchive(changed: provider.id)
             return nil
         }
 
@@ -538,7 +548,7 @@ final class NotchUsageStore: ObservableObject {
         // stale.
         if Self.supersedesHistory(status) {
             lastGood[provider.id] = nil
-            saveArchive()
+            saveArchive(changed: provider.id)
             var empty = Self.placeholder(provider)
             empty.status = status
             return empty
@@ -548,7 +558,7 @@ final class NotchUsageStore: ObservableObject {
         if (lastGoodOwners[provider.id] != nil || provider.requiresVerifiedArchiveOwner),
            !provider.acceptsArchived(owner: lastGoodOwners[provider.id]) {
             lastGood[provider.id] = nil
-            saveArchive()
+            saveArchive(changed: provider.id)
         }
         guard let previous = lastGood[provider.id] else {
             var empty = Self.placeholder(provider)

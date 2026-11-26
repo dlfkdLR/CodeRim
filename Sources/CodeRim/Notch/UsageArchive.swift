@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 // Ported from vinzdg/codenotch (MIT) — Model/UsageArchive.swift. Trimmed:
 // Codex token activity is dropped for now. The per-provider request-backoff
@@ -23,6 +26,15 @@ struct UsageArchive {
         /// Whose reading this is (`NotchProvider.accountIdentity()`); nil for providers that cannot
         /// tell accounts apart and for archives written before the field existed.
         let accountIdentity: String?
+    }
+
+    typealias Reading = (snapshot: ProviderSnapshot, fetchedAt: Date)
+
+    private static func entry(_ reading: Reading, owners: [String: String]) -> Entry {
+        let snapshot = reading.snapshot
+        return Entry(id: snapshot.id, displayName: snapshot.displayName, glyph: snapshot.glyph,
+                     fidelity: snapshot.fidelity, windows: snapshot.windows, fetchedAt: reading.fetchedAt,
+                     headlineID: snapshot.headlineID, accountIdentity: owners[snapshot.id])
     }
 
     private let defaults: UserDefaults
@@ -93,21 +105,14 @@ struct UsageArchive {
         // relies on it.
         let entries = readings
             .sorted { $0.key < $1.key }
-            .map { _, reading in
-                Entry(
-                    id: reading.snapshot.id,
-                    displayName: reading.snapshot.displayName,
-                    glyph: reading.snapshot.glyph,
-                    fidelity: reading.snapshot.fidelity,
-                    windows: reading.snapshot.windows,
-                    fetchedAt: reading.fetchedAt,
-                    headlineID: reading.snapshot.headlineID,
-                    accountIdentity: owners[reading.snapshot.id]
-                )
-            }
+            .map { Self.entry($0.value, owners: owners) }
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys   // byte-stable, for the compare below
         guard let data = try? encoder.encode(entries) else { return }
+        persist(data)
+    }
+
+    private func persist(_ data: Data) {
         // Skip an identical write. Every provider fetch calls this, and writing
         // to `UserDefaults.standard` posts `didChangeNotification` app-wide —
         // which `AccountLimitStore` reacts to. An unconditional write here is
@@ -115,6 +120,71 @@ struct UsageArchive {
         if defaults.data(forKey: key) == data { return }
         defaults.set(data, forKey: key)
     }
+
+    #if CODERIM_RUST_ACCOUNTING
+    /// One instance belongs to each main-actor NotchUsageStore. Other stores may write
+    /// the defaults key at any time; persist always compares against its current bytes.
+    final class Writer {
+        private var state: OpaquePointer?
+        private let encoder: JSONEncoder = {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .sortedKeys
+            return encoder
+        }()
+
+        deinit { cr_reading_archive_free(state) }
+
+        func reset() {
+            cr_reading_archive_free(state)
+            state = nil
+        }
+
+        func save(to archive: UsageArchive, readings: [String: Reading],
+                  owners: [String: String], changed: String?) {
+            var count = 0
+            guard update(readings: readings, owners: owners, changed: changed),
+                  let bytes = cr_reading_archive_bytes(state, &count) else {
+                reset()
+                archive.save(readings, owners: owners)
+                return
+            }
+            archive.persist(Data(bytes: bytes, count: count))
+        }
+
+        private func update(readings: [String: Reading], owners: [String: String],
+                            changed: String?) -> Bool {
+            if let state, let changed {
+                return edit(state, key: changed, reading: readings[changed], owners: owners)
+            }
+            reset()
+            state = cr_reading_archive_new()
+            guard let state else { return false }
+            return readings.allSatisfy { key, reading in
+                edit(state, key: key, reading: reading, owners: owners)
+            }
+        }
+
+        private func edit(_ state: OpaquePointer, key: String, reading: Reading?,
+                          owners: [String: String]) -> Bool {
+            // The full writer also supports arbitrary dictionary keys and applies the owner
+            // using the snapshot ID. Keep its semantics when multiple keys can share an owner.
+            guard reading == nil || reading?.snapshot.id == key else { return false }
+            var key = key
+            return key.withUTF8 { id in
+                guard let reading else {
+                    return cr_reading_archive_edit(state, id.baseAddress, id.count, nil, 0) != 0
+                }
+                guard let data = try? encoder.encode(UsageArchive.entry(reading, owners: owners)) else {
+                    return false
+                }
+                return data.withUnsafeBytes { raw in
+                    cr_reading_archive_edit(state, id.baseAddress, id.count,
+                                            raw.bindMemory(to: UInt8.self).baseAddress, raw.count) != 0
+                }
+            }
+        }
+    }
+    #endif
 
     /// Drop what we remember about one provider.
     func forget(_ providerID: String) {
