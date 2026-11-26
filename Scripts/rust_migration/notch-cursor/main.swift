@@ -11,7 +11,9 @@ enum NotchMotion { static let unfold: Animation = .easeOut(duration: 0.1) }
 enum NotchLayout { static let orbHotZone: CGFloat = 12 }
 
 @MainActor final class Model {
-  var isExpanded = false, staysOpen = false, isPresentingAccountMenu = false
+  var isExpanded = false, isPinned = false, isAlwaysOn = false, isPresentingAccountMenu = false
+  var staysOpen: Bool { isPinned || isAlwaysOn || isPresentingAccountMenu }
+  var expandedSessionProviderID: String?
   var isHoveringSettings = false, isHoveringAccountSwitch = false
   var hoveredIndex: Int?
   var slack: CGFloat = 4
@@ -40,6 +42,10 @@ enum NotchLayout { static let orbHotZone: CGFloat = 12 }
   let hostingView: Hosting? = Hosting()
   let foldGrace: TimeInterval = 0.45, hoverGrace: TimeInterval = 0.25
   var foldWork: DispatchWorkItem?, clearHoverWork: DispatchWorkItem?, peekUntil: Date?
+  #if CURSOR_INTERACTION
+  var interaction = NotchInteraction()
+  var peekWork: DispatchWorkItem?
+  #endif
   var edge = NotchEdge.left
   var mouse = CGPoint.zero, isPointing = false
   init() {
@@ -94,7 +100,25 @@ enum NotchLayout { static let orbHotZone: CGFloat = 12 }
     model.isPresentingAccountMenu = false
     isPointing = false
     peekUntil = nil
-    model.staysOpen = false
+    model.isPinned = false
+    #if CURSOR_INTERACTION
+    peekWork?.cancel()
+    peekWork = nil
+    interaction = NotchInteraction()
+    #endif
+  }
+  // The replay starts each trace in an explicit presentation state.
+  func seedInteraction() {
+    #if CURSOR_INTERACTION
+    interaction.expanded = model.isExpanded
+    interaction.menu_open = model.isPresentingAccountMenu
+    interaction.pinned = model.isPinned
+    if let peekUntil {
+      interaction.peek_timer = 1
+      interaction.serial = 1
+      interaction.peek_until = peekUntil.timeIntervalSinceReferenceDate
+    }
+    #endif
   }
   /* Controller methods */
 }
@@ -118,11 +142,12 @@ if CommandLine.arguments.count == 1 {
       controller.reset()
       let m = controller.model
       m.isExpanded = flags & 1 != 0
-      m.staysOpen = flags & 2 != 0
+      m.isPinned = flags & 2 != 0
       m.isPresentingAccountMenu = flags & 4 != 0
       m.isHoveringSettings = flags & 8 != 0
       if flags & 16 != 0 { m.hoveredIndex = 1 }
       if flags & 32 != 0 { controller.peekUntil = .distantFuture }
+      controller.seedInteraction()
       for (a, b) in [
         (-10, -10), (20, 5), (24, 10), (24, 18), (36, 49), (63, 14), (8, 15), (115, 39), (-10, -10),
       ] {
@@ -140,7 +165,6 @@ if CommandLine.arguments.count == 1 {
     switch profile {
     case "folded": controller.position(outside)
     case "expanded":
-      controller.model.staysOpen = true
       controller.position(controller.placement.point(along: 24, across: 10))
     default:
       if i % 8 == 0 { controller.reset() }
@@ -149,6 +173,7 @@ if CommandLine.arguments.count == 1 {
     }
     controller.run()
   }
+  if profile == "expanded" { controller.model.isPinned = true; controller.seedInteraction() }
   for n in 0..<256 { tick(n) }
   controller.panel!.writes = 0
   var checksum = 0

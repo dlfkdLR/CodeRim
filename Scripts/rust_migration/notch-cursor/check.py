@@ -53,8 +53,15 @@ def main():
             pieces = [method(controller, sig) for sig in [
                 "private func updateInteractiveRects()", "private func localCursor(in", "private func cursorMoved()",
                 "private func setExpanded(", "static func wantsPointingHand("]]
-            if mode in ["swift-control", "rust"]:
+            if "private func applyInteractiveRects(" in controller:
                 pieces.append(method(controller, "private func applyInteractiveRects("))
+            interaction = []
+            if "private func handleInteraction(" in controller:
+                pieces.extend(method(controller, sig) for sig in [
+                    "private func handleInteraction(", "private static func schedule("])
+                interaction_source = work / (mode + "-interaction.swift")
+                interaction_source.write_text(source("NotchInteraction.swift"))
+                interaction = [interaction_source, "-D", "CURSOR_INTERACTION"]
             hover = method(model, "func updateControlHover(")
             # The control uses the optimized host event path with the original Swift control-state calculation.
             if mode == "swift-control":
@@ -68,7 +75,7 @@ def main():
             exe = work / mode
             flags = [] if mode == "release" else ["-D","CODERIM_RUST_ACCOUNTING","-I",ROOT/"Rust/bridge/include",args.archive.resolve()]
             subprocess.run(["xcrun","swiftc","-swift-version","6","-O","-warnings-as-errors","-whole-module-optimization",
-                            "-target",args.arch+"-apple-macos14.0", placement,main,*flags,"-o",exe],check=True)
+                            "-target",args.arch+"-apple-macos14.0", placement,main,*interaction,*flags,"-o",exe],check=True)
             bins[mode] = exe
             outputs[mode] = subprocess.check_output([exe])
         if len(set(outputs.values())) != 1:

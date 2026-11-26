@@ -541,7 +541,8 @@ final class NotchWindowController: NSObject, NSPopoverDelegate {
         if previous.always_on != interaction.always_on { model.isAlwaysOn = interaction.always_on }
         if previous.pinned != interaction.pinned { model.isPinned = interaction.pinned }
         if previous.menu_open != interaction.menu_open { model.isPresentingAccountMenu = interaction.menu_open }
-        if previous.expanded != interaction.expanded || clearHover {
+        // Landing at a new edge folds the currently presented model before reopening it.
+        if previous.expanded != interaction.expanded || clearHover || event == .edgeFold {
             let publish = {
                 if self.model.isExpanded != self.interaction.expanded
                     || (!self.interaction.expanded && self.model.expandedSessionProviderID != nil) {
