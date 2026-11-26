@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using CodeRim.Core.Domain;
+using Microsoft.Win32.SafeHandles;
 
 namespace CodeRim.Core.Services;
 
@@ -111,9 +112,37 @@ public static class CompanionFile
         path ??= SnapshotPath;
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
-        try { File.WriteAllBytes(temporary, payload); Publish(temporary, path); }
+        try
+        {
+            using var lease = Stage(temporary, payload);
+            Publish(temporary, path);
+        }
         finally { File.Delete(temporary); }
     }
+
+    internal static SafeFileHandle? Stage(string temporary, byte[] payload)
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            File.WriteAllBytes(temporary, payload);
+            return null;
+        }
+        // A source reader that omits delete sharing can otherwise block the rename
+        // in the interval between closing the writer and publishing the new name.
+        using var writer = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.Delete);
+        writer.Write(payload);
+        writer.Flush();
+        const uint deleteAccess = 0x0001_0000;
+        // Keep only DELETE access after closing the writer. Published snapshots can
+        // immediately be opened for read with the existing read/delete sharing mode.
+        // If a filesystem cannot grant the lease, Publish still uses its bounded retries.
+        return ReOpenFile(writer.SafeFileHandle, deleteAccess, FileShare.ReadWrite | FileShare.Delete, 0);
+    }
+
+    [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
+    [DllImport("kernel32.dll", ExactSpelling = true)]
+    private static extern SafeFileHandle ReOpenFile(SafeFileHandle file, uint desiredAccess, FileShare shareMode, uint flags);
+
     // A blocked Windows rename can report sharing (32), lock (33) or access denied (5).
     // The latter can also be permanent permission denial: never alter permissions
     // or bypass it. Keep complete snapshots and stop after seven 50 ms waits.
