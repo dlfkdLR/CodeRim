@@ -1,0 +1,180 @@
+{
+  "nativeWindows": {
+    "run": 45815481690,
+    "commit": "b7393845cfb8a88f0637455e536f1dbc26b5482b",
+    "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+    "x64": {
+      "job": 139894026911,
+      "jobConclusion": "success",
+      "artifactArchives": {
+        "scanner-sessions": {
+          "id": 15116022415,
+          "digest": "sha256:7199c833821585e56079bb2a847c78a3ef89f5dbb6d1b9636d5045ea76cf65ec"
+        },
+        "bounded-lines": {
+          "id": 15114848923,
+          "digest": "sha256:4eecdc0b618a08a0d0f2d0bfb0acefc3ec538452261eb5cd5a338b44edac1bb5"
+        }
+      },
+      "parser": {
+        "cases": {
+          "count": 864,
+          "sha256": "cdca2e9e008d4cd4ba36116cce8d7da80f9695a0838e11eee06eabd6af60ae15",
+          "ignored": 530,
+          "exceptions": 68
+        },
+        "scan": {
+          "count": 2,
+          "sha256": "ed6744827235c4a1b2730d00304ac4b8c4feba51cfb229c4ad1a59af894447f2"
+        },
+        "medians": {
+          "release": {
+            "scan": {
+              "ms": 38.3015
+            },
+            "ignored-32768": {
+              "ns": 3556.25,
+              "managedBytes": 136
+            },
+            "windows-32768": {
+              "ns": 9873.958333333334,
+              "managedBytes": 2096
+            },
+            "escaped-exact-131072": {
+              "ns": 176072.91666666666,
+              "managedBytes": 2096
+            },
+            "ignored-exact-131072": {
+              "ns": 6410.416666666667,
+              "managedBytes": 136
+            },
+            "windows-exact-131072": {
+              "ns": 12991.666666666666,
+              "managedBytes": 2096
+            }
+          },
+          "rust": {
+            "scan": {
+              "ms": 14.6711
+            },
+            "ignored-32768": {
+              "ns": 3577.0833333333335,
+              "managedBytes": 104
+            },
+            "windows-32768": {
+              "ns": 8418.75,
+              "managedBytes": 1776
+            },
+            "escaped-exact-131072": {
+              "ns": 174868.75,
+              "managedBytes": 1776
+            },
+            "ignored-exact-131072": {
+              "ns": 6410.416666666667,
+              "managedBytes": 104
+            },
+            "windows-exact-131072": {
+              "ns": 11519.791666666666,
+              "managedBytes": 1776
+            }
+          }
+        }
+      },
+      "stream": {
+        "cases": 495,
+        "returned": 24638,
+        "exceptions": 53,
+        "scan": {
+          "SourceCount": 1,
+          "count": 3072,
+          "events": "4773D003A8F12150D7B3EE83903535A1309B4E1B50CAAC900E0579766CB55D6E"
+        },
+        "firstReadMicroseconds": {
+          "coldProcessMedians": {
+            "5": {
+              "release": 4697,
+              "rust": 4266.4
+            },
+            "65536": {
+              "release": 5048.2,
+              "rust": 4334.5
+            },
+            "65537": {
+              "release": 5115.4,
+              "rust": 13530.9
+            },
+            "131072": {
+              "release": 5583.5,
+              "rust": 13528.7
+            }
+          },
+          "defaultJitColdProcessMedians": {
+            "5": {
+              "release": 2727.5,
+              "rust": 1819
+            },
+            "65536": {
+              "release": 9210.5,
+              "rust": 1956.9
+            },
+            "65537": {
+              "release": 9216.7,
+              "rust": 7500.3
+            },
+            "131072": {
+              "release": 9510.5,
+              "rust": 7592.3
+            }
+          }
+        }
+      },
+      "receiptSHA256": "f739b0f04ad9a53a79f102cecbdcbf97f49d357f08f3898c5b058a8e7a2c785c"
+    },
+    "arm64": {
+      "job": 139894026930,
+      "jobConclusion": "failure",
+      "productTests": {
+        "passed": 4656,
+        "failed": 1,
+        "skipped": 0,
+        "test": "ProviderAccountMetadataTests.MetadataRoundTripAndLegacyAbsenceAreCompatible",
+        "exception": "System.IO.IOException: The process cannot access the file because it is being used by another process.",
+        "stack": [
+          "System.IO.FileSystem.MoveFile",
+          "CompanionFile.Publish",
+          "CompanionFile.Write"
+        ],
+        "testLogArtifact": 15116131668,
+        "archiveSHA256": "6194fbbdcfac86cb6c8307a2a79b20157fc40e3b4a0f1e8332a7743288548cdf"
+      },
+      "scannerBenchmarks": "skipped after the product test failure; the test log did not identify the locking process or file handle"
+    }
+  },
+  "localOnMac": {
+    "bounded": {
+      "commit": "c84612ff03c5516d5fb79fc3636b4b6b0df2b5cb",
+      "runtime": "Apple Silicon .NET 10.0.12",
+      "streamCases": 495,
+      "simultaneousReaders": 20,
+      "retainedOutputs": 62743,
+      "independentReaderInputsPerArchitecture": 90,
+      "independentReceiptSHA256": "b485c623c7ba1fca7fc35f9a7258ec0e0adb74c5ea737621b44fa8db94eb35a7",
+      "receiptSHA256": "d8cab253365aabd5fe377a11de32ffd7d25d2761f509e88fd177136b88f6dcaa"
+    },
+    "parser": {
+      "commit": "3c6fcb9ec50c34acacc080ed2d2c14234458b0f9",
+      "independentObservationsPerAppleRuntime": 2716,
+      "runtime": "Apple Silicon and Rosetta x64 .NET 10.0.12",
+      "receiptSHA256": "072a09a746519bbf6e3c05ee9465f215448c6ddd95ed29b5284563c989516504"
+    },
+    "snapshot": {
+      "productCommit": "1d0e0260a350ad1e094fdf5d07501cdb8cd425a0",
+      "fixtureCommit": "12251b121a6ff68d69413f85fc52fb3bfc59f3b2",
+      "metadataPassed": 39,
+      "companionPassed": 26,
+      "companionWindowsOnlySkipped": 6,
+      "harnessGate": "REJECT",
+      "harnessReason": "New verification input CompanionStagingFileTests.cs. Previous concurrency test matches original Git blob 1ff051b0b8cd160bf038524a8218906919e457a8."
+    }
+  }
+}
