@@ -63,7 +63,7 @@ internal static class Program
         await available.Task.WaitAsync(TimeSpan.FromSeconds(4));
         using var frame = pool.TryGetNextFrame();
         if (frame is null) return new { status = "compositor-no-frame" };
-        using var bitmap = await SoftwareBitmap.CreateCopyFromSurfaceAsync(frame.Surface);
+        using var bitmap = await SoftwareBitmap.CreateCopyFromSurfaceAsync(frame.Surface, BitmapAlphaMode.Premultiplied);
         if (process.HasExited || !NativeCapture.Owned(hwnd, process.Id) || NativeCapture.Bounds(hwnd) != geometry ||
             !File.Exists(prefix + ".ready")) return new { status = "compositor-window-changed" };
         int width = frame.ContentSize.Width, height = frame.ContentSize.Height;
@@ -83,7 +83,13 @@ internal static class Program
         for (int y = 0; y < client.Height; y++)
             Array.Copy(data, ((y + top) * width + left) * 4, pixels, y * client.Width * 4, client.Width * 4);
         string ownedPath = Path.Combine(directory, "windows-account-history-overview.screen.hwnd.png");
-        return Compare(pixels, client.Size, ownedPath, width, height);
+        var independent = Compare(pixels, client.Size, ownedPath, width, height);
+        // Finish WGC before reading the controlled desktop so its highlight cannot change the fixture.
+        session.Dispose();
+        object backing = bitmap.BitmapAlphaMode == BitmapAlphaMode.Ignore
+            ? new { status = "compositor-alpha-unavailable" }
+            : OwnedBackdrop.Compare(hwnd, process.Id, client, pixels, bitmap.BitmapAlphaMode == BitmapAlphaMode.Straight);
+        return new { status = "compositor-owned-frame", independent, backing };
     }
 
     private static object Compare(byte[] pixels, Size size, string ownedPath, int frameWidth, int frameHeight)

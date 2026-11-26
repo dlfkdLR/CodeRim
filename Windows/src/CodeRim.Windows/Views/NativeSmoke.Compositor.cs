@@ -21,7 +21,7 @@ internal static partial class NativeSmoke
         File.Move(prefix + ".tmp", prefix + ".ready", true);
         try
         {
-            while (!File.Exists(prefix + ".done") && watch.Elapsed < TimeSpan.FromSeconds(12)) await Task.Delay(40);
+            while (!File.Exists(prefix + ".done") && watch.Elapsed < TimeSpan.FromSeconds(50)) await Task.Delay(40);
         }
         finally { File.Delete(prefix + ".ready"); }
     }
