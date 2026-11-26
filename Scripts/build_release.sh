@@ -91,6 +91,9 @@ install -m 644 "${project_root}/Config/Info.plist" "${app_path}/Contents/Info.pl
 for notice in LICENSE NOTICE; do
   install -m 644 "${project_root}/${notice}" "${app_path}/Contents/Resources/${notice}.txt"
 done
+if [[ -n "${CODERIM_RUST_ACCOUNTING_ARCHIVE:-}" ]]; then
+  install -m 644 "${project_root}/Rust/THIRD-PARTY-NOTICES.txt" "${app_path}/Contents/Resources/Rust-Notices.txt"
+fi
 "${script_dir}/verify_license_notices.sh" "${app_path}"
 provider_logo_source="${project_root}/Sources/CodeRim/Resources/ProviderLogos"
 provider_logo_destination="${app_path}/Contents/Resources/ProviderLogos"

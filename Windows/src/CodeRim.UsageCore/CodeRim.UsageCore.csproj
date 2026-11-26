@@ -18,6 +18,8 @@
   </PropertyGroup>
   <ItemGroup Condition="'$(CodeRimRustAccounting)' == 'true'">
     <Compile Remove="Domain/ManagedUsageNormalizer.cs" />
+    <None Include="../../../Rust/THIRD-PARTY-NOTICES.txt" Link="Rust-Notices.txt"
+          CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" ExcludeFromSingleFile="true" />
     <Content Include="$(CodeRimRustAccountingLibrary)" Condition="'$(CodeRimRustAccountingLibrary)' != ''"
              Link="$(_CodeRimBridgeFilename)" TargetPath="$(_CodeRimBridgeFilename)"
              CopyToOutputDirectory="Always" CopyToPublishDirectory="Always" ExcludeFromSingleFile="true" />
