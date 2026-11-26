@@ -16,6 +16,10 @@ public static partial class SessionPresentation
         IReadOnlyList<UsageEvent> events, IReadOnlyList<SessionDetails> metadata, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+#if CODERIM_RUST_ACCOUNTING
+        if (sessions.Count <= 64 && RustSessionPresentation.TryTotals(sessions, provider, events, metadata, cancellationToken) is { } result)
+            return result;
+#endif
         var parents = new HashSet<string>(StringComparer.Ordinal);
         var children = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         foreach (var item in metadata)

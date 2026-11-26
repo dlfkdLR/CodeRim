@@ -20,6 +20,8 @@ mod notch_path;
 mod pricing;
 #[cfg(target_os = "macos")]
 mod sqlite_periods;
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
+mod session_totals;
 mod token_json;
 
 use coderim_usage_core::{
