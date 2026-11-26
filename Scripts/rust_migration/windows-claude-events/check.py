@@ -52,8 +52,9 @@ def sized_record(size, shape):
             obj["type"] = obj.pop("type")
     space = size - len(row(obj))
     assert space >= 0
-    if shape == "escaped":
-        body["text"] = "\\" * (space // 2) + "x" * (space % 2)
+    if shape in ("escaped", "escapedTabs"):
+        token = "\\" if shape == "escaped" else "\t"
+        body["text"] = token * (space // 2) + "x" * (space % 2)
     else:
         body["text"] = "x" * space
     encoded = row(obj)
@@ -110,7 +111,7 @@ def fixtures(work):
     named.append(("escaped-size", changed(["cwd"], "\\" * 512)))
     named.append(("cwd-unicode-escape", json.dumps(BASE, ensure_ascii=True).encode()))
     for size in (2047, 2048, 2049, 8191, 8192, 8193, 16383, 16384, 16385, 32768, 131072):
-        for shape in ("posix", "windows", "nullCount", "ignored", "ignoredLate", "escaped"):
+        for shape in ("posix", "windows", "nullCount", "ignored", "ignoredLate", "escaped", "escapedTabs"):
             data = sized_record(size, shape)
             named.append((f"exact-{shape}-{size}", data))
             if shape == "escaped":
@@ -140,7 +141,7 @@ def fixtures(work):
             obj["message"]["content"][0]["text"] = "x" * size
             (bench / f"{shape}-{size}").write_bytes(row(obj))
     for size in (2048, 8192, 16383, 16384, 32768, 131072):
-        for shape in ("windows", "nullCount", "ignored", "ignoredLate", "escaped"):
+        for shape in ("windows", "nullCount", "ignored", "ignoredLate", "escaped", "escapedTabs"):
             (bench / f"{shape}-exact-{size}").write_bytes(sized_record(size, shape))
     return [name for name, _ in named]
 

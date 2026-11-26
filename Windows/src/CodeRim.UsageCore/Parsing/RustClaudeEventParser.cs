@@ -34,17 +34,17 @@ internal static unsafe class RustClaudeEventParser
     internal static bool ShouldProject(ReadOnlySpan<byte> line)
     {
         bool x64 = RuntimeInformation.ProcessArchitecture == Architecture.X64;
-        if (line.Length >= 16 * 1024 && (x64 || line.StartsWith("{\"type\":\"user\""u8))) return false;
-        // The typed reader handles dense JSON escapes more efficiently on long strings.
-        // Ordinary escaped Windows paths account for only a few bytes per record.
         if (line.Length < (x64 ? 2048 : 8192)) return true;
+        // Serde skips ordinary JSON escapes such as tabs efficiently. Long runs of
+        // escaped backslashes favor the typed reader. Inspect at most 384 bytes.
         int quarter = line.Length / 4;
-        return !HasDenseEscapes(line, quarter) && !HasDenseEscapes(line, 2 * quarter)
-            && !HasDenseEscapes(line, 3 * quarter);
+        for (int i = 1; i <= 3; i++)
+        {
+            var sample = line.Slice(i * quarter, 128);
+            if (sample.Count((byte)'\\') >= 8) return sample.IndexOf("\\\\"u8) < 0;
+        }
+        return line.Length < 16 * 1024 || !x64;
     }
-
-    private static bool HasDenseEscapes(ReadOnlySpan<byte> line, int offset) =>
-        line.Slice(offset, 128).Count((byte)'\\') >= 8;
 
     internal static bool TryParse(ReadOnlySpan<byte> line, byte[]? projectKey, string? sourceName, out UsageEvent? result)
     {
