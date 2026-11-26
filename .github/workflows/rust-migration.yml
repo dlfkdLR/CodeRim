@@ -250,7 +250,7 @@ jobs:
           cmp Rust/cli/THIRD-PARTY-NOTICES.txt "$app/Contents/Resources/Rust-CLI-Notices.txt"
 
       - name: Verify offline install from the release ZIP and DMG
-        run: python3 Scripts/rust_migration/check_macos_package.py "$RUNNER_TEMP/rust-app/CodeRim.app" "$RUNNER_TEMP/migration-packages"
+        run: python3 Scripts/rust_migration/check_macos_package.py --require-rust-widget "$RUNNER_TEMP/rust-app/CodeRim.app" "$RUNNER_TEMP/migration-packages"
       - name: Reopen published usage data across upgrade, rollback and backup replay
         run: |
           reference="$RUNNER_TEMP/published-v2.1.41"
