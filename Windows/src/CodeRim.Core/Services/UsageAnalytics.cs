@@ -23,36 +23,73 @@ public static class UsageAnalytics
         var any = false;
         foreach (var group in events.GroupBy(item => item.Model, StringComparer.Ordinal))
         {
+#if CODERIM_RUST_ACCOUNTING
+            if (group is ICollection<UsageEvent> { Count: >= 32 })
+            {
+                var summary = RustModelCost.Summarize(group);
+                var total = summary.Total.ToUsage();
+                var validRows = !summary.Flags.HasFlag(RustModelCost.Status.InvalidUsage) && total.IsValid;
+                if (validRows && total.IsZero) continue;
+                if (!validRows || !CoveredPrice(group.Key, total, excludingModels, out var nativePrice)
+                    || nativePrice.HighContextInputMultiplier is not null && summary.Flags.HasFlag(RustModelCost.Status.UnknownContext))
+                {
+                    Exclude(group.Key, total, models, ref excluded);
+                    continue;
+                }
+                any = true;
+                bool firstHigh = summary.Flags.HasFlag(RustModelCost.Status.FirstHigh);
+                if (firstHigh) amount += TierCost(summary.High.ToUsage(), nativePrice, true);
+                if (summary.Flags.HasFlag(RustModelCost.Status.Standard)) amount += TierCost(summary.Standard.ToUsage(), nativePrice, false);
+                if (!firstHigh && summary.Flags.HasFlag(RustModelCost.Status.High)) amount += TierCost(summary.High.ToUsage(), nativePrice, true);
+                continue;
+            }
+#endif
             var usage = group.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
             var valid = usage.IsValid && group.All(item => item.Usage.IsValid);
             if (valid && usage.IsZero) continue;
-            var model = group.Key == "gpt-5.6" ? "gpt-5.6-sol" : group.Key;
             // Unknown large-request context remains a gap; a known request uses
             // its own pricing tier. Coverage stays model-wide for the range.
-            if (!valid || excludingModels?.Contains(group.Key) == true || !Prices.TryGetValue(model, out var price)
-                || (price.CacheWriteInputMultiplier is not null && usage.CacheWriteInputTokens is null && usage.InputTokens > 0)
+            if (!valid || !CoveredPrice(group.Key, usage, excludingModels, out var price)
                 || (price.HighContextInputMultiplier is not null && group.Any(item =>
                     item.PricingContext is not (null or PricingContext.Standard or PricingContext.HighContext)
                     || item.PricingContext is null && item.Usage.InputTokens > HighContextInputThreshold)))
             {
-                excluded = new TokenUsage(excluded, 0, 0).Add(new TokenUsage(Math.Max(0, usage.TotalTokens), 0, 0)).InputTokens;
-                models.Add(group.Key);
+                Exclude(group.Key, usage, models, ref excluded);
                 continue;
             }
             any = true;
             foreach (var tier in group.GroupBy(item => item.PricingContext == PricingContext.HighContext))
             {
                 var tierUsage = tier.Aggregate(TokenUsage.Zero, (sum, item) => sum.Add(item.Usage));
-                var inputMultiplier = tier.Key ? price.HighContextInputMultiplier ?? 1 : 1;
-                var outputMultiplier = tier.Key ? price.HighContextOutputMultiplier ?? 1 : 1;
-                amount += ((tierUsage.UncachedInputTokens * price.InputUSDPerMillionTokens
-                    + tierUsage.CachedInputTokens * price.CachedInputUSDPerMillionTokens
-                    + (tierUsage.CacheWriteInputTokens ?? 0) * price.InputUSDPerMillionTokens * (price.CacheWriteInputMultiplier ?? 1)) * inputMultiplier
-                    + tierUsage.OutputTokens * price.OutputUSDPerMillionTokens * outputMultiplier) / 1_000_000m;
+                amount += TierCost(tierUsage, price, tier.Key);
             }
         }
         return new CostSummary(any || models.Count == 0 ? amount : null, excluded, models.Order(StringComparer.Ordinal).ToArray());
     }
+    private static bool CoveredPrice(string name, TokenUsage usage, IReadOnlySet<string>? excludingModels,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out ModelPrice? price)
+    {
+        price = null;
+        return excludingModels?.Contains(name) != true && Prices.TryGetValue(name == "gpt-5.6" ? "gpt-5.6-sol" : name, out price)
+            && (price.CacheWriteInputMultiplier is null || usage.CacheWriteInputTokens is not null || usage.InputTokens <= 0);
+    }
+
+    private static void Exclude(string name, TokenUsage usage, HashSet<string> models, ref long excluded)
+    {
+        excluded = new TokenUsage(excluded, 0, 0).Add(new TokenUsage(Math.Max(0, usage.TotalTokens), 0, 0)).InputTokens;
+        models.Add(name);
+    }
+
+    private static decimal TierCost(TokenUsage usage, ModelPrice price, bool high)
+    {
+        var inputMultiplier = high ? price.HighContextInputMultiplier ?? 1 : 1;
+        var outputMultiplier = high ? price.HighContextOutputMultiplier ?? 1 : 1;
+        return ((usage.UncachedInputTokens * price.InputUSDPerMillionTokens
+            + usage.CachedInputTokens * price.CachedInputUSDPerMillionTokens
+            + (usage.CacheWriteInputTokens ?? 0) * price.InputUSDPerMillionTokens * (price.CacheWriteInputMultiplier ?? 1)) * inputMultiplier
+            + usage.OutputTokens * price.OutputUSDPerMillionTokens * outputMultiplier) / 1_000_000m;
+    }
+
     public static IReadOnlyList<AnalyticsRow> Group(IEnumerable<UsageEvent> events, string dimension) => events
         .GroupBy(x => dimension switch { "project" => x.ProjectId, "session" => x.SessionId[..Math.Min(12, x.SessionId.Length)], "day" => x.OccurredAt.LocalDateTime.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), _ => x.Model })
         .Select(group => { var cost = Estimate(group); return new AnalyticsRow(dimension == "project" ? group.First().Project + " · " + group.Key[..Math.Min(6, group.Key.Length)] : group.Key, group.Aggregate(TokenUsage.Zero, (sum, x) => sum.Add(x.Usage)).TotalTokens, cost.Amount, cost.IsPartial); })

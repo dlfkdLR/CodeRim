@@ -82,6 +82,8 @@ mod windows_companion;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod windows_history;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
+mod windows_model_cost;
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod windows_settings_history;
 
 use coderim_usage_core::{
