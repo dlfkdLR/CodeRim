@@ -19,107 +19,68 @@ enum SQLiteSchema {
     }
 
     static func migrate(_ database: OpaquePointer) throws {
-        let versionLimit = Self.version
-        var version = try userVersion(database)
-        guard version <= versionLimit else {
-            throw SQLiteDatabaseError.unsupportedSchema(found: Int(version), supported: versionLimit)
-        }
-
-        if version == 0 {
-            try migrateToVersion1(database)
-            version = 1
-        }
-        if version == 1 {
-            try migrateToVersion2(database)
-            version = 2
-        }
-        if version == 2 {
-            try migrateToVersion3(database)
-            version = 3
-        }
-        if version == 3 {
-            try migrateToVersion4(database)
-            version = 4
-        }
-        if version == 4 {
-            try migrateToVersion5(database)
-            version = 5
-        }
-        if version == 5 {
-            try migrateToVersion6(database)
-            version = 6
-        }
-        if version == 6 {
-            try migrateToVersion7(database)
-            version = 7
-        }
-        if version == 7 {
-            try migrateToVersion8(database)
-            version = 8
-        }
-        if version == 8 {
-            try migrateToVersion9(database)
-            version = 9
-        }
-        if version == 9 {
-            try migrateToVersion10(database)
-            version = 10
-        }
-        if version == 10 {
-            try migrateToVersion11(database)
-            version = 11
-        }
-        if version == 11 {
-            try migrateToVersion12(database)
-            version = 12
-        }
-        if version == 12 {
-            try migrateToVersion13(database)
-            version = 13
-        }
-        if version == 13 {
-            try migrateToVersion14(database)
-            version = 14
-        }
-        if version == 14 {
-            try migrateToVersion15(database)
-            version = 15
-        }
-        if version == 15 {
-            try migrateToVersion16(database)
-            version = 16
-        }
-        if version == 16 {
-            try migrateToVersion17(database)
-            version = 17
-        }
-        if version == 17 {
-            try migrateToVersion18(database)
-        }
+        try migrate(database, through: version)
     }
 
-    private static func userVersion(_ database: OpaquePointer) throws -> Int32 {
-        var statement: OpaquePointer?
-        guard sqlite3_prepare_v2(database, "PRAGMA user_version", -1, &statement, nil) == SQLITE_OK,
-              let statement else {
-            throw SQLiteDatabaseError.migration(String(cString: sqlite3_errmsg(database)))
+    private static func migrate(_ database: OpaquePointer, through limit: Int) throws {
+        #if CODERIM_RUST_ACCOUNTING
+        var message = "Unable to migrate usage database"
+        var found: Int32 = 0
+        let status = withUnsafeMutablePointer(to: &message) { context in
+            cr_migrate_schema(UnsafeMutableRawPointer(database), Int32(limit), { target, index, sql in
+                let stage = SQLiteSchema.stages[Int(target) - 1]
+                guard index < stage.count else { return CR_SCHEMA_END }
+                switch stage[index] {
+                case let .sql(statement):
+                    sql!.pointee = UnsafeRawPointer(statement.utf8Start).assumingMemoryBound(to: CChar.self)
+                    return CR_SCHEMA_SQL
+                case .sessionIDs: return CR_SCHEMA_SESSION_IDS
+                case .eventSources: return CR_SCHEMA_EVENT_SOURCES
+                case .checkpointSources: return CR_SCHEMA_CHECKPOINT_SOURCES
+                }
+            }, { context, value in
+                context!.assumingMemoryBound(to: String.self).pointee = String(cString: value!)
+            }, context, &found)
         }
-        defer { sqlite3_finalize(statement) }
-        guard sqlite3_step(statement) == SQLITE_ROW else {
-            throw SQLiteDatabaseError.migration(String(cString: sqlite3_errmsg(database)))
+        switch status {
+        case CR_SCHEMA_OK: return
+        case CR_SCHEMA_STATEMENT_ERROR: throw SQLiteDatabaseError.statement(message)
+        case CR_SCHEMA_UNSUPPORTED: throw SQLiteDatabaseError.unsupportedSchema(found: Int(found), supported: limit)
+        default: throw SQLiteDatabaseError.migration(message)
         }
-        return sqlite3_column_int(statement, 0)
-    }
-
-    private static func migrateToVersion1(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 1 {
+        #else
+        let current = Int(try userVersion(database))
+        guard current <= limit else {
+            throw SQLiteDatabaseError.unsupportedSchema(found: current, supported: limit)
+        }
+        guard current >= 0, current < limit else { return }
+        for target in (current + 1)...limit {
+            try execute("BEGIN IMMEDIATE", on: database)
+            do {
+                if try userVersion(database) < target {
+                    for operation in stages[target - 1] {
+                        try apply(operation, on: database)
+                    }
+                    try execute("PRAGMA user_version = \(target)", on: database)
+                }
                 try execute("COMMIT", on: database)
-                return
+            } catch {
+                try? execute("ROLLBACK", on: database)
+                throw error
             }
-            try execute(
-                """
+        }
+        #endif
+    }
+
+    // Each string is one sqlite3_exec call. Stage order is also used by the Swift-only build.
+    private enum Operation: Sendable {
+        case sql(StaticString)
+        case sessionIDs, eventSources, checkpointSources
+    }
+
+    private static let stages: [[Operation]] = [
+        [ // Version 1
+            .sql("""
                 CREATE TABLE usage_events (
                     event_key TEXT PRIMARY KEY NOT NULL,
                     occurred_at REAL NOT NULL,
@@ -134,15 +95,9 @@ enum SQLiteSchema {
                     source_position INTEGER NOT NULL,
                     UNIQUE(source_path, source_generation, source_position)
                 )
-                """,
-                on: database
-            )
-            try execute(
-                "CREATE INDEX usage_events_occurred_at_idx ON usage_events(occurred_at)",
-                on: database
-            )
-            try execute(
-                """
+                """),
+            .sql("CREATE INDEX usage_events_occurred_at_idx ON usage_events(occurred_at)"),
+            .sql("""
                 CREATE TABLE parsing_state (
                     source_path TEXT PRIMARY KEY NOT NULL,
                     file_identity TEXT NOT NULL,
@@ -154,11 +109,8 @@ enum SQLiteSchema {
                     project_path TEXT,
                     updated_at REAL NOT NULL
                 )
-                """,
-                on: database
-            )
-            try execute(
-                """
+                """),
+            .sql("""
                 CREATE TABLE session_counters (
                     session_id TEXT PRIMARY KEY NOT NULL,
                     input_tokens INTEGER NOT NULL,
@@ -166,52 +118,242 @@ enum SQLiteSchema {
                     output_tokens INTEGER NOT NULL,
                     quality TEXT NOT NULL
                 )
-                """,
-                on: database
-            )
-            try execute("PRAGMA user_version = 1", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    private static func migrateToVersion2(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 2 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            try execute(
-                """
+                """),
+        ],
+        [ // Version 2
+            .sql("""
                 CREATE TABLE app_metadata (
                     key TEXT PRIMARY KEY NOT NULL,
                     value TEXT NOT NULL
                 )
-                """,
-                on: database
-            )
-            try execute("PRAGMA user_version = 2", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
+                """),
+        ],
+        [ // Version 3
+            .sessionIDs,
+            .eventSources,
+            .sql("UPDATE usage_events SET model = NULL, project_path = NULL"),
+            .sql("UPDATE parsing_state SET model = NULL, project_path = NULL"),
+        ],
+        [ // Version 4
+            .sql("ALTER TABLE session_counters ADD COLUMN last_observed_at REAL"),
+            .sql("""
+                UPDATE session_counters
+                SET last_observed_at = (
+                    SELECT MAX(usage_events.occurred_at)
+                    FROM usage_events
+                    WHERE usage_events.session_id = session_counters.session_id
+                )
+                """),
+        ],
+        [ // Version 5
+            .sql("ALTER TABLE parsing_state ADD COLUMN skipping_oversized_line INTEGER NOT NULL DEFAULT 0"),
+            .sql("""
+                UPDATE session_counters
+                SET last_observed_at = (
+                    SELECT MAX(usage_events.occurred_at)
+                    FROM usage_events
+                    WHERE usage_events.session_id = session_counters.session_id
+                )
+                WHERE last_observed_at IS NULL
+                """),
+        ],
+        [ // Version 6
+            .sql("ALTER TABLE parsing_state ADD COLUMN observed_size INTEGER NOT NULL DEFAULT 0"),
+            .sql("ALTER TABLE parsing_state ADD COLUMN modification_time_ns INTEGER NOT NULL DEFAULT 0"),
+        ],
+        [ // Version 7
+            .sql("ALTER TABLE parsing_state ADD COLUMN content_fingerprint TEXT NOT NULL DEFAULT ''"),
+        ],
+        [ // Version 8
+            .checkpointSources,
+        ],
+        [ // Version 9
+            .sql("ALTER TABLE parsing_state ADD COLUMN has_pending_import INTEGER NOT NULL DEFAULT 0"),
+        ],
+        [ // Version 10
+            .sql("ALTER TABLE parsing_state ADD COLUMN session_started_at REAL"),
+            .sql("ALTER TABLE parsing_state ADD COLUMN inherited_history_end_ordinal INTEGER"),
+            .sql("ALTER TABLE parsing_state ADD COLUMN history_replay_complete INTEGER NOT NULL DEFAULT 1"),
+            // Older builds counted the replayed parent prefix in inherited sessions.
+            // Invalidate only those derived rows so source JSONL files can be imported correctly.
+            .sql("DELETE FROM usage_events WHERE source_path IN (SELECT source_path FROM parsing_state WHERE inherits_history = 1)"),
+            .sql("DELETE FROM session_counters WHERE session_id IN (SELECT session_id FROM parsing_state WHERE inherits_history = 1)"),
+            .sql("DELETE FROM parsing_state WHERE inherits_history = 1"),
+            .sql("""
+                INSERT INTO app_metadata(key, value) VALUES('data_epoch', '1')
+                ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1
+                """),
+        ],
+        [ // Version 11
+            // Version 10 could retain replayed parent history when an inherited
+            // checkpoint had no persisted replay boundary. Rebuild every derived
+            // row once so all existing installations use the corrected classifier.
+            // Source JSONL files and user preferences in app_metadata are preserved.
+            .sql("DELETE FROM usage_events"),
+            .sql("DELETE FROM session_counters"),
+            .sql("DELETE FROM parsing_state"),
+            .sql("""
+                INSERT INTO app_metadata(key, value) VALUES('data_epoch', '1')
+                ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1
+                """),
+        ],
+        [ // Version 12
+            .sql("ALTER TABLE parsing_state ADD COLUMN parent_session_id TEXT"),
+            .sql("ALTER TABLE parsing_state ADD COLUMN project_name TEXT"),
+            .sql("ALTER TABLE parsing_state ADD COLUMN image_attachment_count INTEGER NOT NULL DEFAULT 0"),
+            .sql("""
+                CREATE TABLE session_metadata (
+                    session_id TEXT PRIMARY KEY NOT NULL,
+                    parent_session_id TEXT,
+                    project_id TEXT,
+                    project_name TEXT,
+                    started_at REAL,
+                    image_attachment_count INTEGER NOT NULL DEFAULT 0 CHECK(image_attachment_count >= 0),
+                    updated_at REAL NOT NULL
+                )
+                """),
+            .sql("CREATE INDEX session_metadata_parent_idx ON session_metadata(parent_session_id)"),
+        ],
+        [ // Version 13
+            .sql("ALTER TABLE usage_events ADD COLUMN cache_write_input_tokens INTEGER"),
+            .sql("ALTER TABLE session_counters ADD COLUMN cache_write_input_tokens INTEGER"),
+            .sql("""
+                CREATE INDEX usage_events_analytics_idx
+                ON usage_events(occurred_at, model, project_path, session_id)
+                """),
+        ],
+        [ // Version 14
+            .sql("ALTER TABLE usage_events ADD COLUMN high_context_pricing INTEGER CHECK(high_context_pricing IN (0, 1))"),
+        ],
+        [ // Version 15
+            .sql("""
+                CREATE TABLE IF NOT EXISTS analytics_backfill_sources (
+                    source_path TEXT PRIMARY KEY NOT NULL
+                )
+                """),
+            .sql("""
+                INSERT OR IGNORE INTO analytics_backfill_sources(source_path)
+                SELECT DISTINCT source_path FROM usage_events
+                """),
+            // Phase 1 checkpoints skipped source bytes that now carry model,
+            // project, cache-write, pricing-context, and session metadata. Keep
+            // every accounting event so totals remain available even when an old
+            // source file has disappeared. Seed each replay above every historical
+            // generation so a rewritten source cannot collide with an older row.
+            // The conflict update in commit() enriches semantic duplicate events
+            // without adding their token deltas a second time.
+            .sql("""
+                INSERT OR REPLACE INTO app_metadata(key, value)
+                SELECT 'legacy_partial_quality', '1'
+                WHERE EXISTS (SELECT 1 FROM session_counters WHERE quality != 'exact')
+                """),
+            .sql("DELETE FROM session_counters"),
+            .sql("DELETE FROM session_metadata"),
+            .sql("""
+                UPDATE parsing_state
+                SET generation = MAX(
+                        generation + 1,
+                        COALESCE(
+                            (
+                                SELECT MAX(usage_events.source_generation) + 1
+                                FROM usage_events
+                                WHERE usage_events.source_path = parsing_state.source_path
+                            ),
+                            generation + 1
+                        )
+                    ),
+                    committed_offset = 0,
+                    skipping_oversized_line = 0,
+                    observed_size = 0,
+                    modification_time_ns = 0,
+                    content_fingerprint = '',
+                    has_pending_import = 0,
+                    session_id = NULL,
+                    inherits_history = 0,
+                    session_started_at = NULL,
+                    inherited_history_end_ordinal = NULL,
+                    history_replay_complete = 1,
+                    model = NULL,
+                    project_path = NULL,
+                    parent_session_id = NULL,
+                    project_name = NULL,
+                    image_attachment_count = 0
+                """),
+            .sql("""
+                INSERT INTO app_metadata(key, value) VALUES('data_epoch', '1')
+                ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1
+                """),
+        ],
+        [ // Version 16
+            // Replay only inherited sessions whose first new image was previously
+            // skipped. Retain accounting rows and absent-source metadata; semantic
+            // event keys prevent replay from adding token deltas a second time.
+            .sql("""
+                INSERT OR IGNORE INTO analytics_backfill_sources(source_path)
+                SELECT source_path FROM parsing_state WHERE inherits_history = 1
+                """),
+            .sql("""
+                DELETE FROM session_counters WHERE session_id IN (
+                    SELECT session_id FROM parsing_state WHERE inherits_history = 1
+                )
+                """),
+            .sql("""
+                UPDATE parsing_state
+                SET generation = MAX(
+                        generation + 1,
+                        COALESCE((SELECT MAX(usage_events.source_generation) + 1
+                            FROM usage_events WHERE usage_events.source_path = parsing_state.source_path),
+                            generation + 1)
+                    ),
+                    committed_offset = 0, skipping_oversized_line = 0,
+                    observed_size = 0, modification_time_ns = 0, content_fingerprint = '',
+                    has_pending_import = 1, session_id = NULL, inherits_history = 0,
+                    session_started_at = NULL, inherited_history_end_ordinal = NULL,
+                    history_replay_complete = 1, model = NULL, project_path = NULL,
+                    parent_session_id = NULL, project_name = NULL, image_attachment_count = 0
+                WHERE inherits_history = 1
+                """),
+            .sql("""
+                INSERT INTO app_metadata(key, value) VALUES('data_epoch', '1')
+                ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1
+                """),
+        ],
+        [ // Version 17
+            // A shorter archive copy must not replace a fuller session's image
+            // count. Derive it from source checkpoints, so rewriting a single
+            // source can still lower its count. Token events remain unchanged.
+            .sql("CREATE INDEX IF NOT EXISTS parsing_state_session_idx ON parsing_state(session_id)"),
+            .sql("""
+                UPDATE session_metadata
+                SET image_attachment_count = (
+                    SELECT MAX(image_attachment_count) FROM parsing_state
+                    WHERE parsing_state.session_id = session_metadata.session_id
+                )
+                WHERE EXISTS (
+                    SELECT 1 FROM parsing_state
+                    WHERE parsing_state.session_id = session_metadata.session_id
+                )
+                """),
+        ],
+        [ // Version 18
+            .sql("""
+                CREATE TABLE IF NOT EXISTS partial_evidence (
+                    source TEXT NOT NULL,
+                    position INTEGER NOT NULL,
+                    observed_at REAL NOT NULL,
+                    PRIMARY KEY (source, position)
+                )
+                """),
+            .sql("CREATE INDEX IF NOT EXISTS partial_evidence_time_idx ON partial_evidence(observed_at)"),
+        ],
+    ]
 
-    private static func migrateToVersion3(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 3 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            #if CODERIM_RUST_ACCOUNTING
-            try rewriteLegacyIDs(.session, on: database)
-            try rewriteLegacyIDs(.eventSource, on: database)
-            #else
+    #if !CODERIM_RUST_ACCOUNTING
+    private static func apply(_ operation: Operation, on database: OpaquePointer) throws {
+        switch operation {
+        case let .sql(statement):
+            try execute(statement.description, on: database)
+        case .sessionIDs:
             let sessionIDs = try distinctTextValues(
                 """
                 SELECT session_id FROM usage_events WHERE session_id IS NOT NULL
@@ -241,7 +383,7 @@ enum SQLiteSchema {
                     on: database
                 )
             }
-
+        case .eventSources:
             let eventSourcePaths = try distinctTextValues(
                 "SELECT DISTINCT source_path FROM usage_events",
                 on: database
@@ -254,128 +396,7 @@ enum SQLiteSchema {
                     on: database
                 )
             }
-            #endif
-
-            try execute("UPDATE usage_events SET model = NULL, project_path = NULL", on: database)
-            try execute("UPDATE parsing_state SET model = NULL, project_path = NULL", on: database)
-            try execute("PRAGMA user_version = 3", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    private static func migrateToVersion4(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 4 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            try execute("ALTER TABLE session_counters ADD COLUMN last_observed_at REAL", on: database)
-            try execute(
-                """
-                UPDATE session_counters
-                SET last_observed_at = (
-                    SELECT MAX(usage_events.occurred_at)
-                    FROM usage_events
-                    WHERE usage_events.session_id = session_counters.session_id
-                )
-                """,
-                on: database
-            )
-            try execute("PRAGMA user_version = 4", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    private static func migrateToVersion5(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 5 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            try execute(
-                "ALTER TABLE parsing_state ADD COLUMN skipping_oversized_line INTEGER NOT NULL DEFAULT 0",
-                on: database
-            )
-            try execute(
-                """
-                UPDATE session_counters
-                SET last_observed_at = (
-                    SELECT MAX(usage_events.occurred_at)
-                    FROM usage_events
-                    WHERE usage_events.session_id = session_counters.session_id
-                )
-                WHERE last_observed_at IS NULL
-                """,
-                on: database
-            )
-            try execute("PRAGMA user_version = 5", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    private static func migrateToVersion6(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 6 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            try execute(
-                "ALTER TABLE parsing_state ADD COLUMN observed_size INTEGER NOT NULL DEFAULT 0",
-                on: database
-            )
-            try execute(
-                "ALTER TABLE parsing_state ADD COLUMN modification_time_ns INTEGER NOT NULL DEFAULT 0",
-                on: database
-            )
-            try execute("PRAGMA user_version = 6", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    private static func migrateToVersion7(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 7 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            try execute(
-                "ALTER TABLE parsing_state ADD COLUMN content_fingerprint TEXT NOT NULL DEFAULT ''",
-                on: database
-            )
-            try execute("PRAGMA user_version = 7", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    private static func migrateToVersion8(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 8 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            #if CODERIM_RUST_ACCOUNTING
-            try rewriteLegacyIDs(.checkpointSource, on: database)
-            #else
+        case .checkpointSources:
             let checkpointPaths = try distinctTextValues(
                 "SELECT source_path FROM parsing_state",
                 on: database
@@ -388,416 +409,22 @@ enum SQLiteSchema {
                     on: database
                 )
             }
-            #endif
-            try execute("PRAGMA user_version = 8", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
         }
     }
 
-    private static func migrateToVersion9(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 9 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            try execute(
-                "ALTER TABLE parsing_state ADD COLUMN has_pending_import INTEGER NOT NULL DEFAULT 0",
-                on: database
-            )
-            try execute("PRAGMA user_version = 9", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
+    private static func userVersion(_ database: OpaquePointer) throws -> Int32 {
+        var statement: OpaquePointer?
+        guard sqlite3_prepare_v2(database, "PRAGMA user_version", -1, &statement, nil) == SQLITE_OK,
+              let statement else {
+            throw SQLiteDatabaseError.migration(String(cString: sqlite3_errmsg(database)))
         }
-    }
-
-    private static func migrateToVersion10(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 10 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            try execute("ALTER TABLE parsing_state ADD COLUMN session_started_at REAL", on: database)
-            try execute(
-                "ALTER TABLE parsing_state ADD COLUMN inherited_history_end_ordinal INTEGER",
-                on: database
-            )
-            try execute(
-                "ALTER TABLE parsing_state ADD COLUMN history_replay_complete INTEGER NOT NULL DEFAULT 1",
-                on: database
-            )
-
-            // Older builds counted the replayed parent prefix in inherited sessions.
-            // Invalidate only those derived rows so source JSONL files can be imported correctly.
-            try execute(
-                "DELETE FROM usage_events WHERE source_path IN (SELECT source_path FROM parsing_state WHERE inherits_history = 1)",
-                on: database
-            )
-            try execute(
-                "DELETE FROM session_counters WHERE session_id IN (SELECT session_id FROM parsing_state WHERE inherits_history = 1)",
-                on: database
-            )
-            try execute("DELETE FROM parsing_state WHERE inherits_history = 1", on: database)
-            try execute(
-                """
-                INSERT INTO app_metadata(key, value) VALUES('data_epoch', '1')
-                ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1
-                """,
-                on: database
-            )
-            try execute("PRAGMA user_version = 10", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
+        defer { sqlite3_finalize(statement) }
+        guard sqlite3_step(statement) == SQLITE_ROW else {
+            throw SQLiteDatabaseError.migration(String(cString: sqlite3_errmsg(database)))
         }
+        return sqlite3_column_int(statement, 0)
     }
 
-    private static func migrateToVersion11(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 11 {
-                try execute("COMMIT", on: database)
-                return
-            }
-
-            // Version 10 could retain replayed parent history when an inherited
-            // checkpoint had no persisted replay boundary. Rebuild every derived
-            // row once so all existing installations use the corrected classifier.
-            // Source JSONL files and user preferences in app_metadata are preserved.
-            try execute("DELETE FROM usage_events", on: database)
-            try execute("DELETE FROM session_counters", on: database)
-            try execute("DELETE FROM parsing_state", on: database)
-            try execute(
-                """
-                INSERT INTO app_metadata(key, value) VALUES('data_epoch', '1')
-                ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1
-                """,
-                on: database
-            )
-            try execute("PRAGMA user_version = 11", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    private static func migrateToVersion12(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 12 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            try execute("ALTER TABLE parsing_state ADD COLUMN parent_session_id TEXT", on: database)
-            try execute("ALTER TABLE parsing_state ADD COLUMN project_name TEXT", on: database)
-            try execute(
-                "ALTER TABLE parsing_state ADD COLUMN image_attachment_count INTEGER NOT NULL DEFAULT 0",
-                on: database
-            )
-            try execute(
-                """
-                CREATE TABLE session_metadata (
-                    session_id TEXT PRIMARY KEY NOT NULL,
-                    parent_session_id TEXT,
-                    project_id TEXT,
-                    project_name TEXT,
-                    started_at REAL,
-                    image_attachment_count INTEGER NOT NULL DEFAULT 0 CHECK(image_attachment_count >= 0),
-                    updated_at REAL NOT NULL
-                )
-                """,
-                on: database
-            )
-            try execute(
-                "CREATE INDEX session_metadata_parent_idx ON session_metadata(parent_session_id)",
-                on: database
-            )
-            try execute("PRAGMA user_version = 12", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    private static func migrateToVersion13(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 13 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            try execute("ALTER TABLE usage_events ADD COLUMN cache_write_input_tokens INTEGER", on: database)
-            try execute(
-                "ALTER TABLE session_counters ADD COLUMN cache_write_input_tokens INTEGER",
-                on: database
-            )
-            try execute(
-                """
-                CREATE INDEX usage_events_analytics_idx
-                ON usage_events(occurred_at, model, project_path, session_id)
-                """,
-                on: database
-            )
-            try execute("PRAGMA user_version = 13", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    private static func migrateToVersion14(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 14 {
-                try execute("COMMIT", on: database)
-                return
-            }
-
-            try execute(
-                "ALTER TABLE usage_events ADD COLUMN high_context_pricing INTEGER CHECK(high_context_pricing IN (0, 1))",
-                on: database
-            )
-            try execute("PRAGMA user_version = 14", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    private static func migrateToVersion15(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 15 {
-                try execute("COMMIT", on: database)
-                return
-            }
-
-            try execute(
-                """
-                CREATE TABLE IF NOT EXISTS analytics_backfill_sources (
-                    source_path TEXT PRIMARY KEY NOT NULL
-                )
-                """,
-                on: database
-            )
-            try execute(
-                """
-                INSERT OR IGNORE INTO analytics_backfill_sources(source_path)
-                SELECT DISTINCT source_path FROM usage_events
-                """,
-                on: database
-            )
-
-            // Phase 1 checkpoints skipped source bytes that now carry model,
-            // project, cache-write, pricing-context, and session metadata. Keep
-            // every accounting event so totals remain available even when an old
-            // source file has disappeared. Seed each replay above every historical
-            // generation so a rewritten source cannot collide with an older row.
-            // The conflict update in commit() enriches semantic duplicate events
-            // without adding their token deltas a second time.
-            try execute(
-                """
-                INSERT OR REPLACE INTO app_metadata(key, value)
-                SELECT 'legacy_partial_quality', '1'
-                WHERE EXISTS (SELECT 1 FROM session_counters WHERE quality != 'exact')
-                """,
-                on: database
-            )
-            try execute("DELETE FROM session_counters", on: database)
-            try execute("DELETE FROM session_metadata", on: database)
-            try execute(
-                """
-                UPDATE parsing_state
-                SET generation = MAX(
-                        generation + 1,
-                        COALESCE(
-                            (
-                                SELECT MAX(usage_events.source_generation) + 1
-                                FROM usage_events
-                                WHERE usage_events.source_path = parsing_state.source_path
-                            ),
-                            generation + 1
-                        )
-                    ),
-                    committed_offset = 0,
-                    skipping_oversized_line = 0,
-                    observed_size = 0,
-                    modification_time_ns = 0,
-                    content_fingerprint = '',
-                    has_pending_import = 0,
-                    session_id = NULL,
-                    inherits_history = 0,
-                    session_started_at = NULL,
-                    inherited_history_end_ordinal = NULL,
-                    history_replay_complete = 1,
-                    model = NULL,
-                    project_path = NULL,
-                    parent_session_id = NULL,
-                    project_name = NULL,
-                    image_attachment_count = 0
-                """,
-                on: database
-            )
-            try execute(
-                """
-                INSERT INTO app_metadata(key, value) VALUES('data_epoch', '1')
-                ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1
-                """,
-                on: database
-            )
-            try execute("PRAGMA user_version = 15", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    private static func migrateToVersion16(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 16 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            // Replay only inherited sessions whose first new image was previously
-            // skipped. Retain accounting rows and absent-source metadata; semantic
-            // event keys prevent replay from adding token deltas a second time.
-            try execute(
-                """
-                INSERT OR IGNORE INTO analytics_backfill_sources(source_path)
-                SELECT source_path FROM parsing_state WHERE inherits_history = 1
-                """, on: database
-            )
-            try execute(
-                """
-                DELETE FROM session_counters WHERE session_id IN (
-                    SELECT session_id FROM parsing_state WHERE inherits_history = 1
-                )
-                """, on: database
-            )
-            try execute(
-                """
-                UPDATE parsing_state
-                SET generation = MAX(
-                        generation + 1,
-                        COALESCE((SELECT MAX(usage_events.source_generation) + 1
-                            FROM usage_events WHERE usage_events.source_path = parsing_state.source_path),
-                            generation + 1)
-                    ),
-                    committed_offset = 0, skipping_oversized_line = 0,
-                    observed_size = 0, modification_time_ns = 0, content_fingerprint = '',
-                    has_pending_import = 1, session_id = NULL, inherits_history = 0,
-                    session_started_at = NULL, inherited_history_end_ordinal = NULL,
-                    history_replay_complete = 1, model = NULL, project_path = NULL,
-                    parent_session_id = NULL, project_name = NULL, image_attachment_count = 0
-                WHERE inherits_history = 1
-                """, on: database
-            )
-            try execute(
-                """
-                INSERT INTO app_metadata(key, value) VALUES('data_epoch', '1')
-                ON CONFLICT(key) DO UPDATE SET value = CAST(value AS INTEGER) + 1
-                """, on: database
-            )
-            try execute("PRAGMA user_version = 16", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    private static func migrateToVersion17(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 17 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            // A shorter archive copy must not replace a fuller session's image
-            // count. Derive it from source checkpoints, so rewriting a single
-            // source can still lower its count. Token events remain unchanged.
-            try execute(
-                "CREATE INDEX IF NOT EXISTS parsing_state_session_idx ON parsing_state(session_id)",
-                on: database
-            )
-            try execute(
-                """
-                UPDATE session_metadata
-                SET image_attachment_count = (
-                    SELECT MAX(image_attachment_count) FROM parsing_state
-                    WHERE parsing_state.session_id = session_metadata.session_id
-                )
-                WHERE EXISTS (
-                    SELECT 1 FROM parsing_state
-                    WHERE parsing_state.session_id = session_metadata.session_id
-                )
-                """, on: database
-            )
-            try execute("PRAGMA user_version = 17", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    /// Rows whose tokens could not be counted, kept apart from any one session's counters so that their
-    /// own time, not the session's last valid row, decides which periods they make partial.
-    private static func migrateToVersion18(_ database: OpaquePointer) throws {
-        try execute("BEGIN IMMEDIATE", on: database)
-        do {
-            if try userVersion(database) >= 18 {
-                try execute("COMMIT", on: database)
-                return
-            }
-            try execute(
-                """
-                CREATE TABLE IF NOT EXISTS partial_evidence (
-                    source TEXT NOT NULL,
-                    position INTEGER NOT NULL,
-                    observed_at REAL NOT NULL,
-                    PRIMARY KEY (source, position)
-                )
-                """, on: database
-            )
-            try execute("CREATE INDEX IF NOT EXISTS partial_evidence_time_idx ON partial_evidence(observed_at)", on: database)
-            try execute("PRAGMA user_version = 18", on: database)
-            try execute("COMMIT", on: database)
-        } catch {
-            try? execute("ROLLBACK", on: database)
-            throw error
-        }
-    }
-
-    #if CODERIM_RUST_ACCOUNTING
-    private enum LegacyID: UInt8 {
-        case session, eventSource, checkpointSource
-    }
-
-    private static func rewriteLegacyIDs(_ kind: LegacyID, on database: OpaquePointer) throws {
-        var message = "Unable to rewrite legacy usage identities"
-        let result = withUnsafeMutablePointer(to: &message) { context in
-            cr_rewrite_legacy_ids(UnsafeMutableRawPointer(database), kind.rawValue, { context, error in
-                guard let context, let error else { return }
-                context.assumingMemoryBound(to: String.self).pointee = String(cString: error)
-            }, context)
-        }
-        guard result == 1 else { throw SQLiteDatabaseError.migration(message) }
-    }
-    #else
     private static func distinctTextValues(_ sql: String, on database: OpaquePointer) throws -> [String] {
         var statement: OpaquePointer?
         guard sqlite3_prepare_v2(database, sql, -1, &statement, nil) == SQLITE_OK,

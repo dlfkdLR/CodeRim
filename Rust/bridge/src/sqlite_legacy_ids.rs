@@ -132,11 +132,26 @@ pub unsafe extern "C" fn cr_rewrite_legacy_ids(
     context: *mut c_void,
 ) -> u8 {
     let Some(report) = on_error else { return 0 };
-    if database.is_null() || context.is_null() || unsafe { sqlite3_get_autocommit(database) } != 0 {
+    if database.is_null()
+        || context.is_null()
+        || group > 2
+        || unsafe { sqlite3_get_autocommit(database) } != 0
+    {
         return 0;
     }
+    let result = unsafe { rewrite_group(database, group) };
+    if let Err(message) = result {
+        unsafe { report(context, message.as_ptr()) };
+        return 0;
+    }
+    1
+}
+
+/// # Safety
+/// The caller owns the SQLite write transaction on a live connection.
+pub(super) unsafe fn rewrite_group(database: *mut c_void, group: u8) -> Result<(), CString> {
     let db = Connection(database);
-    let result = match group {
+    match group {
         0 => db.rewrite(
             c"SELECT session_id FROM usage_events WHERE session_id IS NOT NULL UNION SELECT session_id FROM parsing_state WHERE session_id IS NOT NULL UNION SELECT session_id FROM session_counters",
             &[
@@ -147,11 +162,6 @@ pub unsafe extern "C" fn cr_rewrite_legacy_ids(
         ),
         1 => db.rewrite(c"SELECT DISTINCT source_path FROM usage_events", &[c"UPDATE usage_events SET source_path = ?1 WHERE source_path = ?2"]),
         2 => db.rewrite(c"SELECT source_path FROM parsing_state", &[c"UPDATE parsing_state SET source_path = ?1 WHERE source_path = ?2"]),
-        _ => return 0,
-    };
-    if let Err(message) = result {
-        unsafe { report(context, message.as_ptr()) };
-        return 0;
+        _ => Err(c"Invalid legacy usage identity group".to_owned()),
     }
-    1
 }

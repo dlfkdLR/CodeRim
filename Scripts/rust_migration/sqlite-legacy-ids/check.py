@@ -20,7 +20,7 @@ DB = Path("Sources/CodeRim/Persistence/SQLiteDatabase.swift")
 IDENTITY = Path("Sources/CodeRim/Sources/UsageStorageIdentity.swift")
 
 
-def compile_app(work, variant, args):
+def compile_app(work, variant, args, driver=None):
     def source(path):
         if variant in ("release", "previous"):
             rev = RELEASE if variant == "release" else PREVIOUS
@@ -29,8 +29,12 @@ def compile_app(work, variant, args):
     target = work / variant
     target.mkdir()
     schema = target / "SQLiteSchema.swift"
-    cases = "\n".join(f"case {n}: try migrateToVersion{n}(db)" for n in range(1, 19))
-    schema.write_text(source(SCHEMA) + "\nextension SQLiteSchema {\nstatic func fixtureStep(_ n: Int, _ db: OpaquePointer) throws {\nswitch n {\n" + cases + "\ndefault: preconditionFailure()\n} } }\n")
+    if variant in ("release", "previous"):
+        cases = "\n".join(f"case {n}: try migrateToVersion{n}(db)" for n in range(1, 19))
+        fixture = "switch n {\n" + cases + "\ndefault: preconditionFailure()\n}"
+    else:
+        fixture = "try migrate(db, through: n)"
+    schema.write_text(source(SCHEMA) + "\nextension SQLiteSchema {\nstatic func fixtureStep(_ n: Int, _ db: OpaquePointer) throws {\n" + fixture + "\n} }\n")
     database = source(DB)
     error = database[database.index("enum SQLiteDatabaseError:"):database.index("\nactor SQLiteDatabase")]
     transient = database[database.index("var sqliteTransient:"):].split("\n}", 1)[0] + "\n}"
@@ -42,7 +46,7 @@ def compile_app(work, variant, args):
     binary = target / "schema"
     subprocess.run(["swiftc", "-O", "-whole-module-optimization", "-swift-version", "6", "-warnings-as-errors",
                     "-target", args.arch + "-apple-macos14.0", "-I", ROOT / "Sources/CSQLite", schema, types,
-                    *extra, HERE / "main.swift", "-o", binary], check=True)
+                    *extra, driver or HERE / "main.swift", "-o", binary], check=True)
     return binary
 
 
