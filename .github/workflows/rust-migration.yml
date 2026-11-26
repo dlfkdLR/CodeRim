@@ -195,6 +195,10 @@ jobs:
         run: |
           $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
           python Scripts/rust_migration/windows-settings-chart/check.py --library "$library" --benchmark-output "windows-${{ matrix.arch }}-settings-chart.json"
+      - name: Compare tray session history totals
+        run: |
+          $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
+          python Scripts/rust_migration/windows-session-totals/check.py --library "$library" --benchmark-output "windows-${{ matrix.arch }}-session-totals.json"
       - name: Compare canonical and mixed Windows token parsing
         run: |
           $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
@@ -207,6 +211,7 @@ jobs:
           path: |
             windows-${{ matrix.arch }}-normalization.json
             windows-${{ matrix.arch }}-settings-chart.json
+            windows-${{ matrix.arch }}-session-totals.json
             windows-${{ matrix.arch }}-aggregate.json
             windows-${{ matrix.arch }}-parse-*.json
           if-no-files-found: error
