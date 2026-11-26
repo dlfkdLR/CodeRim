@@ -19,10 +19,13 @@ def build_library(triple=None):
     command = ["cargo", "build", "--manifest-path", str(RUST / "Cargo.toml"),
                "--locked", "--release", "--target-dir", str(TARGET), "-p", "coderim-accounting-bridge"]
     output = TARGET
+    env = {**os.environ, "MACOSX_DEPLOYMENT_TARGET": "14.0"}
     if triple:
+        # The bundle ships stripped. Retain source locations in the companion dSYM.
+        env["CARGO_PROFILE_RELEASE_DEBUG"] = "line-tables-only"
         command.extend(["--target", triple])
         output /= triple
-    subprocess.run(command, check=True, env={**os.environ, "MACOSX_DEPLOYMENT_TARGET": "14.0"})
+    subprocess.run(command, check=True, env=env)
     return output / "release" / ARCHIVE
 
 
@@ -78,6 +81,7 @@ def build_app(work, output):
     subprocess.run([ROOT / "Scripts/build_release.sh"], cwd=ROOT, check=True, env={
         **os.environ, "CODERIM_RUST_ACCOUNTING_ARCHIVE": str(universal),
         "CODERIM_APP_PATH": str(output / "CodeRim.app"), "CODERIM_BUILD_CACHE": str(work),
+        "CODERIM_MIGRATION_SYMBOLS_DIR": str(output / "Symbols"),
     })
 
 

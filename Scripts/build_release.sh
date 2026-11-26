@@ -82,6 +82,23 @@ rm -rf "${app_path}"
 mkdir -p "${app_path}/Contents/MacOS" "${app_path}/Contents/Resources" \
   "${app_path}/Contents/Frameworks" "${app_path}/Contents/Helpers"
 install -m 755 "${binary_path}" "${app_path}/Contents/MacOS/${PRODUCT_NAME}"
+if [[ -n "${CODERIM_MIGRATION_SYMBOLS_DIR:-}" ]]; then
+  # Keep symbolication outside the delivered app. The original Swift build output is untouched.
+  mkdir "${CODERIM_MIGRATION_SYMBOLS_DIR}"
+  debug_bundle="${CODERIM_MIGRATION_SYMBOLS_DIR}/${PRODUCT_NAME}.dSYM"
+  if [[ -d "${binary_path}.dSYM" ]]; then
+    ditto --norsrc --noextattr "${binary_path}.dSYM" "${debug_bundle}"
+  else
+    xcrun dsymutil "${binary_path}" -o "${debug_bundle}"
+  fi
+  packaged_binary="${app_path}/Contents/MacOS/${PRODUCT_NAME}"
+  if codesign -d "${packaged_binary}" 2>/dev/null; then
+    codesign --remove-signature "${packaged_binary}"
+  fi
+  xcrun strip -x "${packaged_binary}"
+  diff <(xcrun dwarfdump --uuid "${packaged_binary}" | awk '{print $2, $3}' | sort) \
+       <(xcrun dwarfdump --uuid "${debug_bundle}" | awk '{print $2, $3}' | sort)
+fi
 install -m 755 "${claude_bridge_path}" "${app_path}/Contents/Helpers/CodeRimClaudeBridge"
 install -m 755 "${cli_path}" "${app_path}/Contents/Helpers/CodeRimCLI"
 mkdir -p "${app_path}/Contents/PlugIns"
