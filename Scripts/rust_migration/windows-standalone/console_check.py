@@ -10,6 +10,8 @@ from pathlib import Path
 import subprocess
 import time
 
+from watch_frames import compare_watch_frames
+
 
 class Coord(ctypes.Structure):
     _fields_ = [('x', ctypes.c_short), ('y', ctypes.c_short)]
@@ -138,7 +140,21 @@ def run(legacy, native, snapshot, result):
                 if child.poll() is None:
                     child.kill()
                 child.wait()
-        result.write_text(json.dumps({'screenSha256': rows, 'watchBreakExit': status}), encoding='utf8')
+        def interrupt_redirected(child):
+            # The compatibility host can still be flushing the redirected second frame.
+            # Let it finish before delivering Ctrl+Break to the live CLI's own group.
+            deadline = time.monotonic() + 8
+            while time.monotonic() < deadline and child.poll() is None:
+                count = processes(pids, len(pids))
+                if count == 2 and set(pids[:count]) == {os.getpid(), child.pid}:
+                    checked(send(1, child.pid))
+                    return
+                time.sleep(0.025)
+            raise RuntimeError('The watch process did not return from its compatibility reader')
+
+        redirected = compare_watch_frames(legacy, native, snapshot, os.environ.copy(), interrupt_redirected)
+        result.write_text(json.dumps({'screenSha256': rows, 'watchBreakExit': status,
+                                      'redirectedWatch': redirected}), encoding='utf8')
 
 
 if __name__ == '__main__':

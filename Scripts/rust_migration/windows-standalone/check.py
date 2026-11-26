@@ -7,11 +7,12 @@ import json
 import os
 from pathlib import Path
 import shutil
-import signal
 import subprocess
 import sys
 import tempfile
 import time
+
+from watch_frames import compare_watch_frames, private_fixture
 
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--binary',type=Path,required=True)
@@ -24,7 +25,7 @@ binary=args.binary.resolve(strict=True)
 here=Path(__file__).resolve().parent
 repo=here.parents[2]
 suffix='.exe' if os.name=='nt' else ''
-with tempfile.TemporaryDirectory(prefix='coderim-standalone-cli-') as tmp:
+with private_fixture() as tmp:
     base=Path(tmp);bin_dir=base/'app';data=base/'data';data.mkdir();bin_dir.mkdir()
     env=dict(os.environ,CODERIM_DATA_DIR=str(data),DOTNET_CLI_TELEMETRY_OPTOUT='1')
     # Real Windows CI compares the released self-contained publishing configuration. Keep
@@ -135,38 +136,6 @@ with tempfile.TemporaryDirectory(prefix='coderim-standalone-cli-') as tmp:
         compare('custom culture '+culture,['usage','--snapshot',data/'small.json'],cultured)
     # A new file identity takes effect on the next iteration; the second frame takes
     # the memory-to-stdin compatibility path and never needs to reopen the original name.
-    watched=data/'watch.json'
-    watch_results={}
-    for label,exe in [('legacy',oracle),('rust',candidate)]:
-        watched.write_bytes((data/'small.json').read_bytes())
-        watchenv=env if os.name=='nt' else dict(env,LC_ALL='en_US.UTF-8',TZ='UTC')
-        first=execute(exe,['tokens','--snapshot',watched],watchenv)[1]
-        changed=json.loads(watched.read_bytes());changed['providers'][0]['name']='Synthetic replaced frame';changed['extension']={'compatibility':True}
-        replacement=data/'replacement';replacement.write_bytes(b'\xfe\xff'+json.dumps(changed).encode('utf-16-be'))
-        second=execute(exe,['tokens','--snapshot',replacement],watchenv)[1]
-        assert first!=second
-        log=base/(label+'.watch')
-        with log.open('wb') as stream:
-            child=subprocess.Popen([*exe,'tokens','--watch','1','--snapshot',str(watched)],env=watchenv,stdout=stream,
-                stderr=subprocess.PIPE,creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name=='nt' else 0)
-            try:
-                def frame(expected):
-                    limit=time.monotonic()+10
-                    while time.monotonic()<limit and child.poll() is None:
-                        if log.read_bytes()==expected:return
-                        time.sleep(.025)
-                    raise AssertionError((label,'missing atomic watch frame',child.poll()))
-                frame(first);os.replace(replacement,watched);frame(first+second)
-                interrupt=None
-                if os.name=='posix':
-                    child.send_signal(signal.SIGINT);interrupt=child.wait(timeout=3);assert interrupt==0
-                # Hosted Windows jobs do not necessarily supply a shared console for
-                # a native Ctrl+Break event. Preserve a distinct unobserved result.
-                watch_results[label]=dict(frames=hashlib.sha256(first+second).hexdigest(),interruptExit=interrupt)
-            finally:
-                if child.poll() is None:child.terminate()
-                child.wait(timeout=5)
-    assert watch_results['legacy']['frames']==watch_results['rust']['frames']
     console_result = None
     if os.name == 'nt':
         private = subprocess.STARTUPINFO()
@@ -179,6 +148,10 @@ with tempfile.TemporaryDirectory(prefix='coderim-standalone-cli-') as tmp:
         if probe.returncode:
             raise RuntimeError("Private Windows console fixture failed: " + probe.stderr.decode('utf8', 'backslashreplace'))
         console_result = json.loads(receipt.read_text(encoding='utf8'))
+        watch_results = console_result.pop('redirectedWatch')
+    else:
+        watch_env = dict(env, LC_ALL='en_US.UTF-8', TZ='UTC')
+        watch_results = compare_watch_frames(incumbent, native, data/'small.json', watch_env, None)
     hook_results={}
     if args.synthetic_hook_install:
         assert os.name=='nt' and args.rid
