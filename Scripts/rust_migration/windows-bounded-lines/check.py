@@ -108,7 +108,7 @@ def main():
                 record[kind] = {unit:statistics.median(row[i][unit] for row in rounds) for unit in ["us","bytes"]}
             medians.append(record)
         report["medians"] = medians
-        cold = {str(size):{kind:[] for kind in roots} for size in (0,5,4096,65536)}
+        cold = {str(size):{kind:[] for kind in roots} for size in (0,5,4095,4096,4097,16384,32768,65536,65537,131072)}
         for size, variants in cold.items():
             for pair in range(max(5, args.pairs)):
                 order = list(roots)
