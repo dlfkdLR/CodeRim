@@ -1,0 +1,44 @@
+{
+  "TZ": "UTC",
+  "architecture": "arm64",
+  "asOfUnix": 1719835200,
+  "captureUTC": "2026-11-26T02:30:20Z",
+  "changedFrames": 0,
+  "changedPixels": 0,
+  "changedProviderPayloads": 0,
+  "controlChangedFrames": 0,
+  "controlChangedPixels": 0,
+  "controlMaxDelta": 0,
+  "distinctStableImages": 150,
+  "framesSha256": "8af0e01c4ce05c99f5c3c4ea999b5b6ad4badd74989f768947bf4634b0c20ba2",
+  "locale": "en_US",
+  "macOS": "26.6.2",
+  "maxChannelDelta": 0,
+  "pairs": 338,
+  "pixelsPerRevision": 18525728,
+  "pngByteDifferences": 0,
+  "rust": {
+    "commit": "666144848d47558dac8c62f2b7ec510d0e6f316e",
+    "linkedRustFreshness": true,
+    "sourceSha256": {
+      "Sources/CodeRimShared/CompanionProviderID.swift": "ed4ac96937ce187a2d08e771e4f09fc5594b0620337f72af5431995bac3a6af9",
+      "Sources/CodeRimShared/CompanionSnapshot.swift": "c087ccac158de20fd4d771a000b49f535d5d54aceebc8d929c6e3dfaeedff2ac",
+      "Sources/CodeRimWidget/CodeRimWidget.swift": "1e9abece4d8ce354edcdd9e587325826bb82210d7e74f6055fb4a76165022f65",
+      "Sources/CodeRimWidget/WidgetViews.swift": "3047e0f53837501b8670191751216685b7a67d1e1be9115cf3dd1f3550328594"
+    },
+    "widgetArchiveSha256": "476b796997f96a19621b1b308e89589b65d7e1d52b4e7be34c46943deed5017e"
+  },
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "scale": 1,
+  "stable": {
+    "commit": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+    "linkedRustFreshness": false,
+    "sourceSha256": {
+      "Sources/CodeRimShared/CompanionProviderID.swift": "ed4ac96937ce187a2d08e771e4f09fc5594b0620337f72af5431995bac3a6af9",
+      "Sources/CodeRimShared/CompanionSnapshot.swift": "2be9a13aed32add6f0c3391bf64c84a6e7ea7f06510c2c4e35d89b9bd7d6189f",
+      "Sources/CodeRimWidget/CodeRimWidget.swift": "8269878c83f3cd6c304efae119762764f10df31cc44dd38223b3dffd05fa085a",
+      "Sources/CodeRimWidget/WidgetViews.swift": "3047e0f53837501b8670191751216685b7a67d1e1be9115cf3dd1f3550328594"
+    }
+  },
+  "swift": "Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)"
+}
