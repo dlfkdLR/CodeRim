@@ -98,6 +98,10 @@ The WidgetKit extension now evaluates only the selected provider across its 16 t
 
 Windows GitHub device authorization uses Rust for polling and expiry decisions. The reference and both candidates produced identical request, prompt, timing, save and result traces across 1,144 simulated sign-ins. Independent verification used a network-denied process. A live sign-in with a provider-issued token is still open. [Scope, ABI and checks](GITHUB_DEVICE.md)
 
+The Apple collector now retains the scanned partial prefix and obtains LF offsets in batches of 128. The native and Rust delimiter drivers matched 325 cases on both slices, including nonzero Data indices, consecutive newlines, continuation chunks and unused trailing bytes. For 256 KiB of 512-byte records the arm64 median delimiter-only time was 496.70 µs in the original loop and 7.40 µs with Rust. This excludes JSON parsing, fingerprinting and commits. [Five workloads](verification/2026-11-26/macos-line-boundaries.json)
+
+The separate inbound relay experiment preserved the stable snapshot sanitizer output in 2,400 independently checked cases. Its Wasm path took 0.934 to 1.067 times the original runtime across six workloads. Transferring numeric values from the parsed JavaScript object and reconstructing the public JSON dominated the cost. The integrated candidate retains the released sanitizer. [Measurements against v2.1.41](verification/2026-11-26/relay-snapshot-experiment.json)
+
 ## Data recovery
 
 The migration branch also corrects pre-existing overcounting from damaged Apple SQLite checkpoints. A focused Apple run covered the collector, database and normalizer with 68 passing cases. The new unchanged-source assertion first failed against the implementation that could report exact quality while a negative counter was stored. Its fix is in `3a83589`. The regression keeps 100 historic tokens, anchors at 120 without charging the missing interval, then records 7 at 127 and keeps 107 after reopening. [Recovery behavior and limits](ACCOUNTING.md#restoring-a-damaged-apple-sqlite-checkpoint)
