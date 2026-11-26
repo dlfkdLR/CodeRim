@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using CodeRim.Core.Domain;
 using CodeRim.Core.Parsing;
@@ -9,6 +7,13 @@ using CodeRim.Core.Services;
 var key = Enumerable.Range(0, 32).Select(i => (byte)i).ToArray();
 var secondKey = new byte[32];
 var dir = args[1];
+
+// Persisted JSON deliberately omits import metadata. Include it in the oracle.
+static object? EventFields(UsageEvent? item) => item is null ? null : new
+{
+    item.EventKey, item.OccurredAt, item.Usage, item.Model, item.Project, item.SessionId, item.Provider, item.ProjectId,
+    item.PricingContext, item.Repaired, item.ImportParentSessionId
+};
 
 if (args[0] == "cases")
 {
@@ -20,7 +25,7 @@ if (args[0] == "cases")
             try
             {
                 var e = ClaudeJsonlParser.Parse(bytes, projectKey, source);
-                Console.WriteLine(JsonSerializer.Serialize(e));
+                Console.WriteLine(JsonSerializer.Serialize(EventFields(e)));
             }
             catch (Exception error)
             {
@@ -36,7 +41,7 @@ else if (args[0] == "scan")
         var scanner = new UsageScanner("claude", [Path.Combine(dir, "logs")], key, strict);
         var result = await scanner.ScanAsync(WeekStart.Monday, CancellationToken.None);
         if (result.Events.Count != 2048) throw new InvalidDataException("Expected every synthetic message");
-        Console.WriteLine(JsonSerializer.Serialize(new { result.Events, result.Sessions, result.SourceCount,
+        Console.WriteLine(JsonSerializer.Serialize(new { Events = result.Events.Select(EventFields), result.Sessions, result.SourceCount,
             result.HasMoreWork, result.Snapshot.Quality, result.Snapshot.AllTime }));
     }
 }
