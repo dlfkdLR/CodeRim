@@ -420,10 +420,7 @@ jobs:
           if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture -ne '${{ matrix.arch }}') { throw 'Unexpected OS architecture' }
           rustup target add ${{ matrix.triple }}
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          cargo build --locked --manifest-path Rust/Cargo.toml --release --target ${{ matrix.triple }} -p coderim-accounting-bridge
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          $library = (Resolve-Path 'Rust/target/${{ matrix.triple }}/release/coderim_accounting_bridge.dll').Path
-          ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-${{ matrix.arch }} -RustAccountingLibrary $library -ResetManifest
+          ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-${{ matrix.arch }} -ResetManifest
           ./Windows/Scripts/package-installer.ps1 -RuntimeIdentifier win-${{ matrix.arch }}
           ./Windows/Scripts/package-msix.ps1 -RuntimeIdentifier win-${{ matrix.arch }}
       - name: Compare archived Rust files to build inputs and exercise the ZIP CLI

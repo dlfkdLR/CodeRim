@@ -57,6 +57,8 @@ foreach ($mode in 'Unsigned', 'Required') {
             if ($projectName -eq 'CodeRim.Windows') { [IO.File]::WriteAllText((Join-Path $output 'install.ps1'), '$signedPackage = $false') }
             $global:LASTEXITCODE = 0
         }
+        # This fixture observes the publish/sign order. ZIP and installer jobs compare actual Rust bytes.
+        function Assert-RustAccountingPayload {}
         function Copy-Item {}
         function Sign-PayloadFile([string]$Path) { $publishOrder.Add('sign:' + [IO.Path]::GetFileName($Path)) }
         function python {

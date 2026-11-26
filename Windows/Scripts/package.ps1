@@ -76,14 +76,17 @@ function Sign-PayloadFile([string]$Path) {
     $signature = Get-AuthenticodeSignature -LiteralPath $Path
     if ($signature.Status -ne 'Valid' -or -not $signature.TimeStamperCertificate -or $signature.SignerCertificate.Thumbprint -ine $certificate.Thumbprint) { throw 'Publisher signing or timestamp verification failed.' }
 }
-$accountingArguments = @()
-if ($RustAccountingLibrary) {
-    $RustAccountingLibrary = (Resolve-Path -LiteralPath $RustAccountingLibrary).Path
-    $accountingArguments = @('-p:CodeRimRustAccounting=true', "-p:CodeRimRustAccountingLibrary=$RustAccountingLibrary")
+$triple = if ($architecture -eq 'x64') { 'x86_64-pc-windows-msvc' } else { 'aarch64-pc-windows-msvc' }
+$targetRoot = Join-Path $projectRoot 'Rust/target'
+if (-not $RustAccountingLibrary) {
+    cargo build --locked --manifest-path (Join-Path $projectRoot 'Rust/Cargo.toml') --target-dir $targetRoot --release --target $triple -p coderim-accounting-bridge
+    if ($LASTEXITCODE -ne 0) { throw "Rust accounting build failed for $triple." }
+    $RustAccountingLibrary = Join-Path $targetRoot "$triple/release/coderim_accounting_bridge.dll"
 }
+$RustAccountingLibrary = (Resolve-Path -LiteralPath $RustAccountingLibrary).Path
+$accountingArguments = @('-p:CodeRimRustAccounting=true', "-p:CodeRimRustAccountingLibrary=$RustAccountingLibrary")
 
 function Assert-RustAccountingPayload {
-    if (-not $RustAccountingLibrary) { return }
     $expectedFiles = @{
         'coderim_accounting_bridge.dll' = $RustAccountingLibrary
         'Rust-Notices.txt' = (Join-Path $projectRoot 'Rust/THIRD-PARTY-NOTICES.txt')

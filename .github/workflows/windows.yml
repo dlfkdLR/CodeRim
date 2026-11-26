@@ -57,6 +57,8 @@ jobs:
         run: ./Windows/Scripts/test_release_archive.ps1
       - name: Build WPF application and CLI
         run: dotnet build Windows/CodeRim.Windows.sln --configuration Release
+      - name: Install Rust targets for Windows packages
+        run: rustup target add x86_64-pc-windows-msvc aarch64-pc-windows-msvc
       - name: Package x64
         run: ./Windows/Scripts/package.ps1 -RuntimeIdentifier win-x64 -ResetManifest
       - name: Package ARM64
