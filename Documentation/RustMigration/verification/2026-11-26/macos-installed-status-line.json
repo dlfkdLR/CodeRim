@@ -1,0 +1,213 @@
+{
+  "codeBaseline": "5cdb62c7a326b2710dae738e4f7e38b497818ce6",
+  "referenceTag": "v2.1.41",
+  "implementation": "a8afc5fc1e1b3ca049410f309a6eff32b8599aee",
+  "finalCommit": "3230993038f8ebb1e02aa26c1fbb3669a12af6f7",
+  "scope": "Installed macOS status-line executable receiving official caller stdin; only five_hour and seven_day quotas are published to the CodeRim application support ClaudeLimits.json. Foundation supplies released path resolution, JSON decoding, NSData atomic publication and POSIX modes; libc++ supplies exact floating-point formatting. Rust owns bounded stdin, snapshot rules, terminal summary and JSON output.",
+  "artifacts": {
+    "release": {
+      "sha256": "87cbcd4fc7fea4968a169c4dd03fd165974da2a7f24bd3724225ce954bd8f785",
+      "bytes": 341600,
+      "archs": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "publishedWithMatchingQASignature": {
+      "sha256": "fb90c16f0331b944944079eea26230892ff9cec752672de1ba9bc16c0f4e6989",
+      "bytes": 341456,
+      "archs": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "candidate": {
+      "sha256": "a88d00af76668d9e7c38f97ff01caea8e730e29acc5588bbac99a646e5885b1d",
+      "bytes": 137168,
+      "archs": [
+        "x86_64",
+        "arm64"
+      ]
+    }
+  },
+  "normalPackage": {
+    "command": "Scripts/build_release.sh",
+    "prebuiltRustInputsProvided": 0,
+    "build": "Local QA ad-hoc signing, pinned cached dependencies, public repository protocol restricted to file transport",
+    "macosMinimumBothSlices": "14.0",
+    "strictBundleAndHelperSignatureValid": true
+  },
+  "checks": {
+    "host": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "architectures": [
+      "arm64 native",
+      "x86_64 via Rosetta on same Mac"
+    ],
+    "eachArchitecture": {
+      "releaseVsInstalledStatusLineDocuments": 384,
+      "argumentsAndPaths": 7,
+      "independentPositiveControl": "Expected exit 0, fixed stdout, no stderr, actual sorted JSON with bounded fetchedAt and 0600 file in 0700 directory",
+      "numberFormat": {
+        "values": 93696,
+        "mismatches": 0,
+        "first": []
+      }
+    },
+    "atomic": {
+      "arm64": {
+        "release": {
+          "malformedOrEmptyPreserved": 3,
+          "simultaneousWrites": 48,
+          "coherentReaderObservations": 103,
+          "splitWrites": 3,
+          "directoryAtOutputRejected": true
+        },
+        "rust": {
+          "malformedOrEmptyPreserved": 3,
+          "simultaneousWrites": 48,
+          "coherentReaderObservations": 138,
+          "splitWrites": 3,
+          "directoryAtOutputRejected": true
+        }
+      },
+      "x86_64": {
+        "release": {
+          "malformedOrEmptyPreserved": 3,
+          "simultaneousWrites": 48,
+          "coherentReaderObservations": 179,
+          "splitWrites": 3,
+          "directoryAtOutputRejected": true
+        },
+        "rust": {
+          "malformedOrEmptyPreserved": 3,
+          "simultaneousWrites": 48,
+          "coherentReaderObservations": 180,
+          "splitWrites": 3,
+          "directoryAtOutputRejected": true
+        }
+      }
+    },
+    "qaBuild": "QA builds Swift references separately. 246 companion differential pairs and 116 process checks covering 70 synthetic providers.",
+    "policyTestMethods": 3,
+    "rustCompanionTests": 2,
+    "formatAndClippy": "Release profile and all targets with warnings denied."
+  },
+  "performance": {
+    "host": "Apple Silicon. One seatbelt sandbox enclosing the complete paired run, no network or access to personal home data. Archive helper given the same QA signature; the actual installed candidate was copied using each original managed filename.",
+    "pairsPerScenario": 50,
+    "warmupsExcludedPerSide": 1,
+    "nativeOnly": true,
+    "metrics": {
+      "empty": {
+        "median": {
+          "stable": {
+            "elapsedMs": 2.5445209999999996,
+            "cpuMs": 1.7624999999999997,
+            "peakRSSBytes": 6340608.0
+          },
+          "rust": {
+            "elapsedMs": 2.3886244999999997,
+            "cpuMs": 1.6055,
+            "peakRSSBytes": 6094848.0
+          }
+        },
+        "rustFasterElapsedPairs": 41
+      },
+      "ordinary": {
+        "median": {
+          "stable": {
+            "elapsedMs": 4.6815835,
+            "cpuMs": 3.173,
+            "peakRSSBytes": 8519680.0
+          },
+          "rust": {
+            "elapsedMs": 4.401813,
+            "cpuMs": 2.908,
+            "peakRSSBytes": 8060928.0
+          }
+        },
+        "rustFasterElapsedPairs": 42
+      },
+      "unicode": {
+        "median": {
+          "stable": {
+            "elapsedMs": 5.8919375,
+            "cpuMs": 4.093999999999999,
+            "peakRSSBytes": 8503296.0
+          },
+          "rust": {
+            "elapsedMs": 5.7467714999999995,
+            "cpuMs": 3.943,
+            "peakRSSBytes": 8077312.0
+          }
+        },
+        "rustFasterElapsedPairs": 40
+      },
+      "large": {
+        "median": {
+          "stable": {
+            "elapsedMs": 5.7232705,
+            "cpuMs": 4.061,
+            "peakRSSBytes": 8962048.0
+          },
+          "rust": {
+            "elapsedMs": 5.437854,
+            "cpuMs": 3.7645,
+            "peakRSSBytes": 8536064.0
+          }
+        },
+        "rustFasterElapsedPairs": 41
+      }
+    }
+  },
+  "priorFindingsResolved": [
+    "A restrictive preliminary sandbox prevented writes in both implementations. Final tests require a known successful on-disk snapshot before the differential suite.",
+    "Swift JSONEncoder differs from the default Rust double display for e.g. decimal halfway and scientific notation near 2^53. Measured 93,696 values per architecture against the final native shortest decimal binding with zero discrepancies.",
+    "Earlier empty-input cost was higher. The installed final helper handles small stdin on stack, validates the exact managed path cheaply and covers the empty object directly."
+  ],
+  "evidenceSha256": {
+    "installed-arm.log": "ce2d0a71e676c64eef77a3e950e9eb54e048c707ac37e7bb740eab01219562c1",
+    "installed-intel.log": "ce2d0a71e676c64eef77a3e950e9eb54e048c707ac37e7bb740eab01219562c1",
+    "installed-final.log": "83064dcf635857a74a5afdf349968a5b4da2865adffea252c80e1bd12ec4908c",
+    "qa-package.log": "3645b20a400cd5f6efe473243f67c7ee69accfbfe6b60c3090b7a5df224690e1",
+    "installed-clippy.log": "8b10b06eff9057c6be3cf669b773b96650318987b554ea3e2c5bae8e076089ec",
+    "cli-test.log": "9694b809ed746c18c17b23dc95e83057a91c83490b6c99e5255399243267a271",
+    "policy.log": "686be6af1cc794917258ca001c41387afe83272d56bb16c776f65657be8e81dd",
+    "product-precision.json": "860ef2e0fdc8f67897deb9f8e57e023750bc1243121f9b16bf7246790c8d39bd",
+    "atomic.json": "cab31d6fd06314d02380b2352bca14074f7182262cf1059d80f8bc6c519d0058",
+    "process-benchmark.json": "ae5c825da3f007f153f4fe6911c09b9c0eadb203c0c7b1d568af9520d905a24c"
+  },
+  "formalPacket": "0bef07f1239cda6d089af8ccbb202e2fd831edb52e41ab51d071a05935211518",
+  "scopeLimitations": [
+    "No physical Intel computer, production account/service, Developer ID signature, notarization, remote publication or energy measurement.",
+    "Direct tests and independent review are separate from the formal development-harness gate."
+  ],
+  "independentInstalledComparisons": {
+    "reference": {
+      "sha256": "87cbcd4fc7fea4968a169c4dd03fd165974da2a7f24bd3724225ce954bd8f785",
+      "bytes": 341600
+    },
+    "candidate": {
+      "sha256": "a88d00af76668d9e7c38f97ff01caea8e730e29acc5588bbac99a646e5885b1d",
+      "bytes": 137168
+    },
+    "results": {
+      "arm64": {
+        "pairs": 78,
+        "freshWrites": 66,
+        "inputErrors": 4,
+        "concurrentRecords": 25,
+        "disallowedDestinations": 2
+      },
+      "x86_64": {
+        "pairs": 78,
+        "freshWrites": 66,
+        "inputErrors": 4,
+        "concurrentRecords": 25,
+        "disallowedDestinations": 2
+      }
+    }
+  },
+  "formalHarnessDecision": "INCONCLUSIVE",
+  "integration": "7973f8c and 3170424, QA architecture availability in ce803b6"
+}

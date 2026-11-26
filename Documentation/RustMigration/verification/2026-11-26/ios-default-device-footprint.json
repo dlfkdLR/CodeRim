@@ -1,0 +1,560 @@
+{
+  "sourceCommit": "2a3295f6275e6c0857caae455eca5b83195ac4e8",
+  "comparedAgainst": {
+    "previous": "fe01d34b88be58418821a31cf089522425e6de88",
+    "release": "v2.1.41"
+  },
+  "machine": {
+    "arm64": "Apple Silicon, macOS",
+    "x86_64": "Intel build under Rosetta on the same Mac",
+    "xcode": "27.2",
+    "iphoneDeploymentTarget": "17.2"
+  },
+  "scope": "The existing C header, exported ABI and signing settings are unchanged. The standard standalone mobile Rust library keeps Darwin allocation and abort-on-panic, removes the standard-library backtrace implementation, and uses fat LTO. Single-target equality represents toggles, while full ID classes handle missing providers. WMO applies to the Release app only.",
+  "deviceArchiveBytes": {
+    "release": {
+      "bundle": 1583244,
+      "app": 1056192,
+      "widget": 457224
+    },
+    "previous": {
+      "bundle": 2244212,
+      "app": 1395616,
+      "widget": 778768
+    },
+    "candidate": {
+      "bundle": 1548460,
+      "app": 1021224,
+      "widget": 457408
+    },
+    "swiftControl": {
+      "bundle": 1599652,
+      "app": 1072600,
+      "widget": 457224
+    }
+  },
+  "derivedDeltasBytes": {
+    "previous": {
+      "bundle": -695752,
+      "app": -374392,
+      "widget": -321360
+    },
+    "release": {
+      "bundle": -34784,
+      "app": -34968,
+      "widget": 184
+    }
+  },
+  "rustArchiveLinkMapBytes": {
+    "default-CodeRimLiveActivity-LinkMap-normal-arm64.txt": 262971,
+    "default-CodeRimMobile-LinkMap-normal-arm64.txt": 267354,
+    "fat-s-CodeRimLiveActivity-LinkMap-normal-arm64.txt": 252,
+    "fat-s-CodeRimMobile-LinkMap-normal-arm64.txt": 227148,
+    "verified-CodeRimLiveActivity-LinkMap-normal-arm64.txt": 252,
+    "verified-CodeRimMobile-LinkMap-normal-arm64.txt": 8222
+  },
+  "unwindSections": {
+    "release": {
+      "CodeRimMobile": {
+        "__text": 592892,
+        "__unwind_info": 9376,
+        "__eh_frame": 15940
+      },
+      "CodeRimLiveActivity": {
+        "__text": 243096,
+        "__unwind_info": 4872,
+        "__eh_frame": 5636
+      }
+    },
+    "previous": {
+      "CodeRimMobile": {
+        "__text": 822732,
+        "__unwind_info": 13864,
+        "__eh_frame": 41668
+      },
+      "CodeRimLiveActivity": {
+        "__text": 452560,
+        "__unwind_info": 9848,
+        "__eh_frame": 30292
+      }
+    },
+    "candidate": {
+      "CodeRimMobile": {
+        "__text": 572176,
+        "__unwind_info": 9440,
+        "__eh_frame": 17248
+      },
+      "CodeRimLiveActivity": {
+        "__text": 246504,
+        "__unwind_info": 4928,
+        "__eh_frame": 5636
+      }
+    }
+  },
+  "alternativeDeviceArtifacts": {
+    "fatLTO_sizeS": {
+      "flags": [
+        "-C",
+        "lto=fat",
+        "-C",
+        "codegen-units=1"
+      ],
+      "archiveBytes": 5845104,
+      "app": 1322976,
+      "extension": 457408,
+      "bundle": 1850212
+    },
+    "fatLTO_sizeZ": {
+      "flags": [
+        "-C",
+        "lto=fat",
+        "-C",
+        "codegen-units=1",
+        "-C",
+        "opt-level=z"
+      ],
+      "archiveBytes": 5922752,
+      "app": 1322984,
+      "extension": 457408,
+      "bundle": 1850220
+    },
+    "thinLTO_sizeZ": {
+      "flags": [
+        "-C",
+        "lto=thin",
+        "-C",
+        "codegen-units=1",
+        "-C",
+        "opt-level=z"
+      ],
+      "archiveBytes": 6046896,
+      "app": 1359440,
+      "extension": 457408,
+      "bundle": 1886676
+    },
+    "allSwiftSizeOnly": {
+      "app": 961744,
+      "extension": 409832,
+      "bundle": 1441404
+    },
+    "allSwiftWMO": {
+      "app": 1021232,
+      "extension": 490192,
+      "bundle": 1581252
+    },
+    "allSwiftWMOAndSize": {
+      "app": 957200,
+      "extension": 442152,
+      "bundle": 1469180
+    }
+  },
+  "productSourceDifferentialPerArchitecture": {
+    "selectionOptionAndToggleRows": 920,
+    "activityOrderComparisons": 5000,
+    "followCases": 13056,
+    "refreshCases": 4352,
+    "registrationCases": 720,
+    "islandStatusAndPercentageRows": 12000,
+    "rawSelectionOutputAndCapacityComparisons": 54000,
+    "rawPointerAndLengthRejectionsOrEmptyResults": 5,
+    "extraIslandReadings": 4096,
+    "oldExternalArchiveMatched": true,
+    "architectures": [
+      "arm64",
+      "x86_64 (Rosetta)"
+    ]
+  },
+  "hostTests": {
+    "rustBridge": 55,
+    "usageCore": 5,
+    "clippy": "All workspace targets, warnings denied",
+    "format": "cargo fmt check and standalone rustfmt check"
+  },
+  "hotUserActionNs": {
+    "arm64/1": {
+      "release": {
+        "list": 792.0,
+        "toggle": 166.0
+      },
+      "previous": {
+        "list": 1292.0,
+        "toggle": 708.0
+      },
+      "equal-wmo": {
+        "list": 1187.5,
+        "toggle": 292.0
+      }
+    },
+    "arm64/8": {
+      "release": {
+        "list": 3292.0,
+        "toggle": 291.0
+      },
+      "previous": {
+        "list": 3104.5,
+        "toggle": 2041.0
+      },
+      "equal-wmo": {
+        "list": 2854.0,
+        "toggle": 375.0
+      }
+    },
+    "arm64/64": {
+      "release": {
+        "list": 66375.0,
+        "toggle": 1187.5
+      },
+      "previous": {
+        "list": 17292.0,
+        "toggle": 11458.0
+      },
+      "equal-wmo": {
+        "list": 16583.0,
+        "toggle": 959.0
+      }
+    },
+    "arm64/100": {
+      "release": {
+        "list": 141042.0,
+        "toggle": 1791.0
+      },
+      "previous": {
+        "list": 28708.0,
+        "toggle": 18416.0
+      },
+      "equal-wmo": {
+        "list": 25750.0,
+        "toggle": 1229.5
+      }
+    },
+    "arm64/1024": {
+      "release": {
+        "list": 611854.5,
+        "toggle": 1833.0
+      },
+      "previous": {
+        "list": 210083.5,
+        "toggle": 18541.0
+      },
+      "equal-wmo": {
+        "list": 200291.5,
+        "toggle": 1291.5
+      }
+    },
+    "x86_64/1": {
+      "release": {
+        "list": 1646.5,
+        "toggle": 291.0
+      },
+      "previous": {
+        "list": 2854.0,
+        "toggle": 1375.0
+      },
+      "equal-wmo": {
+        "list": 2562.0,
+        "toggle": 583.0
+      }
+    },
+    "x86_64/8": {
+      "release": {
+        "list": 4604.0,
+        "toggle": 500.0
+      },
+      "previous": {
+        "list": 5854.5,
+        "toggle": 3708.0
+      },
+      "equal-wmo": {
+        "list": 5333.5,
+        "toggle": 708.0
+      }
+    },
+    "x86_64/64": {
+      "release": {
+        "list": 117500.0,
+        "toggle": 2041.5
+      },
+      "previous": {
+        "list": 29250.0,
+        "toggle": 17667.0
+      },
+      "equal-wmo": {
+        "list": 27208.0,
+        "toggle": 1417.0
+      }
+    },
+    "x86_64/100": {
+      "release": {
+        "list": 256916.5,
+        "toggle": 3208.0
+      },
+      "previous": {
+        "list": 47375.0,
+        "toggle": 29208.0
+      },
+      "equal-wmo": {
+        "list": 43125.0,
+        "toggle": 1750.0
+      }
+    },
+    "x86_64/1024": {
+      "release": {
+        "list": 1072000.0,
+        "toggle": 3208.0
+      },
+      "previous": {
+        "list": 337396.0,
+        "toggle": 29812.5
+      },
+      "equal-wmo": {
+        "list": 326187.0,
+        "toggle": 1875.0
+      }
+    }
+  },
+  "islandProjectionNs": {
+    "arm64": {
+      "release": 144.93229166666666,
+      "previous": 97.94183333333334,
+      "candidate": 96.5555625,
+      "size": 112.01214583333334,
+      "wmo": 94.2335
+    },
+    "x86_64": {
+      "release": 278.80554166666667,
+      "previous": 197.3585,
+      "candidate": 200.67447916666666,
+      "size": 372.9713541666667,
+      "wmo": 204.45225
+    }
+  },
+  "rawBoundaryRisk": "The Swift host interns all real selection identifiers in first-seen order. The unchanged public C ABI also accepts arbitrary sparse u32 classes. For 4,096 arbitrary random keys, raw missing-ID time was 64.46→64.82 microseconds on arm64 and 101.87→110.22 on translated x86_64. For 4,096 canonically interned paired keys it was 37.04→2.62 microseconds and 58.09→2.87 microseconds respectively.",
+  "packetDigest": "a16c17b21b0afecc82a87045b84511885d26e0c49b6302791aa68604573c3f17",
+  "sourceHashes": {
+    "Rust/bridge/src/mobile.rs": "ebf05720f223d638e174e8e76b18021bb751e798c2a4b920557faf5e3cf7132e",
+    "Rust/bridge/src/mobile_selection.rs": "c59bcb1f268dfda91eec4107fbb5ac644dde0a78af86f0b9371a7a1d6140cb33",
+    "Rust/bridge/src/mobile_standalone.rs": "1b6c691c73b10c5558a671cdc70a93f9518baf49aca255af76d126e86089949d",
+    "Sources/CodeRimShared/MobileModels.swift": "d7f3f29fef40d725401c478cae1461f10fd4ba78c82fa1803976a8c39eda31b8",
+    "iOS/CodeRimMobile.xcodeproj/project.pbxproj": "94ae4c27002afaf944efeb11e306798c5fa30bdc91d5fc990dd9f80ec52a10ee",
+    "iOS/Config/build_mobile_rust.py": "55eceb24d12c3d0bb9ad2961bf4967b02e078017ac84b182ce4351573780db4a",
+    "iOS/generate_project.py": "77f670eb8353312c64bc7e84875ed0e2a5df0e3aaf1fa774d23ebfab5026b913"
+  },
+  "limits": [
+    "Unsigned arm64 device archive and actual arm64/x86_64 simulator products; physical iPhone and distribution signing were not exercised.",
+    "Host elapsed timings measure synthetic production projections. They do not measure battery use, network behavior or physical device speed.",
+    "Projected medians for one provider remain higher than the published Swift path. Full GUI pixel comparison belongs to the separate same-simulator capture review."
+  ],
+  "simulatorXCTest": {
+    "passedTests": 56,
+    "failedTests": 0,
+    "skippedTests": 0,
+    "runtimeWarnings": [],
+    "result": "Passed",
+    "totalTestCount": 56
+  },
+  "allocatorModelChecks": {
+    "arm64": {
+      "zeroFillAndReallocationAndAlignmentChecks": 4992,
+      "badAlignmentsRejected": 2,
+      "alignmentBytes": [
+        1,
+        4096
+      ]
+    },
+    "x86_64": {
+      "zeroFillAndReallocationAndAlignmentChecks": 4992,
+      "badAlignmentsRejected": 2,
+      "alignmentBytes": [
+        1,
+        4096
+      ]
+    }
+  },
+  "simulatorHotUserActionNs": {
+    "1": {
+      "release": {
+        "list": 1000.0,
+        "toggle": 166.0
+      },
+      "previous": {
+        "list": 1500.0,
+        "toggle": 791.0
+      },
+      "candidate": {
+        "list": 1458.0,
+        "toggle": 666.0
+      }
+    },
+    "8": {
+      "release": {
+        "list": 3542.0,
+        "toggle": 334.0
+      },
+      "previous": {
+        "list": 3500.0,
+        "toggle": 2333.0
+      },
+      "candidate": {
+        "list": 4875.0,
+        "toggle": 750.0
+      }
+    },
+    "64": {
+      "release": {
+        "list": 62583.0,
+        "toggle": 1125.0
+      },
+      "previous": {
+        "list": 21209.0,
+        "toggle": 12708.0
+      },
+      "candidate": {
+        "list": 18334.0,
+        "toggle": 1042.0
+      }
+    },
+    "100": {
+      "release": {
+        "list": 130750.0,
+        "toggle": 1708.0
+      },
+      "previous": {
+        "list": 30458.0,
+        "toggle": 18625.0
+      },
+      "candidate": {
+        "list": 28166.0,
+        "toggle": 1375.0
+      }
+    },
+    "1024": {
+      "release": {
+        "list": 577666.5,
+        "toggle": 1791.0
+      },
+      "previous": {
+        "list": 235812.5,
+        "toggle": 20520.5
+      },
+      "candidate": {
+        "list": 213229.0,
+        "toggle": 1417.0
+      }
+    }
+  },
+  "simulatorEightProviderLongerSampleNs": {
+    "previous": [
+      3333.5,
+      2125.0
+    ],
+    "candidate": [
+      2937.5,
+      334.0
+    ]
+  },
+  "simulatorTimingScope": "iPhone 17 Pro simulator 26.5 application-model executables. The first five trials with eight providers had list medians 3,500 ns previous and 4,875 ns candidate. Because of a wide per-process spread, a separate 16-pair run used 14,000 measurements per launch and obtained 3,333.5 ns and 2,937.5 ns for lists, 2,125 ns and 334 ns for toggles.",
+  "formalHarnessDecision": "INCONCLUSIVE",
+  "artifactHashes": {
+    "normal-products.json": "65cc5b841a74f10aa4ae84e17357beadeb21ec358f7433fd377814a8ba8f0c90",
+    "profile.json": "c49f5c8087be4d102d173a2eeb18c06e7130a93a2e7087a5cb8f0a4e3de3d179",
+    "standalone-profile.json": "bb5d52e595aa38a1c75f31041cf52b0eae770ec422a9352630d5e31ecd48d968",
+    "controls.json": "218695b6e13b7b0ebea383455842e937380b178154bf7621a294d7b035d1cf4d",
+    "wmo.json": "4f59c046316911fbe2639b111ac8b22b569f08b6ff6890c19b2e187ffeec6651",
+    "size-only.json": "cbc7996c1e567114fcf7f2777bbb3f597023c979d7f4253b981caf53d3a13054",
+    "linkmaps.json": "2e165a2af1b9c9af1cc9deb0de58da2f4a1731e196733aa0d18832d6aa5e698a",
+    "unwind-sections.json": "32b5483f7aaeaefddabd7442c9cc69af8b4c17c7e89bbb728b69db1ae81461c3",
+    "raw-results.json": "9e5d348e8caafcd11eef470b68fd0c74fc7e2e4933e05ef1843a2a90bce70433",
+    "equal-hot-results.json": "045190958d7ef3fe60ebbba16aba169c659ddfc351f00e7d9faf0796e979d131",
+    "island.json": "c8f4b7c16d16ce3fd24cbdaf46307cc71e1fceecd446d4407f3a10acbcf2fa34",
+    "contracts.json": "1069885438398b0809be326dc6f5d38c297b50d5b76b0a09b1e4bdd6f4ed26a8",
+    "selection-final-arm64.log": "c3129a3c220a3fbe0d8205679e714b1095338dc2495e9c25efbd4f8c01361ce4",
+    "selection-final-x86_64.log": "c3129a3c220a3fbe0d8205679e714b1095338dc2495e9c25efbd4f8c01361ce4",
+    "external-arm64.log": "c3129a3c220a3fbe0d8205679e714b1095338dc2495e9c25efbd4f8c01361ce4",
+    "external-x86_64.log": "c3129a3c220a3fbe0d8205679e714b1095338dc2495e9c25efbd4f8c01361ce4",
+    "cargo-test.log": "7a3f1286c40fbb1b97c374dfaf4b0c2e0690f474b285b3ae7fa7adc7351ffe3d",
+    "clippy.log": "69aea43550edf0f8b86be67ca4f81305542f5c937fc62db7130f2215dcbf1c06",
+    "fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "ui-preflight.json": "9f4ae560bf54c3a0e1c1bc29eb992ba27880767194ba1fa7e420c74d3eeb8272",
+    "device-verified.log": "4a3883704fefec63e7e5f6a03a2896007195ee22076c60ca8112be19068f32dd",
+    "simulator-verified.log": "8a280a122904ac9d46888a794b047ed52dc7a9e37631e9afdef31bb81fa0da5c",
+    "expanded-harness/packet.json": "a89e248c7c4ca86c543d458376d0fd0d8a6d092cc76df962bdc187824544eeb9",
+    "ui-summary.json": "14f4e268a9dfcf9a2c2c3b9f13803f3d9c3b991ecd1bf04cb331394e549fd54b",
+    "size-ui.log": "9519b0190f26608170ba0d86e5956f363ea3baffb00105d3650c5c9906080560",
+    "ui-attachments/manifest.json": "1923d0dd3ec085612bb9d8bb3a32c4b77846be4260686fad48187a6138fd2d28",
+    "allocator.json": "ec0515ff31c0e8c8bf8e05057f3442d58cbe67fc374743d1783e66bafd2a2713",
+    "allocation.py": "470136ef5f724fc7240f229d4c00b7ddd9577c512f71c28d95c0a860c9a6862f",
+    "sim-perf.json": "4723c8c3b81bd09fd3b05f5df7e7afc638052aa6d416ec0d549ed4032da3cd4a",
+    "sim-eight.json": "c96df35434124d4bd0b439c7e515eeddff45bd64d0ab80b1b742c371c77de6cb",
+    "sim-perf.py": "cca3752e5480da0795670e8e2a25c7da13b03ac9be97e8cb8199141680dd15ef",
+    "sim-eight.py": "e451214fe448060c0815c79f64f1d5294d290aa9539c9fca70077fca74a697eb",
+    "expanded-harness/gate.json": "79be80ea78c8205aebc5a1e70ca4b9f3273d6a398655eceab7b1e0d4b46adbf4",
+    "independent-review.json": "d68c29c0a1b8a5d5e87116e004d2a7dcc7a230e2f2064b54648c704c94639fa1"
+  },
+  "independent": {
+    "referenceCallsPerArchitecture": 26660,
+    "root": {
+      "arm64": {
+        "cases": 26660,
+        "errorCases": 1414,
+        "outputSHA256": "a9c77b2f47db1d6dd8173a30887960affa8783e7f3ed238962586de98b545fa8"
+      },
+      "x86_64": {
+        "cases": 26660,
+        "errorCases": 1414,
+        "outputSHA256": "a9c77b2f47db1d6dd8173a30887960affa8783e7f3ed238962586de98b545fa8"
+      },
+      "deviceEntries": {
+        "CodeRimMobile.app": {
+          "bytes": 1021224,
+          "sha256": "151bd72443f65394df87683f156c64ced1e8d4d3a72b15afe7800927b681010d",
+          "minOS": "17.2",
+          "uuid": "64B07151-0D97-3894-B814-51A0123ED954",
+          "deviceBuild": [
+            " platform IOS",
+            "    minos 17.2",
+            "      sdk 27.2",
+            "   ntools 1",
+            "     tool LD",
+            "  version 27106.1"
+          ],
+          "rustSymbols": [
+            "_cr_mobile_follow",
+            "_cr_mobile_provider_indices",
+            "_cr_mobile_read_island",
+            "_cr_mobile_reconcile_snapshot",
+            "_cr_mobile_refresh_header",
+            "_cr_mobile_registration_step",
+            "_cr_mobile_supersedes"
+          ]
+        },
+        "CodeRimLiveActivity.appex": {
+          "bytes": 457408,
+          "sha256": "68b7a7aec5547f5396942a5895553e19814d05ab00da4277d76da5dfecd61de3",
+          "minOS": "17.2",
+          "uuid": "CECA022B-8220-3412-BACE-B35D29A0FBDC",
+          "deviceBuild": [
+            " platform IOS",
+            "    minos 17.2",
+            "      sdk 27.2",
+            "   ntools 1",
+            "     tool LD",
+            "  version 27106.1"
+          ],
+          "rustSymbols": [
+            "_cr_mobile_read_island",
+            "_cr_mobile_supersedes"
+          ]
+        }
+      },
+      "totalBundleBytes": 1548460
+    }
+  },
+  "normalBuildHarnessDecision": "REJECT",
+  "fixedClockBaselineXCTest": {
+    "passed": 49,
+    "failed": 0,
+    "skipped": 0,
+    "reference": "v2.1.41",
+    "simulator": "iPhone 17 Pro iOS 26.5"
+  }
+}

@@ -1,0 +1,220 @@
+{
+  "release": "v2.1.41",
+  "releaseCommit": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "previous": "ce803b6eccb7d6957b34aa9091223d38a4fd3648",
+  "candidate": "0ee17071e5b5b49b4ffae794d3d35f5723b96600",
+  "scope": "CostChartSummary/CostDisplaySummary used for the macOS menu and companion history projected from CodeRim-owned analytics models. Foundation pricing catalog and localized UI are preserved; Rust accumulates independently priceable Decimal amounts in the original model order. A transient per-render cache stores at most 256 exact input identifier entries, each corresponding to a recognized catalog model.",
+  "directTrace": {
+    "architectures": [
+      "Apple Silicon native",
+      "Intel executable translated with Rosetta"
+    ],
+    "publishedVsPreviousVsCandidate": {
+      "arm64": {
+        "lines": 693,
+        "sha256": "2caa5765655d00a841088d42140b723a1eef48ce43848dbc9db5566a8c55a5ca"
+      },
+      "x86_64": {
+        "lines": 693,
+        "sha256": "2caa5765655d00a841088d42140b723a1eef48ce43848dbc9db5566a8c55a5ca"
+      }
+    },
+    "abiScenariosPerArchitecture": 7776,
+    "abiRejectedPerArchitecture": 7296,
+    "packageXCTest": {
+      "suite": "EstimatedCostDisplayTests",
+      "passed": 9,
+      "skipped": 0
+    },
+    "rustBridgeTests": 54,
+    "clippy": "warnings denied",
+    "rustfmt": "pass"
+  },
+  "timing": {
+    "unit": "microseconds per complete CostChartSummary construction with already available model data",
+    "method": "12 interleaved samples; measured checksum verified against both prior implementations. Each rendering batch is timed inside its own Swift executable. Excludes SQLite I/O and GUI drawing.",
+    "groups": {
+      "arm64/0/0": {
+        "usPerConstruction": {
+          "previous": 0.1054585,
+          "candidate": 0.10275000000000001,
+          "release": 0.099667
+        },
+        "fasterOf12": {
+          "release": 2,
+          "previous": 7
+        }
+      },
+      "arm64/1/1": {
+        "usPerConstruction": {
+          "previous": 43.63235071428571,
+          "candidate": 39.69747,
+          "release": 45.846398571428566
+        },
+        "fasterOf12": {
+          "release": 10,
+          "previous": 9
+        }
+      },
+      "arm64/7/4": {
+        "usPerConstruction": {
+          "previous": 482.81484375,
+          "candidate": 413.6671875,
+          "release": 497.76900624999996
+        },
+        "fasterOf12": {
+          "release": 12,
+          "previous": 12
+        }
+      },
+      "arm64/30/8": {
+        "usPerConstruction": {
+          "previous": 2464.952766666667,
+          "candidate": 2088.6055666666666,
+          "release": 2482.4347333333335
+        },
+        "fasterOf12": {
+          "release": 11,
+          "previous": 11
+        }
+      },
+      "arm64/30/12": {
+        "usPerConstruction": {
+          "previous": 3243.7250000000004,
+          "candidate": 2567.75625,
+          "release": 3087.21245
+        },
+        "fasterOf12": {
+          "release": 10,
+          "previous": 11
+        }
+      },
+      "arm64/365/12": {
+        "usPerConstruction": {
+          "previous": 36215.292,
+          "candidate": 29991.3545,
+          "release": 36378.0
+        },
+        "fasterOf12": {
+          "release": 12,
+          "previous": 12
+        }
+      },
+      "x86_64/0/0": {
+        "usPerConstruction": {
+          "previous": 0.18756250000000002,
+          "candidate": 0.169104,
+          "release": 0.184438
+        },
+        "fasterOf12": {
+          "release": 9,
+          "previous": 12
+        }
+      },
+      "x86_64/1/1": {
+        "usPerConstruction": {
+          "previous": 81.66172642857143,
+          "candidate": 66.46330285714285,
+          "release": 77.86166714285714
+        },
+        "fasterOf12": {
+          "release": 12,
+          "previous": 12
+        }
+      },
+      "x86_64/7/4": {
+        "usPerConstruction": {
+          "previous": 962.60624375,
+          "candidate": 735.064325,
+          "release": 897.32265625
+        },
+        "fasterOf12": {
+          "release": 11,
+          "previous": 12
+        }
+      },
+      "x86_64/30/8": {
+        "usPerConstruction": {
+          "previous": 4908.420833333334,
+          "candidate": 3849.8583333333336,
+          "release": 4829.633333333333
+        },
+        "fasterOf12": {
+          "release": 12,
+          "previous": 12
+        }
+      },
+      "x86_64/30/12": {
+        "usPerConstruction": {
+          "previous": 6257.410400000001,
+          "candidate": 4850.475,
+          "release": 6006.3875
+        },
+        "fasterOf12": {
+          "release": 11,
+          "previous": 11
+        }
+      },
+      "x86_64/365/12": {
+        "usPerConstruction": {
+          "previous": 73429.2295,
+          "candidate": 56777.125,
+          "release": 69763.3545
+        },
+        "fasterOf12": {
+          "release": 12,
+          "previous": 12
+        }
+      }
+    },
+    "additionalEmptyChart": {
+      "callsPerSample": 400000,
+      "pairs": 12,
+      "data": "all five resulting quality states, complete empty chart; nanoseconds per call",
+      "mediansNs": {
+        "arm64": {
+          "release": 76.97822875,
+          "previous": 78.12036375,
+          "candidate": 68.62307375
+        },
+        "x86_64": {
+          "release": 145.93328125,
+          "previous": 145.44046874999998,
+          "candidate": 127.262135
+        }
+      }
+    },
+    "loadCaveat": "One exploratory Rosetta run overlapped a Swift build. The retained quiet-benchmark uses the same product binaries after the build, with all traces kept separately."
+  },
+  "limits": [
+    "Physical Intel hardware, end-user stored data, GUI frame timings, and energy measurement were not exercised.",
+    "No remote push, main merge, release, credentials use or production data writes."
+  ],
+  "formalDigest": "44c4c311c0b899e551a9ee27909c549daf406f1948b220c2fec682692870b97f",
+  "rawSha256": {
+    "pinned.json": "0ddc662f2b5f4c9814899354df7e7b49e5fa831220b0f5611524d0545e22f977",
+    "quiet-benchmark.json": "c8a24841e0ca1f278d778d586775e6dbff1143bd216d7697b55d2cb509b0b6d0",
+    "empty.json": "72b0a4a9a8729f778262af2bfab53a9a810d27086fd67751dee54c961469d250",
+    "abi-arm64.log": "9e40d13b4107434a093f8cb5df790083aa4dcb10565eb4d4dd00c4c9a1062669",
+    "abi-x86_64.log": "9e40d13b4107434a093f8cb5df790083aa4dcb10565eb4d4dd00c4c9a1062669",
+    "rust-tests.log": "3416a7f9b9b2710fe7d356ffed9a490cdbe5363822d3d6497aa8ed4f274b2b77",
+    "clippy.log": "7e632a88b66886b5f72790ca5f51a7d921400d8fe2b273fbcf984d7685f37ebf",
+    "xctest.log": "8a26111d391caef9341dedcc632f3653fc20dd41e1e9a321f943fb9fbb1051de",
+    "packet.json": "9ae1dbd2349d9364c5774adf346c51ea76d921761a1c6e90a36a234b9ac49050"
+  },
+  "independentReview": {
+    "file": "independent-review.json",
+    "perArchitectureOutputRows": 1004
+  },
+  "formalDecision": "INCONCLUSIVE",
+  "rootIndependent": {
+    "arm64": {
+      "matchedRows": 1004,
+      "sha256": "fa299ba39437d9934fcf58a369d33d8a2c439781e054351590bd4861733fc34a"
+    },
+    "x86_64": {
+      "matchedRows": 1004,
+      "sha256": "fa299ba39437d9934fcf58a369d33d8a2c439781e054351590bd4861733fc34a"
+    }
+  }
+}

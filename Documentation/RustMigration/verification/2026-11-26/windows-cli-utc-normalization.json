@@ -1,0 +1,256 @@
+{
+  "stableCommit": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "stableExeSha256": "3431eca53719e077784f6aa71d2c7fbaff5d5a6dc9cce3dc70b5e2b054159455",
+  "candidateExeSha256": "31576b9c24535cce7ae1f0728d1bb229d73f4e350aba5251172ec5f0345255ae",
+  "beforeExeSha256": "0c674e01fcfd47179ad2c737c5862b06e528528061ac20c5248f3e915d0c68f0",
+  "checked": {
+    "json": 159,
+    "text": 51,
+    "malformed-z": {
+      "stableStatus": 1,
+      "deferred": true
+    },
+    "epoch-number": {
+      "stableStatus": 1,
+      "deferred": true
+    },
+    "invalid-date": {
+      "stableStatus": 1,
+      "deferred": true
+    },
+    "too-many-digits": {
+      "stableStatus": 1,
+      "deferred": true
+    },
+    "default": {
+      "stableStatus": 1,
+      "deferred": true
+    },
+    "leap-second": {
+      "stableStatus": 1,
+      "deferred": true
+    },
+    "empty-fraction": {
+      "stableStatus": 0,
+      "deferred": true
+    }
+  },
+  "wallMs": {
+    "writer": {
+      "medianMs": {
+        "release": 58.269708,
+        "previous": 2.549958,
+        "candidate": 2.629167
+      },
+      "samplesMs": {
+        "release": [
+          86.234625,
+          63.949958,
+          58.83425,
+          58.269708,
+          71.596833,
+          54.897292,
+          54.211584,
+          54.55775,
+          56.504667
+        ],
+        "previous": [
+          3.035375,
+          2.374334,
+          2.730625,
+          2.805917,
+          2.28,
+          2.549958,
+          2.527583,
+          2.110125,
+          2.667084
+        ],
+        "candidate": [
+          2.679708,
+          2.476625,
+          3.057583,
+          2.629167,
+          2.279542,
+          2.7015,
+          2.130125,
+          2.064834,
+          2.699708
+        ]
+      }
+    },
+    "unixEpochISO": {
+      "medianMs": {
+        "release": 55.259625,
+        "previous": 57.496708,
+        "candidate": 2.657541
+      },
+      "samplesMs": {
+        "release": [
+          54.573834,
+          64.048584,
+          60.936708,
+          59.043083,
+          54.574625,
+          55.259625,
+          54.91675,
+          55.075083,
+          55.37725
+        ],
+        "previous": [
+          61.162042,
+          56.771375,
+          58.895083,
+          57.35425,
+          58.641084,
+          57.368125,
+          57.496708,
+          58.080125,
+          57.402291
+        ],
+        "candidate": [
+          2.711083,
+          2.635167,
+          4.379708,
+          2.735875,
+          2.646416,
+          2.612166,
+          2.788375,
+          2.6515,
+          2.657541
+        ]
+      }
+    },
+    "fraction16": {
+      "medianMs": {
+        "release": 57.382708,
+        "previous": 58.037625,
+        "candidate": 2.763416
+      },
+      "samplesMs": {
+        "release": [
+          55.705666,
+          55.853333,
+          58.062625,
+          57.382708,
+          58.122959,
+          57.687,
+          58.018166,
+          55.749292,
+          55.628375
+        ],
+        "previous": [
+          57.884125,
+          57.416958,
+          59.055917,
+          60.923542,
+          60.653667,
+          60.160542,
+          58.037625,
+          57.424,
+          57.908875
+        ],
+        "candidate": [
+          2.768625,
+          2.613875,
+          2.763416,
+          2.444208,
+          2.963708,
+          2.546291,
+          2.680792,
+          2.7765,
+          3.425708
+        ]
+      }
+    }
+  },
+  "independent": {
+    "platform": "Apple Silicon macOS, released managed Windows CLI built for this host and installed-mode Rust plus owned host; synthetic UTF-8 documents only",
+    "dateSlots": [
+      "generatedAt",
+      "periodsAsOf",
+      "resetsAt",
+      "updatedAt"
+    ],
+    "utf8DateInputs": 10812,
+    "directRustExactUtcTicksAndJson": 2451,
+    "validOnlyViaManagedFallback": 3842,
+    "correctlyInvalid": 4519,
+    "releaseVsInstalledPublicDocumentCommandPairs": 99,
+    "matchingFailureOutcomes": 33
+  },
+  "fallback": [
+    {
+      "input": null,
+      "exitCode": 1
+    },
+    {
+      "input": 0,
+      "exitCode": 1
+    },
+    {
+      "input": 1704164645,
+      "exitCode": 1
+    },
+    {
+      "input": 1.7,
+      "exitCode": 1
+    },
+    {
+      "input": "",
+      "exitCode": 1
+    },
+    {
+      "input": "0001-01-01T00:00:00Z",
+      "exitCode": 1
+    },
+    {
+      "input": "2023-02-29T00:00:00Z",
+      "exitCode": 1
+    },
+    {
+      "input": "2024-02-29T00:00:00.12345678912345678Z",
+      "exitCode": 1
+    },
+    {
+      "input": "2024-01-01T00:00:00.Z",
+      "exitCode": 0
+    },
+    {
+      "input": "2024-01-01T00:00:00z",
+      "exitCode": 1
+    },
+    {
+      "input": "2024-01-01T00:00:00+14:01",
+      "exitCode": 1
+    },
+    {
+      "input": "2024-01-01T00:00:00-00:00",
+      "exitCode": 0
+    },
+    {
+      "input": "2024-01-01T00:00:00+14:00",
+      "exitCode": 0
+    },
+    {
+      "input": "2024-01-01T00:00:00",
+      "exitCode": 0
+    },
+    {
+      "input": "2024-01-01",
+      "exitCode": 0
+    },
+    {
+      "input": "2024-01-01T00:00:00.000+00:00",
+      "exitCode": 0
+    },
+    {
+      "input": "2024-01-01T00:00:00.９Z",
+      "exitCode": 1
+    },
+    {
+      "input": "１２３４-01-01T00:00:00Z",
+      "exitCode": 1
+    }
+  ],
+  "formalHarness": "INCONCLUSIVE"
+}

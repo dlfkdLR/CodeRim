@@ -1,0 +1,421 @@
+{
+  "run": 45785185955,
+  "commit": "ce803b6eccb7d6957b34aa9091223d38a4fd3648",
+  "platforms": {
+    "x64": {
+      "jobId": 139790052934,
+      "job": "success",
+      "steps": {
+        "Build ZIP, MSI and MSIX migration packages": "success",
+        "Compare archived Rust files to build inputs and exercise the ZIP CLI": "success",
+        "Exercise MSI installation, rollback, repair and removal": "success",
+        "Install, activate and remove the Store candidate": "success",
+        "Compare stable and candidate native WPF views": "success"
+      },
+      "artifactId": 15101145235,
+      "artifactSha256": "sha256:4adcd59548e074f24e205a0b9dc656ee389e85a0da03d4180c54ff7037e4a9a1",
+      "sourceChecksums": {
+        "CodeRim-Windows-2.1.41-x64-Setup.msi.sha256": "f9f64cdf3e590cfda73c88dfc3b41c16bcc1af548b9015039baa768a880c5b37  CodeRim-Windows-2.1.41-x64-Setup.msi",
+        "CodeRim-Windows-2.1.41-x64.zip.sha256": "4b7fdfd8c307ae2d5fd49f49c8b640654da2683d6c4e65af3461e6e8c7a23bbd  CodeRim-Windows-2.1.41-x64.zip"
+      },
+      "receipts": {
+        "msix-checks.json": [
+          "installs-per-user-without-administrator",
+          "cli-aliases-registered",
+          "both-cli-aliases-run-cli",
+          "cli-regressions-through-alias",
+          "packaged-native-ui-smoke",
+          "uninstall-removes-app-and-aliases"
+        ],
+        "windows-msi-lifecycle.json": {
+          "passed": [
+            "signed-legacy-installation-rejected-before-write",
+            "initial-msi-install",
+            "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+            "installed-rust-cli-and-owned-compatibility-host",
+            "upgrade-current-version",
+            "downgrade-refused-without-changes",
+            "installed-native-ui-and-pinned-worker",
+            "uninstall-preserves-user-data-and-unrelated-path",
+            "portable-migration-failure-restores-files-path-shortcut",
+            "portable-migration-and-repair-keep-one-cli-path",
+            "portable-migration-uninstall-preserves-data-and-unrelated-path",
+            "public-2.1.11-msi-reproduces-duplicate-portable-path",
+            "public-2.1.11-failed-upgrade-restores-installation",
+            "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+            "public-upgrade-uninstall-preserves-user-data-and-path"
+          ],
+          "architecture": "x64",
+          "completed": true,
+          "qaDirectory": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\CodeRim-MSI-QA-b02b6928e4a64ad3b6c3d96a0a6de761"
+        },
+        "windows-public-msi-x64.json": {
+          "publishedMsiSha256": "1816cf6866cce5be8f626b5d85af1757ec890a8d9b8677f80a3385d602bf298d",
+          "architecture": "x64",
+          "candidatePayloadVersion": "2.1.41",
+          "phases": [
+            "published-installed-and-profile-read",
+            "failed-upgrade-restored-public-registration-binaries-and-profile",
+            "upgraded-candidate-loaded-preserved-profile",
+            "direct-downgrade-refused-with-data-intact",
+            "published-msi-reinstalled-and-profile-read",
+            "published-uninstalled-and-data-preserved"
+          ],
+          "completed": true,
+          "publishedVersion": "2.1.41",
+          "footprint": {
+            "published": {
+              "files": 18,
+              "bytes": 210192960.0,
+              "publicCliBytes": 85476168
+            },
+            "candidateMsiBytes": 144674816,
+            "publishedMsiBytes": 144211968,
+            "candidate": {
+              "files": 22,
+              "bytes": 211245889.0,
+              "publicCliBytes": 464896
+            }
+          },
+          "testMsiVersion": "2.1.42"
+        },
+        "windows-rust-package.json": {
+          "commit": "ce803b6eccb7d6957b34aa9091223d38a4fd3648",
+          "architecture": "x64",
+          "packages": [
+            {
+              "name": "CodeRim-Windows-2.1.41-x64.zip",
+              "bytes": 152793955,
+              "sha256": "4b7fdfd8c307ae2d5fd49f49c8b640654da2683d6c4e65af3461e6e8c7a23bbd"
+            },
+            {
+              "name": "CodeRim-Windows-2.1.41-x64-Setup.msi",
+              "bytes": 144674816,
+              "sha256": "f9f64cdf3e590cfda73c88dfc3b41c16bcc1af548b9015039baa768a880c5b37"
+            },
+            {
+              "name": "CodeRim-Windows-2.1.41-x64.msix",
+              "bytes": 114664139,
+              "sha256": "6a89af7696de41b912ab167424161ac26bddf8096aa7af908e5be89ee261ede9"
+            }
+          ],
+          "zipPayload": [
+            {
+              "name": "CodeRimCLI.exe",
+              "bytes": 464896,
+              "sha256": "50cc9a55026482a88c3b488d33a80bb858523c002e500d7f6fc859dfca8d3e39",
+              "fileVersion": "2.1.41.0"
+            },
+            {
+              "name": "CodeRimCLIHost.exe",
+              "bytes": 85554016,
+              "sha256": "5841db01913786247a84467cf7d1b4de80543741cea060f47d9600247f5e7638",
+              "fileVersion": "2.1.41.0"
+            },
+            {
+              "name": "coderim_accounting_bridge.dll",
+              "bytes": 359936,
+              "sha256": "93c6450b65a5169ad3c949009f39f1a473f3a7f987e41c34cda0854b0d1cf3d3",
+              "fileVersion": null
+            },
+            {
+              "name": "Rust-CLI-Notices.txt",
+              "bytes": 60341,
+              "sha256": "8aa689635324f50b4fb73598dfd1c04cad34e30dde89f1159574dd40f40a6658",
+              "fileVersion": null
+            },
+            {
+              "name": "Rust-Notices.txt",
+              "bytes": 4440,
+              "sha256": "588116ddd332c153747e94f4dcc14e9f0895d1f8f0a138eb735fc10d968ee41a",
+              "fileVersion": null
+            }
+          ]
+        }
+      }
+    },
+    "arm64": {
+      "jobId": 139790052922,
+      "job": "success",
+      "steps": {
+        "Build ZIP, MSI and MSIX migration packages": "success",
+        "Compare archived Rust files to build inputs and exercise the ZIP CLI": "success",
+        "Exercise MSI installation, rollback, repair and removal": "success",
+        "Install, activate and remove the Store candidate": "success",
+        "Compare stable and candidate native WPF views": "success"
+      },
+      "artifactId": 15099519976,
+      "artifactSha256": "sha256:8155c63c3ee1afda0137a62d7624c9f7f3db9be6b7b6caa51038674ae50ddbd1",
+      "sourceChecksums": {
+        "CodeRim-Windows-2.1.41-arm64-Setup.msi.sha256": "03f5dd4c2c9246a04cbc59e6dc16da25c36ed317bb0cbfd9f868f0d6202dcf99  CodeRim-Windows-2.1.41-arm64-Setup.msi",
+        "CodeRim-Windows-2.1.41-arm64.zip.sha256": "7c5f11b65560e03d464a91d437bf3a84a28d87f3e7078a78a88e3a8a42205f70  CodeRim-Windows-2.1.41-arm64.zip"
+      },
+      "receipts": {
+        "msix-checks.json": [
+          "installs-per-user-without-administrator",
+          "cli-aliases-registered",
+          "both-cli-aliases-run-cli",
+          "cli-regressions-through-alias",
+          "packaged-native-ui-smoke",
+          "uninstall-removes-app-and-aliases"
+        ],
+        "windows-msi-lifecycle.json": {
+          "passed": [
+            "signed-legacy-installation-rejected-before-write",
+            "initial-msi-install",
+            "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+            "installed-rust-cli-and-owned-compatibility-host",
+            "upgrade-current-version",
+            "downgrade-refused-without-changes",
+            "installed-native-ui-and-pinned-worker",
+            "uninstall-preserves-user-data-and-unrelated-path",
+            "portable-migration-failure-restores-files-path-shortcut",
+            "portable-migration-and-repair-keep-one-cli-path",
+            "portable-migration-uninstall-preserves-data-and-unrelated-path",
+            "public-2.1.11-msi-reproduces-duplicate-portable-path",
+            "public-2.1.11-failed-upgrade-restores-installation",
+            "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+            "public-upgrade-uninstall-preserves-user-data-and-path"
+          ],
+          "qaDirectory": "C:\\Users\\RUNNER~1\\AppData\\Local\\Temp\\CodeRim-MSI-QA-6b71e818f72a4f01aa3be0fe3d676901",
+          "architecture": "arm64",
+          "completed": true
+        },
+        "windows-public-msi-arm64.json": {
+          "completed": true,
+          "publishedMsiSha256": "393302b1f679fdf1bf82147906c39eb4a045b2a70ed6b7cbb126cb0b0a401073",
+          "candidatePayloadVersion": "2.1.41",
+          "publishedVersion": "2.1.41",
+          "testMsiVersion": "2.1.42",
+          "footprint": {
+            "publishedMsiBytes": 135503872,
+            "candidate": {
+              "files": 22,
+              "bytes": 214752081.0,
+              "publicCliBytes": 416256
+            },
+            "candidateMsiBytes": 135946240,
+            "published": {
+              "files": 18,
+              "bytes": 213780552.0,
+              "publicCliBytes": 94323542
+            }
+          },
+          "phases": [
+            "published-installed-and-profile-read",
+            "failed-upgrade-restored-public-registration-binaries-and-profile",
+            "upgraded-candidate-loaded-preserved-profile",
+            "direct-downgrade-refused-with-data-intact",
+            "published-msi-reinstalled-and-profile-read",
+            "published-uninstalled-and-data-preserved"
+          ],
+          "architecture": "arm64"
+        },
+        "windows-rust-package.json": {
+          "commit": "ce803b6eccb7d6957b34aa9091223d38a4fd3648",
+          "architecture": "arm64",
+          "packages": [
+            {
+              "name": "CodeRim-Windows-2.1.41-arm64.zip",
+              "bytes": 144499515,
+              "sha256": "7c5f11b65560e03d464a91d437bf3a84a28d87f3e7078a78a88e3a8a42205f70"
+            },
+            {
+              "name": "CodeRim-Windows-2.1.41-arm64-Setup.msi",
+              "bytes": 135946240,
+              "sha256": "03f5dd4c2c9246a04cbc59e6dc16da25c36ed317bb0cbfd9f868f0d6202dcf99"
+            },
+            {
+              "name": "CodeRim-Windows-2.1.41-arm64.msix",
+              "bytes": 108250380,
+              "sha256": "79e2395d25e3c5f10e897bbb1f7a54cd900ea8f25ebb9b0d79b544a4debc74ac"
+            }
+          ],
+          "zipPayload": [
+            {
+              "name": "CodeRimCLI.exe",
+              "bytes": 416256,
+              "sha256": "1d00af05b6c655de92ef20a3aef3d2389e2a38074b211110d881011ac286db82",
+              "fileVersion": "2.1.41.0"
+            },
+            {
+              "name": "CodeRimCLIHost.exe",
+              "bytes": 94401390,
+              "sha256": "23ac775634a388d4c4903ff45c5cd8a2fd39f10d4b1c1cf4bcfde07dc54739ba",
+              "fileVersion": "2.1.41.0"
+            },
+            {
+              "name": "coderim_accounting_bridge.dll",
+              "bytes": 327168,
+              "sha256": "e02828fdd8cd28f6efa08f706d8ed917ea6224992d3a6c2e0636582f1260430c",
+              "fileVersion": null
+            },
+            {
+              "name": "Rust-CLI-Notices.txt",
+              "bytes": 60341,
+              "sha256": "8aa689635324f50b4fb73598dfd1c04cad34e30dde89f1159574dd40f40a6658",
+              "fileVersion": null
+            },
+            {
+              "name": "Rust-Notices.txt",
+              "bytes": 4440,
+              "sha256": "588116ddd332c153747e94f4dcc14e9f0895d1f8f0a138eb735fc10d968ee41a",
+              "fileVersion": null
+            }
+          ]
+        }
+      }
+    }
+  },
+  "priorRunWithIncorrectMSICompletedFlag": 45782950026,
+  "independentHostDifferential": {
+    "runtime": "macOS arm64 host, Rust public CLI and real companion .NET host built from the patch",
+    "resultComparisons": 252,
+    "exitCodes": {
+      "1": 132,
+      "0": 120
+    },
+    "checked": [
+      "exit code",
+      "stdout bytes",
+      "stderr bytes"
+    ],
+    "ownedAccountBuildGuard": {
+      "enabled": 0,
+      "disabled": 1
+    },
+    "binaries": {
+      "CodeRimCLI": "0c674e01fcfd47179ad2c737c5862b06e528528061ac20c5248f3e915d0c68f0",
+      "CodeRimCLIHost": "cc94fd291f6d5ac89c12d5e5849bab5ef312d49b5e84af798da70a192586dd54"
+    }
+  },
+  "localTiming": {
+    "comparison": "local Apple Silicon arm64 macOS, identical private process fixtures, native production mode against its managed host, nine alternating paired public outputs; does not represent Windows CI or Windows installed speeds",
+    "rows": {
+      "version": {
+        "samplesMs": {
+          "installedRust": [
+            6.142834,
+            3.4555,
+            7.974,
+            3.3765,
+            2.776375,
+            2.729542,
+            3.140791,
+            3.17925,
+            3.918625
+          ],
+          "managedHost": [
+            30.626791,
+            27.577667,
+            56.150667,
+            32.056625,
+            26.543417,
+            27.573958,
+            35.906084,
+            35.666667,
+            32.28575
+          ]
+        },
+        "medianMs": {
+          "installedRust": 3.3765,
+          "managedHost": 32.056625
+        }
+      },
+      "canonical": {
+        "samplesMs": {
+          "installedRust": [
+            3.043583,
+            3.660833,
+            3.595125,
+            3.752709,
+            2.728375,
+            4.883041,
+            3.873583,
+            3.847333,
+            3.705959
+          ],
+          "managedHost": [
+            101.133833,
+            91.056958,
+            92.11,
+            109.790166,
+            105.331167,
+            124.186,
+            131.31725,
+            86.31125,
+            108.0995
+          ]
+        },
+        "medianMs": {
+          "installedRust": 3.705959,
+          "managedHost": 105.331167
+        }
+      },
+      "empty": {
+        "samplesMs": {
+          "installedRust": [
+            107.590917,
+            68.906375,
+            81.10075,
+            75.29775,
+            67.993416,
+            65.337208,
+            62.835583,
+            71.356583,
+            71.975584
+          ],
+          "managedHost": [
+            77.812166,
+            78.833625,
+            91.074666,
+            66.146667,
+            68.087417,
+            59.9865,
+            70.671625,
+            68.522833,
+            63.916
+          ]
+        },
+        "medianMs": {
+          "installedRust": 71.356583,
+          "managedHost": 68.522833
+        }
+      },
+      "extended": {
+        "samplesMs": {
+          "installedRust": [
+            74.339042,
+            75.529292,
+            62.706,
+            63.379667,
+            90.149292,
+            99.377208,
+            80.503667,
+            93.648917,
+            90.224083
+          ],
+          "managedHost": [
+            63.58875,
+            64.344542,
+            67.034833,
+            63.484958,
+            74.900084,
+            61.456292,
+            67.599417,
+            80.414375,
+            91.647209
+          ]
+        },
+        "medianMs": {
+          "installedRust": 80.503667,
+          "managedHost": 67.034833
+        }
+      }
+    }
+  },
+  "developmentHarness": {
+    "decision": "REJECT",
+    "reason": "The package and CI verification inputs changed. The separate native results are attached for both architectures."
+  }
+}
