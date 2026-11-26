@@ -13,7 +13,7 @@ import tempfile
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 PUBLISHED = "14c332b30fd35cd266b40a4f9384b4b065b63707"
-PREVIOUS = "50d0ec26"
+PREVIOUS = "50d0ec2627098bc7142775bfbc325a4026bf55f3"
 FILES = [
     "Notch/" + name
     for name in (

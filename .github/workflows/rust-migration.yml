@@ -136,6 +136,8 @@ jobs:
           git fetch --depth=1 --no-tags origin refs/tags/v2.1.41:refs/tags/v2.1.41
           git fetch --depth=1 --no-tags origin e6af546998b2314b778e2617628bfd8c02723bae
           test "$(git rev-parse FETCH_HEAD)" = e6af546998b2314b778e2617628bfd8c02723bae
+          git fetch --depth=1 --no-tags origin 50d0ec2627098bc7142775bfbc325a4026bf55f3
+          test "$(git rev-parse FETCH_HEAD)" = 50d0ec2627098bc7142775bfbc325a4026bf55f3
           test "$(git rev-parse 'refs/tags/v2.1.41^{commit}')" = 14c332b30fd35cd266b40a4f9384b4b065b63707
       - run: python3 Scripts/rust_migration/apple.py check
       - name: Check the Rust CLI on the native host
