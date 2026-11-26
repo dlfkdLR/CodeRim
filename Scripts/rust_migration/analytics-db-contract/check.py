@@ -20,7 +20,7 @@ RELEASE = "14c332b30fd35cd266b40a4f9384b4b065b63707"
 END = 1793530800.0
 ENV = {**os.environ, "SWIFT_DETERMINISTIC_HASHING": "1"}
 
-def build(work, arch, archive=None, revision=None):
+def build(work, arch, archive=None, revision=None, driver=None):
     work.mkdir()
     def source(name):
         if archive is not None and revision is None:
@@ -49,10 +49,11 @@ def build(work, arch, archive=None, revision=None):
         host.append(stage("Sources/CodeRim/Sources/UsageStorageIdentity.swift"))
         extra = ["-D","CODERIM_RUST_ACCOUNTING","-I",ROOT/"Rust/bridge/include",archive]
         if revision is None:
+            host.append(stage("Sources/CodeRim/Persistence/RustSQLiteEventBatch.swift"))
             extra += ["-D", "PROJECT_ANALYTICS_PROBE"]
     exe = work/"driver"
     subprocess.run([*flags, "-I",work, "-I",ROOT/"Sources/CSQLite", "-L",work, "-lCodeRimUsageCore", stats,*host,
-                    HERE/"main.swift", *extra, "-o",exe], check=True)
+                    driver or HERE/"main.swift", *extra, "-o",exe], check=True)
     return exe
 
 def fixture(base, path, rows):

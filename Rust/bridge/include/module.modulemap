@@ -15,6 +15,7 @@ module CCodeRimAccounting {
     header "coderim_source_discovery.h"
     header "coderim_storage_identity.h"
     header "coderim_sqlite_analytics.h"
+    header "coderim_sqlite_event_import.h"
     header "coderim_transcript.h"
     header "coderim_mobile_session_order.h"
     header "coderim_notch_viewport.h"

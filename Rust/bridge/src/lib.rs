@@ -55,6 +55,8 @@ mod source_discovery;
 #[cfg(target_os = "macos")]
 mod sqlite_analytics;
 #[cfg(target_os = "macos")]
+mod sqlite_event_import;
+#[cfg(target_os = "macos")]
 mod sqlite_periods;
 #[cfg(target_os = "macos")]
 mod storage_identity;

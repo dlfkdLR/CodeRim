@@ -357,7 +357,6 @@ actor SQLiteDatabase {
                 try prepareMessageExclusions()
                 try excludeMessages(excludedEventKeys)
             }
-            var insertedEventCount = 0
             // Claude streaming blocks describe one response repeatedly. Preserve
             // maxima of its disjoint components, never sum repeated snapshots.
             // Codex retains its existing cumulative-delta conflict behavior.
@@ -405,41 +404,8 @@ actor SQLiteDatabase {
             )
             defer { sqlite3_finalize(insert) }
 
-            for event in events {
-                sqlite3_reset(insert)
-                sqlite3_clear_bindings(insert)
-                // The table's CHECK constraints reject inconsistent rows; a rejected row would roll back the
-                // whole batch and fail the same read again on every refresh.
-                let usage = event.usage.isValid ? event.usage : event.usage.clampedToValid
-                try bind(event.eventKey, at: 1, to: insert)
-                sqlite3_bind_double(insert, 2, event.occurredAt.timeIntervalSince1970)
-                try bind(event.sessionID, at: 3, to: insert)
-                try bind(event.model, at: 4, to: insert)
-                try bind(event.projectPath, at: 5, to: insert)
-                sqlite3_bind_int64(insert, 6, usage.inputTokens)
-                sqlite3_bind_int64(insert, 7, usage.cachedInputTokens)
-                if let cacheWrite = usage.cacheWriteInputTokens {
-                    sqlite3_bind_int64(insert, 8, cacheWrite)
-                } else {
-                    sqlite3_bind_null(insert, 8)
-                }
-                sqlite3_bind_int64(insert, 9, usage.outputTokens)
-                if let pricingContext = event.pricingContext {
-                    sqlite3_bind_int64(insert, 10, Int64(pricingContext.rawValue))
-                } else {
-                    sqlite3_bind_null(insert, 10)
-                }
-                try bind(event.sourcePath, at: 11, to: insert)
-                sqlite3_bind_int64(insert, 12, checkpoint.generation)
-                sqlite3_bind_int64(insert, 13, event.sourcePosition)
-                if mergesMessageUsage { try bind(event.importParentSessionID, at: 14, to: insert) }
-                guard sqlite3_step(insert) == SQLITE_DONE else {
-                    throw SQLiteDatabaseError.step(errorMessage)
-                }
-                if let connection {
-                    insertedEventCount += Int(sqlite3_changes(connection.rawValue))
-                }
-            }
+            let insertedEventCount = try writeEvents(events, to: insert, generation: checkpoint.generation,
+                                                     mergesMessageUsage: mergesMessageUsage)
 
             if normalizationState?.quality == .partial,
                (checkpoint.sessionID == nil || normalizationState?.cumulativeHighWaterMark == nil) {
@@ -1569,6 +1535,75 @@ actor SQLiteDatabase {
             default: throw SQLiteDatabaseError.step(errorMessage)
             }
         }
+    }
+
+    private func writeEvents(_ events: [UsageEvent], to insert: OpaquePointer, generation: Int64,
+                             mergesMessageUsage: Bool) throws -> Int {
+#if CODERIM_RUST_ACCOUNTING
+        var changes = 0
+        for start in stride(from: 0, to: events.count, by: RustSQLiteEventBatch.rowLimit) {
+            let count = min(events.count - start, RustSQLiteEventBatch.rowLimit)
+            let batch = events[start..<(start + count)]
+            guard let result = RustSQLiteEventBatch.insert(batch, into: insert, generation: generation,
+                                                          mergesMessageUsage: mergesMessageUsage) else {
+                changes += try writeNativeEvents(batch, to: insert, generation: generation,
+                                                 mergesMessageUsage: mergesMessageUsage)
+                continue
+            }
+            switch result.status {
+            case 0: changes += Int(result.changes)
+            case 1: throw SQLiteDatabaseError.statement("text value is not safe to store")
+            case 2: throw SQLiteDatabaseError.statement(errorMessage)
+            case 3: throw SQLiteDatabaseError.step(errorMessage)
+            default: throw SQLiteDatabaseError.statement("invalid usage event batch")
+            }
+        }
+        return changes
+#else
+        return try writeNativeEvents(events[...], to: insert, generation: generation,
+                                     mergesMessageUsage: mergesMessageUsage)
+#endif
+    }
+
+    private func writeNativeEvents(_ events: ArraySlice<UsageEvent>, to insert: OpaquePointer,
+                                   generation: Int64, mergesMessageUsage: Bool) throws -> Int {
+        var insertedEventCount = 0
+        for event in events {
+            sqlite3_reset(insert)
+            sqlite3_clear_bindings(insert)
+            // The table's CHECK constraints reject inconsistent rows; a rejected row would roll back the
+            // whole batch and fail the same read again on every refresh.
+            let usage = event.usage.isValid ? event.usage : event.usage.clampedToValid
+            try bind(event.eventKey, at: 1, to: insert)
+            sqlite3_bind_double(insert, 2, event.occurredAt.timeIntervalSince1970)
+            try bind(event.sessionID, at: 3, to: insert)
+            try bind(event.model, at: 4, to: insert)
+            try bind(event.projectPath, at: 5, to: insert)
+            sqlite3_bind_int64(insert, 6, usage.inputTokens)
+            sqlite3_bind_int64(insert, 7, usage.cachedInputTokens)
+            if let cacheWrite = usage.cacheWriteInputTokens {
+                sqlite3_bind_int64(insert, 8, cacheWrite)
+            } else {
+                sqlite3_bind_null(insert, 8)
+            }
+            sqlite3_bind_int64(insert, 9, usage.outputTokens)
+            if let pricingContext = event.pricingContext {
+                sqlite3_bind_int64(insert, 10, Int64(pricingContext.rawValue))
+            } else {
+                sqlite3_bind_null(insert, 10)
+            }
+            try bind(event.sourcePath, at: 11, to: insert)
+            sqlite3_bind_int64(insert, 12, generation)
+            sqlite3_bind_int64(insert, 13, event.sourcePosition)
+            if mergesMessageUsage { try bind(event.importParentSessionID, at: 14, to: insert) }
+            guard sqlite3_step(insert) == SQLITE_DONE else {
+                throw SQLiteDatabaseError.step(errorMessage)
+            }
+            if let connection {
+                insertedEventCount += Int(sqlite3_changes(connection.rawValue))
+            }
+        }
+        return insertedEventCount
     }
 
     private func execute(_ sql: String) throws {
