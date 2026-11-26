@@ -39,28 +39,27 @@ cleanup_build() {
   if [[ -n "${staging_root}" ]]; then rm -rf -- "${staging_root}"; fi
 }
 trap cleanup_build EXIT
-if [[ -z "${CODERIM_RUST_ACCOUNTING_ARCHIVE:-}" || -z "${CODERIM_RUST_WIDGET_ARCHIVE:-}" || -z "${CODERIM_MIGRATION_CLI:-}" ]]; then
+if [[ -z "${CODERIM_RUST_ACCOUNTING_ARCHIVE:-}" || -z "${CODERIM_RUST_WIDGET_ARCHIVE:-}" || -z "${CODERIM_MIGRATION_CLI:-}" || -z "${CODERIM_CLAUDE_STATUS_BRIDGE:-}" ]]; then
   rust_inputs=$(mktemp -d "${TMPDIR:-/tmp}/coderim-rust-bundle.XXXXXXXX")
   python3 "${script_dir}/rust_migration/apple.py" prepare-bundle "${rust_inputs}"
   export CODERIM_RUST_ACCOUNTING_ARCHIVE=${CODERIM_RUST_ACCOUNTING_ARCHIVE:-"${rust_inputs}/libcoderim_accounting_bridge.a"}
   export CODERIM_RUST_WIDGET_ARCHIVE=${CODERIM_RUST_WIDGET_ARCHIVE:-"${rust_inputs}/libcoderim_widget.a"}
+  export CODERIM_CLAUDE_STATUS_BRIDGE=${CODERIM_CLAUDE_STATUS_BRIDGE:-"${rust_inputs}/CodeRimClaudeBridge"}
   export CODERIM_MIGRATION_CLI=${CODERIM_MIGRATION_CLI:-"${rust_inputs}/CodeRimCLI"}
 fi
-for rust_input in "${CODERIM_RUST_ACCOUNTING_ARCHIVE}" "${CODERIM_RUST_WIDGET_ARCHIVE}" "${CODERIM_MIGRATION_CLI}"; do
+for rust_input in "${CODERIM_RUST_ACCOUNTING_ARCHIVE}" "${CODERIM_RUST_WIDGET_ARCHIVE}" "${CODERIM_MIGRATION_CLI}" "${CODERIM_CLAUDE_STATUS_BRIDGE}"; do
   lipo "${rust_input}" -verify_arch arm64
   lipo "${rust_input}" -verify_arch x86_64
 done
 # SwiftPM and the widget builder snapshot their native link inputs by content.
 accounting_flags=(-Xswiftc -DCODERIM_RUST_ACCOUNTING -Xswiftc -I
   -Xswiftc "${project_root}/Rust/bridge/include" -Xlinker "${CODERIM_RUST_ACCOUNTING_ARCHIVE:A}")
-for product in "${PRODUCT_NAME}" CodeRimCLI CodeRimClaudeBridge; do
-  python3 "${script_dir}/prepare_swift_dependencies.py" --scratch-path "${swift_scratch_path}" \
-    --run-swift build -c release --arch arm64 --arch x86_64 --product "${product}" -Xswiftc -warnings-as-errors "${accounting_flags[@]}"
-done
+python3 "${script_dir}/prepare_swift_dependencies.py" --scratch-path "${swift_scratch_path}" \
+    --run-swift build -c release --arch arm64 --arch x86_64 --product "${PRODUCT_NAME}" -Xswiftc -warnings-as-errors "${accounting_flags[@]}"
 product_directory=$(python3 "${script_dir}/prepare_swift_dependencies.py" --scratch-path "${swift_scratch_path}" \
   --show-bin-path -c release --arch arm64 --arch x86_64)
 binary_path="${product_directory}/${PRODUCT_NAME}"
-claude_bridge_path="${product_directory}/CodeRimClaudeBridge"
+claude_bridge_path=${CODERIM_CLAUDE_STATUS_BRIDGE:A}
 cli_path=${CODERIM_MIGRATION_CLI:A}
 sparkle_framework="${product_directory}/Frameworks/Sparkle.framework"
 if [[ ! -d "${sparkle_framework}" && -d "${product_directory}/Sparkle.framework" ]]; then
@@ -78,7 +77,7 @@ if [[ ! -f "${binary_path}" ]]; then
   print -u2 "Release executable was not produced at ${binary_path}"
   exit 1
 fi
-if [[ ! -f "${claude_bridge_path}" ]]; then
+if [[ ! -x "${claude_bridge_path}" ]]; then
   print -u2 "Claude limits helper was not produced at ${claude_bridge_path}"
   exit 1
 fi

@@ -150,7 +150,7 @@ else:
                 env = {**os.environ, "PATH": str(root / "bin") + os.pathsep + os.environ["PATH"],
                        "CODERIM_BUILD_CACHE": str(root / "cache"), "EXPECTED_SCRATCH": str(scratch),
                        "CODERIM_RUST_ACCOUNTING_ARCHIVE": str(archive), "CODERIM_RUST_WIDGET_ARCHIVE": str(archive),
-                       "CODERIM_MIGRATION_CLI": str(cli), "CODERIM_MIGRATION_RESTART": "1",
+                       "CODERIM_CLAUDE_STATUS_BRIDGE": str(cli), "CODERIM_MIGRATION_CLI": str(cli), "CODERIM_MIGRATION_RESTART": "1",
                        "FAKE_SPARKLE_TOOL": str(root / "fake_sparkle_tool.py"),
                        "CODE_SIGN_IDENTITY": "Developer ID Application: synthetic", "CODE_SIGN_TEAM_ID": "TESTTEAM", "NOTARY_PROFILE": "synthetic"}
                 env.pop("CODERIM_APP_PATH", None)
@@ -164,6 +164,7 @@ else:
                 self.assertTrue((root / "Artifacts/appcast.xml").is_file())
                 contents = root / "cache/CodeRim.app/Contents"
                 self.assertEqual((contents / "Helpers/CodeRimCLI").read_bytes(), cli.read_bytes())
+                self.assertEqual((contents / "Helpers/CodeRimClaudeBridge").read_bytes(), cli.read_bytes())
                 self.assertEqual(os.readlink(contents / "Helpers/CodeRimRestart"), "CodeRimCLI")
                 for notice, original in [("Rust-Notices.txt", "Rust/THIRD-PARTY-NOTICES.txt"),
                                          ("Rust-CLI-Notices.txt", "Rust/cli/THIRD-PARTY-NOTICES.txt")]:

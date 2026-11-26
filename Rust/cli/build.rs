@@ -4,9 +4,11 @@ fn main() {
     {
         cc::Build::new()
             .file("src/platform.m")
+            .file("src/claude_status.m")
             .flag("-fobjc-arc")
             .compile("coderim_cli_platform");
         println!("cargo:rustc-link-lib=framework=Foundation");
         println!("cargo:rerun-if-changed=src/platform.m");
+        println!("cargo:rerun-if-changed=src/claude_status.m");
     }
 }

@@ -13,3 +13,13 @@ serde_json = "1"
 [workspace]
 members = ["bridge", "cli", "widget", "windows-cli"]
 resolver = "3"
+
+# This installed process has a bounded input and fixed-size output buffers. It
+# uses Darwin's process entry and system allocator without the Rust std runtime.
+[profile.status-line]
+inherits = "release"
+opt-level = "s"
+lto = "thin"
+codegen-units = 1
+panic = "abort"
+strip = "none"

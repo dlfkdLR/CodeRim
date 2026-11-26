@@ -205,8 +205,8 @@ def test_product():
 
 def prepare_bundle_inputs(directory):
     # An explicit archive may be supplied by a caller that already cross-compiled it.
-    # Build only the missing inputs. The shell validates all three before assembly.
-    needed = ("CODERIM_RUST_ACCOUNTING_ARCHIVE", "CODERIM_RUST_WIDGET_ARCHIVE", "CODERIM_MIGRATION_CLI")
+    # Build only the missing inputs. The shell validates them before assembly.
+    needed = ("CODERIM_RUST_ACCOUNTING_ARCHIVE", "CODERIM_RUST_WIDGET_ARCHIVE", "CODERIM_MIGRATION_CLI", "CODERIM_CLAUDE_STATUS_BRIDGE")
     if not all(os.environ.get(key) for key in needed) and shutil.which("cargo") is None:
         raise SystemExit("Cargo is required to build the missing Rust package components.")
     for variable, package, name in [
@@ -216,10 +216,12 @@ def prepare_bundle_inputs(directory):
         if not os.environ.get(variable):
             slices = [build_library(arch + "-apple-darwin", package) for arch in ("aarch64", "x86_64")]
             subprocess.run(["lipo", "-create", *slices, "-output", directory / name], check=True)
-    if not os.environ.get("CODERIM_MIGRATION_CLI"):
-        subprocess.run([RUST / "cli/build-macos.sh", directory / "CodeRimCLI"], cwd=ROOT, check=True, env={
-            **os.environ, "CARGO_TARGET_DIR": str(TARGET), "MACOSX_DEPLOYMENT_TARGET": "14.0",
-        })
+    for variable, product in (("CODERIM_MIGRATION_CLI", "CodeRimCLI"),
+                              ("CODERIM_CLAUDE_STATUS_BRIDGE", "CodeRimClaudeBridge")):
+        if not os.environ.get(variable):
+            subprocess.run([RUST / "cli/build-macos.sh", directory / product, product], cwd=ROOT, check=True, env={
+                **os.environ, "CARGO_TARGET_DIR": str(TARGET), "MACOSX_DEPLOYMENT_TARGET": "14.0",
+            })
 
 
 def replace_bundle(staged, destination):
@@ -255,6 +257,13 @@ def build_app(work, output):
         "python3", ROOT / "Scripts/prepare_swift_dependencies.py", "--scratch-path", scratch, "--show-bin-path",
         "-c", "release", "--arch", "arm64", "--arch", "x86_64",
     ], cwd=ROOT, text=True).strip().splitlines()[-1])
+    for product in ("CodeRimCLI", "CodeRimClaudeBridge"):
+        subprocess.run(["python3", ROOT / "Scripts/prepare_swift_dependencies.py", "--scratch-path", scratch, "--run-swift",
+                        "build", "-c", "release", "--arch", "arm64", "--arch", "x86_64", "--product", product],
+                       cwd=ROOT, check=True)
+    for arch in ("arm64", "x86_64"):
+        subprocess.run(["python3", ROOT / "Scripts/rust_migration/claude-stdin-bridge/check.py", "--arch", arch,
+                        oracle_dir / "CodeRimClaudeBridge", bundle / "Contents/Helpers/CodeRimClaudeBridge"], check=True)
     reference = work / "reference/CodeRim.app/Contents"
     (reference / "Helpers").mkdir(parents=True)
     shutil.copy2(bundle / "Contents/Info.plist", reference / "Info.plist")
