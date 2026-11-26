@@ -8,25 +8,63 @@ import CCodeRimAccounting
 final class NotchViewModel: ObservableObject {
     @Published var snapshots: [ProviderSnapshot] = [] {
         didSet {
-            if oldValue.map(\.id) != snapshots.map(\.id) { hoveredIndex = nil }
+            if !oldValue.elementsEqual(snapshots, by: { $0.id == $1.id }) { hoveredIndex = nil }
             pageStart = min(pageStart, max(0, snapshots.count - 1))
         }
     }
     @Published private(set) var pageStart = 0
     var onPageChange: (() -> Void)?
 
+    #if CODERIM_RUST_ACCOUNTING
+    private struct CapacityKey: Equatable {
+        let count: Int
+        let edge: NotchEdge
+        let along: CGFloat
+        let scale: CGFloat
+        let hardware: HardwareNotch?
+    }
+    private var cachedCapacity: (key: CapacityKey, count: Int)?
+    #endif
+
     /// Keep the full provider list; only its screen-sized viewport is paged.
     var visibleCapacity: Int {
         let along = edge.isVertical ? screenSize.height : screenSize.width
         guard along > 0 else { return max(1, snapshots.count) }
+        #if CODERIM_RUST_ACCOUNTING
+        let key = CapacityKey(count: snapshots.count, edge: edge, along: along, scale: sizeScale, hardware: hardwareNotch)
+        if let cachedCapacity, cachedCapacity.key == key { return cachedCapacity.count }
+        #endif
         let reserve = edge.isVertical ? CGFloat(200) + 2 * NotchLayout.cardCorner
             : NotchLayout.cardWidth + 2 * NotchLayout.cardCorner
+        #if CODERIM_RUST_ACCOUNTING
+        if let available = UInt32(exactly: snapshots.count) {
+            let corner = drawnCornerRadius
+            let viewport = cr_notch_viewport(
+                along: along, scale: sizeScale, pad_start: NotchLayout.padStart(for: edge),
+                pad_end: NotchLayout.padEnd(for: edge), cell: NotchLayout.cellAlong(for: edge),
+                spacing: NotchLayout.cellSpacing, flare: flare, reserve: max(reserve,
+                    2 * NotchLayout.slack(for: edge, maxCardHeight: 0, notchScale: sizeScale)),
+                wanted: hardwareNotch.map { $0.width + 2 * NotchLayout.cornerRadius } ?? 0,
+                corner: corner, corner_offset: NotchLayout.orbCornerOffset(corner: corner),
+                control_spacing: controlSpacing, control_radius: NotchLayout.controlDiameter / 2,
+                joined: hardwareNotch == nil ? 0 : 1)
+            let capacity = Int(cr_notch_visible_capacity(viewport, available))
+            if capacity > 0 {
+                cachedCapacity = (key, capacity)
+                return capacity
+            }
+        }
+        #endif
         for count in stride(from: max(1, snapshots.count), through: 1, by: -1) {
             let slack = max(reserve, 2 * NotchLayout.slack(for: edge, maxCardHeight: 0, notchScale: sizeScale),
                             2 * controlExtent(cellCount: count) * sizeScale)
             if shapeLength(cellCount: count) * sizeScale + slack <= along { return count }
         }
         return 1
+    }
+
+    private var visibleCount: Int {
+        min(max(0, snapshots.count - pageStart), visibleCapacity)
     }
 
     var visibleSnapshots: [ProviderSnapshot] {
@@ -36,7 +74,7 @@ final class NotchViewModel: ObservableObject {
     var canShowNextPage: Bool { pageStart + visibleCapacity < snapshots.count }
     var visibleRangeDescription: String {
         guard !snapshots.isEmpty else { return "No providers" }
-        return "Providers \(pageStart + 1)–\(pageStart + visibleSnapshots.count) of \(snapshots.count)"
+        return "Providers \(pageStart + 1)–\(pageStart + visibleCount) of \(snapshots.count)"
     }
 
     func changePage(forward: Bool) {
@@ -47,7 +85,8 @@ final class NotchViewModel: ObservableObject {
     }
 
     func providerID(atVisibleIndex index: Int) -> String? {
-        visibleSnapshots.indices.contains(index) ? visibleSnapshots[index].id : nil
+        guard (0..<visibleCount).contains(index) else { return nil }
+        return snapshots[pageStart + index].id
     }
     /// Sessions appear within their provider ring, never as extra provider cells.
     @Published var sessions: [String: [AgentSession]] = [:]
@@ -183,7 +222,7 @@ final class NotchViewModel: ObservableObject {
 
     /// A joined bar must exceed the hardware notch by a fillet and corner at each end to visibly
     /// unfold.
-    var endSpread: CGFloat { endSpread(cellCount: visibleSnapshots.count) }
+    var endSpread: CGFloat { endSpread(cellCount: visibleCount) }
 
     func endSpread(cellCount: Int) -> CGFloat {
         guard let hardwareNotch else { return 0 }
@@ -202,7 +241,7 @@ final class NotchViewModel: ObservableObject {
 
     /// Use the requested body position, before panel clamping, so changing the
     /// control end cannot feed back into the decision and make it oscillate.
-    var controlsAtStart: Bool { controlsAtStart(cellCount: visibleSnapshots.count) }
+    var controlsAtStart: Bool { controlsAtStart(cellCount: visibleCount) }
 
     func controlsAtStart(cellCount: Int) -> Bool {
         guard edge.isVertical else { return false }
@@ -229,7 +268,7 @@ final class NotchViewModel: ObservableObject {
     }
 
     var orbAlong: CGFloat {
-        let trailing = trailingOrbAlong(cellCount: visibleSnapshots.count)
+        let trailing = trailingOrbAlong(cellCount: visibleCount)
         return controlsAtStart ? shapeLength - trailing : trailing
     }
 
@@ -250,8 +289,8 @@ final class NotchViewModel: ObservableObject {
             + controlSpacing + NotchLayout.controlDiameter / 2).rounded(.up)
     }
 
-    var leadingExtent: CGFloat { leadingExtent(cellCount: visibleSnapshots.count) }
-    var trailingExtent: CGFloat { trailingExtent(cellCount: visibleSnapshots.count) }
+    var leadingExtent: CGFloat { leadingExtent(cellCount: visibleCount) }
+    var trailingExtent: CGFloat { trailingExtent(cellCount: visibleCount) }
 
     func leadingExtent(cellCount: Int) -> CGFloat {
         controlsAtStart(cellCount: cellCount) ? controlExtent(cellCount: cellCount) : 0
@@ -325,7 +364,7 @@ final class NotchViewModel: ObservableObject {
     /// The straight part of the shape, flares excluded.
     var bodyLength: CGFloat {
         NotchLayout.bodyLength(
-            cellCount: visibleSnapshots.count, edge: edge
+            cellCount: visibleCount, edge: edge
         ) + 2 * endSpread
     }
 
@@ -344,19 +383,19 @@ final class NotchViewModel: ObservableObject {
     }
 
     var hoveredSnapshot: ProviderSnapshot? {
-        guard let hoveredIndex, visibleSnapshots.indices.contains(hoveredIndex) else { return nil }
-        return visibleSnapshots[hoveredIndex]
+        guard let hoveredIndex, (0..<visibleCount).contains(hoveredIndex) else { return nil }
+        return snapshots[pageStart + hoveredIndex]
     }
 
-    var shapeLength: CGFloat { shapeLength(cellCount: visibleSnapshots.count) }
+    var shapeLength: CGFloat { shapeLength(cellCount: visibleCount) }
 
-    var panelSize: CGSize { panelSize(cellCount: visibleSnapshots.count) }
+    var panelSize: CGSize { panelSize(cellCount: visibleCount) }
 
     /// How stack space maps onto the panel right now.
     var placement: NotchPlacement { NotchPlacement(edge: edge, panelSize: panelSize) }
 
     /// Room at each end of the stack, for this edge.
-    var slack: CGFloat { slack(cellCount: visibleSnapshots.count) }
+    var slack: CGFloat { slack(cellCount: visibleCount) }
 
     func slack(cellCount: Int) -> CGFloat {
         NotchLayout.slack(for: edge,
@@ -366,7 +405,7 @@ final class NotchViewModel: ObservableObject {
 
     /// How many sessions a tooltip may list here before it has to summarise
     /// the rest — as many as this screen has room for.
-    var sessionCap: Int { sessionCap(cellCount: visibleSnapshots.count) }
+    var sessionCap: Int { sessionCap(cellCount: visibleCount) }
 
     private var hasTodaysTokens: Bool {
         snapshots.contains { $0.showsLocalTokens }
@@ -395,9 +434,9 @@ final class NotchViewModel: ObservableObject {
     }
 
     func cardHeight(for snapshot: ProviderSnapshot) -> CGFloat {
-        min(sessionPresentation(for: snapshot, cellCount: visibleSnapshots.count)
+        min(sessionPresentation(for: snapshot, cellCount: visibleCount)
             .height(snapshot: snapshot, now: now, accountAction: onSwitchAccount != nil),
-            maxCardHeight(cellCount: visibleSnapshots.count))
+            maxCardHeight(cellCount: visibleCount))
     }
 
     /// Vertical cards share stack length; horizontal cards share inward depth with the notch and tail.

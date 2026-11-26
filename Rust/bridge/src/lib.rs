@@ -35,6 +35,8 @@ mod mobile_selection;
 #[cfg(any(target_os = "macos", test))]
 mod notch_path;
 #[cfg(any(target_os = "macos", test))]
+mod notch_viewport;
+#[cfg(any(target_os = "macos", test))]
 mod ollama_key;
 #[cfg(target_os = "macos")]
 mod pricing;
