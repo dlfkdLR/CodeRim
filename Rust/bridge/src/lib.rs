@@ -19,6 +19,8 @@ mod line_breaks;
 #[cfg(target_os = "macos")]
 mod log_timestamp;
 #[cfg(any(target_os = "ios", target_os = "macos", test))]
+mod mobile_follow;
+#[cfg(any(target_os = "ios", target_os = "macos", test))]
 mod mobile_reading;
 #[cfg(any(target_os = "ios", target_os = "macos", test))]
 mod mobile_selection;

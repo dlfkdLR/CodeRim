@@ -1,6 +1,7 @@
 #ifndef CODERIM_MOBILE_H
 #define CODERIM_MOBILE_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -24,6 +25,15 @@ size_t cr_mobile_provider_indices(uint8_t operation, const uint32_t *keys, size_
                                   size_t available_count, uint32_t target,
                                   uint32_t *output, size_t capacity);
 uint8_t cr_mobile_supersedes(cr_mobile_version candidate, cr_mobile_version current);
+/* The follow policy first requests an OS permission or clock observation when necessary. */
+enum { CR_FOLLOW_REFRESH, CR_FOLLOW_USER_STOP, CR_FOLLOW_RESUMED };
+enum { CR_FOLLOW_NONE, CR_FOLLOW_PERMISSION, CR_FOLLOW_CLOCK, CR_FOLLOW_START, CR_FOLLOW_STOP };
+enum { CR_FOLLOW_KEEP_TIMER, CR_FOLLOW_CLEAR_TIMER, CR_FOLLOW_REMEMBER_TIMER };
+typedef struct { bool stopped, automatic; } cr_follow_state;
+typedef struct { bool tasks, push, active, busy; } cr_follow_observation;
+typedef struct { cr_follow_state state; uint8_t timer, action; } cr_follow_transition;
+cr_follow_transition cr_mobile_follow(cr_follow_state state, cr_follow_observation observation, uint8_t event,
+                                     bool supplied, bool allowed, double elapsed);
 /* Only public count/status categories cross this boundary. The host owns task text and device identity. */
 enum { CR_ISLAND_IDLE, CR_ISLAND_NO_DEVICE, CR_ISLAND_OFFLINE, CR_ISLAND_WAITING,
        CR_ISLAND_WORKING, CR_ISLAND_UNKNOWN, CR_ISLAND_SIGN_IN, CR_ISLAND_PERMISSIONS };

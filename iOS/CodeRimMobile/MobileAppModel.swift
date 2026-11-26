@@ -1,6 +1,9 @@
 import ActivityKit
 import Combine
 import Foundation
+#if CODERIM_RUST_MOBILE_SELECTION
+import CCodeRimMobile
+#endif
 
 @MainActor
 final class MobileAppModel: ObservableObject {
@@ -39,9 +42,7 @@ final class MobileAppModel: ObservableObject {
     private var serverPushAvailable = false
     private var foreground = false
     /// The person chose Stop showing; respected until the running tasks finish.
-    private var userStopped = false
-    private var autoStarted = false
-    private var idleSince: Date?
+    private var following = MobileActivityFollowing()
     private var remoteActivities: [Task<Void, Never>] = []
     private let credentials: any MobileCredentialStoring
     private let makeClient: @Sendable (URL) throws -> any MobileRelayServing
@@ -261,25 +262,19 @@ final class MobileAppModel: ObservableObject {
     /// starting locally too could create a duplicate Island.
     private func followTasks() async {
         guard foreground, signedIn else { return }
-        if state.workingCount + state.waitingCount > 0 {
-            idleSince = nil
-            guard !serverPushAvailable, !activityActive, !userStopped, !busy,
-                  ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-            autoStarted = true
-            await startActivity(userInitiated: false)
-        } else {
-            userStopped = false
-            guard activityActive, autoStarted, !serverPushAvailable else { idleSince = nil; return }
-            let since = idleSince ?? Date(); idleSince = since
-            guard Date().timeIntervalSince(since) >= 120 else { return }
-            autoStarted = false; idleSince = nil
-            await stopActivity()
+        let action = following.observe(hasTasks: state.workingCount + state.waitingCount > 0,
+                                       serverPush: serverPushAvailable, active: activityActive, busy: busy,
+                                       authorized: { ActivityAuthorizationInfo().areActivitiesEnabled })
+        switch action {
+        case .start: await startActivity(userInitiated: false)
+        case .stop: await stopActivity()
+        case .none: break
         }
     }
 
     /// The person's own Stop showing, which automatic starts respect until the tasks finish.
     func stopShowing() async {
-        userStopped = true; autoStarted = false
+        following.stopByUser()
         await stopActivity()
     }
 
@@ -383,7 +378,7 @@ final class MobileAppModel: ObservableObject {
         let generation = loginGeneration
         let _: MobileOK = try await client.send("POST", "/v1/activities/resume", token: credential.token, body: MobileEmpty())
         guard generation == loginGeneration else { throw CancellationError() }
-        userStopped = false
+        following.didResume()
     }
 
     func startActivity(userInitiated: Bool = true) async {
@@ -513,4 +508,82 @@ final class MobileAppModel: ObservableObject {
         serverNotice = nil; preferences = MobilePreferences(); providers = []; displayProviders = []; devices = []; state = .disconnected
         serverPushAvailable = false
     }
+}
+
+/// State committed synchronously before the app starts or ends an Activity.
+struct MobileActivityFollowing {
+    enum Action: Int { case none, start, stop }
+    private(set) var userStopped = false
+    private(set) var autoStarted = false
+    private(set) var idleSince: Date?
+
+    mutating func stopByUser() {
+        #if CODERIM_RUST_MOBILE_SELECTION
+        _ = transition(event: CR_FOLLOW_USER_STOP)
+        #else
+        userStopped = true
+        autoStarted = false
+        #endif
+    }
+
+    mutating func didResume() {
+        #if CODERIM_RUST_MOBILE_SELECTION
+        _ = transition(event: CR_FOLLOW_RESUMED)
+        #else
+        userStopped = false
+        #endif
+    }
+
+    mutating func observe(hasTasks: Bool, serverPush: Bool, active: Bool, busy: Bool,
+                          authorized: () -> Bool, now: () -> Date = Date.init) -> Action {
+        #if CODERIM_RUST_MOBILE_SELECTION
+        let reading = cr_follow_observation(tasks: hasTasks, push: serverPush, active: active, busy: busy)
+        return transition(event: CR_FOLLOW_REFRESH, observation: reading, authorized: authorized, now: now)
+        #else
+        if hasTasks {
+            idleSince = nil
+            guard !serverPush, !active, !userStopped, !busy, authorized() else { return .none }
+            autoStarted = true
+            return .start
+        }
+        userStopped = false
+        guard active, autoStarted, !serverPush else { idleSince = nil; return .none }
+        let since = idleSince ?? now()
+        idleSince = since
+        guard now().timeIntervalSince(since) >= 120 else { return .none }
+        autoStarted = false
+        idleSince = nil
+        return .stop
+        #endif
+    }
+
+    #if CODERIM_RUST_MOBILE_SELECTION
+    private mutating func transition(event: Int, observation: cr_follow_observation = .init(),
+                                     authorized: () -> Bool = { false }, now: () -> Date = Date.init) -> Action {
+        let previous = cr_follow_state(stopped: userStopped, automatic: autoStarted)
+        var result = cr_mobile_follow(previous, observation, UInt8(event), false, false, 0)
+        var since: Date?
+        switch Int(result.action) {
+        case CR_FOLLOW_PERMISSION:
+            result = cr_mobile_follow(previous, observation, UInt8(event), true, authorized(), 0)
+        case CR_FOLLOW_CLOCK:
+            let start = idleSince ?? now()
+            since = start
+            result = cr_mobile_follow(previous, observation, UInt8(event), true, false, now().timeIntervalSince(start))
+        default: break
+        }
+        userStopped = result.state.stopped
+        autoStarted = result.state.automatic
+        switch Int(result.timer) {
+        case CR_FOLLOW_CLEAR_TIMER: idleSince = nil
+        case CR_FOLLOW_REMEMBER_TIMER: idleSince = since
+        default: break
+        }
+        switch Int(result.action) {
+        case CR_FOLLOW_START: return .start
+        case CR_FOLLOW_STOP: return .stop
+        default: return .none
+        }
+    }
+    #endif
 }

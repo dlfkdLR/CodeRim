@@ -39,6 +39,41 @@ private actor FlakyRelay: MobileRelayServing {
 
 @MainActor
 final class MobileLifecycleTests: XCTestCase {
+    func testForegroundFollowingRespectsManualStopAndTimesOnlyLocallyStartedActivities() {
+        var following = MobileActivityFollowing()
+        var permissions = 0, clockReads = 0
+        var time = 10.0
+        func refresh(_ work: Bool, _ active: Bool, push: Bool = false, authorized: Bool = true) -> MobileActivityFollowing.Action {
+            following.observe(hasTasks: work, serverPush: push, active: active, busy: false, authorized: {
+                permissions += 1
+                return authorized
+            }, now: {
+                clockReads += 1
+                return Date(timeIntervalSinceReferenceDate: time)
+            })
+        }
+        XCTAssertEqual(refresh(true, false, push: true), .none)
+        XCTAssertEqual(permissions, 0)
+        XCTAssertEqual(refresh(true, false, authorized: false), .none)
+        XCTAssertFalse(following.autoStarted)
+        XCTAssertEqual(refresh(true, false), .start)
+        following.stopByUser()
+        XCTAssertEqual(refresh(true, false), .none)
+        XCTAssertEqual(permissions, 2)
+        following.didResume()
+        XCTAssertEqual(refresh(true, false), .start)
+        XCTAssertEqual(refresh(false, true), .none)
+        XCTAssertEqual(clockReads, 2)
+        time = 129.999
+        XCTAssertEqual(refresh(false, true), .none)
+        time = 130
+        XCTAssertEqual(refresh(false, true), .stop)
+        XCTAssertNil(following.idleSince)
+        XCTAssertFalse(following.autoStarted)
+        XCTAssertEqual(refresh(false, true), .none)
+        XCTAssertEqual(clockReads, 4)
+    }
+
     func testAnOfflineNoticeClearsWhenTheRelayAnswersAgain() async throws {
         let relay = FlakyRelay()
         let model = MobileAppModel(credentials: MemoryCredentials(credential()), makeClient: { _ in relay })
