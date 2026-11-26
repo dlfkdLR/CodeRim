@@ -47,6 +47,14 @@ internal static class Program
                 }
             case "app-server":
                 var rpcMode = Environment.GetEnvironmentVariable("SYNTHETIC_RPC_MODE");
+                if (rpcMode is "stderr-overflow" or "repeat-initialize")
+                {
+                    using var current = Process.GetCurrentProcess();
+                    var identity = FormattableString.Invariant($"{current.Id}|{current.StartTime.ToUniversalTime().Ticks}");
+                    var receipt = Path.Combine(root, "rpc-owner");
+                    File.WriteAllText(receipt + ".tmp", identity);
+                    File.Move(receipt + ".tmp", receipt);
+                }
                 if (rpcMode == "stderr-overflow")
                 {
                     using var stderr = Console.OpenStandardError();
