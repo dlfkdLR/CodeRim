@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// What a session's turns ran on, as counts. The shares a person sees are
 /// worked out from these when they are shown, so two sessions can be added.
@@ -66,6 +69,9 @@ struct ActivityChart: Equatable, Sendable {
     /// broken by name so the colours do not swap between refreshes.
     static func build(days: [Date], counts: [Date: [String: Int]], limit: Int = 5,
                       otherTitle: String = "Other") -> ActivityChart {
+        #if CODERIM_RUST_ACCOUNTING
+        if let chart = projected(days: days, counts: counts, limit: limit, otherTitle: otherTitle) { return chart }
+        #endif
         var totals: [String: Int] = [:]
         for byName in counts.values { for (name, count) in byName { totals[name, default: 0] += count } }
         let ranked = totals.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
@@ -84,6 +90,90 @@ struct ActivityChart: Equatable, Sendable {
         return ActivityChart(days: days, series: series, total: totals.values.reduce(0, +))
     }
 }
+
+#if CODERIM_RUST_ACCOUNTING
+private extension ActivityChart {
+    static func projected(days: [Date], counts: [Date: [String: Int]], limit: Int, otherTitle: String) -> Self? {
+        guard limit >= 0, days.count < Int(UInt32.max) else { return nil }
+        // With no overflow category, each day's named value is already present
+        // in the source dictionary. Avoid building a foreign sparse matrix for
+        // a projection which requires only keyed reads. Stop this check as soon
+        // as one extra name proves that aggregation is needed.
+        var directTotals: [String: Int] = [:]
+        var needsGrouping = false
+        outer: for byName in counts.values {
+            for (name, count) in byName {
+                directTotals[name, default: 0] += count
+                if directTotals.count > limit {
+                    needsGrouping = true
+                    break outer
+                }
+            }
+        }
+        if !needsGrouping {
+            let ranked = directTotals.sorted { $0.value != $1.value ? $0.value > $1.value : $0.key < $1.key }
+            let visibleDays = days.map { counts[$0] }
+            let series = ranked.map { name, total in
+                ActivitySeries(id: name, title: name, total: total,
+                               counts: visibleDays.map { $0?[name] ?? 0 })
+            }
+            return Self(days: days, series: series, total: directTotals.values.reduce(0, +))
+        }
+        var dates: [Date: UInt32] = [:]
+        var displaySlots: [UInt32] = []
+        displaySlots.reserveCapacity(days.count)
+        for day in days {
+            if let slot = dates[day] { displaySlots.append(slot) }
+            else {
+                let slot = UInt32(dates.count)
+                dates[day] = slot
+                displaySlots.append(slot)
+            }
+        }
+        var ids: [String: UInt32] = [:]
+        var names: [String] = []
+        var rows: [cr_activity_count] = []
+        rows.reserveCapacity(counts.values.reduce(0) { $0 + $1.count })
+        for (day, byName) in counts {
+            let slot = dates[day] ?? .max
+            for (name, value) in byName {
+                let id: UInt32
+                if let existing = ids[name] { id = existing }
+                else {
+                    guard names.count < Int(UInt32.max) - 1 else { return nil }
+                    id = UInt32(names.count)
+                    names.append(name)
+                    ids[name] = id
+                }
+                rows.append(cr_activity_count(count: Int64(value), name: id, day: slot))
+            }
+        }
+        guard !rows.isEmpty else { return .empty(days: days) }
+        let ordered = names.indices.sorted { names[$0] < names[$1] }
+        var ranks = [UInt32](repeating: 0, count: names.count)
+        for (rank, id) in ordered.enumerated() { ranks[id] = UInt32(rank) }
+        let slots = min(limit, names.count) + 1
+        let (capacity, overflow) = slots.multipliedReportingOverflow(by: dates.count)
+        guard !overflow else { return nil }
+        var labels = [cr_activity_series](repeating: .init(), count: slots)
+        var cells = [Int64](repeating: 0, count: capacity)
+        let projected = cr_activity_distribution(rows, rows.count, ranks, ranks.count,
+                                                 dates.count, limit, &labels, &cells)
+        guard projected.series_count >= 0 && projected.series_count <= slots else { return nil }
+        var result: [ActivitySeries] = []
+        result.reserveCapacity(projected.series_count)
+        for i in 0..<projected.series_count {
+            let label = labels[i]
+            let id = label.name == .max ? otherID : names[Int(label.name)]
+            let title = label.name == .max ? otherTitle : id
+            let start = i * dates.count
+            result.append(ActivitySeries(id: id, title: title, total: Int(label.total),
+                                         counts: displaySlots.map { Int(cells[start + Int($0)]) }))
+        }
+        return ActivityChart(days: days, series: result, total: Int(projected.total))
+    }
+}
+#endif
 
 struct ActivitySnapshot: Equatable, Sendable {
     let range: AnalyticsRange

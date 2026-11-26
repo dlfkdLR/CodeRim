@@ -2,6 +2,8 @@
 //! Presence flags distinguish an absent measurement from any signed counter.
 #[cfg(any(target_os = "macos", test))]
 mod account_history;
+#[cfg(any(target_os = "macos", test))]
+mod activity_distribution;
 mod aggregation;
 mod analytics_chart;
 #[cfg(any(target_os = "macos", test))]
