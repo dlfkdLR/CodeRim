@@ -44,6 +44,8 @@ mod provider_order;
 mod quota_window;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod session_totals;
+#[cfg(any(target_os = "macos", test))]
+mod source_discovery;
 #[cfg(target_os = "macos")]
 mod sqlite_analytics;
 #[cfg(target_os = "macos")]
