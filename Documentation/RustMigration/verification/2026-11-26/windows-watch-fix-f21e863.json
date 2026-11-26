@@ -1,0 +1,49 @@
+{
+  "run": 45762218250,
+  "commit": "f21e86306922c53d5392c1344ab3c39fbe2b06de",
+  "receipts": {
+    "x64": {
+      "artifactId": 15089914621,
+      "archiveSha256": "88244af839ccf0e262d10c7f83bb0069cd5380241b237309ee4f46ae136af1fd",
+      "cases": 81,
+      "native": 38,
+      "watch": {
+        "legacy": {
+          "frames": "d55dff554e5cd78aba0ac9a5db9bc3e37b5da6ea723c34fb954f0072c49bfff5",
+          "interruptExit": 0
+        },
+        "rust": {
+          "frames": "d55dff554e5cd78aba0ac9a5db9bc3e37b5da6ea723c34fb954f0072c49bfff5",
+          "interruptExit": 0
+        }
+      },
+      "console": {
+        "legacy": 0,
+        "rust": 0
+      },
+      "jobId": 139714624280
+    },
+    "arm64": {
+      "artifactId": 15090885131,
+      "archiveSha256": "bacc60a74211006eb2124be1728570ce12ae943f78207b3e5c4fbba3fa0f2ae5",
+      "cases": 81,
+      "native": 38,
+      "watch": {
+        "legacy": {
+          "frames": "3764195df5284510870808032480ab27715e048876785ef367e1d2af914cda69",
+          "interruptExit": 0
+        },
+        "rust": {
+          "frames": "3764195df5284510870808032480ab27715e048876785ef367e1d2af914cda69",
+          "interruptExit": 0
+        }
+      },
+      "console": {
+        "legacy": 0,
+        "rust": 0
+      },
+      "jobId": 139714624126
+    }
+  },
+  "scope": "A private console targeted each owning process group with Ctrl+Break. Compared two frames of actual redirected output while atomically replacing the synthetic input. The 38 native-only cases are included in the complete trial separately from the 81 routed comparisons recorded in each artifact."
+}

@@ -1,0 +1,333 @@
+{
+  "commit": "555b912c03a161979e4db5cf487655491c816ce9",
+  "run": 45763771954,
+  "platforms": {
+    "x64": {
+      "id": 15091546740,
+      "sha256": "sha256:02e881423562467f18e225eeed3fb3f889070dd0bd7f2d5371630d96558fbad9",
+      "jobId": 139719662055,
+      "runner": "AMD64",
+      "librarySha256": "452d2716f52842459ac41ab2f27320803d9b76ce5f2ef5c03db00da9a84a3758",
+      "timings": [
+        {
+          "rows": 0,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 44212100,
+              "allocation": 15608
+            },
+            "managed": {
+              "ns": 44104400,
+              "allocation": 16144
+            },
+            "rust": {
+              "ns": 43951400,
+              "allocation": 16336
+            }
+          }
+        },
+        {
+          "rows": 1,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 51269400,
+              "allocation": 22384
+            },
+            "managed": {
+              "ns": 51722300,
+              "allocation": 22920
+            },
+            "rust": {
+              "ns": 49258200,
+              "allocation": 23112
+            }
+          }
+        },
+        {
+          "rows": 128,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 64237000,
+              "allocation": 390808
+            },
+            "managed": {
+              "ns": 64241100,
+              "allocation": 291504
+            },
+            "rust": {
+              "ns": 64151500,
+              "allocation": 291688
+            }
+          }
+        },
+        {
+          "rows": 4096,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 187260200,
+              "allocation": 11831840
+            },
+            "managed": {
+              "ns": 172582600,
+              "allocation": 8625016
+            },
+            "rust": {
+              "ns": 177513700,
+              "allocation": 8625200
+            }
+          }
+        },
+        {
+          "rows": 0,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 42362700,
+              "allocation": 15616
+            },
+            "managed": {
+              "ns": 41414400,
+              "allocation": 16152
+            },
+            "rust": {
+              "ns": 41393000,
+              "allocation": 16336
+            }
+          }
+        },
+        {
+          "rows": 1,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 51223200,
+              "allocation": 22392
+            },
+            "managed": {
+              "ns": 52438100,
+              "allocation": 22928
+            },
+            "rust": {
+              "ns": 48474500,
+              "allocation": 23112
+            }
+          }
+        },
+        {
+          "rows": 128,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 62294800,
+              "allocation": 404160
+            },
+            "managed": {
+              "ns": 62913300,
+              "allocation": 304856
+            },
+            "rust": {
+              "ns": 65908000,
+              "allocation": 305040
+            }
+          }
+        },
+        {
+          "rows": 4096,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 182970500,
+              "allocation": 11815336
+            },
+            "managed": {
+              "ns": 177978300,
+              "allocation": 8608512
+            },
+            "rust": {
+              "ns": 172268000,
+              "allocation": 8608704
+            }
+          }
+        }
+      ]
+    },
+    "arm64": {
+      "id": 15091123170,
+      "sha256": "sha256:260d87648e9b08ac61c7d3144a12d7a65be0de1f4224b7d52ab7b896f62990dc",
+      "jobId": 139719662025,
+      "runner": "ARM64",
+      "librarySha256": "7e99a3cd91b5fd6679e07e043f041864a80b77bb9599ae49eb395bd063d5fa5e",
+      "timings": [
+        {
+          "rows": 0,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 18424200,
+              "allocation": 15608
+            },
+            "managed": {
+              "ns": 19189300,
+              "allocation": 16144
+            },
+            "rust": {
+              "ns": 20366600,
+              "allocation": 16336
+            }
+          }
+        },
+        {
+          "rows": 1,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 19531700,
+              "allocation": 22384
+            },
+            "managed": {
+              "ns": 20707000,
+              "allocation": 22920
+            },
+            "rust": {
+              "ns": 22038300,
+              "allocation": 23112
+            }
+          }
+        },
+        {
+          "rows": 128,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 28382100,
+              "allocation": 390808
+            },
+            "managed": {
+              "ns": 29697700,
+              "allocation": 291504
+            },
+            "rust": {
+              "ns": 30763900,
+              "allocation": 291688
+            }
+          }
+        },
+        {
+          "rows": 4096,
+          "provider": "codex",
+          "median": {
+            "release": {
+              "ns": 111260500,
+              "allocation": 11831840
+            },
+            "managed": {
+              "ns": 105906900,
+              "allocation": 8625016
+            },
+            "rust": {
+              "ns": 116094300,
+              "allocation": 8625200
+            }
+          }
+        },
+        {
+          "rows": 0,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 18288900,
+              "allocation": 15616
+            },
+            "managed": {
+              "ns": 20450900,
+              "allocation": 16152
+            },
+            "rust": {
+              "ns": 19924800,
+              "allocation": 16336
+            }
+          }
+        },
+        {
+          "rows": 1,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 22637800,
+              "allocation": 22392
+            },
+            "managed": {
+              "ns": 20932700,
+              "allocation": 22928
+            },
+            "rust": {
+              "ns": 20521300,
+              "allocation": 23112
+            }
+          }
+        },
+        {
+          "rows": 128,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 29941700,
+              "allocation": 404160
+            },
+            "managed": {
+              "ns": 29583200,
+              "allocation": 304856
+            },
+            "rust": {
+              "ns": 31823600,
+              "allocation": 305040
+            }
+          }
+        },
+        {
+          "rows": 4096,
+          "provider": "claude",
+          "median": {
+            "release": {
+              "ns": 122282100,
+              "allocation": 11815336
+            },
+            "managed": {
+              "ns": 111918700,
+              "allocation": 8608512
+            },
+            "rust": {
+              "ns": 111794100,
+              "allocation": 8608704
+            }
+          }
+        }
+      ]
+    }
+  },
+  "scope": "Windows Server 2025 x64 and Windows 11 ARM64 CI. Each persistence result compares v2.1.41, managed candidate and Rust candidate. Benchmarks are median elapsed process-local database transaction time and managed-thread allocation from seven interleaved samples per workload. This run predates the later parameter-helper and constant-SQL changes.",
+  "comparisons": {
+    "codex/merge": "60bc2c74e547a2977703b9ddd13f25ba1d63d3e8ee95fd9f3a5d8c378f32077c",
+    "codex/rebuild": "da0ed8d080aaf923a4f2e1fe220b8c3ef0ec4f79ecdef735ba2bbf1508bf1a32",
+    "codex/corrupt": "60bc2c74e547a2977703b9ddd13f25ba1d63d3e8ee95fd9f3a5d8c378f32077c",
+    "codex/cleared": "73f3856cc63924a392ebce486ae484c358d26e4c86df83c30f0b55cff1489076",
+    "codex/failure": "f3ecf4f71eed1977f1823cd8188e76063845a0df029cfdeaf90dd0e34a0ae3d1",
+    "codex/future": "b81f282d109b5e416a2a8f2d2abcde33fcfcfd8063b5c29766f65435fc0db7c8",
+    "claude/merge": "159d16ff408f1c3f95db25d1fe57b5e629acd6871b35f800ab7a20dd2b5cd50c",
+    "claude/rebuild": "6d892a3313bdedbea7a3b51ee872d1a45f6fdaef606abe4c2fe300ddaa89b13f",
+    "claude/corrupt": "159d16ff408f1c3f95db25d1fe57b5e629acd6871b35f800ab7a20dd2b5cd50c",
+    "claude/cleared": "083b2db10f267bd28e15420cb8c3321c189c1ef58348a22b75ab12ed7edbefc7",
+    "claude/failure": "f568ebb53cf5a7b73d8c594eed98e7d602f3b2e00331a5f3ada18630527f3a2a",
+    "claude/future": "50f3876ce932f3fcbbcee45f30b80ca0afe8a400519238b93bcad34243f0cd39",
+    "other/merge": "51d165ef3ddc9bf7651222223ee50b02ac3b325c0b2ee6043cb1ac7ed72f263c",
+    "other/rebuild": "a019a5f9e806275a070506243b34b155700c747187cd5d2881d9ffb78589ff9b",
+    "other/corrupt": "51d165ef3ddc9bf7651222223ee50b02ac3b325c0b2ee6043cb1ac7ed72f263c",
+    "other/cleared": "4c05805097aba358391a1c1c4f98d1eb036c67b34fc61d02a00836a501053c90",
+    "other/failure": "cfe10e933ee7c5a96e79b42101809514a8ecf5292a4c275107b729931408c590",
+    "other/future": "da23f66ee7a4e8a914e5e538ab58844cc22fbed03fcf3737a4a91a6183fd00d9"
+  }
+}
