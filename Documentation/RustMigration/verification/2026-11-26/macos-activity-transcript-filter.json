@@ -1,0 +1,341 @@
+{
+  "commit": "498c4c0",
+  "baseline": "v2.1.41",
+  "previousProduct": "3d7a53f",
+  "platforms": "macOS Apple Silicon and Rosetta x86_64 on one Mac",
+  "publicReadsPerArchitecture": 50,
+  "cursorStatesPerArchitecture": 469,
+  "independent": {
+    "publicEntry": {
+      "caller": "TranscriptLines.forEachLine(of:containingAny:copying:_:)",
+      "resultsByArch": {
+        "arm64": {
+          "uniqueCases": 50,
+          "comparisons": 100,
+          "copyingModes": [
+            false,
+            true
+          ],
+          "releaseAndIndependentByteOracleMismatches": 0,
+          "descriptorChecks": 27,
+          "mutationOrLimits": {
+            "mutation-cancel": 256,
+            "mutation-pre-cancel": 0,
+            "mutation-truncate": 312,
+            "mutation-append": 1200,
+            "mutation-replace": 1200,
+            "mutation-overwrite": 1200,
+            "cancel-last-chunk": 4,
+            "file-cap--1": 2,
+            "file-cap-0": 2,
+            "file-cap-1": 1
+          },
+          "injectedReadFailures": {
+            "EIO": {
+              "faults": 1,
+              "successfulReads": 1,
+              "uniqueOrderedCallbacks": 256
+            },
+            "EINTR": {
+              "faults": 1,
+              "successfulReads": 5,
+              "uniqueOrderedCallbacks": 1200
+            }
+          }
+        },
+        "x86_64": {
+          "uniqueCases": 50,
+          "comparisons": 100,
+          "copyingModes": [
+            false,
+            true
+          ],
+          "releaseAndIndependentByteOracleMismatches": 0,
+          "descriptorChecks": 27,
+          "mutationOrLimits": {
+            "mutation-cancel": 256,
+            "mutation-pre-cancel": 0,
+            "mutation-truncate": 312,
+            "mutation-append": 1200,
+            "mutation-replace": 1200,
+            "mutation-overwrite": 1200,
+            "cancel-last-chunk": 4,
+            "file-cap--1": 2,
+            "file-cap-0": 2,
+            "file-cap-1": 1
+          },
+          "injectedReadFailures": {
+            "EIO": {
+              "faults": 1,
+              "successfulReads": 1,
+              "uniqueOrderedCallbacks": 256
+            },
+            "EINTR": {
+              "faults": 1,
+              "successfulReads": 5,
+              "uniqueOrderedCallbacks": 1200
+            }
+          }
+        }
+      },
+      "comparison": "The byte reference computes complete LF-delimited records within the original file and line limits. Ordered returned Data values are retained through completion and fingerprinted with little-endian 64-bit length framing. Count, summed lengths and sha256 must agree with the release and with the reference.",
+      "coverage": [
+        "64 KiB +-1 and needle placement crossing chunk ends, 127/128/129 and 255/256/257 span batches, 1 MiB +-1 and larger discarded records, and sparse 256 MiB file cutoff with newline just before, at, and after cap.",
+        "CRLF, binary payload, NUL, malformed UTF-8, canonical Unicode spellings, empty and duplicate markers, nonempty markers up to 16,385 bytes, 63/64/65/128 markers, unterminated final record, missing and empty files.",
+        "Returned Data survives later callbacks, four other complete file scans and caller-side copy-on-write edits for both copying:true and false.",
+        "Cancel before scan or from callback, truncate, overwrite a future chunk, append beyond initial length and atomically replace pathname from callback. Original opened inode was consulted and output stayed ordered."
+      ]
+    },
+    "ffi": {
+      "nativeChecks": "27 checks per ABI: real fstat/pread, shared-offset dup, successful subsequent read and caller closes the FDs, write-only descriptor returning status 2, closed and pipe descriptors, cap and packed argument rejection before callbacks, short/past EOF, status 1 on cancellation.",
+      "faultInjection": "A standalone derivative executable links the same unmodified production Swift source and immutable Rust archive with an inode-scoped test pread definition. On that synthetic input it substitutes EIO or EINTR once the second 64 KiB chunk is requested; other reads delegate to preadv. Input had 1200 ordered lines. EIO returned the first 256 exactly once, EINTR retried and returned 1200 exactly once. The standard non-injected public-entry and ABI binaries were tested separately."
+    },
+    "performance": {
+      "scope": "Native Apple Silicon, optimized production file reader only, same six real Codex activity marker strings and synthetic records. Rotating/reversing order over six samples; one warm scan per process, three timed scans for 49,152 records or 400 timed scans for four. All compared counts and byte totals were asserted.",
+      "medians": {
+        "tiny-dense": {
+          "records": 4,
+          "matches": 4,
+          "bytes": 656,
+          "wallNs": {
+            "release": 24256.0,
+            "previous": 15415.5,
+            "candidate": 13873.5
+          },
+          "processCpuNs": {
+            "release": 20194.5,
+            "previous": 14913.5,
+            "candidate": 13520.0
+          }
+        },
+        "rare": {
+          "records": 49152,
+          "matches": 64,
+          "bytes": 7951798,
+          "wallNs": {
+            "release": 362845965.0,
+            "previous": 316155687.5,
+            "candidate": 2759770.5
+          },
+          "processCpuNs": {
+            "release": 117833166.5,
+            "previous": 101009999.5,
+            "candidate": 2666333.0
+          }
+        },
+        "medium": {
+          "records": 49152,
+          "matches": 4916,
+          "bytes": 7990836,
+          "wallNs": {
+            "release": 99543166.5,
+            "previous": 83226895.5,
+            "candidate": 3409034.5
+          },
+          "processCpuNs": {
+            "release": 94207999.5,
+            "previous": 76371999.5,
+            "candidate": 3197166.0
+          }
+        },
+        "dense": {
+          "records": 49152,
+          "matches": 49152,
+          "bytes": 8164506,
+          "wallNs": {
+            "release": 72080187.0,
+            "previous": 53980986.0,
+            "candidate": 4695444.0
+          },
+          "processCpuNs": {
+            "release": 67829999.5,
+            "previous": 51739999.5,
+            "candidate": 4666833.0
+          }
+        }
+      }
+    },
+    "limits": [
+      "No physical Intel measurement. No production application logs, accounts or network usage. Timings cover the line reader; whole-application battery, CPU, downstream JSON parsing and UI latency were not measured.",
+      "Independent packet review, with direct local evidence. The formal harness separately determines its verdict."
+    ]
+  },
+  "samplesMs": [
+    {
+      "family": "Codex",
+      "lineBytes": 160,
+      "matchEvery": 0,
+      "bytes": 4194240,
+      "checksum": 0,
+      "samplesMs": {
+        "release": [
+          43.930236,
+          48.278583,
+          44.383111,
+          44.582139,
+          47.326777
+        ],
+        "rust": [
+          1.267208,
+          1.293458,
+          1.302069,
+          1.335139,
+          1.298361
+        ],
+        "previous": [
+          37.892444,
+          37.953194,
+          37.915069,
+          38.443055,
+          46.836041
+        ]
+      },
+      "medianMs": {
+        "release": 44.582139,
+        "rust": 1.298361,
+        "previous": 37.953194
+      }
+    },
+    {
+      "family": "Codex",
+      "lineBytes": 160,
+      "matchEvery": 20,
+      "bytes": 4194240,
+      "checksum": 1109106,
+      "samplesMs": {
+        "release": [
+          46.836666,
+          43.509347,
+          43.979,
+          44.468111,
+          43.65675
+        ],
+        "rust": [
+          1.569847,
+          1.473194,
+          1.43443,
+          1.402736,
+          1.406791
+        ],
+        "previous": [
+          36.806833,
+          37.03518,
+          36.029819,
+          36.023861,
+          35.993972
+        ]
+      },
+      "medianMs": {
+        "release": 43.979,
+        "rust": 1.43443,
+        "previous": 36.029819
+      }
+    },
+    {
+      "family": "Codex",
+      "lineBytes": 160,
+      "matchEvery": 1,
+      "bytes": 4194240,
+      "checksum": 22177044,
+      "samplesMs": {
+        "release": [
+          30.691152,
+          31.422514,
+          30.710361,
+          31.58143,
+          31.715111
+        ],
+        "rust": [
+          2.396805,
+          2.301416,
+          2.336097,
+          2.520597,
+          2.390569
+        ],
+        "previous": [
+          23.142958,
+          23.765708,
+          23.628944,
+          23.360097,
+          23.416375
+        ]
+      },
+      "medianMs": {
+        "release": 31.422514,
+        "rust": 2.390569,
+        "previous": 23.416375
+      }
+    },
+    {
+      "family": "Claude",
+      "lineBytes": 4096,
+      "matchEvery": 10,
+      "bytes": 4194304,
+      "checksum": 1303362,
+      "samplesMs": {
+        "release": [
+          8.885083,
+          13.094972,
+          10.730583,
+          9.163986,
+          9.230514
+        ],
+        "rust": [
+          0.400208,
+          0.39625,
+          0.40625,
+          0.426652,
+          0.408861
+        ],
+        "previous": [
+          1.963666,
+          2.032333,
+          2.137319,
+          2.089486,
+          2.042791
+        ]
+      },
+      "medianMs": {
+        "release": 9.230514,
+        "rust": 0.40625,
+        "previous": 2.042791
+      }
+    },
+    {
+      "family": "Claude",
+      "lineBytes": 65536,
+      "matchEvery": 1,
+      "bytes": 4194304,
+      "checksum": 12606336,
+      "samplesMs": {
+        "release": [
+          7.829944,
+          7.818847,
+          8.055833,
+          7.56775,
+          7.595514
+        ],
+        "rust": [
+          0.309208,
+          0.310416,
+          0.306278,
+          0.31975,
+          0.304888
+        ],
+        "previous": [
+          0.644764,
+          0.661958,
+          0.644722,
+          0.658153,
+          0.651444
+        ]
+      },
+      "medianMs": {
+        "release": 7.818847,
+        "rust": 0.309208,
+        "previous": 0.651444
+      }
+    }
+  ],
+  "harness": "INCONCLUSIVE"
+}
