@@ -141,6 +141,12 @@ actor SQLiteDatabase {
     private let databaseByteLimit: Int64
     private let sourceFingerprintKeyData: Data
     private var connection: SQLiteConnection?
+#if CODERIM_RUST_ACCOUNTING
+    private struct CheckpointCursor: @unchecked Sendable {
+        var value = cr_source_checkpoint_cursor()
+    }
+    private var checkpointCursor = CheckpointCursor()
+#endif
 
     private struct ReadRevision: Equatable {
         let localChanges: Int64
@@ -232,12 +238,34 @@ actor SQLiteDatabase {
     }
 
     deinit {
+#if CODERIM_RUST_ACCOUNTING
+        if let statement = checkpointCursor.value.statement { sqlite3_finalize(OpaquePointer(statement)) }
+#endif
         if let connection {
             sqlite3_close(connection.rawValue)
         }
     }
 
     func checkpoint(for sourcePath: String) throws -> SourceCheckpoint? {
+#if CODERIM_RUST_ACCOUNTING
+        guard let connection else { throw SQLiteDatabaseError.statement("database is closed") }
+        var key = sourcePath
+        let status = key.withUTF8 { bytes in
+            cr_begin_source_checkpoint(UnsafeMutableRawPointer(connection.rawValue), &checkpointCursor.value,
+                                       bytes.baseAddress, bytes.count)
+        }
+        defer { cr_finish_source_checkpoint(&checkpointCursor.value, status) }
+        switch status {
+        case SQLITE_DONE: return nil
+        case -2: throw SQLiteDatabaseError.statement("text value is not safe to store")
+        case -1, -3: throw SQLiteDatabaseError.statement(errorMessage)
+        case SQLITE_ROW: break
+        default: throw SQLiteDatabaseError.step(errorMessage)
+        }
+        guard let statement = OpaquePointer(checkpointCursor.value.statement) else {
+            throw SQLiteDatabaseError.step(errorMessage)
+        }
+#else
         let statement = try prepare(
             """
             SELECT file_identity, generation, committed_offset, skipping_oversized_line,
@@ -253,37 +281,36 @@ actor SQLiteDatabase {
         try bind(sourcePath, at: 1, to: statement)
 
         switch sqlite3_step(statement) {
-        case SQLITE_ROW:
-            return SourceCheckpoint(
-                sourcePath: sourcePath,
-                fileIdentity: text(statement, column: 0) ?? "",
-                generation: sqlite3_column_int64(statement, 1),
-                committedOffset: sqlite3_column_int64(statement, 2),
-                isSkippingOversizedLine: sqlite3_column_int(statement, 3) != 0,
-                observedSize: sqlite3_column_int64(statement, 4),
-                modificationTimeNanoseconds: sqlite3_column_int64(statement, 5),
-                contentFingerprint: text(statement, column: 6) ?? "",
-                hasPendingImport: sqlite3_column_int(statement, 7) != 0,
-                sessionID: text(statement, column: 8),
-                inheritsHistory: sqlite3_column_int(statement, 9) != 0,
-                sessionStartedAt: sqlite3_column_type(statement, 10) == SQLITE_NULL
-                    ? nil
-                    : Date(timeIntervalSince1970: sqlite3_column_double(statement, 10)),
-                inheritedHistoryEndOrdinal: sqlite3_column_type(statement, 11) == SQLITE_NULL
-                    ? nil
-                    : sqlite3_column_int64(statement, 11),
-                historyReplayComplete: sqlite3_column_int(statement, 12) != 0,
-                model: text(statement, column: 13),
-                projectPath: text(statement, column: 14),
-                parentSessionID: text(statement, column: 15),
-                projectName: text(statement, column: 16),
-                imageAttachmentCount: sqlite3_column_int64(statement, 17)
-            )
-        case SQLITE_DONE:
-            return nil
-        default:
-            throw SQLiteDatabaseError.step(errorMessage)
+        case SQLITE_DONE: return nil
+        case SQLITE_ROW: break
+        default: throw SQLiteDatabaseError.step(errorMessage)
         }
+#endif
+        return SourceCheckpoint(
+            sourcePath: sourcePath,
+            fileIdentity: text(statement, column: 0) ?? "",
+            generation: sqlite3_column_int64(statement, 1),
+            committedOffset: sqlite3_column_int64(statement, 2),
+            isSkippingOversizedLine: sqlite3_column_int(statement, 3) != 0,
+            observedSize: sqlite3_column_int64(statement, 4),
+            modificationTimeNanoseconds: sqlite3_column_int64(statement, 5),
+            contentFingerprint: text(statement, column: 6) ?? "",
+            hasPendingImport: sqlite3_column_int(statement, 7) != 0,
+            sessionID: text(statement, column: 8),
+            inheritsHistory: sqlite3_column_int(statement, 9) != 0,
+            sessionStartedAt: sqlite3_column_type(statement, 10) == SQLITE_NULL
+                ? nil
+                : Date(timeIntervalSince1970: sqlite3_column_double(statement, 10)),
+            inheritedHistoryEndOrdinal: sqlite3_column_type(statement, 11) == SQLITE_NULL
+                ? nil
+                : sqlite3_column_int64(statement, 11),
+            historyReplayComplete: sqlite3_column_int(statement, 12) != 0,
+            model: text(statement, column: 13),
+            projectPath: text(statement, column: 14),
+            parentSessionID: text(statement, column: 15),
+            projectName: text(statement, column: 16),
+            imageAttachmentCount: sqlite3_column_int64(statement, 17)
+        )
     }
 
     func sourceFingerprintKey() -> Data {

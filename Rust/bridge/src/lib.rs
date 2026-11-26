@@ -63,6 +63,8 @@ mod source_fingerprint;
 #[cfg(target_os = "macos")]
 mod sqlite_analytics;
 #[cfg(target_os = "macos")]
+mod sqlite_checkpoint;
+#[cfg(target_os = "macos")]
 mod sqlite_event_import;
 #[cfg(target_os = "macos")]
 mod sqlite_legacy_ids;
