@@ -205,6 +205,7 @@ def compare(root, folder, release, current):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--arch", required=True, choices=("x64", "arm64"))
     parser.add_argument("--reference-source", required=True, type=Path)
     parser.add_argument("--library", required=True, type=Path)
     parser.add_argument("--probe", required=True, type=Path)
@@ -235,6 +236,7 @@ def main():
     combined = {**account, "previewSeedClock": seed_clock, "views": views, "fixtureErrors": errors}
     args.output.write_text(json.dumps(combined, indent=2) + "\n", encoding="utf-8")
     different = []
+    missing = []
     for name, record in (("account", account), *views.items()):
         print(name, json.dumps({k: v for k, v in record.items() if k not in ("release", "candidate")}))
         if any(record[k] is False for k in ("clientSizeEqual", "clientPositionEqual", "physicalPixelsEqual",

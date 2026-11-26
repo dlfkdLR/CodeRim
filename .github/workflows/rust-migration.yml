@@ -435,7 +435,7 @@ jobs:
             dotnet build Windows/tests/CodeRim.WindowCapture -c Release -o $probeDirectory
             if ($LASTEXITCODE) { exit $LASTEXITCODE }
           }
-          python Windows/tests/CodeRim.WindowCapture/source_pair.py --reference-source .migration-display-oracle --library "$library" --probe "$probe" --output "Artifacts/windows-source-frame-pair.json"
+          python Windows/tests/CodeRim.WindowCapture/source_pair.py --arch ${{ matrix.arch }} --reference-source .migration-display-oracle --library "$library" --probe "$probe" --output "Artifacts/windows-source-frame-pair.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
