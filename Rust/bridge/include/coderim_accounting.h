@@ -2,6 +2,7 @@
 #define CODERIM_ACCOUNTING_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 typedef struct {
     int64_t input, cached, output, written, has_written;
@@ -83,6 +84,11 @@ cr_increment_counts cr_try_token_increment(cr_increment_counts previous,
                                            int32_t both_writes_known);
 cr_result cr_normalize_apple(cr_state state, cr_observation sample);
 cr_result_ticks cr_normalize_windows(cr_state_ticks state, cr_observation_ticks sample);
+/* Append an already formatted opt-in diagnostic record to the owned log directory. */
+#ifdef __APPLE__
+int32_t cr_append_diagnostic_line(const char *directory, const uint8_t *line, size_t length);
+#endif
+
 #ifdef __cplusplus
 }
 #endif

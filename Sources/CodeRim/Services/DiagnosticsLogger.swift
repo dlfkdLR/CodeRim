@@ -1,5 +1,8 @@
 import CodeRimUsageCore
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 enum DiagnosticEvent: Sendable {
     case refreshStarted
@@ -33,12 +36,23 @@ enum DiagnosticEvent: Sendable {
 actor DiagnosticsLogger {
     static let shared = DiagnosticsLogger()
 
+#if !CODERIM_RUST_ACCOUNTING
     private let maximumLogBytes: Int64 = 1_048_576
     private let fileManager = FileManager.default
+#endif
 
     func record(_ event: DiagnosticEvent) {
         guard UserDefaults.standard.bool(forKey: "debugLogging") else { return }
 
+#if CODERIM_RUST_ACCOUNTING
+        let directory = AppPaths.logDirectory
+        var line = "\(Date().ISO8601Format()) \(event.message)\n"
+        directory.withUnsafeFileSystemRepresentation { path in
+            line.withUTF8 { bytes in
+                _ = cr_append_diagnostic_line(path, bytes.baseAddress, bytes.count)
+            }
+        }
+#else
         do {
             try prepareDirectory()
             let logURL = AppPaths.logDirectory.appendingPathComponent("CodeRim.log")
@@ -55,8 +69,10 @@ actor DiagnosticsLogger {
         } catch {
             // Diagnostics must never affect metering or surface sensitive error text.
         }
+#endif
     }
 
+#if !CODERIM_RUST_ACCOUNTING
     private func prepareDirectory() throws {
         try fileManager.createDirectory(at: AppPaths.logDirectory, withIntermediateDirectories: true)
         try fileManager.setAttributes(
@@ -75,4 +91,5 @@ actor DiagnosticsLogger {
         try fileManager.moveItem(at: logURL, to: archived)
         try fileManager.setAttributes([.posixPermissions: 0o600], ofItemAtPath: archived.path)
     }
+#endif
 }

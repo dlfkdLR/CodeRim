@@ -21,6 +21,8 @@ mod claude_json;
 mod companion_export;
 #[cfg(target_os = "macos")]
 mod copilot_quota;
+#[cfg(target_os = "macos")]
+mod diagnostic_log;
 #[cfg(any(target_os = "ios", target_os = "macos", test))]
 mod digest_text;
 mod event_json;
