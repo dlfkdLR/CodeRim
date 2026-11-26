@@ -77,7 +77,9 @@ def check(options, work):
     stable = options.stable_source.resolve()
     require(subprocess.check_output(["git", "-C", str(stable), "rev-parse", "HEAD"],
                                     text=True).strip() == STABLE_COMMIT, "Expected the 2.1.41 source commit.")
-    subprocess.run(["git", "-C", str(stable), "diff", "--quiet", "HEAD", "--", "Windows", "Sources"], check=True)
+    changes = subprocess.check_output(["git", "-C", str(stable), "status", "--porcelain",
+                                       "--untracked-files=all", "--", "Windows", "Sources"], text=True)
+    require(not changes, "The stable Windows build inputs have local changes.")
     library = options.library.resolve(strict=True)
     drivers = {"stable": build(options.dotnet, stable, work / "stable"),
                "candidate": build(options.dotnet, ROOT, work / "candidate", library)}
