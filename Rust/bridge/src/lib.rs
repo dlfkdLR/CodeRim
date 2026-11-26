@@ -29,6 +29,8 @@ mod sqlite_periods;
 #[cfg(target_os = "macos")]
 mod storage_identity;
 mod token_json;
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
+mod windows_companion;
 
 use coderim_usage_core::{
     Diagnostic, Observation, Quality, State, TokenUsage, ZeroPolicy, normalize,

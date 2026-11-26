@@ -80,7 +80,7 @@ static async Task<int> RunAsync(string[] arguments)
         Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
         do
         {
-            var snapshot = CompanionFile.Read(path);
+            var snapshot = CompanionFile.ReadForCli(path);
             var providers = snapshot.Providers.Where(x => x.Enabled && (provider is null || x.Id == provider)).ToArray();
             if (provider is not null && providers.Length == 0) throw new InvalidDataException("This provider is not enabled in the snapshot.");
             if (format == "json")

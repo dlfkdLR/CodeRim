@@ -30,26 +30,43 @@ public static class CompanionFile
     public static string DataDirectory => Environment.GetEnvironmentVariable("CODERIM_DATA_DIR")
         ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "CodeRim");
     public static string SnapshotPath => Path.Combine(DataDirectory, "snapshot.json");
-    public static CompanionSnapshot Read(string? path = null)
+    public static CompanionSnapshot Read(string? path = null) => ReadCore(path, forCli: false);
+    public static CompanionSnapshot ReadForCli(string? path = null) => ReadCore(path, forCli: true);
+
+    private static CompanionSnapshot ReadCore(string? path, bool forCli)
     {
         path ??= SnapshotPath;
         // Delete sharing lets an atomic replacement publish while this reader
         // finishes the previous immutable snapshot. Size checks bind to this handle.
         using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
-        if (input.Length > MaximumBytes) throw new InvalidDataException("Snapshot is too large.");
+        var length = input.Length;
+        if (length > MaximumBytes) throw new InvalidDataException("Snapshot is too large.");
+#if CODERIM_RUST_ACCOUNTING
+        var capacity = forCli ? checked((int)length) : 0;
+        using var bytes = new MemoryStream(capacity);
+        var buffer = new byte[forCli ? Math.Clamp(capacity, 4096, 65536) : 65536];
+#else
         using var bytes = new MemoryStream();
         var buffer = new byte[65536];
+#endif
         int read;
         while ((read = input.Read(buffer, 0, buffer.Length)) != 0)
         {
             if (bytes.Length + read > MaximumBytes) throw new InvalidDataException("Snapshot is too large.");
             bytes.Write(buffer, 0, read);
         }
-        bytes.Position = 0;
-        // Preserve ReadAllText's existing UTF BOM detection for legacy snapshots.
-        using var text = new StreamReader(bytes, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
-        var result = JsonSerializer.Deserialize<CompanionSnapshot>(text.ReadToEnd(), JsonOptions)
-            ?? throw new InvalidDataException("Snapshot is empty.");
+        CompanionSnapshot? result = null;
+#if CODERIM_RUST_ACCOUNTING
+        if (forCli) result = RustCompanionSnapshot.TryRead(bytes.GetBuffer().AsSpan(0, checked((int)bytes.Length)));
+#endif
+        if (result is null)
+        {
+            bytes.Position = 0;
+            // Preserve ReadAllText's UTF BOM detection and the typed Windows error contract.
+            using var text = new StreamReader(bytes, System.Text.Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            result = JsonSerializer.Deserialize<CompanionSnapshot>(text.ReadToEnd(), JsonOptions)
+                ?? throw new InvalidDataException("Snapshot is empty.");
+        }
         Validate(result);
         var now = DateTimeOffset.Now;
         return result with { Providers = result.Providers.Select(p => p with
