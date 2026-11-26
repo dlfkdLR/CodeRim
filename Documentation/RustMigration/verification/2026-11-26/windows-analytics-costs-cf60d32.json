@@ -1,0 +1,359 @@
+{
+  "run": 45772092752,
+  "url": "https://github.com/dlfkdLR/CodeRim/actions/runs/45772092752",
+  "commit": "cf60d32770bbcc68d0f680089d57e8e474005619",
+  "protocol": "Each actual Windows runner opened a synthetic database seeded by the released v2.1.41 product and compared its full cost, exclusions, ranking, and derived timeline with the Rust default. Timings are medians of seven alternating runs and allocations are managed bytes per estimate or set of session estimates.",
+  "previousRun": {
+    "run": 45768792708,
+    "commit": "ff9110da62b703f093a796a25aa061e155a74bef",
+    "x64Mixed4096": {
+      "name": "sqlite-mixed-4096",
+      "release": {
+        "ns": 443295,
+        "bytes": 122184
+      },
+      "rust": {
+        "ns": 473650,
+        "bytes": 69256
+      }
+    }
+  },
+  "platforms": {
+    "arm64": {
+      "matchingPinnedTimeZones": [
+        "America/Los_Angeles"
+      ],
+      "artifactId": 15095246064,
+      "artifactSha256": "sha256:5e098be455dfdef2ed15731a8d6c5065204521a53e2fced0f1dc545e8e5346bb",
+      "jobId": 139746922478,
+      "comparisonRecords": 1481,
+      "referenceSha256": "71f1d42ddf656bb9464478324530fd894a768fa91621323f3fc8883484235207",
+      "librarySha256": "2104947f8dbcb4650d95b1039a1462448e7ab9f7abf55d71e0f7bafac5cdd07d",
+      "summary": [
+        {
+          "name": "one-model-0",
+          "release": {
+            "ns": 250.625,
+            "bytes": 208
+          },
+          "rust": {
+            "ns": 80,
+            "bytes": 56
+          }
+        },
+        {
+          "name": "one-model-1",
+          "release": {
+            "ns": 1231.875,
+            "bytes": 976
+          },
+          "rust": {
+            "ns": 1253.75,
+            "bytes": 976
+          }
+        },
+        {
+          "name": "one-model-31",
+          "release": {
+            "ns": 5570.625,
+            "bytes": 2664
+          },
+          "rust": {
+            "ns": 5515,
+            "bytes": 2664
+          }
+        },
+        {
+          "name": "one-model-32",
+          "release": {
+            "ns": 29185,
+            "bytes": 2664
+          },
+          "rust": {
+            "ns": 3603.125,
+            "bytes": 1176
+          }
+        },
+        {
+          "name": "one-model-128",
+          "release": {
+            "ns": 16487.5,
+            "bytes": 6648
+          },
+          "rust": {
+            "ns": 34763.125,
+            "bytes": 2760
+          }
+        },
+        {
+          "name": "sqlite-mixed-128",
+          "release": {
+            "ns": 21950.625,
+            "bytes": 9160
+          },
+          "rust": {
+            "ns": 21948.75,
+            "bytes": 9160
+          }
+        },
+        {
+          "name": "one-model-1024",
+          "release": {
+            "ns": 143075.625,
+            "bytes": 42704
+          },
+          "rust": {
+            "ns": 40064.375,
+            "bytes": 552
+          }
+        },
+        {
+          "name": "sqlite-mixed-1024",
+          "release": {
+            "ns": 102180.625,
+            "bytes": 35400
+          },
+          "rust": {
+            "ns": 48861.875,
+            "bytes": 1992
+          }
+        },
+        {
+          "name": "one-model-4096",
+          "release": {
+            "ns": 429220,
+            "bytes": 165728
+          },
+          "rust": {
+            "ns": 157795,
+            "bytes": 552
+          }
+        },
+        {
+          "name": "sqlite-mixed-4096",
+          "release": {
+            "ns": 422410,
+            "bytes": 122184
+          },
+          "rust": {
+            "ns": 190090,
+            "bytes": 1992
+          }
+        },
+        {
+          "name": "distinct-unpriced-4096",
+          "release": {
+            "ns": 2885770,
+            "bytes": 1158800
+          },
+          "rust": {
+            "ns": 1470370,
+            "bytes": 922436
+          }
+        },
+        {
+          "name": "distinct-unpriced-8300",
+          "release": {
+            "ns": 6235005,
+            "bytes": 2013302
+          },
+          "rust": {
+            "ns": 2887945,
+            "bytes": 1203465
+          }
+        },
+        {
+          "name": "repeated-unpriced-16600",
+          "release": {
+            "ns": 8058860,
+            "bytes": 2345302
+          },
+          "rust": {
+            "ns": 3606265,
+            "bytes": 1203465
+          }
+        },
+        {
+          "name": "sqlite-session-list-4096",
+          "release": {
+            "ns": 616795,
+            "bytes": 191576
+          },
+          "rust": {
+            "ns": 515540,
+            "bytes": 124696
+          }
+        }
+      ],
+      "costComparisonStep": "success"
+    },
+    "x64": {
+      "matchingPinnedTimeZones": [
+        "UTC"
+      ],
+      "artifactId": 15094882735,
+      "artifactSha256": "sha256:24ac90d9733f67dc06261742488aecdf247c32e0c4df442302b7f50ca932b1b1",
+      "jobId": 139746922517,
+      "comparisonRecords": 1481,
+      "referenceSha256": "c71bff8c910395f7bed9547bb3798fccc36aff2b5dcb592d5d38f2a41de95666",
+      "librarySha256": "cc3e40fe2e367d9ef9cebceaafb2e8c8fb5509d0f467986508b30c839095f673",
+      "summary": [
+        {
+          "name": "one-model-0",
+          "release": {
+            "ns": 193.75,
+            "bytes": 208
+          },
+          "rust": {
+            "ns": 65.625,
+            "bytes": 56
+          }
+        },
+        {
+          "name": "one-model-1",
+          "release": {
+            "ns": 1091.25,
+            "bytes": 976
+          },
+          "rust": {
+            "ns": 1070.625,
+            "bytes": 976
+          }
+        },
+        {
+          "name": "one-model-31",
+          "release": {
+            "ns": 5379.375,
+            "bytes": 2664
+          },
+          "rust": {
+            "ns": 5427.5,
+            "bytes": 2664
+          }
+        },
+        {
+          "name": "one-model-32",
+          "release": {
+            "ns": 5586.25,
+            "bytes": 2664
+          },
+          "rust": {
+            "ns": 3385.625,
+            "bytes": 1176
+          }
+        },
+        {
+          "name": "one-model-128",
+          "release": {
+            "ns": 16873.125,
+            "bytes": 6648
+          },
+          "rust": {
+            "ns": 10717.5,
+            "bytes": 2760
+          }
+        },
+        {
+          "name": "sqlite-mixed-128",
+          "release": {
+            "ns": 18890.625,
+            "bytes": 9160
+          },
+          "rust": {
+            "ns": 18910.625,
+            "bytes": 9160
+          }
+        },
+        {
+          "name": "one-model-1024",
+          "release": {
+            "ns": 149629.375,
+            "bytes": 42704
+          },
+          "rust": {
+            "ns": 49755,
+            "bytes": 552
+          }
+        },
+        {
+          "name": "sqlite-mixed-1024",
+          "release": {
+            "ns": 90946.25,
+            "bytes": 35400
+          },
+          "rust": {
+            "ns": 55666.875,
+            "bytes": 1992
+          }
+        },
+        {
+          "name": "one-model-4096",
+          "release": {
+            "ns": 422645,
+            "bytes": 165728
+          },
+          "rust": {
+            "ns": 196070,
+            "bytes": 552
+          }
+        },
+        {
+          "name": "sqlite-mixed-4096",
+          "release": {
+            "ns": 635080,
+            "bytes": 122184
+          },
+          "rust": {
+            "ns": 213195,
+            "bytes": 1992
+          }
+        },
+        {
+          "name": "distinct-unpriced-4096",
+          "release": {
+            "ns": 1635140,
+            "bytes": 1158800
+          },
+          "rust": {
+            "ns": 1256330,
+            "bytes": 922872
+          }
+        },
+        {
+          "name": "distinct-unpriced-8300",
+          "release": {
+            "ns": 4082035,
+            "bytes": 2013124
+          },
+          "rust": {
+            "ns": 2576260,
+            "bytes": 1203469
+          }
+        },
+        {
+          "name": "repeated-unpriced-16600",
+          "release": {
+            "ns": 6369290,
+            "bytes": 2345303
+          },
+          "rust": {
+            "ns": 3075715,
+            "bytes": 1203496
+          }
+        },
+        {
+          "name": "sqlite-session-list-4096",
+          "release": {
+            "ns": 460545,
+            "bytes": 191576
+          },
+          "rust": {
+            "ns": 398820,
+            "bytes": 124696
+          }
+        }
+      ],
+      "costComparisonStep": "success"
+    }
+  }
+}
