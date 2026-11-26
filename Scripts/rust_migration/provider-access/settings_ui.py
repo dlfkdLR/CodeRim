@@ -19,6 +19,13 @@ EXPECTED = {
     "Ollama Cloud": ("Enter Ollama key", "Save an Ollama API key"),
     "DeepSeek": ("Enter your DeepSeek API key", "Connection settings"),
     "Cursor": ("no verified CodeRim sign-in or API-key usage source",),
+    "OpenAI": ("Enter your OpenAI API key", "Connection settings"),
+    "Azure OpenAI": ("Allow potentially billed monitoring requests", "AZURE_OPENAI_ENDPOINT"),
+    "AWS Bedrock": ("Allow potentially billed monitoring requests", "Connection settings"),
+    "Doubao": ("Allow potentially billed monitoring requests", "Connection settings"),
+    "Wayfinder": ("Start the Wayfinder gateway", "WAYFINDER_GATEWAY_URL"),
+    "Augment": ("official Augment CLI",),
+    "Alibaba Token Plan": ("official Bailian CLI",),
 }
 BANNED = ("Signed in to the Codex app", "Switch accounts in the tool that owns it", "Switch accounts in Ollama")
 
@@ -45,9 +52,15 @@ def main():
         policy = profile / "fixture.sb"
         policy.write_text(PROFILE)
         result = {"sha256": digest, "navigation": [], "mismatches": []}
-        for launch, names in enumerate([list(EXPECTED), ["Codex", "DeepSeek"]], 1):
-            options = ["-AppleLanguages", "(en)", "-notchSelectedProviders", "codex,claude,copilot,ollama,deepseek,cursor"]
-            with isolated_process(binary, profile, policy, options) as (proc, _, _):
+        groups = [
+            ("codex,claude,ollama,deepseek,cursor,copilot", ["Codex", "Claude Code", "Ollama Cloud", "DeepSeek", "Cursor"]),
+            ("openai,azureopenai,bedrock,doubao", ["OpenAI", "Azure OpenAI", "AWS Bedrock", "Doubao"]),
+            ("wayfinder,augment,alibabatokenplan", ["Wayfinder", "Augment", "Alibaba Token Plan"]),
+            ("codex,deepseek", ["Codex", "DeepSeek"]),
+        ]
+        for launch, (providers, names) in enumerate(groups, start=1):
+            launch_args = ["-AppleLanguages", "(en)", "-notchSelectedProviders", providers]
+            with isolated_process(binary, profile, policy, launch_args) as (proc, _, _):
                 def observe(*args):
                     if proc.poll() is not None:
                         raise RuntimeError("Disposable app exited before observation")
@@ -55,7 +68,7 @@ def main():
 
                 def await_tree(marker):
                     for _ in range(40):
-                        tree = observe("tree")
+                        tree = observe("connection-tree")
                         if marker in tree:
                             return tree
                         time.sleep(0.1)
@@ -65,7 +78,8 @@ def main():
                 observe("open")
                 observe("select", "Providers")
                 initial = await_tree("Add Provider")
-                if "GitHub Copilot, Not connected" not in initial:
+                (args.output / f"launch-{launch}-list.ax.txt").write_text(initial)
+                if launch == 1 and "GitHub Copilot, Not connected" not in initial:
                     result["mismatches"].append("GitHub Copilot row missing")
                 for name in names:
                     observe("connection", name)

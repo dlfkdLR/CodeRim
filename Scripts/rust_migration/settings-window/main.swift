@@ -93,21 +93,27 @@ if command == "open" {
   fail("Command-comma did not expose a Settings window")
 }
 guard let window = settingsWindow() else { fail("Owned settings window not found") }
-if command == "tree" {
+if command == "tree" || command == "connection-tree" {
   walk(window, maxDepth: 15) { node, depth in
     let role = text(node, kAXRoleAttribute)
     let title = text(node, kAXTitleAttribute)
     let detail = text(node, kAXDescriptionAttribute)
-    let value = text(node, kAXValueAttribute)
-    print([String(depth), role, title, detail, value].joined(separator: "|"))
+    if command == "connection-tree", role == "AXTextField" {
+      print([String(depth), role, title, detail, text(node, kAXIdentifierAttribute),
+             text(node, kAXPlaceholderValueAttribute)].joined(separator: "|"))
+    } else {
+      let value = text(node, kAXValueAttribute)
+      print([String(depth), role, title, detail, value].joined(separator: "|"))
+    }
   }
 } else if command == "connection" {
   guard CommandLine.arguments.count == 5 else { fail("Missing connection row") }
   let name = CommandLine.arguments[4]
+  guard ["Codex", "Claude Code", "Ollama Cloud", "DeepSeek", "Cursor", "OpenAI", "Azure OpenAI", "AWS Bedrock",
+         "Doubao", "Wayfinder", "Augment", "Alibaba Token Plan", "All Providers"].contains(name)
+  else { fail("Unexpected connection action") }
   // These row actions stay inside the owned Settings window. Official sign-in and key mutations
   // have their own isolated transport/store tests.
-  guard ["Codex", "Claude Code", "Ollama Cloud", "DeepSeek", "Cursor", "All Providers"].contains(name)
-  else { fail("Unexpected connection row") }
   var buttons: [AXUIElement] = []
   walk(window, maxDepth: 22) { node, _ in
     guard text(node, kAXRoleAttribute) == "AXButton" else { return }
