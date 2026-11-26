@@ -15,6 +15,21 @@ class Coord(ctypes.Structure):
     _fields_ = [('x', ctypes.c_short), ('y', ctypes.c_short)]
 
 
+class CharInfo(ctypes.Structure):
+    _fields_ = [('code_unit', ctypes.c_uint16), ('attributes', ctypes.c_uint16)]
+
+
+class Rectangle(ctypes.Structure):
+    _fields_ = [('left', ctypes.c_short), ('top', ctypes.c_short),
+                ('right', ctypes.c_short), ('bottom', ctypes.c_short)]
+
+
+def screen_text(raw):
+    cells = (CharInfo * (len(raw) // ctypes.sizeof(CharInfo))).from_buffer_copy(raw)
+    units = (ctypes.c_uint16 * len(cells))(*(cell.code_unit for cell in cells))
+    return bytes(units).decode('utf-16-le', errors='surrogatepass')
+
+
 class BufferInfo(ctypes.Structure):
     _fields_ = [('size', Coord), ('cursor', Coord), ('attributes', wintypes.WORD),
                 ('window', ctypes.c_short * 4), ('maximum', Coord)]
@@ -46,7 +61,9 @@ def run(legacy, native, snapshot, result):
     set_page = api('SetConsoleOutputCP', [wintypes.UINT])
     cursor = api('SetConsoleCursorPosition', [handle, Coord])
     fill = api('FillConsoleOutputCharacterW', [handle, wintypes.WCHAR, dword, Coord, number])
-    read = api('ReadConsoleOutputCharacterW', [handle, ctypes.c_void_p, dword, Coord, number])
+    fill_attributes = api('FillConsoleOutputAttribute', [handle, wintypes.WORD, dword, Coord, number])
+    read = api('ReadConsoleOutputW', [handle, ctypes.POINTER(CharInfo), Coord, Coord,
+                                     ctypes.POINTER(Rectangle)])
     dimensions = api('GetConsoleScreenBufferInfo', [handle, ctypes.POINTER(BufferInfo)])
     send = api('GenerateConsoleCtrlEvent', [dword, dword])
     import msvcrt
@@ -58,18 +75,24 @@ def run(legacy, native, snapshot, result):
         out = handle(msvcrt.get_osfhandle(output))
         info = BufferInfo()
         checked(dimensions(out, ctypes.byref(info)))
-        size = min(8, info.size.y) * info.size.x
+        width, height = info.size.x, min(8, info.size.y)
+        size = width * height
         def clear():
             count = dword()
             checked(fill(out, ' ', size, Coord(0, 0), ctypes.byref(count)))
             assert count.value == size
+            checked(fill_attributes(out, info.attributes, size, Coord(0, 0), ctypes.byref(count)))
+            assert count.value == size
             checked(cursor(out, Coord(0, 0)))
         def cells():
-            count = dword()
-            # Capture raw UTF-16 units, including surrogate pairs and padding cells.
-            buf = (ctypes.c_uint16 * size)()
-            checked(read(out, buf, size, Coord(0, 0), ctypes.byref(count)))
-            assert count.value == size
+            # Wide glyphs can occupy multiple screen cells. Read both the UTF-16
+            # unit and its attributes (including leading/trailing cell flags).
+            region = Rectangle(0, 0, width - 1, height - 1)
+            buf = (CharInfo * size)()
+            checked(read(out, buf, Coord(width, height), Coord(0, 0), ctypes.byref(region)))
+            actual = (region.left, region.top, region.right, region.bottom)
+            if actual != (0, 0, width - 1, height - 1):
+                raise RuntimeError(f'Expected {width} by {height} console cells, received {actual}')
             return bytes(buf)
         rows = {}
         for page in (437, 949, 65001):
@@ -86,7 +109,7 @@ def run(legacy, native, snapshot, result):
                                                stderr=output, timeout=20)
                     assert completed.returncode == expected
                     raw = cells()
-                    assert raw.decode('utf-16-le', errors='surrogatepass').strip()
+                    assert screen_text(raw).strip()
                     pair.append(raw)
                 if pair[0] != pair[1]:
                     index = next(i for i in range(len(pair[0])) if pair[0][i] != pair[1][i])
@@ -103,7 +126,7 @@ def run(legacy, native, snapshot, result):
             try:
                 end = time.monotonic() + 12
                 while time.monotonic() < end and child.poll() is None:
-                    if 'tokens' in cells().decode('utf-16-le', errors='surrogatepass'):
+                    if 'tokens' in screen_text(cells()):
                         break
                     time.sleep(.025)
                 else:
