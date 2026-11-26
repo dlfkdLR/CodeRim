@@ -15,6 +15,9 @@ let package = Package(
     dependencies: [
         .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6"),
         .package(url: "https://github.com/steipete/SweetCookieKit", exact: "0.5.3"),
+        // The pinned provider uses the Crypto product. Select Apple's patched 5.0.3
+        // revision while preserving that provider's usage and account behavior.
+        .package(url: "https://github.com/apple/swift-crypto.git", revision: "c2cbadd7263439d8015189668f96ff5b5be565ce"),
         .package(url: "https://github.com/steipete/CodexBar", revision: "51ed16bdd3abe35ec53af99818e1b5f0d2a631d3")
     ],
     targets: [
@@ -29,6 +32,7 @@ let package = Package(
                 "CodeRimShared",
                 "CodeRimUsageCore",
                 "CSQLite",
+                .product(name: "Crypto", package: "swift-crypto"),
                 .product(name: "CodexBarCore", package: "CodexBar"),
                 .product(name: "SweetCookieKit", package: "SweetCookieKit"),
                 .product(name: "Sparkle", package: "Sparkle")
