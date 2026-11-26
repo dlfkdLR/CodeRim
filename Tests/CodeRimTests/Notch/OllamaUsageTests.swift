@@ -200,7 +200,9 @@ final class NotchKeychainTests: XCTestCase {
         XCTAssertEqual(OllamaCredentials.load(environment: [:], service: service), "ollama_pasted")
         XCTAssertEqual(OllamaCredentials.load(environment: ["OLLAMA_API_KEY": "synthetic-env"],
                                               service: service), "synthetic-env")
-        XCTAssertTrue(OllamaCredentials.store("  ", service: service))
+        XCTAssertFalse(OllamaCredentials.store("  ", service: service))
+        XCTAssertEqual(OllamaCredentials.load(environment: [:], service: service), "ollama_pasted")
+        XCTAssertTrue(OllamaCredentials.delete(service: service))
         XCTAssertNil(OllamaCredentials.load(environment: [:], service: service))
     }
 }

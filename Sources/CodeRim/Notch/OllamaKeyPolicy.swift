@@ -6,7 +6,7 @@ import CCodeRimAccounting
 enum OllamaKeyPolicy {
     enum Intent: UInt8 { case resolve, submit, remove, assign }
     enum Operation: UInt8 { case none, environment, readStored, write, remove }
-    enum Display: UInt8 { case keep, stored, absent }
+    enum Display: UInt8 { case keep, stored, absent, saveFailed, removeFailed }
 
     struct Plan {
         let operation: Operation
@@ -26,14 +26,14 @@ enum OllamaKeyPolicy {
         switch intent {
         case .resolve:
             return Plan(operation: hasInput ? .environment : .readStored, onSuccess: .keep, onFailure: .keep)
-        case .submit where !hasInput:
-            return Plan(operation: .none, onSuccess: .keep, onFailure: .keep)
-        case .submit:
-            return Plan(operation: hasTrimmedInput ? .write : .remove, onSuccess: .stored, onFailure: .keep)
+        case .submit where hasTrimmedInput:
+            return Plan(operation: .write, onSuccess: .stored, onFailure: .saveFailed)
         case .remove:
-            return Plan(operation: .remove, onSuccess: .absent, onFailure: .absent)
-        case .assign:
-            return Plan(operation: hasTrimmedInput ? .write : .remove, onSuccess: .keep, onFailure: .keep)
+            return Plan(operation: .remove, onSuccess: .absent, onFailure: .removeFailed)
+        case .assign where hasTrimmedInput:
+            return Plan(operation: .write, onSuccess: .keep, onFailure: .keep)
+        case .submit, .assign:
+            return Plan(operation: .none, onSuccess: .keep, onFailure: .keep)
         }
 #endif
     }
@@ -41,6 +41,10 @@ enum OllamaKeyPolicy {
     static func resolve(environmentKey: String?, readStored: () -> String?) -> String? {
         let source = plan(.resolve, hasInput: environmentKey?.isEmpty == false)
         return source.operation == .environment ? environmentKey : readStored()
+    }
+
+    static func canSubmit(_ draft: String) -> Bool {
+        !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     static func edit(_ intent: Intent, draft: String, write: (String) -> Bool, remove: () -> Bool)

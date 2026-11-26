@@ -15,6 +15,8 @@ enum Display {
     Keep,
     Stored,
     Absent,
+    SaveFailed,
+    RemoveFailed,
 }
 #[repr(C)]
 pub struct Plan {
@@ -25,7 +27,7 @@ pub struct Plan {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn cr_ollama_key_decide(intent: u8, has_input: u8, has_trimmed_input: u8) -> Plan {
-    use Display::{Absent, Keep, Stored};
+    use Display::{Absent, Keep, RemoveFailed, SaveFailed, Stored};
     use Operation::{Environment, None, ReadStored, Remove, Write};
     let (operation, on_success, on_failure) = match intent {
         0 => (
@@ -37,26 +39,9 @@ pub extern "C" fn cr_ollama_key_decide(intent: u8, has_input: u8, has_trimmed_in
             Keep,
             Keep,
         ), // source
-        1 if has_input == 0 => (None, Keep, Keep), // submit from the settings row
-        1 => (
-            if has_trimmed_input != 0 {
-                Write
-            } else {
-                Remove
-            },
-            Stored,
-            Keep,
-        ),
-        2 => (Remove, Absent, Absent), // the released Remove action clears the displayed state
-        3 => (
-            if has_trimmed_input != 0 {
-                Write
-            } else {
-                Remove
-            },
-            Keep,
-            Keep,
-        ), // direct setter
+        1 if has_trimmed_input != 0 => (Write, Stored, SaveFailed), // user submitted a key
+        2 => (Remove, Absent, RemoveFailed),
+        3 if has_trimmed_input != 0 => (Write, Keep, Keep), // direct setter
         _ => (None, Keep, Keep),
     };
     Plan {

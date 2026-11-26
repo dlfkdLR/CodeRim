@@ -31,6 +31,7 @@ struct NotchSettingsView: View {
 
     @State private var ollamaKeyDraft = ""
     @State private var ollamaKeyStored = false
+    @State private var ollamaKeyFeedback: String?
     @State private var ollamaEnvActive = false
 
 
@@ -246,7 +247,7 @@ struct NotchSettingsView: View {
                         .onSubmit(saveOllamaKey)
                 }
                 SettingsButtonRow(title: ollamaKeyStored ? "Replace" : "Save",
-                                  isEnabled: !ollamaKeyDraft.isEmpty, action: saveOllamaKey)
+                                  isEnabled: OllamaKeyPolicy.canSubmit(ollamaKeyDraft), action: saveOllamaKey)
                 if ollamaKeyStored {
                     SettingsButtonRow(title: "Remove", role: .destructive) {
                         editOllamaKey(.remove)
@@ -254,6 +255,7 @@ struct NotchSettingsView: View {
                 }
             }
             .disabled(!showEdgeNotch)
+            if let ollamaKeyFeedback { SettingsNote(ollamaKeyFeedback) }
             SettingsNote(ollamaEnvActive
                 ? "OLLAMA_API_KEY is set in the environment and takes precedence over a key entered here."
                 : "Kept in the login Keychain. The Ollama ring appears once a key is present.")
@@ -278,8 +280,18 @@ struct NotchSettingsView: View {
         let result = OllamaCredentials.edit(intent, draft: ollamaKeyDraft)
         switch result.display {
         case .keep: return
-        case .stored: ollamaKeyStored = true
-        case .absent: ollamaKeyStored = false
+        case .saveFailed:
+            ollamaKeyFeedback = "The key could not be saved in Keychain. Try again."
+            return
+        case .removeFailed:
+            ollamaKeyFeedback = "The key could not be removed from Keychain. Try again."
+            return
+        case .stored:
+            ollamaKeyStored = true
+            ollamaKeyFeedback = "Ollama key saved."
+        case .absent:
+            ollamaKeyStored = false
+            ollamaKeyFeedback = "Ollama key removed."
         }
         ollamaKeyDraft = ""
     }
