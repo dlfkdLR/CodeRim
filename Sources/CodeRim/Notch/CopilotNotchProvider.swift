@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// Reads GitHub Copilot quotas from the endpoint its editors use. The token is
 /// borrowed from an existing `GH_TOKEN` / `GITHUB_TOKEN`, from GitHub CLI's
@@ -272,6 +275,9 @@ enum GitHubCopilotUsage {
     private static let order = ["premium_interactions", "chat", "completions"]
 
     static func windows(from data: Data) throws -> [LimitWindow] {
+        #if CODERIM_RUST_ACCOUNTING
+        if let projected = rustWindows(from: data) { return try metered(projected) }
+        #endif
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let quotas = root["quota_snapshots"] as? [String: Any]
         else { throw NotchProviderError.badResponse(status: 0) }
@@ -281,11 +287,55 @@ enum GitHubCopilotUsage {
             guard let quota = quotas[key] as? [String: Any] else { return nil }
             return window(id: key, quota: quota, root: root)
         }
+        return try metered(windows)
+    }
+
+    private static func metered(_ windows: [LimitWindow]) throws -> [LimitWindow] {
         guard !windows.isEmpty else {
             throw NotchProviderError.nothingMetered("GitHub Copilot reported no metered quotas")
         }
         return windows
     }
+
+    #if CODERIM_RUST_ACCOUNTING
+    private static func rustWindows(from data: Data) -> [LimitWindow]? {
+        data.withUnsafeBytes { (buffer: UnsafeRawBufferPointer) in
+            let bytes = buffer.bindMemory(to: UInt8.self)
+            return withUnsafeTemporaryAllocation(of: CRCopilotQuota.self, capacity: Int(CR_COPILOT_ROWS)) { rows in
+                rows.initialize(repeating: CRCopilotQuota())
+                defer { rows.deinitialize() }
+                var dates = CRCopilotDates()
+                let count = cr_copilot_quotas(bytes.baseAddress, bytes.count, rows.baseAddress, rows.count, &dates)
+                guard count >= 0 else { return nil }
+                func string(_ offset: Int, _ length: Int) -> String {
+                    String(decoding: bytes[offset..<(offset + length)], as: UTF8.self)
+                }
+                func resetDate(_ stamp: CRCopilotStamp) -> Date? {
+                    switch Int(stamp.kind) {
+                    case CR_COPILOT_DATE_STRING: return date(string(stamp.offset, stamp.length))
+                    case CR_COPILOT_DATE_NUMBER: return date(NSNumber(value: stamp.number))
+                    default: return nil
+                    }
+                }
+                // The shared root reset applies only when the quota itself has no usable date.
+                lazy var rootReset = resetDate(dates.utc) ?? resetDate(dates.day)
+                return rows.prefix(count).map { row in
+                    let id = string(row.id_offset, row.id_length)
+                    let reset = resetDate(row.stamp) ?? rootReset
+                    switch Int(row.kind) {
+                    case CR_COPILOT_FRACTION:
+                        return LimitWindow(id: id, label: label(for: id), usedFraction: row.fraction,
+                                           resetsAt: reset, duration: monthlyDuration(endingAt: reset))
+                    case CR_COPILOT_REMAINING:
+                        return LimitWindow(id: id, label: label(for: id), remaining: Int(row.amount), resetsAt: reset)
+                    default:
+                        return LimitWindow(id: id, label: label(for: id), used: Int(row.amount), resetsAt: reset)
+                    }
+                }
+            }
+        }
+    }
+    #endif
 
     private static func window(id: String, quota: [String: Any], root: [String: Any]) -> LimitWindow? {
         if (quota["unlimited"] as? Bool) == true { return nil }
