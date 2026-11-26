@@ -264,7 +264,13 @@ jobs:
           cmp Rust/cli/THIRD-PARTY-NOTICES.txt "$app/Contents/Resources/Rust-CLI-Notices.txt"
 
       - name: Verify offline install from the release ZIP and DMG
-        run: python3 Scripts/rust_migration/check_macos_package.py --require-rust-widget "$RUNNER_TEMP/rust-app/CodeRim.app" "$RUNNER_TEMP/migration-packages"
+        run: python3 Scripts/rust_migration/check_macos_package.py --require-rust-widget --require-restart-helper "$RUNNER_TEMP/rust-app/CodeRim.app" "$RUNNER_TEMP/migration-packages"
+      - name: Observe the production update restart callback and bounded AppKit veto
+        run: |
+          git fetch --no-tags --depth=1 origin 14c332b30fd35cd266b40a4f9384b4b065b63707
+          app="$RUNNER_TEMP/rust-app/CodeRim.app"
+          python3 Scripts/rust_migration/restart-contract/check.py --frameworks "$app/Contents/Frameworks" \
+            --helper "$app/Contents/Helpers/CodeRimRestart" --veto-timeout --output "$RUNNER_TEMP/migration-packages/restart.json"
       - name: Reopen published usage data across upgrade, rollback and backup replay
         run: |
           reference="$RUNNER_TEMP/published-v2.1.41"
@@ -282,6 +288,7 @@ jobs:
           path: |
             ${{ runner.temp }}/migration-packages/verified.json
             ${{ runner.temp }}/migration-packages/rollback.json
+            ${{ runner.temp }}/migration-packages/restart.json
           if-no-files-found: error
 
   windows-package:

@@ -106,6 +106,10 @@ if [[ -n "${CODERIM_MIGRATION_SYMBOLS_DIR:-}" ]]; then
 fi
 install -m 755 "${claude_bridge_path}" "${app_path}/Contents/Helpers/CodeRimClaudeBridge"
 install -m 755 "${cli_path}" "${app_path}/Contents/Helpers/CodeRimCLI"
+if [[ "${CODERIM_MIGRATION_RESTART:-0}" == "1" ]]; then
+  # Both modes share the same signed binary and Rust standard library.
+  ln -s CodeRimCLI "${app_path}/Contents/Helpers/CodeRimRestart"
+fi
 mkdir -p "${app_path}/Contents/PlugIns"
 ditto --norsrc --noextattr "${widget_path}" "${app_path}/Contents/PlugIns/CodeRimWidget.appex"
 install -m 644 "${project_root}/Assets/AppIcon.icns" "${app_path}/Contents/Resources/CodeRimOpenRim.icns"

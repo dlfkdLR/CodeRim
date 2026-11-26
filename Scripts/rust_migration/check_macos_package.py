@@ -17,7 +17,7 @@ def sha256(path):
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
 
-def verify_install(installed, original_hash, cli_version, widget_hash, require_rust_widget):
+def verify_install(installed, original_hash, cli_version, widget_hash, require_rust_widget, restart_hash):
     executable = installed / "Contents/MacOS/CodeRim"
     if sha256(executable) != original_hash:
         raise ValueError("Installed executable differs from the candidate")
@@ -25,8 +25,19 @@ def verify_install(installed, original_hash, cli_version, widget_hash, require_r
     widget = installed / "Contents/PlugIns/CodeRimWidget.appex/Contents/MacOS/CodeRimWidget"
     if sha256(widget) != widget_hash:
         raise ValueError("Installed widget differs from the candidate")
+    companions = [executable, widget]
+    if restart_hash:
+        restart = installed / "Contents/Helpers/CodeRimRestart"
+        if not restart.is_symlink() or os.readlink(restart) != "CodeRimCLI":
+            raise ValueError("Restart must launch the signed companion inside the same bundle")
+        if sha256(restart) != restart_hash or not os.access(restart, os.X_OK):
+            raise ValueError("Installed restart helper differs from the candidate")
+        subprocess.run(["codesign", "--verify", "--strict", restart], check=True)
+        if subprocess.run([restart], check=False).returncode != 64:
+            raise ValueError("Installed restart helper accepted an empty invocation")
+        companions.append(restart)
     for arch in ["arm64", "x86_64"]:
-        for binary in (executable, widget):
+        for binary in companions:
             subprocess.run(["lipo", binary, "-verify_arch", arch], check=True)
         if require_rust_widget:
             symbols = subprocess.check_output(["nm", "-arch", arch, "-gU", widget], text=True)
@@ -39,7 +50,7 @@ def verify_install(installed, original_hash, cli_version, widget_hash, require_r
         raise ValueError(f"Unexpected installed CLI version {version!r}")
     subprocess.run(["python3", ROOT / "Tests/Scripts/companion_cli_tests.py", cli], check=True)
     return {"executableSha256": original_hash, "widgetSha256": widget_hash,
-            "verifiedRustWidget": require_rust_widget, "version": version}
+            "restartHelperSha256": restart_hash, "verifiedRustWidget": require_rust_widget, "version": version}
 
 
 def main():
@@ -47,11 +58,14 @@ def main():
     parser.add_argument("app", type=Path)
     parser.add_argument("output", type=Path, help="new directory for archives and evidence")
     parser.add_argument("--require-rust-widget", action="store_true", help="verify the Rust timeline symbol in both slices")
+    parser.add_argument("--require-restart-helper", action="store_true")
     args = parser.parse_args()
     app = args.app.resolve(strict=True)
     info = plistlib.loads((app / "Contents/Info.plist").read_bytes())
     version = info["CFBundleShortVersionString"]
     cli_version = subprocess.check_output([app / "Contents/Helpers/CodeRimCLI", "--version"], text=True).strip()
+    restart = app / "Contents/Helpers/CodeRimRestart"
+    restart_hash = sha256(restart) if args.require_restart_helper or restart.exists() else None
     original_hash = sha256(app / "Contents/MacOS/CodeRim")
     output = args.output.resolve()
     output.mkdir(exist_ok=False)
@@ -82,7 +96,8 @@ def main():
                 finally:
                     subprocess.run(["hdiutil", "detach", mount_point], check=True)
             widget = app / "Contents/PlugIns/CodeRimWidget.appex/Contents/MacOS/CodeRimWidget"
-            result = verify_install(destination, original_hash, cli_version, sha256(widget), args.require_rust_widget)
+            result = verify_install(destination, original_hash, cli_version, sha256(widget),
+                                    args.require_rust_widget, restart_hash)
             result.update({"bytes": package.stat().st_size, "packageSha256": sha256(package)})
             report["installations"][suffix] = result
     (output / "verified.json").write_text(json.dumps(report, indent=2) + "\n")

@@ -97,7 +97,13 @@ verify_app() {
   local widget_info="${widget}/Contents/Info.plist"
   local widget_binary="${widget}/Contents/MacOS/CodeRimWidget"
   local companion companion_architectures
-  for companion in "${cli_helper}" "${widget_binary}"; do
+  local -a companions=("${cli_helper}" "${widget_binary}")
+  local restart_helper="${candidate}/Contents/Helpers/CodeRimRestart"
+  if [[ -e "${restart_helper}" || -n "${CODERIM_MIGRATION_RESTART:-}" ]]; then
+    companions+=("${restart_helper}")
+    codesign --verify --strict --verbose=2 "${restart_helper}"
+  fi
+  for companion in "${companions[@]}"; do
     if [[ ! -x "${companion}" ]]; then
       print -u2 "Missing companion executable: ${companion}"
       exit 1

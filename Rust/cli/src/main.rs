@@ -17,6 +17,8 @@ mod platform;
 #[cfg(target_os = "macos")]
 mod record;
 #[cfg(target_os = "macos")]
+mod restart;
+#[cfg(target_os = "macos")]
 mod snapshot;
 #[cfg(target_os = "macos")]
 mod terminal;
@@ -91,12 +93,18 @@ fn run() -> Result<(), (i32, String)> {
     Ok(())
 }
 #[cfg(target_os = "macos")]
-fn main() {
+fn main() -> std::process::ExitCode {
+    let invocation = std::env::args_os().next().unwrap_or_default();
+    if std::path::Path::new(&invocation).file_name() == Some(std::ffi::OsStr::new("CodeRimRestart"))
+    {
+        return restart::run();
+    }
     if let Err((status, msg)) = run() {
         use std::io::Write;
         let _ = writeln!(std::io::stderr().lock(), "coderim: {msg}");
-        std::process::exit(status)
+        return std::process::ExitCode::from(status as u8);
     }
+    std::process::ExitCode::SUCCESS
 }
 #[cfg(not(target_os = "macos"))]
 fn main() {

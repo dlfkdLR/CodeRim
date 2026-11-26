@@ -100,6 +100,7 @@ def build_app(work, output):
         "CODERIM_APP_PATH": str(output / "CodeRim.app"), "CODERIM_BUILD_CACHE": str(work),
         "CODERIM_RUST_WIDGET_ARCHIVE": str(widget),
         "CODERIM_MIGRATION_SYMBOLS_DIR": str(output / "Symbols"), "CODERIM_MIGRATION_CLI": str(cli),
+        "CODERIM_MIGRATION_RESTART": "1",
     })
     # The shipping builder also compiled the Swift helper with its original bundle contract.
     # Compare both standalone processes, then exercise the signed installed Rust helper.

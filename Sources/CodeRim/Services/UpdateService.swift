@@ -130,15 +130,20 @@ final class UpdateService: NSObject, SPUUpdaterDelegate {
             return
         }
 
-        let bundlePath = Bundle.main.bundlePath
-        let pid = ProcessInfo.processInfo.processIdentifier
-        let quoted = "'" + bundlePath.replacingOccurrences(of: "'", with: "'\\''") + "'"
-        let script = "for _ in $(/usr/bin/seq 1 300); do /bin/kill -0 \(pid) 2>/dev/null || break; /bin/sleep 0.2; done; "
-            + "exec /usr/bin/open \(quoted)"
-
         let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/bin/sh")
-        task.arguments = ["-c", script]
+        let pid = ProcessInfo.processInfo.processIdentifier
+        #if CODERIM_RUST_ACCOUNTING
+        let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/CodeRimRestart")
+        if FileManager.default.isExecutableFile(atPath: helper.path) {
+            task.executableURL = helper
+            task.arguments = [String(pid)]
+        } else {
+            // The on-disk app may already have rolled back to a release without this helper.
+            configureLegacyRestart(task, pid: pid)
+        }
+        #else
+        configureLegacyRestart(task, pid: pid)
+        #endif
         do {
             try task.run()
         } catch {
@@ -146,6 +151,16 @@ final class UpdateService: NSObject, SPUUpdaterDelegate {
             return
         }
         NSApp.terminate(nil)
+    }
+
+    private static func configureLegacyRestart(_ task: Process, pid: Int32) {
+        let bundlePath = Bundle.main.bundlePath
+        let quoted = "'" + bundlePath.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        let script = "for _ in $(/usr/bin/seq 1 300); do /bin/kill -0 \(pid) 2>/dev/null || break; /bin/sleep 0.2; done; "
+            + "exec /usr/bin/open \(quoted)"
+
+        task.executableURL = URL(fileURLWithPath: "/bin/sh")
+        task.arguments = ["-c", script]
     }
 
     private static func presentManualRestartFallback() {
