@@ -53,6 +53,25 @@ final class NotchCommandCodeUsageTests: XCTestCase {
         XCTAssertEqual(snap.headline?.id, "monthly")
     }
 
+    #if CODERIM_RUST_ACCOUNTING
+    @MainActor
+    func testCommandCodeShowsItsUnavailableConnectionInTheNotchAndSettings() async throws {
+        let descriptor = try XCTUnwrap(ExtendedProviderCatalog.descriptor(for: "commandcode"))
+        let provider = ExtendedNotchProvider(descriptor: descriptor, ownedOnly: true, configuration: {
+            XCTFail("An unavailable connection must resolve before opening account settings")
+            return .init(providerID: descriptor.id)
+        })
+        let snapshot = try await provider.fetchSnapshot()
+        let expected = "This provider has no verified CodeRim sign-in or API-key usage source in this build."
+        XCTAssertEqual(snapshot.id, "commandcode")
+        XCTAssertEqual(snapshot.status, .unsupported(expected))
+        XCTAssertEqual(snapshot.statusMessage, expected)
+        guard case let .guidance(instructions) = provider.signInRoute else {
+            return XCTFail("Command Code must explain its unavailable connection")
+        }
+        XCTAssertEqual(instructions, expected)
+    }
+    #else
     func testTheSignInPromptNamesTheApp() {
         let snapshot = ProviderSnapshot(
             id: "commandcode", displayName: "Command Code", glyph: .commandcode,
@@ -61,6 +80,7 @@ final class NotchCommandCodeUsageTests: XCTestCase {
         XCTAssertEqual(snapshot.statusMessage,
                        "Sign in with the Command Code app to read your usage")
     }
+    #endif
 
     func testEmptyCreditsAreNotAReading() {
         XCTAssertThrowsError(try CommandCodeUsage.windows(
