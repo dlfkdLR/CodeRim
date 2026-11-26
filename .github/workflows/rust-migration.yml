@@ -269,12 +269,14 @@ jobs:
       - name: Compare Claude sessions and Codex attachments with the release
         run: |
           $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
+          python Scripts/rust_migration/windows-claude-events/check.py --reference-source .migration-oracle --library "$library" --output "windows-${{ matrix.arch }}-claude-events.json"
           python Scripts/rust_migration/windows-scanner-sessions/check.py --reference-source .migration-oracle --library "$library" --output "windows-${{ matrix.arch }}-scanner-sessions.json"
           python Scripts/rust_migration/windows-codex-attachments/check.py --reference-source .migration-oracle --library "$library" --output "windows-${{ matrix.arch }}-codex-attachments.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: windows-${{ matrix.arch }}-scanner-sessions
           path: |
+            windows-${{ matrix.arch }}-claude-events.json
             windows-${{ matrix.arch }}-scanner-sessions.json
             windows-${{ matrix.arch }}-codex-attachments.json
           if-no-files-found: error
