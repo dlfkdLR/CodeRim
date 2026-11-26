@@ -24,3 +24,5 @@ Run the existing fixture suite and the two-process comparison on a Mac. In the d
 python3 Tests/Scripts/companion_cli_tests.py /path/to/Rust/CodeRimCLI
 python3 Rust/cli/tests/differential.py /path/to/Swift/CodeRimCLI /path/to/Rust/CodeRimCLI
 ```
+
+The migration bundle created with `python3 Scripts/rust_migration/apple.py app OUTPUT` installs this executable at the existing helper path and signs it with the candidate. The ordinary release builder uses the Swift CLI by default.

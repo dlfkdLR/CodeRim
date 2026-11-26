@@ -76,13 +76,27 @@ def build_app(work, output):
     # by this invocation, protecting the installed app and previous candidates.
     output.mkdir(parents=True, exist_ok=False)
     libraries = [build_library(arch + "-apple-darwin") for arch in ("aarch64", "x86_64")]
+    cli = work / "CodeRimCLI"
+    subprocess.run([RUST / "cli/build-macos.sh", cli], cwd=ROOT, check=True, env={
+        **os.environ, "CARGO_TARGET_DIR": str(TARGET), "MACOSX_DEPLOYMENT_TARGET": "14.0",
+    })
     universal = work / ARCHIVE
     subprocess.run(["lipo", "-create", *libraries, "-output", universal], check=True)
     subprocess.run([ROOT / "Scripts/build_release.sh"], cwd=ROOT, check=True, env={
         **os.environ, "CODERIM_RUST_ACCOUNTING_ARCHIVE": str(universal),
         "CODERIM_APP_PATH": str(output / "CodeRim.app"), "CODERIM_BUILD_CACHE": str(work),
-        "CODERIM_MIGRATION_SYMBOLS_DIR": str(output / "Symbols"),
+        "CODERIM_MIGRATION_SYMBOLS_DIR": str(output / "Symbols"), "CODERIM_MIGRATION_CLI": str(cli),
     })
+    # The shipping builder also compiled the Swift helper with its original bundle contract.
+    # Compare both standalone processes, then exercise the signed installed Rust helper.
+    oracle_dir = Path(subprocess.check_output([
+        "python3", ROOT / "Scripts/prepare_swift_dependencies.py", "--show-bin-path",
+        "-c", "release", "--arch", "arm64", "--arch", "x86_64",
+    ], cwd=ROOT, text=True).strip().splitlines()[-1])
+    subprocess.run(["python3", RUST / "cli/tests/differential.py", oracle_dir / "CodeRimCLI", cli],
+                   cwd=ROOT, check=True)
+    subprocess.run(["python3", ROOT / "Tests/Scripts/companion_cli_tests.py",
+                    output / "CodeRim.app/Contents/Helpers/CodeRimCLI"], check=True)
 
 
 def main():

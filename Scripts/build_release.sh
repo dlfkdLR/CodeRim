@@ -49,6 +49,11 @@ product_directory=$(python3 "${script_dir}/prepare_swift_dependencies.py" --scra
 binary_path="${product_directory}/${PRODUCT_NAME}"
 claude_bridge_path="${product_directory}/CodeRimClaudeBridge"
 cli_path="${product_directory}/CodeRimCLI"
+if [[ -n "${CODERIM_MIGRATION_CLI:-}" ]]; then
+  cli_path="${CODERIM_MIGRATION_CLI}"
+  lipo "${cli_path}" -verify_arch arm64
+  lipo "${cli_path}" -verify_arch x86_64
+fi
 sparkle_framework="${product_directory}/Frameworks/Sparkle.framework"
 if [[ ! -d "${sparkle_framework}" && -d "${product_directory}/Sparkle.framework" ]]; then
   sparkle_framework="${product_directory}/Sparkle.framework"
@@ -110,6 +115,9 @@ for notice in LICENSE NOTICE; do
 done
 if [[ -n "${CODERIM_RUST_ACCOUNTING_ARCHIVE:-}" ]]; then
   install -m 644 "${project_root}/Rust/THIRD-PARTY-NOTICES.txt" "${app_path}/Contents/Resources/Rust-Notices.txt"
+fi
+if [[ -n "${CODERIM_MIGRATION_CLI:-}" ]]; then
+  install -m 644 "${project_root}/Rust/cli/THIRD-PARTY-NOTICES.txt" "${app_path}/Contents/Resources/Rust-CLI-Notices.txt"
 fi
 "${script_dir}/verify_license_notices.sh" "${app_path}"
 provider_logo_source="${project_root}/Sources/CodeRim/Resources/ProviderLogos"

@@ -26,7 +26,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: rust-migration-${{ github.ref }}
+  group: rust-migration-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
@@ -58,6 +58,11 @@ jobs:
       - name: Verify native architecture
         run: test "$(uname -m)" = "${{ matrix.arch }}"
       - run: python3 Scripts/rust_migration/apple.py check
+      - name: Check the Rust CLI on the native host
+        run: |
+          cargo clippy --locked --manifest-path Rust/cli/Cargo.toml --features macos-companion --all-targets -- -D warnings
+          cargo build --locked --release --manifest-path Rust/cli/Cargo.toml --features macos-companion
+          python3 Tests/Scripts/companion_cli_tests.py Rust/target/release/CodeRimCLI
 
   windows:
     strategy:
@@ -147,7 +152,7 @@ jobs:
           lipo "$app/Contents/MacOS/CodeRim" -verify_arch x86_64
           codesign --verify --strict --deep "$app"
           cmp Rust/THIRD-PARTY-NOTICES.txt "$app/Contents/Resources/Rust-Notices.txt"
-          python3 Tests/Scripts/companion_cli_tests.py "$app/Contents/Helpers/CodeRimCLI"
+          cmp Rust/cli/THIRD-PARTY-NOTICES.txt "$app/Contents/Resources/Rust-CLI-Notices.txt"
 
       - name: Verify offline install from the release ZIP and DMG
         run: python3 Scripts/rust_migration/check_macos_package.py "$RUNNER_TEMP/rust-app/CodeRim.app" "$RUNNER_TEMP/migration-packages"
