@@ -15,3 +15,8 @@ module CCodeRimApplePricing {
     link "sqlite3"
     export *
 }
+
+module CCodeRimMobile {
+    header "coderim_mobile.h"
+    export *
+}

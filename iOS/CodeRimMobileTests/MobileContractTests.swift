@@ -2,6 +2,31 @@ import XCTest
 @testable import CodeRimMobile
 
 final class MobileContractTests: XCTestCase {
+    func testSelectionKeepsOriginalSpellingAndDuplicateOptions() throws {
+        let composed = "é", decomposed = "e\u{301}"
+        let available = [MobileProviderOption(id: composed, name: "First reading"),
+                         MobileProviderOption(id: decomposed, name: "Second reading")]
+        let saved = MobilePreferences(providerIDs: [decomposed, "claude", "codex", "claude"])
+        XCTAssertEqual(saved.selectionOptions(available: available).map(\.name),
+                       ["First reading", "Second reading", "Claude · not connected", "Codex · not connected"])
+        let unchanged = try XCTUnwrap(saved.updating(composed, enabled: true, available: available))
+        XCTAssertEqual(Array(unchanged.providerIDs[0].utf8), Array(decomposed.utf8))
+        XCTAssertEqual(saved.updating("claude", enabled: false, available: available)?.providerIDs,
+                       [decomposed, "codex"])
+        let all = MobilePreferences()
+        XCTAssertNil(all.updating(composed, enabled: false, available: available))
+        let next = try XCTUnwrap(all.updating("other", enabled: true, available: available))
+        XCTAssertEqual(next.providerIDs.map { Array($0.utf8) }, [composed, decomposed, "other"].map { Array($0.utf8) })
+    }
+
+    func testToggleLimitAppliesAfterRemovingEveryMatchingID() {
+        let allowed = (0..<100).map { "p" + String($0) }
+        let stored = MobilePreferences(providerIDs: Array(repeating: "old", count: 120) + allowed)
+        XCTAssertEqual(stored.updating("old", enabled: false, available: [])?.providerIDs, allowed)
+        XCTAssertNil(MobilePreferences(providerIDs: allowed).updating("new", enabled: true, available: []))
+        XCTAssertNil(MobilePreferences().updating("absent", enabled: false, available: []))
+    }
+
     func testRetainedDesktopSnapshotThroughRelayDecodesOnThePhone() throws {
         struct Fixture: Decodable { let response: MobileSnapshotResponse }
         let url = try XCTUnwrap(Bundle(for: Self.self).url(forResource: "mobile-desktop-v2141", withExtension: "json"))

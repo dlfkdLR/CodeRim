@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_MOBILE_SELECTION
+import CCodeRimMobile
+#endif
 
 /// Mobile wire types use Unix seconds explicitly, including ActivityKit push content-state.
 /// No provider credentials, email addresses, filesystem paths or transcript bodies belong here.
@@ -84,6 +87,9 @@ public struct MobileActivityState: Codable, Hashable, Sendable {
     /// content version, and neither does a limit resetting, yet both change the answer. Without an
     /// evaluation time (an older relay), the one that heard from the computer later wins.
     public func supersedes(_ other: MobileActivityState) -> Bool {
+#if CODERIM_RUST_MOBILE_SELECTION
+        cr_mobile_supersedes(comparisonVersion, other.comparisonVersion) == 1
+#else
         let revision = viewRevision ?? 0, otherRevision = other.viewRevision ?? 0
         if revision != otherRevision { return revision > otherRevision }
         let version = dataVersion ?? 0, otherVersion = other.dataVersion ?? 0
@@ -92,13 +98,97 @@ public struct MobileActivityState: Codable, Hashable, Sendable {
             return evaluatedAt > otherEvaluated
         }
         return staleAt >= other.staleAt
+#endif
     }
+
+#if CODERIM_RUST_MOBILE_SELECTION
+    private var comparisonVersion: cr_mobile_version {
+        cr_mobile_version(revision: Int64(viewRevision ?? 0), data_version: dataVersion ?? 0,
+                          evaluated_at: evaluatedAt ?? 0, stale_at: staleAt,
+                          has_evaluation: evaluatedAt == nil ? 0 : 1)
+    }
+#endif
 }
 
 public struct MobilePreferences: Codable, Sendable {
     public var providerIDs: [String]
     public init(providerIDs: [String] = []) { self.providerIDs = providerIDs }
 }
+
+extension MobilePreferences {
+    func selectionOptions(available: [MobileProviderOption]) -> [MobileProviderOption] {
+        guard !providerIDs.isEmpty else { return available }
+        var result = available
+        func appendMissing(_ id: String) {
+            let name = id == "codex" ? "Codex" : id == "claude" ? "Claude" : id
+            result.append(MobileProviderOption(id: id, name: "\(name) · not connected"))
+        }
+#if CODERIM_RUST_MOBILE_SELECTION
+        if let indices = providerIndices(available, operation: CR_MOBILE_MISSING),
+           indices.allSatisfy({ $0 >= available.count && $0 - available.count < providerIDs.count }) {
+            for index in indices { appendMissing(providerIDs[index - available.count]) }
+            return result
+        }
+#endif
+        for id in providerIDs where !result.contains(where: { $0.id == id }) { appendMissing(id) }
+        return result
+    }
+
+    func updating(_ id: String, enabled: Bool, available: [MobileProviderOption]) -> Self? {
+#if CODERIM_RUST_MOBILE_SELECTION
+        let operation = enabled ? CR_MOBILE_ENABLE : CR_MOBILE_DISABLE
+        let connected = providerIDs.isEmpty ? available : []
+        if let indices = providerIndices(connected, operation: operation, target: id) {
+            guard !indices.isEmpty else { return nil }
+            let count = connected.count + providerIDs.count
+            if indices.allSatisfy({ $0 < count || (enabled && $0 == count) }) {
+                return Self(providerIDs: indices.map { index in
+                    if index == count { return id }
+                    if index < connected.count { return connected[index].id }
+                    return providerIDs[index - connected.count]
+                })
+            }
+        }
+#endif
+        var ids = providerIDs.isEmpty ? available.map(\.id) : providerIDs
+        if enabled && !ids.contains(id) { ids.append(id) }
+        if !enabled { ids.removeAll { $0 == id } }
+        guard (1...100).contains(ids.count) else { return nil }
+        return Self(providerIDs: ids)
+    }
+
+#if CODERIM_RUST_MOBILE_SELECTION
+    /// Swift assigns equal Unicode strings the same temporary key. Rust receives
+    /// only these integers and returns positions in the original two lists.
+    private func providerIndices(_ available: [MobileProviderOption], operation: Int, target: String? = nil) -> [Int]? {
+        let (count, overflow) = available.count.addingReportingOverflow(providerIDs.count)
+        guard !overflow, UInt32(exactly: count) != nil else { return nil }
+        var keyByID: [String: UInt32] = [:]
+        func key(_ id: String) -> UInt32 {
+            if let existing = keyByID[id] { return existing }
+            let next = UInt32(keyByID.count)
+            keyByID[id] = next
+            return next
+        }
+        var keys: [UInt32] = []
+        keys.reserveCapacity(count)
+        for option in available { keys.append(key(option.id)) }
+        for id in providerIDs { keys.append(key(id)) }
+        let targetKey = target.map(key) ?? 0
+        let capacity = operation == CR_MOBILE_MISSING ? providerIDs.count : 100
+        var output = [UInt32](repeating: 0, count: capacity)
+        let written = keys.withUnsafeBufferPointer { inputs in
+            output.withUnsafeMutableBufferPointer { indices in
+                cr_mobile_provider_indices(UInt8(operation), inputs.baseAddress, inputs.count, available.count,
+                                           targetKey, indices.baseAddress, indices.count)
+            }
+        }
+        guard written >= 0 && written <= capacity else { return nil }
+        return output.prefix(written).map(Int.init)
+    }
+#endif
+}
+
 public struct MobileProviderOption: Codable, Hashable, Sendable, Identifiable {
     public var id: String
     public var name: String

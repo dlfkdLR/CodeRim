@@ -9,6 +9,8 @@ mod analytics_chart;
 mod card_layout;
 mod claude_json;
 mod event_json;
+#[cfg(any(target_os = "ios", target_os = "macos", test))]
+mod mobile_selection;
 #[cfg(any(target_os = "macos", test))]
 mod notch_path;
 #[cfg(target_os = "macos")]

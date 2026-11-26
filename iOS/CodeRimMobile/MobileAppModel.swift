@@ -90,12 +90,7 @@ final class MobileAppModel: ObservableObject {
     }
 
     var selectionOptions: [MobileProviderOption] {
-        var result = providers
-        for id in preferences.providerIDs where !result.contains(where: { $0.id == id }) {
-            let name = id == "codex" ? "Codex" : id == "claude" ? "Claude" : id
-            result.append(MobileProviderOption(id: id, name: "\(name) · not connected"))
-        }
-        return result
+        preferences.selectionOptions(available: providers)
     }
 
     /// Joins the computer whose QR code was scanned. The first scan also creates
@@ -345,12 +340,11 @@ final class MobileAppModel: ObservableObject {
 
     func selectProvider(_ id: String, enabled: Bool) async {
         guard !busy, credential != nil, client != nil else { return }
-        var ids = preferences.providerIDs.isEmpty ? providers.map(\.id) : preferences.providerIDs
-        if enabled && !ids.contains(id) { ids.append(id) }
-        if !enabled { ids.removeAll { $0 == id } }
-        guard (1...100).contains(ids.count) else { errorMessage = "Select at least one provider to display."; return }
+        guard let next = preferences.updating(id, enabled: enabled, available: providers) else {
+            errorMessage = "Select at least one provider to display."
+            return
+        }
         errorMessage = nil
-        let next = MobilePreferences(providerIDs: ids)
         await updateSettings("PUT", "/v1/preferences", body: next) { preferences = next }
     }
 

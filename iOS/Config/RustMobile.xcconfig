@@ -1,0 +1,3 @@
+// Supply the static archive built for the selected SDK and architecture.
+OTHER_SWIFT_FLAGS = $(inherited) -DCODERIM_RUST_MOBILE_SELECTION -I "$(SRCROOT)/../Rust/bridge/include"
+OTHER_LDFLAGS = $(inherited) "$(CODERIM_MOBILE_RUST_ARCHIVE)"
