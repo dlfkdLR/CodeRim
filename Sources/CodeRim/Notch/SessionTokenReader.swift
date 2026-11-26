@@ -14,7 +14,7 @@ enum SessionTokenReader {
             let material = provider == .codex ? raw : "claude-session|\(raw)"
             return (session.id, UsageStorageIdentity.digest(material))
         }
-        guard !identities.isEmpty, let db = SQLiteStore.open(databaseURL) else { return [:] }
+        guard !identities.isEmpty, let db = openAccountingReader(databaseURL) else { return [:] }
         defer { sqlite3_close(db) }
         sqlite3_busy_timeout(db, 100)
         let ids = Array(Set(identities.map(\.stored))).sorted()
@@ -47,6 +47,19 @@ enum SessionTokenReader {
         return Dictionary(identities.compactMap { identity in
             measured[identity.stored].map { (identity.row, $0) }
         }, uniquingKeysWith: { first, _ in first })
+    }
+
+    private static func openAccountingReader(_ url: URL) -> OpaquePointer? {
+        // A restored WAL database can be missing its -wal and -shm. Normal
+        // SQLite locking can recreate them and see later commits from the collector.
+        var handle: OpaquePointer?
+        guard sqlite3_open_v2(url.path, &handle, SQLITE_OPEN_READWRITE, nil) == SQLITE_OK,
+              let handle, coderim_disable_usage_reader_close_checkpoint(handle) == SQLITE_OK,
+              sqlite3_exec(handle, "PRAGMA query_only = ON", nil, nil, nil) == SQLITE_OK else {
+            sqlite3_close(handle)
+            return nil
+        }
+        return handle
     }
 
     static func text(_ total: Int64?, enabled: Bool) -> String? {

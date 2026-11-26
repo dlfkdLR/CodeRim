@@ -53,6 +53,82 @@ import XCTest
         let claude = AgentSession(id:"claude.7",name:"Claude",detail:"",state:.busy,waitingFor:nil,since:Date(),usageSessionID:"abc")
         XCTAssertEqual(SessionTokenReader.totals(for:[claude],provider:.claude,databaseURL:url)["claude.7"],16)
     }
+    func testOwnedWalTotalsAfterCheckpointAndDuringCollection() throws {
+        let files = FileManager.default
+        let directory = files.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let source = directory.appendingPathComponent("Usage.sqlite")
+        let restored = directory.appendingPathComponent("복원 %?#.sqlite")
+        defer { try? files.removeItem(at: directory) }
+        let accounting = try SQLiteDatabase(url: source)
+        defer { withExtendedLifetime(accounting) {} }
+        var connection: OpaquePointer?
+        XCTAssertEqual(sqlite3_open_v2(source.path, &connection, SQLITE_OPEN_READWRITE, nil), SQLITE_OK)
+        let writer = try XCTUnwrap(connection)
+        defer { sqlite3_close(writer) }
+        func add(_ position: Int, input: Int) throws {
+            try SQLiteSchema.execute("""
+                INSERT INTO usage_events (event_key, occurred_at, session_id, input_tokens, cached_input_tokens,
+                    output_tokens, source_path, source_generation, source_position)
+                VALUES ('event-\(position)', 1, '\(hash("root"))', \(input), 0, 1, 'fixture', 0, \(position))
+                """, on: writer)
+        }
+        func total(_ url: URL) -> Int64? {
+            SessionTokenReader.totals(for: [session("root")], provider: .codex, databaseURL: url)["root"]
+        }
+        try SQLiteSchema.execute("PRAGMA wal_autocheckpoint = 0", on: writer)
+        try add(1, input: 40)
+        XCTAssertEqual(sqlite3_wal_checkpoint_v2(writer, nil, SQLITE_CHECKPOINT_TRUNCATE, nil, nil), SQLITE_OK)
+        // Only copy a known checkpointed main file. This reproduces a restored history.
+        try files.copyItem(at: source, to: restored)
+        let checkpoint = try Data(contentsOf: restored)
+        XCTAssertFalse(files.fileExists(atPath: restored.path + "-shm"))
+        XCTAssertEqual(total(restored), 41)
+        XCTAssertEqual(try Data(contentsOf: restored), checkpoint)
+
+        try SQLiteSchema.execute("BEGIN IMMEDIATE", on: writer)
+        try add(2, input: 22)
+        XCTAssertEqual(total(source), 41)
+        try SQLiteSchema.execute("COMMIT", on: writer)
+        XCTAssertEqual(try Data(contentsOf: source), checkpoint, "The new event is still in the WAL")
+        XCTAssertEqual(total(source), 64)
+        XCTAssertEqual(total(restored), 41)
+        XCTAssertEqual(try Data(contentsOf: source), checkpoint)
+
+        // Snapshot the idle writer's files together to model its last process disappearing.
+        let interrupted = directory.appendingPathComponent("interrupted.sqlite")
+        for suffix in ["", "-wal", "-shm"] {
+            try files.copyItem(atPath: source.path + suffix, toPath: interrupted.path + suffix)
+        }
+        let wal = URL(fileURLWithPath: interrupted.path + "-wal")
+        let committedFrames = try Data(contentsOf: wal)
+        XCTAssertFalse(committedFrames.isEmpty)
+        XCTAssertEqual(total(interrupted), 64)
+        XCTAssertEqual(try Data(contentsOf: interrupted), checkpoint)
+        XCTAssertEqual(try Data(contentsOf: wal), committedFrames)
+
+        let missing = directory.appendingPathComponent("missing.sqlite")
+        XCTAssertNil(total(missing))
+        XCTAssertFalse(files.fileExists(atPath: missing.path))
+        let damaged = directory.appendingPathComponent("damaged.sqlite")
+        let invalid = Data("damaged fixture".utf8)
+        try invalid.write(to: damaged)
+        XCTAssertNil(total(damaged))
+        XCTAssertEqual(try Data(contentsOf: damaged), invalid)
+
+        let readOnly = directory.appendingPathComponent("read-only")
+        try files.createDirectory(at: readOnly, withIntermediateDirectories: false)
+        let frozen = readOnly.appendingPathComponent("Usage.sqlite")
+        try checkpoint.write(to: frozen)
+        try files.setAttributes([.posixPermissions: 0o400], ofItemAtPath: frozen.path)
+        try files.setAttributes([.posixPermissions: 0o500], ofItemAtPath: readOnly.path)
+        defer { try? files.setAttributes([.posixPermissions: 0o700], ofItemAtPath: readOnly.path) }
+        if !files.isWritableFile(atPath: readOnly.path) {
+            XCTAssertNil(total(frozen), "A WAL snapshot without writable lock files cannot be opened safely")
+            XCTAssertEqual(try files.contentsOfDirectory(atPath: readOnly.path), ["Usage.sqlite"])
+        }
+        XCTAssertEqual(try Data(contentsOf: frozen), checkpoint)
+    }
+
     func testPreferencesAndMissingUsageRemainOffOrBlank() throws {
         let suite = "TokenTests.\(UUID().uuidString)"
         let d = try XCTUnwrap(UserDefaults(suiteName:suite))
