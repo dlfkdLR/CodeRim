@@ -30,6 +30,8 @@ mod session_totals;
 mod sqlite_periods;
 #[cfg(target_os = "macos")]
 mod storage_identity;
+#[cfg(any(target_os = "macos", test))]
+mod threshold;
 mod token_json;
 #[cfg(target_os = "macos")]
 mod transcript;

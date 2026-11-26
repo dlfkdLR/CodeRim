@@ -1,5 +1,8 @@
 import Foundation
 import UserNotifications
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// One alert-worthy crossing of a provider's limit.
 struct ThresholdAlert: Equatable {
@@ -28,9 +31,13 @@ struct ThresholdAlert: Equatable {
 @MainActor
 final class ThresholdNotifier {
     private struct Memory {
-        var level: Int
         var window: String?
+        #if CODERIM_RUST_ACCOUNTING
+        var crossing = CRThresholdMemory()
+        #else
+        var level: Int
         var resetsAt: Date?
+        #endif
     }
 
     /// A reset that moves by more than this is a new period, not clock jitter in "resets in N s".
@@ -52,6 +59,19 @@ final class ThresholdNotifier {
     }
 
     private func observe(_ snapshot: ProviderSnapshot) {
+        #if CODERIM_RUST_ACCOUNTING
+        guard let headline = snapshot.headline, let fraction = headline.usedFraction, fraction.isFinite else { return }
+        let key = snapshot.id + "|" + (snapshot.accountIdentity ?? "")
+        let transition = Self.advance(&crossed[key, default: Memory()], headline: headline, fraction: fraction)
+        // End the dictionary borrow before isMuted or deliver can reenter the notifier.
+        guard transition.alerts != 0, !isMuted(snapshot.id) else { return }
+        if Int(transition.alerts) & CR_THRESHOLD_CROSSED_80 != 0 {
+            emit(80, percent: Int(transition.used_percent), headline: headline, snapshot: snapshot)
+        }
+        if Int(transition.alerts) & CR_THRESHOLD_CROSSED_100 != 0 {
+            emit(100, percent: Int(transition.used_percent), headline: headline, snapshot: snapshot)
+        }
+        #else
         // A provider can report any finite number (Copilot: used 1e100 of 1); converting that to
         // `Int` would trap, so the percentage is bounded before anything is derived from it.
         guard let fraction = snapshot.usedFraction, fraction.isFinite else { return }
@@ -60,7 +80,7 @@ final class ThresholdNotifier {
         let headline = snapshot.headline
 
         let key = snapshot.id + "|" + (snapshot.accountIdentity ?? "")
-        var memory = crossed[key] ?? Memory(level: 0, window: nil, resetsAt: nil)
+        var memory = crossed[key] ?? Memory(window: nil, level: 0, resetsAt: nil)
         let sameWindow = memory.window == headline?.id
         // A reset that moved to a later period is a new period, whatever the window is called: Codex names
         // its windows by their reset time, so a new period also arrives under a new window id.
@@ -69,21 +89,31 @@ final class ThresholdNotifier {
             memory.level = 0   // a new limit period began while the reading was not seen low
         }
         let previous = memory.level
-        crossed[key] = Memory(level: level, window: headline?.id,
+        crossed[key] = Memory(window: headline?.id, level: level,
                               resetsAt: headline?.resetsAt ?? (sameWindow ? memory.resetsAt : nil))
         guard level > previous, !isMuted(snapshot.id) else { return }
 
         guard let headline else { return }
         for threshold in [80, 100] where threshold > previous && threshold <= level {
-            deliver(ThresholdAlert(
-                threshold: threshold,
-                providerID: snapshot.id,
-                providerName: snapshot.displayName,
-                windowLabel: headline.label,
-                usedPercent: Int(percent.rounded()),
-                resetsAt: headline.resetsAt
-            ))
+            emit(threshold, percent: Int(percent.rounded()), headline: headline, snapshot: snapshot)
         }
+        #endif
+    }
+
+    #if CODERIM_RUST_ACCOUNTING
+    private static func advance(_ memory: inout Memory, headline: LimitWindow, fraction: Double) -> CRThresholdTransition {
+        let reset = headline.resetsAt
+        let transition = cr_threshold_observe(memory.crossing, fraction, reset?.timeIntervalSinceReferenceDate ?? 0,
+                                              reset != nil, memory.window == headline.id)
+        memory.crossing = transition.memory
+        memory.window = headline.id
+        return transition
+    }
+    #endif
+
+    private func emit(_ threshold: Int, percent: Int, headline: LimitWindow, snapshot: ProviderSnapshot) {
+        deliver(ThresholdAlert(threshold: threshold, providerID: snapshot.id, providerName: snapshot.displayName,
+                               windowLabel: headline.label, usedPercent: percent, resetsAt: headline.resetsAt))
     }
 }
 

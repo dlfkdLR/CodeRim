@@ -5,6 +5,7 @@ module CCodeRimAccounting {
     header "coderim_analytics_chart.h"
     header "coderim_activity_distribution.h"
     header "coderim_quota_window.h"
+    header "coderim_threshold.h"
     header "coderim_token_json.h"
     header "coderim_storage_identity.h"
     header "coderim_transcript.h"
