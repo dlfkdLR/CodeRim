@@ -1,6 +1,9 @@
 import CodeRimUsageCore
 import Foundation
 import Combine
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 enum SettingsUsageGrouping: String, CaseIterable, Identifiable {
     case tokenType, model
@@ -28,12 +31,29 @@ struct UsageAnalyticsPresentation {
     let grouping: SettingsUsageGrouping
     let showsCachedInput: Bool
 
+#if CODERIM_RUST_ACCOUNTING
+    private let projection: RustAnalyticsProjection
+
+    init(snapshot: AnalyticsSnapshot, grouping: SettingsUsageGrouping, showsCachedInput: Bool) {
+        self.snapshot = snapshot
+        self.grouping = grouping
+        self.showsCachedInput = showsCachedInput
+        projection = RustAnalyticsProjection(models: snapshot.models, grouping: grouping, showsCachedInput: showsCachedInput)
+    }
+#endif
+
     var series: [SettingsUsageSeries] {
-        series(usage: snapshot.usage, models: snapshot.models)
+#if CODERIM_RUST_ACCOUNTING
+        if let series = projection.series(models: snapshot.models, usage: snapshot.usage) { return series }
+#endif
+        return series(usage: snapshot.usage, models: snapshot.models)
     }
 
     var points: [SettingsUsagePoint] {
-        snapshot.buckets.flatMap { bucket in
+#if CODERIM_RUST_ACCOUNTING
+        if let points = projection.points(buckets: snapshot.buckets) { return points }
+#endif
+        return snapshot.buckets.flatMap { bucket in
             series(usage: bucket.usage, models: bucket.models).map {
                 SettingsUsagePoint(date: bucket.start, seriesID: $0.id, title: $0.title, tokens: $0.tokens)
             }
@@ -42,6 +62,9 @@ struct UsageAnalyticsPresentation {
 
     func series(for bucket: UsageBucket?) -> [SettingsUsageSeries] {
         guard let bucket else { return series }
+#if CODERIM_RUST_ACCOUNTING
+        if let series = projection.series(models: bucket.models) { return series }
+#endif
         return series(usage: bucket.usage, models: bucket.models)
     }
 
@@ -119,6 +142,96 @@ struct UsageAnalyticsPresentation {
         return result
     }
 }
+
+
+#if CODERIM_RUST_ACCOUNTING
+/// The chart uses Swift's canonical string equality for IDs and its ordering for
+/// tied labels. Rust needs only numeric counters and their five possible slots.
+private struct RustAnalyticsProjection {
+    struct Label {
+        let id: String
+        let title: String
+        let column: Int
+    }
+
+    let labels: [Label]
+    let masks: [String: UInt8]
+    let mode: UInt8
+
+    init(models: [ModelUsageSummary], grouping: SettingsUsageGrouping, showsCachedInput: Bool) {
+        if grouping == .model {
+            mode = 2
+            let leading = models.sorted(by: ModelUsageSummary.byUsageThenName).prefix(5)
+            var labels: [Label] = []
+            var masks: [String: UInt8] = [:]
+            for (index, model) in leading.enumerated() {
+                labels.append(Label(id: "model:\(model.id)", title: model.displayName, column: index))
+                masks[model.id, default: 0] |= 1 << index
+            }
+            if models.count > leading.count {
+                labels.append(Label(id: "other-models", title: "Other models", column: 5))
+            }
+            self.labels = labels
+            self.masks = masks
+        } else {
+            masks = [:]
+            mode = showsCachedInput ? 1 : 0
+            labels = showsCachedInput
+                ? [Label(id: "input", title: "Uncached input", column: 0), Label(id: "cached", title: "Cached input", column: 1),
+                   Label(id: "output", title: "Output", column: 2)]
+                : [Label(id: "input", title: "Input", column: 0), Label(id: "output", title: "Output", column: 1)]
+        }
+    }
+
+    func series(models: [ModelUsageSummary], usage: TokenUsage? = nil) -> [SettingsUsageSeries]? {
+        let stack = stack(models: models, usage: usage)
+        guard stack.valid != 0 else { return nil }
+        return labels.map { SettingsUsageSeries(id: $0.id, title: $0.title, tokens: stack[$0.column]) }
+    }
+
+    func points(buckets: [UsageBucket]) -> [SettingsUsagePoint]? {
+        var points: [SettingsUsagePoint] = []
+        points.reserveCapacity(buckets.count * labels.count)
+        for bucket in buckets {
+            let stack = stack(models: bucket.models, usage: nil)
+            guard stack.valid != 0 else { return nil }
+            for label in labels {
+                points.append(SettingsUsagePoint(date: bucket.start, seriesID: label.id, title: label.title,
+                                                 tokens: stack[label.column]))
+            }
+        }
+        return points
+    }
+
+    private func stack(models: [ModelUsageSummary], usage: TokenUsage?) -> cr_chart_stack {
+        // The range summary supplies an independent total. Individual buckets
+        // derive it by folding their model rows in the original order.
+        if mode != 2, let usage {
+            var row = cr_chart_row(input: usage.inputTokens, cached: usage.cachedInputTokens,
+                                   output: usage.outputTokens, model_slots: 0)
+            return cr_project_chart_stack(&row, 1, mode)
+        }
+        let rows = models.map { model in
+            cr_chart_row(input: model.usage.inputTokens, cached: model.usage.cachedInputTokens,
+                         output: model.usage.outputTokens, model_slots: mode == 2 ? masks[model.id] ?? 0 : 0)
+        }
+        return rows.withUnsafeBufferPointer { cr_project_chart_stack($0.baseAddress, $0.count, mode) }
+    }
+}
+
+private extension cr_chart_stack {
+    subscript(column: Int) -> Int64 {
+        switch column {
+        case 0: values.0
+        case 1: values.1
+        case 2: values.2
+        case 3: values.3
+        case 4: values.4
+        default: values.5
+        }
+    }
+}
+#endif
 
 enum SettingsUsageSection: String, CaseIterable, Identifiable {
     case overview, analytics, limits

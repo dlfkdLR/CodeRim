@@ -3,6 +3,8 @@
 #[cfg(any(target_os = "macos", test))]
 mod account_history;
 mod aggregation;
+#[cfg(any(target_os = "macos", test))]
+mod analytics_chart;
 mod claude_json;
 mod event_json;
 #[cfg(any(target_os = "macos", test))]
