@@ -50,6 +50,9 @@ def compare_hosts(work):
             raise SystemExit(f"{suite}: mismatch between Swift and Rust.")
         print(f"{suite}: {len(json.loads(outputs[0]))} records matched including timestamp bits.")
 
+    subprocess.run(["python3", str(Path(__file__).parent / "pricing-contract/check.py"),
+                    "--archive", str(archive)], check=True)
+
 
 def test_product():
     archive = build_library()

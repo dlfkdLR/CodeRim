@@ -100,6 +100,10 @@ struct CostEstimator: Sendable {
             catalogRetrievedAt: catalog.metadata.retrievedAt
         )
 
+#if CODERIM_RUST_ACCOUNTING
+        return RustCostEstimator.estimate(samples, catalog: catalog, basis: basis,
+                                          normalizeMissing: normalizedMissingModelID)
+#else
         func unavailable(_ coverage: CostCoverage) -> CostEstimate {
             CostEstimate(amountUSD: nil, breakdown: nil, coverage: coverage, pricingBasis: basis)
         }
@@ -162,6 +166,7 @@ struct CostEstimator: Sendable {
             coverage: .complete,
             pricingBasis: basis
         )
+#endif
     }
 
     private func cost(

@@ -4,3 +4,9 @@ module CCodeRimAccounting {
     header "coderim_notch_path.h"
     export *
 }
+
+module CCodeRimApplePricing {
+    requires objc
+    header "coderim_apple_pricing.h"
+    export *
+}

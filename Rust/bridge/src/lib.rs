@@ -4,6 +4,8 @@ mod aggregation;
 mod event_json;
 #[cfg(any(target_os = "macos", test))]
 mod notch_path;
+#[cfg(target_os = "macos")]
+mod pricing;
 mod token_json;
 
 use coderim_usage_core::{
