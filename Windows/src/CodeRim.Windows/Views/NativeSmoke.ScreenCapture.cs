@@ -16,6 +16,24 @@ internal static partial class NativeSmoke
 {
     private readonly record struct DesktopCapture(Rect Geometry, bool Verified);
 
+    private static readonly string[] DesktopCaptureNames = [
+        "windows-account-history-overview",
+        "windows-notch-shell-Left", "windows-notch-shell-Right", "windows-notch-shell-Top", "windows-notch-shell-Bottom",
+        "windows-settings-frame-default", "windows-settings-frame-offscreen", "windows-settings-frame-oversized",
+        "windows-settings-frame-restored", "windows-settings-frame-caption-restored"
+    ];
+
+    private static void ClearDesktopCaptures(string directory)
+    {
+        // A stopped rerun must not publish captures it never reached.
+        foreach (var name in DesktopCaptureNames)
+        {
+            var file = Path.Combine(directory, name + ".screen.png");
+            File.Delete(file);
+            File.Delete(file + ".capture.json");
+        }
+    }
+
     // An active WPF window may still be covered by setup or a different desktop.
     // Save only owner-rendered pixels after a physical-screen comparison. The
     // separate WPF .png and geometry remain available if this check cannot run.
