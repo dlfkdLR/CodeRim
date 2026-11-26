@@ -1,0 +1,62 @@
+{
+  "arch": "arm64",
+  "results": [
+    {
+      "case": "published",
+      "callback": "sh",
+      "launchServicesEvent": "launched",
+      "observedWaitChildren": 6,
+      "waitChildNames": [
+        "(sleep)",
+        "sleep"
+      ],
+      "secondsToReopen": 0.171
+    },
+    {
+      "case": "rust",
+      "callback": "CodeRimRestart",
+      "launchServicesEvent": "launched",
+      "observedWaitChildren": 0,
+      "waitChildNames": [],
+      "secondsToReopen": 0.0765
+    },
+    {
+      "case": "rapid-exit",
+      "callback": "CodeRimRestart",
+      "launchServicesEvent": "launched",
+      "observedWaitChildren": 0,
+      "waitChildNames": [],
+      "secondsToReopen": 0.0748
+    },
+    {
+      "case": "rolled-back-bundle",
+      "callback": "sh",
+      "launchServicesEvent": "launched",
+      "observedWaitChildren": 6,
+      "waitChildNames": [
+        "(sleep)",
+        "sleep"
+      ],
+      "secondsToReopen": 0.1679
+    },
+    {
+      "case": "published-veto-through-timeout",
+      "callback": "sh",
+      "launchServicesEvent": "reopen-running",
+      "observedWaitChildren": 6,
+      "waitChildNames": [
+        "(kill)",
+        "sleep"
+      ],
+      "secondsToReopen": 63.7521
+    },
+    {
+      "case": "veto-through-timeout",
+      "callback": "CodeRimRestart",
+      "launchServicesEvent": "reopen-running",
+      "observedWaitChildren": 0,
+      "waitChildNames": [],
+      "secondsToReopen": 60.0713
+    }
+  ]
+}

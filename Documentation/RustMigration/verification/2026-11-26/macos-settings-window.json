@@ -1,0 +1,955 @@
+{
+  "sha256": {
+    "reference": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64",
+    "candidate": "7dcea9292094adc4ce572211b6c9e8376b7b72f537037fd59974ec2219baf688"
+  },
+  "testedBundles": {
+    "reference": {
+      "Dark": {
+        "sha256": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64",
+        "lightInfoOverride": false,
+        "uuid": [
+          "UUID: 4F4022F9-B034-34D4-B16F-50A2D38352B9 (x86_64) <executable>",
+          "UUID: 68950D14-8FE5-317F-A986-1A9BCDA24596 (arm64) <executable>"
+        ]
+      },
+      "Light": {
+        "sha256": "5a3f171b43f5cedc0ddec88f1b136b78233fa7196655874bdbfa90d466a308c0",
+        "lightInfoOverride": true,
+        "uuid": [
+          "UUID: 4F4022F9-B034-34D4-B16F-50A2D38352B9 (x86_64) <executable>",
+          "UUID: 68950D14-8FE5-317F-A986-1A9BCDA24596 (arm64) <executable>"
+        ]
+      }
+    },
+    "candidate": {
+      "Dark": {
+        "sha256": "7dcea9292094adc4ce572211b6c9e8376b7b72f537037fd59974ec2219baf688",
+        "lightInfoOverride": false,
+        "uuid": [
+          "UUID: 3140330A-2CB0-3DE8-A6D2-0CDCFE53709C (x86_64) <executable>",
+          "UUID: A2DFABCC-C9C5-3966-8358-DE704D3C2305 (arm64) <executable>"
+        ]
+      },
+      "Light": {
+        "sha256": "9d433c7d3b6f83b70c34f9d04681a5e22c3f49fd81e5e007fda3f20730fef784",
+        "lightInfoOverride": true,
+        "uuid": [
+          "UUID: 3140330A-2CB0-3DE8-A6D2-0CDCFE53709C (x86_64) <executable>",
+          "UUID: A2DFABCC-C9C5-3966-8358-DE704D3C2305 (arm64) <executable>"
+        ]
+      }
+    }
+  },
+  "categories": [
+    "General",
+    "Usage",
+    "Providers",
+    "Notch",
+    "Diagnostics",
+    "Information"
+  ],
+  "sizesInPoints": [
+    [
+      960,
+      672
+    ],
+    [
+      860,
+      620
+    ]
+  ],
+  "sourceTokens": 100,
+  "mode": "CGWindowID selected by exact executable PID, title and layer",
+  "pairs": [
+    {
+      "appearanceRequested": "Dark",
+      "pane": "compact-diagnostics",
+      "axEqual": true,
+      "axLines": [
+        47,
+        47
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "77f8ab6411b063a923f6ee9e4b4a12e673fda6ae2465a218ec94075245459e0a",
+        "reference.repeat": "77f8ab6411b063a923f6ee9e4b4a12e673fda6ae2465a218ec94075245459e0a",
+        "candidate": "77f8ab6411b063a923f6ee9e4b4a12e673fda6ae2465a218ec94075245459e0a",
+        "candidate.repeat": "77f8ab6411b063a923f6ee9e4b4a12e673fda6ae2465a218ec94075245459e0a"
+      },
+      "medianOpaqueRed": {
+        "reference": 30,
+        "candidate": 30
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Dark",
+      "pane": "compact-general",
+      "axEqual": true,
+      "axLines": [
+        64,
+        64
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "78b20f4c8992bae7efce62180804bf30f63fae28cfc1cb338e2c7d347bb8f910",
+        "reference.repeat": "78b20f4c8992bae7efce62180804bf30f63fae28cfc1cb338e2c7d347bb8f910",
+        "candidate": "78b20f4c8992bae7efce62180804bf30f63fae28cfc1cb338e2c7d347bb8f910",
+        "candidate.repeat": "78b20f4c8992bae7efce62180804bf30f63fae28cfc1cb338e2c7d347bb8f910"
+      },
+      "medianOpaqueRed": {
+        "reference": 30,
+        "candidate": 30
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Dark",
+      "pane": "compact-information",
+      "axEqual": true,
+      "axLines": [
+        49,
+        49
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "c7398d8023b3c8e9b4f8e27f503badbf6dee40f368b462a897ea47d2fcb59c6a",
+        "reference.repeat": "c7398d8023b3c8e9b4f8e27f503badbf6dee40f368b462a897ea47d2fcb59c6a",
+        "candidate": "c7398d8023b3c8e9b4f8e27f503badbf6dee40f368b462a897ea47d2fcb59c6a",
+        "candidate.repeat": "c7398d8023b3c8e9b4f8e27f503badbf6dee40f368b462a897ea47d2fcb59c6a"
+      },
+      "medianOpaqueRed": {
+        "reference": 30,
+        "candidate": 30
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Dark",
+      "pane": "compact-notch",
+      "axEqual": true,
+      "axLines": [
+        79,
+        79
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "bee798be3136e8fbd4c52be99d81dfe51b48ccbe1036b1ae324b02cbb5c9f627",
+        "reference.repeat": "bee798be3136e8fbd4c52be99d81dfe51b48ccbe1036b1ae324b02cbb5c9f627",
+        "candidate": "bee798be3136e8fbd4c52be99d81dfe51b48ccbe1036b1ae324b02cbb5c9f627",
+        "candidate.repeat": "bee798be3136e8fbd4c52be99d81dfe51b48ccbe1036b1ae324b02cbb5c9f627"
+      },
+      "medianOpaqueRed": {
+        "reference": 30,
+        "candidate": 30
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Dark",
+      "pane": "compact-providers",
+      "axEqual": true,
+      "axLines": [
+        40,
+        40
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "ae762368ca050b51d61650e94085d3a03e6bcdc66430302754272f1a0052bfe3",
+        "reference.repeat": "ae762368ca050b51d61650e94085d3a03e6bcdc66430302754272f1a0052bfe3",
+        "candidate": "ae762368ca050b51d61650e94085d3a03e6bcdc66430302754272f1a0052bfe3",
+        "candidate.repeat": "ae762368ca050b51d61650e94085d3a03e6bcdc66430302754272f1a0052bfe3"
+      },
+      "medianOpaqueRed": {
+        "reference": 30,
+        "candidate": 30
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Dark",
+      "pane": "compact-usage",
+      "axEqual": true,
+      "axLines": [
+        55,
+        55
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "57ee7f8c109f29223e01d15e51cd519ba37d34ad7e197d57c69839954c71b5fa",
+        "reference.repeat": "57ee7f8c109f29223e01d15e51cd519ba37d34ad7e197d57c69839954c71b5fa",
+        "candidate": "57ee7f8c109f29223e01d15e51cd519ba37d34ad7e197d57c69839954c71b5fa",
+        "candidate.repeat": "57ee7f8c109f29223e01d15e51cd519ba37d34ad7e197d57c69839954c71b5fa"
+      },
+      "medianOpaqueRed": {
+        "reference": 30,
+        "candidate": 30
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Dark",
+      "pane": "normal-diagnostics",
+      "axEqual": true,
+      "axLines": [
+        47,
+        47
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "f5995ad0da8fa52cf0e39b2574ce66170596ef89baacd206cf85ff036c289297",
+        "reference.repeat": "f5995ad0da8fa52cf0e39b2574ce66170596ef89baacd206cf85ff036c289297",
+        "candidate": "f5995ad0da8fa52cf0e39b2574ce66170596ef89baacd206cf85ff036c289297",
+        "candidate.repeat": "f5995ad0da8fa52cf0e39b2574ce66170596ef89baacd206cf85ff036c289297"
+      },
+      "medianOpaqueRed": {
+        "reference": 29,
+        "candidate": 29
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Dark",
+      "pane": "normal-general",
+      "axEqual": true,
+      "axLines": [
+        64,
+        64
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "18ef59b99b0548191a13387c6a9ad8a2139162d65d8996baa1ef78516baf24f1",
+        "reference.repeat": "18ef59b99b0548191a13387c6a9ad8a2139162d65d8996baa1ef78516baf24f1",
+        "candidate": "18ef59b99b0548191a13387c6a9ad8a2139162d65d8996baa1ef78516baf24f1",
+        "candidate.repeat": "18ef59b99b0548191a13387c6a9ad8a2139162d65d8996baa1ef78516baf24f1"
+      },
+      "medianOpaqueRed": {
+        "reference": 29,
+        "candidate": 29
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Dark",
+      "pane": "normal-information",
+      "axEqual": true,
+      "axLines": [
+        49,
+        49
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "be88b615091b99ca4ea80bd2d80cf731d8bf5e0319a0a89c54ffa3a795ab58ba",
+        "reference.repeat": "be88b615091b99ca4ea80bd2d80cf731d8bf5e0319a0a89c54ffa3a795ab58ba",
+        "candidate": "be88b615091b99ca4ea80bd2d80cf731d8bf5e0319a0a89c54ffa3a795ab58ba",
+        "candidate.repeat": "be88b615091b99ca4ea80bd2d80cf731d8bf5e0319a0a89c54ffa3a795ab58ba"
+      },
+      "medianOpaqueRed": {
+        "reference": 29,
+        "candidate": 29
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Dark",
+      "pane": "normal-notch",
+      "axEqual": true,
+      "axLines": [
+        79,
+        79
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "827f3eaeca798ed22b50b4dad0e6893de209aa545a41dad1cf7027c59ccf0eea",
+        "reference.repeat": "827f3eaeca798ed22b50b4dad0e6893de209aa545a41dad1cf7027c59ccf0eea",
+        "candidate": "827f3eaeca798ed22b50b4dad0e6893de209aa545a41dad1cf7027c59ccf0eea",
+        "candidate.repeat": "827f3eaeca798ed22b50b4dad0e6893de209aa545a41dad1cf7027c59ccf0eea"
+      },
+      "medianOpaqueRed": {
+        "reference": 29,
+        "candidate": 29
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Dark",
+      "pane": "normal-providers",
+      "axEqual": true,
+      "axLines": [
+        40,
+        40
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "5c6fc1a68ac87035ffdce64fde601d4a2c9bb4e866163f551b657b8720334b4d",
+        "reference.repeat": "5c6fc1a68ac87035ffdce64fde601d4a2c9bb4e866163f551b657b8720334b4d",
+        "candidate": "5c6fc1a68ac87035ffdce64fde601d4a2c9bb4e866163f551b657b8720334b4d",
+        "candidate.repeat": "5c6fc1a68ac87035ffdce64fde601d4a2c9bb4e866163f551b657b8720334b4d"
+      },
+      "medianOpaqueRed": {
+        "reference": 29,
+        "candidate": 29
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Dark",
+      "pane": "normal-usage",
+      "axEqual": true,
+      "axLines": [
+        55,
+        55
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "4a93bc2b1027f7470bf466e36d76f3ce60b8f457380a255994973f7cc0721b6e",
+        "reference.repeat": "4a93bc2b1027f7470bf466e36d76f3ce60b8f457380a255994973f7cc0721b6e",
+        "candidate": "4a93bc2b1027f7470bf466e36d76f3ce60b8f457380a255994973f7cc0721b6e",
+        "candidate.repeat": "4a93bc2b1027f7470bf466e36d76f3ce60b8f457380a255994973f7cc0721b6e"
+      },
+      "medianOpaqueRed": {
+        "reference": 29,
+        "candidate": 29
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "compact-diagnostics",
+      "axEqual": true,
+      "axLines": [
+        47,
+        47
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "e6e9f55204e193321f22afbf3d0771b905fe7d9446e5d897c7ec1138de4e50c2",
+        "reference.repeat": "e6e9f55204e193321f22afbf3d0771b905fe7d9446e5d897c7ec1138de4e50c2",
+        "candidate": "e6e9f55204e193321f22afbf3d0771b905fe7d9446e5d897c7ec1138de4e50c2",
+        "candidate.repeat": "e6e9f55204e193321f22afbf3d0771b905fe7d9446e5d897c7ec1138de4e50c2"
+      },
+      "medianOpaqueRed": {
+        "reference": 250,
+        "candidate": 250
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "compact-general",
+      "axEqual": true,
+      "axLines": [
+        64,
+        64
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "49f1ea4bf15c99ff9913278816aeac9ac3249a93dedb0fcdcbc3584cd1f479e2",
+        "reference.repeat": "49f1ea4bf15c99ff9913278816aeac9ac3249a93dedb0fcdcbc3584cd1f479e2",
+        "candidate": "49f1ea4bf15c99ff9913278816aeac9ac3249a93dedb0fcdcbc3584cd1f479e2",
+        "candidate.repeat": "49f1ea4bf15c99ff9913278816aeac9ac3249a93dedb0fcdcbc3584cd1f479e2"
+      },
+      "medianOpaqueRed": {
+        "reference": 250,
+        "candidate": 250
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "compact-information",
+      "axEqual": true,
+      "axLines": [
+        49,
+        49
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "432e9ab11c2b18af43f4575b6744fa3f3e00cd914433aff375eaa39422687961",
+        "reference.repeat": "432e9ab11c2b18af43f4575b6744fa3f3e00cd914433aff375eaa39422687961",
+        "candidate": "432e9ab11c2b18af43f4575b6744fa3f3e00cd914433aff375eaa39422687961",
+        "candidate.repeat": "432e9ab11c2b18af43f4575b6744fa3f3e00cd914433aff375eaa39422687961"
+      },
+      "medianOpaqueRed": {
+        "reference": 250,
+        "candidate": 250
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "compact-notch",
+      "axEqual": true,
+      "axLines": [
+        79,
+        79
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "5c03cb67cc6d24a14f3fbe52663fde8a5d207b1b24b4ca6fc020de7bec6aad4e",
+        "reference.repeat": "5c03cb67cc6d24a14f3fbe52663fde8a5d207b1b24b4ca6fc020de7bec6aad4e",
+        "candidate": "5c03cb67cc6d24a14f3fbe52663fde8a5d207b1b24b4ca6fc020de7bec6aad4e",
+        "candidate.repeat": "5c03cb67cc6d24a14f3fbe52663fde8a5d207b1b24b4ca6fc020de7bec6aad4e"
+      },
+      "medianOpaqueRed": {
+        "reference": 249,
+        "candidate": 249
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "compact-providers",
+      "axEqual": true,
+      "axLines": [
+        40,
+        40
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "bc25188be4a39c25de4e7167ceb7da681086182355d2af154909cfacb783f236",
+        "reference.repeat": "bc25188be4a39c25de4e7167ceb7da681086182355d2af154909cfacb783f236",
+        "candidate": "bc25188be4a39c25de4e7167ceb7da681086182355d2af154909cfacb783f236",
+        "candidate.repeat": "bc25188be4a39c25de4e7167ceb7da681086182355d2af154909cfacb783f236"
+      },
+      "medianOpaqueRed": {
+        "reference": 255,
+        "candidate": 255
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "compact-usage",
+      "axEqual": true,
+      "axLines": [
+        55,
+        55
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1720,
+        1240
+      ],
+      "sha256": {
+        "reference": "642b81f510d300d3e34346eb559bff95cd0adc344314e40742a8ce920391fdaf",
+        "reference.repeat": "642b81f510d300d3e34346eb559bff95cd0adc344314e40742a8ce920391fdaf",
+        "candidate": "642b81f510d300d3e34346eb559bff95cd0adc344314e40742a8ce920391fdaf",
+        "candidate.repeat": "642b81f510d300d3e34346eb559bff95cd0adc344314e40742a8ce920391fdaf"
+      },
+      "medianOpaqueRed": {
+        "reference": 250,
+        "candidate": 250
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "normal-diagnostics",
+      "axEqual": true,
+      "axLines": [
+        47,
+        47
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "59ee18d0252eccfc0c19589e985fed035245e2b7b841991b0d69da15ba3155d3",
+        "reference.repeat": "59ee18d0252eccfc0c19589e985fed035245e2b7b841991b0d69da15ba3155d3",
+        "candidate": "59ee18d0252eccfc0c19589e985fed035245e2b7b841991b0d69da15ba3155d3",
+        "candidate.repeat": "59ee18d0252eccfc0c19589e985fed035245e2b7b841991b0d69da15ba3155d3"
+      },
+      "medianOpaqueRed": {
+        "reference": 255,
+        "candidate": 255
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "normal-general",
+      "axEqual": true,
+      "axLines": [
+        64,
+        64
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "1fdb2070cdae15ba41322e5e4818fff6d9551a84d6d6b2826934e0b4095e3bb4",
+        "reference.repeat": "1fdb2070cdae15ba41322e5e4818fff6d9551a84d6d6b2826934e0b4095e3bb4",
+        "candidate": "1fdb2070cdae15ba41322e5e4818fff6d9551a84d6d6b2826934e0b4095e3bb4",
+        "candidate.repeat": "1fdb2070cdae15ba41322e5e4818fff6d9551a84d6d6b2826934e0b4095e3bb4"
+      },
+      "medianOpaqueRed": {
+        "reference": 250,
+        "candidate": 250
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "normal-information",
+      "axEqual": true,
+      "axLines": [
+        49,
+        49
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "5aafea0fa8b2ee4b5e0b5e06dffc9f08ca0df8b37b90752d541a93b45b803b5e",
+        "reference.repeat": "5aafea0fa8b2ee4b5e0b5e06dffc9f08ca0df8b37b90752d541a93b45b803b5e",
+        "candidate": "5aafea0fa8b2ee4b5e0b5e06dffc9f08ca0df8b37b90752d541a93b45b803b5e",
+        "candidate.repeat": "5aafea0fa8b2ee4b5e0b5e06dffc9f08ca0df8b37b90752d541a93b45b803b5e"
+      },
+      "medianOpaqueRed": {
+        "reference": 251,
+        "candidate": 251
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "normal-notch",
+      "axEqual": true,
+      "axLines": [
+        79,
+        79
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "255fc1b16976bc7e04e03efced65f7992ccd011cf14e752f33df495b0e0724d5",
+        "reference.repeat": "255fc1b16976bc7e04e03efced65f7992ccd011cf14e752f33df495b0e0724d5",
+        "candidate": "255fc1b16976bc7e04e03efced65f7992ccd011cf14e752f33df495b0e0724d5",
+        "candidate.repeat": "255fc1b16976bc7e04e03efced65f7992ccd011cf14e752f33df495b0e0724d5"
+      },
+      "medianOpaqueRed": {
+        "reference": 247,
+        "candidate": 247
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "normal-providers",
+      "axEqual": true,
+      "axLines": [
+        40,
+        40
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "08b81b289a586fe81305944b77a8938b82dc22021a3f0b15addb986d3746ece5",
+        "reference.repeat": "08b81b289a586fe81305944b77a8938b82dc22021a3f0b15addb986d3746ece5",
+        "candidate": "08b81b289a586fe81305944b77a8938b82dc22021a3f0b15addb986d3746ece5",
+        "candidate.repeat": "08b81b289a586fe81305944b77a8938b82dc22021a3f0b15addb986d3746ece5"
+      },
+      "medianOpaqueRed": {
+        "reference": 255,
+        "candidate": 255
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    },
+    {
+      "appearanceRequested": "Light",
+      "pane": "normal-usage",
+      "axEqual": true,
+      "axLines": [
+        55,
+        55
+      ],
+      "axRemoved": [],
+      "axAdded": [],
+      "size": [
+        1920,
+        1344
+      ],
+      "sha256": {
+        "reference": "57831f9c20e44373706909d42bb6eac34731a0f97934035d6a5ac91a4ae72c0b",
+        "reference.repeat": "57831f9c20e44373706909d42bb6eac34731a0f97934035d6a5ac91a4ae72c0b",
+        "candidate": "57831f9c20e44373706909d42bb6eac34731a0f97934035d6a5ac91a4ae72c0b",
+        "candidate.repeat": "57831f9c20e44373706909d42bb6eac34731a0f97934035d6a5ac91a4ae72c0b"
+      },
+      "medianOpaqueRed": {
+        "reference": 255,
+        "candidate": 255
+      },
+      "between": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "referenceRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      },
+      "candidateRepeat": {
+        "changedPixels": 0,
+        "bounds": null
+      }
+    }
+  ],
+  "totalComparedPixels": 56559360
+}

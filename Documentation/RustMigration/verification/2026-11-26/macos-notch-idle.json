@@ -1,0 +1,104 @@
+{
+  "source": "1d834e5beebea21becbea382084aeece8d6e8f01",
+  "reference": "61e8b954e3a84d4fdf2566d27fd637f7422ffa13",
+  "shippingOracle": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "packetDigest": "7c7ee4853e11a0737d33cdb38188391421397a51846021bf4ce5784613773cda",
+  "realGUI": {
+    "source": "gui-paired.json",
+    "trace": "baseline-app-sample.txt",
+    "artifact": {
+      "reference": "e44b176f73822a41c2ca3c9d3a65a667ef222a9a38d56d7d9821946e294cb578",
+      "candidate": "7d7f8f1c8ee3a7536cb7bc45e79c66d25e461b703d582fb9263fc4252b13b6ab"
+    },
+    "windows": [
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        1
+      ]
+    ],
+    "warmupSeconds": 8.0,
+    "sampleSeconds": 28.0,
+    "summary": {
+      "reference": {
+        "cpu_ms": 180.30233333,
+        "energy_nj": 197570174,
+        "disk_read_bytes": 282624,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 135,
+        "package_idle_wakeups": 3,
+        "logical_writes": 0,
+        "cpu_percent": 0.643039736099991,
+        "resident_bytes": 75644928,
+        "footprint_bytes": 22872976,
+        "peak_footprint_bytes": 24724560
+      },
+      "candidate": {
+        "cpu_ms": 60.867749999999944,
+        "energy_nj": 57735817,
+        "disk_read_bytes": 655360,
+        "disk_written_bytes": 0,
+        "interrupt_wakeups": 124,
+        "package_idle_wakeups": 4,
+        "logical_writes": 0,
+        "cpu_percent": 0.21702048601813687,
+        "resident_bytes": 63930368,
+        "footprint_bytes": 22545272,
+        "peak_footprint_bytes": 24298576
+      }
+    },
+    "construction": "Each full arm64 CodeRim target was compiled with the same generated Xcode dependency objects, package identifier and release flags, with the independent checkout source root substituted. Only the controller/state sources and linked cursor routine differ. Both use copies of the same private application bundle template, ad-hoc signing and ephemeral profiles. Neither run accessed a personal profile or network."
+  },
+  "focused": {
+    "source": "cursor-benchmark.json",
+    "rows": {
+      "arm": "Matched 2368 cursor observations on arm64, SHA256 40b431f7c68c08773c9cdb5f5cf8a9dd9666845329e43d8c49fe9c8ac159e389.",
+      "intel": "Matched 2368 cursor observations on x86_64, SHA256 40b431f7c68c08773c9cdb5f5cf8a9dd9666845329e43d8c49fe9c8ac159e389."
+    },
+    "medianNs": {
+      "folded": {
+        "release": 2230.1666666666665,
+        "previous-rust": 2291.8222,
+        "swift-control": 377.41113333333334,
+        "rust": 381.04446666666666
+      },
+      "crossings": {
+        "release": 2375.4111333333335,
+        "previous-rust": 2406.436133333333,
+        "swift-control": 1151.1611333333333,
+        "rust": 1138.3778
+      },
+      "expanded": {
+        "release": 2344.0944666666664,
+        "previous-rust": 2316.3028,
+        "swift-control": 544.0888666666667,
+        "rust": 544.1222
+      }
+    },
+    "scope": "Candidate and previous Rust path compared to released Swift, plus identical host optimization with the released Swift control-hover calculation. NSPanel is process-owned and not ordered on screen. System pointer and screen layout are not mutated."
+  },
+  "limitations": [
+    "Single local Apple Silicon screen; Intel target replayed under Rosetta. No physical multi-screen, live Dock move, or battery life experiment.",
+    "Synthetic event fixture uses extracted shipping cursor, routing and fold/tooltip grace work with supplied geometry and recording of pointing-hand intent. Whole idle GUI measurement observes a real folded product window.",
+    "Interval-specific process statistics have uncontrolled external system activity and do not establish a general CPU or battery percentage."
+  ]
+}

@@ -1,0 +1,41 @@
+{
+  "source": "3d41d64dae5367cfe11159f31dd1ffd0f9d80e77",
+  "reference": "v2.1.41",
+  "nativeTraces": [
+    "arm64 13056 1f5c5cf92e9eaee9677355a2f1c8b2493e9709175389977ece2985b564a63fbb",
+    "x86_64 13056 1f5c5cf92e9eaee9677355a2f1c8b2493e9709175389977ece2985b564a63fbb"
+  ],
+  "xctest": "Executed 1 with 0 failures",
+  "xcodebuild": {
+    "ios": {
+      "sha256": "69b65291025b44f21dd74e42fcf1973d532a61589cf3ea10fe3f82cf32b050c6",
+      "symbol": "_cr_mobile_follow",
+      "loadCommand": [
+        "LC_BUILD_VERSION",
+        "  cmdsize 32",
+        " platform IOS",
+        "    minos 17.2",
+        "      sdk 27.2",
+        "   ntools 1"
+      ]
+    },
+    "simulator": {
+      "sha256": "56643dd5c9ddcc1c3e3c51bec3fdbc62abca661f492f4595c6c93fb378d68ce6",
+      "symbol": "_cr_mobile_follow",
+      "loadCommand": [
+        "LC_BUILD_VERSION",
+        "  cmdsize 32",
+        " platform IOSSIMULATOR",
+        "    minos 17.2",
+        "      sdk 27.2",
+        "   ntools 1"
+      ]
+    }
+  },
+  "benchmark": {
+    "release": 191.5398858762255,
+    "native": 175.32727290134804,
+    "rust": 164.81805300245097
+  },
+  "testLimit": "Device build, simulator build-for-testing, and isolated macOS XCTest. No physical device or real APNs service exercised."
+}

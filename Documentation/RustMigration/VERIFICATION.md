@@ -145,3 +145,20 @@ The migration branch is experimental. The data-collection and account flows, all
 개별 기능의 비교 결과와 정식 승인 판정은 별도로 기록한다. 설정 통계의 development-harness 결과는 INCONCLUSIVE였다. 역방향 로그와 업데이트 재시작의 판정은 REJECT였다. 각각 Cargo.lock 및 CI 워크플로의 변경이 고정된 검증 입력에 걸렸다. 업데이트 패치의 CI 파일은 작업 허용 경로에서도 벗어났다. 공개 서명, GUI 동작, 프로세스 성능, 장시간 수집과 물리 기기 검증을 포함한 전체 병합 요건은 계속 적용된다.
 
 macOS에서 통합 후보 `4325275`의 Universal 2 앱을 실제 ZIP·DMG로 만든 뒤 각각 새 디렉터리에 설치했다. 두 설치 모두 번들 서명, 앱·위젯·재시작용 CLI 해시와 CLI 116개 검사를 통과했다. ZIP은 25,827,360바이트, DMG는 29,230,449바이트였다. 기존 공개 ZIP은 33,022,789바이트이며 배포 서명·공증 조건이 다른 두 빌드의 크기다. [설치 결과와 체크섬](verification/2026-11-26/macos-restart-packages.json)
+
+## 설정 창, 제공자 순서, iPhone과 재시작 실측
+
+공개 v2.1.41과 Universal 후보 `4325275`의 실제 macOS 설정 창을 같은 Mac에서 열었다. General, Usage, Providers, Notch, Diagnostics, Information을 960×672pt와 860×620pt에서 각각 촬영했다. 어두운 데스크톱에서는 원본 앱 사본을 사용했고, 밝은 모드에서는 독립된 QA 사본의 Info.plist에 Aqua를 지정해 로컬 서명했다. 각 빌드의 Mach-O UUID가 두 모드에서 일치했다. 창 소유 PID와 제목을 확인한 뒤 촬영한 24쌍의 RGBA 픽셀 56,559,360개와 접근성 계층의 역할·문자열·순서가 모두 일치했다. 별도 ImageIO 디코더로 재촬영본까지 96장 전부를 대조했다. 이 자료에서 Usage의 7일 차트는 빈 상태다. 하네스의 네이티브 검증 어댑터와 비대화형 검토 서명이 없어 공식 판정은 INCONCLUSIVE였다. [24쌍 비교](verification/2026-11-26/macos-settings-window.json) · [독립 확인](verification/2026-11-26/macos-settings-window-independent.json)
+
+| 실제 설정 창 | 공개 v2.1.41 | Rust 후보 |
+| --- | --- | --- |
+| 밝은 모드, Providers | [화면](verification/2026-11-26/settings-light-compact-providers-reference.png) | [화면](verification/2026-11-26/settings-light-compact-providers-candidate.png) |
+| 어두운 모드, Notch | [화면](verification/2026-11-26/settings-dark-normal-notch-reference.png) | [화면](verification/2026-11-26/settings-dark-normal-notch-candidate.png) |
+
+제공자 정렬은 저장된 순서, 사라진 계정, 중복 ID와 Unicode 등가 문자열을 포함한 2,425개 결과를 Apple Silicon과 Rosetta 각각에서 공개 소스와 대조했다. 등록 순서가 이미 같으면 배열을 재사용한다. 큰 목록에서 검색량이 누적된 경우 Rust가 같은 그룹 내 원래 등록 순서를 보존해 나머지를 정렬한다. M5 최적화 빌드의 7회 중앙값은 350개 역순에서 82.9→25.8μs, 항목 일부가 사라진 경우 78.8→26.8μs였다. 같은 자료구조의 Swift 대조군은 각각 26.7μs, 27.6μs였다. 70개 역순은 4.14μs로 양쪽이 비슷했다. [전체 입력별 측정](verification/2026-11-26/macos-provider-order-performance.json)
+
+정규 ISO 8601 로그 시각을 읽는 두 진입점은 각 아키텍처에서 21,935개 입력의 결과를 날짜 비트 단위로 대조했다. 기존 Foundation 경로가 필요한 입력도 포함했다. 접힌 노치의 커서 처리 개선은 직전 후보와 3쌍의 28초 관찰에서 CPU 0.643%→0.217%였다. 공개판 대비 배터리 수명은 별도 측정 대상이다. [시간 파서 실측](verification/2026-11-26/macos-log-timestamp.json) · [유휴 CPU의 조건과 원자료](verification/2026-11-26/macos-notch-idle.json)
+
+iPhone Live Activity 자동 시작·중지 조건은 각 아키텍처 13,056개 상태 전이, 대시보드 응답과 Island 업데이트 간 충돌 처리는 각각 4,352개 시나리오를 기존 동작과 대조했다. 장치용 Release 빌드와 시뮬레이터용 XCTest 빌드의 심볼도 확인했다. 이는 실기기 APNs 수신의 검증과 별개다. [자동 시작·중지](verification/2026-11-26/ios-follow.json) · [대시보드 갱신](verification/2026-11-26/ios-snapshot-refresh.json)
+
+macOS 업데이트 재시작 실험에서 공개판의 AppKit 재열기 콜백이 CI의 시간 제한에 걸렸다. Finder처럼 LaunchServices에 등록된 accessory 앱을 같은 조건으로 실행하도록 QA 드라이버를 고쳤다. 로컬 수정본의 6개 시나리오를 실행했다. 종료가 거부된 앱을 다시 연 시간은 공개판 63.75초, Rust 60.07초였고, 빠른 종료와 기존 번들 복귀 경로도 원래 번들을 열었다. [LaunchServices 실험](verification/2026-11-26/macos-restart-launchservices.json)
