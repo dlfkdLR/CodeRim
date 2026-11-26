@@ -19,17 +19,13 @@ mod claude_json;
 mod companion_export;
 #[cfg(target_os = "macos")]
 mod copilot_quota;
-#[cfg(target_os = "macos")]
-mod json_compat;
-#[cfg(target_os = "macos")]
-mod ollama_local;
-#[cfg(target_os = "macos")]
-mod ollama_quota;
 mod event_json;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod github_device_policy;
 #[cfg(target_os = "macos")]
 mod glyph_path;
+#[cfg(target_os = "macos")]
+mod json_compat;
 #[cfg(target_os = "macos")]
 mod line_breaks;
 #[cfg(target_os = "macos")]
@@ -50,6 +46,10 @@ mod notch_path;
 mod notch_viewport;
 #[cfg(any(target_os = "macos", test))]
 mod ollama_key;
+#[cfg(target_os = "macos")]
+mod ollama_local;
+#[cfg(target_os = "macos")]
+mod ollama_quota;
 #[cfg(target_os = "macos")]
 mod pricing;
 #[cfg(target_os = "macos")]
