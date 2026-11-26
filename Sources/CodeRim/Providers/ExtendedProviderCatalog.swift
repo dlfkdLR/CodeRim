@@ -42,7 +42,11 @@ enum ExtendedProviderCatalog {
     }
 
     @MainActor static func makeProviders() -> [any NotchProvider] {
+        #if CODERIM_RUST_ACCOUNTING
+        additions.map { ExtendedNotchProvider(descriptor: $0, ownedOnly: true) }
+        #else
         additions.map { ExtendedNotchProvider(descriptor: $0) }
+        #endif
     }
 }
 

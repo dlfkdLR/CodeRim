@@ -78,7 +78,11 @@ final class ProfileUsageStoreTests: XCTestCase {
             await store.refresh()
 
             XCTAssertEqual(store.status, .credentialsUnavailable)
+            #if CODERIM_RUST_ACCOUNTING
+            XCTAssertEqual(store.statusMessage, "Add and select an account in CodeRim’s Codex Accounts window")
+            #else
             XCTAssertEqual(store.statusMessage, "Codex sign-in is unavailable")
+            #endif
         }
 
         let fixture = try DefaultsFixture(enabled: true)

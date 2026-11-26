@@ -29,6 +29,41 @@ struct ExtendedProviderSettingsView: View {
     }
 
     var body: some View {
+        #if CODERIM_RUST_ACCOUNTING
+        Group {
+            if MigrationProviderAccess.api[descriptor.id.rawValue] != nil || descriptor.id == .copilot {
+                SettingsSection(title: "Connection settings") {
+                    VStack(alignment: .leading, spacing: 12) {
+                        SecureField(apiKeyLabel, text: field(\.apiKey))
+                            .accessibilityIdentifier("provider.\(localID).apiKey")
+                        if descriptor.credentials?.usesRegion == true { TextField("Region", text: field(\.region)) }
+                        ForEach((MigrationProviderAccess.options[descriptor.id.rawValue] ?? []).sorted(), id: \.self) { key in
+                            TextField(key, text: Binding(get: { configuration.environment[key] ?? "" },
+                                set: { configuration.environment[key] = configuration.environmentInput($0, for: key) }))
+                        }
+                        Button(isConnected ? "Save and refresh" : "Connect") { save() }
+                            .disabled(!loaded)
+                            .accessibilityIdentifier("provider.\(localID).save")
+                        if let message { Text(message).font(.caption) }
+                    }
+                    .padding(.horizontal, SettingsMetrics.rowInset).padding(.vertical, 12)
+                }
+                .task(id: localID) { loadConfiguration() }
+            }
+        }
+        #else
+        legacySettings
+        #endif
+    }
+
+    private func loadConfiguration() {
+        do {
+            configuration = try ExtendedProviderConfigurationStore.load(descriptor, interactive: true)
+            loaded = true
+        } catch { message = error.localizedDescription; loaded = false }
+    }
+
+    private var legacySettings: some View {
         Group {
             if isConnected {
                 SettingsSection(title: "Connection settings") {
@@ -41,10 +76,7 @@ struct ExtendedProviderSettingsView: View {
                 }
             }
         }
-        .task(id: localID) {
-            do { configuration = try ExtendedProviderConfigurationStore.load(descriptor, interactive: true); loaded = true }
-            catch { message = error.localizedDescription; loaded = false }
-        }
+        .task(id: localID) { loadConfiguration() }
     }
 
     private var form: some View {

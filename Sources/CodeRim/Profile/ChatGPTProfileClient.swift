@@ -10,7 +10,11 @@ struct ChatGPTProfileClient: Sendable {
 
     init(
         credentialLoader: @escaping ProfileCredentialLoading = {
+            #if CODERIM_RUST_ACCOUNTING
+            try CodeRimAccountSelection.profileCredential()
+            #else
             try CodexAuthCredentialLoader().load()
+            #endif
         },
         requestLoader: @escaping ProfileRequestLoading = { request in
             try await BoundedProfileRequestLoader(maximumSize: Self.maximumResponseSize)

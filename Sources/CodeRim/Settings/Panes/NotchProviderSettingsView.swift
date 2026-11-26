@@ -50,7 +50,11 @@ struct NotchProviderSettingsView: View {
                             notch.providerConfigurationDidChange(providerID)
                         }
                     }
+                    #if CODERIM_RUST_ACCOUNTING
+                    SettingsNote("To change accounts, update the connection in CodeRim Settings.")
+                    #else
                     SettingsNote("To use another account, save its credentials below, or switch the imported browser session and refresh.")
+                    #endif
                 } else if let route {
                     // Not connected: one place that says what to do, and the button that does it.
                     SettingsSection(title: "Connect") {
@@ -76,9 +80,11 @@ struct NotchProviderSettingsView: View {
             connectionProgress
             alertsSection
 
+            #if !CODERIM_RUST_ACCOUNTING
             if !ExtendedProviderCatalog.isExtended(providerID) {
             SettingsNote("CodeRim never signs in to \(name). Each reading is borrowed from the tool that already holds the account — signing out or switching accounts is done in that tool, and the notch follows.")
             }
+            #endif
         }
         .onAppear { notch.refreshProvidersForSettings() }
     }
@@ -260,7 +266,12 @@ struct NotchProviderSettingsView: View {
             }
         case let .guided(guided):
             SettingsButtonRow(title: guided.actionTitle, systemImage: "person.badge.key") {
-                if guided.opensSettings { accountActionMessage = nil } else { notch.beginConnecting(providerID) }
+                if guided.opensSettings {
+                    accountActionMessage = nil
+                    #if CODERIM_RUST_ACCOUNTING
+                    if providerID == "ollama" { SettingsWindowController.shared.present(selecting: .category(.notch)) }
+                    #endif
+                } else { notch.beginConnecting(providerID) }
             }
         case .guidance:
             EmptyView()

@@ -74,7 +74,10 @@ final class ViewedCodexAccountLimits: ObservableObject {
         }
     }
     func select(_ id: String?, accounts: CodexAccountStore) async {
-        let target = id == accounts.currentID ? nil : id
+        await selectSaved(id == accounts.currentID ? nil : id, accounts: accounts)
+    }
+
+    func selectSaved(_ target: String?, accounts: CodexAccountStore) async {
         guard target != accountID else { return }
         generation += 1
         accountID = target

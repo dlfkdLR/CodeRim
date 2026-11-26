@@ -268,6 +268,16 @@ struct ProviderSnapshot: Identifiable, Equatable {
     /// Signing in means something different per provider, so the prompt has to
     /// say which door to knock on.
     private var authPrompt: String {
+        #if CODERIM_RUST_ACCOUNTING
+        switch id {
+        case "codex": return "Sign in with Codex or select a saved account in CodeRim"
+        case "claude": return "Connect Claude Code in CodeRim Settings"
+        case "copilot": return "Connect GitHub in CodeRim Settings to read Copilot usage"
+        case "ollama": return "Enter an Ollama API key in Settings ▸ Notch, or export OLLAMA_API_KEY"
+        case "ollama-local": return "Start Ollama to monitor your local models"
+        default: return "Open this provider in CodeRim Settings to connect"
+        }
+        #else
         switch id {
         case "claude":     return "Sign in to Claude Code to read your usage"
         case "cursor":     return "Sign in to Cursor in the editor"
@@ -284,6 +294,7 @@ struct ProviderSnapshot: Identifiable, Equatable {
         case "ollama-local": return "Start Ollama to monitor your local models"
         default:           return "Sign in to \(displayName) to read your usage"
         }
+        #endif
     }
 
     /// What the tooltip says instead of limit rows when there is nothing to show.

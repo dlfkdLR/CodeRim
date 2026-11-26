@@ -2,7 +2,12 @@ import Foundation
 
 @MainActor
 final class ClaudeAccountStore: ObservableObject {
+    #if CODERIM_RUST_ACCOUNTING
+    static let shared = ClaudeAccountStore(ownsOnly: true)
+    #else
     static let shared = ClaudeAccountStore()
+    #endif
+    let ownsOnly: Bool
     @Published private(set) var accounts: [SavedClaudeAccount] = []
     @Published private(set) var currentID: String?
     @Published private(set) var isBusy = false
@@ -21,13 +26,14 @@ final class ClaudeAccountStore: ObservableObject {
     private let acquireLock: () throws -> CodexAccountOperationLock?
     private var signInTask: Task<Void, Never>?
 
-    init(vault: any ClaudeAccountVault = KeychainClaudeAccountVault(),
+    init(ownsOnly: Bool = false, vault: any ClaudeAccountVault = KeychainClaudeAccountVault(),
          login: any ClaudeLoginStoring = ClaudeLoginStore.local(),
          runtime: any ClaudeAccountRuntime = LocalClaudeAccountRuntime(),
          acquireLock: @escaping () throws -> CodexAccountOperationLock? = {
              try CodexAccountOperationLock.acquire(directory: FileManager.default.homeDirectoryForCurrentUser)
          },
          desktopAccountID: @escaping () -> String? = { ClaudeDesktopAccount.accountID() }) {
+        self.ownsOnly = ownsOnly
         self.vault = vault; self.login = login; self.runtime = runtime; self.acquireLock = acquireLock
         self.desktopAccountID = desktopAccountID
     }
@@ -45,12 +51,14 @@ final class ClaudeAccountStore: ObservableObject {
         guard !isBusy else { return }
         do {
             accounts = try vault.load()
+            if ownsOnly { return }
             try runtime.checkPolicy()
             currentID = try login.read().account()?.id
         } catch { currentID = nil; fail(error) }
     }
 
     func saveCurrent() async {
+        if ownsOnly { succeed("Use Add Account to sign in to CodeRim."); return }
         guard !isBusy else { return }
         isBusy = true
         defer { isBusy = false }
@@ -66,6 +74,7 @@ final class ClaudeAccountStore: ObservableObject {
     }
 
     func addAccount() {
+        if ownsOnly { succeed("Connect using Claude Code in provider settings."); return }
         guard !isBusy else { return }
         isBusy = true; isSigningIn = true
         succeed("Complete sign-in in your browser. Your current account stays signed in.")
@@ -101,6 +110,7 @@ final class ClaudeAccountStore: ObservableObject {
 
     /// The view asks for confirmation; never close or kill the user's sessions.
     func switchAccount(to id: String) async {
+        if ownsOnly { succeed("Switch Claude accounts using the official Claude Code sign-in."); return }
         guard !isBusy else { return }
         isBusy = true
         defer { isBusy = false }

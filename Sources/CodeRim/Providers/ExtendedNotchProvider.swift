@@ -9,6 +9,7 @@ import CodexBarCore
 final class ExtendedNotchProvider: NotchProvider {
     typealias Fetch = @Sendable (ProviderDescriptor, ProviderFetchContext) async throws -> ProviderFetchResult
     let descriptor: ProviderDescriptor
+    private let ownedOnly: Bool
     private let fetch: Fetch
     private let configuration: () throws -> ExtendedProviderConfiguration
     private var currentAccount: ProviderAccount?
@@ -17,9 +18,10 @@ final class ExtendedNotchProvider: NotchProvider {
     private(set) var lastStrategyID: String?
     static let cacheService = "dev.codexmeter.provider-cache"
 
-    init(descriptor: ProviderDescriptor,
+    init(descriptor: ProviderDescriptor, ownedOnly: Bool = false,
          configuration: (() throws -> ExtendedProviderConfiguration)? = nil,
          fetch: @escaping Fetch = { descriptor, context in try await ExtendedNotchProvider.fetchUpstream(descriptor, context: context) }) {
+        self.ownedOnly = ownedOnly
         self.descriptor = descriptor
         self.configuration = configuration ?? { try ExtendedProviderConfigurationStore.load(descriptor, interactive: ProviderInteractionContext.current == .userInitiated) }
         self.fetch = fetch
@@ -27,17 +29,36 @@ final class ExtendedNotchProvider: NotchProvider {
 
     var id: String { ExtendedProviderCatalog.localID(descriptor.id) }
     var displayName: String { descriptor.metadata.displayName }
+    var requiresVerifiedArchiveOwner: Bool { ownedOnly }
     var glyph: ProviderGlyph { NotchProviderCatalog.glyph(for: id) }
-    var isVisibleWhenAbsent: Bool { true }
-    var signInRoute: SignInRoute { ExtendedProviderCatalog.signInRoute(for: descriptor, displayName: displayName) }
+    var isVisibleWhenAbsent: Bool { !ownedOnly || !ExtendedProviderCatalog.nativeIDs.contains(id) }
+    var signInRoute: SignInRoute {
+        #if CODERIM_RUST_ACCOUNTING
+        if ownedOnly { return MigrationProviderAccess.route(for: descriptor) }
+        #endif
+        return ExtendedProviderCatalog.signInRoute(for: descriptor, displayName: displayName)
+    }
     func account() -> ProviderAccount? { currentAccount }
     /// The account the last read reported, where the service names one.
     func accountIdentity() -> String? {
-        currentAccount?.label.map { AccountIdentity.fingerprint(descriptor.id.rawValue, $0.lowercased()) }
+        #if CODERIM_RUST_ACCOUNTING
+        if ownedOnly {
+            guard let mode = MigrationProviderAccess.api[descriptor.id.rawValue],
+                  let config = try? configuration(), let env = MigrationProviderAccess.environment(for: config, descriptor: descriptor),
+                  let key = env[mode.key] else { return nil }
+            // A provider may use the same administrative key to read different teams or endpoints.
+            let scope = env.sorted { $0.key < $1.key }.compactMap { name, value in
+                name == mode.key ? nil : "\(name.utf8.count):\(name)\(value.utf8.count):\(value)"
+            }.joined()
+            return AccountIdentity.fingerprint(id, key, scope, config.provider.region ?? "")
+        }
+        #endif
+        return currentAccount?.label.map { AccountIdentity.fingerprint(descriptor.id.rawValue, $0.lowercased()) }
     }
     func forgetCachedCredential() {
         revision = UUID()
         currentAccount = nil
+        if ownedOnly { return }
         // The dependency's default cache belongs to CodexBar, not this app.
         KeychainCacheStore.withServiceOverrideForTesting(Self.cacheService) {
             if [.deepseek, .minimax, .factory].contains(descriptor.id) {
@@ -53,6 +74,11 @@ final class ExtendedNotchProvider: NotchProvider {
 
     func fetchSnapshot() async throws -> ProviderSnapshot {
         let version = revision
+        #if CODERIM_RUST_ACCOUNTING
+        if ownedOnly, MigrationProviderAccess.api[descriptor.id.rawValue] == nil {
+            return empty(.unsupported(MigrationProviderAccess.unavailable))
+        }
+        #endif
         let config: ExtendedProviderConfiguration
         do { config = try configuration() }
         catch let error as ExtendedProviderConfigurationStore.StoreError {
@@ -66,6 +92,9 @@ final class ExtendedNotchProvider: NotchProvider {
         if let notice = ExtendedProviderConfiguration.billableNotice(for: descriptor.id), !config.allowBillableRequests {
             return empty(.unsupported("Enable billed requests in this provider's settings. " + notice))
         }
+        #if CODERIM_RUST_ACCOUNTING
+        if ownedOnly { return try await ownedSnapshot(config, version: version) }
+        #endif
         let environment = config.fetchEnvironment(base: ProcessInfo.processInfo.environment)
         // Upstream discovery persists to CodexBar's config. Require an explicit account here.
         if descriptor.id == .fireworks, environment["FIREWORKS_ACCOUNT_SLUG"]?.isEmpty != false {
@@ -117,6 +146,42 @@ final class ExtendedNotchProvider: NotchProvider {
             return empty(.error(Self.safeError(error, provider: displayName)))
         }
     }
+
+    #if CODERIM_RUST_ACCOUNTING
+    private func ownedSnapshot(_ config: ExtendedProviderConfiguration, version: UUID) async throws -> ProviderSnapshot {
+        guard let environment = MigrationProviderAccess.environment(for: config, descriptor: descriptor) else {
+            return empty(.needsAuth)
+        }
+        if descriptor.id == .fireworks, environment["FIREWORKS_ACCOUNT_SLUG"]?.isEmpty != false {
+            return empty(.unsupported("Set FIREWORKS_ACCOUNT_SLUG in Additional provider settings, then save."))
+        }
+        let browser = BrowserDetection()
+        var direct = ExtendedProviderConfiguration(providerID: descriptor.id)
+        direct.provider.apiKey = config.provider.apiKey
+        direct.provider.region = config.provider.region
+        direct.provider.cookieSource = .off
+        let context = ProviderFetchContext(runtime: .app, sourceMode: .api,
+            includeCredits: true, includeOptionalUsage: false, webTimeout: 20, webDebugDumpHTML: false, verbose: false,
+            env: environment, settings: direct.settings(environment: environment), fetcher: UsageFetcher(environment: environment),
+            claudeFetcher: ClaudeUsageFetcher(browserDetection: browser, environment: environment), browserDetection: browser)
+        do {
+            let result = try await MigrationProviderAccess.fetch(descriptor, context: context)
+            try Task.checkCancellation()
+            guard revision == version else { throw CancellationError() }
+            lastStrategyID = result.strategyID
+            currentAccount = ProviderAccount(label: result.usage.accountEmail(for: descriptor.id),
+                plan: result.usage.loginMethod(for: descriptor.id), source: "CodeRim connection",
+                manageURL: descriptor.metadata.dashboardURL.flatMap(URL.init(string:)))
+            return Self.snapshot(result, descriptor: descriptor)
+        } catch is CancellationError { throw CancellationError() }
+        catch {
+            guard revision == version else { throw CancellationError() }
+            try Task.checkCancellation()
+            return empty(ExtendedProviderFailureClassifier.status(for: error, provider: displayName)
+                ?? .error(Self.safeError(error, provider: displayName)))
+        }
+    }
+    #endif
 
     nonisolated static func fetchUpstream(_ descriptor: ProviderDescriptor, context: ProviderFetchContext) async throws -> ProviderFetchResult {
         if [.deepseek, .minimax, .factory].contains(descriptor.id) { return try await SafeBrowserProviderFetch.fetch(descriptor, context: context) }

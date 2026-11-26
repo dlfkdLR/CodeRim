@@ -9,7 +9,11 @@ extension ProfileCredential {
     }
 
     static func currentAccountKey() throws -> String? {
+        #if CODERIM_RUST_ACCOUNTING
+        UserDefaults.standard.string(forKey: CodeRimAccountSelection.key)
+        #else
         try CodexAuthCredentialLoader().load().accountKey
+        #endif
     }
 
     var accountKey: String? {

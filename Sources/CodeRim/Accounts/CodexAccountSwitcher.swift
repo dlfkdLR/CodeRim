@@ -94,8 +94,14 @@ struct CodexAccountSwitcher: View {
                             : "Switch Codex to \(account.menuTitle(in: accounts.accounts))")
                     }
                 }
+                #if CODERIM_RUST_ACCOUNTING
+                if accounts.selectedOwnedMarker != nil {
+                    Button("Follow signed-in Codex account") { accounts.followSignedInAccount() }
+                        .disabled(accounts.isBusy)
+                }
+                #endif
                 Divider()
-                if currentAccount == nil {
+                if currentAccount == nil && !accounts.usesOwnedSelection {
                     Button("Save Current Account") { Task { await accounts.saveCurrent() } }
                         .disabled(accounts.isBusy)
                 }
@@ -136,17 +142,17 @@ struct CodexAccountSwitchConfirmation: ViewModifier {
     @Binding var selection: SavedCodexAccount?
 
     func body(content: Content) -> some View {
-        content.alert("Switch Codex account?", isPresented: Binding(
+        content.alert(accounts.usesOwnedSelection ? "Use this account in CodeRim?" : "Switch Codex account?", isPresented: Binding(
             get: { selection != nil }, set: { if !$0 { selection = nil } }
         ), presenting: selection) { account in
             Button("Cancel", role: .cancel) { selection = nil }
-            Button("Quit Codex & Switch") {
+            Button(accounts.usesOwnedSelection ? "Use in CodeRim" : "Quit Codex & Switch") {
                 selection = nil
                 Task { await accounts.switchAccount(to: account.id) }
             }
             .disabled(accounts.isBusy)
         } message: { account in
-            Text("Codex will quit and reopen as \(account.menuTitle(in: accounts.accounts)). The same login applies to the CLI. Finish your work and close CLI or editor sessions before switching, then start new sessions afterward.")
+            Text(accounts.usesOwnedSelection ? "CodeRim will show usage for \(account.menuTitle(in: accounts.accounts))." : "Codex will quit and reopen as \(account.menuTitle(in: accounts.accounts)). The same login applies to the CLI. Finish your work and close CLI or editor sessions before switching, then start new sessions afterward.")
         }
     }
 }

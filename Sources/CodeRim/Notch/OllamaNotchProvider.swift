@@ -8,6 +8,10 @@ import Foundation
 final class OllamaNotchProvider: NotchProvider {
     let id = "ollama"
     let displayName = "Ollama"
+    #if CODERIM_RUST_ACCOUNTING
+    var requiresVerifiedArchiveOwner: Bool { true }
+    func accountIdentity() -> String? { key().map { AccountIdentity.fingerprint(id, $0) } }
+    #endif
     let glyph: ProviderGlyph = .ollama
     var isVisibleWhenAbsent: Bool { false }
 
@@ -22,8 +26,12 @@ final class OllamaNotchProvider: NotchProvider {
     }
 
     var signInRoute: SignInRoute {
+        #if CODERIM_RUST_ACCOUNTING
+        .guided(.init(name: "Ollama", action: .settings, note: "Save an Ollama API key in Settings ▸ Notch."))
+        #else
         .guided(.init(name: "Ollama", action: .browser(URL(string: "https://ollama.com/settings/keys")!),
             note: "Create a key on ollama.com, then export OLLAMA_API_KEY in your shell. CodeRim detects it."))
+        #endif
     }
 
     func account() -> ProviderAccount? {

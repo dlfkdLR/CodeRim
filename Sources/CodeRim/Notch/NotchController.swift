@@ -67,9 +67,21 @@ final class NotchController: ObservableObject {
         providers = [
             CodexNotchProvider(limits: codexLimits, accounts: codexAccounts, usage: codexUsage),
             ClaudeNotchProvider(claude: claudeIntegration, usage: claudeUsage),
-            // Borrows a token from GitHub CLI; its ring only appears once one
-            // turns up (`isVisibleWhenAbsent == false`).
-        ] + ([
+        ]
+        #if CODERIM_RUST_ACCOUNTING
+        providers.append(CopilotNotchProvider())
+        for id in ["cursor", "grok", "opencode", "commandcode", "glm"] {
+            if let descriptor = ExtendedProviderCatalog.descriptor(for: id) {
+                providers.append(ExtendedNotchProvider(descriptor: descriptor, ownedOnly: true))
+            }
+        }
+        providers.append(OllamaNotchProvider())
+        if let descriptor = ExtendedProviderCatalog.descriptor(for: "gemini") {
+            providers.append(ExtendedNotchProvider(descriptor: descriptor, ownedOnly: true))
+        }
+        providers.append(OllamaLocalProvider())
+        #else
+        providers += ([
             CopilotNotchProvider(),
             // Borrows the Cursor editor's session from its SQLite store.
             CursorNotchProvider(),
@@ -88,7 +100,8 @@ final class NotchController: ObservableObject {
             // Local `ollama serve` model listing (no ring — a local server has no quota).
             OllamaLocalProvider(),
         ] as [any NotchProvider]).map(HybridNotchProvider.wrapping)
-        + ExtendedProviderCatalog.makeProviders()
+        #endif
+        providers += ExtendedProviderCatalog.makeProviders()
         var existing = Set(UsageArchive().load().values.filter { $0.snapshot.hasReading }.map { $0.snapshot.id })
         existing.insert("codex")
         if claudeIntegration.isEnabled { existing.insert("claude") }

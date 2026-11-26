@@ -16,6 +16,7 @@ protocol NotchProvider {
     /// Non-secret current-account identity, checked around each fetch and used to partition cached
     /// readings/backoff across switches.
     func accountIdentity() -> String?
+    var requiresVerifiedArchiveOwner: Bool { get }
     /// Where the user goes to sign in, when there is no account to read. A
     /// requirement for the same reason `account()` is.
     var signInRoute: SignInRoute { get }
@@ -33,6 +34,13 @@ protocol NotchProvider {
 }
 
 extension NotchProvider {
+    var requiresVerifiedArchiveOwner: Bool { false }
+
+    func acceptsArchived(owner: String?) -> Bool {
+        guard let current = accountIdentity() else { return !requiresVerifiedArchiveOwner }
+        return current == owner
+    }
+
     var isVisibleWhenAbsent: Bool { true }
     func accountIdentity() -> String? { nil }
 }

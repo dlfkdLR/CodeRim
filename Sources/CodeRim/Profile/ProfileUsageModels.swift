@@ -30,7 +30,11 @@ enum ProfileUsageStatus: Equatable, Sendable {
         case .ready:
             "Account totals updated"
         case .credentialsUnavailable:
+            #if CODERIM_RUST_ACCOUNTING
+            "Add and select an account in CodeRim’s Codex Accounts window"
+            #else
             "Codex sign-in is unavailable"
+            #endif
         case .unavailable:
             "Account totals are unavailable"
         }

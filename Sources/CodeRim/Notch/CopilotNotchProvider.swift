@@ -1,6 +1,7 @@
 import Foundation
 #if CODERIM_RUST_ACCOUNTING
 import CCodeRimAccounting
+import CodexBarCore
 #endif
 
 /// Reads GitHub Copilot quotas from the endpoint its editors use. The token is
@@ -14,6 +15,9 @@ import CCodeRimAccounting
 final class CopilotNotchProvider: NotchProvider {
     let id = "copilot"
     let displayName = "GitHub Copilot"
+    #if CODERIM_RUST_ACCOUNTING
+    var requiresVerifiedArchiveOwner: Bool { true }
+    #endif
     let glyph: ProviderGlyph = .copilot
     var isVisibleWhenAbsent: Bool { false }
 
@@ -24,29 +28,56 @@ final class CopilotNotchProvider: NotchProvider {
     init(session: URLSession = ProviderSession.shared,
          loadCredentials: (@Sendable () throws -> GitHubCopilotCredentials)? = nil) {
         self.session = session
+        #if CODERIM_RUST_ACCOUNTING
+        self.loadCredentials = loadCredentials ?? { try MigrationProviderAccess.copilotCredentials() }
+        #else
         self.loadCredentials = loadCredentials ?? { try GitHubCopilotCredentials.load() }
+        #endif
     }
 
     var signInRoute: SignInRoute {
+        #if CODERIM_RUST_ACCOUNTING
+        .guided(.init(name: "GitHub", action: .inApp(.githubDevice),
+                      note: "Approve the code with GitHub to connect this account to CodeRim."))
+        #else
         .guided(.init(name: "GitHub", action: .terminal(command: "gh auth login --web"),
             note: "A Terminal window opens GitHub's sign-in: copy the code, approve it in the browser, and CodeRim connects on its own.",
             installURL: URL(string: "https://cli.github.com")))
+        #endif
     }
 
     func account() -> ProviderAccount? {
+        #if CODERIM_RUST_ACCOUNTING
+        guard let credential = try? loadCredentials() else { return nil }
+        return ProviderAccount(label: credential.username, plan: nil, source: credential.source,
+                               manageURL: URL(string: "https://github.com/settings/copilot"))
+        #else
         GitHubCopilotCredentials.account()
+        #endif
     }
 
     func accountIdentity() -> String? {
+        #if CODERIM_RUST_ACCOUNTING
+        return (try? loadCredentials()).map { AccountIdentity.fingerprint("copilot", $0.token) }
+        #else
         GitHubCopilotCredentials.identity(environment: ProcessInfo.processInfo.environment,
                                           hosts: CredentialFileReader.text(at: GitHubCopilotCredentials.hostsURL))
+        #endif
     }
 
     func fetchSnapshot() async throws -> ProviderSnapshot {
         // Credential discovery reads files and can start `gh`; keep that off
         // the main actor.
         let load = loadCredentials
-        let credentials = try await Task.detached { try load() }.value
+        #if CODERIM_RUST_ACCOUNTING
+        let interaction = ProviderInteractionContext.current
+        let read: @Sendable () throws -> GitHubCopilotCredentials = {
+            try ProviderInteractionContext.$current.withValue(interaction) { try load() }
+        }
+        #else
+        let read = load
+        #endif
+        let credentials = try await Task.detached { try read() }.value
 
         var request = URLRequest(url: endpoint)
         request.setValue("Bearer \(credentials.token)", forHTTPHeaderField: "Authorization")
@@ -68,7 +99,7 @@ final class CopilotNotchProvider: NotchProvider {
         }
 
         let windows = try GitHubCopilotUsage.windows(from: data)
-        let current = try await Task.detached { try load() }.value
+        let current = try await Task.detached { try read() }.value
         guard current.token == credentials.token else { throw NotchProviderError.needsAuth }
         return ProviderSnapshot(
             id: id,

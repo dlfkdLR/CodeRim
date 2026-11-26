@@ -51,7 +51,11 @@ struct CodexAuthCredentialLoader: Sendable {
             throw ProfileUsageError.unsafeCredentialFile
         }
 
-        let data = try readAll(from: descriptor)
+        return try Self.decode(readAll(from: descriptor))
+    }
+
+    static func decode(_ data: Data) throws -> ProfileCredential {
+        guard data.count <= maximumFileSize else { throw ProfileUsageError.invalidCredentials }
         let document: AuthDocument
         do {
             document = try JSONDecoder().decode(AuthDocument.self, from: data)

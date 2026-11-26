@@ -34,7 +34,11 @@ enum InAppSignInRunner {
                 open: { NSWorkspace.shared.open($0) },
                 update: update)
         case .antigravityGoogle:
+            #if CODERIM_RUST_ACCOUNTING
+            return .failed("A CodeRim Google OAuth client is required for this provider.")
+            #else
             return await antigravityGoogle(client: { AntigravityOAuthConfig.resolvedClient() }, update: update)
+            #endif
         }
     }
 

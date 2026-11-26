@@ -55,6 +55,9 @@ enum NotchLimitMapping {
 final class CodexNotchProvider: NotchProvider {
     let id = "codex"
     let displayName = "Codex"
+    #if CODERIM_RUST_ACCOUNTING
+    var requiresVerifiedArchiveOwner: Bool { accounts.usesOwnedSelection }
+    #endif
     let glyph: ProviderGlyph = .openai
 
     private let limits: AccountLimitStore
@@ -79,7 +82,10 @@ final class CodexNotchProvider: NotchProvider {
     /// The workspace and the person, as the account switcher keys them: one email can sign in to a
     /// personal plan and to team workspaces, and each has its own limits.
     func accountIdentity() -> String? {
-        accounts.currentID.map { AccountIdentity.fingerprint("codex", $0) }
+        #if CODERIM_RUST_ACCOUNTING
+        if accounts.usesOwnedSelection { return accounts.selectedOwnedMarker }
+        #endif
+        return accounts.currentID.map { AccountIdentity.fingerprint("codex", $0) }
     }
 
     func account() -> ProviderAccount? {

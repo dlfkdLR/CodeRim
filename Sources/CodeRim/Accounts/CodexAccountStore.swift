@@ -9,7 +9,31 @@ enum AccountSwitchActivity {
 
 @MainActor
 final class CodexAccountStore: ObservableObject {
+    #if CODERIM_RUST_ACCOUNTING
+    static let shared = CodexAccountStore(ownedSelection: .standard)
+    var selectedOwnedMarker: String? { ownedSelection?.string(forKey: CodeRimAccountSelection.key) }
+    func selectedSavedID(for marker: String) throws -> String? {
+        if let id = accounts.first(where: { CodeRimAccountSelection.marker(for: $0.id) == marker })?.id { return id }
+        accounts = try vault.load()
+        let selected = accounts.first { CodeRimAccountSelection.marker(for: $0.id) == marker }
+        if selectedOwnedMarker == marker { updateCurrentMetadata(selected) }
+        return selected?.id
+    }
+    func followSignedInAccount() {
+        guard let ownedSelection, selectedOwnedMarker != nil, !isBusy else { return }
+        AccountSwitchActivity.generation &+= 1
+        onAccountWillChange()
+        ownedSelection.removeObject(forKey: CodeRimAccountSelection.key)
+        hasReadIdentity = false
+        updateCurrentMetadata(nil)
+        onAccountOperationFinished()
+        succeed("CodeRim now follows the signed-in Codex account.")
+    }
+    #else
     static let shared = CodexAccountStore()
+    #endif
+    var usesOwnedSelection: Bool { ownedSelection != nil }
+    private let ownedSelection: UserDefaults?
     @Published private(set) var accounts: [SavedCodexAccount] = []
     @Published private(set) var currentID: String?
     @Published private(set) var currentAccountEmail: String?
@@ -53,10 +77,11 @@ final class CodexAccountStore: ObservableObject {
     private enum LoadFailure: Equatable { case vault, login }
     private var loadFailure: LoadFailure?
 
-    init(vault: any AccountVault = KeychainAccountVault(),
+    init(ownedSelection: UserDefaults? = nil, vault: any AccountVault = KeychainAccountVault(),
          login: any CodexLoginStoring = CodexLoginFile(directory: CodexLoginFile.defaultDirectory),
          runtime: any CodexAccountRuntime = LocalCodexAccountRuntime(),
          acquireLock: @escaping () throws -> CodexAccountOperationLock? = { try CodexAccountOperationLock.acquire() }) {
+        self.ownedSelection = ownedSelection
         self.vault = vault
         self.login = login
         self.runtime = runtime
@@ -71,6 +96,16 @@ final class CodexAccountStore: ObservableObject {
             loadFailure = .vault
             return
         }
+        #if CODERIM_RUST_ACCOUNTING
+        if ownedSelection != nil {
+            let selected = selectedOwnedMarker.flatMap { marker in
+                accounts.first { CodeRimAccountSelection.marker(for: $0.id) == marker }
+            }
+            updateCurrentMetadata(selected)
+            clearLoadFailure()
+            return
+        }
+        #endif
         do {
             let current = try readCurrentAccount()
             updateCurrentMetadata(current)
@@ -91,6 +126,15 @@ final class CodexAccountStore: ObservableObject {
     /// expensive half and the half that can prompt. Skips a known unchanged
     /// modification date; an unknown date must be read again.
     func refreshCurrentPlanType() {
+        #if CODERIM_RUST_ACCOUNTING
+        if ownedSelection != nil {
+            let selected = selectedOwnedMarker.flatMap { marker in
+                accounts.first { CodeRimAccountSelection.marker(for: $0.id) == marker }
+            }
+            updateCurrentMetadata(selected)
+            return
+        }
+        #endif
         guard !isBusy else { return }
         let stamp = login.lastModified
         // A missing modification date cannot prove that the login is unchanged.
@@ -124,6 +168,10 @@ final class CodexAccountStore: ObservableObject {
     }
 
     func saveCurrent() async {
+        if ownedSelection != nil {
+            succeed("Use Add Account to sign in to CodeRim.")
+            return
+        }
         guard !isBusy else { return }
         isBusy = true
         defer { isBusy = false }
@@ -153,7 +201,9 @@ final class CodexAccountStore: ObservableObject {
                 try Task.checkCancellation()
                 try await runtime.checkPolicy(for: account.workspaceID)
                 try upsert(account)
-                succeed("Account added. Select Switch to use it in Codex.")
+                if ownedSelection != nil {
+                    succeed("Account added. Select Use in CodeRim to view its usage.")
+                } else { succeed("Account added. Select Switch to use it in Codex.") }
             } catch { fail(error) }
         }
     }
@@ -176,6 +226,11 @@ final class CodexAccountStore: ObservableObject {
             let remaining = try vault.load().filter { $0.id != id }
             try vault.save(remaining)
             accounts = remaining
+            #if CODERIM_RUST_ACCOUNTING
+            if selectedOwnedMarker == CodeRimAccountSelection.marker(for: id) {
+                followSignedInAccount()
+            }
+            #endif
             succeed("Saved account removed. Codex is still signed in.")
         } catch { fail(error) }
     }
@@ -206,6 +261,14 @@ final class CodexAccountStore: ObservableObject {
             let selected = try SavedCodexAccount(loginData: saved.loginData)
             guard selected.id == id else { throw AccountSwitchError.invalidLogin }
             try await runtime.checkPolicy(for: selected.workspaceID)
+            #if CODERIM_RUST_ACCOUNTING
+            if let ownedSelection {
+                ownedSelection.set(CodeRimAccountSelection.marker(for: id), forKey: CodeRimAccountSelection.key)
+                updateCurrentMetadata(selected)
+                succeed("CodeRim now displays this account.")
+                return
+            }
+            #endif
             let beforeQuit = try readCurrentAccount()
             if beforeQuit?.id == id {
                 updateCurrentMetadata(beforeQuit)

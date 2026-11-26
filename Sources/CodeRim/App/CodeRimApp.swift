@@ -32,7 +32,11 @@ struct CodeRimApp: App {
         let claudeStore = UsageStore(provider: .claude, automaticallyRefresh: false)
         let profileStore = ProfileUsageStore()
         profileStore.startAutomaticRefresh()
+        #if CODERIM_RUST_ACCOUNTING
+        let accountLimitStore = AccountLimitStore(provider: SelectedAccountLimitProvider())
+        #else
         let accountLimitStore = AccountLimitStore()
+        #endif
         let claudeIntegrationStore = ClaudeIntegrationStore(automaticallyRefresh: false)
         _store = StateObject(wrappedValue: store)
         _claudeStore = StateObject(wrappedValue: claudeStore)

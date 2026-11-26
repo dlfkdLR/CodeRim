@@ -17,14 +17,14 @@ struct ClaudeAccountsView: View {
                 }
             }
             .padding(.bottom, 8)
-            Text("Select an account for the Claude Code CLI. Claude Desktop keeps its own sign-in.")
+            Text(accounts.ownsOnly ? "Connect your active Claude Code account in provider settings." : "Select an account for the Claude Code CLI. Claude Desktop keeps its own sign-in.")
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 20)
 
             if accounts.accounts.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("No saved accounts").font(.headline)
-                    Text("Save your current login, or sign in to add another account.")
+                    Text(accounts.ownsOnly ? "Open provider settings to connect with Claude Code." : "Save your current login, or sign in to add another account.")
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -43,12 +43,17 @@ struct ClaudeAccountsView: View {
 
             Divider().padding(.vertical, 16)
             HStack(spacing: 12) {
-                Button("Save Current Account") { Task { await accounts.saveCurrent() } }
+                if accounts.ownsOnly {
+                    Button("Open Claude Settings") { SettingsWindowController.shared.present(selecting: .provider(.claude)) }
+                        .accessibilityIdentifier("accounts.openClaudeSettings")
+                } else {
+                    Button("Save Current Account") { Task { await accounts.saveCurrent() } }
                     .disabled(accounts.isBusy)
                     .accessibilityIdentifier("accounts.saveCurrent")
                 Button("Add Account…", systemImage: "plus") { accounts.addAccount() }
                     .disabled(accounts.isBusy)
                     .accessibilityIdentifier("accounts.add")
+                }
                 Spacer(minLength: 0)
                 if accounts.isSigningIn {
                     Button("Cancel") { accounts.cancelSignIn() }
@@ -81,7 +86,7 @@ struct ClaudeAccountsView: View {
                 .accessibilityIdentifier("accounts.openDesktop")
             }
 
-            Text("Saved logins stay in this Mac’s Keychain. Close Claude Code sessions before switching.")
+            Text(accounts.ownsOnly ? "You can remove previously saved accounts from CodeRim’s Keychain here." : "Saved logins stay in this Mac’s Keychain. Close Claude Code sessions before switching.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -131,7 +136,7 @@ struct ClaudeAccountsView: View {
             if account.id == accounts.currentID {
                 Label("Current", systemImage: "checkmark")
                     .font(.callout).foregroundStyle(.secondary)
-            } else {
+            } else if !accounts.ownsOnly {
                 Button("Switch") { pendingSwitch = account }
                     .accessibilityLabel("Switch Claude to \(account.email)")
             }

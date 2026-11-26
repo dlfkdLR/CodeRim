@@ -18,14 +18,14 @@ struct CodexAccountsView: View {
                 }
             }
             .padding(.bottom, 8)
-            Text("Select an account for Codex and its CLI.")
+            Text(accounts.usesOwnedSelection ? "Select the Codex account whose usage CodeRim displays." : "Select an account for Codex and its CLI.")
                 .foregroundStyle(.secondary)
                 .padding(.bottom, 20)
 
             if accounts.accounts.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("No saved accounts").font(.headline)
-                    Text("Save your current login, or sign in to add another account.")
+                    Text(accounts.usesOwnedSelection ? "Choose Add Account to sign in with Codex." : "Save your current login, or sign in to add another account.")
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -42,11 +42,20 @@ struct CodexAccountsView: View {
                 .frame(maxHeight: .infinity)
             }
 
+            #if CODERIM_RUST_ACCOUNTING
+            if accounts.selectedOwnedMarker != nil {
+                Button("Follow signed-in Codex account") { accounts.followSignedInAccount() }
+                    .disabled(accounts.isBusy)
+                    .accessibilityIdentifier("accounts.followSignedIn")
+            }
+            #endif
             Divider().padding(.vertical, 16)
             HStack(spacing: 12) {
-                Button("Save Current Account") { Task { await accounts.saveCurrent() } }
+                if !accounts.usesOwnedSelection {
+                    Button("Save Current Account") { Task { await accounts.saveCurrent() } }
                     .disabled(accounts.isBusy)
                     .accessibilityIdentifier("accounts.saveCurrent")
+                }
                 Button("Add Account…", systemImage: "plus") { accounts.addAccount() }
                     .disabled(accounts.isBusy)
                     .accessibilityIdentifier("accounts.add")
@@ -77,7 +86,7 @@ struct CodexAccountsView: View {
                 .accessibilityIdentifier("accounts.status")
             }
 
-            Text("Saved logins stay in this Mac’s Keychain. Switching restarts Codex; finish your work first.")
+            Text(accounts.usesOwnedSelection ? "Saved accounts stay in CodeRim’s Keychain on this Mac." : "Saved logins stay in this Mac’s Keychain. Switching restarts Codex; finish your work first.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -115,8 +124,8 @@ struct CodexAccountsView: View {
                 Label("Current", systemImage: "checkmark")
                     .font(.callout).foregroundStyle(.secondary)
             } else {
-                Button("Switch") { pendingSwitch = account }
-                    .accessibilityLabel("Switch Codex to \(account.email)")
+                Button(accounts.usesOwnedSelection ? "Use in CodeRim" : "Switch") { pendingSwitch = account }
+                    .accessibilityLabel(accounts.usesOwnedSelection ? "Show usage for \(account.email)" : "Switch Codex to \(account.email)")
             }
             Button(role: .destructive) { pendingRemoval = account } label: {
                 Image(systemName: "minus.circle").frame(width: 28, height: 28)

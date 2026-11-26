@@ -97,6 +97,30 @@ final class ClaudeLoginStoreTests: XCTestCase {
 
 @MainActor
 final class ClaudeAccountStoreTests: XCTestCase {
+    #if CODERIM_RUST_ACCOUNTING
+    func testMigrationStoreOnlyListsAndRemovesCodeRimOwnedAccounts() async throws {
+        let account = try ClaudeAccountFixture.saved("one")
+        let vault = MemoryClaudeVault()
+        vault.accounts = [account]
+        let login = MemoryClaudeLogin(try ClaudeAccountFixture.snapshot("two"))
+        let runtime = TestClaudeAccountRuntime()
+        runtime.policyBlocked = true
+        let store = ClaudeAccountStore(ownsOnly: true, vault: vault, login: login, runtime: runtime,
+                                      acquireLock: { nil }, desktopAccountID: { XCTFail("Unexpected desktop read"); return nil })
+        store.load()
+        XCTAssertEqual(store.accounts.map(\.id), [account.id])
+        XCTAssertNil(store.currentID)
+        XCTAssertFalse(store.isError)
+        await store.saveCurrent()
+        store.addAccount()
+        await store.switchAccount(to: account.id)
+        XCTAssertEqual(login.writes, 0)
+        XCTAssertTrue(runtime.verifiedIDs.isEmpty)
+        XCTAssertFalse(store.isSigningIn)
+        store.remove(account.id)
+        XCTAssertTrue(store.accounts.isEmpty)
+    }
+    #endif
     func testOpeningWindowDoesNotSaveOrSwitchLogin() throws {
         let fixture = try ClaudeAccountFixture()
         fixture.store.load()

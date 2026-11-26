@@ -108,6 +108,19 @@ final class NotchAccountBoundaryTests: XCTestCase {
         XCTAssertNil(GitHubCopilotCredentials.identity(environment: [:], hosts: nil))
     }
 
+    func testOwnedProviderDoesNotRestoreCachedUsageAfterItsKeyDisappears() async throws {
+        let provider = SwitchingProvider()
+        provider.requiresVerifiedArchiveOwner = true
+        let archive = UsageArchive(defaults: defaults)
+        let store = NotchUsageStore(providers: [provider], archive: archive)
+        await store.refresh()
+        XCTAssertNotNil(archive.loadOwned()[provider.id]?.accountIdentity)
+        provider.identity = nil
+        let restarted = NotchUsageStore(providers: [provider], archive: archive)
+        XCTAssertNil(restarted.snapshots.first?.windows.first?.usedFraction)
+        XCTAssertNil(archive.loadOwned()[provider.id])
+    }
+
     func testARememberedReadingForAnotherAccountIsNotRestored() async throws {
         let provider = SwitchingProvider()
         let archive = UsageArchive(defaults: defaults)
@@ -161,6 +174,7 @@ final class NotchAccountBoundaryTests: XCTestCase {
         init(id: String = "switching") { self.id = id }
         var displayName: String { "Switching" }
         var glyph: ProviderGlyph { .openai }
+        var requiresVerifiedArchiveOwner = false
         var identity: String? = "a"
         var refuses = false
         /// When set, the read answers with this status and no windows, as an error snapshot does.

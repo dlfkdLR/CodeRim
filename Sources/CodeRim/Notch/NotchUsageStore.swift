@@ -112,8 +112,7 @@ final class NotchUsageStore: ObservableObject {
         // one archived before readings recorded their account — is not restored, not even dimmed.
         var restoredForeignAccount = false
         for provider in providers where !disconnected.contains(provider.id) && lastGood[provider.id] != nil {
-            guard let current = provider.accountIdentity() else { continue }
-            if lastGoodOwners[provider.id] != current {
+            if !provider.acceptsArchived(owner: lastGoodOwners[provider.id]) {
                 lastGood.removeValue(forKey: provider.id)
                 lastGoodOwners.removeValue(forKey: provider.id)
                 restoredForeignAccount = true
@@ -546,7 +545,8 @@ final class NotchUsageStore: ObservableObject {
         }
 
         // A reading kept for an account that is no longer signed in is not re-shown for the new one.
-        if let owner = lastGoodOwners[provider.id], let current = provider.accountIdentity(), owner != current {
+        if (lastGoodOwners[provider.id] != nil || provider.requiresVerifiedArchiveOwner),
+           !provider.acceptsArchived(owner: lastGoodOwners[provider.id]) {
             lastGood[provider.id] = nil
             saveArchive()
         }

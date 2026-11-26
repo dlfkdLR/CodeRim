@@ -5,6 +5,45 @@ import XCTest
 
 @MainActor
 final class CodexAccountSwitchingTests: XCTestCase {
+    #if CODERIM_RUST_ACCOUNTING
+    func testMigrationSelectionReadsOnlyOwnedVaultAndNeverSwitchesExternalLogin() async throws {
+        let h = try makeHarness()
+        let suite = "CodeRimOwnedSelectionTest-" + UUID().uuidString
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let owned = CodexAccountStore(ownedSelection: defaults, vault: h.vault, login: h.login,
+                                      runtime: h.runtime, acquireLock: { nil })
+        h.trace.events.removeAll()
+        owned.load()
+        owned.refreshCurrentPlanType()
+        XCTAssertNil(owned.currentID)
+        await owned.saveCurrent()
+        await owned.switchAccount(to: h.target.id)
+        XCTAssertEqual(owned.currentID, h.target.id)
+        let marker = try XCTUnwrap(owned.selectedOwnedMarker)
+        XCTAssertEqual(marker.count, 64)
+        XCTAssertNotEqual(marker, h.target.id)
+        XCTAssertEqual(try CodeRimAccountSelection.profileCredential(defaults: defaults, vault: h.vault).accountID,
+                       h.target.workspaceID)
+        let restored = CodexAccountStore(ownedSelection: defaults, vault: h.vault, login: h.login,
+                                         runtime: h.runtime, acquireLock: { nil })
+        XCTAssertEqual(try restored.selectedSavedID(for: marker), h.target.id)
+        XCTAssertEqual(restored.currentID, h.target.id)
+        owned.followSignedInAccount()
+        XCTAssertNil(owned.selectedOwnedMarker)
+        XCTAssertNil(owned.currentID)
+        XCTAssertThrowsError(try CodeRimAccountSelection.profileCredential(defaults: defaults, vault: h.vault))
+        await owned.switchAccount(to: h.target.id)
+        owned.remove(h.target.id)
+        XCTAssertNil(owned.selectedOwnedMarker)
+        XCTAssertFalse(h.trace.events.contains("login.read"))
+        XCTAssertEqual(h.login.replaceCount, 0)
+        XCTAssertEqual(h.runtime.quitCount, 0)
+        XCTAssertEqual(h.runtime.openCount, 0)
+        XCTAssertEqual(h.login.data, h.departing.loginData)
+    }
+    #endif
+
     func testLoadReadFailureRetainsLastVerifiedIdentity() throws {
         let harness = try makeHarness()
         harness.login.readError = .invalidLogin
