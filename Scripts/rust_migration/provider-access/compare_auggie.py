@@ -56,7 +56,7 @@ for ws in [" ", "  ", "\t", "\v", "\f", "\r", "\r\n", "\u00a0", "\u2028", " \t",
 fixtures += [u + " 7 credits / month\n2 credits remaining" for u in
              ["구독", "🎁", "\ufeff", "3\u0301", "3\u200d", "३", "١٢", "²", "ㆍ", "\x00", "3,９,Ω"]]
 fixtures += ["7 credits / month\n2 credits remaining " + label for label in
-             ["(프로모션)", "가입:한글", "공유 [限定]", "États-Unis", "📊", "숫자(１２)", "\u0301"]]
+             ["(프로모션)", "가입:한글", "한국/지점", "공유 [限定]", "États-Unis", "📊", "숫자(１２)", "\u0301"]]
 fixtures += ["," * 65000 + " credits remaining\n12 credits / month",
              "x" * 65490 + "\n2 credits remaining\n7 credits / month"]
 with tempfile.TemporaryDirectory(dir="/private/tmp", prefix="coderim-auggie-quota-oracle-") as folder:

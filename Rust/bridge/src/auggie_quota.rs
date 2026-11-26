@@ -199,9 +199,16 @@ fn ambiguous(line: &str) -> bool {
         // label, such as "(프로모션)", does not belong to any quota field.
         let before = &line[..offset];
         let after = &line[offset + ch.len_utf8()..];
-        let numeric_edge = |byte: &u8| numeric_byte(*byte) || *byte == b'/';
-        before.as_bytes().last().is_some_and(numeric_edge)
-            || after.as_bytes().first().is_some_and(numeric_edge)
+        // Slashes can form a regex endpoint only in the billing date. A
+        // slash between two words (e.g. 한국/지점) is ordinary label text.
+        let date_edge = before.ends_with('/') && line.contains("billing cycle") && {
+            let prefix = before.trim_end_matches(|c: char| c.is_ascii_digit() || c == '/');
+            let intro = prefix.trim_end_matches(|c: char| c.is_ascii() && space(c as u8));
+            intro.len() < prefix.len() && intro.ends_with("ends")
+        };
+        before.as_bytes().last().is_some_and(|&c| numeric_byte(c))
+            || after.as_bytes().first().is_some_and(|&c| numeric_byte(c))
+            || date_edge
             || WORDS
                 .iter()
                 .any(|word| before.ends_with(word) || after.starts_with(word))
@@ -273,7 +280,14 @@ mod tests {
 
     #[test]
     fn ordinary_display_labels_use_the_numeric_parser() {
-        for label in ["(프로모션)", "가입:한글", "공유 [限定]", "États-Unis", "📊"] {
+        for label in [
+            "(프로모션)",
+            "가입:한글",
+            "한국/지점",
+            "공유 [限定]",
+            "États-Unis",
+            "📊",
+        ] {
             let text = format!("7 credits / month\n2 credits remaining {label}");
             assert_eq!(parse(&text).unwrap().remaining, 2);
         }
