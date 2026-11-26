@@ -24,6 +24,14 @@ size_t cr_mobile_provider_indices(uint8_t operation, const uint32_t *keys, size_
                                   size_t available_count, uint32_t target,
                                   uint32_t *output, size_t capacity);
 uint8_t cr_mobile_supersedes(cr_mobile_version candidate, cr_mobile_version current);
+/* Only public count/status categories cross this boundary. The host owns task text and device identity. */
+enum { CR_ISLAND_IDLE, CR_ISLAND_NO_DEVICE, CR_ISLAND_OFFLINE, CR_ISLAND_WAITING,
+       CR_ISLAND_WORKING, CR_ISLAND_UNKNOWN, CR_ISLAND_SIGN_IN, CR_ISLAND_PERMISSIONS };
+typedef struct { double primary, secondary; uint8_t status; } cr_mobile_island_reading;
+/* Quota inputs and outputs use nonfinite values for unavailable readings. */
+cr_mobile_island_reading cr_mobile_read_island(int64_t waiting, int64_t working, int64_t unavailable,
+                                               uint8_t quota_issue, double primary, double secondary);
+
 #ifdef __cplusplus
 }
 #endif

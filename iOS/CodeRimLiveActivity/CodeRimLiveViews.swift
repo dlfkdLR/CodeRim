@@ -1,6 +1,9 @@
 import SwiftUI
 import AppIntents
 import WidgetKit
+#if CODERIM_RUST_MOBILE_SELECTION
+import CCodeRimMobile
+#endif
 
 /// The same two controls are used on the Lock Screen and beside the camera.
 struct IslandHeading: View {
@@ -237,8 +240,8 @@ struct IslandDetails: View {
     let state: MobileActivityState
     var stale = false
     var compact = false
-    private var reading: IslandReading { IslandReading(state: state, stale: stale) }
     var body: some View {
+        let reading = IslandReading(state: state, stale: stale)
         HStack(alignment: .center, spacing: 18) {
             VStack(spacing: 2) {
                 IslandProviderRim(state: state, stale: stale, diameter: compact ? 44 : 50)
@@ -330,8 +333,8 @@ struct IslandProviderRim: View {
     let state: MobileActivityState
     let stale: Bool
     var diameter: CGFloat = 22
-    private var reading: IslandReading { IslandReading(state: state, stale: stale) }
     var body: some View {
+        let reading = IslandReading(state: state, stale: stale)
         ZStack {
             Circle().strokeBorder(IslandPalette.ringTrack, lineWidth: diameter * 15.5 / 117)
             if let value = reading.remaining, value > 0 {
@@ -409,24 +412,95 @@ private enum IslandPalette {
 struct IslandReading {
     let state: MobileActivityState
     let stale: Bool
+    #if CODERIM_RUST_MOBILE_SELECTION
+    private let devicesConnected: Bool
+    private let hasSecondaryWindow: Bool
+    let needsDevice: Bool
+    var disconnected: Bool { !devicesConnected || Date().timeIntervalSince1970 >= state.staleAt }
+    #else
     var disconnected: Bool { stale || state.isStale() }
     var needsDevice: Bool { (state.focus?.deviceCount ?? 0) == 0 && state.providers.isEmpty }
+    #endif
+    private enum Status: UInt8 {
+        case idle, noDevice, offline, waiting, working, unknown, signIn, permissions
+    }
+    #if CODERIM_RUST_MOBILE_SELECTION
+    private let projection: cr_mobile_island_reading
+
+    init(state: MobileActivityState, stale: Bool) {
+        self.state = state
+        self.stale = stale
+        devicesConnected = !stale && state.connection == "connected"
+        needsDevice = (state.focus?.deviceCount ?? 0) == 0 && state.providers.isEmpty
+        let provider = state.providers.first
+        var issue = UInt8(CR_ISLAND_IDLE)
+        var primary = Double.nan
+        var second = Double.nan
+        switch provider?.state {
+        case "needsAuth":
+            issue = UInt8(CR_ISLAND_SIGN_IN)
+            hasSecondaryWindow = false
+        case "accessDenied":
+            issue = UInt8(CR_ISLAND_PERMISSIONS)
+            hasSecondaryWindow = false
+        case "ready", "partial":
+            let windows = provider?.windows ?? []
+            primary = windows.first?.remainingPercent ?? .nan
+            hasSecondaryWindow = windows.count > 1
+            if hasSecondaryWindow { second = windows[1].remainingPercent ?? .nan }
+        default: hasSecondaryWindow = false
+        }
+        projection = cr_mobile_read_island(Int64(state.waitingCount), Int64(state.workingCount),
+            Int64(state.unavailableCount), issue, primary, second)
+    }
+    #endif
+
+    private var status: Status {
+        // Re-evaluate freshness at access time, including for values retained across a deadline.
+        if needsDevice { return .noDevice }
+        if disconnected { return .offline }
+        #if CODERIM_RUST_MOBILE_SELECTION
+        return Status(rawValue: projection.status) ?? .idle
+        #else
+        if state.waitingCount > 0 { return .waiting }
+        if state.workingCount > 0 { return .working }
+        if state.unavailableCount > 0 { return .unknown }
+        if state.waitingCount == 0, state.workingCount == 0, state.unavailableCount == 0 {
+            if state.providers.first?.state == "needsAuth" { return .signIn }
+            if state.providers.first?.state == "accessDenied" { return .permissions }
+        }
+        return .idle
+        #endif
+    }
     var prominentQuotaIssue: Bool {
-        !disconnected && state.waitingCount == 0 && state.workingCount == 0 && state.unavailableCount == 0
-            && ["needsAuth", "accessDenied"].contains(state.providers.first?.state ?? "")
+        let current = status
+        return current == .signIn || current == .permissions
     }
     var remaining: Double? {
+        #if CODERIM_RUST_MOBILE_SELECTION
+        return projection.primary.isNaN || disconnected ? nil : projection.primary
+        #else
         guard !disconnected, let provider = state.providers.first, Self.drawsQuota(provider.state),
               let value = provider.windows.first?.remainingPercent, value.isFinite else { return nil }
         return max(0, min(100, value))
+        #endif
     }
     var secondaryWindow: MobileUsageWindow? {
+        #if CODERIM_RUST_MOBILE_SELECTION
+        guard hasSecondaryWindow, !disconnected else { return nil }
+        return state.providers[0].windows[1]
+        #else
         guard !disconnected, let provider = state.providers.first, Self.drawsQuota(provider.state), provider.windows.count > 1 else { return nil }
         return provider.windows[1]
+        #endif
     }
     var secondaryRemaining: Double? {
+        #if CODERIM_RUST_MOBILE_SELECTION
+        return projection.secondary.isNaN || disconnected ? nil : projection.secondary
+        #else
         guard let value = secondaryWindow?.remainingPercent, value.isFinite else { return nil }
         return max(0, min(100, value))
+        #endif
     }
     var otherSessionCount: Int { max(0, state.sessions.count - 1) + state.additionalSessionCount }
     /// Partial snapshots still carry real quota windows; only their coverage is incomplete.
@@ -436,35 +510,45 @@ struct IslandReading {
         value > 50 ? IslandPalette.ample : value > 30 ? IslandPalette.watch : IslandPalette.critical
     }
     var statusTitle: String {
-        if needsDevice { return "Connect a computer" }
-        if disconnected { return "Offline" }
-        if state.waitingCount > 0 { return "Needs input" }
-        if state.workingCount > 0 { return "Working" }
-        if state.unavailableCount > 0 { return "Check status" }
-        if prominentQuotaIssue { return state.providers.first?.state == "needsAuth" ? "Sign in required" : "Check permissions" }
-        return "Idle"
+        switch status {
+        case .noDevice: "Connect a computer"
+        case .offline: "Offline"
+        case .waiting: "Needs input"
+        case .working: "Working"
+        case .unknown: "Check status"
+        case .signIn: "Sign in required"
+        case .permissions: "Check permissions"
+        case .idle: "Idle"
+        }
     }
     var statusSymbol: String {
-        if needsDevice { return "link" }
-        if disconnected { return "wifi.slash" }
-        if state.waitingCount > 0 { return "hand.raised.fill" }
-        if state.workingCount > 0 { return "waveform" }
-        if state.unavailableCount > 0 { return "questionmark.circle" }
-        if prominentQuotaIssue { return "lock.fill" }
-        return "circle.dashed"
+        switch status {
+        case .noDevice: "link"
+        case .offline: "wifi.slash"
+        case .waiting: "hand.raised.fill"
+        case .working: "waveform"
+        case .unknown: "questionmark.circle"
+        case .signIn, .permissions: "lock.fill"
+        case .idle: "circle.dashed"
+        }
     }
     var statusColor: Color { disconnected ? IslandPalette.secondary : state.waitingCount > 0 || prominentQuotaIssue ? IslandPalette.watch : .white }
     var taskTitle: String {
-        if needsDevice { return "Add a computer in Settings" }
-        if disconnected { return "Check your computer’s connection" }
-        if let title = state.sessions.first?.title, !title.isEmpty { return title }
-        if state.waitingCount > 0 { return "Check your computer" }
-        if state.workingCount > 0 { return "Working on your computer" }
-        if state.unavailableCount > 0 { return "Check the status on your computer" }
-        if prominentQuotaIssue {
-            return state.providers.first?.state == "needsAuth" ? "Sign in again on your computer" : "Check access permissions on your computer"
+        let current = status
+        switch current {
+        case .noDevice: return "Add a computer in Settings"
+        case .offline: return "Check your computer’s connection"
+        default: break
         }
-        return "No active tasks"
+        if let title = state.sessions.first?.title, !title.isEmpty { return title }
+        switch current {
+        case .waiting: return "Check your computer"
+        case .working: return "Working on your computer"
+        case .unknown: return "Check the status on your computer"
+        case .signIn: return "Sign in again on your computer"
+        case .permissions: return "Check access permissions on your computer"
+        default: return "No active tasks"
+        }
     }
     var quotaMessage: String? {
         if disconnected { return "Updates when reconnected" }

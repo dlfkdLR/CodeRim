@@ -109,6 +109,33 @@ final class MobileContractTests: XCTestCase {
     }
 
     @MainActor
+    func testIslandReadingKeepsTheTaskTitleAndSuppressesQuotaWhileOffline() throws {
+        var state = MobileActivityState.disconnected
+        state.connection = "connected"; state.staleAt = Date.distantFuture.timeIntervalSince1970
+        state.providers = [.init(id: "sample", name: "Sample", state: "needsAuth", windows: [],
+                                 todayTokens: nil, localState: "unavailable", updatedAt: nil)]
+        state.sessions = [.init(providerID: "sample", phase: .working, title: "합성 👩‍💻", since: nil)]
+        let needsSignIn = IslandReading(state: state, stale: false)
+        XCTAssertEqual(needsSignIn.statusTitle, "Sign in required")
+        XCTAssertEqual(needsSignIn.taskTitle, "합성 👩‍💻")
+        state.waitingCount = 1
+        state.workingCount = 2
+        state.unavailableCount = 3
+        state.providers[0].state = "partial"
+        state.providers[0].windows = [.init(name: "Primary", remainingPercent: -0.0, resetsAt: nil),
+                                     .init(name: "Secondary", remainingPercent: 125, resetsAt: nil)]
+        let working = IslandReading(state: state, stale: false)
+        XCTAssertEqual(working.statusTitle, "Needs input")
+        XCTAssertEqual(try XCTUnwrap(working.remaining).bitPattern, (-0.0 as Double).bitPattern)
+        XCTAssertEqual(working.secondaryRemaining, 100)
+        let offline = IslandReading(state: state, stale: true)
+        XCTAssertEqual(offline.statusSymbol, "wifi.slash")
+        XCTAssertEqual(offline.taskTitle, "Check your computer’s connection")
+        XCTAssertNil(offline.secondaryWindow)
+        XCTAssertNil(offline.remaining)
+    }
+
+    @MainActor
     func testPickerDoesNotAdvertiseLiveWorkAfterItsActivityStales() {
         var state = MobileActivityState.disconnected
         state.connection = "connected"; state.staleAt = Date().addingTimeInterval(60).timeIntervalSince1970
