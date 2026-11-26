@@ -1,0 +1,227 @@
+{
+  "implementation": "954a032",
+  "stable": "v2.1.41",
+  "wrangler": {
+    "wranglerVersion": "4.168.0",
+    "workerdVersion": "1.20261123.1",
+    "miniflareVersion": "5.20261123.1-beta"
+  },
+  "wasm": {
+    "imports": [],
+    "exports": [
+      {
+        "name": "memory",
+        "kind": "memory"
+      },
+      {
+        "name": "picker_buffer",
+        "kind": "function"
+      },
+      {
+        "name": "quick_pick",
+        "kind": "function"
+      },
+      {
+        "name": "snapshot_buffer",
+        "kind": "function"
+      },
+      {
+        "name": "snapshot_read",
+        "kind": "function"
+      },
+      {
+        "name": "starter_plan",
+        "kind": "function"
+      }
+    ]
+  },
+  "roundTrip": {
+    "workerdVersion": "1.20261123.1",
+    "miniflareVersion": "5.20261123.1-beta",
+    "wranglerVersion": "4.168.0",
+    "requests": 44,
+    "processes": 5,
+    "outbound": 0,
+    "comparison": "Compared complete JSON on fresh load for both owners except per-request evaluatedAt after validating numeric type.",
+    "phases": [
+      {
+        "label": "seed two owned accounts",
+        "rev": "stable",
+        "entries": [
+          {
+            "owner": "first",
+            "devices": 2,
+            "revision": 0,
+            "generation": 2,
+            "names": [
+              "Desk A",
+              "Desk B"
+            ]
+          },
+          {
+            "owner": "second",
+            "devices": 1,
+            "revision": 0,
+            "generation": 1,
+            "names": [
+              "Desk C"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "upgrade, change picker and rename a desktop",
+        "rev": "candidate",
+        "entries": [
+          {
+            "owner": "first",
+            "devices": 2,
+            "revision": 2,
+            "generation": 3,
+            "names": [
+              "Desk A",
+              "Renamed 데스크톱"
+            ]
+          },
+          {
+            "owner": "second",
+            "devices": 1,
+            "revision": 0,
+            "generation": 1,
+            "names": [
+              "Desk C"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "rollback reads candidate writes, publish again on release",
+        "rev": "stable",
+        "entries": [
+          {
+            "owner": "first",
+            "devices": 2,
+            "revision": 2,
+            "generation": 3,
+            "names": [
+              "Desk A",
+              "Renamed 데스크톱"
+            ]
+          },
+          {
+            "owner": "second",
+            "devices": 1,
+            "revision": 0,
+            "generation": 2,
+            "names": [
+              "Desk C"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "re-upgrade sees rollback write",
+        "rev": "candidate",
+        "entries": [
+          {
+            "owner": "first",
+            "devices": 2,
+            "revision": 2,
+            "generation": 4,
+            "names": [
+              "Desk A",
+              "Renamed 데스크톱"
+            ]
+          },
+          {
+            "owner": "second",
+            "devices": 1,
+            "revision": 0,
+            "generation": 2,
+            "names": [
+              "Desk C"
+            ]
+          }
+        ]
+      },
+      {
+        "label": "final release reopen",
+        "rev": "stable",
+        "entries": [
+          {
+            "owner": "first",
+            "devices": 2,
+            "revision": 2,
+            "generation": 4,
+            "names": [
+              "Desk A",
+              "Renamed 데스크톱"
+            ]
+          },
+          {
+            "owner": "second",
+            "devices": 1,
+            "revision": 0,
+            "generation": 2,
+            "names": [
+              "Desk C"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "primaryRoundTrip": {
+    "runtime": "5.20261123.1-beta",
+    "requests": 17,
+    "phases": [
+      {
+        "name": "public initial data",
+        "revision": 1,
+        "generation": 1,
+        "devices": 1,
+        "pinned": []
+      },
+      {
+        "name": "upgrade and update",
+        "revision": 2,
+        "generation": 2,
+        "devices": 1,
+        "pinned": [
+          "first"
+        ]
+      },
+      {
+        "name": "public rollback",
+        "revision": 2,
+        "generation": 2,
+        "devices": 1,
+        "pinned": [
+          "first"
+        ]
+      },
+      {
+        "name": "candidate reopen",
+        "revision": 2,
+        "generation": 2,
+        "devices": 1,
+        "pinned": [
+          "first"
+        ]
+      }
+    ],
+    "outbound": 0,
+    "releasedBundle": "8cfce6e28e502b89c07cec52349344b1f1acbb4325696fdd8089548a62be803d",
+    "candidateBundle": "19c9a749f16bb61dea23c47dfadfd047704ac92c836e3eddb5b032681fc66e3a",
+    "wasm": "b2baef31628b46b47691ac58343a22d073de2cf3458842f4c5387958ad3a5fd4",
+    "compared": "Complete public GET responses apart from the validated, per-request evaluatedAt clock. Disposable SQLite fixture shared across four separate workerd processes."
+  },
+  "tests": {
+    "passed": 101,
+    "failed": 0
+  },
+  "scope": "Wrangler deploy --dry-run and locally persisted SQLite Durable Objects. No Cloudflare publication or live APNs call.",
+  "rawReviewSha256": "4c614c41e191d9096e864c76f219fd3c93bfd77d010871568a0e25f1ae1a5991",
+  "formalGate": "REJECT",
+  "gateMessage": "Verification input changed: MobileRelay/package.json"
+}

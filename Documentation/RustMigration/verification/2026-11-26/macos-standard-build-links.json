@@ -1,0 +1,91 @@
+{
+  "developerBuild": "6c4348d",
+  "explicitOptions": "5cdb62c",
+  "contentAddressedArchives": "d0ba0bf",
+  "standardProduct": {
+    "out/Products/Debug/CodeRim": {
+      "sha256": "cc023a2361f58fcc9c5ce2e97a3a50ee9ea6d93b189c8bd2466a2e8c01c1caaf",
+      "archs": [
+        "arm64"
+      ],
+      "bridgeSymbols": 83,
+      "contains": [
+        "cr_digest_hex",
+        "cr_app_server_response"
+      ]
+    }
+  },
+  "defaultRunTests": {
+    "accountAndUI": 8,
+    "usageCore": 2,
+    "pinnedDependencyAndBuildChecks": 12
+  },
+  "rawWarmReviewSha256": "6826849aba634f99b11d5a82c5aa39c3b107a26a302ec28e5abb917dac577ec4",
+  "optionComparisons": 9,
+  "realWarmArchive": {
+    "runs": [
+      {
+        "expected": 41,
+        "swiftExecutable": 41,
+        "mtimeNs": 1700000000123456789,
+        "widgetSlices": {
+          "arm64": [
+            "mov\tw0, #0x29",
+            "ret"
+          ],
+          "x86_64": [
+            "pushq\t%rbp",
+            "movq\t%rsp, %rbp",
+            "movl\t$0x29, %eax"
+          ]
+        },
+        "archiveSha256": "fe3f5c44c2bb84f7e2b1580a7012cbfae723b0f567e09611cd32176e6ff19a22"
+      },
+      {
+        "expected": 42,
+        "swiftExecutable": 42,
+        "mtimeNs": 1700000000123456789,
+        "widgetSlices": {
+          "arm64": [
+            "mov\tw0, #0x2a",
+            "ret"
+          ],
+          "x86_64": [
+            "pushq\t%rbp",
+            "movq\t%rsp, %rbp",
+            "movl\t$0x2a, %eax"
+          ]
+        },
+        "archiveSha256": "9abeecd56656b37a7b9c9c1d01eddd5cb148c20c3777e00b0bf643d08f146d22"
+      },
+      {
+        "expected": 41,
+        "swiftExecutable": 41,
+        "mtimeNs": 1700000000123456789,
+        "widgetSlices": {
+          "arm64": [
+            "mov\tw0, #0x29",
+            "ret"
+          ],
+          "x86_64": [
+            "pushq\t%rbp",
+            "movq\t%rsp, %rbp",
+            "movl\t$0x29, %eax"
+          ]
+        },
+        "archiveSha256": "8b9debace7538f80158d983e67ab24246055cd14a11ab370c7ebd05c83b31513"
+      }
+    ]
+  },
+  "warmArchiveReviewSha256": "f85b5466a2b50c3144c5d28aceff4b859f367d8929acd9fc04dfef266f78d52c",
+  "originalCondition": "A prebuilt bridge was replaced at the same path with different bytes and the original nanosecond modification time. Before the fix the runnable SwiftPM product still returned 41 instead of 42.",
+  "syntheticAppcastReleaseTests": {
+    "workflowCases": 4,
+    "previousFixtureFailures": 4,
+    "updatedFixtureFailures": 0,
+    "workflow": "stable and public script entrypoints with fixture signing and appcast tools",
+    "actualSigningOrRelease": false
+  },
+  "formalPackagingGate": "REJECT: verification input .github/workflows/ci.yml changed",
+  "formalWarmBuildGate": "INCONCLUSIVE"
+}
