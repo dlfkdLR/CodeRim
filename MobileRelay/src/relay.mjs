@@ -401,7 +401,7 @@ export class Relay {
     for (const device of devices) for (const p of device.snapshot?.providers ?? []) providers.set(p.id, { id: p.id, name: p.name });
     const view = this.snapshotRead ? this.store.view(session.hash) : undefined;
     const projection = this.snapshotRead?.(devices, view, user.dataFloor ?? 0, now);
-    const context = projection && { user, view, projection };
+    const context = this.snapshotRead && { user, view, projection };
     const state = this.state(session.owner, session.hash, now, devices, context);
     const displayProviders = eligibleProviders(devices.find(d => d.id === state.focus.deviceID), user.preferences)
       .map(p => ({ id: p.id, name: p.name }));
@@ -414,10 +414,13 @@ export class Relay {
   }
   state(owner, sessionHash, now, devices = this.devices(owner, now), context) {
     const user = context ? context.user : this.store.user(owner), view = context ? context.view : this.store.view(sessionHash);
-    const state = desktopState(devices, user.preferences, view, now, this.quickPicker, context?.projection.focused);
+    // Pushes and foreground reads use the same account-local device rows. Compute this at the start
+    // of each synchronous state read, including when two queued activity updates run far apart.
+    const projection = context ? context.projection : this.snapshotRead?.(devices, view, user.dataFloor ?? 0, now);
+    const state = desktopState(devices, user.preferences, view, now, this.quickPicker, projection?.focused);
     // Orders answers that share a view revision: a stored sequence that grows with every content change
     // from any of the account's computers, survives restarts and never repeats for different content.
-    state.dataVersion = context ? context.projection.dataVersion : this.contentSequence(owner);
+    state.dataVersion = projection ? projection.dataVersion : this.contentSequence(owner);
     // Some of an answer changes with time alone: a limit that reset turns stale, a computer that went quiet
     // turns offline. Among answers with the same content, the one evaluated later is the newer one.
     state.evaluatedAt = now;
