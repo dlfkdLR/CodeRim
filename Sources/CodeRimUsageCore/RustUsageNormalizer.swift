@@ -7,6 +7,31 @@ enum RustUsageNormalizer {
         _ observation: CodexTokenObservation,
         state: UsageNormalizationState
     ) -> UsageNormalizationResult {
+        if let previous = state.cumulativeHighWaterMark, let current = observation.cumulativeUsage,
+           state.lastObservedAt.map({ !(observation.occurredAt < $0) }) ?? true {
+            // Match the native rejection predicate exactly, including unordered Date values.
+            let writesKnown = previous.cacheWriteInputTokens != nil && current.cacheWriteInputTokens != nil
+            let increment = cr_try_token_increment(counters(previous), counters(current), writesKnown ? 1 : 0)
+            if increment.input >= 0 {
+                // A valid increment has no cached reads or writes when its input is zero.
+                let delta = increment.input == 0 && increment.output == 0 ? nil : TokenUsage(
+                    inputTokens: increment.input, cachedInputTokens: increment.cached,
+                    cacheWriteInputTokens: writesKnown ? increment.written : nil, outputTokens: increment.output)
+                return UsageNormalizationResult(delta: delta, state: UsageNormalizationState(
+                    cumulativeHighWaterMark: current, lastObservedAt: observation.occurredAt, quality: state.quality),
+                    diagnostic: nil)
+            }
+        }
+        return normalizeFull(observation, state: state)
+    }
+
+    private static func counters(_ usage: TokenUsage) -> cr_increment_counts {
+        cr_increment_counts(input: usage.inputTokens, cached: usage.cachedInputTokens, output: usage.outputTokens,
+                            written: usage.cacheWriteInputTokens ?? 0)
+    }
+
+    private static func normalizeFull(_ observation: CodexTokenObservation,
+                                      state: UsageNormalizationState) -> UsageNormalizationResult {
         let highWater = pack(state.cumulativeHighWaterMark)
         let last = pack(observation.lastUsage)
         let cumulative = pack(observation.cumulativeUsage)

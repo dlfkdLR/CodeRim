@@ -88,6 +88,44 @@ for quality in qualities {
     }
 }
 
+// Date ordering is the original strict rejection check. Compare stored bit patterns
+// because a NaN timestamp does not compare equal even to itself.
+let startUsage = TokenUsage(inputTokens: 10, cachedInputTokens: 2, outputTokens: 1)
+let nextCounts = TokenUsage(inputTokens: 14, cachedInputTokens: 3, outputTokens: 1)
+let increment = TokenUsage(inputTokens: 4, cachedInputTokens: 1, outputTokens: 0)
+let nan = Double(bitPattern: 0x7ff8_0000_0000_007b)
+let instant = 0.125
+let priorTimes: [Double?] = [nil, -0.0, instant, nan]
+for (group, time) in priorTimes.enumerated() {
+    let previousDate = time.map(Date.init(timeIntervalSinceReferenceDate:))
+    for (index, current) in [instant.nextDown, instant, instant.nextUp, nan, -0.0].enumerated() {
+        let currentDate = Date(timeIntervalSinceReferenceDate: current)
+        let state = UsageNormalizationState(cumulativeHighWaterMark: startUsage, lastObservedAt: previousDate, quality: .stale)
+        let result = normalizer.normalize(CodexTokenObservation(
+            occurredAt: currentDate, ordinal: nil, lastUsage: nil, cumulativeUsage: nextCounts), state: state)
+        let older = previousDate.map { currentDate < $0 } ?? false
+        precondition(result.delta == (older ? nil : increment))
+        precondition(result.diagnostic == (older ? "out-of-order token snapshot ignored" : nil))
+        precondition(result.state.cumulativeHighWaterMark == (older ? startUsage : nextCounts))
+        precondition(result.state.lastObservedAt?.timeIntervalSinceReferenceDate.bitPattern ==
+                     (older ? time?.bitPattern : current.bitPattern))
+        precondition(result.state.quality == .stale)
+        record("date-order-\(group)", index, result)
+    }
+}
+
+// Only cached reads grow, so the arithmetic difference needs repair to zero.
+let beforeRepair = TokenUsage(inputTokens: 10, cachedInputTokens: 0, outputTokens: 4)
+let afterRepair = TokenUsage(inputTokens: 10, cachedInputTokens: 1, outputTokens: 4)
+let repairDate = Date(timeIntervalSinceReferenceDate: 1)
+let zeroRepair = normalizer.normalize(
+    CodexTokenObservation(occurredAt: repairDate, ordinal: nil, lastUsage: nil, cumulativeUsage: afterRepair),
+    state: UsageNormalizationState(cumulativeHighWaterMark: beforeRepair, quality: .exact))
+precondition(zeroRepair == UsageNormalizationResult(delta: nil, state: UsageNormalizationState(
+    cumulativeHighWaterMark: afterRepair, lastObservedAt: repairDate, quality: .partial),
+    diagnostic: "inconsistent token delta clamped"))
+record("apple-repaired-zero-increment", 0, zeroRepair)
+
 #if CODERIM_RUST_ACCOUNTING
 // The legacy unchecked subtraction traps on this damaged persisted counter.
 // The candidate must recover a new baseline without inventing billable tokens.
