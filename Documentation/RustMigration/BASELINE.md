@@ -39,6 +39,8 @@
 - Codex app-server requests, profile opt-in, 로컬 통계의 경계를 검증한다. `Limits/AppServerLimitProvider.swift`, `Profile/{ChatGPTProfileClient,ProfileUsageStore}.swift`, AccountLimitStoreTests, AccountUsageIsolationTests가 근거다. Today는 이 기기의 값이고 Week/Month/Lifetime account history는 명시적 동의 후 별도 표시한다. 계정 전환·로그아웃·opt-out 후 이전 quota/profile이 남아선 안 된다. raw response와 자격 증명은 DB·스냅샷·로그에서 검출되지 않아야 한다.
 - 환경은 각 플랫폼 경로 구현을 따라 기본값과 재정의 두 가지로 실행한다. 대표 입력은 Codex 계정용 `CODEX_HOME`, Claude 소스용 `CLAUDE_CONFIG_DIR`, CLI `PATH`·`NO_COLOR`·`TERM`, Windows `CODERIM_DATA_DIR` 및 공급자별 endpoint·region·인증 설정이다. 필드 누락·다른 소유자·불완전한 파일에서 재인증을 요구하는 조건과 자격 증명 접근 대상을 비교한다.
 
+Ollama Cloud 명시적 키 편집은 사용자 승인에 따라 v2.1.41의 두 동작을 바로잡는다. 공백뿐인 Save·Replace 입력은 기존 Keychain 항목을 보존한다. 삭제 요청이 실패하면 화면도 키가 저장된 상태와 재시도할 입력을 유지한다. 환경 변수로 명시한 키의 우선순위와 기존 Keychain 항목의 서비스·계정 식별자를 보존한다. [실제 입력·저장 결과 대조](MAC_OLLAMA_KEY.md)
+
 ## 화면·조작 기준표
 
 각 상태에 같은 가상 시각·언어·로케일·프로필·데이터·기하를 주입하고 기존 앱과 후보의 실제 창, 접근성 트리, 키보드 포커스, 클릭 결과를 함께 저장한다. 애니메이션은 접힘·중간·펼침과 reduced-motion을 분리한다. 같은 호스트·디스플레이에서 native scale PNG와 차영상, 캡처 조건을 남기고 픽셀 차이는 원인과 영향을 검토한다. 모델 snapshot assertion만으로 화면 동등성을 판정할 수 없다.
