@@ -23,7 +23,9 @@ final class NotchController: ObservableObject {
     private var providers: [any NotchProvider] = []
     private var monitors: [String: any AgentActivityMonitor] = [:]
     private var completions = SessionCompletionWatcher()
-    private var clockTimer: Timer?
+    private lazy var sessionClock = NotchPresentationTimer(interval: 1, mode: .common) { [weak self] in
+        self?.window.model.now = Date()
+    }
     private let thresholds = ThresholdNotifier(
         isMuted: { id in
             let defaults = UserDefaults.standard
@@ -38,7 +40,9 @@ final class NotchController: ObservableObject {
     private var whileVisible = Set<AnyCancellable>()
     private var configured = false
     private var visible = false
-    private var sessionTokenTimer: Timer?
+    private lazy var tokenTimer = NotchPresentationTimer(interval: 5, mode: .default) { [weak self] in
+        self?.refreshSessionTokens()
+    }
     private var sessionTokenFetch: Task<Void, Never>?
 
     /// Upstream stores also feed the CLI and WidgetKit while the notch is hidden.
@@ -198,15 +202,21 @@ final class NotchController: ObservableObject {
         ) ?? .used
         store.start()
         wireLimitBridge()
-        sessionTokenTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refreshSessionTokens() }
-        }
-        // The totals are only shown in the open panel, so they are not summed
-        // while it is closed; opening it reads them at once.
+        window.model.$sessions
+            .map { $0.values.contains { $0.contains { $0.state != .idle } } }
+            .removeDuplicates()
+            .sink { [weak self] active in
+                guard let self else { return }
+                self.sessionClock.setActive(self.visible && active)
+            }
+            .store(in: &cancellables)
         window.model.$isExpanded
             .removeDuplicates()
-            .filter { $0 }
-            .sink { [weak self] _ in self?.refreshSessionTokens() }
+            .sink { [weak self] expanded in
+                guard let self else { return }
+                // @Published delivers before the model's stored value changes.
+                self.tokenTimer.setActive(self.visible && expanded)
+            }
             .store(in: &cancellables)
     }
 
@@ -234,31 +244,17 @@ final class NotchController: ObservableObject {
             store?.start()
             for (id, monitor) in monitors where selectedProviderIDs.contains(id) { monitor.start() }
             wireLimitBridge()
-            startClockTimer()
+            sessionClock.setActive(window.model.sessions.values.contains { $0.contains { $0.state != .idle } })
+            tokenTimer.setActive(window.model.isExpanded)
             removeLegacyCompactionHook()
         } else {
             monitors.values.forEach { $0.stop() }
-            clockTimer?.invalidate()
-            clockTimer = nil
+            sessionClock.setActive(false)
+            tokenTimer.setActive(false)
             window.apply(.hidden)
             // A hidden notch has no pointer to follow or clock to show.
             window.stop()
         }
-    }
-
-    /// Monitors publish on change; refresh elapsed-time labels while sessions remain active.
-    private func startClockTimer() {
-        clockTimer?.invalidate()
-        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated {
-                guard let self,
-                      self.window.model.sessions.values.contains(where: { $0.contains { $0.state != .idle } })
-                else { return }
-                self.window.model.now = Date()
-            }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        clockTimer = timer
     }
 
     /// Releases up to 2.1.32 could add two hooks to `~/.claude/settings.json` so
@@ -331,7 +327,7 @@ final class NotchController: ObservableObject {
     }
 
     private func refreshSessionTokens() {
-        guard visible, window.model.isExpanded, sessionTokenFetch == nil else { return }
+        guard visible, sessionTokenFetch == nil else { return }
         let sessions = window.model.sessions
         sessionTokenFetch = Task { [weak self] in
             let totals = await Task.detached(priority: .utility) {

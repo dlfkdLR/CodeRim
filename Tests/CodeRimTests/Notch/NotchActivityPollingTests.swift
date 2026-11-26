@@ -34,6 +34,29 @@ final class NotchActivityPollingTests: XCTestCase {
         }
     }
 
+    func testPresentationTimerFiresOnActivationAndStopsWhenFolded() {
+        var updates = 0
+        let timer = NotchPresentationTimer(interval: 0.01, mode: .common) { updates += 1 }
+        timer.setActive(false)
+        XCTAssertEqual(updates, 0)
+        timer.setActive(true)
+        timer.setActive(true)
+        XCTAssertEqual(updates, 1)
+
+        let deadline = Date().addingTimeInterval(2)
+        while updates < 2, Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+        }
+        XCTAssertGreaterThanOrEqual(updates, 2)
+        timer.setActive(false)
+        let foldedCount = updates
+        RunLoop.main.run(until: Date().addingTimeInterval(0.04))
+        XCTAssertEqual(updates, foldedCount)
+        timer.setActive(true)
+        XCTAssertEqual(updates, foldedCount + 1)
+        timer.setActive(false)
+    }
+
     private final class RetainedActivityMonitor: AgentActivityMonitor {
         let sessions = [AgentSession(id: "busy", name: "synthetic", detail: "", state: .busy,
                                      waitingFor: nil, since: Date(timeIntervalSince1970: 0))]
