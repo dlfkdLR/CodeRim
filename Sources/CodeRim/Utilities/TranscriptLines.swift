@@ -1,4 +1,7 @@
 import Foundation
+#if CODERIM_RUST_ACCOUNTING
+import CCodeRimAccounting
+#endif
 
 /// Bounded JSONL reads shared by activity and session monitors.
 enum TranscriptLines {
@@ -46,6 +49,9 @@ struct TranscriptLineCursor {
             let chunk = try handle.read(upToCount: Int(min(UInt64(Self.chunkBytes), end - readOffset))) ?? Data()
             guard !chunk.isEmpty else { return }
             autoreleasepool {
+                #if CODERIM_RUST_ACCOUNTING
+                consume(chunk, body)
+                #else
                 var start = chunk.startIndex
                 while start < chunk.endIndex {
                     let newline = chunk[start...].firstIndex(of: 0x0A)
@@ -65,7 +71,47 @@ struct TranscriptLineCursor {
                         start = chunk.index(after: newline)
                     } else { break }
                 }
+                #endif
             }
         }
     }
+    #if CODERIM_RUST_ACCOUNTING
+    private mutating func consume(_ chunk: Data, _ body: (Data) -> Void) {
+        chunk.withUnsafeBytes { (raw: UnsafeRawBufferPointer) in
+            let bytes = raw.bindMemory(to: UInt8.self)
+            guard let base = bytes.baseAddress else { return }
+            withUnsafeTemporaryAllocation(of: CRTranscriptSpan.self, capacity: 128) { spans in
+                spans.initialize(repeating: CRTranscriptSpan())
+                defer { spans.deinitialize() }
+                var consumed = 0
+                while consumed < bytes.count {
+                    let batch = consumed
+                    let count = cr_transcript_plan(base + batch, bytes.count - batch, carry.count,
+                                                   discarding, Self.lineBytes, spans.baseAddress, spans.count)
+                    precondition(count > 0)
+                    for span in spans.prefix(count) {
+                        let end = batch + span.end
+                        let length = end - consumed
+                        let complete = span.action == CR_TRANSCRIPT_EMIT || span.action == CR_TRANSCRIPT_SKIP
+                        let shouldKeep = span.action == CR_TRANSCRIPT_EMIT || span.action == CR_TRANSCRIPT_CARRY
+                        if shouldKeep {
+                            carry.append(base + consumed, count: length)
+                        } else if !carry.isEmpty {
+                            carry = Data()
+                        }
+                        consumed = end + (complete ? 1 : 0)
+                        readOffset += UInt64(length) + (complete ? 1 : 0)
+                        if complete {
+                            offset = readOffset
+                            if shouldKeep { body(carry) }
+                            carry.removeAll(keepingCapacity: true)
+                        }
+                        discarding = span.action == CR_TRANSCRIPT_DISCARD
+                    }
+                }
+            }
+        }
+    }
+    #endif
+
 }
