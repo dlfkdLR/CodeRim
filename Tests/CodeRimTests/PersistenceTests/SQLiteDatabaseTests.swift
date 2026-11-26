@@ -84,6 +84,76 @@ final class SQLiteDatabaseTests: XCTestCase {
         XCTAssertEqual(try recoveryScalar("SELECT committed_offset FROM parsing_state", at: url), 100)
     }
 
+    func testNegativePersistedCounterRebaselinesWithoutChargingOrReplayingTheGap() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let sessions = directory.appendingPathComponent("sessions")
+        try FileManager.default.createDirectory(at: sessions, withIntermediateDirectories: true)
+        let source = sessions.appendingPathComponent("checkpoint.jsonl")
+        let url = directory.appendingPathComponent("usage.sqlite")
+        let now = try Date.ISO8601FormatStyle().parse("2026-11-24T11:00:00Z")
+        let sessionID = UsageStorageIdentity.digest("checkpoint-recovery")
+        func token(second: Int, cumulative: Int?) -> String {
+            let timestamp = String(format: "2026-11-24T10:00:%02dZ", second)
+            let counts = #"{"input_tokens":\#(cumulative ?? 5),"cached_input_tokens":0,"output_tokens":0}"#
+            return #"{"type":"event_msg","timestamp":"\#(timestamp)","payload":{"type":"token_count","info":{"last_token_usage":\#(counts),"total_token_usage":\#(cumulative == nil ? "null" : counts)}}}"#
+        }
+        func append(_ rows: [String]) throws {
+            let handle = try FileHandle(forWritingTo: source)
+            defer { try? handle.close() }
+            try handle.seekToEnd()
+            try handle.write(contentsOf: Data((rows.joined(separator: "\n") + "\n").utf8))
+        }
+        func refresh(_ db: SQLiteDatabase) async throws -> UsageSnapshot {
+            let collector = CodexUsageCollector(database: db, roots: [sessions])
+            return try await collector.refresh(now: now, calendar: Calendar(identifier: .gregorian), weekStart: .monday).snapshot
+        }
+        try Data((#"{"type":"session_meta","payload":{"id":"checkpoint-recovery"}}"# + "\n").utf8).write(to: source)
+        try append([token(second: 10, cumulative: 100)])
+        let original = try SQLiteDatabase(url: url)
+        let initial = try await refresh(original)
+        XCTAssertEqual(initial.allTime.inputTokens, 100)
+        try executeRecoverySQL("UPDATE session_counters SET input_tokens = -100", at: url)
+
+        // A complete source can be skipped entirely on reopening. Its stored damage still affects quality.
+        let untouched = try SQLiteDatabase(url: url)
+        let beforeAppend = try await refresh(untouched)
+        XCTAssertEqual(beforeAppend.allTime.inputTokens, 100)
+        XCTAssertEqual(beforeAppend.quality, .partial)
+
+        // Older, equal-time and partial observations can arrive together before a restart.
+        try append([token(second: 9, cumulative: 110), token(second: 10, cumulative: 111),
+                    token(second: 11, cumulative: nil)])
+        let reopened = try SQLiteDatabase(url: url)
+        let waiting = try await refresh(reopened)
+        XCTAssertEqual(waiting.allTime.inputTokens, 100)
+        XCTAssertEqual(waiting.quality, .partial)
+        let damaged = try await reopened.normalizationState(for: sessionID)
+        XCTAssertEqual(damaged.cumulativeHighWaterMark?.inputTokens, -100)
+        XCTAssertEqual(damaged.lastObservedAt, try Date.ISO8601FormatStyle().parse("2026-11-24T10:00:10Z"))
+
+        // A matching last/cumulative would usually be charged in full. After damage it is only a baseline.
+        try append([token(second: 12, cumulative: 120)])
+        let resumed = try SQLiteDatabase(url: url)
+        let baseline = try await refresh(resumed)
+        XCTAssertEqual(baseline.allTime.inputTokens, 100)
+        XCTAssertEqual(baseline.quality, .partial)
+        let repaired = try await resumed.normalizationState(for: sessionID)
+        XCTAssertEqual(repaired.cumulativeHighWaterMark?.inputTokens, 120)
+        XCTAssertEqual(try recoveryScalar("SELECT COUNT(*) FROM usage_events", at: url), 1)
+        XCTAssertEqual(try recoveryScalar("SELECT COUNT(*) FROM partial_evidence", at: url), 1)
+
+        try append([token(second: 13, cumulative: 127)])
+        let final = try SQLiteDatabase(url: url)
+        let increment = try await refresh(final)
+        XCTAssertEqual(increment.allTime.inputTokens, 107)
+        XCTAssertEqual(increment.quality, .partial)
+        let repeated = try await refresh(final)
+        XCTAssertEqual(repeated.allTime, increment.allTime)
+        XCTAssertEqual(try recoveryScalar("SELECT COUNT(*) FROM usage_events", at: url), 2)
+        XCTAssertEqual(try recoveryScalar("SELECT COUNT(*) FROM partial_evidence", at: url), 1)
+    }
+
     private func writeSchemaRecoveryFixture(at url: URL) async throws {
         let database = try SQLiteDatabase(url: url)
         let checkpoint = SourceCheckpoint(

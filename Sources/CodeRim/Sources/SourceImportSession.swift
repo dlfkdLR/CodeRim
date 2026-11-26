@@ -140,6 +140,17 @@ struct SourceImportSession: Sendable {
             } else {
                 isInheritedReplay = false
             }
+            if normalizationState.hasNegativeCounter {
+                // Preserve the raw checkpoint across retries until a new local observation
+                // supplies a trustworthy baseline. Never charge the missing interval.
+                guard !isInheritedReplay, let cumulative = observation.cumulativeUsage,
+                      normalizationState.lastObservedAt.map({ observation.occurredAt > $0 }) ?? true
+                else { return }
+                normalizationState = UsageNormalizationState(cumulativeHighWaterMark: cumulative,
+                    lastObservedAt: observation.occurredAt, quality: .partial)
+                recordEvidence(position: position, occurredAt: observation.occurredAt)
+                return
+            }
             let result = normalizer.normalize(observation, state: normalizationState)
             normalizationState = result.state
             guard !isInheritedReplay else { return }

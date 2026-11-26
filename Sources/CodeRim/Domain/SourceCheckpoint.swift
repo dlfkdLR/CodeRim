@@ -1,3 +1,4 @@
+import CodeRimUsageCore
 import Foundation
 
 struct SourceCheckpoint: Equatable, Sendable {
@@ -36,5 +37,15 @@ struct SourceCheckpoint: Equatable, Sendable {
             parentSessionID: nil,
             projectName: nil
         )
+    }
+}
+
+extension UsageNormalizationState {
+    /// The Codex log parser cannot emit a negative counter. A restored negative
+    /// component therefore identifies a damaged checkpoint, including on older schemas.
+    var hasNegativeCounter: Bool {
+        guard let usage = cumulativeHighWaterMark else { return false }
+        return usage.inputTokens < 0 || usage.cachedInputTokens < 0 || usage.outputTokens < 0
+            || (usage.cacheWriteInputTokens ?? 0) < 0
     }
 }

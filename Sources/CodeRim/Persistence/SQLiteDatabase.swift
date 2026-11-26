@@ -246,7 +246,7 @@ actor SQLiteDatabase {
 
         switch sqlite3_step(statement) {
         case SQLITE_ROW:
-            return UsageNormalizationState(
+            var state = UsageNormalizationState(
                 cumulativeHighWaterMark: TokenUsage(
                     inputTokens: sqlite3_column_int64(statement, 0),
                     cachedInputTokens: sqlite3_column_int64(statement, 1),
@@ -260,6 +260,8 @@ actor SQLiteDatabase {
                     : Date(timeIntervalSince1970: sqlite3_column_double(statement, 4)),
                 quality: DataQuality(rawValue: text(statement, column: 5) ?? "") ?? .partial
             )
+            if state.hasNegativeCounter { state.quality = .partial }
+            return state
         case SQLITE_DONE:
             return .empty
         default:
@@ -1388,7 +1390,10 @@ actor SQLiteDatabase {
                )
                OR EXISTS (
                     SELECT 1 FROM session_counters
-                    WHERE quality != 'exact' AND (?3 IS NULL OR last_observed_at IS NULL OR last_observed_at >= ?3)
+                    WHERE (quality != 'exact'
+                           OR input_tokens < 0 OR cached_input_tokens < 0
+                           OR output_tokens < 0 OR cache_write_input_tokens < 0)
+                      AND (?3 IS NULL OR last_observed_at IS NULL OR last_observed_at >= ?3)
                )
                OR EXISTS (
                     SELECT 1 FROM partial_evidence WHERE ?3 IS NULL OR observed_at >= ?3
