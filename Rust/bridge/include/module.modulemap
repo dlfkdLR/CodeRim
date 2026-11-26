@@ -3,11 +3,13 @@ module CCodeRimAccounting {
     header "coderim_token_json.h"
     header "coderim_notch_path.h"
     header "coderim_claude_json.h"
+    link "sqlite3"
     export *
 }
 
 module CCodeRimApplePricing {
     requires objc
     header "coderim_apple_pricing.h"
+    link "sqlite3"
     export *
 }
