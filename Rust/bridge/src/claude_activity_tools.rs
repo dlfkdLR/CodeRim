@@ -1,7 +1,10 @@
 //! Project tool calls from the same complete message.content array Foundation accepts.
 use crate::json_compat::{Object, supported_strings};
-use serde::Deserialize;
-use std::{ffi::c_void, slice};
+use serde::{
+    Deserialize, Deserializer,
+    de::{SeqAccess, Visitor},
+};
+use std::{ffi::c_void, fmt, slice};
 
 #[derive(Deserialize)]
 struct Record<'a> {
@@ -11,8 +14,8 @@ struct Record<'a> {
 
 #[derive(Deserialize)]
 struct Message<'a> {
-    #[serde(borrow)]
-    content: Option<Vec<Object<Block<'a>>>>,
+    #[serde(default, borrow, deserialize_with = "tool_calls")]
+    content: Vec<Call<'a>>,
 }
 
 #[derive(Deserialize)]
@@ -28,6 +31,42 @@ struct Block<'a> {
 #[derive(Deserialize)]
 struct Input<'a> {
     skill: Option<&'a str>,
+}
+
+struct Call<'a> {
+    name: &'a str,
+    id: Option<&'a str>,
+    skill: Option<&'a str>,
+}
+
+// Validate every array entry, but retain only the tool calls needed by the chart.
+// An invalid later object must still prevent all earlier calls from being emitted.
+fn tool_calls<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Call<'de>>, D::Error> {
+    struct Content;
+    impl<'de> Visitor<'de> for Content {
+        type Value = Vec<Call<'de>>;
+
+        fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str("an array of content objects")
+        }
+
+        fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+            let mut calls = Vec::new();
+            while let Some(Object(block)) = seq.next_element::<Object<Block>>()? {
+                if block.kind == Some("tool_use")
+                    && let Some(name) = block.name.filter(|s| !s.is_empty())
+                {
+                    calls.push(Call {
+                        name,
+                        id: block.id,
+                        skill: block.input.and_then(|input| input.0.skill),
+                    });
+                }
+            }
+            Ok(calls)
+        }
+    }
+    deserializer.deserialize_seq(Content)
 }
 
 #[repr(C)]
@@ -73,16 +112,16 @@ pub unsafe extern "C" fn cr_claude_activity_tools(
     let Ok(Object(record)) = serde_json::from_slice::<Object<Record>>(bytes) else {
         return false;
     };
-    if let Some(blocks) = record.message.and_then(|message| message.0.content) {
-        for Object(block) in blocks {
-            if block.kind != Some("tool_use") {
-                continue;
-            }
-            let Some(name) = block.name.filter(|s| !s.is_empty()) else {
-                continue;
+    if let Some(Object(message)) = record.message {
+        for call in message.content {
+            unsafe {
+                accept(
+                    context,
+                    Some(call.name).into(),
+                    call.id.into(),
+                    call.skill.into(),
+                )
             };
-            let skill = block.input.and_then(|input| input.0.skill);
-            unsafe { accept(context, Some(name).into(), block.id.into(), skill.into()) };
         }
     }
     true
