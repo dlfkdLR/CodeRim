@@ -1,0 +1,478 @@
+{
+  "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "previous": "3bc3e990c021c634e2b2e35be526033d1bbeccd2",
+  "product": "d7053c1fe036f7e11e60a82fd4f3f936a51100a2",
+  "qa": "49fd6f65ae3891fda62707f9c7d2a946232b3f2b",
+  "entry": "Both the WPF periodic/update notification and the Information page use ReleaseUpdates.CheckAsync. The raw official release list uses the owning directory Rust bridge when already loaded. Update-only startup uses the released selector with strict whole-buffer UTF-8 validation. Package checks, authorization, HTTP security and installation remain in their existing platform paths.",
+  "driver": "Scripts/rust_migration/windows-release-selection/check.py",
+  "measure": "Five interleaved fresh processes for each first-check workload, with and without the actual two-row WPF session tree as the precondition. Five separate warmed processes measure end-to-end polling against synchronous in-memory HTTP responses. Times in microseconds; bytes refer to managed allocations. Actual network time, native allocations, Windows installation, and real GitHub release data are outside these local measurements.",
+  "loadOrder": [
+    "managed assembly before",
+    "managed assembly after",
+    "native bridge before",
+    "native bridge after"
+  ],
+  "platforms": {
+    "arm64": {
+      "runtime": {
+        "frameworkDescription": ".NET 10.0.12",
+        "osDescription": "macOS 26.6.2",
+        "architecture": "Arm64"
+      },
+      "jsonSha256": "11a95c7ca309773462dc32552c9e8ec21273a57af31ea5b18d35a4c1209f15be",
+      "bridgeSha256": "c1a3f930f3a35c72d444e6b38087ca4a8757389a6ccabe931a25265e4df37b19",
+      "actualSources": {
+        "public": {
+          "sourceSha256": "d0d36d65f816619ee6872a058fe9daff1dc67b8bbfe2d39f6680cbeadf9f7780",
+          "coreSha256": "b23c38592f2ed722e970359181e2a495428e7a4338496cae0c2d347da01d6e4f"
+        },
+        "rust": {
+          "sourceSha256": "c6a1759d06a0c783cc2df4e3605929829a265482e21d4d7261313f485242890d",
+          "coreSha256": "b3da953de9c867e9775644a5be3ba9571bb99c94ae5c1f2963b503473f911f89"
+        }
+      },
+      "result": {
+        "cases": 39,
+        "sha256": "4bc85821c9375d85082dda85f7bfc59f9f37f92a1638c3257a5fc334250be0c3"
+      },
+      "medians": {
+        "warm/single": {
+          "public": {
+            "us": 26.394000000000002,
+            "managedBytes": 47440,
+            "metadataBytes": 3175
+          },
+          "rust": {
+            "us": 12.905999999999999,
+            "managedBytes": 22192,
+            "metadataBytes": 3175
+          }
+        },
+        "warm/typical": {
+          "public": {
+            "us": 179.312,
+            "managedBytes": 391688,
+            "metadataBytes": 45466
+          },
+          "rust": {
+            "us": 90.794,
+            "managedBytes": 190528,
+            "metadataBytes": 45466
+          }
+        },
+        "warm/mixed": {
+          "public": {
+            "us": 592.764,
+            "managedBytes": 1581510,
+            "metadataBytes": 194946
+          },
+          "rust": {
+            "us": 290.4,
+            "managedBytes": 882551,
+            "metadataBytes": 194946
+          }
+        },
+        "warm/allWindows": {
+          "public": {
+            "us": 744.034,
+            "managedBytes": 1649598,
+            "metadataBytes": 156642
+          },
+          "rust": {
+            "us": 334.48800000000006,
+            "managedBytes": 743597,
+            "metadataBytes": 156642
+          }
+        },
+        "warm/nearLimit": {
+          "public": {
+            "us": 1319.1285714285714,
+            "managedBytes": 5288346,
+            "metadataBytes": 863212
+          },
+          "rust": {
+            "us": 535.7857142857143,
+            "managedBytes": 3030168,
+            "metadataBytes": 863212
+          }
+        },
+        "warm/escapedNames": {
+          "public": {
+            "us": 174.614,
+            "managedBytes": 391980,
+            "metadataBytes": 45526
+          },
+          "rust": {
+            "us": 83.234,
+            "managedBytes": 190584,
+            "metadataBytes": 45526
+          }
+        },
+        "warm/duplicateField": {
+          "public": {
+            "us": 7.72,
+            "managedBytes": 14192,
+            "metadataBytes": 49
+          },
+          "rust": {
+            "us": 8.664,
+            "managedBytes": 15744,
+            "metadataBytes": 49
+          }
+        },
+        "cold/single": {
+          "public": {
+            "us": 6110,
+            "managedBytes": 109728,
+            "metadataBytes": 3175
+          },
+          "rust": {
+            "us": 6211.2,
+            "managedBytes": 95888,
+            "metadataBytes": 3175
+          }
+        },
+        "cold/mixed": {
+          "public": {
+            "us": 6905.1,
+            "managedBytes": 1965096,
+            "metadataBytes": 194946
+          },
+          "rust": {
+            "us": 6889,
+            "managedBytes": 1240736,
+            "metadataBytes": 194946
+          }
+        },
+        "cold/active/single": {
+          "public": {
+            "us": 6036.2,
+            "managedBytes": 109600,
+            "metadataBytes": 3175
+          },
+          "rust": {
+            "us": 5176.8,
+            "managedBytes": 72712,
+            "metadataBytes": 3175
+          }
+        },
+        "cold/active/mixed": {
+          "public": {
+            "us": 6840.2,
+            "managedBytes": 1964968,
+            "metadataBytes": 194946
+          },
+          "rust": {
+            "us": 5456.2,
+            "managedBytes": 932544,
+            "metadataBytes": 194946
+          }
+        }
+      },
+      "initialLoadStates": {
+        "cold/single": {
+          "public": [
+            false,
+            false,
+            false,
+            false
+          ],
+          "rust": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        "cold/mixed": {
+          "public": [
+            false,
+            false,
+            false,
+            false
+          ],
+          "rust": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        "cold/active/single": {
+          "public": [
+            true,
+            true,
+            false,
+            false
+          ],
+          "rust": [
+            true,
+            true,
+            true,
+            true
+          ]
+        },
+        "cold/active/mixed": {
+          "public": [
+            true,
+            true,
+            false,
+            false
+          ],
+          "rust": [
+            true,
+            true,
+            true,
+            true
+          ]
+        }
+      }
+    },
+    "x64-rosetta": {
+      "runtime": {
+        "frameworkDescription": ".NET 10.0.12",
+        "osDescription": "macOS 26.6.2",
+        "architecture": "X64"
+      },
+      "jsonSha256": "e86d08b197025f1722405924fe3730e77152f526fa6e3a5db3d67337f9aa8a86",
+      "bridgeSha256": "79606e9830e0c4f11b9175dbf6dd2365b04066cc1fdee9b90b2a5eaab71835a3",
+      "actualSources": {
+        "public": {
+          "sourceSha256": "d0d36d65f816619ee6872a058fe9daff1dc67b8bbfe2d39f6680cbeadf9f7780",
+          "coreSha256": "db4f697c5e326d7073b41910d8b683dcd48a20610c63e55717d77a10b610a515"
+        },
+        "rust": {
+          "sourceSha256": "c6a1759d06a0c783cc2df4e3605929829a265482e21d4d7261313f485242890d",
+          "coreSha256": "cb745ed7c9e15e263046ef322b445b2a92a24d2313e2706a4da0d406304b7383"
+        }
+      },
+      "result": {
+        "cases": 39,
+        "sha256": "4bc85821c9375d85082dda85f7bfc59f9f37f92a1638c3257a5fc334250be0c3"
+      },
+      "medians": {
+        "warm/single": {
+          "public": {
+            "us": 63.724,
+            "managedBytes": 47440,
+            "metadataBytes": 3175
+          },
+          "rust": {
+            "us": 25.531999999999996,
+            "managedBytes": 22192,
+            "metadataBytes": 3175
+          }
+        },
+        "warm/typical": {
+          "public": {
+            "us": 343.04400000000004,
+            "managedBytes": 391688,
+            "metadataBytes": 45466
+          },
+          "rust": {
+            "us": 119.882,
+            "managedBytes": 190528,
+            "metadataBytes": 45466
+          }
+        },
+        "warm/mixed": {
+          "public": {
+            "us": 1141.92,
+            "managedBytes": 1581466,
+            "metadataBytes": 194946
+          },
+          "rust": {
+            "us": 398.436,
+            "managedBytes": 882551,
+            "metadataBytes": 194946
+          }
+        },
+        "warm/allWindows": {
+          "public": {
+            "us": 1324.148,
+            "managedBytes": 1649442,
+            "metadataBytes": 156642
+          },
+          "rust": {
+            "us": 393.724,
+            "managedBytes": 743565,
+            "metadataBytes": 156642
+          }
+        },
+        "warm/nearLimit": {
+          "public": {
+            "us": 2397.9714285714285,
+            "managedBytes": 5287704,
+            "metadataBytes": 863212
+          },
+          "rust": {
+            "us": 744.0214285714285,
+            "managedBytes": 3031102,
+            "metadataBytes": 863212
+          }
+        },
+        "warm/escapedNames": {
+          "public": {
+            "us": 299.11,
+            "managedBytes": 391864,
+            "metadataBytes": 45526
+          },
+          "rust": {
+            "us": 94.34,
+            "managedBytes": 190584,
+            "metadataBytes": 45526
+          }
+        },
+        "warm/duplicateField": {
+          "public": {
+            "us": 14.214,
+            "managedBytes": 14192,
+            "metadataBytes": 49
+          },
+          "rust": {
+            "us": 15.582,
+            "managedBytes": 15744,
+            "metadataBytes": 49
+          }
+        },
+        "cold/single": {
+          "public": {
+            "us": 34671.7,
+            "managedBytes": 109728,
+            "metadataBytes": 3175
+          },
+          "rust": {
+            "us": 33957.8,
+            "managedBytes": 95888,
+            "metadataBytes": 3175
+          }
+        },
+        "cold/mixed": {
+          "public": {
+            "us": 37189.6,
+            "managedBytes": 1965096,
+            "metadataBytes": 194946
+          },
+          "rust": {
+            "us": 36287,
+            "managedBytes": 1240736,
+            "metadataBytes": 194946
+          }
+        },
+        "cold/active/single": {
+          "public": {
+            "us": 34138,
+            "managedBytes": 109600,
+            "metadataBytes": 3175
+          },
+          "rust": {
+            "us": 28465.3,
+            "managedBytes": 72712,
+            "metadataBytes": 3175
+          }
+        },
+        "cold/active/mixed": {
+          "public": {
+            "us": 36254.6,
+            "managedBytes": 1964968,
+            "metadataBytes": 194946
+          },
+          "rust": {
+            "us": 30741.8,
+            "managedBytes": 932544,
+            "metadataBytes": 194946
+          }
+        }
+      },
+      "initialLoadStates": {
+        "cold/single": {
+          "public": [
+            false,
+            false,
+            false,
+            false
+          ],
+          "rust": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        "cold/mixed": {
+          "public": [
+            false,
+            false,
+            false,
+            false
+          ],
+          "rust": [
+            false,
+            false,
+            false,
+            false
+          ]
+        },
+        "cold/active/single": {
+          "public": [
+            true,
+            true,
+            false,
+            false
+          ],
+          "rust": [
+            true,
+            true,
+            true,
+            true
+          ]
+        },
+        "cold/active/mixed": {
+          "public": [
+            true,
+            true,
+            false,
+            false
+          ],
+          "rust": [
+            true,
+            true,
+            true,
+            true
+          ]
+        }
+      }
+    }
+  },
+  "tests": {
+    "releaseUpdateTests": 47,
+    "bridgeUnitTests": 78,
+    "clippy": "passed",
+    "rustfmt": "passed"
+  },
+  "independent": {
+    "packetDigest": "f51227fb995efb9658ff9575300540eefcdbbdb4a017694d00abcc99f9a5d854",
+    "sha256": "75299d74ab6f652c03d92026254212d36cf1d10c02ed612a0bd1ca108a9542b5",
+    "cases": 971,
+    "actualCheckAsync": 687,
+    "actualParse": 284,
+    "errorsPerState": 558,
+    "threeLoadStates": [
+      "unloaded",
+      "preloaded by WPF session tree",
+      "activation across HTTP pages"
+    ],
+    "coldPairedMedianUsAbovePrevious": [
+      103,
+      66
+    ],
+    "functionalTraceSha256": "d90b23594b62d573941a0c506df77cc1c506b9685601da126be11c1944d773d4",
+    "facts": "Expanded malformed UTF-8, JSON exceptions, ambiguous metadata, polling cancellation, missing/native load failure, ordinal names and 56-byte borrowed-range ABI. Both public and immediately previous source returned the same rows and error metadata.",
+    "performance": "First check with the usage assembly already active and all six repeated active workloads improved; separate update-only workloads had small mixed results. Whole-application weighting is unverified."
+  },
+  "formalHarness": {
+    "decision": "INCONCLUSIVE",
+    "packetDigest": "f51227fb995efb9658ff9575300540eefcdbbdb4a017694d00abcc99f9a5d854",
+    "reason": "The native .NET/Rust checks do not have a registered test adapter, and operator-attested import is unavailable."
+  }
+}
