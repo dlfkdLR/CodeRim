@@ -206,7 +206,7 @@ final class UsageStoreLifecycleTests: XCTestCase {
         XCTAssertNotEqual(store.lastSourceRefreshAt, lastRead)
     }
 
-    private final class SplitWeekDefaults: UserDefaults, @unchecked Sendable {
+    private final class SplitWeekDefaults: UserDefaults {
         override func object(forKey key: String) -> Any? {
             if key == "weekStart" { return 2 }
             return super.object(forKey: key)
