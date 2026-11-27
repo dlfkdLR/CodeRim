@@ -32,6 +32,8 @@ public static partial class SessionPresentation
 #if CODERIM_RUST_ACCOUNTING
         if (previous is not SessionActivity[] old || current is not SessionActivity[] next) return null;
         if (next.Length == 0) return new([], null, 0);
+        if (old.Length == 1 && next.Length == 1 && old[0] is { } prior && next[0] is { } incoming)
+            return RustAccountingLoadState.IsLoaded ? PlanSingle(prior, incoming) : PlanColdSingle(prior, incoming);
         // A profile may have no accounting work yet. Loading the entire native library solely
         // for a small refresh costs more than the released scan; a million possible pairs pays for it.
         if (old.Length != 0 && !RustAccountingLoadState.IsLoaded && (long)old.Length * next.Length < 1024L * 1024)
@@ -57,6 +59,29 @@ public static partial class SessionPresentation
     private static RustActivityRefresh.Node Encode(SessionActivity row, int id, int state) => new(
         row.Since.UtcTicks, row.ProcessStartedAt?.UtcTicks ?? -1, id, state,
         (row.Provider == "claude" ? 1 : 0) | (row.ParentThreadId is null ? 2 : 0));
+
+    private static SessionActivityRefresh PlanColdSingle(SessionActivity prior, SessionActivity incoming)
+    {
+        // A profile with no previous Rust work need not load the library solely for a single pair.
+        bool same = SameIdentity(prior, incoming);
+        var published = same && incoming.Provider == "claude" && prior.State == incoming.State
+            && prior.ProcessStartedAt == incoming.ProcessStartedAt ? incoming with { Since = prior.Since } : incoming;
+        int transition = same && prior.State == "busy" ? incoming.State switch { "idle" => 1, "waiting" => 2, _ => 0 } : 0;
+        int signals = incoming.ParentThreadId is null ? transition | (transition << 2) : transition;
+        return new([published], transition != 0 ? published : null, signals);
+    }
+
+    private static SessionActivityRefresh PlanSingle(SessionActivity prior, SessionActivity incoming)
+    {
+        int beforeState = KnownState(prior.State);
+        int afterState = KnownState(incoming.State);
+        var before = Encode(prior, 0, beforeState < 0 ? 4 : beforeState);
+        var after = Encode(incoming, SameIdentity(prior, incoming) ? 0 : 1,
+            afterState >= 0 ? afterState : prior.State == incoming.State ? 4 : 5);
+        var decision = RustActivityRefresh.ResolveOne(before, after, out int match);
+        var published = match >= 0 ? incoming with { Since = prior.Since } : incoming;
+        return new([published], decision.Attention >= 0 ? published : null, decision.Signals);
+    }
 
     private static SessionActivityRefresh PlanSmall(SessionActivity[] old, SessionActivity[] next)
     {

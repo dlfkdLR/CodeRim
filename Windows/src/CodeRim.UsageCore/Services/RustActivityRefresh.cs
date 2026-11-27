@@ -16,6 +16,16 @@ internal static class RustActivityRefresh
     private static unsafe extern int Plan(Node* previous, int previousCount, Node* current, int currentCount,
         int identities, int* previousMatches, Decision* decision);
 
+    internal static unsafe Decision ResolveOne(Node previous, Node current, out int matchedIndex)
+    {
+        int match;
+        Decision decision;
+        if (Plan(&previous, 1, &current, 1, 2, &match, &decision) != 1)
+            throw new InvalidDataException("Invalid session activity refresh.");
+        matchedIndex = match;
+        return decision;
+    }
+
     internal static unsafe Decision Resolve(ReadOnlySpan<Node> old, ReadOnlySpan<Node> incoming, int identities, Span<int> matches)
     {
         if (matches.Length != incoming.Length) throw new ArgumentException("Activity match count differs from incoming sessions.");

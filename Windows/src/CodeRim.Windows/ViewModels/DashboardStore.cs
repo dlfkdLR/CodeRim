@@ -392,13 +392,40 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     {
         var previous = Sessions;
         // The first snapshot cannot cross a transition. Publish a copy before notifying observers.
-        if (previous is SessionActivity[] { Length: 0 } && current is SessionActivity[] rows && Array.IndexOf(rows, null) < 0)
+        if (previous is SessionActivity[] { Length: 0 } && current is SessionActivity[] rows
+            && (rows.Length == 1 ? rows[0] is not null : Array.IndexOf(rows, null) < 0))
         {
             Sessions = rows.Length == 0 ? Array.Empty<SessionActivity>() : (SessionActivity[])rows.Clone();
             if (rows.Length > 0) Changed();
             return;
         }
+        if (previous is SessionActivity[] { Length: 1 } before && current is SessionActivity[] { Length: 1 }
+            && SessionPresentation.TryPlanActivityRefresh(previous, current) is { } single)
+        {
+            PublishSingleActivity(before, single);
+            return;
+        }
         ReconcileSessionActivity(previous, current);
+    }
+
+    private void PublishSingleActivity(SessionActivity[] previous, SessionActivityRefresh refresh)
+    {
+        var prior = previous[0];
+        var item = refresh.Sessions[0];
+        Sessions = refresh.Sessions;
+        if (refresh.Attention is null)
+        {
+            if (!prior.Equals(item)) Changed();
+            return;
+        }
+        bool includeSubagents = settings.Current.SubagentSound;
+        bool finished = refresh.ShouldChimeFinished(includeSubagents);
+        bool played = settings.Current.CompletionSound && (finished || refresh.ShouldChimeBlocked(includeSubagents));
+        if (played) SessionChime.Play(finished ? settings.Current.FinishedSound : settings.Current.BlockedSound);
+        // The sound can change the captured array. Only that case needs to repeat the released query.
+        SessionAttentionRequested?.Invoke(!played || (ReferenceEquals(previous[0], prior) && ReferenceEquals(refresh.Sessions[0], item))
+            ? item : LatestActivityTransition(previous, refresh.Sessions));
+        if (!previous.SequenceEqual(Sessions)) Changed();
     }
 
     private void ReconcileSessionActivity(IReadOnlyList<SessionActivity> previous, IReadOnlyList<SessionActivity> current)
@@ -421,13 +448,18 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
         if (played) SessionChime.Play(finishedSound ? settings.Current.FinishedSound : settings.Current.BlockedSound);
         // The sound runs after publication. Read the current rows again if it ran before attention.
         if (finished || blocked)
-            SessionAttentionRequested?.Invoke((played ? null : refresh?.Attention) ?? current.Where(x => x.State is "idle" or "waiting"
-                && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"))
-                .OrderByDescending(x => x.Since).First());
+            SessionAttentionRequested?.Invoke((played ? null : refresh?.Attention) ?? LatestActivityTransition(previous, current));
         // Publish at the mutation boundary. Every caller, including updates that
         // only change a task title/state and reuse the token cache, needs this.
         if (!previous.SequenceEqual(Sessions)) Changed();
     }
+
+    private static SessionActivity LatestActivityTransition(IReadOnlyList<SessionActivity> previous, IReadOnlyList<SessionActivity> current) =>
+        current.Where(x => x.State is "idle" or "waiting"
+            && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"))
+            .OrderByDescending(x => x.Since).First();
+
+
 
     private static List<SessionActivity> ReadSessions(string[] enabled, bool includeUnknown, CancellationToken cancellationToken)
     {
