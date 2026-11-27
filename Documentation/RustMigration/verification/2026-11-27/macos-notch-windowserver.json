@@ -1,0 +1,199 @@
+{
+  "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "candidate": "f440a9d052d9a803956dd40686f5977ec1fc08d9",
+  "platform": "macOS 26.6.2 (25G83) arm64",
+  "method": "WindowServer ScreenCaptureKit SCStream with desktopIndependentWindow requiring test process PID and window ID; sRGB native BGRA, alpha included, cursor/shadow/child windows excluded. Real wall clock, native controller and UI; no desktop-wide recording. Sample PTS and controller transitions use CM host clock.",
+  "syntheticFixture": "One QA provider. Move a controller-owned pointer into the notch, enter its one ring, invoke the panel Keep open menu action, leave, and unpin. Controller timers, animations and WindowServer frame delivery run in real time.",
+  "initialCapture": {
+    "runs": {
+      "released-1": {
+        "dimensions": [
+          650,
+          840
+        ],
+        "completeFrames": 97
+      },
+      "candidate-1": {
+        "dimensions": [
+          650,
+          840
+        ],
+        "completeFrames": 97
+      },
+      "candidate-2": {
+        "dimensions": [
+          650,
+          836
+        ],
+        "completeFrames": 98
+      },
+      "released-2": {
+        "dimensions": [
+          650,
+          840
+        ],
+        "completeFrames": 93
+      }
+    },
+    "strictSizeComparison": "The second candidate capture reported 650 x 836 pixels while the other three reported 650 x 840. Initial mapping did not record all three geometry sources; the cause is unconfirmed."
+  },
+  "subsequentCapture": {
+    "capturePreparation": "Before publishing the owned window number to the observer, allow 650 ms for initial AppKit placement. New processes for all four runs; no images resized.",
+    "points": {
+      "appKit": [
+        325,
+        420
+      ],
+      "windowServer": [
+        325,
+        420
+      ],
+      "screenCaptureKitContentFilter": [
+        325,
+        420
+      ],
+      "scale": 2,
+      "pixelSize": [
+        650,
+        840
+      ]
+    },
+    "completeFrames": 320,
+    "runs": {
+      "released-1": {
+        "frames": 77,
+        "distinct": 77,
+        "milestonePixelSHA256": {
+          "initial": "ee5737d28f35f94eaaf7e2066f49bd2e27c09eb0945b483e3f96d99159d03a5f",
+          "before-pin": "795630e223899e32f2c7b08585aadfd8557e959580cfc04f88d0ba908f89f227",
+          "before-unpin": "4a2cc6c23f3e7ae761703964f71f809527f7cf5d24bd8dd9933af04fb2dc6921",
+          "finished": "6c1a763147e1b5271305799eba8a708b5bef0810f1e4313fcc05e2254e059486"
+        },
+        "changedFrames": {
+          "entered": 22,
+          "pin-hover-cleared": 24,
+          "unpin-fold": 29
+        },
+        "medianChangedFrameIntervalMs": {
+          "entered": 17.22,
+          "pin-hover-cleared": 17.16,
+          "unpin-fold": 16.87
+        }
+      },
+      "candidate-1": {
+        "frames": 76,
+        "distinct": 71,
+        "milestonePixelSHA256": {
+          "initial": "ee5737d28f35f94eaaf7e2066f49bd2e27c09eb0945b483e3f96d99159d03a5f",
+          "before-pin": "0f5d7ea9113460be9ebdd830de46042a4c736986ed305dcbb56dda8bcfc9cbb1",
+          "before-unpin": "4a2cc6c23f3e7ae761703964f71f809527f7cf5d24bd8dd9933af04fb2dc6921",
+          "finished": "6c1a763147e1b5271305799eba8a708b5bef0810f1e4313fcc05e2254e059486"
+        },
+        "changedFrames": {
+          "entered": 26,
+          "pin-hover-cleared": 20,
+          "unpin-fold": 24
+        },
+        "medianChangedFrameIntervalMs": {
+          "entered": 17.84,
+          "pin-hover-cleared": 17.61,
+          "unpin-fold": 17.6
+        }
+      },
+      "candidate-2": {
+        "frames": 85,
+        "distinct": 80,
+        "milestonePixelSHA256": {
+          "initial": "ee5737d28f35f94eaaf7e2066f49bd2e27c09eb0945b483e3f96d99159d03a5f",
+          "before-pin": "0f5d7ea9113460be9ebdd830de46042a4c736986ed305dcbb56dda8bcfc9cbb1",
+          "before-unpin": "4a2cc6c23f3e7ae761703964f71f809527f7cf5d24bd8dd9933af04fb2dc6921",
+          "finished": "6c1a763147e1b5271305799eba8a708b5bef0810f1e4313fcc05e2254e059486"
+        },
+        "changedFrames": {
+          "entered": 28,
+          "pin-hover-cleared": 24,
+          "unpin-fold": 28
+        },
+        "medianChangedFrameIntervalMs": {
+          "entered": 17.16,
+          "pin-hover-cleared": 17.09,
+          "unpin-fold": 17.03
+        }
+      },
+      "released-2": {
+        "frames": 82,
+        "distinct": 81,
+        "milestonePixelSHA256": {
+          "initial": "ee5737d28f35f94eaaf7e2066f49bd2e27c09eb0945b483e3f96d99159d03a5f",
+          "before-pin": "795630e223899e32f2c7b08585aadfd8557e959580cfc04f88d0ba908f89f227",
+          "before-unpin": "4a2cc6c23f3e7ae761703964f71f809527f7cf5d24bd8dd9933af04fb2dc6921",
+          "finished": "6c1a763147e1b5271305799eba8a708b5bef0810f1e4313fcc05e2254e059486"
+        },
+        "changedFrames": {
+          "entered": 26,
+          "pin-hover-cleared": 24,
+          "unpin-fold": 29
+        },
+        "medianChangedFrameIntervalMs": {
+          "entered": 17.3,
+          "pin-hover-cleared": 17.12,
+          "unpin-fold": 16.93
+        }
+      }
+    },
+    "differentImageCountAcrossAllFourRunsAtEachMilestone": {
+      "initial": 1,
+      "before-pin": 2,
+      "before-unpin": 1,
+      "finished": 1
+    },
+    "strictWallClockSampleCounts": {
+      "released-1/candidate-1": {
+        "entered": 9,
+        "pin-hover-cleared": 3,
+        "unpin-fold": 3
+      },
+      "released-1/candidate-2": {
+        "entered": 6,
+        "pin-hover-cleared": 12,
+        "unpin-fold": 3
+      },
+      "released-1/released-2": {
+        "entered": 13,
+        "pin-hover-cleared": 8,
+        "unpin-fold": 2
+      },
+      "candidate-1/candidate-2": {
+        "entered": 6,
+        "pin-hover-cleared": 1,
+        "unpin-fold": 4
+      },
+      "candidate-1/released-2": {
+        "entered": 9,
+        "pin-hover-cleared": 2,
+        "unpin-fold": 2
+      },
+      "candidate-2/released-2": {
+        "entered": 6,
+        "pin-hover-cleared": 6,
+        "unpin-fold": 2
+      }
+    },
+    "perPhaseSamples": 19,
+    "sampleSeconds": "Offsets 0/60 through 18/60 from observed model expanded/hover-cleared/folded. Use the most recent delivered complete frame at each offset."
+  },
+  "outcome": "The initial, before-unpin, and final folded milestones match across all four processes. The reference repeated before-pin milestone differs. Real-time intermediate digests differ in same-build repetitions and across revisions. Full real-time frame equivalence remains unverified.",
+  "limitations": [
+    "ScreenCaptureKit captures a window-isolated composition, not final physical panel scanout or other overlapping windows.",
+    "Desktop scheduling and application load were uncontrolled. The sample is not an animation performance benchmark or an idle-power measurement.",
+    "One Apple Silicon machine, one synthetic provider, one edge; physical Intel and Windows not exercised."
+  ],
+  "rawArtifactHashes": {
+    "OwnedNotchCompositorHost.swift": "c4b9622526297d5cd76c865ee1606c42a61141115aa6cd05adba5566bb0fa228",
+    "observer.swift": "d9dc290db06244ab836115c81eb074efdd2b64203e5295055c0d89f5ae09d69f",
+    "run.py": "f272ecf41956ee8d7be1c0906d8c5074d21fcc5b4e0388e0373420702bece64b",
+    "analyze.py": "3096304f7aa8282853ef6ea581d873766f5513dd50a17e71f22877da965c0132",
+    "results.json": "8eb9076f53867c49073deb2ec1da8f15dcd2712f0bfbca4c8a3ae8cd4f94a4e1",
+    "geometry-results.json": "e67bea7aeaa63a1f6476ed0c412cce0ffcf7e209d804446c7a49e62b15b2d883"
+  }
+}
