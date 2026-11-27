@@ -1,0 +1,642 @@
+{
+  "product": "a18525b894e74d7bb27d18ca43385f68aa704e6f",
+  "qa": "66333c1c",
+  "previous": "79c865e2acd7bd81e89f5952a73bbc4655770b5a",
+  "public": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "driver": "Scripts/rust_migration/windows-activity-refresh/check.py",
+  "environment": "macOS arm64 and x64 via Rosetta, .NET 10.0.12. The three-call samples start with an empty activity list, run in five rotated fresh processes per side, and exclude optional Groups prewarm. The metric is the median of the sum of the three handler calls per process. Observations compare all rows and object identities outside timed calls.",
+  "platforms": {
+    "Arm64": {
+      "runtime": {
+        "os": "macOS 26.6.2",
+        "isa": "Arm64",
+        "framework": ".NET 10.0.12"
+      },
+      "rawSha256": "a05a093f4df1fe71659b6a1bb936e2508bb19b81a4f1868d16bc27ba34231537",
+      "librarySha256": "eede63d46a828aabf1b68113a643e7a126c7d7ff8d68bbec6ebfb2a1704f8022",
+      "contract": {
+        "cases": 1486,
+        "digest": "5b102c9a25e7d55d1b509896f92d869a4ddc263ed7d5e25acb6a2f93ef5fb909",
+        "managedErrors": 186,
+        "rows": 18765,
+        "sounds": 184,
+        "attentions": 355,
+        "changed": 974
+      },
+      "firstThreeCalls": {
+        "1/steady/cold": {
+          "sumMedianUs": {
+            "public": 876.0,
+            "previous": 1314.8999999999999,
+            "rust": 996.0
+          },
+          "sumMedianManagedBytes": {
+            "public": 2640,
+            "previous": 2368,
+            "rust": 1192
+          },
+          "stageDigests": [
+            "2610A973A619E42C95D91AE514AADFC7998C91BADC5FE1D5FE1D04906AD2CA9C",
+            "A3368B5FE28039CD1FEEB471315B690E7F4F4822E0898B36F6C6A84C4FCAEE38",
+            "A3368B5FE28039CD1FEEB471315B690E7F4F4822E0898B36F6C6A84C4FCAEE38"
+          ]
+        },
+        "1/steady/active": {
+          "sumMedianUs": {
+            "public": 815.1999999999999,
+            "previous": 2098.0,
+            "rust": 904.1
+          },
+          "sumMedianManagedBytes": {
+            "public": 2640,
+            "previous": 1472,
+            "rust": 1312
+          },
+          "stageDigests": [
+            "2610A973A619E42C95D91AE514AADFC7998C91BADC5FE1D5FE1D04906AD2CA9C",
+            "A3368B5FE28039CD1FEEB471315B690E7F4F4822E0898B36F6C6A84C4FCAEE38",
+            "A3368B5FE28039CD1FEEB471315B690E7F4F4822E0898B36F6C6A84C4FCAEE38"
+          ]
+        },
+        "1/transition/cold": {
+          "sumMedianUs": {
+            "public": 1297.5,
+            "previous": 1702.2,
+            "rust": 860.6999999999999
+          },
+          "sumMedianManagedBytes": {
+            "public": 2768,
+            "previous": 2496,
+            "rust": 688
+          },
+          "stageDigests": [
+            "2610A973A619E42C95D91AE514AADFC7998C91BADC5FE1D5FE1D04906AD2CA9C",
+            "296CBD73551A67BA0C5C3362F5C783356D11B01BE5558D5E0698A2BED3B70C9A",
+            "F11912450B77040064F7D2341A05A0C16048A1D438C53E2724697B51298E76EA"
+          ]
+        },
+        "1/transition/active": {
+          "sumMedianUs": {
+            "public": 1072.7,
+            "previous": 2618.8,
+            "rust": 971.5
+          },
+          "sumMedianManagedBytes": {
+            "public": 2680,
+            "previous": 1344,
+            "rust": 808
+          },
+          "stageDigests": [
+            "2610A973A619E42C95D91AE514AADFC7998C91BADC5FE1D5FE1D04906AD2CA9C",
+            "296CBD73551A67BA0C5C3362F5C783356D11B01BE5558D5E0698A2BED3B70C9A",
+            "F11912450B77040064F7D2341A05A0C16048A1D438C53E2724697B51298E76EA"
+          ]
+        },
+        "8/steady/cold": {
+          "sumMedianUs": {
+            "public": 889.6,
+            "previous": 1386.7,
+            "rust": 1435.2
+          },
+          "sumMedianManagedBytes": {
+            "public": 7536,
+            "previous": 5976,
+            "rust": 5976
+          },
+          "stageDigests": [
+            "5B5DDF8142537B90C4771218CED791EB9C3BDCAF057B4B0144B0D72FCD8C56A0",
+            "FC0516EC48221EA8AA55D6CB3EC95CA20D58F4B93321FB60EA149B51620C8F9A",
+            "FC0516EC48221EA8AA55D6CB3EC95CA20D58F4B93321FB60EA149B51620C8F9A"
+          ]
+        },
+        "8/steady/active": {
+          "sumMedianUs": {
+            "public": 847.2,
+            "previous": 2168.1,
+            "rust": 2127.1
+          },
+          "sumMedianManagedBytes": {
+            "public": 7536,
+            "previous": 2504,
+            "rust": 2496
+          },
+          "stageDigests": [
+            "5B5DDF8142537B90C4771218CED791EB9C3BDCAF057B4B0144B0D72FCD8C56A0",
+            "FC0516EC48221EA8AA55D6CB3EC95CA20D58F4B93321FB60EA149B51620C8F9A",
+            "FC0516EC48221EA8AA55D6CB3EC95CA20D58F4B93321FB60EA149B51620C8F9A"
+          ]
+        },
+        "8/transition/cold": {
+          "sumMedianUs": {
+            "public": 1782.2,
+            "previous": 1783.2,
+            "rust": 2023.6
+          },
+          "sumMedianManagedBytes": {
+            "public": 7976,
+            "previous": 6416,
+            "rust": 6440
+          },
+          "stageDigests": [
+            "5B5DDF8142537B90C4771218CED791EB9C3BDCAF057B4B0144B0D72FCD8C56A0",
+            "D0853B9CC9759C5AF22FAA101A4D53A23920D3E9518B95C19338759214ACF87B",
+            "4D0B486A2A9395438B848FB5EC66C4CF2F3973D7901377CA0726B21C88C05461"
+          ]
+        },
+        "8/transition/active": {
+          "sumMedianUs": {
+            "public": 1554.9,
+            "previous": 2757.8,
+            "rust": 3788.7
+          },
+          "sumMedianManagedBytes": {
+            "public": 7888,
+            "previous": 2128,
+            "rust": 2144
+          },
+          "stageDigests": [
+            "5B5DDF8142537B90C4771218CED791EB9C3BDCAF057B4B0144B0D72FCD8C56A0",
+            "D0853B9CC9759C5AF22FAA101A4D53A23920D3E9518B95C19338759214ACF87B",
+            "4D0B486A2A9395438B848FB5EC66C4CF2F3973D7901377CA0726B21C88C05461"
+          ]
+        },
+        "64/steady/cold": {
+          "sumMedianUs": {
+            "public": 974.1,
+            "previous": 1520.9,
+            "rust": 1441.1000000000001
+          },
+          "sumMedianManagedBytes": {
+            "public": 47856,
+            "previous": 35992,
+            "rust": 35992
+          },
+          "stageDigests": [
+            "648D66F05831FB5EE03D2527DEF3A797B38D7D6D7E3B197199805C0199B7B392",
+            "F0935A214093B7F2D908C8804886EEB6D7BE307E7605C4C64D256BC681D16DEB",
+            "F0935A214093B7F2D908C8804886EEB6D7BE307E7605C4C64D256BC681D16DEB"
+          ]
+        },
+        "64/steady/active": {
+          "sumMedianUs": {
+            "public": 886.6,
+            "previous": 2331.1,
+            "rust": 2251.2
+          },
+          "sumMedianManagedBytes": {
+            "public": 47856,
+            "previous": 22352,
+            "rust": 22344
+          },
+          "stageDigests": [
+            "648D66F05831FB5EE03D2527DEF3A797B38D7D6D7E3B197199805C0199B7B392",
+            "F0935A214093B7F2D908C8804886EEB6D7BE307E7605C4C64D256BC681D16DEB",
+            "F0935A214093B7F2D908C8804886EEB6D7BE307E7605C4C64D256BC681D16DEB"
+          ]
+        },
+        "64/transition/cold": {
+          "sumMedianUs": {
+            "public": 1703.7,
+            "previous": 2096.2,
+            "rust": 3066.3
+          },
+          "sumMedianManagedBytes": {
+            "public": 49640,
+            "previous": 37776,
+            "rust": 37800
+          },
+          "stageDigests": [
+            "648D66F05831FB5EE03D2527DEF3A797B38D7D6D7E3B197199805C0199B7B392",
+            "F8D985B8AF6647CC9B668134BB74EAB8A4D978CBC44122A1DDDBFC477F9B3DEE",
+            "77E84111D671ED12B23DC335BEBD9364B4FAB1AC69A9F659760848A51A5F7095"
+          ]
+        },
+        "64/transition/active": {
+          "sumMedianUs": {
+            "public": 1626.2,
+            "previous": 3679.1,
+            "rust": 2958.8
+          },
+          "sumMedianManagedBytes": {
+            "public": 49552,
+            "previous": 18840,
+            "rust": 18856
+          },
+          "stageDigests": [
+            "648D66F05831FB5EE03D2527DEF3A797B38D7D6D7E3B197199805C0199B7B392",
+            "F8D985B8AF6647CC9B668134BB74EAB8A4D978CBC44122A1DDDBFC477F9B3DEE",
+            "77E84111D671ED12B23DC335BEBD9364B4FAB1AC69A9F659760848A51A5F7095"
+          ]
+        }
+      },
+      "warmSingle": {
+        "unchanged": {
+          "public": {
+            "us": 0.21383333333333335,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.12333333333333334,
+            "bytes": 248
+          },
+          "rust": {
+            "us": 0.056666666666666664,
+            "bytes": 216
+          }
+        },
+        "reloaded": {
+          "public": {
+            "us": 0.22116666666666665,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.12916666666666668,
+            "bytes": 248
+          },
+          "rust": {
+            "us": 0.060833333333333336,
+            "bytes": 216
+          }
+        },
+        "reordered": {
+          "public": {
+            "us": 0.21066666666666667,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.12366666666666667,
+            "bytes": 248
+          },
+          "rust": {
+            "us": 0.0515,
+            "bytes": 216
+          }
+        },
+        "completed": {
+          "public": {
+            "us": 0.211,
+            "bytes": 680
+          },
+          "previous": {
+            "us": 0.10450000000000001,
+            "bytes": 104
+          },
+          "rust": {
+            "us": 0.0465,
+            "bytes": 72
+          }
+        }
+      }
+    },
+    "X64": {
+      "runtime": {
+        "os": "macOS 26.6.2",
+        "isa": "X64",
+        "framework": ".NET 10.0.12"
+      },
+      "rawSha256": "5854a39a094a648c703e07e2c86d2a9e4923b5570797c14db2349b79ffbab9fa",
+      "librarySha256": "9477fdb91ad3357f016acde6dbeafe1cadc57f0b5fc75ea9fc799a4668630999",
+      "contract": {
+        "cases": 1486,
+        "digest": "5b102c9a25e7d55d1b509896f92d869a4ddc263ed7d5e25acb6a2f93ef5fb909",
+        "managedErrors": 186,
+        "rows": 18765,
+        "sounds": 184,
+        "attentions": 355,
+        "changed": 974
+      },
+      "firstThreeCalls": {
+        "1/steady/cold": {
+          "sumMedianUs": {
+            "public": 5875.2,
+            "previous": 7370.1,
+            "rust": 4309.1
+          },
+          "sumMedianManagedBytes": {
+            "public": 2640,
+            "previous": 2368,
+            "rust": 1192
+          },
+          "stageDigests": [
+            "2610A973A619E42C95D91AE514AADFC7998C91BADC5FE1D5FE1D04906AD2CA9C",
+            "A3368B5FE28039CD1FEEB471315B690E7F4F4822E0898B36F6C6A84C4FCAEE38",
+            "A3368B5FE28039CD1FEEB471315B690E7F4F4822E0898B36F6C6A84C4FCAEE38"
+          ]
+        },
+        "1/steady/active": {
+          "sumMedianUs": {
+            "public": 4264.2,
+            "previous": 12156.2,
+            "rust": 4347.9
+          },
+          "sumMedianManagedBytes": {
+            "public": 2640,
+            "previous": 1472,
+            "rust": 1312
+          },
+          "stageDigests": [
+            "2610A973A619E42C95D91AE514AADFC7998C91BADC5FE1D5FE1D04906AD2CA9C",
+            "A3368B5FE28039CD1FEEB471315B690E7F4F4822E0898B36F6C6A84C4FCAEE38",
+            "A3368B5FE28039CD1FEEB471315B690E7F4F4822E0898B36F6C6A84C4FCAEE38"
+          ]
+        },
+        "1/transition/cold": {
+          "sumMedianUs": {
+            "public": 5986.599999999999,
+            "previous": 7072.0,
+            "rust": 3650.1
+          },
+          "sumMedianManagedBytes": {
+            "public": 2768,
+            "previous": 2496,
+            "rust": 688
+          },
+          "stageDigests": [
+            "2610A973A619E42C95D91AE514AADFC7998C91BADC5FE1D5FE1D04906AD2CA9C",
+            "296CBD73551A67BA0C5C3362F5C783356D11B01BE5558D5E0698A2BED3B70C9A",
+            "F11912450B77040064F7D2341A05A0C16048A1D438C53E2724697B51298E76EA"
+          ]
+        },
+        "1/transition/active": {
+          "sumMedianUs": {
+            "public": 4546.0,
+            "previous": 12775.5,
+            "rust": 3890.3
+          },
+          "sumMedianManagedBytes": {
+            "public": 2680,
+            "previous": 1344,
+            "rust": 808
+          },
+          "stageDigests": [
+            "2610A973A619E42C95D91AE514AADFC7998C91BADC5FE1D5FE1D04906AD2CA9C",
+            "296CBD73551A67BA0C5C3362F5C783356D11B01BE5558D5E0698A2BED3B70C9A",
+            "F11912450B77040064F7D2341A05A0C16048A1D438C53E2724697B51298E76EA"
+          ]
+        },
+        "8/steady/cold": {
+          "sumMedianUs": {
+            "public": 6223.7,
+            "previous": 6743.5,
+            "rust": 6121.9
+          },
+          "sumMedianManagedBytes": {
+            "public": 7536,
+            "previous": 5976,
+            "rust": 5976
+          },
+          "stageDigests": [
+            "5B5DDF8142537B90C4771218CED791EB9C3BDCAF057B4B0144B0D72FCD8C56A0",
+            "FC0516EC48221EA8AA55D6CB3EC95CA20D58F4B93321FB60EA149B51620C8F9A",
+            "FC0516EC48221EA8AA55D6CB3EC95CA20D58F4B93321FB60EA149B51620C8F9A"
+          ]
+        },
+        "8/steady/active": {
+          "sumMedianUs": {
+            "public": 3875.6,
+            "previous": 11290.3,
+            "rust": 12398.800000000001
+          },
+          "sumMedianManagedBytes": {
+            "public": 7536,
+            "previous": 2504,
+            "rust": 2496
+          },
+          "stageDigests": [
+            "5B5DDF8142537B90C4771218CED791EB9C3BDCAF057B4B0144B0D72FCD8C56A0",
+            "FC0516EC48221EA8AA55D6CB3EC95CA20D58F4B93321FB60EA149B51620C8F9A",
+            "FC0516EC48221EA8AA55D6CB3EC95CA20D58F4B93321FB60EA149B51620C8F9A"
+          ]
+        },
+        "8/transition/cold": {
+          "sumMedianUs": {
+            "public": 6258.9,
+            "previous": 7519.7,
+            "rust": 8169.1
+          },
+          "sumMedianManagedBytes": {
+            "public": 7976,
+            "previous": 6416,
+            "rust": 6440
+          },
+          "stageDigests": [
+            "5B5DDF8142537B90C4771218CED791EB9C3BDCAF057B4B0144B0D72FCD8C56A0",
+            "D0853B9CC9759C5AF22FAA101A4D53A23920D3E9518B95C19338759214ACF87B",
+            "4D0B486A2A9395438B848FB5EC66C4CF2F3973D7901377CA0726B21C88C05461"
+          ]
+        },
+        "8/transition/active": {
+          "sumMedianUs": {
+            "public": 4376.4,
+            "previous": 12593.3,
+            "rust": 12214.300000000001
+          },
+          "sumMedianManagedBytes": {
+            "public": 7888,
+            "previous": 2128,
+            "rust": 2144
+          },
+          "stageDigests": [
+            "5B5DDF8142537B90C4771218CED791EB9C3BDCAF057B4B0144B0D72FCD8C56A0",
+            "D0853B9CC9759C5AF22FAA101A4D53A23920D3E9518B95C19338759214ACF87B",
+            "4D0B486A2A9395438B848FB5EC66C4CF2F3973D7901377CA0726B21C88C05461"
+          ]
+        },
+        "64/steady/cold": {
+          "sumMedianUs": {
+            "public": 5721.2,
+            "previous": 7313.1,
+            "rust": 6734.599999999999
+          },
+          "sumMedianManagedBytes": {
+            "public": 47856,
+            "previous": 35992,
+            "rust": 35992
+          },
+          "stageDigests": [
+            "648D66F05831FB5EE03D2527DEF3A797B38D7D6D7E3B197199805C0199B7B392",
+            "F0935A214093B7F2D908C8804886EEB6D7BE307E7605C4C64D256BC681D16DEB",
+            "F0935A214093B7F2D908C8804886EEB6D7BE307E7605C4C64D256BC681D16DEB"
+          ]
+        },
+        "64/steady/active": {
+          "sumMedianUs": {
+            "public": 5256.0,
+            "previous": 10918.099999999999,
+            "rust": 10278.0
+          },
+          "sumMedianManagedBytes": {
+            "public": 47856,
+            "previous": 22352,
+            "rust": 22344
+          },
+          "stageDigests": [
+            "648D66F05831FB5EE03D2527DEF3A797B38D7D6D7E3B197199805C0199B7B392",
+            "F0935A214093B7F2D908C8804886EEB6D7BE307E7605C4C64D256BC681D16DEB",
+            "F0935A214093B7F2D908C8804886EEB6D7BE307E7605C4C64D256BC681D16DEB"
+          ]
+        },
+        "64/transition/cold": {
+          "sumMedianUs": {
+            "public": 12311.7,
+            "previous": 9153.7,
+            "rust": 10797.7
+          },
+          "sumMedianManagedBytes": {
+            "public": 49640,
+            "previous": 37776,
+            "rust": 37800
+          },
+          "stageDigests": [
+            "648D66F05831FB5EE03D2527DEF3A797B38D7D6D7E3B197199805C0199B7B392",
+            "F8D985B8AF6647CC9B668134BB74EAB8A4D978CBC44122A1DDDBFC477F9B3DEE",
+            "77E84111D671ED12B23DC335BEBD9364B4FAB1AC69A9F659760848A51A5F7095"
+          ]
+        },
+        "64/transition/active": {
+          "sumMedianUs": {
+            "public": 5740.5,
+            "previous": 10915.099999999999,
+            "rust": 12183.8
+          },
+          "sumMedianManagedBytes": {
+            "public": 49552,
+            "previous": 18840,
+            "rust": 18856
+          },
+          "stageDigests": [
+            "648D66F05831FB5EE03D2527DEF3A797B38D7D6D7E3B197199805C0199B7B392",
+            "F8D985B8AF6647CC9B668134BB74EAB8A4D978CBC44122A1DDDBFC477F9B3DEE",
+            "77E84111D671ED12B23DC335BEBD9364B4FAB1AC69A9F659760848A51A5F7095"
+          ]
+        }
+      },
+      "warmSingle": {
+        "unchanged": {
+          "public": {
+            "us": 0.4685,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.22766666666666666,
+            "bytes": 248
+          },
+          "rust": {
+            "us": 0.11916666666666667,
+            "bytes": 216
+          }
+        },
+        "reloaded": {
+          "public": {
+            "us": 0.45449999999999996,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.233,
+            "bytes": 248
+          },
+          "rust": {
+            "us": 0.12466666666666666,
+            "bytes": 216
+          }
+        },
+        "reordered": {
+          "public": {
+            "us": 0.4553333333333333,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.21133333333333332,
+            "bytes": 248
+          },
+          "rust": {
+            "us": 0.10450000000000001,
+            "bytes": 216
+          }
+        },
+        "completed": {
+          "public": {
+            "us": 0.4618333333333334,
+            "bytes": 680
+          },
+          "previous": {
+            "us": 0.17533333333333334,
+            "bytes": 104
+          },
+          "rust": {
+            "us": 0.08216666666666667,
+            "bytes": 72
+          }
+        }
+      }
+    }
+  },
+  "independent": {
+    "reportSha256": "aa15e2eb4cfb04003fe0bf1aed9df14a4e3b4c9dd5aee33d65005e601c8ae104",
+    "packet": "f8453036573bf5c7df55739fccb0269d5478035f03a2f9ea6e20bd3a5609dee0",
+    "scope": "128 singleton callback/exception scenarios including 28 errors in each of two loading states, plus 27 process-time boundaries. Actual dylib load observations and a debugger stop at the Rust function with previous_count=1, current_count=1 and identities=2.",
+    "measuredSteadyThreeCallsUs": {
+      "preloaded": {
+        "public": 935,
+        "previous": 2534,
+        "candidate": 1066
+      },
+      "cold": {
+        "public": 1321,
+        "previous": 1693,
+        "candidate": 1245
+      }
+    }
+  },
+  "formalGate": {
+    "verdict": "INCONCLUSIVE",
+    "reasons": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "explicitTestCheck": "The adapter has no configured repository test command. Independent peer measurements are saved separately from the operator-attested import."
+  },
+  "wpfCrossBuild": {
+    "errors": 0,
+    "warnings": 0,
+    "assemblies": {
+      "CodeRim.dll": "70554cca1ee70d2e72aff4a34b5aa3b51594b7a99339f9144ef8962ccdc0fc51",
+      "CodeRim.Core.dll": "993fd095b924624ffa59a659da15947f65dff51238ccc81c771babd3e2020785",
+      "CodeRim.UsageCore.dll": "eea63fca39d3580d0c3ef3344c68788cdc7b9de4a36df616b70ef975fd9cbb1a"
+    }
+  },
+  "jitOnMacArm64": [
+    {
+      "side": "previous",
+      "mode": "cold",
+      "methods": [],
+      "rawSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "side": "previous",
+      "mode": "warm",
+      "methods": [
+        "PlanSmall"
+      ],
+      "rawSha256": "323451cb9d6574f2412823e66f89f1dad16feb830eda229642ffc3f22cf3f0a1"
+    },
+    {
+      "side": "candidate",
+      "mode": "cold",
+      "methods": [
+        "PlanColdSingle"
+      ],
+      "rawSha256": "65a63fa98973a7458dff461389e2e16de1dba4c526af3cda5c07c546ada19768"
+    },
+    {
+      "side": "candidate",
+      "mode": "warm",
+      "methods": [
+        "PlanSingle",
+        "ResolveOne"
+      ],
+      "rawSha256": "a959a2cc78ba1dbc192c4092304efa1fae1a6bac936a7ce43d21ab34e7134b45"
+    }
+  ]
+}
