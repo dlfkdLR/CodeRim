@@ -391,6 +391,18 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     internal void UpdateSessionActivity(IReadOnlyList<SessionActivity> current)
     {
         var previous = Sessions;
+        // The first snapshot cannot cross a transition. Publish a copy before notifying observers.
+        if (previous is SessionActivity[] { Length: 0 } && current is SessionActivity[] rows && Array.IndexOf(rows, null) < 0)
+        {
+            Sessions = rows.Length == 0 ? Array.Empty<SessionActivity>() : (SessionActivity[])rows.Clone();
+            if (rows.Length > 0) Changed();
+            return;
+        }
+        ReconcileSessionActivity(previous, current);
+    }
+
+    private void ReconcileSessionActivity(IReadOnlyList<SessionActivity> previous, IReadOnlyList<SessionActivity> current)
+    {
         var refresh = SessionPresentation.TryPlanActivityRefresh(previous, current);
         current = refresh?.Sessions ?? current.Select(item => previous.FirstOrDefault(old => item.Provider == "claude" && old.Id == item.Id && old.Provider == item.Provider
             && old.State == item.State && old.ProcessStartedAt == item.ProcessStartedAt) is { } old
