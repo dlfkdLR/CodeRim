@@ -209,7 +209,7 @@ fn reading(v: &J, id: &str, now: i64) -> Option<J> {
         "costUsage",
     ];
     v.shape(&keys, &["account", "headline"])?;
-    if v.get("id")?.s()? != id || !matches!(v.get("costUsage")?, J::Null) {
+    if v.get("id")?.s()? != id {
         return None;
     }
     if let Some(account) = v.get("account") {
@@ -287,7 +287,7 @@ fn reading(v: &J, id: &str, now: i64) -> Option<J> {
         ("updatedAt", ts),
         ("message", v.get("message")?.clone()),
         ("plan", v.get("plan")?.clone()),
-        ("costUsage", J::Null),
+        ("costUsage", crate::cost::history(v.get("costUsage")?)?),
         ("headline", head),
     ]))
 }

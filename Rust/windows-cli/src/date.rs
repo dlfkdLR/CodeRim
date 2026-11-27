@@ -23,38 +23,53 @@ impl Stamp<'_> {
         })
     }
 }
+fn digits(bytes: &[u8], start: usize, count: usize) -> Option<i64> {
+    let part = bytes.get(start..start + count)?;
+    part.iter().all(u8::is_ascii_digit).then(|| {
+        part.iter()
+            .fold(0, |value, digit| value * 10 + i64::from(digit - b'0'))
+    })
+}
+
+/// Windows stores cost dates as DateOnly and timestamps as DateTimeOffset.
+/// Both use the proleptic Gregorian calendar from 0001-01-01.
+pub fn days_since_origin(bytes: &[u8]) -> Option<i64> {
+    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+        return None;
+    }
+    let year = digits(bytes, 0, 4)?;
+    let month = digits(bytes, 5, 2)?;
+    let day = digits(bytes, 8, 2)?;
+    if year == 0 || !(1..=12).contains(&month) {
+        return None;
+    }
+    let mut month_days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) {
+        month_days[1] = 29;
+    }
+    if !(1..=month_days[month as usize - 1]).contains(&day) {
+        return None;
+    }
+    let prior = year - 1;
+    Some(
+        365 * prior + prior / 4 - prior / 100
+            + prior / 400
+            + month_days[..month as usize - 1].iter().sum::<i64>()
+            + day
+            - 1,
+    )
+}
+
 pub fn parse(s: &str) -> Option<Stamp<'_>> {
     let b = s.as_bytes();
-    if b.len() < 20
-        || b[4] != b'-'
-        || b[7] != b'-'
-        || b[10] != b'T'
-        || b[13] != b':'
-        || b[16] != b':'
-    {
+    if b.len() < 20 || b[10] != b'T' || b[13] != b':' || b[16] != b':' {
         return None;
     }
-    let d = |i: usize, n: usize| {
-        let part = b.get(i..i + n)?;
-        if !part.iter().all(u8::is_ascii_digit) {
-            return None;
-        }
-        std::str::from_utf8(part).ok()?.parse::<i64>().ok()
-    };
-    let y = d(0, 4)?;
-    let m = d(5, 2)?;
-    let day = d(8, 2)?;
-    let h = d(11, 2)?;
-    let min = d(14, 2)?;
-    let sec = d(17, 2)?;
-    if y < 1 || !(1..=12).contains(&m) || h >= 24 || min >= 60 || sec >= 60 {
-        return None;
-    }
-    let mut days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    if y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) {
-        days[1] = 29;
-    }
-    if day < 1 || day > days[m as usize - 1] {
+    let local_days = days_since_origin(b.get(..10)?)?;
+    let h = digits(b, 11, 2)?;
+    let min = digits(b, 14, 2)?;
+    let sec = digits(b, 17, 2)?;
+    if h >= 24 || min >= 60 || sec >= 60 {
         return None;
     }
     let mut i = 19;
@@ -73,7 +88,7 @@ pub fn parse(s: &str) -> Option<Stamp<'_>> {
         }
         // The managed reader accepts 16 digits and truncates at 100-nanosecond ticks.
         let keep = n.min(7);
-        frac = d(start, keep)? * 10_i64.pow((7 - keep) as u32);
+        frac = digits(b, start, keep)? * 10_i64.pow((7 - keep) as u32);
         if zulu {
             let fraction = s[start..start + keep].trim_end_matches('0');
             if !fraction.is_empty() {
@@ -90,19 +105,13 @@ pub fn parse(s: &str) -> Option<Stamp<'_>> {
         if b.len() != i + 6 || !matches!(b[i], b'+' | b'-') || b[i + 3] != b':' {
             return None;
         }
-        let oh = d(i + 1, 2)?;
-        let om = d(i + 4, 2)?;
+        let oh = digits(b, i + 1, 2)?;
+        let om = digits(b, i + 4, 2)?;
         if oh > 14 || om > 59 || (oh == 14 && om != 0) || (b[i] == b'-' && oh == 0 && om == 0) {
             return None;
         }
         (oh * 60 + om) * if b[i] == b'-' { -1 } else { 1 }
     };
-    let year = y - 1;
-    let local_days = 365 * year + year / 4 - year / 100
-        + year / 400
-        + days[..m as usize - 1].iter().sum::<i64>()
-        + day
-        - 1;
     let utc = local_days * DAY + ((h * 60 + min - off) * 60 + sec) * TICKS + frac;
     (0..=3155378975999999999).contains(&utc).then_some(Stamp {
         utc,

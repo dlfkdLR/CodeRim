@@ -2,6 +2,7 @@
 //! hook commands or compatibility snapshots. No program lookup through PATH.
 #[cfg(windows)]
 mod console;
+mod cost;
 mod date;
 mod display;
 mod encoding;
