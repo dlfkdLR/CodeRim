@@ -1,0 +1,1005 @@
+{
+  "testedCommit": "7cd8598690e78705424360b076560887ceb5016e",
+  "publicCommit": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "run": 45912414828,
+  "platforms": {
+    "x64": {
+      "os": "Windows-2025Server-10.0.26100-SP0",
+      "jobs": {
+        "package": {
+          "id": 140223665026,
+          "conclusion": "success",
+          "receiptSha256": "009a37083a6111fe292075b2a4c049142f51df29f9b2527688345d4705a531f7"
+        },
+        "scanner": {
+          "id": 140223665103,
+          "conclusion": "success",
+          "receiptSha256": "9101ad862fa6eb6c8133051fd088fb67ea81fdbc885b585de4797cb7d2c4d2d1"
+        }
+      },
+      "artifacts": {
+        "scanner-sessions": {
+          "id": 15161366223,
+          "digest": "sha256:4d11554a43bdaa933069651a377ac4b4b9e2e4032000dd998f3c0bd8561374cf"
+        },
+        "bounded-lines": {
+          "id": 15161207108,
+          "digest": "sha256:cede75b6898001aa291a719501c7b980902d193e745c4f747fdbc9d7a1fd0fcf"
+        },
+        "packages": {
+          "id": 15161740244,
+          "digest": "sha256:78a8691cecaedf9e8df4d602a2c1108ede58d8066a32ed17f6525be801505782"
+        }
+      },
+      "tests": [
+        "Passed! - Failed: 0, Passed: 41, Skipped: 0, Total: 41, Duration: 511ms - CodeRim.UsageCore.Tests.dll (net10.0|x64)",
+        "Passed! - Failed: 0, Passed: 54, Skipped: 0, Total: 54, Duration: 452ms - CodeRim.UsageCore.Tests.dll (net10.0|x64)",
+        "Passed! - Failed: 0, Passed: 3, Skipped: 0, Total: 3, Duration: 1s 708ms - CodeRim.Core.Tests.dll (net10.0|x64)",
+        "Passed! - Failed: 0, Passed: 4658, Skipped: 0, Total: 4658, Duration: 58s 337ms - CodeRim.Core.Tests.dll (net10.0|x64)"
+      ],
+      "librarySha256": "5c59b3970f010d9db06bc871f8f8d4397f651b0a3874f021e3b2bd9a189d0cad",
+      "claude": {
+        "cases": {
+          "count": 886,
+          "sha256": "26f1e560dcde3b1f22c20b6b06819ea673a6eb00289a594caa7a58c22511ea39",
+          "ignored": 530,
+          "exceptions": 68
+        },
+        "scans": {
+          "count": 2,
+          "sha256": "ed6744827235c4a1b2730d00304ac4b8c4feba51cfb229c4ad1a59af894447f2"
+        },
+        "measurements": {
+          "release": {
+            "windows-exact-32768": {
+              "ns": 6245.833333333333,
+              "managedBytes": 2096
+            },
+            "ignored-exact-32768": {
+              "ns": 2311.4583333333335,
+              "managedBytes": 136
+            },
+            "escaped-exact-32768": {
+              "ns": 33619.791666666664,
+              "managedBytes": 2096
+            },
+            "escapedTabs-exact-32768": {
+              "ns": 157230.20833333334,
+              "managedBytes": 2096
+            },
+            "scan": {
+              "ms": 27.4127
+            }
+          },
+          "rust": {
+            "windows-exact-32768": {
+              "ns": 5501.041666666667,
+              "managedBytes": 1776
+            },
+            "ignored-exact-32768": {
+              "ns": 2356.25,
+              "managedBytes": 104
+            },
+            "escaped-exact-32768": {
+              "ns": 30655.208333333332,
+              "managedBytes": 1776
+            },
+            "escapedTabs-exact-32768": {
+              "ns": 38312.5,
+              "managedBytes": 1592
+            },
+            "scan": {
+              "ms": 11.8174
+            }
+          }
+        }
+      },
+      "streams": {
+        "cases": 495,
+        "results": 24638,
+        "exceptions": 53,
+        "contractSha256": "85aa86abbb44cd4e76ba19e966f1208b3188ee449a1655c67767d63892eb16fa",
+        "scan": {
+          "SourceCount": 1,
+          "count": 3072,
+          "events": "4773D003A8F12150D7B3EE83903535A1309B4E1B50CAAC900E0579766CB55D6E"
+        },
+        "coldProcessEnvironment": {
+          "coldProcessSamples": "tieredOff",
+          "defaultJitColdProcessSamples": "runtimeDefault",
+          "pairsPerPolicy": 5,
+          "runtimeDefault": "Tiering, dynamic PGO, QuickJIT, and ReadyToRun environment overrides removed"
+        },
+        "coldProcessMedians": {
+          "0": {
+            "release": {
+              "us": 3019.1,
+              "bytes": 133288
+            },
+            "managed": {
+              "us": 1548.9,
+              "bytes": 128
+            },
+            "rust": {
+              "us": 1330.6,
+              "bytes": 128
+            }
+          },
+          "5": {
+            "release": {
+              "us": 3863,
+              "bytes": 133400
+            },
+            "managed": {
+              "us": 2004.5,
+              "bytes": 272
+            },
+            "rust": {
+              "us": 1971.7,
+              "bytes": 272
+            }
+          },
+          "4095": {
+            "release": {
+              "us": 3726.9,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 2106.5,
+              "bytes": 8448
+            },
+            "rust": {
+              "us": 1987.1,
+              "bytes": 8448
+            }
+          },
+          "4096": {
+            "release": {
+              "us": 3564.9,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 2052,
+              "bytes": 8448
+            },
+            "rust": {
+              "us": 1968.8,
+              "bytes": 8448
+            }
+          },
+          "4097": {
+            "release": {
+              "us": 3391.3,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 1952.4,
+              "bytes": 8456
+            },
+            "rust": {
+              "us": 1931.5,
+              "bytes": 8456
+            }
+          },
+          "16384": {
+            "release": {
+              "us": 3451.1,
+              "bytes": 149776
+            },
+            "managed": {
+              "us": 2227.4,
+              "bytes": 33024
+            },
+            "rust": {
+              "us": 1949.9,
+              "bytes": 33024
+            }
+          },
+          "32768": {
+            "release": {
+              "us": 3625.8,
+              "bytes": 166160
+            },
+            "managed": {
+              "us": 1912.2,
+              "bytes": 65792
+            },
+            "rust": {
+              "us": 1880.9,
+              "bytes": 65792
+            }
+          },
+          "65536": {
+            "release": {
+              "us": 3710.9,
+              "bytes": 198928
+            },
+            "managed": {
+              "us": 2042.8,
+              "bytes": 131328
+            },
+            "rust": {
+              "us": 1984.3,
+              "bytes": 131328
+            }
+          },
+          "65537": {
+            "release": {
+              "us": 3519.3,
+              "bytes": 198928
+            },
+            "managed": {
+              "us": 3910.8,
+              "bytes": 199472
+            },
+            "rust": {
+              "us": 4274.1,
+              "bytes": 199472
+            }
+          },
+          "131072": {
+            "release": {
+              "us": 3864.7,
+              "bytes": 395560
+            },
+            "managed": {
+              "us": 4188.3,
+              "bytes": 271200
+            },
+            "rust": {
+              "us": 4115.7,
+              "bytes": 265008
+            }
+          }
+        },
+        "defaultJitColdProcessMedians": {
+          "0": {
+            "release": {
+              "us": 1266,
+              "bytes": 133288
+            },
+            "managed": {
+              "us": 583.5,
+              "bytes": 128
+            },
+            "rust": {
+              "us": 575.2,
+              "bytes": 128
+            }
+          },
+          "5": {
+            "release": {
+              "us": 1978.5,
+              "bytes": 133400
+            },
+            "managed": {
+              "us": 1606.8,
+              "bytes": 272
+            },
+            "rust": {
+              "us": 1200.5,
+              "bytes": 272
+            }
+          },
+          "4095": {
+            "release": {
+              "us": 2180.9,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 1179.8,
+              "bytes": 8448
+            },
+            "rust": {
+              "us": 1198.6,
+              "bytes": 8448
+            }
+          },
+          "4096": {
+            "release": {
+              "us": 2156.7,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 1534.1,
+              "bytes": 8448
+            },
+            "rust": {
+              "us": 1274.3,
+              "bytes": 8448
+            }
+          },
+          "4097": {
+            "release": {
+              "us": 2176.2,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 1196.9,
+              "bytes": 8456
+            },
+            "rust": {
+              "us": 1172,
+              "bytes": 8456
+            }
+          },
+          "16384": {
+            "release": {
+              "us": 6197.4,
+              "bytes": 149776
+            },
+            "managed": {
+              "us": 1284.8,
+              "bytes": 33024
+            },
+            "rust": {
+              "us": 1141.3,
+              "bytes": 33024
+            }
+          },
+          "32768": {
+            "release": {
+              "us": 6044.3,
+              "bytes": 166160
+            },
+            "managed": {
+              "us": 1126.1,
+              "bytes": 65792
+            },
+            "rust": {
+              "us": 1159.5,
+              "bytes": 65792
+            }
+          },
+          "65536": {
+            "release": {
+              "us": 6956.1,
+              "bytes": 198928
+            },
+            "managed": {
+              "us": 1215.2,
+              "bytes": 131328
+            },
+            "rust": {
+              "us": 1256.5,
+              "bytes": 131328
+            }
+          },
+          "65537": {
+            "release": {
+              "us": 6647.9,
+              "bytes": 198928
+            },
+            "managed": {
+              "us": 2725,
+              "bytes": 199656
+            },
+            "rust": {
+              "us": 2666,
+              "bytes": 199656
+            }
+          },
+          "131072": {
+            "release": {
+              "us": 7576.6,
+              "bytes": 395560
+            },
+            "managed": {
+              "us": 2735.6,
+              "bytes": 265192
+            },
+            "rust": {
+              "us": 2817.6,
+              "bytes": 265192
+            }
+          }
+        },
+        "retainedReaders": 20,
+        "retainedLines": 62743,
+        "scannerMedian": {
+          "name": "3072-full-scanner",
+          "release": {
+            "us": 18796.7,
+            "bytes": 5220800
+          },
+          "managed": {
+            "us": 14579.6,
+            "bytes": 4566200
+          },
+          "rust": {
+            "us": 6980.4,
+            "bytes": 3934304
+          }
+        }
+      },
+      "installation": {
+        "phases": [
+          "published-installed-and-profile-read",
+          "failed-upgrade-restored-public-registration-binaries-and-profile",
+          "upgraded-candidate-loaded-preserved-profile",
+          "direct-downgrade-refused-with-data-intact",
+          "published-msi-reinstalled-and-profile-read",
+          "published-uninstalled-and-data-preserved"
+        ],
+        "publishedMsiSha256": "1816cf6866cce5be8f626b5d85af1757ec890a8d9b8677f80a3385d602bf298d",
+        "footprint": {
+          "publishedMsiBytes": 144211968,
+          "candidate": {
+            "files": 22,
+            "bytes": 206154239.0,
+            "publicCliBytes": 467968
+          },
+          "candidateMsiBytes": 142540800,
+          "published": {
+            "files": 18,
+            "bytes": 210192960.0,
+            "publicCliBytes": 85476168
+          }
+        },
+        "packages": [
+          {
+            "name": "CodeRim-Windows-2.1.41-x64.zip",
+            "bytes": 150196389,
+            "sha256": "1ff915528bc561b320f4f7eea5621d4f9a62b33d2b86d583941db4cbd46ad8d2"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-x64-Setup.msi",
+            "bytes": 142540800,
+            "sha256": "0d84f6ec8f6c730290cff21262737247d2555e3dc0590fd9bdc9de5a559522c3"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-x64.msix",
+            "bytes": 112059779,
+            "sha256": "5c440e6004623512dce37c5f0b82603f25275b3b62420c071fdb231210f7b576"
+          }
+        ],
+        "msiChecks": [
+          "signed-legacy-installation-rejected-before-write",
+          "initial-msi-install",
+          "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+          "installed-rust-cli-and-owned-compatibility-host",
+          "upgrade-current-version",
+          "downgrade-refused-without-changes",
+          "installed-native-ui-and-pinned-worker",
+          "uninstall-preserves-user-data-and-unrelated-path",
+          "portable-migration-failure-restores-files-path-shortcut",
+          "portable-migration-and-repair-keep-one-cli-path",
+          "portable-migration-uninstall-preserves-data-and-unrelated-path",
+          "public-2.1.11-msi-reproduces-duplicate-portable-path",
+          "public-2.1.11-failed-upgrade-restores-installation",
+          "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+          "public-upgrade-uninstall-preserves-user-data-and-path"
+        ],
+        "msixChecks": [
+          "installs-per-user-without-administrator",
+          "cli-aliases-registered",
+          "both-cli-aliases-run-cli",
+          "cli-regressions-through-alias",
+          "packaged-native-ui-smoke",
+          "uninstall-removes-app-and-aliases"
+        ],
+        "installedCliMedianMs": {
+          "writer": {
+            "published": 240.8347,
+            "candidate": 11.8708
+          },
+          "utcEpoch": {
+            "published": 245.1494,
+            "candidate": 11.3588
+          },
+          "utcFraction": {
+            "published": 241.9936,
+            "candidate": 11.9187
+          },
+          "typedLocalWallClock": {
+            "published": 280.1638,
+            "candidate": 238.3963
+          },
+          "rootExtension": {
+            "published": 290.6391,
+            "candidate": 11.5048
+          }
+        }
+      }
+    },
+    "arm64": {
+      "os": "Windows-11-10.0.26200-SP0",
+      "jobs": {
+        "scanner": {
+          "id": 140223665097,
+          "conclusion": "success",
+          "receiptSha256": "a320553e7d9f8a3bdd40147711abac9eec5f0e0cba2a08f11c42698462c73a98"
+        },
+        "package": {
+          "id": 140223665115,
+          "conclusion": "success",
+          "receiptSha256": "9d75687848b87f785629656f694f23c4a949e0db33eaa4acd3877ad18e0211c3"
+        }
+      },
+      "artifacts": {
+        "scanner-sessions": {
+          "id": 15161326743,
+          "digest": "sha256:cbb176d2af654cf0c72c9206ed6de96571d2e9b6cf9582606c42a91973b29c30"
+        },
+        "bounded-lines": {
+          "id": 15161565290,
+          "digest": "sha256:338af53d3597d0d5f78da3005e09cacde483bdce24072aec1d432490875a7e3c"
+        },
+        "packages": {
+          "id": 15161093935,
+          "digest": "sha256:d7a47eb44f929b96f83dcae0112511d783590c90e4ca4df3c55b509169cef67a"
+        }
+      },
+      "tests": [
+        "Passed! - Failed: 0, Passed: 41, Skipped: 0, Total: 41, Duration: 540ms - CodeRim.UsageCore.Tests.dll (net10.0|arm64)",
+        "Passed! - Failed: 0, Passed: 54, Skipped: 0, Total: 54, Duration: 400ms - CodeRim.UsageCore.Tests.dll (net10.0|arm64)",
+        "Passed! - Failed: 0, Passed: 3, Skipped: 0, Total: 3, Duration: 1s 607ms - CodeRim.Core.Tests.dll (net10.0|arm64)",
+        "Passed! - Failed: 0, Passed: 4658, Skipped: 0, Total: 4658, Duration: 1m 20s 069ms - CodeRim.Core.Tests.dll (net10.0|arm64)"
+      ],
+      "librarySha256": "4a77778297cd84c3db0014eea72c9ce816b6142970dbd01347f2c8ed48ced079",
+      "claude": {
+        "cases": {
+          "count": 886,
+          "sha256": "26f1e560dcde3b1f22c20b6b06819ea673a6eb00289a594caa7a58c22511ea39",
+          "ignored": 530,
+          "exceptions": 68
+        },
+        "scans": {
+          "count": 2,
+          "sha256": "ed6744827235c4a1b2730d00304ac4b8c4feba51cfb229c4ad1a59af894447f2"
+        },
+        "measurements": {
+          "release": {
+            "windows-exact-32768": {
+              "ns": 14694.791666666666,
+              "managedBytes": 2096
+            },
+            "ignored-exact-32768": {
+              "ns": 8498.958333333334,
+              "managedBytes": 136
+            },
+            "escaped-exact-32768": {
+              "ns": 66520.83333333333,
+              "managedBytes": 2096
+            },
+            "escapedTabs-exact-32768": {
+              "ns": 117594.79166666667,
+              "managedBytes": 2096
+            },
+            "scan": {
+              "ms": 38.1275
+            }
+          },
+          "rust": {
+            "windows-exact-32768": {
+              "ns": 11872.916666666666,
+              "managedBytes": 1592
+            },
+            "ignored-exact-32768": {
+              "ns": 8918.75,
+              "managedBytes": 0
+            },
+            "escaped-exact-32768": {
+              "ns": 65242.708333333336,
+              "managedBytes": 1776
+            },
+            "escapedTabs-exact-32768": {
+              "ns": 42097.916666666664,
+              "managedBytes": 1592
+            },
+            "scan": {
+              "ms": 15.9168
+            }
+          }
+        }
+      },
+      "streams": {
+        "cases": 495,
+        "results": 24638,
+        "exceptions": 53,
+        "contractSha256": "85aa86abbb44cd4e76ba19e966f1208b3188ee449a1655c67767d63892eb16fa",
+        "scan": {
+          "SourceCount": 1,
+          "count": 3072,
+          "events": "4773D003A8F12150D7B3EE83903535A1309B4E1B50CAAC900E0579766CB55D6E"
+        },
+        "coldProcessEnvironment": {
+          "coldProcessSamples": "tieredOff",
+          "defaultJitColdProcessSamples": "runtimeDefault",
+          "pairsPerPolicy": 5,
+          "runtimeDefault": "Tiering, dynamic PGO, QuickJIT, and ReadyToRun environment overrides removed"
+        },
+        "coldProcessMedians": {
+          "0": {
+            "release": {
+              "us": 3307.5,
+              "bytes": 133288
+            },
+            "managed": {
+              "us": 1439.1,
+              "bytes": 128
+            },
+            "rust": {
+              "us": 1402.7,
+              "bytes": 128
+            }
+          },
+          "5": {
+            "release": {
+              "us": 3884.2,
+              "bytes": 133400
+            },
+            "managed": {
+              "us": 2169.1,
+              "bytes": 272
+            },
+            "rust": {
+              "us": 2206.2,
+              "bytes": 272
+            }
+          },
+          "4095": {
+            "release": {
+              "us": 3920.7,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 2249.2,
+              "bytes": 8448
+            },
+            "rust": {
+              "us": 2215.6,
+              "bytes": 8448
+            }
+          },
+          "4096": {
+            "release": {
+              "us": 3933.3,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 2252.9,
+              "bytes": 8448
+            },
+            "rust": {
+              "us": 2253.7,
+              "bytes": 8448
+            }
+          },
+          "4097": {
+            "release": {
+              "us": 3968.4,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 2234.8,
+              "bytes": 8456
+            },
+            "rust": {
+              "us": 2279.7,
+              "bytes": 8456
+            }
+          },
+          "16384": {
+            "release": {
+              "us": 4043.8,
+              "bytes": 149776
+            },
+            "managed": {
+              "us": 2269.5,
+              "bytes": 33024
+            },
+            "rust": {
+              "us": 2246.9,
+              "bytes": 33024
+            }
+          },
+          "32768": {
+            "release": {
+              "us": 4162.8,
+              "bytes": 166160
+            },
+            "managed": {
+              "us": 2267.6,
+              "bytes": 65792
+            },
+            "rust": {
+              "us": 2345.4,
+              "bytes": 65792
+            }
+          },
+          "65536": {
+            "release": {
+              "us": 4197,
+              "bytes": 198928
+            },
+            "managed": {
+              "us": 2348.5,
+              "bytes": 131328
+            },
+            "rust": {
+              "us": 2332.2,
+              "bytes": 131328
+            }
+          },
+          "65537": {
+            "release": {
+              "us": 4198.6,
+              "bytes": 198928
+            },
+            "managed": {
+              "us": 4452.8,
+              "bytes": 199472
+            },
+            "rust": {
+              "us": 4479.6,
+              "bytes": 205664
+            }
+          },
+          "131072": {
+            "release": {
+              "us": 4676,
+              "bytes": 395560
+            },
+            "managed": {
+              "us": 4443.3,
+              "bytes": 265008
+            },
+            "rust": {
+              "us": 4581.8,
+              "bytes": 265008
+            }
+          }
+        },
+        "defaultJitColdProcessMedians": {
+          "0": {
+            "release": {
+              "us": 1615.1,
+              "bytes": 133288
+            },
+            "managed": {
+              "us": 754.5,
+              "bytes": 128
+            },
+            "rust": {
+              "us": 739,
+              "bytes": 128
+            }
+          },
+          "5": {
+            "release": {
+              "us": 2441.2,
+              "bytes": 133400
+            },
+            "managed": {
+              "us": 1451.8,
+              "bytes": 272
+            },
+            "rust": {
+              "us": 1470.9,
+              "bytes": 272
+            }
+          },
+          "4095": {
+            "release": {
+              "us": 2674,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 1459.7,
+              "bytes": 8448
+            },
+            "rust": {
+              "us": 1503.5,
+              "bytes": 8448
+            }
+          },
+          "4096": {
+            "release": {
+              "us": 2587,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 1484.7,
+              "bytes": 8448
+            },
+            "rust": {
+              "us": 1453.2,
+              "bytes": 8448
+            }
+          },
+          "4097": {
+            "release": {
+              "us": 2644.3,
+              "bytes": 137488
+            },
+            "managed": {
+              "us": 1518.6,
+              "bytes": 8456
+            },
+            "rust": {
+              "us": 1502.6,
+              "bytes": 8456
+            }
+          },
+          "16384": {
+            "release": {
+              "us": 7413.3,
+              "bytes": 149776
+            },
+            "managed": {
+              "us": 1468.6,
+              "bytes": 33024
+            },
+            "rust": {
+              "us": 1488.8,
+              "bytes": 33024
+            }
+          },
+          "32768": {
+            "release": {
+              "us": 7620.7,
+              "bytes": 166160
+            },
+            "managed": {
+              "us": 1490.1,
+              "bytes": 65792
+            },
+            "rust": {
+              "us": 1498.9,
+              "bytes": 65792
+            }
+          },
+          "65536": {
+            "release": {
+              "us": 7778.5,
+              "bytes": 198928
+            },
+            "managed": {
+              "us": 1602.5,
+              "bytes": 131328
+            },
+            "rust": {
+              "us": 1544.4,
+              "bytes": 131328
+            }
+          },
+          "65537": {
+            "release": {
+              "us": 7668.1,
+              "bytes": 198928
+            },
+            "managed": {
+              "us": 3399.5,
+              "bytes": 199656
+            },
+            "rust": {
+              "us": 3439.3,
+              "bytes": 199656
+            }
+          },
+          "131072": {
+            "release": {
+              "us": 8079.2,
+              "bytes": 395560
+            },
+            "managed": {
+              "us": 3473.8,
+              "bytes": 265192
+            },
+            "rust": {
+              "us": 3453.8,
+              "bytes": 265192
+            }
+          }
+        },
+        "retainedReaders": 20,
+        "retainedLines": 62743,
+        "scannerMedian": {
+          "name": "3072-full-scanner",
+          "release": {
+            "us": 27975.6,
+            "bytes": 5221216
+          },
+          "managed": {
+            "us": 23600.1,
+            "bytes": 4566616
+          },
+          "rust": {
+            "us": 11933.1,
+            "bytes": 3934496
+          }
+        }
+      },
+      "installation": {
+        "phases": [
+          "published-installed-and-profile-read",
+          "failed-upgrade-restored-public-registration-binaries-and-profile",
+          "upgraded-candidate-loaded-preserved-profile",
+          "direct-downgrade-refused-with-data-intact",
+          "published-msi-reinstalled-and-profile-read",
+          "published-uninstalled-and-data-preserved"
+        ],
+        "publishedMsiSha256": "393302b1f679fdf1bf82147906c39eb4a045b2a70ed6b7cbb126cb0b0a401073",
+        "footprint": {
+          "publishedMsiBytes": 135503872,
+          "candidateMsiBytes": 133582848,
+          "candidate": {
+            "files": 22,
+            "bytes": 209649674.0,
+            "publicCliBytes": 418304
+          },
+          "published": {
+            "files": 18,
+            "bytes": 213780552.0,
+            "publicCliBytes": 94323542
+          }
+        },
+        "packages": [
+          {
+            "name": "CodeRim-Windows-2.1.41-arm64.zip",
+            "bytes": 141892318,
+            "sha256": "c942c7ec2f728992e93bc45236c85f75047089ae25af50f71345ac942fb679ab"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-arm64-Setup.msi",
+            "bytes": 133582848,
+            "sha256": "88287d3c34d1daa4b3c98e79e5ef01852cb768f9989628d72e69d2d686883a66"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-arm64.msix",
+            "bytes": 105637675,
+            "sha256": "0c2ddd4722e69dfa6d5ff673b6b6cabe482649608cd135f82f6a8c923aca2c3c"
+          }
+        ],
+        "msiChecks": [
+          "signed-legacy-installation-rejected-before-write",
+          "initial-msi-install",
+          "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+          "installed-rust-cli-and-owned-compatibility-host",
+          "upgrade-current-version",
+          "downgrade-refused-without-changes",
+          "installed-native-ui-and-pinned-worker",
+          "uninstall-preserves-user-data-and-unrelated-path",
+          "portable-migration-failure-restores-files-path-shortcut",
+          "portable-migration-and-repair-keep-one-cli-path",
+          "portable-migration-uninstall-preserves-data-and-unrelated-path",
+          "public-2.1.11-msi-reproduces-duplicate-portable-path",
+          "public-2.1.11-failed-upgrade-restores-installation",
+          "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+          "public-upgrade-uninstall-preserves-user-data-and-path"
+        ],
+        "msixChecks": [
+          "installs-per-user-without-administrator",
+          "cli-aliases-registered",
+          "both-cli-aliases-run-cli",
+          "cli-regressions-through-alias",
+          "packaged-native-ui-smoke",
+          "uninstall-removes-app-and-aliases"
+        ],
+        "installedCliMedianMs": {
+          "writer": {
+            "published": 186.4992,
+            "candidate": 13.0862
+          },
+          "utcEpoch": {
+            "published": 184.7543,
+            "candidate": 13.2497
+          },
+          "utcFraction": {
+            "published": 187.695,
+            "candidate": 13.6044
+          },
+          "typedLocalWallClock": {
+            "published": 185.5734,
+            "candidate": 209.5454
+          },
+          "rootExtension": {
+            "published": 186.8035,
+            "candidate": 13.7819
+          }
+        }
+      }
+    }
+  }
+}
