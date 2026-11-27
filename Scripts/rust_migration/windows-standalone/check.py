@@ -92,6 +92,22 @@ with private_fixture() as tmp:
         for cmd in ('usage', 'tokens', 'limits'):
             for fmt in ('json', 'text'):
                 compare('native root extension '+cmd+' '+fmt, [cmd, '--snapshot', extra, '--format', fmt], native_env, native_cases)
+        # Account labels are private display metadata. The public CLI validates them
+        # even for hidden/cached providers and omits them from every rendering.
+        accounts = copy.deepcopy(originals)
+        accounts['providers'][0]['limits']['account'] = {
+            'source': 'QA source', 'label': 'SYNTHETIC_PRIVATE', 'region': 'global'}
+        accounts['providers'][0]['cachedLimits']['account'] = {
+            'source': '한' * 85 + 'a', 'label': None, 'region': 'bigmodel-cn'}
+        accounts['providers'][4]['limits']['account'] = {'source': 'offline fixture'}
+        account_path = data / 'display-accounts.json'
+        account_path.write_text(json.dumps(accounts, ensure_ascii=False), encoding='utf8')
+        for cmd in ('usage', 'tokens', 'limits'):
+            for fmt in ('json', 'text'):
+                argv = [cmd, '--snapshot', account_path, '--format', fmt]
+                compare('native display metadata ' + cmd + ' ' + fmt, argv, native_env, native_cases)
+                status, stdout, stderr = execute(candidate, argv, native_env)
+                assert status == 0 and b'SYNTHETIC_PRIVATE' not in stdout + stderr
         stamp = originals['generatedAt']
         for index, value in enumerate(('1970-01-01T00:00:00Z', '2024-02-29T23:59:59.00000000Z',
                                        '2024-03-01T00:00:00.12000Z', '2023-06-15T09:20:10.1234567891234567Z')):
@@ -128,6 +144,22 @@ with private_fixture() as tmp:
              variant('null-local',lambda v:v['providers'][0].update(localUsage=None)),
              variant('alias-date',lambda v:v.update(generatedAt='2023-06-15T09:20:10.123456789Z')),
              variant('private-label',lambda v:v['providers'][0]['limits'].update(account=dict(label='SYNTHETIC_PRIVATE',source='Example')))]
+    for index, metadata in enumerate([
+        {'source': ''}, {'source': None}, {'label': 'missing source'},
+        {'source': ' QA'}, {'source': 'QA', 'label': 'a' * 257},
+        {'source': 'QA', 'label': 'inside\u0085text'}, {'source': 'QA', 'region': 'unsupported'},
+        {'source': 'QA', 'region': []}, {'source': 'QA', 'label': 'ends\u00a0'},
+    ]):
+        wire = copy.deepcopy(originals)
+        # Exercise validation before both the command and provider filters.
+        provider = wire['providers'][0 if index % 2 else 4]
+        field = 'cachedLimits' if index % 2 else 'limits'
+        provider[field]['account'] = metadata
+        path = data / f'invalid-account-{index}.json'
+        path.write_text(json.dumps(wire), encoding='utf8')
+        argv = ['tokens', '--provider', 'codex', '--snapshot', path, '--format', 'json']
+        compare(f'invalid display metadata {index}', argv)
+        assert cases[-1]['status'] == 1
     text=(data/'medium.json').read_text(encoding='utf8')
     for charset,bom in [('utf-8',b'\xef\xbb\xbf'),('utf-16-be',b'\xfe\xff'),('utf-16-le',b'\xff\xfe'),('utf-32-be',b'\0\0\xfe\xff'),('utf-32-le',b'\xff\xfe\0\0')]:
         path=data/charset;path.write_bytes(bom+text.encode(charset));unusual.append(path)
@@ -214,6 +246,7 @@ with private_fixture() as tmp:
         ('native-utc-epoch',['usage','--snapshot',data/'utc-0.json','--format','json']),
         ('native-utc-fraction',['usage','--snapshot',data/'utc-3.json','--format','json']),
         ('native-root-extension',['tokens','--snapshot',data/'extra']),
+        ('native-display-account',['usage','--snapshot',data/'display-accounts.json','--format','json']),
         ('typed-local-wall-clock',['tokens','--snapshot',data/'local-wall-clock'])]:
         samples={m:[] for m in ['legacy','rust']}
         for pair in range(7):
