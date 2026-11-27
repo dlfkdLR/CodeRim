@@ -12,7 +12,7 @@ const git = (...args) => execFileSync('git', args, { cwd: resolve(root, '..') })
 const compatibilityDate = /^compatibility_date = "([^"]+)"/m.exec(await readFile(join(root, 'wrangler.toml'), 'utf8'))[1];
 const scenario = await readFile(new URL('scenario.mjs', import.meta.url), 'utf8');
 const sha = obj => createHash('sha256').update(JSON.stringify(obj)).digest('hex');
-const previous = '3bc3e990';
+const previous = '3bc3e990c021c634e2b2e35be526033d1bbeccd2';
 const fixture = `
 import { RelayObject } from './migration/worker.mjs';
 export { default } from './migration/worker.mjs';

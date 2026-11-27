@@ -83,6 +83,7 @@ jobs:
           npm install --prefix "$RUNNER_TEMP/relay-runtime" --no-audit --no-fund miniflare@5.20261123.1-beta
           node Scripts/rust_migration/relay-picker/check-worker.mjs "$RUNNER_TEMP/relay-runtime"
           node Scripts/rust_migration/relay-starter/check-worker.mjs "$RUNNER_TEMP/relay-runtime"
+          git fetch --no-tags --depth=1 origin 3bc3e990c021c634e2b2e35be526033d1bbeccd2
           node Scripts/rust_migration/relay-budget/check-worker.mjs "$RUNNER_TEMP/relay-runtime"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
