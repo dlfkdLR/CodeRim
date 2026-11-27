@@ -1,5 +1,6 @@
 import CodeRimUsageCore
 import Foundation
+import CryptoKit
 
 let session = SourceImportSession(checkpoint: .fresh(sourcePath: "fixture", fileIdentity: "1:2"),
     state: .empty, provider: .codex, sourceURL: URL(fileURLWithPath: "/tmp/fixture/../synthetic.jsonl"),
@@ -68,4 +69,48 @@ if !CommandLine.arguments.contains("--benchmark") {
             }
         }
     }
+}
+
+if !CommandLine.arguments.contains("--benchmark") {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let originalDirectory = FileManager.default.currentDirectoryPath
+    defer {
+        _ = FileManager.default.changeCurrentDirectoryPath(originalDirectory)
+        try? FileManager.default.removeItem(at: root)
+    }
+    // Both binaries use the same logical spelling. Their disposable absolute roots differ.
+    // Compare the projected digest to the release formula using each current absolute root.
+    precondition(FileManager.default.changeCurrentDirectoryPath(root.path))
+    let paths: [String?] = [nil, "", ".", "..", "relative", "a/../b", "dir//name", "../../A",
+        "kept%2Ftext", "e\u{301}", "é", "literal\\slash", "?q#f", "a\0b", "link", "link/../x",
+        "/tmp/synthetic/../bounded", String(repeating: "a", count: 128), String(repeating: "b", count: 129),
+        String(repeating: "./a", count: 1365), String(repeating: "a", count: 4097)]
+    try FileManager.default.createDirectory(atPath: "one/child", withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(atPath: "two/child", withIntermediateDirectories: true)
+    for target in ["one/child", "two/child", "missing"] {
+        if (try? FileManager.default.destinationOfSymbolicLink(atPath: "link")) != nil {
+            try FileManager.default.removeItem(atPath: "link")
+        }
+        try FileManager.default.createSymbolicLink(atPath: "link", withDestinationPath: target)
+        for count in [0, 1, 31, 32, 64, 65, 257, 4097] {
+            let key = Data((0..<count).map { UInt8(truncatingIfNeeded: $0 * 17) })
+            for path in paths {
+                let result = UsageStorageIdentity.project(path, keyData: key)
+                let expected = referenceProject(path, key: key)
+                precondition(result?.id == expected?.id)
+                if let expected { precondition(result?.name.utf8.elementsEqual(expected.name.utf8) == true) }
+                print(result == nil ? "rejected" : "project matches")
+            }
+        }
+    }
+}
+
+func referenceProject(_ input: String?, key: Data) -> (id: String, name: String)? {
+    guard let input, !input.isEmpty, input.utf8.count <= 4096, !input.contains("\0") else { return nil }
+    let path = URL(fileURLWithPath: input).standardizedFileURL.path
+    let name = URL(fileURLWithPath: path).lastPathComponent
+    guard !name.isEmpty, name != ".", name != "..", name.utf8.count <= 128, !name.contains("\0") else { return nil }
+    let hash = HMAC<SHA256>.authenticationCode(for: Data("CodexMeter.project.v1|\(path)".utf8), using: SymmetricKey(data: key))
+    return (hash.map { String(format: "%02x", $0) }.joined(), name)
 }
