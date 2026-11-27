@@ -1,0 +1,166 @@
+{
+  "publicReference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "previous": "41557477",
+  "integratedProduct": "7a0b8ff7",
+  "integratedQA": "cbfebe24",
+  "scope": "The iOS app derives the active login’s existing ActivityKit connection ID only on first use and discards it on every assignment of the CodeRim credential. Snapshot apply continues to derive the ID from its own request token. The Keychain and ActivityKit wire representation are unchanged.",
+  "local": {
+    "arm64": {
+      "runtime": "native macOS arm64",
+      "cases": 625,
+      "tracesSha256": "082d1544ee0b7938a5804fcbf64365d05c67e26d9ae3aeae10ee06d299bf211c",
+      "nsPerCall": {
+        "release": {
+          "0": 28.75,
+          "1": 36914.69,
+          "8": 296075.24,
+          "32": 1149347.74,
+          "-1": 989.81
+        },
+        "previous": {
+          "0": 30.42,
+          "1": 1006.65,
+          "8": 6845.56,
+          "32": 26522.4,
+          "-1": 999.4
+        },
+        "candidate": {
+          "0": 35.48,
+          "1": 189.78,
+          "8": 627.34,
+          "32": 2181.48,
+          "-1": 1148.58
+        }
+      },
+      "eagerPrototype": {
+        "0": 29.11,
+        "1": 167.2,
+        "8": 600.54,
+        "32": 2268.55,
+        "-1": 2063.59
+      },
+      "sampleFileSha256": "8c79e4163a7feff36b7f7b136c587455c1b8475df6b429f432d336523b43cba0"
+    },
+    "x86_64": {
+      "runtime": "macOS x86_64 under Rosetta",
+      "cases": 625,
+      "tracesSha256": "082d1544ee0b7938a5804fcbf64365d05c67e26d9ae3aeae10ee06d299bf211c",
+      "nsPerCall": {
+        "release": {
+          "0": 44.8,
+          "1": 80961.34,
+          "8": 631440.86,
+          "32": 2608743.12,
+          "-1": 2029.84
+        },
+        "previous": {
+          "0": 46.2,
+          "1": 2021.95,
+          "8": 14247.17,
+          "32": 54409.04,
+          "-1": 2108.11
+        },
+        "candidate": {
+          "0": 57.5,
+          "1": 324.54,
+          "8": 1004.9,
+          "32": 3337.44,
+          "-1": 2184.87
+        }
+      },
+      "eagerPrototype": {
+        "0": 42.46,
+        "1": 282.04,
+        "8": 947.14,
+        "32": 3524.58,
+        "-1": 4571.19
+      },
+      "sampleFileSha256": "64399135503018cbba57f55978d7aab982b8ce081b80d5035b88070d1f0c4e63"
+    }
+  },
+  "independent": {
+    "runtimeAndCases": {
+      "runtime": [
+        "macOS arm64 Swift runtime",
+        "iOS 26.5 arm64 iPhone 17 Pro Simulator runtime, standalone local executables"
+      ],
+      "variations": [
+        "release",
+        "previous",
+        "candidate",
+        "candidate-compat"
+      ],
+      "methods": [
+        "activate",
+        "observeRemoteStarts",
+        "startActivity",
+        "observeActivities",
+        "clearLocalLogin"
+      ],
+      "adapter": "Actual source methods compiled verbatim, including asynchronous activityUpdates/cancellation and request fallback. In-memory synthetic ActivityKit streams, client creation/resume/stop and credential deletion callbacks. No device enrollment, push or real account touched.",
+      "casesPerVariantPerRuntime": 441,
+      "inputs": "9 synthetic token byte sequences x 6 scenarios, with phase outputs. Coverage includes nil/empty, NUL, precomposed/decomposed Latin and Korean, emoji and 4096 ASCII bytes; active/stale/dismissed/ended activity, permission rejection, push-to-local fallback, both requests fail, resume failure, makeClient failure, replacement or deletion during resume and canceled old observer.",
+      "traceSha256": "5d35ab04a7c73f398000ef2caa09932edcfe9328b86ed43e4f91ae09ebc39a5e",
+      "assertions": "Assertions check owner identity independently via CryptoKit plus separate hex code, expected valid states, observed IDs, generation filtering, error status, cancellation and callback state.",
+      "digestBridge": "Product macOS Rust accounting archive and freshly compiled standard iOS mobile Rust archive with original Swift SHA256 hashing. The compatibility variants use the original Foundation formatter.",
+      "diagnostics": "No warning emitted by the successful four macOS Swift builds.",
+      "executablesSha256": {
+        "release": "9d0399e8c7e39584f2fe50b79eb649e4d661f64b2e41be83d5c5d5ad995e994f",
+        "previous": "6ee0c26fd8d400c372fb70ff3235731d1d11e9708e7d05968627100f15bf7666",
+        "candidate": "70bc8f4faf585616813f604d64cec811593d6d5a2d8bd5d4031a82c0eb1880b7",
+        "candidate-compat": "0a38edfaed837fa3e4fcd466848c0d1f52c9b654d0d498ea60d7c5488e24d114",
+        "sim-release": "780ed3145d970d645924b46b882dcf3081f9cfb45eec54d1e95a534a54710709",
+        "sim-previous": "4a4121888b2e717d92bada5a1ca9fcc35842e62fcc4d5069d05b03faa7a438d9",
+        "sim-candidate": "0ca9dbc8d1765660a584f3365ea4825e56d205972f5c4a6cd7e8450656c102ce",
+        "sim-candidate-compat": "72e756d5ef69637a433023aacef36988cacbea6d639e302c6a30aca43a2fd6d0"
+      },
+      "swiftFixtureSha256": "5c7b7f10a77b3f8e8cf5da1f0385ded799d5c31bc05340b731653974054acfe8",
+      "driverSha256": "503edbc5d3637e8f4c61347f43d734b05d724af91613204a76ad4b8607e7a9f4",
+      "simulatorBuildDriverSha256": "f55af00f78c8a123095a9f5858ea8611ea9822064ed454ce3e8966db84757509",
+      "simulatorArchiveSha256": "1eafb2f065c9ec7c0b15a83d0a37e461fbf7a6395bc2ebb52c337f7c84f4f7b8",
+      "reviewMeasurementsSha256": "5c75416d79045d180e6dee2c0b82b89fc3d0112cc1b502bf0b0a69981a9a87a6"
+    },
+    "timings": {
+      "units": "ns per call, median of seven rotated fresh processes. Observe cycles use 800 calls and reuse the synthetic output array. The -1 entry includes task start, registration and drain for each of 63 empty activations.",
+      "actualMedians": {
+        "release": {
+          "0": 59.9475,
+          "1": 54208.90625,
+          "6": 369365.9375,
+          "24": 1509490.0,
+          "-1": 79892.85714285714
+        },
+        "previous": {
+          "0": 56.51125,
+          "1": 1244.01125,
+          "6": 6744.635,
+          "24": 26505.4175,
+          "-1": 80556.87301587302
+        },
+        "candidate": {
+          "0": 56.35375,
+          "1": 180.15625,
+          "6": 261.14625,
+          "24": 879.63625,
+          "-1": 85183.87301587302
+        }
+      }
+    },
+    "limits": [
+      "No physical iPhone, APNs delivery or system UI rendering. Simulator mocks make rare lifecycle transitions deterministic.",
+      "Real app enrollment and saved credential failure branches were inspected at their call sites; this review directly injected client and resume failures rather than executing a live enrollment.",
+      "The activation-with-no-rows samples overlap widely. No improvement claimed for this event."
+    ],
+    "receiptSha256": "83816ae3953b6e3642a698b5654578d486d3da1888980fb03bf44360e5894356"
+  },
+  "deviceBuild": {
+    "sourceSha256": "68e0bd6df92e1afc612baf8b29771b18ae3b36091faa5857538f4b9394d81975",
+    "sha256": "3d506f2e0658cf9eb0d26b905600533e69f3e70096438a13ce1a1cae52c638ca",
+    "sizeBytes": 2878976,
+    "architecture": "arm64",
+    "target": "unsigned generic iOS Release",
+    "encoder": "_cr_mobile_digest_hex"
+  },
+  "formalGate": "INCONCLUSIVE",
+  "timingConditions": "Median of five alternating process launches. 0, 1, 8, and 32 denote the number of synthetic activities presented to the original observation method. -1 measures activating the model with none. Real CryptoKit and the current Rust encoder run on the desktop host. The simulator peer uses controlled ActivityKit callbacks. No device power or APNs measurement."
+}

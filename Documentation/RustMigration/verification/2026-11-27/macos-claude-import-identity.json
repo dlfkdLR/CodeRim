@@ -1,0 +1,471 @@
+{
+  "scope": "Real macOS Claude accounting message, session, agent and parent identities in SourceImportSession.consume and CodexUsageCollector.refresh with Claude provider; the DB remains schema 18. A one-entry source-local cache preserves raw ASCII agent presence; Foundation derives a fixed source basename. Rust hashes the exact scoped byte sequence with SHA-256.",
+  "release": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "previous": "97191409e32ad71e71ff295a137ed051f823d487",
+  "productCommit": "7bf5e8d54d6bee407e22876b2a173c6c31f5e161",
+  "qaCommit": "7440a5333d896ca9d1bf742f20bc88ea0e6c279f",
+  "packetDigest": "11a88168374fc0f080dbd70004c7afb472ad675e6985f1d56a78812beaaf9c97",
+  "formalGate": {
+    "run_id": "run-50d2f7c5927041aeb84b0318fd9f3085",
+    "decision": "INCONCLUSIVE",
+    "candidate_hash": "158380ab03f2cfff146b77f4acf870dd666ca051ab050edd5d8f18c9173c3905",
+    "gate_order": [
+      "SECURITY",
+      "FACTUAL",
+      "CONTENT",
+      "FUNCTIONAL",
+      "ACCESSIBILITY",
+      "RESPONSIVE",
+      "VISUAL_UX",
+      "CODE_QUALITY",
+      "PERFORMANCE"
+    ],
+    "blockers": [],
+    "missing_evidence": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "improved": false,
+    "regression_ready": false,
+    "dimensions": {},
+    "time": "2026-11-27T01:09:59.954539+00:00"
+  },
+  "separateIndependentReviewSha256": "7359a625ab667cc93ea77993e1aa9ad552adee21b4267dcc776df2603c6c938f",
+  "inputs": {
+    "arm64": {
+      "arm64-rust/probe": "f541162b01919a8039ddc88f9a39d551fdebbeafd94f75f469533148af3ae523",
+      "collector-arm64-candidate/collector": "74fc3cb44277856e7746613199223c29386a906791213da2a9641927aaa0854f",
+      "abi-arm64": "27dc16046a1b010e9f12c1a5ecc2fc3abb2c26e0334dd47cbc598dc78ec964fe"
+    },
+    "x86_64": {
+      "x86_64-rust/probe": "f0bcbc3c5160818ed2efcbd9289512f07eb79b018cf16658f532f2a5577a2059",
+      "collector-x86_64-candidate/collector": "0c62e94ec0dfad8f465c84ca3ea2fb0d08854548ac5cb26178304e0175a15aae",
+      "abi-x86_64": "aeb7da36e090f6e8428a470b825f28da27496fd2120f78142256e182ce79d4f7"
+    },
+    "archive": {
+      "sha256": "b36a0f451c66d9bf4ef33644ee1f4e712e6f304774b30a1a94ee0801361015a8",
+      "archs": "x86_64 arm64"
+    }
+  },
+  "architectures": {
+    "arm64": {
+      "contract": "arm64: 3302 persisted identities matched (e4b93509badf8b74214bd8410d8b216ce4b1b615915d12b9a5c4e90eae09e20c).",
+      "directABI": "760 digest comparisons and 3 invalid pointer/length cases",
+      "freshAndReopenedCollectorMediansCpuMs": {
+        "0-parent": {
+          "release": {
+            "fresh": 3.37,
+            "reopened": 3.212
+          },
+          "previous": {
+            "fresh": 2.717,
+            "reopened": 2.376
+          },
+          "candidate": {
+            "fresh": 2.739,
+            "reopened": 2.302
+          }
+        },
+        "1-parent": {
+          "release": {
+            "fresh": 4.079,
+            "reopened": 2.742
+          },
+          "previous": {
+            "fresh": 3.257,
+            "reopened": 2.344
+          },
+          "candidate": {
+            "fresh": 3.243,
+            "reopened": 2.349
+          }
+        },
+        "128-parent": {
+          "release": {
+            "fresh": 28.161,
+            "reopened": 3.425
+          },
+          "previous": {
+            "fresh": 7.061,
+            "reopened": 3.06
+          },
+          "candidate": {
+            "fresh": 6.279,
+            "reopened": 2.936
+          }
+        },
+        "4096-parent": {
+          "release": {
+            "fresh": 891.776,
+            "reopened": 5.922
+          },
+          "previous": {
+            "fresh": 137.53,
+            "reopened": 4.261
+          },
+          "candidate": {
+            "fresh": 97.554,
+            "reopened": 5.036
+          }
+        },
+        "4096-agent": {
+          "release": {
+            "fresh": 848.951,
+            "reopened": 4.905
+          },
+          "previous": {
+            "fresh": 111.542,
+            "reopened": 3.527
+          },
+          "candidate": {
+            "fresh": 89.976,
+            "reopened": 3.922
+          }
+        },
+        "4096-mixed": {
+          "release": {
+            "fresh": 869.114,
+            "reopened": 4.564
+          },
+          "previous": {
+            "fresh": 135.049,
+            "reopened": 3.92
+          },
+          "candidate": {
+            "fresh": 104.751,
+            "reopened": 3.868
+          }
+        },
+        "4096-cwd": {
+          "release": {
+            "fresh": 1053.304,
+            "reopened": 5.132
+          },
+          "previous": {
+            "fresh": 200.397,
+            "reopened": 4.516
+          },
+          "candidate": {
+            "fresh": 185.432,
+            "reopened": 4.148
+          }
+        }
+      },
+      "sevenReopenPairs": [
+        "release-release",
+        "previous-previous",
+        "candidate-candidate",
+        "release-candidate",
+        "candidate-release",
+        "previous-candidate",
+        "candidate-previous"
+      ],
+      "refreshesPerPair": 6,
+      "finalRowCounts": {
+        "analytics_backfill_sources": 0,
+        "app_metadata": 2,
+        "claude_message_exclusions": 3,
+        "parsing_state": 4,
+        "partial_evidence": 0,
+        "session_counters": 0,
+        "session_metadata": 4,
+        "usage_events": 38
+      }
+    },
+    "x86_64": {
+      "contract": "x86_64: 3302 persisted identities matched (e4b93509badf8b74214bd8410d8b216ce4b1b615915d12b9a5c4e90eae09e20c).",
+      "directABI": "760 digest comparisons and 3 invalid pointer/length cases",
+      "freshAndReopenedCollectorMediansCpuMs": {
+        "0-parent": {
+          "release": {
+            "fresh": 8.176,
+            "reopened": 7.141
+          },
+          "previous": {
+            "fresh": 5.75,
+            "reopened": 5.437
+          },
+          "candidate": {
+            "fresh": 5.465,
+            "reopened": 5.357
+          }
+        },
+        "1-parent": {
+          "release": {
+            "fresh": 9.82,
+            "reopened": 7.043
+          },
+          "previous": {
+            "fresh": 7.163,
+            "reopened": 5.238
+          },
+          "candidate": {
+            "fresh": 7.602,
+            "reopened": 5.326
+          }
+        },
+        "128-parent": {
+          "release": {
+            "fresh": 50.237,
+            "reopened": 7.131
+          },
+          "previous": {
+            "fresh": 10.663,
+            "reopened": 5.118
+          },
+          "candidate": {
+            "fresh": 10.129,
+            "reopened": 4.56
+          }
+        },
+        "4096-parent": {
+          "release": {
+            "fresh": 1405.546,
+            "reopened": 8.544
+          },
+          "previous": {
+            "fresh": 175.073,
+            "reopened": 6.59
+          },
+          "candidate": {
+            "fresh": 140.301,
+            "reopened": 6.914
+          }
+        },
+        "4096-agent": {
+          "release": {
+            "fresh": 2183.909,
+            "reopened": 9.608
+          },
+          "previous": {
+            "fresh": 210.911,
+            "reopened": 7.317
+          },
+          "candidate": {
+            "fresh": 151.773,
+            "reopened": 8.057
+          }
+        },
+        "4096-mixed": {
+          "release": {
+            "fresh": 1788.272,
+            "reopened": 9.382
+          },
+          "previous": {
+            "fresh": 207.905,
+            "reopened": 7.306
+          },
+          "candidate": {
+            "fresh": 165.909,
+            "reopened": 6.754
+          }
+        },
+        "4096-cwd": {
+          "release": {
+            "fresh": 1779.169,
+            "reopened": 8.52
+          },
+          "previous": {
+            "fresh": 282.462,
+            "reopened": 7.131
+          },
+          "candidate": {
+            "fresh": 239.629,
+            "reopened": 6.659
+          }
+        }
+      },
+      "sevenReopenPairs": [
+        "release-release",
+        "previous-previous",
+        "candidate-candidate",
+        "release-candidate",
+        "candidate-release",
+        "previous-candidate",
+        "candidate-previous"
+      ],
+      "refreshesPerPair": 6,
+      "finalRowCounts": {
+        "analytics_backfill_sources": 0,
+        "app_metadata": 2,
+        "claude_message_exclusions": 3,
+        "parsing_state": 4,
+        "partial_evidence": 0,
+        "session_counters": 0,
+        "session_metadata": 4,
+        "usage_events": 38
+      }
+    }
+  },
+  "bridgeUnitTests": 71,
+  "conditions": [
+    "macOS arm64 native and Rosetta x86_64; all local synthetic data, no external authentication/network.",
+    "First-import and reopened CPU are within CodexUsageCollector.refresh in fresh processes; scans and SQLite writes are included, actor/database initialization is outside timing. Seven samples per case rotated among three versions.",
+    "Import-only scouting includes the Swift-only cache and an earlier host validity check on the same final native library. Final normal entry measurements and compatibility bind the exact committed Swift sources and archive.",
+    "SQLite cross-reopen compared all persistent columns except real-time updated_at timestamps. The focused harness omits unrelated dashboard analytics enrichment. Empty/reopened and one-row timings vary, especially Rosetta.",
+    "Formal independent import requires interactive operator attestation; the direct independent evidence is retained."
+  ],
+  "evidenceSha256": {
+    "arm64-collector-compat.json": "84f5891c17516960a8c8a741d9b5f7f5cfa821aa93c4f33565bade709b2f7aa1",
+    "arm64-collector-timing.json": "c6bba0feed390e5c5e0b6d9a3dbe3571a04a03f3922a8635564424af0c97fd24",
+    "arm64-prior-cache-rust.json": "7d959c39f915c7db428498f92c5cd3c70e934728866cdb2ac174ce022c00f981",
+    "arm64-prior-cache.json": "7ba03cb14356c06341bde0a6f9724e6c755f604c8d7eea855d0d6343afd84ea1",
+    "baseline.json": "eeafd7cc3ca62346e48f142e86dcc421ef518d38b9fb5fad9f010b7021e95b7b",
+    "candidate-verify.json": "d03e79819ddc255f6590d5514cc4866c14f89d0f9bf2a937b7a1ff8b4d8b9a0f",
+    "contract.json": "2ed581b0040294b1b5fff201aae32d1b0fae9737c4e9b47a3280a2945b1070ba",
+    "fixed-binaries.json": "9ad88c137a772021ae25c60c7646376dfc77263eea19ab92c065a57e4e74bc37",
+    "gate.json": "85ee0491163b6a1e8d7873788914f2199160d895ccee115c32f3357a2d4f92ad",
+    "import.json": "a2a26c1b671ee7a8a5af4a4a89439c601e877bfa3b618e426fdc42e8c2dc42be",
+    "independent.json": "7359a625ab667cc93ea77993e1aa9ad552adee21b4267dcc776df2603c6c938f",
+    "packet.json": "f158de59e3ee1984c73a17a4d6f2c0952b5ff6c8c0058dd7e46b9cea5a8ef520",
+    "summary.json": "030e39ee86814996d08b5a3a95d15f00da49449252c58d6835f471e7449f262c",
+    "x86_64-collector-compat.json": "d9bcb1ded0ea13f9d1849cf04c512d535a7bfb5167423409df29681f793595ca",
+    "x86_64-collector-timing.json": "b4458da1ee60a482336ec82ba83b2a259e7d7a203664d53230555c95ce5624c0",
+    "x86_64-prior-cache-rust.json": "ab69e981424ef35b94ef03c00523875436fcbec6bff7b3fece5db064c7922cab"
+  },
+  "integratedCommit": "350e4ac12ba244df571010fa5c5712f922303003",
+  "independentBoundaries": {
+    "arm64": {
+      "events": 120,
+      "excluded": 15,
+      "distinctLineages": 12,
+      "duplicatedRows": 135,
+      "resultDigest": "22ad064ddeeff2ee602c146e78349aa76ea9e4c485e30d65a1fee96a47f1b026",
+      "progress": {
+        "release": [
+          [
+            "120",
+            "360",
+            "240",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ],
+          [
+            "120",
+            "360",
+            "240",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ]
+        ],
+        "previous": [
+          [
+            "120",
+            "360",
+            "240",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ],
+          [
+            "120",
+            "360",
+            "240",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ]
+        ],
+        "candidate": [
+          [
+            "120",
+            "360",
+            "240",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ],
+          [
+            "120",
+            "360",
+            "240",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ]
+        ]
+      }
+    },
+    "x86_64": {
+      "events": 120,
+      "excluded": 15,
+      "distinctLineages": 12,
+      "duplicatedRows": 135,
+      "resultDigest": "22ad064ddeeff2ee602c146e78349aa76ea9e4c485e30d65a1fee96a47f1b026",
+      "progress": {
+        "release": [
+          [
+            "120",
+            "360",
+            "240",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ],
+          [
+            "120",
+            "360",
+            "240",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ]
+        ],
+        "previous": [
+          [
+            "120",
+            "360",
+            "240",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ],
+          [
+            "120",
+            "360",
+            "240",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ]
+        ],
+        "candidate": [
+          [
+            "120",
+            "360",
+            "240",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ],
+          [
+            "120",
+            "360",
+            "240",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ]
+        ]
+      }
+    }
+  },
+  "independentRawDigestCallsPerISA": 3570,
+  "independentArgumentBoundaryCasesPerISA": 4,
+  "rawSourceReceiptSha256": "25c0d7b07956cf14403d751fa42f0103eed5ebae7d372ed517591732343e0196"
+}
