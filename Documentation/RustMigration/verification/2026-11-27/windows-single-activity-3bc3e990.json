@@ -1,0 +1,1658 @@
+{
+  "commit": "3bc3e990c021c634e2b2e35be526033d1bbeccd2",
+  "public": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "previous": "79c865e2acd7bd81e89f5952a73bbc4655770b5a",
+  "run": 45923059589,
+  "driver": "Scripts/rust_migration/windows-activity-refresh/check.py",
+  "measure": "First three handler calls in the same fresh native Windows process: empty to N, then two steady or terminal frames. Five processes per side, per case; totals in microseconds and managed bytes, excluding native allocation. Active precondition uses the real two-row WPF session tree.",
+  "platforms": {
+    "x64": {
+      "runtime": {
+        "os": "Microsoft Windows 10.0.26100",
+        "isa": "X64",
+        "framework": ".NET 10.0.15"
+      },
+      "jobs": {
+        "package": 140275079849,
+        "scanner": 140258039268
+      },
+      "result": {
+        "cases": 1486,
+        "digest": "5b102c9a25e7d55d1b509896f92d869a4ddc263ed7d5e25acb6a2f93ef5fb909",
+        "managedErrors": 186,
+        "rows": 18765,
+        "sounds": 184,
+        "attentions": 355,
+        "changed": 974
+      },
+      "rawJsonSha256": "41e6209318ff73f0fe5dfa286a716ea896a5d8a75570e2de81d7bb87e621d341",
+      "bridgeSha256": "203fb8b6cf44baa7ade36c07473b3bbfa451a9457a6ccae69f8e95d1f2798297",
+      "firstThreeUpdates": {
+        "1/steady/cold": {
+          "sumMedianUs": {
+            "public": 2469.4,
+            "previous": 3288.9,
+            "rust": 2475.0
+          },
+          "sumMedianManagedBytes": {
+            "public": 2552,
+            "previous": 2280,
+            "rust": 1104
+          }
+        },
+        "1/steady/active": {
+          "sumMedianUs": {
+            "public": 2237.5,
+            "previous": 4685.2,
+            "rust": 2382.1
+          },
+          "sumMedianManagedBytes": {
+            "public": 2552,
+            "previous": 1336,
+            "rust": 1176
+          }
+        },
+        "1/transition/cold": {
+          "sumMedianUs": {
+            "public": 3553.0,
+            "previous": 4300.2,
+            "rust": 2189.7
+          },
+          "sumMedianManagedBytes": {
+            "public": 2768,
+            "previous": 2496,
+            "rust": 688
+          }
+        },
+        "1/transition/active": {
+          "sumMedianUs": {
+            "public": 2905.2,
+            "previous": 5854.0,
+            "rust": 2166.1
+          },
+          "sumMedianManagedBytes": {
+            "public": 2680,
+            "previous": 1296,
+            "rust": 760
+          }
+        },
+        "8/steady/cold": {
+          "sumMedianUs": {
+            "public": 2546.4,
+            "previous": 3296.8,
+            "rust": 3306.5
+          },
+          "sumMedianManagedBytes": {
+            "public": 7448,
+            "previous": 5888,
+            "rust": 5888
+          }
+        },
+        "8/steady/active": {
+          "sumMedianUs": {
+            "public": 2338.5,
+            "previous": 4737.6,
+            "rust": 4733.9
+          },
+          "sumMedianManagedBytes": {
+            "public": 7448,
+            "previous": 2368,
+            "rust": 2360
+          }
+        },
+        "8/transition/cold": {
+          "sumMedianUs": {
+            "public": 3516.5,
+            "previous": 4326.3,
+            "rust": 4500.1
+          },
+          "sumMedianManagedBytes": {
+            "public": 7976,
+            "previous": 6416,
+            "rust": 6440
+          }
+        },
+        "8/transition/active": {
+          "sumMedianUs": {
+            "public": 2865.1,
+            "previous": 5920.7,
+            "rust": 6151.8
+          },
+          "sumMedianManagedBytes": {
+            "public": 7888,
+            "previous": 2080,
+            "rust": 2096
+          }
+        },
+        "64/steady/cold": {
+          "sumMedianUs": {
+            "public": 2575.8,
+            "previous": 3306.2,
+            "rust": 3376.7
+          },
+          "sumMedianManagedBytes": {
+            "public": 47768,
+            "previous": 35904,
+            "rust": 35904
+          }
+        },
+        "64/steady/active": {
+          "sumMedianUs": {
+            "public": 2414.4,
+            "previous": 6077.0,
+            "rust": 6105.6
+          },
+          "sumMedianManagedBytes": {
+            "public": 47768,
+            "previous": 22216,
+            "rust": 22208
+          }
+        },
+        "64/transition/cold": {
+          "sumMedianUs": {
+            "public": 3890.0,
+            "previous": 4666.6,
+            "rust": 4859.9
+          },
+          "sumMedianManagedBytes": {
+            "public": 49640,
+            "previous": 37776,
+            "rust": 37800
+          }
+        },
+        "64/transition/active": {
+          "sumMedianUs": {
+            "public": 3202.9,
+            "previous": 7380.5,
+            "rust": 7612.8
+          },
+          "sumMedianManagedBytes": {
+            "public": 49552,
+            "previous": 18792,
+            "rust": 18808
+          }
+        }
+      },
+      "warmMedians": [
+        {
+          "size": 0,
+          "shape": "unchanged",
+          "public": {
+            "us": 0.306,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.0125,
+            "bytes": 0
+          },
+          "rust": {
+            "us": 0.0125,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 0,
+          "shape": "reloaded",
+          "public": {
+            "us": 0.27949999999999997,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.010333333333333333,
+            "bytes": 0
+          },
+          "rust": {
+            "us": 0.010499999999999999,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 0,
+          "shape": "reordered",
+          "public": {
+            "us": 0.2715,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.010166666666666666,
+            "bytes": 0
+          },
+          "rust": {
+            "us": 0.010499999999999999,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 0,
+          "shape": "completed",
+          "public": {
+            "us": 0.2703333333333333,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.010166666666666666,
+            "bytes": 0
+          },
+          "rust": {
+            "us": 0.010499999999999999,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 1,
+          "shape": "unchanged",
+          "public": {
+            "us": 0.5481666666666666,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.2705,
+            "bytes": 248
+          },
+          "rust": {
+            "us": 0.14516666666666667,
+            "bytes": 216
+          }
+        },
+        {
+          "size": 1,
+          "shape": "reloaded",
+          "public": {
+            "us": 0.5525,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.27699999999999997,
+            "bytes": 248
+          },
+          "rust": {
+            "us": 0.15183333333333332,
+            "bytes": 216
+          }
+        },
+        {
+          "size": 1,
+          "shape": "reordered",
+          "public": {
+            "us": 0.561,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.259,
+            "bytes": 248
+          },
+          "rust": {
+            "us": 0.139,
+            "bytes": 216
+          }
+        },
+        {
+          "size": 1,
+          "shape": "completed",
+          "public": {
+            "us": 0.5715,
+            "bytes": 680
+          },
+          "previous": {
+            "us": 0.1875,
+            "bytes": 104
+          },
+          "rust": {
+            "us": 0.0965,
+            "bytes": 72
+          }
+        },
+        {
+          "size": 2,
+          "shape": "unchanged",
+          "public": {
+            "us": 0.9329999999999999,
+            "bytes": 952
+          },
+          "previous": {
+            "us": 0.297,
+            "bytes": 256
+          },
+          "rust": {
+            "us": 0.2995,
+            "bytes": 256
+          }
+        },
+        {
+          "size": 2,
+          "shape": "reloaded",
+          "public": {
+            "us": 0.8848333333333332,
+            "bytes": 952
+          },
+          "previous": {
+            "us": 0.30833333333333335,
+            "bytes": 256
+          },
+          "rust": {
+            "us": 0.30050000000000004,
+            "bytes": 256
+          }
+        },
+        {
+          "size": 2,
+          "shape": "reordered",
+          "public": {
+            "us": 0.7973333333333333,
+            "bytes": 952
+          },
+          "previous": {
+            "us": 0.29383333333333334,
+            "bytes": 256
+          },
+          "rust": {
+            "us": 0.2985,
+            "bytes": 256
+          }
+        },
+        {
+          "size": 2,
+          "shape": "completed",
+          "public": {
+            "us": 0.6901666666666667,
+            "bytes": 912
+          },
+          "previous": {
+            "us": 0.21983333333333335,
+            "bytes": 112
+          },
+          "rust": {
+            "us": 0.21783333333333332,
+            "bytes": 112
+          }
+        },
+        {
+          "size": 8,
+          "shape": "unchanged",
+          "public": {
+            "us": 1.7823333333333335,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 0.8066666666666666,
+            "bytes": 736
+          },
+          "rust": {
+            "us": 0.7801666666666667,
+            "bytes": 736
+          }
+        },
+        {
+          "size": 8,
+          "shape": "reloaded",
+          "public": {
+            "us": 1.7606666666666668,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 0.8679999999999999,
+            "bytes": 736
+          },
+          "rust": {
+            "us": 0.8570000000000001,
+            "bytes": 736
+          }
+        },
+        {
+          "size": 8,
+          "shape": "reordered",
+          "public": {
+            "us": 1.7008333333333334,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 0.8918333333333334,
+            "bytes": 736
+          },
+          "rust": {
+            "us": 0.8628333333333335,
+            "bytes": 736
+          }
+        },
+        {
+          "size": 8,
+          "shape": "completed",
+          "public": {
+            "us": 1.4253333333333333,
+            "bytes": 1776
+          },
+          "previous": {
+            "us": 0.5613333333333334,
+            "bytes": 160
+          },
+          "rust": {
+            "us": 0.5615,
+            "bytes": 160
+          }
+        },
+        {
+          "size": 32,
+          "shape": "unchanged",
+          "public": {
+            "us": 7.33,
+            "bytes": 8872
+          },
+          "previous": {
+            "us": 3.983,
+            "bytes": 2656
+          },
+          "rust": {
+            "us": 4.196000000000001,
+            "bytes": 2656
+          }
+        },
+        {
+          "size": 32,
+          "shape": "reloaded",
+          "public": {
+            "us": 7.492000000000001,
+            "bytes": 8872
+          },
+          "previous": {
+            "us": 4.228,
+            "bytes": 2656
+          },
+          "rust": {
+            "us": 4.459,
+            "bytes": 2656
+          }
+        },
+        {
+          "size": 32,
+          "shape": "reordered",
+          "public": {
+            "us": 7.608,
+            "bytes": 8872
+          },
+          "previous": {
+            "us": 4.912,
+            "bytes": 2656
+          },
+          "rust": {
+            "us": 4.729,
+            "bytes": 2656
+          }
+        },
+        {
+          "size": 32,
+          "shape": "completed",
+          "public": {
+            "us": 6.667000000000001,
+            "bytes": 5256
+          },
+          "previous": {
+            "us": 3.673,
+            "bytes": 352
+          },
+          "rust": {
+            "us": 3.785,
+            "bytes": 352
+          }
+        },
+        {
+          "size": 64,
+          "shape": "unchanged",
+          "public": {
+            "us": 29.863000000000003,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 9.431000000000001,
+            "bytes": 5216
+          },
+          "rust": {
+            "us": 9.495,
+            "bytes": 5216
+          }
+        },
+        {
+          "size": 64,
+          "shape": "reloaded",
+          "public": {
+            "us": 13.464,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 10.132,
+            "bytes": 5216
+          },
+          "rust": {
+            "us": 9.776,
+            "bytes": 5216
+          }
+        },
+        {
+          "size": 64,
+          "shape": "reordered",
+          "public": {
+            "us": 13.318,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 10.119,
+            "bytes": 5216
+          },
+          "rust": {
+            "us": 10.037,
+            "bytes": 5216
+          }
+        },
+        {
+          "size": 64,
+          "shape": "completed",
+          "public": {
+            "us": 16.666,
+            "bytes": 9840
+          },
+          "previous": {
+            "us": 8.56,
+            "bytes": 608
+          },
+          "rust": {
+            "us": 8.171,
+            "bytes": 608
+          }
+        },
+        {
+          "size": 256,
+          "shape": "unchanged",
+          "public": {
+            "us": 152.75,
+            "bytes": 68008
+          },
+          "previous": {
+            "us": 32.675000000000004,
+            "bytes": 20576
+          },
+          "rust": {
+            "us": 32.09166666666667,
+            "bytes": 20576
+          }
+        },
+        {
+          "size": 256,
+          "shape": "reloaded",
+          "public": {
+            "us": 152.625,
+            "bytes": 68008
+          },
+          "previous": {
+            "us": 33.358333333333334,
+            "bytes": 20576
+          },
+          "rust": {
+            "us": 33.416666666666664,
+            "bytes": 20576
+          }
+        },
+        {
+          "size": 256,
+          "shape": "reordered",
+          "public": {
+            "us": 157.30833333333334,
+            "bytes": 68008
+          },
+          "previous": {
+            "us": 37.31666666666667,
+            "bytes": 20576
+          },
+          "rust": {
+            "us": 36.766666666666666,
+            "bytes": 20576
+          }
+        },
+        {
+          "size": 256,
+          "shape": "completed",
+          "public": {
+            "us": 212.74166666666667,
+            "bytes": 37512
+          },
+          "previous": {
+            "us": 31.150000000000002,
+            "bytes": 2144
+          },
+          "rust": {
+            "us": 30.183333333333334,
+            "bytes": 2144
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "unchanged",
+          "public": {
+            "us": 2348.375,
+            "bytes": 270760
+          },
+          "previous": {
+            "us": 129.1,
+            "bytes": 82016
+          },
+          "rust": {
+            "us": 127.525,
+            "bytes": 82016
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "reloaded",
+          "public": {
+            "us": 2360.875,
+            "bytes": 270760
+          },
+          "previous": {
+            "us": 143.25,
+            "bytes": 82016
+          },
+          "rust": {
+            "us": 136.175,
+            "bytes": 82016
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "reordered",
+          "public": {
+            "us": 2374.45,
+            "bytes": 270760
+          },
+          "previous": {
+            "us": 159.075,
+            "bytes": 82016
+          },
+          "rust": {
+            "us": 158.25,
+            "bytes": 82016
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "completed",
+          "public": {
+            "us": 3488.05,
+            "bytes": 148080
+          },
+          "previous": {
+            "us": 130.675,
+            "bytes": 8288
+          },
+          "rust": {
+            "us": 134.375,
+            "bytes": 8288
+          }
+        }
+      ],
+      "testAssemblies": [
+        {
+          "name": "CodeRim.UsageCore.Tests.dll",
+          "passed": 41,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "name": "CodeRim.UsageCore.Tests.dll",
+          "passed": 54,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "name": "CodeRim.Core.Tests.dll",
+          "passed": 3,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "name": "CodeRim.Core.Tests.dll",
+          "passed": 4658,
+          "skipped": 0,
+          "failed": 0
+        }
+      ],
+      "artifacts": {
+        "windows-x64-activity-refresh": {
+          "id": 15165273962,
+          "digest": "sha256:b1dce035e233556a866f41b29a9dd934411f7bd13ace3616b5d32ad0ff96f8ae",
+          "size_in_bytes": 11035,
+          "locallyComparedFiles": 1
+        },
+        "windows-x64-migration-installation": {
+          "id": 15167664325,
+          "digest": "sha256:600cdc681f3ebbda7904e4e7b50240a374917d0df15c5dd619b1782139cae96c",
+          "size_in_bytes": 9273486,
+          "locallyComparedFiles": 586
+        }
+      },
+      "installation": {
+        "completed": true,
+        "packageAttempt": 2,
+        "msi": [
+          "signed-legacy-installation-rejected-before-write",
+          "initial-msi-install",
+          "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+          "installed-rust-cli-and-owned-compatibility-host",
+          "upgrade-current-version",
+          "downgrade-refused-without-changes",
+          "installed-native-ui-and-pinned-worker",
+          "uninstall-preserves-user-data-and-unrelated-path",
+          "portable-migration-failure-restores-files-path-shortcut",
+          "portable-migration-and-repair-keep-one-cli-path",
+          "portable-migration-uninstall-preserves-data-and-unrelated-path",
+          "public-2.1.11-msi-reproduces-duplicate-portable-path",
+          "public-2.1.11-failed-upgrade-restores-installation",
+          "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+          "public-upgrade-uninstall-preserves-user-data-and-path"
+        ],
+        "msix": [
+          "installs-per-user-without-administrator",
+          "cli-aliases-registered",
+          "both-cli-aliases-run-cli",
+          "cli-regressions-through-alias",
+          "packaged-native-ui-smoke",
+          "uninstall-removes-app-and-aliases"
+        ],
+        "publicMSI": {
+          "phases": [
+            "published-installed-and-profile-read",
+            "failed-upgrade-restored-public-registration-binaries-and-profile",
+            "upgraded-candidate-loaded-preserved-profile",
+            "direct-downgrade-refused-with-data-intact",
+            "published-msi-reinstalled-and-profile-read",
+            "published-uninstalled-and-data-preserved"
+          ],
+          "publishedMsiSha256": "1816cf6866cce5be8f626b5d85af1757ec890a8d9b8677f80a3385d602bf298d",
+          "completed": true,
+          "testMsiVersion": "2.1.42",
+          "architecture": "x64",
+          "publishedVersion": "2.1.41",
+          "footprint": {
+            "publishedMsiBytes": 144211968,
+            "candidate": {
+              "files": 22,
+              "bytes": 206219779.0,
+              "publicCliBytes": 468480
+            },
+            "candidateMsiBytes": 142553088,
+            "published": {
+              "files": 18,
+              "bytes": 210192960.0,
+              "publicCliBytes": 85476168
+            }
+          },
+          "candidatePayloadVersion": "2.1.41"
+        },
+        "installedTaskControls": {
+          "completed": true,
+          "checks": [
+            "Native toggles persist",
+            "Background history enumeration leaves dispatcher available",
+            "Cancelled stale source cannot replace latest descendant total",
+            "Unknown tasks are explicit and optional",
+            "Unmeasured tasks stay blank",
+            "Disabled duration and tokens disappear"
+          ]
+        },
+        "installedTaskGroup": {
+          "notifications": 1,
+          "popupOpen": true,
+          "focused": true,
+          "focusId": "notch.sessions.showLess",
+          "updatedTitle": true
+        },
+        "packagedFiles": [
+          {
+            "name": "CodeRim-Windows-2.1.41-x64.zip",
+            "bytes": 150227733,
+            "sha256": "84cff3a30aaf00e16d54a2178ea3ba0df0283ad6d115f531ff2963508e838d68"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-x64-Setup.msi",
+            "bytes": 142553088,
+            "sha256": "f702b02e2b866498f2ad50545099112a6e4b85fb50a3fb78e86636c64354a1de"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-x64.msix",
+            "bytes": 112086162,
+            "sha256": "a01e2900753b64be8e295a987e3a0600100d0d785a9dd709cacccd18b19f2d7a"
+          }
+        ]
+      }
+    },
+    "arm64": {
+      "runtime": {
+        "os": "Microsoft Windows 10.0.26200",
+        "isa": "Arm64",
+        "framework": ".NET 10.0.15"
+      },
+      "jobs": {
+        "scanner": 140258039187,
+        "package": 140258039297
+      },
+      "result": {
+        "cases": 1486,
+        "digest": "5b102c9a25e7d55d1b509896f92d869a4ddc263ed7d5e25acb6a2f93ef5fb909",
+        "managedErrors": 186,
+        "rows": 18765,
+        "sounds": 184,
+        "attentions": 355,
+        "changed": 974
+      },
+      "rawJsonSha256": "a76912a9213b261ca8fbfcedf55ae79fd29df0a5ff9e5bb186d86f40e50467ad",
+      "bridgeSha256": "462998f0fec53c348005f02511246c204d857325d1a283fcead6ea335069671a",
+      "firstThreeUpdates": {
+        "1/steady/cold": {
+          "sumMedianUs": {
+            "public": 2790.4,
+            "previous": 3922.8,
+            "rust": 3037.0
+          },
+          "sumMedianManagedBytes": {
+            "public": 2552,
+            "previous": 2280,
+            "rust": 1104
+          }
+        },
+        "1/steady/active": {
+          "sumMedianUs": {
+            "public": 2588.4,
+            "previous": 5003.7,
+            "rust": 2574.8
+          },
+          "sumMedianManagedBytes": {
+            "public": 27176,
+            "previous": 1336,
+            "rust": 1176
+          }
+        },
+        "1/transition/cold": {
+          "sumMedianUs": {
+            "public": 3990.8,
+            "previous": 5064.5,
+            "rust": 2610.3
+          },
+          "sumMedianManagedBytes": {
+            "public": 2768,
+            "previous": 2496,
+            "rust": 688
+          }
+        },
+        "1/transition/active": {
+          "sumMedianUs": {
+            "public": 3193.9,
+            "previous": 6461.4,
+            "rust": 2272.5
+          },
+          "sumMedianManagedBytes": {
+            "public": 27304,
+            "previous": 1296,
+            "rust": 760
+          }
+        },
+        "8/steady/cold": {
+          "sumMedianUs": {
+            "public": 2766.1,
+            "previous": 3887.6,
+            "rust": 3783.5
+          },
+          "sumMedianManagedBytes": {
+            "public": 7448,
+            "previous": 5888,
+            "rust": 5888
+          }
+        },
+        "8/steady/active": {
+          "sumMedianUs": {
+            "public": 2618.9,
+            "previous": 5099.9,
+            "rust": 5030.8
+          },
+          "sumMedianManagedBytes": {
+            "public": 7448,
+            "previous": 2368,
+            "rust": 2360
+          }
+        },
+        "8/transition/cold": {
+          "sumMedianUs": {
+            "public": 4075.1,
+            "previous": 5106.2,
+            "rust": 5355.8
+          },
+          "sumMedianManagedBytes": {
+            "public": 7976,
+            "previous": 6416,
+            "rust": 6440
+          }
+        },
+        "8/transition/active": {
+          "sumMedianUs": {
+            "public": 3233.2,
+            "previous": 6374.1,
+            "rust": 6630.3
+          },
+          "sumMedianManagedBytes": {
+            "public": 7888,
+            "previous": 2080,
+            "rust": 2096
+          }
+        },
+        "64/steady/cold": {
+          "sumMedianUs": {
+            "public": 2951.1,
+            "previous": 4064.6,
+            "rust": 3944.0
+          },
+          "sumMedianManagedBytes": {
+            "public": 47768,
+            "previous": 35904,
+            "rust": 35904
+          }
+        },
+        "64/steady/active": {
+          "sumMedianUs": {
+            "public": 2705.5,
+            "previous": 6723.8,
+            "rust": 6603.7
+          },
+          "sumMedianManagedBytes": {
+            "public": 47768,
+            "previous": 22216,
+            "rust": 22208
+          }
+        },
+        "64/transition/cold": {
+          "sumMedianUs": {
+            "public": 4282.6,
+            "previous": 5305.2,
+            "rust": 5583.4
+          },
+          "sumMedianManagedBytes": {
+            "public": 49640,
+            "previous": 37776,
+            "rust": 37800
+          }
+        },
+        "64/transition/active": {
+          "sumMedianUs": {
+            "public": 3562.0,
+            "previous": 7990.9,
+            "rust": 8178.4
+          },
+          "sumMedianManagedBytes": {
+            "public": 49552,
+            "previous": 18792,
+            "rust": 18808
+          }
+        }
+      },
+      "warmMedians": [
+        {
+          "size": 0,
+          "shape": "unchanged",
+          "public": {
+            "us": 0.31583333333333335,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.015166666666666667,
+            "bytes": 0
+          },
+          "rust": {
+            "us": 0.015333333333333332,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 0,
+          "shape": "reloaded",
+          "public": {
+            "us": 0.30266666666666664,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.018000000000000002,
+            "bytes": 0
+          },
+          "rust": {
+            "us": 0.018166666666666668,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 0,
+          "shape": "reordered",
+          "public": {
+            "us": 0.2941666666666667,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.016166666666666666,
+            "bytes": 0
+          },
+          "rust": {
+            "us": 0.016833333333333332,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 0,
+          "shape": "completed",
+          "public": {
+            "us": 0.3653333333333333,
+            "bytes": 352
+          },
+          "previous": {
+            "us": 0.016166666666666666,
+            "bytes": 0
+          },
+          "rust": {
+            "us": 0.014166666666666666,
+            "bytes": 0
+          }
+        },
+        {
+          "size": 1,
+          "shape": "unchanged",
+          "public": {
+            "us": 2.287,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.3903333333333333,
+            "bytes": 248
+          },
+          "rust": {
+            "us": 0.15366666666666667,
+            "bytes": 216
+          }
+        },
+        {
+          "size": 1,
+          "shape": "reloaded",
+          "public": {
+            "us": 0.33816666666666667,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.37116666666666664,
+            "bytes": 248
+          },
+          "rust": {
+            "us": 0.1735,
+            "bytes": 216
+          }
+        },
+        {
+          "size": 1,
+          "shape": "reordered",
+          "public": {
+            "us": 0.31233333333333335,
+            "bytes": 760
+          },
+          "previous": {
+            "us": 0.33316666666666667,
+            "bytes": 248
+          },
+          "rust": {
+            "us": 0.1418333333333333,
+            "bytes": 216
+          }
+        },
+        {
+          "size": 1,
+          "shape": "completed",
+          "public": {
+            "us": 0.30366666666666664,
+            "bytes": 680
+          },
+          "previous": {
+            "us": 0.255,
+            "bytes": 104
+          },
+          "rust": {
+            "us": 0.12366666666666667,
+            "bytes": 72
+          }
+        },
+        {
+          "size": 2,
+          "shape": "unchanged",
+          "public": {
+            "us": 0.3665,
+            "bytes": 952
+          },
+          "previous": {
+            "us": 0.36300000000000004,
+            "bytes": 256
+          },
+          "rust": {
+            "us": 0.3735,
+            "bytes": 256
+          }
+        },
+        {
+          "size": 2,
+          "shape": "reloaded",
+          "public": {
+            "us": 0.9426666666666667,
+            "bytes": 952
+          },
+          "previous": {
+            "us": 0.41083333333333333,
+            "bytes": 256
+          },
+          "rust": {
+            "us": 0.382,
+            "bytes": 256
+          }
+        },
+        {
+          "size": 2,
+          "shape": "reordered",
+          "public": {
+            "us": 0.9231666666666666,
+            "bytes": 952
+          },
+          "previous": {
+            "us": 0.3671666666666667,
+            "bytes": 256
+          },
+          "rust": {
+            "us": 0.35633333333333334,
+            "bytes": 256
+          }
+        },
+        {
+          "size": 2,
+          "shape": "completed",
+          "public": {
+            "us": 0.7853333333333333,
+            "bytes": 912
+          },
+          "previous": {
+            "us": 0.3343333333333333,
+            "bytes": 112
+          },
+          "rust": {
+            "us": 0.3196666666666667,
+            "bytes": 112
+          }
+        },
+        {
+          "size": 8,
+          "shape": "unchanged",
+          "public": {
+            "us": 1.6611666666666667,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 2.0745,
+            "bytes": 736
+          },
+          "rust": {
+            "us": 1.9336666666666666,
+            "bytes": 736
+          }
+        },
+        {
+          "size": 8,
+          "shape": "reloaded",
+          "public": {
+            "us": 2.216666666666667,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 0.6748333333333333,
+            "bytes": 736
+          },
+          "rust": {
+            "us": 0.6525,
+            "bytes": 736
+          }
+        },
+        {
+          "size": 8,
+          "shape": "reordered",
+          "public": {
+            "us": 0.8970000000000001,
+            "bytes": 2536
+          },
+          "previous": {
+            "us": 0.7053333333333334,
+            "bytes": 736
+          },
+          "rust": {
+            "us": 0.6798333333333333,
+            "bytes": 736
+          }
+        },
+        {
+          "size": 8,
+          "shape": "completed",
+          "public": {
+            "us": 0.8628333333333335,
+            "bytes": 1776
+          },
+          "previous": {
+            "us": 0.6721666666666667,
+            "bytes": 160
+          },
+          "rust": {
+            "us": 0.6658333333333334,
+            "bytes": 160
+          }
+        },
+        {
+          "size": 32,
+          "shape": "unchanged",
+          "public": {
+            "us": 4.208,
+            "bytes": 8872
+          },
+          "previous": {
+            "us": 3.3510000000000004,
+            "bytes": 2656
+          },
+          "rust": {
+            "us": 3.263,
+            "bytes": 2656
+          }
+        },
+        {
+          "size": 32,
+          "shape": "reloaded",
+          "public": {
+            "us": 4.58,
+            "bytes": 8872
+          },
+          "previous": {
+            "us": 3.531,
+            "bytes": 2656
+          },
+          "rust": {
+            "us": 3.498,
+            "bytes": 2656
+          }
+        },
+        {
+          "size": 32,
+          "shape": "reordered",
+          "public": {
+            "us": 4.355,
+            "bytes": 8872
+          },
+          "previous": {
+            "us": 5.099,
+            "bytes": 2656
+          },
+          "rust": {
+            "us": 4.382,
+            "bytes": 2656
+          }
+        },
+        {
+          "size": 32,
+          "shape": "completed",
+          "public": {
+            "us": 5.711,
+            "bytes": 5256
+          },
+          "previous": {
+            "us": 5.099,
+            "bytes": 352
+          },
+          "rust": {
+            "us": 4.998,
+            "bytes": 352
+          }
+        },
+        {
+          "size": 64,
+          "shape": "unchanged",
+          "public": {
+            "us": 13.779000000000002,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 11.919,
+            "bytes": 5216
+          },
+          "rust": {
+            "us": 11.635,
+            "bytes": 5216
+          }
+        },
+        {
+          "size": 64,
+          "shape": "reloaded",
+          "public": {
+            "us": 15.154000000000002,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 12.735999999999999,
+            "bytes": 5216
+          },
+          "rust": {
+            "us": 11.95,
+            "bytes": 5216
+          }
+        },
+        {
+          "size": 64,
+          "shape": "reordered",
+          "public": {
+            "us": 14.372,
+            "bytes": 17320
+          },
+          "previous": {
+            "us": 14.665999999999999,
+            "bytes": 5216
+          },
+          "rust": {
+            "us": 15.458,
+            "bytes": 5216
+          }
+        },
+        {
+          "size": 64,
+          "shape": "completed",
+          "public": {
+            "us": 16.497,
+            "bytes": 9840
+          },
+          "previous": {
+            "us": 11.833,
+            "bytes": 608
+          },
+          "rust": {
+            "us": 11.874,
+            "bytes": 608
+          }
+        },
+        {
+          "size": 256,
+          "shape": "unchanged",
+          "public": {
+            "us": 155.78333333333333,
+            "bytes": 68008
+          },
+          "previous": {
+            "us": 39.800000000000004,
+            "bytes": 20576
+          },
+          "rust": {
+            "us": 41.49166666666667,
+            "bytes": 20576
+          }
+        },
+        {
+          "size": 256,
+          "shape": "reloaded",
+          "public": {
+            "us": 146.82500000000002,
+            "bytes": 68008
+          },
+          "previous": {
+            "us": 40.90833333333333,
+            "bytes": 20576
+          },
+          "rust": {
+            "us": 42.68333333333334,
+            "bytes": 20576
+          }
+        },
+        {
+          "size": 256,
+          "shape": "reordered",
+          "public": {
+            "us": 173.42499999999998,
+            "bytes": 68008
+          },
+          "previous": {
+            "us": 52.074999999999996,
+            "bytes": 20576
+          },
+          "rust": {
+            "us": 53.64166666666667,
+            "bytes": 20576
+          }
+        },
+        {
+          "size": 256,
+          "shape": "completed",
+          "public": {
+            "us": 205.82500000000002,
+            "bytes": 37512
+          },
+          "previous": {
+            "us": 44.75833333333333,
+            "bytes": 2144
+          },
+          "rust": {
+            "us": 45.09166666666667,
+            "bytes": 2144
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "unchanged",
+          "public": {
+            "us": 2344.8,
+            "bytes": 270760
+          },
+          "previous": {
+            "us": 122.7,
+            "bytes": 82016
+          },
+          "rust": {
+            "us": 122.675,
+            "bytes": 82016
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "reloaded",
+          "public": {
+            "us": 2329.375,
+            "bytes": 270760
+          },
+          "previous": {
+            "us": 149.375,
+            "bytes": 82016
+          },
+          "rust": {
+            "us": 153.95,
+            "bytes": 82016
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "reordered",
+          "public": {
+            "us": 2489.7,
+            "bytes": 270760
+          },
+          "previous": {
+            "us": 190.225,
+            "bytes": 82016
+          },
+          "rust": {
+            "us": 184.45,
+            "bytes": 82016
+          }
+        },
+        {
+          "size": 1024,
+          "shape": "completed",
+          "public": {
+            "us": 3539.5,
+            "bytes": 148080
+          },
+          "previous": {
+            "us": 181.65,
+            "bytes": 8288
+          },
+          "rust": {
+            "us": 180.725,
+            "bytes": 8288
+          }
+        }
+      ],
+      "testAssemblies": [
+        {
+          "name": "CodeRim.UsageCore.Tests.dll",
+          "passed": 41,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "name": "CodeRim.UsageCore.Tests.dll",
+          "passed": 54,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "name": "CodeRim.Core.Tests.dll",
+          "passed": 3,
+          "skipped": 0,
+          "failed": 0
+        },
+        {
+          "name": "CodeRim.Core.Tests.dll",
+          "passed": 4658,
+          "skipped": 0,
+          "failed": 0
+        }
+      ],
+      "artifacts": {
+        "windows-arm64-activity-refresh": {
+          "id": 15165900937,
+          "digest": "sha256:f01a6423513383ceda624fb72a59af8f6ec21bb0b23443a82f2d25371f2b8a96",
+          "size_in_bytes": 11299,
+          "locallyComparedFiles": 1
+        },
+        "windows-arm64-migration-installation": {
+          "id": 15165534652,
+          "digest": "sha256:f43df3da756698fe734ae995f94ca904f65db57db996a99d73caf79d8d56fc9d",
+          "size_in_bytes": 9292733,
+          "locallyComparedFiles": 586
+        }
+      },
+      "installation": {
+        "completed": true,
+        "packageAttempt": 1,
+        "msi": [
+          "signed-legacy-installation-rejected-before-write",
+          "initial-msi-install",
+          "injected-upgrade-failure-restores-binaries-registration-path-shortcut",
+          "installed-rust-cli-and-owned-compatibility-host",
+          "upgrade-current-version",
+          "downgrade-refused-without-changes",
+          "installed-native-ui-and-pinned-worker",
+          "uninstall-preserves-user-data-and-unrelated-path",
+          "portable-migration-failure-restores-files-path-shortcut",
+          "portable-migration-and-repair-keep-one-cli-path",
+          "portable-migration-uninstall-preserves-data-and-unrelated-path",
+          "public-2.1.11-msi-reproduces-duplicate-portable-path",
+          "public-2.1.11-failed-upgrade-restores-installation",
+          "public-2.1.11-upgrade-replaces-all-candidate-binaries",
+          "public-upgrade-uninstall-preserves-user-data-and-path"
+        ],
+        "msix": [
+          "installs-per-user-without-administrator",
+          "cli-aliases-registered",
+          "both-cli-aliases-run-cli",
+          "cli-regressions-through-alias",
+          "packaged-native-ui-smoke",
+          "uninstall-removes-app-and-aliases"
+        ],
+        "publicMSI": {
+          "footprint": {
+            "candidateMsiBytes": 133607424,
+            "publishedMsiBytes": 135503872,
+            "candidate": {
+              "files": 22,
+              "bytes": 209713165.0,
+              "publicCliBytes": 418816
+            },
+            "published": {
+              "files": 18,
+              "bytes": 213780552.0,
+              "publicCliBytes": 94323542
+            }
+          },
+          "publishedVersion": "2.1.41",
+          "candidatePayloadVersion": "2.1.41",
+          "phases": [
+            "published-installed-and-profile-read",
+            "failed-upgrade-restored-public-registration-binaries-and-profile",
+            "upgraded-candidate-loaded-preserved-profile",
+            "direct-downgrade-refused-with-data-intact",
+            "published-msi-reinstalled-and-profile-read",
+            "published-uninstalled-and-data-preserved"
+          ],
+          "completed": true,
+          "publishedMsiSha256": "393302b1f679fdf1bf82147906c39eb4a045b2a70ed6b7cbb126cb0b0a401073",
+          "architecture": "arm64",
+          "testMsiVersion": "2.1.42"
+        },
+        "installedTaskControls": {
+          "completed": true,
+          "checks": [
+            "Native toggles persist",
+            "Background history enumeration leaves dispatcher available",
+            "Cancelled stale source cannot replace latest descendant total",
+            "Unknown tasks are explicit and optional",
+            "Unmeasured tasks stay blank",
+            "Disabled duration and tokens disappear"
+          ]
+        },
+        "installedTaskGroup": {
+          "notifications": 1,
+          "popupOpen": true,
+          "focused": true,
+          "focusId": "notch.sessions.showLess",
+          "updatedTitle": true
+        },
+        "packagedFiles": [
+          {
+            "name": "CodeRim-Windows-2.1.41-arm64.zip",
+            "bytes": 141927516,
+            "sha256": "0250d4ab3ee97e03f8195b3b6680eed86b6106ba69a4edcdf560c9f880e1834a"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-arm64-Setup.msi",
+            "bytes": 133607424,
+            "sha256": "272cc78499dc82ad5128998eb3f0f4f340a9c6e444f3272276fdba0acea4e126"
+          },
+          {
+            "name": "CodeRim-Windows-2.1.41-arm64.msix",
+            "bytes": 105664401,
+            "sha256": "8fb2e1e25b5eebccf0ddaae302591520acfcf958ca5c764b397ddf1930ed8516"
+          }
+        ]
+      }
+    }
+  },
+  "finalRunConclusion": "success",
+  "attempts": {
+    "1": {
+      "x64PackageJob": 140258039266,
+      "conclusion": "failure",
+      "diagnostic": [
+        "The hosted runner lost communication with the server. Anything in your workflow that terminates the runner process, starves it for CPU/Memory, or blocks its network access can cause this error."
+      ],
+      "logApi": "HTTP 404 BlobNotFound"
+    },
+    "2": {
+      "x64PackageJob": 140275079849,
+      "conclusion": "success",
+      "repeatedJob": "windows-package (windows-2025, x64, x86_64-pc-windows-msvc)"
+    }
+  }
+}
