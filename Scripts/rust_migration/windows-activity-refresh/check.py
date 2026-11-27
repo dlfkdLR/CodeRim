@@ -87,6 +87,11 @@ def main():
                     if expected != actual:
                         raise ValueError((kind, expected, actual))
                 raise ValueError("Number of cases differs")
+        for kind in binaries:
+            active = execute(kind, env, "contract", "active")
+            if active != contract:
+                raise ValueError((kind, "Active accounting changed callback or publication results",
+                                  next(((e, a) for e, a in zip(contract, active) if e != a), None)))
         report["contract"] = {"cases": len(contract), "digest": sha(json.dumps(contract, sort_keys=True).encode()),
             "managedErrors": sum(row["error"] is not None for row in contract),
             **{key: sum(row[key] for row in contract) for key in ("rows", "sounds", "attentions", "changed")}}
@@ -96,7 +101,7 @@ def main():
             order = tuple(binaries)[trial % 3:] + tuple(binaries)[:trial % 3]
             for kind in order:
                 samples[kind].append(execute(kind, warm, "bench"))
-            for size, shape in ((0, "unchanged"), (1, "unchanged"), (8, "completed"), (64, "reordered")):
+            for size, shape in ((0, "unchanged"), (1, "startup"), (8, "startup"), (1, "unchanged"), (8, "completed"), (64, "reordered"), (256, "completed"), (1024, "completed")):
                 cases = cold.setdefault(f"{size}/{shape}", {k: [] for k in binaries})
                 for kind in order:
                     cases[kind].append(execute(kind, env, "first", str(size), shape)[0])

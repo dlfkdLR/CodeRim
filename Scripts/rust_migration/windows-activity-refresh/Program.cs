@@ -12,6 +12,15 @@ if (args is ["runtime"])
         framework = RuntimeInformation.FrameworkDescription }, json));
     return;
 }
+// Model a desktop that has already displayed its session tree. Use the actual public
+// projection on every variant, outside timings, to initialize the installed native bridge.
+if (args[0] == "bench" || args.Contains("active"))
+{
+    var stamp = DateTimeOffset.UnixEpoch;
+    if (SessionPresentation.Groups(new SessionActivity[] {
+        new("one", "codex", "One", "busy", stamp), new("two", "claude", "Two", "idle", stamp)
+    }).Count != 2) throw new InvalidOperationException("Session tree precondition failed.");
+}
 if (args is ["bench", ..] || args is ["first", ..])
 {
     var counts = args.Length > 1 ? new[] { int.Parse(args[1]) } : new[] { 0, 1, 2, 8, 32, 64, 256, 1024 };
@@ -19,7 +28,7 @@ if (args is ["bench", ..] || args is ["first", ..])
     foreach (var shape in args.Length > 2 ? [args[2]] : new[] { "unchanged", "reloaded", "reordered", "completed" })
     {
         var (old, next) = Frames(n, shape, 13);
-        var store = new Store(old, OptionsFor(1));
+        var store = new Store(shape == "startup" ? Array.Empty<SessionActivity>() : old, OptionsFor(1));
         var rounds = args[0] == "first" ? 1 : n switch { <= 8 => 300, <= 64 => 50, <= 256 => 6, _ => 2 };
         if (args[0] != "first")
             for (int i = 0; i < 5; i++) { store.UpdateSessionActivity(next); store.UpdateSessionActivity(old); }
@@ -66,7 +75,13 @@ void Check(string key, SessionActivity[] old, IReadOnlyList<SessionActivity> nex
             Callback("attention");
         };
     }
-    SessionChime.Played = sound => { callbacks.Add("sound:" + sound); Callback("chime"); };
+    SessionChime.Played = sound =>
+    {
+        callbacks.Add("sound:" + sound);
+        Callback("chime");
+        if (action == "chime-mutate" && store.Sessions is SessionActivity[] published && published.Length != 0)
+            published[0] = published[0] with { State = "busy" };
+    };
     string? error = null;
     try { store.UpdateSessionActivity(next); }
     catch (Exception ex) { error = ex.GetType().FullName + "|" + ex.HResult + "|" + ex.Message; }
@@ -113,6 +128,8 @@ for (int flags = 0; flags < 4; flags++)
     Check("stable-attention-reversed/" + flags, [retained, busy, otherBusy], [restored, waiting with { Since = retained.Since }], flags, "ordinary");
     Check("both-child/" + flags, [retained, busy, otherBusy], [restored, waiting with { ParentThreadId = "" }], flags, "ordinary");
 }
+Check("chime-removes-all-attention", [busy], [restored], 3, "chime-mutate");
+Check("chime-changes-attention", [busy, otherBusy], [restored, waiting], 3, "chime-mutate");
 Check("unicode-state", [retained with { State = "e\u0301" }], [restored with { State = "é" }], 3, "ordinary");
 Check("null-and-other-state", [retained with { State = null! }], [restored with { State = "other" }], 3, "ordinary");
 Check("minimum-and-maximum", [retained with { Since = DateTimeOffset.MinValue }, busy, otherBusy], [restored, waiting with { Since = DateTimeOffset.MaxValue }], 3, "ordinary");
