@@ -131,6 +131,48 @@ func observe(_ provider: String, _ input: [Data]) -> String {
   return output.joined(separator: "|")
 }
 
+
+func codexRecordEdges() {
+  let markers = [
+    #""type":"session_meta""#, #""type":"thread_settings_applied""#, #""type":"turn_context""#,
+    #""type":"function_call""#, #""type":"custom_tool_call""#, #""type":"message","role":"user""#,
+  ]
+  let fields = #""timestamp":"2026-11-01T00:35:44Z","id":"qa","model":"sample","effort":"high","service_tier":"priority","name":"tool","text":"question""#
+  var calendar = Calendar(identifier: .gregorian)
+  calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+  let days = ActivityDayResolver(calendar: calendar)
+  let message = Data((markers[5] + "," + fields).utf8)
+  var groups: [[Data]] = []
+  for first in markers {
+    for second in markers {
+      // Reordered markers in old and partially written records use the same precedence.
+      let record = Data((first + "," + second + "," + fields).utf8)
+      groups.append([record, message])
+      groups.append([(Data([1, 2, 3]) + record).dropFirst(3), message])
+    }
+  }
+  for count in [0, 1, 126, 127, 128, 129] {
+    for name in [String(repeating: "a", count: count), "\\", "\\\u{301}", "도구"] {
+      let path = "/skills/" + name + "/SKILL.md /skills/second/SKILL.md"
+      groups.append([Data((markers[3] + "," + fields + " " + path).utf8)])
+    }
+  }
+  let subagent = Data((markers[0] + #","id":"child","parent_thread_id":"parent""#).utf8)
+  let detached = Data((markers[0] + #","id":"","parent_thread_id":"""#).utf8)
+  let missingID = Data(markers[0].utf8)
+  groups.append([subagent, message, missingID, message, detached, message])
+  let invalidDate = String(repeating: "\\z", count: 2049)
+  for marker in markers {
+    groups.append([Data((marker + #","timestamp":"bad","name":""# + invalidDate + #"""#).utf8), message])
+  }
+  for (index, lines) in groups.enumerated() {
+    var parser = CodexActivityParser(days: days)
+    for line in lines { parser.consume(line) }
+    let id = parser.rawSessionID.map { Data($0.utf8).base64EncodedString() } ?? "-"
+    print("codexRecord", index, id, observe("codex", lines))
+  }
+}
+
 if CommandLine.arguments.contains("--bench") {
   for provider in ["codex", "claude"] {
     for count in [60, 1440, 10080] {
@@ -145,6 +187,7 @@ if CommandLine.arguments.contains("--bench") {
 } else {
   edgeCases()
   dates()
+  codexRecordEdges()
   for provider in ["codex", "claude"] {
     print(provider, observe(provider, records(provider, 10080)))
   }
