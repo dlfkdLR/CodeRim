@@ -198,6 +198,25 @@ func claudeToolBlocks() {
   }
 }
 
+func dayActivityCopies() {
+  let day = Date(timeIntervalSinceReferenceDate: 0)
+  let next = Date(timeIntervalSinceReferenceDate: 86_400)
+  var first = FileActivity()
+  first.edit(day) { $0.tools["same"] = 1 }
+  var second = first
+  second.edit(day) { value in
+    value.tools["same", default: 0] += 9
+    value.skills["sample"] = 7
+  }
+  first.edit(next) { _ in }
+  let saved = second
+  second.edit(day) { $0 = DayActivity() }
+  for value in [first, second, saved] {
+    print("dayCopy", value.days.count, value.days[next] != nil,
+          value.days[day]?.tools["same"] ?? -1, value.days[day]?.skills["sample"] ?? -1)
+  }
+}
+
 if CommandLine.arguments.contains("--bench") {
   for provider in ["codex", "claude"] {
     for count in [60, 1440, 10080] {
@@ -214,6 +233,7 @@ if CommandLine.arguments.contains("--bench") {
   dates()
   codexRecordEdges()
   claudeToolBlocks()
+  dayActivityCopies()
   for provider in ["codex", "claude"] {
     print(provider, observe(provider, records(provider, 10080)))
   }

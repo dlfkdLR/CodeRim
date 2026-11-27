@@ -39,9 +39,7 @@ struct FileActivity: Equatable, Sendable {
     var traits = SessionTraits()
 
     mutating func edit(_ day: Date, _ change: (inout DayActivity) -> Void) {
-        var value = days[day] ?? DayActivity()
-        change(&value)
-        days[day] = value
+        change(&days[day, default: DayActivity()])
     }
 }
 
