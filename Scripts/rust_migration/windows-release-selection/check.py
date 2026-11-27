@@ -61,6 +61,9 @@ def main():
             raw = subprocess.check_output([args.runtime or sdk, binaries[label], mode, *extra], env=environment)
             return [json.loads(line) for line in raw.splitlines()]
 
+        report["runtime"] = run("public", "runtime")[0]
+        if report["runtime"] != run("rust", "runtime")[0]:
+            raise ValueError("Public and candidate runtimes differ")
         public_contract, candidate = (run(k, "contract")[0] for k in binaries)
         if candidate != public_contract:
             raise ValueError([(i, x, y) for i, (x, y) in enumerate(zip(public_contract, candidate)) if x != y])
@@ -73,6 +76,9 @@ def main():
                 for mode, args_ in (("warm", []), ("cold", ["single"]), ("cold", ["mixed"]),
                                     ("cold", ["single", "active"]), ("cold", ["mixed", "active"])):
                     for row in run(side, mode, *args_):
+                        expected_load = side == "rust" and (mode == "warm" or "active" in args_)
+                        if row["bridgeBefore"] != expected_load or row["bridgeAfter"] != expected_load:
+                            raise ValueError(("Unexpected accounting library state", side, mode, args_, row))
                         shape = mode + ("/active/" if "active" in args_ else "/") + row["name"]
                         results = samples.setdefault(shape, {})
                         results.setdefault(side, []).append(row)

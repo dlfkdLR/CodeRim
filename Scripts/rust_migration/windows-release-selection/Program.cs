@@ -1,10 +1,18 @@
 using System.Diagnostics;
 using System.Net;
+using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using CodeRim.Core.Services;
 
 var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+if (args is ["runtime"])
+{
+    Console.WriteLine(JsonSerializer.Serialize(new { RuntimeInformation.FrameworkDescription, RuntimeInformation.OSDescription,
+        architecture = RuntimeInformation.ProcessArchitecture.ToString() }, options));
+    return;
+}
 if (args.Contains("active") || args[0] == "warm")
 {
     var stamp = DateTimeOffset.UnixEpoch;
@@ -45,13 +53,18 @@ foreach (var (name, pages) in workloads.Where(p => args.Length == 1 || args[1] =
     var cold = args[0] == "cold";
     if (!cold) for (var i = 0; i < 5; i++) Run(name, pages);
     var loops = cold ? 1 : name == "nearLimit" ? 14 : 50;
+    var bridgeBefore = BridgeLoaded();
     var before = GC.GetAllocatedBytesForCurrentThread();
     var start = Stopwatch.GetTimestamp();
     for (var i = 0; i < loops; i++) Run(name, pages);
     var us = Stopwatch.GetElapsedTime(start).TotalMicroseconds / loops;
     var managedBytes = (GC.GetAllocatedBytesForCurrentThread() - before) / loops;
-    Console.WriteLine(JsonSerializer.Serialize(new { name, us, managedBytes, metadataBytes = pages.Sum(p => p.Length) }, options));
+    Console.WriteLine(JsonSerializer.Serialize(new { name, us, managedBytes, bridgeBefore, bridgeAfter = BridgeLoaded(),
+        metadataBytes = pages.Sum(p => p.Length) }, options));
 }
+
+static bool BridgeLoaded() => (bool?)typeof(CodeRim.Core.Domain.TokenUsage).Assembly.GetType("CodeRim.Core.Domain.RustAccountingLoadState")?
+    .GetField("IsLoaded", BindingFlags.Static | BindingFlags.NonPublic)?.GetValue(null) ?? false;
 
 static byte[] Page(int start, int count, int noteSize, bool mixed)
 {
