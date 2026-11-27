@@ -175,7 +175,13 @@ impl J {
                 if !v.is_finite() || (*v != 0.0 && !(0.0001..1e15).contains(&v.abs())) {
                     return None;
                 }
-                write!(out, "{v}").ok()?;
+                if v.fract() == 0.0 {
+                    write!(out, "{v:.0}").ok()?;
+                } else {
+                    // System.Text.Json chooses the even final digit when two shortest
+                    // decimals are equally close. Rust Display rounds these ties up.
+                    out.push_str(&serde_json::to_string(v).ok()?);
+                }
             }
             J::Str(s) => quoted(out, s),
             J::Date(s) => {
