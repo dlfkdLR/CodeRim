@@ -75,8 +75,9 @@ enum UsageStorageIdentity {
               !workingDirectory.contains("\0")
         else { return nil }
 
-        let standardizedPath = URL(fileURLWithPath: workingDirectory).standardizedFileURL.path
-        let name = URL(fileURLWithPath: standardizedPath).lastPathComponent
+        let url = URL(fileURLWithPath: workingDirectory).standardizedFileURL
+        let standardizedPath = url.path
+        let name = url.lastPathComponent
         guard !name.isEmpty,
               name != ".",
               name != "..",
@@ -84,6 +85,16 @@ enum UsageStorageIdentity {
               !name.contains("\0")
         else { return nil }
 
+        #if CODERIM_RUST_ACCOUNTING
+        var pathBytes = standardizedPath
+        let encoded = pathBytes.withUTF8 { path in
+            keyData.withUnsafeBytes { key in
+                cr_usage_project_identity(path.baseAddress, path.count,
+                                          key.bindMemory(to: UInt8.self).baseAddress, key.count)
+            }
+        }
+        if let id = string(encoded) { return (id, name) }
+        #endif
         let key = SymmetricKey(data: keyData)
         let material = Data("CodexMeter.project.v1|\(standardizedPath)".utf8)
         let digest = lowercaseDigest(HMAC<SHA256>.authenticationCode(for: material, using: key))

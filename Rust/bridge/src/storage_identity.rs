@@ -3,6 +3,14 @@ use std::{ffi::c_void, io::Write, slice};
 
 unsafe extern "C" {
     fn CC_SHA256(data: *const c_void, length: u32, output: *mut u8) -> *mut u8;
+    fn CCHmac(
+        algorithm: u32,
+        key: *const c_void,
+        key_length: usize,
+        data: *const c_void,
+        data_length: usize,
+        output: *mut c_void,
+    );
 }
 
 #[repr(C)]
@@ -30,6 +38,51 @@ pub unsafe extern "C" fn cr_digest_hex(digest: *const u8, length: usize) -> Dige
     }
     // SAFETY: [u8; 32] has byte alignment; length and lifetime satisfy the caller contract.
     hex(unsafe { &*digest.cast::<[u8; 32]>() })
+}
+
+const PROJECT_DOMAIN: &[u8] = b"CodexMeter.project.v1|";
+const PROJECT_PATH_LIMIT: usize = 4096;
+
+/// # Safety
+/// Nonempty input buffers must remain readable until return. Neither buffer is retained.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn cr_usage_project_identity(
+    path: *const u8,
+    path_length: usize,
+    key: *const u8,
+    key_length: usize,
+) -> DigestText {
+    // CodeRim creates a 32-byte project key. Swift retains its original formatter for
+    // unusually large keys and paths produced by expanding relative user input.
+    if path_length > PROJECT_PATH_LIMIT
+        || key_length > PROJECT_PATH_LIMIT
+        || (path_length != 0 && path.is_null())
+        || (key_length != 0 && key.is_null())
+    {
+        return INVALID;
+    }
+    let mut material = [0u8; PROJECT_DOMAIN.len() + PROJECT_PATH_LIMIT];
+    material[..PROJECT_DOMAIN.len()].copy_from_slice(PROJECT_DOMAIN);
+    let length = PROJECT_DOMAIN.len() + path_length;
+    if path_length != 0 {
+        // SAFETY: the host lends these checked bytes for the duration of the call.
+        material[PROJECT_DOMAIN.len()..length]
+            .copy_from_slice(unsafe { slice::from_raw_parts(path, path_length) });
+    }
+    const HMAC_SHA256: u32 = 2; // CommonCrypto kCCHmacAlgSHA256.
+    let mut digest = [0u8; 32];
+    // SAFETY: all inputs and the complete output storage are live for this synchronous call.
+    unsafe {
+        CCHmac(
+            HMAC_SHA256,
+            key.cast(),
+            key_length,
+            material.as_ptr().cast(),
+            length,
+            digest.as_mut_ptr().cast(),
+        );
+    }
+    hex(&digest)
 }
 
 // The importer admits message and session IDs of at most 128 bytes. A filename

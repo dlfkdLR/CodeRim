@@ -17,6 +17,8 @@ typedef struct {
 cr_digest_text cr_digest_hex(const uint8_t *digest, size_t length);
 // Borrows the session's UTF-8 spelling. An unsupported length requests the existing host formatter.
 cr_digest_text cr_codex_event_identity(const uint8_t *session, size_t length, cr_event_identity fields);
+// The key belongs to the CodeRim database. Both buffers are borrowed only for the call.
+cr_digest_text cr_usage_project_identity(const uint8_t *path, size_t path_length, const uint8_t *key, size_t key_length);
 // has_agent distinguishes an absent agent from an empty suffix. Invalid session requests the original host formatter.
 typedef struct { cr_digest_text session, parent; } cr_claude_lineage;
 cr_digest_text cr_claude_message_identity(const uint8_t *id, size_t length);
