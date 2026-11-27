@@ -1,0 +1,615 @@
+{
+  "scope": "Real macOS Claude activity chart scanner including malformed whole-array fallback, synchronous tool collection and sparse-block memory behavior. Original and optimized candidate use the same Swift names, date rules and deduplication.",
+  "initialProjection": {
+    "public_release": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+    "base": "80529bd265c0a649efa6427fb5161bcb969affa5",
+    "product": "689f1fea607781493ebbd4faa3009082dd9d408f",
+    "qa": "f3ddc63065d393347364fd066fb297e6a10d6396",
+    "packet_digest": "208d1ac8905bfc0a39697b2758bf5f0825faf70f198d93a06a4115a5019af009",
+    "run_id": "run-49dcf015de5b47ccaf2461a9a98a0a6d",
+    "candidate_side": "A",
+    "files": {
+      "Rust/bridge/src/claude_activity_tools.rs": "5d756847ad62225e9b534f3df07e7a3e542e06bcda065f7bb6c4779023053e1e",
+      "Rust/bridge/src/json_compat.rs": "8380a909f3583dc4df6127a3899f826e6c2a1b10a86858b5516327a7a03aba85",
+      "Rust/bridge/src/lib.rs": "042c6f2d5c3684e5fe59201d322ec9f16fa6c46eb5ed11e3dc6e20572cf0b665",
+      "Rust/bridge/include/coderim_transcript.h": "6a30881305d6756890602e02eaa94c63b0b671c136d6eaa30c54dd834517d852",
+      "Sources/CodeRim/Sources/ActivityLogParser.swift": "f88fe161c11d3962e1c98ec76bf144a997c85b8d6d0995c7782abc65389e9354",
+      "Scripts/rust_migration/activity-fields/main.swift": "3acbb8df1cdb56bcb689876f56dc994c4c007636983e3867b6f195e11da21c68"
+    },
+    "archive_sha256": "df8328ad6244f75ee0df4b66df98fef0def0e4ab62987ba73057b4ead1adda81",
+    "scope": "Project complete validated Claude assistant content tool blocks and named Skill metadata from synthetic JSONL into the normal macOS Usage Activity chart. Swift owns normalized tool display names and per-file ID deduplication.",
+    "architecture": {
+      "arm64": {
+        "per_row_state_comparison": {
+          "records": 1572,
+          "source_sha256": "c08ca7d8eab33ae22e7797d188396c36271aa9bb84f4e6f1789ccabd1c4952fd",
+          "output_sha256": {
+            "UTC": {
+              "release": "b7136e62f1a80a7734a0989d13b4ea2227f66cef557fdf8146bc1626c6afe7b3",
+              "previous": "b7136e62f1a80a7734a0989d13b4ea2227f66cef557fdf8146bc1626c6afe7b3",
+              "candidate": "b7136e62f1a80a7734a0989d13b4ea2227f66cef557fdf8146bc1626c6afe7b3"
+            },
+            "Australia/Lord_Howe": {
+              "release": "a5f471291bc625ef4d05fbcc1f9dafe084ba959f731ef559e6075fcdd95bd0a5",
+              "previous": "a5f471291bc625ef4d05fbcc1f9dafe084ba959f731ef559e6075fcdd95bd0a5",
+              "candidate": "a5f471291bc625ef4d05fbcc1f9dafe084ba959f731ef559e6075fcdd95bd0a5"
+            },
+            "America/Los_Angeles": {
+              "release": "7fa9b429934b8ae346ecb59c71c4beddf4e1b2a9a92ef735000b7ce5081d2b39",
+              "previous": "7fa9b429934b8ae346ecb59c71c4beddf4e1b2a9a92ef735000b7ce5081d2b39",
+              "candidate": "7fa9b429934b8ae346ecb59c71c4beddf4e1b2a9a92ef735000b7ce5081d2b39"
+            }
+          }
+        },
+        "checks_executed_locally": {
+          "activity-fields": [
+            "arm64 25024 2ebef3a3970cc1e29d9e82aeefbae174176e49979358c4587fd653b069e07657"
+          ],
+          "ollama-local": [
+            "arm64 2603 model lists matched, 1175 handled by Rust"
+          ],
+          "ollama-quota": [
+            "arm64 2738 matched 1709 Rust 1d708d257871c201e70257e1469e9886d75175fff3f8f1811ea408b0f25ee578"
+          ],
+          "copilot-quota": [
+            "arm64 718 3ebeede802a7b1c299463bc534d87ed6fb4b7378ef2bebd7732b7d89069f0e34",
+            "Rust handled 421 of 718"
+          ],
+          "app-server-response": [
+            "arm64 1926 matched; 1602 completion signals, 1166 snapshots, 1387 compatible selections"
+          ]
+        },
+        "snapshot_cpu_comparison_order": [
+          "v2.1.41",
+          "preceding_Rust",
+          "candidate"
+        ],
+        "cold_scan_process_cpu_ms": {
+          "plain1": [
+            2.921,
+            1.393,
+            1.259
+          ],
+          "none1500": [
+            10.636,
+            2.877,
+            2.731
+          ],
+          "plain3000": [
+            46.796,
+            30.89,
+            9.807
+          ],
+          "mixed4500": [
+            52.701,
+            30.019,
+            10.824
+          ],
+          "wide1500": [
+            65.196,
+            32.371,
+            9.061
+          ],
+          "escaped1500": [
+            50.923,
+            30.781,
+            17.337
+          ],
+          "blocks500": [
+            27.737,
+            21.002,
+            6.329
+          ]
+        },
+        "cold_scan_wall_ms": {
+          "plain1": [
+            3.471,
+            1.7879,
+            1.6443
+          ],
+          "none1500": [
+            12.8063,
+            3.3444,
+            3.1204
+          ],
+          "plain3000": [
+            50.6427,
+            32.7735,
+            10.4086
+          ],
+          "mixed4500": [
+            54.5932,
+            30.2278,
+            10.9819
+          ],
+          "wide1500": [
+            67.5591,
+            33.184,
+            9.2585
+          ],
+          "escaped1500": [
+            59.4733,
+            37.1846,
+            21.2595
+          ],
+          "blocks500": [
+            30.3733,
+            22.6142,
+            6.8556
+          ]
+        },
+        "chart_outputs": {
+          "plain1": {
+            "messages": 0,
+            "skills": 0,
+            "tools": 1
+          },
+          "none1500": {
+            "messages": 0,
+            "skills": 0,
+            "tools": 0
+          },
+          "plain3000": {
+            "messages": 0,
+            "skills": 750,
+            "tools": 3000
+          },
+          "mixed4500": {
+            "messages": 1500,
+            "skills": 750,
+            "tools": 3000
+          },
+          "wide1500": {
+            "messages": 0,
+            "skills": 375,
+            "tools": 1500
+          },
+          "escaped1500": {
+            "messages": 0,
+            "skills": 375,
+            "tools": 1500
+          },
+          "blocks500": {
+            "messages": 0,
+            "skills": 515,
+            "tools": 515
+          }
+        },
+        "binaries": {
+          "release": "c9c48f9fbad148ba0b95727e659e66a4e41141d4d3f6d66bd2bc65042a8c1a27",
+          "previous": "5c52a9db51e10ea3335fa7299094a8699fa9f5de691b615a707fb8977c5e24f2",
+          "candidate": "1439708c9773e94bbf6a7bd028ca5aa45dcc95b820f619fe955cae25651c48f6"
+        }
+      },
+      "x86_64": {
+        "per_row_state_comparison": {
+          "records": 1572,
+          "source_sha256": "c08ca7d8eab33ae22e7797d188396c36271aa9bb84f4e6f1789ccabd1c4952fd",
+          "output_sha256": {
+            "UTC": {
+              "release": "b7136e62f1a80a7734a0989d13b4ea2227f66cef557fdf8146bc1626c6afe7b3",
+              "previous": "b7136e62f1a80a7734a0989d13b4ea2227f66cef557fdf8146bc1626c6afe7b3",
+              "candidate": "b7136e62f1a80a7734a0989d13b4ea2227f66cef557fdf8146bc1626c6afe7b3"
+            },
+            "Australia/Lord_Howe": {
+              "release": "a5f471291bc625ef4d05fbcc1f9dafe084ba959f731ef559e6075fcdd95bd0a5",
+              "previous": "a5f471291bc625ef4d05fbcc1f9dafe084ba959f731ef559e6075fcdd95bd0a5",
+              "candidate": "a5f471291bc625ef4d05fbcc1f9dafe084ba959f731ef559e6075fcdd95bd0a5"
+            },
+            "America/Los_Angeles": {
+              "release": "7fa9b429934b8ae346ecb59c71c4beddf4e1b2a9a92ef735000b7ce5081d2b39",
+              "previous": "7fa9b429934b8ae346ecb59c71c4beddf4e1b2a9a92ef735000b7ce5081d2b39",
+              "candidate": "7fa9b429934b8ae346ecb59c71c4beddf4e1b2a9a92ef735000b7ce5081d2b39"
+            }
+          }
+        },
+        "checks_executed_locally": {
+          "activity-fields": [
+            "x86_64 25024 2ebef3a3970cc1e29d9e82aeefbae174176e49979358c4587fd653b069e07657"
+          ],
+          "ollama-local": [
+            "x86_64 2603 model lists matched, 1175 handled by Rust"
+          ],
+          "ollama-quota": [
+            "x86_64 2738 matched 1709 Rust 1d708d257871c201e70257e1469e9886d75175fff3f8f1811ea408b0f25ee578"
+          ],
+          "copilot-quota": [
+            "x86_64 718 3ebeede802a7b1c299463bc534d87ed6fb4b7378ef2bebd7732b7d89069f0e34",
+            "Rust handled 421 of 718"
+          ],
+          "app-server-response": [
+            "x86_64 1926 matched; 1602 completion signals, 1166 snapshots, 1387 compatible selections"
+          ]
+        },
+        "snapshot_cpu_comparison_order": [
+          "v2.1.41",
+          "preceding_Rust",
+          "candidate"
+        ],
+        "cold_scan_process_cpu_ms": {
+          "plain1": [
+            6.005,
+            2.901,
+            3.207
+          ],
+          "none1500": [
+            19.981,
+            5.03,
+            5.315
+          ],
+          "plain3000": [
+            81.797,
+            53.001,
+            17.568
+          ],
+          "mixed4500": [
+            99.591,
+            57.08,
+            21.188
+          ],
+          "wide1500": [
+            122.637,
+            70.121,
+            15.872
+          ],
+          "escaped1500": [
+            76.752,
+            45.049,
+            21.807
+          ],
+          "blocks500": [
+            49.746,
+            37.881,
+            11.392
+          ]
+        },
+        "cold_scan_wall_ms": {
+          "plain1": [
+            6.3505,
+            3.081,
+            3.4764
+          ],
+          "none1500": [
+            20.5731,
+            5.7844,
+            5.7239
+          ],
+          "plain3000": [
+            84.294,
+            54.5484,
+            18.2061
+          ],
+          "mixed4500": [
+            102.302,
+            58.6905,
+            21.8345
+          ],
+          "wide1500": [
+            126.0988,
+            70.9874,
+            16.149
+          ],
+          "escaped1500": [
+            78.8367,
+            46.7223,
+            22.3707
+          ],
+          "blocks500": [
+            50.9576,
+            39.1078,
+            11.9409
+          ]
+        },
+        "chart_outputs": {
+          "plain1": {
+            "messages": 0,
+            "skills": 0,
+            "tools": 1
+          },
+          "none1500": {
+            "messages": 0,
+            "skills": 0,
+            "tools": 0
+          },
+          "plain3000": {
+            "messages": 0,
+            "skills": 750,
+            "tools": 3000
+          },
+          "mixed4500": {
+            "messages": 1500,
+            "skills": 750,
+            "tools": 3000
+          },
+          "wide1500": {
+            "messages": 0,
+            "skills": 375,
+            "tools": 1500
+          },
+          "escaped1500": {
+            "messages": 0,
+            "skills": 375,
+            "tools": 1500
+          },
+          "blocks500": {
+            "messages": 0,
+            "skills": 515,
+            "tools": 515
+          }
+        },
+        "binaries": {
+          "release": "730861f61d9ff846eaa08819db5dbfd7f188648e2470f8ccc6a2f7eb2e808ceb",
+          "previous": "2a5fdcf8101c05f92e3626d0214b789afc5d7171962929b25f05e40b5c4ccb07",
+          "candidate": "d6d6927faa44e8340a804382c5734a0b90e5a052a254730e04f5aad47f68ce60"
+        }
+      }
+    },
+    "limits": [
+      "macOS Apple Silicon and Rosetta, target macOS 14. No physical Intel/Windows device, production profiles or service traffic.",
+      "Measurements use seven matched rotated fresh processes per scenario. Parser and snapshot values, display chart and cache-hit values are direct product observations. GPU, battery drain and GUI paint are outside this module measurement.",
+      "One-record timing and the no-tool control have small mixed changes. Documents requiring Foundation-specific decoding run the original whole-record path."
+    ],
+    "evidence": {
+      "packet.json": "44fe0a17d291d87466f90d354de9b8226556ea542a042105c70768adcbaab99d",
+      "candidate.patch": "2f720771b5e69ce22093597363ba1d3ff69c9e983e7c4d3651aa2c9edc13627d",
+      "main.swift": "ce094fd0db15c6f2b627ee36aa049bc0b43b0941577fd9498a2b6d8d164f6e29",
+      "build.py": "4c90e378393b314202fa2cf169827352027d7a0da7cdc54fc3889ef2de0bd2ef",
+      "fixtures.py": "5da6ee6a768ea9fc9fcf83a07ad9b0b132d1f074ff0d8361455fe2c2a299d621",
+      "arm64-parity.json": "577520df2588c1d9da16ac9432c7d5ee259ef2d2015c815eaae6b623b9c5f3d3",
+      "x86_64-parity.json": "577520df2588c1d9da16ac9432c7d5ee259ef2d2015c815eaae6b623b9c5f3d3",
+      "arm64-timing.json": "0655dffc6f1f5af33f678adff2ee13a3920cafefa99c40d62e5487c983070907",
+      "x86_64-timing.json": "6b4b0d5cd0947985dd88ea76dd054176c53fa50fef9b0627f3ab0b52ce3b2f64",
+      "rust-tests-with-module.log": "e8bf2a672b8c60f3d37eddcbf38885df8264e2d5ff38f47defc76195c7fbfed9",
+      "independent.json": "fcd8f3ad037d621fe87152eb567ae42fd1416d3c37ade8d72d28da0bb4181618",
+      "import.json": "3df7181b7cecebe41787425c3c0a1beeaa40e65b86ac2f0aa0f0ce29313e34d7",
+      "gate.json": "9627287fdb0324cc8d707808ed474abdaf378b8f89262436d1318e6aaf076d56",
+      "summary.json": "b853e527375cee99857f7dcb5113578067515cdc1437df59989a0a9d6681abc8"
+    },
+    "formal_gate": {
+      "run_id": "run-49dcf015de5b47ccaf2461a9a98a0a6d",
+      "decision": "INCONCLUSIVE",
+      "candidate_hash": "97acefb1f660eb0f8753ee53758c471ef1b9d5e87f3422d20e48dc9cfb1ee5c5",
+      "gate_order": [
+        "SECURITY",
+        "FACTUAL",
+        "CONTENT",
+        "FUNCTIONAL",
+        "ACCESSIBILITY",
+        "RESPONSIVE",
+        "VISUAL_UX",
+        "CODE_QUALITY",
+        "PERFORMANCE"
+      ],
+      "blockers": [],
+      "missing_evidence": [
+        "baseline not passing",
+        "candidate check unavailable",
+        "independent code review missing/stale"
+      ],
+      "improved": false,
+      "regression_ready": false,
+      "dimensions": {},
+      "time": "2026-11-27T00:38:17.289049+00:00"
+    }
+  },
+  "initialIndependent": {
+    "architectures": {
+      "arm64": {
+        "records": 1392,
+        "outputSha256": "1c52597ad0d0259e26dfd179ceb05fc8bc63623ac9ea8f2380a85c07894a04a5",
+        "binaries": {
+          "release": "c9c48f9fbad148ba0b95727e659e66a4e41141d4d3f6d66bd2bc65042a8c1a27",
+          "previous": "5c52a9db51e10ea3335fa7299094a8699fa9f5de691b615a707fb8977c5e24f2",
+          "candidate": "1439708c9773e94bbf6a7bd028ca5aa45dcc95b820f619fe955cae25651c48f6"
+        }
+      },
+      "x86_64": {
+        "records": 1392,
+        "outputSha256": "1c52597ad0d0259e26dfd179ceb05fc8bc63623ac9ea8f2380a85c07894a04a5",
+        "binaries": {
+          "release": "730861f61d9ff846eaa08819db5dbfd7f188648e2470f8ccc6a2f7eb2e808ceb",
+          "previous": "2a5fdcf8101c05f92e3626d0214b789afc5d7171962929b25f05e40b5c4ccb07",
+          "candidate": "d6d6927faa44e8340a804382c5734a0b90e5a052a254730e04f5aad47f68ce60"
+        }
+      }
+    },
+    "distinctStates": 1251
+  },
+  "sparseVisitor": {
+    "public": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+    "previous": "689f1fea607781493ebbd4faa3009082dd9d408f",
+    "product": "0f6d5b5850a55552b49200edcecb6d72e2533f33",
+    "run_id": "run-bd8bd3c6e9a24685969d9f2eb6fa0bee",
+    "packet_digest": "f2093b512531a3259f889f105ea68c8132aab177e174f802ba7a902ae88c211b",
+    "product_sha256": "a37aeba888c73933cbcae640bd79a589ff87ea9333b866e5642adc4eb47c7a76",
+    "scope": "Project only eligible tool calls into the output scratch vector. Continue parsing the entire message before invoking a consumer.",
+    "evidence": {
+      "packet.json": "1e728798705fde745a88f93c9e59549cd1bd09fc12d6f26c9a4584da676dcc58",
+      "independent.json": "0f0cdd273a8686c8eb41008ce26b1fe84fbfbe09cf85818e611958884085c327",
+      "gate.json": "94a8def842166f84cdcce3eea06e6814ce6da81f375a99276bb5eab5d3297029",
+      "summary.json": "d3d2c8c4d4dfb7818b3beab6320d60456aa0c6763c81241a7b7892fbd0f953e9",
+      "memory.py": "3f5b8f2df541162590228b47f6ded041eb97a5a5c644f7fefe7580bbb7a21c1f",
+      "memory.json": "35ca737aef79e1fdb725e577c66a25511c82bf4c29e54c97b7605db55b611dc2",
+      "scanner.log": "ade26de839b11892e5e460c0b7895932e62869c49815a54fe870377e55fbe55c",
+      "fixtures.py": "5da6ee6a768ea9fc9fcf83a07ad9b0b132d1f074ff0d8361455fe2c2a299d621",
+      "build.py": "fe2261e788a3ca6e3b329668407ccfce802ed5b027f9d3c95de1cfc512b01e68",
+      "test.log": "5976b0d23e390639e5b893207d7fbc735f9597014a270854a63bded7f250fa9d",
+      "arm64-parity.json": "577520df2588c1d9da16ac9432c7d5ee259ef2d2015c815eaae6b623b9c5f3d3",
+      "x86_64-parity.json": "577520df2588c1d9da16ac9432c7d5ee259ef2d2015c815eaae6b623b9c5f3d3",
+      "arm64-timing.json": "c4a16bbb914dcd313abcad6c75b6ebd54945bb600fffd38cdcd7b858770662d1",
+      "x86_64-timing.json": "afdd864f7d353a8582419c358242d33b0d9e5202af653272842b3fffe7a2c839",
+      "sparse.a": "a224493e386c8b70b0a9954030dada4e500212b7a650628ec2994fc593bff4eb"
+    },
+    "direct_observations_per_arch_per_zone": 1572,
+    "zones": 3,
+    "independent_rows_per_arch": 1692,
+    "independent_unique_states": 1551,
+    "release_tests": 71,
+    "architectures": {
+      "arm64": {
+        "peak_footprint_bytes_by_empty_sibling_count": {
+          "0": {
+            "release": 3834408,
+            "previous": 3523112,
+            "candidate": 3523136
+          },
+          "600": {
+            "release": 3834408,
+            "previous": 3637800,
+            "candidate": 3506728
+          },
+          "40000": {
+            "release": 5194280,
+            "previous": 7946792,
+            "candidate": 3801664
+          },
+          "220000": {
+            "release": 9716264,
+            "previous": 22004264,
+            "candidate": 4899368
+          }
+        },
+        "cpu_ms_for_220000_empty_siblings": {
+          "release": 60.874,
+          "previous": 8.994,
+          "candidate": 5.49
+        },
+        "normal_cold_cpu_ms_release_prior_candidate": {
+          "plain1": [
+            2.21,
+            0.916,
+            0.952
+          ],
+          "none1500": [
+            9.311,
+            2.318,
+            2.377
+          ],
+          "plain3000": [
+            41.89,
+            8.803,
+            8.971
+          ],
+          "mixed4500": [
+            48.365,
+            10.48,
+            10.702
+          ],
+          "wide1500": [
+            59.08,
+            8.97,
+            9.041
+          ],
+          "escaped1500": [
+            38.645,
+            14.833,
+            15.217
+          ],
+          "blocks500": [
+            24.312,
+            5.617,
+            5.681
+          ]
+        },
+        "raw_dataset": "memory.json"
+      },
+      "x86_64": {
+        "peak_footprint_bytes_by_empty_sibling_count": {
+          "0": {
+            "release": 4338720,
+            "previous": 4207672,
+            "candidate": 4207672
+          },
+          "600": {
+            "release": 4514896,
+            "previous": 4387944,
+            "candidate": 4330552
+          },
+          "40000": {
+            "release": 5940256,
+            "previous": 7427128,
+            "candidate": 4555832
+          },
+          "220000": {
+            "release": 11850808,
+            "previous": 30901328,
+            "candidate": 5571592
+          }
+        },
+        "cpu_ms_for_220000_empty_siblings": {
+          "release": 106.377,
+          "previous": 18.805,
+          "candidate": 9.249
+        },
+        "normal_cold_cpu_ms_release_prior_candidate": {
+          "plain1": [
+            4.704,
+            2.577,
+            2.589
+          ],
+          "none1500": [
+            17.2,
+            4.656,
+            4.659
+          ],
+          "plain3000": [
+            74.67,
+            16.112,
+            15.987
+          ],
+          "mixed4500": [
+            86.07,
+            19.391,
+            19.354
+          ],
+          "wide1500": [
+            123.014,
+            15.094,
+            14.888
+          ],
+          "escaped1500": [
+            73.768,
+            20.726,
+            21.53
+          ],
+          "blocks500": [
+            45.239,
+            9.798,
+            9.673
+          ]
+        },
+        "raw_dataset": "memory.json"
+      }
+    },
+    "formal_gate": "INCONCLUSIVE",
+    "limits": [
+      "Apple Silicon macOS arm64 and x86_64 under Rosetta. Whole process peak footprint and scan CPU are separate metrics. No physical Intel machine or production data.",
+      "Closed-over Swift and Foundation fallback are the earlier independently verified implementation. Formal harness independently reports missing generic repository check and operator terminal; no promotion."
+    ]
+  },
+  "sparseIndependent": {
+    "architectures": {
+      "arm64": {
+        "records": 1692,
+        "outputSha256": "3007346fdc5ab36e39b5c9ac5f54a44c531be84ccaaf200696d722920564f09c",
+        "binaries": {
+          "release": "c9c48f9fbad148ba0b95727e659e66a4e41141d4d3f6d66bd2bc65042a8c1a27",
+          "previous": "1439708c9773e94bbf6a7bd028ca5aa45dcc95b820f619fe955cae25651c48f6",
+          "candidate": "fb5cbf010f0a18bfe55729661f4d8b83614ae4e1fb08a59b40a4079c283d2e5c"
+        }
+      },
+      "x86_64": {
+        "records": 1692,
+        "outputSha256": "3007346fdc5ab36e39b5c9ac5f54a44c531be84ccaaf200696d722920564f09c",
+        "binaries": {
+          "release": "730861f61d9ff846eaa08819db5dbfd7f188648e2470f8ccc6a2f7eb2e808ceb",
+          "previous": "d6d6927faa44e8340a804382c5734a0b90e5a052a254730e04f5aad47f68ce60",
+          "candidate": "28b84d6ad8b5fd89d84ab0f730d659a504d592411a9257457718e17e59373378"
+        }
+      }
+    },
+    "distinctStates": 1551
+  },
+  "finalReceiptSha256": "f46a82fdc4adc2a81387bd03bb5fd4224b27dc6d059983c76dab5710c3d91673",
+  "initialReceiptSha256": "26746cc38272933babe54878e3de704fd55393793fa091409acf1ea381990eb3"
+}

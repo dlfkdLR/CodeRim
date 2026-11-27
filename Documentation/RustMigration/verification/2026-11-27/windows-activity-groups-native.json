@@ -1,0 +1,1004 @@
+{
+  "run": "https://github.com/dlfkdLR/CodeRim/actions/runs/45916556548",
+  "head": "517432bedbfc4ea83f86a9b620a8f3510f296569",
+  "jobs": {
+    "macos (macos-26, arm64)": {
+      "id": 140237074958,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos-bundle": {
+      "id": 140237075165,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "windows-package (windows-11-arm, arm64, aarch64-pc-windows-msvc)": {
+      "id": 140237075209,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "windows (windows-11-arm, aarch64-pc-windows-msvc, arm64)": {
+      "id": 140237075214,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "windows-package (windows-2025, x64, x86_64-pc-windows-msvc)": {
+      "id": 140237075221,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "cargo": {
+      "id": 140237075253,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "mobile-contracts": {
+      "id": 140237075284,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos-tests": {
+      "id": 140237075289,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "windows (windows-2025, x86_64-pc-windows-msvc, x64)": {
+      "id": 140237075358,
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "macos (macos-26-intel, x86_64)": {
+      "id": 140237075369,
+      "status": "completed",
+      "conclusion": "cancelled"
+    }
+  },
+  "runConclusion": "cancelled",
+  "intelAnnotation": "The job has exceeded the maximum execution time of 20m0s",
+  "platforms": {
+    "x64": {
+      "id": 15162393763,
+      "artifactHash": "sha256:f1b75dfe0ede6ee4fd163edba2de44f5c45c4dc3374fe71cafaf6071959d6bfc",
+      "receiptSha256": "0538a6663c5308e2e966f5c6d9b76050cf4d5db6d93f63d9ef74dd24b45070d8",
+      "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+      "candidate": "517432bedbfc4ea83f86a9b620a8f3510f296569",
+      "platform": "Windows-2025Server-10.0.26100-SP0",
+      "runtime": {
+        "architecture": "X64",
+        "framework": ".NET 10.0.15",
+        "os": "Microsoft Windows 10.0.26100"
+      },
+      "librarySha256": "f71f802c5121887dd83dae8f0c8ed3412c1c70932bc5ab754be023d67fbeddab",
+      "contract": {
+        "cases": 549,
+        "rows": 17885,
+        "exceptions": 4,
+        "sha256": "b567506038f0e0d97072deabc25e1f68d6f03fa81a312511ad490ba9c050bda8"
+      },
+      "defaultJitFirstCalls": {
+        "flat-0": {
+          "release": [
+            {
+              "groups": 0,
+              "us": 7470.5,
+              "bytes": 2504
+            },
+            {
+              "groups": 0,
+              "us": 7564.7,
+              "bytes": 2504
+            },
+            {
+              "groups": 0,
+              "us": 7597.8,
+              "bytes": 2504
+            },
+            {
+              "groups": 0,
+              "us": 7667.2,
+              "bytes": 2504
+            },
+            {
+              "groups": 0,
+              "us": 7537.1,
+              "bytes": 2504
+            }
+          ],
+          "rust": [
+            {
+              "groups": 0,
+              "us": 3517.3,
+              "bytes": 728
+            },
+            {
+              "groups": 0,
+              "us": 3537.6,
+              "bytes": 728
+            },
+            {
+              "groups": 0,
+              "us": 3466.4,
+              "bytes": 728
+            },
+            {
+              "groups": 0,
+              "us": 3446.1,
+              "bytes": 728
+            },
+            {
+              "groups": 0,
+              "us": 3478.1,
+              "bytes": 728
+            }
+          ]
+        },
+        "flat-1": {
+          "release": [
+            {
+              "groups": 1,
+              "us": 17883.8,
+              "bytes": 4648
+            },
+            {
+              "groups": 1,
+              "us": 16619.3,
+              "bytes": 4648
+            },
+            {
+              "groups": 1,
+              "us": 16533.9,
+              "bytes": 4648
+            },
+            {
+              "groups": 1,
+              "us": 16869.6,
+              "bytes": 4648
+            },
+            {
+              "groups": 1,
+              "us": 16354.7,
+              "bytes": 4648
+            }
+          ],
+          "rust": [
+            {
+              "groups": 1,
+              "us": 6351.3,
+              "bytes": 1360
+            },
+            {
+              "groups": 1,
+              "us": 6124.4,
+              "bytes": 1360
+            },
+            {
+              "groups": 1,
+              "us": 6099,
+              "bytes": 1360
+            },
+            {
+              "groups": 1,
+              "us": 6035,
+              "bytes": 1360
+            },
+            {
+              "groups": 1,
+              "us": 6224.6,
+              "bytes": 1360
+            }
+          ]
+        },
+        "flat-2": {
+          "release": [
+            {
+              "groups": 2,
+              "us": 18956,
+              "bytes": 5656
+            },
+            {
+              "groups": 2,
+              "us": 16815.5,
+              "bytes": 5656
+            },
+            {
+              "groups": 2,
+              "us": 16822.2,
+              "bytes": 5656
+            },
+            {
+              "groups": 2,
+              "us": 16773.3,
+              "bytes": 5656
+            },
+            {
+              "groups": 2,
+              "us": 16544,
+              "bytes": 5656
+            }
+          ],
+          "rust": [
+            {
+              "groups": 2,
+              "us": 9249.8,
+              "bytes": 2632
+            },
+            {
+              "groups": 2,
+              "us": 9172.3,
+              "bytes": 2632
+            },
+            {
+              "groups": 2,
+              "us": 9139.7,
+              "bytes": 2632
+            },
+            {
+              "groups": 2,
+              "us": 9071.5,
+              "bytes": 2632
+            },
+            {
+              "groups": 2,
+              "us": 9566,
+              "bytes": 2632
+            }
+          ]
+        },
+        "tree-8": {
+          "release": [
+            {
+              "groups": 1,
+              "us": 21632.9,
+              "bytes": 20056
+            },
+            {
+              "groups": 1,
+              "us": 25695.8,
+              "bytes": 26248
+            },
+            {
+              "groups": 1,
+              "us": 21798.6,
+              "bytes": 26248
+            },
+            {
+              "groups": 1,
+              "us": 21813.8,
+              "bytes": 26248
+            },
+            {
+              "groups": 1,
+              "us": 21394.4,
+              "bytes": 26248
+            }
+          ],
+          "rust": [
+            {
+              "groups": 1,
+              "us": 10863.4,
+              "bytes": 7856
+            },
+            {
+              "groups": 1,
+              "us": 10671.5,
+              "bytes": 7856
+            },
+            {
+              "groups": 1,
+              "us": 10605.5,
+              "bytes": 7856
+            },
+            {
+              "groups": 1,
+              "us": 10378.9,
+              "bytes": 7856
+            },
+            {
+              "groups": 1,
+              "us": 10544.8,
+              "bytes": 7856
+            }
+          ]
+        },
+        "chain-64": {
+          "release": [
+            {
+              "groups": 1,
+              "us": 21870,
+              "bytes": 256760
+            },
+            {
+              "groups": 1,
+              "us": 25515.6,
+              "bytes": 256760
+            },
+            {
+              "groups": 1,
+              "us": 21808.7,
+              "bytes": 256760
+            },
+            {
+              "groups": 1,
+              "us": 21888.9,
+              "bytes": 250568
+            },
+            {
+              "groups": 1,
+              "us": 22188.8,
+              "bytes": 256760
+            }
+          ],
+          "rust": [
+            {
+              "groups": 1,
+              "us": 10398.1,
+              "bytes": 43136
+            },
+            {
+              "groups": 1,
+              "us": 10543.4,
+              "bytes": 43136
+            },
+            {
+              "groups": 1,
+              "us": 10613.5,
+              "bytes": 43136
+            },
+            {
+              "groups": 1,
+              "us": 10584.8,
+              "bytes": 43136
+            },
+            {
+              "groups": 1,
+              "us": 10485.9,
+              "bytes": 43136
+            }
+          ]
+        }
+      },
+      "warmMedians": [
+        {
+          "shape": "flat",
+          "count": 0,
+          "release": {
+            "us": 1.5633333333333332,
+            "bytes": 1600
+          },
+          "rust": {
+            "us": 0.31566666666666665,
+            "bytes": 360
+          }
+        },
+        {
+          "shape": "flat",
+          "count": 1,
+          "release": {
+            "us": 4.082333333333334,
+            "bytes": 3680
+          },
+          "rust": {
+            "us": 0.9243333333333333,
+            "bytes": 1000
+          }
+        },
+        {
+          "shape": "flat",
+          "count": 2,
+          "release": {
+            "us": 5.1306666666666665,
+            "bytes": 4688
+          },
+          "rust": {
+            "us": 1.7740000000000002,
+            "bytes": 1424
+          }
+        },
+        {
+          "shape": "flat",
+          "count": 8,
+          "release": {
+            "us": 15.226666666666667,
+            "bytes": 13968
+          },
+          "rust": {
+            "us": 4.843666666666667,
+            "bytes": 4600
+          }
+        },
+        {
+          "shape": "tree",
+          "count": 2,
+          "release": {
+            "us": 8.019333333333334,
+            "bytes": 5512
+          },
+          "rust": {
+            "us": 3.1703333333333332,
+            "bytes": 2016
+          }
+        },
+        {
+          "shape": "tree",
+          "count": 8,
+          "release": {
+            "us": 26.488666666666667,
+            "bytes": 18792
+          },
+          "rust": {
+            "us": 9.490666666666666,
+            "bytes": 6584
+          }
+        },
+        {
+          "shape": "flat",
+          "count": 64,
+          "release": {
+            "us": 107.81,
+            "bytes": 86760
+          },
+          "rust": {
+            "us": 30.996666666666666,
+            "bytes": 25600
+          }
+        },
+        {
+          "shape": "tree",
+          "count": 64,
+          "release": {
+            "us": 139.09333333333333,
+            "bytes": 140512
+          },
+          "rust": {
+            "us": 58.63666666666666,
+            "bytes": 41864
+          }
+        },
+        {
+          "shape": "chain",
+          "count": 64,
+          "release": {
+            "us": 214.76000000000002,
+            "bytes": 249304
+          },
+          "rust": {
+            "us": 62.09,
+            "bytes": 41864
+          }
+        },
+        {
+          "shape": "missing",
+          "count": 64,
+          "release": {
+            "us": 190.82999999999998,
+            "bytes": 160368
+          },
+          "rust": {
+            "us": 98.64333333333335,
+            "bytes": 61504
+          }
+        },
+        {
+          "shape": "flat",
+          "count": 512,
+          "release": {
+            "us": 537.6,
+            "bytes": 729088
+          },
+          "rust": {
+            "us": 295.475,
+            "bytes": 230552
+          }
+        },
+        {
+          "shape": "tree",
+          "count": 512,
+          "release": {
+            "us": 1448.975,
+            "bytes": 1179568
+          },
+          "rust": {
+            "us": 865.675,
+            "bytes": 370912
+          }
+        },
+        {
+          "shape": "chain",
+          "count": 512,
+          "release": {
+            "us": 7024.025,
+            "bytes": 8560336
+          },
+          "rust": {
+            "us": 426.125,
+            "bytes": 370912
+          }
+        },
+        {
+          "shape": "chain",
+          "count": 1024,
+          "release": {
+            "us": 29136.05,
+            "bytes": 31309576
+          },
+          "rust": {
+            "us": 915.5,
+            "bytes": 764784
+          }
+        }
+      ]
+    },
+    "arm64": {
+      "id": 15162288785,
+      "artifactHash": "sha256:a8f930d38a2bc86cc4bce112dfcfc43f2e15a9dab4291da3c229da5550a57b3f",
+      "receiptSha256": "81f2b7a171e183fe7df167b2e9569e32c1b43e90bc1a537eaf02906658186c66",
+      "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+      "candidate": "517432bedbfc4ea83f86a9b620a8f3510f296569",
+      "platform": "Windows-11-10.0.26200-SP0",
+      "runtime": {
+        "architecture": "Arm64",
+        "framework": ".NET 10.0.15",
+        "os": "Microsoft Windows 10.0.26200"
+      },
+      "librarySha256": "8e6e8e9b22d80baca231009a06ec65c0198a979c3d5b5ef35cd186dbf9560d37",
+      "contract": {
+        "cases": 549,
+        "rows": 17885,
+        "exceptions": 4,
+        "sha256": "b567506038f0e0d97072deabc25e1f68d6f03fa81a312511ad490ba9c050bda8"
+      },
+      "defaultJitFirstCalls": {
+        "flat-0": {
+          "release": [
+            {
+              "groups": 0,
+              "us": 6854.4,
+              "bytes": 8696
+            },
+            {
+              "groups": 0,
+              "us": 6837,
+              "bytes": 2504
+            },
+            {
+              "groups": 0,
+              "us": 6507.2,
+              "bytes": 2504
+            },
+            {
+              "groups": 0,
+              "us": 7035.5,
+              "bytes": 2504
+            },
+            {
+              "groups": 0,
+              "us": 6897.2,
+              "bytes": 8696
+            }
+          ],
+          "rust": [
+            {
+              "groups": 0,
+              "us": 3881,
+              "bytes": 728
+            },
+            {
+              "groups": 0,
+              "us": 3397.7,
+              "bytes": 728
+            },
+            {
+              "groups": 0,
+              "us": 3444.4,
+              "bytes": 728
+            },
+            {
+              "groups": 0,
+              "us": 3435.1,
+              "bytes": 728
+            },
+            {
+              "groups": 0,
+              "us": 3423.3,
+              "bytes": 728
+            }
+          ]
+        },
+        "flat-1": {
+          "release": [
+            {
+              "groups": 1,
+              "us": 15646.2,
+              "bytes": 4648
+            },
+            {
+              "groups": 1,
+              "us": 15018.5,
+              "bytes": 4648
+            },
+            {
+              "groups": 1,
+              "us": 15207.3,
+              "bytes": 4648
+            },
+            {
+              "groups": 1,
+              "us": 15932.5,
+              "bytes": 4648
+            },
+            {
+              "groups": 1,
+              "us": 15673,
+              "bytes": 4648
+            }
+          ],
+          "rust": [
+            {
+              "groups": 1,
+              "us": 5944.5,
+              "bytes": 1360
+            },
+            {
+              "groups": 1,
+              "us": 6290.5,
+              "bytes": 1360
+            },
+            {
+              "groups": 1,
+              "us": 6204,
+              "bytes": 1360
+            },
+            {
+              "groups": 1,
+              "us": 5855.3,
+              "bytes": 1360
+            },
+            {
+              "groups": 1,
+              "us": 6370.8,
+              "bytes": 1360
+            }
+          ]
+        },
+        "flat-2": {
+          "release": [
+            {
+              "groups": 2,
+              "us": 15244.2,
+              "bytes": 11848
+            },
+            {
+              "groups": 2,
+              "us": 15920.4,
+              "bytes": 5656
+            },
+            {
+              "groups": 2,
+              "us": 15230.7,
+              "bytes": 5656
+            },
+            {
+              "groups": 2,
+              "us": 15192.2,
+              "bytes": 5656
+            },
+            {
+              "groups": 2,
+              "us": 15137.4,
+              "bytes": 11848
+            }
+          ],
+          "rust": [
+            {
+              "groups": 2,
+              "us": 9261.9,
+              "bytes": 2632
+            },
+            {
+              "groups": 2,
+              "us": 9056.2,
+              "bytes": 2632
+            },
+            {
+              "groups": 2,
+              "us": 9317,
+              "bytes": 2632
+            },
+            {
+              "groups": 2,
+              "us": 8779.8,
+              "bytes": 2632
+            },
+            {
+              "groups": 2,
+              "us": 8605.4,
+              "bytes": 2632
+            }
+          ]
+        },
+        "tree-8": {
+          "release": [
+            {
+              "groups": 1,
+              "us": 18689.7,
+              "bytes": 26248
+            },
+            {
+              "groups": 1,
+              "us": 18395.4,
+              "bytes": 20056
+            },
+            {
+              "groups": 1,
+              "us": 19073.4,
+              "bytes": 20056
+            },
+            {
+              "groups": 1,
+              "us": 20992.2,
+              "bytes": 20056
+            },
+            {
+              "groups": 1,
+              "us": 18925.9,
+              "bytes": 26248
+            }
+          ],
+          "rust": [
+            {
+              "groups": 1,
+              "us": 10163.4,
+              "bytes": 7856
+            },
+            {
+              "groups": 1,
+              "us": 10027.3,
+              "bytes": 7856
+            },
+            {
+              "groups": 1,
+              "us": 10219.3,
+              "bytes": 7856
+            },
+            {
+              "groups": 1,
+              "us": 10159.8,
+              "bytes": 7856
+            },
+            {
+              "groups": 1,
+              "us": 9997.7,
+              "bytes": 7856
+            }
+          ]
+        },
+        "chain-64": {
+          "release": [
+            {
+              "groups": 1,
+              "us": 18959.1,
+              "bytes": 250568
+            },
+            {
+              "groups": 1,
+              "us": 19137,
+              "bytes": 250568
+            },
+            {
+              "groups": 1,
+              "us": 19642.1,
+              "bytes": 256760
+            },
+            {
+              "groups": 1,
+              "us": 18954.5,
+              "bytes": 250568
+            },
+            {
+              "groups": 1,
+              "us": 19474.9,
+              "bytes": 256760
+            }
+          ],
+          "rust": [
+            {
+              "groups": 1,
+              "us": 10030.2,
+              "bytes": 43136
+            },
+            {
+              "groups": 1,
+              "us": 9918.7,
+              "bytes": 43136
+            },
+            {
+              "groups": 1,
+              "us": 9902.1,
+              "bytes": 43136
+            },
+            {
+              "groups": 1,
+              "us": 9995.9,
+              "bytes": 43136
+            },
+            {
+              "groups": 1,
+              "us": 9734,
+              "bytes": 43136
+            }
+          ]
+        }
+      },
+      "warmMedians": [
+        {
+          "shape": "flat",
+          "count": 0,
+          "release": {
+            "us": 1.4333333333333333,
+            "bytes": 1600
+          },
+          "rust": {
+            "us": 0.338,
+            "bytes": 360
+          }
+        },
+        {
+          "shape": "flat",
+          "count": 1,
+          "release": {
+            "us": 5.880333333333333,
+            "bytes": 3680
+          },
+          "rust": {
+            "us": 0.834,
+            "bytes": 1000
+          }
+        },
+        {
+          "shape": "flat",
+          "count": 2,
+          "release": {
+            "us": 3.203,
+            "bytes": 4688
+          },
+          "rust": {
+            "us": 1.7016666666666667,
+            "bytes": 1424
+          }
+        },
+        {
+          "shape": "flat",
+          "count": 8,
+          "release": {
+            "us": 14.781666666666666,
+            "bytes": 13968
+          },
+          "rust": {
+            "us": 6.167666666666666,
+            "bytes": 4600
+          }
+        },
+        {
+          "shape": "tree",
+          "count": 2,
+          "release": {
+            "us": 7.376,
+            "bytes": 5512
+          },
+          "rust": {
+            "us": 2.3183333333333334,
+            "bytes": 2016
+          }
+        },
+        {
+          "shape": "tree",
+          "count": 8,
+          "release": {
+            "us": 19.732666666666667,
+            "bytes": 18792
+          },
+          "rust": {
+            "us": 8.671000000000001,
+            "bytes": 6584
+          }
+        },
+        {
+          "shape": "flat",
+          "count": 64,
+          "release": {
+            "us": 65.06333333333333,
+            "bytes": 86760
+          },
+          "rust": {
+            "us": 31.743333333333332,
+            "bytes": 25600
+          }
+        },
+        {
+          "shape": "tree",
+          "count": 64,
+          "release": {
+            "us": 153.03,
+            "bytes": 140512
+          },
+          "rust": {
+            "us": 70.94,
+            "bytes": 41864
+          }
+        },
+        {
+          "shape": "chain",
+          "count": 64,
+          "release": {
+            "us": 240.42333333333332,
+            "bytes": 249304
+          },
+          "rust": {
+            "us": 70.72666666666667,
+            "bytes": 41864
+          }
+        },
+        {
+          "shape": "missing",
+          "count": 64,
+          "release": {
+            "us": 174.75,
+            "bytes": 160368
+          },
+          "rust": {
+            "us": 82.46333333333334,
+            "bytes": 61504
+          }
+        },
+        {
+          "shape": "flat",
+          "count": 512,
+          "release": {
+            "us": 570.4,
+            "bytes": 729088
+          },
+          "rust": {
+            "us": 199.575,
+            "bytes": 230552
+          }
+        },
+        {
+          "shape": "tree",
+          "count": 512,
+          "release": {
+            "us": 1324.5,
+            "bytes": 1179568
+          },
+          "rust": {
+            "us": 408.275,
+            "bytes": 370912
+          }
+        },
+        {
+          "shape": "chain",
+          "count": 512,
+          "release": {
+            "us": 7927.775,
+            "bytes": 8560336
+          },
+          "rust": {
+            "us": 406.825,
+            "bytes": 370912
+          }
+        },
+        {
+          "shape": "chain",
+          "count": 1024,
+          "release": {
+            "us": 28263.25,
+            "bytes": 31309576
+          },
+          "rust": {
+            "us": 1527.65,
+            "bytes": 764784
+          }
+        }
+      ]
+    }
+  }
+}

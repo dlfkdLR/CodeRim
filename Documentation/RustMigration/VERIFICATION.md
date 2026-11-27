@@ -441,3 +441,9 @@ Apple M5 Mac에서 충전기를 분리한 상태로 공개판 v2.1.41과 후보 
 ### iOS Live Activity 푸시 등록
 
 CodeRim이 ActivityKit으로부터 받은 바이트를 한 개의 UTF-8 버퍼에서 소문자 16진수로 바꿔 기존 두 등록 요청에 전달한다. 합성 입력 0~4,096바이트로 시작 토큰과 개별 Activity 토큰 양쪽을 확인했다. 공개판·Swift 호환 빌드·Rust 빌드의 전송 본문과 재시도·취소 이력 738개가 아키텍처별로 일치했다. 같은 Rust 재시도 로직을 쓰는 직전 후보와 비교한 등록 시간 중앙값은 Apple Silicon 43.27→21.92µs, Rosetta 78.67→31.45µs였다. 표준 미서명 arm64 iPhone Release 앱에서 인코더 심볼을 확인했다. 실제 iPhone의 APNs 전송은 미검증이다. [C ABI 경계·기기용 바이너리·등록 비교](verification/2026-11-27/ios-push-token-wire.json)
+
+### Claude 도구·스킬 차트 및 Windows 세션 트리
+
+실제 Claude 활동 스캐너에서 유효한 도구 블록만 임시 저장한다. 마지막 요소가 잘못된 배열은 앞쪽 도구도 집계하지 않는 공개판 동작을 유지한다. Apple Silicon에서 빈 객체 22만 개와 도구 하나를 포함한 레코드의 프로세스 최대 메모리 사용량은 공개판 9.72MB, 최초 Rust 구현 22.00MB, 수정 후보 4.90MB였다. CPU 시간은 각각 60.87ms, 8.99ms, 5.49ms였다. 일반 도구 기록 3,000행에서 공개판은 41.89ms, 수정 후보는 8.97ms였다. 양쪽 아키텍처에서 별도의 입력 1,692개가 만든 상태 1,551개도 비교했다. [스캐너 CPU·메모리 및 독립 상태 재생](verification/2026-11-27/macos-claude-activity-scanner.json)
+
+Windows x64와 ARM64 네이티브 CI에서 각각 WPF 세션 트리 549건·17,885행·예외 4건의 결과가 공개판과 일치했다. 1,024단계 부모 체인의 웜 처리 중앙값은 x64에서 29.14→0.92ms, ARM64에서 28.26→1.53ms였다. 두 환경 모두 관리 힙 할당이 호출당 31,309,576→764,784바이트였다. `517432be`의 CI 10개 작업 중 9개가 통과했고, Intel macOS 작업은 위젯 빌드 도중 20분 실행 제한에 도달했다. [네이티브 Windows 결과와 각 CI 작업](verification/2026-11-27/windows-activity-groups-native.json)
