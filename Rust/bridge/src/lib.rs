@@ -110,6 +110,8 @@ mod window_placement;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod windows_activity_groups;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
+mod windows_activity_refresh;
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod windows_bounded_lines;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux", test))]
 mod windows_claude_event;

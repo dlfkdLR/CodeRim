@@ -391,26 +391,27 @@ internal sealed partial class DashboardStore : INotifyPropertyChanged, IDisposab
     internal void UpdateSessionActivity(IReadOnlyList<SessionActivity> current)
     {
         var previous = Sessions;
-        current = current.Select(item => previous.FirstOrDefault(old => item.Provider == "claude" && old.Id == item.Id && old.Provider == item.Provider
+        var refresh = SessionPresentation.TryPlanActivityRefresh(previous, current);
+        current = refresh?.Sessions ?? current.Select(item => previous.FirstOrDefault(old => item.Provider == "claude" && old.Id == item.Id && old.Provider == item.Provider
             && old.State == item.State && old.ProcessStartedAt == item.ProcessStartedAt) is { } old
                 ? item with { Since = old.Since } : item).ToArray();
         Sessions = current;
         bool Crossed(SessionActivity x, string state, bool includeSubagents) => x.State == state
             && (includeSubagents || x.ParentThreadId is null)
             && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy");
-        var finished = current.Any(x => Crossed(x, "idle", true));
-        var blocked = current.Any(x => Crossed(x, "waiting", true));
+        var finished = refresh?.Finished ?? current.Any(x => Crossed(x, "idle", true));
+        var blocked = refresh?.Blocked ?? current.Any(x => Crossed(x, "waiting", true));
         // A sub-agent's own chime is opt-in; the chat that started it still sounds.
         var includeSubagentSound = settings.Current.SubagentSound;
-        var finishedSound = current.Any(x => Crossed(x, "idle", includeSubagentSound));
-        var blockedSound = current.Any(x => Crossed(x, "waiting", includeSubagentSound));
+        var finishedSound = refresh?.ShouldChimeFinished(includeSubagentSound) ?? current.Any(x => Crossed(x, "idle", includeSubagentSound));
+        var blockedSound = refresh?.ShouldChimeBlocked(includeSubagentSound) ?? current.Any(x => Crossed(x, "waiting", includeSubagentSound));
         if (settings.Current.CompletionSound)
         {
             if (finishedSound) SessionChime.Play(settings.Current.FinishedSound);
             else if (blockedSound) SessionChime.Play(settings.Current.BlockedSound);
         }
         if (finished || blocked)
-            SessionAttentionRequested?.Invoke(current.Where(x => x.State is "idle" or "waiting"
+            SessionAttentionRequested?.Invoke(refresh?.Attention ?? current.Where(x => x.State is "idle" or "waiting"
                 && previous.Any(old => old.Id == x.Id && old.Provider == x.Provider && old.State == "busy"))
                 .OrderByDescending(x => x.Since).First());
         // Publish at the mutation boundary. Every caller, including updates that
