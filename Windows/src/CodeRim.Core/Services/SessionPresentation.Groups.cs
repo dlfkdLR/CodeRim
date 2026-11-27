@@ -20,10 +20,10 @@ public static partial class SessionPresentation
         var parents = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var session in sessions)
         {
-            if (session.Provider != "codex" || session.ParentThreadId is not { } parent || !Guid.TryParseExact(parent, "D", out var parentId)
-                || ThreadKey(parent) == ThreadKey(session.CodexThreadId ?? "")) continue;
-            var rawParent = parent;
-            parent = parentId.ToString("D");
+            if (session.Provider != "codex" || session.ParentThreadId is not { } rawParent
+                || !Guid.TryParseExact(rawParent, "D", out var parentId)) continue;
+            var parent = parentId.ToString("D");
+            if (parent == ThreadKey(session.CodexThreadId ?? "")) continue;
             var thread = (session.Provider, session.RemoteHostId, parent);
             if (!threads.TryGetValue(thread, out var key))
             {
@@ -42,6 +42,12 @@ public static partial class SessionPresentation
         // Preserve the released dictionary traversal and its errors when that introduces an unknown child.
         if (parents.Count == 0 || parents.Keys.All(nodes.ContainsKey)) return DisplayGroups(nodes, parents, context);
 #endif
+        return ManagedDisplayGroups(nodes, parents, context);
+    }
+
+    private static List<ActivityDisplayGroup> ManagedDisplayGroups(Dictionary<string, SessionActivity> nodes,
+        Dictionary<string, string> parents, HashSet<string> context)
+    {
         // Remove one edge of each corrupt cycle deterministically, keeping every task visible.
         foreach (var key in parents.Keys.Order(StringComparer.Ordinal).ToArray())
         {
