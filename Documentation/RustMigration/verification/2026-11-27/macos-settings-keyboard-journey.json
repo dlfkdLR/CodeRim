@@ -364,5 +364,180 @@
       "root-independent-retry-candidate-cold/ready.json": "1cb5c2a91ffc722171d48674eff7f844752df82dc150f3fcdf32b64df7f22561",
       "root-independent-retry-candidate-cold/end.json": "9a833f65ef685865e775d3e3403bbe3fba1c051a025695938048a1e531e89096"
     }
+  },
+  "instrumentedFollowup": {
+    "verdict": "original single candidate cold-reopen failure remains unattributed",
+    "architecture": "Apple Silicon macOS 26.6.2",
+    "publicReference": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+    "candidateProduct": "6976d0ff",
+    "originalFailure": {
+      "lastConfirmedGood": "root-independent-retry-candidate-seed/state-16.json",
+      "firstConfirmedEmpty": "root-independent-retry-candidate-seed/end.json",
+      "timeBetweenMs": 281,
+      "stillPersisted": [
+        "showCachedInput=false",
+        "showLastUpdated=true",
+        "weekStart=2",
+        "numberStyle=compact"
+      ],
+      "fieldEditorCaveat": "The original host encoded both an empty editor and a non-fixture string as the same empty field. Its device value directly represented the suite string (or absent key)."
+    },
+    "sourceReview": {
+      "verifiedSameAcrossVersions": [
+        "MobileConnectionStore.deviceName didSet persists the current string under mobileDeviceName",
+        "MobileConnectionStore initializer reads the saved name including an explicitly empty value",
+        "General Settings TextField binds directly to the shared MobileConnectionStore.deviceName",
+        "The keyboard driver issues only status, AX reads and stop after the reopened capture"
+      ],
+      "mobileProductChangesElsewhere": "Rust export filtering and agent-session ordering in MobileConnectionStore do not assign the device name.",
+      "qaPreferences": "The reporter and MobileConnectionStore use separate UserDefaults objects for the same unique suite. SwiftUI defaultAppStorage uses the same suite. Test collector defaults use a separate per-instance suite."
+    },
+    "controls": {
+      "initial": {
+        "prefs": "QA Desktop",
+        "editor": "QA Desktop"
+      },
+      "externalWrite": {
+        "prefs": "",
+        "editor": "QA Desktop"
+      },
+      "targetedDeletion": {
+        "prefs": "",
+        "editor": ""
+      },
+      "modelPublishedEmptyAfterDeletion": true,
+      "keyClass": "delete",
+      "scope": "unique synthetic UserDefaults domain and one target xctest process",
+      "architecture": "macOS arm64"
+    },
+    "tracedPair": {
+      "steps": [
+        {
+          "step": "seed-usage",
+          "differentFields": [],
+          "axTreesMatch": true
+        },
+        {
+          "step": "seed-general",
+          "differentFields": [],
+          "axTreesMatch": true
+        },
+        {
+          "step": "seed-device-field",
+          "differentFields": [],
+          "axTreesMatch": true
+        },
+        {
+          "step": "renamed",
+          "differentFields": [],
+          "axTreesMatch": true
+        },
+        {
+          "step": "both-off",
+          "differentFields": [],
+          "axTreesMatch": true
+        },
+        {
+          "step": "last-updated-restored",
+          "differentFields": [],
+          "axTreesMatch": true
+        },
+        {
+          "step": "returned-to-usage",
+          "differentFields": [],
+          "axTreesMatch": true
+        },
+        {
+          "step": "general-again",
+          "differentFields": [],
+          "axTreesMatch": true
+        },
+        {
+          "step": "window-closed",
+          "differentFields": [],
+          "axTreesMatch": true
+        },
+        {
+          "step": "window-reopened",
+          "differentFields": [],
+          "axTreesMatch": true
+        },
+        {
+          "step": "cold-usage",
+          "differentFields": [],
+          "axTreesMatch": true
+        },
+        {
+          "step": "cold-general",
+          "differentFields": [],
+          "axTreesMatch": true
+        },
+        {
+          "step": "cold-device-field",
+          "differentFields": [],
+          "axTreesMatch": true
+        },
+        {
+          "step": "cold-restored",
+          "differentFields": [],
+          "axTreesMatch": true
+        }
+      ],
+      "totalNodes": {
+        "released": 805,
+        "candidate": 805
+      },
+      "traceEvents": {
+        "released-seed": {
+          "end": {
+            "prefs": "studio",
+            "persistent": "studio",
+            "editor": "studio"
+          },
+          "traceSHA256": "200a3e8941ce1537d2db1fdf2aa2068ed0d460a889b228c597025eb6afec1680",
+          "localKeyEventsBetweenReopenAndStop": 0,
+          "emptyModelPublishedBetweenReopenAndStop": 0
+        },
+        "released-cold": {
+          "end": {
+            "prefs": "studio",
+            "persistent": "studio",
+            "editor": "studio"
+          },
+          "traceSHA256": "a80616cffefcc80e8b15611e3cc0e994651257944d06c3e6fbf0cb12f68f92f6"
+        },
+        "candidate-seed": {
+          "end": {
+            "prefs": "studio",
+            "persistent": "studio",
+            "editor": "studio"
+          },
+          "traceSHA256": "95b0ba43ffca46f9fb548ea055df1eec2c18ae738a7ef96971d2d657584d4722",
+          "localKeyEventsBetweenReopenAndStop": 0,
+          "emptyModelPublishedBetweenReopenAndStop": 0
+        },
+        "candidate-cold": {
+          "end": {
+            "prefs": "studio",
+            "persistent": "studio",
+            "editor": "studio"
+          },
+          "traceSHA256": "55a36464a797f71d7f9980829e08d21e17f81e3a73c9aed79602a0c82799a1ac"
+        }
+      },
+      "binarySHA256": {
+        "candidate": "353d78dd06328d7b2c7668de5b6e5da54eab904bdfed1f09bcfc041b9eaa7eb1",
+        "released": "7bab4d9e6cd6c61c3a4b00958850c90b4ffcb76f451fdb5de2c69ddd970fb5f8"
+      }
+    },
+    "limits": [
+      "The failing process predates the local event/model observer. Its data does not identify an originating text event or prove that a product path, outside input, or CFPreferences initiated the change.",
+      "A rebuilt test harness adds observational timing; passing traces do not replace the preserved failure."
+    ],
+    "dataBoundary": "Only synthetic text was emitted. Other strings are classified as other. Key events log target-process event class and source PID without characters.",
+    "receipts": {
+      "review.json": "3767be7db2c58ca415d5ce4e32efdbc86fccb205f517702371a70d2036170b7f",
+      "control.json": "17c15a1c1f5919e88319b004111b8a10e9791eb240656c1a473fced3c23cbd75"
+    }
   }
 }

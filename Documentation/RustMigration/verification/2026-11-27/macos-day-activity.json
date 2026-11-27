@@ -1,0 +1,265 @@
+{
+  "scope": "Native Swift host updates the per-day totals by mutating the stored value directly, shared by both normal Codex and Claude Usage Activity scanner paths.",
+  "commit": "97191409e32ad71e71ff295a137ed051f823d487",
+  "previous": "0f6d5b5850a55552b49200edcecb6d72e2533f33",
+  "run_id": "run-9b0181aa826747bb84a4488197c56c9a",
+  "packet_digest": "d277b220566a8e710350a8e00cdc0f89d5adc7ceb6d21627abc886050201f41e",
+  "product_and_qa_files": {
+    "Sources/CodeRim/Domain/ActivityModels.swift": "7a160335673c18bae63ac3f69dd0379c1312dec9d33fedfb4ecb1a0a7a1c1d0b",
+    "Scripts/rust_migration/activity-fields/main.swift": "27f685646898bdd328147049774cfe01fa4468a303e4f49049c31e904eaecdff"
+  },
+  "architectures": {
+    "arm64": {
+      "local_driver": "arm64 25027 3d02db6b98bb3aecd8b85f06a70f4c595feb04459bb9de2c58646d6d1c636eb0",
+      "claude_sequential_states": {
+        "records": 1572,
+        "source_sha256": "c08ca7d8eab33ae22e7797d188396c36271aa9bb84f4e6f1789ccabd1c4952fd",
+        "output_sha256": {
+          "UTC": {
+            "release": "b7136e62f1a80a7734a0989d13b4ea2227f66cef557fdf8146bc1626c6afe7b3",
+            "previous": "b7136e62f1a80a7734a0989d13b4ea2227f66cef557fdf8146bc1626c6afe7b3",
+            "candidate": "b7136e62f1a80a7734a0989d13b4ea2227f66cef557fdf8146bc1626c6afe7b3"
+          },
+          "Australia/Lord_Howe": {
+            "release": "a5f471291bc625ef4d05fbcc1f9dafe084ba959f731ef559e6075fcdd95bd0a5",
+            "previous": "a5f471291bc625ef4d05fbcc1f9dafe084ba959f731ef559e6075fcdd95bd0a5",
+            "candidate": "a5f471291bc625ef4d05fbcc1f9dafe084ba959f731ef559e6075fcdd95bd0a5"
+          },
+          "America/Los_Angeles": {
+            "release": "7fa9b429934b8ae346ecb59c71c4beddf4e1b2a9a92ef735000b7ce5081d2b39",
+            "previous": "7fa9b429934b8ae346ecb59c71c4beddf4e1b2a9a92ef735000b7ce5081d2b39",
+            "candidate": "7fa9b429934b8ae346ecb59c71c4beddf4e1b2a9a92ef735000b7ce5081d2b39"
+          }
+        }
+      },
+      "claude_three_side_cold_cpu_ms": {
+        "plain1": [
+          2.82,
+          1.289,
+          1.258
+        ],
+        "none1500": [
+          10.2,
+          2.517,
+          2.719
+        ],
+        "plain3000": [
+          43.618,
+          9.197,
+          8.757
+        ],
+        "mixed4500": [
+          50.056,
+          11.318,
+          9.952
+        ],
+        "wide1500": [
+          60.84,
+          8.826,
+          8.176
+        ],
+        "escaped1500": [
+          39.569,
+          15.307,
+          14.793
+        ],
+        "blocks500": [
+          25.078,
+          5.821,
+          5.629
+        ]
+      },
+      "claude_unique_tools_and_skills_ms": {
+        "three1000": {
+          "previous": 4.273,
+          "candidate": 3.909
+        },
+        "unique256": {
+          "previous": 2.57,
+          "candidate": 2.442
+        },
+        "unique1024": {
+          "previous": 6.338,
+          "candidate": 4.447
+        },
+        "unique4096": {
+          "previous": 40.847,
+          "candidate": 16.067
+        },
+        "skills4096": {
+          "previous": 42.341,
+          "candidate": 17.416
+        }
+      },
+      "codex_tools_and_skills_ms": {
+        "800": {
+          "previous": 1.865,
+          "candidate": 1.597
+        },
+        "256": {
+          "previous": 1.867,
+          "candidate": 1.546
+        },
+        "1024": {
+          "previous": 8.969,
+          "candidate": 3.138
+        },
+        "4096": {
+          "previous": 92.824,
+          "candidate": 8.779
+        }
+      }
+    },
+    "x86_64": {
+      "local_driver": "x86_64 25027 3d02db6b98bb3aecd8b85f06a70f4c595feb04459bb9de2c58646d6d1c636eb0",
+      "claude_sequential_states": {
+        "records": 1572,
+        "source_sha256": "c08ca7d8eab33ae22e7797d188396c36271aa9bb84f4e6f1789ccabd1c4952fd",
+        "output_sha256": {
+          "UTC": {
+            "release": "b7136e62f1a80a7734a0989d13b4ea2227f66cef557fdf8146bc1626c6afe7b3",
+            "previous": "b7136e62f1a80a7734a0989d13b4ea2227f66cef557fdf8146bc1626c6afe7b3",
+            "candidate": "b7136e62f1a80a7734a0989d13b4ea2227f66cef557fdf8146bc1626c6afe7b3"
+          },
+          "Australia/Lord_Howe": {
+            "release": "a5f471291bc625ef4d05fbcc1f9dafe084ba959f731ef559e6075fcdd95bd0a5",
+            "previous": "a5f471291bc625ef4d05fbcc1f9dafe084ba959f731ef559e6075fcdd95bd0a5",
+            "candidate": "a5f471291bc625ef4d05fbcc1f9dafe084ba959f731ef559e6075fcdd95bd0a5"
+          },
+          "America/Los_Angeles": {
+            "release": "7fa9b429934b8ae346ecb59c71c4beddf4e1b2a9a92ef735000b7ce5081d2b39",
+            "previous": "7fa9b429934b8ae346ecb59c71c4beddf4e1b2a9a92ef735000b7ce5081d2b39",
+            "candidate": "7fa9b429934b8ae346ecb59c71c4beddf4e1b2a9a92ef735000b7ce5081d2b39"
+          }
+        }
+      },
+      "claude_three_side_cold_cpu_ms": {
+        "plain1": [
+          6.088,
+          3.355,
+          3.289
+        ],
+        "none1500": [
+          19.43,
+          5.426,
+          5.755
+        ],
+        "plain3000": [
+          97.83,
+          20.374,
+          18.739
+        ],
+        "mixed4500": [
+          124.989,
+          27.433,
+          21.525
+        ],
+        "wide1500": [
+          125.982,
+          15.139,
+          14.871
+        ],
+        "escaped1500": [
+          92.048,
+          24.956,
+          20.851
+        ],
+        "blocks500": [
+          49.413,
+          10.675,
+          10.065
+        ]
+      },
+      "claude_unique_tools_and_skills_ms": {
+        "three1000": {
+          "previous": 7.07,
+          "candidate": 7.504
+        },
+        "unique256": {
+          "previous": 4.035,
+          "candidate": 3.902
+        },
+        "unique1024": {
+          "previous": 10.791,
+          "candidate": 7.713
+        },
+        "unique4096": {
+          "previous": 77.199,
+          "candidate": 27.914
+        },
+        "skills4096": {
+          "previous": 68.528,
+          "candidate": 24.794
+        }
+      },
+      "codex_tools_and_skills_ms": {
+        "800": {
+          "previous": 3.826,
+          "candidate": 3.328
+        },
+        "256": {
+          "previous": 4.227,
+          "candidate": 3.539
+        },
+        "1024": {
+          "previous": 16.108,
+          "candidate": 5.814
+        },
+        "4096": {
+          "previous": 178.834,
+          "candidate": 17.215
+        }
+      }
+    }
+  },
+  "limits": [
+    "Local macOS native on arm64 and Rosetta x86_64. No actual external user profile, battery reading or UI repaint.",
+    "Whole-scanner seven matched fresh-process samples per case: wall and CPU have run-to-run variation. Raw receipts retain small or mixed results.",
+    "No Rust ABI was added: the prior independently validated production archive and product parser are identical; the optimized copy was on the Swift storage boundary."
+  ],
+  "evidence": {
+    "main.swift": "ce094fd0db15c6f2b627ee36aa049bc0b43b0941577fd9498a2b6d8d164f6e29",
+    "fixtures.py": "5da6ee6a768ea9fc9fcf83a07ad9b0b132d1f074ff0d8361455fe2c2a299d621",
+    "day-dictionary.py": "0996792d527f0abfc6c931d3d9a810bfba08902d7aeac376db03b36b5cc3fd15",
+    "codex-days.py": "f2c5b6aeb32a54c920dbf4fdd0605d8e861b793df9cf12c4331d13beef2afb95",
+    "build.py": "8d78bbaba4d76da9e5fedc89ae2dcde50f68f28976e087596b0fa43f8bc00c33",
+    "build-codex.py": "9757ba87416388a1c5ab17e3a10f8cbc9e926f7d68ec850dba44f071e93987dd",
+    "codex-main/main.swift": "1eb3eb0c6f5cfe6659115885785c7d18ad44d07517780d517d57b3800df3eb58",
+    "day-dictionary.json": "b491a5a2f75f4f190953930f6c01da2ca88fb913aea351366390f2cc8a3ea994",
+    "codex-days.json": "58b78d3df737ae26b2e84c98ddd6e0a430691f5001849dc3d359dad22daa96e9",
+    "arm64-timing.json": "17035e96165dd2265a3bb3c0bc9a9f2f54bf952ffbe950beac5fc0f470ff3cea",
+    "x86_64-timing.json": "a0ff0080608ec614f0323629572e70613b9c6e3f0de5f34039b40d17f1d9d1c5",
+    "arm64-parity.json": "577520df2588c1d9da16ac9432c7d5ee259ef2d2015c815eaae6b623b9c5f3d3",
+    "x86_64-parity.json": "577520df2588c1d9da16ac9432c7d5ee259ef2d2015c815eaae6b623b9c5f3d3",
+    "candidate.patch": "da5e0649608d9629c55e32c497c836c330ab0ee0c85c21229908ba88cafdf93b",
+    "packet.json": "aecfa3c6ab81be3bc59b863ac9ba6273367219e154ecdef55ca4bf8624e31e58",
+    "independent.json": "7dd68d624befbcbfb589a75e8e220b27f627d173a155143036074568e883a553",
+    "gate.json": "ca3402dee0c592b04e8907fc94e709c35d11053d9749ce35db085448c8b2321a",
+    "summary.json": "b0372d842b08f9af5d1e123c33969ba766e41a18286b20c86c7743134ee55aed",
+    "import.json": "3df7181b7cecebe41787425c3c0a1beeaa40e65b86ac2f0aa0f0ce29313e34d7"
+  },
+  "formal_gate": "INCONCLUSIVE",
+  "integratedCommit": "4d04aa16cc6660f119d0366b00508ed7bf9186a7",
+  "independentReplay": {
+    "sourceFiles": {
+      "v2.1.41": "499d7905327c3dde5fa7d0cd9f49f2e75e41084c6956f71f4dfaf2e37df5720d",
+      "97191409^": "2324405f796b6cd6ddf5b1757bae49c13f4d5f146821dd87d46a709a7371d6ee",
+      "97191409": "7a160335673c18bae63ac3f69dd0379c1312dec9d33fedfb4ecb1a0a7a1c1d0b"
+    },
+    "architectures": {
+      "arm64": {
+        "steps": 435,
+        "slotsPerStep": 9,
+        "distinctSnapshotHashes": 271,
+        "outputSha256": "abebdc4f87f47fd7d9a4938720c4de99511861da369afc863c5b92bc5fedcfb8"
+      },
+      "x86_64": {
+        "steps": 435,
+        "slotsPerStep": 9,
+        "distinctSnapshotHashes": 271,
+        "outputSha256": "abebdc4f87f47fd7d9a4938720c4de99511861da369afc863c5b92bc5fedcfb8"
+      }
+    },
+    "driverSha256": "4cd1478051d16fad8a9a981c57f2026b6f049c031ca2de192fc84cc04e2bad7c"
+  }
+}

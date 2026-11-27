@@ -1461,5 +1461,186 @@
     "sha256": "911d3185fc62df6c7b2bea5c20613674c818ebbe6b32df13cca5e951078a401b",
     "receiptSha256": "42b878ac9d8018d99f61709a2b6d9b2fd6749cf15b318f17a74dac06164f8b87",
     "scope": "The portable version of the acquisition driver independently completed a real 72-second candidate cycle after the comparison and reproduced the identical schema, events and checkpoint. This additional run is excluded from the paired measurements."
+  },
+  "wakeupFollowup": {
+    "startUTC": "2026-11-27T00:48:48.938475+00:00",
+    "endUTC": "2026-11-27T00:57:54.310096+00:00",
+    "initialWarmupSeconds": 62,
+    "durationSeconds": 72,
+    "periods": [
+      {
+        "index": 0,
+        "version": "candidate",
+        "seconds": 76.396,
+        "interruptWakeups": 1562,
+        "byTwelveSeconds": [
+          341,
+          246,
+          138,
+          369,
+          201,
+          267
+        ],
+        "processEnergyJ": 0.714553,
+        "processCpuMs": 1381.998,
+        "packageIdleWakeups": 0,
+        "compilerCpuPct": [
+          30.1,
+          80.6,
+          82.6,
+          47.2,
+          0,
+          0,
+          26.4
+        ],
+        "totalMachineCpuPct": [
+          686.9,
+          798.3,
+          799.0,
+          401.0,
+          428.2,
+          575.7,
+          654.4
+        ]
+      },
+      {
+        "index": 1,
+        "version": "public",
+        "seconds": 72.217,
+        "interruptWakeups": 634,
+        "byTwelveSeconds": [
+          63,
+          225,
+          58,
+          164,
+          57,
+          67
+        ],
+        "processEnergyJ": 0.842225,
+        "processCpuMs": 1018.348,
+        "packageIdleWakeups": 0,
+        "compilerCpuPct": [
+          96.3,
+          99.2,
+          28.7,
+          5.5,
+          0,
+          22.7,
+          0
+        ],
+        "totalMachineCpuPct": [
+          342.7,
+          343.7,
+          374.1,
+          428.5,
+          442.6,
+          827.9,
+          521.1
+        ]
+      },
+      {
+        "index": 2,
+        "version": "public",
+        "seconds": 72.248,
+        "interruptWakeups": 853,
+        "byTwelveSeconds": [
+          67,
+          64,
+          425,
+          64,
+          64,
+          169
+        ],
+        "processEnergyJ": 1.099247,
+        "processCpuMs": 1456.004,
+        "packageIdleWakeups": 50,
+        "compilerCpuPct": [
+          91.2,
+          0,
+          0,
+          0,
+          0,
+          69.9,
+          0
+        ],
+        "totalMachineCpuPct": [
+          667.4,
+          370.9,
+          286.0,
+          164.0,
+          304.5,
+          265.8,
+          191.0
+        ]
+      },
+      {
+        "index": 3,
+        "version": "candidate",
+        "seconds": 72.214,
+        "interruptWakeups": 522,
+        "byTwelveSeconds": [
+          137,
+          56,
+          144,
+          64,
+          60,
+          61
+        ],
+        "processEnergyJ": 0.170328,
+        "processCpuMs": 341.63,
+        "packageIdleWakeups": 26,
+        "compilerCpuPct": [
+          88.3,
+          0,
+          0,
+          7.3,
+          0,
+          0,
+          0
+        ],
+        "totalMachineCpuPct": [
+          258.8,
+          374.5,
+          343.2,
+          315.8,
+          341.1,
+          297.5,
+          272.3
+        ]
+      }
+    ],
+    "unlockedSamplesWithOneVisibleNotch": 28,
+    "matchingDatabaseRuns": 4,
+    "database": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "5e239a28b0a73b214edd6e80e69d11d1fac030cde3b2d5925cd0d1cd48490cc6",
+          2
+        ],
+        [
+          "43df1eff4ed21de9b23a9e619382ef395d7dd8772a880d71c2533b57950207ad",
+          5
+        ],
+        [
+          "e75c0fa7734728030e91f32ded78d9a349fbbb40ec0ed7fb18bb4ced0f4bdffc",
+          5
+        ],
+        [
+          "2e0bc91572529ee1acf3ba993c39ff2077bcad5115848a4c70c810d735561c60",
+          5
+        ]
+      ],
+      "watermarks": [
+        17
+      ],
+      "offsets": [
+        1200
+      ]
+    },
+    "trialSha256": "7271bcf9309d6369e4a16b2f092ba1bf1b2540c9d8ffdb676c0d201b6613aca8",
+    "driverSha256": "7ca13314697fffce518446372cc609b241bbea79d85441f9c34322c99052d983",
+    "interpretation": "Wakeups moved in opposite directions across the two adjacent pairs. Compiler load occurred in all four windows. Startup timing does not explain all of the variation. No whole-device energy or wakeup improvement is established."
   }
 }
