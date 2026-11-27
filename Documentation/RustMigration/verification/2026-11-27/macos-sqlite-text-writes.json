@@ -1,0 +1,471 @@
+{
+  "scope": "The real Swift actor serializes SQLite text fields using the shared Rust transient binder. SQL NULL and empty string are distinct. Input storage is borrowed only for the call.",
+  "integratedProduct": "2f5b8383c9db22f0a918284dadedbe3b43ccdbe5",
+  "integratedQA": "8060a48cf322831f2b9a3d8ffabf9459117863a9",
+  "independentReviewSha256": "02b0b40939eccd341dacba38acd0785beac5268b308ecad35a12ee14d801954e",
+  "independent": {
+    "run_id": "run-90b64abf8d6b48748114ac5ffb6242e6",
+    "packet_digest": "a9028b4c938d9f98075d500eb31501029964f34c96add4665a97480ded2fd71d",
+    "packet_file_sha256": "3b4f444422a6f31971c44edf81f2de1bf4121adaf92c7e81652489d4fc2288ef",
+    "reviewer": "windows_install",
+    "public": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+    "previous": "b2b398be76beb47656adc9872b9d7dc29ae8bc84",
+    "candidate": "b08ae5e30a933d2eed077f9652188e8620a375e6",
+    "verifiedProductBlobs": 8,
+    "archiveSha256": "c058b1919ea255cf993645015180c88cdcb599ff1e9310db7cec06749e74e172",
+    "dimensions": {
+      "functionality": {
+        "winner": "TIE",
+        "reason": "Three independently built schema-18 writers produced identical typed SQL field bytes, errors, prior-row recovery and cross-version reads.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "candidate/Sources/CodeRim/Persistence/SQLiteDatabase.swift"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "The released schema, stable identity and user-visible statement/step errors agree across the three variants.",
+        "evidence": [
+          "baseline/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "candidate/Sources/CodeRim/Persistence/SQLiteDatabase.swift"
+        ]
+      },
+      "security": {
+        "winner": "TIE",
+        "reason": "Length conversion precedes dereference, NUL is rejected before binding, nil remains SQL NULL, and SQLITE_TRANSIENT copied bytes survive caller overwrite and free. The raw caller owns an aligned live SQLite statement and readable bytes for the duration of the call.",
+        "evidence": [
+          "candidate/Rust/bridge/src/apple_sqlite.rs",
+          "candidate/Sources/CodeRim/Persistence/SQLiteDatabase.swift"
+        ]
+      },
+      "maintainability": {
+        "winner": "A",
+        "reason": "The new shared binder removes duplicated validation and transient lifetime handling from the existing retained cursor.",
+        "evidence": [
+          "candidate/Rust/bridge/src/apple_sqlite.rs",
+          "candidate/Rust/bridge/src/sqlite_checkpoint.rs"
+        ]
+      },
+      "scope": {
+        "winner": "TIE",
+        "reason": "Only the Apple SQLite binding, reusable statement refactor, header and guarded Swift call have different product blobs.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "candidate/Rust/bridge/src/sqlite_checkpoint.rs"
+        ]
+      },
+      "performance": {
+        "winner": "A",
+        "reason": "The copied production method reduced CPU for all measured nonnil strings on both ISAs. Large actual checkpoint writes improved substantially. Small whole-transaction medians varied; the extra serial sample measures this variability.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Persistence/SQLiteDatabase.swift",
+          "candidate/Rust/bridge/src/apple_sqlite.rs"
+        ]
+      }
+    },
+    "direct": {
+      "arm64": {
+        "rows": 1025,
+        "checks": 12987,
+        "sqlite": "3.51.0"
+      },
+      "x86_64": {
+        "rows": 1025,
+        "checks": 12987,
+        "sqlite": "3.51.0"
+      }
+    },
+    "realDatabase": {
+      "arm64": {
+        "receiptSha256": "5db42103613b03ac9486edbd6c3ee8444f7880fec73cf12c6082f41b09093b72",
+        "schema": 18,
+        "freshDatabaseWriters": 3,
+        "readPairs": [
+          [
+            "release",
+            "release"
+          ],
+          [
+            "release",
+            "previous"
+          ],
+          [
+            "release",
+            "candidate"
+          ],
+          [
+            "previous",
+            "release"
+          ],
+          [
+            "previous",
+            "previous"
+          ],
+          [
+            "previous",
+            "candidate"
+          ],
+          [
+            "candidate",
+            "release"
+          ],
+          [
+            "candidate",
+            "previous"
+          ],
+          [
+            "candidate",
+            "candidate"
+          ]
+        ],
+        "outputSha256": "5faa8885f37dba59c0c0292cf25aa0c5cb3f26f27dba891685524e0598ff6664",
+        "tableContentSha256": "b393afacb525b42ef70d536cda8752080c98df110df1aea569b1ac5e62ddb1f1",
+        "perTableRows": {
+          "parsing_state": 9,
+          "partial_evidence": 9,
+          "session_metadata": 3
+        },
+        "cpuNsPerCommitMedians": {
+          "ascii": {
+            "previous": 393758.3333333333,
+            "candidate": 404191.6666666667
+          },
+          "nonASCII": {
+            "previous": 468783.3333333333,
+            "candidate": 492933.3333333333
+          },
+          "long": {
+            "previous": 3319708.3333333335,
+            "candidate": 826675.0
+          },
+          "empty": {
+            "previous": 477058.3333333333,
+            "candidate": 447625.0
+          }
+        }
+      },
+      "x86_64": {
+        "receiptSha256": "9b3d607b61eb15dd0ada6fb59b17dbbad52d4e043f3f2b56e92a23c728b3aa3a",
+        "schema": 18,
+        "freshDatabaseWriters": 3,
+        "readPairs": [
+          [
+            "release",
+            "release"
+          ],
+          [
+            "release",
+            "previous"
+          ],
+          [
+            "release",
+            "candidate"
+          ],
+          [
+            "previous",
+            "release"
+          ],
+          [
+            "previous",
+            "previous"
+          ],
+          [
+            "previous",
+            "candidate"
+          ],
+          [
+            "candidate",
+            "release"
+          ],
+          [
+            "candidate",
+            "previous"
+          ],
+          [
+            "candidate",
+            "candidate"
+          ]
+        ],
+        "outputSha256": "5faa8885f37dba59c0c0292cf25aa0c5cb3f26f27dba891685524e0598ff6664",
+        "tableContentSha256": "b393afacb525b42ef70d536cda8752080c98df110df1aea569b1ac5e62ddb1f1",
+        "perTableRows": {
+          "parsing_state": 9,
+          "partial_evidence": 9,
+          "session_metadata": 3
+        },
+        "cpuNsPerCommitMedians": {
+          "ascii": {
+            "previous": 702583.3333333334,
+            "candidate": 585608.3333333334
+          },
+          "nonASCII": {
+            "previous": 580358.3333333334,
+            "candidate": 572275.0
+          },
+          "long": {
+            "previous": 4766358.333333333,
+            "candidate": 1017241.6666666666
+          },
+          "empty": {
+            "previous": 495066.6666666667,
+            "candidate": 440941.6666666667
+          }
+        }
+      }
+    },
+    "isolatedBindingMediansNs": {
+      "arm64": {
+        "null": {
+          "previous": 5.44,
+          "candidate": 5.42
+        },
+        "empty": {
+          "previous": 76.12,
+          "candidate": 22.3
+        },
+        "ascii": {
+          "previous": 199.4,
+          "candidate": 23.08
+        },
+        "nonASCII": {
+          "previous": 573.34,
+          "candidate": 24.8
+        },
+        "long": {
+          "previous": 245412.8,
+          "candidate": 361.2
+        }
+      },
+      "x86_64": {
+        "null": {
+          "previous": 8.92,
+          "candidate": 7.24
+        },
+        "empty": {
+          "previous": 150.12,
+          "candidate": 40.96
+        },
+        "ascii": {
+          "previous": 384.28,
+          "candidate": 39.68
+        },
+        "nonASCII": {
+          "previous": 953.76,
+          "candidate": 45.82
+        },
+        "long": {
+          "previous": 597494.0,
+          "candidate": 528.0
+        }
+      }
+    },
+    "serialShortFullTransactionArm64": {
+      "ascii": {
+        "mediansUs": {
+          "previous": 287.18333333333334,
+          "candidate": 292.1
+        },
+        "medianPairedPercentChange": -0.020829572438307853
+      },
+      "nonASCII": {
+        "mediansUs": {
+          "previous": 302.8625,
+          "candidate": 302.76666666666665
+        },
+        "medianPairedPercentChange": -5.540910802633469
+      },
+      "empty": {
+        "mediansUs": {
+          "previous": 301.24583333333334,
+          "candidate": 298.03333333333336
+        },
+        "medianPairedPercentChange": -0.23247988743079206
+      }
+    },
+    "drivers": {
+      "main.swift": "6038f278af1620fcbf63a68b62983947c8ecf94be67bdd09ee6f41f29d87a3f4",
+      "build.py": "207563ac15f4e838247e302b0918d4be2b5e32c73e1e63125865519ebdb372f2",
+      "compare.py": "90cfb9421b71646f2a8f5baf4a6e6a4584908e9503476ecf787a3b1702da7f53",
+      "abi.c": "f8e169d29e0aa78e467d7ce8cf0be11bde9b270c2d606d2559cc620164e9ff85",
+      "short.py": "338197c0d2d1d3610ed296991ed61c76782813119abc0a2613c297dc1e4f20bc",
+      "micro.py": "4b7bac022d93c963b9ed22343d3ef87deac2819df15ddb4215ac234c99cadd3f"
+    },
+    "host": "macOS native Apple Silicon and x86_64 via Rosetta, independently compiled Swift and C, synthetic data",
+    "notes": [
+      "Managed production SQL results compare native SQLite types and serialized byte values. Per-write wall timestamps in two updated_at columns are excluded. Tested cross-reads separately in each architecture.",
+      "CPU is process CPU per operation; direct binding timing uses the verbatim shipped or candidate Swift method on a prepared system SQLite statement; full commit benchmarks use the real actor and DB on disk.",
+      "On initial arm64 whole-commit trials, 3-byte ASCII and nonASCII sample medians were slower by 10 and 24 microseconds. The independent 15-pair sequential repeat produced median paired changes of -0.02% and -5.54%. Small whole-transaction speedups are not claimed."
+    ]
+  },
+  "formalGate": {
+    "run_id": "run-90b64abf8d6b48748114ac5ffb6242e6",
+    "decision": "INCONCLUSIVE",
+    "candidate_hash": "151eaf475cc56bf294366b66c730cce1f04d34965faa9e01e6df13a5fefaaf2c",
+    "gate_order": [
+      "SECURITY",
+      "FACTUAL",
+      "CONTENT",
+      "FUNCTIONAL",
+      "ACCESSIBILITY",
+      "RESPONSIVE",
+      "VISUAL_UX",
+      "CODE_QUALITY",
+      "PERFORMANCE"
+    ],
+    "blockers": [],
+    "missing_evidence": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "improved": false,
+    "regression_ready": false,
+    "dimensions": {},
+    "time": "2026-11-27T00:24:40.909319+00:00"
+  },
+  "actorCommitTimings": {
+    "arm64": {
+      "samplesSha256": "5741dd3eb787eca469b88c88ea1e0a3fa17e2055a1a5e04e32c6f9bfd217393b",
+      "medianUs": {
+        "short": {
+          "public": {
+            "cpu": 261.63,
+            "wall": 260.762
+          },
+          "previous": {
+            "cpu": 264.19,
+            "wall": 265.758
+          },
+          "candidate": {
+            "cpu": 256.955,
+            "wall": 256.427
+          }
+        },
+        "uuid": {
+          "public": {
+            "cpu": 262.315,
+            "wall": 260.493
+          },
+          "previous": {
+            "cpu": 254.505,
+            "wall": 252.346
+          },
+          "candidate": {
+            "cpu": 242.85,
+            "wall": 240.976
+          }
+        },
+        "path": {
+          "public": {
+            "cpu": 296.32,
+            "wall": 296.051
+          },
+          "previous": {
+            "cpu": 294.465,
+            "wall": 291.926
+          },
+          "candidate": {
+            "cpu": 251.505,
+            "wall": 249.419
+          }
+        },
+        "large": {
+          "public": {
+            "cpu": 1530.0,
+            "wall": 1564.042
+          },
+          "previous": {
+            "cpu": 1496.825,
+            "wall": 1535.853
+          },
+          "candidate": {
+            "cpu": 283.617,
+            "wall": 284.214
+          }
+        }
+      },
+      "integratedABICheck": {
+        "actions": 624,
+        "checkpointWrites": {
+          "persisted": 80,
+          "sha256": "09019b3ab52d91b4034cc155c04ba708bcb8fe52635828edcb6373c627907536",
+          "writes": 113
+        },
+        "reopened_keys": 389,
+        "sha256": "a3e9c8db26b70aadcfd144f1e9efe473a24429c35c1fe73a7aa0dc12e3e8da5b"
+      }
+    },
+    "x86_64": {
+      "samplesSha256": "a945db26de58ffa68007e311303a540a5779b31ba3c5924221d0d7852f52b6cb",
+      "medianUs": {
+        "short": {
+          "public": {
+            "cpu": 319.72,
+            "wall": 319.091
+          },
+          "previous": {
+            "cpu": 329.985,
+            "wall": 326.888
+          },
+          "candidate": {
+            "cpu": 329.4,
+            "wall": 331.842
+          }
+        },
+        "uuid": {
+          "public": {
+            "cpu": 295.73,
+            "wall": 289.319
+          },
+          "previous": {
+            "cpu": 292.13,
+            "wall": 284.717
+          },
+          "candidate": {
+            "cpu": 279.47,
+            "wall": 269.29
+          }
+        },
+        "path": {
+          "public": {
+            "cpu": 348.305,
+            "wall": 340.921
+          },
+          "previous": {
+            "cpu": 379.85,
+            "wall": 377.28
+          },
+          "candidate": {
+            "cpu": 309.525,
+            "wall": 303.633
+          }
+        },
+        "large": {
+          "public": {
+            "cpu": 1868.075,
+            "wall": 1892.462
+          },
+          "previous": {
+            "cpu": 1824.033,
+            "wall": 1830.739
+          },
+          "candidate": {
+            "cpu": 329.675,
+            "wall": 321.956
+          }
+        }
+      },
+      "integratedABICheck": {
+        "actions": 624,
+        "checkpointWrites": {
+          "persisted": 80,
+          "sha256": "09019b3ab52d91b4034cc155c04ba708bcb8fe52635828edcb6373c627907536",
+          "writes": 113
+        },
+        "reopened_keys": 389,
+        "sha256": "a3e9c8db26b70aadcfd144f1e9efe473a24429c35c1fe73a7aa0dc12e3e8da5b"
+      }
+    }
+  },
+  "method": "Seven rotated fresh processes per variant and cohort. Each sample uses 120 large or 200 other actual SQLite transactions. Per-transaction median CPU and elapsed time in microseconds."
+}

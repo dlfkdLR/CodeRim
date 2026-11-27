@@ -1,0 +1,132 @@
+{
+  "bundleID": "dev.codexmeter.CodexMeter",
+  "version": "2.1.41",
+  "installations": {
+    "zip": {
+      "executableSha256": "6b605d2987b8bea064947ed3ef7897685ccad3bbefa54132496fac9cbc025204",
+      "widgetSha256": "c5e10e3fe91e53c5b384aa8ae2bfe96ff97fca9b04dfe4a4377cea9040e2376a",
+      "restartHelperSha256": "2d77fdda2899297bf83694b3418ab7c902d1da1cfe2f10ab420497cb5568bbca",
+      "verifiedRustWidget": true,
+      "version": "CodeRim CLI 2.1.41 (schema 1)",
+      "bytes": 25911181,
+      "packageSha256": "3eaa17f444d7a7d7505af7f7387eedc2e66e6f6fa1bbaef8d0644b306216a463"
+    },
+    "dmg": {
+      "executableSha256": "6b605d2987b8bea064947ed3ef7897685ccad3bbefa54132496fac9cbc025204",
+      "widgetSha256": "c5e10e3fe91e53c5b384aa8ae2bfe96ff97fca9b04dfe4a4377cea9040e2376a",
+      "restartHelperSha256": "2d77fdda2899297bf83694b3418ab7c902d1da1cfe2f10ab420497cb5568bbca",
+      "verifiedRustWidget": true,
+      "version": "CodeRim CLI 2.1.41 (schema 1)",
+      "bytes": 29301852,
+      "packageSha256": "f5a256c33fea4b6a876f78e4e03971c690c9f022ee3ad25c09040e482eaf4f2d"
+    }
+  },
+  "product": "555e2e2cf8f71ed31eef5d2ede0d9f0fc17fb069",
+  "scope": "Locally ad-hoc signed Universal 2. App, Widget and helper slices and signatures verified. The production ZIP and mounted DMG installed identical app executables into distinct scratch directories. No distribution signing or notarization was performed.",
+  "upgradeAndRollback": {
+    "bundles": {
+      "reference": {
+        "id": "dev.codexmeter.CodexMeter",
+        "version": "2.1.41",
+        "build": "20141",
+        "executableSha256": "5f4a4b3c2245b578b18110d0a552e8bdbf36d5c5db95b95fe036d30467624d64"
+      },
+      "candidate": {
+        "id": "dev.codexmeter.CodexMeter",
+        "version": "2.1.41",
+        "build": "20141",
+        "executableSha256": "6b605d2987b8bea064947ed3ef7897685ccad3bbefa54132496fac9cbc025204"
+      }
+    },
+    "stable": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ]
+      ],
+      "watermarks": [
+        100
+      ],
+      "offsets": [
+        352
+      ],
+      "version": "reference",
+      "fingerprintPreserved": true
+    },
+    "upgrade": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ]
+      ],
+      "watermarks": [
+        125
+      ],
+      "offsets": [
+        635
+      ],
+      "version": "candidate",
+      "fingerprintPreserved": true
+    },
+    "rollback": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ],
+        [
+          "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+          8
+        ]
+      ],
+      "watermarks": [
+        133
+      ],
+      "offsets": [
+        917
+      ],
+      "version": "reference",
+      "fingerprintPreserved": true
+    },
+    "restoredAndReplayed": {
+      "schema": 18,
+      "integrity": "ok",
+      "events": [
+        [
+          "ad4a0f1af6497a865b091531441b8c207fe11f2cf96b887afe045899be241bd9",
+          100
+        ],
+        [
+          "466f3bd78902d10a71830ec300d95498992fd3561322d2e9e1a2a57764db41ff",
+          25
+        ],
+        [
+          "3e651333010feedcfe766e8875c2d17528514d369da13320255432733c194ea0",
+          8
+        ]
+      ],
+      "watermarks": [
+        133
+      ],
+      "offsets": [
+        917
+      ]
+    }
+  }
+}

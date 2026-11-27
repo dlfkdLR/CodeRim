@@ -421,3 +421,11 @@ d7f5808의 Universal 2 로컬 설치본은 ZIP 25,871,938바이트, DMG 29,255,2
 `b7393845`의 로컬 ZIP·DMG에서는 같은 Universal 2 앱 실행 파일을 확인했다. 설치 파일은 각각 25,904,454바이트와 29,296,858바이트였다. 서명은 로컬 ad-hoc이다. [설치 파일·실행 파일 해시](verification/2026-11-27/macos-b7393845-local-install.json)
 
 `555e2e2c`의 제품 소스 111,245줄 중 Rust는 15,370줄(13.816%)이다. 카운트는 주석과 공백을 포함하고, 기능 완료율은 별도로 평가한다. [언어별 범위와 집계](verification/2026-11-26/production-source-lines.json)
+
+### macOS 활동 스캔, SQLite 쓰기 및 앱 롤백
+
+Codex 활동 스캐너가 10,080행을 처음 읽을 때 Apple Silicon의 CPU 중앙값은 공개판 65.57ms, 직전 후보 17.95ms, 새 후보 11.80ms였다. 공개판·직전·후보에 별도로 생성한 2,940개 레코드를 차례로 넣어 각 행을 읽은 직후의 결과도 비교했다. Apple Silicon과 Rosetta에서 각각 1,839개의 서로 다른 상태가 일치했다. 이미 캐시된 스캔과 극단적으로 조밀한 입력에서는 결과가 일정하지 않았다. [실제 스캐너 결과 및 독립 비교](verification/2026-11-27/macos-codex-activity-scanner.json)
+
+SQLite에 체크포인트를 쓸 때 Swift 문자열의 UTF-8 바이트를 빌려 Rust에서 검증하고 SQLite가 복사하도록 했다. 양쪽 아키텍처에서 각각 별도 C ABI 단언 12,987개와 실제 공개판·직전·후보 간 쓰기·읽기 9개 조합을 검증했다. 긴 유니코드 경로를 포함한 실제 커밋의 CPU 중앙값은 공개판→후보가 Apple Silicon 1,530→284µs, Rosetta 1,868→330µs였다. 짧은 값의 전체 트랜잭션 시간에는 일관된 개선이 없었다. 두 변경 모두 직접 검사를 통과했고, 범용 하네스의 공식 판정은 `INCONCLUSIVE`다. [SQLite 무결성·롤백 및 소요 시간](verification/2026-11-27/macos-sqlite-text-writes.json)
+
+`555e2e2c`의 ZIP(25,911,181바이트)과 DMG(29,301,852바이트)를 각각 임시 경로에 설치했다. 앱·위젯·재시작 도우미의 양쪽 CPU 슬라이스와 서명을 검증했다. 동일한 schema 18을 읽는 공개판→후보→공개판에서 누적 토큰은 100→125→133이었고, 백업 복원 후 다시 수집해도 133이었다. 이 설치 파일은 로컬 ad-hoc 서명을 사용했다. [설치 및 복구 결과](verification/2026-11-27/macos-555e2e2c-local-install.json)

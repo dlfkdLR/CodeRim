@@ -1,0 +1,515 @@
+{
+  "scope": "Complete byte-level Codex activity chart record selection, with existing Foundation calendar, Unicode fallback and common Swift aggregation/traits. The normal UsageActivityScanner.snapshot reaches the compiled function.",
+  "public_release": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "immediate_base": "6976d0ff020f4ff865a6972d90d4ba191e897222",
+  "product_commit": "dbca7a10d7db74ddad36682cea10322b89a364ce",
+  "qa_commit": "80529bd265c0a649efa6427fb5161bcb969affa5",
+  "run_id": "run-3e2708b473814a169e9ae6ee497732c4",
+  "packet_digest": "27d2f816321ebb39c6ac1df4dc5276349fbf123d7a2b7553ff1084619f10df36",
+  "candidate_side": "B",
+  "archive_sha256": "198512cbb1206c604f457469af9830c2aaa3264a1b527ac1ea6f9a00a061b048",
+  "product_and_qa_files": {
+    "Rust/bridge/src/activity_fields.rs": "bd857feca3b67c42d1f116edc57a185d53803df9e3837539b9d41b715ccd35d6",
+    "Rust/bridge/include/coderim_transcript.h": "3d33c3ee4f374b745d94221bfd7753118b9cb64d6fdc01aa9c9a68a092d3c4bb",
+    "Sources/CodeRim/Sources/ActivityLogParser.swift": "aaf84004cf727c88cc2656175372fc406d42fd110923a0769da4f87bf93112a6",
+    "Scripts/rust_migration/activity-fields/main.swift": "7eb3be1637f9566accfe9ff814c2b0723347aa75185d02c5df95fbbab2ad268b"
+  },
+  "architectures": {
+    "arm64": {
+      "external_record_replay": {
+        "records_per_zone": 2604,
+        "output_sha256": {
+          "UTC": "076352a92a9607b37bfe0b0e1076905ec1a3b0980b0d5541c47ac946745d162a",
+          "America/Los_Angeles": "a35b0b46d5bf7498eff422841e6b45cc3c744963331eea535b799ec9f480d93d",
+          "Australia/Lord_Howe": "45d7e9665b7682c522d180719c56bbb264521cb445521098eba00e109b5624a6"
+        }
+      },
+      "optional_swift_mode": {
+        "UTC": {
+          "observations": 2604,
+          "sha256": "076352a92a9607b37bfe0b0e1076905ec1a3b0980b0d5541c47ac946745d162a"
+        },
+        "America/Los_Angeles": {
+          "observations": 2604,
+          "sha256": "a35b0b46d5bf7498eff422841e6b45cc3c744963331eea535b799ec9f480d93d"
+        },
+        "Australia/Lord_Howe": {
+          "observations": 2604,
+          "sha256": "45d7e9665b7682c522d180719c56bbb264521cb445521098eba00e109b5624a6"
+        }
+      },
+      "scanned_pairs": 7,
+      "sides_order": [
+        "public_v2.1.41",
+        "prior_rust_fields",
+        "candidate_codex_record"
+      ],
+      "side_binaries": {
+        "release": "9dc4e35efcea7da59682239838b440edb607a9bb2d0a40f89b613debbc23fbed",
+        "previous": "b5d97635b8990cfd64df1541217c2067c53e7c80735fcb0f5aa15319cf205123",
+        "candidate": "6afc13307560afc734c726a891817c0f3914d1586afc8ae0af516f69e805e679",
+        "optional": "9cc3895abb563565385fa00f46eb7d44cb6daaaa8e59a1c12728c514167dcc3c"
+      },
+      "ci_driver_executed_locally": {
+        "observations": 24903,
+        "sha256": "6ce32de154418fbe71ede39bb72f793aaaeed926e6ee80ae76fc6c558f615b1e"
+      },
+      "snapshots": {
+        "normal0": {
+          "counts_messages_tools_skills": [
+            0,
+            0,
+            0
+          ],
+          "bytes": 1,
+          "cold_cpu_ms": [
+            1.54,
+            1.542,
+            1.42
+          ],
+          "cold_wall_ms": [
+            2.678291,
+            2.037458,
+            3.264333
+          ],
+          "warm_cpu_ms": [
+            0.357,
+            0.339,
+            0.36
+          ]
+        },
+        "normal1": {
+          "counts_messages_tools_skills": [
+            0,
+            0,
+            0
+          ],
+          "bytes": 74,
+          "cold_cpu_ms": [
+            1.439,
+            1.395,
+            1.297
+          ],
+          "cold_wall_ms": [
+            1.866792,
+            1.847,
+            1.917416
+          ],
+          "warm_cpu_ms": [
+            0.314,
+            0.294,
+            0.323
+          ]
+        },
+        "normal600": {
+          "counts_messages_tools_skills": [
+            120,
+            120,
+            120
+          ],
+          "bytes": 54960,
+          "cold_cpu_ms": [
+            6.212,
+            2.201,
+            1.77
+          ],
+          "cold_wall_ms": [
+            6.596416,
+            2.603333,
+            2.043417
+          ],
+          "warm_cpu_ms": [
+            0.243,
+            0.288,
+            0.25
+          ]
+        },
+        "normal10080": {
+          "counts_messages_tools_skills": [
+            2016,
+            2016,
+            2016
+          ],
+          "bytes": 923328,
+          "cold_cpu_ms": [
+            65.574,
+            17.95,
+            11.803
+          ],
+          "cold_wall_ms": [
+            72.98975,
+            20.285625,
+            12.688208
+          ],
+          "warm_cpu_ms": [
+            0.397,
+            0.405,
+            0.35
+          ]
+        },
+        "long2000": {
+          "counts_messages_tools_skills": [
+            400,
+            400,
+            400
+          ],
+          "bytes": 10203200,
+          "cold_cpu_ms": [
+            77.33,
+            8.633,
+            7.452
+          ],
+          "cold_wall_ms": [
+            89.527,
+            10.557125,
+            8.994833
+          ],
+          "warm_cpu_ms": [
+            0.309,
+            0.359,
+            0.336
+          ]
+        },
+        "dense600": {
+          "counts_messages_tools_skills": [
+            120,
+            120,
+            120
+          ],
+          "bytes": 2220360,
+          "cold_cpu_ms": [
+            18.823,
+            4.615,
+            4.318
+          ],
+          "cold_wall_ms": [
+            20.791125,
+            5.113958,
+            5.284125
+          ],
+          "warm_cpu_ms": [
+            0.267,
+            0.261,
+            0.257
+          ]
+        },
+        "escaped600": {
+          "counts_messages_tools_skills": [
+            120,
+            120,
+            120
+          ],
+          "bytes": 55200,
+          "cold_cpu_ms": [
+            6.335,
+            2.399,
+            1.972
+          ],
+          "cold_wall_ms": [
+            6.801541,
+            2.734625,
+            2.210375
+          ],
+          "warm_cpu_ms": [
+            0.252,
+            0.227,
+            0.298
+          ]
+        }
+      },
+      "very_dense_8192_markers_turn_rows_cpu_ms": [
+        50.956,
+        10.725,
+        10.535
+      ]
+    },
+    "x86_64": {
+      "external_record_replay": {
+        "records_per_zone": 2604,
+        "output_sha256": {
+          "UTC": "076352a92a9607b37bfe0b0e1076905ec1a3b0980b0d5541c47ac946745d162a",
+          "America/Los_Angeles": "a35b0b46d5bf7498eff422841e6b45cc3c744963331eea535b799ec9f480d93d",
+          "Australia/Lord_Howe": "45d7e9665b7682c522d180719c56bbb264521cb445521098eba00e109b5624a6"
+        }
+      },
+      "optional_swift_mode": {
+        "UTC": {
+          "observations": 2604,
+          "sha256": "076352a92a9607b37bfe0b0e1076905ec1a3b0980b0d5541c47ac946745d162a"
+        },
+        "America/Los_Angeles": {
+          "observations": 2604,
+          "sha256": "a35b0b46d5bf7498eff422841e6b45cc3c744963331eea535b799ec9f480d93d"
+        },
+        "Australia/Lord_Howe": {
+          "observations": 2604,
+          "sha256": "45d7e9665b7682c522d180719c56bbb264521cb445521098eba00e109b5624a6"
+        }
+      },
+      "scanned_pairs": 7,
+      "sides_order": [
+        "public_v2.1.41",
+        "prior_rust_fields",
+        "candidate_codex_record"
+      ],
+      "side_binaries": {
+        "release": "424d033d485a5e7615d5a57e9702f684f63b14c54a8343b7280ba90b03d34ac0",
+        "previous": "6a2fc885faddb68da9d32dd044686bdfcf5cd6f67b877e6c5256374e33b22f11",
+        "candidate": "8e18502adc423f1a6574a1fbd8e2af6ced48b677ab29d4a96b9659132e7be9f2",
+        "optional": "42ef1f8a37b5cf48bc0797ed7ffc9814fd1883df8026cdae0cb0d7a0f72489a4"
+      },
+      "ci_driver_executed_locally": {
+        "observations": 24903,
+        "sha256": "6ce32de154418fbe71ede39bb72f793aaaeed926e6ee80ae76fc6c558f615b1e"
+      },
+      "snapshots": {
+        "normal0": {
+          "counts_messages_tools_skills": [
+            0,
+            0,
+            0
+          ],
+          "bytes": 1,
+          "cold_cpu_ms": [
+            3.427,
+            3.196,
+            2.912
+          ],
+          "cold_wall_ms": [
+            4.036958,
+            3.785916,
+            3.394583
+          ],
+          "warm_cpu_ms": [
+            0.423,
+            0.485,
+            0.435
+          ]
+        },
+        "normal1": {
+          "counts_messages_tools_skills": [
+            0,
+            0,
+            0
+          ],
+          "bytes": 74,
+          "cold_cpu_ms": [
+            3.139,
+            3.119,
+            3.144
+          ],
+          "cold_wall_ms": [
+            3.788125,
+            3.668083,
+            3.956125
+          ],
+          "warm_cpu_ms": [
+            0.433,
+            0.379,
+            0.437
+          ]
+        },
+        "normal600": {
+          "counts_messages_tools_skills": [
+            120,
+            120,
+            120
+          ],
+          "bytes": 54960,
+          "cold_cpu_ms": [
+            14.397,
+            5.534,
+            4.98
+          ],
+          "cold_wall_ms": [
+            17.058667,
+            6.621459,
+            6.087583
+          ],
+          "warm_cpu_ms": [
+            0.425,
+            0.477,
+            0.47
+          ]
+        },
+        "normal10080": {
+          "counts_messages_tools_skills": [
+            2016,
+            2016,
+            2016
+          ],
+          "bytes": 923328,
+          "cold_cpu_ms": [
+            126.981,
+            38.569,
+            26.527
+          ],
+          "cold_wall_ms": [
+            169.897958,
+            47.099583,
+            30.613875
+          ],
+          "warm_cpu_ms": [
+            0.584,
+            0.59,
+            0.585
+          ]
+        },
+        "long2000": {
+          "counts_messages_tools_skills": [
+            400,
+            400,
+            400
+          ],
+          "bytes": 10203200,
+          "cold_cpu_ms": [
+            123.639,
+            17.92,
+            14.429
+          ],
+          "cold_wall_ms": [
+            154.730792,
+            21.105583,
+            17.216667
+          ],
+          "warm_cpu_ms": [
+            0.488,
+            0.489,
+            0.546
+          ]
+        },
+        "dense600": {
+          "counts_messages_tools_skills": [
+            120,
+            120,
+            120
+          ],
+          "bytes": 2220360,
+          "cold_cpu_ms": [
+            36.175,
+            9.015,
+            9.6
+          ],
+          "cold_wall_ms": [
+            43.956125,
+            11.487125,
+            11.256209
+          ],
+          "warm_cpu_ms": [
+            0.519,
+            0.441,
+            0.439
+          ]
+        },
+        "escaped600": {
+          "counts_messages_tools_skills": [
+            120,
+            120,
+            120
+          ],
+          "bytes": 55200,
+          "cold_cpu_ms": [
+            13.629,
+            5.667,
+            4.727
+          ],
+          "cold_wall_ms": [
+            14.371958,
+            6.638458,
+            5.195584
+          ],
+          "warm_cpu_ms": [
+            0.413,
+            0.493,
+            0.565
+          ]
+        }
+      },
+      "very_dense_8192_markers_turn_rows_cpu_ms": [
+        78.286,
+        15.346,
+        15.726
+      ]
+    }
+  },
+  "bench_method": "Seven alternating/rotating samples per side, fresh local process/actor every run, cold and cache-hit captures. The CPU clock measures the whole process during snapshot; wall and CPU medians are separate. Same byte-identical synthetic files per cohort.",
+  "limits": [
+    "Apple Silicon arm64 native and macOS x86_64 via Rosetta, target macOS 14. Runtimes and benchmarks shared the Mac.",
+    "Actual local parser/UsageActivityScanner and chart values verified. No GUI renderer, physical Intel device, user profile, network service, CI or deployment used.",
+    "Warm snapshots return cached data without parsing; 0/1 row and dense inputs have mixed deltas. For pathological rows with up to 8,192 nested type markers, only turn_context rows pass the upstream filter. Normal vs dense results must be interpreted separately."
+  ],
+  "evidence": {
+    "contract.json": "7857e281c4610432260c7c021c29b70b28cfbbfadc4ae350831a962f766fdd1f",
+    "packet.json": "58ca5d3b34db41347c2c2dda5a73238f3d34cfc9fb9faedae387524ffece542b",
+    "candidate.patch": "add9aeae56ffb06198ee408c9da703b24ca63f203d1409e1b099416280927279",
+    "fixtures.py": "ea99686982b1c8626bdc96251ac23f87d018d67af2c7b7dfbe2c751a2e13eb91",
+    "main.swift": "1eb3eb0c6f5cfe6659115885785c7d18ad44d07517780d517d57b3800df3eb58",
+    "build.py": "551955545f2c3a66b6feee28d76f2ded0f0cb9bf9f857b22fcfc8964bad52f3f",
+    "optional.json": "a918a1772ad9ea7bbaaa7cc03b9a0bcf7f721b7798e752712403843a524531d4",
+    "dense-compare.py": "baa70cc4b4dd0a389d3e966b2cd650e936008baa9f6879f4657262f663ac5236",
+    "arm64-parity.json": "00308b79f4c8d377dc3ee0003dd203f44b4725e828563d8ebc49aa3e430ba6e5",
+    "x86_64-parity.json": "00308b79f4c8d377dc3ee0003dd203f44b4725e828563d8ebc49aa3e430ba6e5",
+    "arm64-timing.json": "9a960f63ab11b89642af7ad1b09fe0db0a28b59ab4ea262e7e6ed147acd6f425",
+    "x86_64-timing.json": "7e66db3e7abd7f9ba0c38b4dbbda68c8dbc974f6a8a1e3bf8012b338a303765e",
+    "arm64-dense.json": "fc9bf49cfe3af261fc97e81f4d137355f3e6650dc34f9326e921432e756b76fc",
+    "x86_64-dense.json": "6f1682d7d2e4afeab88bd8a2620dbe931cad782ab13bbbe778d6a8224005d9f5",
+    "independent.json": "e946d481dac3990ce293cb20e1e0d21bf84826789b2e5dab562de02ac97735e3",
+    "import.json": "3df7181b7cecebe41787425c3c0a1beeaa40e65b86ac2f0aa0f0ce29313e34d7",
+    "gate.json": "b57b385a355cac201629af61043f511d10c5e75ae2c267c7bf6a6e1e9ac5c44d",
+    "summary.json": "1848729dc6d9362f725ff305116520d77917e42d847c865403b2d6cbccc64739"
+  },
+  "formal_gate": {
+    "run_id": "run-3e2708b473814a169e9ae6ee497732c4",
+    "decision": "INCONCLUSIVE",
+    "candidate_hash": "c215faef4b029f08adc13e23700ad674d406976835b59fe16896780bef28671e",
+    "gate_order": [
+      "SECURITY",
+      "FACTUAL",
+      "CONTENT",
+      "FUNCTIONAL",
+      "ACCESSIBILITY",
+      "RESPONSIVE",
+      "VISUAL_UX",
+      "CODE_QUALITY",
+      "PERFORMANCE"
+    ],
+    "blockers": [],
+    "missing_evidence": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "improved": false,
+    "regression_ready": false,
+    "dimensions": {},
+    "time": "2026-11-27T00:18:03.789285+00:00"
+  },
+  "integratedProduct": "da27cc900133b6e70733a7b47607f5335b5aaf78",
+  "integratedQA": "0807b8e3560e18fc58f0853de06c665c01a2372a",
+  "measurementReceiptSha256": "8a66ee56049d967c7df3c14c756eaf76f4a9456243cd9b8d1362d697e80e7b20",
+  "independentReplay": {
+    "inputSha256": "92ce5960c9f056571c6c70880c650669a45ff43215f2694257d765fd1830ec5f",
+    "perArchitecture": {
+      "arm64": {
+        "records": 2940,
+        "distinctStates": 1839,
+        "outputSha256": "90ee39e8f1458f44b74a68b7d05d855a6b00dd6440f79cd2883320cfad7b314d",
+        "binaries": {
+          "release": "9dc4e35efcea7da59682239838b440edb607a9bb2d0a40f89b613debbc23fbed",
+          "previous": "b5d97635b8990cfd64df1541217c2067c53e7c80735fcb0f5aa15319cf205123",
+          "candidate": "6afc13307560afc734c726a891817c0f3914d1586afc8ae0af516f69e805e679"
+        }
+      },
+      "x86_64": {
+        "records": 2940,
+        "distinctStates": 1839,
+        "outputSha256": "90ee39e8f1458f44b74a68b7d05d855a6b00dd6440f79cd2883320cfad7b314d",
+        "binaries": {
+          "release": "424d033d485a5e7615d5a57e9702f684f63b14c54a8343b7280ba90b03d34ac0",
+          "previous": "6a2fc885faddb68da9d32dd044686bdfcf5cd6f67b877e6c5256374e33b22f11",
+          "candidate": "8e18502adc423f1a6574a1fbd8e2af6ced48b677ab29d4a96b9659132e7be9f2"
+        }
+      }
+    }
+  }
+}
