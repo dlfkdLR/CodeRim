@@ -53,6 +53,13 @@ jobs:
             -configuration Release -destination 'generic/platform=iOS' -derivedDataPath "$RUNNER_TEMP/ios-device" \
             -xcconfig iOS/Config/RustMobile.xcconfig CODE_SIGNING_ALLOWED=NO \
             CODERIM_MOBILE_RUST_ARCHIVE="$CARGO_TARGET_DIR/aarch64-apple-ios/release/libcoderim_accounting_bridge.a"
+      - name: Verify the standard iPhone build links the ActivityKit registration encoder
+        run: |
+          xcodebuild build -project iOS/CodeRimMobile.xcodeproj -scheme CodeRimMobile \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/ios-device-default" CODE_SIGNING_ALLOWED=NO
+          app="$RUNNER_TEMP/ios-device-default/Build/Products/Release-iphoneos/CodeRimMobile.app"
+          xcrun nm -j "$app/CodeRimMobile" | grep -Fx '_cr_mobile_push_token_hex'
       - name: Replay opt-in relay quick picker and capture local timings
         run: |
           rustup target add wasm32-unknown-unknown
