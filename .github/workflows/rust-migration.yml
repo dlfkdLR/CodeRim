@@ -315,6 +315,15 @@ jobs:
           name: windows-${{ matrix.arch }}-activity-refresh
           path: windows-${{ matrix.arch }}-activity-refresh.json
           if-no-files-found: error
+      - name: Compare anonymous release selection and startup with the shipped Windows checker
+        run: |
+          $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
+          python Scripts/rust_migration/windows-release-selection/check.py --reference-source .migration-oracle --library "$library" --output "windows-${{ matrix.arch }}-release-selection.json"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windows-${{ matrix.arch }}-release-selection
+          path: windows-${{ matrix.arch }}-release-selection.json
+          if-no-files-found: error
       - name: Compare bounded Windows stream reads with the release
         run: |
           $library = (Resolve-Path 'Rust/target/${{ matrix.target }}/release/coderim_accounting_bridge.dll').Path
