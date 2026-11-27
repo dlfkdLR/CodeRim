@@ -281,7 +281,7 @@ struct CodexActivityParser {
 
     mutating func consume(_ line: Data) {
 #if CODERIM_RUST_ACCOUNTING
-        let (kind, stamp, first, second) = line.withUnsafeBytes { raw in
+        let (kind, day, first, second) = line.withUnsafeBytes { raw -> (Kind, Date?, String?, String?) in
             let bytes = raw.bindMemory(to: UInt8.self)
             let record = cr_codex_activity_record(bytes.baseAddress, bytes.count)
             let kind = Kind(rawValue: record.kind) ?? .ignored
@@ -289,6 +289,15 @@ struct CodexActivityParser {
                 if field.start == -2 { return LogBytes.string(after: marker, in: line)?.value }
                 guard field.start >= 0 else { return nil }
                 return String(decoding: bytes[field.start..<field.end], as: UTF8.self)
+            }
+            let day: Date?
+            switch kind {
+            case .turn, .tool, .message:
+                guard let stamp = value(record.stamp, Self.timestamp), let valid = days.day(of: stamp) else {
+                    return (kind, nil, nil, nil)
+                }
+                day = valid
+            default: day = nil
             }
             var first: String?
             var second: String?
@@ -299,9 +308,10 @@ struct CodexActivityParser {
             case .settings: first = value(record.primary, Self.tier)
             case .turn:
                 first = value(record.primary, Self.model)
-                second = value(record.secondary, Self.effort)
+                if first?.isEmpty == false { second = value(record.secondary, Self.effort) }
             case .tool:
                 first = value(record.primary, Self.name)
+                guard first?.isEmpty == false else { break }
                 if record.secondary.start == -2 { second = skillRead(in: line) }
                 else if record.secondary.start >= 0 {
                     second = String(decoding: bytes[record.secondary.start..<record.secondary.end], as: UTF8.self)
@@ -309,32 +319,38 @@ struct CodexActivityParser {
             case .message: if !isSubagent { first = value(record.primary, Self.text) }
             case .ignored: break
             }
-            return (kind, value(record.stamp, Self.timestamp), first, second)
+            return (kind, day, first, second)
         }
 #else
         let kind: Kind
-        let first: String?
+        if LogBytes.contains(line, Self.sessionMeta) { kind = .metadata }
+        else if LogBytes.contains(line, Self.settings) { kind = .settings }
+        else if LogBytes.contains(line, Self.turnContext) { kind = .turn }
+        else if LogBytes.contains(line, Self.functionCall) || LogBytes.contains(line, Self.customCall) { kind = .tool }
+        else if LogBytes.contains(line, Self.userRole), LogBytes.contains(line, Self.message) { kind = .message }
+        else { return }
+        let day: Date?
+        if kind == .metadata || kind == .settings { day = nil }
+        else {
+            guard let stamp = LogBytes.string(after: Self.timestamp, in: line)?.value, let valid = days.day(of: stamp) else { return }
+            day = valid
+        }
+        var first: String?
         var second: String?
-        if LogBytes.contains(line, Self.sessionMeta) {
-            kind = .metadata
+        switch kind {
+        case .metadata:
             first = LogBytes.string(after: Self.sessionIDKey, in: line)?.value
             second = LogBytes.string(after: Self.parentThread, in: line)?.value
-        } else if LogBytes.contains(line, Self.settings) {
-            kind = .settings
-            first = LogBytes.string(after: Self.tier, in: line)?.value
-        } else if LogBytes.contains(line, Self.turnContext) {
-            kind = .turn
+        case .settings: first = LogBytes.string(after: Self.tier, in: line)?.value
+        case .turn:
             first = LogBytes.string(after: Self.model, in: line)?.value
-            second = LogBytes.string(after: Self.effort, in: line)?.value
-        } else if LogBytes.contains(line, Self.functionCall) || LogBytes.contains(line, Self.customCall) {
-            kind = .tool
+            if first?.isEmpty == false { second = LogBytes.string(after: Self.effort, in: line)?.value }
+        case .tool:
             first = LogBytes.string(after: Self.name, in: line)?.value
             if first?.isEmpty == false { second = skillRead(in: line) }
-        } else if !isSubagent, LogBytes.contains(line, Self.userRole), LogBytes.contains(line, Self.message) {
-            kind = .message
-            first = LogBytes.string(after: Self.text, in: line)?.value
-        } else { return }
-        let stamp = kind == .metadata || kind == .settings ? nil : LogBytes.string(after: Self.timestamp, in: line)?.value
+        case .message: if !isSubagent { first = LogBytes.string(after: Self.text, in: line)?.value }
+        case .ignored: break
+        }
 #endif
         if kind == .metadata {
             rawSessionID = first ?? rawSessionID
@@ -345,7 +361,7 @@ struct CodexActivityParser {
             if let first { tier = first }
             return
         }
-        guard let stamp, let day = days.day(of: stamp), let first else { return }
+        guard let day, let first else { return }
         switch kind {
         case .turn:
             guard !first.isEmpty else { return }
