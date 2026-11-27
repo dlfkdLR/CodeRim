@@ -1,7 +1,7 @@
 //! File-local Codex chart reduction. Message text is inspected transiently.
 //! Only names, counters and the active session's metadata survive a record.
 use super::activity_fields::{Field, codex_record, codex_skill};
-use std::{borrow::Cow, collections::HashMap, ffi::c_void, ptr, rc::Rc, slice};
+use std::{borrow::Cow, collections::HashMap, ffi::c_void, ptr, slice, sync::Arc};
 
 type Day = unsafe extern "C" fn(*mut c_void, *const u8, usize) -> f64;
 type Name = unsafe extern "C" fn(*mut c_void, u8, *const u8, usize, *mut c_void) -> usize;
@@ -13,16 +13,23 @@ type Visit = unsafe extern "C" fn(*mut c_void, u8, f64, usize, Text, i64);
 #[derive(Clone)]
 struct Label {
     identity: usize,
-    spelling: Option<Rc<[u8]>>,
+    spelling: Option<Arc<[u8]>>,
 }
 
-type Counts = HashMap<usize, (Option<Rc<[u8]>>, i64)>;
+// Preserve insertion order when constructing Swift dictionaries. The global
+// chart can observe that order when two days use equivalent Unicode spellings.
+#[derive(Clone, Default)]
+struct Counts {
+    slots: HashMap<usize, usize>,
+    rows: Vec<(Label, i64)>,
+}
 
 fn add(counts: &mut Counts, label: Label) {
-    counts
-        .entry(label.identity)
-        .or_insert((label.spelling, 0))
-        .1 += 1;
+    let slot = counts.slots.entry(label.identity).or_insert_with(|| {
+        counts.rows.push((label, 0));
+        counts.rows.len() - 1
+    });
+    counts.rows[*slot].1 += 1;
 }
 
 #[derive(Clone, Copy)]
@@ -40,7 +47,8 @@ pub struct Session {
     model: Option<Label>,
     tier: Vec<u8>,
     subagent: bool,
-    days: HashMap<u64, [Counts; 3]>,
+    days: HashMap<u64, usize>,
+    day_rows: Vec<(f64, [Counts; 3])>,
     traits: [Counts; 3],
     // Bound the raw-key cache: different tool spellings can fold into a
     // single displayed server. Aggregate maps retain only visible identities.
@@ -70,7 +78,7 @@ impl Host {
         if let Some(label) = cache.get(raw) {
             return label.clone();
         }
-        let mut spelling: Option<Rc<[u8]>> = None;
+        let mut spelling: Option<Arc<[u8]>> = None;
         let slot = (&raw mut spelling).cast();
         let identity =
             unsafe { (self.name)(self.context, kind as u8, raw.as_ptr(), raw.len(), slot) };
@@ -146,6 +154,14 @@ fn person_sent(text: &[u8], host: &Host) -> bool {
 }
 
 impl Session {
+    fn for_day(&mut self, day: f64) -> &mut [Counts; 3] {
+        let slot = self.days.entry(day.to_bits()).or_insert_with(|| {
+            self.day_rows.push((day, Default::default()));
+            self.day_rows.len() - 1
+        });
+        &mut self.day_rows[*slot].1
+    }
+
     fn consume(&mut self, line: &[u8], host: &Host) {
         let record = codex_record(line);
         match record.kind {
@@ -212,21 +228,18 @@ impl Session {
                 else {
                     return;
                 };
-                let counts = self.days.entry(day.to_bits()).or_default();
-                add(
-                    &mut counts[1],
-                    host.label(&mut self.labels, NameKind::Tool, &tool),
-                );
+                let tool = host.label(&mut self.labels, NameKind::Tool, &tool);
                 let skill = if record.secondary.start == -2 {
                     codex_skill(line, |name| Some(name.is_ascii() || host.test(1, name)))
                 } else {
                     record.secondary
                 };
-                if let Some(name) = range(line, &skill) {
-                    add(
-                        &mut counts[2],
-                        host.label(&mut self.labels, NameKind::Raw, name),
-                    );
+                let skill = range(line, &skill)
+                    .map(|name| host.label(&mut self.labels, NameKind::Raw, name));
+                let counts = self.for_day(day);
+                add(&mut counts[1], tool);
+                if let Some(skill) = skill {
+                    add(&mut counts[2], skill);
                 }
             }
             1 if !self.subagent => {
@@ -237,7 +250,7 @@ impl Session {
                         .model
                         .clone()
                         .unwrap_or_else(|| host.label(&mut self.labels, NameKind::Raw, b"Unknown"));
-                    add(&mut self.days.entry(day.to_bits()).or_default()[0], label);
+                    add(&mut self.for_day(day)[0], label);
                 }
             }
             _ => {}
@@ -280,7 +293,7 @@ pub unsafe extern "C" fn cr_codex_activity_label_spelling(
     }
     let value = unsafe { slice::from_raw_parts(bytes, length) };
     unsafe {
-        *slot.cast::<Option<Rc<[u8]>>>() = Some(Rc::from(value));
+        *slot.cast::<Option<Arc<[u8]>>>() = Some(Arc::from(value));
     }
 }
 
@@ -351,25 +364,49 @@ pub unsafe extern "C" fn cr_codex_activity_session_counts(
     visit: Visit,
 ) {
     let emit = |kind: usize, day: f64, counts: &Counts| {
-        for (&identity, (spelling, count)) in counts {
+        for (label, count) in &counts.rows {
             unsafe {
                 visit(
                     context,
                     kind as u8,
                     day,
-                    identity,
-                    Text::borrowed(spelling.as_deref()),
+                    label.identity,
+                    Text::borrowed(label.spelling.as_deref()),
                     *count,
                 );
             }
         }
     };
-    for (&day, groups) in &session.days {
+    for (day, groups) in &session.day_rows {
         for (kind, counts) in groups.iter().enumerate() {
-            emit(kind, f64::from_bits(day), counts);
+            emit(kind, *day, counts);
         }
     }
     for (kind, counts) in session.traits.iter().enumerate() {
         emit(kind + 3, 0.0, counts);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cloned_sessions_can_release_alternate_spellings_on_separate_threads() {
+        let label = Label {
+            identity: 1,
+            spelling: Some(Arc::from("e\u{301}".as_bytes())),
+        };
+        let mut original = Session::default();
+        add(&mut original.traits[0], label.clone());
+        let copy = original.clone();
+        let worker = std::thread::spawn(move || {
+            let mut fork = copy;
+            add(&mut fork.traits[0], label);
+            assert_eq!(fork.traits[0].rows[0].1, 2);
+        });
+        assert_eq!(original.traits[0].rows[0].1, 1);
+        drop(original);
+        worker.join().unwrap();
     }
 }
