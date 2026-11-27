@@ -488,8 +488,9 @@ final class UsageStore: ObservableObject {
     }
 
     private var storedWeekStartRawValue: Int {
-        guard let value = defaults.object(forKey: "weekStart") else { return WeekStart.monday.rawValue }
-        return (value as? Int) ?? defaults.integer(forKey: "weekStart")
+        defaults.object(forKey: "weekStart") == nil
+            ? WeekStart.monday.rawValue
+            : defaults.integer(forKey: "weekStart")
     }
 
     private func refreshIfScheduled(now: Date = Date()) {
