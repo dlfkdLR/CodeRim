@@ -1748,12 +1748,20 @@ actor SQLiteDatabase {
     private func bind(_ value: String?, at index: Int32, to statement: OpaquePointer) throws {
         let result: Int32
         if let value {
+#if CODERIM_RUST_ACCOUNTING
+            var text = value
+            result = text.withUTF8 { bytes in
+                cr_bind_sqlite_text(UnsafeMutableRawPointer(statement), index, bytes.baseAddress, bytes.count)
+            }
+            if result == -2 { throw SQLiteDatabaseError.statement("text value is not safe to store") }
+#else
             guard !value.contains("\0"), value.utf8.count <= Int(Int32.max) else {
                 throw SQLiteDatabaseError.statement("text value is not safe to store")
             }
             result = value.withCString {
                 sqlite3_bind_text(statement, index, $0, Int32(value.utf8.count), sqliteTransient)
             }
+#endif
         } else {
             result = sqlite3_bind_null(statement, index)
         }

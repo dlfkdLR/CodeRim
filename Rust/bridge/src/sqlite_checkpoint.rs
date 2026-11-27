@@ -1,7 +1,9 @@
 //! Reusable collector reads. Each cursor belongs to one connection and one fixed query.
-use super::apple_sqlite::{SQLITE_DONE, SQLITE_ROW, sqlite3_reset, sqlite3_step};
+use super::apple_sqlite::{
+    SQLITE_DONE, SQLITE_ROW, cr_bind_sqlite_text, sqlite3_reset, sqlite3_step,
+};
 use std::ffi::{c_char, c_int, c_void};
-use std::{ptr, slice};
+use std::ptr;
 
 #[repr(C)]
 pub struct Cursor {
@@ -26,13 +28,6 @@ unsafe extern "C" {
         size: c_int,
         statement: *mut *mut c_void,
         tail: *mut *const c_char,
-    ) -> c_int;
-    fn sqlite3_bind_text(
-        stmt: *mut c_void,
-        index: c_int,
-        text: *const c_char,
-        length: c_int,
-        destructor: *const c_void,
     ) -> c_int;
     fn sqlite3_file_control(
         db: *mut c_void,
@@ -115,32 +110,10 @@ unsafe fn begin(
     {
         return -1;
     }
-    let Ok(length) = i32::try_from(length) else {
-        return -2;
-    };
-    let bytes = if length == 0 {
-        &[][..]
-    } else if text.is_null() {
-        return -2;
-    } else {
-        unsafe { slice::from_raw_parts(text, length as usize) }
-    };
-    if memchr::memchr(0, bytes).is_some() {
-        return -2;
-    }
-    // SQLITE_TRANSIENT copies the key. Swift may release its UTF-8 buffer on
-    // return while it still reads this statement's SQLite-owned result columns.
-    if unsafe {
-        sqlite3_bind_text(
-            cursor.statement,
-            1,
-            bytes.as_ptr().cast(),
-            length,
-            usize::MAX as *const c_void,
-        )
-    } != 0
-    {
-        return -3;
+    match unsafe { cr_bind_sqlite_text(cursor.statement, 1, text, length) } {
+        0 => {}
+        -2 => return -2,
+        _ => return -3,
     }
     match unsafe { sqlite3_step(cursor.statement) } {
         SQLITE_ROW => SQLITE_ROW,

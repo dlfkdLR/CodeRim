@@ -12,4 +12,7 @@ int32_t cr_begin_source_checkpoint(void *db, cr_source_checkpoint_cursor *cursor
 // the finish operation and status codes, and never share a retained statement.
 int32_t cr_begin_session_counter(void *db, cr_source_checkpoint_cursor *cursor, const uint8_t *text, size_t length);
 void cr_finish_source_checkpoint(cr_source_checkpoint_cursor *cursor, int32_t status);
+// Non-NULL UTF-8 input. SQLite takes a copy; empty text is distinct from SQL NULL.
+// A negative result means unsafe text; all other results are SQLite status codes.
+int32_t cr_bind_sqlite_text(void *statement, int32_t index, const uint8_t *text, size_t length);
 #endif
