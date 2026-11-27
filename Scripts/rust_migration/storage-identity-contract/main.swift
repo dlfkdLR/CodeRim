@@ -39,3 +39,33 @@ if CommandLine.arguments.contains("--benchmark") {
         print(UsageStorageIdentity.project("/tmp/합성/../sample", keyData: bytes)?.id ?? "-")
     }
 }
+
+if !CommandLine.arguments.contains("--benchmark") {
+    // Compare complete import identities and checkpoint ancestry through the production parser.
+    for filename in ["session.jsonl", "agent-worker.jsonl", "agent-K.jsonl", "agent-e\u{0301}.jsonl"] {
+        for cutoff in [nil, Date(timeIntervalSince1970: 1_793_491_200)] as [Date?] {
+            var importer = SourceImportSession(
+                checkpoint: .fresh(sourcePath: "fixture", fileIdentity: "1:2"), state: .empty,
+                provider: .claude, sourceURL: URL(fileURLWithPath: "/tmp/fixture/" + filename),
+                importCutoff: cutoff, projectKey: Data(repeating: 7, count: 32), loadState: { _ in .empty })
+            let agents: [String?] = [nil, "K", "agent-K", "", "bad!", "agent-worker", nil, "a.b_C-0"]
+            for n in 0..<47 {
+                var row: [String: Any] = [
+                    "type": "assistant", "timestamp": n.isMultiple(of: 3) ? "2026-10-31T23:59:59Z" : "2026-11-01T00:00:01Z",
+                    "sessionId": n.isMultiple(of: 7) ? "other" : "stored-session",
+                    "message": ["role": "assistant", "model": "claude-synthetic", "id": "msg_\(n % 13)",
+                                "usage": ["input_tokens": n + 1, "output_tokens": 3]]
+                ]
+                row["agentId"] = agents[n % agents.count]
+                let data = try JSONSerialization.data(withJSONObject: row, options: [.sortedKeys])
+                try await importer.consume(data, position: Int64(n))
+                print(importer.checkpoint.sessionID ?? "-", importer.checkpoint.parentSessionID ?? "-",
+                      importer.pendingEvents.count, importer.excludedEventKeys.sorted().joined(separator: ","))
+            }
+            for row in importer.pendingEvents {
+                print(row.eventKey, row.sessionID ?? "-", row.importParentSessionID ?? "-",
+                      row.sourcePosition, row.usage.inputTokens, row.usage.outputTokens)
+            }
+        }
+    }
+}
