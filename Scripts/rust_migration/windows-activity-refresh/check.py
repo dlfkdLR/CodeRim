@@ -13,7 +13,7 @@ import tempfile
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[2]
 PUBLIC = "14c332b30fd35cd266b40a4f9384b4b065b63707"
-PREVIOUS = ("8060a48c", "79c865e2")
+PREVIOUS = ("8060a48c", "79c865e2", "3bc3e990")
 HANDLER = Path("Windows/src/CodeRim.Windows/ViewModels/DashboardStore.cs")
 
 
