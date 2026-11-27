@@ -130,12 +130,10 @@ jobs:
         include:
           - runner: macos-26
             arch: arm64
-            timeout: 20
           - runner: macos-26-intel
             arch: x86_64
-            timeout: 35
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: ${{ matrix.timeout }}
+    timeout-minutes: ${{ matrix.arch == 'x86_64' && 35 || 20 }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Verify native architecture
