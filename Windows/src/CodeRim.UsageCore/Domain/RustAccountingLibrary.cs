@@ -47,7 +47,12 @@ internal static class RustAccountingLibrary
             handle = NativeLibrary.Load(path);
         }
 
-        RustAccountingLoadState.IsLoaded = true;
+        if (!RustAccountingLoadState.IsLoaded)
+        {
+            // Core can query this marker before loading the usage assembly on an update-only launch.
+            AppContext.SetData(RustAccountingLoadState.AppContextKey, true);
+            RustAccountingLoadState.IsLoaded = true;
+        }
         return handle;
     }
 
@@ -59,5 +64,6 @@ internal static class RustAccountingLibrary
 // Read by the activity timer without initializing the resolver or loading a library.
 internal static class RustAccountingLoadState
 {
+    internal const string AppContextKey = "CodeRim.UsageCore.RustAccountingLibrary.Loaded";
     internal static volatile bool IsLoaded;
 }

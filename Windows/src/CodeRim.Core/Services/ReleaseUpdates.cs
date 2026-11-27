@@ -83,7 +83,7 @@ public static class ReleaseUpdates
 #if CODERIM_RUST_ACCOUNTING
         // A startup update can finish before the WPF usage or session tree has loaded accounting.
         // Keep that cold request from incurring the library load on the update path.
-        if (CodeRim.Core.Domain.RustAccountingLoadState.IsLoaded)
+        if (AppContext.GetData(CodeRim.Core.Domain.RustAccountingLoadState.AppContextKey) is true)
         {
             var count = ReadProjectedPage(bytes, architecture, preferInstaller, versions, ref selected, token);
             if (count >= 0) return count;
