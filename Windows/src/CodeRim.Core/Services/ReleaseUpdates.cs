@@ -68,34 +68,85 @@ public static class ReleaseUpdates
             var bytes = await ReadMetadataAsync(response.Content, remaining, deadline.Token).ConfigureAwait(false);
             deadline.Token.ThrowIfCancellationRequested();
             remaining -= bytes.Length;
-            string json;
-            try { json = new UTF8Encoding(false, true).GetString(bytes); }
-            catch (DecoderFallbackException error) { throw new InvalidDataException("Release metadata is not valid UTF-8.", error); }
-            using var document = JsonDocument.Parse(json);
+            var count = ReadPage(bytes, architecture, preferInstaller, versions, ref selected, deadline.Token);
             deadline.Token.ThrowIfCancellationRequested();
-            var releases = document.RootElement;
-            if (releases.ValueKind != JsonValueKind.Array || releases.GetArrayLength() > ReleasePageSize)
-                throw new InvalidDataException("The release list is invalid.");
-            foreach (var release in releases.EnumerateArray())
-            {
-                deadline.Token.ThrowIfCancellationRequested();
-                UniqueObject(release);
-                if (!release.TryGetProperty("draft", out var draft) || draft.ValueKind is not (JsonValueKind.True or JsonValueKind.False)
-                    || !release.TryGetProperty("prerelease", out var prerelease) || prerelease.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
-                    throw new InvalidDataException("The release channel is invalid.");
-                if (draft.GetBoolean() || prerelease.GetBoolean()) continue;
-                if (!HasWindowsPackage(release, architecture, preferInstaller)) continue;
-                // A matching Windows release must validate fully. Never hide corrupt newer metadata by trying an older release.
-                var update = ParseRelease(release, architecture, Version.Parse(CurrentVersion), preferInstaller);
-                if (!versions.Add(update.Version)) throw new InvalidDataException("The Windows release version is ambiguous.");
-                if (selected is null || update.Version > selected.Version) selected = update;
-            }
-            deadline.Token.ThrowIfCancellationRequested();
-            if (releases.GetArrayLength() < ReleasePageSize)
+            if (count < ReleasePageSize)
                 return selected ?? throw new InvalidDataException("No matching Windows package is available.");
         }
         // A bounded search cannot claim that its best candidate is the latest when more releases may remain.
         throw new InvalidDataException("The Windows release search limit was reached. Use the releases page.");
+    }
+
+    private static int ReadPage(byte[] bytes, string architecture, bool preferInstaller, HashSet<Version> versions,
+        ref AvailableUpdate? selected, CancellationToken token)
+    {
+#if CODERIM_RUST_ACCOUNTING
+        // A small fixed-size managed array keeps the default WPF JIT on its quick first-call tier.
+        // The earlier stack allocation forced an optimized compilation of the entire page reader.
+        var rows = new RustReleasePage.Row[ReleasePageSize];
+        var count = RustReleasePage.Project(bytes, architecture, preferInstaller, rows);
+        if (count >= 0)
+        {
+            token.ThrowIfCancellationRequested();
+            for (var i = 0; i < count; i++)
+            {
+                token.ThrowIfCancellationRequested();
+                ref readonly var row = ref rows[i];
+                if (row.UrlStart != 0) Consider(ProjectedUpdate(bytes, architecture, in row), versions, ref selected);
+            }
+            return count;
+        }
+#endif
+        return ReadManagedPage(bytes, architecture, preferInstaller, versions, ref selected, token);
+    }
+
+#if CODERIM_RUST_ACCOUNTING
+    private static AvailableUpdate ProjectedUpdate(byte[] bytes, string architecture, in RustReleasePage.Row row)
+    {
+        var version = new Version(row.Major, row.Minor, row.Build);
+        var text = version.ToString(3);
+        var installer = row.Installer != 0;
+        var filename = "CodeRim-Windows-" + text + "-" + architecture + (installer ? "-Setup.msi" : ".zip");
+        var expected = CheckDownloadUrl("v" + text, filename, Encoding.UTF8.GetString(bytes, row.UrlStart, row.UrlLength));
+        CheckSize(row.Size);
+        var hash = row.DigestStart == 0 ? null : CheckDigest(Encoding.UTF8.GetString(bytes, row.DigestStart, row.DigestLength));
+        return CreateUpdate(expected, version, Version.Parse(CurrentVersion), architecture, installer,
+            row.ReleaseId == 0 ? null : row.ReleaseId, row.AssetId == 0 ? null : row.AssetId, row.Size == 0 ? null : row.Size, hash);
+    }
+#endif
+
+    private static int ReadManagedPage(byte[] bytes, string architecture, bool preferInstaller, HashSet<Version> versions,
+        ref AvailableUpdate? selected, CancellationToken token)
+    {
+        string json;
+        try { json = new UTF8Encoding(false, true).GetString(bytes); }
+        catch (DecoderFallbackException error) { throw new InvalidDataException("Release metadata is not valid UTF-8.", error); }
+        using var document = JsonDocument.Parse(json);
+        token.ThrowIfCancellationRequested();
+        var releases = document.RootElement;
+        if (releases.ValueKind != JsonValueKind.Array || releases.GetArrayLength() > ReleasePageSize)
+            throw new InvalidDataException("The release list is invalid.");
+        foreach (var release in releases.EnumerateArray())
+        {
+            token.ThrowIfCancellationRequested();
+            UniqueObject(release);
+            if (!release.TryGetProperty("draft", out var draft) || draft.ValueKind is not (JsonValueKind.True or JsonValueKind.False)
+                || !release.TryGetProperty("prerelease", out var prerelease) || prerelease.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                throw new InvalidDataException("The release channel is invalid.");
+            if (draft.GetBoolean() || prerelease.GetBoolean()) continue;
+            if (!HasWindowsPackage(release, architecture, preferInstaller)) continue;
+            // A matching Windows release must validate fully. Never hide corrupt newer metadata by trying an older release.
+            var update = ParseRelease(release, architecture, Version.Parse(CurrentVersion), preferInstaller);
+            Consider(update, versions, ref selected);
+        }
+        token.ThrowIfCancellationRequested();
+        return releases.GetArrayLength();
+    }
+
+    private static void Consider(AvailableUpdate update, HashSet<Version> versions, ref AvailableUpdate? selected)
+    {
+        if (!versions.Add(update.Version)) throw new InvalidDataException("The Windows release version is ambiguous.");
+        if (selected is null || update.Version > selected.Version) selected = update;
     }
 
     private static async Task<byte[]> ReadMetadataAsync(HttpContent content, int remaining, CancellationToken token)
@@ -160,24 +211,42 @@ public static class ReleaseUpdates
             matching = asset;
         }
         if (matching is not { } selected) throw new InvalidDataException("No matching Windows package is available.");
-        var expected = Repository + "/releases/download/" + tag + "/" + fileName;
-        if (Text(selected, "browser_download_url") != expected)
-            throw new InvalidDataException("The download is outside the release repository.");
+        var expected = CheckDownloadUrl(tag, fileName, Text(selected, "browser_download_url"));
         if (selected.TryGetProperty("state", out var state) && (state.ValueKind != JsonValueKind.String || state.GetString() != "uploaded"))
             throw new InvalidDataException("The Windows package is not ready.");
         var releaseId = OptionalPositiveInteger(root, "id");
         var assetId = OptionalPositiveInteger(selected, "id");
         var size = OptionalPositiveInteger(selected, "size");
-        if (size > ReleasePackageDownload.MaximumPackageBytes) throw new InvalidDataException("The Windows package is too large.");
+        CheckSize(size);
         string? hash = null;
         if (selected.TryGetProperty("digest", out var digest) && digest.ValueKind != JsonValueKind.Null)
-        {
-            var value = digest.ValueKind == JsonValueKind.String ? digest.GetString() : null;
-            if (value is not { Length: 71 } || !value.StartsWith("sha256:", StringComparison.Ordinal)
-                || value.AsSpan(7).ContainsAnyExcept(HexCharacters))
-                throw new InvalidDataException("The release digest is invalid.");
-            hash = value[7..].ToLowerInvariant();
-        }
+            hash = CheckDigest(digest.ValueKind == JsonValueKind.String ? digest.GetString() : null);
+        return CreateUpdate(expected, version, current, architecture, isInstaller, releaseId, assetId, size, hash);
+    }
+
+    private static string CheckDownloadUrl(string tag, string fileName, string? actual)
+    {
+        var expected = Repository + "/releases/download/" + tag + "/" + fileName;
+        if (actual != expected) throw new InvalidDataException("The download is outside the release repository.");
+        return expected;
+    }
+
+    private static void CheckSize(long? size)
+    {
+        if (size > ReleasePackageDownload.MaximumPackageBytes) throw new InvalidDataException("The Windows package is too large.");
+    }
+
+    private static string CheckDigest(string? value)
+    {
+        if (value is not { Length: 71 } || !value.StartsWith("sha256:", StringComparison.Ordinal)
+            || value.AsSpan(7).ContainsAnyExcept(HexCharacters))
+            throw new InvalidDataException("The release digest is invalid.");
+        return value[7..].ToLowerInvariant();
+    }
+
+    private static AvailableUpdate CreateUpdate(string expected, Version version, Version current, string architecture,
+        bool isInstaller, long? releaseId, long? assetId, long? size, string? hash)
+    {
         var download = new Uri(expected);
         // Older GitHub assets can lack a digest. Do not break their existing manual update flow.
         var package = releaseId is { } rid && assetId is { } aid && size is { } bytes && hash is not null
