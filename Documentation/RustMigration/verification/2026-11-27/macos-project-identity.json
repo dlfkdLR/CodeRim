@@ -1,0 +1,440 @@
+{
+  "scope": "In actual macOS Codex/Claude project display and storage, Foundation resolves each working directory on every request. The already-standardized URL gives the display name. Rust borrows the standardized UTF-8 path and CodeRim database-owned salt and computes the original CodexMeter.project.v1| HMAC-SHA256; unsupported lengths use the original CryptoKit formatter. No path cache.",
+  "product": "cebf658118e7d0161c5b4ee5ea336999f7e0f697",
+  "qa": "5fe2962d1edded042b65674c2cff229cb9836f30",
+  "previous": "7440a5333d896ca9d1bf742f20bc88ea0e6c279f",
+  "release": "14c332b30fd35cd266b40a4f9384b4b065b63707",
+  "run": "run-364382c1d7bd4893b8f10e07c4b34572",
+  "packetDigest": "c852eb0db42cffefb056090a3dfa7572d84aa949fe581415090e2c64e23a0795",
+  "archiveSha256": "fab1526fe4afe90a7994d3668ab97843157b0fd84f503e9fb7892edeacb1f687",
+  "directRustUnitTests": 71,
+  "independentSha256": "9298cc2dc4a7175c64ee98709776917b031f7337818d01c206af908c8d364078",
+  "formalGate": {
+    "run_id": "run-364382c1d7bd4893b8f10e07c4b34572",
+    "decision": "INCONCLUSIVE",
+    "candidate_hash": "2174e5f98ac45715bc085ce0cc06df25a1233df540f64adfe8725df830cf7b32",
+    "gate_order": [
+      "SECURITY",
+      "FACTUAL",
+      "CONTENT",
+      "FUNCTIONAL",
+      "ACCESSIBILITY",
+      "RESPONSIVE",
+      "VISUAL_UX",
+      "CODE_QUALITY",
+      "PERFORMANCE"
+    ],
+    "blockers": [],
+    "missing_evidence": [
+      "baseline not passing",
+      "candidate check unavailable",
+      "independent code review missing/stale"
+    ],
+    "improved": false,
+    "regression_ready": false,
+    "dimensions": {},
+    "time": "2026-11-27T01:18:04.450581+00:00"
+  },
+  "platforms": {
+    "arm64": {
+      "publishedContract": "arm64: 3806 persisted identities matched (6739f6dcecdf0b5f67521281dc5966dd0fab3317b8d82910b7464be00477e980).",
+      "nativeAbi": {
+        "cases": 576,
+        "valid": 484,
+        "additionalMalformed": 4,
+        "sha256": "f72dec8d3faec5bd4b8997046a5ed153eb8a33aecdea9563b376c9a4cb21c909"
+      },
+      "changingFilesystem": {
+        "release": {
+          "rows": 10032,
+          "sha256": "ca936145a4407df3ab5a356362bc19e4153d7ea53a78f807d391a21f7ac11a56",
+          "distinct": 741
+        },
+        "previous": {
+          "rows": 10032,
+          "sha256": "ca936145a4407df3ab5a356362bc19e4153d7ea53a78f807d391a21f7ac11a56",
+          "distinct": 741
+        },
+        "candidate": {
+          "rows": 10032,
+          "sha256": "ca936145a4407df3ab5a356362bc19e4153d7ea53a78f807d391a21f7ac11a56",
+          "distinct": 741
+        },
+        "optionalSwift": {
+          "rows": 10032,
+          "sha256": "ca936145a4407df3ab5a356362bc19e4153d7ea53a78f807d391a21f7ac11a56",
+          "distinct": 741
+        }
+      },
+      "realClaudeExistingDatabase": {
+        "pairs": 7,
+        "stepsPerPair": 6,
+        "counts": {
+          "analytics_backfill_sources": 0,
+          "app_metadata": 2,
+          "claude_message_exclusions": 3,
+          "parsing_state": 4,
+          "partial_evidence": 0,
+          "session_counters": 0,
+          "session_metadata": 4,
+          "usage_events": 38
+        }
+      },
+      "restoredCodexAndClaude": {
+        "codex": {
+          "reopenAndRestorePairs": 7,
+          "refreshesPerPair": 5,
+          "walBackupAndIntegrityChecksPerPair": 1,
+          "restoredProjectHashes": [
+            "10bbf488e923d66db2fd42d736aecd9914e9de1b621fb3f3ede8e36225a3c1d8",
+            "aa453b0359d4836902152290191ae13c2bab5986129bbdbb3fac88e483e77463",
+            "10bbf488e923d66db2fd42d736aecd9914e9de1b621fb3f3ede8e36225a3c1d8"
+          ],
+          "endResult": [
+            "3",
+            "60",
+            "15",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ]
+        },
+        "claude": {
+          "reopenAndRestorePairs": 7,
+          "refreshesPerPair": 5,
+          "walBackupAndIntegrityChecksPerPair": 1,
+          "restoredProjectHashes": [
+            "10bbf488e923d66db2fd42d736aecd9914e9de1b621fb3f3ede8e36225a3c1d8",
+            "aa453b0359d4836902152290191ae13c2bab5986129bbdbb3fac88e483e77463",
+            "10bbf488e923d66db2fd42d736aecd9914e9de1b621fb3f3ede8e36225a3c1d8"
+          ],
+          "endResult": [
+            "3",
+            "60",
+            "15",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ]
+        }
+      },
+      "wholeCollectorFreshAndReopenedMedianCpuMs": {
+        "1-cwd": {
+          "previous": {
+            "fresh": 3.916,
+            "reopened": 2.914
+          },
+          "candidate": {
+            "fresh": 3.873,
+            "reopened": 2.788
+          }
+        },
+        "128-cwd": {
+          "previous": {
+            "fresh": 8.248,
+            "reopened": 3.053
+          },
+          "candidate": {
+            "fresh": 7.535,
+            "reopened": 2.839
+          }
+        },
+        "4096-cwd": {
+          "previous": {
+            "fresh": 141.573,
+            "reopened": 3.662
+          },
+          "candidate": {
+            "fresh": 125.31,
+            "reopened": 3.714
+          }
+        },
+        "4096-mixedcwd": {
+          "previous": {
+            "fresh": 216.985,
+            "reopened": 4.062
+          },
+          "candidate": {
+            "fresh": 187.192,
+            "reopened": 3.77
+          }
+        },
+        "4096-parent": {
+          "previous": {
+            "fresh": 77.394,
+            "reopened": 3.361
+          },
+          "candidate": {
+            "fresh": 75.241,
+            "reopened": 3.321
+          }
+        }
+      }
+    },
+    "x86_64": {
+      "publishedContract": "x86_64: 3806 persisted identities matched (6739f6dcecdf0b5f67521281dc5966dd0fab3317b8d82910b7464be00477e980).",
+      "nativeAbi": {
+        "cases": 576,
+        "valid": 484,
+        "additionalMalformed": 4,
+        "sha256": "f72dec8d3faec5bd4b8997046a5ed153eb8a33aecdea9563b376c9a4cb21c909"
+      },
+      "changingFilesystem": {
+        "release": {
+          "rows": 10032,
+          "sha256": "ca936145a4407df3ab5a356362bc19e4153d7ea53a78f807d391a21f7ac11a56",
+          "distinct": 741
+        },
+        "previous": {
+          "rows": 10032,
+          "sha256": "ca936145a4407df3ab5a356362bc19e4153d7ea53a78f807d391a21f7ac11a56",
+          "distinct": 741
+        },
+        "candidate": {
+          "rows": 10032,
+          "sha256": "ca936145a4407df3ab5a356362bc19e4153d7ea53a78f807d391a21f7ac11a56",
+          "distinct": 741
+        },
+        "optionalSwift": {
+          "rows": 10032,
+          "sha256": "ca936145a4407df3ab5a356362bc19e4153d7ea53a78f807d391a21f7ac11a56",
+          "distinct": 741
+        }
+      },
+      "realClaudeExistingDatabase": {
+        "pairs": 7,
+        "stepsPerPair": 6,
+        "counts": {
+          "analytics_backfill_sources": 0,
+          "app_metadata": 2,
+          "claude_message_exclusions": 3,
+          "parsing_state": 4,
+          "partial_evidence": 0,
+          "session_counters": 0,
+          "session_metadata": 4,
+          "usage_events": 38
+        }
+      },
+      "restoredCodexAndClaude": {
+        "codex": {
+          "reopenAndRestorePairs": 7,
+          "refreshesPerPair": 5,
+          "walBackupAndIntegrityChecksPerPair": 1,
+          "restoredProjectHashes": [
+            "10bbf488e923d66db2fd42d736aecd9914e9de1b621fb3f3ede8e36225a3c1d8",
+            "aa453b0359d4836902152290191ae13c2bab5986129bbdbb3fac88e483e77463",
+            "10bbf488e923d66db2fd42d736aecd9914e9de1b621fb3f3ede8e36225a3c1d8"
+          ],
+          "endResult": [
+            "3",
+            "60",
+            "15",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ]
+        },
+        "claude": {
+          "reopenAndRestorePairs": 7,
+          "refreshesPerPair": 5,
+          "walBackupAndIntegrityChecksPerPair": 1,
+          "restoredProjectHashes": [
+            "10bbf488e923d66db2fd42d736aecd9914e9de1b621fb3f3ede8e36225a3c1d8",
+            "aa453b0359d4836902152290191ae13c2bab5986129bbdbb3fac88e483e77463",
+            "10bbf488e923d66db2fd42d736aecd9914e9de1b621fb3f3ede8e36225a3c1d8"
+          ],
+          "endResult": [
+            "3",
+            "60",
+            "15",
+            "0",
+            "exact",
+            "false",
+            "false"
+          ]
+        }
+      },
+      "wholeCollectorFreshAndReopenedMedianCpuMs": {
+        "1-cwd": {
+          "previous": {
+            "fresh": 7.377,
+            "reopened": 5.496
+          },
+          "candidate": {
+            "fresh": 7.149,
+            "reopened": 5.448
+          }
+        },
+        "128-cwd": {
+          "previous": {
+            "fresh": 13.443,
+            "reopened": 5.019
+          },
+          "candidate": {
+            "fresh": 12.913,
+            "reopened": 5.38
+          }
+        },
+        "4096-cwd": {
+          "previous": {
+            "fresh": 220.291,
+            "reopened": 6.783
+          },
+          "candidate": {
+            "fresh": 197.879,
+            "reopened": 6.942
+          }
+        },
+        "4096-mixedcwd": {
+          "previous": {
+            "fresh": 352.246,
+            "reopened": 7.932
+          },
+          "candidate": {
+            "fresh": 327.981,
+            "reopened": 7.588
+          }
+        },
+        "4096-parent": {
+          "previous": {
+            "fresh": 171.646,
+            "reopened": 9.095
+          },
+          "candidate": {
+            "fresh": 147.282,
+            "reopened": 7.439
+          }
+        }
+      }
+    }
+  },
+  "limitations": [
+    "Apple Silicon native and x86_64 under Rosetta. Synthetic owned data only. No live user profile, cloud service, Windows or iOS was exercised.",
+    "Actual collector refresh CPU timings are nine interleaved new-process pairs. The restored database comparisons include all persistent columns except the real-time updated_at operation timestamps; WAL backup uses the SQLite backup API with the associated synthetic fingerprint-key sidecar.",
+    "The no-CWD control does not execute the new HMAC code. Its timing has run-to-run noise. Small inputs and reopen are separately recorded.",
+    "No interactive operator attestation for the independent context, and no configured test command inside the development harness. Its decision is separate from the direct product and independent measurements."
+  ],
+  "sourceEvidenceSha256": {
+    "contract.json": "d186287583f834ef82d7c05ddd03dffa7a081289797e7e2a6155843f2e6f1d00",
+    "candidate.patch": "f335caf8e0e0d95211ea4ea21458cb9cf08cb492c2df94a8f20563b66d41f168",
+    "packet.json": "90e1112c63d22a8212fecd895e7480489bfbe3b087121c6c0bc284e80dafc824",
+    "independent.json": "9298cc2dc4a7175c64ee98709776917b031f7337818d01c206af908c8d364078",
+    "gate.json": "bce7e57d3ba4d220c5633c342f24ac03ebe22af41695f2d7b7dd85d1c26e6d1e",
+    "summary.json": "22d3e0ab37964080aacde513e7605182173c70a772d7077d787aafc12f9ad835",
+    "import.json": "a2a26c1b671ee7a8a5af4a4a89439c601e877bfa3b618e426fdc42e8c2dc42be",
+    "abi.c": "60950cfcbcdd77c07a123c7556596292841e52059b9cf46a8feb9354f1ce7365",
+    "abi.py": "e8e0983f0f4ccf36af26460dc1221a4d2ebb8b252ae459b3303a1571f9c7ec20",
+    "abi.json": "c8b1e894194a4c8d782d608b1852820a0626872339f67390490940f08dded0df",
+    "env-check.py": "d06df4ef04f794ae04a22d102cc24dcd840b721d5ec325eadde0e0ae8acc1ba9",
+    "filesystem.json": "861fe9f2b545354aeff3605ebfbb15c63a3da01a6703fbdaed01e0822ee758d0",
+    "full-product.py": "395a37125876ee58a8ffef62fd4ea0226140284379cad708d3180000dabc6e26",
+    "restore.py": "5d8d91dee69b4c6c6582b5231409fd8a02dbc91260ae0db9d0ba95c7ab47f99f",
+    "restore-build-one.py": "ec3040af78976ea16a8ccf57c07cd363eb6dcea349c6c1b456d6392c6eb54841",
+    "collector/main.swift": "90c6ca2ad87d0b74629030ee9c9968d588cbc3d2c5a54e30f709cfc362572134",
+    "collector/compare.py": "37b8914e2aef5d4b150da054098e6b718cd2a9bb7b8e081fc99f49773b7b3607",
+    "collector/perf.py": "7aca92894f665131591d296a116418c4842ad3971472f23d525232ee0b7dcd1d",
+    "unit.log": "904331d59365bd766d7eebab5fe3e0eaf895427a256b48d031e29f020f79ce55",
+    "arm64-final-contract.log": "bec46c40c5fdcd9c55afc8136c1a6bc81b05639a9eae3edf567bcfab439501ca",
+    "x86_64-final-contract.log": "6f290d4218b5649b6728e8a78297282c6dd23ca834799ed19508a234037067c1",
+    "arm64-collector-compat.json": "7666482faca4d0ee928cb298f5453da34e0c0f79732219a4b857d99ea54d9710",
+    "x86_64-collector-compat.json": "48ae9b741fd30c16b48b9d9e0fc7b4569262ee2c81e326a5fdc35d7eb57a90e7",
+    "arm64-collector-timing.json": "22fadbef9acff106534f362e4db7c913144ce36bd5fe3cc36ca548998c19893e",
+    "x86_64-collector-timing.json": "fefb840334f225221aa2e0c23b065bce166706a754eba426a0ba646b54e00b76",
+    "arm64-both-provider-restores.json": "2503c61f33c7ebe5a9a3120aa55ef0fd98ddd65653c5139483b11073b8f60e3f",
+    "x86_64-both-provider-restores.json": "1678407b9121a5bb5b9a80d7db071b21693eb116a21342bbb84ec322cbd18185"
+  },
+  "independentReview": {
+    "run_id": "run-364382c1d7bd4893b8f10e07c4b34572",
+    "packet_digest": "c852eb0db42cffefb056090a3dfa7572d84aa949fe581415090e2c64e23a0795",
+    "reviewer_id": "root-project-identity",
+    "product": "cebf658118e7d0161c5b4ee5ea336999f7e0f697",
+    "directComparison": {
+      "arm64": {
+        "inputsCompared": 1210,
+        "fallbackHmacComparisons": 185,
+        "pathsAndIdsSha256": "45f668165a7a762bdb8d5209b0d0d49fdfe4a79ac5397d4aae67045c587fad86",
+        "filesystemPhases": 5
+      },
+      "x86_64": {
+        "inputsCompared": 1210,
+        "fallbackHmacComparisons": 185,
+        "pathsAndIdsSha256": "dd07a751990fef77cf8f5e11c4852150d6e989d7eb308cd2af407b0a5d4e8d6c",
+        "filesystemPhases": 5
+      }
+    },
+    "sourceSha256": {
+      "Rust/bridge/src/storage_identity.rs": "8199359cd304cf10aa1d3f23fa72e11c9a14526d0e0120df808ddf85d86ac6da",
+      "Rust/bridge/include/coderim_storage_identity.h": "4fd870433c3c0c182fcf34068998f9435f557ec617510ea884b237a142bf6547",
+      "Sources/CodeRim/Sources/UsageStorageIdentity.swift": "72794186740591dbd01da7b59d9d69d9ab395a8966a9d559756930fb635b2b36"
+    },
+    "driverSha256": {
+      "main.swift": "90bbe08ef79edac6140e89f38c541de23071652ade197b45648be2606684ef39",
+      "verify.py": "2bcdcc435bb36385d43345554526badcf8d62afcea444258204108c24992780c"
+    },
+    "dimensions": {
+      "functionality": {
+        "winner": "TIE",
+        "reason": "Published, preceding, candidate and pure Swift output agree on 1,210 inputs per ISA. Five phases changed current directory and symlink targets between an existing directory, regular file, absent destination and absent link.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Sources/UsageStorageIdentity.swift"
+        ]
+      },
+      "facts": {
+        "winner": "TIE",
+        "reason": "The independent reference uses the released two-URL basename. A Python HMAC over exact Foundation path bytes reproduces each returned ID, including 185 fallback calls per ISA.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Sources/UsageStorageIdentity.swift"
+        ]
+      },
+      "security": {
+        "winner": "TIE",
+        "reason": "CodeRim-owned key bytes and normalized paths remain borrowed for the duration of the bounded CCHmac call. Empty keys, 4095/4096/4097-byte keys, long normalized paths and NUL inputs were tested without user data.",
+        "evidence": [
+          "candidate/Rust/bridge/src/storage_identity.rs"
+        ]
+      },
+      "scope": {
+        "winner": "TIE",
+        "reason": "The packet only changes host project-path derivation, its C declaration and the Rust implementation.",
+        "evidence": [
+          "candidate/Rust/bridge/include/coderim_storage_identity.h"
+        ]
+      },
+      "maintainability": {
+        "winner": "TIE",
+        "reason": "Both host and Rust document the persisted namespace. Foundation remains responsible for file URL semantics, including the working directory.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Sources/UsageStorageIdentity.swift"
+        ]
+      },
+      "performance": {
+        "winner": "A",
+        "reason": "The prior and candidate full-collector timing receipts exercise SQLite and name resolution. Both measured platforms improve on the repeated 4,096-row workload.",
+        "evidence": [
+          "candidate/Sources/CodeRim/Sources/UsageStorageIdentity.swift"
+        ]
+      }
+    },
+    "limits": [
+      "Changes in temporary directory location make the output digest path-specific across architectures. Every comparison within an architecture used exactly the same root.",
+      "Synthetic keys and filesystem only. Native macOS arm64 and Rosetta x86_64."
+    ]
+  },
+  "integration": {
+    "product": "4ef7378ee58b543b38a54a3c5a39c0b02353902a",
+    "qa": "05e16715660461072786eb425f3f1794c408d82e",
+    "sourceReceiptSha256": "b0335a810d8ebc06395901722a92def869d0ad80d804bcc45c154745c861bd5d",
+    "platforms": {
+      "arm64": "arm64: 3806 persisted identities matched (6739f6dcecdf0b5f67521281dc5966dd0fab3317b8d82910b7464be00477e980).",
+      "x86_64": "x86_64: 3806 persisted identities matched (6739f6dcecdf0b5f67521281dc5966dd0fab3317b8d82910b7464be00477e980)."
+    },
+    "rustTests": {
+      "bridge": 75,
+      "usageCore": 5
+    },
+    "reference": "14c332b30fd35cd266b40a4f9384b4b065b63707"
+  }
+}
